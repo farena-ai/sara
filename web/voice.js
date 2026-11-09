@@ -67,7 +67,14 @@ export class Mic {
     this.node.port.onmessage = (e) => {
       const f = e.data;
       if (this.recording) this.chunks.push(f);
-      this.onFrame?.(f, rms(f));
+      const level = rms(f);
+      this.onFrame?.(f, level);
+      // V4b: her orb's waveform follows the open mic (web/orb.js), at most ~30 times a second.
+      const now = Date.now();
+      if (now - (this.levelAt ?? 0) > 33) {
+        this.levelAt = now;
+        globalThis.dispatchEvent?.(new CustomEvent('sara-mic-level', { detail: level }));
+      }
     };
     src.connect(this.node);
   }

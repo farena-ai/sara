@@ -4,6 +4,23 @@ Sara answers you in Telegram and Discord the same way she does in the app (set u
 Chat apps → Telegram / Discord**). Since 2.40.0 those chats have **commands**: a way to start fresh
 when a chat is long or stuck, stop her, and see what she is using, without leaving the chat app.
 
+## Owner-session continuity (in development, unreleased)
+
+The development branch is adding ordered context between your own linked app and chat sessions.
+A later eligible reply can use a previous committed reply and bounded historical context. The
+session_context tool reads eligible history; session_handoff saves an internal context note for a
+later model step. A saved note does not send a message, wake another model, grant permission or
+prove that work was executed or checked.
+
+Current-history edits while an eligible request is waiting stop that request before it reaches
+the provider; refresh the conversation and send again. Private, off-record, other-person, shared
+room, household and business audiences remain separate. Explicit shared roleplay scenes and
+project coordination are later slices. The development candidate now has owner controls in
+Settings → Chat apps → Session continuity and a saved-context inspector in This conversation.
+See [Session continuity](SESSION_CONTINUITY.md) for disable/clear, retention and conflict handling.
+Shared roleplay scenes across your own chats (development, unreleased): [Shared scenes](SCENES.md).
+Complete qualification is pending; this feature is not in the current public or installed private release.
+
 ## The commands
 
 | Command | What it does | Who may use it |
@@ -57,6 +74,8 @@ done…** and **+ → Repeat this…**. The table is generated from the same lis
 | `/compact` | Tidy the older part of this chat into a summary (undo, show) | You, in your own chats |
 | `/tools` | Which tools she has in this chat (all, lean, +name, -name) | You, in your own chats |
 | `/when` | Reminders for when a person or topic comes up (list, add, forget) | You, in your own chats |
+| `/learn` | Learn a topic or a website, with sources (add daily, weekly or monthly to keep it fresh) | You, in your own chats |
+| `/saver` | Token Saver: shorter replies and cheaper calls (on, off, auto) | You, in your own chats |
 | `/continue` | Pick up our chat from your other app here | You, in your own chats |
 | `/btw` | A quick side question while she works (not saved) | You and household members |
 | `/queue` | Queue a message for when she has finished | You and household members |
@@ -358,6 +377,36 @@ can't read it. Her password is used once to log her in and never kept. Commands 
 name first (`Sara new`, because Element eats unknown `/commands`); long jobs get one progress message
 she edits (react ⏹ to stop her); she joins only your invites, and in rooms with other people answers
 when mentioned. Sessions file into the *Matrix* project.
+
+## Slack (unreleased, EC1)
+
+Slack comes with Sara as a plugin (Settings → Chat apps → Slack), off until you add it: see
+[SLACK.md](SLACK.md). You create a small Slack app of your own from a manifest the card shows; it uses
+Socket Mode, so Sara needs no public address. Her DM is your own chat (tools, files both ways, a progress
+message with ⏹); her requests for your OK come as **Allow / Deny** buttons only you can answer. A thread in
+her DM is its own session. In channels you switch on (*Answer here*) she answers mentions in a thread,
+without tools unless *Owners can use her tools in groups* is on. `/sara help`, `/sara new` and the other
+commands work. Sessions file into the *Slack* project.
+
+## Microsoft Teams (unreleased, EC7)
+
+Microsoft Teams comes with Sara as a plugin (Settings → Chat apps → Microsoft Teams), off until you add
+it: see [TEAMS.md](TEAMS.md). You make a free Azure Bot and upload a Teams app package the card builds.
+Teams must reach Sara at a public https address (your domain, or the Tailscale Funnel door or a tunnel;
+the card says which); Sara checks Microsoft's signature on every call. Her personal chat is your own chat
+(tools, files both ways, a progress card with ⏹); her requests for your OK come as an Adaptive Card with
+**Allow / Deny** only you can answer. In channels and group chats you switch on (*Answer here*) she
+answers mentions in their thread, without tools unless *Owners can use her tools in groups* is on.
+Sessions file into the *Teams* project.
+
+## Her at work (unreleased, EC26)
+
+Settings → Her → **At work** turns Slack, Teams and any other chat you tick into work chats: her work
+name and tone, work tools only (research, files in a work workspace, the calendar; commands only when
+you allow them), a separate work memory, and none of the companion side (moods, her diary, romance,
+adult content, role-play, pictures on her own). Work and personal notes never mix unless you copy one
+across on that page. An admin can pin work mode on for a whole business server. See
+[AT_WORK.md](AT_WORK.md).
 
 ## iMessage (2.55.2)
 

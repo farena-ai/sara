@@ -1,4 +1,5 @@
 import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { answerFromChat, fill as fillSaid } from '../device-approval.ts';
 import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Discord bridge. Gateway WebSocket (Node's built-in client) for incoming messages, REST
 // for replies. The owner links their account with a one-time code in a DM; owner DMs go to one
@@ -25,7 +26,7 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { MAX_DOC_BYTES } from '../library/store.ts';
-import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, type IncomingFile, type MediaPort } from './media.ts';
+import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, ownPictureOut, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, type IncomingFile, type MediaPort } from './media.ts';
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import type { TurnExtra } from './telegram.ts';
@@ -791,6 +792,10 @@ export class DiscordBridge {
       if (!this.#botMayCall(msg, cfg)) return;
     } else if (!isDm) this.#personSpoke(msg.channel_id);
     const text = msg.content.trim();
+    // C15: "approve K7Q2M" / "deny K7Q2M" from the verified owner, in a DM only.
+    const guildId = msg.guild_id;
+    const approvalSaid = !isBot && !guildId && isDiscordOwner(cfg, msg.author.id) ? answerFromChat(this.#app.deviceApprovals, text, 'discord') : undefined;
+    if (approvalSaid) return void (await this.send(msg.channel_id, fillSaid(approvalSaid, (t) => this.#tr(t))));
     const link = text.match(/^[/!]link\s+(\d{6})$/);
     if (isDm && link) {
       if (this.#link && this.#link.code === link[1] && Date.now() < this.#link.expires) {
@@ -1208,6 +1213,25 @@ export class DiscordBridge {
     await this.#sendUpload(dm, form);
   }
 
+  /** E4: linked to the owner (his user id) and connected; notes go to his DMs, never a server channel. */
+  ownerLinked(): boolean {
+    return Boolean(this.#me) && !this.#stopped && Boolean(discordSettings(this.#app).ownerUserId);
+  }
+
+  /** E4: a short note to the owner's own DMs only (watch alerts he turned on). */
+  async toOwner(text: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      const dm = await this.#ownerDm();
+      if (!dm) return false;
+      await this.send(dm, text);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
   async #ownerDm(): Promise<string | undefined> {
     const owner = discordSettings(this.#app).ownerUserId;
     if (!owner) return undefined;
@@ -1226,6 +1250,14 @@ export class DiscordBridge {
     if (conv?.partner) return;
     // Her DMs with an owner and owner work channels get their own reminders back where they were set.
     const isOwnerConv = conv?.channel === 'discord' || Boolean(conv?.channel.startsWith('discord-work'));
+    // MNT2: her own pictures go as a picture when the owner chose it (even with mirroring off).
+    const pic = !isOwnerConv && !conv?.private ? ownPictureOut(this.#app, ev.message) : undefined;
+    if (pic === 'skip') return;
+    if (pic) {
+      const dm = await this.#ownerDm().catch(() => undefined);
+      if (dm) await this.#mediaPort(dm).sendPhotos(pic.files, pic.caption.length <= 1900 ? pic.caption : undefined).catch((err: Error) => (this.#error = err.message));
+      return;
+    }
     if (!isOwnerConv && !cfg.mirror) return;
     const ch = isOwnerConv ? conv!.channelKey! : await this.#ownerDm().catch(() => undefined);
     if (ch) await this.send(ch, ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content).catch((err: Error) => (this.#error = err.message));

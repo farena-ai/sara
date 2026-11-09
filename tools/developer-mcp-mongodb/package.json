@@ -1,0 +1,9 @@
+{
+  "name": "sara-mongodb-local-qualification",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "dependencies": {"mongodb-mcp-server": "3.2.2", "mongodb": "6.21.0"},
+  "overrides": {"basic-ftp": "6.2.6"}
+}

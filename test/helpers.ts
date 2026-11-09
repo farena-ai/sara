@@ -22,6 +22,7 @@ import { EventHub } from '../src/events.ts';
 import { InnerStore } from '../src/inner.ts';
 import { LifeStore } from '../src/life.ts';
 import { mentionToolDeps } from '../src/mentions.ts';
+import { acceptWebSocket } from '../src/ws.ts';
 
 export const ROOT = resolve(import.meta.dirname, '..');
 
@@ -177,4 +178,59 @@ function makeTreeWritable(dir: string): void {
   } catch {
     /* best effort */
   }
+}
+
+// A 1×1 PNG.
+export const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+
+/**
+ * A fake browser (Phase 49; shared since E3): answers DevTools commands and records them. `checks`
+ * queues the results of the next browser_check calls (then the default: one pass, one overflow fail).
+ */
+export async function fakeCdp(o: { checks?: { ok: boolean; detail?: string }[][] } = {}) {
+  const calls: { method: string; params: Record<string, unknown>; sessionId?: string }[] = [];
+  let pageTitle = 'Todo app';
+  const srv = createServer((_q, s) => s.end());
+  srv.on('upgrade', (req, socket, head) => {
+    const ws = acceptWebSocket(req, socket, head)!;
+    ws.onMessage = (d) => {
+      const m = JSON.parse(String(d)) as { id: number; method: string; params: Record<string, unknown>; sessionId?: string };
+      calls.push({ method: m.method, params: m.params, ...(m.sessionId ? { sessionId: m.sessionId } : {}) });
+      const reply = (result: Record<string, unknown>) => ws.send(JSON.stringify({ id: m.id, result, ...(m.sessionId ? { sessionId: m.sessionId } : {}) }));
+      const event = (method: string, params: Record<string, unknown>) => ws.send(JSON.stringify({ method, params, sessionId: 'S1' }));
+      switch (m.method) {
+        case 'Target.createTarget':
+          return reply({ targetId: 'T1' });
+        case 'Target.attachToTarget':
+          return reply({ sessionId: 'S1' });
+        case 'Page.navigate':
+          reply({ frameId: 'F1' });
+          event('Network.responseReceived', { type: 'Document', response: { status: 200 } });
+          event('Runtime.exceptionThrown', { exceptionDetails: { exception: { description: 'TypeError: x is undefined\n at app.js:3' } } });
+          return void setTimeout(() => event('Page.loadEventFired', {}), 20);
+        case 'Runtime.evaluate': {
+          const e = String(m.params.expression);
+          // Phase 87: every page read is the shared page agent followed by .call("<fn>", <json>).
+          const fn = /\.call\("(\w+)", ([\s\S]*)\)$/.exec(e);
+          if (fn?.[1] === 'find') {
+            const a = JSON.parse(fn[2]) as { field?: boolean; text?: string };
+            if (a.text === 'Missing') return reply({ result: { value: { found: false } } });
+            return reply({ result: { value: a.field ? { found: true, desc: 'input#new "New task"' } : { found: true, x: 100.5, y: 40, desc: 'button "Add"', covered: '' } } });
+          }
+          if (fn?.[1] === 'read') return reply({ result: { value: { title: pageTitle, url: '/', text: 'Todo\n1 item', more: false, controls: ['button "Add" (#add)'], width: 390, scrollWidth: 412 } } });
+          if (fn?.[1] === 'check') return reply({ result: { value: o.checks?.shift() ?? [{ ok: true }, { ok: false, detail: 'page 412px wide, window 390px' }] } });
+          return reply({ result: { value: { title: pageTitle, url: 'http://sara-preview.test/preview/x/' } } });
+        }
+        case 'Page.captureScreenshot':
+          return reply({ data: PNG });
+        case 'Page.getLayoutMetrics':
+          return reply({ cssContentSize: { width: 1280, height: 2400 } });
+        default:
+          return reply({});
+      }
+    };
+  });
+  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
+  const url = `ws://127.0.0.1:${(srv.address() as AddressInfo).port}/devtools/browser/abc`;
+  return { calls, url, close: () => srv.close(), setTitle: (t: string) => (pageTitle = t) };
 }

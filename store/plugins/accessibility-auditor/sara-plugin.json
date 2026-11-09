@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "accessibility-auditor",
+  "name": "Accessibility Auditor",
+  "version": "1.0.0",
+  "description": "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "audit"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Accessibility Auditor": "Auditor de accesibilidad",
+      "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.": "Analiza HTML proporcionado sin conexión. Solo hallazgos estructurales; sin captura, renderizado ni dictamen WCAG. El HTML puede ser sensible."
+    },
+    "fr": {
+      "Accessibility Auditor": "Auditeur d’accessibilité",
+      "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.": "Analyse hors ligne du HTML fourni. Constats structurels uniquement ; aucune capture, rendu ou conclusion WCAG. Le HTML peut être sensible."
+    },
+    "de": {
+      "Accessibility Auditor": "Barrierefreiheitsprüfung",
+      "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.": "Prüft bereitgestelltes HTML offline. Nur Strukturbefunde; keine Aufnahme, Darstellung oder WCAG-Bewertung. HTML kann sensibel sein."
+    },
+    "pt-BR": {
+      "Accessibility Auditor": "Auditor de acessibilidade",
+      "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.": "Analisa HTML fornecido offline. Apenas achados estruturais; sem captura, renderização ou parecer WCAG. O HTML pode ser sensível."
+    },
+    "it": {
+      "Accessibility Auditor": "Verifica accessibilità",
+      "Analyze supplied HTML offline. Structural findings only; no live capture, rendering or WCAG verdict. HTML may be sensitive.": "Analizza HTML fornito offline. Solo rilievi strutturali; nessuna cattura, rendering o valutazione WCAG. Il codice HTML può essere sensibile."
+    }
+  }
+}

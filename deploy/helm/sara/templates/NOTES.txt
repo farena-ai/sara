@@ -1,0 +1,12 @@
+Sara is starting as one replica (it must stay one: her data is a SQLite database on one volume).
+
+1. Her owner token is printed once in the first log:
+     kubectl logs -n {{ .Release.Namespace }} deploy/{{ include "sara.fullname" . }} | grep -i token
+{{- if .Values.ingress.enabled }}
+2. Open http{{ if .Values.ingress.tls.enabled }}s{{ end }}://{{ .Values.ingress.host }}
+{{- else }}
+2. Reach her through a port-forward (or enable the ingress):
+     kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "sara.fullname" . }} 7860:{{ .Values.service.port }}
+   then open http://127.0.0.1:7860
+{{- end }}
+3. Back up the volume {{ include "sara.claimName" . }}; it holds her memories, keys and settings.

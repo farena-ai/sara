@@ -14,7 +14,8 @@ export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').re
  * too). Arrays, not sentences: these are search words, never shown.
  */
 export const SETTINGS_KEYWORDS = {
-  'dh-recovery': ['recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
+  'dh-operations': ['monitoring', 'metrics', 'prometheus', 'grafana', 'opentelemetry', 'otel', 'otlp', 'traces', 'tracing', 'scrape', 'secret sources', 'secrets', 'hashicorp vault', 'openbao', '1password', 'keychain', 'environment variable'],
+  'dh-recovery': ['readiness', 'ready', 'restore drill', 'drill', 'disaster', 'recovery', 'restart', 'interrupted', 'resume', 'outbox', 'delivery', 'unknown', 'held'],
   'dh-backups': ['backup', 'backups', 'restore', 'restore backup', 'keep a copy'],
   'her-character': ['personality', 'dials', 'sliders', 'name', 'character', 'archetype'],
   'her-hey': ['hey sara', 'wake word', 'wakeword', 'push to talk', 'push-to-talk', 'talk tile', 'hands free', 'hotword'],
@@ -22,6 +23,7 @@ export const SETTINGS_KEYWORDS = {
   'her-companions': ['companion packs', 'pack', 'packs', 'share her', 'character card', 'charx', 'tavern', 'store companions'],
   'her-import': ['character card', 'import her', 'bring her'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
+  'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel'],
   'ab-when': ['when it comes up', 'mention', 'mentions', 'person comes up', 'remind me when'],
   'models-default': ['connect model', 'connect an ai model', 'compact', 'tidy long chats', 'long conversations', 'summary', 'context'],
   'co-telegram': ['botfather', 'bot token', 'chat app', 'chat apps', 'progress message', 'voice notes'],
@@ -29,10 +31,13 @@ export const SETTINGS_KEYWORDS = {
   'co-signal': ['signal-cli', 'chat app', 'chat apps', 'daemon', 'link qr'],
   'co-email': ['mail', 'imap', 'smtp', 'app password', 'gmail', 'icloud', 'fastmail', 'chat app'],
   'co-whatsapp': ['meta', 'cloud api', 'tailscale', 'funnel', 'public address', 'chat app', 'chat apps', 'webhook'],
+  'co-teams': ['teams', 'microsoft teams', 'azure bot', 'bot framework', 'microsoft 365'],
   'co-matrix': ['element', 'homeserver', 'tailscale', 'funnel', 'chat app', 'chat apps'],
   'co-imessage': ['bluebubbles', 'apple', 'imessages', 'chat app', 'chat apps', 'mac'],
   'co-pickup': ['continue', 'pick up', 'pickup', 'other app', 'carry on', 'switch apps'],
-  'ab-store': ['store', 'sara store', 'shop', 'get more', 'add-ons', 'addons', 'takedown', 'pulled', 'submit yours', 'my add-ons', 'tool servers', 'marketplace'],
+  'ab-store': ['store', 'sara store', 'add-on store', 'addon store', 'shop', 'get more', 'add-ons', 'addons', 'takedown', 'pulled', 'submit yours', 'my add-ons', 'tool servers', 'marketplace'],
+  'ab-library': ['documents', 'document', 'pdf', 'files she knows', 'knowledge'],
+  'ab-projects': ['projects', 'project', 'workspace', 'workspaces', 'repository'],
   'ab-skills': ['recipes', 'skill', 'skills', 'learned skills'],
   'ab-plugins': ['plugin', 'plugins', 'sdk', 'comes with sara'],
   'ab-mcp': ['mcp', 'tool server', 'tool servers', 'model context protocol'],
@@ -41,11 +46,18 @@ export const SETTINGS_KEYWORDS = {
   'ab-tools': ['approvals', 'ask me first', 'permissions', 'short tool list', 'lean', 'sandbox', 'tools'],
   'ab-budgets': ['budget', 'tokens', 'spending', 'cost limit'],
   'ab-ssh': ['ssh', 'server', 'servers', 'cpanel', 'deploy', 'host key'],
-  'dh-safety': ['safety', 'check-up', 'checkup', 'security check', 'audit'],
+  'dh-safety': ['safety', 'check-up', 'checkup', 'security check'],
+  'dh-usage-report': ['usage report', 'cost report', 'spending per person', 'csv export', 'monthly budget', 'budget alert'],
+  'dh-trust': ['trust report', 'what she claimed', 'receipts', 'claims', 'failed tools', 'reviewer', 'export pdf'],
+  'dh-shares': ['share', 'share link', 'shared links', 'revoke link', 'public link'],
+  'dh-audit': ['audit', 'audit log', 'audit trail', 'who changed', 'export log', 'compliance'],
+  'her-work': ['at work', 'work profile', 'work mode', 'work memory', 'office', 'colleagues', 'workplace', 'professional tone'],
+  'dh-retention': ['retention', 'legal hold', 'litigation hold', 'delete my data', 'export person', 'gdpr', 'data deletion', 'keep chats'],
+  'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
   'dh-privacy': ['privacy', 'store data', 'what leaves'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],
   'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile'],
-  'desktop-app': ['windows app', 'desktop app', 'tray', 'shortcut'],
+  'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut'],
 };
 
 /**
@@ -53,7 +65,7 @@ export const SETTINGS_KEYWORDS = {
  * come from the `/` menu's own list (GET /api/chat-menu), so the words stay with the commands.
  */
 export const ELSEWHERE = [
-  { id: 'planner:routines', label: ['Planner', 'Routines'], words: ['routine', 'routines', 'bedtime', 'morning routine', 'weekly review routine', 'gallery'] },
+  { id: 'planner:routines', label: ['Planner', 'Routines'], words: ['routine', 'routines', 'bedtime', 'morning routine', 'weekly review routine', 'gallery', 'watch a file', 'watch log', 'log alert', 'file alert', 'error alert'] },
   { id: 'planner:repeats', label: ['Planner', 'Repeats'], words: ['repeats', 'repeat', 'loop', 'loops', 'every 10 minutes'] },
   { id: 'planner:reminders', label: ['Planner', 'Reminders'], words: ['reminder', 'reminders', 'remind me', 'when it comes up', 'places'] },
   { id: 'planner:todos', label: ['Planner', 'To-dos'], words: ['to-do', 'todo', 'todos', 'task list'] },

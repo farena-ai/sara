@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "artifact-provenance-verifier",
+  "name": "Artifact provenance verifier",
+  "version": "1.0.0",
+  "description": "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Artifact provenance verifier": "Verificador de procedencia",
+      "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.": "Verifica bytes con SHA-256, Ed25519, huella de clave fijada e identidad esperada. Solo sobre local v1; no Sigstore/SLSA."
+    },
+    "fr": {
+      "Artifact provenance verifier": "Vérificateur de provenance",
+      "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.": "Vérifie les octets avec SHA-256, Ed25519, empreinte de clé épinglée et identité attendue. Enveloppe locale v1 uniquement, pas Sigstore/SLSA."
+    },
+    "de": {
+      "Artifact provenance verifier": "Artefakt-Herkunftsprüfung",
+      "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.": "Prüft Bytes mit SHA-256, Ed25519, festgelegtem Schlüsselfingerabdruck und erwarteter Identität. Nur lokales v1-Format, kein Sigstore/SLSA."
+    },
+    "pt-BR": {
+      "Artifact provenance verifier": "Verificador de proveniência",
+      "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.": "Verifica bytes com SHA-256, Ed25519, impressão de chave fixada e identidade esperada. Apenas envelope local v1, não Sigstore/SLSA."
+    },
+    "it": {
+      "Artifact provenance verifier": "Verifica provenienza artefatti",
+      "Verify supplied artifact bytes using SHA-256, Ed25519, a pinned public-key fingerprint and expected identity. Local envelope v1 only, not Sigstore/SLSA.": "Verifica byte con SHA-256, Ed25519, impronta della chiave fissata e identità attesa. Solo formato locale v1, non Sigstore/SLSA."
+    }
+  }
+}

@@ -54,13 +54,32 @@ cp build/Release/Sara.exe build/Release/SaraService.exe "$STAGE/"
 cp "$NODE_DIR/node.exe" "$STAGE/node/"
 cp "$NODE_DIR/LICENSE" "$STAGE/node/LICENSE.txt"
 cp -r "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$STAGE/server/"
+# Local workflow candidates remain untrusted packages, reviewed separately before installation.
+CANDIDATE_PLUGINS=(
+  daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review
+  inbox-triage content-studio image-workshop spreadsheet-assistant travel-planner home-dashboard
+  secret-scanner license-auditor sbom-builder artifact-provenance-verifier coverage-explorer
+  log-explorer incident-workbench environment-config-doctor database-fixture-studio
+  data-contract-validator change-impact-analyzer architecture-guard sql-migration-reviewer
+  visual-regression localization-qa accessibility-auditor build-cache-inspector api-contract-guard
+  http-webhook-workbench
+  performance-regression-lab code-migration-studio build-reproducibility-inspector
+  test-doctor flaky-test-lab documentation-doctor release-readiness repository-onboarding
+)
+mkdir -p "$STAGE/server/store/plugins"
+for id in "${CANDIDATE_PLUGINS[@]}"; do
+  cp -r "$ROOT/store/plugins/$id" "$STAGE/server/store/plugins/"
+done
 # Phase 87: the shared page agent (her testing browser reads pages with it too).
 mkdir -p "$STAGE/server/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.js" "$STAGE/server/desktop/shared/"
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$STAGE/server/"
 mkdir -p "$STAGE/server/docs"
 cp "$ROOT/docs/INSTALL.md" "$ROOT/docs/desktop.md" "$STAGE/server/docs/"
-REV="$(git -C "$ROOT" rev-parse --short HEAD 2>/dev/null || true)"
-[[ -n "$REV" ]] && printf '%s\n' "$REV" > "$STAGE/server/REVISION"
+# A source archive has no .git; never inherit a containing repository's revision.
+if [[ -d "$ROOT/.git" || -f "$ROOT/.git" ]]; then
+  REV="$(git -C "$(winpath "$ROOT")" rev-parse --short HEAD)"
+  printf '%s\n' "$REV" > "$STAGE/server/REVISION"
+fi
 # Batch files want Windows line endings.
 sed 's/\r$//; s/$/\r/' "$HERE/installer/sara.cmd" > "$STAGE/bin/sara.cmd"
 

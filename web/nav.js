@@ -6,8 +6,10 @@ import { t } from './naming.js';
 import { icon } from './icons.js';
 
 /** Every place, in the order they are listed. */
-export const DESTS = ['today', 'planner', 'memory', 'library', 'scrapbook', 'moments', 'story', 'team', 'findings', 'evals'];
-export const DEFAULT_PINS = ['today', 'planner', 'library', 'moments'];
+// V3 (docs/ops/V3_DESIGN.md §2): Add-ons is a place too (it opens Settings → Add-ons → Get more). New
+// devices pin it; a device that saved its own pins finds it under More.
+export const DESTS = ['today', 'planner', 'memory', 'library', 'scrapbook', 'moments', 'story', 'team', 'findings', 'evals', 'addons'];
+export const DEFAULT_PINS = ['today', 'planner', 'library', 'addons', 'moments'];
 const KEY = 'sara.navPins';
 /** The window each place opens (to show which one is open). */
 const DIALOG = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', findings: 'findings', evals: 'evals' };
@@ -162,6 +164,38 @@ export function initNav() {
     const d = document.getElementById(id);
     if (d) new MutationObserver(mark).observe(d, { attributes: true, attributeFilter: ['open'] });
   }
+}
+
+/**
+ * V3 §2: outside Sara Classic the places lead the sidebar (Go to, then Projects and Conversations) and
+ * her face, Help and Settings sit in a footer row. The nodes move in the DOM, so the focus order is the
+ * order you see; Sara Classic keeps the places under the list, exactly as before.
+ */
+export function placeRail(on = document.documentElement.dataset.palette !== 'classic') {
+  const side = $('#sidebar');
+  const nav = $('#side-nav');
+  const convs = $('#conversations');
+  if (!side || !nav || !convs) return;
+  let foot = $('#side-foot');
+  const row = document.querySelector('#sidebar .side-foot-row');
+  const upd = $('#side-update');
+  if (on) {
+    if (nav.nextElementSibling !== convs) convs.before(nav);
+    if (!foot) {
+      foot = document.createElement('div');
+      foot.id = 'side-foot';
+      foot.className = 'side-foot';
+      side.append(foot);
+    }
+    if (row && row.parentElement !== foot) foot.append(row);
+    if (upd && upd.parentElement !== foot) foot.append(upd);
+  } else {
+    if (row && row.parentElement !== nav) nav.append(row);
+    if (upd && upd.parentElement !== nav) nav.append(upd);
+    if (convs.nextElementSibling !== nav) convs.after(nav);
+    foot?.remove();
+  }
+  side.classList.toggle('rail', on);
 }
 
 /** After a language change: the pins' labels use the new words. */

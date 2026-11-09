@@ -18,6 +18,7 @@ import { readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { deflateRawSync, inflateRawSync } from 'node:zlib';
+import { audit } from './audit-trail.ts';
 import type { ChatMessage, Provider } from './providers/types.ts';
 import type { ToolCall } from './providers/types.ts';
 import { billingOf, costOf, findPrice, priceTable, type Billing, type CallInfo, type UsageStore } from './usage.ts';
@@ -111,7 +112,7 @@ export interface StepInfo {
   lean?: StepLean;
 }
 
-/** Phase 123 (LEAN §4.8): offered names (the first step in full, later ones as `+added`), loads, sizes. */
+/** Phase 123 (LEAN §4.8): offered names (first step in full, later `+added`/`-removed`), loads, sizes. */
 export interface StepLean {
   lean?: boolean;
   offered?: string[];
@@ -433,6 +434,9 @@ export class RunStore {
     this.#db
       .prepare('UPDATE runs SET status = ?, ended_at = ?, steps = ?, tokens_in = ?, tokens_out = ?, usd = ?, unpriced = ?, unreported = ?, ms = ?, bytes = ? WHERE id = ?')
       .run(status, this.#now().toISOString(), Number(t.n), Number(t.i), Number(t.o), Math.round(Number(t.u) * 1e8) / 1e8, Number(t.up), Number(t.ur), Math.max(0, Date.now() - startedMs), Math.max(bytes, Number(t.b)), id);
+    // EC4: background work (jobs, team tasks, evals, red-team and security runs) closes with one audit row; chat turns are covered by their approvals.
+    const kind = String((this.#db.prepare('SELECT kind FROM runs WHERE id = ?').get(id) as Row | undefined)?.kind ?? '');
+    if (kind && kind !== 'turn') audit({ action: `run.${kind}`, target: `run${id}`, role: 'system', who: 'sara', channel: 'system', outcome: status === 'ok' ? 'ok' : status === 'running' ? 'pending' : status === 'blocked' || status === 'stopped' ? 'refused' : 'failed', keys: [status] });
   }
 
   // ---- reads ----
@@ -718,6 +722,9 @@ export function readHead(dir: string): { head?: string; branch?: string } {
   }
 }
 
+/** Tools after which the workspace manifest is taken again (the recorder and R1C's Project now). */
+export const WORKSPACE_TOOLS = /^(shell|write_file|edit_file|apply_patch|delegate_task)$|^git_/;
+
 const GIT_READONLY = ['-c', 'core.fsmonitor=false', '-c', 'core.hooksPath=/dev/null', '-c', 'core.pager=cat', '-c', 'diff.external=', '-c', 'credential.helper=', '-c', 'core.untrackedCache=false'];
 const MAX_DIRTY = 200;
 const MAX_HASH_BYTES = 2 * 1024 * 1024;
@@ -834,6 +841,24 @@ export class RunRecorder {
     return this.#safe(() => this.#open(info)) ?? -1;
   }
 
+  /** Final provider inputs after awaited preparation; preserve the existing step and receipts. */
+  refreshModelInputs(info: Required<Pick<StepInfo, 'model' | 'provider' | 'system' | 'extra' | 'inputsSha'>> & Pick<StepInfo, 'lean'>): void {
+    this.#safe(() => {
+      const step = this.#cur();
+      if (!step || step.info.label) return;
+      let sha = this.#lastSha;
+      if (info.system !== this.#lastSystem) {
+        const blob = this.#store!.putBlob(info.system);
+        sha = blob.sha;
+        this.#bytes += blob.added;
+        this.#lastSystem = info.system;
+        this.#lastSha = sha;
+      }
+      step.sha = sha;
+      step.info = { ...step.info, model: info.model, provider: info.provider, extra: [...info.extra], inputsSha: info.inputsSha, ...(info.lean ? { lean: { ...step.info.lean, ...info.lean } } : {}) };
+    });
+  }
+
   #open(info: StepInfo): number {
     {
       {
@@ -916,7 +941,7 @@ export class RunRecorder {
     const last = s.calls.at(-1);
     this.#bytes += this.#store!.writeStep(this.id, s.idx, s.info, s.at, s.sha, { model: last?.model ?? null, provider: last?.provider ?? null, calls: s.calls, tools: s.tools, files: [...s.files], contradictions: s.contradictions, stopped: s.stopped, replyMessageId: s.replyMessageId });
     // Coding mode: HEAD + dirty file hashes, in the background (never holds the turn up).
-    if (this.workspaceDir && (s.idx === 0 || s.tools.some((t) => /^(shell|write_file|edit_file|apply_patch|delegate_task)$|^git_/.test(t.name) && t.status !== 'denied'))) {
+    if (this.workspaceDir && (s.idx === 0 || s.tools.some((t) => WORKSPACE_TOOLS.test(t.name) && t.status !== 'denied'))) {
       const dir = this.workspaceDir;
       const store = this.#store!;
       const id = this.id;

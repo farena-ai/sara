@@ -1,0 +1,10 @@
+{
+  "target": "Qdrant",
+  "scope": "owned-synthetic-local-numeric-vector-fixture-only",
+  "ready": false,
+  "adapter": {"name":"sara-owned-qdrant-local-fixture","version":"0.1.0","license":"MIT","tool":"qdrant-local-search","protocol":"2025-06-18","upstreamCompatibleApi":false},
+  "upstreamInspected": {"package":"mcp-server-qdrant","version":"0.8.1","commit":"860ab93a96ca9f5e6cf6fe47e2f5b75d36eaac69","license":"Apache-2.0","wheelSha256":"eb7b36105021b431989f5a0f794591e52d48d3a6afb1a033d65fd8a08a68991c","installed":false,"finding":"Local path supported, but find requires embedding provider and distribution requires FastEmbed. Read-only does not remove inference. Not an official server runtime qualification."},
+  "engine": {"package":"qdrant-client","version":"1.20.0","license":"Apache-2.0","requiresPython":">=3.10","wheelSha256":"0ab261197a497d16f3bf8a663c22e994f485c9fd7212d3c8b07c1a9de32fc152","class":"qdrant_client.local.qdrant_local.QdrantLocal","platform":"Windows AMD64","testedPython":"3.14.7","fastembedInstalled":false},
+  "limits":{"collections":["owned-vectors"],"dimension":3,"points":128,"queryAbsoluteComponent":1000,"searchLimit":5,"requestBytes":8192,"requestDepth":8,"resultBytes":8192,"payloadBytes":1024,"labelCharacters":128,"pointBlobBytes":8192,"storeFileBytes":1048576,"storeTotalBytes":2097152},
+  "held":["ordinary-chat approval","OS execution/network fence","arbitrary or imported stores (pickle)","remote Qdrant authentication and collection ACL","production scale","other operating systems","official upstream text-embedding interface","Store admission and publication"]
+}

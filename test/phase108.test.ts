@@ -254,9 +254,10 @@ test('paging (client rule): 30 sessions → 8 rows + See more (22); a press adds
   assert.deepEqual(rows[0].earlier.map((c) => c.id), ['a2', 'a1']);
   // Page size: 5 / 8 / 10 on this device, 8 by default.
   const store = (v: string | null) => ({ getItem: () => v });
-  assert.equal(list.pageSize(store(null)), 8);
+  // V3 (docs/ops/V3_DESIGN.md §5): the owner's default is 5.
+  assert.equal(list.pageSize(store(null)), 5);
   assert.equal(list.pageSize(store('5')), 5);
-  assert.equal(list.pageSize(store('12')), 8);
+  assert.equal(list.pageSize(store('12')), 5);
   // Group by room: rooms in order of their newest session.
   const rooms = list.byRoom([
     { id: 'x', updatedAt: at(1), channel: 'discord', channelKey: '1', room: { kind: 'channel', title: 'general', parent: 'S' } },

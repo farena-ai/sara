@@ -1,0 +1,38 @@
+{
+  "en": {
+    "title": "Schema and Data Contract Validator",
+    "description": "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.",
+    "error": "Invalid, unsupported or excessive input/output. No data imported or database modified.",
+    "message": "Local analysis complete."
+  },
+  "es": {
+    "title": "Validador de contratos de datos",
+    "description": "Valida cargas y compara contratos JSON Schema draft-07 o Protobuf acotados con bibliotecas fijadas. Rechaza construcciones no admitidas.",
+    "error": "Entrada/salida inválida, no admitida o excesiva. No se importaron datos ni se modificaron bases.",
+    "message": "Análisis local completo."
+  },
+  "fr": {
+    "title": "Validateur de contrats de données",
+    "description": "Valide les données et compare des contrats JSON Schema draft-07 ou Protobuf bornés avec des bibliothèques figées. Refuse les constructions non prises en charge.",
+    "error": "Entrée/sortie invalide, non prise en charge ou excessive. Aucune donnée importée ni base modifiée.",
+    "message": "Analyse locale terminée."
+  },
+  "de": {
+    "title": "Datenvertragsprüfung",
+    "description": "Validiert Daten und vergleicht begrenzte JSON-Schema-draft-07- oder Protobuf-Verträge mit festen Bibliotheken. Nicht unterstützte Konstrukte werden abgelehnt.",
+    "error": "Ungültige, nicht unterstützte oder zu große Ein-/Ausgabe. Keine Daten importiert oder Datenbanken geändert.",
+    "message": "Lokale Analyse abgeschlossen."
+  },
+  "pt-BR": {
+    "title": "Validador de contratos de dados",
+    "description": "Valida dados e compara contratos JSON Schema draft-07 ou Protobuf limitados com bibliotecas fixadas. Recusa construções não suportadas.",
+    "error": "Entrada/saída inválida, não suportada ou excessiva. Nenhum dado importado ou banco alterado.",
+    "message": "Análise local concluída."
+  },
+  "it": {
+    "title": "Validatore di contratti dati",
+    "description": "Valida dati e confronta contratti JSON Schema draft-07 o Protobuf limitati con librerie fissate. Rifiuta costrutti non supportati.",
+    "error": "Input/output non valido, non supportato o eccessivo. Nessun dato importato o database modificato.",
+    "message": "Analisi locale completata."
+  }
+}

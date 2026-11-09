@@ -63,3 +63,38 @@
 .ps-fine { margin: 4px 0 10px; }
 .ps-fine > summary { display: flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; font-weight: 600; }
 .ps-fine h4 { margin: 10px 0 6px; }
+/* R1C: what a check ran on, and other chats active on this project (web/project-now.js). */
+.ps-basis-stale, .ps-basis-unknown { color: var(--warn); }
+.project-now { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: 0 0 6px; padding: 4px 10px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--warn-soft); color: var(--text-1); }
+.project-now[hidden] { display: none; }
+.project-now .pn-lead { font-weight: 600; }
+.project-now .pn-item { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 2px; min-width: 0; overflow-wrap: anywhere; }
+.project-now .pn-link { padding: 0 4px; min-height: 0; text-decoration: underline; }
+/* E5: read together (web/read-together.js): the document above the chat, its bar, Follow and Share. */
+.rt-panel { display: flex; flex-direction: column; gap: 4px; width: min(860px, calc(100% - 24px)); margin: 0 auto 6px; padding: 6px 10px; box-sizing: border-box; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2, transparent); }
+.rt-panel[hidden] { display: none; }
+.rt-bar, .rt-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.rt-now { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.rt-follow { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; white-space: nowrap; }
+.rt-follow input { margin: 0; width: auto; flex: none; }
+.rt-note { margin: 0; }
+.rt-text { max-height: 34vh; }
+@media (max-width: 600px) { .rt-text { max-height: 28vh; } }
+/* E6: the Feed tab (address, Open/Reload, the item list as text). */
+.rt-tabs, .rt-feed-open { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.rt-tabs [aria-selected="true"] { font-weight: 600; border-color: var(--accent-solid); }
+.rt-pane[hidden], .rt-tabs[hidden] { display: none; }
+.rt-feed-open input { flex: 1 1 14rem; min-width: 0; }
+.rt-feed-title { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.rt-feed-items { list-style: none; margin: 0; padding: 0; max-height: 34vh; overflow: auto; }
+.rt-feed-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 0; border-top: 1px solid var(--line); }
+.rt-feed-item.rt-shared .rt-feed-name { color: var(--accent-solid); }
+.rt-feed-name { flex: 1 1 100%; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .rt-feed-items { max-height: 28vh; } }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after persist.css `.ps-preset.on` */
+:where(:root:not([data-palette="classic"])) :is(.chip[aria-checked="true"], .chip.on, .tag-chip.on) { background: var(--accent-soft); border-color: var(--accent-line); color: var(--text-1); }

@@ -27,6 +27,22 @@ every 3 hours, on the video screen as well as in the chat, and the screen always
 is shown on the call screen, and the hard block on sexual content involving minors applies to
 everything said on the call.
 
+## What she knows and can do on a call
+
+On a call she has what she has when you type in the same chat: her memories, this conversation,
+*Lately in your other conversations*, your project checkpoint, your tools and approvals, and Adult
+mode only where text has it (never in a room like Home Assistant or Alexa). A household member's
+call has that member's own rules, never the owner's.
+
+- **Classic call:** a tool that needs your OK shows its card on the call screen and she says
+  *"I need your OK for that. It is on your screen."* Only a tap answers it. Talking over her, hanging
+  up, or two minutes without a tap cancels it (she says so); nothing runs after the call.
+- **Live call:** her tools are offered to the voice service, which only asks; Sara's server decides
+  with your auto/ask/never rules and runs it. Cards work the same way: a tap, never a spoken "yes".
+  A tool starts only after your words are final. Each result is noted in the chat. Commands, her
+  hands on your computer and SSH stay in the chat. On a voice service without tool calling the call
+  screen says *On this voice, ask me in the chat to use tools* and offers **Switch to classic**.
+
 ## Your camera (optional)
 
 Press **📷 Camera** to turn it on. A small self-view appears with a red **● Camera on** label; press

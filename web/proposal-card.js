@@ -14,6 +14,28 @@ function el(tag, cls, text) {
 }
 
 /**
+ * B1: while a button's answer is on its way the card shows it (the pressed button says it is
+ * working, every button on the card ignores further presses), so a slow reply never looks stuck
+ * or gets pressed twice. Buttons' own disabled state is left to their handlers.
+ * @param {HTMLElement} card @param {HTMLElement} btn @param {Promise<unknown>} work
+ */
+export async function whileBusy(card, btn, work) {
+  card.classList.add('prop-busy');
+  card.setAttribute('aria-busy', 'true');
+  btn.classList.add('prop-pressed');
+  const label = btn.textContent;
+  btn.textContent = t('Working…');
+  try {
+    return await work;
+  } finally {
+    card.classList.remove('prop-busy');
+    card.removeAttribute('aria-busy');
+    btn.classList.remove('prop-pressed');
+    if (btn.textContent === t('Working…')) btn.textContent = label;
+  }
+}
+
+/**
  * @param {{ title: string, source?: string, chips?: { text: string, cls?: string }[], why?: string[],
  *   can?: { id: string, text: string, risk?: string }[], added?: string[], warn?: string[],
  *   body?: Node[], buttons?: { label: string, cls?: string, onClick: (b: HTMLButtonElement) => void }[] }} p
@@ -50,7 +72,11 @@ export function proposalCard(p) {
     for (const b of p.buttons) {
       const btn = el('button', b.cls ?? '', b.label);
       btn.type = 'button';
-      btn.addEventListener('click', () => b.onClick(btn));
+      btn.addEventListener('click', () => {
+        if (card.classList.contains('prop-busy')) return;
+        const r = b.onClick(btn);
+        if (r && typeof r.then === 'function') void whileBusy(card, btn, r);
+      });
       row.append(btn);
     }
     card.append(row);

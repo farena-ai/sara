@@ -107,3 +107,12 @@
   .pending-chips { padding: var(--s-2) var(--s-2) 0; }
   .aside-card { margin: var(--s-2) var(--s-2) 0; }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after busy.css `#composer .send-more` */
+:where(:root:not([data-palette="classic"])) #composer:focus-within { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* [cascade] not in today.css: must come after `:where(:root:not([data-palette="classic"])) #composer:focus-within` (moved here too) */
+:where(:root:not([data-palette="classic"])) #today .td-tile { border-color: var(--line); box-shadow: none; }

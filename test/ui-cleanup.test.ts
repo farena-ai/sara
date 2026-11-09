@@ -139,7 +139,8 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
   const dests = [...html.matchAll(/class="side-dest" data-dest="(\w+)"/g)].map((m) => m[1]);
   const listed = /export const DESTS = \[([^\]]+)\]/.exec(nav)![1].match(/\w+/g);
   assert.deepEqual(dests, listed, 'nav.js lists every place in the page');
-  assert.match(nav, /export const DEFAULT_PINS = \['today', 'planner', 'library', 'moments'\]/);
+  // V3 (docs/ops/V3_DESIGN.md §2): Add-ons became a place, pinned on new devices.
+  assert.match(nav, /export const DEFAULT_PINS = \['today', 'planner', 'library', 'addons', 'moments'\]/);
   // The More button says what it does; icon-only buttons have names.
   assert.match(html, /id="side-more"[^>]*aria-expanded="false"[^>]*aria-controls="side-more-menu"/);
   assert.match(html, /id="open-help"[^>]*aria-label="Help"/);
@@ -152,7 +153,9 @@ test('sidebar: every place keeps its button id, More holds the rest, her and Set
 
 test('settings: groups and order cover every page; page ids unchanged', () => {
   const pages = [...html.matchAll(/class="settings-page[^"]*" data-page="([\w-]+)" data-group="([^"]+)"/g)].map((m) => ({ page: m[1], group: m[2] }));
-  assert.equal(pages.length, 62); // Q3: + Data & health → Recovery; Phase 126: + Her → Hey Sara; Phase 125: + Abilities → Get more; Phase 122 part 3: + Connections → iMessage; Phase 122 part 2: + Connections → Matrix; Phase 122: + Connections → WhatsApp; Phase 121: + Data & health → Safety check-up; Phase 120: + Abilities → Check her edits; Phase 119: + Abilities → When it comes up, + Connections → Pick up across apps; Phase 118: + Abilities → Keep going and repeats; Phase 117 part B: + Connections → Email; Phase 117: + Connections → Signal; Phase 113: + Data & health → Privacy; Phase 79: + Abilities → Budgets; Phase 87: + Connections → Computer use; Phase 96: + Abilities → Skills; Phase 98: + Abilities → Plugins; Phase 100: + Connections → Other agents; Phase 102: + Connections → Webhooks; Phase 104: + Data & health → Move in from another agent
+  assert.equal(pages.length, 75); // C14 adds Spotify; EC26 adds At work; EC25 adds Trust report; EC17 adds Retention and legal hold; EC7 adds Microsoft Teams; EC1 adds Slack; R1A adds Session continuity; Q4 Operations and Q3 Recovery remain accounted for below; V1 adds Appearance; EC4/EC5 add Audit trail and Policy; EC11/EC15 add Shared links and Usage reports.
+  assert.deepEqual(pages.filter(p => p.page === 'co-continuity'), [{ page: 'co-continuity', group: 'Chat apps' }]);
+  assert.deepEqual(pages.filter(p => p.page === 'dh-operations'), [{ page: 'dh-operations', group: 'Data & health' }]);
   const order = /const SETTINGS_ORDER = \[([\s\S]*?)\];/.exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
   assert.deepEqual([...order].sort(), pages.map((p) => p.page).sort(), 'SETTINGS_ORDER lists every page once');
   const groups = [...(/const SETTINGS_GROUPS = \[([\s\S]*?)\];/.exec(app)![1].matchAll(/name: '([^']+)'/g))].map((m) => m[1]);

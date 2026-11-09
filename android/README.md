@@ -44,7 +44,11 @@ keyAlias=sara
 keyPassword=…
 ```
 
-then run `./gradlew assembleRelease`.
+then run `./gradlew assembleRelease` (or `bundleRelease` for Google Play). Without
+`keystore.properties` the build uses the publisher's upload key from
+`../.secrets/sara-android-upload.properties` if present. Version: `versionName` is Sara's version and
+`versionCode` is major × 10000 + minor × 100 + patch (`test/c18-android-release.test.ts`). Play
+release steps: [docs/ops/C18_PLAY_RELEASE.md](../docs/ops/C18_PLAY_RELEASE.md).
 
 ## What it does besides the web app
 
@@ -61,6 +65,9 @@ then run `./gradlew assembleRelease`.
   from **⇄** at the top; each keeps its sign-in (the ones not in use are kept encrypted with a key in
   the Android Keystore), notifications come from all of them and open the right one. See
   [docs/SERVERS.md](../docs/SERVERS.md).
+- **Phone as a helper location** (C18, 2.87.0): after *Allow once* the app takes one location fix
+  itself and hands it to the page (`SaraPhone.helperLocate` → `window.saraHelperLocated`), so it
+  works with http servers at home too (the web view's own geolocation is https-only).
 - **App lock**: fingerprint, face or your screen lock after 30 seconds away; the app is hidden in
   the recent-apps view while the lock is on. **Hide the message text on the lock screen** is
   there too.
@@ -107,5 +114,8 @@ the launcher's shape.
 - The app's name on the home screen is "Sara"; inside the app and on the widget she uses the name
   you gave her.
 - Google Play: the app uses two kinds of foreground service, which the Play Console asks about
-  (Phase 19): *microphone* (live calls) and *remote messaging* (instant notifications).
+  (Phase 19): *microphone* (live calls and Hey Sara) and *remote messaging* (instant notifications).
+  Place reminders need *Allow all the time*: before any location prompt the app shows its own
+  disclosure (*Place reminders use your location*, Play's prominent-disclosure rule; tested in
+  `test/c18-android-release.test.ts`). Play answers and videos: `docs/ops/PLAY_SUBMIT_2880.md`.
 - iPhone: see `ios/README.md`.

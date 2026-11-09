@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "environment-config-doctor",
+  "name": "Environment Config Doctor",
+  "description": "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.",
+  "version": "1.0.0",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Environment Config Doctor": "Doctor de configuración",
+      "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.": "Valida dotenv o JSON aportado con reglas tipadas; devuelve índices, nunca valores ni resúmenes."
+    },
+    "fr": {
+      "Environment Config Doctor": "Diagnostic de configuration",
+      "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.": "Valide dotenv ou JSON fourni selon des règles typées ; renvoie des indices, jamais de valeurs ni empreintes."
+    },
+    "de": {
+      "Environment Config Doctor": "Konfigurationsprüfung",
+      "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.": "Prüft bereitgestellte dotenv-/JSON-Daten gegen typisierte Regeln; nur Regelindizes, keine Werte oder Hashes."
+    },
+    "pt-BR": {
+      "Environment Config Doctor": "Diagnóstico de configuração",
+      "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.": "Valida dotenv ou JSON fornecido com regras tipadas; retorna índices, nunca valores ou hashes."
+    },
+    "it": {
+      "Environment Config Doctor": "Diagnostica configurazione",
+      "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.": "Valida dotenv o JSON fornito con regole tipizzate; restituisce indici, mai valori o hash."
+    }
+  }
+}

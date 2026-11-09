@@ -1,0 +1,28 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "profile"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "compare"
+      ],
+      "description": "plan hashes the staged build profile without running it; compare runs two independent builds of exactly that plan."
+    },
+    "profile": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,39}$",
+      "description": "Operator-staged folder repro-v1/<profile> in the plugin's own data home, holding build.js and source/."
+    },
+    "planSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Required for compare: planSha returned by plan. Any staged byte change invalidates it."
+    }
+  }
+}

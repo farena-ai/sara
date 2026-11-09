@@ -4,7 +4,8 @@ import type { AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { OwnerAuth } from '../src/auth.ts';
-import type { Upstream } from '../src/live.ts';
+import { GrokEngine, LIVE_APPROVAL_MS, LiveCall, type LiveEngine, type Upstream } from '../src/live.ts';
+import type { WsConnection } from '../src/ws.ts';
 import { MINOR_BLOCK_REPLY } from '../src/safety.ts';
 import { createSaraServer } from '../src/server.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
@@ -519,4 +520,130 @@ test('live calls: Grok or OpenAI per Settings → Voice; whichever is set up pre
   // The voice notes path is unchanged: still the classic speech engines (their platform default).
   v = await api('/voice');
   assert.equal(v.settings.stt, defaultEngines().stt);
+});
+
+// R2c: her tools on a live call (fake voice service, synthetic tools). Nothing said ever approves.
+function toolRig(t: { after: (fn: () => void) => void }, engine?: LiveEngine) {
+  const { dir, cleanup } = tempDir();
+  const app = makeApp(dir, { now: new Date('2026-11-06T15:00:00Z') });
+  app.settings.update({ ownerName: 'Alex', disclosureAcceptedAt: '2026-11-06T14:00:00Z' } as never);
+  const ran: string[] = [];
+  app.tools.add({ spec: { name: 'look_up', description: 'Look something up', parameters: { type: 'object', properties: { q: { type: 'string' } } } }, defaultPermission: 'auto', summarize: (a) => `Look up ${String(a.q)}`, async run(a) { ran.push(`look_up:${String(a.q)}`); return `Found ${String(a.q)}.`; } });
+  app.tools.add({ spec: { name: 'send_note', description: 'Send a note', parameters: { type: 'object', properties: { text: { type: 'string' } } } }, defaultPermission: 'ask', summarize: (a) => `Send "${String(a.text)}"`, async run(a) { ran.push(`send_note:${String(a.text)}`); return 'Sent.'; } });
+  const conv = app.store.createConversation();
+  const told: Record<string, unknown>[] = [];
+  const client = { open: true, send(d: string | Buffer) { if (typeof d === 'string') told.push(JSON.parse(d)); }, close() {} } as WsConnection;
+  let voice: FakeVoice | undefined;
+  const call = new LiveCall(app, conv.id, client, 'test-key', { connect: () => (voice = new FakeVoice()), ...(engine ? { engine } : {}) });
+  call.start();
+  t.after(() => {
+    call.end('done');
+    app.store.close();
+    cleanup();
+  });
+  return { app, conv, call, told, ran, voice: () => voice! };
+}
+const fnCall = (v: FakeVoice, call_id: string, name: string, args: Record<string, unknown>) => v.emit({ type: 'response.function_call_arguments.done', call_id, name, arguments: JSON.stringify(args) });
+const outputs = (v: FakeVoice) => v.sent.filter((e) => e.type === 'conversation.item.create' && (e.item as { type?: string }).type === 'function_call_output').map((e) => e.item as { call_id: string; output: string });
+
+test('live function call runs through executor with receipt', async (t) => {
+  const r = toolRig(t);
+  await until(() => r.told.some((e) => e.type === 'ready'), 'ready');
+  const setup = r.voice().sent[0] as { session: { tools?: { name: string; type: string }[]; instructions: string } };
+  const declared = setup.session.tools?.map((x) => x.name) ?? [];
+  assert.ok(declared.includes('look_up') && declared.includes('send_note'), 'the text turn\'s tools are declared');
+  assert.ok(!declared.includes('shell'), 'command runners stay in the chat');
+  assert.ok(setup.session.tools?.every((x) => x.type === 'function'));
+  assert.match(setup.session.instructions, /Only their tap on the screen answers it/);
+  assert.deepEqual(r.told.find((e) => e.type === 'tools'), { type: 'tools', on: true, fallback: false });
+  r.voice().hear('look up the tides for Saturday');
+  fnCall(r.voice(), 'fc1', 'look_up', { q: 'tides' });
+  await until(() => outputs(r.voice()).length === 1, 'tool output sent back');
+  assert.deepEqual(r.ran, ['look_up:tides']);
+  assert.equal(outputs(r.voice())[0].call_id, 'fc1');
+  assert.match(outputs(r.voice())[0].output, /Found tides\./);
+  assert.equal(r.voice().sent.at(-1)!.type, 'response.create', 'she answers with the result');
+  const receipt = r.app.store.messages(r.conv.id).find((m) => m.role === 'notice' && m.meta?.live === true && m.meta?.tool === 'look_up');
+  assert.ok(receipt, 'a receipt is kept in the chat');
+  assert.equal(receipt!.meta?.status, 'ok');
+  assert.ok(r.told.some((e) => e.type === 'tool' && e.state === 'ok' && e.id === 'fc1'));
+  // A tool the text turn would not offer never runs, whatever the voice service asks for.
+  fnCall(r.voice(), 'fc2', 'shell', { command: 'rm -rf /' });
+  await until(() => outputs(r.voice()).length === 2, 'refusal sent');
+  assert.match(outputs(r.voice())[1].output, /isn't available on this call/);
+  assert.deepEqual(r.ran, ['look_up:tides']);
+});
+
+test('ask tool waits for tap, speech yes does not approve', async (t) => {
+  const r = toolRig(t);
+  await until(() => r.told.some((e) => e.type === 'ready'), 'ready');
+  r.voice().hear('send Jo a note saying hi');
+  fnCall(r.voice(), 'fc1', 'send_note', { text: 'hi' });
+  await until(() => r.told.some((e) => e.type === 'approval'), 'approval card');
+  const card = r.told.find((e) => e.type === 'approval') as { approvalId: string; id: string; summary: string };
+  assert.equal(card.id, 'fc1');
+  assert.match(card.summary, /Send "hi"/);
+  // "Yes, do it" on the call is just words: nothing runs, the card still waits.
+  r.voice().hear('yes, do it');
+  r.voice().hear('uh-huh');
+  await wait(50);
+  assert.deepEqual(r.ran, []);
+  assert.equal(r.app.approvals.pendingFor(r.conv.id).length, 1);
+  assert.equal(outputs(r.voice()).length, 0);
+  // Only the tap answers it.
+  assert.equal(r.app.approvals.decide(card.approvalId, true), true);
+  await until(() => outputs(r.voice()).length === 1, 'result after the tap');
+  assert.deepEqual(r.ran, ['send_note:hi']);
+  assert.ok(r.told.some((e) => e.type === 'approval_done' && e.id === 'fc1' && e.approved === true));
+  // A no is a no.
+  fnCall(r.voice(), 'fc2', 'send_note', { text: 'again' });
+  await until(() => r.told.filter((e) => e.type === 'approval').length === 2, 'second card');
+  const second = r.told.filter((e) => e.type === 'approval')[1] as { approvalId: string };
+  r.app.approvals.decide(second.approvalId, false);
+  await until(() => outputs(r.voice()).length === 2, 'declined result');
+  assert.match(outputs(r.voice())[1].output, /declined/);
+  assert.deepEqual(r.ran, ['send_note:hi']);
+});
+
+test('hang-up cancels pending approval', async (t) => {
+  const r = toolRig(t);
+  await until(() => r.told.some((e) => e.type === 'ready'), 'ready');
+  r.voice().hear('send Jo a note');
+  fnCall(r.voice(), 'fc1', 'send_note', { text: 'bye' });
+  await until(() => r.app.approvals.pendingFor(r.conv.id).length === 1, 'waiting');
+  const sentBefore = r.voice().sent.length;
+  r.call.end('You hung up.');
+  await wait(30);
+  assert.equal(r.app.approvals.pendingFor(r.conv.id).length, 0, 'the wait is cancelled');
+  assert.deepEqual(r.ran, [], 'nothing runs after the call');
+  assert.equal(r.voice().sent.length, sentBefore, 'nothing more goes to the voice service');
+  assert.equal(LIVE_APPROVAL_MS, 120_000);
+});
+
+test('partial transcript never starts a tool', async (t) => {
+  const r = toolRig(t);
+  await until(() => r.told.some((e) => e.type === 'ready'), 'ready');
+  // Only interim words so far (still being transcribed): nothing may run on them.
+  r.voice().emit({ type: 'input_audio_buffer.speech_started', item_id: 'p1' });
+  r.voice().emit({ type: 'conversation.item.input_audio_transcription.completed', item_id: 'p1', transcript: 'look up the', status: 'in_progress' });
+  fnCall(r.voice(), 'fc1', 'look_up', { q: 'something' });
+  await until(() => outputs(r.voice()).length === 1, 'refusal');
+  assert.deepEqual(r.ran, []);
+  assert.match(outputs(r.voice())[0].output, /Not done/);
+});
+
+test('engine without tools shows fallback', async (t) => {
+  class NoFunctions extends GrokEngine {
+    override readonly functions = false;
+  }
+  const r = toolRig(t, new NoFunctions('eve', { persona: 'Sara' }));
+  await until(() => r.told.some((e) => e.type === 'ready'), 'ready');
+  const setup = r.voice().sent[0] as { session: { tools?: unknown[]; instructions: string } };
+  assert.equal(setup.session.tools, undefined, 'no tools declared');
+  assert.match(setup.session.instructions, /You can't use tools on this call/);
+  assert.deepEqual(r.told.find((e) => e.type === 'tools'), { type: 'tools', on: false, fallback: true });
+  r.voice().hear('look up the tides');
+  fnCall(r.voice(), 'fc1', 'look_up', { q: 'tides' });
+  await wait(50);
+  assert.deepEqual(r.ran, []);
 });

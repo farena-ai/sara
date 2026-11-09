@@ -19,6 +19,7 @@
 //   GET  /api/store/author               the author key's fingerprint (if made)
 //   GET|PUT /api/store/settings          { on, community }
 //   POST /api/store/notices/:item/dismiss
+import { policy } from '../policy-profile.ts';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { writeFileAtomic } from '../fs-util.ts';
@@ -30,25 +31,75 @@ import { fromZip, PackageError } from '../packages.ts';
 import { SARA_VERSION } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { imageType, STORE_PLUGIN_LIMITS } from '../store/checks.ts';
-import { shelfView } from '../store/client.ts';
-import { isStoreId, shortKey } from '../store/format.ts';
+import { pluginInstallation, shelfView } from '../store/client.ts';
+import { isStoreId, shortKey, speakToReader } from '../store/format.ts';
 import { entryLines, InstallError, StoreInstaller } from '../store/install.ts';
 import { packFiles, packPath, readStoreZip, type Pack } from '../store/pack.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
 import { ownerNames } from '../packs/scrub.ts';
 import { adultModeOn } from '../settings.ts';
 import { packInstallerFor } from './packs.ts';
+import { prereqService } from './prereqs.ts';
 import { smokeFence } from '../store/pack-cli.ts';
 import { authorKey, DeskError, deskDown, refreshSubmission, replySubmission, sendReport, submissions, submit } from '../store/submit.ts';
 import { sha256, StoreRefused } from '../store/verify.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { autoUpdateOn, autoUpdateSettings, type AutoUpdateDeps } from '../addon-autoupdate.ts';
+import { trOwner } from '../i18n.ts';
+import type { AppContext } from '../chat.ts';
+import { approveReview } from './plugins.ts';
+
+/**
+ * C8: what the auto-updater needs for the owner's Store plugins (src/addon-autoupdate.ts), or
+ * undefined where there is no Store or no plugin manager. The review, approval and go-back paths are
+ * the ones the owner's own buttons use.
+ */
+export function storeAutoUpdateDeps(app: AppContext, notify: (title: string, line: string) => void): AutoUpdateDeps | undefined {
+  const client = app.storeClient;
+  const installs = app.storeInstalls;
+  const pm = app.pluginManager;
+  if (!client || !installs || !pm) return undefined;
+  const installer = () => new StoreInstaller({ app, client, installs, plugins: pm, programs: prereqService(app) });
+  return {
+    settings: () => app.settings.get(),
+    save: (patch) => app.settings.update(patch),
+    now: () => app.now(),
+    candidates: () => {
+      if (!client.installAllowed()) return [];
+      const shelf = shelfView(client, { saraVersion: pm.version, installs, plugins: pm, ...storeSettings(app.settings.get() as never) }).items as { id: string; name?: string; version: string; updateAvailable: boolean }[];
+      return installs.all().flatMap((r) => {
+        const s = shelf.find((x) => x.id === r.item && x.updateAvailable);
+        const local = pm.store.get(r.local_ref);
+        if (r.kind !== 'plugin' || r.state !== 'ok' || !s || !local || pluginInstallation(pm, r.local_ref, r).installHeld) return [];
+        return [{ item: r.item, name: local.name || s.name || r.item, current: local.version, version: s.version }];
+      });
+    },
+    stage: async (item) => {
+      const r = await installer().update(item, { community: storeSettings(app.settings.get() as never).community });
+      if (r.kind !== 'plugin') throw new Error('Only plugins update by themselves.');
+      return r.review;
+    },
+    cancel: (id) => void pm.cancel(id),
+    apply: async (st) => {
+      const r = pm.review(st.id);
+      if (!r) throw new Error('That review has expired.');
+      await approveReview(app, pm, r, { consent: true });
+    },
+    healthy: (item) => pm.healthy(installs.get(item)?.local_ref ?? item),
+    rollback: async (item) => void (await installer().goBack(item)),
+    notify,
+    tr: (text, params) => trOwner(text, app.settings.get(), params),
+  };
+}
 
 export interface StoreSettings {
   on: boolean;
   community: boolean;
 }
 export function storeSettings(s: { store?: { on?: unknown; community?: unknown } } | undefined): StoreSettings {
-  return { on: s?.store?.on !== false, community: s?.store?.community === true };
+  // EC5: the admin's pin reads through: off = no Store at all, official = the signed shelf only.
+  const pin = policy().pins.store;
+  return { on: s?.store?.on !== false && pin !== 'off', community: s?.store?.community === true && !pin };
 }
 
 /** Pictures the item pages showed (sha → path in the store), so /shots/:sha can fetch them. */
@@ -94,7 +145,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
   /** *My add-ons* (§8.7): every add-on that didn't come with Sara, from the store or not. */
   const mine = (): Record<string, unknown> => {
     const rows = new Map((app.storeInstalls?.all() ?? []).map((r) => [`${r.kind}:${r.local_ref}`, r]));
-    const shelf = app.storeClient ? (shelfView(app.storeClient, { saraVersion: app.pluginManager?.version ?? SARA_VERSION, installs: app.storeInstalls, ...storeSettings(app.settings.get() as never) }).items as { id: string; version: string; updateAvailable: boolean }[]) : [];
+    const shelf = app.storeClient ? (shelfView(app.storeClient, { saraVersion: app.pluginManager?.version ?? SARA_VERSION, installs: app.storeInstalls, plugins: app.pluginManager, ...storeSettings(app.settings.get() as never) }).items as { id: string; version: string; updateAvailable: boolean }[]) : [];
     const upd = (item?: string) => shelf.find((x) => x.id === item && x.updateAvailable)?.version ?? null;
     const out: Record<string, unknown>[] = [];
     for (const p of app.pluginManager?.store.all() ?? []) {
@@ -106,7 +157,8 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (origin === 'builtin') continue;
       const r = rows.get(`plugin:${p.id}`);
-      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin: r ? 'store' : origin, item: r?.item ?? null, trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: upd(r?.item), canGoBack: Boolean(p.prev_version) });
+      const source = pluginInstallation(app.pluginManager, p.id, r);
+      out.push({ kind: 'plugin', ref: p.id, name: p.name, version: p.version, origin, item: r?.item ?? null, ...(r?.item ? { auto: autoUpdateOn(autoUpdateSettings(app.settings.get()), r.item) } : {}), trust: r?.trust ?? null, status: p.status, note: p.status_note ?? null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: source.installHeld ? null : upd(r?.item), ...(source.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}), canGoBack: Boolean(p.prev_version) });
     }
     for (const s of app.skills?.list() ?? []) {
       if (s.source !== 'imported') continue;
@@ -120,7 +172,8 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const conn = app.mcp?.get(m.name);
       out.push({ kind: 'mcp', ref: m.name, name: m.name, version: r?.version ?? '', origin: r ? 'store' : 'typed', item: r?.item ?? null, trust: r?.trust ?? null, status: m.enabled ? (conn?.status ?? 'stopped') : 'disabled', tools: conn?.tools.length ?? 0, note: conn?.error || null, state: r?.state ?? null, stateNote: r?.state_note ?? null, update: upd(r?.item), canGoBack: Boolean(r?.prev_recipe) });
     }
-    return { addons: out, updates: out.filter((x) => x.update).length };
+    const au = autoUpdateSettings(app.settings.get());
+    return { addons: out, updates: out.filter((x) => x.update).length, autoUpdate: { all: au.all, last: au.last.slice(0, 5) } };
   };
 
   return async (req, res, method, parts) => {
@@ -139,14 +192,16 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     // Phase 127: explicit companions show only where Adult mode is on for at least one of his companions.
     const adultAny = () => (ctx.opts.companions?.all().map((x) => x.app) ?? [app]).some((x) => adultModeOn(x.settings.get()));
     const saraVersion = app.pluginManager?.version ?? SARA_VERSION;
+    // Listing translations (src/store/locales.ts) follow the owner's language setting.
+    const ownerLang = () => String((app.settings.get() as { language?: string }).language ?? 'en');
     const view = () => {
       if (!client) return { ...settings(), blocked: 'demo', freshness: 'none', items: [], held: [], notices: [] };
-      return shelfView(client, { saraVersion, installs: app.storeInstalls, ...settings(), adultAny: adultAny() });
+      return shelfView(client, { saraVersion, installs: app.storeInstalls, plugins: app.pluginManager, ...settings(), adultAny: adultAny(), lang: ownerLang() });
     };
     const installer = () => {
       if (!client || !app.storeInstalls) throw new HttpError(404, en('The Sara Store is not available here.'));
       const packs = packInstallerFor(ctx);
-      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}), ...(packs ? { packs } : {}) });
+      return new StoreInstaller({ app, client, installs: app.storeInstalls, ...(app.pluginManager ? { plugins: app.pluginManager } : {}), ...(packs ? { packs } : {}), programs: prereqService(app) });
     };
     const url = new URL(req.url ?? '/', 'http://x');
     const desk = () => {
@@ -174,6 +229,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         const cur = settings();
         const next: StoreSettings = { on: typeof body.on === 'boolean' ? body.on : cur.on, community: typeof body.community === 'boolean' ? body.community : cur.community };
+        policy().guard('store', (next.on && !cur.on) || (next.community && !cur.community));
         app.settings.update({ store: next } as never);
         return send(res, 200, next);
       }
@@ -201,19 +257,29 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       for (const s of entry.shots) remember(s.sha256, s.file);
       if (hit.item.icon && hit.item.iconSha) remember(hit.item.iconSha, hit.item.icon);
       const row = app.storeInstalls?.get(c);
+      const source = hit.item.kind === 'plugin' ? pluginInstallation(app.pluginManager, c, row) : undefined;
       const { lines, error } = entryLines(entry, saraVersion);
       const held = client.held().some((h) => h.id === c);
+      // A translated listing: the tagline (summary, the entry's description) and the longer text (about[0]).
+      const tr = client.translations(ownerLang())[c];
+      // MNT2: a companion's text speaks of {{user}}; the page speaks to the reader.
+      const reader = (s: string) => speakToReader(s, { lang: ownerLang(), name: (app.settings.get() as { ownerName?: string }).ownerName });
+      const description = reader(tr?.summary ?? entry.description);
+      const about = (tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about).map(reader);
       return send(res, 200, {
-        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: hit.item.summary, trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
+        item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: reader(tr?.summary ?? hit.item.summary), trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,
         versions: hit.item.versions.map((v) => ({ version: v.version, published: v.published, ...(v.yanked ? { yanked: v.yanked } : {}) })),
         size: hit.v.size ?? null,
-        entry: { description: entry.description, about: entry.about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
+        entry: { description, about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
+        // EC27: when and where this version last passed a real install (the signed sidecar).
+        qualified: client.qualified()[c] ?? null,
         ...(error ? { linesError: error } : {}),
-        installed: row ? { version: row.version, state: row.state, note: row.state_note } : null,
+        installed: source ? source.installed ? { version: source.version, origin: source.origin, state: row?.state ?? null, note: row?.state_note ?? null } : null : row ? { version: row.version, state: row.state, note: row.state_note } : null,
+        ...(source?.installHeld ? { installHeld: source.installHeld, installHeldCode: source.installHeldCode } : {}),
         held,
-        installAllowed: client.installAllowed() && !held,
+        installAllowed: client.installAllowed() && !held && !source?.installHeld,
       });
     }
     if (b === 'shots' && c && !d && method === 'GET') {
@@ -239,6 +305,7 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
     if (b === 'install' && !c && method === 'POST') {
       const body = await readJson(req);
       if (!isStoreId(body.id)) throw new HttpError(400, 'Not a store id.');
+      policy().guard('store', policy().pins.store === 'off');
       try {
         return send(res, 200, await installer().install(body.id, { ...(typeof body.version === 'string' ? { version: body.version } : {}), community: settings().community, understand: body.understand === true }));
       } catch (err) {
@@ -253,6 +320,13 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, r);
       }
       if (!d && method === 'DELETE') return send(res, 200, { ok: ins.mcpCancel(c) });
+      // PRQ: look again for what it needs (after *Install it for me*), then *Continue install*.
+      if (d === 'recheck' && method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        const r = ins.mcpRecheck(c);
+        if (!r) throw new HttpError(404, en('That review has expired.'));
+        return send(res, 200, r);
+      }
       if (d === 'approve' && method === 'POST') {
         const body = await readJson(req);
         try {
@@ -285,6 +359,20 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
     if (b === 'mine' && !c && method === 'GET') return send(res, 200, mine());
+    // C8: auto-update switches: {all: bool} or {item, on: bool | null} (null = follow "all").
+    if (b === 'auto-update' && !c && method === 'PUT') {
+      const body = (await readJson(req)) as { all?: unknown; item?: unknown; on?: unknown };
+      const cur = autoUpdateSettings(app.settings.get());
+      const items = { ...cur.items };
+      if (body.item !== undefined) {
+        const item = String(body.item);
+        if (!app.storeInstalls?.get(item)) throw new HttpError(404, en('That add-on was not installed from the store.'));
+        if (body.on === null) delete items[item];
+        else items[item] = body.on === true;
+      }
+      app.settings.update({ addonAutoUpdate: { ...cur, all: body.all === undefined ? cur.all : body.all === true, items } });
+      return send(res, 200, mine());
+    }
 
     // ---- reports ----
     if (b === 'report' && !c && method === 'POST') {

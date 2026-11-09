@@ -38,6 +38,39 @@ provider on hardware the owner controls.
 
 ## Defences, by attacker
 
+### Optional business instance (B1, 2.64.0)
+
+Business dispatch precedes personal runtime construction. A separately marked root, browser
+origin, operating-system identity and business authentication/provider material prevent accidental
+personal/household reuse. Organization administration grants no implicit workspace content access;
+every scoped read/write revalidates live sessions and membership revisions across awaits.
+Revocation closes subscriptions and cancels model work, but cannot recall bytes already delivered
+to a browser or provider. The host operator can read disk; this is not privacy against root.
+
+Shared text/Markdown and model output are untrusted data. They cannot change audience or authorize
+tools; the business runtime constructs no external-effect capability. Operator-only model policy
+defines egress and independent keys, with explicit cloud approval, refused redirects, bounded
+responses and conservative lifetime spending reservations. Unknown usage stays held; retries
+cannot silently regenerate. Safety and per-actor/browser AI disclosure remain mandatory.
+Durable metadata audit, coherent backup generations and closed restore/grant reconciliation are
+implemented and synthetically engineering-qualified. Restores require fresh individual passkeys and explicit prior
+grant approval; spending remains separate and preserves held exposure. An exclusive local-SQLite
+fence and admission drain coordinate supported writers. Filesystem auth/config audit records are
+intents, not cross-file atomic proof. Abrupt death can leave a private plaintext staging directory
+for deliberate operator cleanup. No root-resistant audit, distributed lock, power-loss atomicity
+or production recovery guarantee is claimed.
+See [Business workspaces](BUSINESS.md) for scope and current qualification limits.
+
+The business browser uses a fixed static shell with no embedded user data. Cross-site top-level
+navigation can load that shell while private APIs retain Host/Origin/cookie checks. The optional
+expected-session header narrows the current cookie principal and prevents a stale tab from
+submitting another actor's draft after a cookie change. It is not an authority-bearing token.
+Invitation preview is bound to its exact code/actor; request-state checks are read-only and scoped.
+Mounted-editor and stale-completion guards preserve scoped drafts. Persisted uncertainty precedes
+dispatch; page destruction cannot turn a later refusal into proof an earlier request never arrived.
+Only the exact live first dispatch can establish editable non-admission. Already delivered browser
+data cannot be recalled. Final qualification and its limits are recorded separately.
+
 ### 1. Internet, no sign-in
 - Every `/api` route needs a session cookie, the owner token or a device token, except: health,
   login, pairing redemption, passkey sign-in, `GET /api/session` (says only whether you're signed
@@ -593,3 +626,27 @@ on acknowledgment/resolution; cursor pagination preserves access to old unresolv
 This ledger does not cover plugin IPC, arbitrary tool/command effects or all platform operations.
 Discord nonce protection has a short platform window, not exactly-once semantics. Restored data
 cannot know events after its snapshot. See RECOVERY.md and Q3 crash/isolated-boot tests for bounds.
+
+## Q4 measurements and retention (2.63.1)
+
+Operations and archive are owner-only, current-space APIs; household/demo/device credentials are
+denied and liveness stays minimal. Metrics keep only fixed route/status classes, counts, bounded
+latency samples and fresh generated UUID request IDs. Caller IDs, raw URLs/queries/headers/bodies,
+conversation identities and raw exception text are not copied into request-completion logs.
+Process memory/lag include other in-process activity and are labelled accordingly. Readiness
+checks only recorded/configuration facts; they do not infer successful delivery or inference.
+
+Archive accepts a strict old UTC cutoff and capped transaction, checks eligibility at mutation,
+and never archives unresolved uncertainty or active attempts. Compaction retains original
+transport state, human resolution and logical dedup keys; backups preserve that evidence.
+Archived rows refuse executable transitions and normal unresolved views exclude them. No automatic
+purge/VACUUM runs. This is not cryptographic erasure, database size bounding or tamper-proof audit.
+Synthetic qualification fixtures have no owner-data target option and do not call external
+providers. Real incident handling still requires isolated restores and current authorization.
+
+Backup workers inherit the server's filesystem authority, not command/tool authority; they execute
+only the shipped backup core. Parent messages contain scoped paths/configuration and return only
+validated manifests/names or fixed failure codes. Canonical-root serialization and shutdown
+admission closure prevent overlapping in-process snapshots or late workers cut off by normal
+shutdown. Same-second manual backups avoid overwriting one another. Forced external termination,
+filesystem contention and offsite maintenance retain their own failure/recovery limits.

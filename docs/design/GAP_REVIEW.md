@@ -307,7 +307,7 @@ and any paid or scheduled part needs it separately (Rule 7). Versions assume Pha
 | 124 | 2.57.0 | "Hey Sara" on desktop and Android | #17 |
 | 125 | 2.58.0 | Companion packs | #18 |
 
-Parked (re-check later): ACP editor protocol (G21), code mode (G22), agent-made widgets after TD1/TD2
+Parked (re-check later): ACP editor protocol (G21; unparked as EC14, built on branch `hermes/ec14`), code mode (G22), agent-made widgets after TD1/TD2
 (G23), Discord voice channels next to the agent conference calls idea (G19).
 
 ---

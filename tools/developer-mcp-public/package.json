@@ -1,0 +1,12 @@
+{
+  "name": "sara-developer-mcp-public-qualification",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "dependencies": {
+    "storybook": "10.6.6",
+    "@storybook/addon-mcp": "10.6.6",
+    "@storybook/html-vite": "10.6.6",
+    "vite": "7.3.7"
+  }
+}

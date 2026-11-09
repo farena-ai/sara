@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.json",
+  "include": ["../../test/developer-visual-regression.test.ts", "../../test/developer-visual-regression-adversarial.test.ts", "../../test/developer-visual-regression-channel.test.ts", "../../store/plugins/visual-regression/*.d.mts"],
+  "exclude": []
+}

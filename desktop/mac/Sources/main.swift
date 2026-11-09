@@ -355,6 +355,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     m.addItem(.separator())
     addSubmenus(to: m)
     m.addItem(.separator())
+    // C17: Hey Sara on this Mac; checked while it listens, one click turns it off.
+    let wake = NSMenuItem(title: "Listen for “Hey Sara”", action: #selector(toggleWakeFromMenu), keyEquivalent: "")
+    wake.state = prefs.bool(forKey: "wakeOn") ? .on : .off
+    wakeMenuItem = wake
+    m.addItem(wake)
     m.addItem(withTitle: "Open at login", action: #selector(toggleLogin), keyEquivalent: "")
     // Phase 75 stage 2: the quick-ask shortcut (her face, mood, Ask and "Now" are put at the top
     // each time the menu opens: refreshNowItems in QuickAsk.swift).
@@ -645,6 +650,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     case "notify":
       notifyFromPage(title: body["title"] as? String ?? "Sara", body: body["body"] as? String ?? "", conv: body["conv"] as? String ?? "")
       replyHandler(true, nil)
+    case "wake" where fromServer:
+      // C17: Settings → Hey Sara on this Mac (Wake.swift).
+      wakeCall(body, reply: replyHandler)
     case "attention":
       showWindow()
       NSApp.requestUserAttention(.criticalRequest)

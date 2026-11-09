@@ -328,6 +328,9 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
       app.openConversation(body["conv"] as? String ?? "")
     case "state":
       take(body)
+    case "wake":
+      // C17: Hey Sara (Wake.swift): the claim, her speaking, the end, and the 60 s config poll.
+      app.wakeFromQuick(body)
     case "reminder":
       app.notifyReminder(conv: body["conv"] as? String ?? "", rid: body["rid"] as? String ?? "", text: body["text"] as? String ?? "")
     default: break

@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "architecture-guard",
+  "name": "Architecture Guard",
+  "version": "1.0.0",
+  "description": "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Architecture Guard": "Guardián de arquitectura",
+      "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.": "Comprueba importaciones estáticas dirigidas con reglas de importaciones prohibidas y capas; devuelve ciclos con pruebas. Solo fuentes suministradas, sin ejecutar proyectos."
+    },
+    "fr": {
+      "Architecture Guard": "Garde d’architecture",
+      "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.": "Vérifie les imports statiques dirigés selon les interdictions et les couches ; fournit des cycles de dépendances avec preuves. Sources fournies uniquement, sans exécution."
+    },
+    "de": {
+      "Architecture Guard": "Architekturwächter",
+      "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.": "Prüft gerichtete statische Modulimporte gegen verbotene Importe und Schichtregeln; liefert belegte Abhängigkeitszyklen. Nur bereitgestellte Quellen, keine Projektausführung."
+    },
+    "pt-BR": {
+      "Architecture Guard": "Guardião de arquitetura",
+      "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.": "Verifica importações estáticas direcionadas com regras de proibição e camadas; retorna ciclos de dependências com evidências. Apenas fontes fornecidas, sem executar projetos."
+    },
+    "it": {
+      "Architecture Guard": "Guardiano dell’architettura",
+      "Check directed static module imports against explicit forbidden imports and layer rules; return evidenced dependency-cycle witnesses. Supplied source only, never execute a project.": "Verifica importazioni statiche dirette con regole di divieto e livelli; restituisce cicli di dipendenze documentati. Solo sorgenti forniti, senza eseguire progetti."
+    }
+  }
+}

@@ -1,0 +1,384 @@
+/* V4d (docs/ops/V4_DESIGN.md → V4d): every page in the 3.0 "living system" look. Today (her orb in the
+   hero, glass cards, V4 section heads and buttons), the places (Planner, Memory, Library, Scrapbook,
+   Moments, Your story, Team, Findings, Evals) and Settings. A visual layer only: no control, card,
+   setting or behaviour is removed. Outside Sara Classic only: every rule is scoped with
+   :where(:root:not([data-palette="classic"])) (zero specificity; this sheet loads last, so it wins the
+   ties), and Classic only hides the new orb mount. Colours come from the theme tokens; the --acc-*
+   hue tokens only feed glows and haze (never text, borders or outlines). */
+
+/* ---------- the new mount: hidden in Sara Classic ---------- */
+.td-orb { display: none; }
+:root[data-palette="classic"] .td-orb { display: none; }
+
+/* ---------- shared tokens of the page look ---------- */
+:where(:root:not([data-palette="classic"])) {
+  --v4-r-card: 14px;
+  --v4-r-ctl: 9px;
+  --v4-card-bg: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  --v4-card-line: var(--line);
+  --v4-card-shadow: 0 1px 0 color-mix(in srgb, var(--text-1) 4%, transparent) inset, 0 10px 30px -22px color-mix(in srgb, var(--text-1) 40%, transparent);
+  --v4-card-hover: 0 1px 0 color-mix(in srgb, var(--text-1) 5%, transparent) inset, 0 14px 34px -20px var(--acc-glow);
+  --v4-label: 600 11.5px/1.2 var(--font-ui);
+}
+:where(:root:not([data-palette="classic"]))[data-theme="light"] {
+  --v4-card-bg: var(--surface-1);
+  --v4-card-shadow: 0 1px 2px color-mix(in srgb, var(--text-1) 6%, transparent), 0 8px 24px -18px color-mix(in srgb, var(--text-1) 22%, transparent);
+}
+
+/* ---------- Today: the page ---------- */
+/* A calm, neutral page (the accent wash stays a faint haze at the top, not a tint over everything). */
+:where(:root:not([data-palette="classic"])) #chat > dialog#today.today-view { background: radial-gradient(900px 340px at 18% -60px, var(--acc-haze), transparent 70%), color-mix(in srgb, var(--surface-0) 72%, transparent); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] #chat > dialog#today.today-view { background: radial-gradient(900px 300px at 18% -80px, color-mix(in srgb, var(--accent-solid) 7%, transparent), transparent 70%), var(--surface-0); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] #today .td-hero { background: radial-gradient(380px 200px at 70px 50%, color-mix(in srgb, var(--accent-solid) 8%, transparent), transparent 72%), var(--v4-card-bg); }
+:where(:root:not([data-palette="classic"])) #today .td-scroll { padding-top: clamp(14px, 2.4vw, 26px); }
+
+/* The hero: her orb (live state) beside the greeting, in one glass panel. */
+:where(:root:not([data-palette="classic"])) #today .td-hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-bottom: 18px;
+  padding: 22px 26px;
+  border: 1px solid var(--v4-card-line);
+  border-radius: 18px;
+  background: radial-gradient(420px 220px at 70px 50%, var(--acc-haze), transparent 72%), var(--v4-card-bg);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--v4-card-shadow);
+}
+:where(:root:not([data-palette="classic"])) #today:not(.td-ff-phone) .td-hero { grid-template-columns: auto minmax(0, 1fr); gap: 6px 26px; }
+:where(:root:not([data-palette="classic"])) #today:not(.td-ff-phone) .td-face-wrap { grid-column: 1; grid-row: 1; align-self: center; gap: 8px; }
+:where(:root:not([data-palette="classic"])) #today:not(.td-ff-phone) .td-hello { grid-column: 2; grid-row: 1; }
+:where(:root:not([data-palette="classic"])) #today .td-hero::after { content: ""; position: absolute; z-index: -1; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--acc-line), transparent); opacity: .8; }
+:where(:root:not([data-palette="classic"])) #today .td-date { color: var(--text-3); font: 600 11px/1.2 var(--font-ui); letter-spacing: .08em; }
+:where(:root:not([data-palette="classic"])) #today #td-greeting { font-family: var(--font-ui); font-size: clamp(24px, 2.5vw, 32px); font-weight: 600; letter-spacing: -0.02em; }
+:where(:root:not([data-palette="classic"])) #today .td-back { height: 28px; min-height: 0; padding: 0 10px 0 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font-size: 12px; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #today .td-back:hover { color: var(--text-1); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); }
+
+/* Her face: the orb is her presence; her portrait stays as the user chose it (large, small or hidden). */
+:where(:root:not([data-palette="classic"])) #today .td-face-btn { width: 104px; overflow: visible; border-radius: 50%; }
+:where(:root:not([data-palette="classic"]))[data-portrait="small"] #today .td-face-btn { width: 104px; }
+:where(:root:not([data-palette="classic"]))[data-portrait="large"] #today .td-face-btn { width: 120px; }
+:where(:root:not([data-palette="classic"])) #today .td-face-btn::after { display: none; }
+:where(:root:not([data-palette="classic"])) #today .td-face-btn::before { inset: -30%; background: radial-gradient(closest-side, var(--acc-glow), transparent 72%); opacity: .45; }
+:where(:root:not([data-palette="classic"])) #today .td-orb { display: block; position: absolute; inset: 0; width: 100%; height: 100%; }
+/* The default picture: the orb takes the face spot; her portrait is a small avatar on it (large: bigger). */
+:where(:root:not([data-palette="classic"]):not(.v4-own-face)) #today .td-face { position: absolute; z-index: 1; right: -4px; bottom: -4px; width: 34px; height: 34px; box-shadow: 0 0 0 2px var(--surface-1), 0 4px 14px -4px var(--acc-glow); animation: none; }
+:where(:root:not([data-palette="classic"]):not(.v4-own-face))[data-portrait="large"] #today .td-face { width: 50px; height: 50px; right: -8px; bottom: -6px; }
+:where(:root:not([data-palette="classic"]))[data-portrait="hidden"] #today .td-face { display: none; }
+/* Her own picture stays her face; the orb becomes a badge on it (as in the chat header). */
+:where(:root.v4-own-face:not([data-palette="classic"]):not([data-portrait="hidden"])) #today .td-orb { inset: auto -4px -4px auto; width: 36px; height: 36px; }
+:where(:root.v4-own-face:not([data-palette="classic"]):not([data-portrait="hidden"])) #today .td-face { box-shadow: 0 0 0 1px var(--line), 0 0 28px -6px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-face-btn:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 6px; }
+:where(:root:not([data-palette="classic"])) #today .td-ai { height: 22px; padding: 0 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-3); font-size: 11px; line-height: 20px; }
+
+/* Her mood line: a V4 chip whose dot follows her state. */
+:where(:root:not([data-palette="classic"])) #today .td-mood { height: auto; min-height: 28px; padding: 4px 12px 4px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-1); font-size: 13px; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+:where(:root:not([data-palette="classic"])) #today .td-mood .hp-dot { width: 7px; height: 7px; background: var(--success); box-shadow: 0 0 8px color-mix(in srgb, var(--success) 70%, transparent); }
+:where(:root:not([data-palette="classic"])):is([data-her-state="thinking"], [data-her-state="listening"], [data-her-state="speaking"]) #today .td-mood .hp-dot { background: var(--accent-solid); box-shadow: 0 0 10px var(--acc-glow); animation: v4d-breathe 2.4s ease-in-out infinite; }
+:where(:root:not([data-palette="classic"])) #today .td-mood-text { color: var(--text-2); }
+:where(:root:not([data-palette="classic"])) #today .td-her-day { color: var(--text-2); font-size: 13.5px; line-height: 1.5; }
+@keyframes v4d-breathe { 50% { opacity: .45; } }
+
+/* ---------- V4 buttons (Today's actions and the places) ---------- */
+:where(:root:not([data-palette="classic"])) :is(#today #td-ask, #today .td-actions > button:not(.ghost)) {
+  height: 38px; min-height: 0; padding: 0 18px; border: 0; border-radius: 10px;
+  background: var(--btn-fill); color: var(--on-btn); font-size: 13.5px; font-weight: 600;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent) inset, 0 8px 24px -10px var(--acc-glow);
+}
+:where(:root:not([data-palette="classic"])) #today #td-ask:hover { filter: brightness(1.08); }
+:where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn,
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) button.ghost:not(.icon, .tip, .tab, .linkish) {
+  min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--v4-r-ctl);
+  background: var(--surface-2); color: var(--text-1); font-size: 13px; font-weight: 500; box-shadow: none;
+}
+:where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn { height: 38px; min-height: 0; border-radius: 10px; }
+:where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn:hover,
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) button.ghost:not(.icon, .tip, .tab, .linkish):hover { background: var(--surface-3); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) #today .td-fresh { color: var(--text-3); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) :is(#today, #planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) button:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; box-shadow: 0 0 0 4px var(--accent-soft); }
+
+/* ---------- Today: section heads ---------- */
+:where(:root:not([data-palette="classic"])) #today .td-tiles { gap: 24px; }
+:where(:root:not([data-palette="classic"])) #today .td-sec-h { gap: 10px; color: var(--text-3); font: var(--v4-label); letter-spacing: .08em; }
+:where(:root:not([data-palette="classic"])) #today .td-sec-h::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-sec-h::after { background: linear-gradient(90deg, var(--line), transparent); }
+:where(:root:not([data-palette="classic"])) #today .td-sec-toggle { color: var(--text-3); font: var(--v4-label); letter-spacing: .08em; }
+
+/* ---------- Today: every card (the tiles, Now, Getting started, Next steps, the away note…) ---------- */
+:where(:root:not([data-palette="classic"])) :is(#today .td-tile, #today .today-start, #today .td-nowcard, #today .td-begin .rcard) {
+  border: 1px solid var(--v4-card-line);
+  border-radius: var(--v4-r-card);
+  background: var(--v4-card-bg);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: var(--v4-card-shadow);
+}
+:where(:root:not([data-palette="classic"])) #today .td-tile { gap: 10px; padding: 14px 16px; }
+:where(:root:not([data-palette="classic"])) :is(#today .td-tile, #today .today-start, #today .td-begin .rcard)::after { display: none; }
+:where(:root:not([data-palette="classic"])) #today .td-tile:hover { border-color: color-mix(in srgb, var(--line) 55%, var(--text-3)); box-shadow: var(--v4-card-hover); }
+:where(:root:not([data-palette="classic"])) #today .td-tile:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+/* The warm card (She remembered): a thin accent edge instead of a pink fill. */
+:where(:root:not([data-palette="classic"])) #today .td-warm { background: linear-gradient(180deg, var(--acc-haze), transparent 46%), var(--v4-card-bg); }
+:where(:root:not([data-palette="classic"])) #today .td-warm::before { content: ""; position: absolute; left: 16px; right: 16px; top: -1px; height: 1px; background: linear-gradient(90deg, transparent, var(--accent-solid), transparent); }
+/* Card heads: the V4 label (small capitals, quiet), the icon a small accent tile, links in the accent. */
+:where(:root:not([data-palette="classic"])) #today .td-tile-head { min-height: 26px; }
+:where(:root:not([data-palette="classic"])) #today .td-tile-head h3 { color: var(--text-2); font: var(--v4-label); letter-spacing: .07em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) #today .td-tile-ic { width: 24px; height: 24px; margin-right: 0; border: 1px solid var(--acc-line); border-radius: 7px; background: var(--accent-soft); color: var(--accent-text); box-shadow: 0 0 12px -4px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-tile-ic svg.ic { width: 13px; height: 13px; }
+:where(:root:not([data-palette="classic"])) #today .td-tile-head .td-count { color: var(--text-3); font-family: var(--font-ui); font-size: 12px; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #today .td-tile-head .td-count.td-needs { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); font-weight: 600; line-height: 20px; text-align: center; }
+:where(:root:not([data-palette="classic"])) #today .td-tile-head > .td-more { width: 30px; height: 30px; min-height: 0; margin: -4px -6px -4px auto; border: 1px solid transparent; border-radius: 8px; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) #today .td-tile-head > .td-more:hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) #today .td-link { min-height: 28px; color: var(--accent-text); font-size: 12.5px; font-weight: 500; }
+:where(:root:not([data-palette="classic"])) #today .td-foot { color: var(--text-3); font-size: 11.5px; }
+:where(:root:not([data-palette="classic"])) #today .td-empty { color: var(--text-3); font-size: 13px; }
+:where(:root:not([data-palette="classic"])) #today .td-all-clear svg { color: var(--success); }
+:where(:root:not([data-palette="classic"])) #today .td-live { color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) #today .td-live::before { background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+/* A tile waiting for its data: the shimmer in the surface colours. */
+:where(:root:not([data-palette="classic"])) #today .td-tile.td-skel::after { display: block; border-radius: 10px; }
+
+/* Weather: big number, the next hours as small V4 cells, the temperature line in the accent. */
+:where(:root:not([data-palette="classic"])) #today .td-wx-temp { font-family: var(--font-ui); font-size: 42px; font-weight: 600; letter-spacing: -.03em; }
+:where(:root:not([data-palette="classic"])) #today .td-wx-words { color: var(--text-2); font-size: 14px; }
+:where(:root:not([data-palette="classic"])) #today .td-wx-meta { color: var(--text-3); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) #today .td-wx-spark { height: 36px; }
+:where(:root:not([data-palette="classic"])) :is(#today .td-wx-spark .spark-line, #today .td-usage-spark .spark-line) { stroke: var(--accent-solid); stroke-width: 1.6; filter: drop-shadow(0 0 4px var(--acc-glow)); }
+:where(:root:not([data-palette="classic"])) :is(#today .td-wx-spark, #today .td-usage-spark) .spark-stop-a { stop-color: var(--accent-solid); stop-opacity: .22; }
+:where(:root:not([data-palette="classic"])) #today .td-wx-hour { padding: 6px 4px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #today .td-wx-h { color: var(--text-3); font-size: 11px; }
+
+/* Your day: the timeline rail and dots in the accent, Now as a glowing line. */
+:where(:root:not([data-palette="classic"])) #today .td-timeline::before { width: 1px; background: var(--line); }
+:where(:root:not([data-palette="classic"])) #today .td-when { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #today .td-dot { border-color: var(--accent-solid); background: var(--surface-1); box-shadow: 0 0 0 3px var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) #today .td-time-row.past .td-dot { border-color: var(--text-3); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #today .td-now::after { background: linear-gradient(90deg, var(--accent-solid), transparent); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-now-label { color: var(--accent-text); font: var(--v4-label); letter-spacing: .08em; }
+:where(:root:not([data-palette="classic"])) #today .td-what-title { color: var(--text-1); font-size: 13.5px; }
+:where(:root:not([data-palette="classic"])) #today .td-what-where { color: var(--text-3); font-size: 12px; }
+:where(:root:not([data-palette="classic"])) #today .td-tick::before { border-color: color-mix(in srgb, var(--line) 30%, var(--text-3)); border-radius: 6px; }
+:where(:root:not([data-palette="classic"])) #today .td-task.done .td-tick::before { border-color: var(--accent-solid); background: var(--accent-solid); }
+
+/* Lists in the cards (Coming up, Needs you, Mail, Planner, Models, hooks, board): hairline rows. */
+:where(:root:not([data-palette="classic"])) #today :is(.td-coming, .td-need, .td-mail-row, .td-org-row, .td-mem, .td-bd-item, .td-setup-item) { border-radius: 10px; }
+:where(:root:not([data-palette="classic"])) #today :is(.td-rows, .td-needs-list, .td-mail-list, .td-mems) > * + * { border-top: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) #today .td-coming-when { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #today .td-need-ic { border-radius: 8px; background: var(--accent-soft); color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) #today :is(.td-need.approval, .td-need.failed) .td-need-ic { background: var(--danger-soft); color: var(--danger); }
+:where(:root:not([data-palette="classic"])) #today :is(.td-need-why, .td-mail-from) { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) #today .td-mail-at { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #today .td-mail-change { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) #today .td-mem-text { color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) #today .td-mem-from { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) #today :is(.td-job, .td-dev, .td-bd-item, .td-setup-item) { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #today .td-dev.on { border-color: var(--acc-line); background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface-2); }
+:where(:root:not([data-palette="classic"])) #today .td-dev-switch[aria-checked="true"]::before { background: var(--accent-solid); }
+:where(:root:not([data-palette="classic"])) #today .td-setup-item:hover { border-color: var(--acc-line); background: var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) #today :is(.pring, .td-usage-ring) { --pring-fill: var(--accent-solid); }
+:where(:root:not([data-palette="classic"])) #today :is(.td-usage-nums, .td-usage-p) { font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #today .td-progress::-webkit-progress-value { background: var(--accent-solid); }
+
+/* Now (phones and tablets), Getting started, Next steps, routines, the away note, the ask row. */
+:where(:root:not([data-palette="classic"])) #today .td-nowcard { padding: 14px 16px; }
+:where(:root:not([data-palette="classic"])) #today .td-now-h { color: var(--text-2); font: var(--v4-label); letter-spacing: .08em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) #today .today-start { padding: 16px 18px; }
+:where(:root:not([data-palette="classic"])) #today .today-start-head h3 { color: var(--text-1); font: 600 14px var(--font-ui); letter-spacing: -.01em; }
+:where(:root:not([data-palette="classic"])) #today .start-item { border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #today .start-item.next { border-color: var(--acc-line); background: var(--surface-1); box-shadow: 0 0 0 1px var(--acc-line) inset, 0 10px 26px -18px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .start-item.done { background: var(--surface-2); opacity: .8; }
+:where(:root:not([data-palette="classic"])) #today .td-begin .rcard { padding: 12px 14px; }
+:where(:root:not([data-palette="classic"])) #today .td-away { padding: 6px 6px 6px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--v4-card-bg); box-shadow: var(--v4-card-shadow); }
+:where(:root:not([data-palette="classic"])) #today .td-away::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-ask-any { height: 46px; border: 1px solid var(--line); border-radius: 16px; background: var(--glass); color: var(--text-3); text-align: left; box-shadow: none; -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px); }
+:where(:root:not([data-palette="classic"])) #today .td-ask-any::after { display: none; }
+:where(:root:not([data-palette="classic"])) #today .td-ask-any:hover { border-color: var(--acc-line); box-shadow: 0 0 0 4px var(--accent-soft), 0 12px 40px -18px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-howto { border-radius: 12px; }
+
+/* Customise Today, the tile menu and the Undo toast: floating glass. */
+:where(:root:not([data-palette="classic"])) :is(#today .td-custom, #today .td-toast, .td-menu) {
+  border: 1px solid color-mix(in srgb, var(--line) 50%, var(--text-3));
+  background: color-mix(in srgb, var(--surface-1) 94%, transparent);
+  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(18px);
+  box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft);
+}
+:where(:root:not([data-palette="classic"])) #today .td-custom { border-radius: 16px 0 0 16px; }
+:where(:root:not([data-palette="classic"])) :is(#today .td-toast, .td-menu) { border-radius: 12px; }
+:where(:root:not([data-palette="classic"])) #today .td-custom-card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) #today .td-custom-card h3 { color: var(--text-3); font: var(--v4-label); letter-spacing: .07em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) #today #td-custom-done { height: 32px; min-height: 0; border-radius: var(--v4-r-ctl); background: var(--btn-fill); color: var(--on-btn); box-shadow: 0 6px 20px -8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) .td-menu-item { border-radius: 8px; }
+:where(:root:not([data-palette="classic"])) .td-menu-item:hover:not(:disabled) { background: var(--accent-soft); }
+
+/* Phones: the compact header keeps its grid; the orb is the 48 px face. */
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone .td-hero { padding: 14px; border-radius: 16px; background: radial-gradient(200px 120px at 30px 50%, var(--acc-haze), transparent 72%), var(--v4-card-bg); }
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone .td-face-btn { width: 46px; }
+:where(:root:not([data-palette="classic"]):not(.v4-own-face)) #today.td-ff-phone .td-face { width: 20px; height: 20px; right: -3px; bottom: -3px; }
+:where(:root.v4-own-face:not([data-palette="classic"]):not([data-portrait="hidden"])) #today.td-ff-phone .td-orb { width: 20px; height: 20px; }
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone #td-greeting { font-size: 19px; }
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone .td-hbtn { width: 40px; min-width: 40px; height: 40px; padding: 0; }
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone #td-ask { height: 40px; }
+:where(:root:not([data-palette="classic"])) #today.td-ff-phone .td-tile { padding: 12px 14px; }
+
+/* ---------- the places: Planner, Memory, Library, Scrapbook, Moments, Your story, Team, Findings, Evals ---------- */
+:where(:root:not([data-palette="classic"])) :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals) {
+  border: 1px solid color-mix(in srgb, var(--line) 60%, var(--text-3));
+  border-radius: 18px;
+  background: radial-gradient(700px 220px at 0 0, var(--acc-haze), transparent 70%), color-mix(in srgb, var(--surface-1) 96%, transparent);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft), 0 30px 80px -40px var(--acc-glow);
+}
+/* Day: white pages, the accent only as a faint corner light (no pink or blue wash over the page). */
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals) { background: radial-gradient(600px 160px at 0 0, color-mix(in srgb, var(--accent-solid) 5%, transparent), transparent 70%), var(--surface-1); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals)::backdrop { background: color-mix(in srgb, var(--surface-0) 55%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+/* The page head: a clear title with an accent mark, the explanation quieter under it. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) .settings-body h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; color: var(--text-1); font: 600 20px/1.25 var(--font-ui); letter-spacing: -.015em; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) .settings-body h2::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) .settings-body > :is(p.muted, section > p.muted):first-of-type { color: var(--text-2); font-size: 13px; line-height: 1.55; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .settings-body h3 { color: var(--text-2); font: var(--v4-label); letter-spacing: .07em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .muted { color: var(--text-3); }
+
+/* Tabs: a V4 segmented control (the picked one in the accent, softly lit). */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .tabs {
+  display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: 100%; margin: 8px 0 12px; padding: 3px;
+  border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2);
+}
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .tabs .tab {
+  height: 30px; min-height: 0; padding: 0 12px; border: 1px solid transparent; border-radius: 8px;
+  background: none; color: var(--text-2); font-size: 13px; font-weight: 500; box-shadow: none;
+}
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .tabs .tab:hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) .tabs .tab:is(.active, [aria-selected="true"]) { border-color: var(--acc-line); background: var(--accent-soft); color: var(--text-1); box-shadow: 0 0 14px -6px var(--acc-glow); }
+
+/* Inputs: one height, quiet fills, the accent focus glow (v4.css). */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+  min-height: 34px; border: 1px solid var(--line); border-radius: var(--v4-r-ctl); background: var(--surface-0); color: var(--text-1); font-size: 13.5px; box-shadow: none;
+}
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(input, select, textarea):focus-visible { border-color: var(--accent-solid); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) input:is([type="checkbox"], [type="radio"]) { accent-color: var(--accent-solid); }
+/* The main action of a row or a page (Add, Add documents, Run…): the V4 primary. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.add-row > button:not(.ghost), .file-button, button.primary, .ev-run, .actions > button:not(.ghost, .danger, .linkish)) {
+  min-height: 34px; padding: 0 14px; border: 0; border-radius: var(--v4-r-ctl); background: var(--btn-fill); color: var(--on-btn); font-weight: 600;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent) inset, 0 6px 20px -8px var(--acc-glow);
+}
+/* The close button of a place: a small round icon, not a pink ring. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.dialog-x, .close-x, [data-close]) { border: 1px solid var(--line); border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: none; outline-color: var(--accent-solid); }
+
+/* Lists: rows on a quiet surface with hairlines (to-dos, documents, notes, findings, team rows…). */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) {
+  border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); box-shadow: none;
+  transition: border-color var(--dur-2, .2s) var(--ease-std, ease), box-shadow var(--dur-2, .2s);
+}
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item):hover { border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); box-shadow: 0 10px 26px -20px var(--acc-glow); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) { background: var(--surface-1); box-shadow: 0 1px 2px color-mix(in srgb, var(--text-1) 5%, transparent); }
+/* Tables (Evals, usage, findings): V4 heads and hairlines, tabular numbers. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) table { border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) th { background: var(--surface-2); color: var(--text-3); font: var(--v4-label); letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) :is(th, td) { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #settings) tr:last-child > td { border-bottom: 0; }
+/* Empty states: a quiet dashed panel instead of a lone grey line. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.empty, .lib-empty, .is-empty, #lib-summary:not(:empty), .ev-empty, .fd-empty) {
+  padding: 16px; border: 1px dashed color-mix(in srgb, var(--line) 40%, var(--text-3)); border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 60%, transparent); color: var(--text-3); text-align: center;
+}
+/* Library: the drop zone as a V4 panel. */
+:where(:root:not([data-palette="classic"])) #library .lib-drop { border: 1px dashed var(--acc-line); border-radius: 14px; background: linear-gradient(var(--accent-soft), var(--accent-soft)), var(--surface-2); box-shadow: none; }
+/* Evals: its sections as V4 cards. */
+:where(:root:not([data-palette="classic"])) #evals :is(.ev-new, .ev-past, .ev-report, .ev-card) { border: 1px solid var(--line); border-radius: var(--v4-r-card); background: var(--v4-card-bg); box-shadow: var(--v4-card-shadow); }
+/* "How do I…?" bars inside the places. */
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals) :is(.howto, details.howto) { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); box-shadow: none; }
+
+/* ---------- Settings: the same page head, tabs and buttons ---------- */
+:where(:root:not([data-palette="classic"])) dialog#settings { border: 1px solid color-mix(in srgb, var(--line) 60%, var(--text-3)); border-radius: 18px; box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft), 0 30px 80px -40px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #settings .settings-main h2 { color: var(--text-1); font: 600 20px/1.25 var(--font-ui); letter-spacing: -.015em; }
+
+/* ---------- the sidebar: one list of projects (web/app.js group()) ----------
+   Each group is one folder row: a chevron, the folder (or the channel's own icon), the name and the
+   count. The row folds open; the project page, + new chat and ⋯ sit at its end on hover and focus.
+   Sara Classic keeps its arrows and capitals (the new parts are hidden there). */
+:root[data-palette="classic"] :is(.group-chev, .group-folder, .gb-ic) { display: none; }
+:where(:root:not([data-palette="classic"])) .group-arrow { display: none; }
+:where(:root:not([data-palette="classic"])) #conversations .conv-group { margin-bottom: 1px; }
+:where(:root:not([data-palette="classic"])) #conversations .group-head { position: relative; gap: 0; min-height: 32px; padding-right: 2px; border-radius: 8px; }
+:where(:root:not([data-palette="classic"])) #conversations .group-head:hover { background: var(--surface-3); }
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle {
+  display: flex; align-items: center; gap: 7px; min-width: 0; min-height: 32px; padding: 0 6px 0 4px; border-radius: 8px;
+  color: var(--text-2); font: 500 13px/1.2 var(--font-ui); letter-spacing: 0; text-transform: none;
+}
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle:hover { color: var(--text-1); background: none; }
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: -2px; }
+:where(:root:not([data-palette="classic"])) #conversations .group-chev { flex: none; width: 12px; height: 12px; color: var(--text-3); transition: transform var(--dur-2, .2s) var(--ease-std, ease); }
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle[aria-expanded="false"] .group-chev { transform: rotate(-90deg); }
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle .group-icon { flex: none; width: 16px; height: 16px; margin: 0; color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) #conversations .group-toggle[aria-expanded="true"] .group-icon { color: var(--accent-text); }
+:where(:root:not([data-palette="classic"])) #conversations .group-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:where(:root:not([data-palette="classic"])) #conversations .group-n { flex: none; min-width: 20px; padding: 0 6px; border-radius: 6px; background: var(--surface-2); color: var(--text-3); font-size: 11px; line-height: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) #conversations .group-btn { display: none; flex: none; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 7px; background: none; color: var(--text-3); font-size: 14px; opacity: 1; }
+:where(:root:not([data-palette="classic"])) #conversations .group-head:is(:hover, :focus-within) .group-btn { display: grid; place-items: center; }
+:where(:root:not([data-palette="classic"])) #conversations .group-head:is(:hover, :focus-within) .group-n { display: none; }
+:where(:root:not([data-palette="classic"])) #conversations .group-btn:hover { background: var(--surface-2); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) #conversations .group-btn:has(.gb-ic) { font-size: 0; }
+:where(:root:not([data-palette="classic"])) #conversations .gb-ic { width: 14px; height: 14px; }
+:where(:root:not([data-palette="classic"])) #conversations .group-head.drop { outline: 2px dashed var(--accent-solid); outline-offset: -2px; background: var(--accent-soft); }
+@media (pointer: coarse) {
+  :where(:root:not([data-palette="classic"])) #conversations .group-btn { display: grid; place-items: center; width: 36px; height: 36px; }
+  :where(:root:not([data-palette="classic"])) #conversations .group-toggle { min-height: 44px; }
+}
+/* Sessions under a folder: indented on a thin rail, each with a dot for its state. */
+:where(:root:not([data-palette="classic"])) #conversations .conv-group > :is(a.conv, .conv-room-head, .group-empty, .conv-more-row, .see-more) { margin-left: 14px; }
+:where(:root:not([data-palette="classic"])) #conversations .conv-group:has(> a.conv) { background: linear-gradient(var(--line), var(--line)) 11px 32px / 1px calc(100% - 38px) no-repeat; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv { display: flex; align-items: center; gap: 8px; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv::after { content: none; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv > .working-dot { display: none; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-state]::before { content: ""; position: static; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--text-3); box-shadow: none; opacity: .55; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="idle"]::before { background: var(--success); opacity: .8; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="open"]::before { background: var(--accent-solid); opacity: 1; box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="working"]::before { background: var(--accent-solid); opacity: 1; box-shadow: 0 0 8px var(--acc-glow); animation: v4d-breathe 1.6s ease-in-out infinite; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="ended"]::before { border: 1px solid var(--text-3); background: none; opacity: .7; }
+:where(:root:not([data-palette="classic"])) #conversations a.conv.active[data-state]::before { left: auto; top: auto; bottom: auto; width: 6px; height: 6px; border-radius: 50%; }
+:where(:root:not([data-palette="classic"]))[data-motion="off"] #conversations a.conv[data-state="working"]::before { animation: none; }
+@media (prefers-reduced-motion: reduce) { :where(:root:not([data-palette="classic"])) #conversations a.conv[data-state="working"]::before { animation: none; } }
+
+/* ---------- her picture (Appearance → Her picture: her portrait or yours, web/v4-picture.js) ----------
+   A round picture with the orb's state as a thin accent ring: still when idle, rippling while she
+   listens, breathing while she thinks, pulsing while she speaks. The orb's small badge steps aside. */
+:where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face, #brand-today) > .v4-orb-face { display: none; }
+:where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face > img.avatar, #brand-today > img.avatar, .msg > img.msg-face, .hp-portrait) {
+  border-radius: 50%;
+  box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 14px -2px var(--acc-glow);
+}
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="listening"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-listen 1.4s ease-out infinite; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="thinking"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-think 2.4s ease-in-out infinite; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="speaking"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-speak .9s ease-in-out infinite; }
+@keyframes v4d-ring-listen { 0% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 0 3px var(--acc-glow); } 100% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 0 10px transparent; } }
+@keyframes v4d-ring-think { 50% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 20px 2px var(--acc-glow); } }
+@keyframes v4d-ring-speak { 50% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 4.5px var(--accent-solid), 0 0 24px 4px var(--acc-glow); } }
+/* The status strip's wordmark shows the picture too (the orb's canvas steps aside). */
+:where(:root.v4-own-face:not([data-palette="classic"])) .v4-word .v4-orb { width: 18px; height: 18px; border-radius: 50%; background: var(--her-pic) center / cover; box-shadow: 0 0 0 1.5px var(--accent-solid); }
+:where(:root.v4-own-face:not([data-palette="classic"])) .v4-word .v4-orb > canvas { display: none; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-motion="off"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg > img.msg-face, .hp-portrait) { animation: none; }
+@media (prefers-reduced-motion: reduce) { :where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face > img.avatar, #brand-today > img.avatar, .msg > img.msg-face, .hp-portrait) { animation: none; } }
+
+/* ---------- run cards: one line when folded (web/run-timeline.js), a chevron that turns ---------- */
+:where(:root:not([data-palette="classic"])) .steps.v4-run > .steps-sum { cursor: pointer; }
+:where(:root:not([data-palette="classic"])) .steps.v4-run > .steps-sum:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: -2px; }
+:where(:root:not([data-palette="classic"])) .v4-run-chev { flex: none; width: 8px; height: 8px; margin: 0 2px 0 2px; border-right: 1.5px solid var(--text-3); border-bottom: 1.5px solid var(--text-3); transform: rotate(-45deg); transition: transform var(--dur-2, .2s) var(--ease-std, ease); }
+:where(:root:not([data-palette="classic"])) .steps.v4-run[open] .v4-run-chev { transform: rotate(45deg) translate(-2px, -2px); }
+:where(:root:not([data-palette="classic"])) .steps.v4-run:not([open]) .v4-run-foot { display: none; }
+@media (max-width: 480px) { :where(:root:not([data-palette="classic"])) .steps.v4-run .v4-run-fold { display: none; } }
+:root[data-palette="classic"] .v4-run-chev { display: none; }
+/* The memory step: what it means, under its line. */
+:where(:root:not([data-palette="classic"])) .step.memory .step-sub { margin: 2px 0 0 26px; color: var(--text-3); font-size: 12px; }
+:root[data-palette="classic"] .step.memory .step-sub { display: none; }
+
+/* ---------- motion: off with the setting or the system ---------- */
+:where(:root:not([data-palette="classic"]))[data-motion="off"] #today .td-mood .hp-dot { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  :where(:root:not([data-palette="classic"])) #today .td-mood .hp-dot { animation: none; }
+  :where(:root:not([data-palette="classic"])) #today .td-tile:hover { transform: none; }
+}
+/* Reduced decoration (and High contrast): flat cards, no blur, no glow. */
+:where(:root:not([data-palette="classic"]))[data-decor="off"] :is(#today .td-tile, #today .td-hero, #today .today-start, #today .td-nowcard, #today .td-away) { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }

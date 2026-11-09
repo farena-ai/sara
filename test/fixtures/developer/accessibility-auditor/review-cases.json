@@ -1,0 +1,94 @@
+[
+  {
+    "id": "ariaTargetOwnLabel",
+    "body": "<button aria-labelledby=\"n\"></button><span id=\"n\" aria-label=\"Save\"></span>"
+  },
+  {
+    "id": "ariaTargetImageOwnLabel",
+    "body": "<button aria-labelledby=\"n\"></button><img id=\"n\" aria-label=\"Save\">"
+  },
+  {
+    "id": "nativeLabelNamedImage",
+    "body": "<label><img aria-label=\"Name\"><input></label>"
+  },
+  {
+    "id": "asciiWhitespace",
+    "body": "<span id=\"a\">A</span><span id=\"b\">B</span><button aria-labelledby=\"a\tb\na\fb\ra a\"></button>"
+  },
+  {
+    "id": "nbspId",
+    "body": "<span id=\"\u00a0a\">Name</span><button aria-labelledby=\"\u00a0a\"></button>"
+  },
+  {
+    "id": "nbspBetweenIds",
+    "body": "<span id=\"a\u00a0b\">Name</span><button aria-labelledby=\"a\u00a0b\"></button>"
+  },
+  {
+    "id": "emptyReferencedName",
+    "body": "<span id=\"n\"></span><button aria-labelledby=\"n\">Save</button>"
+  },
+  {
+    "id": "titleReferencedName",
+    "body": "<span id=\"n\" title=\"Save\"></span><button aria-labelledby=\"n\"></button>"
+  },
+  {
+    "id": "hiddenReferencedName",
+    "body": "<span hidden id=\"n\">Save</span><button aria-labelledby=\"n\"></button>"
+  },
+  {
+    "id": "hiddenDescendantOfVisibleReference",
+    "body": "<span id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button>"
+  },
+  {
+    "id": "nativeForOverridesNesting",
+    "body": "<label for=\"a\">Name<input id=\"b\"></label><input id=\"a\">"
+  },
+  {
+    "id": "ariaOverridesEmptyLabel",
+    "body": "<label for=\"a\"> </label><input id=\"a\" aria-label=\"Name\">"
+  },
+  {
+    "id": "hiddenTemplate",
+    "body": "<div hidden><button></button></div><div inert><input></div><template><img></template>"
+  },
+  {
+    "id": "decorative",
+    "body": "<img alt=\"\"><img role=\"presentation\"><img role=\"none\"><img role=\"presentation\" tabindex=\"0\">"
+  },
+  {
+    "id": "formTypes",
+    "body": "<button></button><input type=\"button\"><input type=\"submit\"><input type=\"reset\"><input type=\"image\"><input type=\"hidden\"><input type=\"text\">"
+  },
+  {
+    "id": "duplicates",
+    "body": "<span id=\"n\">A</span><span id=\"n\">B</span><button aria-labelledby=\"n missing\"></button>"
+  },
+  {
+    "id": "duplicateAttrs",
+    "body": "<button aria-label=\"Save\" aria-label=\"\"></button>"
+  },
+  {
+    "id": "foreign",
+    "body": "<svg><title>SVG</title><foreignObject><button></button></foreignObject></svg>"
+  },
+  {
+    "id": "css",
+    "body": "<style>button {display:none}</style><button></button>"
+  },
+  {
+    "id": "script",
+    "body": "<script>void 0</script><button></button>"
+  },
+  {
+    "id": "shadow",
+    "body": "<template shadowrootmode=\"open\"><button></button></template>"
+  },
+  {
+    "id": "crlfUnicode",
+    "body": "\ud83d\ude00\r\n<table><button></button><tr><td><img></td></tr></table>"
+  },
+  {
+    "id": "privateEcho",
+    "body": "<privatecanary id=\"PRIVATE_CANARY\" aria-controls=\"PRIVATE_REF\"></privatecanary><button id=\"PRIVATE_CANARY\" aria-labelledby=\"PRIVATE_REF\" title=\"PRIVATE_TEXT\"></button><img src=\"https://private.invalid/PRIVATE_URL\">"
+  }
+]

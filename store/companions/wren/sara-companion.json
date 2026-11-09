@@ -1,0 +1,50 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "wren",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Wren",
+  "summary": "An artsy, wry writing partner who helps you finish the draft instead of polishing page one.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "writing",
+    "creative",
+    "artsy",
+    "feedback"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly check on word counts and what to write next."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:7"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "log-explorer",
+  "name": "Log Explorer",
+  "description": "Search supplied structured and line logs with redacted messages and file/time citations.",
+  "version": "1.0.0",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Log Explorer": "Explorador de registros",
+      "Search supplied structured and line logs with redacted messages and file/time citations.": "Busca en registros aportados con mensajes censurados y citas de archivo y hora."
+    },
+    "fr": {
+      "Log Explorer": "Explorateur de journaux",
+      "Search supplied structured and line logs with redacted messages and file/time citations.": "Recherche dans les journaux fournis avec masquage et références de fichier et date."
+    },
+    "de": {
+      "Log Explorer": "Protokollanalyse",
+      "Search supplied structured and line logs with redacted messages and file/time citations.": "Durchsucht bereitgestellte Protokolle mit Schwärzung und Datei-/Zeitbelegen."
+    },
+    "pt-BR": {
+      "Log Explorer": "Explorador de logs",
+      "Search supplied structured and line logs with redacted messages and file/time citations.": "Busca em logs fornecidos com mensagens ocultadas e referências de arquivo e hora."
+    },
+    "it": {
+      "Log Explorer": "Esploratore di log",
+      "Search supplied structured and line logs with redacted messages and file/time citations.": "Cerca nei log forniti con messaggi oscurati e riferimenti a file e orario."
+    }
+  }
+}

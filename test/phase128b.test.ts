@@ -47,14 +47,18 @@ test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 gro
     byGroup.set(s.group, [...(byGroup.get(s.group) ?? []), s.id]);
   }
   // The retired Recipes page and the member-only account page aren't in the owner's list.
-  // Q3 intentionally adds Recovery to Data & health; unrelated groups retain the ten-page cap.
-  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' ? 11 : 10), `${g}: ${ids.length} pages`);
+  // Q3 adds Recovery and Q4 adds Operations; EC7 adds Microsoft Teams as the eleventh chat app (Chat
+  // apps keeps its chat apps together rather than splitting them); other groups retain the ten-page cap.
+  assert.equal(byGroup.get('Data & health')?.length, 12);
+  assert.ok(byGroup.get('Data & health')?.includes('dh-operations'));
+  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' || g === 'Chat apps' ? 12 : 10), `${g}: ${ids.length} pages`);
   const want: Record<string, string[]> = {
-    'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup'],
+    'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity'],
     'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes'],
     Coding: ['ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools'],
-    You: ['you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult'],
-    Connections: ['co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks'],
+    // V1 (docs/ops/V1_DESIGN.md §7): Appearance became its own page in You.
+    You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult'],
+    Connections: ['co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify'],
   };
   for (const [g, ids] of Object.entries(want)) assert.deepEqual([...byGroup.get(g)!].sort(), [...ids].sort(), g);
   // Inside each group the nav follows SETTINGS_ORDER, so a group's pages are next to each other.
@@ -75,7 +79,8 @@ test('128b.2 OLD_TABS, every openSettings / showSettingsTab / settings: link, th
     const src = web(f);
     for (const m of src.matchAll(/(?:openSettings|showSettingsTab|openSettingsPage)\(\s*'([\w-]+)'/g)) {
       n++;
-      assert.ok(ids.has(m[1]) || ids.has(oldTabs.get(m[1]) ?? ''), `${f}: openSettings('${m[1]}')`);
+      // V3: 'home' is the Settings home (every page under its group), not a page.
+      assert.ok(ids.has(m[1]) || m[1] === 'home' || ids.has(oldTabs.get(m[1]) ?? ''), `${f}: openSettings('${m[1]}')`);
     }
     for (const m of src.matchAll(/['`]settings:([\w-]+)['`]/g)) assert.ok(ids.has(m[1]), `${f}: settings:${m[1]}`);
   }
@@ -138,6 +143,10 @@ test('128b.3 N30: search returns the expected first page for 30 terms; routine a
     ['botfather', 'co-telegram'],
   ];
   assert.equal(first.length, 30);
+  // EC1: Slack is found by its name (an extra term, outside the original 30).
+  first.push(['slack', 'co-slack']);
+  // EC7: Microsoft Teams too.
+  first.push(['teams', 'co-teams']);
   for (const [q, want] of first) {
     const got = search.rankPages(q, records).map((r: Any) => r.id);
     const top = Array.isArray(want) ? got.slice(0, want.length).sort() : got[0];
@@ -158,7 +167,7 @@ test('128b.3 N30: search returns the expected first page for 30 terms; routine a
   assert.ok(search.rankPages('connections', records).some((r: Any) => r.id === 'co-whatsapp'));
   assert.match(app, /t\('Some \{old\} pages moved in 2\.61\.1, to \{groups\}\.'/);
   // Every page added since 2.48 is found first by its own title.
-  for (const id of ['co-signal', 'co-email', 'ab-persist', 'ab-when', 'co-pickup', 'ab-precise', 'dh-safety', 'co-whatsapp', 'co-matrix', 'co-imessage', 'ab-store', 'her-hey']) {
+  for (const id of ['co-signal', 'co-email', 'ab-persist', 'ab-when', 'co-pickup', 'ab-precise', 'dh-safety', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'ab-store', 'her-hey']) {
     const title = sections.find((s) => s.id === id)!.title;
     assert.equal(search.rankPages(title, records)[0].id, id, `${title}`);
   }

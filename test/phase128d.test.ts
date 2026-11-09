@@ -54,10 +54,18 @@ test('128d.3 N38: the new guide sections resolve to unique ids, and every # link
 
 test('128d.4 C4: every sara-plugin.mjs, http1.mjs and pace.mjs (outside node_modules and outputs) has its source\'s hash', () => {
   const copies = sdkCopies();
-  assert.equal(copies['sara-plugin.mjs'].length, 15, copies['sara-plugin.mjs'].join(', '));
+  assert.equal(copies['sara-plugin.mjs'].length, 56 /* EC1: + plugins/slack, EC7: + plugins/teams */, copies['sara-plugin.mjs'].join(', '));
+  assert.deepEqual(copies['sara-job.mjs'], ['src/plugins/sara-job.mjs', 'store/plugins/documentation-doctor/sara-job.mjs', 'store/plugins/flaky-test-lab/sara-job.mjs', 'store/plugins/release-readiness/sara-job.mjs', 'store/plugins/repository-onboarding/sara-job.mjs', 'store/plugins/test-doctor/sara-job.mjs']);
+  for (const id of ['daily-briefing', 'meeting-assistant', 'document-desk', 'research-notebook', 'project-handoff', 'weekly-review', 'inbox-triage', 'content-studio', 'image-workshop', 'spreadsheet-assistant', 'travel-planner', 'home-dashboard']) {
+    assert.ok(copies['sara-plugin.mjs'].includes(`store/plugins/${id}/sara-plugin.mjs`), `${id}: standalone SDK remains hash-checked`);
+  }
   assert.ok(copies['sara-plugin.mjs'].includes('plugins/whatsapp/sara-plugin.mjs') && copies['sara-plugin.mjs'].includes('store/plugins/focus/sara-plugin.mjs'));
-  assert.deepEqual(copies['http1.mjs'], ['plugins/imessage/http1.mjs', 'plugins/matrix/http1.mjs', 'plugins/whatsapp/http1.mjs']);
-  assert.deepEqual(copies['pace.mjs'], ['plugins/imessage/pace.mjs', 'plugins/matrix/pace.mjs', 'plugins/signal/pace.mjs', 'plugins/whatsapp/pace.mjs']);
+  for (const id of ['api-contract-guard', 'secret-scanner', 'license-auditor', 'sbom-builder', 'artifact-provenance-verifier', 'coverage-explorer', 'log-explorer', 'incident-workbench', 'environment-config-doctor', 'database-fixture-studio', 'data-contract-validator', 'change-impact-analyzer', 'architecture-guard', 'sql-migration-reviewer', 'visual-regression', 'localization-qa', 'accessibility-auditor', 'build-cache-inspector', 'http-webhook-workbench',
+    'performance-regression-lab', 'code-migration-studio', 'build-reproducibility-inspector', 'test-doctor', 'flaky-test-lab', 'documentation-doctor', 'release-readiness', 'repository-onboarding']) {
+    assert.ok(copies['sara-plugin.mjs'].includes(`store/plugins/${id}/sara-plugin.mjs`), `${id}: developer candidate SDK remains hash-checked`);
+  }
+  assert.deepEqual(copies['http1.mjs'], ['plugins/imessage/http1.mjs', 'plugins/matrix/http1.mjs', 'plugins/slack/http1.mjs', 'plugins/teams/http1.mjs', 'plugins/whatsapp/http1.mjs']);
+  assert.deepEqual(copies['pace.mjs'], ['plugins/imessage/pace.mjs', 'plugins/matrix/pace.mjs', 'plugins/signal/pace.mjs', 'plugins/slack/pace.mjs', 'plugins/teams/pace.mjs', 'plugins/whatsapp/pace.mjs']);
   for (const [name, list] of Object.entries(copies)) {
     const want = sha256(join(ROOT, SDK_SOURCES[name]));
     for (const c of list) assert.equal(sha256(join(ROOT, c)), want, `${c} differs from ${SDK_SOURCES[name]}: run node scripts/sdk-sync.ts`);
@@ -71,9 +79,9 @@ test('128d.5 Q8: one pace.mjs keeps each app\'s numbers from before the merge', 
   assert.deepEqual(pick('matrix', 'EVERY_MS', 'BURST', 'PER_HOUR', 'PER_DAY', 'DEFAULT_RETRY_MS', 'MAX_RETRY_MS', 'TYPING_EVERY_MS'), [1_000, 5, 600, 3_000, 5_000, 300_000, 25_000]);
   assert.deepEqual(pick('imessage', 'EVERY_MS', 'BURST', 'PER_HOUR', 'PER_DAY', 'TYPING_EVERY_MS'), [2_000, 4, 150, 600, 20_000]);
   assert.deepEqual(pick('signal', 'PER_CHAT_GAP_MS', 'GROUP_PER_MINUTE', 'PER_HOUR', 'PER_DAY', 'REPLY_WINDOW_MS', 'PAUSE_CHAT_MS', 'PAUSE_ALL_MS'), [1_000, 20, 60, 400, 86_400_000, 3_600_000, 21_600_000]);
-  assert.deepEqual(Object.keys(LIMITS).sort(), ['imessage', 'matrix', 'signal', 'whatsapp']);
+  assert.deepEqual(Object.keys(LIMITS).sort(), ['imessage', 'matrix', 'signal', 'slack', 'teams', 'whatsapp']);
   // Each plugin asks for its own app's pace.
-  for (const app of ['whatsapp', 'matrix', 'imessage', 'signal']) assert.match(read('plugins', app, 'main.mjs'), new RegExp(`= pacing\\('${app}'\\);`));
+  for (const app of ['whatsapp', 'matrix', 'imessage', 'signal', 'slack', 'teams']) assert.match(read('plugins', app, 'main.mjs'), new RegExp(`= pacing\\('${app}'\\);`));
   // The caps still name the app, and the WhatsApp backoff still retries the same message (fake clock).
   const { Pacer, CapError } = pacing('whatsapp');
   let now = 0;

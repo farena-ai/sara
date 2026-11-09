@@ -1,0 +1,63 @@
+{
+  "manifest": 1,
+  "id": "test-doctor",
+  "name": "Test Doctor",
+  "version": "1.0.0",
+  "description": "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "diagnose"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none",
+    "run": {
+      "programs": [
+        "node"
+      ],
+      "sources": [
+        "data"
+      ],
+      "network": false
+    }
+  },
+  "i18n": {
+    "es": {
+      "Test Doctor": "Doctor de pruebas",
+      "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.": "Ejecuta en una copia desechable una prueba con nombre exacto de un proyecto preparado y señala la aserción que falla y el código que llama."
+    },
+    "fr": {
+      "Test Doctor": "Docteur des tests",
+      "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.": "Exécute dans une copie jetable un test au nom exact d'un projet préparé et montre l'assertion qui échoue et le code qu'elle appelle."
+    },
+    "de": {
+      "Test Doctor": "Testdoktor",
+      "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.": "Führt einen genau benannten Test eines vorbereiteten Projekts in einer Wegwerfkopie aus und zeigt die fehlschlagende Zusicherung und den Code, den sie aufruft."
+    },
+    "pt-BR": {
+      "Test Doctor": "Médico de testes",
+      "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.": "Executa em uma cópia descartável um teste com nome exato de um projeto preparado e aponta a asserção que falha e o código que ela chama."
+    },
+    "it": {
+      "Test Doctor": "Dottore dei test",
+      "Run one exactly named test of a staged project in a disposable copy and point at its failing assertion and the source it calls.": "Esegue in una copia usa e getta un test con nome esatto di un progetto preparato e indica l'asserzione che fallisce e il codice che chiama."
+    }
+  }
+}

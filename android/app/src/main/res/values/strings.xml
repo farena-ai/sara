@@ -87,10 +87,10 @@
     <string name="lock_prompt">Unlock Sara</string>
     <string name="lock_needs_screen_lock">Set a screen lock in your phone\'s settings first.</string>
     <!-- Place reminders and saved pictures -->
-    <string name="places_title">Allow location all the time?</string>
-    <string name="places_message">To remind you when you get somewhere, Sara has to notice you arriving while the app is closed. On the next screen choose \"Allow all the time\". Your location stays on this phone: Sara only tells your server \"arrived at Store\".</string>
+    <string name="places_title">Place reminders use your location</string>
+    <string name="places_message">Sara collects location data to enable place reminders, even when the app is closed or not in use. That is how she can remind you when you arrive at or leave a place you saved (\"remind me when I get home\"). Your location is checked on this phone: Sara only tells your own Sara server \"arrived at Home\" or \"left Work\", and the places you save are kept on that server. Android asks next: choose \"Allow all the time\". You can turn place reminders off any time in Settings.</string>
     <string name="places_continue">Continue</string>
-    <string name="places_not_now">Not now</string>
+    <string name="places_not_now">No thanks</string>
     <string name="places_no_service">This phone has no location service.</string>
     <string name="places_need_permission">Sara needs location permission to save a place.</string>
     <string name="places_need_permission_watch">Sara needs location permission to save a place or watch for it.</string>
@@ -119,4 +119,12 @@
     <string name="hey_after_boot">Hey Sara is off since your phone restarted. Tap to turn it back on.</string>
     <string name="hey_no_server">Open Sara and sign in to your server first.</string>
     <string name="hey_tile">Talk to Sara</string>
+    <string name="hey_listening_wake">Say “Hey Sara”, or tap Talk. Nothing leaves the phone before that.</string>
+    <string name="hey_paused_charging">Waiting for the charger (you chose “only while charging”).</string>
+    <string name="hey_paused_battery">Paused to save battery (low battery or Battery Saver).</string>
+    <string name="hey_paused_open">Listens only while Sara is on the screen.</string>
+    <string name="hey_paused_quiet">Resting in your quiet hours. Talk still works.</string>
+    <string name="hey_paused_mic">Another app is using the microphone.</string>
+    <string name="hey_heard_you">Heard you</string>
+    <string name="hey_pack">Getting the speech model from your server…</string>
 </resources>

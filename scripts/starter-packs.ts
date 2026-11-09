@@ -2,7 +2,8 @@
 // store/companions/<id>/, made from the gallery sheets (persona/gallery/*.json) plus what the gallery
 // never had: a hello, a voice, a routine, skills or suggestions, and the look's words.
 //
-//   node scripts/starter-packs.ts             write the four packs (no pictures: look "none")
+//   node scripts/starter-packs.ts             write the four starter packs and the cast of scripts/companion-cast.ts
+//                                             (their words; pictures already in a pack are kept)
 //   node scripts/starter-packs.ts --check     run the store's companion checks on each (no network)
 //   node scripts/starter-packs.ts --look <id> <companion folder>
 //       add a look Sara built: copies the 37 pictures of <companion folder>/look into the pack
@@ -19,6 +20,7 @@ import { checkCompanion } from '../src/packs/checks.ts';
 import { STORE_COMPANION_LIMITS } from '../src/packs/format.ts';
 import { stripMeta } from '../src/packs/pictures.ts';
 import { reportText } from '../src/store/pack.ts';
+import { CAST, type CastMember } from './companion-cast.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUT = join(ROOT, 'store', 'companions');
@@ -34,13 +36,16 @@ Full licence text: https://creativecommons.org/licenses/by/4.0/legalcode
 
 interface Starter {
   id: string;
-  gallery: string;
+  /** A gallery sheet (persona/gallery/<id>.json) to grow, or the whole sheet (the cast). */
+  gallery?: string;
+  persona?: CastMember['persona'];
+  made?: string;
   summary: string;
   tags: string[];
   background: string[];
   speech: string[];
   greeting: { first: string; others: string[] };
-  voice: { tts: 'local'; localVoice: string; xaiVoice: string };
+  voice: { tts: 'local'; localVoice: string; xaiVoice: string; openaiVoice?: string };
   look: { appearance: string; style: string; wear: string; place: string };
   skills?: { bundled: string; why: string; md: string }[];
   routines: { id: string; answers?: Record<string, string>; why: string }[];
@@ -76,7 +81,7 @@ const STARTERS: Starter[] = [
     speech: ['Sums up a messy problem in one plain sentence before going on.'],
     greeting: { first: "Hello, {{user}}. Sit down, there's no rush. What's on your mind today?", others: ['Good to see you. What are you trying to figure out this week?', "Morning. Before we start: what would make today feel like a good day?"] },
     voice: { tts: 'local', localVoice: 'kokoro:7', xaiVoice: 'rex' },
-    look: { appearance: 'a 52-year-old person with kind grey eyes, short grey-streaked hair and reading glasses, a calm, thoughtful expression', style: 'photo', wear: 'a soft grey sweater over a collared shirt', place: 'a quiet study with full bookshelves and morning light through the window' },
+    look: { appearance: 'a 52-year-old person with kind grey eyes, short grey-streaked hair and reading glasses, a calm, thoughtful expression', style: 'illustrated', wear: 'a soft grey sweater over a collared shirt', place: 'a quiet study with full bookshelves and morning light through the window' },
     routines: [{ id: 'weekly-review', why: 'A calm look back at the week, and what comes next.' }],
     suggests: [{ store: 'reading-list', why: 'So they can keep track of what you want to read.' }],
   },
@@ -89,7 +94,7 @@ const STARTERS: Starter[] = [
     speech: ['Opens a busy day with a short status line, then asks what the mission is.'],
     greeting: { first: 'Good to have you on the bridge, Captain. All systems nominal. What is our heading today?', others: ['Captain on deck. Coffee reserves look low; morale is holding. Orders?', 'Welcome back, {{user}}. I kept the log while you were away. Shall we begin?'] },
     voice: { tts: 'local', localVoice: 'piper:hfc_female', xaiVoice: 'eve' },
-    look: { appearance: 'a 34-year-old woman with short silver-blonde hair, calm grey-green eyes and a composed, kind expression', style: '3d', wear: 'a fitted navy flight jacket with small mission patches', place: "a starship bridge lit by soft blue console light" },
+    look: { appearance: 'a 34-year-old woman with short silver-blonde hair, calm grey-green eyes and a composed, kind expression', style: 'illustrated', wear: 'a fitted navy flight jacket with small mission patches', place: "a starship bridge lit by soft blue console light" },
     routines: [{ id: 'morning-brief', why: 'A morning status report for the day ahead.' }],
     suggests: [{ store: 'weather-alerts', why: 'So she can mention the rain before you leave.' }],
   },
@@ -102,15 +107,17 @@ const STARTERS: Starter[] = [
     speech: ['Celebrates a fixed bug loudly, then asks what broke it in the first place.'],
     greeting: { first: "yo {{user}}! perfect timing, i just broke something interesting. what are we building today?", others: ['ok hear me out: one tiny side project. what are you working on?', "hey! got any weird bugs for me? i'm bored and caffeinated."] },
     voice: { tts: 'local', localVoice: 'kokoro:0', xaiVoice: 'leo' },
-    look: { appearance: 'a 27-year-old man with messy dark hair, a short beard, bright curious eyes and a big grin', style: 'anime', wear: 'a worn black hoodie with a small pixel-art badge', place: 'a cluttered desk with three glowing monitors and sticky notes everywhere' },
+    look: { appearance: 'a 27-year-old man with messy dark hair, a short beard, bright curious eyes and a big grin', style: 'illustrated', wear: 'a worn black hoodie with a small pixel-art badge', place: 'a cluttered desk with three glowing monitors and sticky notes everywhere' },
     routines: [{ id: 'new-issues', why: 'He watches your repo for new issues (it needs GitHub).' }],
     suggests: [{ store: 'github-digest', why: 'A daily digest of what happened on your repos.' }],
   },
+  ...CAST.map((c): Starter => ({ id: c.id, persona: c.persona, made: '2026-11-07', summary: c.summary, tags: c.tags, background: [], speech: [], greeting: c.greeting, voice: c.voice, look: c.look, routines: c.routines, suggests: c.suggests })),
 ];
 
 const json = (v: unknown) => `${JSON.stringify(v, null, 2)}\n`;
 /** The gallery sheet with "the owner" as {{user}}, grown by the pack's lines. */
 function sheetOf(s: Starter): Record<string, unknown> {
+  if (s.persona) return { ...s.persona, appearance: s.look.appearance };
   const g = JSON.parse(readFileSync(join(ROOT, 'persona', 'gallery', `${s.gallery}.json`), 'utf8')) as { persona: Record<string, unknown> };
   const swap = (v: unknown): unknown => (typeof v === 'string' ? v.replace(/\bthe owner's\b/g, "{{user}}'s").replace(/\bthe owner\b/g, '{{user}}') : Array.isArray(v) ? v.map(swap) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, swap(x)])) : v);
   const p = swap(g.persona) as Record<string, unknown> & { background: string[]; speech: string[] };
@@ -120,12 +127,15 @@ function sheetOf(s: Starter): Record<string, unknown> {
 function write(s: Starter): void {
   const dir = join(OUT, s.id);
   // Keep a look added with --look (look/, cover.png, rights.json) when rewriting the words.
-  const hasLook = existsSync(join(dir, 'look', 'sara-portrait.jpg'));
+  // A portrait look (portrait + avatar, made by scripts outside this file and recorded in rights.json) or
+  // a full look Sara built (--look); without one, a plain drawn cover.
+  const lookKind = LOOK_PATHS.every((p) => existsSync(join(dir, 'look', p))) ? 'full' : existsSync(join(dir, 'look', 'sara-portrait.jpg')) && existsSync(join(dir, 'look', 'sara-avatar.jpg')) ? 'portrait' : 'none';
+  const hasLook = lookKind !== 'none';
   mkdirSync(dir, { recursive: true });
   for (const f of readdirSync(dir)) if (!['look', 'cover.png', 'rights.json'].includes(f)) rmSync(join(dir, f), { recursive: true, force: true });
   const persona = sheetOf(s);
   writeFileSync(join(dir, 'persona.json'), json(persona));
-  writeFileSync(join(dir, 'voice.json'), json({ tts: s.voice.tts, localVoice: s.voice.localVoice, speed: 1, openaiVoice: '', elevenlabsVoice: '', xaiVoice: s.voice.xaiVoice, xaiLanguage: 'en' }));
+  writeFileSync(join(dir, 'voice.json'), json({ tts: s.voice.tts, localVoice: s.voice.localVoice, speed: 1, openaiVoice: s.voice.openaiVoice ?? '', elevenlabsVoice: '', xaiVoice: s.voice.xaiVoice, xaiLanguage: 'en' }));
   writeFileSync(join(dir, 'greeting.json'), json(s.greeting));
   writeFileSync(join(dir, 'look.json'), json(s.look));
   for (const k of s.skills ?? []) {
@@ -137,7 +147,7 @@ function write(s: Starter): void {
     writeFileSync(join(dir, 'cover.png'), plainPicture(`${s.id}-cover`, 512));
     writeFileSync(join(dir, 'rights.json'), json([{ files: ['cover.png'], made: 'drawn', by: 'the Sara team', from: 'my-drawing', at: DAY }]));
   }
-  writeFileSync(join(dir, 'CHANGES.md'), `# 1.0.0\n\nFirst version of ${persona.name as string}, one of the four starter companions.\n`);
+  writeFileSync(join(dir, 'CHANGES.md'), s.gallery ? `# 1.0.0\n\nFirst version of ${persona.name as string}, one of the four starter companions.\n` : `# 1.0.0\n\nFirst version of ${persona.name as string}.\n`);
   writeFileSync(join(dir, 'LICENSE'), LICENSE);
   writeFileSync(
     join(dir, 'sara-companion.json'),
@@ -156,12 +166,12 @@ function write(s: Starter): void {
       romance: false,
       language: 'en',
       tags: s.tags,
-      includes: { persona: true, dials: true, look: hasLook ? 'full' : 'none', closet: 0, reference: 0, voice: true, greeting: true },
+      includes: { persona: true, dials: true, look: lookKind, closet: 0, reference: 0, voice: true, greeting: true },
       skills: (s.skills ?? []).map((k) => ({ bundled: k.bundled, why: k.why })),
       routines: s.routines,
       suggests: s.suggests ?? [],
       needs: { pictures: !hasLook, voices: [s.voice.localVoice] },
-      made: { with: 'Sara 2.60.0', at: DAY },
+      made: s.made ? { with: 'Sara 2.81.0', at: s.made } : { with: 'Sara 2.60.0', at: DAY },
     }),
   );
 }
@@ -192,7 +202,10 @@ export function checkStarters(): { id: string; ready: boolean; warnings: number;
     return { id: s.id, ready: r.ready, warnings: r.results.reduce((n, x) => n + x.warnings.length, 0), text: reportText(r) };
   });
 }
-export const STARTER_IDS = STARTERS.map((s) => s.id);
+/** The four day-one starters (made from gallery sheets). */
+export const STARTER_IDS = STARTERS.filter((s) => s.gallery).map((s) => s.id);
+/** Every first-party companion pack in store/companions/. */
+export const PACK_IDS = STARTERS.map((s) => s.id);
 
 if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename)) {
   const args = process.argv.slice(2);
@@ -208,6 +221,6 @@ if (process.argv[1] && resolve(process.argv[1]) === resolve(import.meta.filename
     process.exit(bad ? 1 : 0);
   } else {
     for (const s of STARTERS) write(s);
-    console.log(`Wrote ${STARTERS.length} starter packs to store/companions/.`);
+    console.log(`Wrote ${STARTERS.length} companion packs to store/companions/.`);
   }
 }

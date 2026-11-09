@@ -1,4 +1,17 @@
-import { t } from './naming.js';
+import { locale, t } from './naming.js';
+
+/** A receipt time for people: "5 minutes ago" (or the date) with the full local time on hover; the exact ISO stays in datetime. */
+export function receiptTime(iso, now = Date.now(), loc = locale()) {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) return { text: String(iso), title: String(iso) };
+  const title = new Intl.DateTimeFormat(loc, { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(ms));
+  const sec = Math.round((ms - now) / 1000);
+  const abs = Math.abs(sec);
+  if (abs >= 7 * 86_400) return { text: title, title };
+  const rtf = new Intl.RelativeTimeFormat(loc, { numeric: 'auto' });
+  const [n, unit] = abs < 60 ? [sec, 'second'] : abs < 3600 ? [Math.round(sec / 60), 'minute'] : abs < 86_400 ? [Math.round(sec / 3600), 'hour'] : [Math.round(sec / 86_400), 'day'];
+  return { text: rtf.format(n, unit), title };
+}
 
 // Recovery reviews are data previews. Only the normal chat Send path may execute a new request.
 export function createRecovery(ctx) {
@@ -9,24 +22,34 @@ export function createRecovery(ctx) {
   let deliveryItems = [];
   let nextCursor = null;
   let deliveryRoot = null;
+  const filterButtons = new Map();
   const node = (tag, text = '', cls = '') => {
     const n = document.createElement(tag);
     n.className = cls;
     n.textContent = text;
     return n;
   };
+  const timeNode = (iso) => {
+    const { text, title } = receiptTime(iso);
+    const n = node('time', text);
+    n.setAttribute('datetime', String(iso));
+    n.setAttribute('title', title);
+    return n;
+  };
   const note = node('p', '', 'muted recovery-status');
   note.setAttribute('role', 'status');
   const allowed = () => ctx.isOwner();
   const error = () => { note.textContent = t('Recovery unavailable. Refresh and try again; nothing was sent.'); };
-  const button = (label, action) => {
+  const button = (label, action, singleUse = false) => {
+    let consumed = false;
     const b = node('button', label);
     b.type = 'button';
     b.addEventListener('click', async () => {
-      if (!allowed()) return;
+      if (!allowed() || (singleUse && consumed)) return;
+      consumed = true;
       b.disabled = true;
       try { await action(b); } catch { error(); }
-      finally { b.disabled = false; }
+      finally { b.disabled = singleUse && consumed; }
     });
     return b;
   };
@@ -129,13 +152,14 @@ export function createRecovery(ctx) {
   function deliveryRow(item) {
     const row = node('article', '', 'recovery-card');
     row.append(node('h3', `${item.bridge ?? ''} · ${stateLabel(item.state, item.held)}`));
-    if (item.createdAt) row.append(node('p', String(item.createdAt), 'muted small'));
+    if (item.archivedAt) { const p = node('p', t('Archived') + ' · '); p.append(timeNode(item.archivedAt)); row.append(p); }
+    if (item.createdAt) { const p = node('p', '', 'muted small'); p.append(timeNode(item.createdAt)); row.append(p); }
     if (item.state === 'outcome_unknown' || item.state === 'attempted') row.append(node('p', t('It may have arrived. Check the destination before asking Sara to send again.')));
     if (item.state === 'queued' && item.held === true) row.append(node('p', t('Held after interruption. This page never resends queued work.')));
     const queuedWarning = item.state === 'queued' && item.held !== true ? t('This message is still in the live queue and may send. Check before creating another request.') : '';
     if (queuedWarning) row.append(node('p', queuedWarning));
     if (item.resolution) row.append(node('p', resolutionLabel(item.resolution)));
-    if (!item.resolution && item.reviewAvailable !== false && ['queued', 'failed', 'outcome_unknown'].includes(item.state)) {
+    if (!item.archivedAt && !item.resolution && item.reviewAvailable !== false && ['queued', 'failed', 'outcome_unknown'].includes(item.state)) {
       row.append(button(t('Review message'), async (opener) => {
         const r = await api(`/deliveries/${encodeURIComponent(item.id)}/review`, {method:'POST',body:{}});
         if (!allowed()) return;
@@ -143,7 +167,7 @@ export function createRecovery(ctx) {
         preview(r.text, null, attachments, queuedWarning, opener);
       }));
     }
-    if (!item.resolution && (['failed', 'outcome_unknown'].includes(item.state) || (item.state === 'queued' && item.held === true))) {
+    if (!item.archivedAt && !item.resolution && (['failed', 'outcome_unknown'].includes(item.state) || (item.state === 'queued' && item.held === true))) {
       for (const [label, decision] of [[t('I confirmed receipt'),'confirmed_received'],[t('I confirmed no receipt'),'confirmed_not_received'],[t('Dismiss review'),'dismissed']]) row.append(button(label, async () => {
         await api(`/deliveries/${encodeURIComponent(item.id)}/resolve`, {method:'POST',body:{expectedState:item.state,decision}});
         deliveryItems = deliveryItems.map(d => d.id === item.id ? { ...d, resolution: decision, reviewAvailable: false } : d);
@@ -164,13 +188,15 @@ export function createRecovery(ctx) {
     const filters = node('div', '', 'recovery-filters');
     filters.setAttribute('role', 'group');
     filters.setAttribute('aria-label', t('Delivery history filter'));
-    for (const [value, label] of [['unresolved', t('Unresolved')], ['all', t('All history')]]) {
+    for (const [value, label] of [['unresolved', t('Unresolved')], ['all', t('All history')], ['archived', t('Archived')]]) {
       const b = button(label, async () => {
         if (deliveryFilter === value) return;
         deliveryFilter = value;
         await loadDeliveryPage(true);
+        if (allowed()) filterButtons.get(value)?.focus();
       });
       b.setAttribute('aria-pressed', String(deliveryFilter === value));
+      filterButtons.set(value, b);
       filters.append(b);
     }
     deliveryRoot.replaceChildren(filters, ...deliveryItems.map(deliveryRow));
@@ -190,6 +216,47 @@ export function createRecovery(ctx) {
       note.textContent = t('Review interrupted work. Nothing restarts or resends automatically.');
     } catch { if (request === deliveryGeneration) error(); }
   }
+  const archiveBox = node('section', '', 'recovery-card archive-controls');
+  archiveBox.append(node('h3', t('Archive old deliveries')));
+  const archiveLabel = node('label', t('Cutoff in UTC'));
+  const archiveInput = node('input');
+  archiveInput.id = 'archive-before';
+  archiveInput.type = 'text';
+  archiveInput.placeholder = 'YYYY-MM-DDTHH:mm:ss.sssZ';
+  archiveInput.setAttribute('aria-describedby', 'archive-tip');
+  const archiveTip = node('p', t('Enter a UTC date such as 2026-01-01T00:00:00.000Z. Only older eligible terminal records can be archived. Unresolved evidence is kept.'), 'muted small');
+  archiveTip.id = 'archive-tip';
+  const archiveStatus = node('p', '', 'recovery-status');
+  archiveStatus.setAttribute('role', 'status');
+  archiveLabel.append(archiveInput);
+  archiveBox.append(archiveLabel, archiveTip, node('p', t('Archiving keeps deduplication evidence. Nothing is deleted and the database does not shrink.')));
+  let cutoffRevision = 0;
+  archiveInput.addEventListener('input', () => { cutoffRevision++; archiveStatus.textContent = ''; });
+  const validCutoff = (value) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value) && Number.isFinite(Date.parse(value)) && new Date(value).toISOString() === value && Date.parse(value) <= Date.now();
+  archiveBox.append(button(t('Preview archive'), async (opener) => {
+    const before = archiveInput.value;
+    if (!validCutoff(before)) { archiveStatus.textContent = t('Enter a valid UTC cutoff in the past before previewing.'); archiveInput.focus(); return; }
+    const revision = cutoffRevision;
+    try {
+      const result = await api(`/deliveries/archive?before=${encodeURIComponent(before)}`);
+      if (!allowed() || revision !== cutoffRevision) return;
+      if (!Number.isSafeInteger(result.eligible) || result.eligible < 0) throw new Error('unavailable');
+      if (!result.eligible) { archiveStatus.textContent = t('No eligible deliveries before this cutoff.'); return; }
+      const { d, status } = dialog(t('Archive old deliveries'), opener);
+      d.append(node('p', t('Eligible records: {count}', { count: result.eligible })), node('p', before), node('p', t('Confirm one batch of up to 500 records. Remaining records require another preview with the same cutoff.')));
+      d.append(button(t('Confirm archive batch'), async (confirm) => {
+        if (!allowed() || revision !== cutoffRevision || archiveInput.value !== before) { status.textContent = t('Cutoff changed. Close and preview again.'); confirm.disabled = true; return; }
+        try {
+          const result = await api('/deliveries/archive', { method: 'POST', body: { before, limit: 500 } });
+          if (!allowed()) return;
+          if (!Number.isSafeInteger(result.archived) || !Number.isSafeInteger(result.remaining)) throw new Error('unavailable');
+          archiveStatus.textContent = t('Archived: {count}. Remaining eligible: {remaining}.', { count: result.archived, remaining: result.remaining });
+          d.close();
+          await loadDeliveryPage(true);
+        } catch { status.textContent = t('Archive result unavailable. Refresh and preview again before retrying.'); }
+      }, true));
+    } catch { archiveStatus.textContent = t('Archive result unavailable. Refresh and preview again before retrying.'); }
+  }), archiveStatus);
   async function refresh() {
     const request = ++generation;
     ++deliveryGeneration;
@@ -219,7 +286,7 @@ export function createRecovery(ctx) {
       const held = (teams.tasks ?? []).filter(t => t.status === 'interrupted');
       for (const team of held) { const row = node('article', '', 'recovery-card'); row.append(node('h3', String(team.goal ?? `#${team.id}`)), button(t('Resume team'), (opener) => resumeTeam(team.id, opener))); root.append(row); }
       if (!held.length) root.append(node('p', t('No interrupted teams.')));
-      root.append(node('h2', t('Native message deliveries')));
+      root.append(node('h2', t('Native message deliveries')), archiveBox);
       deliveryItems = delivery.deliveries ?? [];
       nextCursor = delivery.nextCursor ?? null;
       deliveryRoot = node('div');

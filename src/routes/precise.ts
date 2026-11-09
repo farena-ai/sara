@@ -10,6 +10,7 @@
 //   GET  /api/conversations/:id/refs/complete?kind=&q=   ≤ 20 suggestions (file, folder, branch)
 //   POST /api/conversations/:id/refs/preview             { content } → sizes only (never an @url body)
 //   GET  /api/conversations/:id/refs?message=ID          what one message's references attached ("What she got")
+import { checksWithBasis } from '../project-now.ts';
 import { detectCheckers, fullCheck, latestProblems, mergePrecise, preciseSettings, projectsOf, setProjectChecks, workspaceChecks, checksDb, PRECISE_CHOICES } from '../diagnostics.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { wsOf } from '../persist.ts';
@@ -38,11 +39,11 @@ export function createPreciseRoutes(ctx: RouteCtx): RouteHandler {
     if (wsPath) {
       if (!WORKSPACE_NAME_RE.test(b)) throw new HttpError(400, 'Invalid workspace name');
       const ws = workspaceDir(ctx.rootDir, b);
-      if (c === 'checks' && !d && method === 'GET') return send(res, 200, { projects: workspaceChecks(app, b, ws), settings: preciseSettings(app).checks });
+      if (c === 'checks' && !d && method === 'GET') return send(res, 200, { projects: await checksWithBasis(app, b, ws, workspaceChecks(app, b, ws)), settings: preciseSettings(app).checks });
       if (c === 'checks' && !d && method === 'PUT') {
         const r = setProjectChecks(app, b, ws, await readJson(req));
         if (!r.ok) throw new HttpError(r.status, r.error);
-        return send(res, 200, { choice: r.choice, projects: workspaceChecks(app, b, ws) });
+        return send(res, 200, { choice: r.choice, projects: await checksWithBasis(app, b, ws, workspaceChecks(app, b, ws)) });
       }
       if (c === 'checks' && d === 'run' && method === 'POST') {
         const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
@@ -55,7 +56,7 @@ export function createPreciseRoutes(ctx: RouteCtx): RouteHandler {
           const ch = checksDb(app).choice(b, project.path);
           const list = detectCheckers(project.dir).filter((k) => k.installed && (ch.state !== 'on' || ch.checkers.includes(k.id)));
           const runs = await fullCheck(app, b, ws, project, AbortSignal.timeout(preciseSettings(app).checks.timeoutS * 1000 * Math.max(1, list.length) + 5000), { checkers: list });
-          return send(res, 200, { runs: runs.map((r) => ({ checker: r.checker.id, state: r.state, ms: r.ms, errors: r.diags.filter((x) => x.severity === 'error').length, note: r.note ?? null })), projects: workspaceChecks(app, b, ws) });
+          return send(res, 200, { runs: runs.map((r) => ({ checker: r.checker.id, state: r.state, ms: r.ms, errors: r.diags.filter((x) => x.severity === 'error').length, note: r.note ?? null })), projects: await checksWithBasis(app, b, ws, workspaceChecks(app, b, ws)) });
         } finally {
           running.delete(key);
         }

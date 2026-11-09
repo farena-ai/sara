@@ -6,6 +6,18 @@
 import { isIP } from 'node:net';
 
 export const MANIFEST_FILE = 'sara-plugin.json';
+
+/** H_EXEC: the programs and sources a plugin job may use (src/plugins/exec-job.ts runs them). */
+export type JobProgram = 'node' | 'npm';
+export type JobSource = 'data' | 'workspace';
+export const JOB_PROGRAMS: readonly JobProgram[] = ['node', 'npm'];
+export const JOB_SOURCES: readonly JobSource[] = ['data', 'workspace'];
+/** `permissions.run` of a manifest. */
+export interface RunPermission {
+  programs: JobProgram[];
+  sources: JobSource[];
+  network: boolean;
+}
 export const MANIFEST_VERSION = 1;
 
 /** The hook points a plugin may ask for (§6.4). */
@@ -48,6 +60,8 @@ export interface PluginPermissions {
   bridges: string[];
   /** Phase 115 (BR1 §4.9): pictures and files both ways in its chats (opt-in; v1 plugins stay text only). */
   bridgeFiles: boolean;
+  /** EC1: her requests for his OK go to its chats as Allow/Deny buttons (only the linked owner can answer). */
+  bridgeApprovals: boolean;
   model: { callsPerDay: number; tokensPerDay: number };
   memory: 'none' | 'shared-notes';
   /** Phase 117 (BRIDGES3 P1): sockets Sara opens and relays for it (src/plugins/net.ts); up to 4. */
@@ -59,11 +73,17 @@ export interface PluginPermissions {
   webhooks: 'none' | 'bridge';
   /**
    * Phase 122 part 3 (BRIDGES4 §3.1 B1): the kinds its bridge hook may be (`"bridge"` alone = `['meta']`;
-   * `{"bridge": ["url"], "doorbell": true}` for a platform that can't sign: BlueBubbles).
+   * `{"bridge": ["url"], "doorbell": true}` for a platform that can't sign: BlueBubbles; EC7
+   * `["botframework"]`: Teams, Sara checks the Bot Framework JWT).
    */
-  webhookKinds: ('meta' | 'url')[];
+  webhookKinds: ('meta' | 'url' | 'botframework')[];
   /** B2: an unsigned (`url`) bridge hook only wakes the plugin with the event and ids, never the body. */
   doorbell: boolean;
+  /**
+   * H_EXEC (docs/ops/H_EXEC_DESIGN.md): jobs Sara runs for it in a disposable copy, each one
+   * approved by the owner (`job.run`). Null = none.
+   */
+  run: RunPermission | null;
 }
 
 /**
@@ -75,6 +95,7 @@ export interface PluginPermissions {
  */
 export interface ConnectEndpoint {
   id: string;
+  /** `setting:<key>` (the owner's address), or EC1 (B5) `domain:<name>` (that public domain and its subdomains). */
   host: string;
   ports: number[] | 'setting';
   where: 'local' | 'public';
@@ -100,6 +121,8 @@ export interface PluginManifest {
   schedules: PluginSchedule[];
   settings: PluginSetting[];
   i18n: Record<string, Record<string, string>>;
+  /** C8: what a call of one of its tools costs, US dollars (null = it costs money, amount unknown). */
+  costs?: Record<string, number | null>;
 }
 
 export class ManifestError extends Error {
@@ -109,8 +132,23 @@ export class ManifestError extends Error {
   }
 }
 
-const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', '$schema']);
-const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell']);
+const TOP_KEYS = new Set(['manifest', 'id', 'name', 'version', 'description', 'author', 'license', 'homepage', 'sara', 'main', 'permissions', 'schedules', 'settings', 'i18n', 'costs', '$schema']);
+const PERMISSION_KEYS = new Set(['hooks', 'tools', 'callTools', 'network', 'files', 'settings', 'cards', 'bridges', 'bridgeFiles', 'bridgeApprovals', 'model', 'memory', 'connect', 'webhooks', 'webhookKinds', 'doorbell', 'run']);
+
+function parseRun(v: unknown): RunPermission | null {
+  if (v === undefined || v === null) return null;
+  if (typeof v !== 'object' || Array.isArray(v)) throw new ManifestError('permissions.run must be { programs, sources, network }.');
+  const r = v as Record<string, unknown>;
+  for (const k of Object.keys(r)) if (!['programs', 'sources', 'network'].includes(k)) throw new ManifestError(`Unknown permission "run.${k}".`);
+  const programs = [...new Set(list(r.programs, 'run.programs', JOB_PROGRAMS.length).map(String))];
+  for (const p of programs) if (!(JOB_PROGRAMS as readonly string[]).includes(p)) throw new ManifestError(`run.programs may be ${JOB_PROGRAMS.join(' or ')} (not "${p.slice(0, 30)}").`);
+  if (!programs.length) throw new ManifestError('permissions.run needs at least one program.');
+  const sources = [...new Set(list(r.sources ?? ['data'], 'run.sources', JOB_SOURCES.length).map(String))];
+  for (const s of sources) if (!(JOB_SOURCES as readonly string[]).includes(s)) throw new ManifestError(`run.sources may be data or workspace (not "${s.slice(0, 30)}").`);
+  if (!sources.length) throw new ManifestError('permissions.run needs at least one source.');
+  if (r.network !== undefined && typeof r.network !== 'boolean') throw new ManifestError('run.network must be true or false.');
+  return { programs: programs.sort() as JobProgram[], sources: sources.sort() as JobSource[], network: r.network === true };
+}
 export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{0,46}[a-z0-9])?$/;
 const SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const TOOL_RE = /^[a-z][a-z0-9_]{0,39}$/;
@@ -180,6 +218,18 @@ export function satisfies(version: string, range: string): boolean {
       return c === 0;
     });
   });
+}
+
+/**
+ * Checks Sara's own version against an add-on's or store item's `sara` range. Sara 3.0 changed the
+ * look, not the add-on interface, so a range capped at "<3.0.0" (how 2.x add-ons were written)
+ * also accepts 3.x. Floors and any other cap are kept as written.
+ */
+export function saraSatisfies(version: string, range: string): boolean {
+  if (satisfies(version, range)) return true;
+  if (parseSemver(version)?.[0] !== 3) return false;
+  const widened = String(range ?? '').replace(/<\s*v?3(?:\.0(?:\.0)?)?(?=\s|\||$)/g, '<4.0.0');
+  return widened !== range && satisfies(version, widened);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -276,30 +326,33 @@ function parsePermissions(v: unknown): PluginPermissions {
   if (memory !== 'none' && memory !== 'shared-notes') throw new ManifestError('permissions.memory may be none or shared-notes.');
   const bridgeFiles = bool('bridgeFiles');
   if (bridgeFiles && !bridges.length) throw new ManifestError('permissions.bridgeFiles needs a bridge in permissions.bridges.');
+  const bridgeApprovals = bool('bridgeApprovals');
+  if (bridgeApprovals && !bridges.length) throw new ManifestError('permissions.bridgeApprovals needs a bridge in permissions.bridges.');
   const connect = parseConnect(p.connect);
   // Phase 122 part 3 (B1): `{"bridge": ["url"], "doorbell": true}` names the kinds; an unsigned `url`
   // hook needs `doorbell` (the plugin is woken with ids only and fetches each message itself).
-  let webhookKinds: ('meta' | 'url')[] = [];
+  let webhookKinds: ('meta' | 'url' | 'botframework')[] = [];
+  const KIND = (k: unknown) => k === 'meta' || k === 'url' || k === 'botframework';
   let doorbell = false;
   let webhooks: unknown = p.webhooks === undefined || p.webhooks === 'none' ? 'none' : p.webhooks;
   if (webhooks && typeof webhooks === 'object' && !Array.isArray(webhooks)) {
     const w = webhooks as { bridge?: unknown; doorbell?: unknown };
     const kinds = Array.isArray(w.bridge) ? w.bridge : [];
-    if (!kinds.length || kinds.some((k) => k !== 'meta' && k !== 'url') || Object.keys(w).some((k) => k !== 'bridge' && k !== 'doorbell')) throw new ManifestError('permissions.webhooks.bridge must list "meta" or "url".');
-    webhookKinds = [...new Set(kinds as ('meta' | 'url')[])];
+    if (!kinds.length || kinds.some((k) => !KIND(k)) || Object.keys(w).some((k) => k !== 'bridge' && k !== 'doorbell')) throw new ManifestError('permissions.webhooks.bridge must list "meta", "url" or "botframework".');
+    webhookKinds = [...new Set(kinds as ('meta' | 'url' | 'botframework')[])];
     doorbell = w.doorbell === true;
     if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
     webhooks = 'bridge';
   } else if (webhooks === 'bridge') {
     // The parsed form read back (`webhooks: "bridge"` with its `webhookKinds` and `doorbell`) means the same.
     const back = Array.isArray(p.webhookKinds) ? (p.webhookKinds as unknown[]) : [];
-    webhookKinds = back.length && back.every((k) => k === 'meta' || k === 'url') ? [...new Set(back as ('meta' | 'url')[])] : ['meta'];
+    webhookKinds = back.length && back.every(KIND) ? [...new Set(back as ('meta' | 'url' | 'botframework')[])] : ['meta'];
     doorbell = p.doorbell === true;
     if (webhookKinds.includes('url') && !doorbell) throw new ManifestError('permissions.webhooks: an unsigned "url" bridge hook needs "doorbell": true.');
   }
   if (webhooks !== 'none' && webhooks !== 'bridge') throw new ManifestError('permissions.webhooks may be none or bridge.');
   if (webhooks === 'bridge' && !bridges.length) throw new ManifestError('permissions.webhooks "bridge" needs a bridge in permissions.bridges.');
-  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell };
+  return { hooks, tools, callTools, network, files, settings: bool('settings'), cards: bool('cards'), bridges, bridgeFiles, bridgeApprovals, model, memory, connect, webhooks: webhooks as 'none' | 'bridge', webhookKinds, doorbell, run: parseRun(p.run) };
 }
 
 function parseConnect(v: unknown): ConnectEndpoint[] {
@@ -312,9 +365,12 @@ function parseConnect(v: unknown): ConnectEndpoint[] {
     if (!/^[a-z][a-z0-9-]{0,23}$/.test(id)) throw new ManifestError(`The connect id "${id.slice(0, 30)}" must be lower-case letters, digits and hyphens.`);
     if (out.some((x) => x.id === id)) throw new ManifestError(`The connect id "${id}" is listed twice.`);
     const host = String(e.host ?? '');
-    if (!/^setting:[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(host)) throw new ManifestError(`connect "${id}": host must be "setting:<key>" (the owner types the address in its settings; a plugin can't name one itself).`);
+    // EC1 (B5): `domain:<name>` = that public domain and its subdomains (the plugin names one at open).
+    const domain = /^domain:((?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63})$/.test(host);
+    if (!domain && !/^setting:[a-zA-Z][a-zA-Z0-9_]{0,31}$/.test(host)) throw new ManifestError(`connect "${id}": host must be "setting:<key>" (the owner types the address in its settings; a plugin can't name one itself) or "domain:<name>" (one public domain and its subdomains).`);
     const where = e.where;
     if (where !== 'local' && where !== 'public') throw new ManifestError(`connect "${id}": where must be "local" or "public".`);
+    if (domain && where !== 'public') throw new ManifestError(`connect "${id}": a domain endpoint is always public (where: "public").`);
     const tls = e.tls;
     if (tls !== 'none' && tls !== 'required' && tls !== 'optional') throw new ManifestError(`connect "${id}": tls must be "none", "required" or "optional".`);
     if ((tls === 'none' || tls === 'optional') && where !== 'local') throw new ManifestError(`connect "${id}": an unencrypted connection is only allowed to a program on this computer (where: "local").`);
@@ -444,7 +500,7 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
   const homepage = opt('homepage', 300);
   if (homepage && !/^https:\/\/[^\s]+$/.test(homepage)) throw new ManifestError('The homepage must be an https:// address.');
   const sara = opt('sara', 100);
-  if (sara && !satisfies(opts.saraVersion, sara)) throw new ManifestError(`It needs Sara ${sara}; this server runs ${opts.saraVersion}.`);
+  if (sara && !saraSatisfies(opts.saraVersion, sara)) throw new ManifestError(`It needs Sara ${sara}; this server runs ${opts.saraVersion}.`);
   const main = str(m.main, 'main', 120).replace(/\\/g, '/');
   if (!/\.(mjs|js)$/.test(main) || main.startsWith('/') || main.split('/').some((s) => s === '..' || s === '') || /^[A-Za-z]:/.test(main)) throw new ManifestError('main must be a .mjs or .js file inside the plugin folder.');
   if (opts.files && !opts.files.includes(main)) throw new ManifestError(`main says ${main}, but there is no such file in the plugin.`);
@@ -452,6 +508,7 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
   const settings = parseSettings(m.settings, permissions.settings);
   const schedules = parseSchedules(m.schedules, permissions.hooks);
   for (const c of permissions.connect) {
+    if (c.host.startsWith('domain:')) continue;
     const key = c.host.slice('setting:'.length);
     const s = settings.find((x) => x.key === key);
     if (!s || s.type !== 'text') throw new ManifestError(`connect "${c.id}": its host setting "${key}" must be one of its text settings.`);
@@ -461,7 +518,21 @@ export function parseManifest(raw: unknown, opts: { saraVersion: string; files?:
     }
   }
   const i18n = parseI18n(m.i18n);
-  return { manifest: 1, id, name, version, description, ...(author ? { author } : {}), ...(license ? { license } : {}), ...(homepage ? { homepage } : {}), ...(sara ? { sara } : {}), main, permissions, schedules, settings, i18n };
+  const costs = parseCosts(m.costs, permissions.tools);
+  return { ...(costs ? { costs } : {}), manifest: 1, id, name, version, description, ...(author ? { author } : {}), ...(license ? { license } : {}), ...(homepage ? { homepage } : {}), ...(sara ? { sara } : {}), main, permissions, schedules, settings, i18n };
+}
+
+/** C8: `costs` maps its own tools (permissions.tools) to dollars per call, or null for "costs money, unknown". */
+function parseCosts(v: unknown, tools: string[]): Record<string, number | null> | undefined {
+  if (v === undefined) return undefined;
+  if (!v || typeof v !== 'object' || Array.isArray(v)) throw new ManifestError('costs must map tool names to dollars per call (or null when unknown).');
+  const out: Record<string, number | null> = {};
+  for (const [k, c] of Object.entries(v as Record<string, unknown>)) {
+    if (!tools.includes(k)) throw new ManifestError(`costs names "${k.slice(0, 40)}", which isn't one of its tools.`);
+    if (c !== null && (typeof c !== 'number' || !Number.isFinite(c) || c < 0 || c > 1000)) throw new ManifestError(`costs.${k} must be dollars per call (0 to 1000) or null.`);
+    out[k] = c as number | null;
+  }
+  return Object.keys(out).length ? out : undefined;
 }
 
 /** The namespaced name a plugin tool is registered under: weather-alerts + check → weather_alerts__check. */
@@ -505,12 +576,19 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
   for (const h of p.network) out.push({ id: `network:${h}`, key: 'Can reach {host}', params: { host: h }, risk: 'high' });
   for (const c of p.connect) out.push(connectLine(m, c));
   for (const t of p.callTools) out.push({ id: `call:${t}`, key: 'Can ask her to use {tool} (asks you first)', params: { tool: toolLabel(t) }, risk: 'high' });
+  for (const id of runIds(p.run)) {
+    const [, programs, source] = id.split(':');
+    if (source === 'network') out.push({ id, key: 'Its jobs may use the network (you approve each job)', risk: 'high' });
+    else out.push({ id, key: source === 'workspace' ? 'Can run {programs} in a disposable copy of your main workspace (asks you first, every time)' : 'Can run {programs} in a disposable copy of its own files (asks you first, every time)', params: { programs: programs.split(',').join(', ') }, risk: 'high' });
+  }
   if (p.model.callsPerDay > 0) out.push({ id: 'model', key: 'Can use her model up to {n} times a day (billed to you)', params: { n: p.model.callsPerDay, tokens: p.model.tokensPerDay }, risk: 'high' });
   if (p.files.read.includes('workspace')) out.push({ id: 'files:workspace', key: 'Can read your main workspace (read only)', risk: 'high' });
   if (p.memory === 'shared-notes') out.push({ id: 'memory', key: 'Can read the notes about you that other apps may see (read only)', risk: 'high' });
   for (const b of p.bridges) out.push({ id: `bridge:${b}`, key: 'Carries chats with her for {bridge}', params: { bridge: b }, risk: 'high' });
   if (p.bridgeFiles) out.push({ id: 'bridgeFiles', key: 'Can send and receive pictures and files in its chats', risk: 'high' });
+  if (p.bridgeApprovals) out.push({ id: 'bridgeApprovals', key: 'Shows her requests for your OK in its chats, with Allow and Deny (only you can answer)', risk: 'high' });
   if (p.webhooks === 'bridge' && p.doorbell) out.push({ id: 'webhooks:doorbell', key: 'Is woken by its app on your network; checks every message with that app before reading it', risk: 'high' });
+  else if (p.webhooks === 'bridge' && p.webhookKinds.includes('botframework')) out.push({ id: 'webhooks:botframework', key: 'Receives messages from Microsoft Teams at a public web address Sara gives it (Sara checks Microsoft’s signature first)', risk: 'high' });
   else if (p.webhooks === 'bridge') out.push({ id: 'webhooks:bridge', key: 'Receives messages from Meta at a public web address Sara gives it', risk: 'high' });
   for (const h of p.hooks) if (HOOK_WORDS[h]) out.push({ id: `hook:${h}`, key: HOOK_WORDS[h], risk: h === 'turn.before' || h === 'reply.after' || h === 'tool.after' ? 'medium' : 'low' });
   for (const s of m.schedules) out.push(scheduleWords(s));
@@ -523,16 +601,24 @@ export function permissionLines(m: PluginManifest, toolLabel: (name: string) => 
 }
 
 /** Phase 117: a connect endpoint's stable id (`connect:<id>:<where>:<ports>:<tls>`); a new port or endpoint is an addition. */
-export const connectId = (c: ConnectEndpoint): string => `connect:${c.id}:${c.where}:${c.ports === 'setting' ? 'setting' : c.ports.join(',')}:${c.tls}`;
+export const connectId = (c: ConnectEndpoint): string => `connect:${c.id}:${c.where}:${c.ports === 'setting' ? 'setting' : c.ports.join(',')}:${c.tls}${c.host.startsWith('domain:') ? `:${c.host}` : ''}`;
 
 function connectLine(m: PluginManifest, c: ConnectEndpoint): PermissionLine {
   const label = m.settings.find((s) => `setting:${s.key}` === c.host)?.label ?? c.host;
+  if (c.host.startsWith('domain:')) return { id: connectId(c), key: 'Connects to {domain} and its subdomains (ports {ports}, always encrypted)', params: { domain: c.host.slice('domain:'.length), ports: (c.ports as number[]).join(', ') }, risk: 'high' };
   if (c.where === 'local') {
     return c.ports === 'setting'
       ? { id: connectId(c), key: 'Connects to a program on this computer at the address and port you give it in {setting}', params: { setting: label }, risk: 'high' }
       : { id: connectId(c), key: 'Connects to a program on this computer at the address you give it in {setting} (ports {ports})', params: { setting: label, ports: c.ports.join(', ') }, risk: 'high' };
   }
   return { id: connectId(c), key: 'Connects to the server you give it in {setting} (ports {ports}, always encrypted)', params: { setting: label, ports: (c.ports as number[]).join(', ') }, risk: 'high' };
+}
+
+/** H_EXEC: `run:<programs>:<source>` per source, and `run:<programs>:network` (a new program, source or network is an addition). */
+function runIds(r: RunPermission | null): string[] {
+  if (!r) return [];
+  const programs = r.programs.join(',');
+  return [...r.sources.map((s) => `run:${programs}:${s}`), ...(r.network ? [`run:${programs}:network`] : [])];
 }
 
 /** The stable permission ids (what an update is compared by). */
@@ -542,13 +628,15 @@ export function permissionIds(m: PluginManifest): string[] {
     ...p.network.map((h) => `network:${h}`),
     ...p.connect.map(connectId),
     ...p.callTools.map((t) => `call:${t}`),
+    ...runIds(p.run),
     ...(p.model.callsPerDay > 0 ? [`model:${p.model.callsPerDay}:${p.model.tokensPerDay}`] : []),
     ...p.files.read.map((f) => `read:${f}`),
     ...p.files.write.map((f) => `write:${f}`),
     ...(p.memory !== 'none' ? [`memory:${p.memory}`] : []),
     ...p.bridges.map((b) => `bridge:${b}`),
     ...(p.bridgeFiles ? ['bridgeFiles'] : []),
-    ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : 'webhooks:bridge'] : []),
+    ...(p.bridgeApprovals ? ['bridgeApprovals'] : []),
+    ...(p.webhooks === 'bridge' ? [p.doorbell ? 'webhooks:doorbell' : p.webhookKinds.includes('botframework') ? 'webhooks:botframework' : 'webhooks:bridge'] : []),
     ...p.hooks.map((h) => `hook:${h}`),
     ...m.schedules.map((s) => `schedule:${s.id}:${s.every}:${s.at ?? ''}`),
     ...p.tools.map((t) => `tool:${t}`),

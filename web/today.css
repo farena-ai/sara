@@ -847,3 +847,12 @@ html.shell .td-scroll { padding-top: calc(var(--titlebar) + clamp(12px, 2.4vw, 2
 #today .today-next #td-next-hide { margin-inline-start: auto; }
 @container (max-width: 720px) { #today .today-next-list { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 720px) { #today .today-next-list { grid-template-columns: minmax(0, 1fr); } }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+@media (max-width: 720px) {
+  :where(:root:not([data-palette="classic"])) .bottom-bar::before { display: none; }
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"] { color: var(--accent-text); }
+}

@@ -16,8 +16,9 @@
 // background route), kv.get/kv.set, memory.notes (shared-notes only) and bridge.inbound.
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomInt, randomUUID } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { getNativeCandidate, PUBLIC_NATIVE_CANDIDATES } from '../addons/discovery.ts';
 import type { AppContext, ChatEvent } from '../chat.ts';
 import type { EventHub, HubEvent } from '../events.ts';
 import { cleanCard, type HookPlugin, type PluginCard, type PluginHookPoint, type PluginHost } from '../hooks.ts';
@@ -26,6 +27,7 @@ import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fromFolder, fromGit, hashFiles, PackageError, type PackageFile, type PackageFinding, type PackageLimits, scanPackage, stripTop, writePackage } from '../packages.ts';
 import { sharedWithApps } from '../recall.ts';
+import { hub } from '../telemetry/hub.ts';
 import type { Conversation } from '../store.ts';
 import { KEY_SHAPED } from '../redact.ts';
 import { isPrivateAddress, pinnedGet } from '../tools/builtin.ts';
@@ -34,14 +36,18 @@ import { ToolError, type Permission, type Tool } from '../tools/types.ts';
 import { workspaceDir } from '../tools/workspace.ts';
 import { addedPermissions, hostAllowed, localize, MANIFEST_FILE, ManifestError, parseManifest, permissionIds, permissionLines, pluginToolName, type PermissionLine, type PluginManifest, type PluginSetting, compareSemver, everyMinutes } from './manifest.ts';
 import { fenceFor, type Fence, type InMessage, PluginProcess, prepareDataDir, spawnSpec } from './runtime.ts';
+import { commandLine, FENCE_LABELS, jobFenceFor, JobRefused, npmCli, parsePlan, runJob, type JobFence, type JobPlan, type JobSource } from './exec-job.ts';
 import { PluginStore, type PluginRow } from './store.ts';
 import * as netModule from './net.ts';
 import * as bridgeDbModule from './bridge-db.ts';
 import { rooms } from '../bridges/rooms.ts';
+import type { Settings, SettingsStore } from '../settings.ts';
 
 export const PLUGIN_LIMITS: PackageLimits = { maxZipBytes: 10 * 1024 * 1024, maxFiles: 500, maxTotalBytes: 30 * 1024 * 1024, maxFileBytes: 5 * 1024 * 1024, maxDepth: 10 };
 const REVIEW_MS = 60 * 60_000;
 const CALL_WAIT_MS = 10 * 60_000;
+/** H_EXEC: a job approval holds its invocation open at most this long. */
+const JOB_APPROVAL_MS = 2 * 60_000;
 const FETCH_MAX = 1024 * 1024;
 const FETCHES_PER_MINUTE = 30;
 const TOOL_MS = 30_000;
@@ -93,7 +99,7 @@ const ID_RE = /^[\w@.:+=/-]{1,120}$/;
 
 export interface Origin {
   /** Phase 124: 'store' (`where: '<id>@<version>'`) for an add-on from the Sara Store (installs: Phase 125). */
-  kind: 'zip' | 'git' | 'folder' | 'builtin' | 'store';
+  kind: 'zip' | 'git' | 'folder' | 'builtin' | 'store' | 'candidate';
   where: string;
 }
 
@@ -147,6 +153,8 @@ interface Staged {
   review: Review;
   files: PackageFile[];
   expires: number;
+  baseline: string;
+  epoch: number;
 }
 
 /** A Sara tool a plugin asked to use, waiting for the owner. */
@@ -158,6 +166,19 @@ export interface WaitingCall {
   tool: string;
   summary: string;
   args: Record<string, unknown>;
+  at: string;
+  /** H_EXEC: a job (`tool` is "job"): the exact command and where and how it runs. */
+  job?: { command: string; source: JobSource; cwd: string; network: boolean; timeoutS: number; fence: JobFence; fenceLabel: string };
+}
+
+/** H_EXEC: a plugin job running now (the owner can stop it). */
+export interface RunningJob {
+  id: string;
+  plugin: string;
+  name: string;
+  companion: string;
+  command: string;
+  fence: JobFence;
   at: string;
 }
 
@@ -178,6 +199,8 @@ interface Running {
   /** Phase 115: progress refs it was given (`p-<n>`) → the conversation (for its Stop). */
   refs?: Map<string, string>;
   refSeq?: number;
+  /** EC1: approvals shown in its chats as buttons (approval id → the chat it went to). */
+  approvalsSent?: Map<string, string>;
   /** Phase 117: today's counts for the *Today* line. */
   today?: { day: string; in: number; out: number };
   /** Phase 117 part B: the day a mail from his own address last failed the sender check (the Settings banner). */
@@ -378,23 +401,34 @@ export interface ManagerOptions {
   httpGet?: typeof pinnedGet;
   /** Tests: the backoff and time limits are the real ones unless set. */
   execPath?: string;
+  /** Tests: the plugin tool invocation limit (default 30 s). */
+  toolMs?: number;
+  /** Tests: the fence for plugin jobs (default: bubblewrap where the shell sandbox is, else Node's). */
+  jobFence?: JobFence;
+  /** Tests: how long a job approval may hold its invocation open (default 2 minutes). */
+  jobApprovalMs?: number;
   /** Phase 115: the progress message's clock (tests drive a fake one). */
   clock?: import('../bridges/sendq.ts').Clock;
   /** Phase 117 (P1): tests trust their own CA for the socket broker's TLS (no setting loosens it). */
   netCa?: string | Buffer | (string | Buffer)[];
   /** Phase 117 (P3): the folder of plugins that come with Sara (default: plugins/ at the top of Sara). */
   builtinDir?: string;
+  /** Construction-only local candidate package root; never supplied by an install request. */
+  candidateDir?: string;
   /**
    * Phase 117 part B, tests only: let the broker reach a loopback stand-in mail server. Honoured only
    * under `node --test` (src/plugins/net.ts `loopbackMailOverride`); never on in the app.
    */
   netTestLoopback?: boolean;
+  /** EC1 (B5), tests: the loopback stand-in's port for `domain:` endpoints (honoured only with netTestLoopback under node --test). */
+  netTestPort?: number;
   /** Phase 122 part 2 (B3), tests: whether this computer is on a tailnet (default: `tailscale status`). */
   netTailnet?: () => boolean;
 }
 
 /** Phase 117 (P3): plugins that come with Sara live in plugins/ at the top of the repo and of every package. */
 export const BUILTIN_DIR = resolve(import.meta.dirname, '..', '..', 'plugins');
+export const CANDIDATE_DIR = resolve(import.meta.dirname, '..', '..', 'store', 'plugins');
 
 /** A very small JSON-schema check for plugin tool arguments (object, required, types, enum). */
 export function checkArgs(schema: unknown, args: Record<string, unknown>): string | undefined {
@@ -450,8 +484,15 @@ export class PluginManager {
   readonly fence: Fence;
   readonly version: string;
   readonly #staged = new Map<string, Staged>();
+  /** Epochs retain absent IDs after removal, including a remove/reinstall or rollback ABA. */
+  readonly #epochs = new Map<string, number>();
+  readonly #mutating = new Set<string>();
+  readonly #settingsObservers = new Map<SettingsStore, { prior: SettingsStore['onUpdated']; handler: NonNullable<SettingsStore['onUpdated']>; companions: Set<string> }>();
   readonly #attached = new Map<string, Attached>();
-  readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout }>();
+  readonly #waiting = new Map<string, { call: WaitingCall; resolve: (ok: boolean) => void; timer: NodeJS.Timeout; end: (why: string) => void }>();
+  readonly #jobs = new Map<string, { job: RunningJob; ctl: AbortController }>();
+  /** Approvals that ended unanswered (their invocation ended): a late answer is told "expired". */
+  readonly #expired = new Map<string, number>();
   #tick: NodeJS.Timeout | undefined;
   /** Phase 115: the pacer for plugin bridges' progress messages. */
   #bridgeQueue: import('../bridges/sendq.ts').SendQueue | undefined;
@@ -479,6 +520,151 @@ export class PluginManager {
     return join(this.opts.dataDir, 'plugin-data', id, companion);
   }
 
+  #epoch(id: string): number { return this.#epochs.get(id) ?? 0; }
+  #invalidate(id: string): number {
+    const next = this.#epoch(id) + 1;
+    this.#epochs.set(id, next);
+    return next;
+  }
+  #idle(id: string): void {
+    if (this.#mutating.has(id)) throw new ManifestError('That plugin is changing. Try again when it finishes.');
+  }
+  #begin(id: string): number {
+    this.#idle(id); this.#mutating.add(id);
+    return this.#invalidate(id);
+  }
+  #baseline(id: string): string { return JSON.stringify(this.store.get(id) ?? null); }
+  #checkBaseline(s: Staged): void {
+    const id = s.review.manifest.id;
+    if (s.epoch !== this.#epoch(id) || s.baseline !== this.#baseline(id)) throw new ManifestError('That plugin changed after you reviewed it. Add it again for a fresh review.');
+  }
+  #checkMutation(id: string, token: number, baseline: string): void {
+    if (token !== this.#epoch(id) || baseline !== this.#baseline(id)) throw new ManifestError('That plugin changed while it was stopping. Add it again for a fresh review.');
+  }
+  #commitRow(row: PluginRow, onCommitted?: (row: PluginRow) => void): void {
+    // Trusted synchronous association writes share the plugin's canonical SQLite savepoint.
+    const savepoint = `plugin_commit_${randomUUID().replaceAll('-', '')}`;
+    this.opts.db.exec(`SAVEPOINT ${savepoint}`);
+    try {
+      this.store.upsert(row);
+      const result: unknown = onCommitted?.(row);
+      if (result && typeof (result as { then?: unknown }).then === 'function') throw new ManifestError('The plugin commit callback must be synchronous.');
+      this.opts.db.exec(`RELEASE ${savepoint}`);
+    } catch (err) {
+      this.opts.db.exec(`ROLLBACK TO ${savepoint}; RELEASE ${savepoint}`);
+      throw err;
+    }
+  }
+  #candidateTransition(row: PluginRow | undefined, origin: Origin): void {
+    if (!row) return;
+    if (this.isCandidate(row.id) !== (origin.kind === 'candidate')) throw new ManifestError('A local candidate cannot change installation source. Remove it first, then review the new source.');
+  }
+
+  /** The actual installed source, independent of a signed-content association. */
+  isCandidate(id: string): boolean {
+    try { return (JSON.parse(this.store.get(id)?.origin ?? '{}') as Origin).kind === 'candidate'; } catch { return false; }
+  }
+  /** Store bookkeeping alone cannot authorize changing a candidate or a stale installation. */
+  assertStoreAuthority(id: string, expectedHash?: string): void {
+    const row = this.store.get(id);
+    if (!row && expectedHash === undefined) return;
+    if (!row || this.isCandidate(id) || (expectedHash !== undefined && row.approved_sha !== expectedHash)) throw new ManifestError('This installation source does not allow a Sara Store update. Review it from its own card.');
+  }
+  /** Existing explicit Store override, with the same mutation/review invalidation boundary. */
+  overrideStoreBlock(id: string): void {
+    this.#begin(id);
+    try {
+      if (!this.store.get(id)) throw new ManifestError('No such plugin.');
+      this.store.setStatus(id, 'installed', null);
+    } finally { this.#mutating.delete(id); }
+  }
+
+  #candidateFiles(id: unknown): PackageFile[] {
+    const candidate = getNativeCandidate(id);
+    if (!candidate) throw new ManifestError('Unknown local workflow candidate.');
+    try {
+      const root = resolve(this.opts.candidateDir ?? CANDIDATE_DIR);
+      const folder = join(root, candidate.id);
+      // fromFolder checks the package itself; also refuse a linked/junction ancestor.
+      for (let at = folder; ; at = dirname(at)) {
+        if (lstatSync(at).isSymbolicLink()) throw new Error('linked ancestor');
+        if (dirname(at) === at) break;
+      }
+      if (realpathSync(folder) !== folder) throw new Error('redirected source');
+      const files = fromFolder(folder, PLUGIN_LIMITS);
+      const mf = files.find(f => f.path === MANIFEST_FILE);
+      const manifest = mf && parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: files.map(f => f.path) });
+      if (!manifest || manifest.id !== candidate.id || manifest.version !== candidate.version || hashFiles(files) !== candidate.contentSha) throw new Error('changed source');
+      return files;
+    } catch {
+      throw new ManifestError('This local workflow candidate is missing or changed. Restore the supplied package before reviewing it.');
+    }
+  }
+  stageCandidate(id: unknown): Review {
+    const candidate = getNativeCandidate(id);
+    if (!candidate) throw new ManifestError('Unknown local workflow candidate.');
+    return this.stage(this.#candidateFiles(id), { kind: 'candidate', where: candidate.id });
+  }
+  /**
+   * PRQ: the programs a candidate's jobs run beyond Sara's own Node, as the card's "It needs" line.
+   * Today that is npm, which a job takes from beside Sara's Node (src/plugins/exec-job.ts), so no
+   * *Install it for me* is offered: a Node.js installed elsewhere would not be the one the job uses.
+   */
+  #jobNeeds(files: PackageFile[]): { what: string; found: boolean }[] {
+    const mf = files.find(f => f.path === MANIFEST_FILE);
+    const run = mf ? parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: files.map(f => f.path) }).permissions.run : null;
+    return (run?.programs ?? []).filter(p => p === 'npm').map(p => ({ what: p, found: Boolean(npmCli(process.execPath)) }));
+  }
+  candidateList() {
+    return PUBLIC_NATIVE_CANDIDATES.map(candidate => {
+      const row = this.store.get(candidate.id);
+      let heldReason: string | undefined;
+      let needs: { what: string; found: boolean }[] = [];
+      try {
+        this.#idle(candidate.id);
+        needs = this.#jobNeeds(this.#candidateFiles(candidate.id));
+        this.#candidateTransition(row, { kind: 'candidate', where: candidate.id });
+      } catch (err) { heldReason = (err as Error).message; }
+      let installedOrigin: string | undefined;
+      try { installedOrigin = row ? (JSON.parse(row.origin ?? '{}') as Origin).kind : undefined; } catch { /* old source */ }
+      return { ...candidate, needs, availability: heldReason ? 'held' as const : 'local-candidate' as const, ...(heldReason ? { heldReason } : {}), installed: Boolean(row), ...(row ? { installedVersion: row.version, installedOrigin } : {}), updateAvailable: Boolean(row && !heldReason && compareSemver(candidate.version, row.version) > 0) };
+    });
+  }
+
+  #observeSettings(a: Attached): void {
+    const settings = a.app.settings;
+    const existing = this.#settingsObservers.get(settings);
+    if (existing) { existing.companions.add(a.id); return; }
+    const companions = new Set([a.id]);
+    const prior = settings.onUpdated;
+    const handler: NonNullable<SettingsStore['onUpdated']> = (before, after) => {
+      const permissions = new Map<string, Set<string>>();
+      const include = (manifest: PluginManifest) => {
+        const names = permissions.get(manifest.id) ?? new Set<string>();
+        for (const name of manifest.permissions.tools) names.add(pluginToolName(manifest.id, name));
+        for (const name of manifest.permissions.callTools) names.add(name);
+        permissions.set(manifest.id, names);
+      };
+      for (const row of this.store.all()) include(this.manifestOf(row));
+      for (const s of this.#staged.values()) if (s.expires > Date.now()) include(s.review.manifest);
+      for (const [id, names] of permissions) {
+        const own = (s: Readonly<Settings>) => (s as { plugins?: CompanionPluginSettings }).plugins?.[id];
+        if (JSON.stringify(own(before)) !== JSON.stringify(own(after)) || [...names].some(name => before.toolPermissions?.[name] !== after.toolPermissions?.[name])) this.#invalidate(id);
+      }
+      prior?.(before, after);
+    };
+    settings.onUpdated = handler;
+    this.#settingsObservers.set(settings, { prior, handler, companions });
+  }
+  #unobserveSettings(a: Attached): void {
+    const settings = a.app.settings; const observer = this.#settingsObservers.get(settings);
+    if (!observer) return;
+    observer.companions.delete(a.id);
+    if (observer.companions.size) return;
+    if (settings.onUpdated === observer.handler) settings.onUpdated = observer.prior;
+    this.#settingsObservers.delete(settings);
+  }
+
   // ------------------------------------------------------------------------------------------
   // install and review
   // ------------------------------------------------------------------------------------------
@@ -492,7 +678,13 @@ export class PluginManager {
     if (!mf) throw new ManifestError(`There is no ${MANIFEST_FILE} at the top of it, so it isn't a Sara plugin.`);
     const manifest = parseManifest(mf.data.toString('utf8'), { saraVersion: this.version, files: inner.map((f) => f.path) });
     const sha = hashFiles(inner);
+    this.#idle(manifest.id);
     const existing = this.store.get(manifest.id);
+    this.#candidateTransition(existing, origin);
+    if (origin.kind === 'candidate') {
+      const candidate = getNativeCandidate(origin.where);
+      if (!candidate || candidate.id !== manifest.id || candidate.version !== manifest.version || candidate.contentSha !== sha) throw new ManifestError('This local workflow candidate is missing or changed. Restore the supplied package before reviewing it.');
+    }
     let added: string[] = [];
     if (existing) {
       const c = compareSemver(manifest.version, existing.version);
@@ -529,12 +721,14 @@ export class PluginManager {
       unknownCallTools,
       proposal: { kind: 'proposal', source: 'plugin', what: { key: existing ? (added.length ? '{name} {version} asks for more' : '{name} {version}: same permissions') : 'Add {name} {version}?', params: { name: manifest.name, version: manifest.version } }, can: permissionLines(manifest), buttons: ['use', 'cancel'] },
     };
-    this.#staged.set(id, { review, files: inner, expires: Date.now() + REVIEW_MS });
+    this.#staged.set(id, { review, files: inner, expires: Date.now() + REVIEW_MS, baseline: this.#baseline(manifest.id), epoch: this.#epoch(manifest.id) });
     return review;
   }
 
   /** PL2a (N2): see Review.firstParty. A zip, a git address or a server folder never is, whatever its manifest claims. */
   #firstParty(origin: Origin, manifest: PluginManifest, sha: string): boolean {
+    // Signed-content association does not promote a local candidate's approval authority.
+    if (origin.kind === 'candidate') return false;
     if (origin.kind === 'builtin') return origin.where === manifest.id && /^[a-z0-9][a-z0-9-]{0,46}$/.test(origin.where);
     const strip = this.storeMatch?.(sha);
     return Boolean(strip && strip.trust === 'first-party' && strip.item === manifest.id && !strip.yanked);
@@ -557,7 +751,7 @@ export class PluginManager {
   }
 
   /** The owner pressed Install (or Update) on the review card. */
-  async approve(reviewId: string, o: { trust?: boolean; consent?: boolean } = {}): Promise<PluginRow> {
+  async approve(reviewId: string, o: { trust?: boolean; consent?: boolean; onCommitted?: (row: PluginRow) => void } = {}): Promise<PluginRow> {
     const s = this.#staged.get(reviewId);
     if (!s || s.expires < Date.now()) throw new ManifestError('That review has expired. Add the plugin again.');
     const { review, files } = s;
@@ -566,56 +760,84 @@ export class PluginManager {
     if (review.needsTrust && !trusted) throw new ManifestError("This computer can't fence the plugin in. Tick \"I trust this plugin's author\" to add it.");
     this.checkFingerprint(files, review.sha);
     const m = review.manifest;
+    this.#idle(m.id);
+    this.#checkBaseline(s);
     const existing = this.store.get(m.id);
+    this.#candidateTransition(existing, review.origin);
+    if (review.origin.kind === 'candidate') this.checkFingerprint(this.#candidateFiles(review.origin.where), review.sha);
     const dest = join(this.pluginsDir, `${m.id}@${m.version}`);
     if (existing && resolve(existing.dir) === resolve(dest)) throw new ManifestError('That version is already installed.');
-    makeWritable(dest);
-    rmSync(dest, { recursive: true, force: true, maxRetries: 3 });
-    mkdirSync(this.pluginsDir, { recursive: true, mode: 0o700 });
-    writePackage(files, dest);
-    makeReadOnly(dest);
-    const now = this.#now().toISOString();
-    const prev = existing ? JSON.stringify({ version: existing.version, dir: existing.dir, manifest: existing.manifest, sha: existing.sha, approved_sha: existing.approved_sha, approved_permissions: existing.approved_permissions, approved_at: existing.approved_at }) : null;
-    // An older kept version than the one rolled back to goes (one version is kept).
-    if (existing?.prev_version) {
-      try {
-        const old = JSON.parse(existing.prev_version) as { dir: string };
-        if (old.dir && resolve(old.dir) !== resolve(dest) && resolve(old.dir).startsWith(resolve(this.pluginsDir))) {
-          makeWritable(old.dir);
-          rmSync(old.dir, { recursive: true, force: true, maxRetries: 3 });
-        }
-      } catch {
-        /* nothing kept */
+    const kept = existing?.prev_version ? JSON.parse(existing.prev_version) as { dir?: string; approved_sha?: string } : undefined;
+    const reuse = Boolean(kept?.dir && resolve(kept.dir) === resolve(dest));
+    if (reuse && (kept!.approved_sha !== review.sha || hashFiles(fromFolder(dest, PLUGIN_LIMITS)) !== review.sha)) throw new ManifestError('The kept version has different files. Review a new version number instead.');
+    const baseline = this.#baseline(m.id); const token = this.#begin(m.id);
+    let wrote = false; let committed = false;
+    try {
+      if (existing) await this.#stopEverywhere(m.id);
+      this.#checkMutation(m.id, token, baseline);
+      if (this.#staged.get(reviewId) !== s || s.expires < Date.now()) throw new ManifestError('That review expired or was cancelled. Add the plugin again.');
+      // All awaited stops precede filesystem replacement and the synchronous commit boundary.
+      if (review.origin.kind === 'candidate') this.checkFingerprint(this.#candidateFiles(review.origin.where), review.sha);
+      this.checkFingerprint(files, review.sha);
+      if (reuse) this.checkFingerprint(fromFolder(dest, PLUGIN_LIMITS), review.sha);
+      else {
+        makeWritable(dest); rmSync(dest, { recursive: true, force: true, maxRetries: 3 });
+        mkdirSync(this.pluginsDir, { recursive: true, mode: 0o700 });
+        wrote = true; writePackage(files, dest); makeReadOnly(dest);
       }
+      const prev = existing ? JSON.stringify({ version: existing.version, dir: existing.dir, manifest: existing.manifest, sha: existing.sha, origin: existing.origin, approved_sha: existing.approved_sha, approved_permissions: existing.approved_permissions, approved_at: existing.approved_at }) : null;
+      const row: PluginRow = { id: m.id, version: m.version, name: m.name, dir: dest, manifest: JSON.stringify(m), sha: review.sha, origin: JSON.stringify(review.origin), approved_sha: review.sha, approved_permissions: JSON.stringify(permissionIds(m)), approved_at: this.#now().toISOString(), fenced: this.fence, status: 'installed', prev_version: prev, status_note: null };
+      this.#commitRow(row, o.onCommitted);
+      committed = true; this.#staged.delete(reviewId);
+      // A failed association never deletes either previously approved package.
+      if (existing?.prev_version) {
+        try {
+          const old = JSON.parse(existing.prev_version) as { dir: string };
+          if (old.dir && resolve(old.dir) !== resolve(dest) && resolve(old.dir).startsWith(resolve(this.pluginsDir))) { makeWritable(old.dir); rmSync(old.dir, { recursive: true, force: true, maxRetries: 3 }); }
+        } catch { /* no older package to prune */ }
+      }
+      this.store.log(m.id, null, 'log', existing ? `updated ${existing.version} → ${m.version} (approved by the owner)` : `installed ${m.version} (approved by the owner; fence: ${this.fence})`);
+      if (existing) this.#startEverywhere(m.id);
+      this.#changed(); return row;
+    } finally {
+      try {
+        if (wrote && !committed) { makeWritable(dest); rmSync(dest, { recursive: true, force: true, maxRetries: 3 }); }
+        if (!committed && existing && this.#epoch(m.id) === token && this.#baseline(m.id) === baseline) this.#startEverywhere(m.id);
+      } finally { this.#mutating.delete(m.id); }
     }
-    const row: PluginRow = { id: m.id, version: m.version, name: m.name, dir: dest, manifest: JSON.stringify(m), sha: review.sha, origin: JSON.stringify(review.origin), approved_sha: review.sha, approved_permissions: JSON.stringify(permissionIds(m)), approved_at: now, fenced: this.fence, status: 'installed', prev_version: prev, status_note: null };
-    this.#staged.delete(reviewId);
-    if (existing) await this.#stopEverywhere(m.id);
-    this.store.upsert(row);
-    this.store.log(m.id, null, 'log', existing ? `updated ${existing.version} → ${m.version} (approved by the owner)` : `installed ${m.version} (approved by the owner; fence: ${this.fence})`);
-    if (existing) this.#startEverywhere(m.id);
-    this.#changed();
-    return row;
   }
 
   /** Back to the version kept by the last update (it was approved then). */
-  async rollback(id: string): Promise<PluginRow> {
+  async rollback(id: string, o: { onCommitted?: (row: PluginRow) => void } = {}): Promise<PluginRow> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     if (!row.prev_version) throw new ManifestError('There is no earlier version to go back to.');
-    const prev = JSON.parse(row.prev_version) as { version: string; dir: string; manifest: string; sha: string; approved_sha: string; approved_permissions: string; approved_at: string };
+    const prev = JSON.parse(row.prev_version) as { version: string; dir: string; manifest: string; sha: string; origin?: string | null; approved_sha: string; approved_permissions: string; approved_at: string };
     if (!existsSync(prev.dir)) throw new ManifestError('The earlier version is no longer on this server.');
-    await this.#stopEverywhere(id);
-    const next: PluginRow = { ...row, version: prev.version, dir: prev.dir, manifest: prev.manifest, name: (JSON.parse(prev.manifest) as PluginManifest).name, sha: prev.sha, approved_sha: prev.approved_sha, approved_permissions: prev.approved_permissions, approved_at: prev.approved_at, status: 'installed', status_note: null, prev_version: JSON.stringify({ version: row.version, dir: row.dir, manifest: row.manifest, sha: row.sha, approved_sha: row.approved_sha, approved_permissions: row.approved_permissions, approved_at: row.approved_at }) };
-    this.store.upsert(next);
-    this.store.log(id, null, 'log', `rolled back ${row.version} → ${prev.version}`);
-    this.#startEverywhere(id);
-    this.#changed();
-    return next;
+    if (prev.origin !== undefined) this.#candidateTransition(row, JSON.parse(prev.origin ?? '{}') as Origin);
+    const baseline = this.#baseline(id); const token = this.#begin(id);
+    let committed = false;
+    try {
+      await this.#stopEverywhere(id);
+      this.#checkMutation(id, token, baseline);
+      const next: PluginRow = { ...row, version: prev.version, dir: prev.dir, manifest: prev.manifest, name: (JSON.parse(prev.manifest) as PluginManifest).name, sha: prev.sha, origin: prev.origin ?? row.origin, approved_sha: prev.approved_sha, approved_permissions: prev.approved_permissions, approved_at: prev.approved_at, status: 'installed', status_note: null, prev_version: JSON.stringify({ version: row.version, dir: row.dir, manifest: row.manifest, sha: row.sha, origin: row.origin, approved_sha: row.approved_sha, approved_permissions: row.approved_permissions, approved_at: row.approved_at }) };
+      this.#commitRow(next, o.onCommitted);
+      committed = true;
+      this.store.log(id, null, 'log', `rolled back ${row.version} → ${prev.version}`);
+      this.#startEverywhere(id);
+      this.#changed();
+      return next;
+    } finally {
+      try {
+        if (!committed && this.#epoch(id) === token && this.#baseline(id) === baseline) this.#startEverywhere(id);
+      } finally { this.#mutating.delete(id); }
+    }
   }
 
   /** "Check for updates": the same git address or server folder again (never automatic). */
   async updateCheck(id: string): Promise<{ upToDate: true; version: string } | Review> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const origin = JSON.parse(row.origin ?? '{}') as Origin;
@@ -623,6 +845,7 @@ export class PluginManager {
     if (origin.kind === 'git') files = await fromGit(origin.where, join(this.opts.dataDir, 'cache', 'plugin-imports'), PLUGIN_LIMITS);
     else if (origin.kind === 'folder') files = fromFolder(origin.where, PLUGIN_LIMITS);
     else if (origin.kind === 'builtin') files = fromFolder(this.#builtinFolder(origin.where), PLUGIN_LIMITS);
+    else if (origin.kind === 'candidate') files = this.#candidateFiles(origin.where);
     else if (origin.kind === 'store') throw new ManifestError('It came from the Sara Store: its updates show in Get more → My add-ons.');
     else throw new ManifestError('It was added from a .zip: add the new .zip with Add a plugin to update it.');
     const { files: inner } = stripTop(files);
@@ -631,29 +854,34 @@ export class PluginManager {
   }
 
   async remove(id: string): Promise<void> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
-    await this.#stopEverywhere(id);
-    for (const a of this.#attached.values()) {
-      const cur = (a.app.settings.get() as { plugins?: CompanionPluginSettings }).plugins ?? {};
-      if (cur[id]) {
-        const { [id]: _gone, ...rest } = cur;
-        a.app.settings.update({ plugins: rest } as never);
+    const baseline = this.#baseline(id); const token = this.#begin(id);
+    try {
+      await this.#stopEverywhere(id);
+      this.#checkMutation(id, token, baseline);
+      for (const a of this.#attached.values()) {
+        const cur = (a.app.settings.get() as { plugins?: CompanionPluginSettings }).plugins ?? {};
+        if (cur[id]) {
+          const { [id]: _gone, ...rest } = cur;
+          a.app.settings.update({ plugins: rest } as never);
+        }
       }
-    }
-    for (const dir of [row.dir, ...(row.prev_version ? [(JSON.parse(row.prev_version) as { dir: string }).dir] : [])]) {
-      if (!resolve(dir).startsWith(resolve(this.pluginsDir))) continue;
-      makeWritable(dir);
-      rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
-    }
-    rmSync(join(this.opts.dataDir, 'plugin-data', id), { recursive: true, force: true, maxRetries: 3 });
-    for (const s of this.manifestOf(row).settings) if (s.type === 'secret') this.opts.vault.delete(`plugin:${id}:${s.key}`);
-    // Phase 117: its bridges' identities, threads and skip counts go with it (every companion).
-    const { forgetBridge } = bridgeDbModule;
-    for (const a of this.#attached.values()) for (const b of this.manifestOf(row).permissions.bridges) forgetBridge(a.app.store.db, `plugin-${b}`);
-    this.store.delete(id);
-    this.store.log(id, null, 'log', 'removed by the owner');
-    this.#changed();
+      for (const dir of [row.dir, ...(row.prev_version ? [(JSON.parse(row.prev_version) as { dir: string }).dir] : [])]) {
+        if (!resolve(dir).startsWith(resolve(this.pluginsDir))) continue;
+        makeWritable(dir);
+        rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+      }
+      rmSync(join(this.opts.dataDir, 'plugin-data', id), { recursive: true, force: true, maxRetries: 3 });
+      for (const s of this.manifestOf(row).settings) if (s.type === 'secret') this.opts.vault.delete(`plugin:${id}:${s.key}`);
+      // Phase 117: its bridges' identities, threads and skip counts go with it (every companion).
+      const { forgetBridge } = bridgeDbModule;
+      for (const a of this.#attached.values()) for (const b of this.manifestOf(row).permissions.bridges) forgetBridge(a.app.store.db, `plugin-${b}`);
+      this.store.delete(id);
+      this.store.log(id, null, 'log', 'removed by the owner');
+      this.#changed();
+    } finally { this.#mutating.delete(id); }
   }
 
   manifestOf(row: PluginRow): PluginManifest {
@@ -681,10 +909,14 @@ export class PluginManager {
   async storeBlock(id: string, note: string): Promise<void> {
     const row = this.store.get(id);
     if (!row) return;
-    this.store.setStatus(id, 'disabled', note.slice(0, 400));
-    this.store.log(id, null, 'denied', note.slice(0, 400));
-    await this.#stopEverywhere(id);
-    this.#changed();
+    const owns = !this.#mutating.has(id); if (owns) this.#mutating.add(id);
+    this.#invalidate(id);
+    try {
+      this.store.setStatus(id, 'disabled', note.slice(0, 400));
+      this.store.log(id, null, 'denied', note.slice(0, 400));
+      await this.#stopEverywhere(id);
+      this.#changed();
+    } finally { if (owns) this.#mutating.delete(id); }
   }
 
   /** Recomputes the folder's hash: false (and the plugin switched off) when it changed on disk. */
@@ -698,6 +930,7 @@ export class PluginManager {
       sha = 'unreadable';
     }
     if (sha === row.approved_sha) return true;
+    this.#invalidate(id);
     this.store.setStatus(id, 'disabled', 'changed');
     this.store.log(id, null, 'denied', "its files changed on disk since you approved them, so it was switched off. Add it again to review the change.");
     void this.#stopEverywhere(id);
@@ -711,8 +944,14 @@ export class PluginManager {
 
   /** A companion of the owner's joins: its enabled plugins start. */
   attach(companionId: string, app: AppContext): void {
+    const previous = this.#attached.get(companionId);
+    if (previous) {
+      previous.unsub?.(); this.#unobserveSettings(previous);
+      for (const id of previous.procs.keys()) void this.#stop(previous, id);
+    }
     const a: Attached = { id: companionId, app, procs: new Map() };
     this.#attached.set(companionId, a);
+    this.#observeSettings(a);
     app.plugins = this.hostFor(companionId);
     if (this.opts.events) {
       a.unsub = this.opts.events.subscribe((ev) => {
@@ -737,6 +976,7 @@ export class PluginManager {
   }
 
   async setEnabled(id: string, companionId: string, on: boolean): Promise<void> {
+    if (on) this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const a = this.#attached.get(companionId);
@@ -748,15 +988,20 @@ export class PluginManager {
       const other = [...this.#attached.values()].find((x) => x.id !== companionId && this.enabledFor(id, x.id));
       if (other) throw new ManifestError(`${this.manifestOf(row).name} is already on for ${other.app.persona.name}. Switch it off there first.`);
     }
-    const cur = this.companionSettings(companionId);
-    a.app.settings.update({ plugins: { ...cur, [id]: { ...(cur[id] ?? {}), enabled: on } } } as never);
-    if (on) {
-      if (row.status === 'crashed' || row.status === 'disabled') this.store.setStatus(id, 'installed', null);
-      const fresh = this.store.get(id)!;
-      if (!a.procs.has(id)) this.#start(a, fresh);
-    } else await this.#stop(a, id);
-    this.store.log(id, companionId, 'log', on ? 'switched on' : 'switched off');
-    this.#changed();
+    // Off revokes synchronously even while a package mutation is awaiting process exit.
+    const owns = !this.#mutating.has(id); if (owns) this.#mutating.add(id);
+    this.#invalidate(id);
+    try {
+      const cur = this.companionSettings(companionId);
+      a.app.settings.update({ plugins: { ...cur, [id]: { ...(cur[id] ?? {}), enabled: on } } } as never);
+      if (on) {
+        if (row.status === 'crashed' || row.status === 'disabled') this.store.setStatus(id, 'installed', null);
+        const fresh = this.store.get(id)!;
+        if (!a.procs.has(id)) this.#start(a, fresh, true);
+      } else await this.#stop(a, id);
+      this.store.log(id, companionId, 'log', on ? 'switched on' : 'switched off');
+      this.#changed();
+    } finally { if (owns) this.#mutating.delete(id); }
   }
 
   /** The settings page of one plugin for one companion (secrets: only whether one is set). */
@@ -774,73 +1019,83 @@ export class PluginManager {
   }
 
   async putSettings(id: string, companionId: string, values: Record<string, unknown>, bridge?: { ownerChats?: unknown; others?: unknown; allow?: unknown; workInGroups?: unknown; nameCalls?: unknown }): Promise<void> {
+    this.#idle(id);
     const row = this.store.get(id);
     if (!row) throw new ManifestError('No such plugin.');
     const a = this.#attached.get(companionId);
     if (!a) throw new ManifestError('No such companion.');
-    const m = this.manifestOf(row);
-    const cur = this.companionSettings(companionId);
-    const next: Record<string, string | number | boolean> = { ...(cur[id]?.settings ?? {}) };
-    for (const s of m.settings) {
-      if (!(s.key in values)) continue;
-      const v = values[s.key];
-      if (s.type === 'secret') {
-        // Write-only: a value sets it, "" removes it; it is never sent back.
-        const t = String(v ?? '');
-        if (t.length > 4000) throw new ManifestError(`${s.label} is too long.`);
-        if (t) this.opts.vault.set(`plugin:${id}:${s.key}`, t);
-        else this.opts.vault.delete(`plugin:${id}:${s.key}`);
-        continue;
+    this.#begin(id);
+    try {
+      const m = this.manifestOf(row);
+      const cur = this.companionSettings(companionId);
+      const next: Record<string, string | number | boolean> = { ...(cur[id]?.settings ?? {}) };
+      for (const s of m.settings) {
+        if (!(s.key in values)) continue;
+        const v = values[s.key];
+        if (s.type === 'secret') {
+          // Write-only: a value sets it, "" removes it; it is never sent back.
+          const t = String(v ?? '');
+          if (t.length > 4000) throw new ManifestError(`${s.label} is too long.`);
+          if (t) this.opts.vault.set(`plugin:${id}:${s.key}`, t);
+          else this.opts.vault.delete(`plugin:${id}:${s.key}`);
+          continue;
+        }
+        if (s.type === 'switch') next[s.key] = v === true;
+        else if (s.type === 'number') {
+          const n = Number(v);
+          if (!Number.isFinite(n) || (s.min !== undefined && n < s.min) || (s.max !== undefined && n > s.max)) throw new ManifestError(`${s.label}: a number${s.min !== undefined ? ` from ${s.min}` : ''}${s.max !== undefined ? ` up to ${s.max}` : ''}.`);
+          next[s.key] = n;
+        } else if (s.type === 'choice') {
+          if (!s.choices!.includes(String(v))) throw new ManifestError(`${s.label}: pick one of the choices.`);
+          next[s.key] = String(v);
+        } else {
+          const t = String(v ?? '').slice(0, 500);
+          // §7.1: settings never hold a credential (only secret settings go to the vault).
+          if (KEY_SHAPED.some((re) => re.test(t))) throw new ManifestError(`${s.label}: that looks like a password or key. Put it in a password setting instead.`);
+          next[s.key] = t;
+        }
       }
-      if (s.type === 'switch') next[s.key] = v === true;
-      else if (s.type === 'number') {
-        const n = Number(v);
-        if (!Number.isFinite(n) || (s.min !== undefined && n < s.min) || (s.max !== undefined && n > s.max)) throw new ManifestError(`${s.label}: a number${s.min !== undefined ? ` from ${s.min}` : ''}${s.max !== undefined ? ` up to ${s.max}` : ''}.`);
-        next[s.key] = n;
-      } else if (s.type === 'choice') {
-        if (!s.choices!.includes(String(v))) throw new ManifestError(`${s.label}: pick one of the choices.`);
-        next[s.key] = String(v);
-      } else {
-        const t = String(v ?? '').slice(0, 500);
-        // §7.1: settings never hold a credential (only secret settings go to the vault).
-        if (KEY_SHAPED.some((re) => re.test(t))) throw new ManifestError(`${s.label}: that looks like a password or key. Put it in a password setting instead.`);
-        next[s.key] = t;
+      // Phase 117 part B (§5.2): an email bridge refuses his own mailbox (she would answer his whole inbox).
+      if (m.permissions.bridges.includes('email')) {
+        // *Mail provider* fills in the server names and ports it knows (empty ones only; §5.13).
+        const preset = EMAIL_PRESETS[String(next.provider ?? '')];
+        if (preset && 'provider' in values) for (const [k, v] of Object.entries(preset)) if (m.settings.some((x) => x.key === k) && (!next[k] || String(values.provider) !== String(cur[id]?.settings?.provider ?? ''))) next[k] = v;
+        const mine = this.#ownerAddresses(a, id);
+        for (const k of ['address', 'username']) {
+          const v = String(next[k] ?? '').trim().toLowerCase();
+          if (v && mine.includes(v)) throw new ManifestError(OWN_MAILBOX_LINE);
+        }
       }
-    }
-    // Phase 117 part B (§5.2): an email bridge refuses his own mailbox (she would answer his whole inbox).
-    if (m.permissions.bridges.includes('email')) {
-      // *Mail provider* fills in the server names and ports it knows (empty ones only; §5.13).
-      const preset = EMAIL_PRESETS[String(next.provider ?? '')];
-      if (preset && 'provider' in values) for (const [k, v] of Object.entries(preset)) if (m.settings.some((x) => x.key === k) && (!next[k] || String(values.provider) !== String(cur[id]?.settings?.provider ?? ''))) next[k] = v;
-      const mine = this.#ownerAddresses(a, id);
-      for (const k of ['address', 'username']) {
-        const v = String(next[k] ?? '').trim().toLowerCase();
-        if (v && mine.includes(v)) throw new ManifestError(OWN_MAILBOX_LINE);
+      const entry = { ...(cur[id] ?? {}), settings: next } as CompanionPluginSettings[string];
+      if (bridge && m.permissions.bridges.length) {
+        const chats = (Array.isArray(bridge.ownerChats) ? bridge.ownerChats : String(bridge.ownerChats ?? '').split(/[\s,]+/)).map((x) => String(x).trim()).filter((x) => /^[\w@.:+-]{1,80}$/.test(x)).slice(0, 10);
+        const prev = cur[id]?.bridge ?? {};
+        const list = (v: unknown, n: number) => (Array.isArray(v) ? v : String(v ?? '').split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase()).filter((x) => /^[\w@.:+=/-]{1,120}$/.test(x)).slice(0, n);
+        // 2.49's fields as before; the v1.2 ones are kept unless the page sends them.
+        entry.bridge = { ...prev, ownerChats: chats, others: bridge.others === true, ...(bridge.allow !== undefined ? { allow: list(bridge.allow, 200) } : {}), ...(bridge.workInGroups !== undefined ? { workInGroups: bridge.workInGroups === true } : {}), ...(bridge.nameCalls !== undefined ? { nameCalls: bridge.nameCalls === true } : {}) };
+        if (!entry.bridge.ownerIds?.length) delete entry.bridge.ownerIds;
       }
-    }
-    const entry = { ...(cur[id] ?? {}), settings: next } as CompanionPluginSettings[string];
-    if (bridge && m.permissions.bridges.length) {
-      const chats = (Array.isArray(bridge.ownerChats) ? bridge.ownerChats : String(bridge.ownerChats ?? '').split(/[\s,]+/)).map((x) => String(x).trim()).filter((x) => /^[\w@.:+-]{1,80}$/.test(x)).slice(0, 10);
-      const prev = cur[id]?.bridge ?? {};
-      const list = (v: unknown, n: number) => (Array.isArray(v) ? v : String(v ?? '').split(/[\s,]+/)).map((x) => String(x).trim().toLowerCase()).filter((x) => /^[\w@.:+=/-]{1,120}$/.test(x)).slice(0, n);
-      // 2.49's fields as before; the v1.2 ones are kept unless the page sends them.
-      entry.bridge = { ...prev, ownerChats: chats, others: bridge.others === true, ...(bridge.allow !== undefined ? { allow: list(bridge.allow, 200) } : {}), ...(bridge.workInGroups !== undefined ? { workInGroups: bridge.workInGroups === true } : {}), ...(bridge.nameCalls !== undefined ? { nameCalls: bridge.nameCalls === true } : {}) };
-      if (!entry.bridge.ownerIds?.length) delete entry.bridge.ownerIds;
-    }
-    a.app.settings.update({ plugins: { ...cur, [id]: entry } } as never);
-    // A running plugin gets its new settings at its next start.
-    if (a.procs.has(id)) {
-      await this.#stop(a, id);
-      this.#start(a, this.store.get(id)!);
-    }
-    this.store.log(id, companionId, 'log', 'settings changed');
+      a.app.settings.update({ plugins: { ...cur, [id]: entry } } as never);
+      const token = this.#epoch(id); const baseline = this.#baseline(id);
+      // A running plugin gets its new settings at its next start.
+      if (a.procs.has(id)) {
+        await this.#stop(a, id);
+        const fresh = this.store.get(id);
+        const current = this.#attached.get(companionId);
+        if (current && fresh && this.#epoch(id) === token && this.#baseline(id) === baseline && fresh.status === 'installed' && this.enabledFor(id, companionId)) this.#start(current, fresh, true);
+      }
+      this.store.log(id, companionId, 'log', 'settings changed');
+    } finally { this.#mutating.delete(id); }
   }
 
   // ------------------------------------------------------------------------------------------
   // processes
   // ------------------------------------------------------------------------------------------
 
-  #start(a: Attached, row: PluginRow): void {
+  #start(a: Attached, row: PluginRow, mutationRestart = false): void {
+    if (this.#mutating.has(row.id) && !mutationRestart) return;
+    const current = this.store.get(row.id);
+    if (this.#attached.get(a.id) !== a || !current || current.status !== 'installed' || !this.enabledFor(row.id, a.id) || current.approved_sha !== row.approved_sha || current.version !== row.version || current.origin !== row.origin) return;
     if (a.procs.has(row.id)) return;
     if (!this.verify(row.id)) return;
     const m = this.manifestOf(row);
@@ -862,16 +1117,19 @@ export class PluginManager {
       key,
       () => spawnSpec({ fence: this.fence, pluginDir: row.dir, dataDir: data, main: m.main, readExtra, saraDataDir: this.opts.dataDir, ...(this.opts.execPath ? { execPath: this.opts.execPath } : {}) }),
       {
-        onReady: (msg) => this.#ready(a, run, msg),
-        onCall: (op, msg) => this.#call(a, run, op, msg),
+        onReady: (msg) => { if (this.#current(a, run)) this.#ready(a, run, msg); },
+        onCall: (op, msg) => this.#current(a, run) ? this.#call(a, run, op, msg) : Promise.reject(new Error('The plugin is no longer available.')),
         onLog: (kind, text) => {
+          if (!this.#current(a, run)) return;
           this.store.log(row.id, a.id, kind === 'log' ? 'log' : kind, this.opts.scrub(text));
           // Phase 117: a crashed process's sockets go (the restarted one opens its own).
           if (kind === 'crash') run.net?.closeAll('the plugin crashed');
           if (kind !== 'log') this.#changed();
         },
-        onOneWay: (msg) => this.#oneWay(a, run, msg),
+        onOneWay: (msg) => { if (this.#current(a, run)) this.#oneWay(a, run, msg); },
         onGaveUp: (why) => {
+          if (!this.#current(a, run)) return;
+          this.#invalidate(row.id);
           this.store.setStatus(row.id, 'crashed', 'crashed');
           this.store.log(row.id, a.id, 'crash', `crashed 3 times in 10 minutes, so it was switched off (${this.opts.scrub(why).slice(0, 300)})`);
           this.#unregister(a, run);
@@ -904,6 +1162,7 @@ export class PluginManager {
         ...(this.opts.netCa ? { ca: this.opts.netCa } : {}),
         ...(this.opts.clock ? { clock: this.opts.clock } : {}),
         ...(this.opts.netTestLoopback ? { testLoopback: true } : {}),
+        ...(this.opts.netTestPort ? { testPort: this.opts.netTestPort } : {}),
         ...(this.opts.netTailnet ? { tailnet: this.opts.netTailnet } : {}),
       });
     }
@@ -980,14 +1239,18 @@ export class PluginManager {
       spec: { name: full, description: `${description || name} (from the plugin ${label})`, parameters },
       defaultPermission: perm,
       source: `Plugin: ${label}`,
-      isAvailable: () => run.proc.state === 'ready' && a.procs.get(run.row.id) === run,
+      ...(run.manifest.costs?.[name] !== undefined ? { cost: run.manifest.costs[name] } : {}),
+      isAvailable: () => run.proc.state === 'ready' && this.#current(a, run),
       summarize: (args) => cut(`${label}: ${name}${Object.keys(args).length ? ` ${JSON.stringify(args)}` : ''}`, 160),
       run: async (args, ctx) => {
+        if (run.proc.state !== 'ready' || !this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         const bad = checkArgs(parameters, args);
         if (bad) throw new ToolError(`${label}: ${bad}.`);
-        const res = await run.proc.request('tool', { name, args }, TOOL_MS);
+        const toolMs = this.opts.toolMs ?? TOOL_MS;
+        const res = await run.proc.request('tool', { name, args }, toolMs);
+        if (!this.#current(a, run)) throw new ToolError(`The plugin ${label} is no longer available.`);
         if (!res) {
-          this.store.log(run.row.id, a.id, 'timeout', `tool ${name}: no answer within ${TOOL_MS / 1000} s`);
+          this.store.log(run.row.id, a.id, 'timeout', `tool ${name}: no answer within ${toolMs / 1000} s`);
           throw new ToolError(`The plugin ${label} didn't answer in time.`);
         }
         if (res.type === 'error') throw new ToolError(`${label}: ${cut(String(res.error ?? 'error'), 300)}`);
@@ -1004,18 +1267,20 @@ export class PluginManager {
     run.tools = [];
   }
 
+  #current(a: Attached, run: Running): boolean {
+    if (this.#attached.get(a.id) !== a || a.procs.get(run.row.id) !== run || !this.enabledFor(run.row.id, a.id)) return false;
+    const row = this.store.get(run.row.id);
+    return Boolean(row && row.status === 'installed' && row.approved_sha === run.row.approved_sha && row.version === run.row.version && row.origin === run.row.origin);
+  }
+
   async #stop(a: Attached, id: string): Promise<void> {
     const run = a.procs.get(id);
     if (!run) return;
     a.procs.delete(id);
     this.#unregister(a, run);
     run.net?.dispose();
-    for (const [k, w] of this.#waiting) {
-      if (w.call.plugin === id && w.call.companion === a.id) {
-        clearTimeout(w.timer);
-        this.#waiting.delete(k);
-        w.resolve(false);
-      }
+    for (const w of [...this.#waiting.values()]) {
+      if (w.call.plugin === id && w.call.companion === a.id) w.end('the plugin stopped before the owner answered');
     }
     await run.proc.stop();
   }
@@ -1025,7 +1290,7 @@ export class PluginManager {
   #startEverywhere(id: string): void {
     const row = this.store.get(id);
     if (!row || row.status !== 'installed') return;
-    for (const a of this.#attached.values()) if (this.enabledFor(id, a.id)) this.#start(a, row);
+    for (const a of this.#attached.values()) if (this.enabledFor(id, a.id)) this.#start(a, row, true);
   }
 
   /** A companion went away (retired, or the server stops): its plugin processes stop. */
@@ -1033,6 +1298,8 @@ export class PluginManager {
     const a = this.#attached.get(companionId);
     if (!a) return;
     this.#attached.delete(companionId);
+    this.#unobserveSettings(a);
+    for (const id of a.procs.keys()) this.#invalidate(id);
     a.unsub?.();
     await Promise.all([...a.procs.keys()].map((id) => this.#stop(a, id)));
   }
@@ -1040,8 +1307,36 @@ export class PluginManager {
   async stopAll(): Promise<void> {
     clearInterval(this.#tick);
     this.#tick = undefined;
-    await Promise.all([...this.#attached.values()].flatMap((a) => [...a.procs.keys()].map((id) => this.#stop(a, id))));
-    for (const a of this.#attached.values()) a.unsub?.();
+    // Shutdown must not depend on the lifetime/order of the shared SQLite connection.
+    const ids = new Set([
+      ...this.#epochs.keys(), ...this.#mutating,
+      ...[...this.#staged.values()].map(s => s.review.manifest.id),
+      ...[...this.#attached.values()].flatMap(a => [...a.procs.keys()]),
+    ]);
+    for (const id of ids) this.#invalidate(id);
+    try {
+      await Promise.all([...this.#attached.values()].flatMap((a) => [...a.procs.keys()].map((id) => this.#stop(a, id))));
+    } finally {
+      for (const a of this.#attached.values()) { a.unsub?.(); this.#unobserveSettings(a); }
+    }
+  }
+
+  /**
+   * C8: after an automatic update: every companion that has it on runs it (its process is ready)
+   * within `waitMs`. A crash, a failed start or a timeout is unhealthy.
+   */
+  async healthy(id: string, waitMs = 15_000, stepMs = 200): Promise<{ ok: boolean; why?: string }> {
+    const row = this.store.get(id);
+    if (!row || row.status !== 'installed') return { ok: false, why: row?.status_note ?? 'it is not installed' };
+    const until = Date.now() + waitMs;
+    for (;;) {
+      const procs = [...this.#attached.values()].filter((a) => this.enabledFor(id, a.id)).map((a) => a.procs.get(id)?.proc);
+      const bad = procs.find((p) => !p || p.state === 'crashed' || p.state === 'stopped');
+      if (procs.every((p) => p?.state === 'ready')) return { ok: true };
+      if (procs.some((p) => p?.state === 'crashed' || p?.state === 'waiting')) return { ok: false, why: en('it crashed after starting') };
+      if (Date.now() >= until) return { ok: false, why: bad ? en('it did not start') : en('it did not get ready in time') };
+      await new Promise((r) => setTimeout(r, stepMs));
+    }
   }
 
   /** The process of one plugin for one companion (tests, the log view). */
@@ -1078,7 +1373,7 @@ export class PluginManager {
     if (!run || run.proc.state !== 'ready') throw new ManifestError("That plugin isn't running.");
     const name = run.tools.find((t) => t === tool) ? tool.slice(tool.indexOf('__') + 2) : '';
     if (!name) throw new ManifestError('That button calls a tool the plugin does not have.');
-    const res = await run.proc.request('tool', { name, args, button: true }, TOOL_MS);
+    const res = await run.proc.request('tool', { name, args, button: true }, this.opts.toolMs ?? TOOL_MS);
     if (!res || res.type === 'error') throw new ManifestError(`The plugin ${run.manifest.name} didn't answer.`);
     const card = res.card !== undefined ? cleanCard(res.card, { id, name: run.manifest.name, tools: run.tools }) : undefined;
     return { content: cut(String(res.content ?? ''), 4000), ...(card ? { card } : {}) };
@@ -1105,19 +1400,38 @@ export class PluginManager {
         if (!t || t.source?.startsWith('Plugin: ')) return deny(`there is no Sara tool "${cut(tool, 60)}" here`);
         if (a.app.tools.permission(tool, a.app.settings.get().toolPermissions) === 'never') return deny(`${tool} is switched off`);
         const args = msg.args && typeof msg.args === 'object' && !Array.isArray(msg.args) ? (msg.args as Record<string, unknown>) : {};
-        const ok = await this.#ask(a, run, tool, t.summarize(args), args);
-        if (!ok) {
-          this.store.log(id, a.id, 'call', `${tool}: the owner said no (or didn't answer)`);
-          return { ok: false, content: 'The owner declined this.' };
-        }
+        // The call is made on behalf of the Sara → plugin requests running now; its approval and
+        // its run end with them (a late Allow after a timeout, a finished tool or a stop runs nothing).
+        const life = this.#lifetime(run);
+        if (!life) return deny(`${tool}: no request from Sara is running, so nothing can ask the owner`);
         try {
-          const out = await t.run(args, { workspaceDir: workspaceDir(this.opts.dataDir, 'main'), signal: AbortSignal.timeout(120_000), sandbox: a.app.sandbox, companionName: a.app.persona.name });
-          this.store.log(id, a.id, 'call', `${tool}: ran (the owner allowed it)`);
-          return { ok: true, content: cut(this.opts.scrub(out), 16 * 1024) };
-        } catch (err) {
-          return { ok: false, content: cut(this.opts.scrub((err as Error).message), 1000) };
+          const ok = await this.#ask(a, run, tool, t.summarize(args), args, life);
+          if (!ok) {
+            this.store.log(id, a.id, 'call', `${tool}: the owner said no (or didn't answer)`);
+            return { ok: false, content: 'The owner declined this.' };
+          }
+          // The wait may have changed things: rechecked after the answer, before anything runs.
+          if (life.signal.aborted) {
+            this.store.log(id, a.id, 'call', `${tool}: the request ended before it could run; nothing ran`);
+            return { ok: false, content: 'The request ended before this could run. Nothing ran.' };
+          }
+          if (!this.#current(a, run) || a.app.tools.get(tool) !== t || a.app.tools.permission(tool, a.app.settings.get().toolPermissions) === 'never') {
+            this.store.log(id, a.id, 'call', `${tool}: no longer allowed after the owner's answer; nothing ran`);
+            return { ok: false, content: 'This is no longer allowed. Nothing ran.' };
+          }
+          try {
+            const out = await t.run(args, { workspaceDir: workspaceDir(this.opts.dataDir, 'main'), signal: AbortSignal.any([life.signal, AbortSignal.timeout(120_000)]), sandbox: a.app.sandbox, companionName: a.app.persona.name });
+            this.store.log(id, a.id, 'call', `${tool}: ran (the owner allowed it)`);
+            return { ok: true, content: cut(this.opts.scrub(out), 16 * 1024) };
+          } catch (err) {
+            return { ok: false, content: cut(this.opts.scrub((err as Error).message), 1000) };
+          }
+        } finally {
+          life.dispose();
         }
       }
+      case 'job.run':
+        return this.#job(a, run, msg, deny);
       case 'notify': {
         const text = cut(this.opts.scrub(String(msg.text ?? '').trim()), 300);
         if (!text) return deny('an empty notification');
@@ -1182,33 +1496,175 @@ export class PluginManager {
     }
   }
 
+  /**
+   * The lifetime of a plugin → Sara call: the Sara → plugin requests (tool, button, hook, schedule,
+   * event, bridge checks) running when it arrived. Its signal aborts when all of them have ended,
+   * when the process stops, or at once if none is running (undefined then). The channel carries no
+   * request id on calls, so a call is bound to every invocation live at that moment.
+   */
+  #lifetime(run: Running): { signal: AbortSignal; dispose: () => void; ids: string[] } | undefined {
+    const live = new Set(run.proc.live());
+    if (!live.size) return undefined;
+    const ids = [...live];
+    const ctl = new AbortController();
+    const off = run.proc.onSettled((rid) => {
+      if (!live.delete(rid) || live.size) return;
+      off();
+      ctl.abort(new Error('the plugin request ended'));
+    });
+    return { signal: ctl.signal, dispose: off, ids };
+  }
+
+  /** H_EXEC (docs/ops/H_EXEC_DESIGN.md): one approved job in a disposable copy. */
+  async #job(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Promise<Record<string, unknown>> {
+    const id = run.row.id;
+    const perm = run.manifest.permissions.run;
+    if (!perm) return deny('it has no run permission');
+    // EC8: the admin requires the container sandbox and none works: no job runs.
+    if (this.opts.sandbox.refuse) return deny(`job: ${this.opts.sandbox.refuse}`);
+    const fence = this.opts.jobFence ?? jobFenceFor(this.opts.sandbox);
+    let plan: JobPlan;
+    try {
+      plan = parsePlan(msg.plan, perm, fence);
+    } catch (err) {
+      if (err instanceof JobRefused) return deny(`job: ${err.message}`);
+      throw err;
+    }
+    let sourceDir: string;
+    if (plan.source === 'workspace') sourceDir = workspaceDir(this.opts.dataDir, 'main');
+    else {
+      const root = this.dataDirFor(id, a.id);
+      sourceDir = plan.from === '.' ? root : join(root, ...plan.from.split('/'));
+      // No link anywhere on the way (a staged junction could point at the owner's files).
+      for (let p = sourceDir; p.length >= root.length; p = dirname(p)) {
+        if (!existsSync(p) || lstatSync(p).isSymbolicLink()) return deny(`job: the folder "${plan.from}" isn't in its data folder`);
+        if (p === root) break;
+      }
+      if (!lstatSync(sourceDir).isDirectory()) return deny(`job: "${plan.from}" isn't a folder`);
+    }
+    if (!existsSync(sourceDir)) return deny('job: the workspace folder does not exist');
+    const life = this.#lifetime(run);
+    if (!life) return deny('job: no request from Sara is running, so nothing can ask the owner');
+    try {
+      const command = commandLine(plan);
+      const where = plan.source === 'workspace' ? 'a disposable copy of your main workspace' : 'a disposable copy of its own files';
+      const card = { command, source: plan.source, cwd: plan.cwd, network: plan.network, timeoutS: plan.timeoutS, fence, fenceLabel: FENCE_LABELS[fence] };
+      // While the owner decides, the request that asked stays open (up to 2 minutes).
+      const askMs = this.opts.jobApprovalMs ?? JOB_APPROVAL_MS;
+      run.proc.extend(life.ids, askMs + 5_000);
+      const decided = AbortSignal.any([life.signal, AbortSignal.timeout(askMs)]);
+      const ok = await this.#ask(a, run, 'job', `run ${command} in ${where}${plan.cwd !== '.' ? ` (folder ${plan.cwd})` : ''}, ${plan.network ? 'with' : 'without'} network, up to ${plan.timeoutS} s; ${FENCE_LABELS[fence]}`, { ...card }, { signal: decided }, card);
+      if (!ok) {
+        hub.pluginJob('declined');
+        this.store.log(id, a.id, 'call', 'job: the owner said no (or didn\'t answer); nothing ran');
+        return { ok: false, content: 'The owner declined this. Nothing ran.' };
+      }
+      if (life.signal.aborted) return { ok: false, content: 'The request ended before this could run. Nothing ran.' };
+      if (!this.#current(a, run) || JSON.stringify(run.manifest.permissions.run) !== JSON.stringify(perm)) return { ok: false, content: 'This is no longer allowed. Nothing ran.' };
+      run.proc.extend(life.ids, plan.timeoutS * 1000 + 15_000);
+      const jobId = randomUUID();
+      const ctl = new AbortController();
+      this.#jobs.set(jobId, { ctl, job: { id: jobId, plugin: id, name: run.manifest.name, companion: a.id, command, fence, at: this.#now().toISOString() } });
+      this.#changed();
+      try {
+        const r = await runJob(plan, { sourceDir, cacheDir: join(this.opts.dataDir, 'cache', 'plugin-jobs'), fence, signal: AbortSignal.any([life.signal, ctl.signal]), ...(plan.source === 'workspace' ? { depsFrom: sourceDir } : {}), ...(fence === 'container' && this.opts.sandbox.container ? { container: this.opts.sandbox.container } : {}) });
+        // EC3: plugin job outcomes for the metrics (src/telemetry/hub.ts).
+        hub.pluginJob(r.error ? 'failed' : r.cancelled ? 'stopped' : r.timedOut ? 'timeout' : r.exitCode === 0 ? 'ok' : 'failed');
+        this.store.log(id, a.id, 'call', `job: ${cut(command, 200)}: ${r.error ? `not run (${cut(r.error, 200)})` : r.cancelled ? 'stopped' : r.timedOut ? `stopped after ${plan.timeoutS} s` : `exit ${r.exitCode ?? r.signal}`} (${fence}; copy ${r.deleted ? 'deleted' : 'NOT deleted'})`);
+        // The answer must fit one channel line (1 MB) after JSON escaping.
+        // (`id` is the channel's call id: the run's own id goes back as `jobId`.)
+        const { id: runId, ...rest } = r;
+        const out: Record<string, unknown> = { ok: !r.error, jobId: runId, ...rest, stdout: this.opts.scrub(r.stdout), stderr: this.opts.scrub(r.stderr) };
+        for (let i = 0; i < 8 && JSON.stringify(out).length > 900_000; i++) {
+          for (const k of ['stdout', 'stderr'] as const) {
+            const v = out[k] as string;
+            if (v.length > 1024) {
+              out[k] = v.slice(0, Math.floor(v.length / 2));
+              out[`${k}Truncated`] = true;
+            }
+          }
+        }
+        return out;
+      } finally {
+        this.#jobs.delete(jobId);
+        this.#changed();
+      }
+    } finally {
+      life.dispose();
+    }
+  }
+
+  /** H_EXEC: plugin jobs running now. */
+  jobs(): RunningJob[] {
+    return [...this.#jobs.values()].map((j) => j.job);
+  }
+  /** H_EXEC: the owner's Stop on a running job. */
+  stopJob(jobId: string): boolean {
+    const j = this.#jobs.get(jobId);
+    if (!j) return false;
+    j.ctl.abort();
+    this.store.log(j.job.plugin, j.job.companion, 'call', 'job: stopped by the owner');
+    return true;
+  }
+
   /** A plugin → Sara tool call: it always asks the owner (an outside request; never "always allowed"). */
-  #ask(a: Attached, run: Running, tool: string, summary: string, args: Record<string, unknown>): Promise<boolean> {
-    const call: WaitingCall = { id: randomUUID(), plugin: run.row.id, name: run.manifest.name, companion: a.id, tool, summary: this.opts.scrub(summary), args: a.app.redactor.redactValue(args) as Record<string, unknown>, at: this.#now().toISOString() };
+  #ask(a: Attached, run: Running, tool: string, summary: string, args: Record<string, unknown>, life: { signal: AbortSignal }, job?: WaitingCall['job']): Promise<boolean> {
+    const call: WaitingCall = { id: randomUUID(), plugin: run.row.id, name: run.manifest.name, companion: a.id, tool, summary: this.opts.scrub(summary), args: a.app.redactor.redactValue(args) as Record<string, unknown>, at: this.#now().toISOString(), ...(job ? { job } : {}) };
     return new Promise((resolveAsk) => {
-      const timer = setTimeout(() => {
+      const end = (why: string) => {
+        const w = this.#waiting.get(call.id);
+        if (!w) return;
+        clearTimeout(w.timer);
+        life.signal.removeEventListener('abort', onEnd);
         this.#waiting.delete(call.id);
+        this.#expire(call.id);
+        this.store.log(run.row.id, a.id, 'call', `${tool}: ${why}; nothing ran`);
         this.#changed();
         resolveAsk(false);
-      }, CALL_WAIT_MS);
+      };
+      const onEnd = () => end('the request ended before the owner answered');
+      if (life.signal.aborted) {
+        resolveAsk(false);
+        return;
+      }
+      const timer = setTimeout(() => end('no answer within 10 minutes'), CALL_WAIT_MS);
       timer.unref?.();
-      this.#waiting.set(call.id, { call, resolve: resolveAsk, timer });
+      life.signal.addEventListener('abort', onEnd, { once: true });
+      this.#waiting.set(call.id, {
+        call,
+        timer,
+        end,
+        resolve: (ok) => {
+          clearTimeout(timer);
+          life.signal.removeEventListener('abort', onEnd);
+          resolveAsk(ok);
+        },
+      });
       void a.app.push?.sendAll({ title: run.manifest.name, body: `${run.manifest.name} asks to ${summary}. Settings → Plugins.`, url: '/#view=settings:ab-plugins', tag: `plugin-${run.row.id}` }).catch(() => undefined);
       this.#changed();
     });
   }
 
+  #expire(callId: string): void {
+    const t = Date.now();
+    for (const [k, at] of this.#expired) if (t - at > CALL_WAIT_MS || this.#expired.size > 500) this.#expired.delete(k);
+    this.#expired.set(callId, t);
+  }
+
   waiting(): WaitingCall[] {
     return [...this.#waiting.values()].map((w) => w.call);
   }
-  decideCall(callId: string, approved: boolean): boolean {
+  /** The owner's answer: 'decided', 'expired' (its request already ended; nothing runs) or 'unknown'. */
+  callDecision(callId: string, approved: boolean): 'decided' | 'expired' | 'unknown' {
     const w = this.#waiting.get(callId);
-    if (!w) return false;
-    clearTimeout(w.timer);
+    if (!w) return this.#expired.has(callId) ? 'expired' : 'unknown';
     this.#waiting.delete(callId);
     w.resolve(approved);
     this.#changed();
-    return true;
+    return 'decided';
+  }
+  decideCall(callId: string, approved: boolean): boolean {
+    return this.callDecision(callId, approved) === 'decided';
   }
 
   async #fetch(a: Attached, run: Running, msg: InMessage, deny: (why: string) => never): Promise<Record<string, unknown>> {
@@ -1352,7 +1808,7 @@ export class PluginManager {
     const from = cut(String(msg.from ?? '').replace(/[\r\n]/g, ' ').trim() || 'someone', 60);
     // Phase 115: files it assembled with bridge.file, and the progress message's Stop.
     const fileIds = Array.isArray(msg.files) ? msg.files.slice(0, 5).map((f) => String((f as { fileId?: unknown } | null)?.fileId ?? '')).filter(Boolean) : [];
-    const action = msg.action === 'stop' ? 'stop' : undefined;
+    const action = msg.action === 'stop' ? 'stop' : msg.action === 'decide' ? 'decide' : undefined;
     if (!/^[\w@.:+=/-]{1,120}$/.test(chatId) || (!text && !fileIds.length && !action && !(typeof msg.forwarded === 'string' && msg.forwarded.trim()))) return deny('a message without a chat id or text');
     const cfg = this.companionSettings(a.id)[run.row.id]?.bridge;
     const channel = `plugin-${bridge}`;
@@ -1402,6 +1858,16 @@ export class PluginManager {
       this.#unaligned(a, run, bridge, channel, chatId, fromId);
       return { ok: false, reason: 'sender check' };
     }
+    // C4 (docs/ops/C4_DESIGN.md): "When this happens" sees every message that reached her on email,
+    // Slack or Teams (a chat or channel she is in), before the pairing rules decide on a reply.
+    const trigSource = bridge === 'email' || bridge === 'slack' || bridge === 'teams' ? bridge : undefined;
+    if (trigSource && !action && text && a.app.eventTriggers) {
+      const subject = trigSource === 'email' ? cleanThread(msg.thread)?.subject : undefined;
+      void a.app.eventTriggers.observe({ source: trigSource, text, from: fromId ?? from, channel: chatId, ...(chatInfo?.title ? { channelName: cut(String(chatInfo.title), 80) } : {}), ...(messageId ? { id: messageId } : {}), ...(subject ? { subject } : {}), ...(auth ? { verified: auth.result === 'aligned' } : {}), ...(msg.self === true || msg.fromHer === true ? { self: true } : {}) }).catch(() => undefined);
+    }
+    // EC1 (docs/ops/EC1_DESIGN.md): Allow or Deny tapped on an approval it showed. Only the linked
+    // owner decides (his own id when the platform gives one), and only an approval sent to this chat.
+    if (action === 'decide') return this.#bridgeDecide(a, run, { chatId, group, owner: !paused && (ownerSender || (!group && !fromId && owner)), approval: String(msg.approval ?? ''), allow: msg.allow === true, lang: msg.lang, fromId });
     // Phase 122 (§13 Q6): on a platform with a reply window (WhatsApp) an empty list means nobody, as for
     // email; a listed number in + form matches the sender's phone number (the plugin's `phone`).
     const phone = typeof msg.phone === 'string' && /^\d{6,20}$/.test(msg.phone) ? msg.phone : undefined;
@@ -1543,7 +2009,7 @@ export class PluginManager {
         if (ownChat) {
           run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId: ownChat, text: r.text + list });
           run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: say(a.app, lang, en('Sent you the answer privately.')) });
-        } else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: r.text + list, ...((group || thread) && messageId ? { replyTo: messageId } : {}), ...(thread ? { thread } : {}) });
+        } else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: r.text + list, ...((group || thread) && messageId ? { replyTo: messageId } : {}), ...(thread ? { thread } : {}), ...(r.approval && !r.refused ? this.#approvalButtons(run, chatId, r.approval.id, (x) => say(a.app, lang, x)) : {}) });
       }
       if (r.approval) void r.approval.done.then((t) => run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text: t, ...(thread ? { thread, ...(messageId ? { replyTo: messageId } : {}) } : {}) })).catch(() => undefined);
       this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: /${cmd.name}`);
@@ -1636,6 +2102,8 @@ export class PluginManager {
   async #bridgeTake(a: Attached, run: Running, m: BridgeTurn, explicit?: 'steer' | 'queue'): Promise<Record<string, unknown>> {
     const { pendingFor, whileBusySettings, PENDING_LINES } = await import('../pending.ts');
     const { say } = await import('../bridges/commands.ts');
+    // EC12: a crew's mail rule (the owner's own verified mail to her mailbox; only its subject is read).
+    if (m.owner && m.thread && !explicit) a.app.crews?.onMail({ subject: m.thread.subject ?? m.conv.title, owner: true });
     const pend = pendingFor(a.app);
     const runner = (item?: { id: string; kind: string }) => this.#bridgeTurn(a, run, m, item);
     if (!pend.busy(m.conv.id)) {
@@ -1681,7 +2149,8 @@ export class PluginManager {
     const heldFiles: { path: string; name: string; mime: string }[] = [];
     const sendText = (text: string, extraFields: Record<string, unknown> = {}) => {
       if (one) held.push(text);
-      else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text, ...extraFields });
+      // EC1: a thread turn on a chat app (Slack DMs) answers in that thread.
+      else run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, text, ...(m.thread && feats?.threads ? { thread: m.thread } : {}), ...extraFields });
     };
     const sendLine = (t: string) => sendText(say(a.app, lang, t));
     if (item?.kind === 'steer' && !one) sendLine(PENDING_LINES.moved);
@@ -1711,7 +2180,7 @@ export class PluginManager {
           create: async (t) => {
             const ref = `p-${(run.refSeq = (run.refSeq ?? 0) + 1)}`;
             run.refs!.set(ref, conv.id);
-            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: t });
+            run.proc.send({ v: 1, type: 'bridge.send', bridge, chatId, ref, text: t, ...(m.thread ? { thread: m.thread } : {}) });
             return ref;
           },
           edit: async (ref, t) => {
@@ -1764,6 +2233,11 @@ export class PluginManager {
           }
         }
         if (owner) out.onEvent(ev);
+        // EC1: her request for his OK, as Allow / Deny in this chat (bridgeApprovals, owner turns only).
+        if (ev.type === 'approval' && owner && !one) {
+          const buttons = this.#approvalButtons(run, chatId, ev.approvalId, (x) => say(a.app, lang, x));
+          if (buttons.buttons) sendText(this.opts.scrub(say(a.app, lang, en('She wants to: {what}'), { what: ev.summary })), { ...buttons, ...(room && m.messageId ? { replyTo: m.messageId } : {}) });
+        }
         if (ev.type === 'token') reply += ev.text;
         else if (ev.type === 'replace') reply = ev.text;
         else if (ev.type === 'notice' && (ev.kind === 'disclosure' || ev.kind === 'crisis')) notices.push(ev.text);
@@ -1826,6 +2300,34 @@ export class PluginManager {
     this.#count(run, 'out');
     await closing?.catch(() => undefined);
     this.store.log(run.row.id, a.id, 'call', `bridge ${bridge}: a ${owner ? 'owner' : 'partner'} turn${room ? ' in a group' : ''}`);
+  }
+
+  /**
+   * EC1: Allow / Deny buttons for one approval, when the plugin may show them (`bridgeApprovals` and at
+   * least two reply buttons); the approval is remembered with the chat it goes to. `{}` otherwise.
+   */
+  #approvalButtons(run: Running, chatId: string, approvalId: string, tr: (x: string) => string): { buttons?: { id: string; label: string }[] } {
+    if (!run.manifest.permissions.bridgeApprovals || (run.bridge?.buttons ?? 0) < 2 || !/^[\w-]{1,80}$/.test(approvalId)) return {};
+    const sent = (run.approvalsSent ??= new Map());
+    sent.set(approvalId, chatId);
+    if (sent.size > 200) sent.delete(sent.keys().next().value!);
+    return { buttons: [{ id: `ap:${approvalId}:1`, label: tr(en('Allow')) }, { id: `ap:${approvalId}:0`, label: tr(en('Deny')) }] };
+  }
+
+  /** EC1: a tap on Allow or Deny → the decision and the line the plugin shows in place of the buttons. */
+  async #bridgeDecide(a: Attached, run: Running, d: { chatId: string; group: boolean; owner: boolean; approval: string; allow: boolean; lang: unknown; fromId?: string }): Promise<Record<string, unknown>> {
+    const { askerLanguage, ownerLanguage, say } = await import('../bridges/commands.ts');
+    if (!d.owner) {
+      this.store.log(run.row.id, a.id, 'denied', `an approval button was pressed by someone who is not the owner (${cut(d.fromId ?? d.chatId, 40)})`);
+      return { ok: false, decided: 'refused', line: say(a.app, askerLanguage(d.lang), en('Only the owner can answer that.')) };
+    }
+    const lang = ownerLanguage(a.app);
+    const sentTo = run.approvalsSent?.get(d.approval);
+    if (!sentTo || sentTo !== d.chatId) return { ok: false, decided: 'expired', line: say(a.app, lang, en('That request is no longer waiting.')) };
+    run.approvalsSent!.delete(d.approval);
+    const ok = a.app.approvals.decide(d.approval, d.allow);
+    this.store.log(run.row.id, a.id, 'call', `an approval was ${ok ? (d.allow ? 'allowed' : 'denied') : 'answered too late'} from ${run.manifest.name}`);
+    return { ok, decided: ok ? (d.allow ? 'allowed' : 'denied') : 'expired', line: say(a.app, lang, ok ? (d.allow ? en('Allowed.') : en('Denied.')) : en('That request is no longer waiting.')) };
   }
 
   /** Phase 117 (oneMessage): one bridge.send with the whole text and every file, then their chunks. */

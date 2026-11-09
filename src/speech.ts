@@ -11,7 +11,7 @@ import { innerEnabled, vaultKeyFor } from './chat.ts';
 import { PHOTO_KEY_VAULT } from './photos.ts';
 import { personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
-import { addTags, type Expressive, type MoodHint, moodSpeed, plainSpeech, toneInstructions, type VoiceTone } from './expressive.ts';
+import { addTags, engineTags, type Expressive, forEngine, type MoodHint, moodSpeed, plainSpeech, toneInstructions, type VoiceTone } from './expressive.ts';
 import { moodLabel } from './inner.ts';
 import { DEFAULT_VOICE, elevenlabsSpeak, isWav, openaiSpeak, openaiTranscribe, speechText, VOICE_VAULT, VoiceError, xaiSpeak, type Audio, type VoiceSettings } from './voice.ts';
 
@@ -127,8 +127,9 @@ export class Speech {
     const level = opts.expressive ?? v.expressive ?? 'subtle';
     const speed = moodSpeed(v.speed, mood, tone);
     if (v.tts === 'openai') return openaiSpeak(v.openai, this.#app.vault.get(VOICE_VAULT.openai), plain, speed, toneInstructions(mood, tone, level));
-    if (v.tts === 'elevenlabs') return elevenlabsSpeak(v.elevenlabs, this.#app.vault.get(VOICE_VAULT.elevenlabs), plain);
-    if (v.tts === 'xai') return xaiSpeak(v.xai, await this.xaiKey().catch((e: Error) => { throw new VoiceError(e.message); }), tagged(text, level, mood, tone).slice(0, 1400), speed);
+    // R2d: an engine gets only the tags its provider documents (expressive.ts engineTags), else plain words.
+    if (v.tts === 'elevenlabs') return elevenlabsSpeak(v.elevenlabs, this.#app.vault.get(VOICE_VAULT.elevenlabs), engineTags('elevenlabs', v.elevenlabs.model) ? forEngine(tagged(text, level, mood, tone), 'elevenlabs', v.elevenlabs.model).slice(0, 1400) : plain);
+    if (v.tts === 'xai') return xaiSpeak(v.xai, await this.xaiKey().catch((e: Error) => { throw new VoiceError(e.message); }), forEngine(tagged(text, level, mood, tone), 'xai').slice(0, 1400), speed);
     if (!this.#app.voice) throw new VoiceError(localVoiceSupported() ? 'The voice on this server is not installed (deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
     return this.#app.voice.speak(plain, voiceId ?? v.localVoice, speed);
   }

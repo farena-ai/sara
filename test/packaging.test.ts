@@ -66,6 +66,20 @@ test('Dockerfile: pinned Node as deploy/install.sh, OCI labels, health check, da
   for (const p of ['data', '.git', 'outputs', '.secrets', 'node_modules', '.env']) assert.ok(ignore.includes(p), `.dockerignore has ${p}`);
 });
 
+test('runtime recipes preserve builtin plugins and never copy broad store authoring trees', () => {
+  for (const path of ['deploy/install.sh', 'desktop/windows/build-installer.sh', 'desktop/mac/build.sh']) {
+    const recipe = read(path);
+    if (path === 'deploy/install.sh') assert.match(recipe, /^for item in [^\n]*\bplugins\b[^\n]*; do$/m, 'Linux installs and updates include existing builtins');
+    else assert.match(recipe, /"\$ROOT\/plugins"/, `${path}: existing builtin directory remains packaged`);
+    const storeSources = [...recipe.matchAll(/"\$(?:ROOT|SRC_DIR)\/store[^"\r\n]*"/g)].map(match => match[0]);
+    assert.equal(storeSources.length, 1, `${path}: one bounded candidate copy source`);
+    assert.match(storeSources[0], /^"\$(?:ROOT|SRC_DIR)\/store\/plugins\/\$id"$/, `${path}: no raw catalog, website or whole-store source`);
+  }
+  const storeCopies = read('Dockerfile').split(/\r?\n/).filter(line => /^COPY\s+store(?:\/|\s)/.test(line));
+  assert.equal(storeCopies.length, 39, 'image copies exactly thirty-nine package roots (12 A1 + 27 A2 candidates)');
+  for (const line of storeCopies) assert.match(line, /^COPY store\/plugins\/([a-z-]+) \.\/store\/plugins\/\1$/, 'explicit package-directory copy only');
+});
+
 test('the templates agree on image, port and version', () => {
   const cask = read(FILES.cask);
   const caskVersion = /^\s*version "([^"]+)"/m.exec(cask)?.[1];

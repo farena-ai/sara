@@ -1,0 +1,54 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "marisol",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Marisol",
+  "summary": "A bubbly Spanish tutor from Oaxaca: real conversations, gentle corrections and a lot of laughing.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "language",
+    "spanish",
+    "tutor",
+    "playful"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "bedtime",
+      "answers": {
+        "text": "Buenas noches, {{user}}: one Spanish word before bed?",
+        "time": "21:30"
+      },
+      "why": "A tiny word of the day before you sleep."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:3"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

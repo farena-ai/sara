@@ -28,6 +28,7 @@ export type HubEvent = (
   | { type: 'board'; boardId: number | string; taskId?: number | string; what?: string }
   /** Phase 102 (ST7): a webhook got a delivery or changed: the Webhooks page refreshes. Ids only, never what was sent. */
   | { type: 'hooks'; hookId?: string }
+  | { type: 'triggers' }
   /** Phase 103 (ST8): her plans changed (planned, sent, edited, switched). Nothing of what they say. */
   | { type: 'agenda' }
   /** Phase 111 (TD1): a part of Today changed (mail organised, a switch pressed…): open pages reload that part. */
@@ -63,6 +64,8 @@ export type HubEvent = (
   | { type: 'goal'; conversationId: string; goal: import('./goals.ts').GoalView | null }
   /** Phase 118: a goal's check finished (the step line, the progress message). */
   | { type: 'goal_check'; conversationId: string; goalId: number; round: number; ok: boolean; passed?: number; failed?: number; quote?: string }
+  /** EC24: Sara asks a helper device (camera, location, screen), or the ask ended. Sent only to opted-in devices. */
+  | { type: 'helper'; id: string; kind: import('./phone-helper.ts').HelperKind; state: 'asking' | 'done' | 'expired' | 'cancelled'; reason?: string; precise?: boolean; facing?: 'back' | 'front'; expiresAt?: string }
   /** Phase 118 (§5.13): a loop changed state or its next tick moved. */
   | { type: 'loop'; conversationId: string; loop: import('./loops.ts').LoopView | null }
 ) & {

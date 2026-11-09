@@ -13,7 +13,7 @@
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.social-networking</string>
   <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>Sara uses the microphone for calls and voice messages with her.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Sara uses the microphone for calls and voice messages with her, and, only if you switch on Hey Sara, to listen for “Hey Sara” on this Mac. That listening stays on this Mac: nothing is sent until she hears her name.</string>
   <key>NSCameraUsageDescription</key><string>Sara uses the camera only on video calls, when you turn your camera on, so she can see what you show her.</string>
   <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>
   <!-- Phase 75 stage 3: files dropped on the Dock icon (or Open With → Sara) go into her message box. Never the default app for anything. -->

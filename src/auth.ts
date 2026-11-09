@@ -36,6 +36,11 @@ interface DeviceSession {
   kind?: 'api' | 'home-assistant' | 'hands' | 'a2a';
   /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
   expiresAt?: string;
+  /** C15: a remote sign-in waiting for the owner's approval (its cookie opens nothing yet). */
+  pending?: true;
+  /** C15: where it signed in from, and whether that was remote (a tunnel, proxy or another computer). */
+  ip?: string;
+  remote?: boolean;
 }
 
 interface OwnerFile {
@@ -68,14 +73,24 @@ export interface DeviceView {
   kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a';
   /** Phase 100: when an agent's key stops working. */
   expiresAt?: string;
+  /** C15: waiting for approval; where it signed in from. */
+  pending?: boolean;
+  ip?: string;
+  remote?: boolean;
 }
 
 /** Hardening L4: browser and app sign-ins kept at most (API keys are capped on their own, at 20). */
 export const MAX_SESSIONS = 50;
 /** Keeps every API key and the newest MAX_SESSIONS other sign-ins (a pile of old sign-ins never drops a key). */
-function capSessions(list: DeviceSession[]): DeviceSession[] {
+function capSessions(list: DeviceSession[], maxDevices = 0): DeviceSession[] {
   const others = list.filter((d) => d.kind !== 'api' && d.kind !== 'a2a');
   const drop = new Set(others.slice(0, Math.max(0, others.length - MAX_SESSIONS)));
+  // C15: the owner's "at most N devices": the least recently used browser and app sign-ins go
+  // (waiting sign-ins, API keys, hands and Home Assistant are not counted).
+  if (maxDevices > 0) {
+    const devs = list.filter((d) => !d.kind && !d.pending && !drop.has(d)).sort((a, b) => a.lastSeen.localeCompare(b.lastSeen));
+    for (const d of devs.slice(0, Math.max(0, devs.length - maxDevices))) drop.add(d);
+  }
   return list.filter((d) => !drop.has(d));
 }
 
@@ -306,14 +321,17 @@ export class OwnerAuth {
     return createHmac('sha256', this.#owner.sessionSecret).update(payload).digest('base64url');
   }
 
-  createSession(label = 'Browser'): { value: string; maxAgeSeconds: number; id: string } {
+  /** C15: told with the ids of devices that were signed out (the server closes their open connections). */
+  readonly signedOut = new Set<(ids: string[]) => void>();
+
+  createSession(label = 'Browser', o: { pending?: boolean; ip?: string; remote?: boolean; maxDevices?: number } = {}): { value: string; maxAgeSeconds: number; id: string } {
     const now = this.#now();
     const expires = now.getTime() + SESSION_TTL_MS;
     const id = randomBytes(9).toString('base64url');
     const payload = `${expires}.${id}`;
     const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
-    sessions.push({ id, label: label.slice(0, 60), createdAt: now.toISOString(), lastSeen: now.toISOString() });
-    this.#owner.sessions = capSessions(sessions);
+    sessions.push({ id, label: label.slice(0, 60), createdAt: now.toISOString(), lastSeen: now.toISOString(), ...(o.pending ? { pending: true as const } : {}), ...(o.ip ? { ip: o.ip.slice(0, 64) } : {}), ...(o.remote ? { remote: true } : {}) });
+    this.#owner.sessions = capSessions(sessions, o.maxDevices);
     this.#save();
     return { value: `${payload}.${this.#sign(payload)}`, maxAgeSeconds: SESSION_TTL_MS / 1000, id };
   }
@@ -331,6 +349,12 @@ export class OwnerAuth {
     if (!Number.isFinite(expires) || expires <= now.getTime() || !id) return undefined;
     const sessions = (this.#owner.sessions ??= []);
     let d = sessions.find((x) => x.id === id);
+    // C15: waiting for approval opens nothing; unused for 30 days is signed out.
+    if (d?.pending) return undefined;
+    if (d && !d.kind && Date.parse(d.lastSeen) < now.getTime() - SESSION_TTL_MS) {
+      this.signOut(d.id);
+      return undefined;
+    }
     if (!d) {
       if (!this.#owner.legacy) return undefined; // signed out
       d = { id, label, createdAt: now.toISOString(), lastSeen: now.toISOString() };
@@ -345,6 +369,60 @@ export class OwnerAuth {
 
   verifySession(value: string | undefined): boolean {
     return this.sessionId(value) !== undefined;
+  }
+
+  /** C15: the device id inside a session cookie with a good signature (signed out or not). */
+  cookieId(value: string | undefined): string | undefined {
+    if (!value) return undefined;
+    const i = value.lastIndexOf('.');
+    if (i < 0 || !safeEqual(this.#sign(value.slice(0, i)), value.slice(i + 1))) return undefined;
+    const [exp, id] = value.slice(0, i).split('.');
+    return Number(exp) > this.#now().getTime() && id ? id : undefined;
+  }
+  /** C15: the id of a session cookie that waits for approval, or undefined. */
+  pendingId(value: string | undefined): string | undefined {
+    const id = this.cookieId(value);
+    return id ? this.#owner.sessions?.find((x) => x.id === id && x.pending)?.id : undefined;
+  }
+
+  /** C15: the owner approved a waiting sign-in (then the oldest sign-ins over the limit go). */
+  approveSession(id: string, maxDevices?: number): boolean {
+    const d = this.#owner.sessions?.find((x) => x.id === id && x.pending);
+    if (!d) return false;
+    delete d.pending;
+    d.lastSeen = this.#now().toISOString();
+    const before = new Set((this.#owner.sessions ?? []).map((x) => x.id));
+    this.#owner.sessions = capSessions(this.#owner.sessions ?? [], maxDevices);
+    this.#save();
+    const gone = [...before].filter((x) => !this.#owner.sessions!.some((s) => s.id === x));
+    if (gone.length) this.#told(gone);
+    return true;
+  }
+
+  /** C15: where a device signed in from. */
+  sessionInfo(id: string | undefined): { ip?: string; remote: boolean; label: string } | undefined {
+    const d = id ? this.#owner.sessions?.find((x) => x.id === id) : undefined;
+    return d ? { ...(d.ip ? { ip: d.ip } : {}), remote: d.remote === true, label: d.label } : undefined;
+  }
+
+  /** C15: signed-in browsers and apps that can approve another device (not waiting, not keys). */
+  trustedCount(): number {
+    return (this.#owner.sessions ?? []).filter((d) => !d.pending && (!d.kind || d.kind === undefined)).length;
+  }
+
+  /** C15: has any device signed in from this address before? */
+  knownIp(ip: string): boolean {
+    return (this.#owner.sessions ?? []).some((d) => d.ip === ip && !d.pending);
+  }
+
+  #told(ids: string[]): void {
+    for (const fn of this.signedOut) {
+      try {
+        fn(ids);
+      } catch {
+        /* a listener's problem */
+      }
+    }
   }
 
   devices(): DeviceView[] {
@@ -509,10 +587,14 @@ export class OwnerAuth {
 
   /** Signs out one device (or every device except `keepId`). */
   signOut(id: string | 'others', keepId?: string): number {
-    const before = this.#owner.sessions?.length ?? 0;
-    this.#owner.sessions = (this.#owner.sessions ?? []).filter((d) => (id === 'others' ? d.id === keepId : d.id !== id));
+    const all = this.#owner.sessions ?? [];
+    const before = all.length;
+    const gone = all.filter((d) => (id === 'others' ? d.id !== keepId : d.id === id)).map((d) => d.id);
+    this.#owner.sessions = all.filter((d) => (id === 'others' ? d.id === keepId : d.id !== id));
     this.#owner.legacy = false; // after an explicit sign-out, unknown cookies no longer get in
     this.#save();
+    // C15: a signed-out device's open connections (event stream, calls) are cut at once.
+    if (gone.length) this.#told(gone);
     return before - this.#owner.sessions.length;
   }
 }

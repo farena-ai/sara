@@ -30,6 +30,10 @@
 //   register,send-test,unmute} (src/plugins/whatsapp-setup.ts); removing a plugin removes its bridge hook.
 // Phase 122 part 2 (BRIDGES4 §8.2): GET /api/plugins/matrix/setup and POST …/{terms,login,token,check,fix}
 //   (src/plugins/matrix-setup.ts); her password is passed once to the plugin and never stored or logged.
+// EC7 (docs/ops/EC7_DESIGN.md): GET /api/plugins/teams/{setup,app-package} and POST …/{credentials,door-url,check,fix}
+//   (src/plugins/teams-setup.ts).
+// EC1 (docs/ops/EC1_DESIGN.md): GET /api/plugins/slack/setup and POST …/{tokens,check,fix} (src/plugins/slack-setup.ts);
+//   both tokens go to the vault as secret settings and never come back to the page.
 // Phase 122 part 3 (BRIDGES4 §8.2): GET /api/plugins/imessage/setup and POST …/{terms,address,password,check,fix}
 //   (src/plugins/imessage-setup.ts); the BlueBubbles password goes to the vault and is never sent back.
 // PL2a (POLISH2 N3): POST /api/plugins/signal/probe { address, onOtherMachine? } → { ok, version | code }
@@ -39,6 +43,7 @@
 //   POST   /api/plugins/:id/check-sender         { companion } → waits ≤ 10 min for his next mail: { got, from, headers };
 //                                                { companion, use } → that provider id counts (email)
 import { readFileSync } from 'node:fs';
+import { PUBLIC_GUIDED_PACKS } from '../addons/discovery.ts';
 import { extname, join, resolve, sep } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { isPrivateLocalError } from '../net-guard.ts';
@@ -48,12 +53,16 @@ import { PLUGIN_LIMITS } from '../plugins/manager.ts';
 import { checkServerFolder } from '../skill-store.ts';
 import { hookBase, runCheck, setupState, WA } from '../plugins/whatsapp-setup.ts';
 import * as matrix from '../plugins/matrix-setup.ts';
+import * as slack from '../plugins/slack-setup.ts';
+import * as teams from '../plugins/teams-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
 import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { en } from '../i18n.ts';
 import { InstallError, StoreInstaller } from '../store/install.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import type { AppContext } from '../chat.ts';
+import type { PluginManager, Review } from '../plugins/manager.ts';
 
 const IMAGE_TYPES: Record<string, string> = { '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.webp': 'image/webp' };
 
@@ -76,16 +85,26 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     const companion = (v: unknown) => String(v ?? app.companionId ?? 'main');
 
     if (!b && method === 'GET') {
-      return send(res, 200, { plugins: pm.list(), fence: pm.fence, waiting: pm.waiting(), companions: (app.companions?.all() ?? []).map((x) => ({ id: x.id, name: x.app.persona.name })), version: pm.version });
+      return send(res, 200, { plugins: pm.list(), fence: pm.fence, waiting: pm.waiting(), jobs: pm.jobs(), companions: (app.companions?.all() ?? []).map((x) => ({ id: x.id, name: x.app.persona.name })), version: pm.version });
     }
 
     if (b === 'builtin' && !c && method === 'GET') return send(res, 200, { builtin: pm.builtinList() });
+    if (b === 'candidates' && parts.length === 2) {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      return send(res, 200, { candidates: pm.candidateList(), packs: PUBLIC_GUIDED_PACKS });
+    }
     if (b === 'install') {
       if (!c && method === 'POST') {
         const type = String(req.headers['content-type'] ?? '');
         try {
           if (type.startsWith('application/json')) {
             const body = await readJson(req);
+            const sources = ['candidate', 'builtin', 'store', 'path', 'url'];
+            const selected = sources.filter(key => Object.hasOwn(body, key));
+            if (selected.length !== 1 || Object.keys(body).some(key => !sources.includes(key)) || typeof body[selected[0]] !== 'string' || !(body[selected[0]] as string).trim()) {
+              throw new HttpError(400, en('Choose exactly one plugin source.'));
+            }
+            if (typeof body.candidate === 'string') return send(res, 200, pm.stageCandidate(body.candidate.trim()));
             if (typeof body.builtin === 'string' && body.builtin.trim()) return send(res, 200, pm.stageBuiltin(body.builtin.trim()));
             // Phase 125 (§12.2): `{store: id}` is the store install (download, verify, the same card).
             if (typeof body.store === 'string' && body.store.trim()) {
@@ -99,6 +118,8 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
               return send(res, 200, pm.stage(fromFolder(dir, PLUGIN_LIMITS), { kind: 'folder', where: dir }));
             }
             if (typeof body.url === 'string' && body.url.trim()) {
+              // C15: an add-on from a web address, asked for by a remote device: the owner approves first.
+              ctx.askFirst(req, 'addon-url');
               const files = await fromGit(body.url, join(app.dataDir, 'cache', 'plugin-imports'), PLUGIN_LIMITS);
               return send(res, 200, pm.stage(files, { kind: 'git', where: body.url.trim() }));
             }
@@ -251,6 +272,47 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
 
+    // EC7: the Microsoft Teams setup card (and the app package he uploads in Teams).
+    if (b === teams.TE && c && ['setup', 'app-package', 'credentials', 'door-url', 'check', 'fix'].includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await teams.setupState(app, pm, companion(q.get('companion'))));
+      if (c === 'app-package' && method === 'GET') {
+        if (!pm.store.get(teams.TE)) throw new HttpError(400, 'Add Microsoft Teams first.');
+        const zip = teams.appPackage(app, pm, companion(q.get('companion')));
+        res.writeHead(200, { 'content-type': 'application/zip', 'content-length': zip.length, 'content-disposition': 'attachment; filename="sara-teams.zip"', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+        return void res.end(zip);
+      }
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      if (!pm.store.get(teams.TE)) throw new HttpError(400, 'Add Microsoft Teams first.');
+      try {
+        if (c === 'credentials') return send(res, 200, await teams.useCredentials(app, pm, co, body));
+        if (c === 'door-url') return send(res, 200, teams.useDoorUrl(pm, co, body.url));
+        if (c === 'check') return send(res, 200, await teams.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await teams.runFix(app, pm, co, String(body.fix ?? '')));
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
+    // EC1: the Slack setup card.
+    if (b === slack.SL && c && ['setup', 'tokens', 'check', 'fix'].includes(c) && !d) {
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'setup' && method === 'GET') return send(res, 200, await slack.setupState(app, pm, companion(q.get('companion'))));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const body = await readJson(req);
+      const co = companion(body.companion);
+      if (!pm.store.get(slack.SL)) throw new HttpError(400, 'Add Slack first.');
+      try {
+        if (c === 'tokens') return send(res, 200, await slack.useTokens(app, pm, co, body.botToken, body.appToken));
+        if (c === 'check') return send(res, 200, await slack.runCheck(app, pm, co, String(body.step ?? '')));
+        return send(res, 200, await slack.runFix(app, pm, co, String(body.fix ?? '')));
+      } catch (err) {
+        return asHttp(err);
+      }
+    }
+
     const id = b;
     // Install (or update) what the owner reviewed: the plugin may not exist yet.
     if (c === 'approve' && method === 'POST') {
@@ -258,18 +320,9 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       const r = pm.review(String(body.review ?? ''));
       if (!r || r.manifest.id !== id) throw new HttpError(404, 'That review has expired. Add the plugin again.');
       try {
-        // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
-        // honours it only for a review it marked first-party itself, never for anything the page says.
-        await pm.approve(r.id, { trust: body.trust === true, consent: body.consent === true });
+        await approveReview(app, pm, r, { trust: body.trust === true, consent: body.consent === true });
       } catch (err) {
         return asHttp(err);
-      }
-      // Phase 124 (SARA_STORE.md §6.1): a file whose content hash matches a store entry is recorded as
-      // that store add-on, so the store's yanks and blocks reach it.
-      if (r.store && app.storeInstalls) {
-        const at = app.now().toISOString();
-        const hit = app.storeClient?.version(r.store.item, r.store.version);
-        app.storeInstalls.upsert({ item: r.store.item, kind: 'plugin', version: r.store.version, trust: r.store.trust, local_ref: id, content_sha: r.sha, entry_sha: hit?.v.entrySha ?? '', installed_at: at, updated_at: at, ...(r.store.yanked ? { state: 'yanked' as const, state_note: r.store.yanked } : {}) });
       }
       return send(res, 200, pm.view(pm.store.get(id)!));
     }
@@ -282,7 +335,10 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
       try {
         await pm.remove(id);
         // Phase 122: a plugin's bridge hooks (and their vault entries) go with it.
-        app.hooks?.removeForPlugin(id);
+        if (!pm.store.get(id)) app.hooks?.removeForPlugin(id);
+        // Q-ADDONS: and the Store's record of exactly these bytes, or Get would refuse it as stale.
+        const association = app.storeInstalls?.get(id);
+        if (!pm.store.get(id) && association?.kind === 'plugin' && association.local_ref === id && association.content_sha === row.approved_sha && association.version === row.version) app.storeInstalls!.delete(id);
       } catch (err) {
         return asHttp(err);
       }
@@ -377,9 +433,17 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     } catch (err) {
       return asHttp(err);
     }
+    if (c === 'jobs' && d && method === 'POST') {
+      // H_EXEC: the owner's Stop on a running plugin job.
+      if (!pm.jobs().some((j) => j.id === d && j.plugin === id) || !pm.stopJob(d)) throw new HttpError(404, 'That job is no longer running.');
+      return send(res, 200, { ok: true });
+    }
     if (c === 'calls' && d && method === 'POST') {
       const body = await readJson(req);
-      if (!pm.decideCall(d, body.approved === true)) throw new HttpError(404, 'That request is no longer waiting.');
+      const r = pm.callDecision(d, body.approved === true);
+      // Same status as "no longer waiting" (clients rely on 404); the words say it expired and nothing ran.
+      if (r === 'expired') throw new HttpError(404, 'That request expired with the plugin task that asked for it. Nothing ran.');
+      if (r !== 'decided') throw new HttpError(404, 'That request is no longer waiting.');
       return send(res, 200, { ok: true });
     }
     if (c === 'action' && method === 'POST') {
@@ -409,4 +473,33 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     }
     throw new HttpError(405, 'Method not allowed');
   };
+}
+
+/**
+ * Approves a staged review (Install / Update on the card, or C8's automatic update) and keeps the
+ * Sara Store's record of the installed bytes in step (the same checks either way).
+ */
+export async function approveReview(app: AppContext, pm: PluginManager, r: Review, o: { trust?: boolean; consent?: boolean }): Promise<void> {
+  // PL2a (N2): Sara's own plugins install from the short consent step (`consent`); the manager
+  // honours it only for a review it marked first-party itself, never for anything the page says.
+  const strip = r.store;
+  const installs = app.storeInstalls;
+  if (strip && installs && installs.db !== pm.store.db) throw new HttpError(409, en('The plugin store association is unavailable. Try again later.'));
+  await pm.approve(r.id, {
+    trust: o.trust === true, consent: o.consent === true,
+    onCommitted: row => {
+      const index = app.storeClient?.current()?.index;
+      const block = index?.blocked.find(entry => (entry.id === row.id && (entry.versions === '*' || entry.versions.includes(row.version))) || entry.contentShas?.includes(row.approved_sha));
+      if (block) throw new HttpError(403, en('This version was pulled from the store: {reason}'), { params: { reason: block.reason } });
+      if (!strip || !installs) return;
+      if (app.storeClient?.held().some(entry => entry.id === strip.item)) throw new HttpError(409, en('Being checked by the Sara team'));
+      const item = index?.items.find(entry => entry.id === strip.item);
+      const version = item?.versions.find(entry => entry.version === strip.version);
+      if (!item || item.kind !== 'plugin' || strip.item !== row.id || strip.version !== row.version || !version || version.contentSha !== row.approved_sha || item.trust !== strip.trust || (version.yanked ?? null) !== (strip.yanked ?? null)) {
+        throw new HttpError(409, en('That review has expired. Add the plugin again.'));
+      }
+      const at = app.now().toISOString();
+      installs.upsert({ item: item.id, kind: 'plugin', version: row.version, trust: item.trust, local_ref: row.id, content_sha: row.approved_sha, entry_sha: version.entrySha, installed_at: at, updated_at: at, ...(version.yanked ? { state: 'yanked' as const, state_note: version.yanked } : {}) });
+    },
+  });
 }

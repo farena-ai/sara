@@ -383,3 +383,85 @@ dialog::backdrop { background: var(--scrim); -webkit-backdrop-filter: blur(6px) 
   dialog::backdrop { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 .tour-card { box-shadow: var(--glass-hi), var(--elev-3); }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in screens.css: must come after polish.css `.aurora > i` */
+.ap-pal-pv i { position: relative; display: block; }
+/* No moving background, grain, halo, sparkles, glow or blur; surfaces lose their tinted gradients. */
+html[data-decor="off"] .aurora { display: none; }
+/* !important: one switch for the ~50 backdrop-filters spread over the component sheets. */
+html[data-decor="off"] *, html[data-decor="off"] *::before, html[data-decor="off"] *::after, html[data-decor="off"] dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+html[data-decor="off"] :is(.td-face-btn, .hp-glow, .head-face-btn)::after,
+html[data-decor="off"] .td-face-btn::before,
+html[data-decor="off"] .hp-glow::before,
+html[data-decor="off"] #today .td-warm::after { display: none; }
+html[data-decor="off"] .hp-glow, html[data-decor="off"] .hp-glow:hover { background: var(--surface-3); box-shadow: 0 0 0 1px var(--line); transform: none; }
+html[data-decor="off"] .hp-name { background: none; color: var(--text-1); -webkit-text-fill-color: currentColor; }
+html[data-decor="off"] :is(.her-panel.mode-side, .her-panel.mode-overlay, .her-panel.mode-sheet) { background: var(--surface-1); }
+html[data-decor="off"] dialog { background: var(--surface-1); }
+html[data-decor="off"] :is(.tip, .rcard, .pick-card, .look-card, .gallery-cards > *, .cmp-card, .start-item, #setup .su-pick) { background: var(--surface-1); }
+html[data-decor="off"] :is(.pick-card[aria-checked="true"], .look-card.current) { background: color-mix(in srgb, var(--accent-solid) 10%, var(--surface-1)); }
+html[data-decor="off"] :is(#today .today-start, #today .td-tile) { background: var(--surface-1); }
+html[data-decor="off"] :is(#today .td-warm, .td-nowcard) { background: color-mix(in srgb, var(--accent-solid) 8%, var(--surface-1)); }
+html[data-decor="off"] .td-dev.on { background: color-mix(in srgb, var(--warn) 10%, var(--surface-1)); }
+html[data-decor="off"] .rcard.ok::after { background: var(--success); }
+html[data-decor="off"] .rcard.bad::after { background: var(--danger); }
+/* The chat background picker belongs to Sara Classic; other palettes keep the chat plain. */
+:root:not([data-palette="classic"])[data-chatbg] #messages { background: transparent; }
+/* [cascade] not in style.css: must come after polish.css `.button-link.ghost` */
+:where(:root:not([data-palette="classic"])) .button-link.ghost { background: var(--surface-2); border: 1px solid var(--line); }
+/* [cascade] not in style.css: must come after polish.css `input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"])` */
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea):focus { outline: none; border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* [cascade] not in style.css: must come after `html[data-decor="off"] .hp-glow` (moved here too) */
+:where(:root:not([data-palette="classic"])) :is(input[type="checkbox"], input[type="radio"], input[type="range"], input[type="color"]):focus { box-shadow: none; }
+/* Cards: flat surface-1, 1 px line, radius 8. */
+/* [cascade] not in style.css: must come after polish.css `.rcard` */
+:where(:root:not([data-palette="classic"])) :is(.card, .tidy-card, .rcard, .pick-card, .look-card, .cmp-card, .start-item) { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-3); box-shadow: none; }
+/* Chips and badges: radius 4-6, the soft tint for the picked one. */
+/* [cascade] not in style.css: must come after polish.css `.chip` */
+:where(:root:not([data-palette="classic"])) :is(.chip, .tag-chip) { border-radius: var(--r-2); border-color: var(--line); box-shadow: none; }
+/* Windows: radius 12, one elevation, a plain scrim; the title in the UI face. */
+/* [cascade] not in style.css: must come after polish.css `dialog` */
+:where(:root:not([data-palette="classic"])) dialog { border: 1px solid var(--line); border-radius: var(--r-4); background: var(--surface-1); box-shadow: var(--elev-3); }
+/* [cascade] not in style.css: must come after polish.css `dialog::backdrop` */
+:where(:root:not([data-palette="classic"])) dialog::backdrop { background: var(--scrim); }
+/* [cascade] not in style.css: must come after polish.css `.dialog-top > .dialog-x` */
+:where(:root:not([data-palette="classic"])) .dialog-top > .dialog-x { background: transparent; border: 1px solid transparent; color: var(--text-2); }
+/* [cascade] not in look.css: must come after polish.css `dialog#cmdbar` */
+:where(:root:not([data-palette="classic"])) dialog#cmdbar { border-radius: var(--r-4); box-shadow: var(--elev-3); }
+/* [cascade] not in style.css: must come after polish.css `#chat-head` */
+:where(:root:not([data-palette="classic"])) #chat-head { background: var(--surface-0); box-shadow: inset 0 -1px 0 var(--line); }
+@media (max-width: 720px) {
+  /* [cascade] not in today.css: must come after polish.css `.bottom-bar` */
+  :where(:root:not([data-palette="classic"])) .bottom-bar { margin: 0; padding: 4px 6px calc(4px + var(--safe-b)); border: 0; border-top: 1px solid var(--line); border-radius: 0; background: var(--surface-1); box-shadow: none; }
+  /* [cascade] not in today.css: must come after polish.css `.bb-btn` */
+  :where(:root:not([data-palette="classic"])) .bb-btn { border-radius: var(--r-2); color: var(--text-2); }
+  /* [cascade] not in today.css: must come after polish.css `.bb-btn[aria-current="page"] svg` */
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"] svg { filter: none; }
+  /* [cascade] not in today.css: must come after polish.css `.bb-btn[aria-current="page"]::before` */
+  :where(:root:not([data-palette="classic"])) .bb-btn[aria-current="page"]::before { content: none; }
+  /* [cascade] not in today.css: must come after polish.css `#conv-settings-btn svg.ic` */
+  :where(:root:not([data-palette="classic"])) html:not(.kb-up) #composer { margin-bottom: 6px; }
+}
+/* The step line: a compact trace row. */
+/* [cascade] not in look.css: must come after polish.css `.steps-sum` */
+:where(:root:not([data-palette="classic"])) .steps-sum { border-radius: var(--r-2); border-color: var(--line); background: transparent; box-shadow: none; font-size: 13px; }
+/* The message box: a flat field with the accent ring on focus; Send is a square solid button. */
+/* [cascade] not in style.css: must come after polish.css `#composer` */
+:where(:root:not([data-palette="classic"])) #composer { border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-1); box-shadow: none; }
+/* Settings: page titles in the UI face; the Allowed / Ask / Off legend gets a status dot, not a rail. */
+/* [cascade] not in screens.css: must come after polish.css `.settings-body h2` */
+:where(:root:not([data-palette="classic"])) .settings-body h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.015em; }
+/* Today: a calm greeting in the UI face and plain section titles. */
+/* [cascade] not in today.css: must come after polish.css `#td-greeting` */
+:where(:root:not([data-palette="classic"])) #td-greeting { font-size: clamp(24px, 2.4vw, 30px); font-weight: 600; line-height: 1.2; letter-spacing: -0.02em; }
+/* [cascade] not in today.css: must come after polish.css `#today .today-start-head h3` */
+:where(:root:not([data-palette="classic"])) :is(#today .today-start-head h3, #today .td-tile-head h3) { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+/* [cascade] not in today.css: must come after polish.css `.td-date` */
+:where(:root:not([data-palette="classic"])) .td-date { color: var(--text-3); letter-spacing: .08em; font-size: 11px; }
+/* Window titles (Planner, Library, Memory…) in the UI face at 20 px. */
+/* [cascade] not in screens.css: must come after polish.css `dialog form > h2:first-child` */
+:where(:root:not([data-palette="classic"])) :is(dialog .settings-body > h2, dialog form > h2:first-child, dialog > h2:first-of-type) { font-size: 22px; font-weight: 600; letter-spacing: -0.015em; line-height: 1.25; }

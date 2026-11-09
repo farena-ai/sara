@@ -1,0 +1,12 @@
+{
+ "files":[
+  {"path":"packages/core/value.ts","source":"export function changed(x: number) { return x + 1; }","kind":"source"},
+  {"path":"packages/core/index.ts","source":"export { changed as publicValue } from './value.js';","kind":"source"},
+  {"path":"packages/app/main.ts","source":"import { publicValue as callValue } from '@fixture/core'; export function caller(){ return callValue(1); }","kind":"source"},
+  {"path":"tests/value.test.js","source":"import { caller } from '../packages/app/main.js'; function testValue(){ return caller(); }","kind":"test"},
+  {"path":"packages/app/shadow.js","source":"import { changed } from '../core/value.js'; function shadow(){ function changed(){return 2;} return changed(); }","kind":"source"},
+  {"path":"packages/app/unused.js","source":"import { changed } from '../core/value.js'; export const label='unused';","kind":"source"}
+ ],
+ "packages":[{"name":"@fixture/core","root":"packages/core","entry":"index.ts"},{"name":"@fixture/app","root":"packages/app","entry":"main.ts"}],
+ "changes":[{"path":"packages/core/value.ts","symbol":"changed"}]
+}

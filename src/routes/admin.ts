@@ -1,14 +1,22 @@
+import { randomUUID } from 'node:crypto';
+import { PUBLIC_MCP_INVESTIGATIONS } from '../addons/discovery.ts';
+import { PUBLIC_DEVELOPER_CONNECTIONS } from '../addons/developer-connections.ts';
+import { createBackupAsync } from '../backup-async.ts';
+
+const activeBackupFiles = new Set<string>();
 // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { createReadStream, existsSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { backupName, BACKUPS_DIR, createBackup, DEFAULT_BACKUP, listBackups } from '../backup.ts';
+import { backupName, BACKUPS_DIR, DEFAULT_BACKUP, listBackups } from '../backup.ts';
 import { HISTORY_BUDGET_CHARS } from '../chat.ts';
+import { cleanAppearance } from '../appearance.ts';
 import { checklist } from '../checklist.ts';
 import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
 import { runDoctor } from '../doctor.ts';
 import { healthReport } from '../health.ts';
+import { LOG_LEVELS, type LogLevel } from '../log.ts';
 import { as400, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage, toLang } from '../i18n.ts';
 import { mcpSecrets, mergeSecrets, searchConfig } from '../integrations.ts';
@@ -22,10 +30,14 @@ import { onThisComputer } from '../private-local.ts';
 import { qrSvg } from '../qr.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings, USE_PATHS, type UsePath, usePathOf } from '../settings.ts';
 import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig } from '../tools/mcp.ts';
+import { recipeEdit } from '../store/install.ts';
+import { parseRecipe, type McpRecipe } from '../store/format.ts';
 import { noSandboxNote } from '../tools/sandbox.ts';
+import { applyServerPolicy, coverage, SERVER_POLICIES, type ServerPolicy, serverTools } from '../tool-policy.ts';
 import { SEARCH_PROVIDERS, type SearchProvider, searchVaultKey } from '../tools/search.ts';
 import { type Permission, PERMISSIONS } from '../tools/types.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { policy, policy as pinPolicy } from '../policy-profile.ts';
 
 /** Phase 38: up to two backup models ({providerId, model}) from a request, checked. */
 function cleanModelList(v: unknown, localOnly: boolean): { providerId: string; model: string }[] {
@@ -71,6 +83,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           appLanguage: appLanguage(s),
           talkLanguage: s.talkLanguage ?? 'auto',
           storyYearly: s.story?.yearly === true,
+          // V1: the look a new device starts from (null until "Use on all my devices").
+          appearance: s.appearance ?? null,
           // Phase 114 (PL1b): company, coding or both (this companion's; 'both' when never chosen).
           usePath: usePathOf(s.usePath),
           usePathChosen: s.usePath !== undefined,
@@ -104,6 +118,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           if (!USE_PATHS.includes(body.usePath as UsePath)) throw new HttpError(400, 'Pick company, coding or both.');
           patch.usePath = body.usePath as UsePath;
         }
+        if (body.appearance !== undefined) patch.appearance = cleanAppearance(body.appearance);
         if (body.storyYearly !== undefined) patch.story = { ...app.settings.get().story, yearly: Boolean(body.storyYearly) };
         if (body.historyBudgetChars !== undefined) {
           const n = Number(body.historyBudgetChars);
@@ -126,6 +141,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           if (id && !app.settings.get().providers.some((p) => p.id === id)) throw new HttpError(400, 'Unknown provider');
           const cur = app.settings.get();
           if (id && id !== cur.defaultProviderId) pausedPick(cur.providers.find((p) => p.id === id)!, body.defaultModel ? String(body.defaultModel) : undefined);
+          if (id && id !== cur.defaultProviderId) policy().checkProvider(cur.providers.find((p) => p.id === id)!);
           patch.defaultProviderId = id;
         }
         if (body.defaultModel !== undefined) patch.defaultModel = body.defaultModel ? String(body.defaultModel).slice(0, 200) : undefined;
@@ -145,6 +161,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
             if (k === 'private' && isCloudModel(model)) throw new HttpError(400, '{model} is an Ollama cloud model (it runs on Ollama\'s servers). Private conversations need a model on your own hardware.', { params: { model } });
             const was = app.settings.get().routes?.[k as RoutePurpose];
             pausedPick(prov, model, was);
+            if (was?.providerId !== pid) policy().checkProvider(prov);
             const fallbacks = cleanModelList((v as { fallbacks?: unknown }).fallbacks, k === 'private');
             routes[k as RoutePurpose] = { providerId: pid, model, ...(fallbacks.length ? { fallbacks } : {}) };
           }
@@ -233,6 +250,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           // Phase 77: check her plans against what you decided (switch + strictness).
           contradict: contradictSettings(s),
           // Phase 49: the browser she tests web apps with.
+          // E7 (A2): one choice per tool server, with exactly which tools each choice covers.
+          servers: (s.mcpServers ?? []).map((m) => ({ name: m.name, policy: s.mcpPolicy?.[m.name] ?? null, ...coverage(m.name, serverTools(app.mcp, m.name)) })),
           browser: app.browsers ? (({ found, name, how }) => ({ found, name: name ?? null, how }))(new URL(req.url ?? '/', 'http://x').searchParams.get('recheck') ? app.browsers.refresh() : app.browsers.status()) : { found: false, name: null, how: 'Not available on this server.' },
         });
       }
@@ -250,6 +269,9 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           patch.toolPermissions = perms;
         }
         if (body.shellNetwork !== undefined) patch.shellNetwork = Boolean(body.shellNetwork);
+        // EC5: nothing above the admin's ceilings, no internet for commands when that is pinned off.
+        for (const [name, v] of Object.entries(patch.toolPermissions ?? {})) if (body.permissions && Object.hasOwn(body.permissions as object, name) && policy().clamp(name, v, app.tools.get(name)) !== v) throw policy().refusal('tools');
+        policy().guard('shellNetwork', patch.shellNetwork === true);
         if (body.contradict !== undefined) {
           if (!body.contradict || typeof body.contradict !== 'object') throw new HttpError(400, 'contradict must be an object');
           const c = body.contradict as { on?: unknown; mode?: unknown };
@@ -259,6 +281,21 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         app.settings.update(patch);
         return send(res, 200, { ok: true });
       }
+    }
+
+    // E7 (A2): "Always allow the safe ones" (or everything but destructive, Ask, Never) for one server.
+    if (a === 'tools' && b === 'policy' && method === 'PUT') {
+      if (opts.demo || app.demo || app.member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const body = await readJson(req);
+      const server = String(body.server ?? '');
+      const s = app.settings.get();
+      if (!(s.mcpServers ?? []).some((m) => m.name === server)) throw new HttpError(400, 'Unknown tool server {name}', { params: { name: server } });
+      if (!SERVER_POLICIES.includes(body.policy as ServerPolicy)) throw new HttpError(400, 'Pick Ask me first, the safe ones, everything or Never.');
+      const policy = body.policy as ServerPolicy;
+      // EC5: a server choice that would let a tool past the admin's ceiling is refused.
+      if ((policy === 'all' || policy === 'safe') && serverTools(app.mcp, server).some((t) => pinPolicy().ceiling(t.key, app.tools.get(t.key)))) throw pinPolicy().refusal('tools');
+      app.settings.update({ toolPermissions: applyServerPolicy(s.toolPermissions ?? {}, policy, server, serverTools(app.mcp, server)), mcpPolicy: { ...(s.mcpPolicy ?? {}), [server]: policy } });
+      return send(res, 200, { ok: true, server, policy, ...coverage(server, serverTools(app.mcp, server)) });
     }
 
     if (a === 'search' && !b) {
@@ -294,14 +331,31 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
 
+    if (a === 'mcp' && b === 'discovery' && c === 'previews' && parts.length === 3) {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      return send(res, 200, { investigations: PUBLIC_MCP_INVESTIGATIONS, developer: PUBLIC_DEVELOPER_CONNECTIONS });
+    }
     if (a === 'mcp' && b === 'presets' && method === 'GET') return send(res, 200, MCP_PRESETS);
     if (a === 'mcp') {
+      // B2: a server the Store installed is edited through its recipe's fields (saved values shown, secrets as saved).
+      const recipeOf = (name: string): { item: string; recipe: McpRecipe } | undefined => {
+        const row = app.storeInstalls?.byRef('mcp', name);
+        if (!row?.recipe) return undefined;
+        try { const { version: _v, ...raw } = JSON.parse(row.recipe) as Record<string, unknown>; return { item: row.item, recipe: parseRecipe(raw) }; } catch { return undefined; }
+      };
       const view = () =>
         (app.settings.get().mcpServers ?? []).map((cfg) => {
           const conn = app.mcp?.get(cfg.name);
           const sec = mcpSecrets(app.vault, cfg.name);
+          const r = recipeOf(cfg.name);
+          const secretKeys = new Set(r ? [...r.recipe.secrets, ...r.recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key) : []);
           return {
             ...cfg,
+            ...(r ? { recipe: { item: r.item, fields: [...r.recipe.fields, ...r.recipe.secrets].map((f) => {
+              const secret = secretKeys.has(f.key);
+              const saved = r.recipe.transport === 'stdio' ? sec.env?.[f.key] : undefined;
+              return { key: f.key, label: f.label, tip: f.tip, kind: f.kind, optional: Boolean(f.optional), secret, saved: secret ? Boolean(saved ?? sec.headers?.[f.header ?? f.key]) : Boolean(saved), ...(secret ? {} : { value: saved ?? f.default ?? '' }) };
+            }) } } : {}),
             status: cfg.enabled ? (conn?.status ?? 'stopped') : 'disabled',
             error: conn?.error ?? '',
             tools: conn?.tools.map((t) => t.name) ?? [],
@@ -313,6 +367,23 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (b && !c && method === 'PUT') {
         const body = await readJson(req);
         let cfg: McpServerConfig;
+        const r = recipeOf(b);
+        if (r && body.fields && typeof body.fields === 'object') {
+          try {
+            const cur = mcpSecrets(app.vault, b);
+            const out = recipeEdit(app.dataDir, r.recipe, b, cur, body.fields as Record<string, unknown>);
+            cfg = { ...out.cfg, enabled: body.enabled !== false, ...(body.apps === false ? { apps: false } : {}) };
+            app.vault.set(mcpVaultKey(b), JSON.stringify({ env: mergeSecrets(cur.env, out.env), headers: mergeSecrets(cur.headers, out.headers) }));
+          } catch (err) {
+            throw as400(err);
+          }
+          const servers = (app.settings.get().mcpServers ?? []).filter((s) => s.name !== b).concat(cfg);
+          app.settings.update({ mcpServers: servers });
+          await app.mcp?.start(cfg);
+          return send(res, 200, await view());
+        }
+        // B2: a Store server keeps the recipe's type; its settings are edited instead (fields above).
+        if (r && body.transport !== undefined && body.transport !== r.recipe.transport) throw new HttpError(400, 'This tool server came from the Sara Store: change its settings (like the ComfyUI address) instead of its type.');
         try {
           cfg = validateMcpConfig(body, b);
           const cur = mcpSecrets(app.vault, b);
@@ -348,6 +419,18 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       const h = app.healthHistory;
       if (!h) return send(res, 200, { buckets: [], up: 0 });
       return send(res, 200, days ? h.history({ days: Math.min(31, Math.max(1, Number(days) || 7)) }) : h.history({ hours: 24 }));
+    }
+    // Settings → Data & health: the log level, saved in settings; SARA_LOG_LEVEL (when set) still wins.
+    if (a === 'logs' && b === 'level' && !c) {
+      const view = () => ({ level: app.log?.level ?? 'info', saved: app.settings.get().logLevel ?? null, env: app.log?.options.levelFromEnv ? app.log.options.level : null, choices: LOG_LEVELS });
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        const level = String(((await readJson(req)) as { level?: unknown }).level ?? '') as LogLevel;
+        if (!LOG_LEVELS.includes(level)) throw new HttpError(400, 'Pick debug, info, warn or error.');
+        app.settings.update({ logLevel: level });
+        app.log?.useSaved(level);
+        return send(res, 200, view());
+      }
     }
     if (a === 'logs' && method === 'GET') {
       const log = app.log;
@@ -410,9 +493,15 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ...cfg(), backups: listBackups(rootDir) });
       }
       if (!b && method === 'POST') {
-        const name = backupName(app.now());
-        const m = createBackup(rootDir, join(rootDir, BACKUPS_DIR, name), { saraVersion: opts.info?.version, now: app.now() });
-        return send(res, 200, { name, files: m.files, backups: listBackups(rootDir) });
+        const base = backupName(app.now());
+        const name = existsSync(join(rootDir, BACKUPS_DIR, base)) || activeBackupFiles.has(join(rootDir, BACKUPS_DIR, base))
+          ? base.replace('.tar.gz', `-${randomUUID()}.tar.gz`) : base;
+        const file = join(rootDir, BACKUPS_DIR, name);
+        activeBackupFiles.add(file);
+        try {
+          const m = await createBackupAsync(rootDir, file, { saraVersion: opts.info?.version, now: app.now() });
+          return send(res, 200, { name, files: m.files, backups: listBackups(rootDir) });
+        } finally { activeBackupFiles.delete(file); }
       }
       if (b && method === 'GET') {
         const item = listBackups(rootDir).find((x) => x.name === b);
@@ -499,6 +588,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET') return send(res, 200, await view());
       if (method === 'POST') {
         if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+        // C15: from a remote device, an update (it restarts her) asks the owner first.
+        ctx.askFirst(req, 'restart');
         if (privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
         const body = await readJson(req);
         // Phase 46: Windows and macOS check the release page; the installer does the update.

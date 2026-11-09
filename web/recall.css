@@ -29,3 +29,10 @@
 .when-section .wm-by[hidden] { display: none; }
 .when-section .add-row select[hidden], .when-section .add-row input[hidden] { display: none; }
 .when-section.kit-card[hidden] { display: none; }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in screens.css: must come after recall.css `.when-section .add-row input` */
+.ap-custom-pick input[type="color"] { width: 44px; min-width: 44px; height: 36px; padding: 2px; }

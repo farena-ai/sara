@@ -1,0 +1,92 @@
+# Sara Helm chart. Read docs/KUBERNETES.md first: Sara runs as ONE replica. Her data (a SQLite
+# database, the encrypted vault, uploads) lives on one volume that a single process owns; a second
+# copy would corrupt it. The chart therefore has no replica count and uses the Recreate strategy.
+
+image:
+  repository: ghcr.io/farena-ai/sara
+  # Defaults to the chart's appVersion. Pin a digest for reproducible installs: tag: "2.85.0@sha256:…"
+  tag: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Where her data lives inside the container (SARA_DATA). The volume below is mounted here.
+dataDir: /var/lib/sara
+
+persistence:
+  # Use an existing claim instead of making one (it must be ReadWriteOnce and hold only Sara's data).
+  existingClaim: ""
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  # Keep the volume when the release is uninstalled (her memories and keys are on it).
+  keep: true
+
+# Environment from a Secret you made yourself, e.g.
+#   kubectl create secret generic sara-env --from-literal=SARA_BUSINESS_ORIGIN=https://sara.example.com
+# Never put keys in values files; provider keys are entered in Sara and kept in her encrypted vault.
+existingSecret: ""
+# Plain extra environment variables (name/value list).
+env: []
+
+service:
+  type: ClusterIP
+  port: 7860
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+    # Replies stream for minutes; raise proxy timeouts, e.g. for ingress-nginx:
+    # nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    # nginx.ingress.kubernetes.io/proxy-buffering: "off"
+  host: sara.example.com
+  tls:
+    enabled: false
+    secretName: ""
+
+# Behind an ingress: trust its X-Forwarded-* headers. Secure cookies follow ingress.tls.enabled.
+trustProxy: true
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 2Gi
+
+# Non-root by default. Her shell and MCP commands then run as this same user and could read her
+# data; the image's stronger mode (root with six capabilities, commands as "sara-tools") is in
+# docs/KUBERNETES.md under "Tool isolation".
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: [ALL]
+
+probes:
+  liveness:
+    initialDelaySeconds: 20
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 4
+  readiness:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+podAnnotations: {}

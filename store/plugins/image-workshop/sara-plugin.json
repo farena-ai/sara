@@ -1,0 +1,48 @@
+{
+  "manifest": 1,
+  "id": "image-workshop",
+  "name": "Image workshop",
+  "version": "1.0.0",
+  "description": "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none",
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    }
+  },
+  "i18n": {
+    "es": {
+      "Image workshop": "Taller de imágenes",
+      "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.": "Prepara y guarda resúmenes visuales estructurados, ajustes y prompts. Solo preparación: no genera imágenes."
+    },
+    "fr": {
+      "Image workshop": "Atelier d’images",
+      "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.": "Prépare et conserve des briefs visuels structurés, préréglages et prompts. Préparation uniquement : aucune génération d’images."
+    },
+    "de": {
+      "Image workshop": "Bildwerkstatt",
+      "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.": "Bereitet strukturierte Bildbriefings, Vorlagen und Prompts vor und speichert sie. Nur Vorbereitung, keine Bilderzeugung."
+    },
+    "pt-BR": {
+      "Image workshop": "Oficina de imagens",
+      "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.": "Prepara e salva resumos visuais estruturados, predefinições e prompts. Apenas preparação: sem geração de imagens."
+    },
+    "it": {
+      "Image workshop": "Laboratorio immagini",
+      "Prepare and save structured image briefs, presets and prompts. Preparation only: no image generation.": "Prepara e salva brief visivi strutturati, impostazioni e prompt. Solo preparazione: nessuna generazione di immagini."
+    }
+  }
+}

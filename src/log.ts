@@ -34,6 +34,8 @@ export interface LogOptions {
   file?: string;
   maxBytes: number;
   keep: number;
+  /** SARA_LOG_LEVEL was set: it wins over the level saved in Settings → Data & health. */
+  levelFromEnv?: boolean;
 }
 
 /** Reads the SARA_LOG_* settings; anything unknown or out of range falls back to the default. */
@@ -48,6 +50,7 @@ export function logOptions(env: Record<string, string | undefined> = process.env
     ...(env.SARA_LOG_FILE?.trim() ? { file: resolve(env.SARA_LOG_FILE.trim()) } : {}),
     maxBytes: Math.round((env.SARA_LOG_MAX_MB && Number.isFinite(mb) && mb >= 1 && mb <= 10_000 ? mb : 10) * 1024 * 1024),
     keep: Number.isInteger(keep) && keep >= 1 && keep <= 50 ? keep : 5,
+    ...(lvl && LOG_LEVELS.includes(lvl) ? { levelFromEnv: true } : {}),
   };
 }
 
@@ -116,9 +119,21 @@ export class Log {
     this.#now = now;
   }
 
-  /** True when lines of this level are kept (SARA_LOG_LEVEL). */
+  #level: LogLevel | undefined;
+
+  /** The level in force: SARA_LOG_LEVEL if set, else the one saved in Settings, else info. */
+  get level(): LogLevel {
+    return this.#level ?? this.options.level;
+  }
+
+  /** The level saved in Settings → Data & health (ignored while SARA_LOG_LEVEL is set). */
+  useSaved(level: LogLevel | undefined): void {
+    this.#level = !this.options.levelFromEnv && level && LOG_LEVELS.includes(level) ? level : undefined;
+  }
+
+  /** True when lines of this level are kept. */
   wants(level: LogLevel): boolean {
-    return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(this.options.level);
+    return LOG_LEVELS.indexOf(level) >= LOG_LEVELS.indexOf(this.level);
   }
 
   /** The line as it is written everywhere (secrets hidden, length capped), or null when filtered out. */

@@ -1,0 +1,63 @@
+{
+  "type": "object",
+  "properties": {
+    "algorithm": {
+      "type": "string",
+      "enum": [
+        "ed25519"
+      ]
+    },
+    "artifactBase64": {
+      "type": "string",
+      "minLength": 0,
+      "maxLength": 43692,
+      "description": "Canonical base64 artifact bytes, at most32769 decoded bytes."
+    },
+    "sha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "identity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "expectedIdentity": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160
+    },
+    "publicKeyPem": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "description": "Ed25519 SPKI PEM public key only."
+    },
+    "expectedKeySha256": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Independently obtained SHA256 of public-key SPKI DER bytes."
+    },
+    "signatureBase64": {
+      "type": "string",
+      "minLength": 88,
+      "maxLength": 88,
+      "description": "Ed25519 signature over UTF8 sara-artifact-v1\\n followed by JSON.stringify([identity,sha256]); see README."
+    }
+  },
+  "required": [
+    "algorithm",
+    "artifactBase64",
+    "sha256",
+    "identity",
+    "expectedIdentity",
+    "publicKeyPem",
+    "expectedKeySha256",
+    "signatureBase64"
+  ],
+  "additionalProperties": false
+}

@@ -10,6 +10,27 @@ cards, settings (each with a **?** tip) and chat bridges.
 MCP servers stay as they are (tools from other programs). Plugins are the Sara-native path: they
 also get hooks, cards, settings, schedules and bridges, without forking Sara.
 
+### Workflow candidates (in development, after 2.68)
+
+The existing Plugins page adds twelve supplied-data workflow candidates. **Local candidate** and
+**In testing** describe source and qualification; neither means a signed-store release. Expand
+an entry to read prerequisites, permissions, cost, privacy and limits, then choose **Review local
+candidate** to open the ordinary review card. Review the exact files and permissions, supply the
+normal trust confirmation where required, and install. Each companion stays off until you switch
+it on in the real installed card. Cancel leaves nothing installed. Missing or changed supplied
+packages remain listed with a held reason.
+
+These workflows do not silently read your inbox, calendar or chat history. Image Workshop prepares
+prompts and briefs; it does not generate images. Home Dashboard summarizes a supplied non-live
+snapshot; it does not control devices. Optional explicitly requested model work uses the configured
+background route and can incur provider cost. Installation and discovery never invoke a model.
+
+A candidate's updates are reviewed from its Plugins card. A matching signed-store content hash
+can retain block/yank evidence, but never changes its actual source or grants Store-update or
+first-party-consent authority. To change source, remove it and review a fresh installation.
+An obsolete Store record can be explicitly forgotten without deleting a replacement local plugin.
+Starter guides are reading checklists, not bulk installers or saved enablement state.
+
 **The promise to the owner:** she still follows her rules. A plugin can add a labelled note or a
 card, or make a step ask the owner; it can never change her rules, her persona, her safety notes, her
 replies, a tool result or a decision. Plugins never see private, partner, group, imported,
@@ -219,16 +240,31 @@ Calls a plugin may make (`op`):
 | op | Fields → answer | Rules |
 |---|---|---|
 | `fetch` | `url` → `status`, `contentType`, `body`, `truncated` | GET only in v1; the network rules above |
-| `tool` | `name`, `args` → `ok`, `content` | only names in `callTools`; **every call asks the owner** on the Plugins page (*Allow once* / *Don't*, 10 minutes); a tool set to *never* is refused |
+| `tool` | `name`, `args` → `ok`, `content` | only names in `callTools`; **every call asks the owner** on the Plugins page (*Allow once* / *Don't*, at most 10 minutes); only while a request from Sara (tool, button, hook, schedule, event) is running: the approval ends with that request, a late *Allow* is *expired* and runs nothing; a tool set to *never* is refused |
 | `notify` | `text` (≤ 300) → `ok` | a notification and a labelled note in the owner's latest chat |
 | `card` | `card` → `ok` | needs `cards`; posted labelled in the owner's latest chat |
 | `model` | `prompt`, `maxTokens` → `text` | needs `model`; counted against `callsPerDay`/`tokensPerDay` (the budget ledger, `plugin:<id>`) |
+| `job.run` | `plan` → the job's result | needs `permissions.run`; the owner approves each job (the card shows the exact command); it runs in a disposable copy, never the real workspace (below) |
 | `kv.get` / `kv.set` | `key`, `value` | its own small store: 200 keys, 64 KB a value |
 | `memory.notes` | → `notes` | needs `memory: "shared-notes"`: facts that other apps may see, read only |
 | `bridge.inbound` | `bridge`, `chatId`, `from`, `text` → `ok`, `conversation` | needs the bridge in `bridges` (§8) |
 
 Caps: **1 MB per line** (longer lines are dropped whole), **100 calls a minute**, **8 calls in
 flight**; unknown types are dropped; a line that isn't JSON is dropped and logged.
+
+### Jobs (`permissions.run`, H_EXEC)
+
+`"run": { "programs": ["node"], "sources": ["data"], "network": false }` lets a plugin ask Sara to
+run a program for it. Each `job.run` waits for the owner (*Allow once* / *Don't*, at most 2 minutes,
+and only while the request that asked is running), then runs in a **disposable copy** of the
+plugin's own files (`from`, a folder in its data folder) or of the main workspace (source
+`workspace`): no `.git`, links or dependency folders, deleted afterwards. The result carries the
+real exit code, capped stdout/stderr (truncation stated) and the changed-file list; nothing is
+written back. On Linux with bubblewrap the job is OS-sandboxed (no network unless declared and
+approved); elsewhere it is **not OS-sandboxed**: only `node` runs, under Node's permission model,
+limited to the copy (no child processes; `npm` is refused). The owner can stop a running job
+(`POST /api/plugins/<plugin>/jobs/<id>`). Copy `src/plugins/sara-job.mjs` beside `sara-plugin.mjs` and call
+`runJob(plan)`. Plan fields, limits and the refusal list: [ops/H_EXEC_DESIGN.md](ops/H_EXEC_DESIGN.md).
 
 ### The helper (`sara-plugin.mjs`)
 

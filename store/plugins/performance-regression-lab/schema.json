@@ -1,0 +1,55 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "benchmark",
+    "samples",
+    "warmup",
+    "minEffectPercent",
+    "sampleTimeoutMs"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "run"
+      ],
+      "description": "plan hashes the staged baseline/candidate scripts without running them; run executes exactly that plan."
+    },
+    "benchmark": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{0,39}$",
+      "description": "Operator-staged folder perf-lab-v1/<benchmark> in the plugin's own data home, holding baseline.js and candidate.js."
+    },
+    "samples": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 60,
+      "description": "Measured samples per side; fewer than 10 is always reported inconclusive."
+    },
+    "warmup": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 20
+    },
+    "minEffectPercent": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100,
+      "description": "Slowdown that counts as a regression."
+    },
+    "sampleTimeoutMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 2000,
+      "description": "Per-call limit; (samples+warmup)×2×limit must not exceed 20000 ms."
+    },
+    "planSha": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "Required for run: planSha returned by plan. Any staged byte change invalidates it."
+    }
+  }
+}

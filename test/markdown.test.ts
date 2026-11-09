@@ -69,3 +69,38 @@ test('long conversations: history is budgeted, old tool output shortened, a note
   const tool = t.messages.find((m) => m.role === 'tool');
   assert.ok(tool && tool.content.length < 2_000 && tool.content.includes('shortened'), 'old tool output shortened before dropping messages');
 });
+
+// V1 audit: a markdown table in a reply was shown as raw "| a | b |" text.
+test('V1: tables become a table node (header, alignment, inline cells); a lone pipe line stays text', () => {
+  const doc = parse('Compare:\n\n| Option | Risk | Runtime |\n|:---|---|---:|\n| Await `finish` | Low | 1.2 s |\n| Retry \\| loop | **Medium** | 2.9 s |\nafter') as N[];
+  assert.deepEqual(tags(doc), ['p', 'table', 'p']);
+  const t = doc[1];
+  assert.deepEqual(t.align, ['left', '', 'right']);
+  assert.deepEqual(t.head.map((c: N[]) => plain(c)), ['Option', 'Risk', 'Runtime']);
+  assert.equal(t.rows.length, 2);
+  assert.deepEqual(tags(t.rows[0][0]), ['text', 'code'], 'inline markdown inside cells');
+  assert.equal(plain(t.rows[1][0]), 'Retry | loop', 'an escaped pipe stays in the cell');
+  assert.deepEqual(tags(t.rows[1][1]), ['strong']);
+  // Rows shorter than the header are padded; longer ones are cut to the header; a line without a pipe ends the table.
+  const ragged = parse('a | b\n--|--\n1 |\n1 | 2 | 3') as N[];
+  assert.equal(ragged[0].t, 'table', 'outer pipes are optional');
+  assert.deepEqual(ragged[0].rows.map((r: N[][]) => r.length), [2, 2]);
+  // Not a table: no separator line, or a paragraph that only mentions a pipe.
+  assert.deepEqual(tags(parse('| just | text |\nnext line') as N[]), ['p']);
+  assert.deepEqual(tags(parse('use a | b in the shell') as N[]), ['p']);
+  // While streaming, the header alone stays a paragraph until the separator arrives.
+  assert.deepEqual(tags(parse('| a | b |') as N[]), ['p']);
+  assert.match(plain([t]), /Option\tRisk\tRuntime\nAwait finish\tLow\t1.2 s/);
+});
+
+test('V1: tables are drawn with real table elements, alignment as classes (no inline style), scrollable on a phone', async () => {
+  const { readFileSync } = await import('node:fs');
+  const src = readFileSync(new URL('../web/markdown.js', import.meta.url), 'utf8');
+  assert.match(src, /case 'table': \{/);
+  assert.match(src, /wrap\.className = 'md-table';/);
+  for (const tag of ['table', 'thead', 'tbody', 'tr', 'th', 'td']) assert.ok(src.includes(`'${tag}'`), tag);
+  assert.doesNotMatch(src, /\.style\./, 'alignment through classes, never inline styles');
+  const css = ['style.css', 'look.css'].map((f) => readFileSync(new URL(`../web/${f}`, import.meta.url), 'utf8')).join('\n');
+  assert.match(css, /\.msg \.md \.md-table \{[^}]*overflow-x: auto;/);
+  assert.match(css, /\.msg \.md \.md-table \.ta-right \{ text-align: right;/);
+});

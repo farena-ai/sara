@@ -15,7 +15,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 export const LANGS = ['es', 'fr', 'de', 'pt-BR', 'it'] as const;
 
 /** Words that stay the same in every language (product names, units, code). */
-export const SAME_OK = /^(Sara|Sara Store|Hey Sara|Hey Mira|OK|Ollama|OpenAI|OpenRouter|ChatGPT|Claude|Claude Code|Grok|Grok Build|Grok Imagine|GitHub|Gmail|Google|Discord|Telegram|Signal|WhatsApp|Matrix|Element|iMessage|BlueBubbles|ElevenLabs|Home Assistant|MCP|S3|API|URL|PIN|QR|VS Code|Markdown|Kokoro|Piper|Parakeet|Whisper|Tailscale|Docker|Linux|Windows|Mac|macOS|iPhone|Android|Apple|Brave|Tavily|SearXNG|Backblaze|Anthropic|xAI|vLLM|Email|E-mail|Tokens?|Chat|Info|Web|Online|Offline|Playlist|Mini|Auto|Max|Min|Token|Logs?|Branch|Commit|Pull request|Issues?|Repo|Repos|Passkey|Passkeys|Port|Host|Ping|Demo|Pop|Jazz|Rock|Blues|Hip-hop|Country|Fantasy|Romance|Horror|Sci-fi|Anime|Manga|Podcast|Podcasts|Hobby|Hobbys|Video|Videos|Audio|Mail|Bucket|Endpoint|Global|Radio|Panorama|Cool|Fan|Fans|Selfie|Selfies|Emoji|Emojis|Sushi|Pizza|Yoga|Tennis|Golf|Instagram|TikTok|YouTube|Reddit|Netflix|Spotify|Slack|Notion|Stripe|Webhooks?|Excel|Word|PowerPoint|PDF|CSV|JSON|HTML|CSS|TypeScript|JavaScript|Python|Go|Rust|Java|Kotlin|C#|C\+\+|Node|npm|git|ID|IDs|°F|°C|km|mi|AM|PM|UTC|GMT|v\d.*|[\d\s.,:%+\-–—×x/()]+|[^\p{L}]*)$/u;
+export const SAME_OK = /^(Sara|Sara Store|Hey Sara|Hey Mira|OK|Ollama|OpenAI|OpenRouter|ChatGPT|Claude|Replika|Kindroid|Nomi|Claude Code|Grok|Grok Build|Grok Imagine|GitHub|Gmail|Google|Discord|Telegram|Signal|WhatsApp|Matrix|Element|iMessage|BlueBubbles|ElevenLabs|Home Assistant|MCP|S3|API|URL|PIN|QR|VS Code|Markdown|Kokoro|Piper|Parakeet|Whisper|Tailscale|Docker|Podman|Linux|Windows|Mac|macOS|iPhone|Android|Apple|Brave|Tavily|SearXNG|Backblaze|Anthropic|xAI|vLLM|Email|E-mail|Tokens?|Chat|Info|Web|Online|Offline|Playlist|Mini|Auto|Max|Min|Token|Logs?|Branch|Commit|Pull request|Issues?|Repo|Repos|Passkey|Passkeys|Port|Host|Ping|Demo|Pop|Jazz|Rock|Blues|Hip-hop|Country|Fantasy|Romance|Horror|Sci-fi|Anime|Manga|Podcast|Podcasts|Hobby|Hobbys|Video|Videos|Audio|Mail|Bucket|Endpoint|Global|Radio|Panorama|Cool|Fan|Fans|Selfie|Selfies|Emoji|Emojis|Sushi|Pizza|Yoga|Tennis|Golf|Instagram|TikTok|YouTube|Reddit|Netflix|Spotify|Slack|Microsoft Teams|Notion|Stripe|Webhooks?|Excel|Word|PowerPoint|PDF|CSV|JSON|HTML|CSS|TypeScript|JavaScript|Python|Go|Rust|Java|Kotlin|C#|C\+\+|Node|npm|git|ID|IDs|°F|°C|km|mi|AM|PM|UTC|GMT|v\d.*|[\d\s.,:%+\-–—×x/()]+|[^\p{L}]*)$/u;
 
 export function decode(s: string): string {
   return s
@@ -189,6 +189,7 @@ export function allKeys(): Map<string, string> {
   const keys = new Map<string, string>();
   const add = (list: string[], where: string) => { for (const k of list) if (!keys.has(k)) keys.set(k, where); };
   add(fromHtml(readFileSync(join(ROOT, 'web', 'index.html'), 'utf8')), 'index.html');
+  add(fromHtml(readFileSync(join(ROOT, 'web', 'business.html'), 'utf8')), 'business.html');
   for (const f of webJsFiles()) add(fromJs(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');

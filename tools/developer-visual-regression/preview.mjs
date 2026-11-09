@@ -1,0 +1,3 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';import {handle} from '../../store/plugins/visual-regression/workflow.mjs';
+const pairs=['desktop','phone'].map(viewport=>({viewport,baseline:readFileSync(new URL(`../../test/fixtures/developer/visual-regression/${viewport}-baseline.png`,import.meta.url)).toString('base64'),candidate:readFileSync(new URL(`../../test/fixtures/developer/visual-regression/${viewport}-candidate.png`,import.meta.url)).toString('base64')}));
+const result=await handle({pairs});writeFileSync(new URL('../../outputs/developer-addons/visual-regression/preview-result.json',import.meta.url),JSON.stringify(result,null,2)+'\n');console.log('Actual result prepared for synthetic preview.');

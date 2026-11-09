@@ -190,7 +190,16 @@ export function importAll(app: AppContext, data: unknown): ImportResult {
       for (const m of c.messages ?? []) {
         const role = String(m.role);
         if (!['user', 'assistant', 'tool', 'notice', 'system'].includes(role)) continue;
-        const res = db.prepare('INSERT INTO messages (conversation_id, role, content, created_at, meta) VALUES (?, ?, ?, ?, ?)').run(id, role, String(m.content ?? ''), v(m.created_at) ?? now, v(m.meta));
+        // Native JSON is historical input, never authenticated direct-owner speech. Preserve
+        // existing metadata/markers; invalid metadata stays invalid and fails closed in readers.
+        let meta = v(m.meta);
+        try {
+          const parsed: unknown = meta === null ? {} : JSON.parse(String(meta));
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && !Object.hasOwn(parsed, 'importedFrom')) {
+            meta = JSON.stringify({ ...parsed, importedFrom: 'sara-export' });
+          }
+        } catch { /* Preserve malformed historical metadata without promoting it. */ }
+        const res = db.prepare('INSERT INTO messages (conversation_id, role, content, created_at, meta) VALUES (?, ?, ?, ?, ?)').run(id, role, String(m.content ?? ''), v(m.created_at) ?? now, meta);
         msgMap.set(Number(m.id), Number(res.lastInsertRowid));
         pairs.push([Number(m.id), Number(res.lastInsertRowid)]);
         r.messages++;

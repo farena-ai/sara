@@ -18,7 +18,7 @@ export function initLean(c) {
   $('#ctx-tidy')?.addEventListener('click', () => void tidyNow());
   $('#ctx-new')?.addEventListener('click', () => ctx.newSession());
   $('#ctx-what')?.addEventListener('click', () => void toggleWhat());
-  for (const id of ['lean-mode', 'lean-above', 'lean-sticky', 'lean-localcore', 'compact-auto', 'compact-at', 'compact-keep', 'compact-model', 'compact-runs', 'compact-tokens', 'compact-crisis']) $(`#${id}`)?.addEventListener('change', () => void saveLean());
+  for (const id of ['lean-mode', 'lean-above', 'lean-sticky', 'lean-localcore', 'lean-codemode', 'compact-auto', 'compact-at', 'compact-keep', 'compact-model', 'compact-runs', 'compact-tokens', 'compact-crisis']) $(`#${id}`)?.addEventListener('change', () => void saveLean());
 }
 
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
@@ -165,6 +165,7 @@ export async function loadLean() {
   set('lean-above', settings.tools.aboveTokens);
   set('lean-sticky', settings.tools.stickyTurns);
   set('lean-localcore', settings.tools.localCore);
+  set('lean-codemode', settings.tools.codeMode);
   set('compact-auto', settings.compact.auto);
   set('compact-at', settings.compact.at);
   set('compact-keep', settings.compact.keepTurns);
@@ -188,7 +189,7 @@ export async function loadLean() {
 async function saveLean() {
   const v = (id) => $(`#${id}`);
   const body = {
-    tools: { mode: v('lean-mode').value, aboveTokens: Number(v('lean-above').value), stickyTurns: Number(v('lean-sticky').value), localCore: v('lean-localcore').checked },
+    tools: { mode: v('lean-mode').value, aboveTokens: Number(v('lean-above').value), stickyTurns: Number(v('lean-sticky').value), localCore: v('lean-localcore').checked, codeMode: v('lean-codemode').checked },
     compact: { auto: v('compact-auto').checked, at: Number(v('compact-at').value), keepTurns: Number(v('compact-keep').value), model: v('compact-model').value, crisisKeepHours: Number(v('compact-crisis').value), dailyCap: { runs: Number(v('compact-runs').value), tokens: Number(v('compact-tokens').value) } },
   };
   const r = await ctx.api('/lean', { method: 'PUT', body }).catch(() => null);

@@ -162,3 +162,11 @@ dialog .settings-body > .howto { margin: 0; }
   .mo-albums { flex-wrap: wrap; overflow-x: visible; }
   .mo-album { width: calc(50% - var(--s-1)); border-radius: var(--r-card); }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* Focus: a 2 px ring, keyboard only. */
+/* [cascade] not in style.css: must come after kit.css `.howto-pulse` */
+:where(:root:not([data-palette="classic"])) :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

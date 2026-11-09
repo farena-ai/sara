@@ -27,7 +27,8 @@ import { WORKSPACE_NAME_RE } from './tools/workspace.ts';
 import { readTextInside } from './codemap/safe-read.ts';
 import { zipStored } from './zip-write.ts';
 
-export type SkillSource = 'made' | 'recipe' | 'imported' | 'learned' | 'plugin' | 'builtin';
+/** C6: 'topic' = a knowledge skill from Learn a topic (src/learn.ts). */
+export type SkillSource = 'made' | 'recipe' | 'imported' | 'learned' | 'topic' | 'plugin' | 'builtin';
 /** Phase 124 (#16): 'archived' = out of her list, kept on disk and in the index (*Bring back*). */
 export type SkillStatus = 'ready' | 'needs-review' | 'trial' | 'broken' | 'archived';
 
@@ -848,6 +849,19 @@ export class SkillStore {
     renameSync(dir, join(trash, `${name}-${this.#now().toISOString().replace(/[:.]/g, '-')}`));
     this.#drop(scope, name);
     return true;
+  }
+
+  /** C6: forgets a skill for good: its folder (not to the trash), its index rows, versions, uses and vectors. */
+  forget(scope: string, name: string): boolean {
+    const root = this.#writableDir(scope);
+    if (!SKILL_NAME_RE.test(name)) return false;
+    const dir = join(root, name);
+    const had = existsSync(dir);
+    if (had) rmSync(dir, { recursive: true, force: true, maxRetries: 3 });
+    this.#drop(scope, name);
+    this.db.prepare('DELETE FROM skill_versions WHERE scope = ? AND name = ?').run(scope, name);
+    this.db.prepare('DELETE FROM skill_uses WHERE scope = ? AND name = ?').run(scope, name);
+    return had;
   }
 
   setSwitches(scope: string, name: string, s: { enabled?: boolean; pinned?: boolean; scriptsAuto?: boolean }): SkillView {

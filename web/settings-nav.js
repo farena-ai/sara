@@ -5,6 +5,7 @@ import { t } from './naming.js';
 import { foldText, rankElsewhere, rankPages, SETTINGS_KEYWORDS } from './settings-search.js';
 import { howtoFor } from './howto.js';
 import { slashCommands } from './slash.js';
+import { crumbsFor, homeModel } from './settings-home.js';
 
 const $ = (sel) => document.querySelector(sel);
 /** What app.js lends this module (el, isMember, openSearchPlace, pageLead, showSettingsTab). */
@@ -31,7 +32,7 @@ export const settingsPages = () =>
       !(p.dataset.page === 'you-adult' && /\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent)) &&
       !(p.dataset.page === 'desktop-app' && !window.SaraDesktop) &&
       !(isMember() ? 'ownerOnly' in p.dataset : 'memberOnly' in p.dataset) &&
-      !(['household', 'dh-recovery'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&
+      !(['household', 'dh-recovery', 'dh-operations'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&
       p.dataset.page !== 'ab-recipes',
   );
 
@@ -60,15 +61,15 @@ const SETTINGS_WAS = {
 const WAS_WORDS = { Abilities: () => t('Abilities'), Connections: () => t('Connections') };
 // The order of the pages inside each group. Page ids stay the same: links, tips, tours and tests use them.
 const SETTINGS_ORDER = [
-  'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-import',
-  'you-about', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
+  'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-work', 'her-companions', 'her-import',
+  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
-  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-pickup',
+  'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity',
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-google', 'ab-home', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
-  'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks',
-  'dh-safety', 'dh-health', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
-  'household', 'account',
+  'co-phone', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify',
+  'dh-safety', 'dh-health', 'dh-operations', 'dh-recovery', 'dh-devices', 'dh-backups', 'dh-data', 'dh-movein', 'dh-updates', 'dh-usage', 'dh-privacy', 'dh-reports',
+  'household', 'dh-usage-report', 'dh-trust', 'dh-shares', 'dh-policy', 'dh-audit', 'dh-retention', 'account',
 ];
 // A small heading inside a group, before the first of these pages (none since the Coding group).
 const SETTINGS_SUB = {};
@@ -82,7 +83,18 @@ function lineIcon(d, cls = '') {
   s.append(path);
   return s;
 }
+/** V1 §5: the desktop sheet outside Sara Classic lists every page under flat headings (no accordion). */
+export const flatNav = () => typeof matchMedia === 'function' && document.documentElement.dataset.palette !== 'classic' && matchMedia('(min-width: 721px)').matches;
+function syncFlatNav() {
+  const flat = flatNav();
+  const list = document.getElementById('settings-nav-list');
+  if (!list) return;
+  const current = list.querySelector('.settings-nav-item[aria-current="true"]')?.closest('.settings-nav-group');
+  for (const g of list.querySelectorAll('.settings-nav-group')) setGroupOpen(g, flat || g === current, false);
+}
+if (typeof matchMedia === 'function') matchMedia('(min-width: 721px)').addEventListener?.('change', syncFlatNav);
 export function setGroupOpen(box, open, remember = true) {
+  if (flatNav()) open = true;
   // Phase 114 (PL1c, S1): an accordion: opening a group closes the others (one scrollbar, never two).
   if (open && remember) for (const g of document.querySelectorAll('#settings-nav-list .settings-nav-group.open')) if (g !== box) setGroupOpen(g, false, false);
   box.classList.toggle('open', open);
@@ -93,14 +105,14 @@ export function setGroupOpen(box, open, remember = true) {
   localStorage.setItem('sara.settingsGroups', JSON.stringify([...set]));
 }
 
+const order = (p) => {
+  const i = SETTINGS_ORDER.indexOf(p.dataset.page);
+  return i < 0 ? SETTINGS_ORDER.length : i;
+};
 export function buildSettingsNav() {
   const nav = $('#settings-nav-list');
   const groups = new Map();
   const seen = new Set();
-  const order = (p) => {
-    const i = SETTINGS_ORDER.indexOf(p.dataset.page);
-    return i < 0 ? SETTINGS_ORDER.length : i;
-  };
   // One entry per page (a page listed twice once showed up twice at the end of the list).
   for (const sec of settingsPages().sort((x, y) => order(x) - order(y))) {
     if (seen.has(sec.dataset.page)) continue;
@@ -112,7 +124,14 @@ export function buildSettingsNav() {
     const i = SETTINGS_GROUPS.findIndex((x) => x.name === g);
     return i < 0 ? SETTINGS_GROUPS.length : i;
   };
+  // V3 §2: "All settings" (the home with every page) first; screens.css/v3.css hide it in Sara Classic.
+  const home = el('button', 'settings-nav-item settings-nav-home');
+  home.type = 'button';
+  home.dataset.page = 'home';
+  home.append(lineIcon('M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z', 'sng-icon'), el('span', '', t('All settings')));
+  home.addEventListener('click', () => showSettingsTab('home', { focus: true }));
   nav.replaceChildren(
+    home,
     ...[...groups].sort(([x], [y]) => rank(x) - rank(y)).map(([g, secs], gi) => {
       const box = el('div', 'settings-nav-group');
       box.dataset.group = g;
@@ -122,6 +141,9 @@ export function buildSettingsNav() {
       head.setAttribute('aria-controls', listId);
       const info = SETTINGS_GROUPS.find((x) => x.name === g);
       head.append(lineIcon(info?.icon ?? 'M4 6h16M4 12h16M4 18h16', 'sng-icon'), el('span', 'sng-name', t(g)), el('span', 'sng-count', String(secs.length)), lineIcon('M9 6l6 6-6 6', 'sng-chev'));
+      // V1 §5: outside Sara Classic the desktop sheet shows every page under a flat caps heading
+      // (screens.css shows either this heading or the accordion button, never both).
+      const cap = el('h3', 'settings-nav-cap', t(g));
       const items = el('div', 'settings-nav-items');
       items.id = listId;
       head.addEventListener('click', () => setGroupOpen(box, !box.classList.contains('open')));
@@ -139,12 +161,69 @@ export function buildSettingsNav() {
         });
         items.append(b);
       }
-      box.append(head, items);
+      box.append(cap, head, items);
       setGroupOpen(box, false, false);
       return box;
     }),
   );
 }
+/**
+ * V3 §2: the Settings home: every page under its group's name and one-line purpose. Drawn each time it
+ * opens (the language, the member's pages and the demo's pages can change).
+ */
+export function buildSettingsHome() {
+  const box = $('#settings-home');
+  if (!box) return;
+  const grid = el('div', 'sh-grid');
+  for (const { group, desc, pages } of homeModel(settingsPages(), order)) {
+    const sec = el('section', 'sh-group');
+    sec.dataset.group = group;
+    const info = SETTINGS_GROUPS.find((x) => x.name === group);
+    const h = el('h3', 'sh-head');
+    h.append(lineIcon(info?.icon ?? 'M4 6h16M4 12h16M4 18h16', 'sh-icon'), el('span', '', t(group)));
+    const list = el('ul', 'sh-list');
+    for (const p of pages) {
+      const b = el('button', 'sh-link');
+      b.type = 'button';
+      b.dataset.page = p.dataset.page;
+      const lead = t(ctx.help()[p.dataset.page]?.[0] ?? '');
+      b.append(el('span', 'sh-title', t(p.dataset.title)), ...(lead ? [el('span', 'sh-lead', lead)] : []), lineIcon('M9 6l6 6-6 6', 'sh-chev'));
+      b.addEventListener('click', () => showSettingsTab(p.dataset.page, { focus: true }));
+      const li = el('li');
+      li.append(b);
+      list.append(li);
+    }
+    sec.append(h, el('p', 'sh-desc', t(desc)), list);
+    grid.append(sec);
+  }
+  box.replaceChildren(el('p', 'sh-intro', t('Every page, by topic. Search finds any setting by its name, its tip or a word you would use.')), grid);
+}
+/** V3 §2: Settings › group › page above a page's title (empty on the home and in search results). */
+export function paintCrumbs(page) {
+  const nav = $('#settings-crumbs');
+  if (!nav) return;
+  if (!page) return void nav.replaceChildren();
+  const parts = [];
+  for (const [i, c] of crumbsFor(page).entries()) {
+    if (i) {
+      const sep = el('span', 'sc-sep', '›');
+      sep.setAttribute('aria-hidden', 'true');
+      parts.push(sep);
+    }
+    if (c.to) {
+      const b = el('button', 'sc-link', t(c.label));
+      b.type = 'button';
+      b.addEventListener('click', () => showSettingsTab(c.to, { focus: true }));
+      parts.push(b);
+    } else {
+      const s = el('span', 'sc-here', t(c.label));
+      s.setAttribute('aria-current', 'page');
+      parts.push(s);
+    }
+  }
+  nav.replaceChildren(...parts);
+}
+
 /** Opens the group of the page on screen (and closes the others: S1). */
 export function openGroupOf(page) {
   const box = document.querySelector(`#settings-nav-list [data-page="${page}"]`)?.closest('.settings-nav-group');
@@ -237,6 +316,8 @@ export function paintSettingsResults(raw, { focus = false } = {}) {
   const pages = settingsPages();
   const ranked = matchSettings(raw, pages);
   for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  if ($('#settings-home')) $('#settings-home').hidden = true;
+  paintCrumbs(null);
   const box = $('#settings-results');
   box.replaceChildren(...ranked.map((p) => {
     const a = el('a', 'settings-result');

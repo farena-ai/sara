@@ -93,3 +93,14 @@
   .hk-log th:nth-child(4), .hk-log td:nth-child(4) { display: none; }
   .hk-form { padding: var(--s-2); }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in look.css: must come after hooks.css `.msg.notice.hk-msg` */
+:where(:root:not([data-palette="classic"])) .msg.assistant.her { max-width: 780px; margin-left: 44px; padding: 0; line-height: var(--lh-read); }
+@media (max-width: 720px) {
+  /* [cascade] not in look.css: must come after `:where(:root:not([data-palette="classic"])) .msg.assistant.her` (moved here too) */
+  :where(:root:not([data-palette="classic"])) .msg.assistant.her { margin-left: 34px; max-width: calc(100% - 34px); padding-left: 0; }
+}

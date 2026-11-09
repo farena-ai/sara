@@ -38,13 +38,24 @@
   <link rel="stylesheet" href="/packs.css">
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
+  <link rel="stylesheet" href="/research.css">
+  <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
+  <link rel="stylesheet" href="/v3.css">
+  <link rel="stylesheet" href="/sharing.css">
+  <link rel="stylesheet" href="/v4.css">
+  <link rel="stylesheet" href="/v4-living.css">
+  <link rel="stylesheet" href="/v4-pages.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <!-- 2.8: the slow aurora behind the glass (web/polish.css; still with reduced motion) -->
   <div id="aurora" class="aurora" aria-hidden="true"><i class="au-1"></i><i class="au-2"></i><i class="au-3"></i><i class="au-grain"></i></div>
+  <!-- V4a (docs/ops/V4_DESIGN.md): the ambient field, very faint; faster while she works (web/v4.js). -->
+  <canvas id="v4-field" class="v4-field" aria-hidden="true"></canvas>
   <div id="shell-drag" class="shell-drag" aria-hidden="true"></div>
+  <!-- V1: shown once to people who used Sara before the new look. -->
+  <div id="v1-notice" class="v1-notice" role="status" hidden><span><strong>New look.</strong> Sara now uses the Graphite theme. Change it any time in Settings → You → Appearance.</span><button id="v1-classic" type="button" class="ghost small">Switch back to Sara Classic</button><button id="v1-notice-close" type="button" class="ghost small">Keep the new look</button></div>
   <!-- Sign in -->
   <section id="login" class="screen card-screen" hidden>
     <form id="login-form" class="card">
@@ -104,6 +115,11 @@
         <p id="login-app-note" class="muted small">The app opens with this server filled in; sign it in there with a code from Settings → Devices and sign-in.</p>
       </div>
       <p id="login-error" class="error" role="alert"></p>
+      <div id="login-wait" class="login-wait" hidden>
+        <p>This device signs in from another address, so the owner approves it first. On a device you already use, type this code, or send it to her in Telegram or Discord: approve and the code.</p>
+        <p class="dap-code" id="login-wait-code"></p>
+        <p id="login-wait-status" class="muted small" role="status"></p>
+      </div>
     </form>
   </section>
 
@@ -160,10 +176,20 @@
   <!-- App -->
   <section id="main" class="screen" hidden>
     <a id="skip-main" class="skip-main" href="#chat">Skip to main content</a>
+    <!-- V4a: the live status strip. Every chip is something real she is doing; a chip with nothing to
+         show is hidden (web/v4.js). The .v4-orb spans are V4b's mount points for her presence orb. -->
+    <header id="v4-strip" class="v4-strip" aria-label="What she is doing now">
+      <button id="v4-word" class="v4-word" type="button" title="Her page: her day, mood, character (Alt+H)"><span class="v4-orb" data-orb-size="18"></span><span class="v4-word-name">Sara</span></button>
+      <div id="v4-chips" class="v4-chips" role="list" aria-label="Running now"></div>
+      <span class="v4-grow"></span>
+      <button id="v4-cmd" class="v4-cmd" type="button" title="Jump to any page, setting, chat or project, or ask her (Ctrl+K)"><i class="ic" data-icon="search"></i><span class="v4-cmd-text">Ask or do anything…</span><kbd>Ctrl K</kbd></button>
+      <button id="v4-glance-btn" class="v4-icon" type="button" aria-controls="v4-glance" aria-pressed="false" title="At a glance: spend, workers, memory and today" aria-label="At a glance"><i class="ic" data-icon="panel"></i></button>
+      <button id="v4-settings" class="v4-icon" type="button" title="Settings (Ctrl+,)" aria-label="Settings"><i class="ic" data-icon="settings"></i></button>
+    </header>
     <div id="other-note" class="other-note" role="status" hidden><span id="other-note-text"></span> <button id="other-note-go" type="button" class="small"></button> <button id="other-note-x" type="button" class="ghost small" aria-label="Dismiss"><i class="ic" data-icon="close"></i></button></div>
     <aside id="sidebar">
       <div class="side-head">
-        <button id="brand-today" class="brand" type="button" title="Today (Alt+T)"><img class="avatar" src="/sara-avatar.jpg" alt=""><span class="brand-name">Sara</span></button>
+        <button id="brand-today" class="brand" type="button" title="Today (Alt+T)"><img class="avatar" src="/sara-avatar.jpg" alt=""><span class="v4-orb v4-orb-face" data-orb-size="30"></span><span class="brand-name">Sara</span></button>
         <button id="companion-switch" type="button" class="ghost small" hidden aria-haspopup="menu" aria-expanded="false" title="Talk to another companion"><i class="ic" data-icon="switch"></i></button>
         <div id="companion-menu" class="companion-menu" role="menu" hidden></div>
         <button id="new-chat" title="New conversation (not in a project)">+ New</button>
@@ -174,11 +200,12 @@
         <button id="new-offrecord" type="button" class="ghost small" title="A conversation that is never saved: no memory, not in backups, gone when you close it"><i class="ic" data-icon="offrecord"></i>Off the record</button>
         <button id="new-group" type="button" class="ghost small" title="A group chat with two to four of your companions" hidden><i class="ic" data-icon="group"></i>Group</button>
       </div>
-      <div class="side-search"><input id="conv-search" type="search" placeholder="Search everything" autocomplete="off" aria-label="Search conversations, memories, notes, to-dos and files"></div>
+      <div class="side-search"><input id="conv-search" type="search" placeholder="Search everything" autocomplete="off" aria-label="Search conversations, memories, notes, to-dos and files"><button id="side-cmd" type="button" class="side-cmd" title="Jump to any page, setting, chat or project (Ctrl+K)" aria-label="Jump to anything"><kbd>Ctrl K</kbd></button></div>
       <div id="tag-filter" class="tag-filter" hidden></div>
       <nav id="conversations"></nav>
       <!-- Sidebar navigation: pinned places, the rest under More (web/nav.js), her and Settings/Help below -->
       <nav id="side-nav" class="side-nav" aria-label="Sara">
+        <h3 id="side-go-h" class="side-sec-h side-go-h">Go to</h3>
         <div id="side-pinned" class="side-pinned"></div>
         <button id="side-more" type="button" class="side-more" aria-haspopup="true" aria-expanded="false" aria-controls="side-more-menu" title="More places: memory, scrapbook, your story…"><i class="ic" data-icon="more"></i><span>More</span><i id="more-dot" class="side-dot" hidden></i><i class="ic side-chev" data-icon="chevron-right"></i></button>
         <div id="side-more-menu" class="side-more-menu" role="group" aria-label="More places" hidden>
@@ -194,6 +221,7 @@
           <div class="side-dest" data-dest="team" data-owner-only><button class="side-go" id="open-team" type="button" data-owner-only title="Team: helpers she leads on bigger jobs"><i class="ic" data-icon="team"></i><span>Team</span><i id="team-dot" class="side-dot" hidden></i></button></div>
           <div class="side-dest" data-dest="findings" data-owner-only><button class="side-go" id="open-findings" type="button" data-owner-only title="Findings: what her security pass found in your code, and fixes on their own branch"><i class="ic" data-icon="shield"></i><span>Findings</span></button></div>
           <div class="side-dest" data-dest="evals" data-owner-only><button class="side-go" id="open-evals" type="button" data-owner-only title="Evals: try other settings on your own past tasks and see which does better"><i class="ic" data-icon="flask"></i><span>Evals</span></button></div>
+          <div class="side-dest" data-dest="addons" data-owner-only><button class="side-go" id="open-addons" type="button" data-owner-only title="Add-ons: the store, skills, plugins and tools"><i class="ic" data-icon="puzzle"></i><span>Add-ons</span></button></div>
           </div>
           <p id="side-more-empty" class="muted small side-more-note" hidden>Everything is pinned to your sidebar.</p>
           <p class="muted small side-more-note">Use the pin to keep a place in your sidebar. Pins are saved on this device.</p>
@@ -211,11 +239,13 @@
     <main id="chat" tabindex="-1">
       <header id="chat-head">
         <button id="toggle-sidebar" class="ghost" aria-label="Conversations"><i class="ic" data-icon="menu"></i></button>
-        <button id="her-face" class="head-face-btn" type="button" aria-label="Her mood and what she is doing now" aria-controls="her-panel" aria-expanded="false"><img class="avatar head-face" src="/sara-avatar.jpg" alt=""></button>
+        <button id="her-face" class="head-face-btn" type="button" aria-label="Her mood and what she is doing now" aria-controls="her-panel" aria-expanded="false"><img class="avatar head-face" src="/sara-avatar.jpg" alt=""><span class="v4-orb v4-orb-face" data-orb-size="38"></span></button>
         <div class="title-wrap">
           <h2 id="chat-title">Sara</h2>
           <button id="sara-status" class="sara-status" type="button" title="How Sara is doing (open Sara's page)" hidden></button>
         </div>
+        <!-- C9: an update is waiting. Grey under 2 days, accent 2-4, amber 4-7, red after 7 or for a security fix. -->
+        <button id="head-update" class="head-update upd-grey" type="button" data-owner-only hidden title="A new version of Sara is ready: open Settings → Updates"><i class="ic" data-icon="update"></i><span id="head-update-text">Update</span></button>
         <div class="ctx-wrap">
           <button id="ctx-ring" class="ctx-ring" type="button" aria-label="How full this conversation is" aria-expanded="false" aria-controls="ctx-sheet" hidden><span class="ctx-dial" aria-hidden="true"></span><span id="ctx-pct" class="ctx-pct"></span></button>
           <div id="ctx-sheet" class="ctx-sheet head-pop" role="dialog" aria-label="How full this conversation is" hidden>
@@ -240,6 +270,8 @@
           <button id="server-btn" class="server-btn" type="button" title="Which server this app shows. Switch to another one" hidden><i class="ic" data-icon="switch"></i><span id="server-btn-name">Sara</span></button>
         </div>
         <button id="pl-badge" class="pl-badge" type="button" title="Nothing leaves this computer: private local mode is on" hidden><i class="ic" data-icon="lock"></i><span>Only this computer</span></button>
+        <!-- C8: Token Saver is on (web/spend.js) -->
+        <span id="saver-badge" class="saver-badge" hidden>Token Saver</span>
         <span class="ai-badge" title="Sara is an AI companion">AI companion</span>
         <!-- Phase 75 (stage 2): the command bar (Ctrl+K / ⌘K) and her panel (web/command-bar.js, web/her-panel.js) -->
         <button id="cmd-open" class="ghost icon head-icon" type="button" aria-label="Search and go (Ctrl+K)" title="Search and go (Ctrl+K)" aria-haspopup="dialog"><i class="ic" data-icon="search"></i></button>
@@ -257,11 +289,14 @@
       </dialog>
       <div id="call-panel" class="call-panel" hidden>
         <div id="call-presence"></div>
+        <span class="v4-orb v4-orb-call" data-orb-size="56"></span>
         <p id="call-status" class="call-status">Listening…</p>
         <div class="call-actions">
           <button id="call-to-video" type="button" class="ghost small" title="See her full size while you talk"><i class="ic" data-icon="video"></i>Video</button>
+          <button id="call-classic" type="button" class="ghost small" title="End this live call and call the classic way: her tools work there" hidden>Switch to classic</button>
           <button id="call-end" type="button" class="ghost small">End call</button>
         </div>
+        <p id="call-tools-note" class="call-tools-note small muted" hidden>On this voice, ask me in the chat to use tools.</p>
       </div>
       <div id="video-call" class="video-call" role="dialog" aria-modal="true" aria-labelledby="vc-name" tabindex="-1" hidden>
         <img id="vc-backdrop" class="vc-backdrop" alt="">
@@ -273,6 +308,7 @@
           <button id="vc-minimize" type="button" class="vc-icon" title="Voice only: back to the chat, the call goes on" aria-label="Voice only"><i class="ic" data-icon="minimize"></i></button>
         </div>
         <p id="vc-notice" class="vc-notice" role="alert" hidden></p>
+        <div id="vc-approvals" class="vc-approvals" role="region" aria-label="Waiting for your OK"></div>
         <div id="vc-stage" class="vc-stage"></div>
         <div id="vc-captions" class="vc-captions" aria-live="polite"></div>
         <div id="vc-self" class="vc-self" hidden>
@@ -286,6 +322,7 @@
           <button id="vc-look" type="button" class="vc-btn" title="Send her a picture from your camera now and ask what she thinks" hidden><span aria-hidden="true"><i class="ic" data-icon="eye"></i></span><small>Look at this</small></button>
           <button id="vc-sound" type="button" class="vc-btn" aria-pressed="false" title="Her voice on or off"><span aria-hidden="true"><i class="ic" data-icon="speaker-on"></i></span><small>Sound</small></button>
           <button id="vc-cc" type="button" class="vc-btn" aria-pressed="true" title="Show what you both say as text"><span aria-hidden="true"><i class="ic" data-icon="captions"></i></span><small>Captions</small></button>
+          <button id="vc-classic" type="button" class="vc-btn" title="End this live call and call the classic way: her tools work there" hidden><span aria-hidden="true"><i class="ic" data-icon="tool"></i></span><small>Switch to classic</small></button>
           <button id="vc-end" type="button" class="vc-btn end" title="Hang up"><span aria-hidden="true"><i class="ic" data-icon="phone-end"></i></span><small>End</small></button>
         </div>
       </div>
@@ -293,6 +330,24 @@
         <button id="pins-toggle" type="button" class="ghost small"><i class="ic" data-icon="pin"></i><span id="pins-count"></span></button>
         <div id="pins-list" class="pins-list" hidden></div>
       </div>
+      <!-- R1C2: other owner chats active on this project (web/project-now.js). -->
+      <div id="project-now" class="project-now small" role="region" aria-label="Also active on this project" hidden></div>
+      <!-- E5: read together (web/read-together.js): a document from her library above the chat. E6: or one public feed (Feed tab). -->
+      <section id="rt-panel" class="rt-panel" aria-label="Read together" hidden>
+        <div class="rt-bar"><span id="rt-now" class="rt-now" data-raw></span> <button id="rt-stop" type="button" class="danger small">Stop</button> <button type="button" class="tip" data-tip="Stop ends sharing at once: her next reply won’t see the passage. A message already sent can’t be unsent.">?</button></div>
+        <div id="rt-tabs" class="rt-tabs" role="tablist" aria-label="What you read together"><button id="rt-tab-doc" type="button" role="tab" class="ghost small" aria-selected="true">Document</button><button id="rt-tab-feed" type="button" role="tab" class="ghost small" aria-selected="false">Feed</button></div>
+        <p id="rt-note" class="rt-note small muted" role="status"></p>
+        <p id="rt-private" class="rt-note small" hidden>Reading together needs a model on this computer while private mode is on.</p>
+        <div id="rt-doc-pane" class="rt-pane">
+          <div class="rt-tools"><label class="rt-follow small"><input id="rt-follow" type="checkbox"> Follow my place</label> <button type="button" class="tip" data-tip="Off by default. When on, the passage at the top of the view goes to her once you stop scrolling, so your next message is about it. With a cloud model, your place leaves this computer with each message.">?</button> <button id="rt-share" type="button" class="small" hidden>Share this passage</button></div>
+          <div id="rt-text" class="rt-text lib-text" data-raw></div>
+        </div>
+        <div id="rt-feed-pane" class="rt-pane" hidden>
+          <div class="rt-feed-open"><input id="rt-feed-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="https://example.com/feed.xml" aria-label="Feed address"> <button id="rt-feed-go" type="button" class="small">Open</button> <button id="rt-feed-reload" type="button" class="ghost small" hidden>Reload</button> <button type="button" class="tip" data-tip="Paste the address of an RSS or Atom feed and press Open. Sara fetches it once, only when you press Open or Reload, and remembers nothing. Share one item and she sees only that item’s text, never the linked page.">?</button></div>
+          <p id="rt-feed-title" class="rt-feed-title small" data-raw hidden></p>
+          <ul id="rt-feed-items" class="rt-feed-items" data-raw></ul>
+        </div>
+      </section>
       <div id="messages" aria-live="polite"></div>
       <div id="activity" hidden aria-live="polite">
         <span class="spinner" aria-hidden="true"></span>
@@ -389,7 +444,7 @@
               <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customise</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
             </div>
             <div class="td-face-wrap">
-              <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""></button>
+              <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""><span class="v4-orb td-orb" data-orb-size="112"></span></button>
               <span class="ai-badge td-ai" title="Sara is an AI companion">AI companion</span>
             </div>
           </header>
@@ -508,6 +563,31 @@
           <h2 id="hp-name" class="hp-name" data-raw>Sara</h2>
           <button id="hp-close" class="ghost icon hp-close" type="button" aria-label="Fold her panel away" title="Fold her panel away"><i class="ic" data-icon="chevron-right"></i></button>
         </div>
+        <!-- V4a: At a glance (1180 px and wider; folds, remembered on this device). Real data only, an
+             empty line when there is nothing (web/v4.js). #v4-mem-slot is V4b's memory map. -->
+        <section id="v4-glance" class="v4-glance" aria-labelledby="v4-glance-h">
+          <h3 class="hp-h v4-glance-h"><button id="v4-glance-h" class="hp-fold" type="button" aria-expanded="true" aria-controls="v4-glance-body"><span>At a glance</span><span class="hp-fold-chev" aria-hidden="true"></span></button></h3>
+          <div id="v4-glance-body" class="v4-glance-body">
+            <div class="v4-card" id="v4-g-spend">
+              <h4>Spend today <button id="v4-g-spend-go" class="hp-link" type="button">Limits</button></h4>
+              <div id="v4-g-spend-big" class="v4-big num"></div>
+              <p id="v4-g-spend-sub" class="v4-muted"></p>
+              <div id="v4-g-spark" class="v4-spark" aria-hidden="true"></div>
+            </div>
+            <div class="v4-card" id="v4-g-workers">
+              <h4>Workers <button id="v4-g-workers-go" class="hp-link" type="button">Team</button></h4>
+              <div id="v4-g-workers-list" class="v4-workers"></div>
+            </div>
+            <div class="v4-card" id="v4-g-mem">
+              <h4>Memory <button id="v4-g-mem-go" class="hp-link" type="button">Open</button></h4>
+              <div id="v4-mem-slot" class="v4-mem-slot"></div>
+            </div>
+            <div class="v4-card" id="v4-g-today">
+              <h4>Today <button id="v4-g-today-go" class="hp-link" type="button">Planner</button></h4>
+              <dl id="v4-g-today-list" class="v4-kv"></dl>
+            </div>
+          </div>
+        </section>
         <div class="hp-her">
           <button id="hp-open-her" class="hp-glow" type="button" data-mood="default" aria-label="Her page: her day, mood and character"><img id="hp-portrait" class="hp-portrait" src="/sara-portrait.jpg" alt=""></button>
           <p class="hp-mood"><span class="hp-dot" aria-hidden="true"></span><span id="hp-mood-text"></span></p>
@@ -565,7 +645,11 @@
       <input id="search-cmd-q" class="cmd-q" type="text" role="combobox" aria-expanded="true" aria-controls="cmd-list" aria-autocomplete="list" aria-label="Search places, conversations, settings and actions" placeholder="Search places, chats, settings, actions…" autocomplete="off" spellcheck="false">
       <button id="cmd-close" class="ghost small cmd-close" type="button" aria-label="Close"><i class="ic" data-icon="close"></i></button>
     </div>
-    <div id="cmd-list" class="cmd-list" role="listbox" aria-label="Results"></div>
+    <div class="cmd-res">
+      <div id="cmd-list" class="cmd-list" role="listbox" aria-label="Results"></div>
+      <!-- V4a: what the highlighted row will do, before you pick it (web/command-bar.js). -->
+      <div id="cmd-pv" class="cmd-pv" aria-live="polite"></div>
+    </div>
     <p class="cmd-foot muted small" aria-hidden="true"><span>↑↓ move</span><span>Enter open</span><span>Esc close</span></p>
     <p id="cmd-status" class="cmd-sr" role="status" aria-live="polite"></p>
   </dialog>
@@ -597,6 +681,16 @@
         <ul id="team-tasks" class="team-tasks" aria-label="Team tasks"></ul>
         <section id="team-detail" class="team-detail" aria-live="polite"></section>
       </div>
+      <!-- EC12 (docs/ops/EC1213_DESIGN.md): crews of standing helpers (web/crews.js). -->
+      <section class="crews-box">
+        <h3 id="crews-h">Crews <button type="button" class="tip" data-tip="A crew is a few of your helpers with standing parts, a brief, a budget and a time (by hand, every day or every week). The lead hands each one a board card, checks the work and sends one summary with a report file.">?</button></h3>
+        <div id="crews" aria-labelledby="crews-h"></div>
+      </section>
+      <!-- C10 (docs/ops/C10_DESIGN.md): workers that stay (web/workers.js). -->
+      <section class="workers-box">
+        <h3 id="workers-h">Workers that stay <button type="button" class="tip" data-tip="A worker is a helper (or a crew member) that keeps going: its own name, character and chat, the tools it may use, a daily budget and a queue of jobs it does one at a time. It tells you once when it needs you.">?</button></h3>
+        <div id="workers" aria-labelledby="workers-h"></div>
+      </section>
       <details class="jobs-more">
         <summary>Helpers and limits</summary>
         <div id="team-helpers" class="team-helpers"></div>
@@ -717,6 +811,36 @@
 
   <!-- Phase 16: asked once on servers that had adult content before the switch existed -->
   <!-- 2.18: "Sara X is available" when the app opens (and every 12 hours while open; owner only). -->
+  <!-- EC24: Sara asks this device (a helper she may borrow) for its camera, location or screen. Never silent; outside #chat so Today never hides it. -->
+  <dialog id="helper-ask" class="ring helper-ask" aria-labelledby="helper-title" aria-describedby="helper-reason" data-required="1">
+    <span id="helper-icon" class="helper-icon"><i class="ic" data-icon="camera"></i></span>
+    <strong id="helper-title">Sara wants to use your camera</strong>
+    <p id="helper-reason" class="helper-reason"></p>
+    <p id="helper-what" class="muted small"></p>
+    <video id="helper-video" class="helper-video" playsinline muted hidden></video>
+    <p id="helper-status" class="small" role="status"></p>
+    <div class="helper-actions">
+      <button id="helper-deny" type="button" class="ghost">Deny</button>
+      <button id="helper-allow" type="button">Allow once</button>
+      <button id="helper-shoot" type="button" hidden>Take picture</button>
+    </div>
+    <p id="helper-left" class="muted small"></p>
+  </dialog>
+  <dialog id="dap-pop" class="dap-pop" aria-labelledby="dap-pop-title">
+    <h2 id="dap-pop-title">Approve a device?</h2>
+    <p id="dap-pop-what"></p>
+    <label><span>Code shown on that device <button type="button" class="tip" data-tip="The asking device shows 5 letters and digits. Type them here (any case) only if you see that device yourself. Deny if you did not just try to sign in.">?</button></span> <input id="dap-pop-code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+    <p id="dap-pop-error" class="error" role="alert"></p>
+    <p class="actions-left"><button id="dap-pop-approve" type="button">Approve</button> <button id="dap-pop-deny" type="button" class="ghost danger">Deny</button> <button id="dap-pop-later" type="button" class="ghost">Later</button></p>
+  </dialog>
+  <dialog id="dap-ask" class="dap-pop" aria-labelledby="dap-ask-title">
+    <h2 id="dap-ask-title">Your OK is needed</h2>
+    <p id="dap-ask-what"></p>
+    <p class="dap-code" id="dap-ask-code"></p>
+    <p class="muted small">Type this code on a device you already use (Settings → Devices and sign-in), or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
+    <p id="dap-ask-status" class="small" role="status"></p>
+    <p class="actions-left"><button id="dap-ask-cancel" type="button" class="ghost">Cancel</button></p>
+  </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
     <div class="settings-body">
       <h2 id="upp-title" class="update-pop-title"><i class="ic" data-icon="update"></i><span id="upp-title-text">A new version is available</span></h2>
@@ -935,7 +1059,7 @@
     <form method="dialog" class="settings-body">
       <div class="portrait" id="sd-presence" role="img" aria-label="Sara"></div>
       <h2 id="sd-title">Sara</h2>
-      <p class="small muted">Her picture changes with her mood. <button type="button" class="file-btn" data-pick="avatar-file">Use my own picture</button><input id="avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden> <button id="avatar-reset" type="button" class="ghost small" hidden>Back to her pictures</button></p>
+      <p class="small muted">Her picture changes with her mood. <button type="button" class="file-btn" data-pick="avatar-file">Use my own picture</button><input id="avatar-file" type="file" accept="image/jpeg,image/png,image/webp" hidden> <button id="avatar-reset" type="button" class="ghost small" hidden>Back to her pictures</button> <button id="avatar-ap-link" type="button" class="linkish">Where her picture shows: Appearance</button></p>
       <p id="sd-status" class="muted"></p>
       <div id="sd-day-box" class="tidy-stack">
         <h3>Her day</h3>
@@ -1045,10 +1169,20 @@
           <label class="bd-pick"><span>Board <button type="button" class="tip" data-tip="Your to-dos as cards in columns. Each project has a board; Everything shows them all. Drag a card, or focus it, press Space and use the arrow keys. Done checks it off.">?</button></span> <select id="bd-board"></select></label>
           <span id="bd-shared" class="bd-shared muted small"></span>
           <span class="bd-head-gap"></span>
+          <button id="bd-questions" type="button" class="bd-questions small" hidden></button>
           <button id="bd-new" type="button" class="ghost small"><i class="ic" data-icon="plus"></i>New board</button>
+          <button id="bd-describe-open" type="button" class="ghost small"><i class="ic" data-icon="sparkle"></i>From a description</button>
           <button id="bd-gear" type="button" class="ghost small" aria-expanded="false" aria-controls="bd-settings"><i class="ic" data-icon="sliders"></i>Board settings</button>
         </div>
         <div id="bd-invites" class="bd-invites"></div>
+        <section id="bd-describe" class="bd-settings bd-describe" hidden aria-label="Make a board from a description">
+          <h3>Make a board from a description <button type="button" class="tip" data-tip="Say what you want done, in your words. She drafts columns and cards, with what waits for what. Nothing is made until you check the preview, change it and press Create the board.">?</button></h3>
+          <textarea id="bd-describe-text" rows="3" maxlength="4000" placeholder="e.g. We move house in March: find a van, pack room by room, change our address, hand back the keys" aria-label="What you want done"></textarea>
+          <p class="actions-left"><button id="bd-draft-make" type="button" class="small">Draft it</button> <button id="bd-draft-cancel" type="button" class="ghost small">Cancel</button></p>
+          <div id="bd-draft" class="bd-draft"></div>
+          <p class="actions-left"><button id="bd-draft-create" type="button" hidden>Create the board</button></p>
+          <p id="bd-draft-status" class="muted small" role="status"></p>
+        </section>
         <section id="bd-settings" class="bd-settings" hidden aria-label="Board settings">
           <h3>Work at once <button type="button" class="tip" data-tip="How many cards she works on at the same time. The others wait in board order and show Queued (2nd). More at once finishes sooner but spends more of your budget at the same moment.">?</button></h3>
           <label class="row">Cards she works on at once <select id="bd-concurrent"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option></select></label>
@@ -1183,6 +1317,9 @@
             <h3 id="rt-mine-h">My routines</h3>
             <div id="rt-mine"></div>
             <p class="muted small">Everything here runs on a schedule. Off stops it at once.</p>
+            <!-- E4 (docs/WATCHES.md): Watch a file (web/watches.js). -->
+            <h3 id="rt-watch-h">Watch a file <button type="button" class="tip" data-tip="Sara reads new lines of one file in your workspaces (or her own log) and tells you when one has a word you picked. Reading costs nothing. She never changes or fixes anything on her own.">?</button></h3>
+            <div id="rt-watch" aria-labelledby="rt-watch-h"></div>
           </section>
           <section class="rt-add-col" aria-labelledby="rt-add-h">
             <h3 id="rt-add-h">Add a routine</h3>
@@ -1404,6 +1541,24 @@
   </dialog>
 
   <!-- Phase 53: your story together -->
+  <!-- V4b (docs/ops/V4_DESIGN.md): the memory map (web/memory-map.js), opened from Memory. -->
+  <dialog id="memmap" class="memmap" aria-labelledby="mm-title">
+    <form method="dialog" class="settings-body memmap-body">
+      <h2 id="mm-title">Memory map</h2>
+      <p class="muted small">What she remembers and how it connects: notes that share words, came from the same conversation, replaced one another, or disagree. Dim notes are fading. Point at a note to read it; click it to open it in Memory.</p>
+      <p id="mm-status" class="muted small" role="status"></p>
+      <div class="mm-stage">
+        <canvas id="mm-canvas" class="mm-canvas" role="img"></canvas>
+        <div id="mm-card" class="mm-card" role="status" hidden></div>
+      </div>
+      <ul class="mm-legend muted small">
+        <li><i class="mm-k mm-k-note"></i>A note</li>
+        <li><i class="mm-k mm-k-hub"></i>Most connected</li>
+        <li><i class="mm-k mm-k-fade"></i>Fading</li>
+        <li><i class="mm-k mm-k-bad"></i>They disagree</li>
+      </ul>
+    </form>
+  </dialog>
   <dialog id="story" aria-label="Your story">
     <form method="dialog" class="settings-body story">
       <h2>Your story together</h2>
@@ -1493,6 +1648,10 @@
         </div>
         <p id="lib-upload-status" class="small" role="status"></p>
         <progress id="lib-upload-bar" class="lib-progress" max="1" value="0" hidden></progress>
+        <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
+        <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
+        <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
+        <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         <div class="lib-tools" data-nodirty>
           <input id="lib-q" type="search" placeholder="Search her library">
         </div>
@@ -1507,6 +1666,24 @@
           <div id="la-list" class="la-list"></div>
         </section>
         <label id="lib-shared-row" class="row small" hidden data-nodirty><input id="lib-shared" type="checkbox"> One library for all companions (takes effect after a restart)</label>
+      </section>
+      <!-- C6 (docs/LEARN.md): what she has learned (web/learn.js). -->
+      <section id="lib-topics" hidden>
+        <p><button id="lib-t-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>What she has learned <button type="button" class="tip" data-tip="Topics and sites she studied for you, each kept as a skill with its sources and the date she read them. Ask her about one any time; refreshes show what changed.">?</button></h2>
+        <div id="lib-t-body" class="rs-body" data-nodirty></div>
+      </section>
+      <!-- EC6 (docs/RESEARCH.md): research runs with a report (web/research.js). -->
+      <section id="lib-research" hidden>
+        <p><button id="lib-r-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Research a question <button type="button" class="tip" data-tip="A plan you approve or edit, then she searches and reads. Write the report now stops reading early; Stop still gives a report of what was found and what is missing.">?</button></h2>
+        <div id="lib-r-body" class="rs-body" data-nodirty></div>
+      </section>
+      <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
+      <section id="lib-meetings" hidden>
+        <p><button id="lib-m-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Meetings <button type="button" class="tip" data-tip="Sara listens only after an announced notice, answers only when called by name, and keeps no recording unless you choose to. Transcripts stay on this server.">?</button></h2>
+        <div id="lib-m-body" class="ms-body" data-nodirty></div>
       </section>
       <section id="lib-doc" hidden>
         <p><button id="lib-back" type="button" class="ghost small">← All documents</button></p>
@@ -1534,6 +1711,7 @@
           <a id="lib-doc-download" class="button ghost small" href="#" download>Download</a>
           <a id="lib-doc-pdf" class="button ghost small" href="#" target="_blank" rel="noopener" hidden>Open the PDF</a>
           <button id="lib-doc-keep" type="button" class="ghost small" hidden>Keep in her library</button>
+          <button id="lib-doc-together" type="button" class="ghost small" title="Opens it above your chat so you can share a passage with her, or let her follow your place." hidden>Read together</button>
           <button type="button" class="ghost small tidy-more-btn" aria-label="More actions" title="More actions">⋯</button>
           <span class="tidy-overflow">
             <button id="lib-doc-reread" type="button" class="ghost small" title="Read the file again from the start, for example after it couldn't be read.">Read it again</button>
@@ -1571,6 +1749,7 @@
       <p class="muted small">Everything she remembers, in one place: what she knows about you, dates that matter, what you decided together, promises (yours and hers), moments in your story, things she noticed, notes from your conversations, and what she said about her own life. Each keeps a link to the exact words. <strong>Correct</strong> fixes a note. <strong>Delete</strong> removes it. <strong>Forget</strong> also hides the original message from her for good.</p>
       <div class="mem-tools">
         <button id="mem-timeline" type="button" class="ghost small" title="Your story: your time together, in order">🕰 Your story</button>
+        <button id="mem-map" type="button" class="ghost small" title="Memory map: what she remembers and how it connects">Memory map</button>
         <select id="mem-kind">
           <option value="">Everything</option>
           <option value="fact">About you</option>
@@ -1595,6 +1774,16 @@
       </div>
       <div id="mem-list"></div>
       <p class="muted small">Once a week she looks back over your conversations: she may notice a pattern, and marks notes that newer ones replace (they stay here). <button id="mem-reflect" type="button" class="ghost small">Look back now</button> <span id="mem-reflect-status"></span></p>
+      <!-- EC13 (docs/ops/EC1213_DESIGN.md): the overnight memory tidy (web/memory-tidy.js). -->
+      <h3 id="mt-h">Overnight tidy <button type="button" class="tip" data-tip="While you sleep she merges duplicate notes, asks you about notes that disagree and sums up old threads. She never deletes: each change has Undo on the morning card.">?</button></h3>
+      <label class="row"><input id="mt-on" type="checkbox"> Tidy her memory at night <button type="button" class="tip" data-tip="Off until you turn it on. Once a night, in your quiet hours, when nobody has written for half an hour. A short card in your chat in the morning says what changed.">?</button></label>
+      <label>Which model <select id="mt-model"><option value="local">Models on this computer only</option><option value="any">Any model</option></select> <button type="button" class="tip" data-tip="Models on this computer only: your notes never leave it. Any model: ordinary notes may go to your usual model; notes from private chats or about people's health, money or love life never leave this computer.">?</button></label>
+      <div class="add-row"><button id="mt-now" type="button" class="ghost small">Tidy now</button> <span id="mt-status" class="muted small" role="status"></span></div>
+      <!-- C12 (docs/ops/C12_DESIGN.md): how she works with you (web/working-style.js). -->
+      <h3 id="ws-h">How she works with you <button type="button" class="tip" data-tip="What she has noticed about how you like to work: short or long answers, one pick or options, asking first. Only from your own messages; never health, religion, politics or sexuality.">?</button></h3>
+      <label class="row"><input id="ws-on" type="checkbox"> Learn how I like to work <button type="button" class="tip" data-tip="On: she notices patterns in your own messages and tells you once when one changes how she answers. Nothing is learned from private, partner or imported chats. Off: she learns and uses none of it.">?</button></label>
+      <ul id="ws-list" class="ws-list"></ul>
+      <p id="ws-status" class="muted small" role="status"></p>
       <h3>Settings</h3>
       <label class="row"><input id="mem-enabled" type="checkbox"> Remember conversations <button type="button" class="tip" data-tip="Off: she forgets each conversation once it's over (she still sees the conversation you're in). On is what makes her feel like the same person every day.">?</button></label>
       <label>Write notes when a conversation goes quiet for <button type="button" class="tip" data-tip="She also writes notes as soon as you start a new conversation, and every 40 messages in a long one, so this rarely matters. Shorter = notes sooner but more background work for your model.">?</button> <select id="mem-quiet"><option value="10">10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="120">2 hours</option></select></label>
@@ -1660,7 +1849,33 @@
       <div class="tabs pp-tabs" role="tablist">
         <button type="button" class="tab active" data-pp-tab="overview" role="tab">Overview</button>
         <button type="button" class="tab" data-pp-tab="map" role="tab" id="pp-map-tab">Map</button>
+        <button type="button" class="tab" data-pp-tab="workspace" role="tab" id="pp-work-tab">Workspace</button>
       </div>
+      <!-- C13: the Workspace view (web/workspace-view.js): files, editor, terminal, chat, task worktrees. -->
+      <section id="pp-work" class="wv" hidden>
+        <div class="wv-bar">
+          <label>Folder <select id="wv-root"><option value="">Main checkout</option></select> <button type="button" class="tip" data-tip="Work on this project with her: open and edit files, run commands (the same rules as her shell: off when commands are off, same sandbox), and ask her about the open file. Folder picks the main checkout or one of her task worktrees.">?</button></label>
+          <span id="wv-status" class="muted small" role="status"></span>
+        </div>
+        <div class="add-row wv-start"><input id="wv-task" maxlength="300" placeholder="New task, e.g. Fix the login page"><button id="wv-start" type="button" class="ghost">Start in a worktree</button><button type="button" class="tip" data-tip="She makes a branch sara/… in its own folder (.sara-worktrees) and works there in this chat. Finish with Merge, Open PR or Discard; nothing unsaved is deleted without asking.">?</button></div>
+        <div id="wv-trees" class="wv-trees" hidden></div>
+        <div class="wv-cols">
+          <nav id="wv-files" class="wv-files" aria-label="Files"></nav>
+          <div class="wv-main">
+            <div class="wv-edit-bar"><span id="wv-path" class="muted small">Pick a file.</span><button id="wv-check" type="button" class="ghost small">Problems</button><button id="wv-save" type="button" class="small" disabled>Save</button></div>
+            <div class="wv-editor"><pre id="wv-lines" class="wv-lines" aria-hidden="true">1</pre><textarea id="wv-text" spellcheck="false" wrap="off" aria-label="File"></textarea><button type="button" class="tip" data-tip="The open file. Ctrl+S saves. If she or a command changed it since you opened it, Save says so instead of writing over it. Problems asks the language server (when one is installed).">?</button></div>
+            <ul id="wv-problems" class="wv-problems" hidden></ul>
+            <div class="wv-term">
+              <pre id="wv-out" class="wv-out" role="log" aria-live="polite"></pre>
+              <div class="add-row"><input id="wv-cmd" autocomplete="off" placeholder="Run a command, e.g. npm test"><button id="wv-run" type="button">Run</button><button type="button" class="tip" data-tip="Runs in the folder above, in her sandbox, for up to 2 minutes. For long builds ask her to start a background job.">?</button></div>
+            </div>
+          </div>
+          <aside class="wv-chat" aria-label="Chat">
+            <div id="wv-msgs" class="wv-msgs" role="log" aria-live="polite"></div>
+            <div class="add-row"><textarea id="wv-ask" rows="2" placeholder="Ask her about this file"></textarea><button id="wv-send" type="button">Send</button><button type="button" class="tip" data-tip="A coding chat for this workspace. She sees the open file with each message, and asks before she changes anything.">?</button></div>
+          </aside>
+        </div>
+      </section>
       <section id="pp-map" class="pp-map" hidden>
         <div class="add-row"><input id="pm-q" type="search" maxlength="300" placeholder="Find a function, a file, or what the code does"><select id="pm-kind"><option value="">Best guess</option><option value="symbol">Names</option><option value="text">Words</option><option value="meaning">Meaning</option></select><button id="pm-find" type="button">Find</button></div>
         <div class="pm-bar"><span id="pm-status" class="muted small" role="status"></span><button id="pm-refresh" type="button" class="ghost small">Look again</button><button type="button" class="tip" data-tip="Her map of this workspace: every source file with its functions, classes and imports. It updates by itself when she changes files or a job finishes. She uses the same map with her code tools.">?</button></div>
@@ -1834,11 +2049,37 @@
         <h3>Files in this chat <button type="button" class="tip" data-tip="Pictures and files that came in or went out of this chat through a chat app or send_file. Remove deletes the bytes now; the line stays. Other people's pictures go after 7 days.">?</button></h3>
         <ul id="cs-files" class="cs-files"></ul>
       </div>
+      <div id="cs-continuity" class="tidy-card tidy-stack" data-owner-only hidden></div>
       <p class="muted small cs-summary">Sara writes a dated summary of this conversation after it's been quiet for a while. <button id="cs-remember" type="button" class="ghost small">Write summary now</button></p>
       <p id="cs-error" class="error" role="alert"></p>
       <div class="actions tidy-foot">
+        <button id="cs-share" type="button" class="ghost">Share…</button>
         <button id="cs-archive" type="button" class="ghost">Archive</button>
         <button id="cs-delete" type="button" class="ghost danger-text">Delete…</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- EC11 (docs/ops/EC1115_DESIGN.md): share a conversation as a read-only link (web/sharing.js). -->
+  <dialog id="share-dialog" class="share-dialog" aria-labelledby="shd-heading">
+    <form method="dialog" class="settings-body" data-nodirty data-noauto>
+      <h2 id="shd-heading">Share this conversation</h2>
+      <p class="muted small">Anyone with the link can read a copy of this chat until it expires or you revoke it. They can't reply or see anything else. Check the preview first. <button type="button" class="tip" data-tip="The link shows a frozen copy made now. Keys, passwords, e-mail addresses and phone numbers are hidden. Search engines are told not to index it.">?</button></p>
+      <div class="shd-options">
+        <label class="row"><input id="shd-tools" type="checkbox"> Include tool results <button type="button" class="tip" data-tip="Off: only your messages and her replies. On: what her tools returned (searches, files, commands) is added, scrubbed and cut short.">?</button></label>
+        <label class="row"><input id="shd-pictures" type="checkbox"> Include pictures <button type="button" class="tip" data-tip="Off: pictures in the chat are left out. On: up to 12 pictures are copied into the link.">?</button></label>
+        <label class="row">The link works for <select id="shd-expires"><option value="1h">1 hour</option><option value="1d">1 day</option><option value="7d" selected>7 days</option><option value="30d">30 days</option></select> <button type="button" class="tip" data-tip="After this the link stops working by itself. You can revoke it sooner in Settings → Household → Shared links.">?</button></label>
+      </div>
+      <h3>Preview</h3>
+      <p id="shd-hidden" class="muted small" role="status"></p>
+      <div id="shd-preview" class="shd-preview"></div>
+      <div id="shd-result" class="shd-result" hidden>
+        <label>Link <button type="button" class="tip" data-tip="Send it privately. The link is shown only now: copy it before you close this window. Revoke it any time in Shared links.">?</button> <input id="shd-link" type="text" readonly></label>
+        <button id="shd-copy" type="button" class="ghost">Copy</button>
+      </div>
+      <p id="shd-error" class="error" role="alert"></p>
+      <div class="actions">
+        <button id="shd-create" type="button" class="primary">Make link</button>
       </div>
     </form>
   </dialog>
@@ -1937,11 +2178,13 @@
         <header class="settings-page-head">
           <button id="settings-back" type="button" class="ghost small" aria-label="All settings">‹ All settings</button>
           <button id="settings-results-back" type="button" class="ghost small" hidden>Back to results</button>
+          <nav id="settings-crumbs" class="settings-crumbs" aria-label="Breadcrumb"></nav>
           <h2 id="settings-page-title" tabindex="-1"></h2>
         </header>
         <p id="settings-page-desc" class="settings-page-desc" hidden><span id="settings-help-text"></span> <a id="settings-help-link" href="/help" target="_blank" rel="noopener">Read the guide ↗</a></p>
         <div id="settings-howto" class="settings-howto"></div>
         <div class="settings-pages settings-body">
+        <section id="settings-home" class="settings-home" aria-labelledby="settings-page-title" hidden></section>
         <div id="settings-results" class="settings-results" aria-live="polite" hidden></div>
         <div id="settings-elsewhere" class="settings-elsewhere" aria-live="polite" hidden></div>
         <section class="settings-page" data-page="her-character" data-group="Her" data-title="Name and personality" hidden>
@@ -2149,6 +2392,37 @@
       </div>
       <p id="cu-status" class="muted small" role="status"></p>
         </section>
+        <!-- EC26 (docs/ops/EC26_DESIGN.md): her work profile and work memories (web/work-profile.js). -->
+        <section class="settings-page" data-page="her-work" data-group="Her" data-title="At work" data-owner-only hidden>
+      <div class="atw-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">The same companion at work: in Slack, Teams and any chat you choose she uses her work name and tone, work tools only, and a separate work memory. <button type="button" class="tip" data-tip="Work and personal never mix: what she learns at work stays at work, and your personal chats and notes never reach a work chat. Copy a note across by hand when you want one in both.">?</button></p>
+        <p id="atw-pinned" class="muted small" hidden>Your admin's policy keeps work mode on for every chat on this server.</p>
+        <label class="row"><input id="atw-on" type="checkbox"> Use a work profile <button type="button" class="tip" data-tip="Off: nothing changes. On: the chats ticked below are work chats. A chat that was ever a work chat keeps its notes at work, even after you turn this off.">?</button></label>
+        <label class="row">Name at work <input id="atw-name" type="text" maxlength="40" autocomplete="off" placeholder="Her own name"> <button type="button" class="tip" data-tip="What she calls herself at work, for example Ava from IT. Empty: her own name. The name people see on Slack or Teams is the bot's name set there.">?</button></label>
+        <label class="row">Tone at work <select id="atw-tone"><option value="professional">Friendly and professional</option><option value="formal">Formal</option><option value="brief">Brief and to the point</option></select> <button type="button" class="tip" data-tip="How she talks in work chats. Her character stays the same; only the tone changes.">?</button></label>
+        <h3>Which chats are work <button type="button" class="tip" data-tip="Her chats in the app are never work chats.">?</button></h3>
+        <div class="po-kinds">
+          <label><input type="checkbox" data-channel="plugin-slack"> Slack</label>
+          <label><input type="checkbox" data-channel="plugin-teams"> Microsoft Teams</label>
+          <label><input type="checkbox" data-channel="plugin-matrix"> Matrix</label>
+          <label><input type="checkbox" data-channel="plugin-email"> Email</label>
+          <label><input type="checkbox" data-channel="discord-work"> Discord work channels</label>
+          <label><input type="checkbox" data-channel="telegram-work"> Telegram work groups</label>
+        </div>
+        <h3>What she may use at work <button type="button" class="tip" data-tip="Only these tools in work chats. Her album, pictures, outfits, plans, reminders, computer, servers and mail stay out.">?</button></h3>
+        <label class="row"><input id="atw-research" type="checkbox"> Research: web search and reading pages <button type="button" class="tip" data-tip="She can search the web and read pages to answer work questions.">?</button></label>
+        <label class="row"><input id="atw-files" type="checkbox"> Files in the work workspace <button type="button" class="tip" data-tip="She reads and writes files only in the work workspace, never in your own.">?</button></label>
+        <label class="row">Work workspace <input id="atw-workspace" type="text" maxlength="64" autocomplete="off"> <button type="button" class="tip" data-tip="The folder her work files live in (letters, digits, dots, dashes). Every work chat uses it.">?</button></label>
+        <label class="row"><input id="atw-calendar" type="checkbox"> Calendar <button type="button" class="tip" data-tip="She can read and add events when Google is connected (Settings → Add-ons → Google).">?</button></label>
+        <label class="row"><input id="atw-commands" type="checkbox"> Commands <button type="button" class="tip" data-tip="Off by default. On: she can run commands and git in the work workspace, still asking as your approval rules say.">?</button></label>
+        <p class="muted small">Always off at work: her moods, pictures on her own, romance and adult content, role-play and her diary.</p>
+        <div class="add-row"><button id="atw-save" type="button" class="primary">Save</button></div>
+        <h3>Work memories <button type="button" class="tip" data-tip="Notes from work chats, and your personal notes. Copy to work or Copy to personal makes a copy in the other space; the original stays where it is.">?</button></h3>
+        <div class="add-row"><select id="atw-space" aria-label="Which notes"><option value="work">Work notes</option><option value="personal">Personal notes</option></select> <input id="atw-q" type="search" placeholder="Search notes" aria-label="Search notes"> <button type="button" class="tip" data-tip="Pick work or personal notes, and type words to find one.">?</button></div>
+        <div id="atw-memories" class="sl-list"></div>
+        <p id="atw-status" class="muted small" role="status"></p>
+      </div>
+        </section>
         <section class="settings-page" data-page="her-companions" data-group="Her" data-title="Companions" hidden>
       <p class="muted small page-lead">You can have more than one companion on this server. Each has her own name, character, look, voice, conversations and memories. They share your sign-in, devices, keys, models, tools and backups. Switch between them with ⇄ at the top of the sidebar.</p>
       <ul id="cmp-list" class="cmp-list"></ul>
@@ -2159,6 +2433,17 @@
       </div>
       <label>Start from <select id="cmp-from"><option value="">A new character (shape them afterwards)</option></select></label>
       <p class="small"><button id="cmp-add" type="button">Add</button> <button id="cmp-from-file" type="button" class="ghost" data-owner-only>From a file…</button> <button id="cmp-store" type="button" class="ghost" data-owner-only>Get a companion from the Store</button> <button type="button" class="tip" data-tip="A companion pack (.sara-companion.zip), a character card (PNG, JSON or CHARX) or a Sara character file. You see her card first. It always makes a new companion; the ones you have don't change.">?</button> <input id="cmp-file" type="file" accept=".zip,.png,.json,.charx,application/zip,image/png,application/json" hidden> <span id="cmp-status" class="muted small"></span></p>
+      <div id="bring" class="bring" data-owner-only>
+      <h3>Bring your companion from another app</h3>
+      <p class="muted small">From Character.AI, Replika, Kindroid or Nomi: her export files (a zip, JSON, CSV, text or a saved chat page) and her backstory and memories pasted in. Everything is read on this server, and you see what comes over before anything is saved. <a href="/help#bring" target="_blank" rel="noopener">How to get them out of each app</a></p>
+      <div class="add-row">
+        <label>From <select id="bring-source"><option value="">Find out from the files</option><option value="characterai">Character.AI</option><option value="replika">Replika</option><option value="kindroid">Kindroid</option><option value="nomi">Nomi</option><option value="other">Another app</option></select></label>
+        <label>Her files <input id="bring-files" type="file" multiple accept=".zip,.json,.jsonl,.csv,.txt,.md,.html,.htm"></label>
+      </div>
+      <label>Or paste her backstory, key memories or shared notes <textarea id="bring-text" rows="4" maxlength="300000"></textarea></label>
+      <p class="small"><button id="bring-preview" type="button">See what comes over</button> <span id="bring-status" class="muted small" role="status"></span></p>
+      <div id="bring-draft" class="bring-draft" hidden></div>
+      </div>
       <h3>Planner</h3>
       <label>To-dos, reminders and notes <select id="cmp-planner"><option value="shared">One planner, shared by all companions</option><option value="separate">Each companion keeps her own</option></select></label>
       <p id="cmp-planner-note" class="muted small">A change applies after the next restart or update.</p>
@@ -2290,7 +2575,7 @@
       <p id="v-local" class="muted small"></p>
       <p id="v-install-row" class="small" hidden><button id="v-install" type="button" class="ghost">Install hearing and voices on this computer</button> <button type="button" class="tip" data-tip="Downloads her own hearing and voices (about 650 MB) so they work without the internet, and with “Nothing leaves this computer” on. Checked before use.">?</button> <span id="v-install-status" class="muted small" role="status"></span></p>
       <div class="add-row">
-        <label>Expressive voice <button type="button" class="tip" data-tip="With Grok voice she laughs, sighs, breathes and whispers where it fits: when she writes &quot;haha&quot; or *sighs*, and on live calls. Subtle keeps it occasional; Lively lets more through. The sounds are only in her voice: never in the chat text or captions. Other voices read the words without the stage directions.">?</button> <select id="v-expressive"><option value="subtle">Subtle</option><option value="lively">Lively</option><option value="off">Off</option></select></label>
+        <label>Expressive voice <button type="button" class="tip" data-tip="With Grok voice or an ElevenLabs v3 model she laughs, sighs and whispers where it fits: when she writes &quot;haha&quot; or *sighs*, and on live calls. Subtle keeps it occasional; Lively lets more through. Never in chat text or captions; other voices read plain words.">?</button> <select id="v-expressive"><option value="subtle">Subtle</option><option value="lively">Lively</option><option value="off">Off</option></select></label>
         <label>Tone <button type="button" class="tip" data-tip="How her voice sounds overall. Grok voice and the speech API follow it (warm and calm speak softer, bright a little quicker); other voices change speed only. Pitch can't be changed with these voices.">?</button> <select id="v-tone"><option value="natural">Natural</option><option value="warm">Warm and soft</option><option value="calm">Calm and slow</option><option value="bright">Bright</option></select></label>
         <button id="v-expressive-try" type="button" class="ghost">▶ Hear a sample</button>
       </div>
@@ -2343,7 +2628,7 @@
       <p class="muted small page-lead">Say “Hey Sara” and talk, without touching anything. Off until you turn it on, on each device. <button type="button" class="tip" data-tip="Say her name and talk, hands-free. A small model on the device listens only for the words; nothing is sent until you say them. Off until you turn it on, separately on each device.">?</button></p>
       <div id="wk-this" class="sub-card wk-block">
         <strong class="wk-head">This device <span id="wk-this-name" class="muted small"></span></strong>
-        <p id="wk-no-app" class="muted small">This browser can’t listen for Hey Sara: use the Windows or Android app.</p>
+        <p id="wk-no-app" class="muted small">This browser can’t listen for Hey Sara: use the Windows, Mac or Android app. On Linux, run <code>sara wake</code> in a terminal.</p>
         <div id="wk-app" class="wk-app" hidden>
           <label class="row wk-switch"><input id="wk-on" type="checkbox"> <span id="wk-on-label">Listen for “Hey Sara” on this computer</span> <button type="button" class="tip" data-tip="Opens the microphone and listens for “Hey Sara” on this device only. A dot on her icon shows when the mic is open. Switch it off here, in the tray or notification, or from any of your devices.">?</button></label>
           <p class="wk-dots muted small"><span class="wk-dot" aria-hidden="true"></span> dim dot = waiting · <span class="wk-dot wk-bright" aria-hidden="true"></span> bright = hearing</p>
@@ -2358,6 +2643,7 @@
           <label class="row"><input id="wk-personal" type="checkbox"> <span id="wk-personal-label">This computer is just mine</span> <button type="button" class="tip" data-tip="Off: she treats this like a speaker in a room (never explicit, your private things only if you raise them). On: a normal private chat with her, for headphones or your own room.">?</button></label>
           <label class="row" id="wk-locked-row"><input id="wk-locked" type="checkbox" checked> Pause while the screen is locked <button type="button" class="tip" data-tip="Stops listening when you lock the computer, and starts again when you unlock it.">?</button></label>
           <label class="row" id="wk-charging-row" hidden><input id="wk-charging" type="checkbox"> Only while charging <button type="button" class="tip" data-tip="Listens only while the phone charges, for bedside or desk use. Saves battery.">?</button></label>
+          <label class="row" id="wk-open-row" hidden><input id="wk-open" type="checkbox"> Only while Sara is open <button type="button" class="tip" data-tip="Listens only while the Sara app is on the screen. Uses the least battery: the microphone closes as soon as you leave the app.">?</button></label>
           <p id="wk-today" class="muted small"></p>
           <p id="wk-hint" class="wk-hint small" hidden></p>
           <div class="wk-actions">
@@ -2384,6 +2670,7 @@
           <label>She answers in <button type="button" class="tip" data-tip="Her “Hey Sara” conversation keeps all your spoken questions together. Or use the one open on this device, or a new one each time.">?</button> <select id="wk-talks"><option value="own">Her “Hey Sara” conversation</option><option value="open">The conversation open on the device</option><option value="new">A new conversation each time</option></select></label>
           <label>The phrase starts <button type="button" class="tip" data-tip="One question: you ask, she answers, she goes back to listening. A live call: a full voice call starts, until you hang up (needs live calls).">?</button> <select id="wk-starts"><option value="question">One question</option><option value="call">A live call</option></select></label>
           <label>Keep listening after her answer <button type="button" class="tip" data-tip="Listens a few seconds more for a follow-up without her name. The dot stays bright while it does. Off by default.">?</button> <select id="wk-follow"><option value="0">Off</option><option value="5">5 seconds</option><option value="8">8 seconds</option></select></label>
+          <label class="row"><input id="wk-quiet" type="checkbox"> Never in my quiet hours <button type="button" class="tip" data-tip="Her phrase doesn’t wake her during your quiet hours (Settings → Calls from her), on every device. Pressing Talk still works. Off by default.">?</button></label>
         </div>
       </div>
       <div class="sub-card wk-block">
@@ -2421,7 +2708,7 @@
       <p id="cl-note" class="muted small">Android: switch on Instant notifications (Connections → Phone and notifications) so the phone can ring. iPhone: rings while the app is open; otherwise a “Sara is calling” notification (needs your Apple push key, Settings → Phone and notifications).</p>
         </section>
         <section class="settings-page" data-page="her-pictures" data-group="Her" data-title="Pictures from her" hidden>
-      <p class="muted small page-lead">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with xAI Grok Imagine from her look, using your Grok subscription (or an xAI API key); she asks first unless you change <em>take_photo</em> above.</p>
+      <p class="muted small page-lead">Sara can send you photos of herself. Her own portraits cost nothing. New pictures are made with the picture engine you pick here; in a chat she asks first unless you change “Take a new photo” in Tools.</p>
       <label>Pictures
         <select id="ph-mode">
           <option value="off">Off</option>
@@ -2430,9 +2717,42 @@
         </select>
       </label>
       <div id="ph-new" hidden>
+        <label>Picture engine <button type="button" class="tip" data-tip="What makes her new pictures. Grok edits her own portrait, so her face stays the same. The others draw her from her description each time, so her face can vary a little.">?</button>
+          <select id="ph-engine">
+            <option value="grok">Grok Imagine (keeps her face)</option>
+            <option value="openai">OpenAI images</option>
+            <option value="comfyui">A ComfyUI workflow</option>
+            <option value="tool">Another image tool</option>
+          </select></label>
+        <div id="ph-grok">
         <label>xAI API key (optional) <input id="ph-key" type="password" autocomplete="off"></label>
         <label>Image model <input id="ph-model" placeholder="grok-imagine-image-quality"></label>
+        </div>
         <p id="ph-status" class="muted small"></p>
+        <div id="ph-comfy" hidden>
+          <label>ComfyUI tool server <button type="button" class="tip" data-tip="The connected ComfyUI tool server (Settings → Add-ons → Other programs (MCP)). Her pictures come back through it.">?</button> <select id="ph-comfy-server"></select></label>
+          <label>Saved in ComfyUI <button type="button" class="tip" data-tip="Pick a workflow you saved in ComfyUI. Sara reads it through the tool server, converted to API format, and keeps a copy. Pick it again after you change it in ComfyUI.">?</button> <select id="ph-comfy-saved"><option value="">Paste one below instead</option></select> <button id="ph-comfy-list" type="button" class="ghost small" data-noauto>Load the list</button></label>
+          <p id="ph-comfy-saved-status" class="muted small" role="status"></p>
+          <label>Workflow (API format) <button type="button" class="tip" data-tip="In ComfyUI open your workflow, then Workflow → Export (API) and paste the file here. Sara keeps a copy; leave it empty to keep the one saved.">?</button> <textarea id="ph-comfy-wf" rows="4" spellcheck="false"></textarea></label>
+          <label>Node that takes the prompt <button type="button" class="tip" data-tip="The text box her description goes into, usually the positive CLIP Text Encode. Her name, look, clothes and the scene are written there each time.">?</button> <select id="ph-comfy-node"></select></label>
+          <label class="row"><input id="ph-comfy-seed" type="checkbox"> New random seed each time <button type="button" class="tip" data-tip="On: every seed in the workflow is new for each picture, so no two pictures are the same. Off: the seeds stay as saved.">?</button></label>
+        </div>
+        <div id="ph-tool" hidden>
+          <label>Image tool <button type="button" class="tip" data-tip="Any connected tool that returns a picture. It must send the picture back to Sara, not only save it somewhere.">?</button> <select id="ph-tool-name"></select></label>
+          <label>Its prompt setting <button type="button" class="tip" data-tip="The name of the tool's setting that takes the description, as the tool lists it (often prompt).">?</button> <input id="ph-tool-arg"></label>
+        </div>
+        <h4>Pictures on her own</h4>
+        <label class="row"><input id="ph-own-on" type="checkbox"> She sends pictures on her own <button type="button" class="tip" data-tip="Now and then she sends you a picture of what she's doing, with one line, like a person would. Only in your own chat here, never at quiet hours, and it counts as one of her own messages for the day.">?</button></label>
+        <label class="row"><input id="ph-own-apps" type="checkbox"> Also send them to my chat apps <button type="button" class="tip" data-tip="Her pictures on her own also arrive as a picture in your own Telegram or Discord chat with her, if that app is connected. Off: they stay in the app only.">?</button></label>
+        <label>How often <button type="button" class="tip" data-tip="Never more than one a day. She skips it when you haven't written for a week or didn't answer her last message of her own.">?</button>
+          <select id="ph-own-often">
+            <option value="rarely">Rarely (about once a week)</option>
+            <option value="sometimes">Sometimes (2 or 3 a week)</option>
+            <option value="often">Often (about once a day)</option>
+          </select></label>
+        <label>Monthly limit <button type="button" class="tip" data-tip="At most this many pictures on her own in a month, also with Send one now. 0 stops them.">?</button> <input id="ph-own-cap" type="number" min="0" max="31" step="1"></label>
+        <p id="ph-own-cost" class="muted small"></p>
+        <p class="small"><button id="ph-own-test" type="button" data-noauto>Send one now</button> <span id="ph-own-status" class="muted small" role="status"></span></p>
       </div>
       <div id="ph-taken" class="ph-taken"></div>
         </section>
@@ -2635,31 +2955,6 @@
         </label>
       </div>
       <p class="muted small">Her character stays the same in every language, and what she remembers stays in the words it was said in. Grok voice and the speech API hear and speak these languages; voices made on this server (Piper, Kokoro) speak English only.</p>
-      <h3>Appearance (this device)</h3>
-      <div class="row-grid">
-        <label>Theme
-          <select id="ap-theme"><option value="dark">Night (default)</option><option value="light">Day</option><option value="system">Follow the system</option></select>
-        </label>
-        <label>Her replies appear
-          <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
-        </label>
-        <label>Text size in chat
-          <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
-        </label>
-        <label>Colour
-          <select id="ap-accent"><option value="rose">Rose</option><option value="lavender">Lavender</option><option value="ocean">Ocean</option><option value="forest">Forest</option><option value="amber">Amber</option><option value="mono">Graphite</option></select>
-        </label>
-        <label>Chat background
-          <select id="ap-chatbg"><option value="none">Plain</option><option value="glow">Soft glow</option><option value="dusk">Dusk</option><option value="dots">Dots</option><option value="stars">Night sky</option></select>
-        </label>
-        <label>Layout
-          <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
-        </label>
-        <label>Sessions shown
-          <select id="ap-sessions"><option value="5" data-raw>5</option><option value="8">8 (the default)</option><option value="10" data-raw>10</option></select>
-        </label>
-      </div>
-      <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
       <div id="ti-card" class="tidy-card tidy-stack ti-card">
         <h3>Session titles</h3>
         <label class="row"><input id="ti-auto" type="checkbox"> <span>Titles that grow <button type="button" class="tip" data-tip="She renames a chat from what it actually covered after a few messages, and again when the topic clearly changes. A title you type yourself is never changed.">?</button></span></label>
@@ -2690,6 +2985,89 @@
         </label>
         <p id="wb-state" class="muted small" role="status"></p>
       </div>
+        </section>
+        <!-- V1 (docs/ops/V1_DESIGN.md): Appearance is its own page; every choice is kept on this device. -->
+        <section class="settings-page" data-page="you-appearance" data-group="You" data-title="Appearance" hidden>
+      <p class="muted small">How Sara looks on this device. Each device keeps its own choice.</p>
+      <!-- V3 (docs/ops/V3_DESIGN.md §4): three groups and a live preview; the same ids and lists underneath. -->
+      <div class="ap-layout">
+      <div class="ap-main">
+      <div class="ap-group" role="group" aria-labelledby="ap-g-theme">
+        <div class="ap-group-h"><h3 id="ap-g-theme">Theme</h3><button id="ap-reset" type="button" class="ghost small">Reset to defaults</button></div>
+      <div class="row-grid">
+        <div class="ap-pal-row">
+        <label>Palette
+          <select id="ap-palette"><option value="graphite">Graphite (default)</option><option value="midnight">Midnight</option><option value="slate">Slate</option><option value="nord">Nord</option><option value="solarized">Solarized</option><option value="paper">Paper</option><option value="ember">Ember</option><option value="contrast">High contrast</option><option value="classic">Sara Classic</option></select>
+        </label>
+          <div class="ap-pals" id="ap-pals" role="radiogroup" aria-label="Palette"></div>
+        </div>
+        <label>Night or Day
+          <select id="ap-theme"><option value="dark">Night</option><option value="light">Day</option><option value="system">Follow the system (default)</option></select>
+        </label>
+        <div class="ap-colour-row">
+        <label>Colour
+          <select id="ap-accent"><option value="rose">Theme colour</option><option value="blue">Blue (default)</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="emerald">Emerald</option><option value="amber">Amber</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="red">Red</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
+        </label>
+          <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
+        </div>
+        <label id="ap-custom-row" class="ap-custom-row" hidden>Your colour
+          <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#3b82f6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#3b82f6"></span>
+        </label>
+        <label>Background motion
+          <select id="ap-motion"><option value="on">On: a faint light that moves with how busy she is (default)</option><option value="off">Off: still</option></select>
+        </label>
+        <label>Decoration
+          <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light (default)</option></select>
+        </label>
+      </div>
+      </div>
+      <div class="ap-group" role="group" aria-labelledby="ap-g-layout">
+        <div class="ap-group-h"><h3 id="ap-g-layout">Layout and text</h3></div>
+      <div class="row-grid">
+        <label>Layout
+          <select id="ap-density"><option value="comfy">Comfortable</option><option value="compact">Compact (more on screen)</option></select>
+        </label>
+        <label>Text size in chat
+          <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
+        </label>
+        <label>Her picture
+          <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait</option><option value="own">Your picture</option></select>
+        </label>
+        <p class="small muted ap-herpic-note">A picture shows round, with a thin ring that moves with her like the orb. <button id="ap-herpic-upload" type="button" class="linkish">Upload your picture of her</button></p>
+        <label>Show run details
+          <select id="ap-runs"><option value="folded">Folded (default)</option><option value="open">Open</option></select>
+        </label>
+        <label>Her picture in work views
+          <select id="ap-portrait"><option value="small">Small (default)</option><option value="large">Large</option><option value="hidden">Hidden</option></select>
+        </label>
+      </div>
+      </div>
+      <div class="ap-group" role="group" aria-labelledby="ap-g-chat">
+        <div class="ap-group-h"><h3 id="ap-g-chat">Chat behaviour</h3></div>
+      <div class="row-grid">
+        <label>Her replies appear
+          <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
+        </label>
+        <label>Sessions shown
+          <select id="ap-sessions"><option value="5">5 (the default)</option><option value="8" data-raw>8</option><option value="10" data-raw>10</option></select>
+        </label>
+        <label class="ap-classic-only">Chat background
+          <select id="ap-chatbg"><option value="none">Plain</option><option value="glow">Soft glow</option><option value="dusk">Dusk</option><option value="dots">Dots</option><option value="stars">Night sky</option></select>
+        </label>
+      </div>
+      </div>
+      </div>
+      <aside id="ap-preview" class="ap-preview" aria-label="Preview">
+        <p class="ap-preview-h">Preview</p>
+        <div class="ap-pv-box">
+          <div class="ap-pv-turn"><img class="avatar ap-pv-face" src="/sara-avatar.jpg" alt=""><span class="ap-pv-name">Sara</span> <span class="ap-pv-meta">now · 2 s</span></div>
+          <p class="ap-pv-text">Here is the plan for today. The build passed, so we can ship the alerts fix.</p>
+          <div class="ap-pv-card"><span class="ap-pv-dot"></span><span><strong>Build passed</strong> <span class="ap-pv-meta">142 tests · 38 s</span></span></div>
+          <div class="ap-pv-actions"><span class="ap-pv-btn ap-pv-primary">Ship it</span><span class="ap-pv-btn">Later</span><span class="ap-pv-chip" data-raw>fast-model · main</span></div>
+        </div>
+      </aside>
+      </div>
+      <p class="small ap-sync-row"><button id="ap-sync" type="button" class="ghost">Use on all my devices</button> <span id="ap-sync-state" class="muted small" role="status"></span></p>
         </section>
         <section class="settings-page" data-page="you-briefing" data-group="You" data-title="Morning briefing" hidden>
       <p class="muted small page-lead">Once a day at the time you pick, Sara sends a short message with the weather and what's on your list (due to-dos and reminders). It arrives like her other messages: in chat, as a notification and on Telegram/Discord if linked. Weather comes from Open-Meteo (free, no account).</p>
@@ -2779,6 +3157,7 @@
             <option value="20">20 of your messages</option>
           </select>
         </label>
+        <label class="row"><input id="lean-codemode" type="checkbox"> Code mode: one script for many tool calls <button type="button" class="tip" data-tip="She writes one short script that calls several tools at once and gets back only the result. Every call in it still asks you or is refused exactly as you set here. The script can't reach the internet or your files.">?</button></label>
         <label class="row"><input id="lean-localcore" type="checkbox"> Smaller list on models on this computer <button type="button" class="tip" data-tip="Models on this computer have the least room. With this on, her everyday list starts with 7 tools there; the rest is one look-up away.">?</button></label>
       </div>
       <div class="perm-legend" role="note" aria-label="What the three choices mean">
@@ -2789,6 +3168,18 @@
       <p class="muted small">Open a group to see each thing she can do, or set the whole group at once.</p>
       <div id="tool-list"></div>
       <label class="row"><input id="shell-network" type="checkbox"> Allow internet access for shell commands</label>
+      <h3>Isolation <button type="button" class="tip" data-tip="Where her commands and add-on jobs run. A container (Podman or Docker) sees only the workspace: not Sara's data, your files or the rest of the system. Linux keeps bubblewrap unless you pick a container.">?</button></h3>
+      <p id="iso-status" class="muted small" role="status"></p>
+      <label>Sandbox for commands and add-on jobs <select id="iso-backend"><option value="auto">Automatic</option><option value="native">This computer's own sandbox</option><option value="container">A container (Podman or Docker)</option></select> <button type="button" class="tip" data-tip="Automatic: bubblewrap on Linux, the macOS sandbox on a Mac, a container where neither exists (Windows). The container image must already be on this computer; Sara never downloads it.">?</button></label>
+      <p id="iso-engines" class="muted small"></p>
+      <div class="add-row"><button id="iso-recheck" type="button" class="ghost small">Look again</button><button id="iso-install" type="button" class="small" hidden>Install Docker for me</button></div>
+      <div id="iso-host" class="prq-host"></div>
+      <h3>Sites sandboxed work may reach <button type="button" class="tip" data-tip="With a list, commands and add-on jobs that have internet reach only these sites; every other site is refused and written to the audit trail. A key named after a site is added by Sara, so it never enters the sandbox.">?</button></h3>
+      <label>Which sites <select id="eg-mode"><option value="open">Any site</option><option value="allowlist">Only the sites listed below</option></select> <button type="button" class="tip" data-tip="Any site keeps today's behaviour. Only the sites listed: an empty list means no internet at all for sandboxed work.">?</button></label>
+      <label>Allowed sites, one per line <textarea id="eg-hosts" rows="4" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, *.example.com for its subdomains, example.com:8443 for another port. Add key=name to have Sara add the saved key of that name (send plain http:// to that site).">?</button></label>
+      <p id="eg-note" class="muted small"></p>
+      <div class="add-row"><button id="eg-save" type="button">Save</button></div>
+      <p id="iso-msg" class="muted small" role="status"></p>
       <h3>Your decisions</h3>
       <label class="row"><input id="contradict-on" type="checkbox"> Check her plans against what you decided</label>
       <label>When a plan goes against a decision <select id="contradict-mode"><option value="stop">Stop on clear conflicts</option><option value="mention">Only mention them</option></select></label>
@@ -2830,6 +3221,15 @@
         <button id="ghw-check" type="button" class="ghost">Look now</button>
       </div>
       <p id="ghw-status" class="muted small" role="status"></p>
+      <h3>Her commits <button type="button" class="tip" data-tip="Her commits end with a Co-authored-by line naming her, so GitHub shows who helped. Leave name and email empty for her name and an address that reaches nobody.">?</button></h3>
+      <label class="row"><input id="ca-on" type="checkbox"> Name her as co-author</label>
+      <div class="add-row">
+        <label>Name <input id="ca-name" maxlength="80"></label>
+        <label>Email <input id="ca-email" maxlength="254" type="email"></label>
+        <button id="ca-save" type="button">Save</button>
+      </div>
+      <p id="ca-status" class="muted small" role="status"></p>
+      <p id="ca-servers" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="ab-projects" data-group="Coding" data-title="Coding projects" data-owner-only hidden>
       <p class="muted small page-lead">What she knows about the code in each workspace: how to build and test it, its layout and rules, and the notes she keeps (decisions, conventions, commands). She looks again by herself every hour; coding conversations and her team use it.</p>
@@ -2912,6 +3312,9 @@
       <p id="bud-quick-note" class="muted small"></p>
       <label>At the limit <select id="bud-on-limit"><option value="wrap">Wrap up and tell me what's left</option><option value="ask">Ask me before going on</option></select></label>
       <p class="muted small">On a subscription (a ChatGPT, Claude or Grok sign-in) a spending limit can't be counted: you don't pay per token there. Tokens, steps and time still apply.</p>
+      <h3>Learning a topic <button type="button" class="tip" data-tip="The most she may spend each month on learning and refreshing topics (Library → What she has learned), counted as an estimate. When it is used up, new topics and refreshes wait for next month.">?</button></h3>
+      <label>Monthly learning budget <select id="learn-monthly"></select></label>
+      <p id="learn-used" class="muted small"></p>
       </div>
         </section>
                 <!-- Phase 119 (RECALL §3.3, §4.10): when it comes up (web/recall-when.js). -->
@@ -3058,6 +3461,7 @@
       <div id="plg-list" class="skl-list"></div>
       <h3 id="plg-builtin-head" hidden>Comes with Sara <button type="button" class="tip" data-tip="Plugins made by the Sara team that ship inside Sara. They install through the same card as any plugin, nothing is switched on by itself, and a newer one shows Update available.">?</button></h3>
       <div id="plg-builtin" class="skl-list"></div>
+      <div id="plg-discovery" class="addon-discovery" data-noauto></div>
       <p id="plg-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-home" data-group="Add-ons" data-title="Home Assistant" data-owner-only hidden>
@@ -3244,15 +3648,16 @@
       <p id="lib-settings-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="ab-mcp" data-group="Add-ons" data-title="Other programs (MCP)" data-owner-only hidden>
-      <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear above: ones the server marks as read-only run on their own, everything that sends, changes or deletes asks you first.</p>
+      <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear in Tools and approvals. Server read-only annotations can allow tools to run automatically; they do not guarantee approval for external effects or costs. Inspect permissions, choose Ask or Off, save, leave and reopen to verify them after discovery, reconnect and updates.</p>
       <p class="muted small store-more"><a class="store-link" href="https://backstagecoding.com/sara/store/" target="_blank" rel="noopener noreferrer">More in the Sara Store</a></p>
       <div id="mcp-list"></div>
       <details id="mcp-add" data-noauto>
         <summary>Add or update an MCP server</summary>
-        <label>Start from <select id="mcp-preset"><option value="">Blank</option></select></label>
+        <label id="mcp-preset-row">Start from <select id="mcp-preset"><option value="">Blank</option></select></label>
         <p id="mcp-preset-help" class="muted small" hidden></p>
         <label>Name <input id="mcp-name" placeholder="e.g. github" pattern="[a-z0-9][a-z0-9\-]*"></label>
-        <label>Type
+        <div id="mcp-recipe-fields" class="mcp-recipe-fields" hidden></div>
+        <label id="mcp-transport-row">Type
           <select id="mcp-transport">
             <option value="stdio">Command on this server (stdio)</option>
             <option value="http">Remote URL (streamable HTTP)</option>
@@ -3261,10 +3666,17 @@
         <label id="mcp-command-row">Command <input id="mcp-command" placeholder="npx"></label>
         <label id="mcp-args-row">Arguments <input id="mcp-args" placeholder="-y @modelcontextprotocol/server-github"></label>
         <label id="mcp-url-row" hidden>URL <input id="mcp-url" placeholder="https://example.com/mcp"></label>
-        <label>Secrets <textarea id="mcp-secrets" rows="3" placeholder="One per line: NAME=value (environment variables)&#10;header:Authorization=Bearer …&#10;Leave empty to keep current; NAME= deletes."></textarea></label>
+        <label id="mcp-secrets-row">Secrets <textarea id="mcp-secrets" rows="3" placeholder="One per line: NAME=value (environment variables)&#10;header:Authorization=Bearer …&#10;Leave empty to keep current; NAME= deletes."></textarea></label>
         <label class="row"><input id="mcp-enabled" type="checkbox" checked> Enabled</label>
+        <label class="row"><input id="mcp-apps" type="checkbox" checked> <span>Show its apps in the chat <button type="button" class="tip" data-tip="Some tool servers send a small interactive panel with a result (MCP Apps). It runs walled off from Sara: it can't see your data, and anything it asks to change waits for your OK. Turn off to get plain text only.">?</button></span></label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>
+      <h3>Programs add-ons need</h3>
+      <p class="muted small">Some add-ons need a program on the computer where Sara runs. Sara can install a missing one with this system's normal installer, after you approve the exact commands.</p>
+      <label class="row">Program installs <select id="prq-installs" data-nodirty><option value="ask">Ask first</option><option value="allowed">Allowed (one click)</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Ask first: Sara shows the exact commands and waits for Install. Allowed: Install it for me starts at once (you still see every command). Off: Sara never installs programs. Your admin's policy can tighten this.">?</button></label>
+      <p id="prq-status" class="small" role="status"></p>
+      <div id="prq-list" class="prq-list" data-noauto></div>
+      <div id="mcp-discovery" class="addon-discovery" data-noauto></div>
         </section>
         <section class="settings-page" data-page="co-phone" data-group="Connections" data-title="Phone and notifications" hidden>
       <div id="phone-app" hidden>
@@ -3466,7 +3878,45 @@
       <div id="im-box" class="wa-box"></div>
       </div>
         </section>
-                <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
+        <!-- EC1: Slack, a first-party plugin over Socket Mode (web/slack.js). -->
+        <section class="settings-page" data-page="co-slack" data-group="Chat apps" data-title="Slack" data-owner-only hidden>
+      <p class="muted small page-lead">Talk to her in Slack: her DMs, and the channels you choose when someone mentions her. You create a small Slack app from a manifest Sara gives you; Slack needs no address for Sara (Socket Mode). It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#slack" target="_blank" rel="noopener">How Slack works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Slack</h3><span id="sl-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="sl-box" class="wa-box"></div>
+      </div>
+        </section>
+        <!-- EC7: Microsoft Teams, a first-party plugin over the Bot Framework (web/teams.js). -->
+        <section class="settings-page" data-page="co-teams" data-group="Chat apps" data-title="Microsoft Teams" data-owner-only hidden>
+      <p class="muted small page-lead">Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her. You make a free Azure Bot and upload a small Teams app package Sara builds. Teams has to reach Sara at a public https address; the card helps if you have none. It comes with Sara as a plugin, is off until you add it, and the card checks each step with you. <a href="/help#teams" target="_blank" rel="noopener">How Teams works</a></p>
+      <div class="kit-card">
+      <div class="card-head"><h3>Microsoft Teams</h3><span id="te-chip" class="status-chip" role="status">Not set up</span></div>
+      <div id="te-box" class="wa-box"></div>
+      </div>
+        </section>
+        <!-- Owner session continuity settings. -->
+        <section class="settings-page" data-page="co-continuity" data-group="Chat apps" data-title="Session continuity" data-owner-only hidden>
+          <p class="muted small page-lead">Keep context between your own sessions with this companion. This is separate from Pick up across apps and While she's working.</p>
+          <div id="continuity-settings" class="tidy-card tidy-stack" hidden>
+            <h3>Session continuity</h3>
+            <label class="row"><input id="continuity-enabled" name="continuity-enabled" type="checkbox" aria-labelledby="continuity-enabled-label"> <span id="continuity-enabled-label">Use context across my sessions</span> <span><button type="button" class="tip" data-tip="On: eligible sessions can use recent context and saved notes. Off stops new continuity context; saved records stay. Notes are eligible for 24 hours; expired rows are pruned on the next write. Inspect or clear in This conversation.">?</button></span></label>
+            <label class="row">Replies at the same time <input id="continuity-parallel" name="continuity-parallel" type="number" min="1" max="8" step="1" inputmode="numeric"> <button type="button" class="tip" data-tip="How many of your chats the model can work on at once (1 to 8). Each chat still answers one step at a time and sees what the others have saved. Lower it if your model handles one request at a time.">?</button></label>
+            <p class="muted small">Turning this off keeps saved notes. Clear saved context in This conversation; original chats, old run records, exports and backups stay.</p>
+            <p class="muted small">Only your own eligible sessions with this companion take part. Notes are context, never proof that a message was delivered or work was checked.</p>
+            <p id="continuity-status" class="muted small" role="status"></p>
+            <p class="small"><a href="/help#session-continuity" target="_blank" rel="noopener">Read the session continuity guide ↗</a></p>
+          </div>
+          <!-- R1B1: shared roleplay scenes across your own chats (web/scenes.js). -->
+          <div id="scenes-settings" class="tidy-card tidy-stack" hidden>
+            <h3>Shared scenes <button type="button" class="tip" data-tip="A shared scene is a story she keeps across the chats you link: a title, a premise and a few canon facts. Raw messages are never copied between chats. Only you create, link and change it.">?</button></h3>
+            <label class="row"><input id="scenes-enabled" name="scenes-enabled" type="checkbox" aria-labelledby="scenes-enabled-label"> <span id="scenes-enabled-label">Use shared scenes in linked chats</span> <span><button type="button" class="tip" data-tip="On: linked chats see their scene in her replies. Off stops that everywhere and keeps every scene, so you can still look, unlink, reset or delete.">?</button></span></label>
+            <p class="muted small">Play one story across your own web chat and your own Telegram or Discord DMs. Only the scene's title, premise and canon move between them, never your messages.</p>
+            <div id="scenes-box" class="tidy-stack"></div>
+            <p id="scenes-status" class="muted small" role="status" aria-live="polite"></p>
+            <p class="small"><a href="/help#shared-scenes" target="_blank" rel="noopener">Read the shared scenes guide ↗</a></p>
+          </div>
+        </section>
+        <!-- Phase 119 (RECALL §3.3, §5.10): pick a chat up in another app (web/pickup.js). -->
         <section class="settings-page" data-page="co-pickup" data-group="Chat apps" data-title="Pick up across apps" data-owner-only hidden>
       <div id="pk-form">
       <p class="muted small page-lead">Carry our last conversation between apps: start on Telegram on the bus, open the app at home, and she knows what you were just talking about. Nothing is copied or merged; a chip shows it with Undo.</p>
@@ -3481,7 +3931,32 @@
       <p class="muted small">The app is always in. In any of your chats you can type /continue.</p>
       </div>
         </section>
-<section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
+<section class="settings-page" data-page="co-spotify" data-group="Connections" data-title="Spotify" data-owner-only hidden>
+      <p class="muted small page-lead">Let her search Spotify, see what you're listening to, your playlists and your favourites, and, if you allow it, play, pause, skip and queue songs. It uses a small Spotify developer app that <strong>you</strong> own, so nothing goes through anyone else.</p>
+      <p id="spo-status" class="muted small" role="status"></p>
+      <div id="spo-connected" class="add-row" hidden><button id="spo-disconnect" type="button" class="ghost">Disconnect Spotify</button></div>
+      <details id="spo-setup" data-noauto open>
+        <summary>Set it up (about 5 minutes, once)</summary>
+        <p class="muted small">Spotify only runs developer apps for people with Spotify Premium (since March 2026). Making the app is free.</p>
+        <ol class="small setup-steps">
+          <li>Open the <a href="https://developer.spotify.com/dashboard" target="_blank" rel="noopener">Spotify developer dashboard</a>, sign in and press "Create app" (any name, e.g. "Sara").</li>
+          <li>Under "Redirect URIs" add exactly:<br><code id="spo-redirect"></code> <button id="spo-copy" type="button" class="ghost small">Copy</button></li>
+          <li>Tick "Web API", accept the terms and press "Save".</li>
+          <li>Open the app's "Settings", copy the <strong>Client ID</strong> into the box below and press Save. No secret is needed.</li>
+          <li>Press <strong>Connect Spotify</strong> and allow access.</li>
+        </ol>
+        <p id="spo-redirect-warn" class="small warn" hidden>Spotify only accepts an https address here, or http://127.0.0.1. Open Sara through her https address (for example Tailscale Serve or your own domain) and set it up from there.</p>
+        <div class="add-row"><label>Client ID <input id="spo-client-id" autocomplete="off" spellcheck="false" maxlength="32" size="36" placeholder="32 letters and digits"></label><button id="spo-save" type="button">Save</button></div>
+      </details>
+      <h3>What she may do</h3>
+      <p class="muted small">She can always search and look. Anything more is up to you:</p>
+      <label class="row"><input id="spo-playlists" type="checkbox"> <span>Let her make and change playlists</span></label>
+      <label class="row"><input id="spo-playback" type="checkbox"> <span>Let her control playback</span></label>
+      <p id="spo-reconnect" class="small warn" hidden>You allowed more than your last sign-in. Press Connect Spotify again so Spotify asks you.</p>
+      <div class="add-row"><button id="spo-connect" type="button" disabled>Connect Spotify</button><button id="spo-forget" type="button" class="ghost small" hidden>Remove the Spotify app</button></div>
+      <p class="muted small">Disconnecting makes Sara forget the sign-in. To take her access away on Spotify's side too, open spotify.com/account/apps and remove it there.</p>
+        </section>
+        <section class="settings-page" data-page="co-apps" data-group="Connections" data-title="Other apps" hidden>
       <p class="muted small page-lead">Talk to her from other apps, with her own memory and personality: chat apps like SillyTavern and Open WebUI (they speak the OpenAI way), and MCP apps like Claude Code, Cursor and Claude Desktop (they can use her memory, planner, library and notes). Give each app its own API key. Her safety rules and the AI notice always apply.</p>
       <h3>Her addresses <button type="button" class="tip" data-tip="Paste these into the other app. The first is for chat apps that work with OpenAI (pick the model sara). The second is for MCP apps. If you reach her another way (Tailscale, your own web address), use that address instead.">?</button></h3>
       <p class="small">For chat apps (OpenAI-compatible): <code id="oa-v1"></code> <button id="oa-v1-copy" type="button" class="ghost small">Copy</button></p>
@@ -3610,6 +4085,9 @@
       <div id="hk-list" class="skl-list"></div>
       <div class="hk-keep" data-nodirty data-noauto><label><span>Keep the delivery log <button type="button" class="tip" data-tip="How long each webhook's log of deliveries is kept. Bodies are stored with secrets hidden and cut to 16 KB; older entries are deleted.">?</button></span> <select id="hk-keep"><option value="3">for 3 days</option><option value="7">for 7 days</option><option value="14" selected>for 14 days</option><option value="30">for 30 days</option><option value="90">for 90 days</option></select></label></div>
       <p id="hk-status" class="muted small" role="status"></p>
+      <!-- C4 (docs/ops/C4_DESIGN.md): "When this happens" event triggers (web/event-triggers.js). -->
+      <h3 id="et-h">When this happens <button type="button" class="tip" data-tip="A new email, a Slack or Teams message, a webhook delivery or a tool server event can start her work: your instruction or a crew, with the event as information. Daily caps and budgets apply, and changes still ask you.">?</button></h3>
+      <div id="et" class="et-box" data-nodirty data-noauto aria-labelledby="et-h"></div>
         </section>
         <!-- Phase 121 (BEGIN §5.10): the safety check-up (web/safety-check.js). Read-only until a fix is tapped. -->
         <section class="settings-page" data-page="dh-safety" data-group="Data & health" data-title="Safety check-up" data-owner-only hidden>
@@ -3637,6 +4115,95 @@
         </div>
       </dialog>
         </section>
+        <!-- EC4 (docs/ops/EC45_DESIGN.md): the audit trail (web/governance.js). Names, never values. -->
+        <section class="settings-page" data-page="dh-audit" data-group="Household" data-title="Audit trail" data-owner-only hidden>
+      <div class="au-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Who changed what, when and from where: settings, sign-ins, approvals and background work, for you and everyone in your household. Rows hold names, never values, keys or chat text. <button type="button" class="tip" data-tip="One row per change: who, what, where, the outcome and the policy in force. Rows are chained with SHA-256, so an edited or removed row shows up when you check the chain.">?</button></p>
+        <div class="au-filters">
+          <label>Who <button type="button" class="tip" data-tip="Only rows by you, a household member, an app with a device code or Sara herself (background work).">?</button> <select id="au-who"><option value="">Everyone</option><option value="owner">You</option><option value="member">Household members</option><option value="device">Apps</option><option value="system">Sara herself</option></select></label>
+          <label>What <button type="button" class="tip" data-tip="Only one kind of change, for example sign-ins, tool permissions or approvals.">?</button> <select id="au-action"><option value="">Everything</option><option value="settings">Settings</option><option value="tools">Tools and approvals settings</option><option value="approval">Approval cards</option><option value="providers">Model providers</option><option value="login">Sign-ins</option><option value="passkey">Passkeys</option><option value="devices">Devices</option><option value="household">Household</option><option value="store">Sara Store</option><option value="plugins">Plugins</option><option value="policy">Policy</option><option value="run">Background work</option><option value="audit">Audit trail</option></select></label>
+          <label>Where <button type="button" class="tip" data-tip="Only rows from one place: the web app, the phone or desktop app, a chat app, or Sara herself.">?</button> <select id="au-channel"><option value="">Anywhere</option><option value="web">Web app</option><option value="phone">Phone app</option><option value="desktop">Desktop app</option><option value="app">Apps with a device code</option><option value="telegram">Telegram</option><option value="discord">Discord</option><option value="system">Sara herself</option></select></label>
+          <label>Outcome <button type="button" class="tip" data-tip="Done, refused (sign-in failed, not allowed, or pinned by the policy), failed, or still waiting.">?</button> <select id="au-outcome"><option value="">Any</option><option value="ok">Done</option><option value="refused">Refused</option><option value="failed">Failed</option><option value="pending">Waiting</option></select></label>
+          <label>From <button type="button" class="tip" data-tip="Rows from this day on.">?</button> <input id="au-from" type="date"></label>
+          <label>To <button type="button" class="tip" data-tip="Rows up to the end of this day.">?</button> <input id="au-to" type="date"></label>
+        </div>
+        <div class="add-row"><button id="au-verify" type="button" class="ghost">Check the chain</button> <button type="button" class="tip" data-tip="Recomputes every row's SHA-256 link. If a row was edited, removed or the newest ones cut off, it says which row. Nothing is changed.">?</button> <span id="au-status" class="muted small" role="status"></span></div>
+        <div id="au-list" class="au-list"></div>
+        <h3>Export <button type="button" class="tip" data-tip="A ZIP with the rows that match the filters (JSONL or CSV) and a manifest with their SHA-256, the chain head and a signature made with this server's key.">?</button></h3>
+        <label class="row"><input id="au-content" type="checkbox"> Include message content <button type="button" class="tip" data-tip="Off: no message text at all. On: an approval card's short summary is added, with keys and passwords hidden. Only switch this on when a reviewer needs it.">?</button></label>
+        <div class="add-row"><button id="au-jsonl" type="button">Export JSONL</button> <button id="au-csv" type="button" class="ghost">Export CSV</button></div>
+        <h3>Keep</h3>
+        <label class="row">Keep the audit trail <select id="au-keep"><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="0">until I change this</option></select> <button type="button" class="tip" data-tip="Older rows are deleted after this. A row still waiting (a delivery not settled yet) and everything after it is always kept. Your admin's policy can pin this.">?</button></label>
+      </div>
+        </section>
+        <!-- EC17 (docs/ops/EC1617_DESIGN.md): retention, legal hold, one person's export and delete (web/data-rights.js). -->
+        <section class="settings-page" data-page="dh-retention" data-group="Household" data-title="Retention and legal hold" data-owner-only hidden>
+      <div class="dr-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">How long chats, memories and files are kept, a legal hold that stops every deletion, and a copy or deletion of one person's data. <button type="button" class="tip" data-tip="Nothing is deleted by default: every kind is kept until you change it. A hold beats everything here, including retention, the memory tidy and people deleting their own chats.">?</button></p>
+        <p id="dr-pinned" class="muted small" hidden>Your admin's policy keeps the whole server on hold.</p>
+        <h3>Keep</h3>
+        <label class="row">Keep chats <select id="dr-chats"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Conversations nobody has written in for this long are deleted on the hourly check, with their messages. Everyone on this server gets the same rule.">?</button></label>
+        <label class="row">Keep memories <select id="dr-memories"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Notes she has not changed or used for this long are deleted. Pinned memories are always kept.">?</button></label>
+        <label class="row">Keep files and photos <select id="dr-files"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Library files and chat photos added longer ago than this are deleted. Room archives stay.">?</button></label>
+        <p class="muted small">The audit trail has its own setting. <button id="dr-audit" type="button" class="ghost">Open the audit trail</button></p>
+        <h3>Legal hold <button type="button" class="tip" data-tip="While a hold is on, nothing of that person can be deleted: not by them, not by you, not by retention or the memory tidy. The audit trail is kept whole while any hold is on.">?</button></h3>
+        <label class="row"><input id="dr-instance" type="checkbox"> Hold everything on this server <button type="button" class="tip" data-tip="Every person's chats, memories and files, and the audit trail, are kept until you switch this off. Use it when you must preserve everything.">?</button></label>
+        <h3>People</h3>
+        <div id="dr-people" class="sl-list"></div>
+        <p id="dr-status" class="muted small" role="status"></p>
+        <h3>Edit history <button type="button" class="tip" data-tip="While a hold is on, changing a message or memory keeps the earlier text here too, so a hold keeps what was said, not only that it existed. It is in the person's data download and can't be changed.">?</button></h3>
+        <div id="dr-history" class="dr-history"></div>
+      </div>
+        </section>
+        <!-- EC5: the policy profile (web/governance.js). Pins only tighten; the server enforces them. -->
+        <section class="settings-page" data-page="dh-policy" data-group="Household" data-title="Policy" data-owner-only hidden>
+      <div class="po-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Pin rules for everyone on this server: you, every companion and every household member. A pinned setting shows as Set by your admin and cannot be changed, not even by you, until you change the policy here. <button type="button" class="tip" data-tip="Pins only make things stricter. Sara enforces them on the server: in the app, the API and chat commands. Every change to the policy is in the audit trail.">?</button></p>
+        <p id="po-state" class="muted small" role="status"></p>
+        <label class="row">Policy name <input id="po-name" type="text" maxlength="60" autocomplete="off"> <button type="button" class="tip" data-tip="Shown next to every pinned setting and in refusals, for example Family rules or Front desk.">?</button></label>
+        <h3>Allowed model providers <button type="button" class="tip" data-tip="Tick the kinds of model provider that may be used. None ticked: any provider. A provider of another kind can't be added, picked or used.">?</button></h3>
+        <div class="po-kinds">
+          <label><input type="checkbox" data-kind="openai-compatible"> OpenAI-compatible (Ollama, OpenAI…)</label>
+          <label><input type="checkbox" data-kind="anthropic"> Anthropic</label>
+          <label><input type="checkbox" data-kind="chatgpt"> ChatGPT subscription</label>
+          <label><input type="checkbox" data-kind="claude-code"> Claude Code subscription</label>
+          <label><input type="checkbox" data-kind="grok-cli"> Grok subscription</label>
+        </div>
+        <h3>Tools</h3>
+        <label class="row">Commands <select id="po-commands"><option value="">No limit</option><option value="ask">Always ask</option><option value="never">Never allow</option></select> <button type="button" class="tip" data-tip="The most her command tools (shell, running code) may do. Never allow hides them. Always ask beats every Always allow.">?</button></label>
+        <label class="row">Tool servers (MCP) <select id="po-mcp"><option value="">No limit</option><option value="ask">Always ask</option><option value="never">Never allow</option></select> <button type="button" class="tip" data-tip="The most any tool from a tool server may do, whatever the server's own choice (Always allow the safe ones, Everything).">?</button></label>
+        <label class="row"><input id="po-always" type="checkbox"> Turn off Always allow <button type="button" class="tip" data-tip="Approval cards stop offering Always allow this tool, and computer use can't be set to Always allowed. Every action asks as it would without it.">?</button></label>
+        <h3>Safety</h3>
+        <label class="row"><input id="po-adult" type="checkbox"> Keep adult mode off <button type="button" class="tip" data-tip="Adult mode is turned off for everyone now and can't be turned on.">?</button></label>
+        <label class="row"><input id="po-net" type="checkbox"> No internet for her commands <button type="button" class="tip" data-tip="Her shell commands never reach the internet (builds that download packages then fail).">?</button></label>
+        <label class="row"><input id="po-secrets" type="checkbox"> Server keys only from secret sources <button type="button" class="tip" data-tip="Model, chat app, voice and sign-in keys can only be references (env:, file:, vault:, op://, keychain:), never pasted into Sara's own vault. Keys already pasted keep working until replaced.">?</button></label>
+        <label class="row"><input id="po-container" type="checkbox"> Require the container sandbox <button type="button" class="tip" data-tip="Commands and add-on jobs run only in a container (Podman or Docker). Without a working one they are refused, never run unisolated.">?</button></label>
+        <label class="row"><input id="po-egress-on" type="checkbox"> Only these sites for sandboxed work <button type="button" class="tip" data-tip="Commands and add-on jobs reach only the sites listed here, whatever the owner chooses. An empty list means no internet for them at all.">?</button></label>
+        <label>Sites, one per line <textarea id="po-egress" rows="3" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, or *.example.com for its subdomains, or example.com:8443 for another port.">?</button></label>
+        <label class="row"><input id="po-local" type="checkbox"> Keep private local mode on <button type="button" class="tip" data-tip="Once Nothing leaves this computer is on, it can't be turned off. If it's off now, the safety check-up says so until you turn it on.">?</button></label>
+        <label class="row">Sara Store <select id="po-store"><option value="">No limit</option><option value="official">Signed Store items only</option><option value="off">No installs</option></select> <button type="button" class="tip" data-tip="Signed Store items only: no community items. No installs: nothing can be installed or updated from the Store.">?</button></label>
+        <label class="row">Replies at the same time <select id="po-parallel"><option value="">No limit</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="6">6</option><option value="8">8</option></select> <button type="button" class="tip" data-tip="The most chats one person's model can work on at once. They can choose fewer in Session continuity, never more. Busy chats wait their turn.">?</button></label>
+        <label class="row"><input id="po-learning" type="checkbox"> Turn off Learn a topic <button type="button" class="tip" data-tip="Sara learns no new topics or websites on this server and refreshes none. What she already learned stays as skills.">?</button></label>
+        <label class="row"><input id="po-workstyle" type="checkbox"> Turn off How she works with you <button type="button" class="tip" data-tip="Sara learns nothing about how people on this server like to work and uses none of what she learned. Their lists stay until they forget them.">?</button></label>
+        <label class="row">Hard daily spending cap <select id="po-spendcap"><option value="">No cap</option><option value="1">$1</option><option value="2">$2</option><option value="5">$5</option><option value="10">$10</option><option value="25">$25</option><option value="50">$50</option><option value="100">$100</option></select> <button type="button" class="tip" data-tip="Dollars a day across model calls and paid tools. Past it, paid tools such as new pictures stop until tomorrow, and nobody can allow one more call.">?</button></label>
+        <label class="row"><input id="po-phone" type="checkbox"> Turn off Phone as a helper <button type="button" class="tip" data-tip="Sara can never ask a phone or browser for its camera, location or screen on this server, and no device can be switched on for it.">?</button></label>
+        <label class="row"><input id="po-workmode" type="checkbox"> Keep work mode on everywhere <button type="button" class="tip" data-tip="Every chat on this server is a work chat, for every companion: work name and tone, work tools and work memory only, no moods, romance, adult content or pictures on her own.">?</button></label>
+        <label class="row"><input id="po-devapproval" type="checkbox"> Keep new-device approval on <button type="button" class="tip" data-tip="A sign-in from another address, a tunnel or a proxy waits until the owner approves it from a device already in use or from Telegram or Discord. Pinned, nobody can switch it off.">?</button></label>
+        <label class="row"><input id="po-codemode" type="checkbox"> Turn off Code mode <button type="button" class="tip" data-tip="No one on this server can turn on Code mode: she always calls her tools one at a time.">?</button></label>
+        <label class="row"><input id="po-meetings" type="checkbox"> Turn off meetings <button type="button" class="tip" data-tip="No one can start a meeting room or get notes from a recording: Sara never listens in a meeting. Notes already written stay in the Library.">?</button></label>
+        <label class="row"><input id="po-sharing" type="checkbox"> Turn off shared links <button type="button" class="tip" data-tip="No one can make a link to share a conversation, and links already made stop opening until this is unticked.">?</button></label>
+        <label class="row">Program installs <select id="po-programs"><option value="">No limit</option><option value="ask">Ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Programs add-ons need (Chrome, uv, Docker…). Ask first: Sara always shows the commands and waits. Off: Sara never installs programs on this server.">?</button></label>
+        <label class="row"><input id="po-editors" type="checkbox"> Turn off editors <button type="button" class="tip" data-tip="Code editors such as Zed and JetBrains can't use Sara as their coding agent: new editor sessions and editor turns are refused. Sara's own coding chats keep working.">?</button></label>
+        <label class="row"><input id="po-triggers" type="checkbox"> Turn off event triggers <button type="button" class="tip" data-tip="No &quot;When this happens&quot; triggers can be made or changed on this server, and none run. Owners can still pause them.">?</button></label>
+        <label class="row">Crews <select id="po-crews"><option value="">No limit</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Off: no crews or workers can be made, run, scheduled or started by mail on this server; workers' queues wait.">?</button></label>
+        <label class="row">Overnight memory tidy <select id="po-tidy"><option value="">No limit</option><option value="local">Models on this computer only</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Models on this computer only: the tidy never sends notes to a cloud model. Off: no overnight tidy for anyone on this server.">?</button></label>
+        <label class="row"><input id="po-hold" type="checkbox"> Keep the whole server on legal hold <button type="button" class="tip" data-tip="Nothing on this server can be deleted (chats, memories, files, people, audit rows) until this pin is removed. Retention waits too.">?</button></label>
+        <label class="row"><input id="po-nodelete" type="checkbox"> No deleting one person's data <button type="button" class="tip" data-tip="Retention and legal hold can't delete a household member's data. Removing them from the household still follows its own steps.">?</button></label>
+        <label class="row">Audit trail retention <select id="po-retention"><option value="">Not pinned</option><option value="30">30 days</option><option value="90">90 days</option><option value="365">A year</option><option value="0">Keep everything</option></select> <button type="button" class="tip" data-tip="Pins how long the audit trail is kept. Not pinned: you choose on the Audit trail page.">?</button></label>
+        <div class="add-row"><button id="po-save" type="button" class="primary">Save the policy</button> <button id="po-export" type="button" class="ghost">Export JSON</button> <button id="po-import" type="button" class="ghost">Import JSON</button> <button type="button" class="tip" data-tip="Export saves this policy as a JSON file; Import applies one, for setting up another server the same way. Importing replaces every pin.">?</button> <input id="po-file" type="file" accept="application/json,.json" hidden></div>
+        <p id="po-status" class="small" role="status"></p>
+      </div>
+        </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">
         <p class="small"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>
@@ -3656,9 +4223,66 @@
       <div id="hh-charts" class="hh-charts"></div>
       <h3>Recent problems</h3>
       <ul id="log-problems" class="log-list"></ul>
+      <p class="small"><label>Log level <button type="button" class="tip" data-tip="How much she writes to her log. Info is the default; Debug adds detail when tracking down a problem (bigger log); Warnings or Errors only keep it short. Secrets stay hidden. SARA_LOG_LEVEL on the server, if set, wins.">?</button> <select id="log-level"><option value="debug">Debug (most detail)</option><option value="info">Info (default)</option><option value="warn">Warnings and errors</option><option value="error">Errors only</option></select></label> <span id="log-level-env" class="muted small" hidden></span></p>
       <p class="small"><a id="log-download" href="/api/logs/download" download>Download the log</a> <span class="muted small">Secrets are hidden in it. Useful when asking for help.</span></p>
         </section>
-        <section class="settings-page" data-page="dh-recovery" data-group="Data & health" data-title="Recovery" data-owner-only hidden>
+        <section class="settings-page" data-page="dh-operations" data-group="Data & health" data-title="Operations" data-owner-only hidden>
+          <div id="operations-content" aria-live="polite"></div>
+          <!-- EC3 (docs/ops/EC3_DESIGN.md): monitoring for operators (web/monitoring.js). Off by default. -->
+          <div id="mon-box" class="mon-box" data-nodirty hidden>
+            <h3>Monitoring <button type="button" class="tip" data-tip="Put Sara on the dashboards you already run (Prometheus, Grafana, an OpenTelemetry collector). Only counts, timings, sizes, ids and names leave the server: never chat text, prompts, files or keys. Both are off until you switch them on.">?</button></h3>
+            <h4>Prometheus metrics</h4>
+            <p class="small"><label class="row"><input type="checkbox" id="mon-metrics"> <span>Serve metrics at <code>/metrics</code></span> <button type="button" class="tip" data-tip="Prometheus reads turns, reply and model timings, tokens and estimated cost, tool calls, approvals, errors, tool servers, chat apps, queues, database size and uptime. Off: the address does not exist.">?</button></label></p>
+            <p class="small"><label>Addresses that may read without a token <button type="button" class="tip" data-tip="Optional. IP addresses or ranges (10.0.0.5, 192.168.1.0/24), separated by commas, that may read /metrics with no token: for Prometheus on this computer or your private network. Everyone else needs the scrape token.">?</button> <input id="mon-allow" type="text" class="mon-wide" placeholder="127.0.0.1, 10.0.0.0/8" autocomplete="off" spellcheck="false"></label></p>
+            <p class="small"><span id="mon-token-state"></span> <button id="mon-token-new" type="button" class="ghost small">Make a scrape token</button> <button id="mon-token-del" type="button" class="ghost small danger" hidden>Remove the token</button> <button type="button" class="tip" data-tip="A long random password only for reading /metrics. It is kept in the encrypted vault and shown once: put it in a file next to Prometheus (credentials_file). Replacing it stops the old one at once.">?</button></p>
+            <div id="mon-token-show" class="mon-token" hidden>
+              <p class="small">The scrape token. It is shown once: save it next to Prometheus now.</p>
+              <code id="mon-token-value" class="sc-cmd"></code>
+              <p class="small"><button id="mon-token-copy" type="button" class="ghost small">Copy</button></p>
+            </div>
+            <p class="small"><button id="mon-scrape-copy" type="button" class="ghost small">Copy the scrape config</button> <a id="mon-dashboard" href="/api/telemetry/dashboard" download>Download the Grafana dashboard</a></p>
+            <pre id="mon-scrape" class="mon-pre"></pre>
+            <h4>OpenTelemetry traces</h4>
+            <p class="small"><label class="row"><input type="checkbox" id="mon-traces"> <span>Send traces</span> <button type="button" class="tip" data-tip="Each traced reply becomes one trace: the reply, each model call and each tool or tool-server call, with names, timings, token counts and outcomes. Sent after the reply over OTLP/HTTP; a collector that is down never slows her.">?</button></label></p>
+            <p class="small"><label>Collector address <button type="button" class="tip" data-tip="Your OpenTelemetry collector's OTLP/HTTP address, for example http://localhost:4318. Sara adds /v1/traces when it is missing.">?</button> <input id="mon-endpoint" type="url" class="mon-wide" placeholder="http://localhost:4318" autocomplete="off" spellcheck="false"></label></p>
+            <p class="small"><label>Share of replies traced <button type="button" class="tip" data-tip="How many replies get a trace: 10 % is plenty to see timings on a busy server; 100 % traces every reply. Whole replies are picked, never parts.">?</button> <input id="mon-sample" type="range" class="mon-wide" min="0" max="1" step="0.05"></label> <span id="mon-sample-val" class="muted"></span></p>
+            <p class="small"><label>Collector headers <button type="button" class="tip" data-tip="Optional, for collectors that need a key: one name: value per line. Kept in the encrypted vault and never shown again; leave empty and save to remove them.">?</button> <textarea id="mon-headers" rows="2" class="mon-wide" autocomplete="off" spellcheck="false"></textarea></label> <button id="mon-headers-save" type="button" class="ghost small">Save headers</button></p>
+            <p class="small"><button id="mon-test" type="button" class="ghost small">Send a test trace</button> <span id="mon-last" class="muted" role="status"></span></p>
+            <p id="mon-status" class="small error" role="alert"></p>
+          </div>
+          <!-- EC10 (docs/ops/EC10_DESIGN.md): where each server key comes from (web/secret-sources.js). Never a value. -->
+          <div id="ss-box" class="ss-box" data-nodirty hidden>
+            <h3>Secret sources <button type="button" class="tip" data-tip="Keys can live outside Sara: an environment variable, a mounted file, Vault or OpenBao, 1Password Connect or this computer's keychain. Type a reference such as env:OPENAI_KEY in any key field instead of the key.">?</button></h3>
+            <p class="muted small">Where each server key comes from and whether it can be read now. Values are never shown, kept in a backup or written to the log.</p>
+            <p id="ss-summary" class="muted small"></p>
+            <ul id="ss-list" class="ss-list"></ul>
+            <p class="small"><button id="ss-check" type="button" class="ghost small">Check now</button> <button type="button" class="tip" data-tip="Reads every reference again at once, for example after you changed a key in Vault or 1Password. Otherwise Sara reads them again by herself after a few minutes.">?</button> <span id="ss-status" class="muted" role="status"></span></p>
+            <details class="small ss-how"><summary>How to write a reference</summary>
+              <ul class="ss-syntax">
+                <li><code>env:OPENAI_KEY</code> <span>An environment variable of the server.</span></li>
+                <li><code>file:/run/secrets/openai</code> <span>A file, for example a Docker or Kubernetes secret.</span></li>
+                <li><code>vault:secret/sara#openai</code> <span>HashiCorp Vault or OpenBao (KV version 2), with VAULT_ADDR and VAULT_TOKEN set on the server.</span></li>
+                <li><code>op://Servers/OpenAI/credential</code> <span>1Password Connect, with OP_CONNECT_HOST and OP_CONNECT_TOKEN set on the server.</span></li>
+                <li><code>keychain:sara/openai</code> <span>This computer's keychain (service and account).</span></li>
+                <li><code>cmd:op read op://Servers/OpenAI/credential</code> <span>A command that prints the key (only when the server allows commands).</span></li>
+                <li><code>env:KEY_A | env:KEY_B</code> <span>Several keys: when the provider refuses one, the next is used.</span></li>
+              </ul>
+            </details>
+          </div>
+        </section>
+        <!-- EC28 (docs/ops/EC1828_DESIGN.md): readiness on top (web/readiness.js), interrupted work below (web/recovery.js). -->
+        <section class="settings-page" data-page="dh-recovery" data-group="Data & health" data-title="Readiness and recovery" data-owner-only hidden>
+          <div id="rd-box" class="rd-page" data-noauto data-nodirty hidden>
+            <p class="muted small">It only reads; nothing changes until you tap a fix. <button type="button" class="tip" data-tip="Built from Health, the safety check-up, Backups, Operations and the audit trail. Listing the model's models is the only call it makes, and it costs nothing.">?</button></p>
+            <div class="add-row"><button id="rd-again" type="button" class="ghost">Check again</button> <span id="rd-status" class="muted small" role="status"></span></div>
+            <div id="rd-verdict" class="sc-verdict rd-verdict" role="status"></div>
+            <ul id="rd-list" class="rd-list"></ul>
+            <h3>Restore drill <button type="button" class="tip" data-tip="Restores the newest backup into a throwaway folder, checks every database and the vault, starts the copy on this computer only with everything that acts switched off, then deletes it. Your live data is never touched.">?</button></h3>
+            <p class="muted small">Proof, not a promise: how long a restore takes and how much a restore now would lose.</p>
+            <div class="add-row"><button id="rd-drill" type="button" class="primary">Run a restore drill</button> <span id="rd-drill-status" class="muted small" role="status"></span></div>
+            <p id="rd-drill-last" class="small"></p>
+          </div>
+          <h3>Interrupted work</h3>
           <p class="page-lead">Review interrupted work and uncertain native message outcomes before deciding what to do next.</p>
           <div id="recovery-content" aria-live="polite"></div>
         </section>
@@ -3681,12 +4305,29 @@
         </div>
         <p id="pair-done" class="small" role="status"></p>
       </div>
+      <div id="hd-box" class="hd-box" data-nodirty hidden>
+        <h3>Phone as a helper <button type="button" class="tip" data-tip="Sara may ask this phone or browser for one picture, its location or one screen picture when you ask her for help. Each time it shows a full-screen prompt here: nothing is taken unless you tap Allow once.">?</button></h3>
+        <label class="row"><input id="hd-on" type="checkbox"> Sara may ask this device for its camera, location or screen <button type="button" class="tip" data-tip="Only while Sara is open on this device, never in the background. Location is approximate (about 1 km) unless she asks for the exact spot, and the prompt says which. Signing this device out turns it off.">?</button></label>
+        <p id="hd-pinned" class="muted small" hidden>Turned off by your admin's policy.</p>
+        <p id="hd-devices" class="muted small"></p>
+        <p id="hd-status" class="small" role="status"></p>
+      </div>
       <div id="devreq-box" class="devreq-box" data-nodirty hidden>
         <h3>Apps asking to sign in <button type="button" class="tip" data-tip="The terminal client (sara-chat) and the VS Code extension sign in with a short code instead of the owner token. Approve only a code you see in your own terminal or editor right now. Each app is then listed below and can be signed out there.">?</button></h3>
         <ul id="devreq-list" class="dev-list"></ul>
       </div>
       <p class="muted small">Every browser, phone or app signed in to Sara. Sign out any you don't recognize or no longer use.</p>
       <ul id="dev-list" class="dev-list"></ul>
+      <div id="dap-box" class="dap-box" data-nodirty data-noauto data-owner-only>
+        <h3>Approve new devices <button type="button" class="tip" data-tip="A sign-in from another address, through a tunnel or a proxy waits for your OK: type the 5-character code it shows here on a device you already use, or reply approve and the code to her in Telegram or Discord. 10 minutes without an answer is a no.">?</button></h3>
+        <p id="dap-notice" class="dap-notice small" hidden>New: approve new devices from chat. It stays off on this server until you turn it on, so nobody is locked out. <button id="dap-notice-ok" type="button" class="ghost small">Got it</button></p>
+        <label class="row"><input id="dap-on" type="checkbox"> Ask me before a new device signs in from elsewhere <button type="button" class="tip" data-tip="On: password or passkey sign-ins from another computer, a tunnel or a proxy wait for your approval, and from such a device, Always allow, a new password, add-ons from a web address, chat tokens and updates ask you first.">?</button></label>
+        <label class="row">Devices at most <select id="dap-max"><option value="0">No limit</option><option value="3">3</option><option value="5">5</option><option value="10">10</option><option value="20">20</option></select> <button type="button" class="tip" data-tip="When a new sign-in goes over this number, the device you used longest ago is signed out. API keys, apps for Home Assistant and Sara's hands don't count. Unused for 30 days, a device is signed out anyway.">?</button></label>
+        <label class="row">Allowed addresses <input id="dap-hosts" maxlength="600" placeholder="sara.example.com, .ts.net"> <button type="button" class="tip" data-tip="The names this server answers to besides localhost and IP addresses, comma separated; .example.com allows its subdomains. Leave empty to allow any name that comes through a proxy. Other names get no answer (DNS rebinding).">?</button></label>
+        <p class="actions-left"><button id="dap-save" type="button" class="small">Save</button></p>
+        <ul id="dap-list" class="dev-list"></ul>
+        <p id="dap-status" class="muted small" role="status"></p>
+      </div>
       <p class="actions-left"><button id="dev-others" type="button" class="ghost small">Sign out all other devices</button> <button id="logout" type="button" class="ghost small">Sign out of this device</button></p>
       <details data-owner-only>
         <summary class="small">Make a new owner token</summary>
@@ -3831,11 +4472,74 @@
       <p class="muted small page-lead">New versions bring fixes and new things to do. Updating makes a backup first, then installs and restarts Sara (about a minute; conversations in progress stop). If the new version doesn't start properly, Sara goes back to the version she had by herself.</p>
       <p><strong id="up-version"></strong></p>
       <p id="up-message" class="small" role="status"></p>
+      <p id="up-auto" class="muted small" hidden></p>
       <ul id="up-changes" class="small" hidden></ul>
       <p class="actions-left"><button id="up-check" type="button" class="ghost">Check for updates</button> <button id="up-go" type="button" hidden>Update now</button></p>
       <p class="small"><a id="up-whatsnew" href="https://github.com/farena-ai/sara/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">What's new in each version ↗</a></p>
       <p id="up-download-row" hidden><a id="up-download" class="button" target="_blank" rel="noopener noreferrer" href="https://github.com/farena-ai/sara/releases/latest">Download the new version</a></p>
       <p id="up-manual" class="muted small" hidden><span data-admin-when="known">To update her: <code data-admin="update">sudo sara update</code>.</span><span data-admin-when="unknown">This server updates from the command line. On the server run <code>sudo sara update</code> (Docker: <code>docker compose pull &amp;&amp; docker compose up -d</code>).</span></p>
+        </section>
+        <!-- EC11: links the owner shared (web/sharing.js). -->
+        <section class="settings-page" data-page="dh-shares" data-group="Household" data-title="Shared links" hidden>
+      <div class="sl-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Conversations you shared as read-only links. Revoke a link and it stops working at once. <button type="button" class="tip" data-tip="Make a link from a chat's settings (Share…). Each link is a copy made when you shared it; it expires by itself.">?</button></p>
+        <p id="sl-pinned" class="muted small" hidden>Shared links are turned off by your admin's policy.</p>
+        <p id="sl-members-off" class="muted small" hidden>The owner has turned off share links for household members. Your links below don't open until it is on again; you can still revoke them.</p>
+        <label class="row" data-owner-only><input id="sl-private" type="checkbox"> Allow sharing private chats <button type="button" class="tip" data-tip="Off: private chats, and every chat while private local mode is on, can't be shared. Off-the-record chats and chats with other people are never shared.">?</button></label>
+        <label class="row" data-owner-only><input id="sl-members" type="checkbox"> Household members can share their own chats <button type="button" class="tip" data-tip="On: each member can make links of their own chats, with the same hiding, expiry and refusals as yours. Off: they can't make new ones and their existing links stop opening. You never see their chats or titles.">?</button></label>
+        <p id="sl-member-count" class="muted small" data-owner-only hidden></p>
+        <div id="sl-list" class="sl-list"></div>
+      </div>
+        </section>
+        <!-- EC15: usage and cost reports (web/usage-report.js). Members see only their own. -->
+        <section class="settings-page" data-page="dh-usage-report" data-group="Household" data-title="Usage reports" hidden>
+      <div class="ur-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">Tokens and estimated cost from every model call, by day, week or month. <button type="button" class="tip" data-tip="Counted from the same records as Usage and costs. Costs are estimates from your price table; local and subscription models count as $0. Household members only see their own.">?</button></p>
+        <div class="ur-filters">
+          <label>Show <select id="ur-period"><option value="day">Daily</option><option value="week">Weekly</option><option value="month">Monthly</option></select> <button type="button" class="tip" data-tip="One row per day, per week (starting Monday) or per month, in your time zone.">?</button></label>
+          <label>From <input id="ur-from" type="date"> <button type="button" class="tip" data-tip="Empty: the last 30 days.">?</button></label>
+          <label>To <input id="ur-to" type="date"> <button type="button" class="tip" data-tip="Empty: up to now.">?</button></label>
+        </div>
+        <h3>Split by <button type="button" class="tip" data-tip="Tick what each row is split by. Workspace and project come from the chat a call was made in; work outside a chat shows as none.">?</button></h3>
+        <div class="ur-by">
+          <label><input type="checkbox" data-by="person" checked> Who</label>
+          <label><input type="checkbox" data-by="workspace"> Workspace</label>
+          <label><input type="checkbox" data-by="project"> Project</label>
+          <label><input type="checkbox" data-by="model"> Model</label>
+        </div>
+        <p id="ur-total" class="small" role="status"></p>
+        <div class="ur-table-wrap"><table id="ur-table" class="ur-table"></table></div>
+        <p><button id="ur-csv" type="button" class="ghost">Download CSV</button></p>
+        <div id="ur-budgets-box" data-owner-only hidden>
+          <h3>Monthly budgets <button type="button" class="tip" data-tip="A budget per person or workspace for each calendar month. You get a notification when it is nearly used and when it is reached. Daily limits for household members still stop them.">?</button></h3>
+          <div id="ur-budgets" class="ur-budgets"></div>
+          <div class="add-row">
+            <label>For <select id="ur-b-key"></select></label>
+            <label>$ <input id="ur-b-usd" type="number" min="0" step="1" class="num-narrow" placeholder="none"></label>
+            <label>or tokens <input id="ur-b-tokens" type="number" min="0" step="100000" class="num-narrow" placeholder="none"></label>
+            <label>Warn at <select id="ur-b-alert"><option value="0.5">50%</option><option value="0.75">75%</option><option value="0.8" selected>80%</option><option value="0.9">90%</option></select> <button type="button" class="tip" data-tip="You are told once when this share of the budget is used, and once more when it is reached.">?</button></label>
+            <button id="ur-b-add" type="button" class="ghost">Add budget</button>
+          </div>
+          <p id="ur-b-error" class="error" role="alert"></p>
+        </div>
+      </div>
+        </section>
+        <!-- EC25: the trust report (web/trust-report.js). Owner only. -->
+        <section class="settings-page" data-page="dh-trust" data-group="Household" data-title="Trust report" data-owner-only hidden>
+      <div class="tr-page" data-noauto data-nodirty>
+        <p class="muted small page-lead">What Sara said, set against what actually ran: flagged claims, tool calls and their outcomes, approvals, refusals, the sandbox, sources and the audit trail. <button type="button" class="tip" data-tip="Built from the run records, the receipts check, research runs and the audit trail Sara already keeps. Nothing is sent anywhere. Message text is left out except a flagged sentence.">?</button></p>
+        <div class="tr-filters">
+          <label>Report on <select id="tr-scope"><option value="week">A week</option><option value="run">One run</option><option value="project">One project</option></select> <button type="button" class="tip" data-tip="A week: everything from the day you pick, for seven days. One run: one chat turn, job or team task by its number. One project: every chat in that project.">?</button></label>
+          <label id="tr-from-box">From <input id="tr-from" type="date"> <button type="button" class="tip" data-tip="The first day of the week. Empty: the last seven days, today included.">?</button></label>
+          <label id="tr-run-box" hidden>Run number <input id="tr-run" type="number" min="1" step="1" class="num-narrow"> <button type="button" class="tip" data-tip="The number shown in a reply's run details (Inspect this reply).">?</button></label>
+          <label id="tr-project-box" hidden>Project <select id="tr-project"></select> <button type="button" class="tip" data-tip="Runs from every chat in this project. Background jobs outside a chat show in a week's report.">?</button></label>
+          <button id="tr-show" type="button">Show</button>
+        </div>
+        <p id="tr-status" class="small" role="status"></p>
+        <div id="tr-report" class="tr-report"></div>
+        <h3>Download <button type="button" class="tip" data-tip="The same report as one document for a reviewer, in English. Each download is written to the audit trail.">?</button></h3>
+        <div class="add-row"><button id="tr-md" type="button" class="ghost">Markdown</button> <button id="tr-pdf" type="button" class="ghost">PDF</button> <button id="tr-docx" type="button" class="ghost">Word</button></div>
+      </div>
         </section>
         <section class="settings-page" data-page="dh-usage" data-group="Data & health" data-title="Usage and costs" data-owner-only hidden>
       <div class="add-row" data-nodirty>
@@ -3856,6 +4560,24 @@
         <label>Each job: tokens <input id="usage-job-tok" type="number" min="0" step="10000" class="num-narrow" placeholder="none"></label>
         <label>or $ <input id="usage-job-usd" type="number" min="0" step="0.5" class="num-narrow" placeholder="none"></label>
         <label>Each team task: $ <input id="usage-team-usd" type="number" min="0" step="0.5" class="num-narrow" placeholder="none"></label>
+      </div>
+      <!-- C8: spend limits and Token Saver (web/spend.js). -->
+      <div id="sp-box" class="sp-box" data-nodirty data-noauto>
+        <h3>Spend limits <button type="button" class="tip" data-tip="Dollars a day and a month, counting model calls and paid tools together (estimates from your prices). At a limit, paid tools such as new pictures stop and ask you; you can allow one call on its card. Empty: no limit.">?</button></h3>
+        <div class="add-row">
+          <label>Each day $ <input id="sp-day" type="number" min="0" step="0.5" class="num-narrow" placeholder="none"></label>
+          <label>Each month $ <input id="sp-month" type="number" min="0" step="1" class="num-narrow" placeholder="none"></label>
+        </div>
+        <p id="sp-now" class="small muted" role="status"></p>
+        <p id="sp-cap" class="muted small" hidden></p>
+        <h3>Tools that cost money <button type="button" class="tip" data-tip="Her tools with a price per call: pictures from Grok or OpenAI, and add-ons that say they cost money. The card shows the price before it runs. Give one its own daily limit here.">?</button></h3>
+        <ul id="sp-tools" class="usage-list sp-tools"></ul>
+        <h3>Token Saver <button type="button" class="tip" data-tip="On: shorter replies, a smaller part of the chat sent each time, fewer tool steps, and the Quick model when you set one. Auto: turns on by itself near your daily line and off at the daily reset. Off: nothing changes.">?</button></h3>
+        <label class="row">Mode <select id="sp-saver"><option value="off">Off</option><option value="on">On</option><option value="auto">Auto</option></select> <button type="button" class="tip" data-tip="You can also send /saver on, /saver off or /saver auto in any chat with her.">?</button></label>
+        <label class="row" id="sp-saver-line-row" hidden>Daily line <select id="sp-saver-tokens"></select> <button type="button" class="tip" data-tip="Auto turns on at 80% of this many tokens today, or of your daily $ limit, whichever comes first, and off again below 60% or at midnight.">?</button></label>
+        <p id="sp-saver-state" class="small muted" role="status"></p>
+        <p><button id="sp-save" type="button" class="ghost">Save spend settings</button></p>
+        <p id="sp-error" class="error" role="alert"></p>
       </div>
       <h3>Prices per model <button type="button" class="tip" data-tip="Dollars per million tokens, from your provider's price page. A few public list prices come built in (checked when this version was made); your rows win. Models with no price show tokens only. Local and subscription models never get a price.">?</button></h3>
       <p class="muted small">Input, output and cached-input prices in US dollars per million tokens.</p>
@@ -3942,7 +4664,7 @@
         <p id="settings-empty" class="muted" hidden>Nothing matches. Try another word.</p>
         </div>
         <p id="settings-error" class="error" role="alert"></p>
-        <div class="actions settings-actions"><span id="settings-hint" class="muted small">Changes save by themselves.</span></div>
+        <div class="actions settings-actions"><span id="settings-hint" class="muted small">Most settings save automatically. Use Save or confirmation buttons where shown.</span></div>
       </div>
     </form>
   </dialog>

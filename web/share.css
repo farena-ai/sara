@@ -1,0 +1,15 @@
+/* EC11: the public read-only page of a shared conversation (src/routes/share.ts). No script.
+   Colours come from theme.css (loaded first). */
+body { margin: 0; background: var(--surface-0); color: var(--text-1); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.sh-page { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+.sh-head h1 { font-size: 1.5rem; margin: 0 0 6px; overflow-wrap: anywhere; }
+.sh-ai, .sh-meta { color: var(--text-2); font-size: 0.9rem; margin: 2px 0; }
+.sh-head { border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 16px; }
+.sh-msg { background: var(--surface-1); border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px; margin: 10px 0; }
+.sh-user { background: var(--accent-soft); }
+.sh-tool { background: var(--surface-2); font-size: 0.9rem; }
+.sh-who { font-size: 0.8rem; font-weight: 600; color: var(--text-2); margin: 0 0 4px; }
+.sh-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.sh-tool .sh-text { font-family: var(--font-mono); }
+.sh-pic { display: block; max-width: 100%; max-height: 420px; border-radius: 8px; margin-top: 8px; }
+.sh-gone { text-align: center; color: var(--text-2); margin-top: 20vh; }

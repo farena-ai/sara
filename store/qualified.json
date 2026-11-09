@@ -1,0 +1,824 @@
+{
+ "about": "EC27: where and when each Sara Store entry last passed a real install (docs/ops/EC2527_DESIGN.md). `record` names the private qualification record and is never published; the publisher writes v1/qualified.json from the other fields. Update with `sara addons requalify`.",
+ "items": {
+  "weather-alerts": {
+   "version": "2.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "focus": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "comfyui": {
+   "version": "1.0.1",
+   "at": "2026-11-07",
+   "sara": "2.80.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "connect",
+    "install",
+    "remove",
+    "run",
+    "update"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "home-scenes": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "github-digest": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "partial",
+    "linux": "partial"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "reading-list": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "webhook-notes": {
+   "version": "2.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "settings",
+    "signed-hash"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "blender": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "partial"
+   },
+   "checks": [
+    "connect",
+    "install",
+    "remove"
+   ],
+   "record": "docs/ops/Q_ADDONS_MCP.md"
+  },
+  "playwright": {
+   "version": "1.0.1",
+   "at": "2026-11-07",
+   "sara": "2.80.0",
+   "os": {
+    "windows": "pass",
+    "linux": "partial"
+   },
+   "checks": [
+    "connect",
+    "install",
+    "remove",
+    "run",
+    "update"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "github": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "partial",
+    "linux": "partial"
+   },
+   "checks": [
+    "install",
+    "remove"
+   ],
+   "record": "docs/ops/Q_ADDONS_MCP.md"
+  },
+  "filesystem": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "partial"
+   },
+   "checks": [
+    "connect",
+    "install",
+    "remove",
+    "run",
+    "write"
+   ],
+   "record": "docs/ops/Q_ADDONS_MCP.md"
+  },
+  "context7": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "connect",
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_MCP.md"
+  },
+  "secret-scanner": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "license-auditor": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "sbom-builder": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "artifact-provenance-verifier": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "coverage-explorer": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "log-explorer": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "incident-workbench": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "environment-config-doctor": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "database-fixture-studio": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "data-contract-validator": {
+   "version": "1.0.1",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run",
+    "signed-hash",
+    "update"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "change-impact-analyzer": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "architecture-guard": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "sql-migration-reviewer": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "visual-regression": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "localization-qa": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "accessibility-auditor": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "build-cache-inspector": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "api-contract-guard": {
+   "version": "0.1.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "http-webhook-workbench": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.79.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "install",
+    "remove",
+    "run"
+   ],
+   "record": "docs/ops/Q_ADDONS_NATIVE.md"
+  },
+  "juniper": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "rowan": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "vesper": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "jax": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "marisol": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "elodie": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "kenji": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "dex": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "lucia": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "priya": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "wren": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "hollis": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "ines": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "tavi": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "nia": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "ambrose": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "bram": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "zara": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "arjun": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "theodora": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  },
+  "kestrel": {
+   "version": "1.0.0",
+   "at": "2026-11-07",
+   "sara": "2.81.0",
+   "os": {
+    "windows": "pass",
+    "linux": "pass"
+   },
+   "checks": [
+    "add",
+    "install",
+    "retire",
+    "signed-hash"
+   ],
+   "record": "docs/ops/DEVELOPER_ADDONS_SIGNED_QUALIFICATION.md"
+  }
+ }
+}

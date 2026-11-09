@@ -22,7 +22,7 @@
   "includes": {
     "persona": true,
     "dials": true,
-    "look": "none",
+    "look": "portrait",
     "closet": 0,
     "reference": 0,
     "voice": true,
@@ -42,7 +42,7 @@
     }
   ],
   "needs": {
-    "pictures": true,
+    "pictures": false,
     "voices": [
       "kokoro:0"
     ]

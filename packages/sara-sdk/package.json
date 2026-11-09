@@ -1,0 +1,32 @@
+{
+  "name": "sara-sdk",
+  "version": "0.1.0",
+  "description": "A small, dependency-free TypeScript client for Sara's HTTP API: device sign-in, streamed chat, approvals, files, the OpenAI-compatible /v1 and webhook verification.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "prepack": "tsc -p tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/farena-ai/FrankWeather.git",
+    "directory": "packages/sara-sdk"
+  },
+  "keywords": ["sara", "ai", "companion", "assistant", "sdk", "client"]
+}

@@ -1,7 +1,10 @@
+import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 // Entry point: `node src/main.ts`. Admin flags (the `sara` command on each system wraps them):
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
 //   --tailscale-status (JSON, for the installers' "How will you reach her?" question)
+import { initialDeviceApproval } from './device-approval.ts';
 import { netFetch } from './net-guard.ts';
+import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import { StoryWorker } from './story.ts';
 import { JobManager } from './jobs.ts';
@@ -11,9 +14,15 @@ import { createBrowserTools } from './tools/browser.ts';
 import { PreviewManager } from './preview.ts';
 import { BrowserManager } from './browser.ts';
 import { GoogleAccount, googleApiBase } from './google.ts';
+import { SpotifyAccount, spotifyApiBase } from './spotify.ts';
+import { createSpotifyTools } from './tools/spotify.ts';
 import { GmailOrganizer } from './gmail-organize.ts';
 import { createGmailOrganizeTools } from './tools/gmail-organize.ts';
 import { createGitHubTools } from './tools/github.ts';
+import { createWorktreeTools } from './tools/worktrees.ts';
+import { createLspTools } from './tools/lsp.ts';
+import { gitRunner, Worktrees } from './worktrees.ts';
+import { LspEngine } from './lsp.ts';
 import { createHomeTools } from './tools/home.ts';
 import { createGoogleTools } from './tools/google.ts';
 import { WeeklyWorker } from './weekly.ts';
@@ -24,7 +33,7 @@ import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } 
 import { createSuggestRoutineTool } from './routines.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { OwnerAuth } from './auth.ts';
 import { claimModeFrom, claimWindowMs, FirstClaim, formatClaimCode } from './claim.ts';
 import { vaultKeyFor, type AppContext } from './chat.ts';
@@ -47,6 +56,9 @@ import { priceTable, UsageStore } from './usage.ts';
 import { RunStore, runSettings } from './runs.ts';
 import { createStarterTool } from './starters.ts';
 import { createProjectNoteTool, ProjectKnowledgeStore } from './projectknow.ts';
+import { createProjectCheckpointTool } from './project-checkpoints.ts';
+import { createSessionContinuityTools } from './session-continuity-tools.ts';
+import { createSceneCanonTools } from './shared-scenes-tools.ts';
 import { createSettingsGuideTool } from './settingsguide.ts';
 import { findToolsTool } from './lean.ts';
 import { createReviewTools } from './codereview.ts';
@@ -55,6 +67,17 @@ import { createPlannerTools, PlannerStore, type Reminder } from './planner.ts';
 import { fileChannelChats } from './bridges/rooms.ts';
 import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
+import { Watches } from './watch.ts';
+import { Research } from './research.ts';
+import { Learning } from './learn.ts';
+import { runAutoUpdates } from './addon-autoupdate.ts';
+import { storeAutoUpdateDeps } from './routes/store.ts';
+import { Meetings } from './meetings.ts';
+import { Crews } from './crews.ts';
+import { Workers } from './workers.ts';
+import { broadcastEvent, EventTriggers, mcpEventOf, registerTriggers, subscribeWanted } from './event-triggers.ts';
+import { MemoryTidy } from './memory-tidy.ts';
+import { WorkingStyle } from './working-style.ts';
 import { ReminderScheduler } from './reminders.ts';
 import { CompanionHub, EventHub } from './events.ts';
 import { InnerStore } from './inner.ts';
@@ -66,11 +89,13 @@ import { ApnsSender } from './apns.ts';
 import { PushService } from './push.ts';
 import { ReportStore } from './reports.ts';
 import { Subscriptions } from './subscriptions/index.ts';
-import { autoBackupTick, BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup } from './backup.ts';
+import { BACKUPS_DIR, backupName, createBackup, DEFAULT_BACKUP, restoreBackup, assertPersonalRestoreArchive } from './backup.ts';
 import { appInfo } from './health.ts';
 import { DiscordBridge } from './bridges/discord.ts';
 import { McpManager } from './tools/mcp.ts';
 import { detectSandbox, lockDataDir, type SandboxInfo, type SandboxPreference } from './tools/sandbox.ts';
+import { effectiveEgress, isolationSettings, IsolationService, setIsolation } from './isolation.ts';
+import { setEgressSource } from './egress-run.ts';
 import { FindingStore } from './security/findings.ts';
 import { OsvClient } from './security/advisories.ts';
 import { SecurityPass } from './security/pass.ts';
@@ -88,18 +113,28 @@ import { createSaraServer, proxyTrust } from './server.ts';
 import { setWakeLexiconDir } from './routes/wake.ts';
 import { HandsHub } from './hands.ts';
 import { createComputerTools } from './tools/computer.ts';
+import { PhoneHelper } from './phone-helper.ts';
+import { createPhoneTools } from './tools/phone.ts';
 import { UploadStore } from './uploads.ts';
 import { BriefingWorker } from './briefing.ts';
 import { gmailTodayHook, todayChanged } from './today.ts';
 import { LeaveByWorker } from './leaveby.ts';
 import { ReviewWorker } from './review.ts';
 import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
+import { policyResolver } from './tool-policy.ts';
 import { LookBuilder, PLACES } from './look.ts';
 import { createWardrobeTool, WardrobeWorker } from './wardrobe.ts';
 import { createSharedListTool, TogetherStore } from './together.ts';
+import { ReadTogether } from './read-together.ts';
 import { createScrapbookTool, Scrapbook } from './scrapbook.ts';
 import { createMomentsTool, MomentsStore, MomentsWorker } from './moments.ts';
-import { migrateProviderLabels, SettingsStore, StartupError } from './settings.ts';
+import { migrateProviderLabels, type Settings, SettingsStore, StartupError } from './settings.ts';
+import { AuditTrail, setAuditTrail } from './audit-trail.ts';
+import { PolicyStore, setPolicy } from './policy-profile.ts';
+import { DataRights, dataRights, setDataRights } from './data-rights.ts';
+import { assertDirNotHeld } from './legal-hold.ts';
+import { setShares, shares, ShareStore } from './share.ts';
+import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.ts';
 import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
@@ -151,6 +186,7 @@ import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
 import { appLanguage } from './i18n.ts';
 import { homedir } from 'node:os';
+import { assertPersonalProfile, runtimeProfile } from './business/profile.ts';
 
 // A promise nobody waited for that failed: log it and carry on (a background job, a model call
 // whose answer was no longer needed). A thrown error nothing caught: log it plainly and stop, so
@@ -182,6 +218,50 @@ const host = process.env.SARA_HOST ?? '127.0.0.1';
 const port = Number(process.env.SARA_PORT ?? 7860);
 const defaultPersonaPath = resolve(process.env.SARA_PERSONA ?? join(root, 'persona', 'sara.json'));
 
+// EC27: `sara addons requalify --from <results.json> --index <index.json>` folds qualification runs
+// into store/qualified.json (scripts/addons-requalify.ts). Touches no data folder.
+if (process.argv[2] === 'addons' && process.argv[3] === 'requalify') {
+  const { requalify } = await import('./store/requalify-cli.ts');
+  try {
+    for (const line of requalify(process.argv.slice(4))) console.log(line);
+    process.exit(0);
+  } catch (err) {
+    console.error(`requalify: ${(err as Error).message}`);
+    process.exit(1);
+  }
+}
+// Dispatch before constructing owner auth, stores, tools, or background workers.
+// EC14: `sara acp` is a client (the editor agent over stdio): it never opens the data folder.
+if (process.argv[2] === 'acp') {
+  const acpFile = join(root, 'clients', 'cli', 'acp.ts');
+  if (!existsSync(acpFile)) {
+    process.stderr.write('sara acp is part of sara-chat here: install sara-chat on the editor\'s computer and use "sara-chat acp" (docs/EDITORS.md).\n');
+    process.exit(2);
+  }
+  const { runAcp } = (await import(pathToFileURL(acpFile).href)) as typeof import('../clients/cli/acp.ts');
+  process.exit(await runAcp(process.argv.slice(3)));
+}
+if (process.argv[2]?.startsWith('--business-')) {
+  try { const { runBusinessCli } = await import('./business/cli.ts'); const code = await runBusinessCli(process.argv.slice(2), process.env); if (typeof code === 'number') process.exitCode = code; }
+  catch { process.stderr.write('Business operator command refused. Check isolated paths, writer ownership, generation and required reconciliation.\n'); process.exitCode = 1; }
+  process.exit(process.exitCode ?? 0);
+}
+
+if (runtimeProfile(process.env) === 'business') {
+  if (process.argv.slice(2).length === 1 && process.argv[2] === '--version') {
+    const i = appInfo(root);
+    console.log(`Sara ${i.version}${i.revision ? ` (${i.revision})` : ''}`);
+    process.exit(0);
+  }
+  if (process.argv.slice(2).length) throw new Error('Personal CLI commands are unavailable in the business profile.');
+  const { startBusinessFromEnv } = await import('./business/runtime.ts');
+  await startBusinessFromEnv(process.env);
+  await new Promise<never>(() => {});
+}
+assertPersonalProfile(dataDir);
+const personalRestoreIndex = process.argv.indexOf('--restore');
+if (personalRestoreIndex >= 0 && process.argv[personalRestoreIndex + 1]) assertPersonalRestoreArchive(process.argv[personalRestoreIndex + 1]);
+
 // Flags that read only (nothing is created): the installers and the `sara` command use them.
 if (process.argv.includes('--version')) {
   const i = appInfo(root);
@@ -201,6 +281,9 @@ if (process.argv.includes('--status')) {
 
 if (existsSync(dataDir) && !statSync(dataDir).isDirectory()) throw new StartupError(`Her data folder ${dataDir} (SARA_DATA) is a file, not a folder.`);
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
+// C15: was this server set up before (an owner file already there)? Then new-device approval
+// starts off with a one-time notice instead of locking anyone out; a new install starts with it on.
+const existingInstall = existsSync(join(dataDir, 'owner.json'));
 const auth = new OwnerAuth(dataDir, undefined, { resetIfDamaged: process.argv.includes('--reset-token') });
 
 /** The newest owner token, kept only until it's used once (the installer shows it from here). */
@@ -281,6 +364,7 @@ if (process.argv.includes('--restore')) {
 
 const sandboxPref = (process.env.SARA_SANDBOX ?? 'auto') as SandboxPreference;
 const settings = new SettingsStore(dataDir);
+if (settings.get().deviceApproval === undefined) settings.update({ deviceApproval: initialDeviceApproval(existingInstall) });
 {
   const renamed = migrateProviderLabels(settings.get());
   if (renamed) settings.update({ providers: renamed.providers });
@@ -289,6 +373,8 @@ const settings = new SettingsStore(dataDir);
   if (!settings.get().adultMode) settings.update({ adultMode: settings.get().disclosureAcceptedAt ? { on: false, ask: true } : { on: false } });
 }
 const vault = new Vault(dataDir, process.env.SARA_MASTER_KEY);
+// EC10: references to external secret sources are read before anything uses them (10 s at most each).
+await vault.ready();
 // Phase 121: `sara doctor [--safety]` and `node src/main.ts doctor --safety` mean --doctor.
 if (process.argv[2] === 'doctor' && !process.argv.includes('--doctor')) process.argv.push('--doctor');
 if (process.argv.includes('--doctor')) {
@@ -298,6 +384,8 @@ if (process.argv.includes('--doctor')) {
   } catch (err) {
     sb = { mode: 'none', network: true, detail: (err as Error).message };
   }
+  // EC8: the doctor reports the sandbox commands really get (a container where one is used).
+  new IsolationService({ native: { ...sb }, target: sb, settings: () => isolationSettings(settings.get()), image: () => sandboxGateSettings(settings.get()).dockerImage, required: () => new PolicyStore(dataDir).pins.containerSandbox === true }).recheck();
   const tools = new ToolRegistry();
   tools.unsandboxed = sb.mode === 'none';
   // Phase 121: the safety check-up (read-only here: nothing is fixed or written from the CLI).
@@ -370,8 +458,45 @@ const redactor = new Redactor(() => vaultSecretValues(vault.values()));
 // Phase 30: a copy of everything Sara prints goes to <data>/logs/sara.log (secrets hidden).
 // Phase 63: SARA_LOG_FORMAT / SARA_LOG_LEVEL / SARA_LOG_FILE (+ _MAX_MB, _KEEP), see src/log.ts.
 const log = new Log(dataDir, (s) => redactor.redact(s), undefined, logOptions());
+// Settings → Data & health may save a level; SARA_LOG_LEVEL, when set, wins.
+log.useSaved(settings.get().logLevel);
 log.captureConsole();
 const isDemo = process.env.SARA_DEMO === '1';
+// C13: one language-server engine for the process (servers start on first use, stop when idle).
+const lspEngine = new LspEngine();
+// EC28: a restore drill boots a throwaway copy of a backup (src/restore-drill.ts): it answers
+// /api/health and sign-in, but starts no workers, bridges, plugins, tool servers or backups.
+const isDrill = process.env.SARA_RESTORE_DRILL === '1';
+// EC5: the admin's policy profile (<data>/policy.json; none = no pins). EC4: the server's one audit trail.
+const policyStore = new PolicyStore(isDemo ? undefined : dataDir);
+setPolicy(policyStore);
+const auditTrailMain = isDemo
+  ? undefined
+  : new AuditTrail(dataDir, {
+      redact: (s) => redactor.redact(s),
+      key: () => vault.get('audit:key') ?? (vault.set('audit:key', randomBytes(32).toString('hex')), vault.get('audit:key')!),
+      policyRev: () => policyStore.get().rev,
+    });
+setAuditTrail(auditTrailMain);
+// EC8 + EC9 (docs/ops/EC89_DESIGN.md): a container (Podman/Docker) where the owner chooses it, the
+// admin requires it or nothing else isolates; `sandbox` is updated in place, so every holder sees it.
+const sandboxListeners: ((s: SandboxInfo) => void)[] = [];
+const isolationSvc = new IsolationService({
+  native: { ...sandbox },
+  target: sandbox,
+  settings: () => (sandboxPref === 'none' ? { ...isolationSettings(settings.get()), backend: 'native' } : isolationSettings(settings.get())),
+  image: () => sandboxGateSettings(settings.get()).dockerImage,
+  required: () => policyStore.pins.containerSandbox === true,
+  onChange: (s) => {
+    for (const f of sandboxListeners) f(s);
+  },
+});
+setIsolation(isolationSvc);
+isolationSvc.recheck();
+setEgressSource(() => effectiveEgress(settings.get(), policyStore.pins), (name) => vault.get(name));
+// EC11: shared conversation links, one store per server (never on the demo).
+if (!isDemo) setShares(new ShareStore(dataDir));
+const pruneAudit = () => auditTrailMain?.prune(policyStore.pins.auditRetentionDays ?? auditTrailMain.retentionDays);
 // The demo lets anyone in without signing in, so it must never run on a real owner's data.
 if (isDemo && existsSync(join(dataDir, 'sara.db'))) {
   const db = new DatabaseSync(join(dataDir, 'sara.db'), { readOnly: true });
@@ -395,7 +520,17 @@ const webDir = join(root, 'web');
 const mainTools = new ToolRegistry();
 // Phase 46: no sandbox (Windows, or none found): commands ask first unless the owner chose otherwise.
 mainTools.unsandboxed = sandbox.mode === 'none';
+sandboxListeners.push((s) => {
+  mainTools.unsandboxed = s.mode === 'none';
+  console.log(`Tool sandbox: ${s.mode} (${s.detail})`);
+});
 const mcp = new McpManager(mainTools, { dataDir, sandbox, secrets: (name) => mcpSecrets(vault, name) });
+// C4: tool-server events reach the owner's triggers; watched resources are subscribed on connect.
+mcp.onNotification = (server, method, params) => {
+  const ev = mcpEventOf(server, method, params);
+  if (ev) broadcastEvent(ev);
+};
+mcp.onReady = (conn) => subscribeWanted(conn);
 // Phase 73: the owner's other servers over SSH (docs/SSH.md). Owner only: not in household members'
 // spaces, and not on the demo server.
 const sshManager = isDemo ? undefined : new SshManager({ dir: dataDir, vault });
@@ -405,6 +540,9 @@ const subscriptions = new Subscriptions(vault, dataDir);
 // SARA_GOOGLE_API_BASE (loopback only) points the Google APIs at a local fake for tests.
 const googleBase = googleApiBase();
 const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {});
+// C14: Spotify (the owner's own Spotify app; off until he connects it).
+const spotifyBase = spotifyApiBase();
+const spotify = new SpotifyAccount(vault, spotifyBase ? { apiBase: spotifyBase } : {});
 // Local voice tools are Linux only for now (deploy/install-voice.sh).
 // Phase 126 part C: on Windows and macOS her voice lives in <data>/voice (`sara voice install`).
 const voiceDir = resolve(process.env.SARA_VOICE_DIR ?? (process.platform === 'linux' ? '/opt/sara-voice' : join(dataDir, 'voice')));
@@ -416,7 +554,7 @@ const companions = new CompanionManager(dataDir);
 // Phase 98 (ST3, docs/PLUGINS.md): the owner's plugins (one manager for the server; enabled per
 // companion; never in household members' spaces, never on the demo). Its tables live in the owner's
 // database; each enabled plugin runs in its own fenced process.
-const pluginManager = isDemo
+const pluginManager = isDemo || isDrill
   ? undefined
   : (() => {
       const pdb = new DatabaseSync(join(dataDir, 'sara.db'));
@@ -459,6 +597,12 @@ if (storeClient) {
         if (storeOwnerApp && storeInstalls) await new StoreInstaller({ app: storeOwnerApp, client: storeClient, installs: storeInstalls, ...(pluginManager ? { plugins: pluginManager } : {}), ...(packs ? { packs } : {}) }).blockOther(row, reason);
       },
     });
+    // C8: add-on auto-update (off by default) after each look at the signed index.
+    if (storeOwnerApp) {
+      const owner = storeOwnerApp;
+      const deps = storeAutoUpdateDeps(owner, (title, line) => void owner.push?.notifyOwner(title, line, '', 'addon-update').catch(() => {}));
+      if (deps) await runAutoUpdates(deps).catch((err: Error) => console.warn(`auto-update: ${err.message}`));
+    }
   };
   if (pluginManager) pluginManager.storeMatch = (sha) => storeClient.match(sha);
 }
@@ -480,7 +624,7 @@ const hookManager = isDemo
   : (() => {
       const d = new DatabaseSync(join(dataDir, 'sara.db'));
       d.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
-      return new HookManager({ db: d, vault, scrub: (s) => redactor.redact(s), allowLocalTargets: process.env.SARA_HOOKS_LOCAL_TARGETS === '1', keepDays: () => settings.get().hooks?.keepDays ?? 14 });
+      return new HookManager({ db: d, vault, scrub: (s) => redactor.redact(s), allowLocalTargets: process.env.SARA_HOOKS_LOCAL_TARGETS === '1', keepDays: () => settings.get().hooks?.keepDays ?? 14, onAccepted: (d) => broadcastEvent({ source: 'webhook', hookId: d.hookId, event: d.event, text: d.text, ...(d.deliveryId ? { id: d.deliveryId } : {}) }) });
     })();
 let a2aServer: A2AServer | undefined;
 let a2aClient: A2AClient | undefined;
@@ -502,6 +646,8 @@ interface Space {
   member?: MemberPolicy;
   /** Phase 87: this person's hands devices (computer use), shared by their companions. */
   hands?: HandsHub;
+  /** EC24: the owner's helper devices (camera, location, screen on request); never a member's. */
+  phoneHelper?: PhoneHelper;
 }
 /** Phase 87: one hands hub per person; a member's works only with the owner's switch on (never on the demo). */
 function handsFor(sp: Space, member: boolean): HandsHub | undefined {
@@ -516,11 +662,50 @@ function handsFor(sp: Space, member: boolean): HandsHub | undefined {
 }
 const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, events, companions };
 ownerSpace.hands = handsFor(ownerSpace, false);
+// EC24: only browser sign-ins that are still signed in count as helper devices.
+if (!isDemo) {
+  const browserSession = (id: string) => auth.devices().find((d) => d.id === id && d.kind === 'browser');
+  ownerSpace.phoneHelper = new PhoneHelper({ dir: dataDir, events, alive: (id) => Boolean(browserSession(id)), label: (id) => browserSession(id)?.label });
+}
 const memberSpaces = new Map<string, Space>();
+// EC5: a saved policy brings every companion's and member's settings in line (only ever tighter).
+policyStore.onApply = (p) => {
+  // EC8: a container pin (or its removal) takes effect at once.
+  isolationSvc.recheck();
+  // EC24: pinned off: every waiting phone prompt closes at once.
+  if (p.pins.phoneHelper === false) ownerSpace.phoneHelper?.cancelAll();
+  for (const sp of [ownerSpace, ...memberSpaces.values()]) {
+    for (const c of sp.companions.all()) {
+      const s = c.app.settings.get();
+      const patch: Partial<Settings> = {};
+      if (p.pins.adultMode === false && s.adultMode?.on) patch.adultMode = { ...s.adultMode, on: false };
+      if (p.pins.shellNetwork === false && s.shellNetwork !== false) patch.shellNetwork = false;
+      if (Object.keys(patch).length) c.app.settings.update(patch);
+    }
+  }
+};
 const household = new HouseholdStore(dataDir);
+// EC15: usage reports read every person's companions (the owner's space only); budgets warn early.
+const usageBudgets = new UsageBudgets(dataDir);
+const usageSources = (): ReportSource[] => [
+  ...companions.all().map((c) => ({ person: 'owner', personName: settings.get().ownerName || 'Owner', db: c.app.store.db })),
+  ...[...memberSpaces.entries()].flatMap(([id, sp]) => sp.companions.all().map((c) => ({ person: id, personName: household.get(id)?.name ?? id, db: c.app.store.db }))),
+];
 // Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
 // demo). A change is pushed to the event hub of each of the board's people only.
 const sharedBoards = isDemo ? undefined : new SharedBoardStore(join(dataDir, 'shared', 'boards.db'));
+// EC17 (docs/DATA_RIGHTS.md): retention, legal hold and per-person export/delete (never on the demo).
+setDataRights(
+  isDemo
+    ? undefined
+    : new DataRights(dataDir, {
+        spaces: () => [
+          { person: 'owner', name: settings.get().ownerName || 'Owner', dir: dataDir, apps: () => ownerSpace.companions.all().map((c) => c.app) },
+          ...[...memberSpaces.values()].map((sp) => ({ person: sp.id, name: household.get(sp.id)?.name ?? sp.id, dir: sp.dir, apps: () => sp.companions.all().map((c) => c.app) })),
+        ],
+        deleteMember: (id) => deleteMemberSpace(id),
+      }),
+);
 const spaceOf = (person: string): Space | undefined => (person === 'owner' ? ownerSpace : memberSpaces.get(person));
 sharedBoards?.listeners.add((ev) => {
   for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'board', boardId: ev.boardId, what: ev.what });
@@ -725,6 +910,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const settingsC = main ? space.settings : new CompanionSettings(dir, space.settings);
   const tools = isMember ? new ToolRegistry([]) : main ? mainTools : new LinkedToolRegistry(mainTools);
   if (!isMember) tools.add(createWebSearchTool(() => searchConfig(settingsC, vault)));
+  // E7 (A2): a tool server's remembered choice covers its tools that have no setting of their own.
+  if (!isMember) tools.policyFor = policyResolver(() => settingsC.get(), mcp);
   const store = new Store(join(dir, 'sara.db'));
   // Phase 116 (BR2 §5.3): messages that waited when Sara stopped become 'stale': shown, never run by themselves.
   const pending = new PendingInputs(store.db);
@@ -776,6 +963,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       return { wear: meta.wear, place: meta.place ? (PLACES[meta.place]?.prompt ?? meta.place) : undefined, style: meta.style };
     },
     faceRef: () => app.look?.faceRef(),
+    // E7 (B1): other picture engines (OpenAI images with the OpenAI provider's key; ComfyUI and image tools).
+    engines: {
+      tools: { get: (n) => tools.get(n), permission: (n) => tools.permission(n, settingsC.get().toolPermissions) },
+      openaiKey: () => {
+        const p = settingsC.get().providers.find((x) => /api\.openai\.com/.test(x.baseUrl) && x.kind === 'openai-compatible');
+        return p ? spaceVault.get(vaultKeyFor(p.id)) : undefined;
+      },
+    },
     customPortrait: () => {
       // Phase 36: her current look (the outfit she's wearing now), then an uploaded picture.
       const lookFile = app.look?.fileFor('sara-portrait.jpg');
@@ -805,6 +1000,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     dataDir: dir,
     rootDir: space.dir,
     companionId: id,
+    demo: isDemo,
     companions: space.companions,
     tools,
     approvals: new ApprovalBroker(),
@@ -843,6 +1039,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     voice,
     subscriptions,
     ...(isMember ? {} : { google }),
+    ...(isMember || isDemo ? {} : { spotify }),
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
   if (space.member) app.member = space.member;
@@ -863,6 +1060,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isDemo && !isMember) {
     app.goals = new Goals(app, store.db);
     app.loops = new Loops(app, store.db);
+    // E4: file/log watches (the owner's only); they come back paused after a restart.
+    app.watches = new Watches(app, store.db);
+    // EC6: research runs; one that was working before the restart becomes a stopped report.
+    app.research = new Research(app, store.db);
+    // C6: learn a topic; a run that was working before the restart starts again.
+    app.learnTopics = new Learning(app, store.db);
+    // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).
+    app.meetings = new Meetings(app, store.db);
     const g = app.goals.startupSweep();
     const l = app.loops.startupSweep();
     if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);
@@ -963,6 +1168,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.hands = space.hands;
     for (const t of createComputerTools(app)) tools.add(t);
   }
+  // EC24: her borrowed phone (the owner's space only; each use approved on the phone).
+  if (space.phoneHelper && !isMember) {
+    app.phoneHelper = space.phoneHelper;
+    for (const t of createPhoneTools(app)) tools.add(t);
+  }
   // Phase 113: Report a problem and My reports (each person's own); the check-in settings (the owner's).
   if (!isDemo) app.hub = hubFor(space, store.db);
   if (!isMember) app.jobs.onEnd = (job) => {
@@ -981,10 +1191,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) {
     for (const t of createBrowserTools(app)) tools.add(t);
     for (const t of createGitHubTools(app)) tools.add(t);
+    // C13: task worktrees and the pull-request helper; the language-server tools (read only).
+    if (!isDemo) {
+      app.worktrees = new Worktrees(store.db, () => app.now(), gitRunner(app.persona.name !== 'Sara' ? { GIT_AUTHOR_NAME: app.persona.name, GIT_COMMITTER_NAME: app.persona.name } : {}));
+      app.lsp = lspEngine;
+      for (const t of createWorktreeTools(app)) tools.add(t);
+      for (const t of createLspTools(() => app.lsp)) tools.add(t);
+    }
     // Phase 29: Home Assistant (off until the owner connects it).
     for (const t of createHomeTools(app)) tools.add(t);
     // Phase 14: Gmail and Google Calendar (the owner's own Google app; off until they sign in).
     for (const t of createGoogleTools(google, () => settingsC.get().timeZone)) tools.add(t);
+    // C14: Spotify (search, what's playing, playlists; playback only when the owner allowed it). Never the demo.
+    if (!isDemo) for (const t of createSpotifyTools(spotify)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
     if (!isDemo) {
       app.gmail = new GmailOrganizer(google, store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
@@ -995,6 +1214,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
   app.vectors = new MemoryVectors(store.db, memory, () => embedTarget(app));
   let vectorTimer: NodeJS.Timeout | undefined;
+  // Q-ADDONS: her delayed start-up work is cancelled by stop(), so a companion retired right after
+  // she was added never runs it on a closed database (that stopped the whole server).
+  const startupTimers: NodeJS.Timeout[] = [];
   const indexVectors = () => guard('embeddings', () => app.vectors!.index());
   const memoryWorker = new MemoryWorker(app, memory);
   app.memoryNudge = () => memoryWorker.nudge();
@@ -1037,6 +1259,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember && !isDemo) app.presence = new PresenceWorker(app);
   // Phase 39: team tasks she leads (helpers with their own models, tools and approvals).
   if (!isMember) app.team = new TeamManager(app, store.db);
+  // EC12: crews (standing helpers the lead hands board cards to; the owner's only, never the demo).
+  if (!isMember && !isDemo) app.crews = new Crews(app, store.db);
+  // C10: workers that stay (crew members or standalone helpers with their own queue and thread).
+  if (!isMember && !isDemo) app.workers = new Workers(app, store.db);
+  // C4: "When this happens" event triggers (the owner's only, never the demo or a member's space).
+  if (!isMember && !isDemo) {
+    app.eventTriggers = new EventTriggers(app, store.db);
+    registerTriggers(app.eventTriggers);
+  }
+  // EC13: the overnight memory tidy (each space and companion tidies only its own notes; off until turned on).
+  if (!isDemo) app.memoryTidy = new MemoryTidy(app, store.db);
+  // C12: how he likes to work (each space and companion keeps its own beliefs; never the demo).
+  if (!isDemo) app.workingStyle = new WorkingStyle(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);
   // Phase 99 (ST4): the board over the planner, her card tools and the card worker (in the space that
   // owns the planner; companions sharing it use the main companion's worker).
@@ -1051,6 +1286,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Phase 40: project knowledge, review mode, GitHub issues as tasks (watching is off by default).
   app.projects = new ProjectKnowledgeStore(app, store.db);
   if (!isMember) tools.add(createProjectNoteTool(() => app));
+  if (!isMember && !isDemo) tools.add(createProjectCheckpointTool(() => app));
+  if (!isMember && !isDemo) for (const t of createSessionContinuityTools()) tools.add(t);
+  // R1B2: offered only where the host binds ToolContext.sceneCanon (an eligible owner scene seat).
+  if (!isMember && !isDemo) for (const t of createSceneCanonTools()) tools.add(t);
   tools.add(createSettingsGuideTool());
   // Phase 123 (LEAN §4.7): she looks up and loads tools she wasn't sent (offered in lean turns only).
   tools.add(findToolsTool());
@@ -1064,6 +1303,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   const issueWatcher = isMember ? undefined : new IssueWatcher(app);
   // Phase 37: things to do together and shared lists.
   app.together = new TogetherStore(store.db, () => app.now());
+  // E5: read together (memory only; a restart ends sharing).
+  app.readTogether = new ReadTogether(() => app.now());
   tools.add(createSharedListTool(() => app.together));
   // Phase 36: her closet (dresses for the scenario when the owner turns it on).
   const wardrobe = new WardrobeWorker(app);
@@ -1111,7 +1352,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     hookManager.attach(id, app);
   }
   deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
-  const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks }) });
+  dataRights()?.apply([{ dir, app }]); // EC17: a held space's database refuses deletes from the start.
+  const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks, usageSources, usageBudgets }) });
   return {
     id,
     app,
@@ -1130,9 +1372,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       vectorTimer = setInterval(indexVectors, 60_000);
       if (!isDemo) issueWatcher?.start();
       // Interrupted team work stays held until an explicit recovery review.
-      setTimeout(indexVectors, 5_000).unref();
+      startupTimers.push(setTimeout(indexVectors, 5_000).unref());
       reminders.start();
-      if (!sharedPlanner) app.cardWork?.start();
+      // C11: start() also checks hourly for questions parked over a day (a reminder outside quiet hours).
+      if (!sharedPlanner) app.cardWork?.start({ remind: !isDemo });
       // Phase 100: open tasks she gave other agents are followed again (their board cards).
       if (main && !isMember) app.a2aClient?.start();
       lifeWorker.start();
@@ -1146,15 +1389,17 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.presence?.start();
       if (!isDemo) wardrobe.start();
       // Learning from imported history that was still going when the server stopped carries on.
-      if (!isDemo) setTimeout(() => app.historyImport?.start(), 20_000).unref();
+      if (!isDemo) startupTimers.push(setTimeout(() => app.historyImport?.start(), 20_000).unref());
     },
     async stop() {
-      app.jobs?.stopAll();
+      // MNT2: wait (bounded) until stopped jobs have saved, so nothing writes after the store closes.
+      const jobsStopped = app.jobs?.stopAll(5_000);
       // Running replies stop and save what they have (the app then offers Continue).
       await app.stopAllTurns?.().catch(() => {});
       memoryWorker.stop();
       libraryWorker?.stop();
       clearInterval(vectorTimer);
+      for (const timer of startupTimers.splice(0)) clearTimeout(timer);
       issueWatcher?.stop();
       app.story?.stop();
       app.momentsWorker?.stop();
@@ -1172,6 +1417,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.companionImport?.stop();
       if (!isMember) await pluginManager?.detach(id).catch(() => undefined);
       if (main && !isMember) app.a2aClient?.stopAll();
+      await jobsStopped?.catch(() => {});
     },
   };
 }
@@ -1218,6 +1464,7 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
 }
 /** Stops a member's space and deletes it for good (Delete now, Delete my account, or after removal). */
 async function deleteMemberSpace(id: string): Promise<void> {
+  assertDirNotHeld(household.dirOf(id)); // EC17: a legal hold keeps the space (and it keeps running).
   const sp = memberSpaces.get(id);
   memberSpaces.delete(id);
   hubSpaces.delete(id);
@@ -1228,6 +1475,7 @@ async function deleteMemberSpace(id: string): Promise<void> {
   }
   household.deleteMember(id);
   alexa.links.removeSpace(id);
+  shares()?.revokeSpace(id); // EC11: their share links (snapshots of their chats) go with them.
   console.log('Household: a member\'s space was deleted.');
 }
 const householdHooks: HouseholdHooks = {
@@ -1260,6 +1508,8 @@ companions.build = (id, dir) => buildCompanion(ownerSpace, id, dir);
 companions.add(buildCompanion(ownerSpace, MAIN_ID, dataDir));
 // The other companions (not on the demo server).
 if (!isDemo) for (const c of companionDirs(dataDir)) companions.add(buildCompanion(ownerSpace, c.id, c.dir));
+// EC15: a budget that goes up a level this month tells the owner once (after model calls).
+if (!isDemo) budgetAlerter({ budgets: usageBudgets, sources: usageSources, tz: () => settings.get().timeZone || 'UTC', lang: () => appLanguage(settings.get()), notify: (title, line) => void companions.all()[0]?.app.push?.notifyOwner(title, line, '', 'usage-budget').catch(() => {}) });
 // Phase 71: household members' spaces (never on the demo server).
 if (!isDemo) {
   for (const m of memberDirs(dataDir, household)) {
@@ -1284,40 +1534,52 @@ if (companions.all().length > 1) console.log(`Companions: ${companions.all().map
 // Notifications: every companion's messages and calls, named after the one who sent them.
 notifyFrom(ownerSpace);
 
-function backupTick(): void {
-  // The demo server keeps nothing worth backing up (visitors are in memory only).
-  if (isDemo) return;
-  try {
-    const name = autoBackupTick(dataDir, { ...DEFAULT_BACKUP, ...settings.get().backup }, new Date(), info.version);
-    if (name) {
-      console.log(`Automatic backup: ${name}`);
-      void copyOffsite(mainApp, join(dataDir, BACKUPS_DIR, name)).then(
-        (r) => r && console.log(`Off-server copy: ${r}`),
-        (err: Error) => console.warn(`Off-server copy failed: ${err.message}`),
-      );
-    }
-  } catch (err) {
-    console.warn(`Automatic backup failed: ${(err as Error).message}`);
-  }
-  // Phase 30: once a week, prove the newest off-server copy really restores (temporary folder).
-  if (offsiteTestDue(mainApp)) {
-    void testOffsite(mainApp).then((r) => (r.ok ? console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`) : console.warn(`Off-server test restore failed: ${r.error}`)));
-  }
-  // Phase 121: hidden secrets' 30-day originals expire; the weekly quiet safety check (Backup check
-  // routine) runs here, on this same hourly timer (no new timer), and speaks only when a check got worse.
-  sweepUndo(mainApp);
-  const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
-  if (deps) void weeklySafetyTick(deps).catch((err: Error) => console.warn(`Weekly safety check failed: ${err.message}`));
+let backupTickRunning: Promise<void> | undefined;
+function backupTick(): Promise<void> {
+  if (isDrill) return Promise.resolve();
+  if (isDemo || shuttingDown) return Promise.resolve();
+  if (backupTickRunning) return backupTickRunning;
+  backupTickRunning = (async () => {
+    try {
+      const name = await asyncAutoBackupTick(dataDir, { ...DEFAULT_BACKUP, ...settings.get().backup }, new Date(), info.version);
+      if (name) {
+        console.log(`Automatic backup: ${name}`);
+        try {
+          const copied = await copyOffsite(mainApp, join(dataDir, BACKUPS_DIR, name));
+          if (copied) console.log(`Off-server copy: ${copied}`);
+        } catch (err) { console.warn(`Off-server copy failed: ${(err as Error).message}`); }
+      }
+    } catch (err) { console.warn(`Automatic backup failed: ${(err as Error).message}`); }
+    // Reuse the hourly maintenance tick; await offsite work so ticks never overlap it.
+    try {
+      if (offsiteTestDue(mainApp)) {
+        const r = await testOffsite(mainApp);
+        if (r.ok) console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`);
+        else console.warn(`Off-server test restore failed: ${r.error}`);
+      }
+      sweepUndo(mainApp);
+      const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
+      if (deps) await weeklySafetyTick(deps);
+    } catch (err) { console.warn(`Backup maintenance failed: ${(err as Error).message}`); }
+  })().finally(() => { backupTickRunning = undefined; });
+  return backupTickRunning;
 }
 // Checked hourly (and 2 minutes after start); a backup is made when the last one is a day old.
-const backupTimer = setInterval(() => guard('backup', backupTick), 3600_000);
+const backupTimer = setInterval(() => void backupTick(), 3600_000);
 backupTimer.unref();
-setTimeout(() => guard('backup', backupTick), 120_000).unref();
+setTimeout(() => void backupTick(), 120_000).unref();
 
 // Phase 71: removed members' spaces are deleted when their download window is over.
 function householdSweep(): void {
   household.sweepInvites();
   for (const m of household.due()) void deleteMemberSpace(m.id).catch((err: Error) => console.warn(`Household: ${err.message}`));
+  // EC17: retention per data kind runs on the same hourly tick (held spaces are skipped).
+  try {
+    const r = dataRights()?.runRetention();
+    if (r && (r.chats || r.memories || r.files)) console.log(`Retention: deleted ${r.chats} chats, ${r.memories} memories, ${r.files} files.`);
+  } catch (err) {
+    console.warn(`Retention: ${(err as Error).message}`);
+  }
 }
 // Phase 84: "Re-check monthly" for evals. OFF by default (the owner's explicit yes in Settings);
 // when on, it runs only when nobody has talked to her for 20 minutes, within its own token budget.
@@ -1344,6 +1606,8 @@ const mediaSweep = () => guard('media', () => {
 });
 const mediaTimer = setInterval(() => {
   mediaSweep();
+  // EC4: the audit trail's retention (hourly; cheap when nothing is old enough).
+  guard('audit', () => void pruneAudit());
   // Phase 116: finished steers and queued messages go after 7 days (every companion; members' spaces too).
   guard('pending', () => {
     for (const sp of [ownerSpace, ...memberSpaces.values()]) for (const c of sp.companions.all()) c.app.pending?.prune();
@@ -1422,6 +1686,9 @@ server.on('upgrade', (req, socket, head) => {
 
 server.listen(port, host, () => {
   if (auth.newToken) banner(auth.newToken);
+  // EC5: a policy file put in place by hand applies at start; EC4: the trail's retention (then hourly).
+  if (policyStore.get().rev) policyStore.onApply?.(policyStore.get());
+  pruneAudit();
   claimBanner();
   // Reachable from other machines without HTTPS: sign-in tokens and cookies would cross the
   // network readable by anyone on it.
@@ -1430,6 +1697,10 @@ server.listen(port, host, () => {
   }
   console.log(`Sara is listening on http://${host}:${port} (data: ${dataDir})${isDemo ? ' [DEMO]' : ''}`);
   if (privateLocal.get().on) console.log(`Private local mode is on: nothing leaves this computer (only 127.0.0.1 / ::1 / localhost)${privateLocal.get().locked ? ' [SARA_PRIVATE_LOCAL=1]' : ''}.`);
+  if (isDrill) {
+    console.log('Restore drill: a throwaway copy; nothing is started.');
+    return;
+  }
   for (const c of companions.all()) c.start();
   for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) c.start();
   codemaps.start();
@@ -1462,6 +1733,7 @@ server.listen(port, host, () => {
 
 let shuttingDown = false;
 async function shutdown(): Promise<void> {
+  lspEngine.stopAll();
   if (shuttingDown) return;
   shuttingDown = true;
   for (const c of companions.all()) await c.stop();
@@ -1477,11 +1749,13 @@ async function shutdown(): Promise<void> {
   healthHistory?.stop();
   hubPinger?.stop();
   clearInterval(backupTimer);
+  await backupTickRunning;
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
   mcp.stopAll();
   storeClient?.stop();
   await pluginManager?.stopAll().catch(() => {});
+  await beginBackupShutdown();
   server.close(() => {
     for (const c of companions.all()) c.app.store.close();
     for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) c.app.store.close();

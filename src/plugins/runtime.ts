@@ -20,7 +20,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { bwrapArgs, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from '../tools/sandbox.ts';
+import { bwrapArgs, nativeOf, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from '../tools/sandbox.ts';
 
 export const HOST_FILE = resolve(dirname(fileURLToPath(import.meta.url)), 'plugin-host.mjs');
 export const MAX_LINE = 1024 * 1024;
@@ -36,7 +36,9 @@ const READY_MS = 15_000;
 export type Fence = 'bwrap' | 'seatbelt' | 'node-only';
 
 /** The fence this server can put around a plugin (the sandbox detected at start). */
-export function fenceFor(sandbox: Pick<SandboxInfo, 'mode'>): Fence {
+export function fenceFor(sb: Pick<SandboxInfo, 'mode' | 'native'>): Fence {
+  // EC8: plugin processes keep the computer's own fence when commands use a container.
+  const sandbox = nativeOf(sb as SandboxInfo);
   return sandbox.mode === 'bwrap' ? 'bwrap' : sandbox.mode === 'seatbelt' ? 'seatbelt' : 'node-only';
 }
 
@@ -189,7 +191,9 @@ export class PluginProcess {
   lastError = '';
   lastActivity = '';
   #child: ChildProcess | undefined;
-  #pending = new Map<string, { resolve: (v: InMessage | undefined) => void; timer: NodeJS.Timeout }>();
+  #pending = new Map<string, { resolve: (v: InMessage | undefined) => void; timer: NodeJS.Timeout; deadline: number; fire: () => void }>();
+  /** Listeners told when a Sara → plugin request ends (answered, timed out, unsent or process gone). */
+  readonly #settled = new Set<(id: string) => void>();
   #seq = 0;
   #inFlight = 0;
   #rate = new PerMinute(CALLS_PER_MINUTE);
@@ -262,11 +266,13 @@ export class PluginProcess {
       this.#child = undefined;
       clearInterval(this.#watchTimer);
       clearTimeout(this.#readyTimer);
+      const ended = [...this.#pending.keys()];
       for (const [, p] of this.#pending) {
         clearTimeout(p.timer);
         p.resolve(undefined);
       }
       this.#pending.clear();
+      for (const id of ended) this.#ended(id);
       this.#inFlight = 0;
       if (this.#stopping) {
         this.state = 'stopped';
@@ -382,22 +388,66 @@ export class PluginProcess {
     }
   }
 
+  /**
+   * The Sara → plugin requests (invocations) still running: a plugin's own calls can only be made on
+   * behalf of one of these, and an approval they wait on ends with them.
+   */
+  live(): string[] {
+    return [...this.#pending.keys()];
+  }
+
+  /** Tells `fn` the id of every request that ends from now on; returns the unsubscribe. */
+  onSettled(fn: (id: string) => void): () => void {
+    this.#settled.add(fn);
+    return () => this.#settled.delete(fn);
+  }
+
+  /**
+   * H_EXEC: while Sara itself works for a request (an owner approval, an approved job), that
+   * request's deadline moves to at least `ms` from now. Ended requests are not revived.
+   */
+  extend(ids: Iterable<string>, ms: number): void {
+    const until = Date.now() + ms;
+    for (const id of ids) {
+      const p = this.#pending.get(id);
+      if (!p || until <= p.deadline) continue;
+      clearTimeout(p.timer);
+      p.deadline = until;
+      p.timer = setTimeout(p.fire, until - Date.now());
+      p.timer.unref?.();
+    }
+  }
+
+  #ended(id: string): void {
+    for (const fn of [...this.#settled]) {
+      try {
+        fn(id);
+      } catch {
+        /* a listener's failure never keeps a request open */
+      }
+    }
+  }
+
   /** Sends a request and waits for its result (undefined on a timeout, a crash or not running). */
   request(type: string, body: Record<string, unknown>, timeoutMs: number): Promise<InMessage | undefined> {
     if (this.state !== 'ready') return Promise.resolve(undefined);
     const id = `${type[0]}${++this.#seq}`;
     return new Promise((resolveReq) => {
-      const timer = setTimeout(() => {
+      const fire = () => {
+        if (!this.#pending.has(id)) return;
         this.#pending.delete(id);
         this.events.onLog('timeout', `${type}${body.hook ? ` ${String(body.hook)}` : body.name ? ` ${String(body.name)}` : ''}: no answer within ${timeoutMs} ms`);
         resolveReq(undefined);
-      }, timeoutMs);
+        this.#ended(id);
+      };
+      const timer = setTimeout(fire, timeoutMs);
       timer.unref?.();
-      this.#pending.set(id, { resolve: resolveReq, timer });
+      this.#pending.set(id, { resolve: resolveReq, timer, deadline: Date.now() + timeoutMs, fire });
       if (!this.send({ v: 1, id, type, ...body })) {
         clearTimeout(timer);
         this.#pending.delete(id);
         resolveReq(undefined);
+        this.#ended(id);
       }
     });
   }
@@ -429,6 +479,7 @@ export class PluginProcess {
       clearTimeout(p.timer);
       this.#pending.delete(id);
       p.resolve(msg);
+      this.#ended(id);
       return;
     }
     if (msg.type === 'log') {

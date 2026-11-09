@@ -1,0 +1,139 @@
+{
+  "synthetic": true,
+  "args": {
+    "baseline": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "id",
+              "type": "INTEGER"
+            },
+            {
+              "name": "label",
+              "type": "TEXT"
+            }
+          ],
+          "rows": 3
+        }
+      ]
+    },
+    "sql": "CREATE TABLE archive (id INTEGER, label TEXT); CREATE INDEX items_id ON items (id);"
+  },
+  "safe": {
+    "status": "rehearsed",
+    "executedStatements": 2,
+    "before": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "id",
+              "type": "INTEGER",
+              "notNull": false
+            },
+            {
+              "name": "label",
+              "type": "TEXT",
+              "notNull": false
+            }
+          ],
+          "rows": 3,
+          "dataSha256": "2c70845462b31b6937ff608b68f0871b035749f2eb3d1abe531b68439e9d4e06"
+        }
+      ],
+      "indexes": []
+    },
+    "after": {
+      "tables": [
+        {
+          "name": "archive",
+          "columns": [
+            {
+              "name": "id",
+              "type": "INTEGER",
+              "notNull": false
+            },
+            {
+              "name": "label",
+              "type": "TEXT",
+              "notNull": false
+            }
+          ],
+          "rows": 0,
+          "dataSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "id",
+              "type": "INTEGER",
+              "notNull": false
+            },
+            {
+              "name": "label",
+              "type": "TEXT",
+              "notNull": false
+            }
+          ],
+          "rows": 3,
+          "dataSha256": "2c70845462b31b6937ff608b68f0871b035749f2eb3d1abe531b68439e9d4e06"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "items_id",
+          "tableName": "items",
+          "columns": [
+            "id"
+          ]
+        }
+      ]
+    },
+    "dataPreserved": true,
+    "authorizerEnforced": true,
+    "rollback": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "id",
+              "type": "INTEGER",
+              "notNull": false
+            },
+            {
+              "name": "label",
+              "type": "TEXT",
+              "notNull": false
+            }
+          ],
+          "rows": 3,
+          "dataSha256": "2c70845462b31b6937ff608b68f0871b035749f2eb3d1abe531b68439e9d4e06"
+        }
+      ],
+      "indexes": []
+    },
+    "sqliteLimits": {
+      "tempStore": 2,
+      "maxPageCount": 256,
+      "trustedSchema": 0,
+      "journalMode": "memory"
+    },
+    "rollbackVerified": true,
+    "closed": true,
+    "dialect": "sqlite",
+    "scope": "synthetic-disposable-memory-only",
+    "message": "SQLite rehearsal complete; rolled back and closed."
+  },
+  "unsafe": {
+    "status": "rejected",
+    "reason": "unsupported-or-unsafe-input",
+    "executedStatements": 0,
+    "closed": true,
+    "message": "Migration refused. Only the closed additive SQLite subset is supported."
+  }
+}

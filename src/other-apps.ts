@@ -215,7 +215,15 @@ export async function externalTurn(
   conversationId: string,
   text: string,
   opts: TurnOptions,
-  hooks: { onNotice?: (t: string) => void; onText?: (t: string) => void; onApproval?: (summary: string) => void; stopOnApproval?: boolean } = {},
+  hooks: {
+    onNotice?: (t: string) => void;
+    onText?: (t: string) => void;
+    onApproval?: (summary: string, ids: { approvalId: string; callId: string; name: string }) => void;
+    /** C5: her own tool steps (Open Responses shows them as `sara:tool_call` items). */
+    onToolCall?: (call: { id: string; name: string; summary: string }) => void;
+    onToolResult?: (result: { id: string; name: string; status: 'ok' | 'error' | 'denied' }) => void;
+    stopOnApproval?: boolean;
+  } = {},
 ): Promise<TurnResult> {
   if (!app.runTracked) return { text: '', notices: [], error: 'This server can’t run turns for other apps.' };
   const before = app.usage?.forConversation(conversationId);
@@ -242,9 +250,11 @@ export async function externalTurn(
       } else if (ev.type === 'tool_call' || ev.type === 'tool_result') {
         // Her words before a tool step stay; a new step starts.
         step = '';
+        if (ev.type === 'tool_call') hooks.onToolCall?.({ id: ev.id, name: ev.name, summary: ev.summary });
+        else hooks.onToolResult?.({ id: ev.id, name: ev.name, status: ev.status });
       } else if (ev.type === 'approval') {
         out.waiting = ev.summary;
-        hooks.onApproval?.(ev.summary);
+        hooks.onApproval?.(ev.summary, { approvalId: ev.approvalId, callId: ev.id, name: ev.name });
         if (hooks.stopOnApproval) earlyResolve?.();
       } else if (ev.type === 'error') {
         out.error = ev.message;

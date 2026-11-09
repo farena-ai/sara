@@ -341,3 +341,473 @@ html.ios-short-view { --safe-b: 0px; }
 @media (prefers-reduced-transparency: reduce) {
   :root { --glass-filter: none; --glass: var(--surface-2); --glass-strong: var(--surface-2); --glass-fill: linear-gradient(var(--surface-2), var(--surface-1)); --bbar-fill: linear-gradient(var(--surface-2), var(--surface-2)); }
 }
+/* ---------- V1: the professional look and the theme system (docs/ops/V1_DESIGN.md) ----------
+   Theme = palette (html[data-palette], sara.palette) x mode (data-theme, sara.theme: Night/Day/System).
+   Everything above this line is Sara Classic and stays byte-identical (test/v1-theme.test.ts); the
+   palette blocks below are :root[data-palette][data-theme] (0,3,0), so they win over the Classic
+   :root[data-theme] blocks without moving them. Shapes and type change only outside Classic. */
+:root {
+  /* V1 sizes, radii, type and motion (used by web/pro.css). */
+  --r-1: 4px;
+  --r-2: 6px;
+  --r-3: 8px;
+  --r-4: 12px;
+  --r-round: 999px;
+  --h-control: 34px;
+  --h-row: 34px;
+  --pad-card: 16px;
+  --fs-11: 11px;
+  --fs-12: 12px;
+  --fs-13: 13px;
+  --fs-14: 14px;
+  --fs-16: 16px;
+  --fs-20: 20px;
+  --fs-24: 24px;
+  --lh-ui: 1.45;
+  --lh-read: 1.6;
+  --dur-1: 90ms;
+  --dur-2: 140ms;
+  --dur-3: 200ms;
+  --ease-std: cubic-bezier(.2, 0, 0, 1);
+  /* System faces only (no download, offline safe). */
+  --font-ui-v1: "Segoe UI Variable Text", "Segoe UI Variable", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --font-mono-v1: "JetBrains Mono", "Cascadia Code", "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+:root[data-density="compact"] { --h-control: 28px; --h-row: 28px; --pad-card: 12px; }
+@media (pointer: coarse) {
+  :root, :root[data-density="compact"] { --h-control: 44px; --h-row: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; }
+}
+/* Every palette except Classic: flat structure, one accent, small radii, the native UI face. */
+:root:not([data-palette="classic"]) {
+  --font-ui: var(--font-ui-v1);
+  --font-mono: var(--font-mono-v1);
+  --fs-body: 14px;
+  /* The display serif is Sara Classic's; every other palette sets titles in the UI face. */
+  --font-display: var(--font-ui-v1);
+  --tracking-display: -0.015em;
+  --r-card: 8px;
+  --r-control: 6px;
+  --r-pill: 6px;
+  --hairline: color-mix(in srgb, var(--line) 70%, transparent);
+  --hairline-strong: var(--line);
+  --glass: color-mix(in srgb, var(--surface-2) 92%, transparent);
+  --glass-strong: var(--surface-1);
+  --accent: var(--accent-solid);
+  --accent-2: var(--accent-text);
+  --accent-from: var(--accent-solid);
+  --accent-to: var(--accent-text);
+  --accent-grad: linear-gradient(135deg, var(--accent-from), var(--accent-to));
+  --accent-soft: color-mix(in srgb, var(--accent-solid) 16%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent-solid) 45%, transparent);
+  --accent-glow: color-mix(in srgb, var(--accent-solid) 40%, transparent);
+  --violet-glow: color-mix(in srgb, var(--accent-text) 28%, transparent);
+  --focus: var(--accent-text);
+  --mine-grad: linear-gradient(135deg, var(--accent-solid), var(--accent-solid));
+  --on-mine: var(--on-accent);
+  --btn-fill: var(--accent-solid);
+  --on-btn: var(--on-accent);
+  --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
+  --danger-soft: color-mix(in srgb, var(--danger) 13%, transparent);
+  --info-soft: color-mix(in srgb, var(--info) 14%, transparent);
+  --update-soft: color-mix(in srgb, var(--update-accent) 14%, transparent);
+  --spk-0: var(--accent-text);
+  --spark-line: var(--accent-text);
+  --spark-a: color-mix(in srgb, var(--accent-text) 26%, transparent);
+  --spark-b: transparent;
+  /* Cards are flat; only floating layers (menus, toasts, dialogs) have elevation. */
+  --shadow-1: none;
+  --glow-edge: none;
+  --page-glow: none;
+  --btn-glow: none;
+  --glass-fill: linear-gradient(var(--glass), var(--glass));
+  --glass-fill-strong: linear-gradient(var(--surface-1), var(--surface-1));
+  --glass-edge: linear-gradient(var(--line), var(--line));
+  --glass-hi: 0 0 0 transparent;
+  --glass-tint: transparent;
+  --bbar-fill: linear-gradient(var(--surface-1), var(--surface-1));
+  --bbar-lit: linear-gradient(transparent, transparent);
+  /* The aurora, when someone turns decoration back on: the palette's own accent, faint. */
+  --aurora-base: linear-gradient(var(--surface-0), var(--surface-0));
+  --aurora-1: color-mix(in srgb, var(--accent-solid) 20%, transparent);
+  --aurora-2: color-mix(in srgb, var(--accent-text) 14%, transparent);
+  --aurora-3: color-mix(in srgb, var(--accent-solid) 10%, transparent);
+  --grain-opacity: .03;
+}
+:root:not([data-palette="classic"])[data-theme="dark"] {
+  --shadow-2: 0 0 0 1px var(--line), 0 16px 40px -12px rgb(0 0 0 / .6);
+  --elev-1: 0 1px 2px rgb(0 0 0 / .4);
+  --elev-2: 0 0 0 1px var(--line), 0 12px 32px -8px rgb(0 0 0 / .55);
+  --elev-3: 0 0 0 1px var(--line), 0 24px 64px -16px rgb(0 0 0 / .7);
+  --lift: var(--elev-1);
+  --shadow-up: 0 -1px 0 var(--line);
+  --scrim: rgb(0 0 0 / .55);
+  --scrim-soft: rgb(0 0 0 / .4);
+}
+:root:not([data-palette="classic"])[data-theme="light"] {
+  --shadow-2: 0 0 0 1px var(--line), 0 16px 40px -14px rgb(15 15 25 / .18);
+  --elev-1: 0 1px 2px rgb(15 15 25 / .08);
+  --elev-2: 0 0 0 1px var(--line), 0 12px 32px -10px rgb(15 15 25 / .16);
+  --elev-3: 0 0 0 1px var(--line), 0 24px 60px -18px rgb(15 15 25 / .22);
+  --lift: var(--elev-1);
+  --shadow-up: 0 -1px 0 var(--line);
+  --scrim: rgb(15 15 25 / .32);
+  --scrim-soft: rgb(15 15 25 / .2);
+}
+/* V1 palettes: generated by the palette generator (every text/accent pair at WCAG AA, test/v1-theme.test.ts). */
+:root[data-palette="graphite"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #0b0c0e; --surface-1: #121316; --surface-2: #17181c; --surface-3: #1f2025;
+  --line: #2a2b31;
+  --text-1: #ededef; --text-2: #b4b5bb; --text-3: #8f9098;
+  --accent-solid: #2f6fe0; --accent-text: #7aa7ff; --on-accent: #ffffff;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #17181c; --btn-off-text: #8f9098; --btn-off-line: #676870;
+}
+:root[data-palette="graphite"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #f3f4f6; --surface-1: #ffffff; --surface-2: #f6f7f9; --surface-3: #eceef2;
+  --line: #e1e3e8;
+  --text-1: #16171b; --text-2: #4a4c55; --text-3: #64666f;
+  --accent-solid: #2563eb; --accent-text: #1d4fd7; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #a15c07;
+  --btn-off-fill: #f6f7f9; --btn-off-text: #64666f; --btn-off-line: #88888d;
+}
+:root[data-palette="midnight"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #0a0e17; --surface-1: #0f1420; --surface-2: #151b29; --surface-3: #1d2435;
+  --line: #232b3d;
+  --text-1: #e6edf7; --text-2: #a9b4c6; --text-3: #8692a8;
+  --accent-solid: #22b8cf; --accent-text: #5fd4e6; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #151b29; --btn-off-text: #8692a8; --btn-off-line: #5e697d;
+}
+:root[data-palette="midnight"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #f4f7fb; --surface-1: #ffffff; --surface-2: #eaf0f7; --surface-3: #dfe7f1;
+  --line: #d6dee9;
+  --text-1: #0f1726; --text-2: #43506a; --text-3: #5d6a82;
+  --accent-solid: #0e7490; --accent-text: #0b6680; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #a15c07;
+  --btn-off-fill: #eaf0f7; --btn-off-text: #5d6a82; --btn-off-line: #7f899a;
+}
+:root[data-palette="slate"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #111417; --surface-1: #171b1f; --surface-2: #1e2328; --surface-3: #272d33;
+  --line: #2d343a;
+  --text-1: #e8ecef; --text-2: #adb6bd; --text-3: #8a949c;
+  --accent-solid: #10b981; --accent-text: #4fd1a0; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #1e2328; --btn-off-text: #8a949c; --btn-off-line: #656e75;
+}
+:root[data-palette="slate"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #f6f8f8; --surface-1: #ffffff; --surface-2: #edf1f1; --surface-3: #e2e8e8;
+  --line: #d8dfdf;
+  --text-1: #121a1a; --text-2: #46524f; --text-3: #5f6b68;
+  --accent-solid: #047857; --accent-text: #046c4e; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #a15c07;
+  --btn-off-fill: #edf1f1; --btn-off-text: #5f6b68; --btn-off-line: #818a89;
+}
+:root[data-palette="nord"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #2e3440; --surface-1: #333a47; --surface-2: #3b4252; --surface-3: #434c5e;
+  --line: #4c566a;
+  --text-1: #eceff4; --text-2: #d8dee9; --text-3: #b5bdcb;
+  --accent-solid: #88c0d0; --accent-text: #8fc7d6; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #fa9090; --info: #85aeff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #3b4252; --btn-off-text: #b5bdcb; --btn-off-line: #8b94a4;
+}
+:root[data-palette="nord"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #eceff4; --surface-1: #f5f7fa; --surface-2: #e5e9f0; --surface-3: #d8dee9;
+  --line: #c9d0dc;
+  --text-1: #2e3440; --text-2: #3b4252; --text-3: #4c566a;
+  --accent-solid: #4c6f9c; --accent-text: #3b5f8c; --on-accent: #ffffff;
+  --success: #147839; --warn: #9b5807; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #9b5807;
+  --btn-off-fill: #e5e9f0; --btn-off-text: #4c566a; --btn-off-line: #7b8495;
+}
+:root[data-palette="solarized"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #002b36; --surface-1: #073642; --surface-2: #0b3d4a; --surface-3: #124653;
+  --line: #1b4d5a;
+  --text-1: #eee8d5; --text-2: #b9c3c3; --text-3: #9eacac;
+  --accent-solid: #268bd2; --accent-text: #5aa9e6; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87a7a; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #0b3d4a; --btn-off-text: #9eacac; --btn-off-line: #6a868b;
+}
+:root[data-palette="solarized"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #fdf6e3; --surface-1: #fffbef; --surface-2: #f5efdc; --surface-3: #eee8d5;
+  --line: #e3dcc6;
+  --text-1: #073642; --text-2: #45585e; --text-3: #586e75;
+  --accent-solid: #1f6fb0; --accent-text: #1a67a6; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #a15c07;
+  --btn-off-fill: #f5efdc; --btn-off-text: #586e75; --btn-off-line: #828b86;
+}
+:root[data-palette="paper"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #161513; --surface-1: #1c1b18; --surface-2: #23221e; --surface-3: #2d2b27;
+  --line: #34322d;
+  --text-1: #ece9e2; --text-2: #b8b3a8; --text-3: #949086;
+  --accent-solid: #c96a45; --accent-text: #e08a68; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #23221e; --btn-off-text: #949086; --btn-off-line: #716d65;
+}
+:root[data-palette="paper"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #faf9f6; --surface-1: #ffffff; --surface-2: #f3f1ec; --surface-3: #e9e6df;
+  --line: #e2ded5;
+  --text-1: #1f1d1a; --text-2: #4f4a42; --text-3: #6a645a;
+  --accent-solid: #b04a26; --accent-text: #a3441f; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #a15c07;
+  --btn-off-fill: #f3f1ec; --btn-off-text: #6a645a; --btn-off-line: #8e8980;
+}
+:root[data-palette="ember"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #14110f; --surface-1: #1b1714; --surface-2: #221d19; --surface-3: #2c2620;
+  --line: #342d27;
+  --text-1: #f1ebe4; --text-2: #bdb2a6; --text-3: #9a8f83;
+  --accent-solid: #f59e0b; --accent-text: #fbbf4a; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --danger-fill: #b3383d; --update-accent: #fbbf24;
+  --btn-off-fill: #221d19; --btn-off-text: #9a8f83; --btn-off-line: #71685e;
+}
+:root[data-palette="ember"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #fbf7f1; --surface-1: #ffffff; --surface-2: #f4eee5; --surface-3: #ebe3d7;
+  --line: #e3d9cb;
+  --text-1: #211a12; --text-2: #54483a; --text-3: #6e6152;
+  --accent-solid: #b45309; --accent-text: #a14a07; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #9e5a07; --danger: #c62828; --info: #1d4fd7;
+  --danger-fill: #b42a3a; --update-accent: #9e5a07;
+  --btn-off-fill: #f4eee5; --btn-off-text: #6e6152; --btn-off-line: #94887a;
+}
+:root[data-palette="contrast"][data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #000000; --surface-1: #0a0a0a; --surface-2: #141414; --surface-3: #1f1f1f;
+  --line: #8a8a8a;
+  --text-1: #ffffff; --text-2: #e6e6e6; --text-3: #cfcfcf;
+  --accent-solid: #ffd400; --accent-text: #ffd400; --on-accent: #0b0b0c;
+  --success: #80e8a6; --warn: #fcd266; --danger: #fa9c9c; --info: #a2c1ff;
+  --danger-fill: #b3383d; --update-accent: #fcd266;
+  --focus: #ffd400; --hairline: #8a8a8a; --hairline-strong: #8a8a8a;
+  --btn-off-fill: #141414; --btn-off-text: #cfcfcf; --btn-off-line: #b3b3b3;
+}
+:root[data-palette="contrast"][data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #ffffff; --surface-1: #ffffff; --surface-2: #f2f2f2; --surface-3: #e6e6e6;
+  --line: #5c5c5c;
+  --text-1: #000000; --text-2: #1a1a1a; --text-3: #333333;
+  --accent-solid: #0040c0; --accent-text: #0037a6; --on-accent: #ffffff;
+  --success: #0f5a2b; --warn: #714005; --danger: #8b1c1c; --info: #143797;
+  --danger-fill: #b42a3a; --update-accent: #714005;
+  --focus: #0037a6; --hairline: #5c5c5c; --hairline-strong: #5c5c5c;
+  --btn-off-fill: #f2f2f2; --btn-off-text: #333333; --btn-off-line: #434343;
+}
+/* V1 accent presets (any palette; the old names map onto them outside Sara Classic). */
+:root[data-palette][data-accent="blue"][data-theme="dark"] {
+  --accent-solid: #4b8cf7; --accent-text: #8ab4ff; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="blue"][data-theme="light"] {
+  --accent-solid: #2563eb; --accent-text: #1d4ed8; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="cyan"][data-theme="dark"],
+:root:not([data-palette="classic"])[data-accent="ocean"][data-theme="dark"] {
+  --accent-solid: #22d3ee; --accent-text: #67e8f9; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="cyan"][data-theme="light"],
+:root:not([data-palette="classic"])[data-accent="ocean"][data-theme="light"] {
+  --accent-solid: #0e7490; --accent-text: #0e6a84; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="green"][data-theme="dark"],
+:root:not([data-palette="classic"])[data-accent="forest"][data-theme="dark"] {
+  --accent-solid: #22c55e; --accent-text: #6ee7a8; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="green"][data-theme="light"],
+:root:not([data-palette="classic"])[data-accent="forest"][data-theme="light"] {
+  --accent-solid: #15803d; --accent-text: #166534; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="emerald"][data-theme="dark"] {
+  --accent-solid: #10b981; --accent-text: #4fd1a0; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="emerald"][data-theme="light"] {
+  --accent-solid: #047857; --accent-text: #046c4e; --on-accent: #ffffff;
+}
+:root:not([data-palette="classic"])[data-accent="amber"][data-theme="dark"] {
+  --accent-solid: #f59e0b; --accent-text: #fcd34d; --on-accent: #0b0b0c;
+}
+:root:not([data-palette="classic"])[data-accent="amber"][data-theme="light"] {
+  --accent-solid: #b45309; --accent-text: #a14a07; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="red"][data-theme="dark"] {
+  --accent-solid: #f87171; --accent-text: #fca5a5; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="red"][data-theme="light"] {
+  --accent-solid: #dc2626; --accent-text: #b91c1c; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="pink"][data-theme="dark"] {
+  --accent-solid: #f472b6; --accent-text: #f9a8d4; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="pink"][data-theme="light"] {
+  --accent-solid: #db2777; --accent-text: #be185d; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="violet"][data-theme="dark"],
+:root:not([data-palette="classic"])[data-accent="lavender"][data-theme="dark"] {
+  --accent-solid: #a78bfa; --accent-text: #c4b5fd; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="violet"][data-theme="light"],
+:root:not([data-palette="classic"])[data-accent="lavender"][data-theme="light"] {
+  --accent-solid: #7c3aed; --accent-text: #6d28d9; --on-accent: #ffffff;
+}
+:root[data-palette][data-accent="grey"][data-theme="dark"],
+:root:not([data-palette="classic"])[data-accent="mono"][data-theme="dark"] {
+  --accent-solid: #a1a1aa; --accent-text: #d4d4d8; --on-accent: #0b0b0c;
+}
+:root[data-palette][data-accent="grey"][data-theme="light"],
+:root:not([data-palette="classic"])[data-accent="mono"][data-theme="light"] {
+  --accent-solid: #52525b; --accent-text: #3f3f46; --on-accent: #ffffff;
+}
+.ap-pal[data-pal="graphite"] { --pv-d0: #0b0c0e; --pv-d1: #17181c; --pv-dt: #ededef; --pv-da: #2f6fe0; --pv-l0: #f3f4f6; --pv-l1: #ffffff; --pv-lt: #16171b; --pv-la: #2563eb; }
+.ap-pal[data-pal="midnight"] { --pv-d0: #0a0e17; --pv-d1: #151b29; --pv-dt: #e6edf7; --pv-da: #22b8cf; --pv-l0: #f4f7fb; --pv-l1: #eaf0f7; --pv-lt: #0f1726; --pv-la: #0e7490; }
+.ap-pal[data-pal="slate"] { --pv-d0: #111417; --pv-d1: #1e2328; --pv-dt: #e8ecef; --pv-da: #10b981; --pv-l0: #f6f8f8; --pv-l1: #edf1f1; --pv-lt: #121a1a; --pv-la: #047857; }
+.ap-pal[data-pal="nord"] { --pv-d0: #2e3440; --pv-d1: #3b4252; --pv-dt: #eceff4; --pv-da: #88c0d0; --pv-l0: #eceff4; --pv-l1: #e5e9f0; --pv-lt: #2e3440; --pv-la: #4c6f9c; }
+.ap-pal[data-pal="solarized"] { --pv-d0: #002b36; --pv-d1: #0b3d4a; --pv-dt: #eee8d5; --pv-da: #268bd2; --pv-l0: #fdf6e3; --pv-l1: #f5efdc; --pv-lt: #073642; --pv-la: #1f6fb0; }
+.ap-pal[data-pal="paper"] { --pv-d0: #161513; --pv-d1: #23221e; --pv-dt: #ece9e2; --pv-da: #c96a45; --pv-l0: #faf9f6; --pv-l1: #f3f1ec; --pv-lt: #1f1d1a; --pv-la: #b04a26; }
+.ap-pal[data-pal="ember"] { --pv-d0: #14110f; --pv-d1: #221d19; --pv-dt: #f1ebe4; --pv-da: #f59e0b; --pv-l0: #fbf7f1; --pv-l1: #f4eee5; --pv-lt: #211a12; --pv-la: #b45309; }
+.ap-pal[data-pal="contrast"] { --pv-d0: #000000; --pv-d1: #141414; --pv-dt: #ffffff; --pv-da: #ffd400; --pv-l0: #ffffff; --pv-l1: #f2f2f2; --pv-lt: #000000; --pv-la: #0040c0; }
+.ap-pal[data-pal="classic"] { --pv-d0: #0f0d17; --pv-d1: #1e1a29; --pv-dt: #f1edf7; --pv-da: #e0607e; --pv-l0: #faf7f5; --pv-l1: #f4eee5; --pv-lt: #221a2a; --pv-la: #c24c74; }
+.ap-swatch[data-accent="blue"] { background: #3b82f6; }
+.ap-swatch[data-accent="cyan"] { background: #22d3ee; }
+.ap-swatch[data-accent="green"] { background: #22c55e; }
+.ap-swatch[data-accent="emerald"] { background: #10b981; }
+.ap-swatch[data-accent="red"] { background: #f87171; }
+.ap-swatch[data-accent="pink"] { background: #f472b6; }
+.ap-swatch[data-accent="violet"] { background: #a78bfa; }
+.ap-swatch[data-accent="grey"] { background: #a1a1aa; }
+/* end V1 palettes */
+/* Theme colour (the stored default "rose") keeps the palette's own accent; Custom gets its three
+   values from web/theme-boot.js (inline on <html>, from sara.accentCustom). */
+/* Reduce decoration (sara.decor, html[data-decor="off"]; web/pro.css §2 does the rest): gradients
+   become the solid accent, glows and blur go. Default for every palette except Sara Classic. */
+:root[data-decor="off"] {
+  --accent-to: var(--accent-from);
+  --accent-grad: linear-gradient(var(--accent-solid), var(--accent-solid));
+  --accent-glow: transparent;
+  --violet-glow: transparent;
+  --btn-glow: none;
+  --glow-edge: none;
+  --page-glow: none;
+  --glass-filter: none;
+  --glass: var(--surface-2);
+  --glass-strong: var(--surface-1);
+  --glass-fill: linear-gradient(var(--surface-1), var(--surface-1));
+  --glass-fill-strong: linear-gradient(var(--surface-1), var(--surface-1));
+  --glass-edge: linear-gradient(var(--line), var(--line));
+  --glass-hi: 0 0 0 transparent;
+  --glass-tint: transparent;
+  --bbar-fill: linear-gradient(var(--surface-1), var(--surface-1));
+  --bbar-lit: linear-gradient(transparent, transparent);
+  --spark-a: transparent;
+}
+/* Sara Classic without decoration: her messages and buttons keep the deep first stop of the gradient
+   (white text at 5:1+), as one solid colour. */
+:root[data-palette="classic"][data-decor="off"] { --mine-grad: linear-gradient(#a8456d, #a8456d); }
+:root[data-palette="classic"][data-decor="off"][data-theme="light"] { --mine-grad: linear-gradient(#b8436a, #b8436a); }
+
+/* ---------- V3 Full decoration outside Sara Classic (docs/ops/V3_DESIGN.md §3) ----------
+   A premium layer, not the Classic aurora: solid accent (no gradients), translucent glass only on the
+   edge chrome and floating layers, a faint accent glow on the primary action, and two very slow, very
+   low-contrast washes of the accent behind the app. The percentages are read by test/v3-design.test.ts
+   (text on each glass surface over the brightest point of the light stays at AA). High contrast stays
+   solid; reduced transparency forces decoration off (web/theme-boot.js). */
+:root:not([data-palette="classic"])[data-decor="on"] {
+  --v3-glass: 80%;
+  --v3-glass-strong: 90%;
+  --v3-light: 9%;
+  --accent-to: var(--accent-from);
+  --accent-grad: linear-gradient(var(--accent-solid), var(--accent-solid));
+  --glass: color-mix(in srgb, var(--surface-1) var(--v3-glass), transparent);
+  --glass-strong: color-mix(in srgb, var(--surface-1) var(--v3-glass-strong), transparent);
+  --glass-filter: blur(20px) saturate(140%);
+  --glass-fill: linear-gradient(var(--glass), var(--glass));
+  --glass-fill-strong: linear-gradient(var(--glass-strong), var(--glass-strong));
+  --glass-edge: linear-gradient(var(--line), var(--line));
+  --glass-hi: inset 0 1px 0 color-mix(in srgb, var(--text-1) 5%, transparent);
+  --glass-tint: transparent;
+  --btn-glow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent), 0 6px 20px -8px color-mix(in srgb, var(--accent-solid) 60%, transparent);
+  --v3-ring-glow: 0 0 0 3px color-mix(in srgb, var(--accent-solid) 16%, transparent), 0 0 24px -6px color-mix(in srgb, var(--accent-solid) 40%, transparent);
+  --aurora-base: linear-gradient(var(--surface-0), var(--surface-0));
+  --aurora-1: color-mix(in srgb, var(--accent-solid) var(--v3-light), transparent);
+  --aurora-2: color-mix(in srgb, var(--accent-text) calc(var(--v3-light) * .6), transparent);
+  --aurora-3: transparent;
+  --aurora-speed: 1.6;
+  --grain-opacity: 0;
+  --spark-a: transparent;
+  --accent-glow: color-mix(in srgb, var(--accent-solid) 22%, transparent);
+  --violet-glow: transparent;
+}
+:root:not([data-palette="classic"])[data-decor="on"][data-theme="light"] {
+  --v3-glass: 84%;
+  --v3-glass-strong: 94%;
+  --v3-light: 6%;
+  --btn-glow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 22%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--accent-solid) 45%, transparent);
+}
+:root[data-palette="contrast"][data-decor="on"] {
+  --glass: var(--surface-1);
+  --glass-strong: var(--surface-1);
+  --glass-filter: none;
+  --btn-glow: none;
+  --v3-ring-glow: 0 0 0 0 transparent;
+  --aurora-1: transparent;
+  --aurora-2: transparent;
+}
+
+/* ---------- V4 (docs/ops/V4_DESIGN.md): one accent, as hue / saturation / lightness ----------
+   The readable colours stay the AA-checked hex values above (--accent-solid, --accent-text,
+   --on-accent: test/v1-theme.test.ts and test/v4a-shell.test.ts). The V4 glows, the background
+   field, the sparklines and the status dots are drawn from the same accent's hue: --acc-h/s/l
+   follow the picked preset here, a custom colour (web/theme-boot.js) and Theme colour (web/v4.js
+   reads the palette's own accent). Decorative only: nothing readable uses them. */
+:root { --acc-h: 218; --acc-s: 74%; --acc-l: 53%; }
+:root[data-palette="midnight"] { --acc-h: 188; --acc-s: 72%; --acc-l: 47%; }
+:root[data-palette="slate"] { --acc-h: 160; --acc-s: 84%; --acc-l: 39%; }
+:root[data-palette="nord"] { --acc-h: 193; --acc-s: 43%; --acc-l: 67%; }
+:root[data-palette="solarized"] { --acc-h: 205; --acc-s: 69%; --acc-l: 49%; }
+:root[data-palette="paper"] { --acc-h: 17; --acc-s: 55%; --acc-l: 53%; }
+:root[data-palette="ember"] { --acc-h: 38; --acc-s: 92%; --acc-l: 50%; }
+:root[data-palette="contrast"] { --acc-h: 50; --acc-s: 100%; --acc-l: 50%; }
+:root[data-palette="classic"] { --acc-h: 345; --acc-s: 66%; --acc-l: 63%; }
+:root[data-palette][data-accent="blue"] { --acc-h: 218; --acc-s: 76%; --acc-l: 53%; }
+:root[data-palette][data-accent="pink"] { --acc-h: 335; --acc-s: 72%; --acc-l: 60%; }
+:root[data-palette][data-accent="violet"] { --acc-h: 262; --acc-s: 72%; --acc-l: 64%; }
+:root[data-palette][data-accent="emerald"] { --acc-h: 160; --acc-s: 84%; --acc-l: 39%; }
+:root:not([data-palette="classic"])[data-accent="amber"] { --acc-h: 38; --acc-s: 92%; --acc-l: 50%; }
+:root[data-palette][data-accent="cyan"] { --acc-h: 188; --acc-s: 86%; --acc-l: 53%; }
+:root[data-palette][data-accent="green"] { --acc-h: 142; --acc-s: 71%; --acc-l: 45%; }
+:root[data-palette][data-accent="red"] { --acc-h: 0; --acc-s: 84%; --acc-l: 60%; }
+:root[data-palette][data-accent="grey"] { --acc-h: 240; --acc-s: 5%; --acc-l: 60%; }
+:root {
+  --acc-glow: hsl(var(--acc-h) 90% 60% / .5);
+  --acc-haze: hsl(var(--acc-h) var(--acc-s) var(--acc-l) / .14);
+  --acc-line: color-mix(in srgb, var(--accent-solid) 45%, transparent);
+  --acc-second: hsl(calc(var(--acc-h) + 38) 70% 66%);
+  --v4-strip-h: 44px;
+}
+:root[data-theme="light"] { --acc-glow: hsl(var(--acc-h) 80% 50% / .28); }
+:root[data-palette="contrast"], :root[data-decor="off"] { --acc-glow: transparent; --acc-haze: transparent; }

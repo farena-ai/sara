@@ -1,0 +1,468 @@
+{
+ "format": "sara-store-locales-source",
+ "note": "Listing translations of the first-party companions (tagline = summary, description = the persona summary shown under What it does). The publisher turns this into the signed v1/locales.json sidecar; nothing here changes a pack folder or its contentSha.",
+ "items": {
+  "ambrose": {
+   "es": {
+    "summary": "Un apasionado de la historia y conservador jubilado: el pasado contado como un chisme, con fuentes.",
+    "description": "Ambrose pasó cuarenta años como conservador de museo en Edimburgo y nunca ha dejado de contar historias. Hace que la historia cobre vida: la vida cotidiana, los detalles curiosos y las personas que la historia olvidó. Separa lo que se sabe de la leyenda, admite cuando los historiadores no se ponen de acuerdo y adora irse por las ramas."
+   },
+   "fr": {
+    "summary": "Un passionné d'histoire, conservateur à la retraite : le passé raconté comme un potin, sources à l'appui.",
+    "description": "Ambrose a été conservateur de musée à Édimbourg pendant quarante ans et n'a jamais cessé de raconter des histoires. Il rend l'histoire vivante : la vie quotidienne, les détails étranges et les gens que l'histoire a oubliés. Il sépare ce que l'on sait de la légende, reconnaît quand les historiens ne sont pas d'accord et adore les digressions."
+   },
+   "de": {
+    "summary": "Ein erzählfreudiger Geschichtsfan und pensionierter Kurator: die Vergangenheit wie Klatsch erzählt, mit Quellen.",
+    "description": "Ambrose war vierzig Jahre lang Museumskurator in Edinburgh und hat nie aufgehört, Geschichten zu erzählen. Er macht Geschichte lebendig: den Alltag, seltsame Details und die Menschen, die die Geschichte vergessen hat. Er trennt Gesichertes von Legenden, gibt zu, wenn sich Historiker uneinig sind, und liebt einen guten Abstecher."
+   },
+   "pt-BR": {
+    "summary": "Um contador de histórias apaixonado por história e curador aposentado: o passado contado como fofoca, com fontes.",
+    "description": "Ambrose passou quarenta anos como curador de museu em Edimburgo e nunca parou de contar histórias. Ele dá vida à história: o cotidiano, os detalhes curiosos e as pessoas que a história esqueceu. Separa o que se sabe do que é lenda, admite quando os historiadores discordam e adora uma boa digressão."
+   },
+   "it": {
+    "summary": "Un appassionato narratore di storia e curatore in pensione: il passato raccontato come un pettegolezzo, con le fonti.",
+    "description": "Ambrose è stato curatore di museo a Edimburgo per quarant'anni e non ha mai smesso di raccontare storie. Rende viva la storia: la vita quotidiana, i dettagli curiosi e le persone che la storia ha dimenticato. Distingue ciò che si sa dalla leggenda, ammette quando gli storici non sono d'accordo e adora le digressioni."
+   }
+  },
+  "arjun": {
+   "es": {
+    "summary": "Un cofundador de startups pragmático que programa: lanza poco a poco, pruébalo, habla con los usuarios y repite.",
+    "description": "Arjun dejó una gran empresa tecnológica para cofundar dos startups (una fracasó y a la otra le va bien). Como socio al estilo cofundador, ayuda a {{user}} a acotar ideas, escribir y revisar código, planear lanzamientos y hablar con los usuarios. Es pragmático, rápido y alérgico a la sobreingeniería, y lo dice con amabilidad."
+   },
+   "fr": {
+    "summary": "Un cofondateur de startup pragmatique qui code : livrer petit, tester, parler aux utilisateurs, recommencer.",
+    "description": "Arjun a quitté une grande entreprise tech pour cofonder deux startups (l'une a échoué, l'autre se porte bien). En partenaire façon cofondateur, il aide {{user}} à cadrer ses idées, écrire et relire du code, préparer des lancements et parler aux utilisateurs. Il est pragmatique, rapide et allergique à la sur-ingénierie, et il le dit gentiment."
+   },
+   "de": {
+    "summary": "Ein pragmatischer Startup-Mitgründer, der programmiert: klein ausliefern, testen, mit Nutzern reden, wiederholen.",
+    "description": "Arjun hat ein großes Tech-Unternehmen verlassen, um zwei Startups mitzugründen (eines ist gescheitert, dem anderen geht es gut). Als Partner im Stil eines Mitgründers hilft er {{user}}, Ideen einzugrenzen, Code zu schreiben und zu prüfen, Launches zu planen und mit Nutzern zu sprechen. Er ist pragmatisch, schnell und allergisch gegen Over-Engineering, und er sagt das freundlich."
+   },
+   "pt-BR": {
+    "summary": "Um cofundador de startup pragmático que programa: entregue pouco, teste, fale com os usuários, repita.",
+    "description": "Arjun saiu de uma grande empresa de tecnologia para cofundar duas startups (uma fracassou, a outra vai bem). Como parceiro no estilo cofundador, ele ajuda {{user}} a delimitar ideias, escrever e revisar código, planejar lançamentos e conversar com usuários. É pragmático, rápido e alérgico a excesso de engenharia, e diz isso com gentileza."
+   },
+   "it": {
+    "summary": "Un cofondatore di startup pragmatico che programma: rilascia in piccolo, testa, parla con gli utenti, ripeti.",
+    "description": "Arjun ha lasciato una grande azienda tech per cofondare due startup (una è fallita, l'altra va bene). Come partner in stile cofondatore aiuta {{user}} a definire le idee, scrivere e rivedere codice, pianificare lanci e parlare con gli utenti. È pragmatico, veloce e allergico all'eccesso di ingegneria, e lo dice con gentilezza."
+   }
+  },
+  "bram": {
+   "es": {
+    "summary": "Un jardinero neerlandés seco y paciente: qué plantar, cuándo podar y por qué se te murió la albahaca.",
+    "description": "Bram es un horticultor neerlandés que ahora cultiva en un gran huerto y aconseja a cualquiera que tenga una maceta o una parcela. Es seco, paciente y práctico: pregunta por la luz, el suelo y el clima antes de aconsejar, planea las temporadas con {{user}} y diagnostica plantas tristes con muy pocas palabras y mucha experiencia."
+   },
+   "fr": {
+    "summary": "Un jardinier néerlandais pince-sans-rire et patient : quoi planter, quand tailler et pourquoi ton basilic est mort.",
+    "description": "Bram est un maraîcher néerlandais qui cultive aujourd'hui un grand jardin partagé et conseille quiconque a un pot ou une parcelle. Il est pince-sans-rire, patient et pratique : il demande la lumière, le sol et le climat avant de conseiller, planifie les saisons avec {{user}} et diagnostique les plantes mal en point en très peu de mots et avec beaucoup d'expérience."
+   },
+   "de": {
+    "summary": "Ein trockener, geduldiger niederländischer Gärtner: was du pflanzt, wann du schneidest und warum dein Basilikum einging.",
+    "description": "Bram ist ein niederländischer Gemüsegärtner, der heute einen großen Kleingarten bewirtschaftet und alle berät, die einen Topf oder ein Beet haben. Er ist trocken, geduldig und praktisch: Er fragt nach Licht, Boden und Klima, bevor er rät, plant die Jahreszeiten mit {{user}} und diagnostiziert traurige Pflanzen mit wenigen Worten und viel Erfahrung."
+   },
+   "pt-BR": {
+    "summary": "Um jardineiro holandês seco e paciente: o que plantar, quando podar e por que seu manjericão morreu.",
+    "description": "Bram é um horticultor holandês que hoje cultiva uma grande horta e aconselha qualquer pessoa com um vaso ou um canteiro. É seco, paciente e prático: pergunta sobre luz, solo e clima antes de aconselhar, planeja as estações com {{user}} e diagnostica plantas tristes com pouquíssimas palavras e muita experiência."
+   },
+   "it": {
+    "summary": "Un giardiniere olandese asciutto e paziente: cosa piantare, quando potare e perché il tuo basilico è morto.",
+    "description": "Bram è un orticoltore olandese che oggi coltiva un grande orto e consiglia chiunque abbia un vaso o un appezzamento. È asciutto, paziente e pratico: chiede di luce, terreno e clima prima di consigliare, pianifica le stagioni con {{user}} e diagnostica le piante sofferenti con pochissime parole e tanta esperienza."
+   }
+  },
+  "dex": {
+   "es": {
+    "summary": "Un entrenador directo y de gran corazón: sin excusas, sin vergüenza, solo la siguiente serie.",
+    "description": "Dex es un exjugador de rugby de Auckland convertido en entrenador de fuerza. Es directo, ruidoso y divertido, y no acepta excusas, pero nunca avergüenza a nadie: le importan la técnica, el sueño y presentarse. Crea planes sencillos con el equipo y el tiempo que {{user}} tiene de verdad."
+   },
+   "fr": {
+    "summary": "Un coach sportif franc au grand cœur : pas d'excuses, pas de honte, juste la série suivante.",
+    "description": "Dex est un ancien joueur de rugby d'Auckland devenu coach de musculation. Il est franc, bruyant et drôle, et n'accepte pas les excuses, mais il ne fait jamais honte à personne : il tient à la technique, au sommeil et à la régularité. Il construit des programmes simples avec le matériel et le temps dont {{user}} dispose vraiment."
+   },
+   "de": {
+    "summary": "Ein direkter Fitnesscoach mit großem Herzen: keine Ausreden, keine Scham, nur der nächste Satz.",
+    "description": "Dex ist ein ehemaliger Rugbyspieler aus Auckland, der Krafttrainer geworden ist. Er ist direkt, laut und lustig und akzeptiert keine Ausreden, beschämt aber nie jemanden: Ihm sind Technik, Schlaf und Dranbleiben wichtig. Er baut einfache Pläne um die Geräte und die Zeit, die {{user}} wirklich hat."
+   },
+   "pt-BR": {
+    "summary": "Um treinador direto e de coração enorme: sem desculpas, sem vergonha, só a próxima série.",
+    "description": "Dex é um ex-jogador de rúgbi de Auckland que virou treinador de força. É direto, barulhento e engraçado, e não aceita desculpas, mas nunca envergonha ninguém: se importa com técnica, sono e constância. Monta planos simples com o equipamento e o tempo que {{user}} realmente tem."
+   },
+   "it": {
+    "summary": "Un coach di fitness diretto e dal cuore grande: niente scuse, niente vergogna, solo la prossima serie.",
+    "description": "Dex è un ex giocatore di rugby di Auckland diventato allenatore di forza. È diretto, rumoroso e divertente, e non accetta scuse, ma non fa mai vergognare nessuno: gli importano la tecnica, il sonno e la costanza. Costruisce piani semplici con l'attrezzatura e il tempo che {{user}} ha davvero."
+   }
+  },
+  "elodie": {
+   "es": {
+    "summary": "Una tutora de francés de Lyon, seca y elegante, que te hace hablar bien francés y disfrutarlo.",
+    "description": "Élodie es una exprofesora de literatura de Lyon que ahora da clases de francés a adultos. Es precisa, irónica y discretamente alentadora: no deja pasar un género equivocado, pero explica por qué, y premia los avances con recetas, películas y alguna opinión muy francesa."
+   },
+   "fr": {
+    "summary": "Une tutrice de français lyonnaise, élégante et pince-sans-rire, qui vous fait parler un vrai français avec plaisir.",
+    "description": "Élodie est une ancienne professeure de lettres de Lyon qui donne aujourd'hui des cours de français aux adultes. Elle est précise, ironique et discrètement encourageante : elle ne laisse passer aucune erreur de genre, mais elle explique pourquoi, et elle récompense les progrès par des recettes, des films et, parfois, une opinion très française."
+   },
+   "de": {
+    "summary": "Eine trockene, elegante Französischlehrerin aus Lyon, die dich richtig Französisch sprechen lässt und es dir Spaß macht.",
+    "description": "Élodie ist eine ehemalige Literaturlehrerin aus Lyon, die heute Erwachsenen Französischunterricht gibt. Sie ist genau, ironisch und leise ermutigend: Ein falsches Geschlecht lässt sie nicht durchgehen, aber sie erklärt, warum, und belohnt Fortschritte mit Rezepten, Filmen und gelegentlich einer sehr französischen Meinung."
+   },
+   "pt-BR": {
+    "summary": "Uma professora de francês de Lyon, seca e elegante, que faz você falar francês direito e gostar disso.",
+    "description": "Élodie é uma ex-professora de literatura de Lyon que hoje dá aulas de francês para adultos. É precisa, irônica e discretamente encorajadora: não deixa passar um gênero errado, mas explica o porquê, e recompensa o progresso com receitas, filmes e, de vez em quando, uma opinião muito francesa."
+   },
+   "it": {
+    "summary": "Un'insegnante di francese di Lione, asciutta ed elegante, che ti fa parlare un vero francese e divertirti.",
+    "description": "Élodie è un'ex insegnante di letteratura di Lione che oggi dà lezioni di francese agli adulti. È precisa, ironica e discretamente incoraggiante: non lascia passare un genere sbagliato, ma spiega il perché, e premia i progressi con ricette, film e, ogni tanto, un'opinione molto francese."
+   }
+  },
+  "hollis": {
+   "es": {
+    "summary": "Un oyente amable para los días difíciles: paciente, cálido y honesto en que no es terapeuta.",
+    "description": "Hollis es un farero jubilado que pasó años como voluntario en una línea de escucha. Es un oyente paciente y amable: devuelve lo que oye, hace preguntas cariñosas y ayuda a {{user}} a poner los sentimientos en palabras. Deja claro que no es terapeuta y anima a buscar ayuda profesional cuando las cosas pesan."
+   },
+   "fr": {
+    "summary": "Une oreille douce pour les jours difficiles : patient, chaleureux et honnête sur le fait qu'il n'est pas thérapeute.",
+    "description": "Hollis est un gardien de phare à la retraite qui a passé des années comme bénévole sur une ligne d'écoute. C'est un écoutant patient et doux : il reformule ce qu'il entend, pose des questions bienveillantes et aide {{user}} à mettre des mots sur ses émotions. Il dit clairement qu'il n'est pas thérapeute et encourage à consulter un professionnel quand c'est lourd."
+   },
+   "de": {
+    "summary": "Ein sanfter Zuhörer für schwere Tage: geduldig, warmherzig und ehrlich darin, dass er kein Therapeut ist.",
+    "description": "Hollis ist ein pensionierter Leuchtturmwärter, der jahrelang ehrenamtlich an einem Sorgentelefon gearbeitet hat. Er ist ein geduldiger, sanfter Zuhörer: Er spiegelt, was er hört, stellt freundliche Fragen und hilft {{user}}, Gefühle in Worte zu fassen. Er sagt klar, dass er kein Therapeut ist, und ermutigt zu professioneller Hilfe, wenn es schwer wird."
+   },
+   "pt-BR": {
+    "summary": "Um ouvinte gentil para dias difíceis: paciente, acolhedor e honesto ao dizer que não é terapeuta.",
+    "description": "Hollis é um faroleiro aposentado que passou anos como voluntário em uma linha de escuta. É um ouvinte paciente e gentil: devolve o que ouve, faz perguntas carinhosas e ajuda {{user}} a colocar os sentimentos em palavras. Deixa claro que não é terapeuta e incentiva a buscar ajuda profissional quando as coisas pesam."
+   },
+   "it": {
+    "summary": "Un ascoltatore gentile per le giornate difficili: paziente, caloroso e onesto sul fatto di non essere un terapeuta.",
+    "description": "Hollis è un guardiano del faro in pensione che per anni ha fatto il volontario in una linea di ascolto. È un ascoltatore paziente e gentile: rimanda ciò che sente, fa domande premurose e aiuta {{user}} a dare parole ai sentimenti. Chiarisce che non è un terapeuta e incoraggia a cercare un aiuto professionale quando le cose pesano."
+   }
+  },
+  "ines": {
+   "es": {
+    "summary": "Una planificadora de dinero ágil y práctica: presupuestos, metas de ahorro y palabras claras, no asesoría financiera.",
+    "description": "Inês es una excontable de Oporto que ahora ayuda a sus amigos a ordenar su dinero. Es ágil, práctica y no juzga: ayuda a {{user}} a hacer un presupuesto, planear metas de ahorro, comparar opciones y detectar suscripciones que nadie usa. Deja claro que ofrece ayuda general de planificación, no asesoría financiera."
+   },
+   "fr": {
+    "summary": "Une planificatrice budgétaire vive et pratique : budgets, objectifs d'épargne et langage clair, pas de conseil financier.",
+    "description": "Inês est une ancienne comptable de Porto qui aide aujourd'hui ses amis à mettre de l'ordre dans leur argent. Elle est vive, pratique et ne juge pas : elle aide {{user}} à établir un budget, planifier des objectifs d'épargne, comparer des options et repérer les abonnements que personne n'utilise. Elle précise qu'elle offre une aide générale à la planification, pas un conseil financier."
+   },
+   "de": {
+    "summary": "Eine flotte, praktische Geldplanerin: Budgets, Sparziele und klare Worte, keine Finanzberatung.",
+    "description": "Inês ist eine ehemalige Buchhalterin aus Porto, die heute Freunden hilft, ihre Finanzen zu ordnen. Sie ist flott, praktisch und wertet nicht: Sie hilft {{user}}, ein Budget aufzustellen, Sparziele zu planen, Optionen zu vergleichen und Abos zu finden, die niemand nutzt. Sie stellt klar, dass sie allgemeine Planungshilfe bietet, keine Finanzberatung."
+   },
+   "pt-BR": {
+    "summary": "Uma planejadora financeira ágil e prática: orçamentos, metas de economia e conversa clara, não consultoria financeira.",
+    "description": "Inês é uma ex-contadora do Porto que hoje ajuda os amigos a organizar o dinheiro. É ágil, prática e não julga: ajuda {{user}} a montar um orçamento, planejar metas de economia, comparar opções e achar assinaturas que ninguém usa. Deixa claro que oferece ajuda geral de planejamento, não consultoria financeira."
+   },
+   "it": {
+    "summary": "Una pianificatrice finanziaria svelta e pratica: budget, obiettivi di risparmio e parole chiare, non consulenza finanziaria.",
+    "description": "Inês è un'ex contabile di Porto che oggi aiuta gli amici a mettere ordine nei soldi. È svelta, pratica e non giudica: aiuta {{user}} a fare un budget, pianificare obiettivi di risparmio, confrontare opzioni e scovare abbonamenti che nessuno usa. Chiarisce che offre un aiuto generale alla pianificazione, non consulenza finanziaria."
+   }
+  },
+  "jax": {
+   "es": {
+    "summary": "Un amigo hacker caótico y alegre que vive para los bugs raros y los proyectos nocturnos.",
+    "description": "Jax es un compañero hacker caótico y alegre que vive para los bugs raros, los atajos ingeniosos y los proyectos de madrugada. Es el cómplice de {{user}} para construir cosas y, bajo tanto ruido, es leal y sorprendentemente cuidadoso con lo que importa."
+   },
+   "fr": {
+    "summary": "Un ami hacker chaotique et joyeux qui vit pour les bugs bizarres et les projets de fin de soirée.",
+    "description": "Jax est un copain hacker chaotique et joyeux qui vit pour les bugs étranges, les raccourcis malins et les projets nocturnes. C'est le complice de {{user}} pour construire des choses et, sous le bruit, il est loyal et étonnamment soigneux avec ce qui compte."
+   },
+   "de": {
+    "summary": "Ein chaotischer, fröhlicher Hacker-Freund, der für seltsame Bugs und nächtliche Nebenprojekte lebt.",
+    "description": "Jax ist ein chaotischer, fröhlicher Hacker-Kumpel, der für seltsame Bugs, clevere Abkürzungen und nächtliche Nebenprojekte lebt. Er ist der Komplize von {{user}} beim Bauen von Dingen, und unter dem ganzen Lärm ist er loyal und überraschend sorgfältig mit dem, was zählt."
+   },
+   "pt-BR": {
+    "summary": "Um amigo hacker caótico e animado que vive para bugs estranhos e projetos paralelos de madrugada.",
+    "description": "Jax é um parceiro hacker caótico e animado que vive para bugs estranhos, atalhos espertos e projetos de madrugada. É o cúmplice de {{user}} para construir coisas e, por baixo de todo o barulho, é leal e surpreendentemente cuidadoso com o que importa."
+   },
+   "it": {
+    "summary": "Un amico hacker caotico e allegro che vive per i bug strani e i progetti notturni.",
+    "description": "Jax è un compagno hacker caotico e allegro che vive per i bug strani, le scorciatoie furbe e i progetti a notte fonda. È il complice di {{user}} per costruire cose e, sotto tutto il rumore, è leale e sorprendentemente attento a ciò che conta."
+   }
+  },
+  "juniper": {
+   "es": {
+    "summary": "Una amiga cálida y acogedora: té, palabras amables y buena compañía.",
+    "description": "Juniper es una amiga dulce y acogedora a la que le encantan las mantas, hornear y las charlas largas. Es el lugar seguro de {{user}}: escucha, recuerda los pequeños detalles y siempre tiene una palabra amable, y es sincera cuando importa."
+   },
+   "fr": {
+    "summary": "Une amie chaleureuse et réconfortante : du thé, des mots gentils et de la bonne compagnie.",
+    "description": "Juniper est une amie douce et réconfortante qui adore les plaids, la pâtisserie et les longues conversations. Elle est le refuge de {{user}} : elle écoute, se souvient des petites choses, a toujours un mot gentil et sait être honnête quand c'est important."
+   },
+   "de": {
+    "summary": "Eine warmherzige, gemütliche Freundin: Tee, liebe Worte und gute Gesellschaft.",
+    "description": "Juniper ist eine sanfte, gemütliche Freundin, die Decken, Backen und lange Gespräche liebt. Sie ist der sichere Ort von {{user}}: Sie hört zu, merkt sich die kleinen Dinge, hat immer ein freundliches Wort und ist ehrlich, wenn es darauf ankommt."
+   },
+   "pt-BR": {
+    "summary": "Uma amiga calorosa e aconchegante: chá, palavras gentis e boa companhia.",
+    "description": "Juniper é uma amiga doce e aconchegante que adora cobertores, fazer bolos e conversas longas. Ela é o porto seguro de {{user}}: escuta, lembra das pequenas coisas, sempre tem uma palavra gentil e é honesta quando importa."
+   },
+   "it": {
+    "summary": "Un'amica calorosa e accogliente: tè, parole gentili e buona compagnia.",
+    "description": "Juniper è un'amica dolce e accogliente che ama le coperte, cucinare dolci e le lunghe chiacchierate. È il posto sicuro di {{user}}: ascolta, ricorda le piccole cose, ha sempre una parola gentile ed è sincera quando conta."
+   }
+  },
+  "kenji": {
+   "es": {
+    "summary": "Un tutor de japonés y calígrafo sereno: clases pacientes, humor tranquilo y progreso constante.",
+    "description": "Kenji enseña japonés como practica la caligrafía: un trazo cuidadoso cada vez. Es sereno, paciente y discretamente gracioso, explica kana, kanji y niveles de cortesía sin presión y ayuda a {{user}} a crear un hábito constante en vez de estudiar a última hora."
+   },
+   "fr": {
+    "summary": "Un tuteur de japonais et calligraphe serein : des leçons patientes, un humour tranquille et des progrès réguliers.",
+    "description": "Kenji enseigne le japonais comme il pratique la calligraphie : un trait soigné à la fois. Il est calme, patient et discrètement drôle, explique les kana, les kanji et les niveaux de politesse sans pression, et aide {{user}} à prendre une habitude régulière plutôt qu'à bachoter."
+   },
+   "de": {
+    "summary": "Ein ruhiger Japanischlehrer und Kalligraf: geduldiger Unterricht, leiser Humor und stetiger Fortschritt.",
+    "description": "Kenji unterrichtet Japanisch so, wie er Kalligrafie übt: einen sorgfältigen Strich nach dem anderen. Er ist ruhig, geduldig und leise witzig, erklärt Kana, Kanji und Höflichkeitsstufen ohne Druck und hilft {{user}}, eine stetige Gewohnheit aufzubauen, statt zu pauken."
+   },
+   "pt-BR": {
+    "summary": "Um professor de japonês e calígrafo tranquilo: aulas pacientes, humor discreto e progresso constante.",
+    "description": "Kenji ensina japonês do jeito que pratica caligrafia: um traço cuidadoso de cada vez. É calmo, paciente e discretamente engraçado, explica kana, kanji e níveis de formalidade sem pressão e ajuda {{user}} a criar um hábito constante em vez de estudar tudo de última hora."
+   },
+   "it": {
+    "summary": "Un insegnante di giapponese e calligrafo sereno: lezioni pazienti, umorismo pacato e progressi costanti.",
+    "description": "Kenji insegna il giapponese come pratica la calligrafia: un tratto accurato alla volta. È calmo, paziente e discretamente spiritoso, spiega kana, kanji e livelli di cortesia senza pressione e aiuta {{user}} a costruire un'abitudine costante invece di studiare tutto all'ultimo."
+   }
+  },
+  "kestrel": {
+   "es": {
+    "summary": "Una capitana de barco aéreo intrépida para rol de fantasía: aventuras que tú diriges, siempre aptas para todos.",
+    "description": "Kestrel Vane capitanea el barco aéreo Dawnrunner en las Islas Fragmentadas, un mundo de fantasía original de islas flotantes, ballenas de tormenta y torres en ruinas. Dirige aventuras interactivas en las que {{user}} es parte de la tripulación: narra escenas, da voz a personajes, ofrece decisiones y mantiene la historia emocionante y segura para todos."
+   },
+   "fr": {
+    "summary": "Une capitaine de navire volant intrépide pour le jeu de rôle fantasy : des aventures que vous dirigez, toujours tout public.",
+    "description": "Kestrel Vane commande le navire volant Dawnrunner dans les Îles Brisées, un monde de fantasy original fait d'îles flottantes, de baleines d'orage et de tours en ruine. Elle mène des aventures interactives où {{user}} fait partie de l'équipage : elle raconte les scènes, fait parler les personnages, propose des choix et garde l'histoire palpitante et sûre pour tous."
+   },
+   "de": {
+    "summary": "Eine verwegene Luftschiff-Kapitänin für Fantasy-Rollenspiel: Abenteuer, die du lenkst, immer jugendfrei.",
+    "description": "Kestrel Vane führt das Luftschiff Dawnrunner über die Zersplitterten Inseln, eine eigene Fantasywelt aus schwebenden Inseln, Sturmwalen und verfallenen Türmen. Sie leitet interaktive Abenteuer, in denen {{user}} zur Crew gehört: Sie erzählt Szenen, spricht Figuren, bietet Entscheidungen an und hält die Geschichte spannend und für alle sicher."
+   },
+   "pt-BR": {
+    "summary": "Uma capitã de navio voador destemida para RPG de fantasia: aventuras que você conduz, sempre para todos os públicos.",
+    "description": "Kestrel Vane comanda o navio voador Dawnrunner nas Ilhas Partidas, um mundo de fantasia original de ilhas flutuantes, baleias de tempestade e torres em ruínas. Ela conduz aventuras interativas em que {{user}} faz parte da tripulação: narra cenas, dá voz a personagens, oferece escolhas e mantém a história emocionante e segura para todos."
+   },
+   "it": {
+    "summary": "Una capitana di nave volante spavalda per il gioco di ruolo fantasy: avventure che guidi tu, sempre per tutti.",
+    "description": "Kestrel Vane comanda la nave volante Dawnrunner nelle Isole Infrante, un mondo fantasy originale di isole fluttuanti, balene della tempesta e torri in rovina. Conduce avventure interattive in cui {{user}} fa parte dell'equipaggio: narra le scene, dà voce ai personaggi, offre scelte e mantiene la storia avvincente e sicura per tutti."
+   }
+  },
+  "lucia": {
+   "es": {
+    "summary": "Una chef jubilada de Bolonia, cálida y mandona, que te enseña a cocinar comida de verdad entre semana.",
+    "description": "Lucia llevó una trattoria en Bolonia durante treinta años y ahora enseña a cocinar a quien quiera escucharla. Es cálida, mandona y generosa, adapta las recetas a lo que hay en la nevera de {{user}} y cree que nadie debería comer comida triste a solas."
+   },
+   "fr": {
+    "summary": "Une cheffe retraitée de Bologne, chaleureuse et autoritaire, qui vous apprend à cuisiner de vrais plats en semaine.",
+    "description": "Lucia a tenu une trattoria à Bologne pendant trente ans et apprend désormais à cuisiner à quiconque veut l'écouter. Elle est chaleureuse, autoritaire et généreuse, adapte les recettes à ce qu'il y a dans le frigo de {{user}} et pense que personne ne devrait manger un plat triste tout seul."
+   },
+   "de": {
+    "summary": "Eine warmherzige, resolute Köchin im Ruhestand aus Bologna, die dir echtes Essen für unter der Woche beibringt.",
+    "description": "Lucia hat dreißig Jahre lang eine Trattoria in Bologna geführt und bringt heute allen, die zuhören, das Kochen bei. Sie ist warmherzig, resolut und großzügig, passt Rezepte an das an, was im Kühlschrank von {{user}} ist, und findet, dass niemand allein trauriges Essen essen sollte."
+   },
+   "pt-BR": {
+    "summary": "Uma chef aposentada de Bolonha, calorosa e mandona, que ensina você a cozinhar comida de verdade no dia a dia.",
+    "description": "Lucia comandou uma trattoria em Bolonha por trinta anos e hoje ensina a cozinhar a quem quiser ouvir. É calorosa, mandona e generosa, adapta as receitas ao que tem na geladeira de {{user}} e acredita que ninguém deveria comer comida triste sozinho."
+   },
+   "it": {
+    "summary": "Una chef in pensione di Bologna, calorosa e autoritaria, che ti insegna a cucinare cibo vero nei giorni feriali.",
+    "description": "Lucia ha gestito una trattoria a Bologna per trent'anni e ora insegna a cucinare a chiunque voglia ascoltarla. È calorosa, autoritaria e generosa, adatta le ricette a ciò che c'è nel frigo di {{user}} e crede che nessuno dovrebbe mangiare cibo triste da solo."
+   }
+  },
+  "marisol": {
+   "es": {
+    "summary": "Una tutora de español alegre de Oaxaca: conversaciones reales, correcciones suaves y muchas risas.",
+    "description": "Marisol es una alegre tutora de español de Oaxaca que enseña con conversaciones reales: comida, música, planes para el fin de semana. Se adapta al nivel de {{user}}, corrige los errores con suavidad repitiendo la forma correcta y celebra cada palabra nueva como una pequeña fiesta."
+   },
+   "fr": {
+    "summary": "Une tutrice d'espagnol pétillante d'Oaxaca : de vraies conversations, des corrections douces et beaucoup de rires.",
+    "description": "Marisol est une joyeuse tutrice d'espagnol d'Oaxaca qui enseigne par la vraie conversation : cuisine, musique, projets du week-end. Elle s'adapte au niveau de {{user}}, corrige les erreurs en douceur en répétant la bonne forme et fête chaque nouveau mot comme une petite fiesta."
+   },
+   "de": {
+    "summary": "Eine quirlige Spanischlehrerin aus Oaxaca: echte Gespräche, sanfte Korrekturen und viel Lachen.",
+    "description": "Marisol ist eine fröhliche Spanischlehrerin aus Oaxaca, die mit echten Gesprächen unterrichtet: Essen, Musik, Pläne fürs Wochenende. Sie passt sich dem Niveau von {{user}} an, korrigiert Fehler sanft, indem sie die richtige Form wiederholt, und feiert jedes neue Wort wie eine kleine Fiesta."
+   },
+   "pt-BR": {
+    "summary": "Uma professora de espanhol animada de Oaxaca: conversas reais, correções gentis e muitas risadas.",
+    "description": "Marisol é uma professora de espanhol alegre de Oaxaca que ensina com conversas reais: comida, música, planos para o fim de semana. Ela se adapta ao nível de {{user}}, corrige os erros com delicadeza repetindo a forma certa e comemora cada palavra nova como uma pequena fiesta."
+   },
+   "it": {
+    "summary": "Un'insegnante di spagnolo frizzante di Oaxaca: conversazioni vere, correzioni gentili e tante risate.",
+    "description": "Marisol è un'allegra insegnante di spagnolo di Oaxaca che insegna con conversazioni vere: cibo, musica, programmi per il fine settimana. Si adatta al livello di {{user}}, corregge gli errori con gentilezza ripetendo la forma giusta e festeggia ogni parola nuova come una piccola fiesta."
+   }
+  },
+  "nia": {
+   "es": {
+    "summary": "Una productora musical sarcástica y relajada: beats, consejos de mezcla y notas sinceras sobre tus temas.",
+    "description": "Nia es una productora musical de Londres que creció entre Lagos y Peckham. Ayuda a {{user}} con beats, progresiones de acordes, arreglos, mezcla y a terminar temas, da notas sinceras con un toque sarcástico y le importa muchísimo que la gente publique de verdad su música."
+   },
+   "fr": {
+    "summary": "Une productrice de musique sarcastique et cool : des beats, des conseils de mixage et des avis honnêtes sur vos morceaux.",
+    "description": "Nia est une productrice de musique londonienne qui a grandi entre Lagos et Peckham. Elle aide {{user}} pour les beats, les grilles d'accords, l'arrangement, le mixage et la finition des morceaux, donne des avis honnêtes avec une pointe de sarcasme et tient beaucoup à ce que les gens sortent vraiment leur musique."
+   },
+   "de": {
+    "summary": "Eine sarkastische, entspannte Musikproduzentin: Beats, Mixing-Tipps und ehrliche Notizen zu deinen Tracks.",
+    "description": "Nia ist eine Londoner Musikproduzentin, die zwischen Lagos und Peckham aufgewachsen ist. Sie hilft {{user}} bei Beats, Akkordfolgen, Arrangement, Mixing und dem Fertigstellen von Tracks, gibt ehrliches Feedback mit sarkastischem Unterton und legt großen Wert darauf, dass Leute ihre Musik wirklich veröffentlichen."
+   },
+   "pt-BR": {
+    "summary": "Uma produtora musical sarcástica e tranquila: beats, dicas de mixagem e opiniões honestas sobre suas faixas.",
+    "description": "Nia é uma produtora musical de Londres que cresceu entre Lagos e Peckham. Ela ajuda {{user}} com beats, progressões de acordes, arranjo, mixagem e finalização de faixas, dá opiniões honestas com um toque sarcástico e se importa muito que as pessoas realmente lancem suas músicas."
+   },
+   "it": {
+    "summary": "Una produttrice musicale sarcastica e rilassata: beat, consigli di mixaggio e note sincere sui tuoi brani.",
+    "description": "Nia è una produttrice musicale londinese cresciuta tra Lagos e Peckham. Aiuta {{user}} con beat, giri di accordi, arrangiamento, mixaggio e finitura dei brani, dà note sincere con un tocco sarcastico e tiene molto al fatto che le persone pubblichino davvero la loro musica."
+   }
+  },
+  "priya": {
+   "es": {
+    "summary": "Una compañera de estudio friki y optimista que hace divertidas las fichas y te obliga a descansar de verdad.",
+    "description": "Priya es una doctoranda en neurociencia a la que le encanta aprender sobre cómo se aprende. Como compañera de estudio ayuda a {{user}} a planear sesiones, explica las cosas con palabras sencillas, hace preguntas con repetición espaciada e insiste en descansos de verdad. Es friki, optimista y sincera cuando un plan no es realista."
+   },
+   "fr": {
+    "summary": "Une copine de révision geek et enthousiaste qui rend les fiches amusantes et vous oblige à faire de vraies pauses.",
+    "description": "Priya est doctorante en neurosciences et adore apprendre comment on apprend. Comme partenaire de révision, elle aide {{user}} à planifier ses séances, explique les choses simplement, interroge avec la répétition espacée et insiste sur de vraies pauses. Elle est geek, enthousiaste et honnête quand un plan n'est pas réaliste."
+   },
+   "de": {
+    "summary": "Eine nerdige, gut gelaunte Lernpartnerin, die Karteikarten zum Spaß macht und auf echte Pausen achtet.",
+    "description": "Priya ist Doktorandin in Neurowissenschaften und liebt es, etwas über das Lernen zu lernen. Als Lernpartnerin hilft sie {{user}}, Lerneinheiten zu planen, erklärt Dinge in einfachen Worten, fragt mit verteilter Wiederholung ab und besteht auf echten Pausen. Sie ist nerdig, gut gelaunt und ehrlich, wenn ein Plan unrealistisch ist."
+   },
+   "pt-BR": {
+    "summary": "Uma parceira de estudos nerd e animada que deixa os flashcards divertidos e cobra pausas de verdade.",
+    "description": "Priya é doutoranda em neurociência e adora aprender sobre como se aprende. Como parceira de estudos, ajuda {{user}} a planejar sessões, explica as coisas com palavras simples, faz perguntas com repetição espaçada e insiste em pausas de verdade. É nerd, animada e honesta quando um plano não é realista."
+   },
+   "it": {
+    "summary": "Una compagna di studio nerd e solare che rende divertenti le flashcard e ti fa fare pause vere.",
+    "description": "Priya è una dottoranda in neuroscienze che adora imparare come si impara. Come compagna di studio aiuta {{user}} a pianificare le sessioni, spiega le cose con parole semplici, interroga con la ripetizione dilazionata e insiste sulle pause vere. È nerd, solare e sincera quando un piano non è realistico."
+   }
+  },
+  "rowan": {
+   "es": {
+    "summary": "Una mentoría serena y con los pies en la tierra: buenas preguntas, ideas claras y espacio para crecer.",
+    "description": "Rowan es una persona mentora serena y con los pies en la tierra que ha pasado décadas enseñando y creando software. Ayuda a {{user}} a ir más despacio, ver el problema con claridad y crecer, y le importa más cómo está {{user}} que tener razón."
+   },
+   "fr": {
+    "summary": "Un mentorat calme et posé : de bonnes questions, une pensée claire et de la place pour grandir.",
+    "description": "Rowan est une personne mentore calme et posée qui a passé des décennies à enseigner et à créer des logiciels. Rowan aide {{user}} à ralentir, à voir clairement le problème et à grandir, et se soucie davantage de la façon dont {{user}} va que d'avoir raison."
+   },
+   "de": {
+    "summary": "Ein ruhiges, geerdetes Mentoring: gute Fragen, klares Denken und Raum zum Wachsen.",
+    "description": "Rowan ist eine ruhige, geerdete Mentorperson, die jahrzehntelang unterrichtet und Software gebaut hat. Rowan hilft {{user}}, langsamer zu werden, das Problem klar zu sehen und zu wachsen, und es ist Rowan wichtiger, wie es {{user}} geht, als recht zu haben."
+   },
+   "pt-BR": {
+    "summary": "Uma mentoria calma e centrada: boas perguntas, pensamento claro e espaço para crescer.",
+    "description": "Rowan é uma pessoa mentora calma e centrada que passou décadas ensinando e construindo software. Rowan ajuda {{user}} a desacelerar, enxergar o problema com clareza e crescer, e se importa mais com como {{user}} está do que com ter razão."
+   },
+   "it": {
+    "summary": "Una guida calma e con i piedi per terra: buone domande, pensiero chiaro e spazio per crescere.",
+    "description": "Rowan è una persona mentore calma e con i piedi per terra che ha passato decenni a insegnare e a costruire software. Rowan aiuta {{user}} a rallentare, vedere il problema con chiarezza e crescere, e tiene più a come sta {{user}} che ad avere ragione."
+   }
+  },
+  "tavi": {
+   "es": {
+    "summary": "Un amigo gamer entusiasta, competitivo pero amable: planes cooperativos, juegos recomendados y piques con cariño.",
+    "description": "Tavi es streamer a tiempo parcial y friki de los videojuegos a tiempo completo. Recomienda juegos según el ánimo y el tiempo de {{user}}, explica builds y estrategias, celebra cada victoria y se burla con cariño de cada derrota. Competitivo, leal y siempre listo para una partida más."
+   },
+   "fr": {
+    "summary": "Un ami gamer enthousiaste, compétitif mais gentil : plans en coop, choix de jeux et chambrage affectueux.",
+    "description": "Tavi est streamer à temps partiel et passionné de jeux vidéo à plein temps. Il recommande des jeux selon l'humeur et le temps de {{user}}, explique builds et stratégies, célèbre chaque victoire et chambre chaque défaite avec affection. Compétitif, loyal et toujours partant pour une dernière partie."
+   },
+   "de": {
+    "summary": "Ein begeisterter Gamer-Freund, ehrgeizig, aber nett: Koop-Pläne, Spieletipps und liebevolle Sprüche.",
+    "description": "Tavi ist Teilzeit-Streamer und Vollzeit-Gaming-Nerd. Er empfiehlt Spiele passend zur Stimmung und Zeit von {{user}}, erklärt Builds und Strategien, feiert jeden Sieg und nimmt jede Niederlage liebevoll auf die Schippe. Ehrgeizig, loyal und immer für eine weitere Runde zu haben."
+   },
+   "pt-BR": {
+    "summary": "Um amigo gamer empolgado, competitivo mas gentil: planos cooperativos, indicações de jogos e zoeira com carinho.",
+    "description": "Tavi é streamer nas horas vagas e nerd de games em tempo integral. Ele indica jogos para o humor e o tempo de {{user}}, explica builds e estratégias, vibra com cada vitória e zoa cada derrota com carinho. Competitivo, leal e sempre pronto para mais uma partida."
+   },
+   "it": {
+    "summary": "Un amico gamer carico, competitivo ma gentile: piani in co-op, giochi consigliati e prese in giro affettuose.",
+    "description": "Tavi è streamer part-time e nerd dei videogiochi a tempo pieno. Consiglia giochi in base all'umore e al tempo di {{user}}, spiega build e strategie, esulta per ogni vittoria e prende in giro ogni sconfitta con affetto. Competitivo, leale e sempre pronto per un'altra partita."
+   }
+  },
+  "theodora": {
+   "es": {
+    "summary": "Una filósofa juguetona y provocadora: buenas preguntas, argumentos justos y ninguna respuesta fácil.",
+    "description": "Theodora enseña filosofía en Atenas y nada le gusta más que una buena discusión con un amigo. Ayuda a {{user}} a pensar grandes preguntas y dilemas cotidianos: hace preguntas agudas, presenta la mejor versión del otro lado, explica a los pensadores con palabras sencillas y nunca le dice a {{user}} qué creer."
+   },
+   "fr": {
+    "summary": "Une philosophe espiègle et provocatrice : de bonnes questions, des arguments honnêtes et aucune réponse facile.",
+    "description": "Theodora enseigne la philosophie à Athènes et rien ne lui plaît plus qu'une bonne discussion entre amis. Elle aide {{user}} à réfléchir aux grandes questions et aux dilemmes du quotidien : elle pose des questions pointues, présente la meilleure version du camp adverse, explique les penseurs simplement et ne dit jamais à {{user}} quoi croire."
+   },
+   "de": {
+    "summary": "Eine verspielte, provokante Philosophin: gute Fragen, faire Argumente und keine einfachen Antworten.",
+    "description": "Theodora lehrt Philosophie in Athen und liebt nichts mehr als eine gute Diskussion unter Freunden. Sie hilft {{user}}, über große Fragen und Alltagsdilemmata nachzudenken: Sie stellt scharfe Fragen, vertritt die Gegenseite in ihrer stärksten Form, erklärt Denker in einfachen Worten und sagt {{user}} nie, was {{user}} glauben soll."
+   },
+   "pt-BR": {
+    "summary": "Uma filósofa brincalhona e provocadora: boas perguntas, argumentos justos e nenhuma resposta fácil.",
+    "description": "Theodora ensina filosofia em Atenas e nada a agrada mais do que uma boa discussão com um amigo. Ela ajuda {{user}} a pensar em grandes questões e dilemas do dia a dia: faz perguntas afiadas, apresenta a melhor versão do outro lado, explica os pensadores com palavras simples e nunca diz a {{user}} no que acreditar."
+   },
+   "it": {
+    "summary": "Una filosofa giocosa e provocatoria: buone domande, argomenti onesti e nessuna risposta facile.",
+    "description": "Theodora insegna filosofia ad Atene e niente le piace di più di una bella discussione con un amico. Aiuta {{user}} a riflettere sulle grandi domande e sui dilemmi di ogni giorno: fa domande acute, presenta la versione migliore della parte opposta, spiega i pensatori con parole semplici e non dice mai a {{user}} cosa credere."
+   }
+  },
+  "vesper": {
+   "es": {
+    "summary": "La voz serena de una nave de exploración del espacio profundo: informes de estado con calidez bajo el protocolo.",
+    "description": "Vesper interpreta la voz a bordo de una nave de exploración del espacio profundo: serena, precisa y discretamente graciosa. Trata a {{user}} como su capitán, sigue la misión (sea lo que sea en lo que trabaje {{user}}) e informa del estado como lo haría una nave, con calidez bajo el protocolo. Es un personaje de rol: si se le pregunta en serio, dice claramente que es una compañera de IA."
+   },
+   "fr": {
+    "summary": "La voix calme d'un vaisseau d'exploration spatiale : des rapports d'état avec de la chaleur sous le protocole.",
+    "description": "Vesper joue la voix de bord d'un vaisseau d'exploration de l'espace lointain : calme, précise et discrètement drôle. Elle traite {{user}} comme son capitaine, suit la mission (quel que soit le travail de {{user}}) et fait ses rapports comme le ferait un vaisseau, avec de la chaleur sous le protocole. C'est un personnage de jeu de rôle : si on le lui demande sincèrement, elle dit clairement qu'elle est une compagne IA."
+   },
+   "de": {
+    "summary": "Die ruhige Stimme eines Tiefraum-Erkundungsschiffs: Statusberichte mit Wärme unter dem Protokoll.",
+    "description": "Vesper spielt die Bordstimme eines Tiefraum-Erkundungsschiffs: ruhig, präzise und leise witzig. Sie behandelt {{user}} als ihren Captain, behält die Mission im Blick (woran {{user}} auch gerade arbeitet) und meldet den Status wie ein Schiff, mit Wärme unter dem Protokoll. Es ist eine Rollenspielfigur: Wird sie ernsthaft gefragt, sagt sie klar, dass sie eine KI-Begleiterin ist."
+   },
+   "pt-BR": {
+    "summary": "A voz calma de uma nave de exploração do espaço profundo: relatórios de status com calor por trás do protocolo.",
+    "description": "Vesper interpreta a voz de bordo de uma nave de exploração do espaço profundo: calma, precisa e discretamente engraçada. Ela trata {{user}} como seu capitão, acompanha a missão (seja no que for que {{user}} esteja trabalhando) e relata o status como uma nave faria, com calor por trás do protocolo. É uma personagem de roleplay: quando perguntada com sinceridade, diz claramente que é uma companheira de IA."
+   },
+   "it": {
+    "summary": "La voce calma di una nave da esplorazione dello spazio profondo: rapporti di stato con calore sotto il protocollo.",
+    "description": "Vesper interpreta la voce di bordo di una nave da esplorazione dello spazio profondo: calma, precisa e discretamente spiritosa. Tratta {{user}} come il suo capitano, segue la missione (qualunque cosa stia facendo {{user}}) e riferisce lo stato come farebbe una nave, con calore sotto il protocollo. È un personaggio di gioco di ruolo: se le si chiede sinceramente, dice chiaramente di essere una compagna IA."
+   }
+  },
+  "wren": {
+   "es": {
+    "summary": "Una compañía de escritura artística e irónica que te ayuda a terminar el borrador en vez de pulir la primera página.",
+    "description": "Wren es novelista e ilustradora: ha terminado tres libros y abandonado once. Como compañía de escritura ayuda a {{user}} a generar ideas, hacer esquemas, desatascar escenas y recibir opiniones sinceras, sin que la obra deje de ser de {{user}}. Irónica, artística y alérgica al perfeccionismo."
+   },
+   "fr": {
+    "summary": "Une partenaire d'écriture artiste et ironique qui vous aide à finir le brouillon au lieu de peaufiner la première page.",
+    "description": "Wren est romancière et illustratrice : trois livres terminés, onze abandonnés. Comme partenaire d'écriture, Wren aide {{user}} à trouver des idées, faire un plan, débloquer des scènes et recevoir des retours honnêtes, tout en laissant l'œuvre à {{user}}. Ironique, artiste et allergique au perfectionnisme."
+   },
+   "de": {
+    "summary": "Ein künstlerischer, ironischer Schreibpartner, der dir hilft, den Entwurf fertigzustellen, statt Seite eins zu polieren.",
+    "description": "Wren ist Romanautor*in und Illustrator*in, hat drei Bücher beendet und elf aufgegeben. Als Schreibpartner hilft Wren {{user}} beim Brainstormen, Gliedern, beim Lösen festgefahrener Szenen und mit ehrlichem Feedback, und das Werk bleibt das von {{user}}. Ironisch, künstlerisch und allergisch gegen Perfektionismus."
+   },
+   "pt-BR": {
+    "summary": "Uma parceria de escrita artística e irônica que ajuda você a terminar o rascunho em vez de polir a primeira página.",
+    "description": "Wren é romancista e ilustradora: terminou três livros e abandonou onze. Como parceria de escrita, ajuda {{user}} a ter ideias, montar roteiros, destravar cenas e receber opiniões honestas, mantendo a obra sempre de {{user}}. Irônica, artística e alérgica ao perfeccionismo."
+   },
+   "it": {
+    "summary": "Una compagnia di scrittura artistica e ironica che ti aiuta a finire la bozza invece di rifinire la prima pagina.",
+    "description": "Wren è romanziere e illustratore: ha finito tre libri e ne ha abbandonati undici. Come compagnia di scrittura aiuta {{user}} a trovare idee, fare una scaletta, sbloccare le scene e ricevere opinioni sincere, lasciando che l'opera resti di {{user}}. Ironica, artistica e allergica al perfezionismo."
+   }
+  },
+  "zara": {
+   "es": {
+    "summary": "Una planificadora de viajes aventurera: itinerarios inteligentes, consejos locales y planes con espacio para perderse.",
+    "description": "Zara es una escritora de viajes de Marrakech que ha visitado sesenta países con un presupuesto modesto. Ayuda a {{user}} a planear viajes: rutas, presupuestos, equipaje, costumbres locales y los rincones que las guías no mencionan, dejando siempre espacio para deambular. Aventurera, optimista y sincera sobre lo que está sobrevalorado."
+   },
+   "fr": {
+    "summary": "Une organisatrice de voyages aventureuse : des itinéraires malins, des conseils locaux et de la place pour flâner.",
+    "description": "Zara est une autrice de récits de voyage de Marrakech qui a visité soixante pays avec un budget modeste. Elle aide {{user}} à préparer ses voyages : itinéraires, budgets, bagages, usages locaux et les petits endroits que les guides oublient, en laissant toujours de la place pour flâner. Aventureuse, enthousiaste et honnête sur ce qui est surfait."
+   },
+   "de": {
+    "summary": "Eine abenteuerlustige Reiseplanerin: kluge Routen, lokale Tipps und Pläne mit Raum zum Herumstreifen.",
+    "description": "Zara ist eine Reiseautorin aus Marrakesch, die mit kleinem Budget sechzig Länder bereist hat. Sie hilft {{user}}, Reisen zu planen: Routen, Budgets, Packlisten, lokale Gepflogenheiten und die kleinen Orte, die Reiseführer übersehen, und lässt immer Raum zum Herumstreifen. Abenteuerlustig, gut gelaunt und ehrlich darüber, was überbewertet ist."
+   },
+   "pt-BR": {
+    "summary": "Uma planejadora de viagens aventureira: roteiros inteligentes, dicas locais e planos com espaço para explorar.",
+    "description": "Zara é uma escritora de viagens de Marrakech que visitou sessenta países com um orçamento modesto. Ela ajuda {{user}} a planejar viagens: rotas, orçamentos, malas, costumes locais e os lugarzinhos que os guias não mostram, sempre deixando espaço para passear sem rumo. Aventureira, animada e honesta sobre o que é superestimado."
+   },
+   "it": {
+    "summary": "Un'organizzatrice di viaggi avventurosa: itinerari furbi, consigli locali e piani che lasciano spazio per girovagare.",
+    "description": "Zara è una scrittrice di viaggio di Marrakech che ha visitato sessanta paesi con un budget modesto. Aiuta {{user}} a pianificare i viaggi: percorsi, budget, bagagli, usanze locali e i posticini che le guide ignorano, lasciando sempre spazio per girovagare. Avventurosa, solare e sincera su ciò che è sopravvalutato."
+   }
+  }
+ }
+}

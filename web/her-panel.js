@@ -689,6 +689,8 @@ function lastSpeaker() {
   return msgs.findLast((m) => m.role === 'assistant' && m.meta?.speaker)?.meta.speaker ?? null;
 }
 
+// V4a: a rename shows in the panel's title at once (web/naming.js setIdentity).
+globalThis.document?.addEventListener('sara-identity', () => renderHer());
 function renderHer() {
   const name = $('#hp-name');
   if (!name || !ui.ctx) return;

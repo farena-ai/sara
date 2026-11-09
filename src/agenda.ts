@@ -30,6 +30,8 @@ import type { Conversation, StoredMessage } from './store.ts';
 import type { Tool } from './tools/types.ts';
 import { ToolError } from './tools/types.ts';
 import { usageScope } from './usage.ts';
+import { attributableClauses, eventAnchorsIn, eventQuestionTargetsIn, outcomesIn, type OutcomeMatch } from './attunement.ts';
+import { attributedQuoteMatches, ownerEvidenceConversation, ownerEvidenceMessage, ownerEvidenceSince } from './owner-evidence.ts';
 
 // ---------------------------------------------------------------- settings and limits
 
@@ -93,6 +95,8 @@ export interface AgendaItem {
   sourceConversation: string | null;
   sourceMessage: number | null;
   dueAt: string;
+  /** Known local event day, independent of the movable question window. */
+  eventDate: string | null;
   windowHours: number;
   status: ItemStatus;
   createdBy: By;
@@ -109,6 +113,9 @@ export interface AgendaItem {
   runId: string | null;
   messageId: number | null;
   sentConversation: string | null;
+  sentDialogueEpoch: number | null;
+  answerMessageId: number | null;
+  answerMatchKind: 'topic' | 'direct' | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -164,6 +171,8 @@ export class AgendaStore {
     for (const [c, def] of [
       ['quote', 'TEXT'], ['source_conversation', 'TEXT'], ['source_message', 'INTEGER'], ['moved', 'INTEGER NOT NULL DEFAULT 0'], ['allowed', 'INTEGER NOT NULL DEFAULT 0'],
       ['for_item', 'INTEGER'], ['research', 'TEXT'], ['note', 'TEXT'], ['sent_conversation', 'TEXT'],
+      ['sent_dialogue_epoch', 'INTEGER'], ['answer_message_id', 'INTEGER'], ['answer_match_kind', 'TEXT'],
+      ['event_date', 'TEXT'],
     ] as const) if (!i.has(c)) db.exec(`ALTER TABLE agenda_items ADD COLUMN ${c} ${def}`);
     db.exec('CREATE INDEX IF NOT EXISTS agenda_items_status ON agenda_items (status, due_at)');
     db.exec('CREATE TABLE IF NOT EXISTS agenda_state (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
@@ -189,9 +198,10 @@ export class AgendaStore {
   static itemOf(r: Row): AgendaItem {
     return {
       id: Number(r.id), goalId: num(r.goal_id), kind: r.kind as ItemKind, what: String(r.what), why: String(r.why), quote: str(r.quote), sourceConversation: str(r.source_conversation),
-      sourceMessage: num(r.source_message), dueAt: String(r.due_at), windowHours: Number(r.window_hours), status: r.status as ItemStatus, createdBy: r.created_by === 'owner' ? 'owner' : 'her',
+      sourceMessage: num(r.source_message), dueAt: String(r.due_at), eventDate: str(r.event_date), windowHours: Number(r.window_hours), status: r.status as ItemStatus, createdBy: r.created_by === 'owner' ? 'owner' : 'her',
       edited: Boolean(r.edited), moved: Boolean(r.moved), allowed: Boolean(r.allowed), forItem: num(r.for_item), research: str(r.research), note: str(r.note), runId: str(r.run_id),
-      messageId: num(r.message_id), sentConversation: str(r.sent_conversation), createdAt: String(r.created_at), updatedAt: String(r.updated_at),
+      messageId: num(r.message_id), sentConversation: str(r.sent_conversation), sentDialogueEpoch: num(r.sent_dialogue_epoch), answerMessageId: num(r.answer_message_id),
+      answerMatchKind: r.answer_match_kind === 'topic' || r.answer_match_kind === 'direct' ? r.answer_match_kind : null, createdAt: String(r.created_at), updatedAt: String(r.updated_at),
     };
   }
 
@@ -234,20 +244,20 @@ export class AgendaStore {
     const r = this.db.prepare('SELECT * FROM agenda_items WHERE id = ?').get(id) as Row | undefined;
     return r ? AgendaStore.itemOf(r) : undefined;
   }
-  addItem(x: { goalId?: number | null; kind: ItemKind; what: string; why: string; quote?: string | null; sourceConversation?: string | null; sourceMessage?: number | null; dueAt: string; windowHours?: number; createdBy: By; status?: ItemStatus; forItem?: number | null; allowed?: boolean }): AgendaItem {
+  addItem(x: { goalId?: number | null; kind: ItemKind; what: string; why: string; quote?: string | null; sourceConversation?: string | null; sourceMessage?: number | null; dueAt: string; eventDate?: string | null; windowHours?: number; createdBy: By; status?: ItemStatus; forItem?: number | null; allowed?: boolean }): AgendaItem {
     const at = this.#ts();
     const r = this.db
-      .prepare('INSERT INTO agenda_items (goal_id, kind, what, why, quote, source_conversation, source_message, due_at, window_hours, status, created_by, for_item, allowed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(x.goalId ?? null, x.kind, x.what.slice(0, 200), x.why.slice(0, 400), x.quote?.slice(0, 300) ?? null, x.sourceConversation ?? null, x.sourceMessage ?? null, x.dueAt, x.windowHours ?? LIMITS.windowHours, x.status ?? 'planned', x.createdBy, x.forItem ?? null, x.allowed ? 1 : 0, at, at);
+      .prepare('INSERT INTO agenda_items (goal_id, kind, what, why, quote, source_conversation, source_message, due_at, event_date, window_hours, status, created_by, for_item, allowed, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(x.goalId ?? null, x.kind, x.what.slice(0, 200), x.why.slice(0, 400), x.quote?.slice(0, 300) ?? null, x.sourceConversation ?? null, x.sourceMessage ?? null, x.dueAt, x.eventDate ?? null, x.windowHours ?? LIMITS.windowHours, x.status ?? 'planned', x.createdBy, x.forItem ?? null, x.allowed ? 1 : 0, at, at);
     return this.item(Number(r.lastInsertRowid))!;
   }
-  patchItem(id: number, p: Partial<{ what: string; dueAt: string; status: ItemStatus; edited: boolean; moved: boolean; allowed: boolean; research: string | null; note: string | null; messageId: number | null; sentConversation: string | null; runId: string | null; createdBy: By }>): AgendaItem | undefined {
+  patchItem(id: number, p: Partial<{ what: string; dueAt: string; eventDate: string | null; status: ItemStatus; edited: boolean; moved: boolean; allowed: boolean; research: string | null; note: string | null; messageId: number | null; sentConversation: string | null; sentDialogueEpoch: number | null; answerMessageId: number | null; answerMatchKind: 'topic' | 'direct' | null; runId: string | null; createdBy: By }>): AgendaItem | undefined {
     const x = this.item(id);
     if (!x) return undefined;
     const n = { ...x, ...p };
     this.db
-      .prepare('UPDATE agenda_items SET what = ?, due_at = ?, status = ?, edited = ?, moved = ?, allowed = ?, research = ?, note = ?, message_id = ?, sent_conversation = ?, run_id = ?, created_by = ?, updated_at = ? WHERE id = ?')
-      .run(n.what.slice(0, 200), n.dueAt, n.status, n.edited ? 1 : 0, n.moved ? 1 : 0, n.allowed ? 1 : 0, n.research?.slice(0, 2000) ?? null, n.note?.slice(0, 200) ?? null, n.messageId, n.sentConversation, n.runId, n.createdBy, this.#ts(), id);
+      .prepare('UPDATE agenda_items SET what = ?, due_at = ?, event_date = ?, status = ?, edited = ?, moved = ?, allowed = ?, research = ?, note = ?, message_id = ?, sent_conversation = ?, sent_dialogue_epoch = ?, answer_message_id = ?, answer_match_kind = ?, run_id = ?, created_by = ?, updated_at = ? WHERE id = ?')
+      .run(n.what.slice(0, 200), n.dueAt, n.eventDate, n.status, n.edited ? 1 : 0, n.moved ? 1 : 0, n.allowed ? 1 : 0, n.research?.slice(0, 2000) ?? null, n.note?.slice(0, 200) ?? null, n.messageId, n.sentConversation, n.sentDialogueEpoch, n.answerMessageId, n.answerMatchKind, n.runId, n.createdBy, this.#ts(), id);
     return this.item(id);
   }
   /** Open items she made herself (the 5-at-a-time limit). */
@@ -676,8 +686,9 @@ export class Agenda {
     if (!s.enabled || msg.role !== 'user' || !feedsAgenda(conv)) return out;
     const now = this.#app.now();
     const tz = this.#app.settings.get().timeZone;
-    if (s.followUps) {
-      for (const f of futureMentions(msg.content, now, tz)) {
+    const ownerSource = s.followUps ? ownerEvidenceMessage(this.#app, conv.id, msg.id) : undefined;
+    if (ownerSource && ownerSource.conversationId === conv.id && ownerSource.content === msg.content) {
+      for (const f of futureMentions(ownerSource.content, now, tz).filter((f) => attributedQuoteMatches(ownerSource.content, f.quote))) {
         if (this.#sensitiveWhy(f.quote)) continue;
         const remind = f.kind === 'remind';
         const due = this.#at(f.day, remind ? 10 : 19);
@@ -686,7 +697,7 @@ export class Agenda {
         // One plan per thing: the same words (or the same message) aren't planned twice.
         const open = this.store.items({ status: ['planned', 'paused', 'sent'] });
         if (open.some((x) => x.sourceMessage === msg.id || norm(x.what) === norm(what))) continue;
-        const item = this.store.addItem({ kind: 'follow-up', what, why: `You said ${quoted(f.quote)}`, quote: f.quote, sourceConversation: conv.id, sourceMessage: msg.id, dueAt: due.toISOString(), createdBy: 'her' });
+        const item = this.store.addItem({ kind: 'follow-up', what, why: `You said ${quoted(f.quote)}`, quote: f.quote, sourceConversation: conv.id, sourceMessage: msg.id, dueAt: due.toISOString(), eventDate: f.day, createdBy: 'her' });
         out.items.push(item);
         break;
       }
@@ -815,14 +826,16 @@ export class Agenda {
   /** Edit time / Change what / Cancel (and the research OK). An edited item is his. */
   editItem(id: number, p: { what?: string; dueAt?: Date; cancel?: boolean; allow?: boolean }): AgendaItem | undefined {
     const x = this.store.item(id);
-    if (!x || (x.status !== 'planned' && x.status !== 'paused')) return undefined;
+    if (!x || (!['planned', 'paused'].includes(x.status) && !(x.kind === 'follow-up' && ['sent', 'done'].includes(x.status)))) return undefined;
     if (p.cancel) {
-      const n = this.store.patchItem(id, { status: 'cancelled', note: en('You cancelled it') });
+      const n = this.store.patchItem(id, { status: 'cancelled', note: en('You cancelled it'), answerMessageId: null, answerMatchKind: null });
       this.#changed();
       return n;
     }
     if (p.dueAt && (Number.isNaN(p.dueAt.getTime()) || p.dueAt.getTime() < this.#app.now().getTime() - 60_000)) throw new Error('Pick a time that is still to come.');
     const n = this.store.patchItem(id, {
+      answerMessageId: null, answerMatchKind: null,
+      ...(p.what?.trim() && p.what.trim().slice(0, 200) !== x.what ? { eventDate: null } : {}),
       ...(p.what !== undefined && p.what.trim() ? { what: p.what.trim().slice(0, 200) } : {}),
       ...(p.dueAt ? { dueAt: p.dueAt.toISOString(), moved: false } : {}),
       ...(p.allow !== undefined ? { allowed: p.allow } : {}),
@@ -850,6 +863,10 @@ export class Agenda {
     // An item with no source message can't be made by her (§11.7).
     const src = this.sourceOf(p.conversationId, p.quote);
     if (!src) return 'No plan without a source: quote the owner\'s own words from a recent message of this chat (exactly), as `quote`.';
+    if (p.kind === 'follow-up') {
+      const source = ownerEvidenceMessage(this.#app, p.conversationId ?? src.conversationId, src.messageId);
+      if (!source || !attributedQuoteMatches(source.content, p.quote)) return 'No plan without a current eligible owner source.';
+    }
     if (this.#sensitiveWhy(src.text)) return 'That would use a sensitive note about someone as a reason: not added.';
     const due = parseWhen(p.when, this.#app.now(), this.#app.settings.get().timeZone, { dateOnlyHour: 18 });
     if (!due) return 'Give `when` as a date and time, e.g. 2026-11-06 18:00 or friday 7pm.';
@@ -899,6 +916,122 @@ export class Agenda {
 
   // ---- the tick (one step of the LifeWorker)
 
+  /** Current source authority is independent of an old plan's stored display quote. */
+  #followUpSource(x: AgendaItem, destination: string): boolean {
+    if (!ownerEvidenceConversation(this.#app, destination)) return false;
+    if (!x.sourceMessage && !x.sourceConversation && !x.quote) return x.createdBy === 'owner';
+    if (!x.sourceMessage || !x.sourceConversation || !x.quote) return false;
+    const source = ownerEvidenceMessage(this.#app, destination, x.sourceMessage);
+    if (!source || source.conversationId !== x.sourceConversation) return false;
+    if (!attributedQuoteMatches(source.content, x.quote)) return false;
+    const anchors = eventAnchorsIn(x.what);
+    const quoteAnchors = eventAnchorsIn(x.quote);
+    const currentAnchors = eventAnchorsIn(source.content);
+    // Unknown event categories retain their existing qualified delivery. Supported categories
+    // constrain automatic outcome detection; the parser is deliberately not universal NLP.
+    if (!quoteAnchors.length) return !anchors.length;
+    return quoteAnchors.some((anchor) => currentAnchors.includes(anchor) && (!anchors.length || anchors.includes(anchor)));
+  }
+
+  #followUpBatch(destination: string): AgendaItem[] {
+    if (!ownerEvidenceConversation(this.#app, destination)) return [];
+    return this.store.items().filter((x) => x.kind === 'follow-up' && ['planned', 'paused', 'sent', 'done'].includes(x.status)
+      && (x.status !== 'done' || x.answerMessageId !== null) && this.#followUpSource(x, destination));
+  }
+
+  #outcomeInTime(x: AgendaItem, message: StoredMessage, kind: OutcomeMatch['kind']): boolean {
+    const created = x.sourceMessage ? this.#app.store.messageById(x.sourceMessage)?.createdAt : x.createdAt;
+    if (!created || Date.parse(message.createdAt) < Date.parse(created) || (x.sourceMessage !== null && message.id < x.sourceMessage)) return false;
+    if (kind !== 'reported') return true;
+    const day = this.#eventDay(x, message.conversationId);
+    if (day) return Date.parse(message.createdAt) >= dayStartUtc(day, this.#app.settings.get().timeZone).getTime();
+    // A question's due time says nothing about an unknown event's actual date. In that case,
+    // only an outcome after the surviving sent question can establish a reported completion.
+    const question = this.#sentQuestion(x);
+    return Boolean(question && message.id > question.id && Date.parse(message.createdAt) >= Date.parse(question.createdAt));
+  }
+
+  #eventDay(x: AgendaItem, destination: string): string | undefined {
+    if (x.eventDate && /^\d{4}-\d{2}-\d{2}$/.test(x.eventDate) && Number.isFinite(Date.parse(`${x.eventDate}T00:00:00Z`))
+      && new Date(`${x.eventDate}T00:00:00Z`).toISOString().slice(0, 10) === x.eventDate) return x.eventDate;
+    if (!x.sourceMessage || !x.quote || x.edited) return undefined;
+    const source = ownerEvidenceMessage(this.#app, destination, x.sourceMessage);
+    if (!source || !attributedQuoteMatches(source.content, x.quote)) return undefined;
+    const anchors = eventAnchorsIn(x.what);
+    const days = new Set(futureMentions(x.quote, new Date(source.createdAt), this.#app.settings.get().timeZone)
+      .filter((mention) => eventAnchorsIn(mention.event).some((anchor) => anchors.includes(anchor))).map((mention) => mention.day));
+    return days.size === 1 ? [...days][0] : undefined;
+  }
+
+  #followUpEvidence(destination: string, batch: AgendaItem[]): StoredMessage[] {
+    if (!batch.length) return [];
+    const since = batch.map((x) => x.sourceMessage ? this.#app.store.messageById(x.sourceMessage)?.createdAt ?? x.createdAt : x.createdAt).sort()[0];
+    const rows = new Map(ownerEvidenceSince(this.#app, destination, since).map((message) => [message.id, message]));
+    // Source corrections remain authoritative even when recent answers fill the bounded window.
+    for (const x of batch) {
+      if (!x.sourceMessage) continue;
+      const source = ownerEvidenceMessage(this.#app, destination, x.sourceMessage);
+      if (source) rows.set(source.id, source);
+    }
+    return [...rows.values()].sort((a, b) => a.id - b.id);
+  }
+
+  #topicOutcomes(message: StoredMessage, batch: AgendaItem[], directTarget?: number): OutcomeMatch[] {
+    return outcomesIn(message.content, batch.map((x) => ({ id: String(x.id), text: `${x.what} ${x.quote ?? ''}` })), {
+      ownerName: this.#app.settings.get().ownerName ?? '', ...(directTarget === undefined ? {} : { directTarget: String(directTarget) }),
+    }).filter((match) => {
+      const x = batch.find((x) => String(x.id) === match.eventId);
+      return x && this.#outcomeInTime(x, message, match.kind);
+    });
+  }
+
+  #questionAnchors(content: string): readonly string[] {
+    const text = content.trim();
+    if (!text.endsWith('?') || (text.match(/\?/g)?.length ?? 0) !== 1) return [];
+    const suffix = text.match(/(?:^|[.!;\r\n])\s*([^.!?;\r\n]+)\?$/u)?.[1].trim();
+    if (!suffix) return [];
+    const question = suffix.replace(/^(?:hey|hi|hello),\s*/iu, '');
+    if (!question) return [];
+    // The entire final question must survive shared opaque/reported-text filtering. Earlier
+    // declarations must never supply its category, even when the question itself is quoted.
+    if (!attributableClauses(text.slice(0, -1)).some((clause) => clause.text === suffix && clause.offset === text.lastIndexOf(suffix))) return [];
+    return eventAnchorsIn(question);
+  }
+
+  #sentQuestion(x: AgendaItem): StoredMessage | undefined {
+    if (!x.messageId || !x.sentConversation || !ownerEvidenceConversation(this.#app, x.sentConversation)) return undefined;
+    if (!this.#app.store.db.prepare('SELECT 1 FROM messages WHERE id=? AND json_valid(meta)').get(x.messageId)) return undefined;
+    const q = this.#app.store.messageById(x.messageId);
+    if (!q || q.conversationId !== x.sentConversation || q.role !== 'assistant' || !Number.isFinite(Date.parse(q.createdAt)) || Date.parse(q.createdAt) > this.#app.now().getTime()) return undefined;
+    const meta = q.meta;
+    if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return undefined;
+    if (['group', 'groupFrom', 'untrusted', 'hookFrom', 'importedFrom', 'forgotten', 'skipped', 'external', 'externalApp', 'replay', 'resume', 'outside', 'clientHistory', 'clientNote', 'roomId', 'roomNote', 'roomNow', 'roomCrisis', 'voiceRoom', 'persist', 'recorder'].some((key) => Object.hasOwn(meta, key))) return undefined;
+    const agenda = meta.agenda as { itemId?: unknown; kind?: unknown } | undefined;
+    if (agenda?.itemId !== x.id || agenda.kind !== 'follow-up') return undefined;
+    const anchors = this.#questionAnchors(q.content);
+    return anchors.some((anchor) => eventAnchorsIn(x.what).includes(anchor)) ? q : undefined;
+  }
+
+  #directTarget(x: AgendaItem, answer: StoredMessage, batch: AgendaItem[]): boolean {
+    const question = this.#sentQuestion(x);
+    if (!question || answer.conversationId !== x.sentConversation || x.sentDialogueEpoch === null
+      || this.#app.store.getConversation(x.sentConversation!)?.dialogueEpoch !== x.sentDialogueEpoch) return false;
+    const targets = eventQuestionTargetsIn(question.content, batch.map(candidate => ({
+      id: String(candidate.id), text: `${candidate.what} ${candidate.quote ?? ''}`,
+    })));
+    if (targets.length !== 1 || targets[0] !== String(x.id)) return false;
+    // Include every actual dialogue row, including forgotten/ineligible rows. They still interrupt
+    // adjacency; deletion/edit is independently witnessed by the conversation epoch.
+    const next = this.#app.store.db.prepare("SELECT id FROM messages WHERE conversation_id=? AND id>? AND role IN ('user','assistant') ORDER BY id LIMIT 1").get(question.conversationId, question.id) as { id: number } | undefined;
+    return next?.id === answer.id;
+  }
+
+  #pendingFollowUp(x: AgendaItem, destination: string): boolean {
+    if (!this.enabled() || (x.createdBy === 'her' && !this.settings().followUps) || !this.#followUpSource(x, destination)) return false;
+    const batch = this.#followUpBatch(destination);
+    return !this.#followUpEvidence(destination, batch).some((message) => this.#topicOutcomes(message, batch).some((match) => match.eventId === String(x.id)));
+  }
+
   async tick(): Promise<TickResult> {
     if (this.#running) return { skipped: 'running' };
     if (!this.enabled()) return { skipped: 'off' };
@@ -923,7 +1056,39 @@ export class Agenda {
   /** Sent items he answered become done; a check-in's answer becomes a progress note on the goal. */
   #answered(): number {
     let n = 0;
+    let invalidated = false;
+    for (const x of this.store.items({ status: ['sent', 'done'] }).filter((x) => x.kind === 'follow-up')) {
+      // Historical/manual completions have no derived provenance and retain owner authority.
+      if (x.status === 'done' && x.answerMessageId === null && x.answerMatchKind === null) continue;
+      const destination = x.sentConversation;
+      const batch = destination ? this.#followUpBatch(destination) : [];
+      const current = batch.find((candidate) => candidate.id === x.id);
+      const question = current ? this.#sentQuestion(current) : undefined;
+      const match = (message: StoredMessage) => {
+        if (!question || !current || message.conversationId !== destination) return undefined;
+        const topic = this.#topicOutcomes(message, batch).find((outcome) => outcome.eventId === String(x.id));
+        if (topic) return 'topic' as const;
+        if (this.#directTarget(current, message, batch) && this.#topicOutcomes(message, batch, x.id).some((outcome) => outcome.eventId === String(x.id))) return 'direct' as const;
+        return undefined;
+      };
+      if (x.status === 'done') {
+        const answer = destination && x.answerMessageId ? ownerEvidenceMessage(this.#app, destination, x.answerMessageId) : undefined;
+        if (answer && match(answer) === x.answerMatchKind) continue;
+        this.store.patchItem(x.id, { status: 'sent', answerMessageId: null, answerMatchKind: null });
+        invalidated = true;
+        // Re-evaluation happens on a later tick; invalidation itself never substitutes a different
+        // answer or reconstructs delivery state.
+        continue;
+      }
+      if (!destination || !current || !question) continue;
+      for (const answer of this.#followUpEvidence(destination, batch)) {
+        const kind = match(answer);
+        if (!kind) continue;
+        this.store.patchItem(x.id, { status: 'done', answerMessageId: answer.id, answerMatchKind: kind }); n++; break;
+      }
+    }
     for (const x of this.store.items({ status: ['sent'] })) {
+      if (x.kind === 'follow-up') continue;
       if (!x.sentConversation || !x.messageId) continue;
       const reply = this.#app.store.messages(x.sentConversation).find((m) => m.role === 'user' && m.id > x.messageId! && !isForgotten(m));
       if (!reply) continue;
@@ -937,7 +1102,7 @@ export class Agenda {
         }
       }
     }
-    if (n) this.#changed();
+    if (n || invalidated) this.#changed();
     return n;
   }
 
@@ -1065,7 +1230,9 @@ export class Agenda {
     if (!due.length) return { skipped: 'nothing due' };
     const gate = this.gate();
     if (gate) return { skipped: gate };
-    return this.#write(due[0]);
+    const conv = targetConversation(app);
+    const item = due.find((x) => x.kind !== 'follow-up' || (conv && this.#pendingFollowUp(x, conv.id)));
+    return item ? this.#write(item) : { skipped: 'follow-up source or context changed' };
   }
 
   /** Writes and posts one message (an item, or the single gentle check-in after a crisis). */
@@ -1076,6 +1243,15 @@ export class Agenda {
     const now = app.now();
     const conv = targetConversation(app);
     if (!conv) return { skipped: 'no chat' };
+    const stillEligible = () => {
+      if (!item || item.kind !== 'follow-up') return true;
+      const current = this.store.item(item.id);
+      const destination = ownerEvidenceConversation(app, conv.id);
+      return current && current.status === 'planned' && destination?.workspace === conv.workspace
+        && Object.entries(item).every(([key, value]) => current[key as keyof AgendaItem] === value)
+        && this.#pendingFollowUp(current, conv.id);
+    };
+    if (!stillEligible()) return { skipped: 'follow-up source or context changed' };
     const msgs = app.store.messages(conv.id).filter((m) => !isForgotten(m) && m.role !== 'notice');
     const owner = s.ownerName?.trim() || 'the owner';
     const goal = item?.goalId ? this.store.goal(item.goalId) : undefined;
@@ -1097,7 +1273,7 @@ export class Agenda {
       ...bondContext(app, state?.closeness),
       language: languageLine(talkLanguage(s, app.store.ownerMessagesSince(new Date(now.getTime() - 7 * 86_400_000).toISOString())[0])),
     });
-    const honest = `Be honest: ${owner} can see your plans, and this message will show its reason under it. Never invent reasons, urgency or feelings to get a reply, never guilt-trip about not answering, and don't try to keep ${owner} chatting.`;
+    const honest = `Be honest: ${owner} can see your plans, and this message will show its reason under it. Never invent reasons, urgency or feelings to get a reply, never guilt-trip about not answering, and don't try to keep ${owner} chatting.${item?.kind === 'follow-up' ? ' No clear outcome was found in eligible recent messages; ask only if still relevant and do not repeat if answered here. This bounded check may miss older answers or unsupported event categories.' : ''}`;
     const note = item
       ? `[Note from the app, not from ${owner}: this is one of your plans, which ${owner} can see. Plan: ${item.what}. ${item.quote ? `The true reason (${owner}'s own words): ${item.why}.` : `The true reason: ${owner} added this plan on the Her plans page (don't say it came up in a chat).`}${goal ? ` The goal: ${goal.title}.${goal.notes.length ? ` Last progress: ${goal.notes.at(-1)!.text}` : ''}` : ''}${item.research ? `\nWhat you looked up for this (summarize only if it helps):\n${item.research.slice(0, 1200)}` : ''}\n${honest} Write only the message: 1 to 3 short, natural sentences about this plan. If it no longer fits (it already came up, it's not the right moment), reply with exactly SKIP. Don't mention this note.]`
       : `[Note from the app, not from ${owner}: a recent conversation was hard for ${owner}. Your own plans are paused for now. Write one gentle, short check-in: you're thinking of them and you're here if they want to talk, no pressure, no plans, goals or reminders, no stacked questions. If they might be in danger, encourage them warmly to reach out to the crisis line or someone they trust. ${honest} Write only the message, 1 or 2 sentences. Don't mention this note.]`;
@@ -1109,6 +1285,7 @@ export class Agenda {
     const signal = this.#abort.signal;
     const scope: { purpose: string; tokens?: number; usd?: number; reported?: number } = { purpose: 'agenda' };
     let text: string;
+    if (!stillEligible()) return { skipped: 'follow-up source or context changed' };
     try {
       text = (await usageScope.run(scope, () => complete(app, conv, messages, 220, 'writing', signal))).replace(/^["']|["']$/g, '').trim();
     } catch (err) {
@@ -1118,6 +1295,7 @@ export class Agenda {
     this.store.charge(today, { tokens: scope.reported ? (scope.tokens ?? 0) : est + Math.ceil(text.length / 4), usd: scope.usd ?? 0 });
     // The off switch wins over a call that already ran: nothing is posted.
     if (signal.aborted || !this.enabled()) return { skipped: 'stopped' };
+    if (!stillEligible()) return { skipped: 'follow-up source or context changed' };
     if (!text || /^skip\b/i.test(text) || text.length > 1200) {
       if (item) this.store.patchItem(item.id, { status: 'skipped', note: en('She decided it no longer fit') });
       if (item) this.#nextCheckIn(item);
@@ -1142,7 +1320,9 @@ export class Agenda {
       const c = app.store.addMessage(conv.id, 'notice', `crisis:${CRISIS_RESOURCES}`);
       app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...c, content: CRISIS_RESOURCES, meta: { kind: 'crisis' } }, reason: 'proactive' });
     }
-    if (item) this.store.patchItem(item.id, { status: 'sent', messageId: msg.id, sentConversation: conv.id });
+    if (item) this.store.patchItem(item.id, { status: 'sent', messageId: msg.id, sentConversation: conv.id,
+      sentDialogueEpoch: item.kind === 'follow-up' ? app.store.getConversation(conv.id)?.dialogueEpoch ?? null : null,
+      answerMessageId: null, answerMatchKind: null });
     if (app.inner) {
       const st = app.inner.get(now);
       const sent = st.proactiveDay === today ? st.proactiveCount : 0;

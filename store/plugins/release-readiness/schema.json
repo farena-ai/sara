@@ -1,0 +1,39 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "project"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "run"
+      ],
+      "description": "plan first (reads the gate profile; nothing runs), then run with the returned planSha (asks the owner for one job per gate)."
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+      "description": "A project staged in the plugin's data folder under projects/."
+    },
+    "profile": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "The gate profile in the project (default release-gates.json)."
+    },
+    "timeoutS": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 300,
+      "description": "Time limit per gate (default 120)."
+    },
+    "planSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "From plan; required for run."
+    }
+  }
+}

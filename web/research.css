@@ -1,0 +1,23 @@
+/* EC6: Library → Research a question (web/research.js). */
+.rs-body { display: grid; gap: 12px; }
+.rs-field { display: grid; gap: 4px; margin: 6px 0; }
+.rs-label-row { display: flex; align-items: center; gap: 6px; }
+.rs-label { font-weight: 600; font-size: 14px; }
+.rs-field textarea, .rs-field input[type="text"] { width: 100%; }
+.rs-step { border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px; margin: 0 0 8px; }
+.rs-past { display: grid; gap: 6px; }
+.rs-past-run { display: grid; gap: 2px; text-align: left; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: inherit; font: inherit; cursor: pointer; }
+.rs-past-run:hover { border-color: var(--accent); }
+.rs-past-q, .rs-question { overflow-wrap: anywhere; }
+.rs-report-text { border: 1px solid var(--border); border-radius: 10px; padding: 4px 14px; margin: 8px 0; max-height: 52vh; overflow-y: auto; overflow-wrap: anywhere; }
+.rs-list { margin: 4px 0 8px; padding-left: 22px; display: grid; gap: 4px; overflow-wrap: anywhere; }
+.rs-url { overflow-wrap: anywhere; }
+
+/* C6 (docs/LEARN.md): What she has learned (web/learn.js). */
+.lnt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 14px; align-items: end; }
+.lnt-grid select { width: 100%; min-height: 44px; }
+.lnt-form input[type="text"] { width: 100%; min-height: 44px; }
+.lnt-row { display: flex; flex-direction: column; gap: 2px; }
+.lnt-stale, .lnt-failed { color: var(--danger, var(--accent)); }
+.lnt-changes { border-left: 3px solid var(--accent); padding: 2px 12px; margin: 10px 0; }
+.lnt-changes h4, .lnt-topic h4 { margin: 8px 0 4px; }

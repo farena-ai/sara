@@ -23,10 +23,34 @@ VERSION=$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | he
 SWIFT_FLAGS=(-O)
 [ "${SARA_DEBUG:-0}" = 1 ] && SWIFT_FLAGS=(-Onone -D DEBUG)
 
-rm -rf build && mkdir -p build/Sara.app/Contents/{MacOS,Resources,Library/LaunchAgents}
+rm -rf build && mkdir -p build/Sara.app/Contents/{MacOS,Resources,Frameworks,Library/LaunchAgents}
 APP=build/Sara.app/Contents
+# C17: Hey Sara's engine in Contents/Frameworks, signed with the app (the hardened runtime won't load a downloaded
+# library): sherpa-onnx v1.13.8's universal C API + onnxruntime (Apache-2.0), the tarball and each file
+# SHA-256 checked; its C header (pinned) for Wake.swift's types. The model is downloaded on the Mac.
+SHERPA_MAC=sherpa-onnx-v1.13.8-osx-universal2-shared-no-tts-lib
+SHERPA_MAC_SHA=bdcc7c266d355697584dd4efb9dc766e45e18e87cec1fc553002a32cfcfab9a7
+SHERPA_HDR_SHA=2a1b95084be8fd1deb3228fcad2fd3f7f0258b64582f7402281ec174c7b7f4ce
+SHERPA_FILES=(
+  "libsherpa-onnx-c-api.dylib|08d8c58693e00cb0f4f5b26eec87f5f124cbac946ddc651ed5c0a58d6e0ec721"
+  "libonnxruntime.dylib|0181c2458590a90540a64ec218a78c9a4879f55747349253e54fa97d0d8de7eb"
+)
+mkdir -p "$CACHE"
+ST="$CACHE/$SHERPA_MAC.tar.bz2"
+[ -f "$ST" ] || { curl -fsSL "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/$SHERPA_MAC.tar.bz2" -o "$ST.part" && mv "$ST.part" "$ST"; }
+echo "$SHERPA_MAC_SHA  $ST" | shasum -a 256 -c --quiet - || { rm -f "$ST"; echo "Hey Sara engine checksum mismatch." >&2; exit 1; }
+tar xjf "$ST" -C build "$SHERPA_MAC/lib"
+for f in "${SHERPA_FILES[@]}"; do
+  n="${f%%|*}"
+  echo "${f##*|}  build/$SHERPA_MAC/lib/$n" | shasum -a 256 -c --quiet - || { echo "$n checksum mismatch." >&2; exit 1; }
+  cp "build/$SHERPA_MAC/lib/$n" "$APP/Frameworks/$n"
+done
+mkdir -p build/sherpa-include/sherpa-onnx/c-api
+curl -fsSL "https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/v1.13.8/sherpa-onnx/c-api/c-api.h" -o build/sherpa-include/sherpa-onnx/c-api/c-api.h
+echo "$SHERPA_HDR_SHA  build/sherpa-include/sherpa-onnx/c-api/c-api.h" | shasum -a 256 -c --quiet - || { echo "c-api.h checksum mismatch." >&2; exit 1; }
 for arch in arm64 x86_64; do
-  swiftc "${SWIFT_FLAGS[@]}" -swift-version 5 -target "$arch-apple-macos13.0" -o "build/Sara-$arch" Sources/*.swift
+  swiftc "${SWIFT_FLAGS[@]}" -swift-version 5 -target "$arch-apple-macos13.0" -import-objc-header Sources/SherpaBridge.h -Xcc -Ibuild/sherpa-include \
+    -Xlinker -rpath -Xlinker @executable_path/../Frameworks -o "build/Sara-$arch" Sources/*.swift
 done
 lipo -create -output "$APP/MacOS/Sara" build/Sara-arm64 build/Sara-x86_64
 cp Info.plist "$APP/Info.plist"
@@ -70,6 +94,22 @@ lipo -info "$N/bin/node"
 S="$APP/Resources/server"
 mkdir -p "$S"
 cp -R "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$S/"
+# Local workflow candidates remain untrusted packages, reviewed separately before installation.
+CANDIDATE_PLUGINS=(
+  daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review
+  inbox-triage content-studio image-workshop spreadsheet-assistant travel-planner home-dashboard
+  secret-scanner license-auditor sbom-builder artifact-provenance-verifier coverage-explorer
+  log-explorer incident-workbench environment-config-doctor database-fixture-studio
+  data-contract-validator change-impact-analyzer architecture-guard sql-migration-reviewer
+  visual-regression localization-qa accessibility-auditor build-cache-inspector api-contract-guard
+  http-webhook-workbench
+  performance-regression-lab code-migration-studio build-reproducibility-inspector
+  test-doctor flaky-test-lab documentation-doctor release-readiness repository-onboarding
+)
+mkdir -p "$S/store/plugins"
+for id in "${CANDIDATE_PLUGINS[@]}"; do
+  cp -R "$ROOT/store/plugins/$id" "$S/store/plugins/"
+done
 # Phase 87: the shared page agent (her testing browser reads pages with it too).
 mkdir -p "$S/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.js" "$S/desktop/shared/"
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$S/"
@@ -94,6 +134,8 @@ while IFS= read -r f; do
   if file -b "$f" | grep -q Mach-O; then codesign "${SIGN[@]}" "$f"; fi
 done < <(find "$N/lib" -type f -perm -u+x)
 codesign "${SIGN[@]}" --entitlements node.entitlements "$N/bin/node"
+# C17: the Hey Sara engine, signed with the same identity (library validation then allows it).
+for f in "$APP"/Frameworks/*.dylib; do codesign "${SIGN[@]}" "$f"; done
 codesign "${SIGN[@]}" --entitlements Sara.entitlements build/Sara.app
 codesign --verify --deep --strict build/Sara.app
 "$N/bin/node" -e 'if (!process.version) process.exit(1)'

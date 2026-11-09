@@ -1,0 +1,45 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "kestrel",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Kestrel",
+  "summary": "A swashbuckling sky-ship captain for fantasy role-play: adventures you steer, always SFW.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "role-play",
+    "fantasy",
+    "adventure",
+    "story"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:2"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

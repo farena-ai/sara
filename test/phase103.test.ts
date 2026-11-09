@@ -117,29 +117,29 @@ test('limits in code: 5 open, 2 a day, 30 days ahead, never the past, no source 
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
   const conv = app.store.createConversation();
-  await say(app, conv.id, 'My sister visits on Thursday and the plumber comes on Wednesday.');
+  await say(app, conv.id, 'I visit on Thursday. I see the plumber on Wednesday.');
   const tool = app.tools.get('agenda_add')!;
   const ctx = { workspaceDir: app.dataDir, signal: new AbortController().signal, sandbox: app.sandbox, conversationId: conv.id };
   // No source: an invented quote is refused.
   await assert.rejects(tool.run({ what: 'Ask how the party went', when: 'saturday 7pm', quote: 'the party is on Saturday' }, ctx), /No plan without a source/);
   assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'Ask about it', when: 'friday 7pm', quote: '' })), /No plan without a source/);
   // Past and too far ahead.
-  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'Ask about the plumber', when: '2026-11-01 10:00', quote: 'the plumber comes on Wednesday', conversationId: conv.id })), /Never in the past/);
-  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'Ask about the plumber', when: '2026-12-20 10:00', quote: 'the plumber comes on Wednesday', conversationId: conv.id })), /30 days ahead/);
-  const ok = await tool.run({ what: 'Ask how the plumber visit went', when: 'wednesday 6pm', quote: 'the plumber comes on Wednesday' }, ctx);
+  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'Ask about the plumber', when: '2026-11-01 10:00', quote: 'I see the plumber on Wednesday', conversationId: conv.id })), /Never in the past/);
+  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'Ask about the plumber', when: '2026-12-20 10:00', quote: 'I see the plumber on Wednesday', conversationId: conv.id })), /30 days ahead/);
+  const ok = await tool.run({ what: 'Ask how the plumber visit went', when: 'wednesday 6pm', quote: 'I see the plumber on Wednesday' }, ctx);
   assert.match(String(ok), /Added to her plans: Ask how the plumber visit went/);
-  // 2 new a day (the code planner made the first from "My sister visits on Thursday"? no: not an "is on" sentence).
+  // 2 new a day (the code planner made the first from "I visit on Thursday"? no: not an "is on" sentence).
   const made = agenda.store.newByHerSince('2026-11-02T00:00:00Z');
-  for (let i = made; i < LIMITS.newPerDay; i++) assert.equal(typeof agenda.addByHer({ kind: 'follow-up', what: `Ask about the visit ${i}`, when: 'thursday 7pm', quote: 'My sister visits on Thursday', conversationId: conv.id }), 'object');
-  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'One more', when: 'thursday 8pm', quote: 'My sister visits on Thursday', conversationId: conv.id })), /2 new plans today/);
+  for (let i = made; i < LIMITS.newPerDay; i++) assert.equal(typeof agenda.addByHer({ kind: 'follow-up', what: `Ask about the visit ${i}`, when: 'thursday 7pm', quote: 'I visit on Thursday', conversationId: conv.id }), 'object');
+  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'One more', when: 'thursday 8pm', quote: 'I visit on Thursday', conversationId: conv.id })), /2 new plans today/);
   // 5 open at a time (over the next days).
   for (let d = 1; agenda.store.openByHer() < LIMITS.openByHer; d++) {
     clock.now = new Date(Date.parse(NOW) + d * hours(24));
-    agenda.addByHer({ kind: 'follow-up', what: `Ask about the visit, day ${d}`, when: '2026-11-20 18:00', quote: 'My sister visits on Thursday', conversationId: conv.id });
+    agenda.addByHer({ kind: 'follow-up', what: `Ask about the visit, day ${d}`, when: '2026-11-20 18:00', quote: 'I visit on Thursday', conversationId: conv.id });
     assert.ok(d < 10);
   }
   clock.now = new Date(Date.parse(NOW) + 9 * hours(24));
-  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'A sixth', when: '2026-11-20 19:00', quote: 'My sister visits on Thursday', conversationId: conv.id })), /5 open plans/);
+  assert.match(String(agenda.addByHer({ kind: 'follow-up', what: 'A sixth', when: '2026-11-20 19:00', quote: 'I visit on Thursday', conversationId: conv.id })), /5 open plans/);
   // His own plans are never refused by her limits.
   const his = agenda.addItemByOwner({ what: 'Remind me to call mum', dueAt: new Date('2026-11-21T09:00:00Z') });
   assert.equal(his.createdBy, 'owner');

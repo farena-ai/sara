@@ -1,0 +1,30 @@
+{
+  "id": "weekly-planner",
+  "name": "Weekly planner",
+  "blurb": "Every Monday morning a researcher gathers your open tasks and notes, and a writer turns them into a short plan for the week.",
+  "crew": {
+    "name": "Weekly planner",
+    "template": "weekly-planner",
+    "brief": "A short plan for the week: the three things that matter most, what is waiting on someone, and what can wait.",
+    "members": [
+      {
+        "helper": "researcher",
+        "task": "Gather the open tasks, notes and dates for this week from the workspace"
+      },
+      {
+        "helper": "writer",
+        "task": "Write a short plan for the week from what the researcher gathered"
+      }
+    ],
+    "limits": {
+      "minutes": 15,
+      "tokens": 100000,
+      "steps": 4
+    },
+    "schedule": {
+      "kind": "weekly",
+      "day": 1,
+      "time": "08:00"
+    }
+  }
+}

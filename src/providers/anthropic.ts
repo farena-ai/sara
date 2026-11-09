@@ -102,6 +102,7 @@ export class AnthropicProvider implements Provider {
       method: 'POST',
       headers: this.#headers(),
       signal: req.signal,
+      ...(req.redirect ? { redirect: req.redirect } : {}),
       body: JSON.stringify({
         model: req.model,
         max_tokens: req.maxTokens ?? 4096,
@@ -112,13 +113,29 @@ export class AnthropicProvider implements Provider {
         ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
       }),
     });
-    if (!res.ok) await failFromResponse(res, this.config.label, req.model);
+    if (!res.ok) {
+      if (req.strictUsage || req.maxResponseBytes !== undefined) {
+        void res.body?.cancel().catch(() => {});
+        throw new ProviderError('Configured provider refused the request.', res.status);
+      }
+      await failFromResponse(res, this.config.label, req.model);
+    }
     if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
 
     const tools = new Map<number, { id: string; name: string; json: string; reported?: number }>();
     let used: { input: number; output: number; cached: number } | undefined;
+    let strictUsageInvalid = false;
+    let strictInput = false;
+    let strictOutput = false;
     // Cache reads and writes are input too (reads are the cheap "cached" part).
     const addUsage = (u: AnthropicUsage) => {
+      if (req.strictUsage) {
+        // Usage also carries descriptive metadata; only the known accounting counters are numeric.
+        for (const field of ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'] as const) {
+          const value = u[field];
+          if (value !== undefined && (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0)) strictUsageInvalid = true;
+        }
+      }
       used ??= { input: 0, output: 0, cached: 0 };
       if (u.input_tokens !== undefined || u.cache_read_input_tokens !== undefined || u.cache_creation_input_tokens !== undefined) {
         used.input = (u.input_tokens ?? 0) + (u.cache_read_input_tokens ?? 0) + (u.cache_creation_input_tokens ?? 0) || used.input;
@@ -126,7 +143,7 @@ export class AnthropicProvider implements Provider {
       }
       if (u.output_tokens !== undefined) used.output = u.output_tokens;
     };
-    for await (const ev of sseEvents(res.body)) {
+    for await (const ev of sseEvents(res.body, req.maxResponseBytes)) {
       let json: {
         type?: string;
         index?: number;
@@ -176,13 +193,14 @@ export class AnthropicProvider implements Provider {
         }
         case 'message_start':
           // Phase 52: input tokens come first, output tokens grow in message_delta.
-          if (json.message?.usage) addUsage(json.message.usage);
+          if (json.message?.usage) { strictInput = json.message.usage.input_tokens !== undefined; addUsage(json.message.usage); }
           break;
         case 'message_delta':
-          if (json.usage) addUsage(json.usage);
+          if (json.usage) { strictOutput ||= json.usage.output_tokens !== undefined; addUsage(json.usage); }
           break;
         case 'message_stop':
-          if (used) yield { type: 'usage', input: used.input, output: used.output, ...(used.cached ? { cached: used.cached } : {}) };
+          if (req.strictUsage && (strictUsageInvalid || !strictInput || !strictOutput || !used || !Number.isSafeInteger(used.input) || !Number.isSafeInteger(used.output))) yield { type: 'usage', input: NaN, output: NaN };
+          else if (used) yield { type: 'usage', input: used.input, output: used.output, ...(used.cached ? { cached: used.cached } : {}) };
           return;
       }
     }

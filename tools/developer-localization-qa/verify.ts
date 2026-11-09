@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {readFileSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {createHash} from 'node:crypto';
+import {fromFolder,fromZip,hashFiles} from '../../src/packages.ts';
+import {splitListing} from '../../src/store/checks.ts';
+const root=process.cwd(),id='localization-qa',out=join(root,'outputs/developer-addons/localization-qa');
+const read=(p:string)=>readFileSync(join(root,p));const sha=(b:Buffer|string)=>createHash('sha256').update(b).digest('hex');
+const receipt=JSON.parse(readFileSync(join(out,id+'-receipt.json'),'utf8')),zip=readFileSync(join(out,id+'.zip'));
+const runtime=(files:ReturnType<typeof fromFolder>)=>splitListing(files).pkg.filter(f=>!['CHANGES.md','icon.png'].includes(f.path));
+const source=runtime(fromFolder(join(root,'store/plugins',id))),archive=runtime(fromZip(zip));
+assert.equal(sha(zip),receipt.archiveSha256);assert.equal(hashFiles(source),receipt.approvedSha);assert.equal(hashFiles(archive),receipt.approvedSha);assert.equal(receipt.contentSha,receipt.approvedSha);
+assert.deepEqual(Object.fromEntries(source.map(f=>[f.path,sha(f.data)])),receipt.fileHashes);
+const file=(n:string)=>source.find(f=>f.path===n)!.data;
+assert.deepEqual(file('sara-plugin.mjs'),read('examples/plugins/sara-plugin.mjs'));assert.deepEqual(file('LICENSE'),read('LICENSE'));
+for(const f of source.filter(f=>/\.(mjs|json|md)$/.test(f.path))){const s=f.data.toString('utf8');assert.ok(s.endsWith('\n')&&!s.endsWith('\n\n'),f.path);}
+const prefix='test/fixtures/developer/localization-qa/',inputBytes=read(prefix+'captured-input.json'),input=JSON.parse(inputBytes.toString('utf8')),e=input.evidence,provenance=JSON.parse(readFileSync(join(out,'capture-provenance.json'),'utf8'));
+assert.equal(sha(inputBytes),receipt.capturedInputSha);assert.equal(input.base,read(prefix+'base.json').toString('utf8'));assert.equal(input.target,read(prefix+'target.json').toString('utf8'));assert.equal(e.htmlSha,sha(read(prefix+'app.html')));assert.equal(e.captureSha,sha(read('tools/developer-localization-qa/capture.mjs')));assert.equal(e.captureSha,provenance.captureSha);assert.equal(e.htmlSha,provenance.htmlSha);assert.equal(e.browserVersion,provenance.browserVersion);assert.equal(provenance.sandboxEnabled,true);assert.equal(provenance.networkPolicy,'abort-all');
+const shot=read('store/plugins/localization-qa/shots/1.png');assert.deepEqual(shot,readFileSync(join(out,'fixture-390-target.png')));
+const screenshotHashes=Object.fromEntries(provenance.screenshots.map((n:string)=>{assert.match(n,/^fixture-(390|900)-(base|target)\.png$/);return[n,sha(readFileSync(join(out,n)))];}));assert.equal(Object.keys(screenshotHashes).length,4);
+const result={id,node:process.version,authoringSara:receipt.authoringSara,targetSara:receipt.targetSara,archiveSha256:sha(zip),contentSha:hashFiles(source),runtimeFiles:source.length,archiveEqualsSource:true,approvedEqualsSource:true,sdkUnchanged:true,fullLicenseUnchanged:true,exactEof:true,fixtureProvenance:true,capturedInputSha:sha(inputBytes),htmlSha:e.htmlSha,captureSha:e.captureSha,screenshotHashes,claims:{liveCapture:false,selectedWorkspace:false,chatApproval:false,complete268App:false,osSandbox:false}};
+writeFileSync(join(out,'frozen-byte-verification.json'),JSON.stringify(result,null,2)+'\n');console.log(JSON.stringify(result,null,2));

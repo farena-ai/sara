@@ -11,6 +11,7 @@ import { showStoreImport } from './skills.js';
 import { proposalCard } from './proposal-card.js';
 import { openCard } from './packs.js';
 import { icon as lineIcon } from './icons.js';
+import { needsLine } from './prereqs.js';
 
 const $ = (sel) => document.querySelector(sel);
 async function api(path, opts = {}) {
@@ -138,6 +139,21 @@ const tipBtn = (text) => {
   return b;
 };
 const enc = encodeURIComponent;
+// EC27: the Qualified badge (src/store/qualified.ts): when and where this version last passed a real install.
+const OS_NAME = { windows: () => 'Windows', linux: () => 'Linux', macos: () => 'Mac' };
+const CHECK_NAME = { install: () => t('install'), settings: () => t('settings saved'), run: () => t('main action'), write: () => t('approved write'), update: () => t('update'), add: () => t('add her'), retire: () => t('retire her'), remove: () => t('remove'), connect: () => t('connect'), 'signed-hash': () => t('signed download') };
+const andList = (xs) => {
+  try {
+    return new Intl.ListFormat(document.documentElement.lang || 'en', { type: 'conjunction' }).format(xs);
+  } catch {
+    return xs.join(', ');
+  }
+};
+function qualifiedLine(q) {
+  if (!q) return '';
+  const base = t('Checked on {systems} · {day} · Sara {version}', { systems: andList(q.pass.map((o) => OS_NAME[o]?.() ?? o)), day: q.at, version: q.sara });
+  return q.partial?.length ? `${base} · ${t('partly on {systems}', { systems: andList(q.partial.map((o) => OS_NAME[o]?.() ?? o)) })}` : base;
+}
 const KIND = { plugin: () => t('Plugin'), skill: () => t('Skill'), mcp: () => t('Tool server'), companion: () => t('Companion') };
 // PL2c (N10, N31): a line icon per kind (web/icons.js), on every card, instead of one generic square.
 export const KIND_ICON = { plugin: 'plug', skill: 'book', mcp: 'tool', companion: 'heart' };
@@ -211,6 +227,7 @@ export function matches(item, q) {
 }
 
 function actionFor(i) {
+  if (i.installHeld) return { label: t('Installation held'), off: true, why: t(i.installHeld) };
   if (i.blockedHere) return { label: t('Pulled'), off: true };
   if (i.held) return { label: t('Being checked'), off: true, why: t('Being checked by the Sara team') };
   if (!i.canRun) return { label: t('Can’t run here'), off: true, why: i.why ? t(i.why.text, i.why.params ?? {}) : '' };
@@ -250,11 +267,15 @@ function card(i) {
   head.append(icon(i), el('strong', 'sto-name', i.name));
   c.dataset.item = i.id;
   open.append(head, el('span', 'sto-summary small', i.summary), kindTag(i.kind), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? i.trust));
+  if (i.qualified) open.append(el('span', 'sto-qualified small', qualifiedLine(i.qualified)));
   const a = actionFor(i);
   const act = btn(a.label, a.go === 'get' ? '' : 'ghost', (b) => (a.go === 'update' ? void update(i.id, b) : void get(i.id, b)));
   act.disabled = Boolean(a.off) || !g.shelf?.installAllowed;
   if (a.why) act.title = a.why;
   c.append(open, act);
+  if (i.installedOrigin === 'candidate') c.append(el('span', 'sto-why muted small', t('Local workflow candidate')));
+  if (i.blockedHere) c.append(el('span', 'skl-warn small', t('Pulled from the Sara Store: {reason}', { reason: i.blockedHere })));
+  if (i.yankedHere) c.append(el('span', 'skl-warn small', t('This version was pulled from the store: {reason}', { reason: i.yankedHere })));
   if (a.why) c.append(el('span', 'sto-why muted small', a.why));
   return c;
 }
@@ -385,14 +406,32 @@ export async function openItem(id, o = {}) {
   who.append(el('strong', '', i.name), el('span', 'muted small', t('{kind} · version {version} · {license}', { kind: KIND[i.kind]?.() ?? i.kind, version: r.version, license: r.entry.license ?? '' })), el('span', `sto-badge small trust-${i.trust}`, TRUST[i.trust]?.() ?? ''), el('span', 'muted small', t('By {name}', { name: i.author.name })));
   head.append(who);
   nodes.push(head);
+  if (r.qualified) {
+    nodes.push(el('p', 'sto-qualified small', qualifiedLine(r.qualified)), el('p', 'muted small', t('Checks that ran: {list}', { list: r.qualified.checks.map((c) => CHECK_NAME[c]?.() ?? c).join(', ') })));
+  }
   if (r.held) nodes.push(el('p', 'skl-warn', t('Being checked by the Sara team')));
   if (r.installed?.state === 'blocked') nodes.push(el('p', 'skl-warn', t('{name} was pulled from the Sara Store: {reason} Sara switched it off. Nothing was deleted.', { name: i.name, reason: r.installed.note ?? '' })));
   else if (r.installed?.state === 'yanked') nodes.push(el('p', 'skl-warn', t('This version was pulled from the store: {reason}', { reason: r.installed.note ?? '' })));
   const go = el('div', 'prop-buttons');
   const updatable = r.installed && r.installed.version !== r.version;
-  if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
+  if (r.installHeld) {
+    nodes.push(el('p', 'skl-warn small', t(r.installHeld)));
+    if (r.installed?.origin === 'candidate') nodes.push(el('p', 'muted small', t('Local workflow candidate')));
+    if (r.installHeldCode === 'association') go.append(btn(t('Forget stale store record'), 'ghost', async (b) => {
+      if (!window.confirm(t('Forget this stale store record? Any current local plugin and its data stay in place.'))) return;
+      b.disabled = true;
+      try { await api('/store/remove', { method: 'POST', body: { item: i.id } }); await openItem(i.id, { push: false }); void loadGetMore(); }
+      catch (err) { say(err.message); }
+      finally { b.disabled = false; }
+    }));
+    else go.append(btn(t('Open installed plugin card'), 'ghost', () => {
+      $('#store-panel').close();
+      location.hash = '#view=settings:ab-plugins';
+      document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: i.id }));
+    }));
+  } else if (!r.installed || updatable) go.append(btn(updatable ? t('Update') : t('Get'), '', (b) => void (updatable ? update(i.id, b) : get(i.id, b))));
   else go.append(el('span', 'muted', t('Installed ({version})', { version: r.installed.version })));
-  for (const b of go.querySelectorAll('button')) b.disabled = !r.installAllowed;
+  if (!r.installHeld) for (const b of go.querySelectorAll('button')) b.disabled = !r.installAllowed;
   nodes.push(go);
   nodes.push(section(t('What it does'), el('p', '', r.entry.description), ...(r.entry.about ?? []).filter((p) => p !== r.entry.description).map((p) => el('p', 'small', p))));
   const can = el('ul', 'prop-can');
@@ -527,7 +566,8 @@ export function mcpCard(r) {
     const spec = (r.args ?? []).find((a) => /@\d|==\d/.test(a));
     if (spec) body.push(el('p', 'muted small', t('Its code comes from {where}, version {version}. We tested that version.', { where: r.command === 'uvx' ? 'PyPI' : r.command === 'docker' ? 'Docker' : 'npm', version: spec.split(/@|==/).pop() })));
   } else body.push(el('p', 'small', t('It talks to {url}', { url: r.url })));
-  if (r.needs?.length) body.push(el('p', 'small', t('It needs: {list}', { list: r.needs.map((n) => (n.found === true ? t('{what} (found)', { what: n.what.replace(/^app:/, '') }) : n.found === false ? t('{what} (not found)', { what: n.what }) : n.what.replace(/^app:/, ''))).join(' · ') })));
+  // PRQ: a missing program gets *Install it for me*; afterwards the card looks again (Continue install).
+  if (r.needs?.length) body.push(needsLine(r.needs, () => void recheckMcp(r)));
   if (r.reaches?.length) body.push(el('p', 'small', t('It reaches: {list}', { list: r.reaches.join(' · ') })));
   body.push(el('p', `small${r.fence === 'none' ? ' skl-warn' : ''}`, t('Fence: {line}', { line: FENCE_LINE[r.fence]?.() ?? r.fence })));
   if (r.renamed) body.push(el('p', 'muted small', t('You already have one with this name, so this one is called {name}.', { name: r.serverName })));
@@ -546,7 +586,9 @@ export function mcpCard(r) {
       input.placeholder = r.mode === 'update' ? '••••' : '';
     } else {
       input.type = f.kind === 'number' ? 'number' : f.kind === 'url' ? 'url' : 'text';
-      if (f.default) input.value = f.default;
+      // Q-ADDONS: an update shows the saved value (e.g. the ComfyUI address), not the default.
+      const value = r.saved?.[f.key] ?? f.default;
+      if (value) input.value = value;
     }
     lab.append(head, input);
     if (secret) {
@@ -580,14 +622,22 @@ export function mcpCard(r) {
     warn: r.guide ?? [],
     body,
     buttons: [
-      { label: r.mode === 'update' ? t('Update and start') : t('Add and start'), onClick: (b) => void approveMcp(b) },
+      { label: r.continued ? t('Continue install') : r.mode === 'update' ? t('Update and start') : t('Add and start'), onClick: (b) => void approveMcp(b) },
       { label: t('Cancel'), cls: 'ghost', onClick: () => cancelPanel() },
     ],
   });
 }
-function showMcp(r) {
+function showMcp(r, o = {}) {
   g.mcp = r;
-  panel(r.name, [mcpCard(r)]);
+  panel(r.name, [mcpCard(r)], o);
+}
+async function recheckMcp(r) {
+  try {
+    const next = await api(`/store/mcp/${enc(r.id)}/recheck`, { method: 'POST', body: {} });
+    showMcp({ ...next, continued: true }, { push: false });
+  } catch (err) {
+    say(err.message);
+  }
 }
 async function approveMcp(b) {
   const r = g.mcp;
@@ -630,7 +680,7 @@ async function approveMcp(b) {
 
 // ---- My add-ons (§8.7) ----
 
-const ORIGIN = { store: () => t('Sara Store'), zip: () => t('A file you chose'), git: () => t('A git address'), folder: () => t('A folder on this server'), typed: () => t('You typed it in') };
+const ORIGIN = { candidate: () => t('Local workflow candidate'), store: () => t('Sara Store'), zip: () => t('A file you chose'), git: () => t('A git address'), folder: () => t('A folder on this server'), typed: () => t('You typed it in') };
 const PAGE = { plugin: 'ab-plugins', skill: 'ab-skills', mcp: 'ab-mcp' };
 
 export async function openMine(o = {}) {
@@ -643,6 +693,8 @@ export async function openMine(o = {}) {
   }
   const nodes = [];
   if (!r.addons.length) nodes.push(el('p', 'muted', t('Nothing added from outside yet.')));
+  // C8: add-on auto-update (off by default): all Store plugins, or one at a time below.
+  if (r.addons.some((a) => a.kind === 'plugin' && a.item)) nodes.push(autoUpdateBox(r.autoUpdate));
   for (const a of r.addons) {
     const row = el('article', 'stp-addon');
     const line = el('div', 'stp-addon-head');
@@ -651,23 +703,56 @@ export async function openMine(o = {}) {
     const status = a.state === 'blocked' ? t('{name} was pulled from the Sara Store: {reason} Sara switched it off. Nothing was deleted.', { name: a.name, reason: a.stateNote ?? '' }) : a.state === 'yanked' ? t('This version was pulled from the store: {reason}', { reason: a.stateNote ?? '' }) : a.state === 'removed-from-store' ? t('No longer in the store') : a.kind === 'mcp' ? (a.status === 'ready' ? (a.tools === 1 ? t('Running · 1 tool') : t('Running · {n} tools', { n: a.tools })) : a.status === 'disabled' ? t('Off') : t('Not running')) : a.status === 'installed' ? t('Installed') : a.status === 'disabled' ? t('Off') : String(a.status ?? '');
     row.append(el('p', a.state === 'blocked' || a.state === 'yanked' ? 'skl-warn small' : 'muted small', status));
     const acts = el('div', 'stp-addon-acts');
-    if (a.update) acts.append(btn(t('Update to {version}', { version: a.update }), '', (b) => void update(a.item, b)));
+    if (a.installHeld) row.append(el('p', 'skl-warn small', t(a.installHeld)));
+    if (!a.installHeld && a.update) acts.append(btn(t('Update to {version}', { version: a.update }), '', (b) => void update(a.item, b)));
     acts.append(btn(t('Settings and log'), 'ghost', () => {
       $('#store-panel').close();
       location.hash = `#view=settings:${PAGE[a.kind]}`;
+      if (a.origin === 'candidate') document.dispatchEvent(new CustomEvent('sara:focus-plugin', { detail: a.ref }));
     }));
-    if (a.item && a.canGoBack) acts.append(btn(t('Go back'), 'ghost', (b) => void storeAct('goback', a.item, b)));
+    if (!a.installHeld && a.item && a.canGoBack) acts.append(btn(t('Go back'), 'ghost', (b) => void storeAct('goback', a.item, b)));
+    if (a.kind === 'plugin' && a.item && a.auto !== undefined) acts.append(autoSwitch(t('Update by itself'), a.auto, (on) => ({ item: a.item, on }), 'au-item'));
     if (a.item) acts.append(btn(t('Report this'), 'ghost', () => openReport(a.item, a.version)));
     if (a.item && a.state === 'blocked') acts.append(btn(t('Switch it on anyway'), 'ghost', (b) => {
       if (window.confirm(t('The Sara team found a serious problem with this add-on. Switch it on anyway?'))) void storeAct('override', a.item, b, { confirm: true });
     }));
-    if (a.item) acts.append(btn(t('Remove'), 'ghost danger', (b) => {
+    if (a.item && a.origin !== 'candidate' && a.installHeldCode !== 'association') acts.append(btn(t('Remove'), 'ghost danger', (b) => {
       if (window.confirm(t('Remove {name}? Its settings and saved data go too.', { name: a.name }))) void storeAct('remove', a.item, b);
+    }));
+    if (a.item && a.installHeldCode === 'association') acts.append(btn(t('Forget stale store record'), 'ghost', (b) => {
+      if (window.confirm(t('Forget this stale store record? Any current local plugin and its data stay in place.'))) void storeAct('remove', a.item, b);
     }));
     row.append(acts);
     nodes.push(row);
   }
   show(t('My add-ons'), nodes, { push: o.push, redo: () => openMine({ push: false }) });
+}
+function autoSwitch(label, on, body, cls) {
+  const lab = el('label', `row small ${cls}`);
+  const box = Object.assign(document.createElement('input'), { type: 'checkbox', checked: Boolean(on) });
+  box.addEventListener('change', async () => {
+    box.disabled = true;
+    try {
+      await api('/store/auto-update', { method: 'PUT', body: body(box.checked) });
+      await openMine({ push: false });
+    } catch (err) {
+      say(err.message);
+      box.checked = !box.checked;
+    } finally {
+      box.disabled = false;
+    }
+  });
+  lab.append(box, ` ${label}`);
+  return lab;
+}
+const AUTO_OUTCOME = { updated: () => t('updated'), asked: () => t('needs your OK'), 'rolled-back': () => t('went back'), failed: () => t('failed') };
+function autoUpdateBox(au = { all: false, last: [] }) {
+  const box = el('div', 'au-box');
+  const head = autoSwitch(t('Update my Sara Store plugins by themselves'), au.all, (on) => ({ all: on }), 'au-all');
+  head.append(' ', tipBtn(t('Off by default. Once a day Sara checks the signed Store list, installs a newer version, checks it starts, and puts the old one back if it does not. An update that asks for more permissions always waits for you.')));
+  box.append(head);
+  for (const o of au.last ?? []) box.append(el('p', 'muted small', `${o.name} ${o.from} → ${o.to}: ${AUTO_OUTCOME[o.outcome]?.() ?? o.outcome} (${new Date(o.at).toLocaleDateString()})`));
+  return box;
 }
 async function storeAct(what, item, b, extra = {}) {
   b.disabled = true;

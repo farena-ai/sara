@@ -6,6 +6,7 @@
 // tap. At 390 px the two halves become a segmented control (My routines | Add).
 import { t } from './naming.js';
 import { icon } from './icons.js';
+import { loadWatches } from './watches.js';
 
 const $ = (s) => document.querySelector(s);
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation: (id: string) => void, openSettings: (page: string) => void } | null} */
@@ -64,6 +65,7 @@ export async function loadRoutines(focus) {
   if (focus) open = focus;
   paintMine();
   paintGallery();
+  void loadWatches();
   if (focus) {
     seg('add');
     document.querySelector(`[data-routine="${CSS.escape(focus)}"]`)?.scrollIntoView({ block: 'nearest' });

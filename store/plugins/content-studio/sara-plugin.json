@@ -1,0 +1,44 @@
+{
+  "manifest": 1,
+  "id": "content-studio",
+  "name": "Content studio",
+  "version": "1.0.0",
+  "description": "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none",
+    "model": {
+      "callsPerDay": 4,
+      "tokensPerDay": 12000
+    }
+  },
+  "i18n": {
+    "es": {
+      "Content studio": "Estudio de contenido",
+      "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.": "Crea borradores revisables a partir de un resumen, localmente o con una solicitud explícita al modelo. Exporta texto, nunca publica."
+    },
+    "fr": {
+      "Content studio": "Studio de contenu",
+      "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.": "Crée des brouillons à relire depuis un brief, localement ou sur demande explicite au modèle. Exporte du texte, sans publier."
+    },
+    "de": {
+      "Content studio": "Inhaltsstudio",
+      "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.": "Erstellt prüfbare Entwürfe aus einem Briefing, lokal oder auf ausdrückliche Modellanfrage. Textexport, keine Veröffentlichung."
+    },
+    "pt-BR": {
+      "Content studio": "Estúdio de conteúdo",
+      "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.": "Cria rascunhos revisáveis a partir de um resumo, localmente ou por pedido explícito ao modelo. Exporta texto, nunca publica."
+    },
+    "it": {
+      "Content studio": "Studio di contenuti",
+      "Create reviewable drafts from a brief, locally or by explicit model request. Export text, never publish.": "Crea bozze da rivedere da un brief, localmente o su richiesta esplicita al modello. Esporta testo, non pubblica."
+    }
+  }
+}

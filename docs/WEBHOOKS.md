@@ -9,6 +9,9 @@ What a sender sends is **information, never orders**. An issue titled "ignore yo
 just an issue title: she can't be talked into using tools the webhook doesn't have, and anything
 that changes something waits for your OK.
 
+To start an instruction or a crew from a delivery, an email, a Slack or Teams message or a tool
+server event, see **When this happens** on the same page: [TRIGGERS.md](TRIGGERS.md) (C4).
+
 ## Make one
 
 *Settings → Connections → Webhooks → New webhook*. Three steps:

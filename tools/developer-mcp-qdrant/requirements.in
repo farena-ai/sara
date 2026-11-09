@@ -1,0 +1,2 @@
+# Embedded numeric-vector engine only. No fastembed extras, models, or MCP upstream runtime.
+qdrant-client==1.20.0

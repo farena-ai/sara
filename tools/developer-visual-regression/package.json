@@ -1,0 +1,7 @@
+{
+  "name": "sara-visual-regression-qualification",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "dependencies": {"pngjs": "7.0.0"}
+}

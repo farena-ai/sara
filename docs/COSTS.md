@@ -18,6 +18,33 @@ your own numbers rather than fixed prices: **always check the provider's own pri
   stops cleanly, says so, and offers *Continue with more budget*.
 - Most providers also let you set a monthly spending limit on the key itself. Do that too.
 
+## Spend control: prices, limits, Token Saver
+
+**Prices before paid steps.** A step that costs money says so before it runs: the approval card and
+the step line show *about $0.07* (a new picture from Grok Imagine), *about $0.04* (OpenAI images) or
+*cost unknown* (an image tool, or an add-on that says it costs money without a figure). ComfyUI on
+your own computer is free and shows nothing. An add-on declares its price in its `plugin.json`
+(`"costs": { "<tool>": 0.05 }`, or `null` for unknown); your own price for any tool wins.
+
+**Spend limits** (Settings → Data & health → Usage and costs → *Spend limits*): dollars a day and a
+month, counted in your time zone over everything on the usage record (model calls and paid tools),
+plus a daily limit per paid tool. At a limit a paid step stops and asks you; **Allow** runs that one
+call, **Deny** spends nothing. Where nobody can answer a card (a loop tick, another app's request) it
+just stops and she tells you. A household admin can pin a **hard daily cap** (Policy → *Hard daily
+spending cap*): past it paid tools stop until tomorrow and nobody can allow one more.
+
+**Token Saver** (same page, or `/saver on|off|auto` in any chat): *on* means shorter replies, about
+half the chat history sent each time, at most 8 tool steps a reply, and your Quick model when you set
+one (Which model does what). *Auto* turns on by itself at 80% of a daily line (tokens, or your daily $
+limit) and off again below 60% or at midnight. A small *Token Saver* badge shows in the chat header
+while it is on. *Off* (the default) changes nothing.
+
+**Add-ons that update by themselves** (Get more → My add-ons): off by default; turn it on for all
+your Sara Store plugins or one at a time. After the daily look at the signed Store list, Sara installs
+a newer version, checks that it starts, and puts the old version back by itself if it doesn't; you get
+a notification either way. An update that asks for more permissions (or needs your "I trust the
+author" tick on this computer) is never installed by itself: you are asked once per version.
+
 ## Models
 
 ### On your own hardware: no per-use cost

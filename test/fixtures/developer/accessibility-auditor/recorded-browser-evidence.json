@@ -1,0 +1,934 @@
+{
+  "schemaVersion": 1,
+  "kind": "recorded-owned-browser-observations",
+  "freshCapture": false,
+  "provenance": {
+    "sourceEvidenceSha256": "c4c147782f0cf6f230a357c038bb05ce975a9e7b09b6c6a3c850ea57d5b2a224",
+    "captureSourceSha256": "d7bb718d997f53565feb9d0fda428753c1231e66251c6c371416b488cfbbc09a",
+    "projectionSourceSha256": "ce5a9c03486e2d25926158b96f327fad76df07c05fc6b6800ea841dbe5a4cd06"
+  },
+  "evidence": {
+    "playwright": "1.62.1",
+    "axe": "4.10.3",
+    "axeSourceSha256": "880970c081707360e64f34cea25ff91892f5bc95675b0776925b9709dd8a68bb",
+    "browserVersion": "151.0.7922.34",
+    "revision": "1234",
+    "sandbox": true,
+    "noPersonalProfile": true,
+    "serviceWorkers": "block",
+    "requests": 0,
+    "contextsClosed": 22,
+    "browserClosed": true,
+    "captureSourceSha256": "d7bb718d997f53565feb9d0fda428753c1231e66251c6c371416b488cfbbc09a",
+    "projectionSourceSha256": "ce5a9c03486e2d25926158b96f327fad76df07c05fc6b6800ea841dbe5a4cd06",
+    "namingCasesSha256": "4920695bc6a782d2ecfa9caf184649ecebfbc4c4e45d60cf1ac92d19cdb7c205",
+    "namingRecords": [
+      {
+        "id": "imageOwnLabel",
+        "viewport": "desktop",
+        "sourceSha256": "5647ecff872f44a6a39751c2013d3d1885d32fdcbe69c796aa3c99fc5d0a4f59",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><button aria-labelledby=\"n\"></button><img id=\"n\" aria-label=\"Save\"></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "5647ecff872f44a6a39751c2013d3d1885d32fdcbe69c796aa3c99fc5d0a4f59",
+          "sourceUnits": 152,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cdd0d40fc90c7361a60e3dd459e97f77870c5e13d22b76b36ef7bb7749431c08"
+      },
+      {
+        "id": "spanOwnLabel",
+        "viewport": "desktop",
+        "sourceSha256": "9e8d20a6e317ac86aa6fa8059bfc74c17d981555622f32468e6ae6adaadb1f8f",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><button aria-labelledby=\"n\"></button><span id=\"n\" aria-label=\"Save\"></span></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "9e8d20a6e317ac86aa6fa8059bfc74c17d981555622f32468e6ae6adaadb1f8f",
+          "sourceUnits": 160,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cdd0d40fc90c7361a60e3dd459e97f77870c5e13d22b76b36ef7bb7749431c08"
+      },
+      {
+        "id": "referencedTitle",
+        "viewport": "desktop",
+        "sourceSha256": "65325f5fdcee608ce384ecb61f1b1c747ae4ef1771f9201db00bddc4f2992189",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\" title=\"Save\"></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "65325f5fdcee608ce384ecb61f1b1c747ae4ef1771f9201db00bddc4f2992189",
+          "sourceUnits": 155,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cdd0d40fc90c7361a60e3dd459e97f77870c5e13d22b76b36ef7bb7749431c08"
+      },
+      {
+        "id": "labelNamedImage",
+        "viewport": "desktop",
+        "sourceSha256": "1fcf4860b7f6c020848af9268ffe7115c137ef597e2e230c8437067457a82048",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><img aria-label=\"Name\"><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "1fcf4860b7f6c020848af9268ffe7115c137ef597e2e230c8437067457a82048",
+          "sourceUnits": 130,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "79bc17a9d605c134e11f1ce8b39d011e6d112be14255511ce76f426970d732ae"
+      },
+      {
+        "id": "labelNamedSpan",
+        "viewport": "desktop",
+        "sourceSha256": "374321a1c346159db31369eeb3f6eee527484702977f10c1583c80915f7787a0",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><span aria-label=\"Name\"></span><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "374321a1c346159db31369eeb3f6eee527484702977f10c1583c80915f7787a0",
+          "sourceUnits": 138,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "79bc17a9d605c134e11f1ce8b39d011e6d112be14255511ce76f426970d732ae"
+      },
+      {
+        "id": "labelTitleSpan",
+        "viewport": "desktop",
+        "sourceSha256": "a01c26ecce530e1761ed223438a34c3e22aa5cb095802d88ddd1c633da8f5405",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><span title=\"Name\"></span><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "a01c26ecce530e1761ed223438a34c3e22aa5cb095802d88ddd1c633da8f5405",
+          "sourceUnits": 133,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "79bc17a9d605c134e11f1ce8b39d011e6d112be14255511ce76f426970d732ae"
+      },
+      {
+        "id": "emptyReference",
+        "viewport": "desktop",
+        "sourceSha256": "a4e12437294bf030e728c2f6342d75cf906a99b0164cf8db10fd0acd3b4c7dc9",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\"></span><button aria-labelledby=\"n\">Save</button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "a4e12437294bf030e728c2f6342d75cf906a99b0164cf8db10fd0acd3b4c7dc9",
+          "sourceUnits": 146,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "empty-name-reference"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "647f938489dc0e258bf430fbb545479c93a1f0ab3857da69806dd75bc699d245"
+      },
+      {
+        "id": "hiddenDescendant",
+        "viewport": "desktop",
+        "sourceSha256": "1f8827134ea95ed04453af9c99d4111bae8a56df3b2dbfdf549f7db3d0a89a6c",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "1f8827134ea95ed04453af9c99d4111bae8a56df3b2dbfdf549f7db3d0a89a6c",
+          "sourceUnits": 166,
+          "nodeCount": 11,
+          "findings": [],
+          "unsupported": [
+            "empty-name-reference"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "",
+          "violations": [
+            {
+              "id": "button-name",
+              "targets": [
+                [
+                  "button"
+                ]
+              ]
+            }
+          ]
+        },
+        "ariaSnapshot": "- button",
+        "screenshotSha256": "cdd0d40fc90c7361a60e3dd459e97f77870c5e13d22b76b36ef7bb7749431c08"
+      },
+      {
+        "id": "hiddenRoot",
+        "viewport": "desktop",
+        "sourceSha256": "6956707066a1a3a7aa1589612b983f29d8e8740a873755e3936d8edd56a9eb55",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span hidden id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "bounded-structural-only",
+          "sourceSha256": "6956707066a1a3a7aa1589612b983f29d8e8740a873755e3936d8edd56a9eb55",
+          "sourceUnits": 173,
+          "nodeCount": 11,
+          "findings": [],
+          "unsupported": [],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cdd0d40fc90c7361a60e3dd459e97f77870c5e13d22b76b36ef7bb7749431c08"
+      },
+      {
+        "id": "imageOwnLabel",
+        "viewport": "phone",
+        "sourceSha256": "5647ecff872f44a6a39751c2013d3d1885d32fdcbe69c796aa3c99fc5d0a4f59",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><button aria-labelledby=\"n\"></button><img id=\"n\" aria-label=\"Save\"></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "5647ecff872f44a6a39751c2013d3d1885d32fdcbe69c796aa3c99fc5d0a4f59",
+          "sourceUnits": 152,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cbbe33e2c6a8ae05b1a94b5a388f2e81758e73948dcb8a0689f39c3e4cb6dc95"
+      },
+      {
+        "id": "spanOwnLabel",
+        "viewport": "phone",
+        "sourceSha256": "9e8d20a6e317ac86aa6fa8059bfc74c17d981555622f32468e6ae6adaadb1f8f",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><button aria-labelledby=\"n\"></button><span id=\"n\" aria-label=\"Save\"></span></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "9e8d20a6e317ac86aa6fa8059bfc74c17d981555622f32468e6ae6adaadb1f8f",
+          "sourceUnits": 160,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cbbe33e2c6a8ae05b1a94b5a388f2e81758e73948dcb8a0689f39c3e4cb6dc95"
+      },
+      {
+        "id": "referencedTitle",
+        "viewport": "phone",
+        "sourceSha256": "65325f5fdcee608ce384ecb61f1b1c747ae4ef1771f9201db00bddc4f2992189",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\" title=\"Save\"></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "65325f5fdcee608ce384ecb61f1b1c747ae4ef1771f9201db00bddc4f2992189",
+          "sourceUnits": 155,
+          "nodeCount": 9,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cbbe33e2c6a8ae05b1a94b5a388f2e81758e73948dcb8a0689f39c3e4cb6dc95"
+      },
+      {
+        "id": "labelNamedImage",
+        "viewport": "phone",
+        "sourceSha256": "1fcf4860b7f6c020848af9268ffe7115c137ef597e2e230c8437067457a82048",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><img aria-label=\"Name\"><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "1fcf4860b7f6c020848af9268ffe7115c137ef597e2e230c8437067457a82048",
+          "sourceUnits": 130,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "c9d64e5394b6ac050d6bc633178db4f36ad22760a4b9d09829b71f9fcdceafc5"
+      },
+      {
+        "id": "labelNamedSpan",
+        "viewport": "phone",
+        "sourceSha256": "374321a1c346159db31369eeb3f6eee527484702977f10c1583c80915f7787a0",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><span aria-label=\"Name\"></span><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "374321a1c346159db31369eeb3f6eee527484702977f10c1583c80915f7787a0",
+          "sourceUnits": 138,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "c9d64e5394b6ac050d6bc633178db4f36ad22760a4b9d09829b71f9fcdceafc5"
+      },
+      {
+        "id": "labelTitleSpan",
+        "viewport": "phone",
+        "sourceSha256": "a01c26ecce530e1761ed223438a34c3e22aa5cb095802d88ddd1c633da8f5405",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><label><span title=\"Name\"></span><input></label></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "a01c26ecce530e1761ed223438a34c3e22aa5cb095802d88ddd1c633da8f5405",
+          "sourceUnits": 133,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "author-named-subtree"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Name",
+          "violations": []
+        },
+        "ariaSnapshot": "- textbox \"Name\"",
+        "screenshotSha256": "c9d64e5394b6ac050d6bc633178db4f36ad22760a4b9d09829b71f9fcdceafc5"
+      },
+      {
+        "id": "emptyReference",
+        "viewport": "phone",
+        "sourceSha256": "a4e12437294bf030e728c2f6342d75cf906a99b0164cf8db10fd0acd3b4c7dc9",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\"></span><button aria-labelledby=\"n\">Save</button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "a4e12437294bf030e728c2f6342d75cf906a99b0164cf8db10fd0acd3b4c7dc9",
+          "sourceUnits": 146,
+          "nodeCount": 10,
+          "findings": [],
+          "unsupported": [
+            "empty-name-reference"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "78e8ccd75a11b0ea8fee4289dcf5a3070c5d58612826ee478405f0a40010c8a3"
+      },
+      {
+        "id": "hiddenDescendant",
+        "viewport": "phone",
+        "sourceSha256": "1f8827134ea95ed04453af9c99d4111bae8a56df3b2dbfdf549f7db3d0a89a6c",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "requires-browser",
+          "sourceSha256": "1f8827134ea95ed04453af9c99d4111bae8a56df3b2dbfdf549f7db3d0a89a6c",
+          "sourceUnits": 166,
+          "nodeCount": 11,
+          "findings": [],
+          "unsupported": [
+            "empty-name-reference"
+          ],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "",
+          "violations": [
+            {
+              "id": "button-name",
+              "targets": [
+                [
+                  "button"
+                ]
+              ]
+            }
+          ]
+        },
+        "ariaSnapshot": "- button",
+        "screenshotSha256": "cbbe33e2c6a8ae05b1a94b5a388f2e81758e73948dcb8a0689f39c3e4cb6dc95"
+      },
+      {
+        "id": "hiddenRoot",
+        "viewport": "phone",
+        "sourceSha256": "6956707066a1a3a7aa1589612b983f29d8e8740a873755e3936d8edd56a9eb55",
+        "html": "<!doctype html><html lang=\"en\"><title>Owned naming oracle</title><body><span hidden id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button></body></html>",
+        "structural": {
+          "mode": "static-structural",
+          "coverage": "bounded-structural-only",
+          "sourceSha256": "6956707066a1a3a7aa1589612b983f29d8e8740a873755e3936d8edd56a9eb55",
+          "sourceUnits": 173,
+          "nodeCount": 11,
+          "findings": [],
+          "unsupported": [],
+          "limitations": [
+            "not-rendered",
+            "not-complete-accessible-name",
+            "not-wcag-conformance",
+            "contrast-layout-focus-not-tested",
+            "no-live-capture-authority"
+          ]
+        },
+        "oracle": {
+          "accessibleText": "Save",
+          "violations": []
+        },
+        "ariaSnapshot": "- button \"Save\"",
+        "screenshotSha256": "cbbe33e2c6a8ae05b1a94b5a388f2e81758e73948dcb8a0689f39c3e4cb6dc95"
+      }
+    ],
+    "records": [
+      {
+        "viewport": "desktop",
+        "width": 1200,
+        "height": 800,
+        "variant": "candidate",
+        "sourceSha256": "30ba9cba434d31170758045db40841ff173aa45e7bf9816a7b8adc36516f202d",
+        "structural": [
+          {
+            "rule": "document-lang-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "html",
+              "ordinal": 1,
+              "line": 2,
+              "column": 1,
+              "offset": 16,
+              "endOffset": 22
+            }
+          },
+          {
+            "rule": "img-alt-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "img",
+              "ordinal": 8,
+              "line": 5,
+              "column": 1,
+              "offset": 150,
+              "endOffset": 178
+            }
+          },
+          {
+            "rule": "button-name-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "button",
+              "ordinal": 9,
+              "line": 6,
+              "column": 1,
+              "offset": 179,
+              "endOffset": 218
+            }
+          },
+          {
+            "rule": "control-label-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "input",
+              "ordinal": 10,
+              "line": 7,
+              "column": 1,
+              "offset": 228,
+              "endOffset": 247
+            }
+          }
+        ],
+        "oracle": {
+          "version": "4.10.3",
+          "violations": [
+            {
+              "id": "button-name",
+              "nodes": [
+                {
+                  "target": [
+                    "button:nth-child(3)"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "html-has-lang",
+              "nodes": [
+                {
+                  "target": [
+                    "html"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "image-alt",
+              "nodes": [
+                {
+                  "target": [
+                    "img[width=\"48\"]"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "label",
+              "nodes": [
+                {
+                  "target": [
+                    "input[type=\"text\"]"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "matches": [
+          {
+            "rule": "document-lang-missing",
+            "axeRule": "html-has-lang",
+            "tag": "html",
+            "ordinal": 1,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 1200,
+              "height": 162.875
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "img-alt-missing",
+            "axeRule": "image-alt",
+            "tag": "img",
+            "ordinal": 8,
+            "rect": {
+              "x": 8,
+              "y": 79.875,
+              "width": 48,
+              "height": 48
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "button-name-missing",
+            "axeRule": "button-name",
+            "tag": "button",
+            "ordinal": 9,
+            "rect": {
+              "x": 60,
+              "y": 90.875,
+              "width": 96,
+              "height": 40
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "control-label-missing",
+            "axeRule": "label",
+            "tag": "input",
+            "ordinal": 10,
+            "rect": {
+              "x": 160,
+              "y": 112.875,
+              "width": 177,
+              "height": 21
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          }
+        ],
+        "screenshotSha256": "e54ec5927597fc505afbbd05d76c640c7eada18e16b06e38af7d497bc7f38d23"
+      },
+      {
+        "viewport": "desktop",
+        "width": 1200,
+        "height": 800,
+        "variant": "control",
+        "sourceSha256": "4f846c3643336ab1979a304c4b2e2ce923cc20bec0ff4e1b689e1a0cd9997cec",
+        "structural": [],
+        "oracle": {
+          "version": "4.10.3",
+          "violations": []
+        },
+        "matches": [],
+        "screenshotSha256": "e7baa844b068925b87123830eb21635162504b1701214cbc8ebde87392f74c86"
+      },
+      {
+        "viewport": "phone",
+        "width": 390,
+        "height": 844,
+        "variant": "candidate",
+        "sourceSha256": "30ba9cba434d31170758045db40841ff173aa45e7bf9816a7b8adc36516f202d",
+        "structural": [
+          {
+            "rule": "document-lang-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "html",
+              "ordinal": 1,
+              "line": 2,
+              "column": 1,
+              "offset": 16,
+              "endOffset": 22
+            }
+          },
+          {
+            "rule": "img-alt-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "img",
+              "ordinal": 8,
+              "line": 5,
+              "column": 1,
+              "offset": 150,
+              "endOffset": 178
+            }
+          },
+          {
+            "rule": "button-name-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "button",
+              "ordinal": 9,
+              "line": 6,
+              "column": 1,
+              "offset": 179,
+              "endOffset": 218
+            }
+          },
+          {
+            "rule": "control-label-missing",
+            "status": "static-finding",
+            "element": {
+              "tag": "input",
+              "ordinal": 10,
+              "line": 7,
+              "column": 1,
+              "offset": 228,
+              "endOffset": 247
+            }
+          }
+        ],
+        "oracle": {
+          "version": "4.10.3",
+          "violations": [
+            {
+              "id": "button-name",
+              "nodes": [
+                {
+                  "target": [
+                    "button:nth-child(3)"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "html-has-lang",
+              "nodes": [
+                {
+                  "target": [
+                    "html"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "image-alt",
+              "nodes": [
+                {
+                  "target": [
+                    "img[width=\"48\"]"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "label",
+              "nodes": [
+                {
+                  "target": [
+                    "input[type=\"text\"]"
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        "matches": [
+          {
+            "rule": "document-lang-missing",
+            "axeRule": "html-has-lang",
+            "tag": "html",
+            "ordinal": 1,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 390,
+              "height": 204.875
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "img-alt-missing",
+            "axeRule": "image-alt",
+            "tag": "img",
+            "ordinal": 8,
+            "rect": {
+              "x": 8,
+              "y": 79.875,
+              "width": 48,
+              "height": 48
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "button-name-missing",
+            "axeRule": "button-name",
+            "tag": "button",
+            "ordinal": 9,
+            "rect": {
+              "x": 60,
+              "y": 90.875,
+              "width": 96,
+              "height": 40
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          },
+          {
+            "rule": "control-label-missing",
+            "axeRule": "label",
+            "tag": "input",
+            "ordinal": 10,
+            "rect": {
+              "x": 160,
+              "y": 112.875,
+              "width": 177,
+              "height": 21
+            },
+            "visible": true,
+            "axeTargetVerified": true
+          }
+        ],
+        "screenshotSha256": "5063da042c6bf9af61c23f60e6556a8f2c646dd41a419a5901c9a72fb8321c2c"
+      },
+      {
+        "viewport": "phone",
+        "width": 390,
+        "height": 844,
+        "variant": "control",
+        "sourceSha256": "4f846c3643336ab1979a304c4b2e2ce923cc20bec0ff4e1b689e1a0cd9997cec",
+        "structural": [],
+        "oracle": {
+          "version": "4.10.3",
+          "violations": []
+        },
+        "matches": [],
+        "screenshotSha256": "4db9f167cb4af70e26e0f5d0bab6781e7446b0059bb9ed7457042bafaac66982"
+      }
+    ]
+  }
+}

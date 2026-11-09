@@ -70,6 +70,22 @@ Doing", "what's blocked?". Moving a card that isn't hers asks you first (an appr
 does starting work on a card. When she did the work in chat ("I fixed the login bug"), the matching
 card shows *Move to Done?* instead of moving by itself.
 
+## Her questions
+
+When she needs something only you can answer, she parks the card with a question (it says *Her
+question for you*, in *Waiting on you*). It is not a failure, and it doesn't hold up her other cards:
+the next card in the queue starts. The board shows **N questions for you** (tap it for the first one).
+Answer on the card, or just tell her in chat ("for card 12: the blue one"); she passes it on and the
+work picks up with your answer. If a question waits a day, you get one reminder (never in your quiet
+hours), then at most one a day.
+
+## Make a board from a description
+
+**From a description** (next to New board): say what you want done in your own words, press **Draft
+it**, and she proposes columns and cards in order, with what waits for what. Change names, columns or
+remove cards in the preview, then **Create the board**. Nothing is made before that. A card that
+waits for another gets a line *Waits for: #12 Book the van* in its notes.
+
 ## Shared household boards
 
 In a household (Settings → Household) anyone can make a **shared board** and pick people. Each

@@ -73,6 +73,17 @@ export function stepWordsWith(t, name, args = {}, named = '') {
       return pair(t('Checking your home…'), t('Checked your home'), 'home');
     case 'home_control':
       return pair(t('Changing something at home…'), t('Changed something at home'), 'home');
+    case 'spotify_search':
+    case 'spotify_now_playing':
+    case 'spotify_my_playlists':
+    case 'spotify_top':
+    case 'spotify_devices':
+      return pair(t('Looking on Spotify…'), t('Looked on Spotify'), 'music');
+    case 'spotify_playlist_create':
+    case 'spotify_playlist_add':
+      return pair(t('Changing a playlist…'), t('Changed a playlist'), 'music');
+    case 'spotify_playback':
+      return pair(t('Changing the music…'), t('Changed the music'), 'play');
     case 'take_photo':
       return pair(t('Making a picture…'), t('Made a picture'), 'photo');
     case 'share_photo':

@@ -1,6 +1,6 @@
 {
   "id": "playwright",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Browser (Playwright)",
   "category": "coding",
   "tags": [
@@ -17,7 +17,8 @@
   "license": "Apache-2.0",
   "source": "https://github.com/microsoft/playwright-mcp",
   "needs": [
-    "node"
+    "node",
+    "app:Google Chrome"
   ],
   "works": [
     "windows",
@@ -59,14 +60,15 @@
       ]
     },
     "needs": [
-      "node"
+      "node",
+      "app:Google Chrome"
     ],
     "guide": [
-      "Add this tool server, then press Test. The first start downloads the browser it needs."
+      "It uses Google Chrome installed on the computer where Sara runs; it does not download one. On a server without Chrome, install Chrome there first (or ask the Sara team for another browser option).", "Add this tool server, then press Test."
     ]
   },
   "changes": [
-    "First listing."
+    "Says it needs Google Chrome on the computer where Sara runs (it does not download a browser)."
   ],
   "tested": [
     {

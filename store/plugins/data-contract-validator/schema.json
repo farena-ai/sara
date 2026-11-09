@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "properties": {
+    "format": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 11,
+      "enum": [
+        "json-schema",
+        "protobuf"
+      ]
+    },
+    "before": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "after": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 16384
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 96
+    },
+    "payloads": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 8192
+      },
+      "minItems": 1,
+      "maxItems": 20
+    }
+  },
+  "required": [
+    "format",
+    "before",
+    "after",
+    "payloads"
+  ],
+  "additionalProperties": false
+}

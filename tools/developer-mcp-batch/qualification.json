@@ -1,0 +1,606 @@
+{
+ "schemaVersion": 1,
+ "inspected": "2026-11-06",
+ "policy": "READY = pinned upstream runs locally with no account and passed the opt-in fixture acceptance in test/developer-mcp-batch-host.test.ts on this PC. NEEDS ACCOUNT = real pinned/hosted upstream exists but acceptance needs the owner's account, key, service or cost. BLOCKED = no trustworthy pinned upstream, licence/terms problem or unsafe tool surface. No paid call, login or key was used.",
+ "targets": [
+  {
+   "id": "M01",
+   "slug": "local-git",
+   "name": "Local Git",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "pypi",
+    "package": "mcp-server-git",
+    "version": "2026.11.4",
+    "integrity": "sha256:0cdaa8f446554d020f8ffa0e44ef45b89df4ed4deaeb961b4305d8a2852b4e0e",
+    "artifact": "mcp_server_git-2026.11.4-py3-none-any.whl",
+    "license": "MIT"
+   },
+   "license": "MIT",
+   "auth": "None (local repository)",
+   "cost": "Free",
+   "reason": "Unsafe tool surface for a selected repository: Git reads run repository config (core.fsmonitor, diff.external, textconv, includes) and the pinned server has commit/reset/checkout/branch tools with no read-only switch. Earlier fixture tier passed, but project use needs a real OS fence or a reviewed config-sanitized snapshot first.",
+   "ownerStep": null,
+   "fixtureProof": null
+  },
+  {
+   "id": "M02",
+   "slug": "postman",
+   "name": "Postman",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@postman/postman-mcp-server",
+    "version": "2.15.0",
+    "integrity": "sha512-IHJ53QxDjP6zfgw641V8gfTOmvK7h6eDDWnycdxxw4f8KeNl46ehFf81PK533UrA10+HO9hSf8bXWyQsn9agkg==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "Postman API key",
+   "cost": "Postman plan limits; collection runs can call real APIs",
+   "reason": "Every tool calls the Postman cloud API with the owner's key. Running a collection against an owned endpoint is not a verified pinned upstream tool.",
+   "ownerStep": "Create a Postman API key in a test workspace that holds only a fixture collection pointing at an owned endpoint, then qualify discovery and one collection read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M03",
+   "slug": "storybook",
+   "name": "Storybook",
+   "state": "READY",
+   "upstream": {
+    "registry": "npm",
+    "package": "@storybook/addon-mcp",
+    "version": "10.6.6",
+    "integrity": "sha512-JMXgHRuJCI5tbjxE4mk38VMUmaETHOGwAYlxVcPI3SwGHeVWUTHhLMJiLZN6JIkkAT71J75o5q1Zi9kFUoXBOg==",
+    "license": "MIT",
+    "deprecated": null,
+    "companion": {
+     "package": "storybook",
+     "version": "10.6.6",
+     "integrity": "sha512-lCROrR6Fj+WDBoJu4yp6o/cqcg376Sg85hiUnTh00I0EStk8xFRvTdzRuNWHlLA8itQrkz6Lo/IqFZ1FVXMiAA=="
+    }
+   },
+   "license": "MIT",
+   "auth": "None (your own local Storybook)",
+   "cost": "Free",
+   "reason": "Pinned addon inside an owned Storybook dev server on 127.0.0.1; dev toolset only.",
+   "ownerStep": null,
+   "fixtureProof": "test/developer-mcp-batch-host.test.ts (Storybook)"
+  },
+  {
+   "id": "M04",
+   "slug": "aws",
+   "name": "AWS",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "pypi",
+    "package": "awslabs.aws-api-mcp-server",
+    "version": "1.6.0",
+    "integrity": "sha256:484305708f665e9f0b59192892ebf5ffad1a7cec5adce2f48ab788e61b521e3f",
+    "artifact": "awslabs_aws_api_mcp_server-1.6.0-py3-none-any.whl",
+    "license": "Apache-2.0"
+   },
+   "license": "Apache-2.0",
+   "auth": "AWS credentials/profile for a sandbox account",
+   "cost": "AWS API calls can be billed; data egress",
+   "reason": "Reads go to the owner's AWS account; the server can also run mutating AWS CLI commands unless READ_OPERATIONS_ONLY is set and verified.",
+   "ownerStep": "Provide a sandbox account profile with a read-only IAM role limited to one region and resource allowlist; confirm no billable reads, then qualify one describe call.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M05",
+   "slug": "azure",
+   "name": "Azure",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@azure/mcp",
+    "version": "4.0.0-beta.5",
+    "integrity": "sha512-qfhtp/QrqJDEjYmagZ3Vvl+uiF+16CoLNLNW0dPp10MEZqszCEmlQ7REI4hBD5cWUThn2r14QCzb3PdxFOy26g==",
+    "license": "MIT",
+    "deprecated": null
+   },
+   "license": "MIT",
+   "auth": "Azure sign-in (Entra ID) for a test subscription",
+   "cost": "Azure resource/API charges may apply",
+   "reason": "Pinned build is a prerelease (4.0.0-beta.5; 4.0.0-beta.6 is newer) and every useful tool needs the owner's tenant sign-in.",
+   "ownerStep": "Choose a test subscription and Reader-only identity for one resource group, sign in with az login on that identity, then qualify one read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M06",
+   "slug": "google-cloud",
+   "name": "Google Cloud",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@google-cloud/gcloud-mcp",
+    "version": "0.5.3",
+    "integrity": "sha512-kfTcqDklnOPEvM5bfqaNLmoFVLSmHHmtH7ZuVAOt+BFNCD+QsOtg2koIolAhZA6RpZbeuzbxW0lgy0y+rR3Jwg==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "gcloud CLI signed in to a test project",
+   "cost": "Google Cloud API charges may apply",
+   "reason": "Runs the owner's installed gcloud CLI with their credentials; needs a test project and Viewer-only account.",
+   "ownerStep": "Install gcloud, sign in with a Viewer-only account on a dedicated test project, then qualify one project describe.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M07",
+   "slug": "terraform",
+   "name": "Terraform",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "docker",
+    "package": "hashicorp/terraform-mcp-server",
+    "version": "1.4.1",
+    "integrity": "sha256:11dd418bba6003dd5777e9d0979b68de59929a155b355f338f407947e00e9d80",
+    "alsoNative": "https://releases.hashicorp.com/terraform-mcp-server/1.4.1/ (windows_amd64 ZIP SHA256 1783262cd00ed02b8c3e660ce247362ed2399901704e75103981e6efb37077c1)"
+   },
+   "license": "MPL-2.0",
+   "auth": "None for public registry; HCP Terraform token for workspaces",
+   "cost": "Free for registry reads",
+   "reason": "No npm/PyPI distribution: HashiCorp ships a native binary and a Docker image. Sara recipes may start only npx, uvx, docker or node, and Docker is not available on this PC, so the docker-by-digest recipe could not be fixture-proven here (the earlier native-binary registry test is historical).",
+   "ownerStep": "Install Docker, then qualify docker run --rm -i hashicorp/terraform-mcp-server@<digest> stdio --tools=search_provider_docs,get_provider_details against the public registry.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M08",
+   "slug": "pulumi",
+   "name": "Pulumi",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "npm",
+    "package": "@pulumi/mcp-server",
+    "version": "0.2.0",
+    "integrity": "sha512-ll7glJXFnj3leDpT7oP3WCRrdj3XaSiZRpY6FOXxPKXIBdKlWFTo/UQM4xQUAVN+no4ndm011nZOVzO4ds/hcQ==",
+    "license": null,
+    "deprecated": null
+   },
+   "license": "None declared",
+   "auth": "Pulumi Cloud token",
+   "cost": "Pulumi Cloud plan",
+   "reason": "Licence problem: npm 0.2.0 declares no licence and ships no LICENSE file; the maintained hosted server has a different tool set.",
+   "ownerStep": null,
+   "fixtureProof": null
+  },
+  {
+   "id": "M09",
+   "slug": "kubernetes",
+   "name": "Kubernetes",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "kubernetes-mcp-server",
+    "version": "0.1.2",
+    "integrity": "sha512-cv2Xw5smr6sza1ZltEH7ItYTPVFzSAYTNRepXNNkYHiCGsgfgXMSOxKuKIWh58yMKA80lohK5uI0Jkf8JI2qMQ==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "kubeconfig for an isolated cluster namespace",
+   "cost": "Cluster costs are the owner's",
+   "reason": "Needs a running cluster; no cluster (kind/minikube need Docker or a VM) is available on this PC.",
+   "ownerStep": "Provide an isolated test cluster and a namespace-scoped read-only service-account kubeconfig; review the pinned server's read-only options against its shipped source, then qualify one pod/event read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M10",
+   "slug": "argo-cd",
+   "name": "Argo CD",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "argocd-mcp",
+    "version": "0.9.0",
+    "integrity": "sha512-5xfz8JB2ZNCcl/fvkJJnX1aH7AdmSD68cZDY/xzwRoBtoedfDXnwEKN3TBcItFkr0IDpMNR4sXwcsEE4R14trw==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "Argo CD API token",
+   "cost": "Free server; cluster costs are the owner's",
+   "reason": "Needs a running Argo CD server and a read-only token; none here.",
+   "ownerStep": "Provide an Argo CD instance with a fixture application and a read-only role token; qualify with MCP_READ_ONLY=true and one application status read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M11",
+   "slug": "vercel",
+   "name": "Vercel",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "hosted",
+    "package": "https://mcp.vercel.com",
+    "version": null,
+    "integrity": null
+   },
+   "license": "Not stated for hosted service",
+   "auth": "Vercel OAuth",
+   "cost": "Vercel plan",
+   "reason": "Hosted-only server with OAuth sign-in; no versioned package to pin and Sara has no hosted MCP OAuth flow.",
+   "ownerStep": null,
+   "fixtureProof": null
+  },
+  {
+   "id": "M12",
+   "slug": "netlify",
+   "name": "Netlify",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@netlify/mcp",
+    "version": "1.21.0",
+    "integrity": "sha512-SJ6pIlh1IlkilcK4S0vqeM0cR3gbL0yHzceMFGgyn5aOORpIiUgrNXik+pSktLHBIyYF5X22CeCsh/s3zlFbtA==",
+    "license": "ISC",
+    "deprecated": null
+   },
+   "license": "ISC (npm metadata; no LICENSE file in package)",
+   "auth": "Netlify personal access token",
+   "cost": "Netlify plan; deploy tools can start builds",
+   "reason": "All tools use the owner's Netlify account; deploy/build tools exist and must stay Off.",
+   "ownerStep": "Create a token for a test team with one site and an existing deploy; qualify one deploy read with deploy/build tools Off.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M13",
+   "slug": "mongodb",
+   "name": "MongoDB",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "npm",
+    "package": "mongodb-mcp-server",
+    "version": "3.2.2",
+    "integrity": "sha512-hq56zIdGhOt9bDdm+cLjMGLJ6Q/rVmqxc09BS55+sHjCK9Mx/3BufQ31Zt0yYFdqWjvhaheH7uczW/mq083RqA==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "Database user (read-only role)",
+   "cost": "Free locally",
+   "reason": "Upstream defect: in 3.2.2 (still latest) find with limit 0 bypasses the configured maximum (Math.min(0, max) = 0 = no limit); the real registered tool returned 20 documents against a 5-document cap.",
+   "ownerStep": null,
+   "fixtureProof": null
+  },
+  {
+   "id": "M14",
+   "slug": "redis",
+   "name": "Redis",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "pypi",
+    "package": "redis-mcp-server",
+    "version": "0.5.1",
+    "integrity": "sha256:335d9089d4c87a055b362effa7fd718334ccd88b2545d93c4ed9bc2b738b3ed8",
+    "artifact": "redis_mcp_server-0.5.1-py3-none-any.whl",
+    "license": "MIT"
+   },
+   "license": "MIT",
+   "auth": "Redis ACL user",
+   "cost": "Free locally",
+   "reason": "Needs a real Redis 7+ service (none on this Windows PC). The pinned server exposes 53 tools, most of them writes, and has no read-only switch, so the namespace and no-write limits must come from a Redis ACL user. A fakeredis emulator answered, but it does not enforce ACLs, so it cannot prove the limits.",
+   "ownerStep": "Run Redis 7+ and create an ACL user limited to ~fixture:* with +@read -@dangerous; then qualify one TTL/type read and a refused write.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M15",
+   "slug": "elasticsearch-and-opensearch",
+   "name": "Elasticsearch and OpenSearch",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "pypi",
+    "package": "opensearch-mcp-server-py",
+    "version": "0.12.0",
+    "integrity": "sha256:2672fba8da654da2917e6e3c1a9dbc197e2466fbe978ab14a7c34a1228999dc7",
+    "artifact": "opensearch_mcp_server_py-0.12.0-py3-none-any.whl",
+    "license": "Apache-2.0",
+    "elastic": {
+     "package": "@elastic/mcp-server-elasticsearch",
+     "version": "0.3.1",
+     "deprecated": "This package is deprecated. Please see the README at https://github.com/elastic/mcp-server-elasticsearch for details on how to run v0.4.0 or later."
+    }
+   },
+   "license": "Apache-2.0",
+   "auth": "Cluster user",
+   "cost": "Free locally; hosted clusters cost",
+   "reason": "Needs a running OpenSearch or Elasticsearch cluster (none here). The OpenSearch server includes a generic API tool that must stay Off; Elastic's npm package is deprecated in favour of a Docker image.",
+   "ownerStep": "Run a single-node OpenSearch with a read-only role on one fixture index; keep the generic API tool Off and qualify one search and one mapping read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M16",
+   "slug": "clickhouse",
+   "name": "ClickHouse",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "pypi",
+    "package": "mcp-clickhouse",
+    "version": "0.7.0",
+    "integrity": "sha256:45781660fa84662b5b8f0bfaf815180d134d50353f17e6ab1d99ff8354444aaf",
+    "artifact": "mcp_clickhouse-0.7.0-py3-none-any.whl",
+    "license": "Apache-2.0"
+   },
+   "license": "Apache-2.0",
+   "auth": "ClickHouse user",
+   "cost": "Free locally; ClickHouse Cloud compute costs",
+   "reason": "Needs a ClickHouse server (no native Windows server here).",
+   "ownerStep": "Run ClickHouse with a readonly=1 profile user on a fixture database; qualify with CLICKHOUSE_ALLOW_WRITE_ACCESS=false and one EXPLAIN.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M17",
+   "slug": "snowflake",
+   "name": "Snowflake",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "hosted",
+    "package": "Snowflake managed MCP server object",
+    "version": null,
+    "integrity": null
+   },
+   "license": "Snowflake terms",
+   "auth": "Snowflake account and role",
+   "cost": "Warehouse credits",
+   "reason": "Account-hosted MCP object; every query spends warehouse credits.",
+   "ownerStep": "Create a dedicated XS warehouse with a resource monitor, a read-only role and a fixture table; approve the credit spend, then qualify one bounded SELECT.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M18",
+   "slug": "neon",
+   "name": "Neon",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "hosted",
+    "package": "https://mcp.neon.tech/mcp?readonly=true",
+    "version": null,
+    "integrity": null,
+    "deprecatedLocal": {
+     "package": "@neondatabase/mcp-server-neon",
+     "version": "0.6.5"
+    }
+   },
+   "license": "MIT (deprecated local)",
+   "auth": "Neon API key",
+   "cost": "Neon plan",
+   "reason": "Local npm package is deprecated; the hosted server needs the owner's Neon key and is not version-pinnable.",
+   "ownerStep": "Create a Neon API key for a test project with one branch; qualify one branch metadata read with create/delete tools Off.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M19",
+   "slug": "qdrant",
+   "name": "Qdrant",
+   "state": "READY",
+   "upstream": {
+    "registry": "pypi",
+    "package": "mcp-server-qdrant",
+    "version": "0.8.1",
+    "integrity": "sha256:eb7b36105021b431989f5a0f794591e52d48d3a6afb1a033d65fd8a08a68991c",
+    "artifact": "mcp_server_qdrant-0.8.1-py3-none-any.whl",
+    "license": "Apache-2.0"
+   },
+   "license": "Apache-2.0",
+   "auth": "None (embedded local collection)",
+   "cost": "Free",
+   "reason": "Official server with an embedded on-disk collection; read-only mode by default.",
+   "ownerStep": null,
+   "fixtureProof": "test/developer-mcp-batch-host.test.ts (Qdrant)"
+  },
+  {
+   "id": "M20",
+   "slug": "pinecone",
+   "name": "Pinecone",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@pinecone-database/mcp",
+    "version": "0.4.0",
+    "integrity": "sha512-JewEAQw+C3vys9hWT4vMePzeP5AA8QZeHMmS4JPtYIuHZtdQRmx0o4DZZCcdXluT8dNEXM3oh1tB473vJgUA8A==",
+    "license": "Apache-2.0",
+    "deprecated": null
+   },
+   "license": "Apache-2.0",
+   "auth": "Pinecone API key",
+   "cost": "Pinecone usage charges",
+   "reason": "Every query uses the owner's Pinecone project and can be billed.",
+   "ownerStep": "Create a key for a test project with a fixture index/namespace; approve the cost, then qualify one bounded query with upsert/admin tools Off.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M21",
+   "slug": "datadog",
+   "name": "Datadog",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "hosted",
+    "package": "https://mcp.datadoghq.com/v1/mcp (regional)",
+    "version": null,
+    "integrity": null
+   },
+   "license": "Datadog terms",
+   "auth": "Datadog API and application keys",
+   "cost": "Datadog plan; queries may be metered",
+   "reason": "Managed regional endpoint; reads use the owner's account and can be metered.",
+   "ownerStep": "Create scoped read-only keys for a test org with a synthetic service; qualify one bounded log query.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M22",
+   "slug": "grafana",
+   "name": "Grafana",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "docker",
+    "package": "grafana/mcp-grafana",
+    "version": "2.2.0",
+    "integrity": "sha256:697336440e34878f8e0b26a69675db8d7e97b4d0daec25ec5441c85ac6c60e81"
+   },
+   "license": "Apache-2.0",
+   "auth": "Grafana service-account token",
+   "cost": "Free locally; Grafana Cloud plan",
+   "reason": "Needs a Grafana instance and a token; distributed as a Go binary or Docker image, and Docker is not available here.",
+   "ownerStep": "Run Grafana (or use a test stack) with a Viewer service-account token; qualify with --disable-write and one dashboard read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M23",
+   "slug": "new-relic",
+   "name": "New Relic",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "hosted",
+    "package": "New Relic managed MCP server",
+    "version": null,
+    "integrity": null
+   },
+   "license": "New Relic terms",
+   "auth": "New Relic user key",
+   "cost": "New Relic plan; NRQL may be metered",
+   "reason": "Managed endpoint using the owner's account.",
+   "ownerStep": "Create a user key for a test account with a synthetic app; qualify one bounded NRQL read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M24",
+   "slug": "posthog",
+   "name": "PostHog",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "hosted",
+    "package": "https://mcp.posthog.com/mcp?readonly=true",
+    "version": null,
+    "integrity": null
+   },
+   "license": "MIT (posthog source)",
+   "auth": "PostHog personal API key",
+   "cost": "PostHog plan",
+   "reason": "Managed endpoint using the owner's project; flag/experiment tools must stay Off.",
+   "ownerStep": "Create a scoped read-only personal key on a test project with a fixture funnel; qualify one insight read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M25",
+   "slug": "launchdarkly",
+   "name": "LaunchDarkly",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@launchdarkly/mcp-server",
+    "version": "0.7.2",
+    "integrity": "sha512-MWlYKRZn3De/QuBDSd92YQ9c7DHEA3+eiGp6j6qopCtJAVG7OsWQDgRlO67eFyN8DePzEq494XQxruNKPohUUg==",
+    "license": "MIT",
+    "deprecated": null
+   },
+   "license": "MIT",
+   "auth": "LaunchDarkly API access token",
+   "cost": "LaunchDarkly plan",
+   "reason": "Every tool uses the owner's account; flag targeting tools must stay Off.",
+   "ownerStep": "Create a Reader-role token for a test project/environment with a fixture flag; qualify one flag read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M26",
+   "slug": "stripe",
+   "name": "Stripe",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "npm",
+    "package": "@stripe/mcp",
+    "version": "0.3.4",
+    "integrity": "sha512-wR1nyL7AQwjgMv2UBi0/4XMQ6IruCC1WmBDHjVHAbrhDk4U6XTmaShw6qr+XXm/DBL8oKoXmqLHTjSgCwWjDzg==",
+    "license": "MIT",
+    "deprecated": "No longer maintained; no further updates, including security fixes. Migration questions: token-billing-team@stripe.com. Connect directly to hosted Stripe MCP: https://docs.stripe.com/mcp. Final source: https://github.com/stripe/ai/tree/a3196df9925589ec7dd96c90692d13ea1c453cae/tools/modelcontextprotocol",
+    "hosted": "https://mcp.stripe.com"
+   },
+   "license": "MIT (deprecated local)",
+   "auth": "Stripe restricted key / OAuth",
+   "cost": "Stripe fees on live actions",
+   "reason": "Local npm package is deprecated and no longer gets security fixes; the hosted server is not version-pinnable and its payment tools need a reviewed test-mode-only fence before any key is connected.",
+   "ownerStep": null,
+   "fixtureProof": null
+  },
+  {
+   "id": "M27",
+   "slug": "auth0",
+   "name": "Auth0",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "npm",
+    "package": "@auth0/auth0-mcp-server",
+    "version": "0.1.0-beta.19",
+    "integrity": "sha512-2ifWpmLE3n4pWGWYbJ65xpQBLUaSttbf+s6rpYkrockEoYJv0V8qgynlk91PzGqzVpe+ubDTCZOE/vN9j23Siw==",
+    "license": "MIT",
+    "deprecated": null
+   },
+   "license": "MIT",
+   "auth": "Auth0 device-flow sign-in to a development tenant",
+   "cost": "Auth0 plan",
+   "reason": "Prerelease (0.1.0-beta.19) that signs in through a browser device flow and stores tokens in the OS keychain; needs a dedicated dev tenant.",
+   "ownerStep": "Create a development tenant with synthetic users, sign in through the device flow on that tenant only, then qualify run --read-only with only auth0_list_applications and auth0_get_application.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M28",
+   "slug": "jenkins",
+   "name": "Jenkins",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "jenkins-update-center",
+    "package": "mcp-server (Jenkins plugin)",
+    "version": "0.225.vea_39b_6ff2a_16",
+    "integrity": null,
+    "inspected": "0.222.v9d40a_8d624e4 HPI SHA256 6339f21e30595de9bb66d35c67008f6ad5558c88e5b2ce9f585939a0795e04aa"
+   },
+   "license": "MIT",
+   "auth": "Jenkins user API token",
+   "cost": "Free server; agents cost the owner",
+   "reason": "In-controller plugin: needs an owner-provisioned Jenkins controller (core 2.541.3+) with an existing completed job and an Overall/Read + Job/Read token.",
+   "ownerStep": "Provision a test controller with the pinned plugin and one finished job; give Sara a read-only token; qualify one build log read with build/trigger tools Off.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M29",
+   "slug": "buildkite",
+   "name": "Buildkite",
+   "state": "NEEDS ACCOUNT",
+   "upstream": {
+    "registry": "docker",
+    "package": "buildkite/mcp-server",
+    "version": "1.31.0",
+    "integrity": "sha256:69f5186ef89cd0542b98ede4dbd2c16106e73fc4e9ab4382bf61f72e1dcaad76",
+    "alsoNative": "v1.31.0 windows ZIP SHA256 a43c82cb669b0120490c215872dac272bfe8e699667d8e7eb5f220f8c8e7e1e7"
+   },
+   "license": "MIT",
+   "auth": "Buildkite API token",
+   "cost": "Buildkite plan; triggers would start paid work",
+   "reason": "Needs the owner's org token; distributed as a Go binary or Docker image (no npx/uvx), Docker not available here. Earlier synthetic-API tier is client-contract evidence only.",
+   "ownerStep": "Create a read-only token for one pipeline with an existing build; install Docker; qualify with --read-only --enabled-toolsets builds,logs and one build read.",
+   "fixtureProof": null
+  },
+  {
+   "id": "M30",
+   "slug": "circleci",
+   "name": "CircleCI",
+   "state": "BLOCKED",
+   "upstream": {
+    "registry": "npm",
+    "package": "@circleci/mcp-server-circleci",
+    "version": "0.20.0",
+    "integrity": "sha512-CJLxxdcy4evOKgo44rIVS4xMYcg99yssmwedmEi+ldZ/UtpvTes4QcovaZP6JAOdxgmewbdTZZA05fa9Sqh5WA==",
+    "license": "Apache-2.0",
+    "deprecated": "Deprecated: use CircleCI's hosted MCP server or CircleCI CLI MCP instead. See https://circleci.com/docs/guides/toolkit/circleci-mcp-overview/",
+    "hosted": "https://mcp.circleci.com/v1/mcp"
+   },
+   "license": "Apache-2.0 (deprecated local)",
+   "auth": "CircleCI OAuth",
+   "cost": "CircleCI credits",
+   "reason": "Local npm package is deprecated in favour of a hosted OAuth server that is not version-pinnable; Sara has no hosted MCP OAuth flow.",
+   "ownerStep": null,
+   "fixtureProof": null
+  }
+ ]
+}

@@ -1,0 +1,65 @@
+{
+  "manifest": 1,
+  "id": "flaky-test-lab",
+  "name": "Flaky Test Lab",
+  "version": "1.0.0",
+  "description": "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "repeat"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none",
+    "run": {
+      "programs": [
+        "node"
+      ],
+      "sources": [
+        "data"
+      ],
+      "network": false
+    }
+  },
+  "i18n": {
+    "es": {
+      "Flaky Test Lab": "Laboratorio de pruebas inestables",
+      "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.": "Repite en una copia desechable una prueba con nombre exacto de un proyecto preparado y distingue fallos inestables de estables, con el resultado de cada semilla."
+    },
+    "fr": {
+      "Flaky Test Lab": "Laboratoire des tests instables",
+      "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.": "Répète dans une copie jetable un test au nom exact d'un projet préparé et distingue les échecs instables des échecs constants, avec le résultat de chaque graine."
+    },
+    "de": {
+      "Flaky Test Lab": "Labor für wackelige Tests",
+      "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.": "Wiederholt einen genau benannten Test eines vorbereiteten Projekts in einer Wegwerfkopie und unterscheidet wackelige von dauerhaften Fehlschlägen, mit dem Ergebnis jedes Seeds."
+    },
+    "pt-BR": {
+      "Flaky Test Lab": "Laboratório de testes instáveis",
+      "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.": "Repete em uma cópia descartável um teste com nome exato de um projeto preparado e separa falhas instáveis de estáveis, com o resultado de cada semente."
+    },
+    "it": {
+      "Flaky Test Lab": "Laboratorio dei test instabili",
+      "Repeat one exactly named test of a staged project in a disposable copy and tell flaky from stable failures, with every seed's outcome.": "Ripete in una copia usa e getta un test con nome esatto di un progetto preparato e distingue i fallimenti instabili da quelli costanti, con l'esito di ogni seme."
+    }
+  }
+}

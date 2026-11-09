@@ -1,0 +1,40 @@
+{
+  "manifest": 1,
+  "id": "home-dashboard",
+  "name": "Home dashboard",
+  "version": "1.0.0",
+  "description": "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.",
+  "author": "Sara team",
+  "license": "MIT",
+  "homepage": "https://backstagecoding.com/sara/store/",
+  "sara": ">=2.65.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "workflow"
+    ],
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Home dashboard": "Panel del hogar",
+      "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.": "Lista metadatos proporcionados y aprobados de dispositivos y escenas como instantánea no en vivo. Solo preparación, sin control del hogar."
+    },
+    "fr": {
+      "Home dashboard": "Tableau de bord maison",
+      "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.": "Liste les métadonnées fournies et approuvées des appareils et scènes comme instantané non direct. Préparation uniquement, aucun contrôle."
+    },
+    "de": {
+      "Home dashboard": "Hausübersicht",
+      "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.": "Zeigt genehmigte bereitgestellte Geräte- und Szenendaten als nicht aktuellen Schnappschuss. Nur Vorbereitung, keine Haussteuerung."
+    },
+    "pt-BR": {
+      "Home dashboard": "Painel da casa",
+      "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.": "Lista metadados fornecidos e aprovados de dispositivos e cenas como retrato não ao vivo. Apenas preparação, sem controle da casa."
+    },
+    "it": {
+      "Home dashboard": "Pannello casa",
+      "List approved supplied device and scene metadata as a non-live snapshot. Preparation only, no home control.": "Elenca metadati forniti e approvati di dispositivi e scene come istantanea non in tempo reale. Solo preparazione, nessun controllo domestico."
+    }
+  }
+}

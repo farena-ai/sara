@@ -11,12 +11,15 @@ import { join } from 'node:path';
 import { writeFileAtomic } from '../fs-util.ts';
 import { isLoopbackHost, netFetch, outboundAllowed, privateLocalOn } from '../net-guard.ts';
 import type { PackageFile } from '../packages.ts';
-import { compareSemver, satisfies } from '../plugins/manifest.ts';
+import type { PluginManager } from '../plugins/manager.ts';
+import { compareSemver, saraSatisfies } from '../plugins/manifest.ts';
 import { COMPANION_PACKAGE_MAX, parseEntry, type StoreBlock, type StoreEntry, type StoreIndex, type StoreItem, type StorePlatform, type StoreVersion } from './format.ts';
-import type { StoreInstalls } from './installs.ts';
+import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { STORE_KEYS } from './keys.ts';
 import { STORE_COMPANION_LIMITS } from '../packs/format.ts';
-import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, StoreRefused } from './verify.ts';
+import { acceptIndex, checkPackage, checkPinned, indexFresh, sha256, signatureOk, StoreRefused } from './verify.ts';
+import { LOCALE_LIMITS, listingFor, parseLocales, type ListingText, type StoreLocales } from './locales.ts';
+import { parseQualified, QUALIFIED_LIMITS, qualifiedFor, type QualifiedView, type StoreQualified } from './qualified.ts';
 
 export const STORE_DEFAULT = 'https://backstagecoding.com/sara/store';
 export const STORE_UA = 'Sara';
@@ -128,6 +131,8 @@ export class StoreClient {
   readonly #o: StoreClientOptions;
   #state: StoreState | undefined;
   #cache: { index: StoreIndex; skipped: string[] } | null | undefined;
+  #locales: { seq: number; l: StoreLocales | null } | undefined;
+  #qualified: { seq: number; q: StoreQualified | null } | undefined;
   #timer: ReturnType<typeof setTimeout> | undefined;
   #busy: Promise<CheckResult> | undefined;
   /** Called with every list that checked out (fresh or, at start, from the cache). */
@@ -255,6 +260,8 @@ export class StoreClient {
       if (r.status === 304) {
         this.#save({ checkedAt: now, failures: 0, lastError: undefined });
         await this.#readHeld();
+        if (had) await this.#fetchLocales(had.index.seq);
+        if (had) await this.#fetchQualified(had.index.seq);
         if (had) await this.onIndex?.(had.index);
         return { ok: true, changed: false };
       }
@@ -267,6 +274,8 @@ export class StoreClient {
       this.#save({ seq: acc.index.seq, sha: acc.sha, etag: r.etag, fetchedAt: now, checkedAt: now, revokedKeys: acc.revokedKeys, failures: 0, lastError: undefined });
       this.#cache = { index: acc.index, skipped: acc.skipped };
       await this.#readHeld();
+      await this.#fetchLocales(acc.index.seq);
+      await this.#fetchQualified(acc.index.seq);
       await this.onIndex?.(acc.index);
       return { ok: true, changed };
     } catch (err) {
@@ -276,6 +285,102 @@ export class StoreClient {
       this.#o.log?.(`store: ${refused ? "the store's list didn't check out, so Sara kept the last good one" : "couldn't reach the store"} (${(err as Error).message})`);
       return { ok: false, reason: refused ? 'refused' : 'unreachable', message };
     }
+  }
+
+  /**
+   * Listing translations (src/store/locales.ts): the signed sidecar for this list, fetched after the
+   * list itself. Never fails a check: a missing (404), unreachable or refused sidecar only means the
+   * English text, and an old one is dropped.
+   */
+  async #fetchLocales(seq: number): Promise<void> {
+    const lj = join(this.dir, 'locales.json');
+    const ls = join(this.dir, 'locales.sig');
+    try {
+      const json = await this.#get('locales.json', LOCALE_LIMITS.bytes);
+      const sig = await this.#get('locales.sig', SIG_CAP);
+      signatureOk(json.body, sig.body, this.keys, this.state().revokedKeys ?? []);
+      parseLocales(json.body.toString('utf8'), seq);
+      writeFileAtomic(ls, sig.body);
+      writeFileAtomic(lj, json.body);
+    } catch (err) {
+      if (!/\b404\b/.test((err as Error).message)) this.#o.log?.(`store: listing translations not used (${(err as Error).message})`);
+      rmSync(lj, { force: true });
+      rmSync(ls, { force: true });
+    }
+    this.#locales = undefined;
+  }
+  /**
+   * EC27: the qualification records (src/store/qualified.ts), the second signed sidecar, fetched the
+   * same way: a missing, unreachable or refused file only means no badges, never a failed check.
+   */
+  async #fetchQualified(seq: number): Promise<void> {
+    const qj = join(this.dir, 'qualified.json');
+    const qs = join(this.dir, 'qualified.sig');
+    try {
+      const json = await this.#get('qualified.json', QUALIFIED_LIMITS.bytes);
+      const sig = await this.#get('qualified.sig', SIG_CAP);
+      signatureOk(json.body, sig.body, this.keys, this.state().revokedKeys ?? []);
+      parseQualified(json.body.toString('utf8'), seq);
+      writeFileAtomic(qs, sig.body);
+      writeFileAtomic(qj, json.body);
+    } catch (err) {
+      if (!/404/.test((err as Error).message)) this.#o.log?.(`store: qualification records not used (${(err as Error).message})`);
+      rmSync(qj, { force: true });
+      rmSync(qs, { force: true });
+    }
+    this.#qualified = undefined;
+  }
+  /** EC27: the badge per item of the current list (only latest versions that passed somewhere). */
+  qualified(): Record<string, QualifiedView> {
+    const cur = this.current();
+    if (!cur) return {};
+    if (this.#qualified?.seq !== cur.index.seq) {
+      let q: StoreQualified | null = null;
+      try {
+        const qj = join(this.dir, 'qualified.json');
+        const qs = join(this.dir, 'qualified.sig');
+        if (existsSync(qj) && existsSync(qs)) {
+          const bytes = readFileSync(qj);
+          signatureOk(bytes, readFileSync(qs), this.keys, this.state().revokedKeys ?? []);
+          q = parseQualified(bytes.toString('utf8'), cur.index.seq);
+        }
+      } catch {
+        q = null;
+      }
+      this.#qualified = { seq: cur.index.seq, q };
+    }
+    const out: Record<string, QualifiedView> = {};
+    for (const it of cur.index.items) {
+      const v = qualifiedFor(this.#qualified.q ?? undefined, it.id, it.latest);
+      if (v) out[it.id] = v;
+    }
+    return out;
+  }
+  /** The verified translations for the current list ({} for English, none published, or none valid). */
+  translations(lang: string | undefined): Record<string, ListingText> {
+    const cur = this.current();
+    if (!cur || !lang || lang === 'en' || lang.startsWith('en-')) return {};
+    if (this.#locales?.seq !== cur.index.seq) {
+      let l: StoreLocales | null = null;
+      try {
+        const lj = join(this.dir, 'locales.json');
+        const ls = join(this.dir, 'locales.sig');
+        if (existsSync(lj) && existsSync(ls)) {
+          const bytes = readFileSync(lj);
+          signatureOk(bytes, readFileSync(ls), this.keys, this.state().revokedKeys ?? []);
+          l = parseLocales(bytes.toString('utf8'), cur.index.seq);
+        }
+      } catch {
+        l = null;
+      }
+      this.#locales = { seq: cur.index.seq, l };
+    }
+    const out: Record<string, ListingText> = {};
+    for (const it of cur.index.items) {
+      const t = listingFor(this.#locales.l ?? undefined, it.id, lang);
+      if (t) out[it.id] = t;
+    }
+    return out;
   }
 
   async #readHeld(): Promise<void> {
@@ -459,7 +564,8 @@ export async function applyIndex(index: StoreIndex, o: { client: StoreClient; in
     }
   }
   for (const r of rows) {
-    if (r.state === 'blocked') continue;
+    // This snapshot predates the block writes above; a yank must not overwrite a fresh block.
+    if (r.state === 'blocked' || index.blocked.some(b => b.id === r.item && blockedVersion(b, r.version))) continue;
     const item = index.items.find((x) => x.id === r.item);
     if (!item) {
       if (!index.blocked.some((b) => b.id === r.item)) o.installs?.setState(r.item, 'removed-from-store', null, at);
@@ -492,6 +598,9 @@ export interface ShelfItem {
   why?: { code: 'sara' | 'platform'; text: string; params?: Record<string, string> };
   installed: boolean;
   installedVersion?: string;
+  installedOrigin?: string;
+  installHeld?: string;
+  installHeldCode?: 'candidate' | 'association';
   updateAvailable: boolean;
   /** Phase 125: being checked by the Sara team (no Get or Update). */
   held?: boolean;
@@ -503,8 +612,25 @@ export interface ShelfItem {
   romance?: boolean;
 }
 
+/** Signed-content association does not change the source of the installed plugin. */
+export function pluginInstallation(plugins: Pick<PluginManager, 'store'> | undefined, id: string, association?: StoreInstallRow): { installed: boolean; version?: string; origin?: string; installHeld?: string; installHeldCode?: 'candidate' | 'association' } {
+  const local = plugins?.store.get(id);
+  let origin: string | undefined;
+  if (local) {
+    try { origin = (JSON.parse(local.origin ?? '{}') as { kind?: string }).kind; } catch { origin = 'unknown'; }
+  }
+  const installHeld = origin === 'candidate'
+    ? 'This is a local candidate. Review its updates in Plugins. Remove it before choosing a different source.'
+    : plugins && association && (!local || association.local_ref !== id || association.content_sha !== local.approved_sha || association.version !== local.version)
+      ? 'The saved store association no longer matches the installed plugin. Remove the stale association before installing again.'
+      : undefined;
+  return { installed: plugins ? Boolean(local && (association || origin === 'candidate')) : Boolean(association), ...(local ? { version: local.version, origin } : association ? { version: association.version } : {}), ...(installHeld ? { installHeld, installHeldCode: origin === 'candidate' ? 'candidate' : 'association' } : {}) };
+}
+
 /** The read model of GET /api/store (§6.2). */
-export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; on: boolean; community: boolean; adultAny?: boolean }): Record<string, unknown> {
+export function shelfView(client: StoreClient, o: { saraVersion: string; platform?: NodeJS.Platform; installs?: StoreInstalls; plugins?: Pick<PluginManager, 'store'>; on: boolean; community: boolean; adultAny?: boolean; lang?: string }): Record<string, unknown> {
+  const tr = client.translations(o.lang);
+  const qual = client.qualified();
   const blocked = client.blocked();
   const cur = client.current();
   const st = client.state();
@@ -521,15 +647,17 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
     const v = listed.find((x) => x.version === it.latest) ?? listed[0];
     if (!v) continue;
     let why: ShelfItem['why'];
-    if (!satisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
+    if (!saraSatisfies(o.saraVersion, v.sara)) why = { code: 'sara', text: 'Needs Sara {version}', params: { version: rangeFloor(v.sara) ?? v.sara } };
     else if (it.works && (plat === 'other' || !it.works.includes(plat))) why = { code: 'platform', text: 'Not for this computer' };
     const row = rows.get(it.id);
+    const plugin = it.kind === 'plugin' ? pluginInstallation(o.plugins, it.id, row) : undefined;
     const held = heldIds.has(it.id);
     items.push({
       id: it.id,
       kind: it.kind,
       name: it.name,
-      summary: it.summary,
+      summary: tr[it.id]?.summary ?? it.summary,
+      ...(qual[it.id] ? { qualified: qual[it.id] } : {}),
       trust: it.trust,
       category: it.category ?? 'more',
       tags: it.tags ?? [],
@@ -538,9 +666,11 @@ export function shelfView(client: StoreClient, o: { saraVersion: string; platfor
       permissions: v.permissions,
       canRun: !why,
       ...(why ? { why } : {}),
-      installed: Boolean(row),
-      ...(row ? { installedVersion: row.version } : {}),
-      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why && !held),
+      installed: plugin?.installed ?? Boolean(row),
+      ...(plugin?.version || row ? { installedVersion: plugin?.version ?? row!.version } : {}),
+      ...(plugin?.origin ? { installedOrigin: plugin.origin } : {}),
+      ...(plugin?.installHeld ? { installHeld: plugin.installHeld, installHeldCode: plugin.installHeldCode } : {}),
+      updateAvailable: Boolean(row && row.state !== 'blocked' && compareSemver(v.version, row.version) > 0 && !why && !held && !plugin?.installHeld),
       ...(held ? { held: true } : {}),
       ...(it.icon && it.iconSha ? { icon: it.iconSha } : {}),
       ...(row?.state === 'yanked' ? { yankedHere: row.state_note ?? '' } : {}),

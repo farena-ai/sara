@@ -3,6 +3,281 @@
 Sara was built in phases, each one released, tested and documented before the next began. Every
 version's details are in the [changelog](../CHANGELOG.md).
 
+## Project continuity and conversational attunement in 2.67.0
+
+Save explicit project checkpoints with current logic, blockers and up to three next steps,
+then inspect, replace or clear them. Brief explicit energy/frustration cues and source-aware
+follow-up closure improve conversational context; existing privacy, opt-outs and model limits
+remain. See [Project continuity](FOR_CODERS.md#project-checkpoints) and [Recent cues and follow-ups](ATTUNEMENT.md).
+
+## Owner-session continuity in 2.68.0
+
+The first slice adds fresh eligible owner-session context, bounded history tools, internal notes,
+ordered provider steps and inspect/disable/clear controls. Context stays within the same companion
+and eligible owner audience; history and internal handoffs grant no tool permissions or approvals.
+Shared multi-person scenes and project coordination are separate future slices.
+
+## Add-ons discovery in existing Settings in 2.69.0
+
+Prepared supplied-data workflow candidates and MCP investigations appear in the existing
+Plugins and Other programs pages, with clear prerequisites, permissions, costs and qualification
+limits. Local candidates, previews, account requirements and blocked entries stay distinct
+from verified signed-store availability. Review, installation and per-companion enablement remain
+explicit; nothing is automatically installed, connected or enabled. Image preparation is not image
+generation; a supplied home snapshot is not live device control. See [the add-ons library](ADDONS_LIBRARY.md).
+
+## Shared roleplay scenes in 2.70.0
+
+Play one story across your own chats and one shared Discord or Telegram room. Story facts
+(canon) are versioned and stay under your control; she can read and save them in your own chats,
+and retiring one always asks you. Guests keep every partner rule, and their words become canon
+only when you pick a line with Add to scene. See [Shared scenes](SCENES.md).
+
+## Project continuity in 2.71.0
+
+Coding chats on the same project see each other's active work (titles and touched files, never
+message text). Check, goal and checkpoint results say whether they are current, stale since a
+change, or of unknown basis, and Sara re-runs a stale check before calling it a pass. See
+[Project now](FOR_CODERS.md#project-now-other-chats-and-current-checks).
+
+## Honest visual checks in 2.72.0
+
+In web work Sara edits, previews, takes desktop and phone screenshots, fixes what looks wrong and
+checks again. Claims about phone width or a finished fix need matching evidence, otherwise the
+reply is marked unverified. See [Web pages: look, fix, look again](FOR_CODERS.md#web-pages-look-fix-look-again).
+
+## Watch a file in 2.73.0
+
+Opt-in alerts: pick a log or file in one of your workspaces (or her own log) and a few literal
+words; Sara posts a chat card and a notification when a new matching line appears, with strict
+rate limits, Check now, Pause and Stop. Reading uses no model and she never fixes anything by
+herself. See [Watch a file](WATCHES.md).
+
+## Read together in 2.74.0
+
+Open a text or Markdown document from your library with Sara, share a passage (or let her follow
+your place) and she comments on exactly that text at that version. If it changed she says so;
+Stop ends sharing at once. See [Read together](LIBRARY.md#read-together).
+
+## Calls work like the chat in 2.75.0
+
+On a voice or video call Sara has the same memories, context and Adult-mode rule as in the chat,
+and live calls can use her tools. Anything that needs your OK shows a card on the call screen that
+only a tap answers; hanging up or talking over her cancels it. See [Video calls](VIDEO_CALLS.md).
+
+## Developer add-ons in Settings in 2.76.0
+
+Nineteen local-only developer add-ons (API, security, data and code-graph analysis, SQL
+rehearsal, visual comparison, localization, structural accessibility checks, staged-cache
+inspection and an HTTP/webhook workbench) are signed in the Sara Store and now also appear in
+Settings → Plugins beside the twelve workflows. Every public library entry is shown once; account
+or cost previews and blocked investigations stay visibly held. Each install stays Off until you
+enable it. Watch alerts can also go to your own Telegram or Discord chat (off by default). See
+[developer add-ons](DEVELOPER_ADDONS.md) and the [add-ons library](ADDONS_LIBRARY.md).
+
+## A professional new look in 2.77.0
+
+A calm, dense, precise design with nine palettes in Night and Day, your own accent colour,
+compact spacing and Reduce decoration (Settings → You → Appearance); Sara Classic keeps the
+previous look. Read together can share one item from a news feed you paste. Two developer
+add-ons run tests in a disposable copy you approve, and two local developer connections
+(Storybook, Qdrant) can be added from Settings. See [Appearance](APPEARANCE.md).
+
+## An advanced look and pictures like a person in 2.79.0
+
+A sidebar that starts with your places, an All settings home with every page one click away,
+breadcrumbs, a Ctrl K launcher for everything, a refined glass-and-light look and a richer
+Appearance page with new defaults. Approval cards gain *Always allow this tool*, and each tool
+server gets one approvals choice. Her photos can come from Grok, OpenAI, your ComfyUI workflow or
+another image tool, and she can send a picture on her own now and then (off by default, at most one
+a day, monthly limit). Pictures from tool servers now reach the chat, and she no longer says she
+sent something that was never attached. See [Appearance](APPEARANCE.md) and [Photos](PHOTOS.md).
+
+## A finished professional look in 2.78.0
+
+Every turn shows who spoke, when and how long she took; one model · workspace chip with a context
+meter replaces the separate header controls; Settings opens as a full-height sheet; Projects have
+their own sidebar section; usage and runs are real tables. Documentation Doctor, Release Readiness
+and Repository Onboarding run documented commands as jobs you approve in a disposable copy (npm
+steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
+[developer add-ons](DEVELOPER_ADDONS.md).
+
+## Every page in the new look in 3.0.1
+
+Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team, Findings, Evals and Settings in
+the 3.0 look, with her presence orb on Today in place of the large portrait. One project list in the
+sidebar: folders that open to show their chats with a status dot each, chat apps like Telegram
+included, and a separate button for the project page. Her picture can be the orb, her portrait or your
+own picture with a living ring. Run cards under her replies fold to one line (open on their own for an
+approval, a problem or a run still going), and the memory line says how many memories she used.
+Leaving Sara Classic now switches its rose colour to blue.
+
+## Sara 3.0: a living-system look in 3.0.0
+
+A new look over every page, with nothing removed. A live status strip shows what she is doing now
+(workers, runs, triggers armed, the model answering, spend against your limit). Her presence orb
+breathes when idle, ripples while listening, swirls while thinking and pulses while speaking. Tool
+runs show as a live timeline in her reply, with approvals inside the run and a verified mark only
+where a check really passed. A memory map shows what she knows and how it connects. One accent
+colour of your choice, her chosen name everywhere, background motion that follows how busy she is
+(or none), and Sara Classic unchanged. Android: Hey Sara works on the phone, Google Play's
+background-location notice comes before any prompt, and calls work with a server on plain http.
+
+## Coding workspace, Spotify, team pages and Hey Sara everywhere in 2.88.0
+
+Coding tasks can run in their own branch and folder (Merge, Open PR or Discard at the end), with
+language-server diagnostics, go-to-definition and references, co-authored commits and a pull-request
+helper, and a Workspace view with files, editor, terminal and chat. Spotify connects with your own
+developer app (search, now playing, playlists, playback with Premium). Business workspaces get team
+pages with history, comments and mentions, and a per-workspace legal hold. Hey Sara now listens on
+Mac, Android and Linux with the same offline engine as Windows. Her editor connection was proven with
+Zed and the official ACP client.
+
+## Workers, spend control and safer updates in 2.87.0
+
+Bring your companion from Character.AI, Replika, Kindroid or Nomi, with a preview of what comes over.
+Prices show before paid steps, with daily and monthly spend limits and a Token Saver mode; add-ons can
+update themselves and roll back. Windows and Mac updates are checked against a signed notice and put
+the old version back if the new one doesn't start. Workers that stay have their own thread, a job
+queue that survives restarts, a failed-jobs list you can replay and one "needs you" alert. Board cards
+can wait on a question for you, and a board can be drafted from a description. A new device signing
+in from elsewhere waits for a code you approve from a trusted device, Telegram or Discord. She learns
+how you like to work (reply length, options or one pick, tone) from evidence, and never anything about
+health, religion, politics or sexuality.
+
+## Learn a topic, triggers and tool apps in 2.86.0
+
+Learn a topic: ask her to learn about something, or give her a website; she researches it with
+cited sources, keeps what she learned as a skill, and can refresh it daily, weekly or monthly and
+tell you what changed. "When this happens" triggers start a job or a crew from an email, a Slack or
+Teams message, a webhook or a tool-server event, with caps, budgets and approvals. Her tool
+connection speaks MCP 2026-07-28 and shows tool apps in the chat, sealed off from the page. Other
+apps can use the Open Responses API (`/v1/responses`), and a single-replica Helm chart is included.
+Company sign-in, SCIM, metrics, secret sources, the container sandbox and share links were proven
+against the real software (Keycloak, Prometheus and Grafana, OpenBao, Podman).
+
+## Meetings, phone helper and her at work in 2.85.0
+
+Meetings: a room inside Sara where she announces she is an AI taking notes, answers briefly when
+named, and writes a summary with decisions and action items (also from an uploaded recording). Your
+phone can lend her its camera, location or one screenshot, with a full-screen Allow once or Deny
+every time. At work she has her own name, tone, memory and tools in Slack and Teams, with companion
+features off. Several chats now get replies at the same time (four by default), household members
+can share their own chats, business admins get a spending report, and a legal hold keeps the earlier
+text of anything edited.
+
+## Enterprise controls, editors and code mode in 2.84.0
+
+Keys can live in HashiCorp Vault, 1Password, environment variables, mounted secret files or the
+system keychain. Zed, JetBrains and other editors that speak the Agent Client Protocol can use Sara
+as their coding agent, with approvals inside the editor. Business instances accept SCIM
+provisioning from Microsoft Entra ID or Okta; retention, legal hold and per-person export or delete
+cover every delete path. A trust report sets what she said against what actually ran, Store entries
+show where they were last checked, and a readiness page with a one-click restore drill says whether
+an install is ready for real use. Code mode lets her run one short sandboxed script instead of many
+tool calls, still through every approval, and a zero-dependency TypeScript SDK covers her API.
+
+## Research, Teams, crews and safer sandboxes in 2.83.0
+
+Research a question: Sara drafts a plan you can edit, lists the pages she read and the ones that
+failed, and writes a report in which every sentence cites a page she actually read (PDF, Word or
+Markdown, with a 'What is missing' section). Microsoft Teams joins Slack. Crews are standing
+helper teams with a lead, schedules and three starter crews; an optional overnight memory tidy
+merges duplicates and asks about contradictions, with Undo for every change. Commands and jobs can
+run in a rootless Podman or Docker container, sandboxed work can be limited to a list of allowed
+sites, conversations can be shared as read-only expiring links, and usage and cost reports cover
+every person, workspace and project.
+
+## One-click programs and 21 companions in 2.82.0
+
+When an add-on needs a program the computer lacks (Google Chrome, uv, Node, Python, Blender, ffmpeg),
+Settings says what is missing and offers *Install it for me*: you approve the exact command, watch it
+run, and the add-on install continues. Twenty-one companions, each with a portrait, a voice and clear
+boundaries, are in the signed Store: language tutors, a fitness coach, a chef, a study buddy, a
+writing partner, a listener, a budget planner, a music producer, a gardener, a travel planner, a
+startup co-founder, a philosopher, a sky-ship captain and more. On Linux, browser tool servers now
+find an installed Chrome.
+
+## Ready for work and teams in 2.81.0
+
+Sara joins Slack (direct messages, mentions, threads, Allow and Deny buttons, files both ways).
+Business instances can sign in with Microsoft Entra ID, Google Workspace, Okta or Keycloak, with
+invitation-only first sign-in and the owner's passkey always kept. One tamper-evident audit trail
+records who did what and exports to CSV or JSONL; an admin can pin settings as a policy that the
+server enforces; operators can scrape Prometheus metrics and send OpenTelemetry traces that never
+carry chat text. The front page has new branded art and current screenshots, and the developer
+tool libraries are updated for the latest security advisories.
+
+## Every installer checked end to end in 2.80.0
+
+Every tool server and native add-on in Settings was installed, configured, connected, used and
+removed on a real Linux server and a real Windows PC. Fixes: updating a tool server keeps its saved
+settings; the Files server can start inside the Linux sandbox; sign-in and connection errors from
+tool servers are explained in plain words; a Store add-on removed from its card can be installed
+again; retiring a companion right after adding her no longer stops the server.
+
+## Next
+
+How she works with you: Sara notices how you like to work (short answers, one recommendation,
+asking first) from your own messages, lets it fade unless she sees it again, never learns anything
+about health, religion, politics or sexuality, and tells you once when it changes how she answers.
+Built, coming with a later release.
+
+Read-only share links for a conversation (expiring, revocable, scrubbed, never indexed) and usage
+and cost reports per person, workspace and project with CSV export and monthly budget warnings are
+built and come with the next release.
+
+Expressive speech on calls (laughter and sighs where the voice supports it) follows after
+listening tests.
+
+## Coming for work and teams
+
+Planned in this order; each lands as its own release, and anything that costs money stays off until
+you switch it on.
+
+- **Sara in Slack**, then Microsoft Teams: DMs, mentions, threads, approvals as buttons and files.
+- **Single sign-on** for business workspaces (Microsoft, Google, Okta, Keycloak and other OpenID
+  providers), next to passkeys.
+- **Policy profiles**: an administrator pins allowed models, network access, tools that always ask and
+  add-on sources; nobody can loosen them from the app.
+- **One audit trail** of sign-ins, approvals, settings changes and outside effects, with export.
+- **Metrics and tracing** for your own monitoring (Prometheus and OpenTelemetry), off by default and
+  with no chat text in them.
+- **Research runs**: a plan you approve, the sources she read, and a cited report you can export.
+
+After that: a container sandbox so Windows and Mac get real isolation, a network allowlist for her
+work, secrets from your password manager or Vault, read-only share links, standing crews of helpers
+with their own schedules and budgets, an overnight memory tidy you approve, editor support through
+ACP, and usage reports per person and project. Later, as demand shows: directory sync (SCIM),
+retention and legal hold, measured scale-out, and voice rooms and meeting notes. In development: a
+trust report that puts what she claimed next to what actually ran, and a Qualified badge on every Store
+entry saying when and where it last passed a real install.
+
+## Business setup and administration in 2.65.0
+
+Guided first use and mode-specific invitation feedback, safe sibling-tab access refresh, a read-only
+local configuration check, scoped recent invitation history/revocation, and repeatable manual
+browser/recovery qualification. Existing business authority and separate-instance requirements
+remain; configuration evidence is not proof of inference, backup custody or production availability.
+See [Business](BUSINESS.md) and [Business installation operations](BUSINESS_OPERATIONS.md).
+
+## Business workspaces in 2.64.0
+
+Optional business mode runs in a separate instance with individual passkeys, explicit workspace
+roles, shared text/documents and scoped recovery. The business desk shows audience and model
+destination before sharing. Conservative model admission, metadata audit and encrypted generation
+recovery preserve access and spending boundaries. Personal/household data stay separate.
+Provision business instances through the separate manual source/container workflow; existing
+personal installers do not convert them. See [Business](BUSINESS.md) and
+[Business installation operations](BUSINESS_OPERATIONS.md). Real installation acceptance and
+deployment targets remain separate from synthetic engineering qualification.
+
+## Operations and retention in 2.63.1
+
+Owner-only HTTP/readiness measurements, explicit safe resolved-delivery archival and repeatable
+synthetic workload/browser/recovery checks. No background purge or automatic resend; unresolved
+records and deduplication identities remain. See [Operations](OPERATIONS.md).
+
 ## Recovery improvements in 2.62.0
 
 Durable encrypted job review, explicitly held team recovery and native Telegram/Discord delivery
@@ -158,6 +433,9 @@ In build order; one release per phase. The computer use track is complete (2.20�
 | 126 | "Hey Sara" on desktop and Android | 2.59 |
 | 127 | Companion packs to share | 2.60 |
 | 128 | A second polish pass | 2.61 |
+| V1 | A professional new look: palettes (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic) in Night and Day, your own accent colour, compact layout | next |
+| C5 | Open Responses (`/v1/responses`) for apps on the Responses API, and a single-replica Helm chart for Kubernetes | next |
+| C7 | Bring your companion from Character.AI, Replika, Kindroid or Nomi: her character, memories and chats | next |
 
 Ideas and requests are welcome in [Discussions](https://github.com/farena-ai/sara/discussions)
 and [issues](https://github.com/farena-ai/sara/issues). See [CONTRIBUTING.md](../CONTRIBUTING.md).

@@ -1,0 +1,44 @@
+{
+  "en": {
+    "title": "Change Impact Analyzer",
+    "description": "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.",
+    "complete": "Static snapshot analysis complete within the declared scope. Tests were not executed.",
+    "incomplete": "Incomplete static graph: unresolved or unsupported edges remain. No runtime safety or test coverage conclusion.",
+    "error": "Invalid, unsupported or excessive source/input/output. Nothing executed or modified."
+  },
+  "es": {
+    "title": "Analizador de impacto de cambios",
+    "description": "Relaciona una función cambiada con llamadores, paquetes y pruebas suministradas resueltos estáticamente. Solo fuentes explícitas; sin ejecución ni cobertura en tiempo de ejecución.",
+    "complete": "Análisis estático completo dentro del alcance declarado. No se ejecutaron pruebas.",
+    "incomplete": "Grafo estático incompleto: quedan aristas sin resolver o no admitidas. Sin conclusión de seguridad ni cobertura dinámica.",
+    "error": "Fuentes/entrada/salida inválidas, no admitidas o excesivas. No se ejecutó ni modificó nada."
+  },
+  "fr": {
+    "title": "Analyseur d’impact des changements",
+    "description": "Relie une fonction modifiée aux appelants, paquets et tests fournis résolus statiquement. Sources explicites uniquement ; aucune exécution ni couverture dynamique.",
+    "complete": "Analyse statique terminée dans le périmètre déclaré. Les tests n’ont pas été exécutés.",
+    "incomplete": "Graphe statique incomplet : liens non résolus ou non pris en charge. Aucune conclusion de sûreté ni de couverture dynamique.",
+    "error": "Sources/entrée/sortie invalides, non prises en charge ou excessives. Aucune exécution ni modification."
+  },
+  "de": {
+    "title": "Änderungsauswirkungsanalyse",
+    "description": "Ordnet eine geänderte Funktion statisch aufgelösten Aufrufern, Paketen und bereitgestellten Tests zu. Nur explizite Quellen; keine Ausführung oder Laufzeitabdeckung.",
+    "complete": "Statische Analyse im angegebenen Umfang abgeschlossen. Tests wurden nicht ausgeführt.",
+    "incomplete": "Unvollständiger statischer Graph: unaufgelöste oder nicht unterstützte Kanten. Keine Aussage zu Laufzeitsicherheit oder Testabdeckung.",
+    "error": "Ungültige, nicht unterstützte oder zu große Quellen/Ein-/Ausgabe. Nichts ausgeführt oder geändert."
+  },
+  "pt-BR": {
+    "title": "Analisador de impacto de alterações",
+    "description": "Relaciona uma função alterada a chamadores, pacotes e testes fornecidos resolvidos estaticamente. Apenas fontes explícitas; sem execução ou cobertura em tempo de execução.",
+    "complete": "Análise estática concluída no escopo declarado. Os testes não foram executados.",
+    "incomplete": "Grafo estático incompleto: restam arestas não resolvidas ou não suportadas. Sem conclusão de segurança ou cobertura dinâmica.",
+    "error": "Fontes/entrada/saída inválidas, não suportadas ou excessivas. Nada executado ou modificado."
+  },
+  "it": {
+    "title": "Analizzatore di impatto delle modifiche",
+    "description": "Collega una funzione modificata a chiamanti, pacchetti e test forniti risolti staticamente. Solo sorgenti espliciti; nessuna esecuzione o copertura dinamica.",
+    "complete": "Analisi statica completata nell’ambito dichiarato. I test non sono stati eseguiti.",
+    "incomplete": "Grafo statico incompleto: restano archi non risolti o non supportati. Nessuna conclusione su sicurezza o copertura dinamica.",
+    "error": "Sorgenti/input/output non validi, non supportati o eccessivi. Nulla eseguito o modificato."
+  }
+}

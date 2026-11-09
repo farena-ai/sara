@@ -59,6 +59,21 @@ export class ReminderScheduler {
     // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
     this.#app.loops?.due(now);
     this.#app.goals?.tick(now.getTime());
+    // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
+    this.#app.watches?.due(now);
+    // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.
+    this.#app.learnTopics?.due(now);
+    // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
+    this.#app.crews?.due(now);
+    // C10: workers' queues (time limits, the next job, held alerts).
+    this.#app.workers?.tick(now);
+    void this.#app.memoryTidy?.due(now).catch((err: Error) => console.warn(`memory tidy: ${err.message}`));
+    // C12: the working-style night pass (fading, usual hours) on the same tick and quiet hours.
+    try {
+      this.#app.workingStyle?.due(now);
+    } catch (err) {
+      console.warn(`working style: ${(err as Error).message}`);
+    }
     return delivered;
   }
 

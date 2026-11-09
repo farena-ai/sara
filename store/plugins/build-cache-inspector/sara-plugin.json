@@ -1,0 +1,54 @@
+{
+  "manifest": 1,
+  "id": "build-cache-inspector",
+  "name": "Build Cache Inspector",
+  "version": "1.0.0",
+  "description": "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "inspect"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Build Cache Inspector": "Inspector de caché",
+      "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.": "Mide la caché preparada en el directorio propio y propone una limpieza. Sin cambios ni acceso al proyecto."
+    },
+    "fr": {
+      "Build Cache Inspector": "Inspection du cache",
+      "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.": "Mesure le cache préparé dans le dossier propre et propose un nettoyage. Sans modification ni accès au projet."
+    },
+    "de": {
+      "Build Cache Inspector": "Build-Cache-Prüfung",
+      "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.": "Misst den bereitgestellten Cache im eigenen Datenordner und zeigt einen Bereinigungsvorschlag. Keine Änderungen oder Projektzugriffe."
+    },
+    "pt-BR": {
+      "Build Cache Inspector": "Inspetor de cache",
+      "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.": "Mede o cache preparado no diretório próprio e propõe limpeza. Sem alterações nem acesso ao projeto."
+    },
+    "it": {
+      "Build Cache Inspector": "Ispettore della cache",
+      "Measure an operator-staged native-home cache and preview pruning. No changes or selected-project access.": "Misura la cache preparata nella cartella dedicata e propone una pulizia. Nessuna modifica o accesso al progetto."
+    }
+  }
+}

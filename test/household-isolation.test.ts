@@ -260,7 +260,7 @@ function routeFamilies(): Map<string, Set<string>> {
   return fam;
 }
 /** Owner-only route families (a member gets 403 ownerOnly). Every family must be in one of the two lists. */
-const OWNER_ONLY = ['lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
+const OWNER_ONLY = ['worktrees', 'coding-depth', 'device-approvals', 'device-approval', 'audit', 'data-rights', 'readiness', 'isolation', 'secrets', 'lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'spotify', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
   // Phase 98 (ST3): plugins: install, enable, settings, update, rollback, remove, log, calls (owner only).
   'plugins',
   // Phase 102 (ST7): webhooks: list, make, change, rotate, test, log, enable, remove (owner only).
@@ -411,6 +411,16 @@ test('people (Phase 101): each person\'s cards are their own; no one reaches ano
     }
   }
   for (const p of [owner, ana, ben]) assert.equal((await call(p, 'DELETE', `/api/people/${ids.get(p)}?memories=1`)).status, 200);
+});
+
+test('memory map (V4b): each person\'s map holds only their own notes', async () => {
+  for (const p of [owner, ana, ben]) assert.equal((await call(p, 'POST', '/api/memories', { kind: 'fact', content: `Map note ${p.marker}` })).status, 201);
+  for (const p of [owner, ana, ben]) {
+    const r = await call(p, 'GET', '/api/memories/map');
+    assert.equal(r.status, 200, `${p.name}: ${r.text}`);
+    assert.ok(r.text.includes(p.marker), `${p.name} sees their own note on the map`);
+    for (const o of [owner, ana, ben].filter((x) => x !== p)) assert.ok(!r.text.includes(o.marker), `${p.name} never sees ${o.name}'s notes on the map`);
+  }
 });
 
 test('her plans (Phase 103): each person\'s own agenda, off by default; no one reaches another\'s plans', async () => {

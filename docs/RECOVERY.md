@@ -1,8 +1,55 @@
-# Recovering interrupted work
+# Readiness and recovery
 
-Open **Settings → Data & health → Recovery** after a restart or uncertain send. Recovery never
+**Settings → Data & health → Readiness and recovery** answers two questions: is this install ready
+for real use, and is there interrupted work to review? The page is the owner's only (not the demo,
+household members or apps signed in with a device code).
+
+## Readiness: ready, needs attention or not ready
+
+The top of the page has one verdict and one row per area, each with one fix (a button that opens
+the right page, runs the drill, checks the model again, or a command to copy). It only reads: the
+one outside call is listing the default model provider's models (free, cached for a minute).
+
+| Area | Ready when | Needs attention | Not ready |
+|---|---|---|---|
+| Backups | a backup on this computer from the last 48 h, automatic backups on | older, or automatic off | no backup |
+| Restore drill | a drill passed in the last 30 days | the last pass is older | never ran, or the last failed |
+| Off-computer copy, Updates, HTTPS and who can reach her, Sign-in, Policy | the safety check-up row is green (or an amber you accepted) | amber | red |
+| Disk space | 5 GB or more free | under 5 GB or unknown | under 1 GB |
+| Model | set up and it answered the model list | not checked yet | none set up, or it does not answer |
+| Chat apps | every one switched on is connected (none is fine) | one is not connected | — |
+| Paused work | nothing interrupted or uncertain | jobs, teams or deliveries wait below | — |
+| Monitoring and audit | the audit trail verifies and metrics are on | metrics off (fine for one person) | the trail is missing or broken |
+
+## The restore drill
+
+**Run a restore drill** proves that the newest backup on this computer really restores. Sara:
+
+1. restores it into a throwaway folder inside her own data folder (`tmp/restore-drill-…`), never
+   over the live data and never in the system temp folder (the copy holds her keys);
+2. checks every database in it (`PRAGMA integrity_check`) and counts chats, messages and memories;
+3. opens the vault with the copy's own key (or `SARA_MASTER_KEY`), keeping only the number of entries;
+4. starts the copy on this computer only (`127.0.0.1`, a free port) in drill mode: private local mode
+   (nothing leaves the computer) and no workers, chat apps, plugins, tool servers or backups. It
+   waits for the health answer and checks that the copy asks for sign-in;
+5. stops it and deletes the folder.
+
+The result shows the measured time (restore, checks and start) and the data loss: how old the
+backup was, which is what a restore now would lose. It is kept on the page, and one row goes into
+the audit trail (`readiness.drill`). Only one drill runs at a time. It needs free space for about
+twice the backup. The off-computer copy keeps its own weekly test restore (Backups).
+
+## Interrupted work
+
+Open this page after a restart or uncertain send. Recovery never
 runs an old command or resends a message by itself. Use an owner sign-in; household members, the
 demo and apps signed in with a device code cannot open protected recovery data.
+
+Optional business workspaces were released in 2.64.0 and use a separate encrypted backup/recovery path.
+Personal restore refuses business archives before initializing its target. Business restore keeps
+access closed pending fresh individual sign-in/passkeys and explicit grant/spending reconciliation;
+the personal Recovery page does not perform that work. See [Business workspaces](BUSINESS.md) and
+the [business operator handbook](BUSINESS_OPERATIONS.md).
 
 ## Background jobs: review a restart
 
@@ -81,3 +128,23 @@ that snapshot was taken. See [moving/backup guidance](MOVING.md).
 Q3 qualification includes local stand-in transport crash tests and a restored production-entry-point
 boot with networking blocked. These fixture measurements are not an enterprise recovery-time or
 power-loss durability certificate. Device/account and physical usability acceptance remain separate.
+
+## Archive resolved history
+
+In Recovery, **Archive old deliveries** requires an explicit canonical UTC cutoff, a non-mutating
+preview and a confirmed batch of at most 500. Only acknowledged or human-resolved old records with
+no review payload qualify. Both transport and human-resolution evidence must predate the cutoff.
+Unresolved uncertainty, held/failed records without resolution, live queued work and attempts are
+protected. Editing the cutoff invalidates its preview; server eligibility is checked again.
+
+**Archived** shows minimal historical evidence; **All** shows unarchived history. Archive clears
+destination/platform-reference/reason details but retains identities, logical keys, original state,
+attempts, dates and human decisions. It never retries, deletes rows or shrinks the database.
+Deduplication and encrypted unresolved reviews survive backup/restore. No automatic cleanup runs.
+For measurements, maintenance and a synthetic incident drill, see [Operations](OPERATIONS.md).
+
+Development qualification also checks full unresolved metadata across repeated backups, and an
+encrypted folder-copy restore across owner, companion, member and member-companion spaces.
+Encryption failure is refused; a readable review alone is insufficient evidence that its original
+unknown state and duplicate protection survived. See Operations for the manual, isolated commands
+and their limits. Physical offsite recovery and production recovery targets still need separate proof.

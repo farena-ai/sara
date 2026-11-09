@@ -75,12 +75,16 @@ test('voice settings: expressive, tone and mood are saved and sent to the speech
 
 test('follow-ups: a dated event she learned about comes up the next days ("how did it go?"), birthdays stay yearly', () => {
   const mem = app.memory!;
-  mem.add({ kind: 'date', content: "Alex's job interview at Acme", onDate: '2026-10-27', happenedOn: '2026-10-20', conversationId: null, sourceMessageId: null });
+  mem.addOwner({ kind: 'date', content: "Alex's job interview at Acme", onDate: '2026-10-27', happenedOn: '2026-10-20' });
   mem.add({ kind: 'date', content: "Alex's sister's birthday", onDate: '1990-10-26', happenedOn: '2026-10-01', conversationId: null, sourceMessageId: null });
-  const items = followUps(mem, '2026-10-28', () => []);
+  const conv = app.store.createConversation();
+  const items = followUps(app, conv.id, '2026-10-28');
   assert.deepEqual(items.map((p) => p.memory.content), ["Alex's job interview at Acme"], 'a birthday is not a follow-up');
-  assert.match(followUpsNote(items, 'Alex')!, /- Yesterday: Alex's job interview at Acme\nAlex told you about this before it happened and hasn't told you how it went\. You care, so ask about it early/);
-  assert.equal(followUps(mem, '2026-10-28', () => ['The interview went great btw']).length, 0, 'once he has talked about it, she stops asking');
+  assert.match(followUpsNote(items, 'Alex')!, /- Yesterday: Alex's job interview at Acme\nNo clear outcome was found in eligible recent messages\. Ask only if still relevant/);
+  const answer = app.store.addMessage(conv.id, 'user', 'The interview went great btw');
+  app.store.markDirectOwnerMessage(answer.id);
+  assert.equal(followUps(app, conv.id, '2026-10-28').length, 0, 'once he has talked about it, she stops asking');
+  app.store.deleteMessagesFrom(conv.id, answer.id);
   assert.equal(mem.recentPast('2026-11-02').length, 0, 'only for a few days');
   // A one-time event doesn't come back next year.
   assert.doesNotMatch(datesNote(mem, '2027-10-20') ?? '', /interview/);
@@ -102,11 +106,13 @@ test('proactive: she texts first to ask how it went (bypassing the random wait),
   // In a chat the same day (before he says how it went), it's in her instructions.
   app.script.push(text('So? Tell me everything!'));
   for await (const _ of runTurn(app, conv.id, 'hey')) void _;
-  assert.match(String(app.requests.at(-1)!.messages[0].content), /## Ask how it went\n- Yesterday: Alex's job interview at Acme/);
-  app.store.addMessage(conv.id, 'user', 'the interview went well!');
+  assert.match(app.requests.at(-1)!.messages.slice(1).filter((m) => m.role === 'system').map((m) => m.content).join('\n'), /## Ask how it went\n- Yesterday: Alex's job interview at Acme/);
+  assert.doesNotMatch(String(app.requests.at(-1)!.messages[0].content), /## Ask how it went/, 'source-qualified follow-ups stay out of the replayed base persona');
+  const answer = app.store.addMessage(conv.id, 'user', 'the interview went well!');
+  app.store.markDirectOwnerMessage(answer.id);
   app.script.push(text('Yay!'));
   for await (const _ of runTurn(app, conv.id, 'so yeah')) void _;
-  assert.doesNotMatch(String(app.requests.at(-1)!.messages[0].content), /## Ask how it went/);
+  assert.doesNotMatch(app.requests.at(-1)!.messages.map((m) => m.content).join('\n'), /## Ask how it went/);
   clock.now = new Date('2026-10-28T23:30:00Z');
   const again = await life.maybeProactive();
   assert.notEqual(again.proactive, 'So?? How did the interview go?');

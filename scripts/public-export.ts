@@ -4,17 +4,71 @@
 //   - FAIL on secrets and private machine details (keys, tokens, SSH keys, private addresses);
 //   - REVIEW for names of this owner's own instance (fine to keep if the owner wants them public).
 // Nothing is published or pushed; the copy is left for the owner to look at.
-//   node scripts/public-export.ts [--out outputs/public-export] [--check-only]
+//   node scripts/public-export.ts [--out outputs/public-export] [--check-only] [--replace]
+// --replace explicitly declares an existing checked output directory disposable.
 import { execFileSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { cpSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
+/** Logical PRIVATE filtering is insufficient if a retained path aliases a private tree. */
+export function assertExportSource(path: string, root = ROOT): string | undefined {
+  const target = resolve(root, path);
+  const rel = relative(root, target);
+  if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) throw new Error('Export source must be a tracked descendant.');
+  let cursor = target, present = true;
+  while (true) {
+    try {
+      const entry = lstatSync(cursor);
+      if (entry.isSymbolicLink()) throw new Error('Export source must not traverse a link or junction.');
+      if (cursor === target ? !entry.isFile() : !entry.isDirectory()) throw new Error('Export source must be a regular file with directory ancestors.');
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      present = false;
+    }
+    const parent = dirname(cursor);
+    if (parent === cursor) break;
+    cursor = parent;
+  }
+  return present ? target : undefined;
+}
+
+/** A checked, explicitly disposable descendant; never a prefix sibling or linked path. */
+export function assertExportOutput(output: string, root = ROOT, replace = false): string {
+  const target = resolve(root, output);
+  const rel = relative(resolve(root, 'outputs'), target);
+  if (!rel || isAbsolute(rel) || rel === '..' || rel.startsWith(`..${sep}`)) throw new Error('Export requires a dedicated descendant of outputs/.');
+  let cursor = target;
+  while (true) {
+    try {
+      const entry = lstatSync(cursor);
+      if (entry.isSymbolicLink()) throw new Error('Export output must not traverse a link or junction.');
+      if (!entry.isDirectory()) throw new Error('Export output ancestors must be directories.');
+    } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
+    const parent = dirname(cursor);
+    if (parent === cursor) break;
+    cursor = parent;
+  }
+  if (existsSync(target) && readdirSync(target).length && !replace) throw new Error('Existing export output is not empty. Use --replace only for an explicitly disposable export directory.');
+  return target;
+}
+
 /** Private to this owner: development notes, store paperwork, this server's operations. */
-export const PRIVATE = [/^AGENTS\.md$/, /^docs\/handoffs\//, /^docs\/SOURCE_OF_TRUTH\.md$/, /^docs\/ops\//, /^docs\/store\//, /^docs\/BACKLOG\.md$/, /^docs\/OWNER_CHECKS\.md$/, /^deploy\/soak\//, /^evals\/results\//, /^docs\/ROADMAP\.md$/, /^docs\/DECISIONS\.md$/];
+export const PRIVATE = [/^AGENTS\.md$/, /^docs\/handoffs\//, /^docs\/SOURCE_OF_TRUTH\.md$/, /^docs\/ops\//, /^docs\/store\//, /^docs\/BACKLOG\.md$/, /^docs\/OWNER_CHECKS\.md$/, /^deploy\/soak\//, /^evals\/results\//, /^docs\/ROADMAP\.md$/, /^docs\/DECISIONS\.md$/,
+  // The standalone website overlay uses private studio templates and operational evidence.
+  // Native workflow sources, MCP recipes and their process/behavior tests remain public.
+  /^scripts\/(?:build-addons-site\.ts|check-addons-site\.mjs|addons-output-path\.ts)$/,
+  /^test\/addons-(?:site|mcp)\.test\.ts$/,
+  /^test\/addons-discovery-parity\.test\.ts$/,
+  /^test\/developer-catalog-site\.test\.ts$/,
+  /^test\/ec27-addons-site\.test\.ts$/,
+  // A2's per-entry inventory test reads private authoring records (docs/ops, store/addons).
+  /^test\/addons-a2-inventory\.test\.ts$/,
+  /^store\/addons\//,
+];
 /** Files published under another name: the owner's working roadmap stays private; the public one takes its name. */
 export const PUBLIC_AS: Record<string, string> = { 'docs/ROADMAP.public.md': 'docs/ROADMAP.md', 'AGENTS.public.md': 'AGENTS.md' };
 
@@ -83,10 +137,12 @@ export function scan(files: { path: string; text: string }[], never: [string, Re
 const isText = (p: string) => !/\.(png|jpe?g|gif|webp|ico|mp3|wav|jar|jks|keystore|zip|gz|bz2|pdf|ttf|woff2?)$/i.test(p);
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const { values: opt } = parseArgs({ options: { out: { type: 'string', default: join('outputs', 'public-export') }, 'check-only': { type: 'boolean', default: false } } });
-  const tracked = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+  const { values: opt } = parseArgs({ options: { out: { type: 'string', default: join('outputs', 'public-export') }, 'check-only': { type: 'boolean', default: false }, replace: { type: 'boolean', default: false } } });
+  const tracked = execFileSync('git', ['ls-files', '-z'], { cwd: ROOT, encoding: 'utf8' }).split('\0').filter(Boolean);
   const keep = tracked.filter((p) => !PRIVATE.some((re) => re.test(p)));
-  const files = keep.filter(isText).map((p) => ({ path: p, text: existsSync(join(ROOT, p)) ? readFileSync(join(ROOT, p), 'utf8') : '' }));
+  // Check binary entries too, and finish this preflight before scanning or deleting output.
+  const sources = new Map(keep.map((p) => [p, assertExportSource(p)]));
+  const files = keep.filter(isText).map((p) => ({ path: p, text: sources.get(p) ? readFileSync(sources.get(p)!, 'utf8') : '' }));
   const never = loadPrivatePatterns();
   if (!never.length) console.log('Note: no private patterns file (.secrets/private-patterns.json); only generic secrets are checked.');
   const found = scan(files, never);
@@ -98,15 +154,15 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   for (const r of reviews) byFile.set(`${r.file} (${r.kind})`, (byFile.get(`${r.file} (${r.kind})`) ?? 0) + 1);
   if (byFile.size) console.log(`REVIEW (fine to keep if you want them public):\n${[...byFile].map(([k, n]) => `  ${k}: ${n}`).join('\n')}`);
   if (!opt['check-only'] && !fails.length) {
-    const out = resolve(ROOT, opt.out!);
-    if (!out.startsWith(join(ROOT, 'outputs'))) throw new Error('The copy goes under outputs/.');
+    const out = assertExportOutput(opt.out!, ROOT, opt.replace);
     rmSync(out, { recursive: true, force: true });
     for (const p of keep) {
       // A tracked file deleted in this checkout (not committed yet) is not part of the copy.
-      if (!existsSync(join(ROOT, p))) continue;
+      const source = assertExportSource(p);
+      if (!source) continue;
       const to = PUBLIC_AS[p] ?? p;
       mkdirSync(dirname(join(out, to)), { recursive: true });
-      cpSync(join(ROOT, p), join(out, to));
+      cpSync(source, join(out, to));
     }
     console.log(`Copied to ${out} (no git history). Look it over, then make a fresh repository from it.`);
   }

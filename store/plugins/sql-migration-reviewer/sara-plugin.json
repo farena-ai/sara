@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "sql-migration-reviewer",
+  "name": "SQL Migration Reviewer",
+  "version": "1.0.0",
+  "description": "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "rehearse"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "SQL Migration Reviewer": "Revisor de migraciones SQL",
+      "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.": "Ensaya DDL SQLite aditivo acotado en memoria desechable con filas sintéticas y prueba de reversión. Sin base activa ni acceso al proyecto."
+    },
+    "fr": {
+      "SQL Migration Reviewer": "Révision des migrations SQL",
+      "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.": "Répète un DDL SQLite additif borné en mémoire jetable avec des lignes synthétiques et preuve de retour arrière. Sans base réelle ni accès au projet."
+    },
+    "de": {
+      "SQL Migration Reviewer": "SQL-Migrationsprüfung",
+      "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.": "Erprobt begrenztes additives SQLite-DDL im flüchtigen Speicher mit synthetischen Zeilen und Rollback-Nachweis. Kein Zugriff auf echte Datenbanken oder Projekte."
+    },
+    "pt-BR": {
+      "SQL Migration Reviewer": "Revisor de migrações SQL",
+      "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.": "Ensaia DDL SQLite aditivo limitado em memória descartável com linhas sintéticas e prova de reversão. Sem banco real nem acesso ao projeto."
+    },
+    "it": {
+      "SQL Migration Reviewer": "Revisore delle migrazioni SQL",
+      "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.": "Prova DDL SQLite additivo limitato in memoria temporanea con righe sintetiche e prova di rollback. Nessun database reale o accesso al progetto."
+    }
+  }
+}

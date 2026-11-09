@@ -57,8 +57,14 @@ export interface Settings {
   usePath?: UsePath;
   /** Per-tool permission overrides (tool name → auto/ask/never). */
   toolPermissions?: Record<string, Permission>;
+  /** E7 (A2): one choice per tool server (Ask me first / safe ones / everything / Never). */
+  mcpPolicy?: Record<string, import('./tool-policy.ts').ServerPolicy>;
   /** Allow shell commands network access inside the sandbox. Default true. */
   shellNetwork?: boolean;
+  /** EC8: the native sandbox or a container (Podman/Docker) for commands and plugin jobs. */
+  isolation?: Partial<import('./isolation.ts').IsolationSettings>;
+  /** EC9: open network, or only the listed hosts, for sandboxed work that has network. */
+  egress?: Partial<import('./isolation.ts').EgressSettings>;
   /** Web search backend (key, if any, is in the vault under search:<provider>). */
   search?: { provider: SearchProvider; url?: string };
   /** MCP servers (secrets for env/headers are in the vault under mcp:<name>). */
@@ -89,8 +95,14 @@ export interface Settings {
   helpers?: import('./team.ts').CustomHelper[];
   /** Phase 39: default limits for a team task. */
   teamLimits?: Partial<import('./team.ts').TeamLimits>;
+  /** EC13: the overnight memory tidy (off until turned on; models on this computer unless 'any'). */
+  memoryTidy?: { on?: boolean; model?: 'local' | 'any' };
   /** Phase 99 (ST4): the board (how many cards she works at once; 2 by default). */
   board?: { concurrent?: number };
+  /** C13: the Co-authored-by trailer on her commits (on by default; the companion with a noreply address). */
+  coAuthor?: Partial<import('./coding-depth.ts').CoAuthor>;
+  /** C15: approve a new device from chat (src/device-approval.ts). */
+  deviceApproval?: { on?: boolean; allowedHosts?: string[]; maxDevices?: number; notice?: boolean };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */
   prices?: import('./usage.ts').PriceRow[];
   /** Phase 52: default budget for a background job that uses a model (Claude Code / Grok Build). */
@@ -134,10 +146,22 @@ export interface Settings {
   /** Phase 98 (ST3): plugins switched on for this companion, their settings (secrets live in the vault). */
   plugins?: import('./plugins/manager.ts').CompanionPluginSettings;
   runs?: Partial<import('./runs.ts').RunSettings>;
+  /** Settings → Data & health: the log level (SARA_LOG_LEVEL, when set, wins). Missing = info. */
+  logLevel?: import('./log.ts').LogLevel;
+  /** EC3: monitoring (Settings → Data & health → Monitoring); off by default. Secrets live in the vault. */
+  telemetry?: Partial<{ metrics: Partial<import('./telemetry/config.ts').TelemetrySettings['metrics']>; traces: Partial<import('./telemetry/config.ts').TelemetrySettings['traces']> }>;
   /**
    * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
    */
+  /** C8: spend limits and the owner's own tool prices (src/spend.ts). */
+  spend?: Partial<import('./spend.ts').SpendSettings>;
+  /** C8: Token Saver (src/spend.ts): off / on / auto and auto's daily line. */
+  tokenSaver?: Partial<import('./spend.ts').SaverSettings>;
+  /** C8: add-on auto-update (src/addon-autoupdate.ts): off by default; all, or per add-on. */
+  addonAutoUpdate?: Partial<import('./addon-autoupdate.ts').AutoUpdateSettings>;
+  /** C6: Learn a topic (src/learn.ts): the monthly learning budget in estimated tokens. */
+  learn?: { monthlyTokens?: number };
   turnBudgets?: Partial<Omit<import('./budget.ts').TurnBudgetSettings, 'coding' | 'chat'>> & { coding?: Partial<import('./budget.ts').TurnLimits>; chat?: Partial<import('./budget.ts').TurnLimits> };
   /**
    * Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects): off, only
@@ -208,6 +232,8 @@ export interface Settings {
   talkLanguage?: string;
   /** Phase 53, per companion: the yearly look back on the anniversary of the first message (off by default). */
   story?: { yearly?: boolean; lastYear?: number };
+  /** V1: the look a new device starts from ("Use on all my devices"; src/appearance.ts). */
+  appearance?: import('./appearance.ts').Appearance;
   /** Phase 70: "Our moments": which photos enter the album by themselves (per companion). */
   moments?: Partial<import('./moments.ts').MomentsSettings>;
   /**
@@ -247,10 +273,14 @@ export interface Settings {
    * false): show add-ons nobody at Sara has reviewed yet (the *Get more* switch, Phase 125).
    */
   store?: { on?: boolean; community?: boolean };
+  /** PRQ (owner only): may Sara install programs add-ons need (allowed: one click; ask: an approval card; off). */
+  prereqs?: { installs?: 'allowed' | 'ask' | 'off' };
   /** Phase 126 (WAKE.md §3.3): Hey Sara for this person: their phrases, where turns go, follow-up, sensitivity for new devices. */
   wake?: import('./wake.ts').WakeSettings;
   /** Phase 126: owner only (OWNER_SETTINGS): may devices on this server listen at all, and members too. */
   wakeServer?: { allowed?: boolean; members?: boolean };
+  /** EC28: the last restore drill (src/restore-drill.ts). */
+  readiness?: { drill?: import('./restore-drill.ts').DrillRecord };
   safetyCheck?: { weekly?: boolean; last?: { at: string; statuses: Record<string, 'green' | 'amber' | 'red' | 'skip'> }; accepted?: Record<string, string> };
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer
@@ -283,6 +313,8 @@ export class StartupError extends Error {
 export class SettingsStore {
   readonly #path: string;
   #settings: Settings;
+  /** In-process authority observation; called synchronously only after a successful save. */
+  onUpdated?: (before: Readonly<Settings>, after: Readonly<Settings>) => void;
 
   constructor(dataDir: string) {
     this.#path = join(dataDir, FILE);
@@ -303,9 +335,11 @@ export class SettingsStore {
 
   update(patch: Partial<Settings>): Settings {
     // Saved first: if the disk refuses, the running server keeps what is really on disk.
-    const next = { ...this.#settings, ...patch };
+    const before = this.#settings;
+    const next = { ...before, ...patch };
     writeFileAtomic(this.#path, JSON.stringify(next, null, 2) + '\n', 0o666);
     this.#settings = next;
+    this.onUpdated?.(before, next);
     return this.get();
   }
 }

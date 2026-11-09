@@ -1,5 +1,6 @@
 // Tool registry, permissions and approvals.
 import { randomUUID } from 'node:crypto';
+import { policy } from '../policy-profile.ts';
 import { BUILTIN_TOOLS } from './builtin.ts';
 import type { Permission, Tool } from './types.ts';
 
@@ -45,8 +46,12 @@ export class ToolRegistry {
     return tool.defaultPermission;
   }
 
+  /** E7 (A2): a tool server's remembered choice for its tools that have no setting of their own. */
+  policyFor?: (name: string) => Permission | undefined;
+
+  /** EC5: the admin's ceiling (src/policy-profile.ts) beats the owner's setting, the server choice and Always allow. */
   permission(name: string, overrides: Record<string, Permission> | undefined): Permission {
-    return overrides?.[name] ?? this.defaultFor(this.#tools.get(name));
+    return policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
   }
 
   /** Tools the model may see (anything not set to "never"). */
@@ -69,13 +74,16 @@ interface Pending {
  */
 /** Phase 86: 'redteam' = "Red-team first" on the ship card (the action does not run; a red-team run starts). */
 /** Phase 88: 'task' = "Allow for this task", 'always' = "Always on this site" on a computer-use card (both allow). */
-export type ApprovalHow = 'override' | 'deny' | 'update' | 'apply' | 'discard' | 'real' | 'redteam' | 'task' | 'always';
-export const APPROVAL_HOWS: readonly ApprovalHow[] = ['override', 'deny', 'update', 'apply', 'discard', 'real', 'redteam', 'task', 'always'];
+/** E7 (A1): 'tool' = "Always allow this tool" on a plain card (allows; the tool is then Always allowed). */
+export type ApprovalHow = 'override' | 'deny' | 'update' | 'apply' | 'discard' | 'real' | 'redteam' | 'task' | 'always' | 'tool';
+export const APPROVAL_HOWS: readonly ApprovalHow[] = ['override', 'deny', 'update', 'apply', 'discard', 'real', 'redteam', 'task', 'always', 'tool'];
 
 /** Holds tool calls waiting for the owner's approve/deny click. */
 export class ApprovalBroker {
   readonly #pending = new Map<string, Pending>();
   readonly #how = new Map<string, ApprovalHow>();
+  /** Requests that ended unanswered (their turn, task step or call ended, or the wait ran out). */
+  readonly #expired = new Map<string, number>();
   readonly #timeoutMs: number;
 
   constructor(timeoutMs = 10 * 60 * 1000) {
@@ -85,19 +93,37 @@ export class ApprovalBroker {
   request(conversationId: string, signal: AbortSignal): { id: string; decision: Promise<boolean> } {
     const id = randomUUID();
     const decision = new Promise<boolean>((resolve) => {
-      const done = (v: boolean) => {
+      const done = (v: boolean, ended = false) => {
         const p = this.#pending.get(id);
         if (!p) return;
         clearTimeout(p.timer);
         this.#pending.delete(id);
         signal.removeEventListener('abort', onAbort);
+        if (ended) this.#expire(id);
         resolve(v);
       };
-      const onAbort = () => done(false);
+      // The wait belongs to its caller: when the caller ends, the request ends with it at once.
+      const onAbort = () => done(false, true);
+      if (signal.aborted) {
+        this.#expire(id);
+        resolve(false);
+        return;
+      }
       signal.addEventListener('abort', onAbort, { once: true });
-      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false), this.#timeoutMs) });
+      this.#pending.set(id, { conversationId, resolve: done, timer: setTimeout(() => done(false, true), this.#timeoutMs) });
     });
     return { id, decision };
+  }
+
+  #expire(id: string): void {
+    const t = Date.now();
+    for (const [k, at] of this.#expired) if (t - at > this.#timeoutMs || this.#expired.size > 500) this.#expired.delete(k);
+    this.#expired.set(id, t);
+  }
+
+  /** 'waiting', 'expired' (its caller ended or the wait ran out; a late answer runs nothing) or 'unknown'. */
+  state(id: string): 'waiting' | 'expired' | 'unknown' {
+    return this.#pending.has(id) ? 'waiting' : this.#expired.has(id) ? 'expired' : 'unknown';
   }
 
   decide(id: string, approved: boolean, how?: ApprovalHow): boolean {
@@ -107,7 +133,7 @@ export class ApprovalBroker {
     // \"Apply\" and \"Run for real\" are the owner's explicit yes.
     if (how) this.#how.set(id, how);
     // Phase 86: "Red-team first" never runs the call either (a red-team run starts instead).
-    p.resolve(how === 'update' || how === 'deny' || how === 'discard' || how === 'redteam' ? false : how === 'apply' || how === 'real' || how === 'task' || how === 'always' ? true : approved);
+    p.resolve(how === 'update' || how === 'deny' || how === 'discard' || how === 'redteam' ? false : how === 'apply' || how === 'real' || how === 'task' || how === 'always' || how === 'tool' ? true : approved);
     return true;
   }
 

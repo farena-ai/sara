@@ -1,0 +1,13 @@
+[
+  {
+    "files": [
+      "look/*",
+      "cover.png"
+    ],
+    "made": "ai",
+    "model": "gpt-image-2",
+    "by": "the Sara team",
+    "from": "words",
+    "at": "2026-11-07"
+  }
+]

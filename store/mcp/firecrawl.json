@@ -1,0 +1,93 @@
+{
+  "id": "firecrawl",
+  "version": "1.0.0",
+  "name": "Firecrawl",
+  "category": "search",
+  "tags": [
+    "search",
+    "mcp"
+  ],
+  "summary": "Scrape selected public pages into readable documents.",
+  "description": "Scrape selected public pages into readable documents. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Scrape selected public pages into readable documents. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows initialize/tools-list answered; no authenticated vendor feature or Sara-host execution.",
+    "Sends target URLs and scrape options to Firecrawl; may run billable jobs",
+    "Provider credits and plan limits apply; no paid calls made.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use."
+  ],
+  "license": "MIT",
+  "source": "https://raw.githubusercontent.com/mendableai/firecrawl-mcp-server/HEAD/README.md",
+  "needs": [
+    "node"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "firecrawl",
+    "command": "npx",
+    "args": [
+      "-y",
+      "firecrawl-mcp@3.37.0"
+    ],
+    "fields": [],
+    "secrets": [
+      {
+        "key": "FIRECRAWL_API_KEY",
+        "kind": "secret",
+        "label": "Firecrawl API key",
+        "tip": "Your own Firecrawl key, kept in the vault. Calls can spend credits or start jobs. Set and verify every host tool permission before use; recipe advice alone does not force approval."
+      }
+    ],
+    "reaches": [
+      "api.firecrawl.dev",
+      "provider-selected upstream sources and npm at installation"
+    ],
+    "needs": [
+      "node"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "firecrawl_scrape",
+        "firecrawl_map",
+        "firecrawl_search",
+        "firecrawl_find_tools",
+        "firecrawl_crawl",
+        "firecrawl_check_crawl_status",
+        "firecrawl_agent",
+        "firecrawl_agent_status",
+        "firecrawl_interact",
+        "firecrawl_interact_stop",
+        "firecrawl_parse",
+        "firecrawl_monitor_create",
+        "firecrawl_monitor_list",
+        "firecrawl_monitor_get",
+        "firecrawl_monitor_update",
+        "firecrawl_monitor_delete",
+        "firecrawl_monitor_run",
+        "firecrawl_monitor_checks",
+        "firecrawl_monitor_check",
+        "firecrawl_research_search_papers",
+        "firecrawl_research_inspect_paper",
+        "firecrawl_research_related_papers",
+        "firecrawl_research_read_paper",
+        "firecrawl_developer_search",
+        "firecrawl_gov_search",
+        "firecrawl_credit_usage"
+      ]
+    },
+    "guide": [
+      "Use Node 24 LTS; this pinned package requires Node >=22.0.0. Confirm node --version before setup; dependency presence does not check its version.",
+      "Add your own API key. No provider key or paid call was used in qualification.",
+      "Review every tool, especially monitor, crawl and interact tools. Discovery is not authenticated scraping qualification.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows initialize/tools-list answered; no authenticated vendor feature or Sara-host execution."
+}

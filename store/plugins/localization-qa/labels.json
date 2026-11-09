@@ -1,0 +1,56 @@
+{
+  "en": {
+    "title": "Localization QA",
+    "description": "Check flat catalogs, named placeholders and supplied owned-fixture render measurements. No live capture or workspace access.",
+    "findings": "Issues found in the supplied evidence.",
+    "checked": "Catalog checked; no issues in the admitted scope.",
+    "measured": "Rendered layout measured in the owned fixture.",
+    "unmeasured": "Layout not measured: an actual render report is required.",
+    "error": "Invalid or unsupported bounded input. Use flat JSON string catalogs, named-v1 and a complete owned-fixture render report."
+  },
+  "es": {
+    "title": "Control de localización",
+    "description": "Comprueba catálogos planos, marcadores y medidas de la plantilla propia. Sin captura en vivo ni acceso al proyecto.",
+    "findings": "Se encontraron problemas en la evidencia suministrada.",
+    "checked": "Catálogo comprobado; sin problemas en el alcance admitido.",
+    "measured": "Diseño medido en la plantilla propia.",
+    "unmeasured": "Diseño no medido: se requiere un informe de renderizado real.",
+    "error": "Entrada limitada no válida o no compatible. Use catálogos JSON planos de texto, named-v1 y un informe completo de la plantilla propia."
+  },
+  "fr": {
+    "title": "Contrôle de localisation",
+    "description": "Vérifie les catalogues plats, paramètres nommés et mesures du rendu de la maquette dédiée. Sans capture directe ni accès au projet.",
+    "findings": "Des problèmes ont été détectés dans les preuves fournies.",
+    "checked": "Catalogue vérifié ; aucun problème dans le périmètre admis.",
+    "measured": "Mise en page mesurée dans la maquette dédiée.",
+    "unmeasured": "Mise en page non mesurée : un rapport de rendu réel est requis.",
+    "error": "Entrée bornée invalide ou non prise en charge. Utilisez des catalogues JSON plats de chaînes, named-v1 et un rapport complet de la maquette dédiée."
+  },
+  "de": {
+    "title": "Lokalisierungsprüfung",
+    "description": "Prüft flache Kataloge, benannte Platzhalter und gelieferte Rendermaße der eigenen Testvorlage. Keine Live-Aufnahme oder Projektzugriffe.",
+    "findings": "Probleme in den gelieferten Nachweisen gefunden.",
+    "checked": "Katalog geprüft; keine Probleme im zugelassenen Umfang.",
+    "measured": "Layout in der eigenen Testvorlage gemessen.",
+    "unmeasured": "Layout nicht gemessen: ein echter Renderbericht ist erforderlich.",
+    "error": "Ungültige oder nicht unterstützte begrenzte Eingabe. Flache JSON-Zeichenfolgenkataloge, named-v1 und vollständigen Renderbericht der Testvorlage verwenden."
+  },
+  "pt-BR": {
+    "title": "Verificação de localização",
+    "description": "Verifica catálogos planos, marcadores nomeados e medidas de renderização da amostra própria. Sem captura ao vivo ou acesso ao projeto.",
+    "findings": "Foram encontrados problemas nas evidências fornecidas.",
+    "checked": "Catálogo verificado; sem problemas no escopo admitido.",
+    "measured": "Layout medido na amostra própria.",
+    "unmeasured": "Layout não medido: é necessário um relatório de renderização real.",
+    "error": "Entrada limitada inválida ou não suportada. Use catálogos JSON planos de texto, named-v1 e relatório completo da amostra própria."
+  },
+  "it": {
+    "title": "Verifica della localizzazione",
+    "description": "Verifica cataloghi piatti, segnaposto e misure di rendering della prova dedicata. Nessuna acquisizione dal vivo o accesso al progetto.",
+    "findings": "Sono stati trovati problemi nelle prove fornite.",
+    "checked": "Catalogo verificato; nessun problema nell’ambito ammesso.",
+    "measured": "Layout misurato nella prova dedicata.",
+    "unmeasured": "Layout non misurato: serve un rapporto di rendering reale.",
+    "error": "Input limitato non valido o non supportato. Usare cataloghi JSON piatti di stringhe, named-v1 e un rapporto completo della prova dedicata."
+  }
+}

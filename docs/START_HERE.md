@@ -4,6 +4,14 @@ Eight small steps, about ten minutes, from the first sign-in to a Sara that feel
 here needs a terminal after the install. Coming to write code with her? Read [For coders](FOR_CODERS.md)
 instead (the first three steps are the same).
 
+For recent explicit tiredness/frustration cues, their privacy controls and how automatic follow-ups
+recognize an answer, see [Recent cues and follow-ups](ATTUNEMENT.md). Check its release status before
+expecting development-candidate behavior on an older installation.
+
+For the development candidate's owner controls and saved-context retention, see
+[Session continuity](SESSION_CONTINUITY.md). Check its release status before expecting it on
+an older installation.
+
 > Not installed yet? [Install Sara](INSTALL.md) first (Linux, Docker, Windows, macOS or a NAS), and
 > check [what computer you need](REQUIREMENTS.md).
 
@@ -17,7 +25,7 @@ put it in your password manager. Read the short note about what Sara is, and pre
 
 ## 2. Tell her your name, and what you're here for
 
-<img src="screenshots/first-run.webp" alt="Setup step 1 of 4: a box for your first name (Alex) and three cards for what you will mostly do with her: Company, Coding or Both" width="520">
+<img src="screenshots/first-run.webp" alt="Setup step 1 of 4: a box with the name Alex and three cards for what you will mostly do with her: Company, Coding or Both (picked)" width="520">
 
 She asks **what you will mostly do with her**: *Company* (talk, plan your day, remember things),
 *Coding* or *Both*. It only changes what she shows you first; every feature stays available, and you can
@@ -30,7 +38,7 @@ Keep Sara as she is, pick a ready-made character, or choose *Make my own* for a 
 
 ## 4. Connect a brain
 
-<img src="screenshots/connect-brain.webp" alt="Setup step 3 of 4, Connect a brain: four choice cards (On this computer, Another computer at home, In the cloud, My subscription), Ollama found with a Connected tick, and a Picked for you card with the local model qwen3.8 27B, a Good for coding chip and Connected" width="520">
+<img src="screenshots/connect-brain.webp" alt="Setup step 3 of 4, Connect a brain: four choice cards (On this computer, Another computer at home, In the cloud, My subscription), Found Ollama on this computer with 2 models, and a Picked for you card with the local model gemma4:12b and Connected" width="520">
 
 The "brain" is the AI model she thinks with. She looks for one on this computer (Ollama), suggests a
 model and checks that it answers: **Connected ✓**. No graphics card? *My subscription* uses a plan you
@@ -47,14 +55,14 @@ and chat draft; connections you explicitly saved with **Use it** or **Connect** 
 The last setup step has three starters (*Tell me about yourself*, *Plan my day with me*, *What can you
 do?*), or just type. After her first reply she offers a short six-stop tour.
 
-<img src="screenshots/companion.webp" alt="A chat: Alex asks for a reminder and two to-dos; Sara shows a Reminder set card and two To-do added cards, answers warmly, and a quiet line under her reply says what she did" width="760">
+<img src="screenshots/companion.webp" alt="A chat: Alex asks Sara to put a calmer week on the planner; Sara shows two To-do added cards and a Reminder set card, answers warmly, and a quiet line under her reply says what she did" width="760">
 
 Ask for things in plain words ("remind me at 9 to call the dentist"): they come back as cards, and the
 line under her reply says what she did.
 
 ## 6. Make her yours
 
-<img src="screenshots/dials.webp" alt="Settings, Name and personality: the personality dials, each with its end words, the word for where it sits (Warm, Patient, Thoughtful…), a number and a line in her voice that changes as you move it" width="760">
+<img src="screenshots/dials.webp" alt="Settings, Name and personality: the personality dials (Warmth, Patience, Emotional depth, Starts conversations, Shows affection…), each with its end words, the word for where it sits, a number and a line in her voice" width="760">
 
 *Settings → Her → Name and personality*: every dial shows where it sits and a line in her voice that
 changes as you move it, so you hear the difference before you chat. Every step of every dial is in
@@ -62,7 +70,7 @@ the app's guide (Help → *Shaping your companion*).
 
 ## 7. Finish *Getting started* on Today
 
-<img src="screenshots/getting-started.webp" alt="Today: a Getting started list with seven steps such as Connect a brain, Say hello, Make Sara your own, Put her on your phone, Pick her voice, Get a morning briefing and Keep a copy somewhere else" width="760">
+<img src="screenshots/getting-started.webp" alt="Today: Good morning, Alex with her portrait and mood, and a Getting started list (2 of 7 done) with Connect a brain, Say hello, Make Sara your own, Pick her voice, Put her on your phone, Turn on a routine and Keep a copy somewhere else" width="760">
 
 *Today* is where she opens. Its main button starts with **Connect an AI model**, then **Try a message** until a completed reply. Model configuration is not a live connection test. Before that reply, optional customization, voice and phone choices sit under **Optional setup**; expand it any time. Hiding Getting started and your saved Today layout still work.
 
@@ -92,9 +100,9 @@ and **Settings → Her → Hey Sara** in the Windows app, to say her name and ta
 
 ## When you're stuck
 
-<img src="screenshots/howto.webp" alt="The How do I…? box at the top of a Settings page, open: questions such as How do I change her name? with numbered steps and a Show me button" width="760">
+<img src="screenshots/howto.webp" alt="The How do I…? box at the top of Name and personality, open: How do I change her name?, How do I make her my own? and How do I go back to how she was?" width="760">
 
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 171
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 209
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

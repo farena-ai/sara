@@ -9,6 +9,7 @@
 #   sara submit <folder> --name "Shown name" [--contact you@example.com]
 #                            check it, show what is sent, and send it to the Sara team for review
 #   sara hands --server URL  Linux browser hands in your desktop session (without sudo)
+#   sara wake --server URL   Hey Sara on this Linux desktop (without sudo; Ctrl+C stops)
 #   sara update              back up, pull the latest code, reinstall, restart, check health
 #                            (goes back to the previous version by itself if the check fails)
 #   sara check-updates       is a newer version available? (what changed)
@@ -64,6 +65,15 @@ if [[ "${1:-}" == hands ]]; then
   [[ -x "$NODE_BIN" ]] || die "Install Node 24 or install Sara first."
   [[ -f "$APP_DIR/desktop/linux/cli.ts" ]] || die "This Sara install has no Linux hands. Update Sara, or run: node desktop/linux/cli.ts --help from a checkout."
   exec "$NODE_BIN" "$APP_DIR/desktop/linux/cli.ts" "$@"
+fi
+# C17: Hey Sara on this Linux desktop, also a desktop-user command (no sudo).
+if [[ "${1:-}" == wake ]]; then
+  shift
+  [[ $EUID -ne 0 ]] || die "Run sara wake as your desktop user, without sudo."
+  [[ -x "$NODE_BIN" ]] || NODE_BIN="$(command -v node || true)"
+  [[ -x "$NODE_BIN" ]] || die "Install Node 24 or install Sara first."
+  [[ -f "$APP_DIR/desktop/linux/wake.ts" ]] || die "This Sara install has no Hey Sara for Linux. Update Sara."
+  exec "$NODE_BIN" "$APP_DIR/desktop/linux/wake.ts" "$@"
 fi
 PORT="$(env_get SARA_PORT)"
 PORT="${PORT:-7860}"

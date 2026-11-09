@@ -1,0 +1,34 @@
+{
+  "type": "object",
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "text": {
+            "type": "string",
+            "minLength": 0,
+            "maxLength": 32768
+          }
+        },
+        "required": [
+          "path",
+          "text"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1,
+      "maxItems": 12
+    }
+  },
+  "required": [
+    "files"
+  ],
+  "additionalProperties": false
+}

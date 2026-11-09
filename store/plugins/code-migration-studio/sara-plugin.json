@@ -1,0 +1,56 @@
+{
+  "manifest": 1,
+  "id": "code-migration-studio",
+  "name": "Code Migration Studio",
+  "version": "1.0.0",
+  "description": "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "migrate"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [
+        "plugin-data"
+      ],
+      "write": [
+        "plugin-data"
+      ]
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Code Migration Studio": "Estudio de migración de código",
+      "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.": "Previsualiza un cambio de nombre de importación basado en AST en un espacio preparado y aplica solo el parche aprobado vinculado por hash."
+    },
+    "fr": {
+      "Code Migration Studio": "Atelier de migration de code",
+      "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.": "Prévisualise le renommage d’un import par analyse AST dans un espace préparé et applique uniquement le correctif approuvé lié par empreinte."
+    },
+    "de": {
+      "Code Migration Studio": "Code-Migrationsstudio",
+      "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.": "Zeigt eine AST-basierte Import-Umbenennung in einem vorbereiteten Arbeitsbereich an und wendet nur den genehmigten hashgebundenen Patch an."
+    },
+    "pt-BR": {
+      "Code Migration Studio": "Estúdio de migração de código",
+      "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.": "Mostra uma renomeação de importação baseada em AST em um espaço preparado e aplica apenas o patch aprovado vinculado por hash."
+    },
+    "it": {
+      "Code Migration Studio": "Studio di migrazione del codice",
+      "Preview an AST-based import rename in an operator-staged workspace and apply only the approved hash-bound patch.": "Mostra in anteprima la ridenominazione di un import basata su AST in uno spazio preparato e applica solo la patch approvata vincolata da hash."
+    }
+  }
+}

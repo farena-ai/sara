@@ -66,7 +66,7 @@ test('PL1d: the guide index needs no new translations (titles and questions are 
   for (const m of index.matchAll(/<(h3|h4|summary|li)\b[^>]*>([^<]*)<\/\1>/g)) keys.add(m[2].replace(/&amp;/g, '&'));
   for (const lang of ['es', 'fr', 'de', 'it', 'pt-BR']) {
     const dict = JSON.parse(read(`web/i18n/${lang}.json`)) as Record<string, string>;
-    const missing = [...keys].filter((k) => !dict[k] && !['Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Matrix', 'iMessage', 'Hey Sara', 'Email', 'Webhooks', 'Home Assistant'].includes(k));
+    const missing = [...keys].filter((k) => !dict[k] && !['Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Matrix', 'iMessage', 'Slack', 'Microsoft Teams', 'Hey Sara', 'Email', 'Webhooks', 'Home Assistant', 'Spotify'].includes(k));
     assert.deepEqual(missing.slice(0, 5), [], `${lang}: ${missing.length} index lines untranslated`);
   }
   // help-i18n.js translates the index's page titles and questions by their text.
@@ -170,7 +170,7 @@ test('PL1d: the playlist and video links are well formed (offline)', () => {
 
 // ---------- screenshots ----------
 
-test('PL1d: screenshots are listed in the manifest, from the 2.47.2 UI, small and all used', () => {
+test('PL1d: screenshots are listed in the manifest, from the 2.80.0 UI, small and all used', () => {
   const dir = join(ROOT, 'docs', 'screenshots');
   const manifest = JSON.parse(read('docs/screenshots/manifest.json')) as { files: Record<string, { ui: string; what: string; bytes: number }> };
   const used = new Set<string>();
@@ -186,8 +186,8 @@ test('PL1d: screenshots are listed in the manifest, from the 2.47.2 UI, small an
     const size = statSync(join(dir, f)).size;
     if (f !== 'demo.png') assert.ok(size < 300 * 1024, `${f}: ${size} bytes (keep under 300 KB)`);
   }
-  // The views PL1d retook (Today desktop and phone, the dials, How do I, coding with steps, the first-run question).
-  for (const f of ['today.webp', 'phone.webp', 'dials.webp', 'howto.webp', 'coding.webp', 'first-run.webp']) assert.equal(manifest.files[f]?.ui, '2.47.2', f);
+  // The views retaken in the 2.80 UI (everything under Start here and in the docs pages).
+  for (const f of ['first-run.webp', 'connect-brain.webp', 'getting-started.webp', 'companion.webp', 'today.webp', 'phone.webp', 'planner.webp', 'dials.webp', 'howto.webp', 'work-dials.webp', 'ask-first.webp', 'coding.webp', 'command-bar.webp', 'library.webp', 'voice.webp', 'everywhere.webp']) assert.equal(manifest.files[f]?.ui, '2.80.0', f);
 });
 
 // ---------- the docs site ----------

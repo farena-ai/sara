@@ -250,7 +250,7 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
         const rel = scriptPath(str(args, 'script'));
         const abs = join(v.dir, ...rel.split('/'));
         if (!isPlainFileInside(v.dir, abs)) throw new ToolError(`The skill "${v.name}" has no script ${rel}.`);
-        const bw = ctx.sandbox.mode === 'bwrap';
+        const bw = ctx.sandbox.mode === 'bwrap' || ctx.sandbox.mode === 'container';
         const win = process.platform === 'win32' && ctx.sandbox.mode === 'none';
         const shell = win ? windowsShell() : { sh: true };
         const runner = interpreter(rel, shell.sh);

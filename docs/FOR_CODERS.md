@@ -30,21 +30,32 @@ Node 24+, zero runtime dependencies, no build step. Other ways to install: [docs
    Cursor, or the OpenAI-compatible address ([clients](clients.md), [other apps](OTHER_APPS.md)).
 7. **Set a budget** (*Settings → Coding → Budgets*) so a long task stops where you want.
 
-After interruption, use **Settings → Data & health → Recovery**. A job restart is a reviewed new
+After interruption, use **Settings → Data & health → Readiness and recovery**. A job restart is a reviewed new
 request, not continuation from a shell instruction offset. Team completed steps are preserved, but
 unfinished effects need explicit review; publication may require manual reconciliation. Current
 approval/privacy rules still apply. [Recovery details](RECOVERY.md).
 
 
+## Pending approvals when settings change (2.66)
+
+An Allow applies to the action in its original chat context. Before it starts, Sara checks the
+current tool permission and the chat's workspace, privacy and other execution settings again.
+Turning a tool off or changing that context stops the stale action, including team helpers and
+applying a sandbox copy. Start a new request in the intended context to continue. Valid unchanged
+approvals and scoped grants keep their usual behavior.
+
+Use Stop for work already running. Review completed file changes in project history before
+choosing an available undo action.
+
 ## What a coding turn looks like
 
-<img src="screenshots/ask-first.webp" alt="A coding chat in the tip-calculator workspace: Sara writes tip.js and test.js (a Files changed card) and asks before running node --test, with Allow and Deny in the chat and in her panel, which says Waiting for your OK" width="860">
+<img src="screenshots/ask-first.webp" alt="A coding chat in the habit-tracker workspace: Sara asks before running node --test, with Try it in a copy and Deny in the chat and in her panel, which says Waiting for your OK" width="860">
 
 She explains the plan, writes the files (they grow live in the chat while the model streams them), and
 stops on an approval card before running a command. The same Allow / Deny sits in her panel and, in the
 Windows and Mac apps, in a notification.
 
-<img src="screenshots/coding.webp" alt="The same chat later: a Tests failed card (3 passed, 3 failed), her explanation of the floating-point bug she caught in her own code, then a Tests passed card with 6 passed, a summary, and the step line under the reply" width="860">
+<img src="screenshots/coding.webp" alt="A coding chat in the habit-tracker workspace: a Tests failed card (5 passed, 1 failed), what she remembered about the same error, the file she changed, a Tests passed card with 6 passed, her explanation with the diff, and the security pass and threat model" width="860">
 
 A real run on a local model (qwen3.8 27B on Ollama): the first test run caught a rounding bug in her own
 code; she fixed it and all six tests passed. The line under each reply (*Looked through the files ·
@@ -57,12 +68,66 @@ Wrote a file ×2 · +4 more*) opens to every command and its output.
 *Settings → Coding → Coding projects* sets how chatty she is while working (with a sample line for
 each step), *Quiet when I'm focused*, and what she knows about each project.
 
+## Project checkpoints
+
+Project checkpoints are included in the 2.67.0 public release.
+
+In **Settings → Coding → Coding projects**, open **Project checkpoint** beside a repository's
+notes. Keep the current logic, any blockers and one to three next steps. Save before changing tasks
+or starting a new coding chat. You can also ask Sara to save a checkpoint in an ordinary owner coding
+conversation; she uses `project_checkpoint`, not a background summarizer.
+
+The newest checkpoint can give a fresh coding chat in the same unambiguous project its context,
+even after a restart or chat compaction. With several nested repositories, ask her to read the
+checkpoint for the particular project path. It is a historical handoff: file state and test results
+still need checking. Saving it runs no commands and carries no earlier approvals forward.
+
+The editor shows the saved content and up to five recent versions. **Replace** saves a new version;
+**Clear** removes that project's checkpoint history after confirmation. If another tab saved first,
+your draft stays put. Review it before explicitly reloading the saved checkpoint. Removing a
+checkpoint does not rewrite earlier chat messages or run records that already showed its text.
+
+Checkpoints stay in this companion's local data and backups, scoped to workspace and project.
+They become context for the model selected for allowed coding chats, under the normal provider
+policy; **Nothing leaves this computer** still supports local checkpoint storage. Private and
+off-record chats, shared/group/external-app requests, household members, the demo and business mode
+do not use this owner feature. Keep passwords and keys in Secrets, not a checkpoint.
+
+A checkpoint derived from a conversation is removed if its source chat is deleted or a covered
+message is edited, removed or forgotten. After forgetting source messages, use a fresh coding chat
+or enter a reviewed checkpoint yourself in the editor. Compaction alone preserves the checkpoint.
+
+## Project now: other chats and current checks
+
+In an owner coding chat on one project, Sara sees a short **Project now** note before every step,
+and the chat shows **Also active on this project** under its header when another of your coding
+chats on the same workspace ran within the last 2 hours (or is running): its title, how long ago,
+and the files it touched (`*` = this chat touched the file too). Click the title to open that
+chat. Only titles, times and paths are shown, never message text. It is a note: nothing is locked,
+merged or asked again, and editors outside Sara show up on her next step, not instantly.
+
+Check results now say what they ran on. In **Settings → Coding → Check her edits** and on the goal
+chip a result reads `ran on a1b2c3d + 2 changed files, current`, or `stale since 14:02: HEAD
+a1b2c3d → 9f8e7d6, 3 files changed (…)`, or `basis unknown` (older results, git errors, or very
+large/many changed files). Sara is told that a stale or unknown result is not proof and that she
+must re-run the check before saying it passes. A checkpoint adds `Files changed since saved: N`.
+Private, off-record, group and other-app chats, household members, the demo and business mode
+never get this.
+
 ## Checks after her edits, and @-references (2.53)
 
 After she changes a file, your project's own `tsc`, pyright, mypy, `cargo check`, `go vet` or ESLint
 looks at it and she reads the new errors in the same reply (each project asks once; nothing is
 installed). Type `@` to hand her a file or a few lines, your changes (`@diff`), the branch, the current
 problems or a web page. Full guide: [CHECKS.md](CHECKS.md).
+
+## Web pages: look, fix, look again
+
+When she works on a web page she runs it, opens the preview in her testing browser and takes
+screenshots at desktop and phone width. Her reply is marked unverified if she says she checked it at
+phone width without a phone screenshot (phone = `phone` or a width up to 480px; desktop = the default
+or 1024px and up), or says it's fixed or looks right now without a screenshot or a passing
+`browser_check` after her last edit. Marked, never blocked; approvals are unchanged.
 
 ## Long jobs: goals, repeats and steering (2.49–2.61)
 
@@ -96,7 +161,7 @@ word for word and *Undo* brings it back. Private chats only ever use a model on 
 GitHub, files on this computer and current docs (Context7), plus plugins and skills. A tool server's card
 shows the exact command (and its Windows form), what it needs and what it can reach; keys go to the vault
 and nothing switches on by itself. `sara pack` checks your own plugin, skill or tool server before you
-submit it. Guide: [store/SARA_STORE.md](store/SARA_STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
+submit it. Guide: [Store guide](STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
 from a chat with one card since 2.52.1).
 
 ## Commands you can type
@@ -112,6 +177,8 @@ other chat apps ([CHATS.md](CHATS.md)). The table is generated from the app's ow
 | `/compact` | Tidy the older part of this chat into a summary (undo, show) | You, in your own chats |
 | `/tools` | Which tools she has in this chat (all, lean, +name, -name) | You, in your own chats |
 | `/when` | Reminders for when a person or topic comes up (list, add, forget) | You, in your own chats |
+| `/learn` | Learn a topic or a website, with sources (add daily, weekly or monthly to keep it fresh) | You, in your own chats |
+| `/saver` | Token Saver: shorter replies and cheaper calls (on, off, auto) | You, in your own chats |
 | `/continue` | Pick up our chat from your other app here | You, in your own chats |
 | `/btw` | A quick side question while she works (not saved) | You and household members |
 | `/queue` | Queue a message for when she has finished | You and household members |

@@ -18,7 +18,8 @@
 import { goalsFor } from '../goals.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { loopsFor, parseLoopCommand } from '../loops.ts';
-import { checkOptions, defaultChecks, mergePersist, persistRefusal, persistSettings, GOAL_CHOICES, LOOP_CHOICES, PERSIST_PRESETS, presetOf } from '../persist.ts';
+import { checkOptions, defaultChecks, mergePersist, persistRefusal, persistSettings, wsOf, GOAL_CHOICES, LOOP_CHOICES, PERSIST_PRESETS, presetOf } from '../persist.ts';
+import { resultBasis } from '../project-now.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createPersistRoutes(ctx: RouteCtx): RouteHandler {
@@ -86,7 +87,15 @@ export function createPersistRoutes(ctx: RouteCtx): RouteHandler {
         const g = refused ? undefined : goals.current(conv.id);
         const options = refused ? [] : checkOptions(app, conv);
         const set = persistSettings(app).goals;
-        return send(res, 200, { goal: goals.view(g), allowed: !refused, ...(refused ? { why: refused } : {}), checks: options, defaultChecks: defaultChecks(options), caps: { rounds: set.rounds, minutes: set.minutes, tokens: set.tokens, usd: set.usd }, choices: GOAL_CHOICES });
+        const view = goals.view(g);
+        // R1C: the last check's basis against the workspace as it is now (read-only git, 5 s).
+        const last = g && view?.lastCheck ? goals.lastCheck(g.id) : undefined;
+        if (view?.lastCheck && last) {
+          let dir: string | undefined;
+          try { dir = wsOf(app, conv); } catch { dir = undefined; }
+          (view.lastCheck as typeof view.lastCheck & { basisLabel?: unknown }).basisLabel = await resultBasis(app, conv.workspace, dir, last.basis ?? null, last.at);
+        }
+        return send(res, 200, { goal: view, allowed: !refused, ...(refused ? { why: refused } : {}), checks: options, defaultChecks: defaultChecks(options), caps: { rounds: set.rounds, minutes: set.minutes, tokens: set.tokens, usd: set.usd }, choices: GOAL_CHOICES });
       }
       if (refused) {
         if (method !== 'GET') await readJson(req).catch(() => undefined);

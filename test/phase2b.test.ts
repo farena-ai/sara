@@ -32,7 +32,7 @@ test('MCP stdio: connects, pages tools/list, calls tools with vault env, maps er
   assert.equal(echo.source, 'MCP: echo');
   assert.deepEqual(echo.spec.parameters, { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] });
   const ctx = { workspaceDir: dir, signal: signal(), sandbox: noSandbox };
-  assert.equal(await echo.run({ text: 'hi' }, ctx), 'echo: hi token=abc123\n[image image/png omitted]');
+  assert.equal(await echo.run({ text: 'hi' }, ctx), "echo: hi token=abc123\nImage not attached: pictures from tools can't be shown here.");
   await assert.rejects(registry.get('mcp_echo_fail')!.run({}, ctx), /it broke/);
   mgr.stop('echo');
   assert.equal(registry.get('mcp_echo_echo'), undefined);
@@ -78,9 +78,11 @@ test('MCP streamable HTTP: JSON and SSE responses, session header, custom header
   const conn = await mgr.start({ name: 'remote', enabled: true, transport: 'http', url });
   assert.equal(conn.status, 'ready', conn.error);
   assert.equal(await registry.get('mcp_remote_ping')!.run({}, { workspaceDir: dir, signal: signal(), sandbox: noSandbox }), 'pong');
-  assert.deepEqual(seen.map((s) => s.method), ['initialize', 'notifications/initialized', 'tools/list', 'tools/call']);
-  assert.equal(seen[0].session, undefined);
-  assert.ok(seen.slice(1).every((s) => s.session === 'sess-1' && s.proto === '2025-06-18' && s.auth === 'Bearer tok'));
+  // C3: the 2026-07-28 probe first; this server answers it like any call, so it is legacy.
+  assert.deepEqual(seen.map((s) => s.method), ['server/discover', 'initialize', 'notifications/initialized', 'tools/list', 'tools/call']);
+  assert.equal(seen[0].proto, '2026-07-28');
+  assert.equal(seen[1].session, undefined);
+  assert.ok(seen.slice(2).every((s) => s.session === 'sess-1' && s.proto === '2025-06-18' && s.auth === 'Bearer tok'));
   mgr.stopAll();
 });
 

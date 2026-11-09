@@ -1,76 +1,122 @@
 <p align="center"><a href="README.md">English</a> · <a href="README.es.md">Español</a> · <a href="README.fr.md">Français</a> · <a href="README.de.md">Deutsch</a> · <a href="README.pt-BR.md">Português (Brasil)</a> · <b>Italiano</b></p>
 
-# Sara
+<p align="center">
+  <img src="docs/images/brand/sara-hero.webp" alt="Sara: una donna illustrata con capelli ramati mossi, lentiggini e un maglione color crema sorride accanto al logo Sara e alle parole in inglese Your companion. Your coding partner. Your server. (La tua compagna. La tua partner di codice. Il tuo server.) e Self-hosted AI companion &amp; agent harness" width="100%">
+</p>
 
-**Una compagna IA con la personalità che scegli tu, che è anche una vera compagna di programmazione.**
-Chiacchiera, ricorda, organizza la tua giornata e legge i tuoi libri; scrive, esegue e collauda codice
-nel suo spazio di lavoro isolato. Tutto sul tuo server, con i modelli che scegli tu, in un'unica app
-per il web, Windows, Mac e telefono.
+<p align="center"><b>Sara è una compagna IA che ospiti tu, con una personalità che plasmi e una memoria che controlli, e un vero ambiente di programmazione che chiede prima dei passi rischiosi e mostra cosa è stato eseguito davvero.</b></p>
 
-> Questa è una traduzione del [README in inglese](README.md). I link portano alla documentazione,
-> che è in inglese.
-
-<p>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
-  <img src="https://img.shields.io/badge/node-%E2%89%A5%2024-339933" alt="Node 24 or newer">
-  <img src="https://img.shields.io/badge/runtime%20dependencies-0-brightgreen" alt="Zero runtime dependencies">
-  <img src="https://img.shields.io/badge/tests-1957%20passing-brightgreen" alt="1957 tests passing">
-  <a href="docs/RESULTS.md"><img src="https://img.shields.io/badge/HumanEval%20pass%401-96.3%25-informational" alt="HumanEval pass@1 96.3%"></a>
-  <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
-  <a href="https://github.com/farena-ai/sara/pkgs/container/sara"><img src="https://img.shields.io/badge/docker-amd64%20%7C%20arm64-2496ED" alt="Docker image for amd64 and arm64"></a>
-  <img src="https://img.shields.io/badge/languages-6-8A2BE2" alt="Six languages">
-  <a href="https://glama.ai/mcp/servers/farena-ai/sara"><img src="https://glama.ai/mcp/servers/farena-ai/sara/badges/score.svg" alt="Sara MCP server on Glama"></a>
+<p align="center">
+  <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/badge/Scarica-B4436C?style=for-the-badge" alt="Scarica"></a>
+  <a href="docs/INSTALL.md"><img src="https://img.shields.io/badge/Guida%20all%E2%80%99installazione-315C66?style=for-the-badge" alt="Guida all’installazione"></a>
+  <a href="https://github.com/farena-ai/sara"><img src="https://img.shields.io/badge/%E2%98%85%20Stella%20su%20GitHub-8A6422?style=for-the-badge" alt="★ Stella su GitHub"></a>
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/demo.png" alt="Animated demo: the user says it was a rough week; Sara answers warmly and suggests three tiny things to build; she writes a module and its test, asks before running a command, finds a real bug through a failing test, fixes it and gets all 7 tests green" width="860">
+  <a href="docs/INSTALL.md">Windows · macOS · Linux · Docker</a> ·
+  <a href="LICENSE">MIT</a> ·
+  <a href="https://github.com/farena-ai/sara/releases/latest"><img src="https://img.shields.io/github/v/release/farena-ai/sara?label=release" alt="Latest release"></a>
   <br>
-  <sub>Una sessione reale con un modello locale (qwen3.8 27B su Ollama, una RTX 5090) su un server di prova usa e getta, nel tema Notte: tira su il morale di chi le scrive, scrive una piccola app e il suo test mentre il modello li trasmette, chiede prima di eseguire un comando, scopre un vero bug con un test che fallisce e lo corregge finché tutti e 7 i test passano. Fotogrammi scelti dalla registrazione; nulla al loro interno è stato modificato.</sub>
+  <sub>Gratis e open source · Sul tuo server · Con i tuoi modelli. Sara è gratis; hardware, hosting e fornitori di modelli facoltativi possono avere un costo. <a href="docs/COSTS.md">Quanto costa</a>.</sub>
 </p>
+
+**Provala subito:** Docker `git clone https://github.com/farena-ai/sara && cd sara && sudo docker compose up -d` (immagine `ghcr.io/farena-ai/sara`, amd64 e ARM) · un server Linux con un solo comando, Windows, macOS e telefoni: [guida all’installazione](docs/INSTALL.md) · installer: [ultima versione](https://github.com/farena-ai/sara/releases/latest).
+
+**Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
+
+> **Stato:** 3.0.1, [Ogni pagina con il nuovo aspetto](https://github.com/farena-ai/sara/releases/tag/v3.0.1). Ogni pagina con l'aspetto 3.0, un'unica lista di progetti con punti di stato, la sua immagine, schede delle attività chiuse. [Scopri le novità](#novità)
+>
+> Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
 <p align="center">
   <a href="docs/START_HERE.md"><img src="https://img.shields.io/badge/L%27ho%20appena%20installata%2C%20e%20adesso%3F-B4436C?style=for-the-badge" alt="L'ho appena installata, e adesso?" height="34"></a>
   <a href="docs/FOR_CODERS.md"><img src="https://img.shields.io/badge/Sono%20qui%20per%20programmare-6E4BD8?style=for-the-badge" alt="Sono qui per programmare" height="34"></a>
 </p>
 
-> **Stato:** 2.62.0, licenza MIT, con settantatré versioni ricche di novità dalla 1.0 (tutte qui sotto).
-> Dalla 2.5 alla 2.8 tutta l'app ha cambiato aspetto. L'[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara)
-> è su Google Play; l'app per iPhone e la versione del Mac App Store arriveranno appena Apple le
-> approverà. Leggi [docs/DISCLOSURES.md](docs/DISCLOSURES.md) prima di usare o condividere Sara.
+Sara è una IA. Leggi le [informazioni da conoscere](docs/DISCLOSURES.md) prima di usarla o condividerla. La modalità locale mantiene le chiamate al modello sul tuo computer; le funzioni cloud inviano dati ai fornitori che scegli ([privacy](docs/PRIVACY.md)).
 
-**Recuperare il lavoro interrotto:** Impostazioni → Dati e stato → Ripristino conserva le richieste da riesaminare e gli esiti incerti dei messaggi Telegram/Discord nativi. Nessuna ripetizione automatica alla cieca all’avvio; privacy e approvazioni attuali restano valide. [Guida al ripristino](docs/RECOVERY.md).
+**Sei qui con un team?** Usa la [configurazione aziendale separata](docs/BUSINESS_OPERATIONS.md): passkey individuali, ruoli espliciti e spazi condivisi. È un’installazione manuale con una cartella dati dedicata; gli installer personali non convertono la tua compagna né il tuo nucleo domestico.
 
-## Perché Sara
+> Questa è una traduzione del [README in inglese](README.md). I link portano alla documentazione,
+> che è in inglese.
 
-- **Una personalità che scegli tu, e che lei mantiene.** Dalle il nome che vuoi, scegli lei/lui/loro,
-  parti da un personaggio già pronto o regola dei semplici cursori (giocosa, diretta, sintetica,
-  curiosa…). Lei la mantiene: umori che cambiano a seconda di come vanno le cose, una sua giornata,
-  battute ricorrenti e ricordi di ciò che le hai detto, che puoi vedere, correggere e cancellare.
-- **Un vero ambiente di programmazione.** Uno spazio di lavoro isolato per progetto con file,
-  terminale e git, lavori in background, anteprime dal vivo che collauda nel suo browser, una squadra
-  di aiutanti (pianificare → costruire → collaudare → rivedere), la regola di chiedere il tuo ok prima
-  dei passi rischiosi e un controllo che ciò che *dice* di aver fatto corrisponda a ciò che è stato
-  davvero eseguito.
-- **Un'app bella su ogni dispositivo.** Un tema Notte rilassante (o Giorno, se preferisci) con la sua
-  presenza accanto a ogni chat, una riga sotto ogni risposta che mostra cosa ha fatto e i risultati
-  come schede. Sul web e come app installabile, nelle app per Windows e Mac (con la *domanda rapida*
-  su una scorciatoia, sopra qualsiasi app), su Android e su iPhone (l'app aspetta Apple; la web app
-  sulla schermata Home funziona già).
-- **Privata e tua.** Un proprietario per server; chat, ricordi e chiavi restano lì. Qualsiasi
-  modello: locale (Ollama, vLLM, llama.cpp), nel cloud (OpenAI, Anthropic, xAI, OpenRouter) o gli
-  abbonamenti che paghi già (ChatGPT, Claude Pro/Max, SuperGrok / X Premium+). Un interruttore tiene
-  tutto su un solo computer. Arriva **senza alcuna credenziale**.
-- **Piccola e leggibile.** TypeScript che Node esegue direttamente: nessuna fase di build, zero
-  dipendenze a runtime, costruita da zero (non basata su Hermes Agent né su OpenClaw). Facile da
-  [estendere](docs/EXTENDING.md).
+## Cosa fa Sara
 
-**E inoltre:** la [domanda rapida](docs/desktop.md) su una scorciatoia globale · il suo [pannello di presenza](#la-sua-presenza) ·
-[Oggi a riquadri](#oggi) · la [barra dei comandi](#barra-dei-comandi) con Ctrl+K · la
-[modalità casa](docs/HOUSEHOLD.md) per chi vive con te · le [videochiamate](docs/VIDEO_CALLS.md) con il
-suo ritratto in movimento · [Alexa, Google Home e l'assistente Android](docs/VOICE_ASSISTANTS.md) · i
-tuoi altri server [via SSH](docs/SSH.md) · [libri da 1.000 pagine](docs/LIBRARY.md) con risposte che
-citano la pagina · la [modalità locale privata](docs/PRIVATE_LOCAL.md) · le [chat di gruppo](docs/GROUP_CHATS.md) ·
-[il trasloco da ChatGPT, Character.AI, Replika e altre](docs/IMPORT.md).
+<p align="center">
+  <img src="docs/screenshots/v3-chat-dark.webp" alt="A companion chat in the 3.0 look: the live status strip across the top, her presence orb beside her replies, to-do and reminder cards for a calmer week, and At a glance on the right with spend today, workers, her memory map and today" width="860">
+  <br>
+  <sub>L’aspetto della 3.0: grafite con un colore d’accento a tua scelta (qui il Blu predefinito). Screenshot veri da un server di prova usa e getta con un modello scriptato e dati inventati: pianifica una settimana più tranquilla e aggiunge le attività e un promemoria come schede; la barra di stato mostra cosa è in corso e <i>In breve</i> mostra la spesa, i lavoratori, la sua mappa della memoria e la giornata.</sub>
+</p>
+
+Prima il nuovo aspetto in immagini, poi una riga per area; ogni link porta alla guida. Altri screenshot: **[Le funzioni in breve](docs/FEATURES.md)**.
+
+### Il nuovo aspetto
+
+<img src="docs/images/brand/sara-new-look.webp" alt="Illustrazione con l’etichetta Sara · the new look: Sara sorride alla sua scrivania la sera accanto a un grande monitor con un’app scura: barra laterale, fumetti di chat, schede e un pannello laterale" width="860">
+
+La 3.0 fa sembrare Sara un sistema vivo, sopra tutto quello che c’era già (nessuna pagina, impostazione, progetto o tipo di chat è sparito): una barra di stato dal vivo (lavoratori, esecuzioni, trigger, il modello che risponde, la spesa di oggi; un chip solo quando è reale), la sua sfera di presenza che ascolta, pensa e parla con lei, una cronologia dal vivo sotto le sue risposte con la scheda di approvazione dentro l’esecuzione e *verificato* solo quando una prova in sandbox o controlli puliti hanno dimostrato il passo, una mappa di ciò che ricorda e *In breve* accanto alla chat. Un solo colore d’accento (sei predefiniti o qualsiasi colore, sempre leggibile), il nome che le hai dato ovunque, il movimento dello sfondo che puoi spegnere, e Sara Classico resta com’era. La home *Tutte le impostazioni* e il launcher Ctrl K della 2.79 sono sempre a un tasto.
+
+<table>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-chat-light.webp" alt="The same chat in the Day look: light sidebar, chat and At a glance, with the to-do and reminder cards" width="420"><br><sub>L’aspetto Giorno segue il tuo sistema</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-coding.webp" alt="A coding project chat: Sara reads two files, edits src/duration.js, shows the diff, and a security pass and threat model report nothing found" width="420"><br><sub>Un progetto di codice: legge, corregge, mostra il diff; un controllo di sicurezza verifica la modifica</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-approval.webp" alt="An approval card for a git commit inside the live run, with three buttons: Allow, Always allow this tool and Deny" width="420"><br><sub>Schede di approvazione: <i>Consenti</i>, <i>Consenti sempre questo strumento</i> o <i>Nega</i></sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-launcher.webp" alt="The Ctrl K launcher with look typed: a matching conversation, settings such as Look and Appearance, and the action Reset the look to the defaults" width="420"><br><sub>Ctrl K: luoghi, chat, impostazioni e azioni in un’unica casella</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-settings.webp" alt="Settings opened on All settings: every page listed under its group (Her, You, Add-ons, Coding) with a line on what each page does" width="420"><br><sub><i>Tutte le impostazioni</i>: ogni pagina nel suo gruppo, a un clic</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-appearance.webp" alt="The Appearance page: palette cards (Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, Sara Classic), Night or Day, accent colours (Blue, Rose, Violet, Emerald, Amber, Cyan or any colour), background motion and a live preview" width="420"><br><sub>Aspetto: schede delle palette, Notte o Giorno, il tuo colore, anteprima dal vivo</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-pictures.webp" alt="Pictures from her: her portraits and new pictures, a picture engine choice, and Pictures on her own with how often and a monthly limit" width="420"><br><sub>Foto da lei: Grok, OpenAI, ComfyUI o un altro strumento di immagini</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-addons.webp" alt="Add-ons, Get more: the signed Sara Store with Weather alerts, Focus, ComfyUI and Webhook notes cards, each with a Get button" width="420"><br><sub>Componenti aggiuntivi → Scopri altro: il Sara Store firmato; niente si accende da solo</sub></td>
+  </tr>
+  <tr>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-today.webp" alt="Today: a greeting with her portrait, Getting started, routines to add and your day" width="420"><br><sub>Oggi: la tua giornata, cosa ti aspetta, routine e Per iniziare</sub></td>
+    <td width="50%" align="center"><img src="docs/screenshots/v3-planner.webp" alt="The Planner on the To-do tab: tasks with due dates and priorities, plus Board, Reminders, Notes, Her plans, Repeats and Routines tabs" width="420"><br><sub>Agenda: attività, bacheca, promemoria, note e routine</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="docs/screenshots/v3-phone.webp" alt="Two phone screens side by side: the chat with to-do and reminder cards, and Today with the Now card, both with the bottom bar" width="420"><br><sub>Sul telefono: la chat e Oggi</sub></td>
+  </tr>
+</table>
+
+### Per farti compagnia
+
+<img src="docs/images/brand/sara-for-company.webp" alt="Illustrazione con l’etichetta Sara · for company: Sara ride su un divano con una tazza di tè, un’agenda e il telefono accanto, nella luce calda di una lampada" width="860">
+
+| Area | Cosa ottieni |
+|---|---|
+| **Compagna** | Qualsiasi nome, lei/lui/loro e un aspetto, una personalità da cursori semplici o da un personaggio iniziale, umori, la sua giornata, battute ricorrenti e ricordi di ciò che le hai raccontato, che puoi vedere, correggere e dimenticare. Può mandarti foto di sé fatte con Grok, OpenAI, il tuo workflow ComfyUI o un altro strumento di immagini e, se lo attivi, ogni tanto una di sua iniziativa. [Inizia da qui](docs/START_HERE.md) · [Persone](docs/PEOPLE.md) · [Momenti](docs/MOMENTS.md) · [Foto](docs/PHOTOS.md) |
+| **Voce e chiamate** | Chiamate dal vivo che puoi interrompere, videochiamate con il suo ritratto animato, «Hey Sara» a mani libere nell’app per Windows, e Alexa, Google Home o il tuo assistente Android. [Videochiamate](docs/VIDEO_CALLS.md) · [Hey Sara](docs/HEY_SARA.md) · [Assistenti vocali](docs/VOICE_ASSISTANTS.md) |
+| **Agenda, routine e sorveglianza** | Cose da fare, note e promemoria da frasi normali, una bacheca, Oggi come schermata iniziale, una galleria di routine (briefing del mattino, resoconto settimanale…), promemoria per quando salta fuori una persona o un argomento, e avvisi facoltativi quando un log mostra una riga come ERROR. [Oggi](docs/TODAY.md) · [Routine](docs/ROUTINES.md) · [Bacheca](docs/BOARD.md) · [Sorvegliare un file](docs/WATCHES.md) |
+| **Biblioteca e lettura** | PDF (anche scansioni, e libri da 500 a 1.000 pagine), Word, Excel, PowerPoint, e-book, pagine web e note; le risposte dicono da quale documento e pagina vengono. [Biblioteca](docs/LIBRARY.md) |
+| **Scene e gioco di ruolo** | Una scena di gioco di ruolo condivisa tra le tue chat web, Telegram e Discord più una stanza condivisa, con fatti del canone che aggiungi, modifichi o ritiri; chat di gruppo con da due a quattro compagne; pacchetti compagna e schede personaggio. [Scene condivise](docs/SCENES.md) · [Chat di gruppo](docs/GROUP_CHATS.md) · [Pacchetti compagna](docs/PACKS.md) |
+
+### Per programmare
+
+<img src="docs/images/brand/sara-for-coding.webp" alt="Illustrazione con l’etichetta Sara · for coding: Sara a una scrivania di notte, il mento sulla mano, sorride al codice sul portatile accanto a un caffè e una lampada da tavolo" width="860">
+
+| Area | Cosa ottieni |
+|---|---|
+| **Progetti di codice** | Uno spazio di lavoro isolato per progetto con file, terminale e git; scrive il codice, chiede prima di eseguire un comando e mostra i risultati dei test come schede; anteprime dal vivo che prova nel suo browser. I comandi rischiosi possono girare prima in una copia isolata. Le schede di approvazione offrono *Consenti sempre questo strumento* quando ti fidi di uno strumento, e ogni server di strumenti ha un’unica scelta di approvazione. [Per chi programma](docs/FOR_CODERS.md) |
+| **Lavoro che si dimostra** | Una riga sotto ogni risposta mostra ogni comando e il suo output, e un controllo confronta ciò che *dice* di aver fatto con ciò che è stato eseguito davvero. Gli obiettivi finiscono solo quando passa il tuo controllo, le sue modifiche passano il controllo dei tipi, le affermazioni visive richiedono uno screenshot e i controlli non più attuali vengono ripetuti. [Obiettivi](docs/GOALS.md) · [Controlli](docs/CHECKS.md) · [Controlli visivi](docs/FOR_CODERS.md#web-pages-look-fix-look-again) |
+| **Lavoro lungo e condiviso** | Lavori in background, una squadra di aiutanti (pianificare → costruire → testare → rivedere), punti di ripresa del progetto, budget che fermano un’attività lunga dove dici tu, e gli altri tuoi server via SSH. [Punti di ripresa](docs/FOR_CODERS.md#project-checkpoints) · [Server via SSH](docs/SSH.md) |
+| **Nei tuoi strumenti** | GitHub, `sara-chat` in qualsiasi terminale, un pannello di VS Code, MCP per Claude Code e Cursor, e un’API compatibile con OpenAI, sempre con la sua memoria e la sua personalità. [App e client](docs/clients.md) · [Altre app](docs/OTHER_APPS.md) |
+
+### Per entrambe le cose
+
+<img src="docs/images/brand/sara-everywhere.webp" alt="Illustrazione con l’etichetta Sara · everywhere: Sara cammina per una strada di città al tramonto con gli auricolari, sorride al telefono, con un tablet nell’altra mano" width="860">
+
+| Area | Cosa ottieni |
+|---|---|
+| **App su ogni piattaforma** | App web e PWA installabile, app per Windows e Mac con la domanda veloce su una scorciatoia, [Android su Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara), l’app web nella schermata Home dell’iPhone, Telegram, Discord, Signal ed email, e WhatsApp, Matrix e iMessage come plugin facoltativi. [App desktop](docs/desktop.md) · [Il tuo telefono](docs/PHONE.md) · [Comandi della chat](docs/CHATS.md) |
+| **Componenti aggiuntivi** | Plugin, abilità e server di strumenti (MCP) dal Sara Store firmato o da una tua cartella; ognuno passa da una scheda di revisione e resta spento finché non lo accendi tu. Sfogliali e installali in Impostazioni → Componenti aggiuntivi → Scopri altro; per la 2.80 ogni server di strumenti e componente aggiuntivo è stato installato, usato e rimosso su Linux e Windows reali. [Sara Store](docs/STORE.md) · [Libreria dei componenti aggiuntivi](docs/ADDONS_LIBRARY.md) · [Abilità](docs/SKILLS.md) |
+| **Casa e azienda** | La modalità famiglia dà a ogni adulto con cui vivi uno spazio tutto suo sul tuo server; gli spazi aziendali sono un’installazione separata con passkey, ruoli e spazi condivisi. [Modalità famiglia](docs/HOUSEHOLD.md) · [Azienda](docs/BUSINESS.md) |
+| **Privacy, modelli locali e sicurezza** | Qualsiasi modello: locale (Ollama, vLLM, llama.cpp), nel cloud (OpenAI, Anthropic, xAI, OpenRouter) o i piani che paghi già (ChatGPT, Claude Pro/Max, SuperGrok / X Premium+). Un proprietario per server; chat, ricordi e chiavi restano lì. Un interruttore tiene tutto su un solo computer; arriva **senza credenziali di alcun tipo**; uno strato di sicurezza che non si può disattivare. [Modalità locale privata](docs/PRIVATE_LOCAL.md) · [Scegliere un modello](docs/CHOOSING_A_MODEL.md) · [Controllo di sicurezza](docs/SAFETY_CHECKUP.md) |
+| **Aspetto e navigazione** | Una home *Tutte le impostazioni* con ogni pagina a un clic e percorso di navigazione, Ctrl K per andare a qualsiasi luogo, chat, impostazione o azione, nove palette in Notte e Giorno (Graphite di default), il tuo colore d’accento, spaziatura compatta e decorazione completa o ridotta, con anteprima dal vivo. 3.0: barra di stato dal vivo, la sua sfera di presenza, cronologia dal vivo di ogni esecuzione, mappa della memoria e *In breve*; un accento (Blu, Rosa, Viola, Smeraldo, Ambra, Ciano o qualsiasi colore) e il movimento dello sfondo che puoi spegnere. [Aspetto](docs/APPEARANCE.md) |
+| **Aiuto e trasloco** | Un riquadro *Come faccio a…?* in ogni pagina, brevi visite guidate e il trasloco da ChatGPT, Claude, Character.AI, SillyTavern, Replika, Nomi, Kindroid, Hermes Agent o OpenClaw, controllato prima che venga salvato qualcosa. [Come faccio a…?](docs/HOW_DO_I.md) · [Portala da un’altra app](docs/IMPORT.md) · [Guida al trasloco](docs/MOVE_IN_GUIDE.md) |
 
 ## Inizia da qui
 
@@ -90,7 +136,7 @@ La guida completa, con immagini: **[Start here](docs/START_HERE.md)**. Tutte le 
 
 ### Sono qui per programmare
 
-<img src="docs/screenshots/connect-brain.webp" alt="Passo 3 di 4, Collega un cervello: quattro schede (Su questo computer, Un altro computer di casa, Nel cloud, Il mio abbonamento) e una scheda Scelto per te con il modello locale qwen3.8 27B, un'etichetta Buono per programmare e Collegato" width="560">
+<img src="docs/screenshots/connect-brain.webp" alt="Passo 3 di 4, Collega un cervello: quattro schede (Su questo computer, Un altro computer di casa, Nel cloud, Il mio abbonamento), Ollama trovato su questo computer con 2 modelli e una scheda Scelto per te con il modello locale gemma4:12b e Collegato" width="560">
 
 1. **Scegli *Programmazione*** nella configurazione: ti propone un modello bravo con il codice (*Buono per programmare*) o il tuo piano Claude Code, Codex o Grok Build.
 2. **Apri un progetto** con *+ Progetto*: una cartella di lavoro dove ha file, una shell e git.
@@ -115,15 +161,73 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 ## Novità
 
+<!-- sara:recent-releases:start -->
+
+Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti i download](https://github.com/farena-ai/sara/releases).
+
+| Versione | Cosa cambia per te |
+|---|---|
+| **[3.0.1](https://github.com/farena-ai/sara/releases/tag/v3.0.1)** | **[Ogni pagina con il nuovo aspetto](docs/APPEARANCE.md)** — Oggi, Agenda, Libreria, Memoria, Valutazioni e Impostazioni con l'aspetto 3.0, con il suo orb di presenza su Oggi. Un'unica lista di progetti nella barra laterale: cartelle che si aprono sulle loro chat con un punto di stato ciascuna, app di chat comprese. La sua immagine può essere l'orb, il suo ritratto o una tua foto con un anello vivo. Le schede delle attività si chiudono su una riga e si aprono da sole quando qualcosa ha bisogno di te; la riga della memoria dice quanti ricordi ha usato. |
+| **[3.0.0](https://github.com/farena-ai/sara/releases/tag/v3.0.0)** | **[Sara 3.0: l'aspetto di un sistema vivo](docs/APPEARANCE.md)** — Un aspetto nuovo su ogni pagina, senza togliere nulla: una barra di stato dal vivo con ciò che sta facendo, un orb di presenza che respira, ascolta, pensa e parla, le esecuzioni degli strumenti come cronologia dal vivo con le approvazioni dentro e un segno di verificato solo dove un controllo è davvero passato, una mappa di ciò che sa, un colore d'accento a tua scelta e il suo nome scelto ovunque. Sara Classica non cambia. Su Android, Hey Sara ora funziona sul telefono. |
+| **[2.88.0](https://github.com/farena-ai/sara/releases/tag/v2.88.0)** | **[Spazio di codice, Spotify, pagine del team](docs/CODING_DEPTH.md)** — Le attività di codice possono girare in un branch e una cartella propri con Unisci, Apri PR o Scarta alla fine, diagnostica e vai alla definizione con i language server, commit in co-autoria e una vista Spazio con file, editor, terminale e chat. Spotify si collega con la tua app da sviluppatore. Gli spazi aziendali hanno pagine del team con cronologia, commenti e menzioni. Hey Sara ora ascolta su Mac, Android e Linux con lo stesso motore offline di Windows, e la sua connessione agli editor è stata provata con Zed. |
+| **[2.87.0](https://github.com/farena-ai/sara/releases/tag/v2.87.0)** | **[Lavoratori fissi, controllo della spesa, aggiornamenti più sicuri](docs/WORKERS.md)** — Porta la tua compagna da Character.AI, Replika, Kindroid o Nomi. I prezzi compaiono prima dei passi a pagamento, con limiti giornalieri e mensili e una modalità Risparmio token, e i componenti aggiuntivi possono aggiornarsi da soli e tornare indietro. Gli aggiornamenti per Windows e Mac sono verificati con un avviso firmato e rimettono la versione precedente se la nuova non parte. I lavoratori che restano hanno il proprio thread, una coda di lavori duratura, lavori falliti ripetibili e un solo avviso "ha bisogno di te". Le schede della bacheca possono aspettare la tua risposta, un nuovo dispositivo aspetta un codice che approvi e lei impara come ti piace lavorare senza mai dedurre salute, religione, politica o sessualità. |
+| **[2.86.0](https://github.com/farena-ai/sara/releases/tag/v2.86.0)** | **[Imparare un argomento, trigger, app degli strumenti](docs/LEARN.md)** — Chiedile di imparare qualcosa, o dalle un sito: fa ricerche con fonti citate, lo conserva come abilità e lo aggiorna ogni giorno, settimana o mese dicendoti cosa è cambiato. I trigger "Quando succede questo" avviano un'attività o una squadra da un'email, un messaggio Slack o Teams, un webhook o un evento di un server di strumenti, con limiti, budget e approvazioni. Le app dei server MCP compaiono nella chat, isolate dalla pagina, sulla versione attuale di MCP. Altre app possono usare l'API Open Responses, e un chart Helm la esegue su Kubernetes. Accesso aziendale, SCIM, metriche, fonti di segreti, sandbox in container e link di condivisione sono stati verificati con il software reale. |
+| **[2.85.0](https://github.com/farena-ai/sara/releases/tag/v2.85.0)** | **[Riunioni, telefono come aiuto, lei al lavoro](docs/MEETINGS.md)** — Una sala riunioni in cui annuncia di essere un'IA che prende appunti e scrive un riassunto con decisioni e azioni (anche da una registrazione). Il tuo telefono può prestarle fotocamera, posizione o una schermata, con Consenti una volta o Nega ogni volta. Al lavoro ha nome, tono, memoria e strumenti propri in Slack e Teams, senza le funzioni da compagna. Più chat ricevono risposte insieme, i membri della casa possono condividere le proprie chat, gli amministratori aziendali hanno un report di spesa e il blocco legale conserva il testo precedente di ciò che viene modificato. |
+
+<!-- sara:recent-releases:end -->
+
+<details>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 2.84.0 alla 2.61.5</summary>
+
+| Versione | Cosa cambia per te |
+|---|---|
+| **[2.84.0](https://github.com/farena-ai/sara/releases/tag/v2.84.0)** | **[Controlli aziendali, editor, modalità codice](docs/SECRET_SOURCES.md)** — Le chiavi possono stare in HashiCorp Vault, 1Password, variabili d'ambiente, file di segreti o nel portachiavi di sistema. Zed e JetBrains possono usare Sara come agente di codice tramite l'Agent Client Protocol, con le approvazioni nell'editor. Le istanze aziendali accettano SCIM da Entra ID o Okta; conservazione, blocco legale ed esportazione o eliminazione per persona coprono ogni via di eliminazione. Un report di fiducia confronta ciò che ha detto con ciò che è stato eseguito, le voci dello Store mostrano dove sono state verificate, una pagina di prontezza avvia con un clic una prova di ripristino, la modalità codice esegue uno script isolato invece di molte chiamate e un SDK TypeScript senza dipendenze copre la sua API. |
+| **[2.83.0](https://github.com/farena-ai/sara/releases/tag/v2.83.0)** | **[Ricerca, Teams, squadre](docs/RESEARCH.md)** — Fai una domanda di ricerca e ricevi un report in cui ogni frase cita una pagina che ha letto (PDF, Word o Markdown). Microsoft Teams si aggiunge a Slack. Le squadre sono gruppi fissi di aiutanti con un capo e orari; un riordino notturno facoltativo della memoria unisce i doppioni, con Annulla per ogni modifica. I comandi possono girare in un container Podman o Docker senza root ed essere limitati ai siti consentiti; le conversazioni si possono condividere come link in sola lettura che scadono; i report di uso e costo coprono ogni persona, spazio e progetto. |
+| **[2.82.0](https://github.com/farena-ai/sara/releases/tag/v2.82.0)** | **[Programmi con un clic, 21 compagni](docs/PREREQUISITES.md)** — Quando un componente ha bisogno di un programma che il computer non ha, le Impostazioni dicono cosa manca e offrono *Installalo per me*: approvi il comando esatto, lo vedi eseguire e l'installazione del componente continua (solo il proprietario, registrato nell'audit, disattivabile da un criterio). Ventuno compagni con ritratto, voce e limiti chiari sono nello Store firmato, da tutor di lingue e un allenatore a una compagna di scrittura, un cofondatore di startup e una capitana di nave celeste. Su Linux i server di strumenti per browser trovano il Chrome installato. |
+| **[2.81.0](https://github.com/farena-ai/sara/releases/tag/v2.81.0)** | **[Pronta per il lavoro e i team](docs/SLACK.md)** — Sara arriva su Slack con messaggi diretti, menzioni, thread, pulsanti Consenti e Nega e file in entrambe le direzioni. Le istanze aziendali possono accedere con Entra ID, Google Workspace, Okta o Keycloak (solo su invito per impostazione predefinita; la passkey del proprietario funziona sempre). Un'unica traccia di audit a prova di manomissione si esporta in CSV o JSONL, un amministratore può bloccare impostazioni che il server fa rispettare e gli operatori hanno metriche Prometheus e tracce OpenTelemetry senza testo della chat. |
+| **[2.80.0](https://github.com/farena-ai/sara/releases/tag/v2.80.0)** | **[Ogni installatore verificato da cima a fondo](docs/ADDONS_LIBRARY.md)** — Ogni server di strumenti e componente nativo delle Impostazioni è stato installato, configurato, collegato, usato e rimosso su un vero server Linux e un vero PC Windows. Aggiornare un server di strumenti mantiene le sue impostazioni, il server Files parte nell’isolamento di Linux, gli errori di accesso e di connessione sono spiegati in parole semplici, un componente dello Store rimosso si può reinstallare e ritirare una compagna appena aggiunta non ferma più il server. |
+| **[2.79.0](https://github.com/farena-ai/sara/releases/tag/v2.79.0)** | **[Aspetto avanzato e immagini come una persona](docs/PHOTOS.md)** — Una home Tutte le impostazioni con ogni pagina a un clic, percorsi di navigazione, un avvio Ctrl K, un aspetto raffinato di vetro e luce e una pagina Aspetto più ricca. *Consenti sempre questo strumento* sulle schede di approvazione e un’unica scelta di approvazioni per server di strumenti; le sue foto con Grok, OpenAI, il tuo flusso ComfyUI o un altro strumento di immagini, e ogni tanto un’immagine di sua iniziativa se lo attivi. Le immagini dei server di strumenti arrivano in chat e non dice più di aver mandato qualcosa mai allegato. |
+| **[2.78.0](https://github.com/farena-ai/sara/releases/tag/v2.78.0)** | **[Aspetto professionale completo e più componenti](docs/APPEARANCE.md)** — L’aspetto professionale è completo: nome, ora e durata su ogni turno, un’unica etichetta modello · spazio di lavoro con indicatore del contesto, Impostazioni come pannello a tutta altezza, Progetti nella barra laterale e tabelle vere per uso ed esecuzioni. Documentation Doctor, Release Readiness e Repository Onboarding eseguono i comandi documentati come lavori che approvi in una copia usa e getta; su Windows un lavoro fermato termina subito. |
+| **[2.77.0](https://github.com/farena-ai/sara/releases/tag/v2.77.0)** | **[Un aspetto professionale](docs/APPEARANCE.md)** — Un aspetto sobrio, denso e preciso (Impostazioni → Tu → Aspetto): 9 palette in Notte e Giorno, un colore d’accento tuo, spaziatura compatta e Meno decorazioni; Sara Classic mantiene l’aspetto di oggi. Inoltre: i feed in Leggere insieme, Test Doctor e Flaky Test Lab, 2 connessioni locali per sviluppatori, e le approvazioni tardive dei plugin non eseguono più nulla. |
+| **[2.76.0](https://github.com/farena-ai/sara/releases/tag/v2.76.0)** | **[Componenti per sviluppatori](docs/ADDONS_LIBRARY.md)** — Diciannove componenti per sviluppatori si aggiungono ai dodici flussi in Impostazioni → Plugin (scanner di segreti, verificatore di accessibilità, generatore di SBOM, guardiano dei contratti API, banco HTTP e webhook e altro); li esamini uno per uno e si installano spenti. Gli avvisi sui file possono arrivare anche nella tua chat Telegram o Discord (spento per impostazione predefinita). |
+| **[2.75.0](https://github.com/farena-ai/sara/releases/tag/v2.75.0)** | **[Le chiamate come la chat](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call)** — In una chiamata vocale o video ha gli stessi ricordi, il contesto delle altre chat e la regola della modalità adulti di quando scrivi, e le chiamate dal vivo possono usare i suoi strumenti (niente comandi, mani o SSH). Ciò che richiede il tuo OK mostra una scheda sullo schermo della chiamata a cui risponde solo un tocco; riattaccare o parlarle sopra la annulla. |
+| **[2.74.0](https://github.com/farena-ai/sara/releases/tag/v2.74.0)** | **[Leggere insieme](docs/LIBRARY.md#read-together)** — Apri un documento di testo o Markdown della tua biblioteca, premi Condividi questo passaggio (o attiva Segui il punto in cui sono) e lei commenta esattamente quel testo in quella versione; se è cambiato te lo dice. Ferma lo interrompe subito. Inoltre: le schede dei suggerimenti ora mostrano che la pressione è in corso. |
+| **[2.73.0](https://github.com/farena-ai/sara/releases/tag/v2.73.0)** | **[Sorvegliare un file](docs/WATCHES.md)** — Scegli un log o un file in uno dei tuoi spazi di lavoro (o il suo log) e alcune parole come ERROR; Sara invia una scheda in chat e una notifica quando compare una nuova riga corrispondente, al massimo 12 al giorno. Controlla ora, Pausa e Ferma; la lettura non usa modelli e non corregge mai nulla da sola. |
+| **[2.72.0](https://github.com/farena-ai/sara/releases/tag/v2.72.0)** | **[Verifiche visive oneste](docs/FOR_CODERS.md#web-pages-look-fix-look-again)** — Nel lavoro web Sara modifica, mostra l’anteprima, fa screenshot desktop e telefono, corregge ciò che appare sbagliato e ricontrolla. Dire di aver controllato la larghezza telefono richiede uno screenshot a quella larghezza, e "è risolto" richiede una verifica dopo l’ultima modifica; altrimenti la risposta è segnata come non verificata. |
+| **[2.71.0](https://github.com/farena-ai/sara/releases/tag/v2.71.0)** | **[Continuità dei progetti](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks)** — Le tue chat di codice sullo stesso progetto vedono cosa fanno le altre (titoli e file, mai il testo dei messaggi), e ogni risultato di verifica, obiettivo o checkpoint indica aggiornato, superato o base sconosciuta. Sara ripete una verifica superata prima di dire che passa. |
+| **[2.70.0](https://github.com/farena-ai/sara/releases/tag/v2.70.0)** | **[Scene di gioco di ruolo condivise](docs/SCENES.md)** — Una storia nelle tue chat web, Telegram e Discord più una stanza condivisa, con fatti versionati che aggiungi, modifichi o ritiri. Gli ospiti mantengono tutte le regole da partner; le loro parole contano solo quando scegli Aggiungi alla scena. Eliminare o dimenticare una riga cancella ciò che ne deriva; i controlli di sicurezza valgono per ogni scena. |
+| **[2.69.0](https://github.com/farena-ai/sara/releases/tag/v2.69.0)** | **[Componenti nelle Impostazioni](docs/ADDONS_LIBRARY.md)** — Dodici flussi su dati forniti usano la normale verifica di file e permessi e partono disattivati. Sette anteprime di ricette MCP, quattordici indagini bloccate e sei guide spiegano requisiti, costi e limiti. Nessuna installazione, connessione o attivazione automatica; la disponibilità nello store firmato resta separata. |
+| **[2.68.0](https://github.com/farena-ai/sara/releases/tag/v2.68.0)** | **[Contesto tra le tue conversazioni](docs/SESSION_CONTINUITY.md)** — Contesto recente tra chat consentite del proprietario con la stessa compagna, lettura limitata della cronologia, note interne e passi ordinati del fornitore. Controllo del proprietario, ispezione e cancellazione confermata del solo destinatario scelto; privacy e approvazioni degli strumenti restano valide. Scene condivise, coordinamento dei progetti e piena parità di voce e video restano sviluppi futuri. |
+| **[2.67.0](https://github.com/farena-ai/sara/releases/tag/v2.67.0)** | **[Segnali recenti e aggiornamenti sugli eventi](docs/ATTUNEMENT.md)** — Segnali espliciti e circoscritti del proprietario in sei lingue e domande sugli eventi basate su fonti verificate. I **[punti di ripresa del progetto](docs/FOR_CODERS.md#project-checkpoints)** conservano logica, blocchi e fino a tre prossimi passi, con cinque versioni e controlli per consultare, sostituire o cancellare; il contesto storico non esegue comandi e non trasferisce vecchie approvazioni. |
+| **[2.65.0](https://github.com/farena-ai/sara/releases/tag/v2.65.0)** | **[Configurazione aziendale guidata](docs/BUSINESS.md)** — Primo utilizzo e amministrazione guidati, cronologia degli inviti nel proprio ambito autorizzato, revoca, verifica della configurazione in sola lettura ed esercitazioni ripetibili di browser e ripristino. |
+| **[2.64.0](https://github.com/farena-ai/sara/releases/tag/v2.64.0)** | **[Spazi aziendali separati](docs/BUSINESS_OPERATIONS.md)** — Passkey individuali, ruoli, testi e documenti condivisi, limiti dei modelli controllati dall’operatore e ripristino cifrato. Dati personali e domestici restano separati. |
+| **[2.63.1](https://github.com/farena-ai/sara/releases/tag/v2.63.1)** | **[Gestione misurata](docs/OPERATIONS.md)** — Misure HTTP e di preparazione solo per il proprietario, archiviazione sicura delle consegne risolte, backup senza bloccare l’app e verifiche locali ripetibili. |
+| **[2.62.0](https://github.com/farena-ai/sara/releases/tag/v2.62.0)** | **[Ripristino senza ripetizioni alla cieca](docs/RECOVERY.md)** — Rivedi i lavori interrotti prima di riavviarli; gli invii nativi Telegram/Discord incerti restano visibili, senza reinvio automatico. |
+| **[2.61.5](https://github.com/farena-ai/sara/releases/tag/v2.61.5)** | **[Trova il prossimo passo](docs/START_HERE.md)** — Ricerca mirata nelle Impostazioni, percorso più semplice al primo messaggio e navigazione migliore con tastiera, tocco e movimento ridotto. |
+
+Inoltre in 2.67.0: accesso affidabile ai Progetti di codice dalla ricerca nelle Impostazioni, bozze conservate e gestione delle risposte obsolete, privacy delle conoscenze del progetto nelle chat senza registrazione e controllo locale di aggiornamento delle sei pagine di versione. Nessuna CI né controllo ricorrente dei rilasci. I punti di ripresa sono riservati al proprietario e al relativo spazio/progetto; eliminare, modificare o dimenticare i contenuti di origine coperti invalida i record derivati. Le azioni di codice in attesa, comprese quelle degli assistenti del team e l’applicazione delle modifiche della sandbox, ricontrollano i permessi attuali e il contesto della conversazione e dello spazio di lavoro prima dell’esecuzione; un cambio di contesto ferma l’azione obsoleta invece di spostarla.
+
+La versione 2.67.0 distingue inoltre le critiche al codice dai conflitti rivolti a Sara, ricontrolla le fonti dei segnali e delle domande sugli eventi immediatamente prima della normale chiamata al fornitore e chiude automaticamente gli elementi di Agenda solo con prove chiare dell’evento, del risultato e della domanda corrispondente. Vita interiore resta il controllo di attivazione; non ci sono diagnosi emotive, chiamate aggiuntive a un classificatore o nuovi profili dell’umore del proprietario. I nuovi segnali escludono chat private o senza registrazione, membri, gruppi, contesti esterni, riproduzione e lavoro senza supervisione. Prompt registrati, esportazioni e backup possono conservare note con i controlli abituali; la riproduzione omette i nuovi extra transitori registrati e segnala che gli input sono cambiati. Questa versione corregge anche l’identificazione automatica della revisione sorgente dell’installer Windows.
+
+</details>
+
+<!-- sara:release-history:start -->
+
+<details>
+<summary><b>Novità precedenti · 2.61, 2.60 e 2.59</b></summary>
+
 - **2.61** ·  Configurare le app di chat è più semplice: una scheda guidata per WhatsApp, Matrix, iMessage, Signal, email e Telegram, ogni passo verificato, con soluzioni chiare; i plugin di Sara chiedono solo un OK, non un avviso per sviluppatori.
 - **2.60** · Pacchetti compagna: condividi carattere, aspetto, voce e skill iniziali di una compagna come file o sul Sara Store, senza mai condividere i tuoi ricordi o le tue chat; si importano anche le schede personaggio.
 - **2.59** · «Hey Sara»: di' il suo nome per parlare a mani libere nell'app per Windows (un piccolo modello sul tuo computer ascolta solo quello), una scorciatoia per parlare ovunque, e ascolto e voci locali su Windows.
+
+</details>
 
 <details>
 <summary><b>Cronologia delle versioni</b>: cosa ha portato ogni versione dalla 2.4</summary>
 
 | Versione | Cosa ottieni |
 |---|---|
+| **2.61.4** · [v2.61.4](https://github.com/farena-ai/sara/releases/tag/v2.61.4) | **[Configurazione più affidabile](docs/SECURITY_CHECKLIST.md)** — Riprendi la configurazione del modello dopo averla saltata, mantieni il focus mobile al posto giusto e distingui l’approvazione dei comandi dall’isolamento di esecuzione. |
 | **2.60** · Pacchetti compagna | **Condividila:** Impostazioni → Lei → ⋯ → *Condividila* crea un pacchetto con esattamente ciò che spunti (carattere, cursori, aspetto, guardaroba, voce, primo messaggio, skill, routine suggerite) e mostra cosa non esce mai: ricordi, chat, persone, chiavi, il tuo nome (diventa `{{user}}`), le tue note sulla relazione e i tuoi limiti. **Installa un pacchetto** come nuova compagna, mai sopra una che hai già, tramite una scheda di revisione; gli aggiornamenti mostrano cosa ha cambiato l'autore e tengono le tue modifiche. Le schede personaggio V1/V2/V3 (PNG, JSON, CHARX) si importano come pacchetti, e un lorebook diventa poche righe di sfondo, mai ricordi. Il controllo sui minori avviene alla creazione, alla revisione e all'installazione, senza eccezioni; le classificazioni seguono la modalità adulti. Quattro compagne iniziali nel negozio: Juniper, Rowan, Vesper e Jax. Sistemato anche: esportare una scheda personaggio non include più il tuo nome né le tue note. |
 | **2.59** · «Hey Sara» | **Di' il suo nome e parla** nell'app per Windows: un modello da 5 MB sul tuo computer ascolta solo «Hey Sara» (o parole tue per ogni compagna), e non viene inviato nulla finché non le dici; la registrazione parte dopo la frase, l'audio non viene mai conservato e un punto sull'icona nella barra mostra quando ascolta. Spento finché non lo accendi, su ogni dispositivo; in pausa a schermo bloccato; se due dispositivi ti sentono, risponde uno. **Parla con Sara** con Ctrl+Alt+Spazio o dalla barra, e su Android con un pulsante Parla nella notifica e un riquadro nelle impostazioni rapide. L'avviso IA viene detto per primo e l'aiuto in caso di crisi letto per intero. **Ascolto e voci locali su Windows:** `sara voice install` (circa 650 MB, ogni file controllato), prima solo su Linux. Mac, Linux e il rilevatore Android sempre in ascolto arrivano dopo. |
 | **2.58** · Prendine altri | **Impostazioni → Abilità → Prendine altri:** sfoglia e cerca nel Sara Store, apri un elemento e installalo con un clic tramite la solita scheda di revisione (niente si accende da solo). I server di strumenti hanno una scheda con il comando esatto (e la sua forma per Windows), cosa serve, cosa può raggiungere e se è isolato; le chiavi vanno nella cassaforte. **Gli aggiornamenti** mostrano esattamente cosa cambia, con i nuovi permessi evidenziati, e puoi tornare indietro. **I miei componenti** elenca tutto con la provenienza. **Invia i tuoi:** `sara pack` controlla un plugin, una skill o un server di strumenti sul tuo computer (manifest, permessi, ricerca di segreti, prova rapida isolata, screenshot), poi *Invia* nelle impostazioni o `sara submit` lo spedisce, firmato con la tua chiave d'autore. Il team di Sara lo controlla prima di pubblicarlo, e in *I miei invii* puoi seguirlo e rispondere. Segnalazioni e rimozioni spengono un componente, non lo cancellano mai. |
@@ -213,181 +317,38 @@ Guide di un minuto, registrate su un server di prova con un modello locale (in i
 
 </details>
 
+<!-- sara:release-history:end -->
+
 Tutte le versioni: [CHANGELOG.md](CHANGELOG.md) · [versioni](https://github.com/farena-ai/sara/releases).
 
 ### In arrivo
 
-In ordine di costruzione, una versione ciascuna ([l'elenco completo](docs/ROADMAP.md)):
+Consulta il [piano pubblico](docs/ROADMAP.md) per il lavoro rimasto e [Discussions](https://github.com/farena-ai/sara/discussions) per le idee. Gli spazi aziendali sono disponibili; validarli sul tuo dominio, con colleghi reali e una prova di ripristino, è un passo separato. Su iPhone, usa l’[app web nella schermata Home](docs/PHONE.md).
 
-- **Poi** (2.61): foto e file nelle app di chat, parlarle mentre lavora, Signal, email, WhatsApp, iMessage (BlueBubbles) e SMS, «continua finché è fatto», controlli del codice dopo ogni modifica, una galleria di routine e **il Sara Store** per plugin, abilità e server MCP (ComfyUI, Blender, Playwright…) con installazione in un clic e un modo per inviare i tuoi.
-- L'app per iPhone (in attesa di Apple) e le tue idee nelle [Discussions](https://github.com/farena-ai/sara/discussions).
+## Per sviluppatori
 
-Il piano completo: [docs/ROADMAP.md](docs/ROADMAP.md).
+<img src="docs/images/brand/sara-for-developers.webp" alt="Illustrazione con l’etichetta Sara · for developers: Sara a un banco da officina mentre inserisce pezzi di puzzle luminosi e ingranaggi d’ottone in una piccola macchina" width="860">
 
-## Le funzioni in breve
+Piccola e leggibile: TypeScript che Node esegue direttamente, nessuna fase di build, zero dipendenze a runtime, costruita da zero (non basata su Hermes Agent né su OpenClaw).
 
-Tutte le schermate vengono da un vero server di prova usa e getta con un modello locale (qwen3.8 27B su
-Ollama), con l'accesso fatto come l'utente di esempio «Alex». Notte è il tema predefinito.
+| Vuoi… | Parti da |
+|---|---|
+| Vedere come si incastra tutto | [Architettura](docs/ARCHITECTURE.md), modulo per modulo (schema qui sotto) |
+| Aggiungere uno strumento, un ponte, un personaggio, un server MCP, una lingua, un progetto iniziale o un fornitore di modelli | [Estendere Sara](docs/EXTENDING.md) |
+| Creare un componente aggiuntivo per lo Store o una ricetta di server di strumenti | [Libreria dei componenti aggiuntivi](docs/ADDONS_LIBRARY.md) · [Sara Store: invia il tuo](docs/STORE.md) · [Plugin](docs/PLUGINS.md) |
+| Eseguire i controlli | `npm run check` (controllo dei tipi e tutti i test, con un modello scriptato e senza chiamate ai provider) · `node scripts/check-links.ts` · [CONTRIBUTING.md](CONTRIBUTING.md) |
+| Scrivere un plugin o un’abilità | [Plugin](docs/PLUGINS.md) (`sara-plugin.json`, hook, processi isolati) · [Abilità](docs/SKILLS.md) (il formato aperto Agent Skills) · [Inviare allo Store](docs/STORE.md) |
+| Chiamare Sara dal tuo codice | [Altre app](docs/OTHER_APPS.md): API compatibile con OpenAI e server MCP · [Altri agenti (A2A)](docs/A2A.md) · [Webhook](docs/WEBHOOKS.md) |
+| Controllare i numeri | [Risultati](docs/RESULTS.md): benchmark e valutazioni, e come ripeterli |
+| Contribuire | [CONTRIBUTING.md](CONTRIBUTING.md) · [Issue per iniziare](docs/GOOD_FIRST_ISSUES.md) · [Tradurre](docs/TRANSLATING.md) · [Politica di sicurezza](SECURITY.md) |
 
-### Per farti compagnia
-
-Parlare, organizzare la giornata, ricordare ciò che conta, e una personalità che modelli tu.
-
-#### Compagna
-
-<img src="docs/screenshots/companion.webp" alt="Aspetto Notte: Alex dice che è stata una settimana lunga e chiede un promemoria e due cose da fare; Sara risponde con calore, con una scheda Promemoria impostato e due schede Attività aggiunta, e una riga sotto la risposta dice cosa ha fatto" width="760">
-
-Un carattere tutto suo e umori che cambiano a seconda di come vanno le cose (l'alone attorno al suo
-ritratto prende il colore del suo umore), una sua giornata e i suoi hobby, la memoria di ciò che conta
-per te e delle date a cui tieni (puoi vedere, correggere o dimenticare qualsiasi cosa), un riepilogo
-settimanale, messaggi di sua iniziativa se vuoi (con ore di silenzio) e una linea del tempo della
-vostra storia. Arrivi da un'altra app? Porta le tue chat da ChatGPT, Claude, Character.AI,
-SillyTavern, Replika, Nomi o Kindroid e approva prima ciò che impara ([docs/IMPORT.md](docs/IMPORT.md)).
-Oppure riunisci da due a quattro delle tue compagne in una chat di gruppo
-([docs/GROUP_CHATS.md](docs/GROUP_CHATS.md)). Tutto su una sola macchina? Attiva **Niente esce da
-questo computer** ([docs/PRIVATE_LOCAL.md](docs/PRIVATE_LOCAL.md)).
-
-#### Oggi
-
-<img src="docs/screenshots/today.webp" alt="Oggi: un Good afternoon, Alex con il suo ritratto e il suo umore, un riquadro Come faccio a…?, La tua giornata come una linea del tempo e il meteo di Chicago per le prossime ore" width="760">
-
-Dove si apre Sara: il suo volto, il suo umore e un saluto, poi *La tua giornata* come una linea del tempo (eventi, promemoria e cose da fare con il meteo), *Ti aspetta* (approvazioni, lavori falliti, scadenze passate e posta), *Con lei*, *Lavoro* e *Casa e altro*. I riquadri vuoti si chiudono e *Personalizza* sposta, ridimensiona o nasconde qualsiasi riquadro. Sul telefono si apre con una scheda *Adesso* ([docs/TODAY.md](docs/TODAY.md)).
-
-#### Agenda
-
-<img src="docs/screenshots/planner.webp" alt="La scheda Da fare dell'Agenda: preparare la borsa della palestra (oggi, 17:00), sistemare la scrivania prima della visita di Maya (venerdì), comprare latte d'avena e finire le slide del Q4" width="760">
-
-Attività, note e promemoria da frasi normali, consegnati nella chat, come notifiche sul telefono o
-sul computer (Fatto / Più tardi nelle app per Windows e Mac) e su Telegram o Discord; un riepilogo
-del mattino; promemoria legati ai luoghi dall'app per telefono.
-
-#### Fallo a modo tuo
-
-<img src="docs/screenshots/dials.webp" alt="Nome e personalità: i cursori della personalità per gruppi, ognuno con i suoi estremi, la parola di dove si trova, un numero e una frase con la sua voce che cambia mentre lo sposti" width="760">
-
-Qualsiasi nome, pronomi, età e aspetto (dipinto da Grok Imagine, con espressioni e animazioni
-coordinate), una procedura guidata «crea la tua compagna», cursori di personalità, una galleria di
-personaggi iniziali, file di personaggio da condividere, un modello per ogni compito e tutta l'app,
-la guida e i suoi messaggi in sei lingue. Ogni impostazione ha il suo **?**, ci sono brevi tour
-guidati e puoi semplicemente chiederle come funziona qualcosa.
-
-#### Biblioteca
-
-<img src="docs/screenshots/library.png" alt="Sara answers a book-club question from a Project Gutenberg copy of Jekyll and Hyde, citing p. 6 and p. 9 as links; beside it, the page she read, opened at p. 6 with the passage highlighted" width="860">
-
-Dalle PDF (anche scansionati, e libri da 500 a 1.000 pagine), Word, Excel, PowerPoint, e-book, pagine
-web e note. Ne impara i punti chiave, risponde partendo da lì e dice da quale documento e pagina viene
-la risposta, con un link che lo apre proprio lì ([docs/LIBRARY.md](docs/LIBRARY.md)).
-
-#### Voce
-
-<img src="docs/screenshots/voice.png" alt="The Voice settings page in the Night look: hearing you, her voice, expressive voice, tone, her voice following her mood, live calls and how often she looks during video calls" width="760">
-
-Chiamate dal vivo che puoi interrompere (voce in tempo reale di Grok o OpenAI), videochiamate con il
-suo ritratto in movimento ([docs/VIDEO_CALLS.md](docs/VIDEO_CALLS.md)), note vocali su Telegram e
-Discord, lettura ad alta voce, una voce che segue il suo umore e un ritratto animato che parla, con il
-labiale sincronizzato su nove forme della bocca. Parlale su un Echo con la tua skill Alexa, rendila il
-tuo assistente Android o ascoltala sugli altoparlanti Google Home
-([docs/VOICE_ASSISTANTS.md](docs/VOICE_ASSISTANTS.md)). Le voci girano sul tuo server Linux o arrivano
-dal tuo abbonamento. (Schermata da un server di prova con Windows, dove la voce locale non è ancora
-disponibile.)
-
-#### Sul telefono
-
-<img src="docs/screenshots/phone.webp" alt="Due schermate del telefono: Oggi che si apre con una scheda Adesso (le prossime cose, 58° e nuvoloso, il suo umore) e La tua giornata; una chat con schede di promemoria e attività sopra la barra dei messaggi e la barra in basso fluttuante" width="860">
-
-Lo stesso aspetto sul telefono: una barra in basso fluttuante (Chat, Oggi, Agenda, Altro), la sua
-presenza in un foglio che tiri su dal suo viso e la barra dei messaggi sopra la tastiera. Notte di
-default; Giorno o *segui il sistema* in Impostazioni → Aspetto.
-
-### Per programmare
-
-Uno spazio di lavoro per progetto, approvazioni prima di tutto ciò che è rischioso, e una traccia di ciò che è girato davvero.
-
-#### Compagna di programmazione
-
-<img src="docs/screenshots/coding.webp" alt="Una chat di codice nello spazio tip-calculator: una scheda Test falliti (3 passati, 3 falliti), la sua spiegazione del bug di arrotondamento trovato nel suo stesso codice, una scheda Test superati con 6, e la riga dei passi sotto la risposta" width="760">
-
-Uno spazio di lavoro per progetto con file, terminale e git (commit e push con il tuo ok); ogni file
-che scrive compare dal vivo nella chat mentre il modello lo trasmette; build e test lunghi in
-background, con un avviso alla fine; un'anteprima dal vivo dell'app che sta costruendo, che collauda in
-un vero browser senza interfaccia e di cui allega schermate; una mappa del codice per i progetti
-grandi; progetti iniziali collaudati; una squadra di aiutanti (pianificare → costruire → collaudare →
-rivedere) da una issue di GitHub a una pull request revisionata; i tuoi altri server via SSH con la sua
-chiave ([docs/SSH.md](docs/SSH.md)); passaggio a Claude Code o Grok Build; strumenti MCP; annullamento
-delle modifiche ai file; un contatore di token e costi con budget; e un controllo, in tutte e sei le
-lingue, che ciò che *dice* di aver fatto corrisponda a ciò che è stato davvero eseguito (facoltativamente
-giudicato da un piccolo modello locale).
-
-#### La sua presenza
-
-<img src="docs/screenshots/ask-first.webp" alt="Una chat di codice: Sara ha scritto tip.js e test.js e chiede prima di eseguire node --test, con Consenti e Nega nella chat e nel suo pannello, che dice In attesa del tuo OK ed elenca le attività di oggi" width="760">
-
-Un pannello accanto a ogni chat (sul telefono un foglio da tirare su) con il suo ritratto che brilla
-del colore del suo umore e **Adesso**: cosa sta facendo, le approvazioni in attesa con Consenti /
-Nega, i lavori in background con l'ultima riga e Ferma; poi le prossime cose della giornata, le note
-che ha usato per l'ultima risposta (chiuse finché non le apri) e modello, spazio di lavoro e privacy
-della conversazione. Sotto ogni risposta una riga discreta dice cosa ha fatto («Ricordate 6 cose ·
-Promemoria creato 0,1 s»); toccala per vedere comandi, output e Annulla.
-
-#### Mentre programmi
-
-<img src="docs/screenshots/work-dials.webp" alt="Impostazioni, Progetti di codice: i cursori di come si comporta mentre programmi (Chiacchiere mentre lavora, Festeggiamenti, Prese in giro sui bug), ognuno con una frase di esempio, Silenziosa quando sono concentrato e la scelta dello spazio di lavoro" width="760">
-
-Quanto chiacchiera mentre lavora, quanto festeggia i test verdi e se ti prende in giro per un errore di uno: ogni cursore mostra una frase di esempio, e *Silenziosa quando sono concentrato* la tiene breve mentre lanci comandi. Nella stessa pagina c'è quello che sa di ogni progetto ([docs/FOR_CODERS.md](docs/FOR_CODERS.md)).
-
-#### Barra dei comandi
-
-<img src="docs/screenshots/command-bar.webp" alt="La barra dei comandi Ctrl+K sopra Oggi: scrivendo pla trova l'Agenda, due conversazioni e le impostazioni corrispondenti" width="760">
-
-Ctrl+K / ⌘K (o la lente sul telefono) porta a qualsiasi posto, conversazione (anche tramite parole
-nei messaggi), pagina delle impostazioni o singola impostazione, oppure esegue un'azione: nuova
-conversazione, riservata, chiamata, cambia compagna, cambia tema.
-
-### Per entrambe le cose
-
-La stessa Sara su ogni dispositivo, aiuto in ogni pagina e un livello di sicurezza sempre attivo.
-
-#### Ovunque
-
-<img src="docs/screenshots/everywhere.png" alt="Sara on a phone answering a book-club question from her library, citing the page" width="260">
-
-Web app e PWA installabile, app per Android e iPhone ([android/](android/README.md),
-[ios/](ios/README.md)), app desktop per Windows e macOS con la pagina disegnata fin nella barra del
-titolo, domanda rapida su una scorciatoia, notifiche con Consenti / Nega e *Invia a → Sara* per i file
-([docs/desktop.md](docs/desktop.md)), ponti con Telegram e Discord, `sara-chat` in qualsiasi terminale
-e un pannello per VS Code ([docs/clients.md](docs/clients.md)), Gmail e Google Calendar tramite la tua
-app Google, Home Assistant, conversazioni riservate che non vengono mai salvate, più Sara in un'unica
-app ([docs/SERVERS.md](docs/SERVERS.md)), un server condiviso per la tua casa con uno spazio per ogni
-adulto ([docs/HOUSEHOLD.md](docs/HOUSEHOLD.md)) e altre app con la sua memoria e la sua personalità:
-un'API compatibile con OpenAI (SillyTavern, Open WebUI, script), un server MCP (Claude Code, Cursor,
-Claude Desktop; [presente su Glama](https://glama.ai/mcp/servers/farena-ai/sara)) e schede personaggio
-da importare ed esportare ([docs/OTHER_APPS.md](docs/OTHER_APPS.md)).
-
-#### Aiuto in ogni pagina
-
-<img src="docs/screenshots/howto.webp" alt="Il riquadro Come faccio a…? aperto in cima a Nome e personalità: Come le cambio il nome? con tre passi numerati e un pulsante Mostrami, poi altre due domande" width="760">
-
-Ogni pagina e ogni vista inizia con un riquadro **Come faccio a…?**: da due a quattro domande con passi numerati, e *Mostrami* indica il controllo. Le pagine vuote dicono cosa ci va e propongono un passo successivo. Tutte le 123 risposte in un elenco: [docs/HOW_DO_I.md](docs/HOW_DO_I.md).
-
-#### Sicurezza, sempre attiva
-
-Le azioni rischiose aspettano il tuo ok (su Windows, che non ha isolamento dei comandi, lo aspetta
-ogni comando): nella chat, nel suo pannello o come notifica con Consenti / Nega nelle app per Windows
-e Mac. Lo strato di sicurezza gira nel codice attorno a ogni chiamata al modello e **non si può
-disattivare**: avviso che è un'IA all'inizio e poi regolarmente, una risposta onesta ogni volta che le
-si chiede sul serio se è un'IA, risorse di aiuto nelle crisi e un blocco totale dei contenuti sessuali
-che coinvolgono minori ([docs/COMPLIANCE.md](docs/COMPLIANCE.md),
-[docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)). Backup quotidiani (più copie cifrate fuori dal server),
-ripristino e aggiornamento con un solo comando, e `sara doctor` la mantengono in forma.
-
-## Come si incastra tutto
+### Come si incastra tutto
 
 <img src="docs/architecture.svg" alt="Architecture: apps and bridges talk to one Sara server; each turn passes the always-on safety layer, gathers memory and library context, calls the chosen model provider and runs tools in a sandboxed workspace; data stays in one folder on your server" width="860">
 
 Altri dettagli in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-## Collaudata, con risultati pubblicati
+### Collaudata, con risultati pubblicati
 
 Tutto quello che segue è stato eseguito davvero; gli script sono nel repository, quindi puoi
 rieseguirli con i tuoi modelli. Date, configurazione e file dei risultati:
@@ -414,9 +375,29 @@ uno SPEC che nessun test controllava. Quello che aggiunge oggi è il modo di lav
 chiede prima dei passi rischiosi, mostra cosa è stato eseguito), non un punteggio più alto su questi
 insiemi. Dettagli, risultati per compito e come rieseguirlo: [docs/RESULTS.md](docs/RESULTS.md).
 
-In più, `npm run check`: un controllo dei tipi e 1893 test automatici con un finto modello guidato
-da script (senza rete, senza GPU): 1878 passano su Windows e gli altri 8 sono test dell'isolamento
-solo per Linux, eseguiti su un server Linux.
+<details>
+<summary><b>Validazione delle versioni</b>: 2.69.0, 2.67.0 e 2.65.0</summary>
+
+Qualificazione del codice di 2.69.0: controllo dei tipi e **3033 test automatici**; Windows **3017 superati / 0 falliti / 16 saltati**, Linux **3018 superati / 0 falliti / 15 saltati**, più tredici percorsi isolati del browser su desktop e mobile. I pacchetti reali Windows e Mac, quest’ultimo firmato e notarizzato, hanno superato i rispettivi profili di ripristino e regressione e le verifiche dei componenti; le immagini container di entrambe le architetture hanno superato i controlli di stato; Windows non è firmato. Le verifiche usano dati sintetici e modelli simulati. Esecuzione fisica Intel/Rosetta, accettazione su dispositivi e lettori di schermo, tono naturale con modelli reali e ripristino di produzione restano verifiche separate.
+
+Qualificazione della versione 2.67.0 (5 novembre 2026): controllo dei tipi e 2632 test automatici; Windows **2616 superati / 0 falliti / 16 saltati**, Linux **2617 superati / 0 falliti / 15 saltati**. I pacchetti reali Windows, Mac ed entrambe le architetture dei container hanno superato ciascuno il ripristino cifrato, 12 casi di riconvalida delle autorizzazioni e 286 regressioni E2, con hash dei contenuti corrispondenti. Il pacchetto universale Mac è firmato e notarizzato; Windows non è firmato. Si usano dati sintetici e modelli simulati. Esecuzione fisica Intel/Rosetta, dispositivi e lettori di schermo, tono del modello reale e ripristino di produzione restano verifiche separate.
+
+Risultati della versione precedente — Validazione di **2.65.0**: controllo dei tipi e 2.153 test automatizzati con un modello simulato (senza chiamate ai fornitori): **2.137 superati / 0 falliti / 16 saltati su Windows** e **2.138 superati / 0 falliti / 15 saltati su Linux**. Sono verifiche tecniche, non una garanzia per ogni modello o installazione.
+
+</details>
+
+### Contribuire
+
+I contributi sono benvenuti. Inizia da [CONTRIBUTING.md](CONTRIBUTING.md) e dalle
+[issue per iniziare](docs/GOOD_FIRST_ISSUES.md); rispetta il
+[codice di condotta](CODE_OF_CONDUCT.md) e segnala i problemi di sicurezza in privato, come
+descritto in [SECURITY.md](SECURITY.md).
+
+```sh
+npm ci
+npm run dev        # http://127.0.0.1:7860, restarts on save
+npm run check      # typecheck + all tests
+```
 
 ## Il confronto
 
@@ -466,6 +447,9 @@ browser con un breve codice dal suo log (con un clic su Umbrel).
 girare Sara su questo computer (il suo server e l'app desktop insieme) o collegarti a una Sara che
 si trova altrove (solo l'app).
 
+**Telefoni:** l’[app Android](https://play.google.com/store/apps/details?id=com.backstagecoding.sara) è su Google Play; abbinala scansionando il codice QR in
+Impostazioni → Dati e salute → Dispositivi e accesso → Aggiungi un telefono o un computer. Su iPhone, aggiungi Sara alla schermata Home da Safari ([guida al telefono](docs/PHONE.md)).
+
 **Dal codice sorgente** (qualsiasi computer con Node 24 o più recente):
 
 ```sh
@@ -479,7 +463,7 @@ di configurazione ti chiede il nome, ti aiuta a dare forma alla tua compagna e c
 Come raggiungerla dal telefono (Tailscale, un tuo indirizzo web con HTTPS o la rete di casa),
 aggiornamenti, backup e risoluzione dei problemi: **[docs/INSTALL.md](docs/INSTALL.md)**.
 
-## Tutti i giorni
+### Tutti i giorni
 
 ```sh
 sudo sara status       # is she running, last backup
@@ -501,7 +485,7 @@ sudo sara access       # how you reach her (change: tailscale, local, domain, la
 | [Lista di sicurezza](docs/SECURITY_CHECKLIST.md) · [Cosa esce dal tuo server](docs/PRIVACY.md) | Cinque minuti dopo l'installazione; ogni connessione in uscita e come disattivarla |
 | [Domande frequenti e glossario](docs/FAQ.md) | Domande comuni e cosa significano le parole |
 | [App e client](docs/clients.md) · [App desktop](docs/desktop.md) · [Home Assistant](docs/HOME_ASSISTANT.md) | Terminale, VS Code, Windows e macOS; Sara in Home Assistant e Home Assistant in Sara |
-| [Altre app](docs/OTHER_APPS.md) | API compatibile con OpenAI (SillyTavern, Open WebUI, script), MCP (Claude Code, Cursor, Claude Desktop), schede personaggio |
+| [Altre app](docs/OTHER_APPS.md) · [Portala da un’altra app](docs/IMPORT.md) | API compatibile con OpenAI (SillyTavern, Open WebUI, script), MCP (Claude Code, Cursor, Claude Desktop), schede personaggio; importare chat da Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT o Claude |
 | [Più Sara in un'app](docs/SERVERS.md) · [Modalità locale privata](docs/PRIVATE_LOCAL.md) · [Modalità famiglia](docs/HOUSEHOLD.md) | Passare da un server all'altro; tenere tutto su un computer; condividere un server con le persone con cui vivi |
 | [Chat di gruppo](docs/GROUP_CHATS.md) · [Videochiamate](docs/VIDEO_CALLS.md) · [I nostri momenti](docs/MOMENTS.md) · [Documenti grandi](docs/LIBRARY.md) | Più compagne in una chat; chiamate con il suo ritratto animato; l'album condiviso; libri da 1.000 pagine nella sua biblioteca |
 | [Assistenti vocali](docs/VOICE_ASSISTANTS.md) · [Alexa](docs/ALEXA.md) · [Server via SSH](docs/SSH.md) · [Pacchetti](docs/PACKAGING.md) | Alexa, assistente Android, Google Home, Siri; lavorare sui tuoi altri server; Homebrew, winget, Unraid e gli altri |
@@ -511,24 +495,25 @@ sudo sara access       # how you reach her (change: tailscale, local, domain, la
 | [Tradurre](docs/TRANSLATING.md) | L'app nella tua lingua |
 | [Conformità](docs/COMPLIANCE.md) · [Modello delle minacce](docs/THREAT_MODEL.md) · [Avvertenze](docs/DISCLOSURES.md) | Tutela, sicurezza, cosa sapere prima |
 | [Roadmap](docs/ROADMAP.md) · [Registro delle modifiche](CHANGELOG.md) · [Versioni](https://github.com/farena-ai/sara/releases) | Dove va, cosa è cambiato |
+| [Spazi aziendali](docs/BUSINESS.md) · [Gestione aziendale](docs/BUSINESS_OPERATIONS.md) | [Ripristino](docs/RECOVERY.md) · [Gestione](docs/OPERATIONS.md) |
+| [Le funzioni in breve](docs/FEATURES.md) | Ogni area con screenshot reali |
 
 Tutto questo diventa anche un piccolo sito con ricerca e tema scuro: `node scripts/build-docs.ts`
 lo scrive in `outputs/site/` (apri `index.html`; è pronto per GitHub Pages).
 
-## Contribuire
+## Fiducia, sicurezza e note legali
 
-I contributi sono benvenuti. Inizia da [CONTRIBUTING.md](CONTRIBUTING.md) e dalle
-[issue per iniziare](docs/GOOD_FIRST_ISSUES.md); rispetta il
-[codice di condotta](CODE_OF_CONDUCT.md) e segnala i problemi di sicurezza in privato, come
-descritto in [SECURITY.md](SECURITY.md).
-
-```sh
-npm ci
-npm run dev        # http://127.0.0.1:7860, restarts on save
-npm run check      # typecheck + all tests
-```
+- **Sara è una IA.** Leggi le [informazioni da conoscere](docs/DISCLOSURES.md) prima di usarla o condividerla; l’avviso in cima a questa pagina dice cosa resta sul tuo computer e cosa va ai fornitori che scegli.
+- **Sicurezza, sempre attiva.** Le azioni rischiose aspettano il tuo ok: nella chat, nel suo pannello o come notifica con Consenti / Nega nelle app per Windows e Mac. Lo strato di sicurezza gira nel codice attorno a ogni chiamata al modello e **non si può disattivare**: avviso che è un'IA all'inizio e poi regolarmente, una risposta onesta ogni volta che le si chiede sul serio se è un'IA, risorse di aiuto nelle crisi e un blocco totale dei contenuti sessuali che coinvolgono minori ([docs/COMPLIANCE.md](docs/COMPLIANCE.md), [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md)). Backup quotidiani (più copie cifrate fuori dal server), ripristino e aggiornamento con un solo comando, e `sara doctor` la mantengono in forma.
+- **I contenuti per adulti** stanno dietro l’interruttore **Modalità adulti** (Impostazioni → Tu → Modalità adulti), spento di default. Per accenderlo serve un’autoconferma «Ho 18 anni o più» in un browser web; è una conferma data dal proprietario, non una verifica dell’identità ([conformità](docs/COMPLIANCE.md#adult-content)).
+- **Cosa esce dal tuo server:** ogni connessione in uscita e come spegnerla, compreso il piccolo segnale anonimo giornaliero che puoi disattivare: [docs/PRIVACY.md](docs/PRIVACY.md). Cinque minuti dopo l’installazione: la [lista di controllo della sicurezza](docs/SECURITY_CHECKLIST.md).
+- **Problemi di sicurezza:** segnalali in privato, come spiegato in [SECURITY.md](SECURITY.md).
 
 ## Licenza
 
 MIT, vedi [LICENSE](LICENSE). Riconoscimenti per le parti che Sara scarica o usa:
 [docs/CREDITS.md](docs/CREDITS.md).
+
+---
+
+**Rendila tua.** [Scarica Sara](https://github.com/farena-ai/sara/releases/latest), segui la [guida all’installazione](docs/INSTALL.md) e premi **Star** in cima a [questo repository](https://github.com/farena-ai/sara) se ti piace il progetto. Forse il suo linguaggio dell’amore sono le stelle di GitHub.

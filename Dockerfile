@@ -38,6 +38,7 @@ ENV NODE_ENV=production \
     SARA_TOOLS_USER=sara-tools
 
 COPY package.json package-lock.json ./
+COPY LICENSE ./LICENSE
 RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 COPY src ./src
@@ -47,6 +48,46 @@ COPY templates ./templates
 COPY skills ./skills
 # Phase 117: the plugins that come with Sara (Signal); installed only through their review card.
 COPY plugins ./plugins
+# Local workflow candidates remain untrusted packages; no catalog authoring data ships here.
+COPY store/plugins/daily-briefing ./store/plugins/daily-briefing
+COPY store/plugins/meeting-assistant ./store/plugins/meeting-assistant
+COPY store/plugins/document-desk ./store/plugins/document-desk
+COPY store/plugins/research-notebook ./store/plugins/research-notebook
+COPY store/plugins/project-handoff ./store/plugins/project-handoff
+COPY store/plugins/weekly-review ./store/plugins/weekly-review
+COPY store/plugins/inbox-triage ./store/plugins/inbox-triage
+COPY store/plugins/content-studio ./store/plugins/content-studio
+COPY store/plugins/image-workshop ./store/plugins/image-workshop
+COPY store/plugins/spreadsheet-assistant ./store/plugins/spreadsheet-assistant
+COPY store/plugins/travel-planner ./store/plugins/travel-planner
+COPY store/plugins/home-dashboard ./store/plugins/home-dashboard
+COPY store/plugins/secret-scanner ./store/plugins/secret-scanner
+COPY store/plugins/license-auditor ./store/plugins/license-auditor
+COPY store/plugins/sbom-builder ./store/plugins/sbom-builder
+COPY store/plugins/artifact-provenance-verifier ./store/plugins/artifact-provenance-verifier
+COPY store/plugins/coverage-explorer ./store/plugins/coverage-explorer
+COPY store/plugins/log-explorer ./store/plugins/log-explorer
+COPY store/plugins/incident-workbench ./store/plugins/incident-workbench
+COPY store/plugins/environment-config-doctor ./store/plugins/environment-config-doctor
+COPY store/plugins/database-fixture-studio ./store/plugins/database-fixture-studio
+COPY store/plugins/data-contract-validator ./store/plugins/data-contract-validator
+COPY store/plugins/change-impact-analyzer ./store/plugins/change-impact-analyzer
+COPY store/plugins/architecture-guard ./store/plugins/architecture-guard
+COPY store/plugins/sql-migration-reviewer ./store/plugins/sql-migration-reviewer
+COPY store/plugins/visual-regression ./store/plugins/visual-regression
+COPY store/plugins/localization-qa ./store/plugins/localization-qa
+COPY store/plugins/accessibility-auditor ./store/plugins/accessibility-auditor
+COPY store/plugins/build-cache-inspector ./store/plugins/build-cache-inspector
+COPY store/plugins/api-contract-guard ./store/plugins/api-contract-guard
+COPY store/plugins/http-webhook-workbench ./store/plugins/http-webhook-workbench
+COPY store/plugins/performance-regression-lab ./store/plugins/performance-regression-lab
+COPY store/plugins/code-migration-studio ./store/plugins/code-migration-studio
+COPY store/plugins/build-reproducibility-inspector ./store/plugins/build-reproducibility-inspector
+COPY store/plugins/test-doctor ./store/plugins/test-doctor
+COPY store/plugins/flaky-test-lab ./store/plugins/flaky-test-lab
+COPY store/plugins/documentation-doctor ./store/plugins/documentation-doctor
+COPY store/plugins/release-readiness ./store/plugins/release-readiness
+COPY store/plugins/repository-onboarding ./store/plugins/repository-onboarding
 # Phase 87: the shared page agent her testing browser reads pages with (also in the desktop apps).
 COPY desktop/shared/page-agent.js ./desktop/shared/page-agent.js
 # Phase 104: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
@@ -64,7 +105,7 @@ EXPOSE 7860
 
 # Follows SARA_PORT if you change it (the container listens on every address, so ask loopback).
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD node -e "fetch('http://127.0.0.1:'+(process.env.SARA_PORT||7860)+'/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+  CMD node -e "try{const p=process.env.SARA_PROFILE??'personal',target='http://127.0.0.1:'+(process.env.SARA_PORT||7860)+'/api/health';if(p==='personal'){fetch(target).then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))}else{if(p!=='business')throw 0;const port=Number(process.env.SARA_PORT??7860);if(!Number.isInteger(port)||port<1||port>65535)throw 0;const value=process.env.SARA_BUSINESS_ORIGIN,u=new URL(value);if(u.origin!==value||u.username||u.password||(u.protocol!=='https:'&&!(u.protocol==='http:'&&['localhost','127.0.0.1','[::1]'].includes(u.hostname))))throw 0;require('node:http').get({hostname:'127.0.0.1',port,path:'/api/health',headers:{host:u.host},timeout:4000},r=>process.exit(r.statusCode>=200&&r.statusCode<300?0:1)).on('error',()=>process.exit(1)).on('timeout',()=>process.exit(1))}}catch{process.exit(1)}"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["node", "src/main.ts"]

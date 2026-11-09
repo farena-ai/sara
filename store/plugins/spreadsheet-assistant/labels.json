@@ -1,0 +1,67 @@
+{
+  "es": {
+    "bounds": "JSON de entrada ≤24000 caracteres; salida ≤3800, sin truncamiento.",
+    "card": "Datos proporcionados; revisa el resultado. Sin acciones externas.",
+    "error": "Solicitud rechazada: revisa el esquema, los límites y los permisos. No se confirma ningún cambio.",
+    "contract": "CSV: máximo 50 filas de datos, 12 columnas, 1000 caracteres por celda; cabeceras únicas no vacías, filas rectangulares. Filtro exacto sensible a mayúsculas.",
+    "warning": "Las estadísticas abarcan todas las filas, no solo el filtro. Solo subconjunto numérico; aritmética de coma flotante JS, no precisión financiera. Sin evaluación de fórmulas. La exportación antepone apóstrofos a las celdas de riesgo; revisa antes de importar.",
+    "title": "Asistente de hojas de cálculo",
+    "description": "Valida y analiza CSV proporcionado, filtra filas y exporta texto CSV protegido contra fórmulas. Sin XLSX ni evaluación de fórmulas.",
+    "corrupt": "El preset guardado está corrupto o no es compatible; se conserva sin cambios. Expórtalo o repáralo por separado.",
+    "persistence": "La persistencia no se ha confirmado o la lectura no coincide; no se afirma que esté guardado o borrado.",
+    "modelError": "El modelo de fondo falló o devolvió un borrador vacío, demasiado largo o con Unicode/controles no válidos. No se exportó ni publicó; revisa ruta, conversación y presupuesto.",
+    "oversize": "El resultado supera 3800 caracteres; reduce los datos. No se devuelve JSON parcial."
+  },
+  "fr": {
+    "bounds": "JSON entrant ≤24000 caractères ; sortie ≤3800, sans troncature.",
+    "card": "Données fournies ; vérifiez le résultat. Aucune action externe.",
+    "error": "Demande refusée : vérifiez le schéma, les limites et les autorisations. Aucun changement confirmé.",
+    "contract": "CSV : 50 lignes de données, 12 colonnes, 1000 caractères par cellule maximum ; en-têtes uniques non vides, lignes rectangulaires. Filtre exact sensible à la casse.",
+    "warning": "Les statistiques couvrent toutes les lignes, pas seulement le filtre. Sous-ensemble numérique ; calcul flottant JS, sans précision financière. Aucune formule évaluée. L’export préfixe les cellules à risque par une apostrophe ; vérifiez avant l’import.",
+    "title": "Assistant tableur",
+    "description": "Valide et analyse le CSV fourni, filtre les lignes et exporte du texte CSV protégé contre les formules. Sans XLSX ni calcul de formules.",
+    "corrupt": "Le preset stocké est corrompu ou incompatible ; il est conservé sans modification. Exportez-le ou réparez-le séparément.",
+    "persistence": "La persistance n’est pas confirmée ou la relecture diffère ; aucun enregistrement ni effacement confirmé.",
+    "modelError": "Le modèle en arrière-plan a échoué ou renvoyé un brouillon vide, trop long ou avec Unicode/contrôles invalides. Rien exporté ni publié ; vérifiez route, conversation et budget.",
+    "oversize": "Le résultat dépasse 3800 caractères ; réduisez les données. Aucun JSON partiel renvoyé."
+  },
+  "de": {
+    "bounds": "Eingabe-JSON ≤24000 Zeichen; Ausgabe ≤3800, ohne Abschneiden.",
+    "card": "Bereitgestellte Daten; Ergebnis prüfen. Keine externen Aktionen.",
+    "error": "Anfrage abgelehnt: Schema, Grenzen und Berechtigungen prüfen. Keine Änderung bestätigt.",
+    "contract": "CSV: höchstens 50 Datenzeilen, 12 Spalten, 1000 Zeichen je Zelle; eindeutige nichtleere Kopfzeilen, gleiche Zeilenbreite. Exakter Filter mit Groß-/Kleinschreibung.",
+    "warning": "Statistiken umfassen alle Eingabezeilen, nicht nur den Filter. Nur numerische Teilmenge; JS-Gleitkommaarithmetik, keine Finanzpräzision. Keine Formelauswertung. Export stellt riskanten Zellen Apostrophe voran; vor Import prüfen.",
+    "title": "Tabellenassistent",
+    "description": "Prüft und analysiert bereitgestellte CSV-Daten, filtert Zeilen und exportiert formelgeschützten CSV-Text. Kein XLSX oder Formelauswerten.",
+    "corrupt": "Gespeichertes Preset beschädigt oder nicht unterstützt; unverändert erhalten. Separat exportieren oder reparieren.",
+    "persistence": "Speicherung nicht bestätigt oder Rücklesen abweichend; Speichern oder Löschen wird nicht bestätigt.",
+    "modelError": "Hintergrundmodell fehlgeschlagen oder Entwurf leer, zu lang oder mit ungültigem Unicode/Steuerzeichen. Nichts exportiert oder veröffentlicht; Route, Gespräch und Budget prüfen.",
+    "oversize": "Ergebnis über 3800 Zeichen; Datenmenge verkleinern. Kein unvollständiges JSON zurückgegeben."
+  },
+  "pt-BR": {
+    "bounds": "JSON de entrada ≤24000 caracteres; saída ≤3800, sem truncamento.",
+    "card": "Dados fornecidos; revise o resultado. Sem ações externas.",
+    "error": "Solicitação recusada: revise o esquema, os limites e as permissões. Nenhuma alteração confirmada.",
+    "contract": "CSV: até 50 linhas de dados, 12 colunas, 1000 caracteres por célula; cabeçalhos únicos não vazios, linhas retangulares. Filtro exato diferencia maiúsculas.",
+    "warning": "As estatísticas abrangem todas as linhas, não apenas o filtro. Só subconjunto numérico; ponto flutuante JS, sem precisão financeira. Nenhuma fórmula avaliada. A exportação adiciona apóstrofos às células de risco; revise antes de importar.",
+    "title": "Assistente de planilhas",
+    "description": "Valida e analisa CSV fornecido, filtra linhas e exporta texto CSV protegido contra fórmulas. Sem XLSX nem cálculo de fórmulas.",
+    "corrupt": "O preset salvo está corrompido ou não é compatível; foi preservado sem alterações. Exporte ou repare separadamente.",
+    "persistence": "Persistência não confirmada ou leitura divergente; não se afirma que foi salvo ou apagado.",
+    "modelError": "O modelo em segundo plano falhou ou retornou um rascunho vazio, longo demais ou com Unicode/controles inválidos. Nada exportado nem publicado; revise rota, conversa e orçamento.",
+    "oversize": "O resultado excede 3800 caracteres; reduza os dados. Nenhum JSON parcial retornado."
+  },
+  "it": {
+    "bounds": "JSON in ingresso ≤24000 caratteri; uscita ≤3800, senza troncamento.",
+    "card": "Dati forniti; verifica il risultato. Nessuna azione esterna.",
+    "error": "Richiesta rifiutata: verifica schema, limiti e autorizzazioni. Nessuna modifica confermata.",
+    "contract": "CSV: massimo 50 righe di dati, 12 colonne, 1000 caratteri per cella; intestazioni univoche non vuote, righe rettangolari. Filtro esatto sensibile alle maiuscole.",
+    "warning": "Le statistiche coprono tutte le righe, non solo il filtro. Solo sottoinsieme numerico; virgola mobile JS, senza precisione finanziaria. Nessuna formula valutata. L’esportazione antepone apostrofi alle celle a rischio; verifica prima di importare.",
+    "title": "Assistente fogli di calcolo",
+    "description": "Convalida e analizza il CSV fornito, filtra righe ed esporta testo CSV protetto dalle formule. Nessun XLSX o calcolo di formule.",
+    "corrupt": "Il preset salvato è corrotto o non supportato; conservato senza modifiche. Esportalo o riparalo separatamente.",
+    "persistence": "Persistenza non confermata o rilettura diversa; salvataggio o cancellazione non confermati.",
+    "modelError": "Il modello in background è fallito o ha restituito una bozza vuota, troppo lunga o con Unicode/controlli non validi. Nulla esportato né pubblicato; verifica instradamento, conversazione e budget.",
+    "oversize": "Il risultato supera 3800 caratteri; riduci i dati. Nessun JSON parziale restituito."
+  }
+}

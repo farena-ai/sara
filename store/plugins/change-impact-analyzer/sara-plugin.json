@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "change-impact-analyzer",
+  "name": "Change Impact Analyzer",
+  "version": "1.0.0",
+  "description": "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Change Impact Analyzer": "Analizador de impacto de cambios",
+      "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.": "Relaciona una función cambiada con llamadores, paquetes y pruebas suministradas resueltos estáticamente. Solo fuentes explícitas; sin ejecución ni cobertura en tiempo de ejecución."
+    },
+    "fr": {
+      "Change Impact Analyzer": "Analyseur d’impact des changements",
+      "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.": "Relie une fonction modifiée aux appelants, paquets et tests fournis résolus statiquement. Sources explicites uniquement ; aucune exécution ni couverture dynamique."
+    },
+    "de": {
+      "Change Impact Analyzer": "Änderungsauswirkungsanalyse",
+      "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.": "Ordnet eine geänderte Funktion statisch aufgelösten Aufrufern, Paketen und bereitgestellten Tests zu. Nur explizite Quellen; keine Ausführung oder Laufzeitabdeckung."
+    },
+    "pt-BR": {
+      "Change Impact Analyzer": "Analisador de impacto de alterações",
+      "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.": "Relaciona uma função alterada a chamadores, pacotes e testes fornecidos resolvidos estaticamente. Apenas fontes explícitas; sem execução ou cobertura em tempo de execução."
+    },
+    "it": {
+      "Change Impact Analyzer": "Analizzatore di impatto delle modifiche",
+      "Map one changed function to statically resolved callers, packages and supplied tests. Explicit source snapshot only; no execution or runtime coverage claim.": "Collega una funzione modificata a chiamanti, pacchetti e test forniti risolti staticamente. Solo sorgenti espliciti; nessuna esecuzione o copertura dinamica."
+    }
+  }
+}

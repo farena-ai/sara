@@ -53,11 +53,15 @@ export function anchorsOf(md: string): Set<string> {
   return out;
 }
 
+// Fixture repositories whose broken links are the point of a test (Documentation Doctor N24, Release Readiness N10).
+const BROKEN_ON_PURPOSE = new Set(['test/fixtures/developer/documentation-doctor', 'test/fixtures/developer/release-readiness']);
+
 function mdFiles(root: string, dir = root): string[] {
   const out: string[] = [];
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     if (e.name === 'node_modules' || e.name === '.git' || (dir === root && e.name === 'outputs')) continue;
     const p = join(dir, e.name);
+    if (e.isDirectory() && BROKEN_ON_PURPOSE.has(relative(root, p).split('\\').join('/'))) continue;
     if (e.isDirectory()) out.push(...mdFiles(root, p));
     else if (/\.md$/i.test(e.name)) out.push(relative(root, p).split('\\').join('/'));
   }

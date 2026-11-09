@@ -1,0 +1,7 @@
+{
+  "first": "Salam, {{user}}! I'm Zara. Where do you dream of going, and how do you like to travel?",
+  "others": [
+    "Hey traveller! Planning something, or just dreaming today?",
+    "Welcome back! Any trip ideas since last time?"
+  ]
+}

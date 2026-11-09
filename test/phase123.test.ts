@@ -126,7 +126,7 @@ test('the main test: core + safety pins + find_tools, the directory, find_tools 
   // The card is today's card (an MCP tool asks first).
   const card = evs.find((e) => e.type === 'approval') as Extract<ChatEvent, { type: 'approval' }>;
   assert.equal(card.name, 'mcp_github_create_issue');
-  assert.deepEqual(Object.keys(card).sort(), ['approvalId', 'args', 'id', 'name', 'summary', 'type']);
+  assert.deepEqual(Object.keys(card).sort(), ['alwaysOk', 'approvalId', 'args', 'id', 'name', 'summary', 'type'], 'E7: a plain ask also offers Always allow');
   assert.deepEqual(ran, ['mcp_github_create_issue']);
   // The run's steps: lean, offered, loaded with the reason.
   const run = app.runs!.list({ conversationId: conv.id })[0];

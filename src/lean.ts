@@ -12,13 +12,19 @@ import type { Conversation } from './store.ts';
 import type { Tool } from './tools/types.ts';
 import type { ToolSpec } from './providers/types.ts';
 import type { DatabaseSync } from 'node:sqlite';
+import { checkpointAllowed } from './project-checkpoints.ts';
+import { continuityAllowed, continuityForTurn } from './session-continuity.ts';
+import { SESSION_TOOLS } from './session-continuity-tools.ts';
+import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
+import { sceneCanonPreview } from './shared-scenes-policy.ts';
+import { policy } from './policy-profile.ts';
 
 // ---------------------------------------------------------------------------------------------
 // Settings (owner-only; `lean` in OWNER_SETTINGS), §3.3
 // ---------------------------------------------------------------------------------------------
 
 export interface LeanSettings {
-  tools: { mode: 'auto' | 'always' | 'off'; aboveTokens: number; pins: string[]; stickyTurns: number; maxLoaded: number; perFind: number; findsPerTurn: number; localCore: boolean };
+  tools: { mode: 'auto' | 'always' | 'off'; aboveTokens: number; pins: string[]; stickyTurns: number; maxLoaded: number; perFind: number; findsPerTurn: number; localCore: boolean; codeMode: boolean };
   compact: { auto: boolean; at: number; keepTurns: number; model: 'auto' | 'local' | 'quick' | 'plain'; dailyCap: { runs: number; tokens: number }; crisisKeepHours: number; partners: boolean };
 }
 
@@ -38,7 +44,7 @@ export const LEAN_CHOICES = {
 } as const;
 
 export const DEFAULT_LEAN: LeanSettings = {
-  tools: { mode: 'auto', aboveTokens: 6_000, pins: [], stickyTurns: 10, maxLoaded: 20, perFind: 5, findsPerTurn: 4, localCore: true },
+  tools: { mode: 'auto', aboveTokens: 6_000, pins: [], stickyTurns: 10, maxLoaded: 20, perFind: 5, findsPerTurn: 4, localCore: true, codeMode: false },
   compact: { auto: true, at: 0.85, keepTurns: 6, model: 'auto', dailyCap: { runs: 40, tokens: 500_000 }, crisisKeepHours: 24, partners: false },
 };
 
@@ -62,6 +68,8 @@ export function normLean(raw: unknown, base: LeanSettings = DEFAULT_LEAN): LeanS
       perFind: pick(t.perFind, LEAN_CHOICES.perFind, base.tools.perFind as 5),
       findsPerTurn: pick(t.findsPerTurn, LEAN_CHOICES.findsPerTurn, base.tools.findsPerTurn as 4),
       localCore: b(t.localCore, base.tools.localCore),
+      // EC21: code mode (run_code), off unless the owner turns it on.
+      codeMode: b(t.codeMode, base.tools.codeMode),
     },
     compact: {
       auto: b(c.auto, base.compact.auto),
@@ -94,6 +102,9 @@ export function mergeLean(app: AppContext, body: unknown): LeanSettings {
     known.add(familyOf(t).id);
   }
   next.tools.pins = next.tools.pins.filter((p) => known.has(p));
+  // EC5/EC21: the policy pin `codeMode: false` refuses turning code mode on (server side).
+  if (rec(b.tools).codeMode === true) policy().guard('codeMode', true);
+  if (!policy().codeModeOn) next.tools.codeMode = false;
   app.settings.update({ lean: next } as never);
   return next;
 }
@@ -115,7 +126,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shell$/, 'shell', 'commands'],
   [/^(web_fetch|web_search)$/, 'web', 'web'],
   [/^(todo|note|remind|tasks|add_task|list_tasks|complete_task|update_task|delete_task|add_note|list_notes|read_note|update_note|delete_note)$/, 'planner', 'reminders and notes'],
-  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments)$/, 'memory', 'memory'],
+  [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff|scene_canon)$/, 'memory', 'memory'],
   [/^ssh_/, 'ssh', 'SSH servers'],
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
@@ -125,6 +136,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^preview_/, 'preview', 'preview'],
   [/^browser_/, 'browser', 'testing browser'],
   [/^pc_/, 'computer', 'your computer'],
+  [/^phone_(camera|location|screen)$/, 'phone', 'your phone'],
   [/^team/, 'team', 'team'],
   [/^(board_|card_)/, 'board', 'board'],
   [/^(gmail_|calendar_|calendar$)/, 'google', 'Google (email, calendar)'],
@@ -185,8 +197,8 @@ export const tokensOf = (tools: { spec: ToolSpec }[]): number => tools.reduce((n
 // §4.2 core, safety pins
 // ---------------------------------------------------------------------------------------------
 
-export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search'] as const;
-export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind'] as const;
+export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search'] as const;
+export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind', 'session_context'] as const;
 /** Tools whose absence could leave something running or reachable: always offered when eligible. */
 export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revoke_key', 'ssh_forget_password', 'safety_report'] as const;
 const SAFETY_SET = new Set<string>(SAFETY_PINS);
@@ -331,12 +343,36 @@ export interface LeanInput {
   goal?: boolean;
   /** Forced: 'off' (today's list), 'on' (lean whatever the size). */
   force?: 'off' | 'on';
+  /** The tool's permission as the owner has it (falls back to the tool's default). */
+  permission?: (name: string) => string;
+}
+
+// B2: when only part of a big server's tools fit, read-only and status tools come first.
+/** Tools that install, download, restart, remove or file things publicly (short names). */
+const RISKY_TOOL = /^(install|download|restart|delete|uninstall|deploy|publish)_|^report_issue$|_(remove|delete)$/;
+/** His message asks whether something is there or working. */
+const STATUS_INTENT = /\b(check|checking|see|running|status|health|healthy|installed|installation|working|online|connected|reachable|alive|up)\b/;
+const STATUS_NAME = /stat|health|status|system/;
+
+/** A family's tools in the order to offer them: what his words name, read-only before ask, installers last. */
+export function rankFamily(members: Tool[], text: string, permission?: (name: string) => string): string[] {
+  const hit = new Map(searchTools(members, text).map((h) => [h.tool.spec.name, h.score]));
+  const status = STATUS_INTENT.test(fold(text));
+  const score = (t: Tool): number => {
+    const short = t.spec.name.replace(/^mcp_[^_]+_/, '');
+    let s = hit.get(t.spec.name) ?? 0;
+    if ((permission?.(t.spec.name) ?? t.defaultPermission) === 'auto') s += 4;
+    if (RISKY_TOOL.test(short)) s -= 4;
+    if (status && STATUS_NAME.test(short)) s += 8;
+    else if (status && STATUS_NAME.test(fold((t.spec.description ?? '').slice(0, 200)))) s += 2;
+    return s;
+  };
+  return members.map((t, i) => ({ n: t.spec.name, s: score(t), i })).sort((a, b) => b.s - a.s || a.i - b.i).map((x) => x.n);
 }
 
 export class TurnTools {
   readonly lean: boolean;
   readonly eligible: Tool[];
-  readonly eligibleTokens: number;
   /** Offered names in order, with the first reason. */
   readonly offered = new Map<string, Reason>();
   /** Loads made during this turn (the run record and the step line). */
@@ -346,7 +382,7 @@ export class TurnTools {
   readonly #byName = new Map<string, Tool>();
   readonly #set: LeanSettings['tools'];
   readonly #recent: Map<string, number>;
-  #sentBefore: string[] = [];
+  #sentBefore: string[] | undefined;
 
   constructor(eligible: Tool[], lean: boolean, set: LeanSettings['tools'], recent: Map<string, number> = new Map()) {
     this.eligible = eligible;
@@ -354,11 +390,17 @@ export class TurnTools {
     this.#set = set;
     this.#recent = recent;
     for (const t of eligible) this.#byName.set(t.spec.name, t);
-    this.eligibleTokens = tokensOf(eligible);
   }
+
+  get eligibleTokens(): number { return tokensOf(this.eligible); }
 
   isEligible(name: string): boolean {
     return this.#byName.has(name);
+  }
+  /** Revocation narrows this turn permanently, including late explicit find_tools loads. */
+  revoke(names: ReadonlySet<string>): void {
+    for (const name of names) { this.#byName.delete(name); this.offered.delete(name); }
+    for (let i = this.eligible.length - 1; i >= 0; i--) if (names.has(this.eligible[i].spec.name)) this.eligible.splice(i, 1);
   }
   isOffered(name: string): boolean {
     return !this.lean || this.offered.has(name);
@@ -409,13 +451,14 @@ export class TurnTools {
     return this.lean ? tokensOf([...this.offered.keys()].map((n) => this.#byName.get(n)!)) : this.eligibleTokens;
   }
 
-  /** The run record's step field: the first step in full, later ones as `+added`. */
-  stepRecord(): { lean: boolean; offered: string[]; loaded: { name: string; why: Reason }[]; eligible: number; eligibleTokens: number; offeredTokens: number } {
-    const now = this.offeredNames();
+  /** Preview without consuming the delta; commit once at the actual provider boundary. */
+  stepRecord(current = this.eligible, commit = true): { lean: boolean; offered: string[]; loaded: { name: string; why: Reason }[]; eligible: number; eligibleTokens: number; offeredTokens: number } {
+    const specs = this.offeredSpecs(current);
+    const now = specs.map(spec => spec.name);
     const prev = this.#sentBefore;
-    this.#sentBefore = now;
-    const offered = prev.length ? now.filter((n) => !prev.includes(n)).map((n) => `+${n}`) : now;
-    return { lean: this.lean, offered, loaded: [...this.loaded], eligible: this.eligible.length, eligibleTokens: this.eligibleTokens, offeredTokens: this.offeredTokens() };
+    if (commit) this.#sentBefore = now;
+    const offered = prev ? [...now.filter(n => !prev.includes(n)).map(n => `+${n}`), ...prev.filter(n => !now.includes(n)).map(n => `-${n}`)] : now;
+    return { lean: this.lean, offered, loaded: [...this.loaded], eligible: current.length, eligibleTokens: tokensOf(current), offeredTokens: tokensOf(specs.map(spec => ({ spec }))) };
   }
 
   /** Deferred families: eligible but not offered, with counts. */
@@ -532,7 +575,7 @@ export function leanFor(set: LeanSettings['tools'], eligible: Tool[], input: Lea
     const members = eligible.filter((t) => familyOf(t).id === fam || (fam === 'github' && familyOf(t).id === 'mcp:github') || (fam === 'browser' && familyOf(t).id === 'mcp:playwright'));
     if (!members.length) continue;
     if (members.length <= 12) tt.add(members.map((t) => t.spec.name), 'asked');
-    else tt.add(searchTools(members, input.text).slice(0, 12).map((h) => h.tool.spec.name).concat(members.length && !searchTools(members, input.text).length ? members.slice(0, 12).map((t) => t.spec.name) : []), 'asked');
+    else tt.add(rankFamily(members, input.text, input.permission).slice(0, 12), 'asked');
   }
   // 3. @-references
   if (/@url:/i.test(input.text)) tt.add(['web_fetch'], 'ref');
@@ -549,6 +592,15 @@ export function leanFor(set: LeanSettings['tools'], eligible: Tool[], input: Lea
   // 7. find_tools last
   tt.add([FIND_TOOLS], 'core');
   return tt;
+}
+
+/**
+ * EC21: whether run_code is offered in this step: the setting is on (and no policy pin), not a
+ * partner or group chat, and the turn needs many tool calls: a coding chat, or 2+ calls already.
+ */
+export function codeModeOffer(o: { on: boolean; mode: 'chat' | 'coding'; callsThisTurn: number; partner?: boolean; group?: boolean }): boolean {
+  if (!o.on || o.partner || o.group) return false;
+  return o.mode === 'coding' || o.callsThisTurn >= 2;
 }
 
 /** The find_tools tool (family help, runs on its own; offered only in lean turns). */
@@ -577,17 +629,36 @@ export function schemaHint(tool: Tool): string {
   return `Here are the fields it takes: ${JSON.stringify(tool.spec.parameters ?? {}).slice(0, 1000)}`;
 }
 
+// B2: an argument error that lists allowed values (zod's "expected one of", JSON-schema enum errors).
+const ENUM_ERROR = /expected one of|one of the allowed values|invalid enum value|must be one of|allowed values:/i;
+export const ARG_RETRY = 'Your arguments were invalid and nothing ran. Fix them using the allowed values above and call the tool again, or use find_tools for a better tool, before answering.';
+
+/** The failing field's allowed values from the tool's own schema, then the retry line ('' for other errors). */
+export function argErrorHint(tool: Tool, output: string): string {
+  if (!ENUM_ERROR.test(output)) return '';
+  const path = (/\bat ([A-Za-z_][\w.]*)\s*$/m.exec(output)?.[1]?.split('.') ?? /(?:\bat |data|instancePath["': ]*)\/([\w/]+)/.exec(output)?.[1]?.split('/') ?? []).filter((k) => k && !/^\d+$/.test(k));
+  let node = rec(tool.spec.parameters);
+  for (const k of path) node = rec(rec(node.properties)[k] ?? rec(rec(node.items).properties)[k]);
+  const allowed = Array.isArray(node.enum) ? node.enum : [];
+  const line = path.length && allowed.length ? `Allowed values for "${path.join('.')}": ${allowed.map((v) => JSON.stringify(v)).join(', ')}.\n` : '';
+  return `${line}${ARG_RETRY}`;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Outside a turn: /tools, GET /api/conversations/:id/tools, GET /api/lean/measure
 // ---------------------------------------------------------------------------------------------
 
 /** The eligible list for an owner chat, the main gates of runTurn applied (no model, no turn). */
-export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'>): Tool[] {
+export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
   const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
+  if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');
+  if (!continuityAllowed(app, conv as Conversation) || conv.id && !continuityForTurn(app, conv.id)) tools = tools.filter(t => !SESSION_TOOLS.has(t.spec.name));
+  // R1B2: the same owner-seat binding the turn uses (no seat, paused setting, adult off: not offered).
+  if (!sceneCanonPreview(app, conv as Partial<Conversation>)) tools = tools.filter(t => t.spec.name !== SCENE_CANON_TOOL);
   if (conv.private || work) tools = tools.filter((t) => !t.spec.name.startsWith('ssh_'));
   if (work) tools = tools.filter((t) => !t.spec.name.startsWith('pc_') && t.spec.name !== 'moments');
   if (conv.private) tools = tools.filter((t) => !t.spec.name.startsWith('agenda_'));

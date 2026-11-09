@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "data-contract-validator",
+  "name": "Schema and Data Contract Validator",
+  "version": "1.0.1",
+  "description": "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Schema and Data Contract Validator": "Validador de contratos de datos",
+      "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.": "Valida cargas y compara contratos JSON Schema draft-07 o Protobuf acotados con bibliotecas fijadas. Rechaza construcciones no admitidas."
+    },
+    "fr": {
+      "Schema and Data Contract Validator": "Validateur de contrats de données",
+      "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.": "Valide les données et compare des contrats JSON Schema draft-07 ou Protobuf bornés avec des bibliothèques figées. Refuse les constructions non prises en charge."
+    },
+    "de": {
+      "Schema and Data Contract Validator": "Datenvertragsprüfung",
+      "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.": "Validiert Daten und vergleicht begrenzte JSON-Schema-draft-07- oder Protobuf-Verträge mit festen Bibliotheken. Nicht unterstützte Konstrukte werden abgelehnt."
+    },
+    "pt-BR": {
+      "Schema and Data Contract Validator": "Validador de contratos de dados",
+      "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.": "Valida dados e compara contratos JSON Schema draft-07 ou Protobuf limitados com bibliotecas fixadas. Recusa construções não suportadas."
+    },
+    "it": {
+      "Schema and Data Contract Validator": "Validatore di contratti dati",
+      "Validate explicit payloads and compare bounded JSON Schema draft-07 or Protobuf contracts using pinned libraries. Unsupported constructs are refused.": "Valida dati e confronta contratti JSON Schema draft-07 o Protobuf limitati con librerie fissate. Rifiuta costrutti non supportati."
+    }
+  }
+}

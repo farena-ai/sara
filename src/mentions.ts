@@ -13,6 +13,7 @@ import { dayStartUtc, PLACE_DUE, type PlannerStore, type Reminder } from './plan
 import { localDate } from './memory-worker.ts';
 import type { Person } from './people.ts';
 import { isWorkChannel } from './safety.ts';
+import { inWorkSpace } from './work-profile.ts';
 import { sharedWithApps } from './recall.ts';
 import type { Conversation } from './store.ts';
 import { appLanguage, en, tr } from './i18n.ts';
@@ -83,6 +84,8 @@ export const OWN_CHANNEL = /^(web|telegram|telegram-nsfw|discord|discord-nsfw|pl
 export function ownChat(app: AppContext, c: Conversation | undefined): boolean {
   if (!c || c.partner || c.private || c.archivedAt || app.offRecord) return false;
   if (isWorkChannel(c.channel) || !OWN_CHANNEL.test(c.channel)) return false;
+  // EC26: a chat in the work space is not his own chat (no pickups, reminders or follow-ups there).
+  if (inWorkSpace(app, c)) return false;
   // sharedWithApps also leaves out imports (adult channels are judged by the caller).
   return sharedWithApps({ ...c, channel: c.channel.replace(/-nsfw$/, '') });
 }

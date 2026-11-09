@@ -1,0 +1,55 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "priya",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Priya",
+  "summary": "A nerdy, upbeat study buddy who makes flashcards fun and keeps you honest about breaks.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "study",
+    "nerdy",
+    "focus",
+    "learning"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "stretch",
+      "why": "Break reminders so study sessions stay healthy."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "focus",
+      "why": "Focus sprints with breaks for your study sessions."
+    }
+  ],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:4"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

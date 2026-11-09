@@ -281,7 +281,7 @@ export function mergeSandboxGate(cur: SandboxGateSettings, body: Record<string, 
 // 3. Isolation available on this computer
 // ------------------------------------------------------------------------------------------------
 
-export type SandboxDriver = 'bwrap' | 'seatbelt' | 'docker' | 'wsl' | 'copy';
+export type SandboxDriver = 'bwrap' | 'seatbelt' | 'container' | 'docker' | 'wsl' | 'copy';
 
 export interface Isolation {
   driver: SandboxDriver;
@@ -296,6 +296,7 @@ export interface Isolation {
 export const ISOLATION_LABELS: Record<SandboxDriver, string> = {
   bwrap: 'Isolated (bubblewrap): only the copy is writable; no network unless allowed.',
   seatbelt: 'Isolated (macOS sandbox): only the copy is writable; no network unless allowed.',
+  container: 'Isolated (container): only the copy is mounted; no network unless allowed.',
   docker: 'Isolated (Docker): only the copy is mounted; no network unless allowed.',
   wsl: 'Isolated (WSL2 with bubblewrap): only the copy is writable; no network unless allowed.',
   copy: 'Not isolated: it runs in a copy, but the command could still reach other files on this computer. Writes outside the copy are watched and flagged.',
@@ -333,6 +334,8 @@ export function detectIsolation(base: SandboxInfo, gate: Pick<SandboxGateSetting
   const probe = deps.probe ?? probeRun;
   if (base.mode === 'bwrap') return { driver: 'bwrap', isolated: true, label: ISOLATION_LABELS.bwrap };
   if (base.mode === 'seatbelt') return { driver: 'seatbelt', isolated: true, label: ISOLATION_LABELS.seatbelt };
+  // EC8: the container backend (Podman or Docker, any OS) runs tries through the same argv builder.
+  if (base.mode === 'container' && base.container) return { driver: 'container', isolated: true, label: ISOLATION_LABELS.container };
   if (platform === 'win32') {
     const docker = probe('docker', ['version', '--format', '{{.Server.Version}}']) === 0;
     const dockerImage = docker && probe('docker', ['image', 'inspect', '--format', '{{.Id}}', gate.dockerImage]) === 0;
@@ -848,7 +851,7 @@ export async function runInSandbox(workspaceDir: string, command: string, opts: 
   const realBefore = statTree(workspaceDir, { gitMeta: true });
   let copy: CopyInfo;
   try {
-    copy = makeCopy(workspaceDir, copyDir, { maxBytes: opts.maxBytes ?? DEFAULT_SANDBOX_GATE.maxMB * 1048576, ...(opts.preferWorktree === false ? { preferWorktree: false } : {}) });
+    copy = makeCopy(workspaceDir, copyDir, { maxBytes: opts.maxBytes ?? DEFAULT_SANDBOX_GATE.maxMB * 1048576, ...(opts.preferWorktree === false || iso.driver === 'container' ? { preferWorktree: false } : {}) });
   } catch (err) {
     cleanupRun(workspaceDir, runDir, copyDir);
     const msg = err instanceof SandboxTooBig ? err.message : `The copy could not be made: ${(err as Error).message}`;
@@ -910,6 +913,8 @@ export async function runInSandbox(workspaceDir: string, command: string, opts: 
   let run: RunResult;
   if (iso.driver === 'bwrap' || iso.driver === 'seatbelt') {
     run = await runCommand(cmd, copyDir, { ...opts.base, network }, { ...runOpts, binds });
+  } else if (iso.driver === 'container') {
+    run = await runCommand(command, copyDir, { ...opts.base, network }, { ...runOpts, binds: heavyDeps.map((d) => ({ src: d.src, dest: `/workspace/${d.rel}` })) });
   } else if (iso.driver === 'docker') {
     run = await runCommand(dockerCommand(copyDir, command, { image: opts.dockerImage ?? DEFAULT_SANDBOX_GATE.dockerImage, network, deps: heavyDeps }), copyDir, { mode: 'none', network: true, detail: 'docker' }, runOpts);
   } else if (iso.driver === 'wsl') {
@@ -1215,10 +1220,11 @@ function safeTarget(ws: string, rel: string): string | undefined {
  * (a conflict); git internals, hooks and dependency folders are never written. The copy goes
  * afterwards. Records the M3 workspace manifest before and after.
  */
-export async function applySandbox(r: SandboxResult): Promise<ApplyResult> {
+export async function applySandbox(r: SandboxResult, beforeApply?: () => void): Promise<ApplyResult> {
   if (!r.copyDir || !existsSync(r.copyDir)) throw new Error('This sandbox try is no longer there to apply.');
   const ws = r.workspaceDir;
   const refBefore = await workspaceRef(ws).catch(() => undefined);
+  beforeApply?.();
   const out: ApplyResult = { written: [], removed: [], conflicts: [], refused: [] };
   const realNow = statTree(ws);
   const start = r.realAtStart ?? new Map<string, FileStat>();

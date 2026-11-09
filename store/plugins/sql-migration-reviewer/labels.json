@@ -1,0 +1,50 @@
+{
+  "en": {
+    "title": "SQL Migration Reviewer",
+    "description": "Rehearse bounded additive SQLite DDL in disposable memory with synthetic rows and rollback evidence. No live database or workspace access.",
+    "rehearsed": "SQLite rehearsal complete; rolled back and closed.",
+    "rejected": "Migration refused. Only the closed additive SQLite subset is supported.",
+    "unsupported-runtime": "Unsupported runtime: SQLite authorizer enforcement is required.",
+    "error": "Input/output refused. No live database was accessed."
+  },
+  "es": {
+    "title": "Revisor de migraciones SQL",
+    "description": "Ensaya DDL SQLite aditivo acotado en memoria desechable con filas sintéticas y prueba de reversión. Sin base activa ni acceso al proyecto.",
+    "rehearsed": "Ensayo SQLite completo; revertido y cerrado.",
+    "rejected": "Migración rechazada. Solo se admite el subconjunto aditivo cerrado de SQLite.",
+    "unsupported-runtime": "Entorno no compatible: se requiere autorización SQLite efectiva.",
+    "error": "Entrada/salida rechazada. No se accedió a ninguna base activa."
+  },
+  "fr": {
+    "title": "Révision des migrations SQL",
+    "description": "Répète un DDL SQLite additif borné en mémoire jetable avec des lignes synthétiques et preuve de retour arrière. Sans base réelle ni accès au projet.",
+    "rehearsed": "Répétition SQLite terminée ; annulée et fermée.",
+    "rejected": "Migration refusée. Seul le sous-ensemble additif fermé de SQLite est accepté.",
+    "unsupported-runtime": "Environnement non pris en charge : autorisation SQLite effective requise.",
+    "error": "Entrée/sortie refusée. Aucune base réelle consultée."
+  },
+  "de": {
+    "title": "SQL-Migrationsprüfung",
+    "description": "Erprobt begrenztes additives SQLite-DDL im flüchtigen Speicher mit synthetischen Zeilen und Rollback-Nachweis. Kein Zugriff auf echte Datenbanken oder Projekte.",
+    "rehearsed": "SQLite-Probe abgeschlossen; zurückgerollt und geschlossen.",
+    "rejected": "Migration abgelehnt. Nur die geschlossene additive SQLite-Teilmenge wird unterstützt.",
+    "unsupported-runtime": "Laufzeit nicht unterstützt: wirksame SQLite-Autorisierung erforderlich.",
+    "error": "Ein-/Ausgabe abgelehnt. Keine echte Datenbank geöffnet."
+  },
+  "pt-BR": {
+    "title": "Revisor de migrações SQL",
+    "description": "Ensaia DDL SQLite aditivo limitado em memória descartável com linhas sintéticas e prova de reversão. Sem banco real nem acesso ao projeto.",
+    "rehearsed": "Ensaio SQLite concluído; revertido e fechado.",
+    "rejected": "Migração recusada. Apenas o subconjunto aditivo fechado do SQLite é aceito.",
+    "unsupported-runtime": "Ambiente incompatível: autorização SQLite efetiva é obrigatória.",
+    "error": "Entrada/saída recusada. Nenhum banco real acessado."
+  },
+  "it": {
+    "title": "Revisore delle migrazioni SQL",
+    "description": "Prova DDL SQLite additivo limitato in memoria temporanea con righe sintetiche e prova di rollback. Nessun database reale o accesso al progetto.",
+    "rehearsed": "Prova SQLite completata; annullata e chiusa.",
+    "rejected": "Migrazione rifiutata. È supportato solo il sottoinsieme additivo chiuso di SQLite.",
+    "unsupported-runtime": "Runtime non supportato: autorizzazione SQLite effettiva obbligatoria.",
+    "error": "Input/output rifiutato. Nessun database reale consultato."
+  }
+}

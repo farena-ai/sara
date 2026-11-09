@@ -4,7 +4,8 @@
 // - everything said is saved to the conversation (memory, scrapbook and search keep working),
 // - the safety layer still applies: disclosure, crisis resources, the hard block on sexual content
 //   involving minors (her reply is stopped and replaced), and the boundaries in her instructions.
-// Live calls don't use tools; for that a normal call or the chat is used.
+// R2c: her tools run on a live call too, through Sara's server: the same eligible tools as a typed
+// turn (turnScope), auto/ask/never, a tap-only approval card on the call screen, receipts in the chat.
 //
 // Phase 48: two voice services, behind one small engine interface (LiveEngine): Grok's realtime
 // voice (xAI) and OpenAI's Realtime API. Both speak the same event protocol family; the engines
@@ -15,17 +16,19 @@
 import { openWebSocket } from './net-guard.ts';
 import type { AppContext } from './chat.ts';
 import { appLanguage, languageLine, speechLanguage, talkLanguage } from './i18n.ts';
-import { dayStartUtc } from './planner.ts';
-import { bondContext, classify, daysKnown, innerEnabled } from './chat.ts';
+import { bondContext, classify, daysKnown, innerEnabled, OFFSERVER_TOOL, turnScope } from './chat.ts';
+import { privateLocalOn } from './net-guard.ts';
+import { clip, type Tool } from './tools/types.ts';
+import { workspaceDir } from './tools/workspace.ts';
+import { isSshTool } from './tools/ssh.ts';
 import { identityOf, buildSystemPrompt } from './persona.ts';
 import { elsewhereNote } from './elsewhere.ts';
 import { followUps, followUpsNote, datesNote, selectMemories } from './memory.ts';
-import { importedOther, movedFrom } from './store.ts';
 import { threadsNote } from './life.ts';
-import { decayPolicy, isForgotten, localDate, memorySettings } from './memory-worker.ts';
+import { isForgotten, localDate, memorySettings } from './memory-worker.ts';
 import { describeInner } from './inner.ts';
+import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
 import { ADULT_OFF_NOTE, CRISIS_RESOURCES, CRISIS_SYSTEM_NOTE, detectCrisis, detectMinorSexualContent, disclosureDue, disclosureText, MINOR_BLOCK_REPLY } from './safety.ts';
-import { adultModeOn } from './settings.ts';
 import { CONFLICT } from './bond.ts';
 import { stripTags } from './expressive.ts';
 import { personalize } from './identity.ts';
@@ -66,6 +69,15 @@ export const LIVE_MAX_MS = 60 * 60_000;
 const HISTORY_ITEMS = 30;
 const HISTORY_LINE_CHARS = 600;
 const HISTORY_CHARS = 9000;
+/** R2: a live call's instructions stay within this many characters. */
+export const LIVE_INSTRUCTIONS_CHARS = 24_000;
+/** R2c: tools declared to the voice service (count and JSON size), the result she hears, the wait for a tap. */
+export const LIVE_TOOLS_MAX = 24;
+export const LIVE_TOOLS_CHARS = 8000;
+const LIVE_TOOL_OUTPUT = 4000;
+export const LIVE_APPROVAL_MS = 120_000;
+/** R2c: how long a tool call waits for the owner's final words before it is refused. */
+const LIVE_FINAL_WAIT_MS = 1500;
 
 /** The upstream connection: Node's built-in WebSocket (or a fake in tests). */
 export interface Upstream {
@@ -99,7 +111,7 @@ export interface LiveEngine {
   readonly url: string;
   readonly voice: string;
   /** The session for the first session.update (voice, instructions, audio, turn detection). */
-  setup(instructions: string): Record<string, unknown>;
+  setup(instructions: string, tools?: unknown[]): Record<string, unknown>;
   /** The session for an instructions-only session.update. */
   update(instructions: string): Record<string, unknown>;
   /** The owner's microphone (16-bit PCM) as sent upstream. */
@@ -112,6 +124,8 @@ export interface LiveEngine {
   refuse(text: string): unknown[];
   /** Phase 69: whether pictures from the owner's camera can be given to her on this service. */
   readonly seesImages: boolean;
+  /** R2c: whether this service can call functions (her tools); without it they stay in the chat. */
+  readonly functions: boolean;
   /** Phase 69: the events that give her one still picture (JPEG) with a short note. */
   image?(jpeg: Buffer, note: string): unknown[];
 }
@@ -129,6 +143,8 @@ export class GrokEngine implements LiveEngine {
   readonly url = `${LIVE_URL}?model=${LIVE_MODEL}`;
   /** xAI's realtime voice documents no picture input: on a video call the camera is a self-view. */
   readonly seesImages = false;
+  /** Function calling in the realtime session (OpenAI-compatible shape); needs a real call to qualify. */
+  readonly functions: boolean = true;
   readonly voice: string;
   #ctx: EngineContext;
 
@@ -137,7 +153,7 @@ export class GrokEngine implements LiveEngine {
     this.#ctx = ctx;
   }
 
-  setup(instructions: string): Record<string, unknown> {
+  setup(instructions: string, tools?: unknown[]): Record<string, unknown> {
     const keyterms = [this.#ctx.persona, this.#ctx.ownerName?.trim()].filter((x): x is string => Boolean(x));
     const lang = this.#ctx.language;
     return {
@@ -148,6 +164,7 @@ export class GrokEngine implements LiveEngine {
         input: { format: { type: 'audio/pcm', rate: LIVE_RATE }, transport: 'binary', transcription: { model: 'grok-transcribe', keyterms, ...(lang && lang !== 'auto' ? { language_hint: lang } : {}) } },
         output: { format: { type: 'audio/pcm', rate: LIVE_RATE }, transport: 'binary' },
       },
+      ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
     };
   }
 
@@ -189,6 +206,7 @@ export class OpenAiEngine implements LiveEngine {
   readonly url: string;
   /** OpenAI's Realtime API takes pictures in a call (a user message with an input_image part). */
   readonly seesImages = true;
+  readonly functions: boolean = true;
   readonly voice: string;
   #ctx: EngineContext;
   /** Interim transcript so far, per owner utterance (OpenAI sends pieces; the call wants the whole). */
@@ -203,7 +221,7 @@ export class OpenAiEngine implements LiveEngine {
     this.#ctx = ctx;
   }
 
-  setup(instructions: string): Record<string, unknown> {
+  setup(instructions: string, tools?: unknown[]): Record<string, unknown> {
     const lang = this.#ctx.language && this.#ctx.language !== 'auto' ? this.#ctx.language.split('-')[0] : undefined;
     return {
       type: 'realtime',
@@ -217,6 +235,7 @@ export class OpenAiEngine implements LiveEngine {
         },
         output: { format: { type: 'audio/pcm', rate: LIVE_RATE }, voice: this.voice },
       },
+      ...(tools?.length ? { tools, tool_choice: 'auto' } : {}),
     };
   }
 
@@ -333,7 +352,10 @@ export function makeEngine(app: AppContext, id: LiveEngineId): LiveEngine {
 }
 
 const LIVE_NOTE = `## On a live voice call
-You are talking out loud with {owner} on a live call right now. Talk like on the phone: short turns (one to three sentences), no lists, no markdown, no emoji, no links or code read out. If {owner} starts talking, stop and listen. You can't use tools on this call; if {owner} wants something done on the server (files, code, reminders, notes), say you'll do it once you're back in the chat, or suggest typing it there.`;
+You are talking out loud with {owner} on a live call right now. Talk like on the phone: short turns (one to three sentences), no lists, no markdown, no emoji, no links or code read out. If {owner} starts talking, stop and listen.`;
+const LIVE_NO_TOOLS = `You can't use tools on this call; if {owner} wants something done on the server (files, code, reminders, notes), say you'll do it once you're back in the chat, or suggest typing it there.`;
+/** R2c: her tools on the call (the same ones as in the chat). */
+const LIVE_TOOLS = `You can use your tools on this call, the same ones as in the chat. Before one runs, say a short "one moment". Some need {owner}'s OK first: then say in one plain sentence that you need their OK and it is on their screen, and wait. Only their tap on the screen answers it, never anything said on the call. Never say something was done unless the tool's result says so.`;
 
 /** What the browser is told (JSON text messages; her voice goes as binary frames). */
 export type LiveEvent =
@@ -345,7 +367,11 @@ export type LiveEvent =
   | { type: 'said'; text: string; interrupted: boolean }
   | { type: 'interrupt' }
   | { type: 'error'; message: string }
-  | { type: 'ended'; reason: string };
+  | { type: 'ended'; reason: string }
+  | { type: 'tools'; on: boolean; fallback: boolean }
+  | { type: 'tool'; id: string; name: string; summary: string; state: string }
+  | { type: 'approval'; approvalId: string; id: string; name: string; summary: string; args: Record<string, unknown> }
+  | { type: 'approval_done'; id: string; approved: boolean };
 
 interface Opts {
   connect?: ConnectUpstream;
@@ -402,6 +428,15 @@ export class LiveCall {
   #video: boolean;
   /** Phase 69: after a safety block on this call, no more camera pictures. */
   #framesBlocked = false;
+  /** R2c: ends with the call: tool runs stop and approval waits are cancelled. */
+  #abort = new AbortController();
+  /** R2c: the tools declared to the voice service, and approval waits an interruption cancels. */
+  #declared = new Set<string>();
+  #toolsMore = false;
+  #waits = new Set<AbortController>();
+  /** R2c: owner utterances with interim words only; whether a final transcript was heard. */
+  #interim = new Set<string>();
+  #finalHeard = false;
 
   constructor(app: AppContext, conversationId: string, client: WsConnection, key: string, opts: Opts = {}) {
     this.#app = app;
@@ -512,6 +547,8 @@ export class LiveCall {
   end(reason: string): void {
     if (this.#ended) return;
     this.#ended = true;
+    // R2c: nothing runs after the call; waiting approvals are cancelled.
+    this.#abort.abort();
     clearInterval(this.#timer);
     clearTimeout(this.#maxTimer);
     try {
@@ -529,48 +566,89 @@ export class LiveCall {
     this.#client.close(1000, 'ended');
   }
 
-  /** Her instructions: the same character, memories, day and feelings as in the chat. */
+  /**
+   * Her instructions: the same character, memories, day and feelings as in the chat. R2a: the
+   * permission scope, adult rule, memories, R1 session note and checkpoint come from the text
+   * turn's own turnScope (re-read on every update, so a forgotten source or a revoked note drops out).
+   */
   instructions(userText = ''): string {
     const app = this.#app;
     const s = app.settings.get();
     const now = new Date(this.#now());
     const conv = app.store.getConversation(this.#convId);
     const owner = s.ownerName?.trim() || 'the owner';
-    let memories: string | undefined;
     const memCfg = memorySettings(app);
-    if (app.memory && memCfg.enabled && conv) {
-      const visible = app.store.messages(conv.id).filter((m) => !isForgotten(m) && (m.role === 'user' || m.role === 'assistant'));
-      const oldest = visible.at(-HISTORY_ITEMS)?.id ?? 0;
-      memories = selectMemories(app.memory, { userText: userText || visible.filter((m) => m.role === 'user').at(-1)?.content || '', conversationId: conv.id, oldestHistoryId: oldest, budgetChars: memCfg.injectBudgetChars, importedFrom: (id) => importedOther(app.store.getConversation(id)), movedFrom: (id) => movedFrom(app.store.getConversation(id)), policy: decayPolicy(memCfg), today: localDate(now.toISOString(), s.timeZone), notes: false }).text;
-    }
-    const inner = app.inner && innerEnabled(app) ? app.inner.get() : undefined;
+    const heard = userText || (conv ? app.store.messages(conv.id).filter((m) => !isForgotten(m) && m.role === 'user').at(-1)?.content : '') || '';
+    const scope = conv ? turnScope(app, conv, { call: 'live', text: heard }) : undefined;
+    const inner = conv && legacyInnerConversation(app, conv.id) && app.inner && innerEnabled(app) ? app.inner.get() : undefined;
     const system = buildSystemPrompt(app.persona, {
       now,
       timeZone: s.timeZone,
       ownerName: s.ownerName,
-      safetyNotes: [...(this.#crisis ? [CRISIS_SYSTEM_NOTE] : []), ...(adultModeOn(s) ? [] : [ADULT_OFF_NOTE])],
+      safetyNotes: [...(this.#crisis ? [CRISIS_SYSTEM_NOTE] : []), ...(scope ? scope.sections.safetyNotes : [ADULT_OFF_NOTE])],
       tools: [],
-      memories,
+      // Spoken: the same pick as a typed turn, without the bracket notes.
+      memories: scope?.memoryInput && app.memory ? selectMemories(app.memory, { ...scope.memoryInput, notes: false }).text : undefined,
       day: inner ? app.life?.get(localDate(now.toISOString(), s.timeZone)) : undefined,
       inner: inner ? describeInner(inner, now, s.timeZone, owner, { gapHours: null, daysKnown: daysKnown(app.store, now, s.timeZone), conflict: app.persona.conflict ? CONFLICT[app.persona.conflict]?.line : undefined }) : undefined,
       dates: app.memory && memCfg.enabled ? datesNote(app.memory, localDate(now.toISOString(), s.timeZone)) : undefined,
       threads: inner ? threadsNote(app.life) : undefined,
       ...bondContext(app, inner?.closeness),
-      followUps: app.memory && memCfg.enabled ? followUpsNote(followUps(app.memory, localDate(now.toISOString(), s.timeZone), (day) => app.store.ownerMessagesSince(dayStartUtc(day, s.timeZone).toISOString())), owner) : undefined,
-      elsewhere: conv ? elsewhereNote(app, conv, now, owner) : undefined,
+      followUps: conv && app.memory && memCfg.enabled ? followUpsNote(followUps(app, conv.id, localDate(now.toISOString(), s.timeZone)), owner) : undefined,
+      // The R1 session note (same as a typed turn) replaces the older "elsewhere" line when it applies.
+      elsewhere: conv && !scope?.sections.session ? elsewhereNote(app, conv, now, owner) : undefined,
       language: languageLine(talkLanguage(s, userText || undefined)),
     });
     // Phase 37: expressive voice on a live call: she may laugh, sigh or whisper with her voice.
     const level = s.voice?.expressive ?? 'subtle';
     const expressive = level === 'off' ? '' : `\n${level === 'lively' ? 'Let your voice be expressive: laugh when something is funny, sigh, take a breath, drop to a whisper for something private, the way you would with someone close.' : 'Your voice can show feeling now and then: a small laugh at something funny, a sigh, a softer voice for something tender. Keep it natural and occasional.'} Never say the names of these sounds out loud and never write them as words.`;
     const video = this.#video ? `\n\n${videoCallNote(owner, this.#engine.seesImages && !this.#framesBlocked)}` : '';
-    const live = `${system}${this.#before ? `\n\n${this.#before}` : ''}\n\n${personalize(LIVE_NOTE, identityOf(app.persona)).replaceAll('{owner}', owner)}${expressive}${video}`;
-    // Phase 26: until she has said why she called, that's the first thing on her mind.
-    return this.#opening ? `${live}\n\n${this.#opening}` : live;
+    const extra = [scope?.sections.checkpoint, scope?.sections.session].filter((x): x is string => Boolean(x)).map((x) => `\n\n${x}`).join('');
+    const toolsNote = this.#declared.size ? `${LIVE_TOOLS}${this.#toolsMore ? ' Other tools are only in the chat.' : ''}` : LIVE_NO_TOOLS;
+    const tail = `\n\n${personalize(`${LIVE_NOTE} ${toolsNote}`, identityOf(app.persona)).replaceAll('{owner}', owner)}${expressive}${video}${this.#opening ? `\n\n${this.#opening}` : ''}`;
+    // R2 budget: at most LIVE_INSTRUCTIONS_CHARS; the earlier lines of this conversation give way first (oldest first).
+    let before = this.#before;
+    const room = LIVE_INSTRUCTIONS_CHARS - system.length - extra.length - tail.length - 2;
+    if (before.length > room) {
+      const head = before.slice(0, before.indexOf('\n') + 1);
+      const lines = before.slice(head.length).split('\n');
+      while (lines.length && head.length + lines.join('\n').length > room) lines.shift();
+      before = lines.length ? head + lines.join('\n') : '';
+    }
+    // Phase 26: until she has said why she called, that's the first thing on her mind (in the tail).
+    return `${system}${before ? `\n\n${before}` : ''}${extra}${tail}`;
+  }
+
+  /**
+   * R2c: the specs she may call on this call: the turn scope's eligible tools on an engine with
+   * function calling, without command runners, count-first tools, her hands or SSH (those stay in the
+   * chat), automatic ones first, within LIVE_TOOLS_MAX and LIVE_TOOLS_CHARS.
+   */
+  #declare(): { specs: unknown[]; fallback: boolean } {
+    const conv = this.#app.store.getConversation(this.#convId);
+    const eligible = conv ? turnScope(this.#app, conv, { call: 'live' }).tools : [];
+    if (!this.#engine.functions) return { specs: [], fallback: eligible.length > 0 };
+    const perms = this.#app.settings.get().toolPermissions;
+    const fit = eligible.filter((t) => !t.runsCommands && !t.prepare && !t.spec.name.startsWith('pc_') && !isSshTool(t.spec.name));
+    fit.sort((a, b) => Number(this.#app.tools.permission(a.spec.name, perms) !== 'auto') - Number(this.#app.tools.permission(b.spec.name, perms) !== 'auto'));
+    const specs: unknown[] = [];
+    let size = 0;
+    for (const t of fit) {
+      const spec = { type: 'function', name: t.spec.name, description: t.spec.description.slice(0, 600), parameters: t.spec.parameters };
+      const n = JSON.stringify(spec).length;
+      if (specs.length >= LIVE_TOOLS_MAX || size + n > LIVE_TOOLS_CHARS) continue;
+      specs.push(spec);
+      size += n;
+      this.#declared.add(t.spec.name);
+    }
+    this.#toolsMore = specs.length < eligible.length;
+    return { specs, fallback: false };
   }
 
   #configure(): void {
-    this.#send({ type: 'session.update', session: this.#engine.setup(this.instructions()) });
+    const { specs, fallback } = this.#declare();
+    this.#tell({ type: 'tools', on: specs.length > 0, fallback });
+    this.#send({ type: 'session.update', session: this.#engine.setup(this.instructions(), specs) });
     // What came before the call is in her instructions (#earlier), not added as call messages.
     // She called: she talks first (the reason is in her instructions until she has said it).
     if (this.#opening) this.#send({ type: 'response.create' });
@@ -621,7 +699,11 @@ export class LiveCall {
         break;
       case 'input_audio_buffer.speech_started':
         this.#lastActivity = this.#now();
-        if (this.#replying) this.#interrupted = true;
+        if (this.#replying) {
+          this.#interrupted = true;
+          // R2c: talking over her cancels what waits for a tap (it never approves it).
+          for (const w of this.#waits) w.abort();
+        }
         this.#tell({ type: 'interrupt' });
         this.#tell({ type: 'status', state: 'hearing' });
         break;
@@ -641,10 +723,13 @@ export class LiveCall {
         const final = ev.type.endsWith('.completed') && (ev.status === undefined || ev.status === 'completed');
         if (!text || this.#savedItems.has(item)) break;
         if (final) {
+          this.#interim.delete(item);
+          this.#finalHeard = true;
           this.#savedItems.add(item);
           this.#owner(text, item);
           this.#resolveTranscribing?.();
         } else {
+          this.#interim.add(item);
           this.#tell({ type: 'you', text, final: false });
           this.#check(text, item, true);
         }
@@ -685,6 +770,9 @@ export class LiveCall {
         this.#tell({ type: 'status', state: 'listening' });
         break;
       }
+      case 'response.function_call_arguments.done':
+        void this.#tool(String(ev.call_id ?? ''), String(ev.name ?? ''), String(ev.arguments ?? '{}')).catch((err: Error) => console.warn(`live tool: ${err.message}`));
+        break;
       case 'error': {
         const e = (ev.error ?? ev) as { message?: string; code?: string };
         const message = String(e.message ?? e.code ?? 'Voice service error');
@@ -695,17 +783,93 @@ export class LiveCall {
     }
   }
 
+  /**
+   * R2c: one function call from the voice service. Sara's server decides: only a declared tool the
+   * text turn's scope still offers, only after the owner's final words, the owner's auto/ask/never
+   * rule and the private/local filter re-checked now; an ask waits for a tap on the call screen
+   * (LIVE_APPROVAL_MS, then cancelled; hang-up and talking over her cancel it). The result she hears
+   * is redacted and clipped; a receipt goes into the chat.
+   */
+  async #tool(callId: string, name: string, raw: string): Promise<void> {
+    if (this.#ended || !callId) return;
+    const app = this.#app;
+    const owner = app.settings.get().ownerName?.trim() || 'the owner';
+    let summary = name;
+    const answer = (output: string, state: string) => {
+      if (this.#ended) return;
+      this.#tell({ type: 'tool', id: callId, name, summary, state });
+      this.#send({ type: 'conversation.item.create', item: { type: 'function_call_output', call_id: callId, output: clip(app.redactor.redact(output), LIVE_TOOL_OUTPUT) } });
+      this.#send({ type: 'response.create' });
+    };
+    // Tools start only from a final transcript, never from interim or uncertain words.
+    for (let waited = 0; this.#interim.size && waited < LIVE_FINAL_WAIT_MS && !this.#ended; waited += 50) await new Promise((r) => setTimeout(r, 50));
+    if (this.#ended) return;
+    if (this.#interim.size || !this.#finalHeard) return answer(`Not done: ${owner}'s words weren't final yet. Ask them to say it again.`, 'denied');
+    let args: Record<string, unknown> = {};
+    try {
+      const v: unknown = JSON.parse(raw || '{}');
+      if (v && typeof v === 'object' && !Array.isArray(v)) args = v as Record<string, unknown>;
+    } catch {
+      return answer('Not done: that request could not be read.', 'error');
+    }
+    const current = (): Tool | undefined => {
+      const conv = app.store.getConversation(this.#convId);
+      const tool = conv && this.#declared.has(name) ? turnScope(app, conv, { call: 'live' }).tools.find((t) => t.spec.name === name) : undefined;
+      if (!conv || !tool || (tool.isAvailable && !tool.isAvailable())) return undefined;
+      if ((conv.private || privateLocalOn()) && OFFSERVER_TOOL(name)) return undefined;
+      return app.tools.permission(name, app.settings.get().toolPermissions) === 'never' ? undefined : tool;
+    };
+    let tool = current();
+    if (!tool) return answer(`The ${name} tool isn't available on this call. Offer to do it in the chat instead.`, 'denied');
+    try {
+      summary = app.redactor.redact(tool.summarize(args)).slice(0, 300) || name;
+    } catch {
+      summary = name;
+    }
+    if (app.tools.permission(name, app.settings.get().toolPermissions) === 'ask' || tool.asksFirst?.(args)) {
+      const wait = new AbortController();
+      this.#waits.add(wait);
+      const { id, decision } = app.approvals.request(this.#convId, AbortSignal.any([this.#abort.signal, wait.signal, AbortSignal.timeout(LIVE_APPROVAL_MS)]));
+      this.#tell({ type: 'approval', approvalId: id, id: callId, name, summary, args: app.redactor.redactValue(args) });
+      const ok = await decision;
+      this.#waits.delete(wait);
+      app.approvals.takeHow(id);
+      if (this.#ended) return;
+      this.#tell({ type: 'approval_done', id: callId, approved: ok });
+      if (!ok) return answer(`Not done: ${owner} declined it, or no OK came within two minutes. Say so plainly.`, 'denied');
+      // The wait may have changed things (a tool turned off, private mode): checked again.
+      tool = current();
+      if (!tool) return answer(`Not done: the ${name} tool isn't available any more.`, 'denied');
+    }
+    if (this.#ended) return;
+    this.#tell({ type: 'tool', id: callId, name, summary, state: 'running' });
+    const conv = app.store.getConversation(this.#convId)!;
+    let output: string;
+    let status: 'ok' | 'error' = 'ok';
+    try {
+      output = await tool.run(args, { workspaceDir: workspaceDir(app.rootDir ?? app.dataDir, conv.workspace), signal: this.#abort.signal, sandbox: { ...app.sandbox, network: privateLocalOn() ? false : (app.settings.get().shellNetwork ?? true) }, conversationId: conv.id, companionName: app.persona.name });
+    } catch (err) {
+      status = 'error';
+      output = `Error: ${(err as Error).message}`;
+    }
+    // The receipt is kept even if the call ended while it ran (it did run).
+    app.store.addMessage(conv.id, 'notice', `job:${summary}${status === 'error' ? ` (${clip(app.redactor.redact(output), 200)})` : ''}`, { status, live: true, tool: name });
+    answer(output, status);
+  }
+
   /** The owner said something (final transcript): save it and apply the safety layer. */
   #owner(text: string, item: string): void {
     const { store } = this.#app;
     const now = new Date(this.#now());
     const conv = store.getConversation(this.#convId);
-    const prev = store.lastOwnerMessageAt();
+    const legacyOwner = legacyInnerConversation(this.#app, this.#convId);
+    const prev = legacyOwner ? store.lastOwnerMessageAt() : null;
     const isFirst = store.messages(this.#convId).every((m) => m.role === 'notice');
-    store.addMessage(this.#convId, 'user', text, { live: true });
+    const message = store.addMessage(this.#convId, 'user', text, { live: true });
+    if (ownerEvidenceConversation(this.#app, this.#convId)) store.markDirectOwnerMessage(message.id);
     if (isFirst && conv?.title === 'New conversation') store.updateConversation(this.#convId, { title: text.replace(/\s+/g, ' ').slice(0, 60) });
     this.#tell({ type: 'you', text, final: true });
-    if (this.#app.inner && innerEnabled(this.#app)) this.#app.inner.onOwnerMessage(text, prev ? (now.getTime() - prev.getTime()) / 3_600_000 : null, now);
+    if (legacyOwner && this.#app.inner && innerEnabled(this.#app)) this.#app.inner.onOwnerMessage(text, prev ? (now.getTime() - prev.getTime()) / 3_600_000 : null, now, this.#app.persona.name);
     if (!this.#check(text, item, false)) {
       // Fresh memories for what was just said (applies from her next reply).
       this.#send({ type: 'session.update', session: this.#engine.update(this.instructions(text)) });

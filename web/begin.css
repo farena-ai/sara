@@ -85,6 +85,22 @@
 .sc-fix > .tip, .sc-acts > .tip { align-self: center; flex: 0 0 auto; }
 .sc-fix button:not(.tip), .sc-acts button:not(.tip) { min-height: 44px; }
 .sc-cmd { display: block; font-family: var(--font-mono); font-size: 0.9em; padding: 6px 8px; border-radius: var(--r-control); background: var(--surface-2); overflow-wrap: anywhere; flex: 1 1 100%; }
+/* EC28: readiness and recovery (web/readiness.js): one row per area, the fix under it. */
+.rd-list { list-style: none; margin: 0 0 12px; padding: 0; }
+.rd-row { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 8px 12px; margin: 0 0 8px; }
+.rd-row.rd-attention { border-color: var(--warn); }
+.rd-row.rd-not-ready { border-color: var(--danger); }
+.rd-row p { margin: 0 0 4px; }
+.rd-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.rd-mark { font-weight: 700; }
+.rd-ready .rd-mark { color: var(--success); }
+.rd-attention .rd-mark { color: var(--warn); }
+.rd-not-ready .rd-mark { color: var(--danger); }
+.rd-fix { display: flex; flex-wrap: wrap; gap: 6px; }
+.rd-cmd { display: flex; flex-wrap: wrap; gap: 6px; flex: 1 1 100%; }
+.rd-verdict[data-verdict="ready"] { border-color: var(--success); }
+.rd-verdict[data-verdict="attention"] { border-color: var(--warn); }
+.rd-verdict[data-verdict="not-ready"] { border-color: var(--danger); }
 .sc-confirm { flex: 1 1 100%; border: 1px dashed var(--line); border-radius: var(--r-card); padding: 6px 10px; }
 .sc-more summary { list-style: none; cursor: pointer; min-height: 44px; min-width: 44px; display: inline-flex; align-items: center; justify-content: center; }
 .sc-fine summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
@@ -107,3 +123,127 @@
 .rt-mini-name .rt-ic { color: var(--accent-text); }
 button.rt-setup-first { background: var(--surface-1); color: var(--accent-text); border: 1px solid var(--accent-solid); box-shadow: none; font-weight: 600; }
 button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
+/* E4: Watch a file (web/watches.js) and its chat card. */
+#rt-watch-h { margin-top: 16px; }
+.wt-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.wt-chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; background: var(--surface-2); font-family: var(--mono, ui-monospace, monospace); font-size: 0.85em; overflow-wrap: anywhere; }
+.wt-chip-x { min-width: 32px; min-height: 32px; padding: 0; background: none; border: 0; color: var(--text-2); }
+.wt-state { font-size: 0.8em; color: var(--text-2); white-space: nowrap; }
+.wt-state.wt-active { color: var(--success); }
+.wt-alert { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; border-top: 1px solid var(--line); padding-top: 4px; }
+.wt-line { display: block; flex: 1 1 100%; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.85em; }
+.wt-card { display: flex; flex-direction: column; gap: 6px; }
+.wt-card-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+#planner .wt-add .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
+
+/* EC12: Team → Crews (web/crews.js). */
+.crews-box { margin: 12px 0; }
+.crew-members { margin: 4px 0; padding-left: 18px; }
+.crew-member-rows { display: flex; flex-direction: column; gap: 6px; }
+.crew-member-rows .add-row input[type="text"] { flex: 1 1 200px; min-width: 0; }
+#team .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#team .rt-field > span:first-child { min-width: 11rem; }
+#team .rt-field input, #team .rt-field select, #team .rt-field textarea { flex: 1 1 12rem; min-height: 44px; width: auto; min-width: 0; }
+#team .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
+.crew-add .rt-more-acts, .crews-box > div > .rt-more-acts { align-items: center; }
+/* C10: Team → Workers that stay (web/workers.js). */
+.workers-box { margin: 12px 0; }
+.wr-char, .wr-needs { margin: 2px 0; overflow-wrap: anywhere; }
+.wr-needs, .wr-risky { color: var(--warn, inherit); }
+.wr-groups { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1 1 12rem; }
+#team .wr-groups .wr-group { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 6px; flex: 0 0 auto; width: auto; }
+.wr-row .rt-row-head { justify-content: flex-start; }
+.wr-row .rt-row-head .wt-state { margin-left: auto; }
+.wr-failed-list, .wr-preview-list { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.wr-failed-list > li, .wr-preview-list > li { border-top: 1px solid var(--line); padding-top: 4px; }
+.wr-failed-list p, .wr-preview-list p { margin: 2px 0; overflow-wrap: anywhere; }
+.wr-import { display: inline-flex; align-items: center; gap: 4px; }
+@media (max-width: 600px) {
+  #team .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
+}
+/* EC13: the overnight memory tidy's morning card (web/memory-tidy.js). */
+.mt-changes { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mt-change { border-top: 1px solid var(--line); padding-top: 4px; }
+.mt-change p { margin: 2px 0; overflow-wrap: anywhere; }
+/* C12 (web/working-style.js): How she works with you. */
+.ws-list { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ws-item { border-top: 1px solid var(--line); padding-top: 4px; }
+.ws-item p { margin: 2px 0; overflow-wrap: anywhere; }
+.ws-item .rt-more-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg.notice.mem-tidy, .msg.notice.crew { text-align: left; }
+
+/* C4: "When this happens" event triggers (web/event-triggers.js), on the Webhooks page. */
+.et-box { margin: 8px 0 12px; }
+.et-tools { flex-wrap: wrap; gap: 4px 12px; }
+.et-form .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
+.et-form .rt-field[hidden] { display: none; }
+.et-form .rt-field > span:first-child { min-width: 11rem; }
+.et-form .rt-field input, .et-form .rt-field select, .et-form .rt-field textarea { flex: 1 1 12rem; min-height: 44px; width: auto; min-width: 0; }
+.et-form .et-tools { flex: 1 1 12rem; margin: 0; }
+.et-form .et-tools input[type="checkbox"] { width: 22px; height: 22px; min-height: 22px; flex: none; }
+@media (max-width: 600px) {
+  .et-form .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
+}
+.et-run-list { list-style: none; margin: 6px 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.et-run { display: flex; flex-wrap: wrap; gap: 4px 8px; border-top: 1px solid var(--line); padding-top: 4px; overflow-wrap: anywhere; }
+
+/* C8 (web/spend.js, web/store.js): spend limits, paid tools, Token Saver's badge, add-on auto-update. */
+.sp-tools .sp-tool { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.sp-tools .sp-tool-label { display: inline-flex; align-items: center; gap: 6px; }
+.saver-badge { font-size: 12px; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--accent-to); color: var(--text-2); white-space: nowrap; }
+.saver-badge[hidden] { display: none; }
+#sp-box label.row select { flex: 0 1 12rem; width: auto; }
+.au-box { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; margin: 0 0 10px; }
+.au-box .row, .stp-addon-acts .au-item { display: inline-flex; align-items: center; gap: 6px; }
+/* C15 (web/device-approval.js): approve a new device: the code, the prompt, the settings section. */
+.dap-pop { max-width: min(480px, calc(100vw - 24px)); padding: var(--s-4, 16px) var(--s-5, 20px); }
+.dap-pop label { display: grid; gap: 6px; }
+.dap-pop input, .dap-box input, .dap-box select { min-height: 44px; font-size: 16px; }
+#dap-pop-code { letter-spacing: 0.3em; text-transform: uppercase; font-family: var(--font-mono, monospace); }
+.dap-code { font-family: var(--font-mono, monospace); font-size: 2rem; letter-spacing: 0.35em; font-weight: 700; margin: var(--s-2, 8px) 0; }
+.dap-box { display: grid; gap: var(--s-2, 8px); margin-top: var(--s-3, 12px); }
+.dap-box[hidden], .login-wait[hidden], .dap-notice[hidden] { display: none; }
+.dap-box .row { display: flex; align-items: center; gap: var(--s-2, 8px); flex-wrap: wrap; }
+.dap-box #dap-hosts { flex: 1 1 14em; min-width: 0; }
+.dap-box select { width: auto; flex: none; }
+.dap-notice { background: var(--surface-2); border-radius: var(--r-control, 8px); padding: 8px 12px; }
+.login-wait { display: grid; gap: 4px; }
+
+/* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
+.au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
+.au-filters label { display: flex; flex-direction: column; gap: 4px; }
+.au-list { display: flex; flex-direction: column; gap: 6px; margin: var(--s-2) 0 var(--s-3); max-height: 60vh; overflow: auto; }
+.au-row { display: grid; grid-template-columns: minmax(150px, auto) 1fr auto auto; gap: 4px var(--s-3); align-items: baseline; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface-2); }
+.au-row .au-keys { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.au-row .au-what { overflow-wrap: anywhere; }
+.au-row .au-when, .au-row .au-who { color: var(--muted); font-size: 0.88em; }
+.au-outcome { font-size: 0.85em; font-weight: 600; padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--line); }
+.au-row[data-outcome="ok"] .au-outcome { color: var(--success); border-color: var(--success); }
+.au-row[data-outcome="refused"] .au-outcome, .au-row[data-outcome="failed"] .au-outcome { color: var(--danger); border-color: var(--danger); }
+.au-row[data-outcome="pending"] .au-outcome { color: var(--warn); border-color: var(--warn); }
+@media (max-width: 640px) {
+  .au-row { grid-template-columns: 1fr auto; }
+  .au-row .au-what { grid-column: 1 / -1; }
+}
+.po-kinds { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--s-2); }
+.po-kinds label { display: flex; align-items: center; justify-content: flex-start; gap: 8px; min-height: 36px; }
+.po-kinds input { flex: 0 0 auto; width: auto; margin: 0; }
+.po-page label.row, .au-page label.row { justify-content: flex-start; flex-wrap: wrap; }
+.po-page label.row select, .po-page label.row input[type="text"], .au-page label.row select { flex: 0 1 320px; min-width: 0; }
+.po-lock { display: inline-flex; align-items: center; margin-left: var(--s-2); padding: 1px 8px; border-radius: var(--r-pill); border: 1px solid var(--warn); color: var(--warn); font-size: 0.8em; font-weight: 600; white-space: nowrap; }
+.po-banner { border: 1px solid var(--warn); border-radius: var(--r-card); padding: 8px 12px; margin: 0 0 var(--s-2); }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after begin.css `button.rt-setup-first` */
+:where(:root:not([data-palette="classic"])) button:hover { background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); filter: none; }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+:where(:root:not([data-palette="classic"])) button.ghost:where(:not(.ag-src, .td-ag-item, .rt-setup-first, .msg-more)) { background: var(--surface-2); border: 1px solid var(--line); color: var(--text-1); font-weight: 500; }
+/* [cascade] not in style.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+:where(:root:not([data-palette="classic"])) button:disabled, :where(:root:not([data-palette="classic"])) button:disabled:hover { background: var(--btn-off-fill); color: var(--btn-off-text); border: 1px solid var(--btn-off-line); opacity: 1; }
+@media (hover: none) {
+  /* [cascade] not in look.css: must come after `:where(:root:not([data-palette="classic"])) button:hover` (moved here too) */
+  :where(:root:not([data-palette="classic"])) button.msg-more { background: transparent; border: 0; }
+}

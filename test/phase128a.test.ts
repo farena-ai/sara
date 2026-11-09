@@ -76,6 +76,8 @@ const APPS: Record<string, { page: string; box: string; file: string }> = {
   whatsapp: { page: 'co-whatsapp', box: 'wa-box', file: 'whatsapp.js' },
   matrix: { page: 'co-matrix', box: 'mx-box', file: 'matrix.js' },
   imessage: { page: 'co-imessage', box: 'im-box', file: 'imessage.js' },
+  slack: { page: 'co-slack', box: 'sl-box', file: 'slack.js' },
+  teams: { page: 'co-teams', box: 'te-box', file: 'teams.js' },
   signal: { page: 'co-signal', box: 'sig-box', file: 'signal.js' },
   email: { page: 'co-email', box: 'em-box', file: 'email.js' },
   telegram: { page: 'co-telegram', box: 'tg-setup', file: 'telegram-setup.js' },
@@ -159,7 +161,7 @@ test('128a.2 N2: a first-party plugin gets the consent step and installs with on
   // One OK (consent), no trust tick.
   await pm.approve(own.id, { consent: true });
   assert.ok(pm.store.get('whatsapp'), 'installed');
-  assert.deepEqual(seen, [own.sha], 'the fingerprint check ran');
+  assert.deepEqual(seen, [own.sha, own.sha], 'the reviewed fingerprint is checked before admission and immediately before commit');
   await pm.remove('whatsapp');
 
   // Third party, same manifest (id whatsapp, "The Sara team"): a folder is never first-party.
@@ -172,8 +174,7 @@ test('128a.2 N2: a first-party plugin gets the consent step and installs with on
   }
   const third = pm.stage(fromFolder(fake, PLUGIN_LIMITS), { kind: 'folder', where: fake });
   await pm.approve(third.id, { trust: true });
-  assert.equal(seen.at(-1), third.sha, 'the fingerprint check ran for the third-party one too');
-  assert.equal(seen.length, 2);
+  assert.deepEqual(seen, [own.sha, own.sha, third.sha, third.sha], 'both fingerprint checks also run for the third-party package');
   await pm.remove('whatsapp');
 
   // A builtin whose folder name doesn't match its id is not trusted as Sara's own either.
@@ -223,12 +224,14 @@ test('128a.3 N2: the consent step and the page wiring', async () => {
   await det.fire('toggle');
   assert.equal(detailed?.needsTrust, false);
   // The pages: Start goes through startFirstParty; the server gets `consent`, never a page-made "first-party".
-  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js']) assert.match(web(f), /startFirstParty\('(whatsapp|matrix|imessage|signal|email)'/, f);
+  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'slack.js', 'teams.js']) assert.match(web(f), /startFirstParty\('(whatsapp|matrix|imessage|signal|email|slack|teams)'/, f);
   const sc = web('setup-card.js');
   assert.match(sc, /body: \{ review: review\.id, consent: true \}/);
   assert.match(sc, /consentKind\(review\) === 'full'\) return void \(await o\.full\(id\)\)/, 'anything else: the full card');
   const route = readFileSync(join(ROOT, 'src', 'routes', 'plugins.ts'), 'utf8');
-  assert.match(route, /pm\.approve\(r\.id, \{ trust: body\.trust === true, consent: body\.consent === true \}\)/);
+  // C8 moved the approval into approveReview (also used by automatic updates); the route passes the page's two ticks.
+  assert.match(route, /approveReview\(app, pm, r, \{ trust: body\.trust === true, consent: body\.consent === true \}\)/);
+  assert.match(route, /pm\.approve\(r\.id, \{\s*trust: o\.trust === true, consent: o\.consent === true,\s*onCommitted: row => \{/);
 });
 
 test('128a.4 N3: Signal steps have an install line for Windows, macOS and Linux and Copy rows; daemon not reachable is one plain sentence', async (t) => {
@@ -287,7 +290,7 @@ test('128a.4 N3: Signal steps have an install line for Windows, macOS and Linux 
 });
 
 test('128a.5 C3: the shared helpers are imported, not copied', () => {
-  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'telegram-setup.js']) {
+  for (const f of ['whatsapp.js', 'matrix.js', 'imessage.js', 'signal.js', 'email.js', 'slack.js', 'teams.js', 'telegram-setup.js']) {
     const js = web(f);
     assert.doesNotMatch(js, /function (copyRow|diagLine|field|okLine)\b/, f);
     assert.match(js, /from '\.\/setup-card\.js';/, f);

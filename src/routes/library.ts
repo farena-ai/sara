@@ -159,7 +159,8 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'library') {
       const lib = app.library;
       if (!lib) throw new HttpError(404, 'The library is not available');
-      const docView = (d: LibraryDoc) => ({ ...d, sha: undefined, facts: d.facts, job: jobView(app, lib, d) });
+      // E5: `revision` (the first 12 of the sha) lets Read together say which version it shares.
+      const docView = (d: LibraryDoc) => ({ ...d, sha: undefined, revision: d.sha.slice(0, 12), facts: d.facts, job: jobView(app, lib, d) });
       // Phase 74: the largest document here (a household member's limit is the owner's member limit).
       const lim = libraryLimits(app.settings.get());
       const maxBytes = (opts.member ? Math.min(lim.maxMb, lim.memberMaxMb) : lim.maxMb) * 1024 * 1024;

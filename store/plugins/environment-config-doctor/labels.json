@@ -1,0 +1,50 @@
+{
+  "en": {
+    "scope": "Explicit supplied artifacts only; no disk scan, vault import or chat-history privacy guarantee. Do not supply actual owner secrets.",
+    "error": "Refused: invalid or oversized supplied evidence.",
+    "summary": "Bounded evidence analysis; completeness and unknowns are explicit.",
+    "title": "Environment Config Doctor",
+    "description": "Validate explicitly supplied dotenv or JSON against typed rules; return rule indices, never values or digests.",
+    "count": "Evidence records"
+  },
+  "es": {
+    "scope": "Solo artefactos aportados; sin escaneo de disco, importación de bóveda ni garantía de privacidad del chat. No aporte secretos reales.",
+    "error": "Rechazado: evidencia inválida o demasiado grande.",
+    "summary": "Análisis acotado; se indican integridad e incógnitas.",
+    "title": "Doctor de configuración",
+    "description": "Valida dotenv o JSON aportado con reglas tipadas; devuelve índices, nunca valores ni resúmenes.",
+    "count": "Registros de evidencia"
+  },
+  "fr": {
+    "scope": "Documents fournis uniquement ; aucune analyse du disque, importation du coffre ou garantie de confidentialité du chat. Ne fournissez pas de vrais secrets.",
+    "error": "Refus : preuves invalides ou trop volumineuses.",
+    "summary": "Analyse bornée ; limites et inconnues sont explicites.",
+    "title": "Diagnostic de configuration",
+    "description": "Valide dotenv ou JSON fourni selon des règles typées ; renvoie des indices, jamais de valeurs ni empreintes.",
+    "count": "Éléments probants"
+  },
+  "de": {
+    "scope": "Nur bereitgestellte Artefakte; kein Festplattenscan, Tresorimport oder Chat-Datenschutzversprechen. Keine echten Geheimnisse angeben.",
+    "error": "Abgelehnt: ungültige oder zu große Belege.",
+    "summary": "Begrenzte Beleganalyse; Vollständigkeit und Unbekanntes sind ausgewiesen.",
+    "title": "Konfigurationsprüfung",
+    "description": "Prüft bereitgestellte dotenv-/JSON-Daten gegen typisierte Regeln; nur Regelindizes, keine Werte oder Hashes.",
+    "count": "Belege"
+  },
+  "pt-BR": {
+    "scope": "Somente artefatos fornecidos; sem varredura, importação do cofre ou garantia de privacidade do chat. Não forneça segredos reais.",
+    "error": "Recusado: evidências inválidas ou grandes demais.",
+    "summary": "Análise limitada; completude e incógnitas explícitas.",
+    "title": "Diagnóstico de configuração",
+    "description": "Valida dotenv ou JSON fornecido com regras tipadas; retorna índices, nunca valores ou hashes.",
+    "count": "Registros de evidência"
+  },
+  "it": {
+    "scope": "Solo artefatti forniti; nessuna scansione, importazione dal deposito o garanzia di privacy della chat. Non fornire segreti reali.",
+    "error": "Rifiutato: prove non valide o troppo grandi.",
+    "summary": "Analisi limitata; completezza e incognite sono esplicite.",
+    "title": "Diagnostica configurazione",
+    "description": "Valida dotenv o JSON fornito con regole tipizzate; restituisce indici, mai valori o hash.",
+    "count": "Elementi di prova"
+  }
+}

@@ -103,6 +103,7 @@ export class OpenAICompatibleProvider implements Provider {
       method: 'POST',
       headers: this.#headers(),
       signal: req.signal,
+      ...(req.redirect ? { redirect: req.redirect } : {}),
       body: JSON.stringify({
         model: req.model,
         messages: toOpenAIMessages(req.messages, { strictToolOrder: strictToolOrder(this.config.baseUrl) }),
@@ -118,11 +119,19 @@ export class OpenAICompatibleProvider implements Provider {
         ...(req.reasoning && isOllama(this.config.baseUrl) ? { reasoning_effort: req.reasoning } : {}),
       }),
     });
-    if (!res.ok) await failFromResponse(res, this.config.label, req.model);
+    if (!res.ok) {
+      if (req.strictUsage || req.maxResponseBytes !== undefined) {
+        void res.body?.cancel().catch(() => {});
+        throw new ProviderError('Configured provider refused the request.', res.status);
+      }
+      await failFromResponse(res, this.config.label, req.model);
+    }
     if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
 
     const calls = new Map<number, PartialCall>();
     let usage: StreamEvent | undefined;
+    let strictUsageInvalid = false;
+    let finished = false;
     const flush = function* (): Generator<StreamEvent> {
       for (const [, c] of [...calls.entries()].sort((a, b) => a[0] - b[0])) {
         if (c.name) yield { type: 'tool_call', call: { id: c.id || `call_${randomUUID()}`, name: c.name, arguments: parseToolArguments(c.args) } };
@@ -130,7 +139,7 @@ export class OpenAICompatibleProvider implements Provider {
       calls.clear();
     };
 
-    for await (const ev of sseEvents(res.body)) {
+    for await (const ev of sseEvents(res.body, req.maxResponseBytes)) {
       if (ev.data === '[DONE]') break;
       let json: {
         choices?: {
@@ -143,6 +152,7 @@ export class OpenAICompatibleProvider implements Provider {
       try {
         json = JSON.parse(ev.data);
       } catch {
+        if (req.strictUsage) strictUsageInvalid = true;
         continue;
       }
       if (json.error) throw new ProviderError(`${this.config.label}: ${json.error.message ?? 'stream error'}`);
@@ -170,11 +180,17 @@ export class OpenAICompatibleProvider implements Provider {
         }
       }
       if (json.usage && (json.usage.prompt_tokens !== undefined || json.usage.completion_tokens !== undefined)) {
+        if (req.strictUsage) {
+          const valid = (value: unknown) => typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
+          const cached = json.usage.prompt_tokens_details?.cached_tokens;
+          if (usage || !valid(json.usage.prompt_tokens) || !valid(json.usage.completion_tokens) || cached !== undefined && (!valid(cached) || cached > Number(json.usage.prompt_tokens))) strictUsageInvalid = true;
+        }
         usage = { type: 'usage', input: Number(json.usage.prompt_tokens ?? 0), output: Number(json.usage.completion_tokens ?? 0), ...(json.usage.prompt_tokens_details?.cached_tokens ? { cached: Number(json.usage.prompt_tokens_details.cached_tokens) } : {}) };
       }
-      if (choice?.finish_reason) yield* flush();
+      if (choice?.finish_reason) { finished = true; yield* flush(); }
     }
     yield* flush();
-    if (usage) yield usage;
+    if (req.strictUsage && (strictUsageInvalid || !finished)) yield { type: 'usage', input: NaN, output: NaN };
+    else if (usage) yield usage;
   }
 }

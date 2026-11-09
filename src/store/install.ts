@@ -16,10 +16,13 @@ import type { PluginManager, Review } from '../plugins/manager.ts';
 import { parseManifest, permissionLines, type PermissionLine } from '../plugins/manifest.ts';
 import { mcpToolName, mcpVaultKey, MCP_NAME_RE, validateMcpConfig, type McpServerConfig } from '../tools/mcp.ts';
 import { badFolder, recipeCommand, recipeProblems } from './checks.ts';
-import type { StoreClient } from './client.ts';
+import { pluginInstallation, type StoreClient } from './client.ts';
 import { parseRecipe, type McpRecipe, type RecipeField, type StoreEntry, type StoreItem, type StoreVersion } from './format.ts';
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { StoreRefused } from './verify.ts';
+import { programFor, type ProgramId } from '../prereqs/catalog.ts';
+import type { Detection } from '../prereqs/detect.ts';
+import { PrereqService, prereqOverrides } from '../prereqs/service.ts';
 
 export const MCP_REVIEW_MS = 3600_000;
 export const TEST_MS = 30_000;
@@ -39,6 +42,10 @@ export class InstallError extends Error {
 export interface Need {
   what: string;
   found: boolean | null;
+  /** PRQ: the catalog program this need is (the card offers *Install it for me*). */
+  program?: ProgramId;
+  /** Found but older than add-ons need (e.g. Node < 22). */
+  old?: boolean;
 }
 export interface McpReview {
   id: string;
@@ -68,6 +75,8 @@ export interface McpReview {
   /** An update: the marked lines (a changed command or version, new fields and secrets, tools now auto). */
   changes: string[];
   from?: string;
+  /** Q-ADDONS: an update's saved field values (never secrets), so the card shows them instead of the defaults. */
+  saved?: Record<string, string>;
   expires: number;
 }
 interface Staged {
@@ -90,6 +99,8 @@ export interface InstallerDeps {
   testMs?: number;
   /** Phase 127: companion packs (the card and the new companion). */
   packs?: import('../packs/install.ts').PackInstaller;
+  /** PRQ: finds catalog programs (Chrome, uv, Docker, …) where Sara runs (src/prereqs/service.ts). */
+  programs?: { detect(id: ProgramId): Detection };
 }
 
 const which = (cmd: string, pathVar: string | undefined, platform: NodeJS.Platform): boolean => {
@@ -97,6 +108,59 @@ const which = (cmd: string, pathVar: string | undefined, platform: NodeJS.Platfo
   const exts = platform === 'win32' ? ['.exe', '.cmd', ''] : [''];
   return (pathVar ?? '').split(platform === 'win32' ? ';' : delimiter).filter(Boolean).some((d) => exts.some((e) => existsSync(join(d, cmd + e))));
 };
+
+/** The server's config from a recipe and the owner's values (templates filled, ${home} its own folder). */
+export function recipeConfig(dataDir: string, recipe: McpRecipe, name: string, values: Record<string, string>): McpServerConfig {
+  const home = join(dataDir, 'mcp', name);
+  const fill = (s: string) => s.replace(/\$\{setting:([^}]+)\}/g, (_m, k: string) => values[k] ?? '').replace(/\$\{home\}/g, home);
+  // An optional field left empty drops an argument that was only that field.
+  const args = (recipe.args ?? []).flatMap((a) => (/^\$\{setting:[^}]+\}$/.test(a) && !fill(a) ? [] : [fill(a)]));
+  // Q-ADDONS: the folders the owner picked are granted to the tool sandbox (src/tools/mcp.ts mcpBinds).
+  const folders = recipe.fields.filter((f) => f.kind === 'folder').map((f) => values[f.key] ?? '').filter(Boolean);
+  const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args, ...(folders.length ? { folders } : {}) } : { transport: 'http', url: fill(recipe.url ?? '') };
+  return validateMcpConfig(raw as Record<string, unknown>, name);
+}
+
+/**
+ * B2: Settings → Other programs edits a Store-installed server through its recipe's fields. A field
+ * left empty keeps what the vault has (or the default); secrets are only replaced, never shown.
+ */
+export function recipeEdit(dataDir: string, recipe: McpRecipe, name: string, cur: { env?: Record<string, string>; headers?: Record<string, string> }, fields: Record<string, unknown>): { cfg: McpServerConfig; env: Record<string, string>; headers: Record<string, string> } {
+  const secretKeys = new Set([...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key));
+  const given = (k: string) => String(fields[k] ?? '').trim();
+  const env: Record<string, string> = {};
+  const headers: Record<string, string> = {};
+  const values: Record<string, string> = {};
+  for (const f of recipe.fields) {
+    if (secretKeys.has(f.key)) continue;
+    const v = given(f.key) || cur.env?.[f.key] || f.default || '';
+    if (!v) {
+      if (!f.optional) throw new InstallError(400, 'field', `${f.label}: fill this in.`);
+      continue;
+    }
+    if (f.kind === 'url') {
+      try {
+        const u = new URL(v);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') throw new Error('');
+      } catch {
+        throw new InstallError(400, 'field', `${f.label}: that isn't a web address.`);
+      }
+    }
+    if (f.kind === 'number' && !Number.isFinite(Number(v))) throw new InstallError(400, 'field', `${f.label}: a number, please.`);
+    if (f.kind === 'choice' && f.choices && !f.choices.includes(v)) throw new InstallError(400, 'field', `${f.label}: pick one of the choices.`);
+    values[f.key] = v.slice(0, 2000);
+    if (given(f.key) && recipe.transport === 'stdio') env[f.key] = values[f.key];
+  }
+  for (const f of [...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')]) {
+    const v = given(f.key).slice(0, 4000);
+    if (!v) continue;
+    if (recipe.transport === 'stdio') env[f.key] = v;
+    else headers[f.header ?? f.key] = `${f.prefix ?? ''}${v}`;
+    values[f.key] = v;
+  }
+  const cfg = recipeConfig(dataDir, recipe, name, { ...(cur.env ?? {}), ...values });
+  return { cfg, env, headers };
+}
 
 export class StoreInstaller {
   readonly d: InstallerDeps;
@@ -129,6 +193,7 @@ export class StoreInstaller {
   /** Get (or Update): download, verify and stage the right review. Nothing is installed by this. */
   async install(id: string, o: { version?: string; community?: boolean; understand?: boolean } = {}): Promise<{ kind: 'plugin'; review: Review } | { kind: 'skill'; review: Record<string, unknown> } | { kind: 'mcp'; review: McpReview } | { kind: 'companion'; token: string; card: import('../packs/install.ts').PackCard }> {
     const { item, v } = this.#pick(id, o.version, o);
+    if (item.kind === 'plugin') this.#pluginAuthority(id);
     if (item.kind === 'mcp') return { kind: 'mcp', review: await this.mcpReview(item, v) };
     let files: PackageFile[];
     try {
@@ -151,6 +216,7 @@ export class StoreInstaller {
     if (item.kind === 'plugin') {
       const pm = this.d.plugins;
       if (!pm) throw new InstallError(409, 'plugins', "Plugins aren't available on this server.");
+      this.#pluginAuthority(id);
       const review = pm.stage(files, { kind: 'store', where: `${id}@${v.version}` });
       if (review.manifest.id !== id) {
         pm.cancel(review.id);
@@ -194,11 +260,12 @@ export class StoreInstaller {
     const plat = this.#platform;
     const pathVar = this.d.pathVar ?? process.env.PATH;
     const win = plat === 'win32' ? recipeCommand(recipe, { platform: 'win32', pathVar }) : undefined;
-    const needs: Need[] = [];
-    if (recipe.transport === 'stdio' && recipe.command) needs.push({ what: recipe.command === 'npx' ? 'node' : recipe.command, found: which(recipe.command === 'npx' ? 'node' : recipe.command, pathVar, plat) });
-    for (const n of recipe.needs ?? []) if (!needs.some((x) => x.what === n)) needs.push({ what: n, found: n.startsWith('app:') ? null : which(n, pathVar, plat) });
+    const needs = this.#needs(recipe);
     const fence = this.#fence();
     const changes = updating && row.recipe ? recipeDiff(JSON.parse(row.recipe) as McpRecipe, recipe) : [];
+    const secretKeys = new Set([...recipe.secrets, ...recipe.fields.filter((x) => x.kind === 'secret')].map((f) => f.key));
+    const env = updating && recipe.transport === 'stdio' ? (mcpSecrets(this.d.app.vault, name).env ?? {}) : {};
+    const saved = Object.fromEntries(recipe.fields.filter((f) => !secretKeys.has(f.key) && typeof env[f.key] === 'string').map((f) => [f.key, env[f.key]]));
     const review: McpReview = {
       id: randomUUID(),
       kind: 'mcp',
@@ -223,12 +290,44 @@ export class StoreInstaller {
       guide: recipe.guide ?? [],
       ...(recipe.registry ? { registry: recipe.registry } : {}),
       changes,
-      ...(updating ? { from: row.version } : {}),
+      ...(updating ? { from: row.version, saved } : {}),
       expires: Date.now() + MCP_REVIEW_MS,
     };
     for (const [k, s] of staged) if (s.review.expires < Date.now()) staged.delete(k);
     staged.set(review.id, { review, recipe, entrySha: v.entrySha });
     return review;
+  }
+  /**
+   * PRQ: an installer built without the server's service (a companion's suggested add-on, a plugin's
+   * Store install, a block) still detects catalog programs the catalog's way (known folders such as
+   * /opt/google/chrome on Linux, not only PATH), so no card says "not checked" for Chrome.
+   */
+  #ownPrograms(platform: NodeJS.Platform, pathVar: string | undefined): { detect(id: ProgramId): Detection } {
+    return new PrereqService({ platform, env: { ...process.env, PATH: pathVar ?? '' }, tmpRoot: '', setting: () => 'off', ...prereqOverrides() });
+  }
+  /** What a recipe needs on this computer; catalog programs are detected (PRQ), the rest looked up on PATH. */
+  #needs(recipe: McpRecipe): Need[] {
+    const plat = this.#platform;
+    const pathVar = this.d.pathVar ?? process.env.PATH;
+    const needs: Need[] = [];
+    const add = (what: string) => {
+      const id = programFor(what);
+      if (needs.some((x) => x.what === what || (id && x.program === id))) return;
+      if (id) {
+        const d = (this.d.programs ?? this.#ownPrograms(plat, pathVar)).detect(id);
+        needs.push({ what, found: d.found && !d.old, program: id, ...(d.old ? { old: true } : {}) });
+      } else needs.push({ what, found: what.startsWith('app:') ? null : which(what, pathVar, plat) });
+    };
+    if (recipe.transport === 'stdio' && recipe.command) add(recipe.command === 'npx' ? 'node' : recipe.command);
+    for (const n of recipe.needs ?? []) add(n);
+    return needs;
+  }
+  /** PRQ: after *Install it for me*, the card looks again (then *Continue install*). */
+  mcpRecheck(id: string): McpReview | undefined {
+    const s = staged.get(id);
+    if (!s || s.review.expires < Date.now()) return undefined;
+    s.review.needs = this.#needs(s.recipe);
+    return s.review;
   }
   mcpPending(id: string): McpReview | undefined {
     const s = staged.get(id);
@@ -240,18 +339,14 @@ export class StoreInstaller {
 
   /** The server's config from a recipe and the owner's values (templates filled, ${home} its own folder). */
   configFrom(recipe: McpRecipe, name: string, values: Record<string, string>): McpServerConfig {
-    const home = join(this.d.app.dataDir, 'mcp', name);
-    const fill = (s: string) => s.replace(/\$\{setting:([^}]+)\}/g, (_m, k: string) => values[k] ?? '').replace(/\$\{home\}/g, home);
-    // An optional field left empty drops an argument that was only that field.
-    const args = (recipe.args ?? []).flatMap((a) => (/^\$\{setting:[^}]+\}$/.test(a) && !fill(a) ? [] : [fill(a)]));
-    const raw = recipe.transport === 'stdio' ? { transport: 'stdio', command: recipe.command, args } : { transport: 'http', url: fill(recipe.url ?? '') };
-    return validateMcpConfig(raw as Record<string, unknown>, name);
+    return recipeConfig(this.d.app.dataDir, recipe, name, values);
   }
 
-  #checkValues(recipe: McpRecipe, values: Record<string, unknown>, secrets: Record<string, unknown>, keepSecrets: string[]): { values: Record<string, string>; secrets: Record<string, string> } {
+  #checkValues(recipe: McpRecipe, values: Record<string, unknown>, secrets: Record<string, unknown>, keepSecrets: string[], saved: Record<string, string> = {}): { values: Record<string, string>; secrets: Record<string, string> } {
     const out: Record<string, string> = {};
     for (const f of recipe.fields) {
-      const v = String(values[f.key] ?? f.default ?? '').trim();
+      // An update keeps what was saved (e.g. the ComfyUI address) unless the owner typed something else.
+      const v = String(values[f.key] ?? saved[f.key] ?? f.default ?? '').trim();
       if (!v) {
         if (!f.optional) throw new InstallError(400, 'field', `${f.label}: fill this in.`);
         continue;
@@ -289,7 +384,7 @@ export class StoreInstaller {
     const name = review.serverName;
     const cur = mcpSecrets(app.vault, name);
     const kept = [...Object.keys(cur.env ?? {}), ...Object.keys(cur.headers ?? {})];
-    const { values, secrets } = this.#checkValues(recipe, body.values ?? {}, body.secrets ?? {}, review.mode === 'update' ? kept : []);
+    const { values, secrets } = this.#checkValues(recipe, body.values ?? {}, body.secrets ?? {}, review.mode === 'update' ? kept : [], review.mode === 'update' ? (review.saved ?? {}) : {});
     const cfg = this.configFrom(recipe, name, { ...Object.fromEntries(Object.entries(cur.env ?? {})), ...values, ...secrets });
     // Fields and secrets live where Sara keeps a server's environment today: the vault (mcp:<name>).
     const env = recipe.transport === 'stdio' ? { ...values, ...secrets } : {};
@@ -340,10 +435,19 @@ export class StoreInstaller {
 
   // ---- update, go back, remove, override ----
 
+  #pluginAuthority(item: string): void {
+    const association = this.d.installs.get(item);
+    const source = pluginInstallation(this.d.plugins, item, association);
+    if (source.installHeld) throw new InstallError(409, 'source', source.installHeld);
+    try { this.d.plugins?.assertStoreAuthority(item, association?.content_sha ?? undefined); }
+    catch (err) { throw new InstallError(409, 'source', (err as Error).message); }
+  }
+
   /** *Update*: the same download and review as *Get*; never applied without the owner's yes. */
   async update(item: string, o: { community?: boolean; understand?: boolean } = {}): ReturnType<StoreInstaller['install']> {
     const row = this.d.installs.get(item);
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
+    if (row.kind === 'plugin') this.#pluginAuthority(item);
     if (row.state === 'blocked') throw new InstallError(403, 'blocked', 'The Sara store blocked this add-on.');
     return this.install(item, { ...o, understand: true, community: o.community ?? row.trust === 'community' });
   }
@@ -353,10 +457,20 @@ export class StoreInstaller {
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
     const at = this.#now().toISOString();
     if (row.kind === 'plugin') {
+      this.#pluginAuthority(item);
       const pm = this.d.plugins;
       if (!pm) throw new InstallError(409, 'plugins', "Plugins aren't available on this server.");
-      const p = await pm.rollback(row.local_ref);
-      this.d.installs.upsert({ ...row, version: p.version, content_sha: p.approved_sha, updated_at: at });
+      if (this.d.installs.db !== pm.store.db) throw new InstallError(409, 'source', 'The plugin store association is unavailable. Try again later.');
+      await pm.rollback(row.local_ref, { onCommitted: p => {
+        const current = this.d.installs.get(item);
+        if (!current || current.kind !== 'plugin' || current.local_ref !== row.local_ref || current.version !== row.version || current.content_sha !== row.content_sha) throw new InstallError(409, 'source', 'The saved store association changed. Review the installed plugin again.');
+        const index = this.d.client.current()?.index;
+        const block = index?.blocked.find(b => (b.id === item && (b.versions === '*' || b.versions.includes(p.version))) || b.contentShas?.includes(p.approved_sha));
+        if (block) throw new InstallError(403, 'blocked', 'The Sara store blocked this add-on.');
+        const restored = this.d.client.version(item, p.version);
+        if (!restored || restored.item.kind !== 'plugin' || restored.v.contentSha !== p.approved_sha) throw new InstallError(409, 'source', 'The earlier plugin does not match a verified store release. Use its Plugins card to roll back.');
+        this.d.installs.upsert({ ...current, version: p.version, trust: restored.item.trust, content_sha: p.approved_sha, entry_sha: restored.v.entrySha, updated_at: this.#now().toISOString(), state: restored.v.yanked ? 'yanked' : 'ok', state_note: restored.v.yanked ?? null });
+      } });
     } else if (row.kind === 'mcp') {
       if (!row.prev_recipe) throw new InstallError(409, 'none', 'There is no earlier version to go back to.');
       // The kept recipe carries the version it came with (not a recipe field).
@@ -378,8 +492,11 @@ export class StoreInstaller {
     if (!row) throw new InstallError(404, 'missing', 'That add-on was not installed from the store.');
     const app = this.d.app;
     if (row.kind === 'plugin') {
-      if (this.d.plugins?.store.get(row.local_ref)) {
-        await this.d.plugins.remove(row.local_ref);
+      const plugins = this.d.plugins;
+      const local = plugins?.store.get(row.local_ref);
+      if (plugins && local && row.local_ref === row.item && local.approved_sha === row.content_sha && local.version === row.version) {
+        await plugins.remove(row.local_ref);
+        if (plugins.store.get(row.local_ref)) return;
         app.hooks?.removeForPlugin(row.local_ref);
       }
     } else if (row.kind === 'skill') {
@@ -423,8 +540,10 @@ export class StoreInstaller {
     const app = this.d.app;
     if (row.kind === 'plugin') {
       const pm = this.d.plugins;
-      if (pm?.store.get(row.local_ref)) {
-        pm.store.setStatus(row.local_ref, 'installed', null);
+      const local = pm?.store.get(row.local_ref);
+      if (!pm || !local || row.local_ref !== row.item || local.approved_sha !== row.content_sha || local.version !== row.version) throw new InstallError(409, 'source', 'The saved store association no longer matches the installed plugin.');
+      if (local) {
+        pm.overrideStoreBlock(row.local_ref);
         pm.store.log(row.local_ref, null, 'log', OVERRIDE_NOTE);
       }
     } else if (row.kind === 'skill') {

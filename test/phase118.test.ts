@@ -142,6 +142,22 @@ const sentText = (app: TestApp, i: number) => (app.requests[i]?.messages ?? []).
 const goalOf = (s: Setup, convId: string) => goalsFor(s.app).current(convId)!;
 const reqWith = (s: Setup, needle: string) => s.app.requests.findIndex((r) => r.messages.some((m) => typeof m.content === 'string' && m.content.includes(needle)));
 
+/** Keep the failing state before teardown aborts checks and closes the synthetic database. */
+function reportGoalTimeout(s: Setup, conversationId: string, error: unknown): never {
+  try {
+    const goal = goalOf(s, conversationId);
+    console.log('[goal-timeout]', JSON.stringify({
+      goal,
+      checks: goalsFor(s.app).checks(goal.id),
+      pending: pendingFor(s.app).list(conversationId),
+      requests: s.app.requests.length,
+      recentEvents: s.events.filter((event) => event.type === 'goal' || event.type === 'goal_check').slice(-12),
+    }));
+  } finally {
+    throw error;
+  }
+}
+
 // ------------------------------------------------------------------ part A: goals
 
 test('goal: done = the check. Round 1 claims "all pass" but the check is red; round 2 is queued with the real failure; green → done', async (t) => {
@@ -184,7 +200,7 @@ test('goal: never self-declared: she only says it is done → stuck after round 
     const conv = s.app.store.createConversation({ mode: 'coding', title: 'p' });
     for (let i = 0; i < 6; i++) s.app.script.push(text('All done, every test passes.'), text('I have not run anything.'));
     await s.api('POST', `/conversations/${conv.id}/goal`, { text: 'make the tests pass', checks: ['tests'], start: true });
-    const g = await until(() => (goalOf(s, conv.id).state === 'stuck' ? goalOf(s, conv.id) : undefined));
+    const g = await until(() => (goalOf(s, conv.id).state === 'stuck' ? goalOf(s, conv.id) : undefined)).catch((error) => reportGoalTimeout(s, conv.id, error));
     assert.equal(g.round, stuckAfter);
     const calls = s.app.requests.length;
     await new Promise((r) => setTimeout(r, 300));
@@ -198,7 +214,7 @@ test('goal: progress resets stuck (keys A, B, B → stuck only after the third);
   const conv = s.app.store.createConversation({ mode: 'coding', title: 'p' });
   s.app.script.push(writeState('red-a', 'a1'), text('a'), writeState('red-b', 'a2'), text('b'), writeState('red-b ', 'a3'), text('b again'));
   await s.api('POST', `/conversations/${conv.id}/goal`, { text: 'make the tests pass', checks: ['tests'], start: true });
-  const g = await until(() => (goalOf(s, conv.id).state === 'stuck' ? goalOf(s, conv.id) : undefined));
+  const g = await until(() => (goalOf(s, conv.id).state === 'stuck' ? goalOf(s, conv.id) : undefined)).catch((error) => reportGoalTimeout(s, conv.id, error));
   assert.equal(g.round, 3);
   assert.deepEqual(goalsFor(s.app).checks(g.id).map((c) => c.failed), [5, 3, 3]);
 });

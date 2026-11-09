@@ -23,6 +23,8 @@ const RAW = [
   '#conv-summary', '#gc-members',
   // Phase 68: the saved servers' names (one may well be called Sara).
   '#servers-list', '#server-btn-name',
+  // V4a: "Sara Classic" is the product's palette name, not hers (a renamed companion keeps it).
+  '#ap-palette option[value="classic"]', '.ap-pal[data-pal="classic"] .ap-pal-name', '#v1-classic',
 ].join(',');
 const ATTRS = ['placeholder', 'title', 'aria-label', 'alt', 'data-tip', 'aria-description'];
 const NAME_RE = /\b(Sara|she|her|hers|herself|She|Her|Hers|Herself)\b/;
@@ -143,6 +145,8 @@ export function setIdentity(next) {
   identity = { name: next.name, pronouns: next.pronouns ?? 'she' };
   ensureObserver();
   applyAll();
+  // V4a: parts that build her name in code (her panel's title) redraw at once.
+  if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent('sara-identity', { detail: identity }));
 }
 
 // Dates and numbers follow the app language (calls that pass no locale of their own).

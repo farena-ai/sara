@@ -1,0 +1,7 @@
+{
+  "first": "Hello, {{user}}. I'm Wren. What are you writing, or what do you wish you were writing?",
+  "others": [
+    "Hi. Show me the messiest paragraph you have today.",
+    "Welcome back. How many words, or how many excuses?"
+  ]
+}

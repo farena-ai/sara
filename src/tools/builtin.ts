@@ -281,7 +281,7 @@ export interface GuardedGetSeams {
  * refused (unless allowPrivate), the connection pinned to the checked address, every redirect (≤ 5)
  * checked again, 2 MB, 20 s.
  */
-export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPrivate?: boolean; seams?: GuardedGetSeams }): Promise<{ status: number; url: URL; contentType: string; text: string }> {
+export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPrivate?: boolean; seams?: GuardedGetSeams }): Promise<{ status: number; url: URL; contentType: string; text: string; title?: string; links?: string[] }> {
   let url = start;
   let res: PinnedResponse | undefined;
   for (let hop = 0; hop < 5; hop++) {
@@ -297,8 +297,29 @@ export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPriv
   if (!res) throw new ToolError('No response.');
   const body = res.body.toString('utf8');
   const type = res.contentType;
-  return { status: res.status, url, contentType: type, text: /html/i.test(type) ? htmlToText(body) : body };
+  if (!/html/i.test(type)) return { status: res.status, url, contentType: type, text: body };
+  // EC6: research runs list a page by its <title>.
+  const title = /<title[^>]*>([^<]{1,300})<\/title>/i.exec(body)?.[1];
+  return { status: res.status, url, contentType: type, text: htmlToText(body), ...(title?.trim() ? { title: htmlToText(title).replace(/\s+/g, ' ').trim() } : {}), links: pageLinks(body, url) };
 }
+
+/** C6: the page's http(s) links, absolute, without #fragments, in order, at most 300 (site learning). */
+export function pageLinks(html: string, base: URL): string[] {
+  const out = new Set<string>();
+  for (const m of html.matchAll(/<a\b[^>]*?\shref\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/gi)) {
+    if (out.size >= 300) break;
+    try {
+      const u = new URL(decodeEntities(m[1] ?? m[2] ?? m[3] ?? ''), base);
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') continue;
+      u.hash = '';
+      out.add(u.href);
+    } catch {
+      /* not a link */
+    }
+  }
+  return [...out];
+}
+const decodeEntities = (s: string) => s.replace(/&amp;/g, '&').replace(/&#38;/g, '&');
 
 interface PinnedResponse {
   status: number;

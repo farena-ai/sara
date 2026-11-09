@@ -129,8 +129,8 @@ app.listen(process.env.PORT || 3000, () => console.log('listening'));
 
 /** A small express-style app for the review, script and fix tests (one break is state-dependent). */
 export const SMALL_SERVER = `const express = require('./lib/router');
+const fs = require('fs');
 const app = express();
-let visits = 0;
 app.get('/', (req, res) => res.send('ok'));
 app.get('/sum', (req, res) => {
   const parts = req.query.nums.split(',');
@@ -144,7 +144,11 @@ app.get('/shout', (req, res) => {
   }
 });
 app.get('/order', (req, res) => {
-  visits++;
+  // Counted in a file of this copy, so the count survives the app being restarted inside one run
+  // (after a request slower than the hang limit) and only a fresh copy starts at zero.
+  const f = __dirname + '/.order-visits';
+  const visits = (fs.existsSync(f) ? Number(fs.readFileSync(f, 'utf8')) : 0) + 1;
+  fs.writeFileSync(f, String(visits));
   if (visits > 3) throw new Error('order book full');
   res.json({ id: String(req.query.id) });
 });

@@ -83,22 +83,60 @@ test('background job: keeps running after the tool returns; result saved as a re
   assert.match(String(app.requests.at(-1)!.messages.at(-1)!.content), /Only what the result above shows/);
 });
 
-test('background job: an invented result is replaced by the plain facts; stop works', async (t) => {
+test('background job: an invented result is replaced by the plain facts; stop works', { timeout: 35_000 }, async (t) => {
   const { app, conv, ctx, tools } = setup(t);
-  await tools.start_job.run({ command: `${node} -e "console.log('ok')"`, label: 'build' }, ctx);
-  app.script.push(text('Build passed and I pushed it to GitHub and deployed it.'));
-  await new Promise<void>((res) => {
-    const off = app.events!.subscribe((ev) => {
-      if (ev.type === 'message' && ev.reason === 'job' && ev.message.role === 'assistant') (off(), res());
+  const completions: Promise<import('../src/jobs.ts').Job>[] = [];
+  const start = app.jobs!.start.bind(app.jobs);
+  app.jobs!.start = (spec) => {
+    const pending = start(spec);
+    completions.push(pending.done);
+    return pending;
+  };
+  let childPid: number | undefined;
+  const childAlive = () => {
+    if (childPid === undefined) return false;
+    try { process.kill(childPid, 0); return true; }
+    catch (error) { if ((error as NodeJS.ErrnoException).code === 'ESRCH') return false; throw error; }
+  };
+  try {
+    await tools.start_job.run({ command: `${node} -e "console.log('ok')"`, label: 'build' }, ctx);
+    app.script.push(text('Build passed and I pushed it to GitHub and deployed it.'));
+    await new Promise<void>((res) => {
+      const off = app.events!.subscribe((ev) => {
+        if (ev.type === 'message' && ev.reason === 'job' && ev.message.role === 'assistant') (off(), res());
+      });
     });
-  });
-  assert.match(app.store.messages(conv.id).at(-1)!.content, /^Done: build finished/);
-  // Stop a long one.
-  await tools.start_job.run({ command: `${node} -e "setTimeout(() => {}, 20000)"`, label: 'long' }, ctx);
-  const j = app.jobs!.running()[0];
-  assert.match(await tools.stop_job.run({ job: j.id }, ctx), /Stopping/);
-  for (let i = 0; i < 50 && app.jobs!.get(j.id)!.status === 'running'; i++) await new Promise((r) => setTimeout(r, 100));
-  assert.equal(app.jobs!.get(j.id)!.status, 'stopped');
+    assert.match(app.store.messages(conv.id).at(-1)!.content, /^Done: build finished/);
+    await tools.start_job.run({ command: `${node} -e "console.log('SARA_STOP_CHILD='+process.pid+':'+Date.now()); setTimeout(() => {}, 20000)"`, label: 'long' }, ctx);
+    const j = app.jobs!.running()[0];
+    const readyDeadline = Date.now() + 10_000;
+    let ready: RegExpExecArray | null = null;
+    while (!(ready = /SARA_STOP_CHILD=(\d+):(\d+)/.exec(app.jobs!.get(j.id)!.tail)) && Date.now() < readyDeadline) await new Promise(r => setTimeout(r, 25));
+    assert.ok(ready, 'The owned child must report its PID before cancellation');
+    const reportedPid = Number(ready[1]);
+    assert.ok(Number.isSafeInteger(reportedPid) && reportedPid > 0 && reportedPid !== process.pid);
+    childPid = reportedPid;
+    assert.ok(childAlive(), 'The fixture must be alive before Stop');
+    assert.match(await tools.stop_job.run({ job: j.id }, ctx), /Stopping/);
+    // Windows termination and pipe closure are asynchronous. The child timestamp keeps the
+    // bounded deadline strictly before its natural 20-second exit, even if readiness was delayed.
+    const stopDeadline = Number(ready[2]) + 15_000;
+    while (app.jobs!.get(j.id)!.status === 'running' && Date.now() < stopDeadline) await new Promise(r => setTimeout(r, 25));
+    assert.equal(app.jobs!.get(j.id)!.status, 'stopped');
+    assert.ok(Date.now() < stopDeadline, 'Stop must complete before the fixture can expire naturally');
+    assert.equal(childAlive(), false, 'A terminal stopped receipt must mean the owned child is gone');
+  } finally {
+    try {
+      app.jobs!.stopAll();
+      if (childPid !== undefined && childAlive()) {
+        try { process.kill(childPid, 'SIGKILL'); }
+        catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error; }
+      }
+    } finally {
+      const settled = await Promise.allSettled(completions);
+      for (const result of settled) assert.equal(result.status, 'fulfilled', 'Job completion must settle before database teardown');
+    }
+  }
 });
 
 test('jobs: running ones are marked interrupted after a restart', (t) => {

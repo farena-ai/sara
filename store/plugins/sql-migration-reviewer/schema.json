@@ -1,0 +1,79 @@
+{
+  "type": "object",
+  "properties": {
+    "sql": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 8192
+    },
+    "baseline": {
+      "type": "object",
+      "properties": {
+        "tables": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 32,
+                "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+              },
+              "rows": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              "columns": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 12,
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 32,
+                      "pattern": "^[A-Za-z][A-Za-z0-9_]{0,31}$"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "INTEGER",
+                        "TEXT",
+                        "REAL"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "type"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "name",
+              "rows",
+              "columns"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": [
+        "tables"
+      ],
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "sql",
+    "baseline"
+  ],
+  "additionalProperties": false
+}

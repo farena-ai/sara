@@ -1,4 +1,5 @@
 import { sendDelivery, formReview, DeliveryRejected, DeliveryUncertain } from './delivery.ts';
+import { answerFromChat, fill as fillSaid } from '../device-approval.ts';
 import { PRIO_EDIT, type Priority } from './sendq.ts';
 // Phase 6: Telegram bridge. Long polling (no public webhook needed). The owner links their account
 // with a one-time code; their DMs go to one owner conversation with everything (tools via
@@ -25,7 +26,7 @@ import { afterTurnExtras, askerLanguage, chatButton, chatsSettings, menuHash, OW
 import { channelProjectId, noteRoom } from './rooms.ts';
 import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
-import { closeProgress, deliverOutgoing, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
+import { closeProgress, deliverOutgoing, ownPictureOut, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem } from '../pending.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
@@ -500,6 +501,9 @@ export class TelegramBridge {
       return;
     }
 
+    // C15: "approve K7Q2M" / "deny K7Q2M" from the verified owner, in his private chat only.
+    const approvalSaid = isPrivate && isTelegramOwner(cfg, msg.from.id) && !msg.document ? answerFromChat(this.#app.deviceApprovals, text, 'telegram') : undefined;
+    if (approvalSaid) return void (await this.send(msg.chat.id, fillSaid(approvalSaid, (t) => this.#tr(t))));
     const fromOwner = isTelegramOwner(cfg, msg.from.id);
     const isOwnerChat = isPrivate && fromOwner;
     // Phase 43: an owner working with her in a group (tools, her memory).
@@ -1013,6 +1017,40 @@ export class TelegramBridge {
     await this.#sendUpload('sendPhoto', form);
   }
 
+  /** E4: linked to the owner's own private chat (a group id is negative and never counts) and running. */
+  ownerLinked(): boolean {
+    const id = telegramSettings(this.#app).ownerChatId;
+    return Boolean(this.#abort) && typeof id === 'number' && Number.isSafeInteger(id) && id > 0;
+  }
+
+  /** E4: a short note to the owner's own private chat only (watch alerts he turned on). */
+  async toOwner(text: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      await this.send(telegramSettings(this.#app).ownerChatId!, text);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
+  /** EC12: a crew's deliverable file to the owner's own private chat only (crews he turned it on for). */
+  async fileToOwner(path: string, name: string, caption: string): Promise<boolean> {
+    if (!this.ownerLinked()) return false;
+    try {
+      const form = new FormData();
+      form.append('chat_id', String(telegramSettings(this.#app).ownerChatId));
+      form.append('document', new Blob([new Uint8Array(readFileSync(path))], { type: 'text/markdown' }), name);
+      form.append('caption', caption.slice(0, 1024));
+      await this.#sendUpload('sendDocument', form);
+      return true;
+    } catch (err) {
+      this.#error = (err as Error).message;
+      return false;
+    }
+  }
+
   /** Reminders and messages she starts herself also go to the owner's Telegram. */
   async #mirror(ev: HubEvent): Promise<void> {
     if (ev.type !== 'message' || ev.message.role === 'notice') return;
@@ -1023,6 +1061,15 @@ export class TelegramBridge {
     // Her chats with an owner and owner work groups get their own reminders back where they were set.
     const ownChat = conv && !conv.partner && (conv.channel === 'telegram' || conv.channel.startsWith('telegram-work')) && conv.channelKey ? Number(conv.channelKey) : undefined;
     const isTelegramConv = ownChat !== undefined;
+    // MNT2: her own pictures go as a picture when the owner chose it (even with mirroring off).
+    const pic = !isTelegramConv && !conv?.private ? ownPictureOut(this.#app, ev.message) : undefined;
+    if (pic === 'skip') return;
+    if (pic) {
+      await this.#mediaPort(cfg.ownerChatId).sendPhotos(pic.files, pic.caption.length <= 1024 ? pic.caption : undefined).catch((err: Error) => {
+        this.#error = err.message;
+      });
+      return;
+    }
     if (!isTelegramConv && !cfg.mirror) return;
     await this.send(ownChat ?? cfg.ownerChatId, ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content).catch((err: Error) => {
       this.#error = err.message;

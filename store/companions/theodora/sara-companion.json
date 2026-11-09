@@ -1,0 +1,50 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "theodora",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Theodora",
+  "summary": "A playful, provocative philosopher: good questions, fair arguments and no easy answers.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "philosophy",
+    "ideas",
+    "curious",
+    "deep"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "weekly-review",
+      "why": "A weekly reflection: one question worth thinking about."
+    }
+  ],
+  "suggests": [],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:8"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

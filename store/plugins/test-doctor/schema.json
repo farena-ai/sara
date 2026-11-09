@@ -1,0 +1,46 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "operation",
+    "project",
+    "file",
+    "test"
+  ],
+  "properties": {
+    "operation": {
+      "type": "string",
+      "enum": [
+        "plan",
+        "run"
+      ],
+      "description": "plan first (nothing runs), then run with the returned planSha (asks the owner for the job)."
+    },
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,39}$",
+      "description": "A project staged in the plugin's data folder under projects/."
+    },
+    "file": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "The test file, relative to the project (for example test/price.test.mjs)."
+    },
+    "test": {
+      "type": "string",
+      "maxLength": 200,
+      "description": "The exact name of one top-level test."
+    },
+    "timeoutS": {
+      "type": "integer",
+      "minimum": 5,
+      "maximum": 300,
+      "description": "Time limit for the run (default 60)."
+    },
+    "planSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "From plan; required for run."
+    }
+  }
+}

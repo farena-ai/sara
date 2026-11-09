@@ -10,11 +10,12 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { AppContext } from '../chat.ts';
 import { MAX_JOB_MS } from '../jobs.ts';
-import { runCommand, type Bind } from './sandbox.ts';
+import { nativeOf, runCommand, type Bind } from './sandbox.ts';
 import { clip, num, str, ToolError, type Tool, type ToolContext } from './types.ts';
 import { resolveInside } from './workspace.ts';
 import { cleanBudget, type UsageNumbers } from '../usage.ts';
 import { PROVIDER_PRESETS } from '../providers/registry.ts';
+import { coAuthorOf, withCoAuthor } from '../coding-depth.ts';
 
 export const GITHUB_VAULT = 'git:github';
 
@@ -42,7 +43,7 @@ export async function git(ctx: ToolContext, args: string[], opts: { env?: Record
   if (a[0] === '-C') {
     const real = resolveInside(ctx.workspaceDir, a[1] ?? '.');
     const rel = relative(ctx.workspaceDir, real).split(sep).join('/') || '.';
-    a[1] = ctx.sandbox.mode === 'bwrap' ? `/workspace/${rel}` : real;
+    a[1] = ctx.sandbox.mode === 'bwrap' || ctx.sandbox.mode === 'container' ? `/workspace/${rel}` : real;
   }
   const r = await runCommand(`git ${[...GIT_SAFE, ...(opts.extra ?? []), ...a].map(shq).join(' ')}`, ctx.workspaceDir, { ...ctx.sandbox, network: opts.network ?? false }, {
     timeoutMs: opts.timeoutMs ?? 60_000,
@@ -58,6 +59,36 @@ const ref = (v: string, what: string) => {
   if (!SAFE_REF.test(v) || v.includes('..')) throw new ToolError(`That ${what} name isn't allowed.`);
   return v;
 };
+
+/**
+ * Push a branch (never forced). The owner's GitHub token is used only for https://github.com remotes
+ * and only for this one command. C13: shared by git_push and the worktree's Open PR.
+ */
+export async function pushBranch(app: AppContext, ctx: ToolContext, o: { dir?: string; remote?: string; branch?: string }): Promise<string> {
+  const C = o.dir ? ['-C', o.dir] : [];
+  const remote = ref(o.remote || 'origin', 'remote');
+  const branch = o.branch ?? '';
+  const token = app.vault.get(GITHUB_VAULT);
+  const env: Record<string, string> = {};
+  const extra: string[] = [];
+  let note = '';
+  if (token) {
+    // The token goes only to github.com over https: the final address (after any rewriting
+    // rules in the repository's config) is checked first. It is handed over by a credential
+    // helper defined on the command line that reads it from this one command's environment;
+    // nothing is written to disk or into the repository.
+    const url = (await git(ctx, [...C, 'remote', 'get-url', '--push', remote])).out.trim();
+    const rewrites = (await git(ctx, [...C, 'config', '--get-regexp', '^url\\..*\\.(push)?insteadof$'])).out.trim();
+    if (!rewrites && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+?(\.git)?\/?$/i.test(url)) {
+      env.SARA_GIT_TOKEN = token;
+      extra.push('-c', 'credential.https://github.com.helper=!f() { test "$1" = get && echo username=x-access-token && echo "password=$SARA_GIT_TOKEN"; }; f', '-c', 'credential.https://github.com.useHttpPath=false');
+    } else note = `\n(Your GitHub token was not used: the remote ${url ? `is ${url}` : "couldn't be read"}${rewrites ? ' and the repository rewrites addresses' : ''}, not https://github.com/…)`;
+  }
+  const r = await git(ctx, [...C, 'push', '--no-verify', '--set-upstream', remote, ...(branch ? [ref(branch, 'branch')] : ['HEAD'])], { env, extra, network: true, timeoutMs: 120_000 });
+  const out = token ? r.out.replaceAll(token, '***') : r.out;
+  if (r.code !== 0) throw new ToolError((out || 'Push failed.') + note);
+  return clip((out || 'Pushed.') + note, 5000);
+}
 
 export function createCodingTools(app: AppContext): Tool[] {
   const startJob: Tool = {
@@ -156,7 +187,8 @@ export function createCodingTools(app: AppContext): Tool[] {
       if (paths.some((p) => p.startsWith('-'))) throw new ToolError('Paths may not start with "-".');
       const add = await git(ctx, [...C, 'add', '--', ...(paths.length ? paths : ['.'])]);
       if (add.code !== 0) throw new ToolError(add.out);
-      const c = await git(ctx, [...C, 'commit', '-m', message]);
+      // C13: her commits name her as co-author (Settings → Coding → GitHub).
+      const c = await git(ctx, [...C, 'commit', '-m', withCoAuthor(message, coAuthorOf(app.settings.get().coAuthor, ctx.companionName ?? app.persona.name))]);
       if (c.code !== 0) throw new ToolError(c.out || 'Nothing to commit.');
       return clip(c.out, 5000);
     },
@@ -188,30 +220,7 @@ export function createCodingTools(app: AppContext): Tool[] {
     },
     summarize: (a) => `git push ${String(a.remote ?? 'origin')}${a.branch ? ` ${String(a.branch)}` : ''}`,
     async run(args, ctx) {
-      const dir = str(args, 'path', false);
-      const C = dir ? ['-C', dir] : [];
-      const remote = ref(str(args, 'remote', false) || 'origin', 'remote');
-      const branch = str(args, 'branch', false);
-      const token = app.vault.get(GITHUB_VAULT);
-      const env: Record<string, string> = {};
-      const extra: string[] = [];
-      let note = '';
-      if (token) {
-        // The token goes only to github.com over https: the final address (after any rewriting
-        // rules in the repository's config) is checked first. It is handed over by a credential
-        // helper defined on the command line that reads it from this one command's environment;
-        // nothing is written to disk or into the repository.
-        const url = (await git(ctx, [...C, 'remote', 'get-url', '--push', remote])).out.trim();
-        const rewrites = (await git(ctx, [...C, 'config', '--get-regexp', '^url\\..*\\.(push)?insteadof$'])).out.trim();
-        if (!rewrites && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+?(\.git)?\/?$/i.test(url)) {
-          env.SARA_GIT_TOKEN = token;
-          extra.push('-c', 'credential.https://github.com.helper=!f() { test "$1" = get && echo username=x-access-token && echo "password=$SARA_GIT_TOKEN"; }; f', '-c', 'credential.https://github.com.useHttpPath=false');
-        } else note = `\n(Your GitHub token was not used: the remote ${url ? `is ${url}` : "couldn't be read"}${rewrites ? ' and the repository rewrites addresses' : ''}, not https://github.com/…)`;
-      }
-      const r = await git(ctx, [...C, 'push', '--no-verify', '--set-upstream', remote, ...(branch ? [ref(branch, 'branch')] : ['HEAD'])], { env, extra, network: true, timeoutMs: 120_000 });
-      const out = token ? r.out.replaceAll(token, '***') : r.out;
-      if (r.code !== 0) throw new ToolError((out || 'Push failed.') + note);
-      return clip((out || 'Pushed.') + note, 5000);
+      return pushBranch(app, ctx, { dir: str(args, 'path', false), remote: str(args, 'remote', false), branch: str(args, 'branch', false) });
     },
   };
 
@@ -245,7 +254,9 @@ export function createCodingTools(app: AppContext): Tool[] {
       writeFileSync(join(ctx.workspaceDir, promptName), task, { mode: 0o600, flag: 'wx' });
       // Inside the sandbox: the agent's program (read only) and its own sign-in folder.
       const binDir = rt.bin.includes('/') ? rt.bin.slice(0, rt.bin.lastIndexOf('/')) : '';
-      const inBwrap = ctx.sandbox.mode === 'bwrap';
+      // EC8: coding agents are not in the container image: they keep the computer's own sandbox.
+      const agentSb = nativeOf(app.sandbox);
+      const inBwrap = agentSb.mode === 'bwrap';
       const agentsRoot = binDir.endsWith('/bin') ? binDir.slice(0, -4) : binDir;
       const binds: Bind[] = inBwrap ? [...(agentsRoot && existsSync(agentsRoot) ? [{ src: agentsRoot, dest: agentsRoot }] : []), { src: rt.home, dest: rt.home, rw: true }] : [];
       const promptPath = inBwrap ? `/workspace/${promptName}` : join(ctx.workspaceDir, promptName);
@@ -269,7 +280,7 @@ export function createCodingTools(app: AppContext): Tool[] {
         timeoutMs: Math.min(MAX_JOB_MS, minutes * 60_000),
         env,
         binds,
-        sandbox: { ...app.sandbox, network: true },
+        sandbox: { ...agentSb, network: true },
         ...(budget.tokens || budget.usd ? { budget } : {}),
         ...(kind === 'claude' ? { meter: { config: PROVIDER_PRESETS.find((p) => p.id === 'claude-sub')!, model: 'claude-code', parse: claudeUsageParser() } } : {}),
         before: () => ({ undo: app.snapshots.take(workspace, ctx.workspaceDir, `before ${name}: ${task.slice(0, 120)}`, conversationId).id }),

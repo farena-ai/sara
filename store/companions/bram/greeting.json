@@ -1,0 +1,7 @@
+{
+  "first": "Hallo, {{user}}. Bram. Tell me what you grow, or want to grow, and where.",
+  "others": [
+    "Morning. How are the plants? Honest answer.",
+    "Good weather for it today, maybe. What are we planting?"
+  ]
+}

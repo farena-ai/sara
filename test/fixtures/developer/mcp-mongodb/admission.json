@@ -1,0 +1,22 @@
+{
+  "target": "MongoDB",
+  "status": "blocked-engine-download-budget",
+  "installable": false,
+  "productionQualified": false,
+  "downloadBudgetBytes": 450000000,
+  "upstream": {"package": "mongodb-mcp-server", "version": "3.2.2", "license": "Apache-2.0", "repository": "https://github.com/mongodb-js/mongodb-mcp-server"},
+  "engine": {
+    "version": "8.0.34",
+    "platform": "windows-x86_64",
+    "url": "https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-8.0.34.zip",
+    "contentLength": 807616685,
+    "vendorPublishedSha256": "6b021a0864494e4decf278b36477a29eb36072432773e4e62c2f42c302630db0",
+    "downloaded": false,
+    "executableSha256": null,
+    "signatureVerified": false,
+    "license": "SSPL-1.0 (upstream source; ZIP legal contents not inspected)"
+  },
+  "executedAcceptanceIds": [],
+  "unexecutedAcceptanceIds": ["MDB-ROWS", "MDB-SCHEMA", "MDB-INDEX-EXPLAIN", "MDB-ACL-WRITE", "MDB-ACL-OUT", "MDB-ACL-MERGE", "MDB-ACL-CROSSDB", "MDB-SARA-LIFECYCLE", "MDB-RECONNECT", "MDB-STALE", "MDB-DISABLE", "MDB-CLEANUP"],
+  "notes": "Static admission evidence only. No engine, MCP server or fixture identity was launched or created. This record is not a recipe or runtime security policy."
+}

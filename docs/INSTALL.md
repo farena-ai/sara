@@ -85,7 +85,7 @@ sudo git clone https://github.com/farena-ai/sara /opt/sara-src
 sudo /opt/sara-src/deploy/install.sh
 ```
 
-Containers and hosts without systemd: use [Docker Compose](#docker-compose).
+Containers and hosts without systemd: use [Docker Compose](#docker-compose). Kubernetes clusters: the single-replica Helm chart, see [KUBERNETES.md](KUBERNETES.md).
 
 `bubblewrap` is optional but recommended: with it, her shell runs in a sandbox that can only see her
 workspace (Ubuntu 24.04 needs one extra step, see [Troubleshooting](#troubleshooting); the one-command
@@ -264,6 +264,17 @@ sara start | stop | restart
 sara update              opens the download page
 sara uninstall [--delete-data]
 ```
+
+**Updating from Sara herself (C9):** when a new version is out, an **Update** button appears in the top
+bar. It starts grey and gets more insistent as the release ages (blue after 2 days, amber after 4, red
+after 7); a security release is red at once, and **Update required** means your version is older than
+the oldest one still supported. Press it, then **Update now** in Settings → Data & health → Updates:
+Sara downloads the installer, checks it against the release's signed update notice, keeps the
+installer of the version you have, installs silently and restarts. If the new version doesn't answer
+within 3 minutes she reinstalls the previous one and tells you. This works for the *only while I'm
+signed in* install and on the Mac app. A Windows service install needs an administrator, so there the
+button leads to the download page. Without a signed notice (for example a release page that can't be
+reached) Sara also only offers the download page.
 
 **Updating:** run a newer `Sara-Setup.exe`. The first page already has what you installed chosen. It
 stops her, makes a backup (`<data>\backups`), replaces the program and starts her again; her data,
@@ -605,6 +616,7 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_ACCESS` / `SARA_PUBLIC_URL` | (none) | How she's reached (`local`, `tailscale`, `domain`, `lan`) and her address; written by the installer and `sara access` |
 | `SARA_SECURE_COOKIES` | `0` | `1` behind HTTPS |
 | `SARA_TRUST_PROXY` | `0` | `1` behind a reverse proxy on this machine |
+| `SARA_PROGRAM_PATH` | (none) | Extra program folders for Sara alone, first in her command path (e.g. `/usr/local/sara/bin` holding a newer `python3` where the system one must stay old, as on cPanel). On Linux only folders under `/usr` count, so the sandbox sees them too. |
 | `SARA_SETUP` | `code` | First sign-in in the browser on a new server: `code` (the setup code from her log), `browser` (no code; **only** behind a proxy that makes people sign in first, as Umbrel's does), `off` (owner token only) |
 | `SARA_SETUP_MINUTES` | `60` | How long after each start browser setup stays open on a server nobody has signed in to yet (5–1440) |
 | `SARA_DATA` | `/var/lib/sara` | Data directory |
@@ -616,11 +628,12 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_BROWSER` | (found by itself) | Path to a Chromium-family browser for testing previews |
 | `SARA_REPORT_TO` | the developer's report inbox | Where a reply you report with ⚑ is also sent (`https://sara.backstagecoding.com/api/public/report`). `off` = never send reports anywhere; they stay on your server |
 | `SARA_PRIVATE_LOCAL` | unset | Phase 67: `1` = *Nothing leaves this computer* is always on (can't be turned off in the app); `start` = on until the owner turns it off in Settings → Models → On this computer. Only this computer (`127.0.0.1`, `::1`, `localhost`) is reached. See [PRIVATE_LOCAL.md](PRIVATE_LOCAL.md) |
+| `SARA_RESTORE_DRILL` | unset | EC28, internal: set only by the restore drill (`src/restore-drill.ts`) on the throwaway copy it boots. `1` = answer health and sign-in but start no workers, chat apps, plugins, tool servers or backups. Never set it on a real server. See [RECOVERY.md](RECOVERY.md) |
 | `SARA_PERSONA` | `persona/sara.json` | The character file a new install starts from |
 | `SARA_BACKUP_PASSPHRASE` | (none) | Passphrase for restoring an encrypted `.enc` off-server copy without being asked (Docker, Mac) |
 | `SARA_TOOLS_USER` | (none; `sara-tools` in Docker) | A separate user her commands run as when there's no bubblewrap (set by the Docker image) |
 | `SARA_LOG_FORMAT` | `text` | How her log lines look on the console (the journal, `docker logs`): `text` (the message, as always) or `json` (one JSON object per line: `t`, `level`, `msg`). See [Logs](#logs) |
-| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file |
+| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file. Without it the owner picks the level in Settings → Data & health → Health → *Log level*; when set, it wins |
 | `SARA_LOG_FILE` / `SARA_LOG_MAX_MB` / `SARA_LOG_KEEP` | (none) / `10` / `5` | An extra log file (in `SARA_LOG_FORMAT`), rotated by Sara herself when it reaches the size, keeping that many older files (`.1` newest) |
 | `SARA_DEMO` / `SARA_DEMO_DAILY` | (off) / `300` | Demo server mode and its daily message limit (set by `install-demo.sh`) |
 | `SARA_DEMO_CALL_CODE` / `SARA_DEMO_CALL_MINUTES_PER_DAY` | (off) / `30` | Demo: reviewer code that unlocks live calls (unset = no calls in the demo), and call minutes a day for everyone |
@@ -725,7 +738,7 @@ On a systemd installation, you can also check the service journal with `sudo jou
 | Setting | What it does |
 |---|---|
 | `SARA_LOG_FORMAT=json` | The console gets one JSON object per line (`{"t":"…","level":"warn","msg":"…"}`) for log collectors (Loki, Vector, Datadog, `jq`). Default `text`: the message as before (journald and Docker add their own timestamps) |
-| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures |
+| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures. The same choice is in Settings → Data & health → Health → *Log level* (saved, applied at once); the environment variable wins while it is set |
 | `SARA_LOG_FILE=/var/log/sara/sara.log` | Also writes every line to this file (text lines with a timestamp and level, or JSON with `SARA_LOG_FORMAT=json`). Sara rotates it herself: at `SARA_LOG_MAX_MB` (default 10) it becomes `sara.log.1`, older ones move up to `SARA_LOG_KEEP` (default 5) and the oldest is deleted. The folder must be writable by her user (`sudo mkdir /var/log/sara && sudo chown sara /var/log/sara`) |
 
 - **systemd (Linux):** the console goes to the journal, which rotates and limits itself (`journalctl --disk-usage`; limits in `/etc/systemd/journald.conf`, `SystemMaxUse=`). Nothing else is needed; `SARA_LOG_FORMAT=json` makes `journalctl -u sara -o cat | jq` work.

@@ -21,7 +21,11 @@ const PATTERNS: [RegExp, Replacement][] = [
   [/\bAKIA[0-9A-Z]{16}\b/g, '[REDACTED]'],
   [/\bAIza[0-9A-Za-z_-]{35}\b/g, '[REDACTED]'],
   [/\bxox[abposr]-[A-Za-z0-9-]{10,}/g, '[REDACTED]'],
+  // EC1: Slack app-level tokens (Socket Mode).
+  [/\bxapp-[A-Za-z0-9-]{10,}/g, '[REDACTED]'],
   [/\bhf_[A-Za-z0-9]{30,}/g, '[REDACTED]'],
+  // EC7: Microsoft Entra client secrets (the Teams bot's password: three characters, a digit, `Q~`, then 31-34).
+  [/(?<![A-Za-z0-9_~.-])[A-Za-z0-9_~.-]{3}\dQ~[A-Za-z0-9_~.-]{31,34}(?![A-Za-z0-9_~.-])/g, '[REDACTED]'],
   // Phase 122 (WHATSAPP §7.1): Meta access tokens (System User and user tokens start EAA).
   [/\bEAA[A-Za-z0-9]{20,}/g, '[REDACTED]'],
   // Phase 122 part 2 (BRIDGES4 §9.1): Matrix access tokens (Synapse `syt_…`, MAS `mct_…`/`mat_…`).

@@ -61,7 +61,8 @@ export interface CardWork {
   taskId?: string;
   conversationId: string;
   startedAt: string;
-  state: 'queued' | 'running' | 'waiting' | 'done' | 'stopped' | 'failed' | 'interrupted';
+  /** C11: 'question' = parked with her question until the owner answers (not failed, no work slot held). */
+  state: 'queued' | 'running' | 'waiting' | 'question' | 'done' | 'stopped' | 'failed' | 'interrupted';
   /** Who assigned it (the person whose space runs it; 'me' on one's own board). */
   by?: string;
   /** The live line (the current step). */
@@ -70,7 +71,7 @@ export interface CardWork {
   /** Phase 118 (PERSIST §4.12): the goal check this card's work must pass, and the goal driving it. */
   checks?: string[];
   goalId?: number;
-  ask?: { kind: 'approval' | 'question' | 'budget' | 'failed' | 'unproven' | 'interrupted' | 'team' | 'goal'; text: string; approvalId?: string; tool?: string; more?: Record<string, number> };
+  ask?: { kind: 'approval' | 'question' | 'budget' | 'failed' | 'unproven' | 'interrupted' | 'team' | 'goal'; text: string; approvalId?: string; tool?: string; more?: Record<string, number>; askedAt?: string; remindedAt?: string };
   /** Receipts: what really happened (tool, a short line, ok/error). Titles only on shared boards. */
   receipts?: { tool: string; summary: string; status: string }[];
   used?: { tokens: number; steps: number };
@@ -280,10 +281,10 @@ export class BoardStore {
     return { id: Number(r.id), name: String(r.name), kind: (['general', 'project', 'custom'].includes(String(r.kind)) ? r.kind : 'custom') as Board['kind'], projectId: r.project_id === null ? null : Number(r.project_id), shared: r.shared === null ? null : String(r.shared), createdAt: String(r.created_at), updatedAt: String(r.updated_at) };
   }
 
-  #create(name: string, kind: Board['kind'], projectId: number | null): Board {
+  #create(name: string, kind: Board['kind'], projectId: number | null, columns: readonly { name: string; role: ColumnRole }[] = DEFAULT_COLUMNS): Board {
     const ts = this.#now();
     const id = Number(this.db.prepare('INSERT INTO boards (name, project_id, kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(name, projectId, kind, ts, ts).lastInsertRowid);
-    DEFAULT_COLUMNS.forEach((c, i) => this.db.prepare('INSERT INTO board_columns (board_id, name, role, position) VALUES (?, ?, ?, ?)').run(id, c.name, c.role, (i + 1) * STEP));
+    columns.forEach((c, i) => this.db.prepare('INSERT INTO board_columns (board_id, name, role, position) VALUES (?, ?, ?, ?)').run(id, c.name, c.role, (i + 1) * STEP));
     return this.board(id)!;
   }
 
@@ -317,10 +318,12 @@ export class BoardStore {
       .filter((b) => b.projectId === null || (!archived.has(b.projectId) && this.planner.projects(true).some((p) => p.id === b.projectId)));
   }
 
-  createBoard(name: string): Board {
+  /** C11: `columns` (a board drafted from a description) replace the four default columns. */
+  createBoard(name: string, columns?: readonly { name: string; role: ColumnRole }[]): Board {
     const n = name.replace(/\s+/g, ' ').trim();
     if (!n || n.length > 80) throw new Error('Give the board a name (up to 80 characters).');
-    const b = this.#create(n, 'custom', null);
+    const cols = columns?.length ? columns.slice(0, 12).map((c) => ({ name: c.name.replace(/\s+/g, ' ').trim().slice(0, 40) || 'Column', role: ROLES.includes(c.role) ? c.role : ('other' as ColumnRole) })) : undefined;
+    const b = this.#create(n, 'custom', null, cols);
     this.#emit(b.id, 'board');
     return b;
   }
@@ -652,10 +655,11 @@ export class BoardStore {
 
   /** Cards waiting on you and cards she's working on (Today's Needs you and Doing). */
   today(): { waiting: { id: number; title: string; question: string; boardId: number }[]; doing: { id: number; title: string; line: string; boardId: number }[] } {
-    const cards = this.withWork(['waiting', 'running', 'queued']);
+    const cards = this.withWork(['waiting', 'question', 'running', 'queued']);
+    const parked = (s: string) => s === 'waiting' || s === 'question';
     return {
-      waiting: cards.filter((c) => c.work!.state === 'waiting').slice(0, 8).map((c) => ({ id: c.id, title: c.title, question: c.work!.ask?.text ?? '', boardId: c.boardId })),
-      doing: cards.filter((c) => c.work!.state !== 'waiting').slice(0, 8).map((c) => ({ id: c.id, title: c.title, line: c.work!.state === 'queued' ? 'Queued' : (c.work!.line ?? ''), boardId: c.boardId })),
+      waiting: cards.filter((c) => parked(c.work!.state)).slice(0, 8).map((c) => ({ id: c.id, title: c.title, question: c.work!.ask?.text ?? '', boardId: c.boardId })),
+      doing: cards.filter((c) => !parked(c.work!.state)).slice(0, 8).map((c) => ({ id: c.id, title: c.title, line: c.work!.state === 'queued' ? 'Queued' : (c.work!.line ?? ''), boardId: c.boardId })),
     };
   }
 }

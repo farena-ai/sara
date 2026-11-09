@@ -27,6 +27,34 @@ which checks run where). `test/packaging.test.ts` checks they all agree on image
 version, that browser setup without a code is only in the Umbrel template, and that the release
 scripts can't push by accident.
 
+## Local workflow package payload
+
+The native Linux installer (including reruns), Windows and Mac bundlers, and Docker recipe
+include the five existing builtin plugins and exactly twelve local workflow package trees under
+`store/plugins`: daily-briefing, meeting-assistant, document-desk, research-notebook,
+project-handoff, weekly-review, inbox-triage, content-studio, image-workshop,
+spreadsheet-assistant, travel-planner and home-dashboard. Copy complete package directories,
+including their own SDK, imported modules, manifests and assets. Do not copy all of `store/` or
+catalog authoring, website or private evidence files into a runtime payload. Linux reruns replace
+the distribution-owned `store/plugins` subtree so obsolete package files do not survive updates;
+installed owner plugins and state live separately in the data directory.
+
+Bundled local candidates require the ordinary review and explicit enablement flow. Their presence
+and content hashes do not establish signed-store availability, author trust or account access.
+Keep the existing builtin packages and signed-store flows separate.
+
+Source recipe checks: `node --test test/packaging.test.ts test/addons-runtime-payload.test.ts
+test/business-container-payload.test.ts` (one command line). These execute only bounded copy
+commands and materialize Docker COPY inputs; they do not build native apps/images or perform an
+OS installation. Actual Windows and Mac payloads, both container architectures, and a real isolated
+Linux install followed by an installer rerun remain required qualification gates. Verify every
+package file against the final source map, five builtin entries and exactly twelve candidate
+roots, with no raw catalog files. Import the manager from the actual installed runtime with its
+default relative roots and a working directory outside the source/install tree; a `candidateDir`
+test override or a checkout-only pass does not prove installed discovery. Exercise missing and
+tampered packages separately. These A1 artifact and installed-root checks are pending; existing
+2.68 release artifacts and their receipts remain unchanged.
+
 Ready-to-push submission folders (gitignored, made from the files above; copy again after a change):
 
 | Folder | For |

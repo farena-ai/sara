@@ -1,0 +1,74 @@
+{
+  "en": {
+    "name": "API Contract Guard",
+    "description": "Compare bounded OpenAPI JSON contracts offline.",
+    "diff": "Compare staged OpenAPI JSON files; no network or execution.",
+    "map": "Map a staged repository snapshot; does not run builds.",
+    "compatible": "No breaking changes detected in the supported contract subset.",
+    "breaking": "Breaking contract changes detected.",
+    "scope": "Offline analysis only; unsupported semantics are refused.",
+    "error": "Analysis refused",
+    "evidence": "Evidence",
+    "count": "Findings"
+  },
+  "es": {
+    "name": "Guardián de contratos API",
+    "description": "Compara contratos JSON OpenAPI limitados sin conexión.",
+    "diff": "Compara archivos JSON OpenAPI preparados; sin red ni ejecución.",
+    "map": "Mapea una copia preparada del repositorio; no ejecuta compilaciones.",
+    "compatible": "No se detectaron cambios incompatibles en el subconjunto admitido.",
+    "breaking": "Se detectaron cambios incompatibles en el contrato.",
+    "scope": "Solo análisis sin conexión; se rechaza la semántica no admitida.",
+    "error": "Análisis rechazado",
+    "evidence": "Evidencia",
+    "count": "Hallazgos"
+  },
+  "fr": {
+    "name": "Gardien des contrats API",
+    "description": "Compare des contrats JSON OpenAPI bornés hors ligne.",
+    "diff": "Compare des fichiers JSON OpenAPI préparés ; sans réseau ni exécution.",
+    "map": "Cartographie une copie préparée du dépôt ; ne lance aucune compilation.",
+    "compatible": "Aucun changement incompatible détecté dans le sous-ensemble pris en charge.",
+    "breaking": "Des changements incompatibles du contrat ont été détectés.",
+    "scope": "Analyse hors ligne uniquement ; la sémantique non prise en charge est refusée.",
+    "error": "Analyse refusée",
+    "evidence": "Preuve",
+    "count": "Constats"
+  },
+  "de": {
+    "name": "API-Vertragsprüfung",
+    "description": "Vergleicht begrenzte OpenAPI-JSON-Verträge offline.",
+    "diff": "Vergleicht vorbereitete OpenAPI-JSON-Dateien; ohne Netzwerk oder Ausführung.",
+    "map": "Erfasst eine vorbereitete Repository-Kopie; führt keine Builds aus.",
+    "compatible": "Keine inkompatiblen Änderungen im unterstützten Vertragsumfang erkannt.",
+    "breaking": "Inkompatible Vertragsänderungen erkannt.",
+    "scope": "Nur Offline-Analyse; nicht unterstützte Semantik wird abgelehnt.",
+    "error": "Analyse abgelehnt",
+    "evidence": "Nachweis",
+    "count": "Befunde"
+  },
+  "pt-BR": {
+    "name": "Proteção de contratos API",
+    "description": "Compara contratos JSON OpenAPI limitados sem conexão.",
+    "diff": "Compara arquivos JSON OpenAPI preparados; sem rede ou execução.",
+    "map": "Mapeia uma cópia preparada do repositório; não executa compilações.",
+    "compatible": "Nenhuma alteração incompatível detectada no subconjunto compatível.",
+    "breaking": "Alterações incompatíveis no contrato detectadas.",
+    "scope": "Somente análise offline; semântica não compatível é recusada.",
+    "error": "Análise recusada",
+    "evidence": "Evidência",
+    "count": "Constatações"
+  },
+  "it": {
+    "name": "Controllo contratti API",
+    "description": "Confronta contratti JSON OpenAPI limitati offline.",
+    "diff": "Confronta file JSON OpenAPI preparati; senza rete né esecuzione.",
+    "map": "Mappa una copia preparata del repository; non esegue compilazioni.",
+    "compatible": "Nessuna modifica incompatibile rilevata nel sottoinsieme supportato.",
+    "breaking": "Rilevate modifiche incompatibili del contratto.",
+    "scope": "Solo analisi offline; la semantica non supportata viene rifiutata.",
+    "error": "Analisi rifiutata",
+    "evidence": "Prova",
+    "count": "Risultati"
+  }
+}

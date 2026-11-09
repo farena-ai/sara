@@ -199,6 +199,20 @@ export const INTROS = {
       tick: 'mx-terms-tick',
     },
   }),
+  slack: () => ({
+    title: t('Set up Slack'),
+    lead: t('Talk to her in Slack: her DMs, and channels you choose when someone mentions her. You make a small Slack app from a manifest Sara gives you. Free, about 10 minutes, once.'),
+    need: [t('A Slack workspace where you may add apps (a free one of your own works)'), t('Slack open on a computer'), t('About 10 minutes')],
+    time: t('About 10 minutes, once'),
+    cost: t('Free'),
+  }),
+  teams: () => ({
+    title: t('Set up Microsoft Teams'),
+    lead: t('Talk to her in Teams: her personal chat, and channels you choose when someone mentions her. You make a free Azure Bot and upload a Teams app package Sara builds. About 20 minutes, once.'),
+    need: [t('A Microsoft 365 organization where you may add custom apps in Teams'), t('An Azure account in that organization (the Free bot tier is enough)'), t('A public https address for Sara (step 3 helps)'), t('About 20 minutes at a computer')],
+    time: t('About 20 minutes, once'),
+    cost: t('Free'),
+  }),
   imessage: () => ({
     title: t('Set up iMessage'),
     lead: t('Text her from Messages on your iPhone, through BlueBubbles on a Mac. Free, about 40 minutes at the Mac, once.'),

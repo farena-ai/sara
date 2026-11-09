@@ -82,7 +82,26 @@ export function localDate(when: string | Date, timeZone?: string): string {
 /** Messages Sara must not see or remember (forgotten by the owner). */
 export const isForgotten = (m: StoredMessage) => m.meta?.forgotten === true;
 
-function transcriptLine(m: StoredMessage, owner: string, tz?: string, name = 'Sara'): string | null {
+/**
+ * R1B: rows of a shared-scene turn: each reply saved with `meta.scene` and the owner's line it
+ * answered. Their story events are fiction, never facts about the owner or her.
+ */
+export function sceneTurnIds(messages: StoredMessage[]): Set<number> {
+  const ids = new Set<number>();
+  let replyInScene = false;
+  for (const m of [...messages].reverse()) {
+    if (m.role === 'assistant') { replyInScene = Boolean(m.meta?.scene && typeof m.meta.scene === 'object'); if (replyInScene) ids.add(m.id); }
+    else if (m.role === 'user') { if (replyInScene) ids.add(m.id); replyInScene = false; }
+  }
+  return ids;
+}
+const SCENE_LABEL = '(in a shared scene (fiction): story events, not facts about anyone)';
+
+export function transcriptLine(m: StoredMessage, owner: string, tz?: string, name = 'Sara', scene = false): string | null {
+  const line = plainTranscriptLine(m, owner, tz, name);
+  return line && scene && (m.role === 'user' || m.role === 'assistant') ? line.replace(/^(\[#\d+ [^\]]*\])/, `$1 ${SCENE_LABEL}`) : line;
+}
+function plainTranscriptLine(m: StoredMessage, owner: string, tz?: string, name = 'Sara'): string | null {
   if (isForgotten(m)) return null;
   const when = new Intl.DateTimeFormat('en-US', { timeZone: tz, dateStyle: 'short', timeStyle: 'short' }).format(new Date(m.createdAt));
   if (m.role === 'user') return `[#${m.id} ${owner} ${when}] ${m.content}`;
@@ -247,8 +266,9 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   // Newest-first until the budget, then back into order.
   const lines: { m: StoredMessage; line: string }[] = [];
   let size = 0;
+  const scene = sceneTurnIds(usable);
   for (const m of [...usable].reverse()) {
-    const line = transcriptLine(m, owner, s.timeZone, app.persona.name);
+    const line = transcriptLine(m, owner, s.timeZone, app.persona.name, scene.has(m.id));
     if (!line) continue;
     if (size + line.length > MAX_TRANSCRIPT_CHARS && lines.length) break;
     lines.push({ m, line: line.slice(0, 4000) });

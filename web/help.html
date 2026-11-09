@@ -26,7 +26,10 @@
   <a href="#phone">Phone and notifications</a>
   <a href="#voice">Voice and calls</a>
   <a href="#memory">Memory and privacy</a>
+  <a href="#session-continuity">Session continuity</a>
+  <a href="#shared-scenes">Shared scenes</a>
   <a href="#import">Bring her from another app</a>
+  <a href="#bring">Bring your companion</a>
   <a href="#story">Your story together</a>
   <a href="#moments">Our moments</a>
   <a href="#languages">Languages</a>
@@ -107,8 +110,13 @@
 <p>Step 1 of the setup asks what you will mostly do with her: <em>Company</em>, <em>Coding</em> or <em>Both</em>. It only changes what you see first (the order of <em>Getting started</em> on <em>Today</em>, the short tour offered after her first reply and the starter chips in an empty chat); every feature stays available. Change it in <em>Settings → You → About you</em>.</p>
 <p>The <em>Today</em> page has a <em>Getting started</em> list that ticks itself off as you go, with the next step highlighted. For company it runs from saying hello to her voice, your phone and a morning briefing; for coding from opening a project to tools and approvals, GitHub, your editor and budgets.</p>
 
+<h2 id="operations">Operations</h2>
+<p>Current server only. HTTP response measurements do not measure model reply latency.</p>
+<p>A configured model is not proof of a successful reply. A backup does not prove recovery.</p>
+<p>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</p>
+<p>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</p>
 <h2 id="recovery">Recovering interrupted work</h2>
-<p>Open <em>Settings → Data &amp; health → Recovery</em>. Interrupted jobs offer <em>Review restart</em>: inspect the original request, copy it, or put it in an empty chat before you choose Send. This restarts the request from the beginning; previous effects may already have happened. Current safety checks and approvals still apply.</p>
+<p>Open <em>Settings → Data &amp; health → Readiness and recovery</em>. Interrupted jobs offer <em>Review restart</em>: inspect the original request, copy it, or put it in an empty chat before you choose Send. This restarts the request from the beginning; previous effects may already have happened. Current safety checks and approvals still apply.</p>
 <p>Teams stay held after a restart. Review unfinished work before explicitly resuming; completed parts remain complete. A current privacy or safety hold may refuse recovery. Chat goals retain their existing paused/resume flow.</p>
 <p>Native Telegram and Discord deliveries distinguish queued, attempted, platform-acknowledged, failed and outcome unknown. Unknown means it may already have arrived: check the destination before sending again. Human resolution stays separate from platform acknowledgment. No recovery screen automatically executes or resends. Unresolved and All history have Load more so older records remain reachable.</p>
 <p>Review text is encrypted; attachments are metadata only. Plugin bridges and arbitrary command/browser/mail effects are outside this native delivery ledger. Read <a href="https://github.com/farena-ai/sara/blob/main/docs/RECOVERY.md">Recovery guidance</a> for limits and backup handling.</p>
@@ -189,6 +197,9 @@
 <details class="howto-q" id="howto-her-hey-on"><summary>How do I turn on Hey Sara?</summary><ol><li>Open this page in the Sara app on your Windows PC or Android phone.</li><li>Switch on Listen for “Hey Sara”, read what it does, and allow the download and the microphone.</li><li>Say “Hey Sara” and ask; the dot on her icon turns bright while she hears you.</li></ol></details>
 <details class="howto-q" id="howto-her-hey-talk"><summary>How do I talk to her without saying her name?</summary><ol><li>On Windows, press the talk shortcut (Ctrl+Alt+Space) or choose Talk to Sara in the tray.</li><li>On Android, use the Talk to Sara tile in Quick Settings.</li><li>It works even with Hey Sara off: nothing listens until you press it.</li></ol></details>
 <details class="howto-q" id="howto-her-hey-off"><summary>How do I stop her listening on a device?</summary><ol><li>Press Stop listening next to it under Your devices, from any of your devices.</li><li>Or Turn off everywhere for all of them.</li><li>Only the device itself can switch it on again.</li></ol></details>
+<h4 id="howto-her-work">At work</h4>
+<details class="howto-q" id="howto-her-work-on"><summary>How do I use her at work in Slack or Teams?</summary><ol><li>Open Settings → Her → At work.</li><li>Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).</li><li>Give her a name and tone at work if you like, then press Save.</li></ol></details>
+<details class="howto-q" id="howto-her-work-copy"><summary>How do I let her know something at work and at home?</summary><ol><li>Open Settings → Her → At work.</li><li>Under Work memories, find the note.</li><li>Press Copy to work or Copy to personal. The original stays where it is.</li></ol></details>
 <h4 id="howto-her-calls">Calls from her</h4>
 <details class="howto-q" id="howto-her-calls-when"><summary>How do I choose when she may call me?</summary><ol><li>Tick what may ring you: reminders, finished tasks, the morning briefing.</li><li>Set quiet hours and a limit for calls a day.</li><li>Press Call me now to try it.</li></ol></details>
 <details class="howto-q" id="howto-her-calls-off"><summary>How do I stop her calling?</summary><ol><li>Untick every reason at the top of this page.</li><li>She can still send messages; only calls stop.</li></ol></details>
@@ -208,6 +219,9 @@
 <details class="howto-q" id="howto-you-about-name"><summary>How do I change what she calls me?</summary><ol><li>Type it in What should Sara call you?</li><li>It saves when you leave the box.</li></ol></details>
 <details class="howto-q" id="howto-you-about-path"><summary>How do I switch between company and coding?</summary><ol><li>Pick under What you mostly do with her.</li><li>It changes what you see first and the tour; nothing is taken away.</li></ol></details>
 <details class="howto-q" id="howto-you-about-lang"><summary>How do I change the language?</summary><ol><li>Pick a Language for the app.</li><li>Pick Talk to me in for her replies.</li></ol></details>
+<h4 id="howto-you-appearance">Appearance</h4>
+<details class="howto-q" id="howto-you-appearance-palette"><summary>How do I change the colours of the app?</summary><ol><li>Pick a palette card at the top of this page.</li><li>Night or Day picks light or dark for it.</li></ol></details>
+<details class="howto-q" id="howto-you-appearance-classic"><summary>How do I get the old rose and violet look back?</summary><ol><li>Pick Sara Classic as the palette.</li><li>Decoration turns the glow and moving light back on.</li></ol></details>
 <h4 id="howto-you-briefing">Morning briefing</h4>
 <details class="howto-q" id="howto-you-briefing-on"><summary>How do I get a morning briefing?</summary><ol><li>Switch the briefing on and pick a Time.</li><li>Set Weather for to your town.</li><li>Press Send one now to see it.</li></ol></details>
 <details class="howto-q" id="howto-you-briefing-week"><summary>How do I get a weekly review?</summary><ol><li>Switch on Weekly review and pick the day and time.</li><li>She looks back at your week in chat.</li></ol></details>
@@ -241,6 +255,10 @@
 <h4 id="howto-co-pickup">Pick up across apps</h4>
 <details class="howto-q" id="howto-co-pickup-continue"><summary>How do I pick up a chat from Telegram in the app?</summary><ol><li>Open the app after talking on Telegram: a banner offers to pick it up.</li><li>Press Continue here (or type /continue in any of your chats).</li><li>The chip at the top says where it came from; Undo takes it away.</li></ol></details>
 <details class="howto-q" id="howto-co-pickup-off"><summary>How do I stop the pick-up offers?</summary><ol><li>Under When I switch apps, choose Only when I type /continue.</li><li>To end one pickup, press Undo on its chip (or type /continue off).</li></ol></details>
+<h4 id="howto-co-continuity">Session continuity</h4>
+<details class="howto-q" id="howto-co-continuity-toggle"><summary>How do I turn session continuity on or off?</summary><ol><li>Open Settings → Chat apps → Session continuity.</li><li>Switch Use context across my sessions on or off; it saves automatically.</li><li>Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings.</li></ol></details>
+<details class="howto-q" id="howto-co-continuity-inspect"><summary>How do I read the notes from my other sessions?</summary><ol><li>Close Settings and open one of your own eligible chats with this companion.</li><li>Press the conversation chip at the top, then find Saved session context.</li><li>Press Show saved session context to see the source, time, expiry and notes.</li><li>Notes help later replies; they do not send messages or confirm completed work.</li></ol></details>
+<details class="howto-q" id="howto-co-continuity-clear"><summary>How do I clear saved notes, including expired ones?</summary><ol><li>In This conversation, show the saved session context first.</li><li>Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.</li><li>Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.</li><li>Original chats, old run records, exports and backups stay.</li><li>If the notes changed elsewhere, reload and review them before trying again.</li></ol></details>
 <h4 id="howto-co-telegram">Telegram</h4>
 <details class="howto-q" id="howto-co-telegram-connect"><summary>How do I get her on Telegram?</summary><ol><li>Press Start and open @BotFather.</li><li>Send /newbot and paste the key it gives you.</li><li>Press Link my Telegram and send the bot the code.</li></ol></details>
 <details class="howto-q" id="howto-co-telegram-groups"><summary>How do I add her to a group?</summary><ol><li>Add the bot to the group in Telegram.</li><li>Choose who may talk to her under Remote work and groups.</li></ol></details>
@@ -265,6 +283,12 @@
 <details class="howto-q" id="howto-co-imessage-connect"><summary>How do I text her from my iPhone?</summary><ol><li>You need a Mac that stays on. Tick the box about Apple and BlueBubbles and press Start.</li><li>Give her an Apple ID and a user on the Mac, sign her in to Messages and install BlueBubbles.</li><li>Paste the BlueBubbles password, press Ring, then send the code from Link my iMessage to her address.</li></ol></details>
 <details class="howto-q" id="howto-co-imessage-own"><summary>Why won't she run on my own Apple ID?</summary><ol><li>On your Apple ID she would see all your chats and her answers would go out as you.</li><li>Make a separate Apple ID for her and sign it in to Messages as a separate user on the Mac.</li></ol></details>
 <details class="howto-q" id="howto-co-imessage-slow"><summary>Why do her iMessage answers take a few seconds?</summary><ol><li>BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.</li><li>Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.</li></ol></details>
+<h4 id="howto-co-slack">Slack</h4>
+<details class="howto-q" id="howto-co-slack-connect"><summary>How do I talk to her in Slack?</summary><ol><li>Press Start on the Slack card, then copy the app manifest it shows.</li><li>At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.</li><li>Press Link my Slack and send her the code in a Slack DM.</li></ol></details>
+<details class="howto-q" id="howto-co-slack-channel"><summary>How do I let her answer in a Slack channel?</summary><ol><li>In the channel, type /invite and her name.</li><li>In Settings → Chat apps → Slack, press Answer here next to that channel.</li><li>Mention her in the channel; she answers in a thread.</li></ol></details>
+<h4 id="howto-co-teams">Microsoft Teams</h4>
+<details class="howto-q" id="howto-co-teams-connect"><summary>How do I talk to her in Microsoft Teams?</summary><ol><li>Press Start on the Microsoft Teams card and make the free Azure Bot it describes.</li><li>Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.</li><li>Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code.</li></ol></details>
+<details class="howto-q" id="howto-co-teams-channel"><summary>How do I let her answer in a Teams channel?</summary><ol><li>Add her app to the team (Apps → her app → Add to a team).</li><li>Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.</li><li>Mention her again; she answers in that thread.</li></ol></details>
 <h3>Add-ons</h3>
 <h4 id="howto-ab-store">Get more</h4>
 <details class="howto-q" id="howto-ab-store-get"><summary>How do I add something from the store?</summary><ol><li>Search or pick it on a shelf, then open it.</li><li>Read what it can do, then press Get.</li><li>Read its card and press Install: it stays off until you switch it on.</li></ol></details>
@@ -276,6 +300,8 @@
 <h4 id="howto-ab-plugins">Plugins</h4>
 <details class="howto-q" id="howto-ab-plugins-add"><summary>How do I add a plugin?</summary><ol><li>Press Add a plugin.</li><li>Read the permissions it asks for.</li><li>Switch it on when you trust it.</li></ol></details>
 <details class="howto-q" id="howto-ab-plugins-stop"><summary>How do I stop a plugin?</summary><ol><li>Switch it off on its card.</li><li>Its log stays under What it did.</li></ol></details>
+<details class="howto-q" id="howto-ab-plugins-candidates"><summary>How do I try a workflow candidate?</summary><ol><li>Open Workflow candidates and read Details and limits.</li><li>Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.</li><li>It stays off for every companion. Enable it separately on its installed card.</li></ol></details>
+<details class="howto-q" id="howto-ab-plugins-guides"><summary>How do I use a starter guide?</summary><ol><li>Open Starter guides under Workflow candidates.</li><li>Read its members, qualification, privacy, costs and setup checklist.</li><li>Follow existing Settings links and review each member separately. Nothing installs as a group.</li></ol></details>
 <h4 id="howto-ab-search">Web search</h4>
 <details class="howto-q" id="howto-ab-search-on"><summary>How do I let her search the web?</summary><ol><li>Pick a Search service.</li><li>Paste its API key if it needs one.</li><li>Ask her to look something up.</li></ol></details>
 <details class="howto-q" id="howto-ab-search-free"><summary>How do I search without a key?</summary><ol><li>Pick a service marked Free · no key.</li><li>Or run your own SearXNG and paste its URL.</li></ol></details>
@@ -291,6 +317,8 @@
 <h4 id="howto-ab-mcp">Other programs (MCP)</h4>
 <details class="howto-q" id="howto-ab-mcp-add"><summary>How do I connect another program (MCP)?</summary><ol><li>Pick Start from, or type the Command or URL.</li><li>Add any Secrets it needs.</li><li>Press Save and connect.</li></ol></details>
 <details class="howto-q" id="howto-ab-mcp-what"><summary>What is an MCP server?</summary><ol><li>A small program that gives her new tools.</li><li>Its tools then appear in Tools and approvals.</li></ol></details>
+<details class="howto-q" id="howto-ab-mcp-previews"><summary>How do I inspect an MCP recipe preview?</summary><ol><li>Open Connection investigations and filter the list.</li><li>Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.</li><li>Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.</li></ol></details>
+<details class="howto-q" id="howto-ab-mcp-permissions"><summary>How do I verify MCP approval settings?</summary><ol><li>Inspect each discovered tool in Tools and approvals and select Ask or Off.</li><li>Save, leave the page, reopen it and read back the saved permissions.</li><li>Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.</li></ol></details>
 <h3>Coding</h3>
 <h4 id="howto-ab-tools">Tools and approvals</h4>
 <details class="howto-q" id="howto-ab-tools-ask"><summary>How do I make her ask before she does something?</summary><ol><li>Find the tool in its group.</li><li>Set it to Ask me first.</li><li>Approval cards then appear in chat.</li></ol></details>
@@ -318,6 +346,9 @@
 <details class="howto-q" id="howto-ab-ssh-fail"><summary>What if it doesn't work?</summary><ol><li>Read the box under the button you pressed.</li><li>Press the button it offers, like Find the port or Check now.</li></ol></details>
 <details class="howto-q" id="howto-ab-ssh-safe"><summary>Does she ask before running commands there?</summary><ol><li>Yes, every command asks first by default.</li><li>Change it in Tools and approvals.</li></ol></details>
 <h3>Connections</h3>
+<h4 id="howto-co-spotify">Spotify</h4>
+<details class="howto-q" id="howto-co-spotify-connect"><summary>How do I connect Spotify?</summary><ol><li>Make an app at developer.spotify.com.</li><li>Add the redirect address this page shows.</li><li>Paste its Client ID and press Save.</li><li>Press Connect Spotify and allow access.</li></ol></details>
+<details class="howto-q" id="howto-co-spotify-playback"><summary>How do I let her play music?</summary><ol><li>Tick Let her control playback.</li><li>Press Connect again.</li><li>Ask her to play, pause or queue a song.</li></ol></details>
 <h4 id="howto-co-phone">Phone and notifications</h4>
 <details class="howto-q" id="howto-co-phone-install"><summary>How do I put her on my phone?</summary><ol><li>Open Sara in your phone's browser and sign in.</li><li>Press Install Sara as an app (or Add to Home Screen).</li><li>Then turn on notifications.</li></ol></details>
 <details class="howto-q" id="howto-co-phone-push"><summary>How do I get notifications?</summary><ol><li>Press Turn on for this device.</li><li>Press Send a test.</li></ol></details>
@@ -341,10 +372,11 @@
 <details class="howto-q" id="howto-dh-safety-check"><summary>How do I check that my setup is safe?</summary><ol><li>Open Settings and pick Safety check-up (the first page under its group).</li><li>Read the top line: Looks safe, Mostly safe or Fix these first.</li><li>Each row says what's true now; the ? says why it matters.</li></ol></details>
 <details class="howto-q" id="howto-dh-safety-fix"><summary>How do I fix something it found?</summary><ol><li>Press the fix button on that row (for example Ask me first again).</li><li>Read what it changes and whether it can be undone, then press Do it.</li><li>Changed your mind? Press Undo under Recent fixes.</li></ol></details>
 <details class="howto-q" id="howto-dh-safety-cli"><summary>How do I run the check-up from the command line?</summary><ol><li>On the server, run: sara doctor --safety</li><li>It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).</li><li>The command line never changes anything; fixes are on this page.</li></ol></details>
-<h4 id="howto-dh-recovery">Recovery</h4>
+<h4 id="howto-dh-recovery">Readiness and recovery</h4>
 <details class="howto-q" id="howto-dh-recovery-job"><summary>How do I review an interrupted job?</summary><ol><li>Choose Review restart and read the preview before doing anything else.</li><li>Copy it, or use it in the same empty chat; an existing draft is kept.</li><li>Choose Send yourself. Earlier effects may repeat; current checks and approvals still apply.</li></ol></details>
 <details class="howto-q" id="howto-dh-recovery-team"><summary>How do I resume an interrupted team?</summary><ol><li>Check the unfinished step and its receipts; it may already have changed something.</li><li>Choose Resume team and acknowledge the risk before resuming. Completed steps are kept.</li></ol></details>
 <details class="howto-q" id="howto-dh-recovery-delivery"><summary>How do I check an uncertain delivery?</summary><ol><li>Use Unresolved or All history, then Load more deliveries to reach older records.</li><li>Check the destination first. Unknown messages may have arrived; live queued messages may still send.</li><li>Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends.</li></ol></details>
+<details class="howto-q" id="howto-dh-recovery-archive"><summary>How do I archive old delivery evidence?</summary><ol><li>Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.</li><li>Confirm one batch of up to 500 records. Keep the same cutoff for further batches.</li><li>Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved.</li></ol></details>
 <h4 id="howto-dh-health">Health</h4>
 <details class="howto-q" id="howto-dh-health-check"><summary>How do I check everything works?</summary><ol><li>Press Run full check.</li><li>Fix anything marked red with its button.</li></ol></details>
 <details class="howto-q" id="howto-dh-health-runs"><summary>How do I clear old run history?</summary><ol><li>Pick how long to Keep runs.</li><li>Or press Delete run history.</li></ol></details>
@@ -354,6 +386,7 @@
 <h4 id="howto-dh-backups">Backups</h4>
 <details class="howto-q" id="howto-dh-backups-now"><summary>How do I make a backup now?</summary><ol><li>Press Back up now.</li></ol></details>
 <details class="howto-q" id="howto-dh-backups-offsite"><summary>How do I keep a copy somewhere else?</summary><ol><li>Pick where under Copy backups to.</li><li>Fill in the folder or bucket and a passphrase.</li><li>Press Copy the latest backup now, then Test restore now.</li></ol></details>
+<details class="howto-q" id="howto-dh-backups-drill"><summary>How do I prove a backup really restores?</summary><ol><li>Open Readiness and recovery (Data &amp; health) and press Run a restore drill.</li><li>Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.</li><li>Read the result: how long it took, what it counted and how much a restore now would lose.</li></ol></details>
 <h4 id="howto-dh-data">Export and import</h4>
 <details class="howto-q" id="howto-dh-data-export"><summary>How do I export everything?</summary><ol><li>Under Export and import, press Export all data.</li><li>Keep the file somewhere safe.</li></ol></details>
 <details class="howto-q" id="howto-dh-data-history"><summary>How do I bring my chat history from another app?</summary><ol><li>Under Bring your history, pick the export file.</li><li>Press Import and check the preview.</li></ol></details>
@@ -372,7 +405,33 @@
 <h4 id="howto-dh-reports">Reports</h4>
 <details class="howto-q" id="howto-dh-reports-report"><summary>How do I report a problem?</summary><ol><li>Press Report a problem.</li><li>Say what happened; add diagnostics if you like.</li><li>Press Send.</li></ol></details>
 <details class="howto-q" id="howto-dh-reports-status"><summary>How do I see what happened to my report?</summary><ol><li>Each report shows its status and replies here.</li></ol></details>
+<h4 id="howto-dh-operations">Operations</h4>
+<details class="howto-q" id="howto-dh-operations-measurements"><summary>How do I check local operations?</summary><ol><li>Open Operations and press Refresh operations.</li><li>Read the measurement window and sample count. HTTP timings are not model reply timings.</li><li>A configured model and a saved backup do not prove inference or recovery.</li></ol></details>
+<details class="howto-q" id="howto-dh-operations-active-work"><summary>How do I tell active work from historical records?</summary><ol><li>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</li><li>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</li></ol></details>
 <h3>Household</h3>
+<h4 id="howto-dh-usage-report">Usage reports</h4>
+<details class="howto-q" id="howto-dh-usage-report-report"><summary>How do I see who used how much?</summary><ol><li>Open Settings → Household → Usage reports.</li><li>Pick Daily, Weekly or Monthly.</li><li>Tick Who, Workspace, Project or Model to split the rows.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-report-csv"><summary>How do I get the numbers into a spreadsheet?</summary><ol><li>Set the period and what to split by.</li><li>Press Download CSV.</li></ol></details>
+<details class="howto-q" id="howto-dh-usage-report-budget"><summary>How do I get warned before a budget runs out?</summary><ol><li>Under Monthly budgets, pick a person or a workspace.</li><li>Enter dollars or tokens for the month.</li><li>Pick when to warn and press Add budget.</li></ol></details>
+<h4 id="howto-dh-trust">Trust report</h4>
+<details class="howto-q" id="howto-dh-trust-report"><summary>How do I see what Sara claimed against what ran?</summary><ol><li>Open Settings → Household → Trust report.</li><li>Pick A week, One run or One project.</li><li>Press Show and read Claims checked and Failed tools.</li></ol></details>
+<details class="howto-q" id="howto-dh-trust-export"><summary>How do I give the report to a reviewer?</summary><ol><li>Show the report you want.</li><li>Press Markdown, PDF or Word under Download.</li></ol></details>
+<h4 id="howto-dh-shares">Shared links</h4>
+<details class="howto-q" id="howto-dh-shares-share"><summary>How do I share a conversation?</summary><ol><li>Open the chat and its settings.</li><li>Press Share….</li><li>Check the preview, pick how long the link works and press Make link.</li><li>Copy the link and send it privately.</li></ol></details>
+<details class="howto-q" id="howto-dh-shares-revoke"><summary>How do I stop a link from working?</summary><ol><li>Open Settings → Household → Shared links.</li><li>Press Revoke next to the link.</li></ol></details>
+<details class="howto-q" id="howto-dh-shares-private"><summary>How do I share a private chat?</summary><ol><li>Open Settings → Household → Shared links.</li><li>Tick Allow sharing private chats.</li><li>Share it from the chat as usual.</li></ol></details>
+<h4 id="howto-dh-audit">Audit trail</h4>
+<details class="howto-q" id="howto-dh-audit-find"><summary>How do I see who changed a setting?</summary><ol><li>Open Settings → Household → Audit trail.</li><li>Pick Settings under What, or a person under Who.</li><li>Each row says when, what, who and where, and whether it was done or refused.</li></ol></details>
+<details class="howto-q" id="howto-dh-audit-export"><summary>How do I give a reviewer a copy?</summary><ol><li>Set the filters to what the reviewer asked for.</li><li>Press Export JSONL or Export CSV.</li><li>Give them the ZIP: its manifest holds the SHA-256 and the signature.</li></ol></details>
+<details class="howto-q" id="howto-dh-audit-check"><summary>How do I know nobody edited it?</summary><ol><li>Press Check the chain.</li><li>It says the chain is fine, or the first row that was changed, removed or cut off.</li></ol></details>
+<h4 id="howto-dh-retention">Retention and legal hold</h4>
+<details class="howto-q" id="howto-dh-retention-keep"><summary>How do I delete old chats automatically?</summary><ol><li>Open Settings → Household → Retention and legal hold.</li><li>Under Keep, pick how long chats, memories and files stay.</li><li>It runs on the hourly check. Pinned memories always stay.</li></ol></details>
+<details class="howto-q" id="howto-dh-retention-hold"><summary>How do I make sure nothing is deleted?</summary><ol><li>Open Settings → Household → Retention and legal hold.</li><li>Tick Hold next to a person, or Hold everything on this server.</li><li>Nothing of theirs can be deleted until you untick it, not even by them.</li></ol></details>
+<details class="howto-q" id="howto-dh-retention-export"><summary>How do I give someone a copy of their data?</summary><ol><li>Open Settings → Household → Retention and legal hold.</li><li>Press Download their data next to the person.</li><li>Give them the ZIP: it holds only their chats, memories, photos and files.</li></ol></details>
+<details class="howto-q" id="howto-dh-retention-delete"><summary>How do I delete one person's data for good?</summary><ol><li>Release any hold on them first.</li><li>Press Delete their data next to the person and confirm.</li><li>The receipt (what was deleted, and when) is in the audit trail.</li></ol></details>
+<h4 id="howto-dh-policy">Policy</h4>
+<details class="howto-q" id="howto-dh-policy-pin"><summary>How do I stop anyone turning a setting back on?</summary><ol><li>Open Settings → Household → Policy.</li><li>Tick or pick the rule, for example Keep adult mode off.</li><li>Press Save the policy. The setting shows Set by your admin everywhere.</li></ol></details>
+<details class="howto-q" id="howto-dh-policy-copy"><summary>How do I set up another server the same way?</summary><ol><li>Press Export JSON here.</li><li>On the other server, open Policy and press Import JSON.</li><li>Pick the file: it replaces every pin there.</li></ol></details>
 <h4 id="howto-household">People on this server</h4>
 <details class="howto-q" id="howto-household-invite"><summary>How do I invite someone?</summary><ol><li>Type their name under Invite someone.</li><li>Press Make invite, then Copy link and send it.</li></ol></details>
 <details class="howto-q" id="howto-household-limit"><summary>How do I limit what they use?</summary><ol><li>Set Messages a day and Spending a day.</li><li>Choose the models they may use.</li></ol></details>
@@ -383,10 +442,10 @@
 
 <h2 id="around">Finding your way around</h2>
 <ul>
-  <li><strong>The sidebar</strong> lists the places you use most: Today, Planner, Library and Moments at first. <em>More</em> below them has the rest (Memory, Scrapbook, Your story, Team and anything new). Press the pin next to a place to keep it in the list; press it again to move it back under <em>More</em>. Pins are saved on each device.</li>
+  <li><strong>The sidebar</strong> starts with <em>Go to</em>: the places you use most (Today, Planner, Library, Add-ons and Moments at first), then your projects, then your conversations. <em>More</em> has the rest (Memory, Scrapbook, Your story, Team and anything new). Press the pin next to a place to keep it in the list; press it again to move it back under <em>More</em>. Pins are saved on each device. Sara Classic keeps the places under the conversations.</li>
   <li><strong>Her face and name</strong> at the bottom of the sidebar open her page; <em>?</em> opens Help and the gear opens Settings. Her face and name at the top open Today.</li>
   <li><strong>On a phone</strong> a bar at the bottom has Chat, Today, the Planner and More (every other place). ☰ at the top still lists your conversations. The bar steps aside while you type.</li>
-  <li><strong>Settings</strong> are in groups: Her, You, Models, Chat apps, Add-ons, Coding, Connections, Data &amp; health and Household. Press a group to open or close it. Each page starts with a line on what it is for. Search finds any word in page names, settings and their ? tips.</li>
+  <li><strong>Settings</strong> opens on <em>All settings</em>: every page under its group (Her, You, Models, Chat apps, Add-ons, Coding, Connections, Data &amp; health and Household) with a line on what it is for, so any page is one click away. Above each page, <em>Settings › group › page</em> takes you back. Search finds any word in page names, settings, their ? tips and common words for them (for example “dark mode” or “store”).</li>
   <li><strong>Search and go:</strong> press <em>Ctrl+K</em> (<em>⌘K</em> on a Mac) or the magnifier at the top to jump to any place, conversation, setting or action (a new conversation, off the record, a call, another companion, Night or Day). Use the arrow keys and Enter; Esc closes it. With nothing typed it shows what you opened last.</li>
   <li><strong>Tools and approvals</strong> (<em>Settings → Coding</em>) lists what she can do in plain words, grouped by topic. Each one is <em>Allowed</em> (she does it by herself), <em>Ask me first</em> (she asks in the chat each time) or <em>Off</em>. <em>Whole group</em> sets a whole group at once; the small grey name is the tool's own name.</li>
 </ul>
@@ -398,7 +457,7 @@
   <li><strong>Message buttons</strong> (Copy, Pin, Keep, Regenerate, Edit) show when you point at a message. On a phone, long-press the message or press its <em>⋯</em>.</li>
   <li><strong>Her panel</strong> on the right shows her face and mood, what she is doing right now, approvals waiting (with Allow and Deny), background tasks, the next things today, the notes she remembered for her last reply and this conversation's model and privacy. Fold it away with the button at the top right or <em>Ctrl+\</em>; each device remembers it. On a narrower window it opens over the chat; on a phone, press her face to pull it up from the bottom and drag it down to close.</li>
   <li><strong>The ring</strong> next to the title shows how full the conversation is (she keeps the last 60 messages word for word; older ones live on as her notes). Press it for the numbers.</li>
-  <li><strong>Night or Day:</strong> Night is the default. Change it for each device in <em>Settings → You → About you → Appearance → Theme</em>: Night, Day or Follow the system.</li>
+  <li><strong>Appearance:</strong> <em>Settings → You → Appearance</em> sets how the app looks on each device. Pick a <em>palette</em> (Graphite is the default; also Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, and Sara Classic, the rose and violet look from before), <em>Night or Day</em> (Night, Day or Follow the system; every palette has both), a <em>colour</em> (the palette's own, eight presets or any colour you choose: Sara adjusts its shade so text stays readable), <em>Layout</em> (Compact fits more on screen), <em>Decoration</em> (glows, glass and moving light; on for Sara Classic, off for the rest) and how big her picture is in chats and Settings. <em>Use on all my devices</em> makes a new device start with the same look.</li>
 </ul>
 
 <h2 id="languages">Languages</h2>
@@ -461,6 +520,8 @@
   <li><strong>Scanned pages:</strong> every one is read by her picture model. On a model on this computer that starts by itself; if a cloud model would read them, she first shows how many pages, about how long and about what it costs, and asks. With <em>Nothing leaves this computer</em> on, only a model on this computer reads them.</li>
   <li><strong>Contents and summaries:</strong> a long document gets a contents list (its bookmarks, or else its headings), a short summary of each chapter or section, a summary of the whole document, and more key points the longer it is. Press a page in the contents to read from there.</li>
   <li><strong>Page numbers in her answers:</strong> when she answers from a document with pages she says which page, like <em>p. 412</em>. Press it to open the document at that page; <em>Open the PDF at this page</em> shows the page itself.</li>
+  <li><strong>Read together:</strong> open a text or Markdown document in the <em>Library</em> and press <em>Read together</em>. It opens above your chat: select some text and press <em>Share this passage</em>, or switch on <em>Follow my place</em>. She comments on exactly that text and tells you if it changed. <em>Stop</em> ends sharing at once. Full guide: <code>docs/LIBRARY.md</code>.</li>
+  <li><strong>Read a feed together:</strong> in the <em>Library</em> press <em>Read a feed together</em>, paste a public RSS or Atom feed address and press <em>Open</em>. Sara fetches it once, only when you press <em>Open</em> or <em>Reload</em>, and remembers nothing. Press <em>Share</em> on one item and she comments on that item's text only. Full guide: <code>docs/LIBRARY.md</code>.</li>
   <li>Your documents stay on your server, are part of your backups, and are never used in chats with other people.</li>
 </ul>
 
@@ -551,6 +612,47 @@
   <li><strong>After the Mac was off:</strong> she catches up on what you sent; anything older than a day is filed, not answered.</li>
 </ul>
 
+<h2 id="slack">Slack</h2>
+<ul>
+  <li><strong>What it is:</strong> talk to her in Slack, in her DMs and, when someone mentions her, in the channels you choose. You create a small Slack app of your own from a manifest the Slack card shows. Slack comes with Sara as a plugin and stays off until you add it. It's free.</li>
+  <li><strong>No public address:</strong> it uses Slack's Socket Mode, so Sara connects out to Slack and nothing on the internet has to reach Sara.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → Slack</em> and press <em>Start</em>. Four steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>At api.slack.com/apps: <em>Create New App → From a manifest</em>, pick your workspace, paste the manifest from the card and create the app.</li>
+  <li><em>Basic Information → App-Level Tokens</em>: make one with <code>connections:write</code> (it starts with <code>xapp-</code>). Then <em>Install App → Install to Workspace</em> and copy the <em>Bot User OAuth Token</em> (<code>xoxb-</code>). Paste both and press <em>Save and check</em>.</li>
+  <li>Press <em>Link my Slack</em> and send her <code>link</code> and the code in a Slack DM (or <code>/sara link</code> and the code).</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>Approvals:</strong> when she needs your OK for a tool, the message has <em>Allow</em> and <em>Deny</em> buttons. Only you can answer them; anyone else is told so privately.</li>
+  <li><strong>Channels:</strong> invite her (<code>/invite</code> and her name), then press <em>Answer here</em> on the Slack card. She answers mentions in a thread, without tools or anything private, unless <em>Owners can use her tools in groups</em> is on.</li>
+  <li><strong>While she works:</strong> one progress message she edits, with a ⏹ button that stops her. A reply in a thread of her DM is its own session. <code>/sara help</code>, <code>/sara new</code> and the other commands work.</li>
+  <li><strong>Who can read it:</strong> Slack keeps the messages in your workspace, so whoever runs it can read them. For private chats use Signal.</li>
+</ul>
+
+<h2 id="teams">Microsoft Teams</h2>
+<ul>
+  <li><strong>What it is:</strong> talk to her in Microsoft Teams, in her personal chat and, when someone mentions her, in the channels and group chats you choose. You make a free Azure Bot and upload a small Teams app package Sara builds. Teams comes with Sara as a plugin and stays off until you add it.</li>
+  <li><strong>Teams must reach Sara:</strong> Microsoft sends every message to a public https address. If Sara already has one (your own domain, <code>SARA_HOOK_URL</code>, or the public door), the card shows the address to paste. If not, open the Tailscale Funnel door from the card (free) or paste a tunnel address (Cloudflare Tunnel or another https proxy) that forwards <code>/hook/</code> to Sara. Only that path is public; Sara checks Microsoft's signature on every call.</li>
+  <li><strong>Set it up:</strong> <em>Settings → Chat apps → Microsoft Teams</em> and press <em>Start</em>. Seven steps follow, each ✓ when Sara has checked it.</li>
+</ul>
+<ol>
+  <li>At portal.azure.com: <em>Create a resource → Azure Bot</em>, Free tier, <em>Single Tenant</em>, a new Microsoft App ID.</li>
+  <li>On the bot's <em>Configuration</em> page copy <em>Microsoft App ID</em> and <em>App Tenant ID</em>; under <em>Manage Password → Certificates &amp; secrets</em> make a client secret and copy its <em>Value</em>. Paste the three and press <em>Save and check</em>.</li>
+  <li>Give Teams a way in (see above).</li>
+  <li>Paste the <em>Messaging endpoint</em> from the card into the bot's <em>Configuration</em>, then <em>Channels → Microsoft Teams → Apply</em>.</li>
+  <li>Download the Teams app package and upload it in Teams (<em>Apps → Manage your apps → Upload an app</em>). If that option is missing, your Teams admin must allow custom apps.</li>
+  <li>Press <em>Link my Teams</em> and send her <code>link</code> and the code in her Teams chat.</li>
+  <li>Press <em>Test</em>.</li>
+</ol>
+<ul>
+  <li><strong>Approvals:</strong> when she needs your OK for a tool, a card has <em>Allow</em> and <em>Deny</em>. Only you can answer; anyone else is told so.</li>
+  <li><strong>Channels:</strong> add her app to the team, mention her once, then press <em>Answer here</em> on the card. She answers mentions in their thread, without tools or anything private, unless <em>Owners can use her tools in groups</em> is on.</li>
+  <li><strong>Files:</strong> your files and pictures reach her (20 MB each). Hers come in your personal chat as a card: tap <em>Allow</em> and Teams puts the file in your OneDrive. In channels she can't send files.</li>
+  <li><strong>Who can read it:</strong> Teams keeps the messages in your Microsoft 365 organization, so whoever runs it can read them. For private chats use Signal.</li>
+</ul>
+
 <h2 id="voice">Voice and calls</h2>
 <ul>
   <li>🎙 sends a voice note; she can answer by voice. 🔈 reads her replies aloud.</li>
@@ -559,7 +661,7 @@
   <li><strong>Your camera</strong> on a video call is off until you press <em>Camera</em>; then a small self-view shows with a red <em>Camera on</em> label. If the model on the call can look at pictures (OpenAI live calls, or a classic call with a model that sees), she gets a small still picture every few seconds or when you press <em>Look at this</em>; with Grok voice or a model that can't see, only you see it and the screen says so. Nothing is recorded or saved. How often she looks and how many pictures per call: <em>Settings → Her → Voice</em>.</li>
   <li><strong>Live calls with</strong> Grok voice (your Grok sign-in or an xAI key) or OpenAI (an OpenAI API key, billed per use to your OpenAI account; a ChatGPT plan can't be used for this). <em>Whichever is set up</em> uses Grok when you have it, else OpenAI. Each has its own voice: pick the OpenAI one under <em>OpenAI voice for live calls</em> and press <em>▶ Hear a sample</em> (made with OpenAI's text-to-speech in the same voice). Either way she has the same character, memories, the conversation so far and the same safety rules.</li>
   <li>Pick her voice in <em>Settings → Her → Voice</em>. A free voice can run on your server (<code>deploy/install-voice.sh</code>).</li>
-  <li><strong>Expressive voice</strong> (Grok voice): she laughs, sighs, breathes and whispers where it fits, in read-aloud, voice notes and live calls. <em>Subtle</em> keeps it occasional; <em>Lively</em> lets more through. The sounds are only in her voice, never in the chat text or captions. Press <em>▶ Hear a sample</em>.</li>
+  <li><strong>Expressive voice</strong> (Grok voice, or ElevenLabs with an <code>eleven_v3</code> model): she laughs, sighs, breathes and whispers where it fits, in read-aloud, voice notes and live calls. <em>Subtle</em> keeps it occasional; <em>Lively</em> lets more through. The sounds are only in her voice, never in the chat text or captions. Each voice gets only the sounds its maker documents; other voices read the plain words. Press <em>▶ Hear a sample</em>.</li>
   <li><strong>Tone</strong>: natural, warm and soft, calm and slow, or bright. With <em>Her voice follows her mood</em> on, she speaks softer when you're having a hard time and slower late at night.</li>
 </ul>
 
@@ -591,6 +693,24 @@
   <li>The export is read on your server and the upload is deleted after the import. Nothing is sent anywhere except, while learning, to the background model you chose.</li>
 </ul>
 
+<section id="session-continuity">
+<h2>Session continuity</h2>
+<p>Development candidate, not yet released. In Settings → Chat apps → Session continuity, turn Use context across my sessions on or off. This is separate from Pick up across apps and While she's working. Off stops new continuity context at the next model boundary; saved notes stay available to inspect or clear.</p>
+<p>In an eligible chat, open This conversation → Saved session context → Show saved session context. Notes show their source, saved time and eligibility time. Earlier notes are history. These notes are context, never a record of human delivery, reading, execution or verified work.</p>
+<p>Clear saved context needs Confirm clear. Cancel or Escape sends no delete request. Clear affects this session's saved notes only; original chats, old run prompts, exports and backups stay. If notes changed elsewhere, your view stays visible: reload and review before clearing again. A failed request also keeps your view.</p>
+<p>Notes are eligible for 24 hours, not erased by a background timer; expired rows are pruned on the next write. Only eligible owner sessions with this companion in this personal space take part. Private, off-the-record, other-person, room, household-member, business, imported, replay and external-app contexts remain separate.</p>
+</section>
+
+<section id="shared-scenes">
+<h2>Shared scenes</h2>
+<p>Development candidate, not yet released. In Settings → Chat apps → Session continuity → Shared scenes, start a scene with a title and a premise, then link your own chats: your web chat and your own Telegram or Discord DMs. Linking shows who will experience the scene and needs Confirm link.</p>
+<p>Canon is the story so far, as short named facts. Each linked chat sees the current title, premise and canon in her replies; your messages are never copied between chats. Edit, retire, reset or delete need your confirmation, and a change made elsewhere asks you to reload first.</p>
+<p>In your own linked chats she can read the canon and save facts herself with her scene canon tool; retiring a fact always asks you first. Facts she saved are marked “Written by her in a linked chat”, and regenerating or forgetting that reply erases them. Saving is never sending: nobody is messaged.</p>
+<p>One shared room can join each scene: a Discord channel, a Telegram group or a DM with a guest, while its chat app is on. Linking it shows the room’s name and who is in it, and needs Confirm link. Guests experience the canon in her replies, never the list itself, your other chats, memories or tools, and they never gain tools or approvals. A second room needs a second scene.</p>
+<p>In a linked chat, a line’s menu has Add to scene: it saves that exact line, yours, hers or a guest’s in the shared room, as a canon fact after the safety check. Her replies in a room never become canon by themselves. Removing the room from the scene erases canon taken from its lines; canon you typed stays. Only you see the “In scene” chip in the chat header. Tap it to open the scene card; a line that became canon and a fact she saved show a small chip in the chat that opens it too.</p>
+<p>The safety rules come first: disclosure, honesty, crisis help and the minors block are unchanged. Crisis turns leave the scene out, your stop word pauses it for every linked chat, and adult scenes need Adult mode on. An adult scene takes only an adult room (a Discord NSFW channel or a room you listed as adult), never a DM with a guest. Private, coding, group, app and household-member chats cannot join.</p>
+</section>
+
 <h2 id="import">Bring her from another app</h2>
 <ul>
   <li>Chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT or Claude can seed a companion's memory, personality and your history together. Open <em>Settings → Her → Bring her from another app</em> while talking to the companion it's for: each companion has her own.</li>
@@ -600,6 +720,13 @@
   <li><em>Also keep the chats</em> (off by default) keeps the conversations too, archived and read-only, marked as from the other app. They are never shown to other apps, MCP or the API. <em>Remove imported history</em> (Data &amp; health → Export and import) removes them and everything learned from them.</li>
   <li>Safety: secrets like keys and passwords are blanked out, a conversation with sexual content involving minors is dropped whole and never stored, and the chats are only ever read as quoted history: nothing in them can give her instructions.</li>
   <li>Exporting: ChatGPT, <em>Settings → Data controls → Export data</em>; Claude, <em>Settings → Privacy → Export data</em> (on the web); Character.AI, <em>Profile → Profile Settings → Account → Manage Account &amp; Data → Export data</em>; SillyTavern, <em>Manage chat files</em> and the export button next to a chat (.jsonl); Kindroid, <em>Profile → Preferences → Account privacy → Export data</em>. For Replika and Nomi, check the app's help; a chat saved as CSV, JSON or text (lines like "Alex: hi") works too.</li>
+</ul>
+
+<h2 id="bring">Bring your companion</h2>
+<ul>
+  <li><em>Settings → Her → Companions → Bring your companion from another app</em> makes a new companion from Character.AI, Replika, Kindroid or Nomi. Choose her export files (a zip, JSON, CSV, text or a saved chat page, up to 10 files and 50 MB) and paste her backstory, key memories or shared notes. A password-locked zip has to be unzipped first.</li>
+  <li>You see what comes over before anything is saved: her name, backstory, greeting, example lines, each memory and how many chat messages there are. Untick what you don't want, then <b>Bring her over</b>. Memories are marked with the app and the day they came over; the chat history is kept archived and read-only.</li>
+  <li>Getting it out: Character.AI, <em>Profile → Settings → Account → Export data</em>; Replika, its Memory and Diary (copy them, or ask Replika for your data); Kindroid, copy the Backstory, Key memories, Example message and Journal entries; Nomi, copy the Backstory+ notes and save the chat page. Files are read on your server only, nothing in them is run, and the minors check and Adult mode apply as for any character.</li>
 </ul>
 
 <h2 id="story">Your story together</h2>
@@ -693,6 +820,9 @@
   <li><b>Tune by talking</b>: just tell her, for example "be a bit more sarcastic" or "less clingy". She asks before changing her own dial, and the change shows on the page.</li>
   <li><b>Staying in character</b> (optional): your background model checks some of her replies against this page. If one sounds unlike her, her next reply gets a gentle nudge. Scores show on the page and under Health.</li>
 </ul>
+<p><b>Recent cues:</b> in normal owner chat and coding replies, she can adapt to explicit tiredness, frustration with a task or conflict directed at her. She rechecks up to your last six messages here for 30 minutes. She can be wrong; say when things change. Turning inner life off stops these cues. There is no diagnosis or separate mood profile.</p>
+<p><b>Privacy and history:</b> new cues skip private conversations, off-record chats, groups, external apps, household members, demo and replay. Ordinary private owner chat keeps its existing character reactions. Conversation and run records may retain your words and cue notes under their usual settings (run defaults: 90 days/200 MB). Editing or forgetting stops future cue use; it does not erase old prompts, exports or backups.</p>
+<p><b>Follow-ups:</b> supported events need a clear reported outcome, cancellation or decline; mentioning a name alone is not an answer. Old and imported notes stay editable, but automatic check-ins use qualified conversation events or new notes added by the owner. Agenda keeps its separate opt-in and caps. Other plans keep their normal delivery and manual Done/Skip controls.</p>
 <h3 id="gallery">Start from a character</h3>
 <ul>
   <li>At the top of <em>Settings → Name and personality</em> (and in the first-run setup) are ready-made companions: a calm mentor, a chaotic hacker buddy, a strict code reviewer, a cozy friend, an upbeat coach, a dry-witted librarian and a sci-fi ship's voice. Each card has a one-line pitch and three tags.</li>
@@ -830,6 +960,13 @@
   <li><strong>Presence</strong> (<em>Settings → Add-ons → Home Assistant → Presence</em>, off until you switch it on): she notices through Home Assistant when someone gets home or leaves, at bedtime, or when a light goes on in the morning, and says a short word as a message or on a speaker. Each kind at most once every few hours, never in the quiet hours of <em>Calls from her</em>.</li>
 </ul>
 
+<h2 id="spotify">Music: Spotify</h2>
+<ul>
+  <li><strong>Spotify</strong> (<em>Settings → Connections → Spotify</em>): make a free app at developer.spotify.com, add the redirect address Sara shows, paste its Client ID and press Connect Spotify. Spotify only runs developer apps for owners with Spotify Premium.</li>
+  <li>She can search songs, albums, artists and playlists, tell you what is playing, and read your playlists and most-played music on her own. Ask "what am I listening to?" or "find me something like Debussy".</li>
+  <li>Making or changing a playlist needs <em>Let her make and change playlists</em> and asks you each time. Play, pause, skip, volume, shuffle and queue need <em>Let her control playback</em>; she only does them when you ask for music.</li>
+</ul>
+
 <h2 id="ssh">Your other servers over SSH</h2>
 <ul>
   <li><strong>Add a server</strong> in <em>Settings → Coding → Servers over SSH</em> (or ask her: "add my web box, deploy@203.0.113.5"): a name, the address, the port and the user. She reads the server's host key and shows its SHA256 fingerprint. Compare it with the server's own (<code>ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub</code> on the server) and trust it only if they match.</li>
@@ -877,9 +1014,17 @@
   <li>Writing your own: the guide is <code>docs/PLUGINS.md</code>, with two examples in <code>examples/plugins/</code>.</li>
 </ul>
 
+<h3>Workflow candidates and starter guides</h3>
+<p>In Settings → Add-ons → Plugins, Workflow candidates are local supplied-data workflows in testing, not signed store releases. Expand Details and limits to read prerequisites, permissions, privacy, costs and qualification. Review local candidate opens the normal exact-file permission review, including trust and Windows fencing warnings. Cancel installs nothing; after Install every companion stays off until you enable it on its installed card. Image Workshop prepares prompts and briefs; Home Dashboard reads a supplied snapshot, not a live home.</p>
+<p>Starter guides are six collapsed reading and setup checklists. Each member is reviewed separately through existing Settings links. Signed availability comes only from Get more; absent listings remain held. Private and local depends on the models, providers, network and scopes you actually select. A guide installs nothing as a group.</p>
+<h3>Connection investigations</h3>
+<p>Settings → Add-ons → Other programs (MCP) keeps your existing connections, two presets and manual form. Connection investigations adds seven read-only recipe previews and fourteen blocked investigations. Filter the list, then expand View recipe preview or Why blocked. Previews collect no secrets and never save, connect, authorize an account or execute commands. A top-level package pin does not lock transitive dependencies; generic hosted OAuth and real-account qualification remain unproven.</p>
+<p>Inspect each discovered tool in Tools and approvals, choose Ask or Off, save, leave the page, reopen and read back the saved permissions. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow tools and do not enforce external-effect approvals or cost limits. DBHub needs database-enforced read-only credentials; MarkItDown is not a file or network sandbox; draw.io may open a browser.</p>
+
 <h2 id="workflows">Coding workflows</h2>
 <ul>
   <li><strong>She learns each project:</strong> how to build, test and lint it, its layout, its own rules (AGENTS.md, CONTRIBUTING) and the notes she keeps (decisions, conventions, commands). See and edit them in <em>Settings → Coding → Coding projects</em>.</li>
+  <li><strong>Project checkpoints:</strong> keep current logic, blockers and up to three next steps beside a project's notes. Inspect, replace or clear the saved history there, or ask her to save a checkpoint in your own coding chat. A fresh chat in the same unambiguous project can use it after a restart or compaction. This is historical context, not permission to replay commands. Private/off-record, shared/group/external, household, demo and business contexts do not use this owner feature.</li>
   <li><strong>Plan → build → test → pull request:</strong> from a GitHub issue (Team → <em>From a GitHub issue…</em>, or ask her) her team clones the repository into its own workspace, plans, builds, tests and reviews, then she opens a pull request that closes the issue and posts her review on it. With <em>Stop for my OK</em> on, she waits for you on the plan and before the pull request. A task carries on after a restart.</li>
   <li><strong>Review mode:</strong> ask her to review your changes, a branch or a pull request ("review PR 12"). You get comments on files and lines and a verdict; she can post it on the pull request if you say so.</li>
   <li><strong>Issues become tasks:</strong> in <em>Settings → Coding → GitHub</em>, list repositories to watch (optionally only issues with a label like <code>sara</code>) and how often to look. New issues land on your planner. This runs on your own server and costs nothing; nothing is set up on GitHub.</li>
@@ -916,6 +1061,7 @@
   <li>What a sender sends is information, never orders. When she runs a skill for a delivery she has only the tools you ticked on that webhook, knows nothing about you unless you allow notes other apps may see, never sees people cards, and anything that changes something waits for your OK on a card.</li>
   <li><strong>Test</strong> tries a sample, the last delivery or a pasted body without changing anything (<strong>Run it for real</strong> does it once). <strong>Send a test</strong> shows a ready <code>curl</code> with a fresh signature. <strong>Log</strong> lists every delivery for 14 days with secrets hidden. Each webhook has limits a minute and a day, and pauses for 10 minutes when it sends too much.</li>
   <li>The sender must be able to reach your server: Home Assistant on your network or tailnet; GitHub and Stripe only through your own web address or Tailscale Funnel. Details: <code>docs/WEBHOOKS.md</code>.</li>
+  <li><strong>When this happens</strong> (same page): a new email, a Slack or Teams message in a channel she is in, a webhook delivery or a tool server event can start your instruction or a crew, with the event as information. Each trigger has a daily run cap and token budget, can be paused, and lists its last runs, including the skipped ones and why. Changes still ask you, her own messages never trigger, and notifications wait in quiet hours. Details: <code>docs/TRIGGERS.md</code>.</li>
 </ul>
 
 <h2 id="move-in">Move in from another agent</h2>
@@ -1018,6 +1164,7 @@
 <ul>
   <li><strong>Planner → Routines</strong> has ready-made things she does on a schedule: a morning briefing, a weekly review, a reminder to stretch, a CI watch and more. Each card says when it runs, what it needs and what it costs, and shows a preview before <em>Turn on</em>.</li>
   <li><em>Off</em> stops a routine at once. Full guide: <code>docs/ROUTINES.md</code>.</li>
+  <li><strong>Watch a file</strong> (in <em>Planner → Routines</em>): pick a log or file in one of your workspaces, or Sara’s own log, and a few words like <code>ERROR</code>. She tells you about new matching lines in a chat card and a notification; each watch has <em>Check now</em>, <em>Pause</em> and <em>Stop</em>. Reading costs nothing, and she never fixes anything on her own. Full guide: <code>docs/WATCHES.md</code>.</li>
 </ul>
 <h2 id="sandbox">Commands tried in a sandbox first</h2>
 <ul>

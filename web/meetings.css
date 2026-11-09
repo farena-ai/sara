@@ -1,0 +1,32 @@
+/* EC19: Library → Meetings (web/meetings.js). */
+.ms-body { display: grid; gap: 12px; }
+.ms-card { border: 1px solid var(--border); border-radius: 10px; padding: 8px 14px 12px; }
+.ms-card h3 { margin: 6px 0; }
+.ms-field { display: grid; gap: 4px; margin: 6px 0; }
+.ms-check { display: flex; align-items: center; justify-content: flex-start; gap: 8px; }
+.ms-check input { flex: 0 0 auto; width: auto; margin: 0; }
+.ms-check .ms-label { flex: 0 1 auto; text-align: left; }
+.ms-label-row { display: flex; align-items: center; gap: 6px; }
+.ms-label { font-weight: 600; font-size: 14px; }
+.ms-check .ms-label { font-weight: 400; }
+.ms-field input[type="text"], .ms-field input[type="file"] { width: 100%; max-width: 100%; }
+.ms-past { display: grid; gap: 6px; }
+.ms-past-item { display: grid; gap: 2px; text-align: left; width: 100%; min-height: 44px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: inherit; font: inherit; cursor: pointer; }
+.ms-past-item:hover { border-color: var(--accent); }
+.ms-past-title, .ms-title { overflow-wrap: anywhere; }
+.ms-meeting { display: grid; gap: 8px; }
+.ms-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ms-head h3 { margin: 0; }
+.ms-notice { border: 2px solid var(--accent); border-radius: 10px; padding: 12px 14px; margin: 0; font-size: 17px; font-weight: 600; }
+.ms-lines { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 46vh; overflow-y: auto; }
+.ms-line { display: grid; grid-template-columns: minmax(70px, max-content) 1fr; gap: 8px; overflow-wrap: anywhere; }
+.ms-who { font-weight: 600; color: var(--muted); }
+.ms-notice-line .ms-said { font-style: italic; }
+.ms-sara .ms-who { color: var(--accent); }
+.ms-list { margin: 4px 0 8px; padding-left: 22px; display: grid; gap: 6px; overflow-wrap: anywhere; }
+.ms-action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.ms-task { font-weight: 600; }
+.ms-added { color: var(--accent); }
+@media (max-width: 520px) {
+  .ms-line { grid-template-columns: 1fr; gap: 0; }
+}

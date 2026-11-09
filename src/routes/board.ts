@@ -7,6 +7,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { IncomingMessage } from 'node:http';
 import { boardFor, type BoardStore, type ColumnRole, EVERYTHING, LABEL_COLORS, ROLES } from '../board.ts';
 import { boardSettings, CONCURRENT_CHOICES } from '../board-work.ts';
+import { cleanDraft, createFromDraft, draftBoard } from '../board-questions.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { parseWhen, PlannerStore, REPEATS, type Repeat } from '../planner.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -122,10 +123,12 @@ export function createBoardRoutes(ctx: RouteCtx): RouteHandler {
         const counts = (id: number) => {
           const v = board.view(id)!;
           const done = new Set(v.columns.filter((x) => x.role === 'done').map((x) => x.id));
-          return { open: v.cards.filter((x) => !done.has(x.columnId)).length, waiting: v.cards.filter((x) => x.work?.state === 'waiting').length };
+          return { open: v.cards.filter((x) => !done.has(x.columnId)).length, waiting: v.cards.filter((x) => x.work?.state === 'waiting' || x.work?.state === 'question').length, questions: v.cards.filter((x) => x.work?.state === 'question').length };
         };
         const shared = demo ? [] : (sb()?.store.boardsFor(person()) ?? []);
         return send(res, 200, {
+          // C11: open questions she parked on cards (the board's badge).
+          questions: counts(EVERYTHING).questions,
           boards: [{ ...board.board(EVERYTHING)!, ...counts(EVERYTHING) }, ...mine.map((x) => ({ ...x, ...counts(x.id) })), ...shared.map((x) => ({ ...x, members: x.members.map((m) => ({ ...m, name: nameOf(m.person) })) }))],
           invites: demo ? [] : (sb()?.store.invitesFor(person()) ?? []).map((i) => ({ ...i, fromName: nameOf(i.from) })),
           people: demo ? [] : people(),
@@ -148,6 +151,28 @@ export function createBoardRoutes(ctx: RouteCtx): RouteHandler {
         }
         try {
           return send(res, 201, board.createBoard(String(body.name ?? '')));
+        } catch (err) {
+          return bad(err);
+        }
+      }
+      // C11: "Make a board from a description": a draft to preview and edit, then the board.
+      if (b === 'draft' && !c && method === 'POST') {
+        if (demo) throw new HttpError(403, 'Not in the demo.');
+        const body = await readJson(req);
+        const description = String(body.description ?? '').trim();
+        if (!description) throw new HttpError(400, 'Describe what you want done.');
+        try {
+          return send(res, 200, { draft: await draftBoard(app, description) });
+        } catch (err) {
+          return bad(err);
+        }
+      }
+      if (b === 'from-draft' && !c && method === 'POST') {
+        if (demo) throw new HttpError(403, 'Not in the demo.');
+        const body = await readJson(req);
+        try {
+          const made = createFromDraft(board, cleanDraft(body.draft));
+          return send(res, 201, { board: made });
         } catch (err) {
           return bad(err);
         }

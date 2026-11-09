@@ -89,6 +89,18 @@
       "Shared: every companion sees the same to-dos and reminders. Separate: each keeps their own. Takes effect after a restart.",
       "companions"
     ],
+    "bring-source": [
+      "The app she lived in. Leave it on Find out from the files and Sara guesses from the section names, for example Key memories means Kindroid.",
+      "bring"
+    ],
+    "bring-files": [
+      "Her export files: a zip, JSON, CSV, text or a saved chat page, up to 10 files and 50 MB. Unzip a password-locked Character.AI export first.",
+      "bring"
+    ],
+    "bring-text": [
+      "Paste her notes under their headings, for example Backstory:, Key memories: or Journal entries:. One memory per line; a date at the start of an entry is kept.",
+      "bring"
+    ],
     "look-desc": [
       "Describe her in plain words: age, hair, eyes, build, style. Example: \"late 20s, freckles, auburn bob, green eyes, cozy sweaters\".",
       "look"
@@ -342,7 +354,7 @@
       "start"
     ],
     "ap-theme": [
-      "Night (dark) is the default. Day is the light look. Follow the system switches with this device's own light or dark setting.",
+      "Follow the system is the default: it switches with this device's own light or dark setting. Night is the dark look, Day the light one.",
       "start"
     ],
     "ap-typing": [
@@ -354,7 +366,7 @@
       "start"
     ],
     "ap-accent": [
-      "The app's highlight colour on this device.",
+      "The app's highlight colour on this device. Blue is the default; Theme colour uses the palette's own.",
       "start"
     ],
     "ap-chatbg": [
@@ -363,6 +375,42 @@
     ],
     "ap-density": [
       "Compact fits more on the screen; Comfortable has more space.",
+      "start"
+    ],
+    "ap-palette": [
+      "The colours of the whole app on this device. Graphite is the calm default; High contrast is the easiest to read; Sara Classic is the rose and violet look from before. Night or Day still picks light or dark.",
+      "start"
+    ],
+    "ap-decor": [
+      "Full (the default) adds soft glass, a faint glow and a slow light behind the app. Reduced keeps it flat. Reduce transparency in your system settings turns it off.",
+      "start"
+    ],
+    "ap-motion": [
+      "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
+      "start"
+    ],
+    "ap-herpic": [
+      "In the new look she shows as her presence orb. Pick Her portrait or Your picture to see a round picture instead, with a thin ring that moves with her. Upload your picture on her page.",
+      "start"
+    ],
+    "ap-runs": [
+      "What she did for a reply (memories, steps, cost) sits in a card under it. Folded shows one line you can open; Open shows every step. Approvals, failures and work still running always open.",
+      "start"
+    ],
+    "ap-portrait": [
+      "How big her picture is in chats, projects and Settings. Her own page and calls always show her full size.",
+      "start"
+    ],
+    "ap-accent-custom": [
+      "Pick any colour. Sara adjusts its shade for Night and for Day so text on it and next to it stays easy to read.",
+      "start"
+    ],
+    "ap-accent-hex": [
+      "The same colour as a code, like #3b82f6. Sara adjusts the shade so it stays readable.",
+      "start"
+    ],
+    "ap-sync": [
+      "Saves this device's look to your account, so a new phone or computer starts with it. Each device can still change its own look afterwards.",
       "start"
     ],
     "br-enabled": [
@@ -444,6 +492,18 @@
     "pj-ws": [
       "The workspace whose projects you want to see. Each conversation's work happens in a workspace.",
       "workflows"
+    ],
+    "spo-client-id": [
+      "The Client ID of your own Spotify app (developer.spotify.com, your app, Settings). No secret is needed: Sara signs in with PKCE.",
+      "spotify"
+    ],
+    "spo-playlists": [
+      "She may make new private playlists and add songs to yours. Each change still asks you first. Press Connect Spotify again after ticking it.",
+      "spotify"
+    ],
+    "spo-playback": [
+      "She may play, pause, skip, set the volume, shuffle and queue songs on a device you choose, only when you ask for music. Spotify needs Premium for this. Connect again after ticking it.",
+      "spotify"
     ],
     "ha-url": [
       "Your Home Assistant address as this server reaches it. Example: https://xyz.ui.nabu.casa.",
@@ -750,7 +810,7 @@
       "shaping"
     ],
     "sd-inner": [
-      "Gives her moods, energy through the day and her own day, so she feels alive. Off: she's the same every time.",
+      "Her simulated moods and explicit cues from your last 6 messages (30 min). May misread; corrections win. No separate mood profile. Run records may retain cue notes. Off stops cues.",
       "shaping"
     ],
     "sd-typing": [
@@ -1440,7 +1500,7 @@
   },
   "pages": {
     "dh-recovery": [
-      "Review interrupted jobs, teams and native message outcomes. Nothing restarts or resends automatically.",
+      "Is this install ready for real use: each area ready, needs attention or not ready, with one fix, and a restore drill that proves a backup opens. Below, interrupted work to review; nothing restarts by itself.",
       "recovery"
     ],
     "her-import": [
@@ -1471,6 +1531,10 @@
       "More than one companion on this server: each with her own character, look, voice, conversations and memories. Add, switch and remove them here.",
       "start"
     ],
+    "her-work": [
+      "Her work profile for Slack, Teams and other work chats: her work name and tone, work tools only, a separate work memory, and no moods, romance or pictures on her own.",
+      "slack"
+    ],
     "her-calls": [
       "When she may ring you: reminders, finished tasks, the morning briefing; quiet hours and a daily limit. Missed calls become messages.",
       "voice"
@@ -1500,7 +1564,11 @@
       "brain"
     ],
     "you-about": [
-      "Your name, time zone, and how the app looks on this device (theme, colour, text size, layout).",
+      "Your name, time zone, language and what you mostly do with her.",
+      "start"
+    ],
+    "you-appearance": [
+      "How the app looks on this device: palette, Night or Day, colour, layout, decoration and her picture.",
       "start"
     ],
     "you-briefing": [
@@ -1524,12 +1592,16 @@
       "skills"
     ],
     "ab-plugins": [
-      "Small programs that give her new tools, notes, cards, schedules or chat apps. Each runs fenced in with only what you approve, and is off until you switch it on for a companion.",
+      "Installed plugins, five included chat apps, local workflow candidates and starter guides. Candidates use the normal permission review and stay off until enabled for each companion.",
       "plugins"
     ],
     "ab-google": [
       "Connect Gmail and Calendar so she can find mail, draft replies and handle your calendar. Sending and adding events ask you first.",
       "accounts"
+    ],
+    "co-spotify": [
+      "Spotify: she can search, see what is playing and your playlists, and if you allow it make playlists or control playback.",
+      "spotify"
     ],
     "ab-home": [
       "Home Assistant: she can see your lights, sensors and thermostat, and change things after you approve.",
@@ -1563,6 +1635,10 @@
       "Reminders that wait for a person or a topic to come up in your own messages (“when Dan comes up, remind me he owes me $20”): how often, how many a day, and when they end.",
       "when"
     ],
+    "co-continuity": [
+      "Choose whether your own sessions with this companion share context. Inspect or clear saved notes in This conversation, even while continuity is off. Expired notes can remain until a write or explicit clear.",
+      "session-continuity"
+    ],
     "co-pickup": [
       "Carry our last conversation between your apps: start on Telegram, open the app, and pick it up with Continue here or /continue. Nothing is copied or merged.",
       "when"
@@ -1576,7 +1652,7 @@
       "brain"
     ],
     "ab-mcp": [
-      "Add other programs she can use (MCP servers). For advanced use.",
+      "Existing MCP connections and manual setup, plus read-only recipe previews and blocked investigations. Verify Ask or Off permissions after discovery, reconnect and updates; annotations are not approval or cost fences.",
       "coding"
     ],
     "co-phone": [
@@ -1607,6 +1683,14 @@
       "Text her from Messages on your iPhone through BlueBubbles on your own Mac, with an Apple ID of her own: a guided setup that checks each step. Needs a Mac.",
       "imessage"
     ],
+    "co-slack": [
+      "Talk to her in Slack through a small Slack app you create from a manifest: her DMs, and mentions in channels you switch on. A guided setup that checks each step; no public address needed.",
+      "slack"
+    ],
+    "co-teams": [
+      "Talk to her in Microsoft Teams through a free Azure Bot and a Teams app package Sara builds: her personal chat, and mentions in channels you switch on. Teams needs a public https address for Sara.",
+      "teams"
+    ],
     "co-apps": [
       "Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.",
       "clients"
@@ -1626,6 +1710,30 @@
     "co-computer": [
       "Let her use web pages on this computer in her own browser window: look, read, click and type. Off until you turn it on, and you can stop her any time.",
       "computer"
+    ],
+    "dh-usage-report": [
+      "Tokens and estimated cost by day, week or month, split by person, workspace, project and model. Download it as CSV and set monthly budgets that warn you early.",
+      "usage"
+    ],
+    "dh-trust": [
+      "What Sara said against what actually ran, for a week, one run or one project: flagged claims, tool calls, failures, approvals, refusals, sandbox, sources and audit rows. Download it for a reviewer.",
+      "security"
+    ],
+    "dh-shares": [
+      "Conversations you shared as read-only links: when each expires and how often it was opened. Revoke a link to end it at once, and choose whether private chats may be shared.",
+      "security"
+    ],
+    "dh-retention": [
+      "How long chats, memories and files are kept, a legal hold for one person or the whole server that stops every deletion, and one person's data as a download or deleted with a receipt.",
+      "security"
+    ],
+    "dh-audit": [
+      "Who changed what, when and from where: settings, sign-ins, approvals and background work. Names only, never values or chat text. Filter, check the chain and export it.",
+      "security"
+    ],
+    "dh-policy": [
+      "Pin rules for everyone on this server: allowed model providers, tool limits, Always allow off, adult mode off, Store installs, retention. Pinned settings can't be changed until the policy changes.",
+      "security"
     ],
     "dh-safety": [
       "Read-only checks of how Sara is set up (who can reach her, sign-in, backups, tools that run without asking, chat apps, webhooks, secrets in her notes), with one-click fixes that only make things safer.",
@@ -1684,8 +1792,12 @@
       "plugins"
     ],
     "her-hey": [
-      "Say “Hey Sara” and talk, hands-free, in the Windows app (on Android, use the Talk button for now). A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
+      "Say “Hey Sara” and talk, hands-free, in the Windows, Mac or Android app. A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.",
       "voice"
+    ],
+    "dh-operations": [
+      "Read local HTTP measurements, readiness evidence and current-space queue counts. Refresh is read-only; configured models and saved backups are not proof of inference or recovery.",
+      "operations"
     ]
   }
 }

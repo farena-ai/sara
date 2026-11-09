@@ -14,7 +14,8 @@ import { TEST_PICTURE } from '../bridges/test-picture.ts';
 import { cheapRoute } from '../cheap.ts';
 import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
-import { as400, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
+import { SESSION_COOKIE } from '../auth.ts';
+import { as400, cookies, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { cleanOrigins, otherAppsSettings } from '../other-apps.ts';
@@ -42,7 +43,14 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!res.destroyed && !res.writableEnded) res.write(chunk);
     };
     const me = app.companionId ?? 'main';
+    // EC24: a helper prompt goes only to the browser sign-ins switched on as helper devices.
+    const session = auth.sessionId(cookies(req)[SESSION_COOKIE]);
     const off = app.events?.subscribeAll((ev) => {
+      if (ev.type === 'helper') {
+        if (ev.companion && ev.companion !== me) return;
+        if (!app.phoneHelper?.isDevice(session)) return;
+        return write(`event: helper\ndata: ${JSON.stringify(ev)}\n\n`);
+      }
       // Phase 31: another companion's message or call shows as a notice (switch to her to see it).
       if (ev.companion && ev.companion !== me && ev.type !== 'planner' && ev.type !== 'board') {
         if (ev.type !== 'message' && ev.type !== 'ring') return;
@@ -286,6 +294,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!c && method === 'PUT') {
         const body = await readJson(req);
         let tokenChanged = false;
+        // C15: a channel token from a remote device asks the owner first.
+        if (typeof body.token === 'string') ctx.askFirst(req, 'channel-token');
         if (typeof body.token === 'string') {
           const t = body.token.trim();
           if (t && !/^[\w-]{20,}\.[\w-]{4,}\.[\w-]{20,}$/.test(t)) throw new HttpError(400, 'That does not look like a Discord bot token.');
@@ -347,6 +357,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!c && method === 'PUT') {
         const body = await readJson(req);
         let tokenChanged = false;
+        // C15: a channel token from a remote device asks the owner first.
+        if (typeof body.token === 'string') ctx.askFirst(req, 'channel-token');
         if (typeof body.token === 'string') {
           const t = body.token.trim();
           if (t && !/^\d{5,}:[\w-]{30,}$/.test(t)) throw new HttpError(400, 'That does not look like a bot token from @BotFather.');
@@ -426,6 +438,51 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'connect' && method === 'POST') {
         try {
           return send(res, 200, { url: g.authUrl(redirect) });
+        } catch (err) {
+          throw as400(err);
+        }
+      }
+    }
+    // C14: Spotify on the owner's own Spotify app (PKCE: a Client ID only).
+    if (a === 'spotify') {
+      const sp = app.spotify;
+      if (!sp) throw new HttpError(404, 'Not available');
+      const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
+      const redirect = `${origin}/api/spotify/callback`;
+      // Spotify accepts https addresses, or plain http only on a loopback IP (127.0.0.1, not "localhost").
+      const redirectOk = /^https:\/\//.test(redirect) || /^http:\/\/(127\.0\.0\.1|\[::1\])(:\d+)?\//.test(redirect);
+      const view = () => ({ ...sp.status(), redirect, redirectOk });
+      const flags = (body: Record<string, unknown>) => ({ ...(typeof body.playback === 'boolean' ? { playback: body.playback } : {}), ...(typeof body.playlists === 'boolean' ? { playlists: body.playlists } : {}) });
+      if (!b && method === 'GET') return send(res, 200, view());
+      if (!b && method === 'DELETE') {
+        sp.disconnect();
+        return send(res, 200, view());
+      }
+      if (b === 'client' && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          sp.setClient(String(body.clientId ?? ''), flags(body));
+        } catch (err) {
+          throw as400(err);
+        }
+        return send(res, 200, view());
+      }
+      if (b === 'options' && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          sp.setOptions(flags(body));
+        } catch (err) {
+          throw as400(err);
+        }
+        return send(res, 200, view());
+      }
+      if (b === 'client' && method === 'DELETE') {
+        sp.forgetClient();
+        return send(res, 200, view());
+      }
+      if (b === 'connect' && method === 'POST') {
+        try {
+          return send(res, 200, { url: sp.authUrl(redirect) });
         } catch (err) {
           throw as400(err);
         }

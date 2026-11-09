@@ -1,0 +1,50 @@
+{
+  "en": {
+    "scope": "Explicit supplied artifacts only; no disk scan, vault import or chat-history privacy guarantee. Do not supply actual owner secrets.",
+    "error": "Refused: invalid or oversized supplied evidence.",
+    "summary": "Bounded evidence analysis; completeness and unknowns are explicit.",
+    "title": "Coverage Explorer",
+    "description": "Read supplied LCOV, source and changed ranges; identify untested changed branches.",
+    "count": "Evidence records"
+  },
+  "es": {
+    "scope": "Solo artefactos aportados; sin escaneo de disco, importación de bóveda ni garantía de privacidad del chat. No aporte secretos reales.",
+    "error": "Rechazado: evidencia inválida o demasiado grande.",
+    "summary": "Análisis acotado; se indican integridad e incógnitas.",
+    "title": "Explorador de cobertura",
+    "description": "Lee LCOV, fuentes y rangos aportados; identifica ramas modificadas sin probar.",
+    "count": "Registros de evidencia"
+  },
+  "fr": {
+    "scope": "Documents fournis uniquement ; aucune analyse du disque, importation du coffre ou garantie de confidentialité du chat. Ne fournissez pas de vrais secrets.",
+    "error": "Refus : preuves invalides ou trop volumineuses.",
+    "summary": "Analyse bornée ; limites et inconnues sont explicites.",
+    "title": "Explorateur de couverture",
+    "description": "Lit LCOV, sources et plages fournies ; repère les branches modifiées non testées.",
+    "count": "Éléments probants"
+  },
+  "de": {
+    "scope": "Nur bereitgestellte Artefakte; kein Festplattenscan, Tresorimport oder Chat-Datenschutzversprechen. Keine echten Geheimnisse angeben.",
+    "error": "Abgelehnt: ungültige oder zu große Belege.",
+    "summary": "Begrenzte Beleganalyse; Vollständigkeit und Unbekanntes sind ausgewiesen.",
+    "title": "Abdeckungsanalyse",
+    "description": "Prüft bereitgestellte LCOV-Daten, Quellen und Änderungen auf ungetestete Zweige.",
+    "count": "Belege"
+  },
+  "pt-BR": {
+    "scope": "Somente artefatos fornecidos; sem varredura, importação do cofre ou garantia de privacidade do chat. Não forneça segredos reais.",
+    "error": "Recusado: evidências inválidas ou grandes demais.",
+    "summary": "Análise limitada; completude e incógnitas explícitas.",
+    "title": "Explorador de cobertura",
+    "description": "Lê LCOV, fontes e alterações fornecidas; identifica ramos alterados não testados.",
+    "count": "Registros de evidência"
+  },
+  "it": {
+    "scope": "Solo artefatti forniti; nessuna scansione, importazione dal deposito o garanzia di privacy della chat. Non fornire segreti reali.",
+    "error": "Rifiutato: prove non valide o troppo grandi.",
+    "summary": "Analisi limitata; completezza e incognite sono esplicite.",
+    "title": "Esploratore di copertura",
+    "description": "Legge LCOV, sorgenti e intervalli forniti; individua rami modificati non testati.",
+    "count": "Elementi di prova"
+  }
+}

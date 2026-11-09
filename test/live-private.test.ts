@@ -8,6 +8,10 @@ import { test } from 'node:test';
 import { OwnerAuth } from '../src/auth.ts';
 import { createSaraServer } from '../src/server.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
+import { turnScope } from '../src/chat.ts';
+import { LiveCall } from '../src/live.ts';
+import { setPrivateLocal } from '../src/net-guard.ts';
+import type { WsConnection } from '../src/ws.ts';
 
 test('live call: refused for a private conversation, with a clear message; the voice service is never contacted', async (t) => {
   const { dir, cleanup } = tempDir();
@@ -47,4 +51,36 @@ test('live call: refused for a private conversation, with a clear message; the v
   assert.match(String(ended.reason), /private conversations/);
   assert.equal(ended.private, true);
   assert.equal(connected, 0, 'nothing went to the voice service');
+});
+
+// R2c: a call's tools follow the text turn's private/local filter (nothing that reaches outside).
+test('private call keeps offserver tools filtered', async (t) => {
+  const { dir, cleanup } = tempDir();
+  const app = makeApp(dir, { now: new Date('2026-11-06T15:00:00Z') });
+  app.settings.update({ ownerName: 'Alex', disclosureAcceptedAt: '2026-11-06T14:00:00Z' } as never);
+  app.tools.add({ spec: { name: 'look_up', description: 'Look something up', parameters: { type: 'object', properties: {} } }, defaultPermission: 'auto', summarize: () => 'Look up', async run() { return 'Found.'; } });
+  const priv = app.store.createConversation({ private: true } as never);
+  const web = app.store.createConversation();
+  const sent: Record<string, unknown>[] = [];
+  const up = { send(d: string) { sent.push(JSON.parse(d)); }, close() {}, onopen: null as null | ((e: unknown) => void), onmessage: null, onclose: null, onerror: null };
+  const client = { open: true, send() {}, close() {} } as WsConnection;
+  const call = new LiveCall(app, web.id, client, 'k', { connect: () => up as never });
+  t.after(() => {
+    setPrivateLocal(false);
+    call.end('done');
+    app.store.close();
+    cleanup();
+  });
+  const names = (id: string) => turnScope(app, app.store.getConversation(id)!, { call: 'live' }).tools.map((x) => x.spec.name);
+  assert.ok(names(web.id).includes('web_fetch'));
+  assert.ok(!names(priv.id).includes('web_fetch'), 'a private conversation never offers tools that reach outside');
+  assert.ok(names(priv.id).includes('look_up'));
+  setPrivateLocal(true);
+  assert.ok(!names(web.id).includes('web_fetch'), 'Nothing leaves this computer filters them everywhere');
+  call.start();
+  up.onopen?.({});
+  const setup = sent.find((e) => e.type === 'session.update') as { session: { tools?: { name: string }[] } };
+  const declared = (setup.session.tools ?? []).map((x) => x.name);
+  assert.ok(declared.includes('look_up'));
+  assert.ok(!declared.includes('web_fetch'), 'not declared to the voice service either');
 });

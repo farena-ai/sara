@@ -29,7 +29,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { buildHistory, HISTORY_BUDGET_CHARS, runTurn, type AppContext, type ChatEvent, type ReplayInputs, type TurnHooks } from './chat.ts';
+import { buildHistory, FOLLOW_UP_NOTE_MARK, HISTORY_BUDGET_CHARS, runTurn, type AppContext, type ChatEvent, type ReplayInputs, type TurnHooks } from './chat.ts';
 import type { Budget } from './budget.ts';
 import { decayPolicy, type PickNote } from './memory-rank.ts';
 import { localDate, memorySettings } from './memory-worker.ts';
@@ -42,6 +42,9 @@ import { makeCopy, SANDBOX_HEAVY, sandboxGateSettings } from './sandbox-run.ts';
 import { en, fill } from './i18n.ts';
 import { Store, type Conversation, type StoredMessage } from './store.ts';
 import { workspaceDir } from './tools/workspace.ts';
+import { OWNER_CUES_MARK } from './attunement.ts';
+import { SESSION_CONTINUITY_MARK } from './session-continuity.ts';
+import { SHARED_SCENE_MARK } from './shared-scenes-policy.ts';
 
 /** An error with the HTTP status the route answers with. */
 export class ReplayError extends Error {
@@ -151,12 +154,23 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   const s = app.settings.get();
   const hist = buildHistory(stored, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS, app.uploads ? (id) => app.uploads!.load(id) : undefined);
   if ((step.historyFromId ?? 0) !== hist.firstKeptId) problems.push(said(en('The history it saw started at another message (older messages were forgotten or the history size changed).')));
-  const extra = step.extra;
+  // Current owner cues are transient evidence, never authority for a later replay.
+  // Keep the original step/extras intact for inspection, but rebuild only replayable inputs.
+  const extra = step.extra.filter((x) => !x.startsWith(OWNER_CUES_MARK) && !x.startsWith(FOLLOW_UP_NOTE_MARK));
+  const omittedEvidence = extra.length !== step.extra.length;
+  if (omittedEvidence) problems.push(said(en('Transient owner cue or follow-up notes were omitted from this replay.')));
+  const replayExtra = extra.filter(x => !x.startsWith(SESSION_CONTINUITY_MARK));
+  const omittedContinuity = replayExtra.length !== extra.length;
+  if (omittedContinuity) problems.push(said(en('Live session context was omitted from this replay.')));
+  // R1B: shared-scene canon is live context too; replay does no scene lookup, gate or write.
+  const omittedScene = replayExtra.some(x => x.startsWith(SHARED_SCENE_MARK));
+  if (omittedScene) problems.push(said(en('Shared scene context was omitted from this replay.')));
+  if (omittedScene) replayExtra.splice(0, replayExtra.length, ...replayExtra.filter(x => !x.startsWith(SHARED_SCENE_MARK)));
   const messages: ChatMessage[] = [];
-  let rest = extra;
-  if (hist.dropped && extra[0]?.startsWith(LONG_NOTE)) {
-    messages.push({ role: 'user', content: extra[0] });
-    rest = extra.slice(1);
+  let rest = replayExtra;
+  if (hist.dropped && replayExtra[0]?.startsWith(LONG_NOTE)) {
+    messages.push({ role: 'user', content: replayExtra[0] });
+    rest = replayExtra.slice(1);
   }
   messages.push(...hist.messages, ...rest.map(noteMessage));
   const userMessage = run.userMessageId ? stored.find((m) => m.id === run.userMessageId && m.role === 'user') : undefined;
@@ -177,7 +191,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   if (run.parentRunId && run.branchedFromStep !== null) {
     for (const m of stored) if (m.role === 'tool' && !priorTools.some((p) => p.messageId === m.id) && m.id > (run.userMessageId ?? 0)) priorTools.push({ step: -1, callId: String(m.meta?.toolCallId ?? ''), name: String(m.meta?.name ?? ''), summary: String(m.meta?.summary ?? ''), output: m.content, messageId: m.id });
   }
-  const exact = step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
+  const exact = omittedEvidence || omittedContinuity || omittedScene ? false : step.inputsSha ? inputsHash(messages) === step.inputsSha : null;
   if (exact === false && !problems.length) problems.push(said(en('Something it saw has changed since (a message or note was edited).')));
   const call = mainCall(step);
   const [polProvider, ...polModel] = String(run.policy?.model ?? '').split('/');
@@ -188,7 +202,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
     system,
     stored,
     messages,
-    extra,
+    extra: replayExtra,
     picks: step.memoryPicks as PickNote[],
     ...(userMessage ? { userMessage } : {}),
     priorTools,

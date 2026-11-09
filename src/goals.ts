@@ -38,6 +38,7 @@ import {
 } from './persist.ts';
 import { CRISIS_RESOURCES } from './safety.ts';
 import { billingOf } from './usage.ts';
+import { workspaceRef, type WorkspaceRef } from './runs.ts';
 
 export type GoalState = 'draft' | 'running' | 'checking' | 'paused' | 'stuck' | 'done' | 'stopped';
 export const FINAL_GOAL: readonly GoalState[] = ['stuck', 'done', 'stopped'];
@@ -110,6 +111,8 @@ export interface CheckRow {
   tampered: string[] | null;
   ms: number;
   at: string;
+  /** R1C: the workspace manifest it ran on (null: basis unknown). */
+  basis?: WorkspaceRef | null;
 }
 /** What the apps see (the chip, the card, Today). */
 export type GoalView = Omit<Goal, 'fingerprint'> & { lastCheck: Omit<CheckRow, 'tail'> | null; frac: number; top: string | null };
@@ -228,6 +231,7 @@ const toCheck = (r: Row): CheckRow => ({
   tampered: parse<string[] | null>(r.tampered, null),
   ms: Number(r.ms),
   at: String(r.at),
+  basis: parse<WorkspaceRef | null>(r.basis, null),
 });
 
 /** `/goal …` (§4.10): a subcommand, or the text with an optional "done when …". */
@@ -288,6 +292,8 @@ export class Goals {
     this.#app = app;
     this.#db = db;
     db.exec(SQL);
+    // R1C (additive): the workspace manifest each check ran on. Old rows stay NULL (basis unknown).
+    if (!(db.prepare('PRAGMA table_info(goal_checks)').all() as Row[]).some((c) => c.name === 'basis')) db.exec('ALTER TABLE goal_checks ADD COLUMN basis TEXT');
   }
 
   // ------------------------------------------------------------------ reading
@@ -323,7 +329,7 @@ export class Goals {
     const { fingerprint: _fp, ...rest } = g;
     const last = this.lastCheck(g.id);
     const c = this.#capCheck(g, false);
-    return { ...rest, lastCheck: last ? (({ tail: _t, ...x }) => x)(last) : null, frac: Math.min(1, c.frac), top: c.top ?? null };
+    return { ...rest, lastCheck: last ? (({ tail: _t, basis: _b, ...x }) => x)(last) : null, frac: Math.min(1, c.frac), top: c.top ?? null };
   }
   /** The History list: per round its check, the files changed and the run. */
   rounds(goalId: number): { round: number; checks: CheckRow[]; files: string[]; runId: number | null; tokens: number; usd: number }[] {
@@ -760,6 +766,14 @@ export class Goals {
     const ac = new AbortController();
     this.#checks.set(g.id, ac);
     const results: CheckResult[] = [];
+    // R1C: the check's basis is the last manifest its round took, else one read-only look now.
+    let runRef: { workspace_ref: string } | undefined;
+    try {
+      runRef = out.runId ? (this.#db.prepare('SELECT workspace_ref FROM run_steps WHERE run_id = ? AND workspace_ref IS NOT NULL ORDER BY idx DESC LIMIT 1').get(out.runId) as { workspace_ref: string } | undefined) : undefined;
+    } catch {
+      runRef = undefined; // no run records in this store
+    }
+    const basis = runRef?.workspace_ref ?? (dir ? JSON.stringify(await workspaceRef(dir).catch((err: Error) => ({ error: String(err.message).slice(0, 200) }))) : null);
     try {
       for (const c of cur.checks) {
         if (ac.signal.aborted) break;
@@ -780,7 +794,7 @@ export class Goals {
         } else r = { kind: c.kind, ok: false, exitCode: null, timedOut: false, key: `${c.kind}|missing`, quote: en('The check has no command.'), tail: '', ms: 0, broken: en('The check has no command.') };
         if (ac.signal.aborted) break;
         results.push(r);
-        this.#insertCheck(cur, out.runId || null, r, startChanges.tampered.length ? startChanges.tampered : null, n);
+        this.#insertCheck(cur, out.runId || null, r, startChanges.tampered.length ? startChanges.tampered : null, n, basis);
         app.events?.publish({ type: 'goal_check', conversationId: g.conversationId, goalId: g.id, round: n, ok: r.ok, ...(r.passed !== undefined ? { passed: r.passed } : {}), ...(r.failed !== undefined ? { failed: r.failed } : {}), ...(r.quote ? { quote: r.quote } : {}) });
         if (!r.ok) break;
       }
@@ -813,10 +827,10 @@ export class Goals {
     this.#queueRound(this.get(g.id)!);
   }
 
-  #insertCheck(g: Goal, runId: number | null, r: CheckResult, tampered: string[] | null, round = g.round): void {
+  #insertCheck(g: Goal, runId: number | null, r: CheckResult, tampered: string[] | null, round = g.round, basis: string | null = null): void {
     this.#db
-      .prepare('INSERT INTO goal_checks (goal_id, round, run_id, kind, command, ok, exit_code, timed_out, passed, failed, skipped, key, quote, tail, tampered, ms, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(g.id, round, runId, r.kind, r.command ?? null, r.ok ? 1 : 0, r.exitCode, r.timedOut ? 1 : 0, r.passed ?? null, r.failed ?? null, r.skipped ?? null, r.key, r.quote ? oneLine(r.quote, 300) : null, r.tail, tampered?.length ? JSON.stringify(tampered) : null, r.ms, this.#app.now().toISOString());
+      .prepare('INSERT INTO goal_checks (goal_id, round, run_id, kind, command, ok, exit_code, timed_out, passed, failed, skipped, key, quote, tail, tampered, ms, at, basis) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(g.id, round, runId, r.kind, r.command ?? null, r.ok ? 1 : 0, r.exitCode, r.timedOut ? 1 : 0, r.passed ?? null, r.failed ?? null, r.skipped ?? null, r.key, r.quote ? oneLine(r.quote, 300) : null, r.tail, tampered?.length ? JSON.stringify(tampered) : null, r.ms, this.#app.now().toISOString(), basis);
   }
 
   /** Green: done (amber "review" when the tests or the check's script changed since Start). */

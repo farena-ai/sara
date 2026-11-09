@@ -1,5 +1,6 @@
 // Models: providers, model jobs, subscriptions, local models, private local mode, usage.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
+import { policy } from '../policy-profile.ts';
 import { APNS_VAULT } from '../apns.ts';
 import { vaultKeyFor } from '../chat.ts';
 import { as400, HttpError, readJson, send } from '../http.ts';
@@ -104,6 +105,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const cur = pl.get();
         if (want === cur.on) return send(res, 200, await privateLocalView(pl));
         if (!want) {
+          policy().guard('privateLocal', true);
           if (cur.locked) throw new HttpError(409, 'SARA_PRIVATE_LOCAL=1 is set on this server, so private local mode stays on.');
           if (body.confirm !== true) throw new HttpError(409, 'Turning it off lets Sara reach the internet again. Confirm to turn it off.', { needsConfirm: true });
         } else {
@@ -380,6 +382,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         } catch (err) {
           throw as400(err);
         }
+        policy().checkProvider(config);
         const s = app.settings.get();
         const was = s.providers.find((p) => p.id === b);
         const providers = s.providers.filter((p) => p.id !== b).concat(config);
@@ -387,6 +390,13 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         if (typeof body.apiKey === 'string') {
           if (body.apiKey) app.vault.set(vaultKeyFor(b), body.apiKey.trim());
           else app.vault.delete(vaultKeyFor(b));
+          // C1 (real OpenBao): an external reference resolves before Save answers (up to 5 s), so the
+          // next chat has the key instead of "needs an API key" while it is still being read.
+          if (app.vault.reference(vaultKeyFor(b))) {
+            let timer: NodeJS.Timeout | undefined;
+            await Promise.race([app.vault.check(vaultKeyFor(b)).catch(() => undefined), new Promise<void>((r) => (timer = setTimeout(r, 5000)))]);
+            clearTimeout(timer);
+          }
         }
         // Phase 56: a new provider, a new key or a new address: check its model list now.
         // UX 15: wait for that first check (up to 5 s) so the card shows its result, not "not checked yet".

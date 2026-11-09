@@ -119,6 +119,8 @@ function render(box) {
   box.classList.toggle('live', Boolean(running));
   box.classList.toggle('has-error', steps.some((s) => s.status === 'error'));
   box.querySelector('.steps-sum').setAttribute('aria-label', `${t('What she did')}: ${parts.join(', ')}`);
+  // V4b: the run timeline (web/run-timeline.js) redraws its head, marks and footer.
+  box._after?.(box);
 }
 
 /** A tool call starts (or comes from history with its result already). */
@@ -126,7 +128,7 @@ export function addStep(box, { id, name, summary, args, status = 'running', outp
   const named = box._named(name) || '';
   const [now, done, icon] = stepWords(name, args, named);
   const command = name === 'shell' ? String(args?.command ?? '') : '';
-  const step = { kind: 'tool', id, name, now, done, icon, status, what: command || summary || name, output, ms };
+  const step = { kind: 'tool', id, name, args, now, done, icon, status, what: command || summary || name, output, ms };
   rowFor(box, step);
   box._steps.push(step);
   fillRow(step);
@@ -169,17 +171,29 @@ export function finishStep(box, { id, status, output, ms, snapshotId }) {
 }
 
 /** The memories she used in this reply (ids from the reply's meta), as the first step. */
-export function memoryStep(box, count) {
+// V4d: the notes she already had and used for this reply (recalled, not saved this turn: the
+// owner read "Remembered n things" as new notes). `ids` (the reply's meta.memoryIds) open exactly
+// those notes; without them the link opens Memory.
+export function memoryStep(box, count, { ids = [], open } = {}) {
   if (!count || box._steps.some((s) => s.kind === 'memory')) return;
-  const done = count === 1 ? t('Remembered 1 thing') : t('Remembered {n} things', { n: count });
+  const done = count === 1 ? t('Used 1 memory') : t('Used {n} memories', { n: count });
+  const why = t('Things she already knew about you that shaped this reply.');
   const step = { kind: 'memory', name: 'memory', now: done, done, icon: 'memory', status: 'ok' };
   const li = el('li', 'step ok memory');
   const row = el('div', 'step-head');
-  row.append(stepIcon('memory'), el('span', 'step-verb', done));
+  const verb = el('span', 'step-verb', done);
+  verb.title = why;
+  row.append(stepIcon('memory'), verb);
   const link = el('a', 'step-link small', t('See what she remembers'));
   link.href = '/#view=memory';
+  if (ids.length && open) {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      open(ids);
+    });
+  }
   row.append(link);
-  li.append(row);
+  li.append(row, el('p', 'step-sub muted small', why));
   step.li = li;
   box.querySelector('.steps-list').prepend(li);
   box._steps.unshift(step);
@@ -257,6 +271,7 @@ export function runLink(box, runId, open) {
   });
   li.append(btn);
   box.querySelector('.steps-list').append(li);
+  box._after?.(box);
 }
 
 /**

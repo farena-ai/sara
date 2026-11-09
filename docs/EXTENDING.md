@@ -182,6 +182,19 @@ either in Settings.
 Add one in **Settings → Add-ons → Other programs (MCP)**: a name, stdio (command + arguments) or
 HTTP (address), and any secret environment variables or headers (kept in the encrypted vault).
 
+**Connection investigations (in development, after 2.68):** this same Settings page adds twenty-one
+discovery records: seven recipe previews and fourteen blocked investigations. They explain
+prerequisites, account requirements, permissions, costs and qualification limits. Reading or
+filtering them never saves configuration, starts a server, connects an account or runs a tool.
+The existing two presets, saved connections and manual form remain separate supported flows.
+
+Treat server read-only annotations as claims, not approval or spending guarantees. Review every
+tool in **Tools and approvals**, choose Ask or Off, save, leave, reopen and read back the saved
+permissions; repeat after new tool discovery, reconnects and updates. Generic hosted OAuth remains
+unqualified. A preview does not establish real-account access or Sara-host qualification. In
+particular, use database-enforced read-only credentials for DBHub; MarkItDown is not a file/network
+sandbox; draw.io can open a browser. These investigation notes do not authorize paid calls.
+
 The example [`examples/mcp/hello-mcp-server.mjs`](../examples/mcp/hello-mcp-server.mjs) is a
 complete stdio server in about 50 lines of plain Node (no SDK): it answers `initialize`,
 `tools/list` and `tools/call` with JSON-RPC, one message per line. Try it with:
@@ -192,6 +205,31 @@ name: hello   transport: stdio   command: node   arguments: /path/to/sara/exampl
 
 Any MCP server works the same way (for example the official GitHub or filesystem servers), as long
 as its program is installed on the server.
+
+**Protocol versions (C3).** Sara speaks the current revision, **2026-07-28** (stateless: no
+handshake, no session; every request carries its version in `_meta`), and the older handshake
+revisions (2025-11-25, 2025-06-18, 2025-03-26). She first asks a server `server/discover`; a server
+that doesn't know it (most servers today, like ComfyUI or Playwright) gets the usual `initialize`
+handshake instead, with the newest version it accepts. Nothing to set: both kinds just work.
+
+### Apps from tool servers (MCP Apps)
+
+Some servers send a small interactive panel with a result (a chart, a form, a viewer): the
+[MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) extension. Sara shows it in
+the web chat, under the step that made it.
+
+- **Walled off.** The panel runs in a sandboxed frame with its own blank origin: it can't read your
+  cookies, Sara's data, the chat page or Sara's API, can't open windows or submit forms, and loads
+  nothing from the internet unless the server declared a plain `https://` address for it. Pages
+  over 512 KB are refused (you get the text result only).
+- **It can only ask.** Buttons in the panel can call that same server's tools that are open to apps,
+  nothing else. Each call follows the tool's permission in **Tools and approvals**: *Off* refuses
+  it, *Ask* shows the usual approval card in the chat (nothing runs until **Allow**), and only tools
+  set to run on their own (read-only ones by default) run straight away. What happened is noted in
+  the conversation.
+- **Turn off per server:** **Settings → Add-ons → Other programs (MCP)** → edit the server →
+  untick **Show its apps in the chat**. Sara then doesn't offer apps to that server at all.
+- Apps live in memory: after Sara restarts, an old panel says it is no longer open; ask again.
 
 The other way round, Sara is an MCP server herself (`/mcp`, for Claude Code, Cursor, Claude
 Desktop) and speaks the OpenAI chat API (`/v1`, for SillyTavern, Open WebUI and scripts); she also

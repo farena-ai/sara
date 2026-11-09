@@ -1,0 +1,66 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 1,
+            "pattern": "^[\\w.-]+(?:/[\\w.-]+)*$"
+          },
+          "format": {
+            "enum": [
+              "jsonl",
+              "line"
+            ],
+            "type": "string"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 100000,
+            "minLength": 0
+          }
+        },
+        "required": [
+          "path",
+          "format",
+          "text"
+        ]
+      },
+      "maxItems": 20,
+      "minItems": 1
+    },
+    "query": {
+      "type": "string",
+      "maxLength": 100,
+      "minLength": 1
+    },
+    "sensitiveValues": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "maxLength": 2000,
+        "minLength": 1
+      },
+      "maxItems": 100,
+      "minItems": 0
+    },
+    "limit": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "files",
+    "query",
+    "sensitiveValues",
+    "limit"
+  ]
+}

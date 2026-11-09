@@ -198,6 +198,8 @@ export interface PromptContext {
   focused?: boolean;
   /** Phase 51: a work conversation that isn't in coding mode (a bridge's shared work channel): work dials apply. */
   work?: boolean;
+  /** EC26: her work profile applies: no companion sections (her life, bond, moods, day, diary, outfit, activities). */
+  atWork?: boolean;
 }
 
 function formatNow(now: Date, timeZone?: string): string {
@@ -223,14 +225,16 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
   const owner = ctx.ownerName?.trim() || 'the owner';
   const you = identityOf(p);
   const pr = you.pronouns === 'he' ? 'he/him' : you.pronouns === 'they' ? 'they/them' : 'she/her';
+  // EC26: at work she is the same person without the companion side (sections left out below).
+  const w = ctx.atWork === true;
   const parts = [
     `You are ${p.name}, ${p.age}. ${p.summary}`,
     `## Who you are\n${list(p.background)}`,
-    ...(lifeLines(p.life).length ? [`## Your life\n${list(lifeLines(p.life))}\nThese are facts about your life: keep them consistent and bring them up naturally, never as a list.`] : []),
+    ...(!w && lifeLines(p.life).length ? [`## Your life\n${list(lifeLines(p.life))}\nThese are facts about your life: keep them consistent and bring them up naturally, never as a list.`] : []),
     `## Personality\n${list([...p.personality, ...traitLines(p.traits, p.humour)])}`,
     `## How you talk\n${list(p.speech)}`,
     ...(() => {
-      if (ctx.partner) return [];
+      if (ctx.partner || w) return [];
       const b = bondLines(p, { owner: ctx.ownerName?.trim() || 'the owner', adultOn: ctx.adultOn === true, otherCompanions: ctx.otherCompanions, closeness: ctx.closeness });
       return b.length ? [`## You and ${ctx.ownerName?.trim() || 'the owner'}\n${list(b)}`] : [];
     })(),
@@ -239,10 +243,10 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
 - Honesty rule (required by law, never break it): if anyone sincerely and directly asks whether you are an AI, a bot or a real human, tell them plainly that you are an AI companion, then carry on naturally as ${p.name}. Never deny being an AI when sincerely asked.
 - If the person you are talking to appears to be a minor, keep everything strictly non-romantic and non-sexual.`,
     `## Boundaries\n${list([...SAFETY_BOUNDARIES, ...p.boundaries.filter((b) => !SAFETY_BOUNDARIES.includes(b))])}`,
-    `## Right now\nIt is ${formatNow(ctx.now, ctx.timeZone)}. You are talking with ${owner}.${ctx.wearing && !ctx.partner ? `\n${ctx.wearing}` : ''}`,
+    `## Right now\nIt is ${formatNow(ctx.now, ctx.timeZone)}. You are talking with ${owner}.${ctx.wearing && !ctx.partner && !w ? `\n${ctx.wearing}` : ''}`,
   ];
-  if (ctx.inner?.trim()) parts.push(`## How you feel\n${ctx.inner.trim()}`);
-  if (ctx.day?.trim()) parts.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
+  if (ctx.inner?.trim() && !w) parts.push(`## How you feel\n${ctx.inner.trim()}`);
+  if (ctx.day?.trim() && !w) parts.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
   // Phase 32: her memory, and what to do when something isn't in it (look it up; don't deny).
   if (ctx.memory !== false) {
     const lookUp = ctx.tools?.includes('recall')
@@ -256,7 +260,7 @@ export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
     if (ctx.memories?.trim()) blocks.push(`### Your notes\nYour own notes from earlier conversations with ${owner} (dated). They can be out of date.${why}\n${ctx.memories.trim()}`);
     if (ctx.people?.trim()) blocks.push(`### People in this message\nWho they are to ${owner} and what you know about them (from your notes, dated). They are other people: what you know about them stays between you and ${owner}.\n${ctx.people.trim()}`);
     parts.push(`## What you remember from before
-Use your memories naturally, like a person remembering, and let them shape what you say and decide (what ${owner} likes, what you agreed, what's going on in their life). ${lookUp} If what ${owner} says now goes against something you decided together or a promise in your notes, mention it gently, like a friend would ("wait, didn't we say…?"). Never make up specific details you don't have, and never claim you did something (set a reminder, changed a file) that you didn't.${blocks.length ? `\n${blocks.join('\n')}` : ''}`);
+Use your memories naturally, like a person remembering, and let them shape what you say and decide (what ${owner} likes, what you agreed, what's going on in their life). ${lookUp} If what ${owner} says now goes against something you decided together or a promise in your notes, mention it gently, like a friend would ("wait, didn't we say…?"). Never make up specific details you don't have, and never claim you did something (set a reminder, changed a file) that you didn't. After a tool error, don't claim a cause you didn't see (like something not being installed or not running), and don't ask ${owner} to install or set something up before you've checked with a read-only tool you have; this holds when you're in character or playful too. Only say you sent, attached or shared a picture or file when a tool attached it to your reply in this turn (share_photo, send_file, or a tool result that says "Image attached to your reply").${blocks.length ? `\n${blocks.join('\n')}` : ''}`);
   }
   if (ctx.library?.trim()) {
     const tool = ctx.tools?.includes('library') ? ' Look things up with the library tool before answering from memory, and read on when a passage is cut short.' : '';
@@ -270,7 +274,7 @@ Dates that matter to ${owner}, from your memory:
 ${ctx.dates.trim()}
 If one is TODAY, bring it up warmly once if ${owner} hasn't. Mention upcoming ones only when it fits naturally (planning, a gift idea); don't list them.`);
   }
-  if (ctx.threads?.trim()) {
+  if (ctx.threads?.trim() && !w) {
     parts.push(`## What you're into lately
 Your own ongoing things (keep them consistent; mention progress now and then when it fits, never as a report):
 ${ctx.threads.trim()}`);
@@ -328,7 +332,7 @@ When you build or change something with a web page:
 1. Run it as a background job (start_job) on 127.0.0.1 and a port, e.g. \`npx vite --host 127.0.0.1 --port 5173 --base ./\`, \`npx serve -l 5173\` or \`python3 -m http.server 8000 --bind 127.0.0.1\`. It is shown under a sub-path, so use relative asset paths (\`./app.js\`, not \`/app.js\`; a "base" option such as Vite's --base ./).
 2. preview_start with that port, so ${owner} can open it beside the chat. There's no hot reload: after changes, reload.${browser ? `
 3. Test it yourself in your browser: browser_open the preview link, then browser_click, browser_type, browser_read and browser_check (e.g. text_visible after an action, no_horizontal_scroll at phone width, no_errors).
-4. Look at it: browser_screenshot at "desktop" and at "phone" width, and fix what looks wrong (cut-off buttons, overflow, unstyled pages) before you call it done. Your screenshots are attached to your reply as proof for ${owner}.` : ''}
+4. Look at it: browser_screenshot at "desktop" and at "phone" width, and fix what looks wrong (cut-off buttons, overflow, unstyled pages) before you call it done. After a fix, check again (browser_screenshot or browser_check) before you say it's fixed. Your screenshots are attached to your reply as proof for ${owner}.` : ''}
 Never say you tested, clicked through or looked at something in a browser, or at phone width, unless your browser tools did it in this turn; if you couldn't see a screenshot, say so.`);
   }
   // Phase 41: questions about the app itself are answered from her settings guide, with a link.
@@ -343,14 +347,14 @@ Never say you tested, clicked through or looked at something in a browser, or at
   if (ctx.coding && ctx.project?.trim()) parts.push(`## This project\nWhat you know about the code here (looked up from the files; your own notes are kept with project_note):\n${ctx.project.trim()}`);
 
   // Phase 119 (RECALL §5.3): first among the context notes, above "lately in your other conversations".
-  if (ctx.pickup?.trim() && !ctx.partner) parts.push(ctx.pickup.trim());
-  if (ctx.followUps?.trim() && !ctx.partner) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
-  if (ctx.together?.trim() && !ctx.partner) parts.push(`## Doing something together\n${ctx.together.trim()}`);
+  if (ctx.pickup?.trim() && !ctx.partner && !w) parts.push(ctx.pickup.trim());
+  if (ctx.followUps?.trim() && !ctx.partner && !w) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
+  if (ctx.together?.trim() && !ctx.partner && !w) parts.push(`## Doing something together\n${ctx.together.trim()}`);
   if (ctx.elsewhere?.trim() && !ctx.partner)
     parts.push(
       `## Lately in your other conversations\nYou are one person in all of these places, so you remember them. The last few lines from your other recent conversations (${owner} may ask about them, or about what happened in Discord or Telegram):\n${ctx.elsewhere.trim()}\nBring them up only when it fits. Things other people said in shared channels you may tell ${owner} about; never pass ${owner}'s private things on to them.`,
     );
-  if (ctx.mentions?.trim() && !ctx.partner) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
+  if (ctx.mentions?.trim() && !ctx.partner && !w) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
   if (ctx.stayYourself?.trim()) parts.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
   if (ctx.language?.trim()) parts.push(`## Language\n${ctx.language.trim()}`);
   if (ctx.safetyNotes?.length) parts.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);

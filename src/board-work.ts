@@ -17,9 +17,13 @@ import { receiptLines, teamBudget, cleanLimits, teamHelpers, type TeamLimits, ty
 import type { Tool } from './tools/types.ts';
 import { ToolError } from './tools/types.ts';
 import { formatLocal } from './planner.ts';
+import { reminderDue } from './board-questions.ts';
+import { quietNow } from './life.ts';
+import { trOwner } from './i18n.ts';
+import { identityOf } from './persona.ts';
 
 /** Tools that move or describe cards don't count as receipts of the work itself. */
-const BOARD_TOOLS = new Set(['board_list', 'card_add', 'card_move', 'card_comment', 'card_ask', 'card_assign']);
+const BOARD_TOOLS = new Set(['board_list', 'card_add', 'card_move', 'card_comment', 'card_ask', 'card_assign', 'card_answer']);
 export const CONCURRENT_CHOICES = [1, 2, 3, 4] as const;
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
@@ -111,6 +115,8 @@ export class CardWorker {
   #pumping = false;
   /** Tests: resolves when the work on a card ends. */
   readonly #done = new Map<string, Promise<void>>();
+  /** C11: how a question reminder reaches the owner (the app's push by default; tests swap it). */
+  notify: (title: string, text: string, conversationId: string, tag: string) => Promise<void> = (title, text, conv, tag) => this.app.push?.notifyOwner(title, text, conv, tag) ?? Promise.resolve();
 
   constructor(app: AppContext, sources: CardSource[], person = 'owner') {
     this.app = app;
@@ -133,7 +139,9 @@ export class CardWorker {
   }
 
   /** After a restart: work that was running waits on you (Continue); queued work starts again. */
-  start(): void {
+  start(o: { remind?: boolean } = {}): void {
+    // C11: parked questions are checked hourly (a reminder after a day, outside quiet hours).
+    if (o.remind) setInterval(() => void this.remind().catch(() => undefined), 3600_000).unref();
     for (const src of this.#sources) {
       for (const c of src.withWork(['running'])) {
         if (!this.#mine(c.work)) continue;
@@ -222,7 +230,8 @@ export class CardWorker {
     try {
       const max = boardSettings(this.app).concurrent;
       for (const key of this.queue()) {
-        if (this.#live.size >= max) break;
+        // C11: a card parked on a question (card_ask) doesn't hold a work slot.
+        if ([...this.#live.values()].filter((l) => !l.ask).length >= max) break;
         if (this.#live.has(key)) continue;
         const s = this.#src(key)!;
         const c = s.src.get(s.id);
@@ -354,7 +363,7 @@ export class CardWorker {
     } else if (!receipts.some((r) => r.status === 'ok')) {
       // Done means receipts: a run that did nothing (only words, often a question she didn't ask
       // with card_ask) waits on you with what she said. Answer it, or move the card yourself.
-      this.#set(src, id, { ...ended, state: 'waiting', line: undefined, ask: { kind: 'question', text: clip(reply.trim() || 'I stopped without doing anything on this card.', 600) } });
+      this.#set(src, id, { ...ended, state: 'question', line: undefined, ask: { kind: 'question', text: clip(reply.trim() || 'I stopped without doing anything on this card.', 600), askedAt: this.app.now().toISOString() } });
       src.toRole(id, 'waiting', 'sara');
       src.log(id, 'sara', 'asked', { question: clip(reply.trim(), 400) });
     } else {
@@ -558,7 +567,7 @@ export class CardWorker {
     }
     const live = this.#live.get(ref);
     if (!live) {
-      if (c.work.state === 'waiting') {
+      if (c.work.state === 'waiting' || c.work.state === 'question') {
         this.#set(s.src, s.id, { state: 'stopped', ask: undefined, line: undefined });
         s.src.toRole(s.id, 'todo', 'me');
         return true;
@@ -582,7 +591,7 @@ export class CardWorker {
   answer(ref: string, a: { text?: string; approval?: 'allow' | 'deny'; more?: boolean; resume?: boolean }): boolean {
     const s = this.#src(ref);
     const c = s?.src.get(s.id);
-    if (!s || !c?.work || !this.#mine(c.work) || c.work.state !== 'waiting') return false;
+    if (!s || !c?.work || !this.#mine(c.work) || (c.work.state !== 'waiting' && c.work.state !== 'question')) return false;
     const ask = c.work.ask;
     // Phase 100: the peer asked a question (INPUT_REQUIRED): the owner's words go back to it.
     if (c.work.kind === 'a2a') {
@@ -638,10 +647,10 @@ export class CardWorker {
     if (!live) throw new ToolError('card_ask only works inside the work on a card.');
     const q = question.replace(/\s+/g, ' ').trim().slice(0, 600);
     if (!q) throw new ToolError('Ask one clear question.');
-    this.#set(live.src, live.id, { state: 'waiting', ask: { kind: 'question', text: q } });
+    this.#set(live.src, live.id, { state: 'question', ask: { kind: 'question', text: q, askedAt: this.app.now().toISOString() } });
     live.src.toRole(live.id, 'waiting', 'sara');
     live.src.log(live.id, 'sara', 'asked', { question: q });
-    return await new Promise<string>((resolve) => {
+    const answer = new Promise<string>((resolve) => {
       const done = (t: string) => {
         live.ask = undefined;
         signal.removeEventListener('abort', onAbort);
@@ -651,6 +660,38 @@ export class CardWorker {
       signal.addEventListener('abort', onAbort, { once: true });
       live.ask = done;
     });
+    // C11: parked, the slot is free for the next card in the queue.
+    void this.#pump();
+    return await answer;
+  }
+
+  /** C11: the cards parked on a question (the board's count and Today's Needs you). */
+  questions(): WorkCard[] {
+    const out: WorkCard[] = [];
+    for (const src of this.#sources) for (const c of src.withWork(['question'])) if (this.#mine(c.work)) out.push(c);
+    return out;
+  }
+
+  /**
+   * C11: a parked question never waits silently. After a day without an answer the owner gets one
+   * reminder (push), never in his quiet hours, then at most one a day. Returns how many went out.
+   */
+  async remind(now: Date = this.app.now()): Promise<number> {
+    if (quietNow(this.app, now)) return 0;
+    let sent = 0;
+    for (const src of this.#sources) {
+      for (const c of src.withWork(['question'])) {
+        const ask = c.work?.ask;
+        if (!this.#mine(c.work) || !ask || !reminderDue(ask.askedAt ?? c.work?.endedAt ?? c.work?.startedAt, ask.remindedAt, now)) continue;
+        const id = Number(c.ref.replace(/^s/, ''));
+        src.setWork(id, { ...c.work!, ask: { ...ask, remindedAt: now.toISOString() } });
+        const s = this.app.settings.get();
+        const title = trOwner('{name} is waiting for your answer', s, { name: this.app.persona.name }, identityOf(this.app.persona));
+        await this.notify(title, `${clip(c.title, 80)}: ${clip(ask.text, 200)}`, c.work?.conversationId ?? '', `card-question-${c.ref}`).catch(() => undefined);
+        sent++;
+      }
+    }
+    return sent;
   }
 
   /** The live work in a conversation (card_move: auto for her own card). */
@@ -713,7 +754,7 @@ export function createBoardTools(app: () => AppContext): Tool[] {
           const cards = v.cards.filter((c) => c.columnId === col.id && (col.role !== 'done' || c.doneAt));
           out.push(`${col.name} (${cards.length}${col.wipLimit ? ` of ${col.wipLimit}` : ''}):`);
           for (const c of (col.role === 'done' ? cards.slice(0, 5) : cards).slice(0, 40)) {
-            const bits = [c.project && bd.kind === 'everything' ? c.project : '', c.labels.join(', '), c.dueAt ? `due ${formatLocal(c.dueAt, tz)}` : '', c.assignee ? `assigned: ${c.assignee}` : '', c.work?.state === 'waiting' && c.work.ask ? (c.work.ask.approvalId ? `BLOCKED, waiting for the owner's OK to: ${c.work.ask.text}` : `BLOCKED, waiting on the owner: ${c.work.ask.text}`) : c.work?.state === 'running' ? `working: ${c.work.line ?? ''}` : c.work?.state === 'queued' ? 'queued' : ''].filter(Boolean);
+            const bits = [c.project && bd.kind === 'everything' ? c.project : '', c.labels.join(', '), c.dueAt ? `due ${formatLocal(c.dueAt, tz)}` : '', c.assignee ? `assigned: ${c.assignee}` : '', (c.work?.state === 'waiting' || c.work?.state === 'question') && c.work.ask ? (c.work.ask.approvalId ? `BLOCKED, waiting for the owner's OK to: ${c.work.ask.text}` : `BLOCKED, waiting on the owner: ${c.work.ask.text}`) : c.work?.state === 'running' ? `working: ${c.work.line ?? ''}` : c.work?.state === 'queued' ? 'queued' : ''].filter(Boolean);
             out.push(`  #${c.id} ${c.title}${bits.length ? ` — ${bits.join(' · ')}` : ''}`);
           }
         }
@@ -858,7 +899,26 @@ export function createBoardTools(app: () => AppContext): Tool[] {
       }
     },
   };
-  return [list, add, move, comment, ask, assign];
+  const answerTool: Tool = {
+    spec: {
+      name: 'card_answer',
+      description: "C11: pass on the owner's answer to a card that waits on his question (board_list shows them as BLOCKED). Only with words the owner just said to you in this chat; never make up an answer. The work on the card picks up again with it.",
+      parameters: { type: 'object', properties: { task: { type: 'number', description: 'The card number' }, answer: { type: 'string', description: "The owner's answer, in his words" } }, required: ['task', 'answer'] },
+    },
+    defaultPermission: 'auto',
+    summarize: (a) => `answer card #${String(a.task ?? '')}`,
+    async run(args, ctx) {
+      const id = taskArg(args);
+      const w = app().cardWork;
+      if (!w) throw new ToolError('Card work is not available here.');
+      if (ctx.conversationId && w.cardIn(ctx.conversationId)) throw new ToolError("Only the owner answers a card's question.");
+      const text = String(args.answer ?? '').trim();
+      if (!text) throw new ToolError('Give the owner\'s answer.');
+      if (!w.answer(String(id), { text })) throw new ToolError(`Card #${id} is not waiting for an answer.`);
+      return `Answered card #${id}; the work on it carries on.`;
+    },
+  };
+  return [list, add, move, comment, ask, assign, answerTool];
 }
 
 /**

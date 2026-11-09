@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 171 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 209 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -283,6 +283,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Or Turn off everywhere for all of them.
 3. Only the device itself can switch it on again.
 
+### At work
+
+**How do I use her at work in Slack or Teams?**
+
+1. Open Settings → Her → At work.
+2. Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).
+3. Give her a name and tone at work if you like, then press Save.
+
+**How do I let her know something at work and at home?**
+
+1. Open Settings → Her → At work.
+2. Under Work memories, find the note.
+3. Press Copy to work or Copy to personal. The original stays where it is.
+
 ### Calls from her
 
 **How do I choose when she may call me?**
@@ -365,6 +379,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick a Language for the app.
 2. Pick Talk to me in for her replies.
+
+### Appearance
+
+**How do I change the colours of the app?**
+
+1. Pick a palette card at the top of this page.
+2. Night or Day picks light or dark for it.
+
+**How do I get the old rose and violet look back?**
+
+1. Pick Sara Classic as the palette.
+2. Decoration turns the glow and moving light back on.
 
 ### Morning briefing
 
@@ -504,6 +530,29 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Under When I switch apps, choose Only when I type /continue.
 2. To end one pickup, press Undo on its chip (or type /continue off).
 
+### Session continuity
+
+**How do I turn session continuity on or off?**
+
+1. Open Settings → Chat apps → Session continuity.
+2. Switch Use context across my sessions on or off; it saves automatically.
+3. Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings.
+
+**How do I read the notes from my other sessions?**
+
+1. Close Settings and open one of your own eligible chats with this companion.
+2. Press the conversation chip at the top, then find Saved session context.
+3. Press Show saved session context to see the source, time, expiry and notes.
+4. Notes help later replies; they do not send messages or confirm completed work.
+
+**How do I clear saved notes, including expired ones?**
+
+1. In This conversation, show the saved session context first.
+2. Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.
+3. Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.
+4. Original chats, old run records, exports and backups stay.
+5. If the notes changed elsewhere, reload and review them before trying again.
+
 ### Telegram
 
 **How do I get her on Telegram?**
@@ -613,6 +662,34 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. BlueBubbles can't ring Sara, so she checks for messages every few seconds instead.
 2. Put the Mac and Sara on Tailscale, then press Ring on the iMessage card.
 
+### Slack
+
+**How do I talk to her in Slack?**
+
+1. Press Start on the Slack card, then copy the app manifest it shows.
+2. At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.
+3. Press Link my Slack and send her the code in a Slack DM.
+
+**How do I let her answer in a Slack channel?**
+
+1. In the channel, type /invite and her name.
+2. In Settings → Chat apps → Slack, press Answer here next to that channel.
+3. Mention her in the channel; she answers in a thread.
+
+### Microsoft Teams
+
+**How do I talk to her in Microsoft Teams?**
+
+1. Press Start on the Microsoft Teams card and make the free Azure Bot it describes.
+2. Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.
+3. Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code.
+
+**How do I let her answer in a Teams channel?**
+
+1. Add her app to the team (Apps → her app → Add to a team).
+2. Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.
+3. Mention her again; she answers in that thread.
+
 ## Settings → Add-ons
 
 ### Get more
@@ -661,6 +738,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Switch it off on its card.
 2. Its log stays under What it did.
+
+**How do I try a workflow candidate?**
+
+1. Open Workflow candidates and read Details and limits.
+2. Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.
+3. It stays off for every companion. Enable it separately on its installed card.
+
+**How do I use a starter guide?**
+
+1. Open Starter guides under Workflow candidates.
+2. Read its members, qualification, privacy, costs and setup checklist.
+3. Follow existing Settings links and review each member separately. Nothing installs as a group.
 
 ### Web search
 
@@ -725,6 +814,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. A small program that gives her new tools.
 2. Its tools then appear in Tools and approvals.
+
+**How do I inspect an MCP recipe preview?**
+
+1. Open Connection investigations and filter the list.
+2. Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.
+3. Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.
+
+**How do I verify MCP approval settings?**
+
+1. Inspect each discovered tool in Tools and approvals and select Ask or Off.
+2. Save, leave the page, reopen it and read back the saved permissions.
+3. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.
 
 ## Settings → Coding
 
@@ -845,6 +946,21 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 ## Settings → Connections
 
+### Spotify
+
+**How do I connect Spotify?**
+
+1. Make an app at developer.spotify.com.
+2. Add the redirect address this page shows.
+3. Paste its Client ID and press Save.
+4. Press Connect Spotify and allow access.
+
+**How do I let her play music?**
+
+1. Tick Let her control playback.
+2. Press Connect again.
+3. Ask her to play, pause or queue a song.
+
 ### Phone and notifications
 
 **How do I put her on my phone?**
@@ -942,7 +1058,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. It prints the same rows, the fix for each, and exits 0 (safe), 1 (tighten) or 2 (fix first).
 3. The command line never changes anything; fixes are on this page.
 
-### Recovery
+### Readiness and recovery
 
 **How do I review an interrupted job?**
 
@@ -960,6 +1076,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Use Unresolved or All history, then Load more deliveries to reach older records.
 2. Check the destination first. Unknown messages may have arrived; live queued messages may still send.
 3. Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends.
+
+**How do I archive old delivery evidence?**
+
+1. Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.
+2. Confirm one batch of up to 500 records. Keep the same cutoff for further batches.
+3. Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved.
 
 ### Health
 
@@ -996,6 +1118,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Pick where under Copy backups to.
 2. Fill in the folder or bucket and a passphrase.
 3. Press Copy the latest backup now, then Test restore now.
+
+**How do I prove a backup really restores?**
+
+1. Open Readiness and recovery (Data & health) and press Run a restore drill.
+2. Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.
+3. Read the result: how long it took, what it counted and how much a restore now would lose.
 
 ### Export and import
 
@@ -1068,7 +1196,131 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Each report shows its status and replies here.
 
+### Operations
+
+**How do I check local operations?**
+
+1. Open Operations and press Refresh operations.
+2. Read the measurement window and sample count. HTTP timings are not model reply timings.
+3. A configured model and a saved backup do not prove inference or recovery.
+
+**How do I tell active work from historical records?**
+
+1. Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.
+2. RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.
+
 ## Settings → Household
+
+### Usage reports
+
+**How do I see who used how much?**
+
+1. Open Settings → Household → Usage reports.
+2. Pick Daily, Weekly or Monthly.
+3. Tick Who, Workspace, Project or Model to split the rows.
+
+**How do I get the numbers into a spreadsheet?**
+
+1. Set the period and what to split by.
+2. Press Download CSV.
+
+**How do I get warned before a budget runs out?**
+
+1. Under Monthly budgets, pick a person or a workspace.
+2. Enter dollars or tokens for the month.
+3. Pick when to warn and press Add budget.
+
+### Trust report
+
+**How do I see what Sara claimed against what ran?**
+
+1. Open Settings → Household → Trust report.
+2. Pick A week, One run or One project.
+3. Press Show and read Claims checked and Failed tools.
+
+**How do I give the report to a reviewer?**
+
+1. Show the report you want.
+2. Press Markdown, PDF or Word under Download.
+
+### Shared links
+
+**How do I share a conversation?**
+
+1. Open the chat and its settings.
+2. Press Share….
+3. Check the preview, pick how long the link works and press Make link.
+4. Copy the link and send it privately.
+
+**How do I stop a link from working?**
+
+1. Open Settings → Household → Shared links.
+2. Press Revoke next to the link.
+
+**How do I share a private chat?**
+
+1. Open Settings → Household → Shared links.
+2. Tick Allow sharing private chats.
+3. Share it from the chat as usual.
+
+### Audit trail
+
+**How do I see who changed a setting?**
+
+1. Open Settings → Household → Audit trail.
+2. Pick Settings under What, or a person under Who.
+3. Each row says when, what, who and where, and whether it was done or refused.
+
+**How do I give a reviewer a copy?**
+
+1. Set the filters to what the reviewer asked for.
+2. Press Export JSONL or Export CSV.
+3. Give them the ZIP: its manifest holds the SHA-256 and the signature.
+
+**How do I know nobody edited it?**
+
+1. Press Check the chain.
+2. It says the chain is fine, or the first row that was changed, removed or cut off.
+
+### Retention and legal hold
+
+**How do I delete old chats automatically?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Under Keep, pick how long chats, memories and files stay.
+3. It runs on the hourly check. Pinned memories always stay.
+
+**How do I make sure nothing is deleted?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Tick Hold next to a person, or Hold everything on this server.
+3. Nothing of theirs can be deleted until you untick it, not even by them.
+
+**How do I give someone a copy of their data?**
+
+1. Open Settings → Household → Retention and legal hold.
+2. Press Download their data next to the person.
+3. Give them the ZIP: it holds only their chats, memories, photos and files.
+
+**How do I delete one person's data for good?**
+
+1. Release any hold on them first.
+2. Press Delete their data next to the person and confirm.
+3. The receipt (what was deleted, and when) is in the audit trail.
+
+### Policy
+
+**How do I stop anyone turning a setting back on?**
+
+1. Open Settings → Household → Policy.
+2. Tick or pick the rule, for example Keep adult mode off.
+3. Press Save the policy. The setting shows Set by your admin everywhere.
+
+**How do I set up another server the same way?**
+
+1. Press Export JSON here.
+2. On the other server, open Policy and press Import JSON.
+3. Pick the file: it replaces every pin there.
 
 ### People on this server
 

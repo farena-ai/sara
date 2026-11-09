@@ -26,6 +26,11 @@ done
 [[ -n "$VERSION" ]] || VERSION="$(sed -n 's/^ *"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -1)"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+([-.][0-9A-Za-z.]+)?$ ]] || { echo "Not a version: $VERSION" >&2; exit 2; }
 
+# Native Node cannot consume MSYS /c or /tmp paths when path conversion is disabled.
+NODE_ROOT="$ROOT"
+if command -v cygpath >/dev/null 2>&1; then NODE_ROOT="$(cygpath -m "$ROOT")"; fi
+node "$NODE_ROOT/scripts/check-release-presentation.ts" "$VERSION"
+
 OUT="$ROOT/outputs/release/$VERSION"
 rm -rf "$OUT"
 mkdir -p "$OUT"

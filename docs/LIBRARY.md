@@ -98,6 +98,68 @@ scanned pages and makes meaning-search vectors, whatever was approved before.
 - The **library tool** gives her `search`, `read` (from a place, e.g. `page 412`, looked up
   directly), `contents` (chapters and sections with their pages and summaries) and `list`.
 
+## Read together
+
+Open a text or Markdown document she keeps and press **Read together**. It opens above your chat.
+
+- **Share this passage:** select some text (up to about a page: 4,000 characters over at most 3
+  passages) and press it. Your next message comes with that passage; she comments on that text only.
+- **Follow my place** (off by default, **?** tip): the passage at the top of the view is sent after
+  1.5 s still, at most once every 5 s (the server allows 12 a minute). Moving never starts a reply.
+- **Stop** ends sharing at once (so does your stop word, and opening another chat). A reply already
+  sent can't be unsent. A restart ends sharing too (it is kept in memory only).
+- The browser sends only positions and hashes. Each turn the server reads the passage from her
+  library again and checks the document's revision (its SHA-256) and the passage's hash; if either
+  changed, or the document is gone, she gets no text, only a note to ask you to share it again.
+- Owner only: not for household members, the demo, off-record, partner, room, API/MCP or other-app
+  chats, replays or evals. With *Nothing leaves this computer* on (or in a private chat), only a model
+  on this computer gets the passage. Nothing of it is stored in the chat, memory or exports.
+- Code: `src/read-together.ts` (the share, the checks, the `[SARA-READ-TOGETHER]` section, never
+  replayed), `src/routes/read-together.ts` (`GET`/`PUT`/`DELETE /api/read-together/<chat>`),
+  `web/read-together.js`.
+
+### A feed together
+
+In the Library press **Read a feed together** (or use the **Feed** tab of an open Read together
+view). Paste the address of a public RSS or Atom feed (a blog, a news site, a podcast's show notes)
+and press **Open**.
+
+- Sara's server fetches that one feed **once**, only when you press **Open** or **Reload**: never in
+  the background, never while she writes a reply. Nothing is remembered: not the address, not the
+  items (closing the view, **Stop** or a restart drops them).
+- The list shows each item's title, date and site as plain text, with a link that opens only when you
+  click it. No pictures, no embedded pages. Press **Share** on one item and your next message comes
+  with that item's text (at most 4,000 characters; a longer one ends in a visible *(cut)*). She never
+  sees the linked page.
+- If you **Reload** and the shared item changed or is gone, she gets no text, only a note to ask you
+  to share it again.
+- Limits: https only, public addresses only (not this computer, the home network or Tailscale; every
+  redirect is checked again, at most 3), 10 seconds, 2 MB, 50 items. With *Nothing leaves this
+  computer* on, or in a private chat, a feed can't be opened.
+- Feed text is written by strangers: she gets it as quoted data with a note to ignore any
+  instructions in it, and on a turn with a shared feed item her tools that reach outside (web,
+  mail, calendar, GitHub, home, MCP, sending files) are off.
+- Code: `src/feed-together.ts` (the guarded fetch and the RSS/Atom/RDF reader),
+  `POST /api/read-together/<chat>/feed`; the share and section as above.
+
+## Research a question
+
+*Research a question…* in the Library window plans web searches with you, reads public pages and
+writes a report where every sentence links a page she read; the report is kept here and downloads
+as PDF or Word. See [Research a question](RESEARCH.md).
+
+## What she has learned
+
+*What she has learned…* lists the topics and websites she studied for you (`/learn`, "learn about X"),
+with their status, what changed at the last refresh and the notes she keeps, with sources. See
+[Learn a topic](LEARN.md).
+
+## Meetings
+
+*Meetings…* in the Library window listens in a meeting room you start (everyone is told first) or
+reads a recorded meeting, and writes notes with a summary, decisions and action items; the notes are
+kept here and action items go to the Planner when you add them. See [Meetings](MEETINGS.md).
+
 ## Where things are
 
 | What | Where |

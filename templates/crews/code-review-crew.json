@@ -1,0 +1,28 @@
+{
+  "id": "code-review-crew",
+  "name": "Code review crew",
+  "blurb": "A reviewer reads the latest changes and a tester runs the tests; you get one report with what to fix. Run it by hand when you want a check.",
+  "crew": {
+    "name": "Code review crew",
+    "template": "code-review-crew",
+    "brief": "A review of the latest changes in the workspace: what to fix, and whether the tests pass.",
+    "members": [
+      {
+        "helper": "reviewer",
+        "task": "Review the latest changes and list what to fix"
+      },
+      {
+        "helper": "tester",
+        "task": "Run the tests and report the exact command and result"
+      }
+    ],
+    "limits": {
+      "minutes": 20,
+      "tokens": 200000,
+      "steps": 4
+    },
+    "schedule": {
+      "kind": "manual"
+    }
+  }
+}

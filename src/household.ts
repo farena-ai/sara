@@ -9,6 +9,7 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { writeFileAtomic } from './fs-util.ts';
+import { assertDirNotHeld } from './legal-hold.ts';
 import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
@@ -286,6 +287,8 @@ export class HouseholdStore {
   deleteMember(id: string): void {
     const dir = this.dirOf(id);
     if (!this.#file.members.some((m) => m.id === id)) throw new HouseholdError(404, en('No such member.'));
+    // EC17: a legal hold on this person (or the whole server) keeps the space.
+    assertDirNotHeld(dir);
     rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     this.#file.members = this.#file.members.filter((m) => m.id !== id);
     this.#save();
@@ -308,7 +311,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
  * Settings only the owner has (server, accounts, bridges, tools, imports). A member's settings never
  * contain them, and a member's change never writes them.
  */
-export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store', 'wakeServer'];
+export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices', 'mcpServers', 'search', 'offsite', 'backup', 'discord', 'telegram', 'chats', 'home', 'githubWatch', 'helpers', 'teamLimits', 'jobBudget', 'turnBudgets', 'sandboxGate', 'securityPass', 'threatModel', 'redteam', 'computerUse', 'evalSchedule', 'shellNetwork', 'isolation', 'egress', 'modelLists', 'modelAutoSwitch', 'safetyClassifier', 'claimJudge', 'toolPermissions', 'mcpPolicy', 'alexa', 'presence', 'libraryLimits', 'plugins', 'a2a', 'hooks', 'safetyCheck', 'lean', 'store', 'wakeServer'];
 
 /**
  * A member's settings: their own file, with the owner's providers (for the server code that runs
@@ -498,6 +501,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'security', 'passkey', 'two-step', 'owner-token', 'devices', 'device', 'pair',
   // talking
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
+  // EC11: share links of their own chats (the share routes refuse when the owner turned it off)
+  'shares',
   // Phase 123: Undo on a tidy divider in their own chats
   'compactions',
   // Phase 128 (PL2b): the / menu's list (read-only; GET /api/chat-menu filters it for a member)
@@ -507,7 +512,7 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   // her
   'persona', 'look', 'sara', 'character', 'gallery', 'companions', 'groups', 'adult', 'photos',
   // memory and life
-  'memories', 'memory', 'scrapbook', 'moments', 'story', 'together',
+  'memories', 'memory', 'memory-tidy', 'working-style', 'scrapbook', 'moments', 'story', 'together',
   // Phase 101 (ST6): their own people cards (each person's space, per companion; nothing shared)
   'people', 'person-facts',
   // Phase 103 (ST8): their own agenda (her plans in their space, per companion; the owner can't read it)
@@ -531,10 +536,12 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'hands', 'computer',
   // Phase 113: Report a problem and My reports (their own tickets in their own space; the check-in settings answer ownerOnly)
   'hub',
+  // EC5: what the owner's policy pins (read-only: Settings shows "Set by your admin")
+  'policy',
 ]);
 
 /** Families a member may write to only partly: GET-only for members. */
-const MEMBER_READ_ONLY: ReadonlySet<string> = new Set(['providers', 'setup', 'safety', 'usage']);
+const MEMBER_READ_ONLY: ReadonlySet<string> = new Set(['providers', 'setup', 'safety', 'usage', 'policy']);
 /** Phase 83: the run routes that branch, compare or change something (owner-only inside the member family `runs`). */
 export const BRANCH_ACTIONS: ReadonlySet<string> = new Set(['branch', 'diff', 'use', 'apply', 'discard', 'stop']);
 /** While being removed: only what's needed to take their data and leave. */

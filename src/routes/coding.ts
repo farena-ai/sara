@@ -29,6 +29,9 @@ import { DEFAULT_SECURITY, mergeSecurity, REVIEW_BUDGET_CHOICES, SECURITY_MODES,
 import { DEFAULT_THREATS, mergeThreats, THREAT_MODES, threatSettings } from '../security/threats.ts';
 import { DEFAULT_REDTEAM, mergeRedteam, redteamSettings, RT_BUDGET_CHOICES, RT_MINUTE_CHOICES, SCRIPT_CHOICES, SHIP_MODES } from '../redteam.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { hashOf } from './worktrees.ts';
+import { CheckpointError, checkpointKeys, projectRef } from '../project-checkpoints.ts';
+import { otherWork, projectNowPath } from '../project-now.ts';
 
 export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
   const { active, app, me, opts, projectOrThrow, rootDir } = ctx;
@@ -535,7 +538,8 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         closeSync(fd);
       }
       const binary = buf.subarray(0, 8000).includes(0);
-      return send(res, 200, { path: rel, size: st.size, binary, text: binary ? '' : buf.toString('utf8'), truncated: st.size > 200_000 });
+      // C13: the hash lets the Workspace editor refuse to save over a file that changed meanwhile.
+      return send(res, 200, { path: rel, size: st.size, binary, text: binary ? '' : buf.toString('utf8'), truncated: st.size > 200_000, ...(st.size <= 200_000 ? { hash: hashOf(buf) } : {}) });
     }
     if (a === 'workspaces' && !b && method === 'GET') {
       const dir = join(rootDir, 'workspaces');
@@ -548,7 +552,10 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
       const body = await readJson(req);
       // Phase 77: a contradiction card says how (Do it anyway / Don't / Update the note).
       const how = APPROVAL_HOWS.includes(body.how as ApprovalHow) ? (body.how as ApprovalHow) : undefined;
-      if (!app.approvals.decide(b, body.approved === true, how)) throw new HttpError(404, 'That request is no longer waiting.');
+      if (!app.approvals.decide(b, body.approved === true, how)) {
+        if (app.approvals.state(b) === 'expired') throw new HttpError(404, 'That request expired: the task that asked for it ended. Nothing ran.');
+        throw new HttpError(404, 'That request is no longer waiting.');
+      }
       return send(res, 200, { ok: true });
     }
     // Phase 13: background jobs (list, stop) and the GitHub token used for pushing.
@@ -619,6 +626,37 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ok: true });
       }
       if (method === 'POST' && b === 'check') return send(res, 200, { found: (await checkIssues(app)).length });
+    }
+    // R1C2: the chat header's "Also active on this project" (titles, times, paths; never message text).
+    if (a === 'conversations' && b && c === 'project-now' && parts.length === 3) {
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      if (opts.demo || opts.member || app.demo || app.member || app.offRecord || ctx.ctxOf(b) !== app) return send(res, 200, { others: [] });
+      const conv = app.store.getConversation(b);
+      if (!conv) throw new HttpError(404, 'Conversation not found');
+      const path = projectNowPath(app, conv);
+      return send(res, 200, { others: path ? otherWork(app, conv, path) : [] });
+    }
+    if (a === 'code-projects' && b === 'checkpoints' && !c) {
+      if (opts.demo || opts.member || app.demo || app.member || app.offRecord) throw new HttpError(403, 'Project checkpoints are available only in your own coding space.');
+      const checkpoints = app.projects?.checkpoints;
+      if (!checkpoints) throw new HttpError(404, 'Project checkpoints are unavailable.');
+      try {
+        if (method === 'GET') {
+          const q = new URL(req.url ?? '/', 'http://x').searchParams;
+          return send(res, 200, checkpoints.view(q.get('workspace') as string, q.get('path') as string));
+        }
+        if (method !== 'POST' && method !== 'DELETE') throw new HttpError(405, 'Method not allowed');
+        const body = await readJson(req);
+        checkpointKeys(body, method === 'POST' ? ['workspace', 'path', 'logic', 'blockers', 'nextSteps', 'expectedId'] : ['workspace', 'path', 'expectedId']);
+        if (method === 'DELETE') { checkpoints.clear(body.workspace as string, body.path as string, body.expectedId as number); return send(res, 200, { ok: true }); }
+        // R1C: validate the scope first, then take the manifest the checkpoint is saved on.
+        checkpoints.view(body.workspace as string, body.path as string);
+        const basis = await projectRef(app, body.workspace as string, body.path as string);
+        return send(res, 200, checkpoints.save(body.workspace as string, body.path as string, { logic: body.logic as string, blockers: body.blockers as string[], nextSteps: body.nextSteps as string[] }, body.expectedId as number, null, basis));
+      } catch (err) {
+        if (err instanceof CheckpointError) throw new HttpError(err.status, err.message);
+        throw err;
+      }
     }
     if (a === 'code-projects' && app.projects) {
       const url = new URL(req.url ?? '/', 'http://x');

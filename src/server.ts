@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { countModels } from './model-names.ts';
 import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
@@ -16,6 +17,7 @@ import { CallBroker } from './calls.ts';
 import { speechOf } from './speech.ts';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { DEVICE_TOKEN_PREFIX, deviceLabel, LoginLimiter, OwnerAuth, SESSION_COOKIE } from './auth.ts';
+import { createDeviceGate } from './device-gate.ts';
 import { cleanLimits as cleanMemberLimits, COST_LIMITS, HouseholdError, INVITE_HOURS, LEAVING_DAYS, MESSAGE_LIMITS, memberRouteCheck, type MemberRecord, type ModelPick, type PairRegistry } from './household.ts';
 import type { FirstClaim } from './claim.ts';
 import { cleanScope, DeviceFlow } from './device-flow.ts';
@@ -47,11 +49,17 @@ import { clip } from './tools/types.ts';
 import { exportAll } from './export.ts';
 import { type AppInfo } from './health.ts';
 import { summarizeConversation } from './memory-worker.ts';
-import { as400, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
+import { audit } from './audit-trail.ts';
+import { as400, bodyKeys, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
 import { createDeliveryRoutes } from './routes/deliveries.ts';
+import { OperationsMonitor } from './operations.ts';
+import { Telemetry } from './telemetry/index.ts';
+import { readiness, serveMetrics } from './telemetry/endpoint.ts';
+import { createTelemetryRoutes } from './routes/telemetry.ts';
+import { createOperationsRoutes } from './routes/operations.ts';
 import { createEvalRoutes } from './routes/evals.ts';
 import { createSkillRoutes } from './routes/skills.ts';
 import { createPluginRoutes } from './routes/plugins.ts';
@@ -60,11 +68,27 @@ import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
 import { createPreciseRoutes } from './routes/precise.ts';
 import { createLeanRoutes } from './routes/lean.ts';
+import { createWorkProfileRoutes } from './routes/work-profile.ts';
 import { compactNow, foldView, listFolds } from './compact.ts';
 import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
+import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
+import { createWatchRoutes } from './routes/watches.ts';
+import { createResearchRoutes } from './routes/research.ts';
+import { createLearnRoutes } from './routes/learn.ts';
+import { learnAskCommand } from './learn.ts';
+import { createMeetingRoutes } from './routes/meetings.ts';
+import { createCrewRoutes } from './routes/crews.ts';
+import { createWorkerRoutes } from './routes/workers.ts';
+import { createTriggerRoutes } from './routes/triggers.ts';
+import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
+import { createWorkingStyleRoutes } from './routes/working-style.ts';
+import { createReadTogetherRoutes } from './routes/read-together.ts';
 import { createRecallRoutes } from './routes/recall.ts';
+import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
+import { sceneChipFor } from './shared-scenes-policy.ts';
+import { createSceneRoutes } from './routes/scenes.ts';
 import { pickupsFor } from './pickup.ts';
 import { createAgendaRoutes } from './routes/agenda.ts';
 import { createPlannerRoutes } from './routes/planner.ts';
@@ -74,6 +98,18 @@ import { createPeopleRoutes } from './routes/people.ts';
 import { createRoomRoutes } from './routes/rooms.ts';
 import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connections.ts';
 import { createAdminRoutes } from './routes/admin.ts';
+import { createGovernanceRoutes } from './routes/governance.ts';
+import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createMcpAppRoutes } from './routes/mcp-apps.ts';
+import { createEditorRoutes } from './routes/editor.ts';
+import { createWorktreeRoutes } from './routes/worktrees.ts';
+import { cleanEditorLink } from './editor-link.ts';
+import { policy } from './policy-profile.ts';
+import { shares } from './share.ts';
+import { createUsageReportRoutes } from './routes/usage-report.ts';
+import { createTrustReportRoutes } from './routes/trust-report.ts';
+import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
+import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
@@ -82,6 +118,8 @@ import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
+import { createSpendRoutes } from './routes/spend.ts';
+import { createPrereqRoutes } from './routes/prereqs.ts';
 import { createPackRoutes } from './routes/packs.ts';
 import { createWakeRoutes } from './routes/wake.ts';
 
@@ -102,7 +140,7 @@ function tagsOrThrow(v: unknown): string[] {
   }
 }
 
-export interface ServerOptions {
+export interface ServerOptions extends UsageReportOptions {
   app: AppContext;
   auth: OwnerAuth;
   webDir: string;
@@ -163,6 +201,12 @@ export interface ServerOptions {
 }
 
 /** Phase 71: what a member's space needs from main.ts. */
+/** EC15: what the owner's space reads for usage reports (every person), set by main.ts. */
+export interface UsageReportOptions {
+  usageSources?: () => ReportSource[];
+  usageBudgets?: UsageBudgets;
+}
+
 export interface MemberHooks {
   record: () => MemberRecord | undefined;
   /** Every companion of this member, for their own export and usage. */
@@ -233,6 +277,9 @@ export const normalizePairCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-
 
 export function createSaraServer(opts: ServerOptions): Server {
   const { app, auth } = opts;
+  const operations = new OperationsMonitor();
+  // EC3: metrics and traces for operators (src/telemetry/, docs/ops/EC3_DESIGN.md); off by default.
+  const telemetry = new Telemetry({ version: opts.info?.version ?? 'dev' });
   const limiter = new LoginLimiter();
   // Device-code start/poll get their own budget: an app (or a flood of them) can't lock the owner
   // out of signing in, and sign-in failures don't block apps.
@@ -264,6 +311,9 @@ export function createSaraServer(opts: ServerOptions): Server {
   const cookieFor = (req: IncomingMessage) => (value: string, maxAge: number) =>
     `${SESSION_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${opts.secureCookies || isHttps(req) ? '; Secure' : ''}`;
 
+  // C15: approve a new device from chat (src/device-gate.ts).
+  const gate = createDeviceGate({ app, auth, demo: Boolean(opts.demo), member: Boolean(opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
+
   function isAuthed(req: IncomingMessage): boolean {
     const header = req.headers.authorization;
     // Phase 52: an app the owner approved with a device code (it was approved while signed in, so
@@ -276,7 +326,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
     // Phase 24: with two-step sign-in on, the owner token alone is no longer enough.
     if (header?.startsWith('Bearer ')) {
-      const ok = !auth.twoStepOn && auth.verifyToken(header.slice(7));
+      // C15: with new-device approval on, the owner token as a header works only on this computer
+      // (from elsewhere it would skip the approval: sign in, or use a device code or an API key).
+      const ok = !auth.twoStepOn && auth.verifyToken(header.slice(7)) && gate.ownerTokenOk(req);
       // Phase 59: the owner token was used, so the server has its owner: browser setup ends.
       if (ok) auth.markSignedIn();
       return ok;
@@ -345,8 +397,29 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 99: 'boards' (the demo's sample board, per visitor, in memory) and its card actions below.
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
-  // Phase 100: 'agents' (A2A keys and peers) too.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries']);
+  // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper']);
+  /**
+   * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
+   * tool name) and policy changes by the policy store, so each action writes exactly one row.
+   */
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces']);
+  const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
+  const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
+    const dev = deviceTokenOf(req);
+    const st = res.statusCode;
+    const ua = String(req.headers['user-agent'] ?? '');
+    const target = parts.slice(1, 3).filter((p) => /^[\w.:@-]{1,80}$/.test(p)).join('/');
+    audit({
+      action: `${parts[0]}.${VERB[method] ?? 'do'}`,
+      ...(target ? { target } : {}),
+      role: opts.member ? 'member' : dev ? 'device' : 'owner',
+      who: opts.member ? `member:${spaceId}` : dev ? `device:${dev.slice(0, 12)}` : 'owner',
+      channel: dev ? `app:${auth.deviceKind(dev) ?? 'app'}` : /SaraPhone\//.test(ua) ? 'phone' : /SaraDesktop\//.test(ua) ? 'desktop' : 'web',
+      outcome: st < 400 ? 'ok' : st === 401 || st === 403 || st === 409 || st === 429 ? 'refused' : 'failed',
+      ...(bodyKeys(req) ? { keys: bodyKeys(req) } : {}),
+    });
+  };
   /**
    * Phase 24 (security review): what a demo visitor may read. Everyone on the demo is "signed in",
    * so owner-only pages (backups, files, health details, accounts, devices…) must be listed out,
@@ -488,8 +561,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     const partner = Boolean(cx.store.getConversation(conversationId)?.partner);
     const started = Date.now();
     let firstToken = 0;
+    // EC3: the turn's metrics and trace (never its text); `outcome` stays 'error' if the turn throws.
+    const watch = telemetry.turn(cx, conversationId);
+    let outcome: 'ok' | 'error' | 'stopped' = 'error';
     try {
-      for await (const ev of runTurn(cx, conversationId, content, controller.signal, opts)) {
+      for await (const ev of watch.wrap(runTurn(cx, conversationId, content, controller.signal, opts))) {
+        watch.event(ev);
         trackActivity(turn, ev);
         onEvent(ev);
         // Phase 30: how long until her reply starts (health history).
@@ -504,7 +581,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       const secs = (app.now().getTime() - Date.parse(turn.startedAt)) / 1000;
       if (!partner && !failed && !controller.signal.aborted && secs >= 60 && !opts.persist) void app.push?.notifyOwner(trOwner('Sara finished', app.settings.get(), undefined, identityOf(app.persona)), lastText.trim() || trOwner('Done.', app.settings.get()), conversationId, `done-${conversationId}`).catch(() => {});
       app.healthHistory?.turn(firstToken || null, failed);
+      outcome = failed ? 'error' : controller.signal.aborted ? 'stopped' : 'ok';
     } finally {
+      watch.end(controller.signal.aborted && !failed ? 'stopped' : outcome);
       active.delete(conversationId);
       // Phase 116: the next queued message (or a note she got after her last step) runs now.
       try {
@@ -538,7 +617,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // approval card in that app's conversation, like her own actions. It runs only after Allow, and
   // what happened is posted there (and fed to her as an app note).
   const externalTurns = new Map<string, number>();
-  function requestApproval(conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>): void {
+  // C3: `onDone` hears how it ended (MCP Apps hand the result back to the app that asked).
+  function requestApproval(conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>, onDone?: (r: { ok: boolean; status: string; text: string }) => void): void {
     let turn = active.get(conversationId);
     if (turn && !externalTurns.has(conversationId)) throw new Error(me('Sara is busy in that conversation: try again when she has answered.'));
     if (!turn) {
@@ -569,6 +649,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         }
         const msg = app.store.addMessage(conversationId, 'notice', `job:${text}`, { status });
         app.events?.publish({ type: 'message', conversationId, message: { id: msg.id, role: msg.role, content: msg.content, createdAt: msg.createdAt, meta: { status } }, reason: 'job' });
+        onDone?.({ ok: status === 'ok', status, text });
       })
       .finally(() => {
         t.approvals.delete(callId);
@@ -655,6 +736,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     });
     return { room, members };
   }
+  /** R1B3: the "In scene" chip, for the owner's own companion only (never members, demo or off-record). */
+  const sceneInfo = (cx: AppContext, conv: Conversation) => {
+    if (cx !== app || opts.member || opts.demo || app.member || app.demo || app.offRecord || spaceId !== 'owner') return {};
+    const chip = sceneChipFor(app, conv.id);
+    return chip ? { scene: chip } : {};
+  };
   const groupInfo = (conv: Conversation) => {
     const room = isGroupChannel(conv.channel) ? rooms().get(conv.channelKey) : undefined;
     return room ? { group: roomView(room) } : {};
@@ -851,7 +938,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     },
     demoAccepted,
     isAuthed,
+    askFirst: (req, action) => gate.askFirst(req, action),
     offApp,
+    requestApproval,
   };
   const libraryRoutes = createLibraryRoutes(ctx);
   const codingRoutes = createCodingRoutes(ctx);
@@ -868,11 +957,34 @@ export function createSaraServer(opts: ServerOptions): Server {
   const preciseRoutes = createPreciseRoutes(ctx);
   // Phase 123: the lean tool list and /compact (src/routes/lean.ts).
   const leanRoutes = createLeanRoutes(ctx);
+  const workProfileRoutes = createWorkProfileRoutes(ctx);
   // Phase 121: the safety check-up and the routines gallery (src/routes/safety-check.ts, src/routes/routines.ts).
   const safetyCheckRoutes = createSafetyCheckRoutes(ctx);
   const routineRoutes = createRoutineRoutes(ctx);
+  // E4: file/log watches, the owner's only (src/routes/watches.ts).
+  const watchRoutes = createWatchRoutes(ctx);
+  // EC6: research runs with a report, the owner's only (src/routes/research.ts).
+  const researchRoutes = createResearchRoutes(ctx);
+  // C6: learn a topic, the owner's only (src/routes/learn.ts).
+  const learnRoutes = createLearnRoutes(ctx);
+  // EC19: meeting rooms and meeting notes, the owner's only (src/routes/meetings.ts).
+  const meetingRoutes = createMeetingRoutes(ctx);
+  // EC12: crews, the owner's only (src/routes/crews.ts).
+  const crewRoutes = createCrewRoutes(ctx);
+  // C10: workers that stay, the owner's only (src/routes/workers.ts).
+  const workerRoutes = createWorkerRoutes(ctx);
+  // C4: "When this happens" event triggers, the owner's only (src/routes/triggers.ts).
+  const triggerRoutes = createTriggerRoutes(ctx);
+  // EC13: the overnight memory tidy of this space (src/routes/memory-tidy.ts).
+  const tidyRoutes = createMemoryTidyRoutes(ctx);
+  // C12: how she works with you, this space's own (src/routes/working-style.ts).
+  const workingStyleRoutes = createWorkingStyleRoutes(ctx);
+  // E5: read together, the owner's only (src/routes/read-together.ts).
+  const readTogetherRoutes = createReadTogetherRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
   const recallRoutes = createRecallRoutes(ctx);
+  const sessionContinuityRoutes = createSessionContinuityRoutes(ctx);
+  const sceneRoutes = createSceneRoutes(ctx);
   // Phase 100: her address on the Agent Card is the one the peer used (https behind a trusted proxy).
   if (app.a2a) app.a2a.baseOf = (req) => `${isHttps(req) ? 'https' : 'http'}://${String(req.headers.host ?? 'localhost')}`;
   const plannerRoutes = createPlannerRoutes(ctx);
@@ -884,7 +996,30 @@ export function createSaraServer(opts: ServerOptions): Server {
   const roomRoutes = createRoomRoutes(ctx);
   const connectionsRoutes = createConnectionsRoutes(ctx);
   const adminRoutes = createAdminRoutes(ctx);
+  // EC4/EC5: the audit trail and the policy profile (src/routes/governance.ts).
+  const governanceRoutes = createGovernanceRoutes(ctx);
+  // EC11: shared conversation links (src/routes/share.ts); the public page is /s/<token>.
+  const shareRoutes = createShareRoutes(ctx);
+  // C3: MCP Apps in the chat (src/routes/mcp-apps.ts).
+  const mcpAppRoutes = createMcpAppRoutes(ctx);
+  // EC14: editors (ACP): editor sessions and the editor's answers (src/routes/editor.ts).
+  const editorRoutes = createEditorRoutes(ctx);
+  // C13: task worktrees, the co-author setting and the Workspace view (src/routes/worktrees.ts).
+  const worktreeRoutes = createWorktreeRoutes(ctx);
+  // EC15: usage and cost reports and budgets (src/routes/usage-report.ts).
+  const usageReportRoutes = createUsageReportRoutes(ctx);
+  // C8: spend limits and Token Saver, the owner's only (src/routes/spend.ts).
+  const spendRoutes = createSpendRoutes(ctx);
+  // EC25: the trust report (src/routes/trust-report.ts).
+  const trustReportRoutes = createTrustReportRoutes(ctx);
+  // EC24: phone as a helper device (src/routes/phone-helper.ts).
+  const phoneHelperRoutes = createPhoneHelperRoutes(ctx);
+  const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const deliveryRoutes = createDeliveryRoutes(ctx);
+  const operationsRoutes = createOperationsRoutes(ctx, operations);
+  // EC28: the readiness and recovery center (src/routes/readiness.ts).
+  const readinessRoutes = createReadinessRoutes(ctx, operations);
+  const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
@@ -898,6 +1033,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const hubRoutes = createHubRoutes(ctx);
   // Phase 124: the Sara Store's reader (src/routes/store.ts).
   const storeRoutes = createStoreRoutes(ctx);
+  // PRQ: the programs add-ons need and *Install it for me* (src/routes/prereqs.ts).
+  const prereqRoutes = createPrereqRoutes(ctx);
   // Phase 126: Hey Sara (src/routes/wake.ts).
   const wakeRoutes = createWakeRoutes(ctx);
   // Phase 127: companion packs (src/routes/packs.ts).
@@ -914,6 +1051,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     };
 
     if (a === 'health' && !b && method === 'GET') return send(res, 200, { ok: true });
+    // EC3: readiness for load balancers and orchestrators (fixed names only).
+    if (a === 'health' && b === 'ready' && !c && method === 'GET') {
+      const r = opts.demo || opts.member ? { ok: true } : readiness(app, operations);
+      res.setHeader('cache-control', 'no-store');
+      return send(res, r.ok ? 200 : 503, r);
+    }
     // The developer's report inbox: open to every Sara server and app, but small and rate-limited.
     if (a === 'public' && b === 'report' && method === 'POST' && opts.reportInbox && app.reports) {
       const body = await readJson(req, 16 * 1024);
@@ -972,11 +1115,10 @@ export function createSaraServer(opts: ServerOptions): Server {
       limiter.reset(ip);
       // Phase 59: the owner has signed in: browser setup (src/claim.ts) closes for good.
       auth.markSignedIn();
-      const session = auth.createSession(deviceLabel(req.headers['user-agent']));
-      res.setHeader('set-cookie', cookie(session.value, session.maxAgeSeconds));
       // The token has been used: the copy kept for the installer to show isn't needed any more.
       rmSync(join(app.dataDir, 'first-token.txt'), { force: true });
-      return send(res, 200, { ok: true });
+      // C15: from a remote address, the new device waits for the owner's approval.
+      return gate.signIn(req, res, cookie);
     }
 
     // Phase 71: joining with an invite (docs/HOUSEHOLD.md). Only the owner's space answers it; the
@@ -1065,9 +1207,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         throw new HttpError(401, (err as Error).message);
       }
       limiter.reset(ip);
-      const session = auth.createSession(deviceLabel(req.headers['user-agent']));
-      res.setHeader('set-cookie', cookie(session.value, session.maxAgeSeconds));
-      return send(res, 200, { ok: true });
+      return gate.signIn(req, res, cookie);
     }
 
     // Phase 16: sign in a new phone or computer with a one-time code (or by scanning its QR code)
@@ -1107,6 +1247,11 @@ export function createSaraServer(opts: ServerOptions): Server {
         disclosure: authed ? disclosureText(app.persona.name, appLanguage(app.settings.get())) : DISCLOSURE_TEXT.replace(/^Sara is/, 'This is'),
         disclosureAccepted: authed ? (opts.demo ? demoAccepted.has(visitorKey(req)) : Boolean(app.settings.get().disclosureAcceptedAt)) : false,
         ...(opts.demo ? { demo: true } : {}),
+        // C15: a device waiting for the owner's approval shows its code.
+        ...(!authed && !opts.demo ? (() => {
+          const p = gate.pendingOf(req);
+          return p ? { pendingApproval: p } : {};
+        })() : {}),
         // Phase 24: the sign-in page offers "Sign in with a passkey" when one exists.
         ...(!authed && !opts.demo && (opts.anyPasskeys?.() ?? auth.passkeys().length > 0) ? { passkeys: true } : {}),
         // Phase 71: who is signed in (the owner, or a household member and their account's state).
@@ -1151,6 +1296,24 @@ export function createSaraServer(opts: ServerOptions): Server {
       return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#google=${result}"><title>Google</title><p>Back to the app… <a href="/#google=${result}">continue</a></p>`);
     }
 
+    // C14: Spotify sends the browser back here (same one-time `state` proof as Google above).
+    if (a === 'spotify' && b === 'callback' && method === 'GET' && app.spotify) {
+      const url = new URL(req.url ?? '/', 'http://x');
+      let result = 'connected';
+      const error = url.searchParams.get('error');
+      if (error) result = error === 'access_denied' ? 'refused' : 'failed';
+      else {
+        try {
+          await app.spotify.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+        } catch (err) {
+          result = 'failed';
+          console.warn(`spotify sign-in: ${(err as Error).message}`);
+        }
+      }
+      res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
+      return void res.end(`<!doctype html><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=/#spotify=${result}"><title>Spotify</title><p>Back to the app… <a href="/#spotify=${result}">continue</a></p>`);
+    }
+
     if (a === 'demo' && b === 'start' && method === 'POST' && opts.demo) {
       sameSiteOnly();
       const ip = clientIp(req, opts.trustProxy);
@@ -1163,6 +1326,8 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Phase 104: the collector's `send` (a move-in code, the upload routes only) comes before sign-in.
     if (a === 'movein' && !isAuthed(req) && (await moveInPublic(req, res, method, parts)) !== NEXT) return;
+    // C15: the asking device checks its own request before (and after) it is signed in.
+    if (await gate.publicRoutes(req, res, method, parts)) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
     // Phase 126: Hey Sara isn't on the demo server (WAKE.md §11).
     if (opts.demo && a === 'wake') throw new HttpError(404, 'Not found');
@@ -1184,6 +1349,11 @@ export function createSaraServer(opts: ServerOptions): Server {
     {
       const devId = deviceTokenOf(req);
       if (devId && auth.deviceKind(devId) === 'home-assistant') return homeAssistantApi(req, res, method, parts, devId);
+    }
+    // C15: approving devices and the switch: the web app only (not apps signed in with a device code).
+    if (a === 'device-approvals' || a === 'device-approval') {
+      if (deviceTokenOf(req)) throw new HttpError(403, 'Apps signed in with a device code can\'t change sign-in settings or devices. Use the web app (Settings → Devices and sign-in).');
+      if (await gate.routes(req, res, method, parts)) return;
     }
     // Phase 69: the camera is off on the demo server (video calls show her picture only).
     if (opts.demo && a === 'video') {
@@ -1224,10 +1394,22 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
 
     // Models: providers, model jobs, subscriptions, local models, private local mode, usage: src/routes/models.ts.
+    if ((await usageReportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await spendRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await mcpAppRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await editorRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await worktreeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await readinessRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await telemetryRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1244,9 +1426,22 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await leanRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await workProfileRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await workerRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await workingStyleRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await sceneRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 87: computer use: the computers, the live view, step thumbnails (src/routes/hands.ts).
     if ((await handsRoutes(req, res, method, parts)) !== NEXT) return;
 
@@ -1277,6 +1472,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await storeRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await prereqRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await packRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 16: Adult mode. Off by default; on only from a web browser with the 18+ confirmation.
     if (a === 'pair' && !b && method === 'POST') {
@@ -1603,6 +1799,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
     }
     if (a === 'owner-token' && b === 'rotate' && method === 'POST') {
+      gate.askFirst(req, 'password');
       // A new owner token: every device is signed out; this one gets a fresh session.
       const body = await readJson(req);
       const ip = clientIp(req, opts.trustProxy);
@@ -1814,7 +2011,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         if ((c === 'new' || c === 'command') && !parts[3] && method === 'POST') {
           if (opts.demo || offRecord) throw new HttpError(400, "Commands don't work in this conversation.");
           const body = await readJson(req);
-          const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false });
+          const cmd = c === 'new' ? { name: 'new' as const, args: '', form: 'native' as const } : (parseCommand(String(body.text ?? ''), { herName: app.persona.name, namePrefix: false }) ?? learnAskCommand(String(body.text ?? '')));
           if (!cmd) throw new HttpError(400, 'That is not one of her commands. Send /help to see them.');
           if (opts.member && (cmd.name === 'model' || cmd.name === 'remember' || cmd.name === 'goal' || cmd.name === 'loop')) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
           // An ended bridge session: the command acts on the chat's open one.
@@ -1866,7 +2063,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           const { limit } = pageOpts();
           const page = limit ? cx.store.messagesPage(b, { limit }) : { messages: cx.store.messages(b), earlier: 0 };
           const ts = cx.store.titleState(b);
-          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
+          return send(res, 200, { ...conv, ...(offRecord ? { offRecord: true } : {}), ...titleView(cx, conv, ts), ...(offRecord ? { titleNever: 'off-record' } : {}), ...groupInfo(conv), ...sceneInfo(cx, conv), messages: page.messages.map(view), earlier: page.earlier, pinned: pins(), activity: activityView(b), together: cx.together?.activity(b) ?? null, pending: pendOf(b).list(b) });
         }
         if (c === 'messages' && !parts[3] && method === 'GET') {
           const { limit, before } = pageOpts();
@@ -1925,9 +2122,11 @@ export function createSaraServer(opts: ServerOptions): Server {
           );
         }
         if (!c && method === 'DELETE') {
+          // EC17: refuse before anything stops or is cleared when this chat is under a legal hold.
+          const grp = roomOf(conv);
+          for (const db of [cx.store.db, ...(grp?.members ?? []).map((m) => m.app.store.db)]) assertNotHeld(db);
           active.get(b)?.controller.abort();
           // Phase 66: deleting a group chat deletes it for every companion in it (and what each learned there, if asked).
-          const grp = roomOf(conv);
           if (grp) {
             const forget = new URL(req.url ?? '/', 'http://x').searchParams.get('forget') === '1';
             let forgotten = 0;
@@ -1954,6 +2153,8 @@ export function createSaraServer(opts: ServerOptions): Server {
             app.planner?.forgetMentionsOf(b);
           }
           cx.store.deleteConversation(b);
+          // EC11: its shared links stop working.
+          shares()?.revokeConversation(spaceId, cx.companionId ?? 'main', b);
           // Documents read once in it go too (kept ones stay in her library).
           cx.library?.deleteForConversation(b);
           // Phase 115 (BR1): the pictures and files that crossed a chat app in it go too.
@@ -2032,6 +2233,14 @@ export function createSaraServer(opts: ServerOptions): Server {
           if (!content) throw new HttpError(400, 'Message is empty');
           if (content.length > 100_000) throw new HttpError(413, 'Message too long');
           demoTurnAllowed(req);
+          // EC14: a turn linked to an editor (ACP): her file and command tools run in the editor.
+          // The owner's only; the policy can pin editors off. It shares like another app (G21).
+          const editor = body.editor !== undefined ? cleanEditorLink(body.editor) : undefined;
+          if (editor) {
+            if (opts.member || cx.member || opts.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+            if (!policy().editorsOn) throw policy().refusal('editors');
+          }
+          const editorOpts = editor ? { editor, externalApp: true } : {};
           // Phase 69: a classic video call: the newest camera picture goes with this message (in memory
           // only, never saved), unless the camera was paused by a safety block meanwhile.
           const blockedAt = cx.store.lastSafetyEventAt('minor_sexual_block', b)?.getTime();
@@ -2055,7 +2264,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) });
             return send(res, 202, { ok: true });
           }
-          return streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame });
+          return streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts });
         }
         // Regenerate the last reply, or edit the last owner message and answer it again.
         if (c === 'retry' && method === 'POST') {
@@ -2105,7 +2314,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   }
 
   const server = createServer(async (req, res) => {
+    operations.track(req, res);
     const method = req.method ?? 'GET';
+    // C15: a foreign Host straight to this computer (DNS rebinding) is not answered; a signed-in
+    // device's connection is remembered so signing it out cuts it.
+    if (!gate.hostOk(req)) return send(res, 421, { error: en('This server does not answer to that address. Add it under Settings → Devices and sign-in → Allowed addresses.') });
+    if (req.url === '/api/events') res.once('close', gate.track(req, () => res.end()));
     // Over https, browsers are told to keep using https for this site (a year).
     if (isHttps(req)) res.setHeader('strict-transport-security', 'max-age=31536000');
     try {
@@ -2140,13 +2354,19 @@ export function createSaraServer(opts: ServerOptions): Server {
         await readRaw(req, 256 * 1024).catch(() => undefined);
         return send(res, 404, { error: 'Not found' });
       }
+      // EC3: Prometheus scrape endpoint (404 unless switched on; token or allowlisted address).
+      if (url.pathname === '/metrics') return serveMetrics(req, res, { app, metrics: telemetry.metrics, operations, info, closed: Boolean(opts.demo || opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
         return await handleMcp(req, res, { app, auth, demo: Boolean(opts.demo), version: info.version, limiter: appLimiter, requestApproval });
       }
       // Phase 104: the move-in collector, plain source (the Move in page shows its SHA-256). Not on the demo.
       if (url.pathname === '/movein/sara-movein.py' && (method === 'GET' || method === 'HEAD') && !opts.demo) return serveCollector(res);
+      // EC11: a shared conversation (read-only, no sign-in, never indexed).
+      if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
+        // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).
+        if (method !== 'GET' && method !== 'HEAD' && AUDITED.has(parts[0]) && !opts.demo) res.once('finish', () => auditRequest(req, res, method, parts));
         await api(req, res, method, parts);
       } else if (method === 'GET' || method === 'HEAD') {
         await serveStatic(req, res, url.pathname);
@@ -2155,9 +2375,11 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
     } catch (err) {
       // Phase 71: a member's attempt to change the owner's keys (src/household.ts memberVault) is a 403.
-      const status = err instanceof HttpError ? err.status : err instanceof HouseholdError ? err.status : 500;
+      // EC17: a delete refused by a legal hold (our check or the database trigger) is a 409.
+      const held = isLegalHold(err);
+      const status = held ? 409 : err instanceof HttpError ? err.status : err instanceof HouseholdError ? err.status : 500;
       if (status === 500) console.error(err);
-      if (!res.headersSent) send(res, status, { error: status === 500 ? en('Internal error') : (err as Error).message, ...(err instanceof HttpError ? err.extra : err instanceof HouseholdError ? { ownerOnly: true } : {}) });
+      if (!res.headersSent) send(res, status, { error: held ? new LegalHoldError().message : status === 500 ? en('Internal error') : (err as Error).message, ...(held ? { legalHold: true } : {}), ...(err instanceof HttpError ? err.extra : err instanceof HouseholdError ? { ownerOnly: true } : {}) });
       else res.end();
     }
   });
@@ -2165,12 +2387,17 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Keep idle connections longer than Node's 5 s default: apps (SillyTavern, the API, MCP clients,
   // a reverse proxy) reuse a connection between messages, and a reuse racing the server's close
   // fails with "connection reset". 65 s is longer than common proxies' own idle limit.
+  server.once('close', () => (operations.close(), telemetry.close()));
   server.keepAliveTimeout = 65_000;
   server.headersTimeout = 66_000;
   // Live voice calls: /api/live/<conversation id> upgrades to a WebSocket (src/routes/live.ts).
   // Phase 87: /api/hands is the hands channel (src/routes/hands.ts); everything else is a live call.
   const liveUpgrade = createLiveUpgrade(ctx);
   const handsUpgrade = createHandsUpgrade(ctx);
-  server.on('upgrade', (req, socket, head) => ((req.url ?? '').split('?')[0] === '/api/hands' ? handsUpgrade : liveUpgrade)(req, socket, head));
+  server.on('upgrade', (req, socket, head) => {
+    if (!gate.hostOk(req)) return void socket.destroy();
+    socket.once('close', gate.track(req, () => socket.destroy()));
+    ((req.url ?? '').split('?')[0] === '/api/hands' ? handsUpgrade : liveUpgrade)(req, socket, head);
+  });
   return server;
 }

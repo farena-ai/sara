@@ -12,6 +12,7 @@ Nothing here posts or publishes by itself.
 | [X_THREAD.md](X_THREAD.md) | An eight-post thread for X. |
 | [AWESOME_LISTS.md](AWESOME_LISTS.md) | Entries and PR text for awesome lists, and which ones Sara doesn't qualify for yet. |
 | [social-preview.html](social-preview.html) | The source of [`docs/social-preview.png`](../social-preview.png) (1280×640). |
+| [`docs/images/brand/`](../images/brand/) | README hero and section illustrations (OpenAI GPT Image 2 art with the Sara wordmark set in Georgia/Segoe UI on top; see [PROVENANCE.md](../images/brand/PROVENANCE.md)) and the social preview to upload, [`sara-social-preview.jpg`](../images/brand/sara-social-preview.jpg) (1280×640). |
 
 Order on release day: repository public → `repo-setup.sh --apply` → social preview → video on the
 README → demo checked → posts (one community per day, starting with the one you'll have most time

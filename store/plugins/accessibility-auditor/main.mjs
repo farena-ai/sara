@@ -1,0 +1,1 @@
+import {plugin} from './sara-plugin.mjs';import {handle,parameters,labels} from './workflow.mjs';const tool={name:'audit',description:labels.en.description,permission:'ask',parameters,run:(args,sara)=>handle(args,sara.lang)};plugin({tools:[tool],init:sara=>{tool.description=(labels[sara.lang]??labels.en).description;}});

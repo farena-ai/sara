@@ -8,8 +8,9 @@
 // equal-length buffers); the raw body bytes are verified *before* anything parses them.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-export type VerifyKind = 'github' | 'stripe' | 'standard' | 'header' | 'url' | 'meta';
-export const VERIFY_KINDS: readonly VerifyKind[] = ['github', 'stripe', 'standard', 'header', 'url', 'meta'];
+// EC7: `botframework` = a Teams bridge hook; its JWT is checked (async) in src/plugins/botframework-auth.ts.
+export type VerifyKind = 'github' | 'stripe' | 'standard' | 'header' | 'url' | 'meta' | 'botframework';
+export const VERIFY_KINDS: readonly VerifyKind[] = ['github', 'stripe', 'standard', 'header', 'url', 'meta', 'botframework'];
 /** Seconds a timestamped signature (Stripe, Standard Webhooks) may be off from now. */
 export const TOLERANCE_S = 300;
 /** The prefix of a Standard Webhooks secret (followed by base64). Built in pieces so key scanners don't flag the code. */
@@ -161,6 +162,7 @@ export function verifyHeader(h: Headers, token: string): Verdict {
 /** One entry point: the hook's kind, its sender secret (from the vault) and the request. */
 export function verify(kind: VerifyKind, raw: Buffer, h: Headers, secret: string | undefined, nowS: number): Verdict {
   if (kind === 'url') return { ok: true };
+  if (kind === 'botframework') return { ok: false, why: 'a Teams hook is checked by its Bot Framework token' };
   if (!secret) return { ok: false, why: 'this hook has no sender secret yet (paste it on the hook)' };
   if (kind === 'github') return verifyGithub(raw, h, secret);
   if (kind === 'meta') return verifyMeta(raw, h, secret);

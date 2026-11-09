@@ -2,7 +2,10 @@
 import { Call, Mic, Speaker } from './voice.js';
 import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
+import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
+import { accentOnPaletteChange, customAccent } from './accent.js';
+import { herPictureMode } from './v4-picture.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
@@ -12,25 +15,36 @@ import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dial
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
+import { initWorkspaceView, loadCoAuthor } from './workspace-view.js';
 import { initSkills, loadSkills, skillApproval } from './skills.js';
 import { initLearning, learnCard, loadLearning } from './learned-skills.js';
 import { loadWhatsAppPage } from './whatsapp.js';
 import { loadMatrixPage } from './matrix.js';
 import { loadIMessagePage } from './imessage.js';
+import { loadSlackPage } from './slack.js';
+import { loadTeamsPage } from './teams.js';
 import { initPlugins, loadPlugins, pluginAskLine, pluginNotice, pluginResultCard, pluginStepWords } from './plugins.js';
+import { loadMcpDiscovery } from './addons-discovery.js';
+import { loadPrograms, wirePrograms } from './prereqs.js';
+import { loadIsolation, wireIsolation } from './isolation.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
+import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
+import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
+import { checkPrompts as checkDevicePrompts, initDeviceApproval, loadDeviceApproval, waitForApproval, waitOnSignIn } from './device-approval.js';
 import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPlans, renderPlansTile } from './agenda.js';
 import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { focusSshServer, initSsh, loadSsh } from './ssh.js';
+import { initSpotify, loadSpotify } from './spotify.js';
 import { initPresence, loadPresence } from './home-presence.js';
+import { initBring } from './bring.js';
 import { initCards } from './cards.js';
 import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
@@ -41,15 +55,29 @@ import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToda
 import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, saveCollapsed as saveTodayCollapsed, savePrefs, setPrefs as setTodayPrefs, tileMenu, tileTitle } from './today-layout.js';
 import { initBottomBar } from './bottom-bar.js';
 import { startsOnToday } from './start-view.js';
-import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, versionChanged } from './update-check.js';
+import { DISMISS_KEY, SEEN_KEY, reloadNow, shouldCheck, shouldRemind, updatedNote, updatesShown, updateTone, versionChanged } from './update-check.js';
 import { initHousehold, joinFromLink, loadAccount, loadHousehold, showPaused } from './household.js';
 import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean.js';
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
+import { initWatches, watchNotice } from './watches.js';
+import { crewNotice, initCrews, loadCrews } from './crews.js';
+import { initWorkers, loadWorkers } from './workers.js';
+import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
+import { initWorkingStyle, loadWorkingStyle } from './working-style.js';
+import { helperEvent, initPhoneHelper, loadPhoneHelper } from './phone-helper.js';
+import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
+import { initGovernance } from './governance.js';
+import { initSharing, openShare } from './sharing.js';
+import { initDataRights } from './data-rights.js';
+import { initWorkProfile } from './work-profile.js';
+import { initUsageReport } from './usage-report.js';
+import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
+import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
-import { initNav, relabelNav, setMore } from './nav.js';
+import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
@@ -63,11 +91,14 @@ import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
+import { loadLearnBudget, saveLearnBudget } from './learn.js';
 import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSandboxRow } from './sandbox-view.js';
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
 import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
 import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
+import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
+import { addToSceneAction, canonChip, initScenes, lineCanonChip, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
 import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
@@ -75,14 +106,27 @@ import { gmailApproval, gmailQuestion } from './gmail-view.js';
 import { initLook, setContextRing, setLookBusy } from './look.js';
 import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, panelMessages, panelMood, panelNow, panelOpen, togglePanel } from './her-panel.js';
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
+import { initV4, v4Kick } from './v4.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
-import { buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
+import { createOperations } from './operations.js';
+import { createMonitoring } from './monitoring.js';
+import { createSecretSources } from './secret-sources.js';
+import { createReadiness } from './readiness.js';
+import { renderProjectCheckpoint } from './project-checkpoints.js';
+import { projectNowOpen } from './project-now.js';
+import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
+import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
+import { durationWords, turnHeads } from './turn-meta.js';
+// V4b (docs/ops/V4_DESIGN.md): her presence orb and the live run timeline.
+import { initOrbs, orbMount, orbSignal } from './orb.js';
+import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './run-timeline.js';
+import { initMemoryMap } from './memory-map.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let hubReady = false;
 // Phase 114 (PL1b, F2): one first-run queue: the check-in notice, the hub's notice and the tour offer
@@ -116,6 +160,8 @@ async function api(path, opts = {}) {
   });
   if (opts.raw) return res;
   const data = await res.json().catch(() => ({}));
+  // C15: a sensitive action from a remote device: wait for the owner's OK elsewhere, then once more.
+  if (res.status === 428 && data.approval && !opts.approvalRetry && (await waitForApproval(data.approval))) return api(path, { ...opts, approvalRetry: true });
   if (!res.ok) throw Object.assign(new Error(serverText(data, `HTTP ${res.status}`)), { data, status: res.status });
   return data;
 }
@@ -181,7 +227,10 @@ async function boot() {
   }
   // Phase 71: the owner, or a household member in their own space.
   document.body.classList.toggle('member', session.role === 'member');
+  setRunUser(session.role === 'member' ? `m${session.member?.id ?? ''}` : 'owner');
   buildSettingsNav(); // the nav was built before we knew who signed in: owner or member pages
+  // C15: a device waiting for approval right now gets its prompt here.
+  if (session.role === 'owner') void checkDevicePrompts();
   if (session.role === 'member' && session.member?.status !== 'active') return showPaused(session.member);
   const langChanged = await applyLanguage(session.language, session.appLanguage);
   setIdentity(session.identity);
@@ -202,7 +251,13 @@ async function boot() {
   // 2.18: "Sara was updated to X", the on-open update check and the version watch (web/update-check.js).
   initUpdates(session);
   startEvents();
-  void api('/settings').then((s) => applyAdminHelp(s.admin), () => {});
+  // EC24: a helper prompt that was asked before this page opened shows now (owner only).
+  if (session.role === 'owner') void loadPhoneHelper();
+  void api('/settings').then((s) => {
+    applyAdminHelp(s.admin);
+    // V1: a device that never chose starts from "Use on all my devices"; otherwise the one-time notice.
+    if (!adoptAppearance(s.appearance)) offerV1Notice(state.conversations.length > 0 || localStorage.getItem('sara.theme') !== null);
+  }, () => {});
   // Phase 116: what a message does while she works (Settings → You → While she's working).
   if (!session.demo) void api('/chats/while-busy').then((v) => setBusyDefault(v.settings.whileBusy), () => {});
   await Promise.all([loadConversations(), loadProviders()]);
@@ -287,8 +342,10 @@ $('#login-form').addEventListener('submit', async (e) => {
   $('#login-error').textContent = '';
   try {
     const code = $('#login-code').hidden ? undefined : $('#login-code').value.trim();
-    await api('/login', { method: 'POST', body: { token: $('#login-token').value.trim(), ...(code ? { code } : {}) } });
+    const r = await api('/login', { method: 'POST', body: { token: $('#login-token').value.trim(), ...(code ? { code } : {}) } });
     $('#login-token').value = '';
+    // C15: from elsewhere, this device waits for the owner's approval first.
+    if (r.pendingApproval && !(await waitOnSignIn(r.pendingApproval))) return;
     $('#login-code').value = '';
     $('#login-code').hidden = true;
     await boot();
@@ -310,10 +367,11 @@ $('#login-passkey').addEventListener('click', async () => {
     const o = await api('/passkey/signin-options', { method: 'POST', body: {} });
     const cred = await navigator.credentials.get({ publicKey: { challenge: b64u.dec(o.challenge), rpId: o.rpId, userVerification: o.userVerification, timeout: o.timeout, allowCredentials: [] } });
     if (!cred) return;
-    await api('/passkey/signin', {
+    const r = await api('/passkey/signin', {
       method: 'POST',
       body: { id: cred.id, clientDataJSON: b64u.enc(cred.response.clientDataJSON), authenticatorData: b64u.enc(cred.response.authenticatorData), signature: b64u.enc(cred.response.signature) },
     });
+    if (r.pendingApproval && !(await waitOnSignIn(r.pendingApproval))) return;
     await boot();
   } catch (err) {
     $('#login-error').textContent = err.name === 'NotAllowedError' ? t('Passkey sign-in was cancelled.') : err.message;
@@ -466,6 +524,8 @@ function convRow(c, o = {}) {
   a.className = `conv${c.id === state.currentId ? ' active' : ''}${o.isEarlier ? ' conv-earlier-row' : ''}`;
   a.draggable = true;
   a.dataset.id = c.id;
+  // V4d: the row's state for its dot in the new look (working, ended, open, idle).
+  a.dataset.state = c.working ? 'working' : c.endedAt ? 'ended' : c.id === state.currentId ? 'open' : 'idle';
   // Phase 108: inside its channel project a session drops the channel's name from its title ("Telegram: Maria" → "Maria").
   let shown = o.inChannel ? channelTitle(c) : c.title;
   // Under its room's heading (Group by room) a session named after the room says when it started instead.
@@ -614,19 +674,33 @@ function group(key, label, convs, opts = {}) {
   const box = el('div', `conv-group${opts.builtin ? ' group-builtin' : ''}`);
   const head = el('div', 'group-head');
   const isCollapsed = collapsed.has(key);
-  const toggle = el('button', 'group-toggle', `${isCollapsed ? '▸' : '▾'} `);
+  // V4d: one row per group. Sara Classic shows the arrow and capitals as before; the new look shows a
+  // chevron, the folder (or channel) icon, the name and the count (v4-pages.css hides the other set).
+  const toggle = el('button', 'group-toggle');
   toggle.type = 'button';
   toggle.setAttribute('aria-expanded', String(!isCollapsed));
-  const ic = opts.icon ? icon(opts.icon, 'group-icon') : null;
+  toggle.append(el('span', 'group-arrow', isCollapsed ? '▸' : '▾'), document.createTextNode(' '), icon('chevron-down', 'group-chev') ?? '');
+  const ic = opts.icon ? icon(opts.icon, 'group-icon') : opts.folder ? icon(opts.folder, 'group-icon group-folder') : null;
   if (ic) toggle.append(ic);
-  toggle.append(document.createTextNode(label));
+  // Sara Classic keeps the plain label (its row is laid out exactly as before).
+  const nameEl = el('span', 'group-name', label);
+  nameEl.dataset.raw = '';
+  toggle.append(localStorage.getItem('sara.palette') === 'classic' ? document.createTextNode(label) : nameEl);
   const unloaded = opts.groupKey ? (state.unloaded?.[opts.groupKey] ?? 0) : 0;
-  toggle.append(el('small', 'muted', ` ${convs.length + unloaded}`));
-  toggle.addEventListener('click', () => {
+  toggle.append(el('small', 'muted group-n', ` ${convs.length + unloaded}`));
+  const flip = () => {
     collapsed.has(key) ? collapsed.delete(key) : collapsed.add(key);
     saveCollapsed();
     renderConversations();
     document.querySelector(`#conversations .conv-group[data-key="${CSS.escape(key)}"] .group-toggle`)?.focus();
+  };
+  toggle.addEventListener('click', flip);
+  // Arrow keys as in a tree: right opens a folded group, left folds an open one.
+  toggle.addEventListener('keydown', (e) => {
+    if ((e.key === 'ArrowRight' && collapsed.has(key)) || (e.key === 'ArrowLeft' && !collapsed.has(key))) {
+      e.preventDefault();
+      flip();
+    }
   });
   box.dataset.key = key;
   head.append(toggle);
@@ -648,7 +722,11 @@ function group(key, label, convs, opts = {}) {
     });
   }
   if (!isCollapsed) {
-    if (!convs.length && !unloaded && opts.empty) box.append(el('p', 'muted small group-empty', opts.empty));
+    if (!convs.length && !unloaded && opts.empty) {
+      const hint = el('p', 'muted small group-empty', opts.empty);
+      hint.title = opts.empty;
+      box.append(hint);
+    }
     const o = { inChannel: Boolean(opts.builtin), label, project: opts.project, groupKey: opts.groupKey };
     // Phase 108: Group by room: a heading per room, each with its own See more.
     if (opts.byRoom && convs.length) {
@@ -744,6 +822,15 @@ function hiddenGroup(hidden, live) {
   return box;
 }
 
+/** V4d: the project page button of a group row (▤ in Sara Classic, an icon in the new look). */
+function pageBtn(p) {
+  const b = smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id));
+  b.setAttribute('aria-label', t('Open the page of {name}', { name: p.name }));
+  const ic = icon('project', 'gb-ic');
+  if (ic) b.append(ic);
+  return b;
+}
+
 function smallBtn(label, title, fn) {
   const b = el('button', 'ghost small group-btn', label);
   b.type = 'button';
@@ -801,7 +888,7 @@ function renderConversations() {
         dropProject: p.id,
         byRoom: byRoomOn(p.id),
         ...paging(`p${p.id}`, p.id),
-        buttons: [smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id)), menuBtn],
+        buttons: [pageBtn(p), menuBtn],
       });
     })
     .filter(Boolean);
@@ -809,15 +896,18 @@ function renderConversations() {
     .filter((p) => !p.builtin)
     .map((p) =>
       group(`p${p.id}`, p.name, live.filter((c) => c.projectId === p.id), {
+        folder: 'folder',
         dropProject: p.id,
         empty: t('Empty: drag a conversation here, or press +.'),
         ...paging(`p${p.id}`, p.id),
-        buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), smallBtn('▤', t('Project page: conversations, to-dos, notes and files'), () => openProjectPage(p.id))],
+        buttons: [smallBtn('+', t('New conversation in {name}', { name: p.name }), () => newConversation(p.id)), pageBtn(p)],
       }),
     );
   const loose = live.filter((c) => c.projectId === null || !known.has(c.projectId));
-  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { dropProject: null, ...paging('none', 'none') })];
-  if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, paging('archived', 'archived')));
+  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { folder: 'chat', dropProject: null, ...paging('none', 'none') })];
+  // V4d: the V1 Projects section is gone: it listed his projects a second time (page only, no
+  // channels, no No project). Each group above is that project's one row.
+  if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, { folder: 'archive', ...paging('archived', 'archived') }));
   const hidden = projects.filter((p) => p.hidden);
   if (hidden.length) parts.push(hiddenGroup(hidden, live));
   for (const [k, init] of [['archived', 'archived-init'], ['hidden', 'hidden-init']]) {
@@ -1052,6 +1142,8 @@ async function openConversation(id) {
   // Phase 49: another conversation's app preview doesn't stay open beside this one.
   if (id !== state.currentId && state.previewUrl) closePreview();
   state.currentId = conv.id;
+  // E5: reading together belongs to the chat it started in; it ends when another opens.
+  readTogetherSwitched(conv.id);
   $('#chat-title').textContent = conv.title;
   state.conv = conv;
   renderConvSummary();
@@ -1065,6 +1157,8 @@ async function openConversation(id) {
   void persistOpen(conv.id);
   // Phase 119: was he just talking in another of his chats? (the pickup banner)
   void pickupOpen(conv.id);
+  // R1C2: other chats of his active on this project (coding chats only; the server decides).
+  void projectNowOpen(conv.id, { api, open: (other) => void openConversation(other), current: () => state.currentId });
   if (conv.activity && !state.streaming) watchConversation(conv);
   void loadJobs();
   void updateConvUsage();
@@ -1141,6 +1235,20 @@ async function setPinned(m, on, btn) {
   }
 }
 
+// C3: an app in the chat asked for something that needs the owner's OK: its approval card is shown
+// (the same card as her own steps; answered through /approvals like every other).
+window.addEventListener('sara-mcp-app-asked', async () => {
+  if (!state.currentId) return;
+  try {
+    const c = await api(`/conversations/${state.currentId}?limit=1`);
+    for (const ev of c.activity?.approvals ?? []) {
+      if (!document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)) append(approvalCard(ev));
+    }
+  } catch {
+    /* the app hears how it went */
+  }
+});
+
 // Follows a turn that is running on the server without our own stream (after a reload or from
 // another device): polls the conversation until Sara is done.
 function watchConversation(conv) {
@@ -1204,6 +1312,7 @@ function fmtSecs(ms) {
 
 function setActivity(status, detail = '', startedAt) {
   const bar = $('#activity');
+  orbSignal({ type: 'activity', status: status || '' });
   if (!status) {
     bar.hidden = true;
     clearInterval(activity.timer);
@@ -1254,6 +1363,8 @@ initNav();
 initTidy();
 void loadHowto().then(() => mountViewHowtos(t));
 initLook();
+initOrbs();
+initMemoryMap({ api, openNote: (id) => void openMemory({ focus: id }) });
 // Phase 75 (stage 2): her panel (web/her-panel.js) and the command bar (web/command-bar.js).
 initHerPanel({
   api,
@@ -1290,14 +1401,36 @@ const placeSub = (btn) => {
 };
 const placeKey = { today: 'Alt+T', planner: 'Alt+P', memory: 'Alt+M', library: 'Alt+L', scrapbook: 'Alt+B', story: 'Alt+Y' };
 // 2.8: icon names from web/icons.js (the command bar draws them as line icons).
-const PLACE_ICON = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team' };
+/** V4a: a setting's current value for the command bar's preview (a list, a box, a switch). */
+function settingPreview(n) {
+  const c = n.querySelector('input, select, textarea') ?? n.nextElementSibling?.querySelector?.('input, select, textarea');
+  if (!c) return null;
+  const now = c.tagName === 'SELECT' ? (c.selectedOptions[0]?.textContent ?? '') : c.type === 'checkbox' ? (c.checked ? t('On') : t('Off')) : c.type === 'password' ? (c.value ? '••••' : t('Not set')) : (c.value || t('Not set'));
+  return { kv: [[t('Now'), now.trim().slice(0, 60)]], lines: [t('Opens it with this setting highlighted.')] };
+}
+/** V4a: what a place holds, for the command bar's preview (only counts the app can read cheaply). */
+async function placePreview(dest) {
+  if (dest === 'today' || dest === 'planner') {
+    const r = await api('/today?parts=day').catch(() => null);
+    if (!r?.agenda) return null;
+    return { kv: [[t('To-dos open'), r.agenda.tasks?.length ?? 0], [t('Reminders today'), r.agenda.reminders?.length ?? 0], [t('Done today'), r.agenda.doneToday ?? 0]] };
+  }
+  if (dest === 'team' && !isMember()) {
+    const r = await api('/workers').catch(() => null);
+    if (!r) return null;
+    return { kv: [[t('Workers'), r.workers?.length ?? 0], [t('Working now'), (r.workers ?? []).filter((w) => w.running).length], [t('Failed jobs'), r.failed?.length ?? 0]] };
+  }
+  if (dest === 'memory' || dest === 'library') return { kv: [[t('Conversations'), state.conversations.filter((c) => !c.archivedAt).length], [t('Projects'), (state.projects ?? []).filter((p) => !p.builtin && !p.hidden).length]] };
+  return null;
+}
+const PLACE_ICON = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', addons: 'puzzle', findings: 'shield', evals: 'flask' };
 initCommandBar({
   api,
   places: () => [
     ...[...document.querySelectorAll('#side-nav .side-dest')]
       .map((row) => ({ row, btn: row.querySelector('.side-go') }))
       .filter(({ row, btn }) => btn && !(isMember() && row.hasAttribute('data-owner-only')) && getComputedStyle(row).display !== 'none')
-      .map(({ row, btn }) => ({ key: `place:${row.dataset.dest}`, icon: PLACE_ICON[row.dataset.dest] ?? 'dot', label: btn.querySelector('span')?.textContent?.trim() || row.dataset.dest, sub: placeSub(btn), hint: placeKey[row.dataset.dest] ?? '', run: () => btn.click() })),
+      .map(({ row, btn }) => ({ key: `place:${row.dataset.dest}`, icon: PLACE_ICON[row.dataset.dest] ?? 'dot', label: btn.querySelector('span')?.textContent?.trim() || row.dataset.dest, sub: placeSub(btn), hint: placeKey[row.dataset.dest] ?? '', run: () => btn.click(), preview: () => placePreview(row.dataset.dest) })),
     { key: 'place:her', icon: 'heart', label: t('Her page'), sub: t('Her day, mood and character'), hint: 'Alt+H', run: () => openSara() },
     { key: 'place:settings', icon: 'settings', label: t('Settings'), hint: 'Ctrl+,', run: () => openSettings() },
     { key: 'place:help', icon: 'help', label: t('Help'), sub: t('Tours and the guide'), run: () => $('#open-help').click() },
@@ -1309,6 +1442,8 @@ initCommandBar({
       .filter((c) => !String(c.channel ?? '').startsWith('import-'))
       .sort((a, b) => Number(Boolean(a.archivedAt)) - Number(Boolean(b.archivedAt)))
       .map((c) => ({ key: `conv:${c.id}`, icon: c.offRecord ? 'offrecord' : isGroup(c) ? 'group' : 'chat', label: c.title || t('New conversation'), sub: c.archivedAt ? t('Archived') : '', raw: true, run: () => { closeSidebar(); return openConversation(c.id); } })),
+  // V3 §2: every project (its page), like the sidebar's Projects section.
+  projects: () => (state.projects ?? []).filter((p) => !p.builtin && !p.hidden).map((p) => ({ key: `project:${p.id}`, icon: 'folder', label: p.name, sub: t('Project'), raw: true, run: () => { closeSidebar(); return openProjectPage(p.id); } })),
   settings: () => settingsPages().map((p) => ({ key: `settings:${p.dataset.page}`, icon: 'settings', label: t(p.dataset.title), sub: t(p.dataset.group), run: () => openSettings(p.dataset.page) })),
   // The Settings window's own tiered search for pages, plus every setting's label on its own.
   searchSettings: (q) => {
@@ -1329,7 +1464,7 @@ initCommandBar({
         const sc = cmdScore(q, text);
         if (!sc) continue;
         seen.add(text);
-        labels.push({ sc, key: `settings:${p.dataset.page}`, icon: 'sliders', label: text, sub: `${t(p.dataset.group)} → ${t(p.dataset.title)}`, run: async () => {
+        labels.push({ sc, key: `settings:${p.dataset.page}`, icon: 'sliders', label: text, sub: `${t(p.dataset.group)} → ${t(p.dataset.title)}`, preview: () => settingPreview(n), run: async () => {
           await openSettings(p.dataset.page);
           n.scrollIntoView({ block: 'center' });
           (n.querySelector('input, select, textarea') ?? n.nextElementSibling?.querySelector?.('input, select, textarea'))?.focus({ preventScroll: true });
@@ -1345,9 +1480,14 @@ initCommandBar({
     const elsewhere = rankElsewhere(q, isMember() ? [] : slashCommands()).slice(0, 2).map((h) => ({ key: `elsewhere:${h.id}`, icon: h.id.startsWith('planner') ? 'calendar' : 'chat', label: h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → '), sub: h.detail ?? t('Elsewhere'), run: () => openSearchPlace(h.id) }));
     return [...named.slice(0, 3).map(pageItem), ...elsewhere, ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem), ...weak].slice(0, 6);
   },
+  // V4a: any typed text can go to her as a message from the bar.
+  ask: (q) => (q && !state.conv?.readOnly ? { key: 'ask', icon: 'chat', label: t('Ask {name}: “{q}”', { name: currentIdentity().name, q }), raw: true, preview: () => ({ lines: [t('She answers in this chat.')] }), run: async () => {
+    await askInChat(q);
+    $('#composer').requestSubmit();
+  } } : null),
   actions: () => {
     const list = [];
-    const add = (key, icon, label, run, hint = '', words = '') => list.push({ key: `action:${key}`, icon, label, run, hint, words });
+    const add = (key, icon, label, run, hint = '', words = '', preview = undefined) => list.push({ key: `action:${key}`, icon, label, run, hint, words, ...(preview ? { preview } : {}) });
     if (usable($('#new-chat'))) add('new', 'edit', t('New conversation'), () => $('#new-chat').click(), 'Alt+N');
     if (usable($('#new-project'))) add('project', 'project', t('New project'), () => $('#new-project').click());
     if (usable($('#new-offrecord'))) add('offrecord', 'offrecord', t('Off the record'), () => $('#new-offrecord').click(), '', t('private conversation not saved'));
@@ -1360,8 +1500,40 @@ initCommandBar({
       const sel = $('#ap-theme');
       sel.value = light ? 'dark' : 'light';
       sel.dispatchEvent(new Event('change'));
-    }, '', t('switch theme dark light'));
-    add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\');
+    }, '', t('switch theme dark light'), () => ({ change: { from: light ? t('Day') : t('Night'), to: light ? t('Night') : t('Day') }, lines: [t('The whole app on this device, at once.')] }));
+    add('panel', 'panel', panelOpen() ? t('Fold her panel away') : t('Show her panel'), () => togglePanel(), 'Ctrl+\\', '', () => ({ change: { from: panelOpen() ? t('Shown') : t('Folded away'), to: panelOpen() ? t('Folded away') : t('Shown') } }));
+    // V4a: the background field's motion (this device) and Token Saver (the owner's spend setting).
+    const still = document.documentElement.dataset.motion === 'off';
+    add('motion', 'sliders', still ? t('Turn background motion on') : t('Turn background motion off'), () => {
+      const sel = $('#ap-motion');
+      sel.value = still ? 'on' : 'off';
+      sel.dispatchEvent(new Event('change'));
+    }, '', t('background field animation motion still calm'), () => ({ change: { from: still ? t('Off') : t('On'), to: still ? t('On') : t('Off') }, lines: [t('The faint light behind the app. Your system’s reduce motion setting always stops it.')] }));
+    if (!isMember() && !document.body.classList.contains('demo')) {
+      add('saver', 'sliders', t('Token Saver on or off'), async () => {
+        const r = await api('/spend');
+        await api('/spend', { method: 'PUT', body: { tokenSaver: { mode: r.saver?.on ? 'off' : 'on' } } });
+        $('#cmd-status').textContent = r.saver?.on ? t('Token Saver is off.') : t('Token Saver is on.');
+      }, '', t('token saver cheaper shorter replies spend cost'), async () => {
+        const r = await api('/spend');
+        return { change: { from: r.saver?.on ? t('On') : t('Off'), to: r.saver?.on ? t('Off') : t('On') }, lines: [t('Shorter replies, a smaller history and a cheaper route. Change it any time in Data and health → Usage and costs.')] };
+      });
+    }
+    add('colour', 'sliders', t('Change her colour'), async () => {
+      await openSettings('you-appearance');
+      $('#ap-swatches')?.scrollIntoView({ block: 'center' });
+    }, '', t('accent colour color hue her colour'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One colour for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
+    // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
+    add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
+    add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette colour dark light look'));
+    add('reset-look', 'undo', t('Reset the look to the defaults'), async () => {
+      await openSettings('you-appearance');
+      $('#ap-reset').click();
+    }, '', t('appearance theme defaults'));
+    add('find-setting', 'search', t('Find a setting'), async () => {
+      await openSettings('home');
+      $('#settings-search').focus();
+    });
     if (usable($('#server-btn'))) add('servers', 'server', t('Open Your Saras'), () => $('#server-btn').click(), '', t('servers switch'));
     add('search', 'search', t('Search messages, memories and notes'), () => {
       sidebarUI.open();
@@ -1373,6 +1545,38 @@ initCommandBar({
 });
 // Navigation keeps focus with the page or dialog it opens.
 const closeSidebar = () => sidebarUI.close({ restoreFocus: false });
+// V4a (docs/ops/V4_DESIGN.md): the live status strip, At a glance and the background field (web/v4.js).
+initV4({
+  api,
+  isMember,
+  demo: () => document.body.classList.contains('demo'),
+  messages: () => state.messages,
+  conv: () => state.conv,
+  streaming: () => Boolean(state.streaming || state.watch),
+  // The model this chat uses (the same as her panel's This conversation → Model).
+  model: () => {
+    const c = state.conv;
+    const s = state.providers;
+    if (!c || !s) return null;
+    const prov = c.providerId ?? s.defaultProviderId;
+    const name = c.model ?? (c.providerId ? null : s.defaultModel) ?? '';
+    return name ? { name, provider: s.providers?.find((p) => p.id === prov)?.label ?? '' } : null;
+  },
+  panelOpen: () => panelOpen(),
+  openPanel: () => openPanel({ focus: false }),
+  openTeam: () => $('#open-team').click(),
+  openResearch: async () => {
+    await openLibrary();
+    (await import('./research.js')).openResearch();
+  },
+  openConversation: (id) => openConversation(id),
+  openRun: (id) => showRun(id),
+  openSettings: (page) => openSettings(page),
+  openSara: () => openSara(),
+  openPlanner: () => $('#open-planner').click(),
+  openMemory: () => openMemory(),
+  openCommandBar: () => openCommandBar(),
+});
 // Phase 75 (stage 3): Today's tiles (web/today.js) and the phone's bottom bar (web/bottom-bar.js).
 /** Phase 111: Today's date words, set once loadToday's helpers exist (initToday runs before them). */
 const TODAY_FMT_LATE = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWords(n) };
@@ -1623,6 +1827,8 @@ function msgActions(div, m, { last, lastUser, other = false }) {
     // Phase 70: a photo can go in "Our moments" by hand (e.g. from a private conversation).
     if (!state.conv?.offRecord && !other && Array.isArray(m.meta?.images) && m.meta.images.length) bar.append(addToMomentsButton(m.id));
   }
+  // R1B3: the owner picks a line of a linked chat (his, hers or a guest's in the shared room) as canon.
+  if (!other) { const sceneAdd = addToSceneAction(m, state.conv, act); if (sceneAdd) bar.append(sceneAdd); }
   if (m.role === 'assistant' && m.meta?.model) {
     const who = el('span', 'msg-model', m.meta.model);
     who.dataset.raw = '';
@@ -1667,7 +1873,7 @@ const msgTime = (iso) => {
 
 // ---------- Phase 75: her messages, step lines and result cards ----------
 const toolNamed = (name) => (TOOL_NAME[name] ? t(TOOL_NAME[name]) : '');
-const newSteps = () => stepLine({ named: toolNamed, undo: addUndo });
+const newSteps = (live = false) => runTimeline(stepLine({ named: toolNamed, undo: addUndo }), { api, live });
 /** Phase 78: the Run view of one reply's run. */
 const showRun = (runId) => void openRunView(runId, { api, named: toolNamed });
 /** Her small face at the start of a run of her messages (one companion; groups show the speaker). */
@@ -1679,9 +1885,49 @@ function herFace(div, start) {
   img.className = 'avatar msg-face';
   img.alt = '';
   img.src = document.querySelector('#chat-head .head-face')?.getAttribute('src') || '/sara-avatar.jpg';
-  div.prepend(img);
+  div.prepend(img, orbMount(28, { cls: 'v4-orb-face msg-orb' }));
 }
 const isHerBubble = (n) => n?.classList?.contains('msg') && n.classList.contains('assistant');
+// V4c: a rename shows at once on this chat's earlier lines too (her name over her replies, the
+// reply meta line and the AI notice); a reload draws them from the server the same way.
+let shownHerName = '';
+document.addEventListener('sara-identity', (e) => {
+  const next = e.detail?.name;
+  const prev = shownHerName;
+  shownHerName = next || shownHerName;
+  if (!prev || !next || prev === next) return;
+  const swap = (s) => s.split(prev).join(next);
+  for (const n of document.querySelectorAll('#messages .msg.assistant .msg-head-name')) if (n.textContent === prev) n.textContent = next;
+  for (const n of document.querySelectorAll('#messages .msg.assistant .msg-meta')) if (n.textContent.startsWith(prev)) n.textContent = next + n.textContent.slice(prev.length);
+  for (const n of document.querySelectorAll('#messages .msg.notice.disclosure')) {
+    const walk = document.createTreeWalker(n, NodeFilter.SHOW_TEXT);
+    for (let tn = walk.nextNode(); tn; tn = walk.nextNode()) if (tn.nodeValue.includes(prev)) tn.nodeValue = swap(tn.nodeValue);
+  }
+});
+/**
+ * V1 §5: the header's conversation chip. Sara Classic shows the long summary (mode · folder ·
+ * model); the new look shows one model · workspace chip (CSS picks the span).
+ */
+function setConvSummary(full, chip) {
+  $('#conv-summary').replaceChildren(el('span', 'cs-full', full), el('span', 'cs-chip', chip ?? full));
+}
+/** V1 §5: a turn's head line: name, the time (machine-readable) and how long she took. */
+function turnHead(h) {
+  const head = el('div', 'msg-head');
+  head.dataset.raw = '';
+  const time = document.createElement('time');
+  time.className = 'msg-head-time';
+  time.setAttribute('datetime', h.iso);
+  time.textContent = msgTime(h.iso);
+  head.append(el('strong', 'msg-head-name', h.name), time);
+  const took = durationWords(h.ms, t);
+  if (took) {
+    const dur = el('span', 'msg-head-dur', took);
+    dur.title = t('How long she took to answer');
+    head.append(dur);
+  }
+  return head;
+}
 
 /** True when the conversation ends without Sara's answer (restart, error, Stop). */
 function unfinished(messages) {
@@ -1693,6 +1939,8 @@ function unfinished(messages) {
 }
 
 function renderMessages(messages, opts = {}) {
+  // R1B3: "In scene: <title>" beside the title of a linked conversation (owner only).
+  renderSceneChip(state.conv);
   const box = $('#messages');
   state.messages = messages;
   if (!messages.length) {
@@ -1727,7 +1975,7 @@ function renderMessages(messages, opts = {}) {
   const newTurn = () => ({ steps: null, files: [], filesSlot: null, mem: new Set(), runId: 0, budget: null, budgetMsg: null });
   const flush = () => {
     if (!turn) return;
-    if (turn.mem.size) memoryStep((turn.steps ??= newSteps()), turn.mem.size);
+    if (turn.mem.size) memoryStep((turn.steps ??= newSteps()), turn.mem.size, { ids: [...turn.mem], open: (ids) => void openMemory({ focusIds: ids }) });
     // Phase 79: the reply's budget meter on its step line.
     if (turn.budget && turn.steps) setBudget(turn.steps, budgetMeter(turn.budget, { compact: true }));
     // Phase 78: "Show the run" (not on the demo, which keeps no run history for visitors).
@@ -1739,6 +1987,7 @@ function renderMessages(messages, opts = {}) {
       else els.splice(at, 1);
     }
     if (hasSteps(turn.steps)) els.push(turn.steps);
+    if (turn.last && hasSteps(turn.steps)) runLatest(turn.steps);
     // Phase 79: "Budget reached" with what was dropped; Continue only on the latest reply (it answers the last message again).
     if (turn.budget?.stage === 'reached') {
       const latest = turn.budgetMsg === lastAssistant && lastAssistant.id > (lastUser?.id ?? 0) && !document.body.classList.contains('demo') && !isGroup(state.conv);
@@ -1752,6 +2001,9 @@ function renderMessages(messages, opts = {}) {
     turn ??= newTurn();
     if (m.role === 'assistant' && Array.isArray(m.meta?.memoryIds)) for (const id of m.meta.memoryIds) turn.mem.add(id);
     if (m.role === 'assistant' && m.meta?.runId) turn.runId = m.meta.runId;
+    if (m === lastAssistant) turn.last = true;
+    // V4b: the turn's clean checks verify the files she wrote (web/run-model.js).
+    if (m.role === 'assistant' && m.meta?.checks?.state && turn.steps) runEvidence(turn.steps, 'checks', m.meta.checks);
     // Phase 96: a skill loaded up front for this reply.
     if (m.role === 'assistant' && typeof m.meta?.autoSkill === 'string') skillStep((turn.steps ??= newSteps()), m.meta.autoSkill);
     // Phase 98: what plugins did in this turn ("Weather alerts added a note").
@@ -1776,8 +2028,16 @@ function renderMessages(messages, opts = {}) {
     if (m.role === 'tool' && m.meta?.guard?.kind) els.push(guardLine({ kind: m.meta.guard.kind, count: m.meta.guard.count ?? 3, paused: false }));
     // Phase 120: the first-time card of a project (Check her edits here / Not now / Never).
     if (m.role === 'tool' && m.meta?.checksCard) els.push(checksCard(m.meta.checksCard, state.currentId));
+    // R1B3 follow-up: her own canon write in a scene chat, as a chip that opens the scene card.
+    const canon = m.role === 'tool' ? canonChip(m, state.conv) : undefined;
+    if (canon) {
+      const row = el('div', 'canon-line');
+      row.append(canon);
+      els.push(row);
+    }
     if (m.role === 'tool') {
       addStep((turn.steps ??= newSteps()), { id: m.meta?.toolCallId, name: m.meta?.name, summary: m.meta?.summary ?? m.meta?.name, args: m.meta?.args, status: m.meta?.status ?? 'ok', output: m.content, ms: m.meta?.ms, snapshotId: m.meta?.snapshotId });
+      if (m.meta?.sandbox?.decision) runEvidence(turn.steps, 'sandbox', m.meta.sandbox, m.meta.toolCallId);
       const card = (m.meta?.status ?? 'ok') === 'ok' ? m.meta?.card : null;
       if (card?.kind === 'file') {
         turn.files.push(card);
@@ -1824,6 +2084,15 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'command') {
       // Phase 107: /new, /reset, /stop… from a chat app or typed here (never a message to her).
       els.push(bubble('notice', commandNotice(m), 'command', m.id));
+    } else if (m.role === 'notice' && m.kind === 'watch') {
+      // E4: a watched file's new matching line (or a paused watch), labelled as the app's (web/watches.js).
+      els.push(watchNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'crew') {
+      // EC12: a crew run's card (web/crews.js): its status, cards, receipts and the report file.
+      els.push(crewNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'tidy') {
+      // EC13: the overnight memory tidy's morning card (web/memory-tidy.js): Undo per change.
+      els.push(memoryTidyNotice(m));
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -1852,6 +2121,9 @@ function renderMessages(messages, opts = {}) {
       // Phase 120: what his @-references attached, and the checks chip under her reply.
       if (m.role === 'user' && Array.isArray(m.meta?.refs) && m.meta.refs.length) b.append(refChipsSent(m.meta.refs, m.id));
       if (m.role === 'assistant' && m.meta?.checks?.state) b.append(checksChip(m.meta.checks));
+      // R1B3 follow-up: a line picked into the scene's canon says so.
+      const lineCanon = lineCanonChip(m, state.conv);
+      if (lineCanon) b.append(lineCanon);
       // Phase 79: a reply that ran on extra budget the owner gave says so.
       const extra = m.role === 'assistant' ? overrideNote(m.meta?.budget) : null;
       if (extra) b.append(extra);
@@ -1904,6 +2176,16 @@ function renderMessages(messages, opts = {}) {
     const m = b._msg;
     const solo = !isGroup(state.conv);
     msgActions(b, m, { last: solo && m === lastAssistant && lastAssistant.id > (lastUser?.id ?? 0), lastUser: solo && m === lastUser && !m.meta?.forgotten && !state.conv?.partner, other: Boolean(m.meta?.groupFrom) });
+  }
+  // V1 §5: name · time · how long she took, on your turns and the first part of each of her replies.
+  const heads = turnHeads(messages, { herName: currentIdentity().name || t('Sara'), youName: t('You') });
+  const at = new Map(messages.map((m, i) => [m, i]));
+  for (const b of els) {
+    const h = b._msg && !isGroup(state.conv) ? heads.get(at.get(b._msg)) : null;
+    if (!h) continue;
+    const face = b.querySelector(':scope > .msg-face');
+    if (face) face.after(turnHead(h));
+    else b.prepend(turnHead(h));
   }
   if (!opts.busy && !state.conv?.partner && !isGroup(state.conv) && unfinished(messages)) box.append(continueBar());
   if (state.conv?.earlier) {
@@ -1997,7 +2279,9 @@ function commandNotice(m) {
 // Phase 113: /bug and /idea open the report sheet (the server answers with what to fill in).
 // Phase 123: /compact and /tools.
 // Phase 128 (PL2b): /problems from the / menu too.
-const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems)(?:\s[\s\S]*)?$/i;
+const CHAT_COMMAND = /^\/(new|reset|stop|status|help|model|remember|bug|idea|when|continue|compact|tools|problems|learn|saver)(?:\s[\s\S]*)?$/i;
+/** C6: "learn about X" / "keep up with X" is /learn X (the server reads it the same way: learnAsk in src/learn.ts). */
+const LEARN_ASK = /^\s*(?:(?:hey\s+\w+,?\s+)?(?:please\s+|can you\s+|could you\s+|would you\s+)?)(?:learn(?: all| everything)? about|keep up(?: to date)? (?:with|on)|study up on|read up on)\s+(.{2,200}?)\s*[.!?]*\s*$/i;
 async function runChatCommand(text) {
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
@@ -2077,7 +2361,7 @@ async function send(text) {
     return persistCmd[1].toLowerCase() === 'goal' ? openGoalCard((persistCmd[2] ?? '').trim()) : openLoopCard((persistCmd[2] ?? '').trim());
   }
   // Phase 107: a command never goes to her as a message (photos and documents need a real one).
-  if (CHAT_COMMAND.test(text.trim()) && !state.editing && !state.photos.length && !state.docs.length) return runChatCommand(text.trim());
+  if ((CHAT_COMMAND.test(text.trim()) || LEARN_ASK.test(text)) && !state.editing && !state.photos.length && !state.docs.length && !state.conv?.partner) return runChatCommand(text.trim()).finally(() => /^\/saver\b/i.test(text.trim()) && void refreshSaverBadge());
   if (!state.currentId) {
     const conv = await api('/conversations', { method: 'POST', body: {} });
     state.conversations.unshift(conv);
@@ -2323,7 +2607,7 @@ async function runStream(path, body, userBubble) {
   };
   const ensureSteps = () => {
     if (!steps) {
-      steps = newSteps();
+      steps = newSteps(true);
       append(steps);
     }
     return steps;
@@ -2336,6 +2620,7 @@ async function runStream(path, body, userBubble) {
   };
   const controller = new AbortController();
   state.streaming = controller;
+  v4Kick();
   setComposerBusy(true);
   setActivity('thinking');
   // Phase 66: in a group chat each reply starts with a "speaker" event (who is answering now).
@@ -2424,6 +2709,8 @@ async function runStream(path, body, userBubble) {
             building.delete(live[0]);
             live[1].remove();
           }
+          // C8: a paid step says what it costs before it runs.
+          if (ev.price) ev.summary = `${ev.summary} · ${priceText(ev.price)}`;
           addStep(ensureSteps(), { id: ev.id, name: ev.name, summary: ev.summary, args: ev.args, status: 'running' });
           setActivity('running', ev.summary);
         } else if (ev.type === 'budget') {
@@ -2435,9 +2722,11 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'approval') {
           if (steps && !ev.budget) waitStep(steps, ev.id);
           const card = approvalCard(ev);
-          place(card);
+          // V4b: her approval card sits inside the run it belongs to.
+          if (ev.budget || !runApproval(steps, card)) place(card);
           card.scrollIntoView({ block: 'nearest' });
           setActivity('waiting', ev.summary);
+          if (voice.call?.active) callApprovals.shown(ev.id, card);
         } else if (ev.type === 'contradiction') {
           // Phase 77: a flag (she mentions it), or how a stop ended (Do it anyway / Don't / Update the note).
           const old = document.querySelector(`.contradict-flag[data-call="${CSS.escape(ev.id)}"][data-mem="${ev.item.memoryId}"]`);
@@ -2463,6 +2752,7 @@ async function runStream(path, body, userBubble) {
           const target = document.querySelector(`#messages .msg.assistant[data-id="${ev.messageId}"]`) ?? reply;
           if (target) target.append(checksChip(ev.chip));
           else place(checksChip(ev.chip));
+          runEvidence(steps, 'checks', ev.chip);
         } else if (ev.type === 'mentions') {
           // Phase 119: reminders that came up in this reply (the ⏰ chip).
           for (const it of ev.items ?? []) place(whenChip(it));
@@ -2473,12 +2763,14 @@ async function runStream(path, body, userBubble) {
           place(recallChip(ev.item, { api }));
         } else if (ev.type === 'sandbox_running') {
           // Phase 80: the command is being tried in a throwaway copy first.
+          callApprovals.done(ev.id);
           document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
           if (steps) runStep(steps, ev.id);
           setActivity('running', t('trying it in a sandbox copy'));
         } else if (ev.type === 'sandbox') {
           // Phase 80: what the try showed and what you chose, under her step.
           place(sandboxFlag({ ...ev.record, callId: ev.id }));
+          runEvidence(steps, 'sandbox', ev.record, ev.id);
         } else if (ev.type === 'advisory') {
           // Phase 81: the install check's outcome (installed anyway, not installed, not checked: offline).
           place(advisoryFlag(ev));
@@ -2486,6 +2778,7 @@ async function runStream(path, body, userBubble) {
           // Phase 86: "Red-team first" on the ship card: the run started, shipping waits for its report.
           place(redteamFlag(ev));
         } else if (ev.type === 'tool_running') {
+          callApprovals.done(ev.id);
           document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
           if (steps) runStep(steps, ev.id);
           setActivity('running', ev.summary);
@@ -2575,6 +2868,7 @@ async function runStream(path, body, userBubble) {
     if (err.name !== 'AbortError') append(bubble('error', err.message));
   } finally {
     dropBuilding();
+    callApprovals.settle();
     if (voiceOn()) speaker.flush();
     if (videoView.active && voice.call?.active) videoView.herDone();
     // A typed reply finishes typing before the chat is redrawn (stopping shows it all at once).
@@ -2583,6 +2877,7 @@ async function runStream(path, body, userBubble) {
     endReply();
     speaker.voice = null;
     state.streaming = null;
+    v4Kick();
     setActivity(null);
     setComposerBusy(false);
     await loadConversations();
@@ -2951,6 +3246,8 @@ function approvalCard(ev, block) {
   no.textContent = c ? t("Don't") : adv ? t("Don't install") : ev.budget ? t('Wrap up') : t('Deny');
   no.addEventListener('click', () => decide(false, c || adv ? 'deny' : undefined));
   row.append(yes, no);
+  // E7 (A1): a plain ask can be answered once for good (Undo on the card, or Settings → Tools).
+  if (ev.alwaysOk && !c && !adv && !rtg && !ev.budget && !ev.sandboxFirst) yes.after(alwaysAllowButton(ev, card));
   if (rtg && !c && !adv && rtg.mode === 'ask') {
     const first = document.createElement('button');
     first.type = 'button';
@@ -2977,7 +3274,8 @@ function approvalCard(ev, block) {
     what.hidden = true;
     card.classList.add('approval-gmail');
   }
-  card.append(title, ...(untrustedNote ? [untrustedNote] : []), ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
+  // C8: what this step costs, and the spend limit it reached (Allow = this one call).
+  card.append(title, ...(ev.price || ev.spend ? spendLines(ev) : []), ...(untrustedNote ? [untrustedNote] : []), ...(c ? [contradictionSection(c)] : []), ...(adv ? [advisorySection(adv)] : []), ...(rtg && !c && !adv ? [redteamGateSection(rtg)] : []), ...(ev.budget ? [budgetMeter(ev.budget)] : []), ...(gm ? [gm] : []), what, ...(ev.sandboxFirst ? [sandboxFirstNote(ev.sandboxFirst)] : []), row);
   if (card.classList.contains('approval-tidy')) {
     if (TOOL_WORDS[ev.name]) title.after(el('p', 'approval-about muted small', t(TOOL_WORDS[ev.name])));
     row.append(el('span', 'tool-raw approval-raw', ev.name));
@@ -3175,6 +3473,14 @@ const TOOL_WORDS = {
   github_comment: 'Comment on GitHub.',
   github_open_pr: 'Open a pull request on GitHub.',
   home_status: 'See your smart home (Home Assistant).',
+  spotify_search: 'Search Spotify for songs, albums, artists and playlists.',
+  spotify_now_playing: 'See what you are listening to on Spotify.',
+  spotify_my_playlists: 'See your Spotify playlists.',
+  spotify_top: 'See your most-played songs and artists on Spotify.',
+  spotify_devices: 'See your Spotify devices (phone, computer, speakers).',
+  spotify_playlist_create: 'Make a new private Spotify playlist.',
+  spotify_playlist_add: 'Add songs to one of your Spotify playlists.',
+  spotify_playback: 'Play, pause, skip, set the volume, shuffle and queue songs on Spotify, when you ask for music.',
   home_control: 'Switch things in your smart home (Home Assistant).',
   gmail_search: 'Search your Gmail.',
   gmail_read: 'Read an email.',
@@ -3222,6 +3528,7 @@ const TOOL_NAME = {
   gmail_organize: 'Organize your Gmail', gmail_undo: 'Undo a Gmail change', gmail_labels: 'See Gmail labels', gmail_senders: 'Gmail clean-up summary', gmail_unsubscribe_info: 'Find unsubscribe links',
   calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event',
   home_status: 'See your smart home', home_control: 'Switch things at home',
+  spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
   tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works',
   board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
@@ -3245,17 +3552,18 @@ const TOOL_GROUP_OF = {
   preview_start: 'browser', preview_stop: 'browser', browser_open: 'browser', browser_screenshot: 'browser', browser_click: 'browser', browser_type: 'browser', browser_read: 'browser', browser_check: 'browser',
   ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
   tune_personality: 'her', settings_guide: 'her',
+  spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'music', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'music',
 };
-const TOOL_GROUP_ORDER = ['plan', 'memory', 'pictures', 'web', 'mail', 'home', 'her', 'files', 'run', 'git', 'team', 'browser', 'ssh', 'mcp', 'other'];
-const TOOL_GROUP_ICON = { plan: 'todo', memory: 'recall', pictures: 'photo', web: 'globe', mail: 'mail', home: 'home', her: 'sliders', files: 'folder', run: 'terminal', git: 'branch', team: 'team', browser: 'compass', ssh: 'server', mcp: 'puzzle', other: 'tool' };
+const TOOL_GROUP_ORDER = ['plan', 'memory', 'pictures', 'web', 'mail', 'home', 'music', 'her', 'files', 'run', 'git', 'team', 'browser', 'ssh', 'mcp', 'other'];
+const TOOL_GROUP_ICON = { plan: 'todo', memory: 'recall', pictures: 'photo', web: 'globe', mail: 'mail', home: 'home', music: 'music', her: 'sliders', files: 'folder', run: 'terminal', git: 'branch', team: 'team', browser: 'compass', ssh: 'server', mcp: 'puzzle', other: 'tool' };
 const TOOL_GROUP_TEXT = {
-  plan: 'Planner and notes', memory: 'Memory and know-how', pictures: 'Pictures and keepsakes', web: 'The web', mail: 'Email and calendar', home: 'Smart home',
+  plan: 'Planner and notes', memory: 'Memory and know-how', pictures: 'Pictures and keepsakes', web: 'The web', mail: 'Email and calendar', home: 'Smart home', music: 'Music',
   her: 'Her and this app', files: 'Files and code', run: 'Running commands', git: 'Git and GitHub', team: 'Her team', browser: 'Test browser and previews',
   ssh: 'Servers over SSH', mcp: 'Other programs (MCP)', other: 'Other tools',
 };
 const TOOL_GROUP_ABOUT = {
   plan: 'Your to-dos, notes, reminders and shared lists.', memory: 'Looking back at your chats, your documents and how she did tricky jobs.', pictures: 'Her pictures, outfits, the scrapbook and your album.',
-  web: 'Searching the web and reading public pages.', mail: 'Your Gmail and Google Calendar. Sending, organizing mail and adding events ask first.', home: 'Lights, sensors and switches through Home Assistant.',
+  web: 'Searching the web and reading public pages.', mail: 'Your Gmail and Google Calendar. Sending, organizing mail and adding events ask first.', home: 'Lights, sensors and switches through Home Assistant.', music: 'Spotify: search, what is playing, your playlists. Changing playlists asks first.',
   her: 'Changing her personality dials and looking up how the app works.', files: 'Reading and changing files in her workspace.', run: 'Commands and long tasks on this server.',
   git: 'Project history and GitHub: commits, branches, issues and pull requests.', team: 'Helpers she leads on bigger jobs.', browser: 'A browser without a window she tests her web apps in.',
   ssh: 'Your other servers over SSH. Commands ask first.', mcp: 'Tools from other programs you added.', other: 'Tools that fit no other group.',
@@ -3265,13 +3573,14 @@ const TOOL_NEEDS = {
   web_search: 'search', github_list: 'github', github_read: 'github', github_create_issue: 'github', github_comment: 'github', github_open_pr: 'github', github_post_review: 'github', work_on_issue: 'github',
   gmail_search: 'google', gmail_read: 'google', gmail_thread: 'google', gmail_needs_answer: 'google', gmail_draft: 'google', gmail_send: 'google', calendar_events: 'google', calendar_add: 'google', calendar_remove: 'google',
   gmail_organize: 'google', gmail_undo: 'google', gmail_labels: 'google', gmail_senders: 'google', gmail_unsubscribe_info: 'google',
+  spotify_search: 'spotify', spotify_now_playing: 'spotify', spotify_my_playlists: 'spotify', spotify_top: 'spotify', spotify_devices: 'spotify', spotify_playlist_create: 'spotify', spotify_playlist_add: 'spotify', spotify_playback: 'spotify',
   home_status: 'home', home_control: 'home', take_photo: 'pictures', change_outfit: 'looks', delegate_task: 'agents', moments: 'moments',
 };
 const TOOL_NEED_TEXT = {
-  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', home: 'Needs Home Assistant connected first.',
+  search: 'Needs a web search service first.', github: 'Needs your GitHub token first.', google: 'Needs Gmail and Calendar connected first.', home: 'Needs Home Assistant connected first.', spotify: 'Needs Spotify connected first (playlists and playback need their tick too).',
   pictures: 'Needs pictures from her set up first.', looks: 'Needs saved looks in her closet first.', agents: 'Needs Claude Code or Grok Build signed in first.', moments: 'Our moments is off.', none: 'Not set up yet',
 };
-const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', home: 'ab-home', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
+const TOOL_NEED_PAGE = { search: 'ab-search', github: 'ab-github', google: 'ab-google', home: 'ab-home', spotify: 'co-spotify', pictures: 'her-pictures', looks: 'her-look', agents: 'models-subs' };
 const PERM_LABEL = { auto: 'Allowed', ask: 'Ask me first', never: 'Off' };
 const toolGroupsOpen = () => {
   try {
@@ -3336,6 +3645,8 @@ async function loadTools() {
   $('#sandbox-note').hidden = !data.sandbox.note;
   $('#sandbox-note').textContent = data.sandbox.note ? t('{note} You can still set a tool to Allowed below; then her commands run on this computer without asking.', { note: t(data.sandbox.note) }) : '';
   $('#shell-network').checked = data.shellNetwork;
+  // EC8 + EC9: the sandbox backend and the sites sandboxed work may reach.
+  void loadIsolation();
   // Phase 77: check her plans against what you decided.
   $('#contradict-on').checked = data.contradict?.on !== false;
   $('#contradict-mode').value = data.contradict?.mode ?? 'stop';
@@ -3379,7 +3690,7 @@ async function loadTools() {
       const lab = el('label', 'tool-group-set-label');
       lab.append(el('span', 'muted small', t('Whole group:')), set);
       bar.append(lab);
-      box.append(bar, ...byGroup.get(g).map(toolRow));
+      box.append(bar, ...(g === 'mcp' ? serverPolicyRows(data.servers, loadTools) : []), ...byGroup.get(g).map(toolRow));
       box.addEventListener('toggle', () => {
         const now = toolGroupsOpen();
         if (box.open) now.add(g);
@@ -3410,7 +3721,7 @@ async function saveTools() {
 function syncCallButton() {
   $('#call').hidden = !voice.callShown || (voice.live && Boolean(state.conv?.private));
   // Phase 69: a video call is the same call with her picture full size (not in group chats: CSS).
-  $('#video-call-btn').hidden = $('#call').hidden;
+  $('#video-call-btn').hidden = $('#call').hidden || voice.webMic === false;
 }
 function renderConvSummary() {
   const c = state.conv;
@@ -3423,7 +3734,7 @@ function renderConvSummary() {
   input.placeholder = isGroup(c) ? t('Message the group…') : input.dataset.solo;
   if (isGroup(c)) {
     const style = { fits: t('Whoever fits'), everyone: t('Everyone answers'), turns: t('Take turns'), mention: t('@mention only') }[c.group?.turnStyle] ?? '';
-    $('#conv-summary').textContent = `${groupTag(c)} · ${style}${c.group?.banter ? ` · ${t('Banter: {n}', { n: c.group.banter })}` : ''}`;
+    setConvSummary(`${groupTag(c)} · ${style}${c.group?.banter ? ` · ${t('Banter: {n}', { n: c.group.banter })}` : ''}`);
     panelConv();
     return;
   }
@@ -3439,8 +3750,9 @@ function renderConvSummary() {
   const plan = kind === 'chatgpt' ? ` · ${t('Using ChatGPT plan')}` : kind === 'claude-code' ? ` · ${t('Claude subscription')}` : kind === 'grok-cli' ? ` · ${t('Grok subscription')}` : '';
   // L11: "main" is the main folder of her workspaces.
   // Phase 71: members have no workspace folders (the file tools are the owner's), so no folder part.
-  const folder = isMember() ? '' : `${c.workspace === 'main' ? t('main folder') : c.workspace} · `;
-  $('#conv-summary').textContent = `${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`;
+  const ws = c.workspace === 'main' ? t('main folder') : c.workspace;
+  const folder = isMember() ? '' : `${ws} · `;
+  setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, isMember() ? '' : ws].filter(Boolean).join(' · '));
   panelConv();
 }
 
@@ -3514,6 +3826,7 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   renderConvTitle(c);
   void loadConvTitle(c);
   void loadConvFiles(c);
+  loadConversationContinuity(c);
   $('#conv-settings').showModal();
 });
 
@@ -3618,6 +3931,10 @@ $('#cs-archive').addEventListener('click', async () => {
   $('#conv-settings').close();
   await moveConversation(state.conv.id, { archived: !state.conv.archivedAt });
 });
+$('#cs-share')?.addEventListener('click', () => {
+  $('#conv-settings').close();
+  void openShare(state.conv);
+});
 $('#cs-delete').addEventListener('click', () => {
   $('#conv-settings').close();
   openDeleteDialog(state.conv);
@@ -3666,7 +3983,10 @@ $('#sara-status').addEventListener('click', () => openSara());
 
 // Her picture follows her mood (or the owner's own picture).
 function setFace(st) {
-  const custom = st.customAvatar;
+  const own = st.customAvatar;
+  // V4d: Her portrait (Appearance) shows her mood pictures even when one of yours is uploaded.
+  const pic = localStorage.getItem('sara.palette') === 'classic' ? (own ? 'own' : 'orb') : herPictureMode(localStorage.getItem('sara.herPicture'), Boolean(own));
+  const custom = pic === 'portrait' ? null : own;
   const x = st.expression && st.expression !== 'default' ? st.expression : null;
   // The look's version, so a new look is fetched instead of the copy the page already holds.
   const v = state.lookVersion ? `?v=${state.lookVersion}` : '';
@@ -3674,11 +3994,15 @@ function setFace(st) {
   const portrait = custom ? avatar : x ? `/sara/portrait-${x}.jpg${v}` : `/sara-portrait.jpg${v}`;
   for (const img of document.querySelectorAll('img.avatar')) if (!img.src.endsWith(avatar)) img.src = avatar;
   state.expression = x ?? 'default';
-  state.customAvatar = custom ? avatar : null;
+  state.customAvatar = own ? `/api/sara/avatar?t=${Date.now() >> 16}` : null;
+  document.documentElement.classList.toggle('v4-own-face', pic !== 'orb');
+  document.documentElement.style.setProperty('--her-pic', `url("${avatar}")`);
+  state.lastFace = st;
+  if (!localStorage.getItem('sara.herPicture') && $('#ap-herpic')) $('#ap-herpic').value = pic;
   panelFace({ avatar, portrait, expression: state.expression });
   for (const pr of [sdPresence, callPresence]) pr.setExpression(state.expression, state.customAvatar);
   if (videoView.open) videoView.backdrop();
-  $('#avatar-reset').hidden = !custom;
+  $('#avatar-reset').hidden = !own;
 }
 // M10: "Add documents", "Import a file"… are buttons that open their hidden file picker.
 document.addEventListener('click', (e) => {
@@ -4130,12 +4454,16 @@ async function initVoice() {
   const canHear = v.stt === 'openai' || (v.stt === 'local' && local.stt);
   const canSpeak = v.tts === 'openai' || v.tts === 'elevenlabs' || v.tts === 'xai' || (v.tts === 'local' && local.tts);
   const micOk = Boolean(navigator.mediaDevices?.getUserMedia) && window.isSecureContext;
+  // Play 2.88: the phone apps run live calls natively (SaraPhone.startCall), so a server at home on
+  // plain http (no secure context, no web microphone) still offers the call there.
+  voice.nativeCalls = Boolean(window.SaraPhone?.startCall);
   $('#mic').hidden = !(canHear && micOk);
   // Live calls (Grok or OpenAI realtime voice) when available and chosen; otherwise classic calls.
   const live = await api('/live').catch(() => ({ available: false }));
   voice.live = live.available && (v.calls ?? 'live') === 'live';
   const engineName = live.engine === 'openai' ? 'OpenAI' : 'Grok voice';
-  voice.callShown = micOk && (voice.live || (canHear && canSpeak));
+  voice.callShown = (micOk && (voice.live || (canHear && canSpeak))) || (voice.nativeCalls && voice.live);
+  voice.webMic = micOk;
   syncCallButton();
   $('#call').title = voice.live ? t('Live call: just talk, interrupt any time ({engineName})', { engineName }) : t('Hands-free call: just talk, interrupt her any time');
   $('#v-calls-note').textContent = live.available
@@ -4279,6 +4607,24 @@ const videoView = new VideoCallView({
     await send(t('What do you think of this?'));
   },
   onCue: (x) => callPresence.setExpression(x ?? state.expression, state.customAvatar),
+  // R2b: cards still waiting when the call screen closes go back into the chat.
+  onApprovalBack: (card) => $('#messages').append(card),
+});
+// R2b: an approval card during a call goes on the call screen with one spoken line; only a tap answers it.
+const callApprovals = new CallApprovals({
+  t,
+  say: (text) => {
+    if (voice.call?.active) speaker.say(text);
+  },
+  stop: () => {
+    if (voice.call?.active && state.streaming) void fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
+  },
+  show: (card) => {
+    if (videoView.open) videoView.approval(card);
+  },
+  release: (card) => {
+    if (card.closest?.('#vc-approvals')) card.remove();
+  },
 });
 /** Opens the video call screen for the call going on (or about to). */
 function openVideo() {
@@ -4286,10 +4632,12 @@ function openVideo() {
   $('#call-panel').hidden = true;
   voice.liveCall?.setVideo?.(true);
   void videoView.show({ conversationId: state.currentId, demo: document.body.classList.contains('demo'), name: currentIdentity().name || t('Sara'), status: $('#call-status').textContent });
+  callApprovals.reshow();
 }
 new MutationObserver(() => ($('#sara-dialog')?.open ? sdPresence.start() : sdPresence.stop())).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
 speaker.onState = ((prev) => (on) => {
   prev?.(on);
+  orbSignal({ type: 'speaking', on });
   if (on) callPresence.ctx?.resume?.();
   if (voice.call?.active && !state.streaming) $('#call-status').textContent = on ? t('Speaking…') : t('Listening…');
   if (voice.call?.active && videoView.active) videoView.status(on ? t('Speaking…') : t('Listening…'));
@@ -4305,6 +4653,7 @@ function showCallPanel(on, video = false) {
   } else {
     callPresence.stop();
     videoView.hide();
+    orbSignal({ type: 'speaking', on: false });
   }
 }
 $('#call-to-video').addEventListener('click', () => openVideo());
@@ -4330,6 +4679,9 @@ async function startLiveCall(ringId, { video = false } = {}) {
   let heard = null;
   const end = (reason) => {
     if (!voice.liveCall) return;
+    // R2c: what waits for an OK is cancelled with the call (the server cancels it too).
+    callApprovals.ended();
+    toolsFallback(false);
     voice.liveCall = null;
     videoView.hide();
     callPresence.listen(null);
@@ -4348,10 +4700,31 @@ async function startLiveCall(ringId, { video = false } = {}) {
         else if (ev.type === 'caption') videoView.her(ev.text.replace(/\[(?:laugh|chuckle|sigh|breath|pause|long-pause|giggle|exhale|inhale|cough|gasp)\]|<\/?(?:whisper|soft|laugh-speak|emphasis|sing|slow|fast|loud|quiet)>/gi, ''));
         else if (ev.type === 'said') videoView.herDone(ev.text + (ev.interrupted ? ' …' : ''));
       }
+      // R2c: her tools on the live call: a card only a tap answers, what runs, and the fallback.
+      if (ev.type === 'approval') {
+        const card = approvalCard(ev);
+        if (state.currentId === convId) append(card);
+        callApprovals.shown(ev.id, card);
+        return;
+      }
+      if (ev.type === 'approval_done') {
+        callApprovals.done(ev.id);
+        document.querySelector(`.approval[data-call="${CSS.escape(ev.id)}"]`)?.remove();
+        return;
+      }
+      if (ev.type === 'tool') {
+        if (ev.state === 'running') {
+          $('#call-status').textContent = ev.summary;
+          if (videoView.active) videoView.status(ev.summary);
+        }
+        return;
+      }
+      if (ev.type === 'tools') return void toolsFallback(ev.fallback === true);
       if (state.currentId !== convId) return;
       if (ev.type === 'status') {
         $('#call-status').textContent = LIVE_STATUS[ev.state] ?? '';
         setActivity(ev.state === 'speaking' ? 'writing' : ev.state === 'hearing' ? 'hearing' : 'listening', t('Live call'));
+        orbSignal({ type: 'speaking', on: ev.state === 'speaking' });
       } else if (ev.type === 'notice') append(bubble('notice', ev.text, ev.kind));
       else if (ev.type === 'you') {
         // Live caption of what you're saying; the final words replace it.
@@ -4409,8 +4782,25 @@ async function startLiveCall(ringId, { video = false } = {}) {
   }
 }
 
+/** R2c: on a voice service without tool calling, the call screen says so and offers a classic call. */
+function toolsFallback(on) {
+  $('#call-tools-note').hidden = !on;
+  $('#call-classic').hidden = !on;
+  $('#vc-classic').hidden = !on;
+  if (on && videoView.active) videoView.notice('tools', t('On this voice, ask me in the chat to use tools.'));
+}
+async function switchToClassic() {
+  const video = videoView.open;
+  if (voice.liveCall) $('#call').click();
+  await startClassicCall(video);
+}
+$('#call-classic').addEventListener('click', () => void switchToClassic());
+$('#vc-classic').addEventListener('click', () => void switchToClassic());
+
 $('#call').addEventListener('click', async () => {
   if (voice.liveCall) {
+    callApprovals.ended();
+    toolsFallback(false);
     voice.liveCall.hangUp();
     voice.liveCall = null;
     callPresence.listen(null);
@@ -4425,6 +4815,8 @@ $('#call').addEventListener('click', async () => {
     return startLiveCall();
   }
   if (voice.call?.active) {
+    // R2b: hanging up cancels what waits for an OK (nothing runs after the call).
+    callApprovals.ended();
     voice.call.stop();
     voice.call = null;
     speaker.stop();
@@ -4443,11 +4835,14 @@ async function startClassicCall(video) {
     speaker,
     transcribe,
     onUtterance: async (text) => {
+      // R2b: words while a card waits never answer it; they interrupt, which cancels it.
+      callApprovals.heard();
       if (state.streaming) await fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
       while (state.streaming) await new Promise((r) => setTimeout(r, 100));
       await send(text);
     },
     onInterrupt: () => {
+      callApprovals.heard();
       if (state.streaming) void fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' });
     },
     onStatus: (s) => {
@@ -5392,6 +5787,7 @@ async function loadHealth() {
   void loadHealthHistory();
   void loadProblems();
   void loadRuns();
+  void loadLogLevel();
   $('#health-info').textContent = `Sara ${h.version}${h.revision ? ` (${h.revision})` : ''} · Node ${h.node} · ${t('up {time}', { time: up })} · ${t('database {size}', { size: fmtBytes(h.data.databaseBytes) })} · ${h.pushDevices === 1 ? t('1 notification device') : t('{n} notification devices', { n: h.pushDevices })}`;
 }
 // ---------- Phase 30: health history and recent problems ----------
@@ -5456,6 +5852,21 @@ async function loadRuns() {
   $('#runs-keep').value = String(r.keepDays);
   $('#runs-keep').dataset.loaded = '1';
   $('#runs-stats').textContent = t('Runs: {n}, {mb} MB', { n: r.stats.runs.toLocaleString(locale()), mb: r.stats.mb.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: r.stats.mb < 0.1 ? 2 : 1 }) });
+}
+// Settings → Data & health: the log level (owner only; SARA_LOG_LEVEL on the server wins).
+function showLogLevel(r) {
+  $('#log-level').value = r.saved ?? r.level;
+  $('#log-level').dataset.loaded = '1';
+  $('#log-level-env').hidden = !r.env;
+  $('#log-level-env').textContent = r.env ? t('SARA_LOG_LEVEL={level} is set on the server and wins until it is removed.', { level: r.env }) : '';
+}
+async function loadLogLevel() {
+  const r = await api('/logs/level').catch(() => null);
+  if (r) showLogLevel(r);
+}
+async function saveLogLevel() {
+  if (!$('#log-level').dataset.loaded) return;
+  showLogLevel(await api('/logs/level', { method: 'PUT', body: { level: $('#log-level').value } }));
 }
 async function saveRuns() {
   // Only a value read from the server is sent back (never the list's first choice by accident).
@@ -5632,6 +6043,7 @@ async function loadBudgets() {
   $('#bud-quick-note').textContent = r.quickSet ? t('Uses your quick model from Which model does what.') : t('No quick model is set (Models → Which model does what), so this step is skipped.');
   $('#ab-budgets-form').dataset.loaded = '1';
   budgetLinesShown();
+  void loadLearnBudget();
 }
 /** A switched-off kind greys out its pick-lists. */
 function budgetLinesShown() {
@@ -6004,6 +6416,7 @@ $('#ha-clear').addEventListener('click', async () => {
 
 // ---------- GitHub token (Phase 13) ----------
 async function loadGitHub() {
+  void loadCoAuthor();
   const g = await api('/github').catch(() => ({ hasToken: false }));
   $('#gh-token').value = '';
   $('#gh-token').placeholder = g.hasToken ? 'saved (leave empty to keep)' : 'not set';
@@ -6219,7 +6632,8 @@ $('#cl-test').addEventListener('click', async () => {
 // ---------- live events (reminders, proactive messages) ----------
 function startEvents() {
   if (state.events) return;
-  const es = new EventSource('/api/events');
+  // B1 follow-up: one stream for all tabs (browsers allow six connections per server).
+  const es = sharedEvents('/api/events');
   state.events = es;
   es.addEventListener('message', async (e) => {
     const ev = JSON.parse(e.data);
@@ -6233,6 +6647,9 @@ function startEvents() {
       }
       if (ev.message.meta?.call) b.classList.add('missed-call');
       if (ev.message.role === 'notice' && ev.message.content.startsWith('agenda:')) append(agendaNotice(ev.message));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('watch:')) append(watchNotice({ ...ev.message, content: ev.message.content.slice(6) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('crew:')) append(crewNotice({ ...ev.message, content: ev.message.content.slice(5) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('tidy:')) append(memoryTidyNotice({ ...ev.message, content: ev.message.content.slice(5) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
         append(jobCard(ev.message.content.slice(4), ev.message.meta?.status, ev.message.meta));
         const rc = ev.message.meta?.card ? renderCard(ev.message.meta.card) : null;
@@ -6259,10 +6676,16 @@ function startEvents() {
     if (document.querySelector('[data-page="co-whatsapp"]:not([hidden])')) void loadWhatsAppPage();
     if (document.querySelector('[data-page="co-matrix"]:not([hidden])')) void loadMatrixPage();
     if (document.querySelector('[data-page="co-imessage"]:not([hidden])')) void loadIMessagePage();
+    if (document.querySelector('[data-page="co-slack"]:not([hidden])')) void loadSlackPage();
+    if (document.querySelector('[data-page="co-teams"]:not([hidden])')) void loadTeamsPage();
   });
   // Phase 102: a webhook got a delivery or changed: the Webhooks page refreshes.
   es.addEventListener('hooks', () => {
     if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadHooks();
+  });
+  // C4: a trigger ran or skipped: the "When this happens" list refreshes.
+  es.addEventListener('triggers', () => {
+    if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadEventTriggers();
   });
   es.addEventListener('library', () => window.dispatchEvent(new Event('sara:library')));
   // Phase 53: a look back is ready (or failed).
@@ -6288,6 +6711,8 @@ function startEvents() {
   });
   // Phase 99: a board changed (another tab, her work on a card, a shared board): the open board follows.
   let todayBoardTimer = 0;
+  // C15: a device asks to sign in (or for a sensitive action): the prompt on this device.
+  es.addEventListener('device-approval', () => void checkDevicePrompts());
   es.addEventListener('board', () => {
     boardEvent();
     // Today's "On the board" tile (waiting cards, her work) follows too, at most every 2 s.
@@ -6307,6 +6732,8 @@ function startEvents() {
   es.addEventListener('goal', (e) => persistEvent('goal', JSON.parse(e.data)));
   es.addEventListener('loop', (e) => persistEvent('loop', JSON.parse(e.data)));
   es.addEventListener('ring', (e) => onRing(JSON.parse(e.data).ring));
+  // EC24: Sara asks this device for its camera, location or screen (only helper devices get these).
+  es.addEventListener('helper', (e) => helperEvent(JSON.parse(e.data)));
   // Phase 87: her hands on a computer: live-view frames, Stop pressed there, computers coming and going.
   es.addEventListener('computer', (e) => onComputerEvent(JSON.parse(e.data)));
   // A turn started or ended somewhere else (another device, Telegram, Discord): follow along.
@@ -6344,7 +6771,10 @@ function startEvents() {
   // Phase 84: an eval moved on (a replay finished, the judge, the result).
   es.addEventListener('eval', (e) => onEvalEvent(JSON.parse(e.data)));
   // Phase 39: a team task moved on.
-  es.addEventListener('team', (e) => onTeamEvent(JSON.parse(e.data).task));
+  es.addEventListener('team', (e) => {
+    onTeamEvent(JSON.parse(e.data).task);
+    v4Kick();
+  });
   // Phase 52: an app (terminal, VS Code) asks to sign in: the Devices page shows it.
   es.addEventListener('device', (e) => {
     const { pending } = JSON.parse(e.data);
@@ -6396,6 +6826,7 @@ async function catchUp(away) {
     startEvents();
   }
   await loadConversations().catch(() => {});
+  if (!isMember()) void loadPhoneHelper();
   if (state.streaming || state.watch) return;
   const latest = state.conversations.find((c) => !c.archivedAt && !c.partner);
   const typing = $('#input').value.trim();
@@ -6866,11 +7297,17 @@ $('#import-file').addEventListener('change', async (e) => {
 async function openMemory(opts = {}) {
   $('#mem-error').textContent = '';
   // Phase 77: "Update the note" / "Open the note" open the list on that note.
+  // V4d: "See what she remembers" under a reply opens the notes it used (focusIds).
+  if (opts.focusIds?.length && !opts.focus) opts = { ...opts, focus: opts.focusIds[0] };
   if (opts.focus) {
     $('#mem-q').value = '';
     $('#mem-kind').value = '';
   }
   const s = await api('/memory/settings');
+  // EC13: Overnight tidy (web/memory-tidy.js).
+  void loadMemoryTidy();
+  // C12: How she works with you (web/working-style.js).
+  void loadWorkingStyle();
   $('#mem-enabled').checked = s.enabled;
   $('#mem-quiet').value = String([10, 30, 60, 120].reduce((b, v) => (Math.abs(v - s.quietMinutes) < Math.abs(b - s.quietMinutes) ? v : b), 30));
   $('#mem-fade').value = s.fade ?? 'never';
@@ -6889,6 +7326,11 @@ async function openMemory(opts = {}) {
   if (!$('#memory').open) $('#memory').showModal();
   if (opts.focus) {
     const card = document.querySelector(`#mem-list .mem[data-mem="${opts.focus}"]`);
+    for (const id of opts.focusIds ?? []) {
+      const c = document.querySelector(`#mem-list .mem[data-mem="${id}"]`);
+      c?.classList.add('highlight');
+      if (c) setTimeout(() => c.classList.remove('highlight'), 4000);
+    }
     if (card) {
       card.scrollIntoView({ block: 'center' });
       card.classList.add('highlight');
@@ -7205,11 +7647,55 @@ async function saveSearch() {
 // ---------- MCP settings ----------
 function mcpRows() {
   const http = $('#mcp-transport').value === 'http';
-  $('#mcp-command-row').hidden = http;
-  $('#mcp-args-row').hidden = http;
-  $('#mcp-url-row').hidden = !http;
+  const recipe = Boolean($('#mcp-add').dataset.recipe);
+  $('#mcp-command-row').hidden = http || recipe;
+  $('#mcp-args-row').hidden = http || recipe;
+  $('#mcp-url-row').hidden = !http || recipe;
+  for (const id of ['#mcp-preset-row', '#mcp-transport-row', '#mcp-secrets-row']) $(id).hidden = recipe;
+  $('#mcp-recipe-fields').hidden = !recipe;
+}
+
+// B2: a server from the Sara Store is edited through its own settings (saved values shown; secrets as
+// "Saved" with Replace); its type and command stay the Store's.
+function mcpRecipeForm(m) {
+  const box = $('#mcp-recipe-fields');
+  if (!m?.recipe) {
+    delete $('#mcp-add').dataset.recipe;
+    box.replaceChildren();
+    mcpRows();
+    return;
+  }
+  $('#mcp-add').dataset.recipe = m.name;
+  const note = el('p', 'muted small', t('This one came from the Sara Store: change its settings here. Its type and command stay as the Store set them.'));
+  const rows = m.recipe.fields.map((f) => {
+    const label = el('label', 'mcp-field');
+    label.append(document.createTextNode(`${f.label} `));
+    const input = document.createElement('input');
+    input.dataset.key = f.key;
+    if (f.secret) {
+      input.type = 'password';
+      input.autocomplete = 'new-password';
+      if (f.saved) {
+        input.hidden = true;
+        const saved = el('span', 'muted', t('Saved'));
+        const replace = el('button', 'ghost', t('Replace'));
+        replace.type = 'button';
+        replace.addEventListener('click', () => { saved.hidden = true; replace.hidden = true; input.hidden = false; input.focus(); });
+        label.append(saved, replace);
+      }
+    } else {
+      input.type = f.kind === 'url' ? 'url' : 'text';
+      input.value = f.value ?? '';
+    }
+    label.append(input);
+    if (f.tip) label.append(el('small', 'muted', f.tip));
+    return label;
+  });
+  box.replaceChildren(note, ...rows);
+  mcpRows();
 }
 $('#mcp-transport').addEventListener('change', mcpRows);
+$('#mcp-name').addEventListener('input', () => { if ($('#mcp-add').dataset.recipe && $('#mcp-add').dataset.recipe !== $('#mcp-name').value.trim()) mcpRecipeForm(null); });
 
 function renderMcp(list) {
   const box = $('#mcp-list');
@@ -7221,6 +7707,7 @@ function renderMcp(list) {
     ...list.map((m) => {
       const card = document.createElement('div');
       card.className = 'mcp';
+      card.dataset.server = m.name;
       const row = document.createElement('div');
       row.className = 'row';
       const name = document.createElement('span');
@@ -7240,9 +7727,10 @@ function renderMcp(list) {
         $('#mcp-args').value = (m.args ?? []).map((a) => (/\s/.test(a) ? `"${a}"` : a)).join(' ');
         $('#mcp-url').value = m.url ?? '';
         $('#mcp-enabled').checked = m.enabled;
+        $('#mcp-apps').checked = m.apps !== false;
         $('#mcp-secrets').value = '';
         $('#mcp-secrets').placeholder = `Saved: ${[...m.envKeys, ...m.headerKeys.map((h) => `header:${h}`)].join(', ') || 'none'}\nNAME=value to add/replace, NAME= to delete.`;
-        mcpRows();
+        mcpRecipeForm(m);
       });
       const restart = document.createElement('button');
       restart.type = 'button';
@@ -7266,18 +7754,30 @@ function renderMcp(list) {
       card.append(row);
       if (m.error) {
         const err = document.createElement('small');
-        err.textContent = m.error;
+        const page = 'That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.';
+        err.textContent = m.error.startsWith(page) ? `${t('That address answered like a web page, not a tool server. If this program needs an address of another service (like ComfyUI), put it in that setting instead.')}${m.error.slice(page.length)}` : m.error;
         card.append(err);
       }
       return card;
     }),
   );
+  // E7 (A2): the same per-server approvals choice as in Tools, on each server's card.
+  void api('/tools')
+    .then((d) => {
+      for (const r of serverPolicyRows(d.servers, async () => { await loadTools(); renderMcp(await api('/mcp')); })) box.querySelector(`.mcp[data-server="${CSS.escape(r.querySelector('select').dataset.server)}"]`)?.append(r);
+    })
+    .catch(() => {});
 }
 
 async function loadMcp() {
   renderMcp(await api('/mcp'));
   mcpRows();
+  // PRQ: the programs add-ons need, and *Install it for me*.
+  void loadPrograms();
+  await loadMcpDiscovery();
 }
+wirePrograms();
+wireIsolation();
 
 function parseSecrets(text) {
   const env = {};
@@ -7302,20 +7802,24 @@ $('#mcp-save').addEventListener('click', async () => {
     const { env, headers } = parseSecrets($('#mcp-secrets').value);
     $('#mcp-save').disabled = true;
     $('#mcp-save').textContent = t('Connecting…');
+    const recipe = $('#mcp-add').dataset.recipe === name;
+    const fields = Object.fromEntries([...$('#mcp-recipe-fields').querySelectorAll('input[data-key]')].map((i) => [i.dataset.key, i.value.trim()]));
     const list = await api(`/mcp/${encodeURIComponent(name)}`, {
       method: 'PUT',
-      body: {
+      body: recipe ? { fields, enabled: $('#mcp-enabled').checked, apps: $('#mcp-apps').checked } : {
         transport: $('#mcp-transport').value,
         command: $('#mcp-command').value.trim(),
         args: $('#mcp-args').value,
         url: $('#mcp-url').value.trim(),
         enabled: $('#mcp-enabled').checked,
+        apps: $('#mcp-apps').checked,
         env,
         headers,
       },
     });
     $('#mcp-secrets').value = '';
     $('#mcp-add').open = false;
+    mcpRecipeForm(null);
     renderMcp(list);
     await loadTools();
   } catch (err) {
@@ -7677,6 +8181,13 @@ initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(pa
 // Phase 23: a "?" on every Settings page: what it's for, in plain words, and the guide.
 // Page help and the ? tips live in tips.json (Phase 41), shared with the server's settings guide.
 let HELP = {};
+const operations = createOperations({ root: $('#operations-content'), api, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
+// EC3: monitoring for operators (Prometheus metrics, OpenTelemetry traces) under Operations.
+const monitoring = createMonitoring({ api, isOwner: () => !isMember() && !document.body.classList.contains('demo'), copyText });
+// EC10: where each server key comes from (references to external secret sources) under Operations.
+const secretSourcesView = createSecretSources({ api, el, isOwner: () => !isMember() && !document.body.classList.contains('demo') });
+// EC28: readiness and the restore drill, on top of the Recovery page.
+const readiness = createReadiness({ api, el, isOwner: () => !isMember() && !document.body.classList.contains('demo'), openSettings: (page) => void openSettings(page), copyText });
 const recovery = createRecovery({
   root: $('#recovery-content'), api,
   isOwner: () => !isMember() && !document.body.classList.contains('demo'),
@@ -7730,19 +8241,30 @@ function showSettingsTab(page, opts = {}) {
     clearSettingsSearch();
   }
   page = OLD_TABS[page] ?? page;
+  if (page === 'home' || page?.startsWith('home:')) return void showSettingsHome(page.slice(5), opts);
+  $('#settings-home').hidden = true;
   const pages = settingsPages();
   const pick = pages.some((p) => p.dataset.page === page) ? page : pages[0].dataset.page;
   for (const p of pages) p.hidden = p.dataset.page !== pick;
   for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === pick));
   const sec = pages.find((p) => p.dataset.page === pick);
   $('#settings-page-title').textContent = t(sec.dataset.title);
+  paintCrumbs(sec);
   showSettingsHelp(pick, opts.howto ?? '');
   // S15: "Changes save by themselves" only where there is something to change.
   $('.settings-actions').toggleAttribute('data-quiet', !sec.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'));
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
   if (pick === 'dh-safety') void loadSafetyCheck();
-  if (pick === 'dh-recovery') void recovery.refresh();
+  if (pick === 'dh-recovery') {
+    void readiness.refresh();
+    void recovery.refresh();
+  }
+  if (pick === 'dh-operations') {
+    void operations.refresh();
+    void monitoring.refresh();
+    void secretSourcesView.refresh();
+  }
   if (pick === 'ab-skills') {
     void loadSkills();
     void loadLearning();
@@ -7757,6 +8279,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
+  if (pick === 'co-slack') void loadSlackPage();
+  if (pick === 'co-teams') void loadTeamsPage();
   if (pick === 'ab-budgets') void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
   // Phase 123: the Short tool list and Tidy long chats cards.
@@ -7764,12 +8288,13 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
-  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadProjectDials()]);
+  if (pick === 'co-continuity') void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
+  if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
   if (pick === 'co-agents') void loadAgents();
-  if (pick === 'co-hooks') void loadHooks();
+  if (pick === 'co-hooks') void Promise.all([loadHooks(), loadEventTriggers()]);
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
   if (pick === 'dh-movein') void loadMoveIn();
@@ -7785,6 +8310,26 @@ function showSettingsTab(page, opts = {}) {
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
   $('.settings-pages').scrollTop = 0;
   localStorage.setItem('sara.settingsPage', pick);
+  if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
+}
+
+// V3 (docs/ops/V3_DESIGN.md §2): the Settings home, where Settings opens outside Sara Classic.
+// Sara Classic opens the last page, as before.
+const SETTINGS_START = () => (document.documentElement.dataset.palette === 'classic' ? (localStorage.getItem('sara.settingsPage') ?? 'her-character') : 'home');
+function showSettingsHome(group = '', opts = {}) {
+  for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  buildSettingsHome();
+  $('#settings-home').hidden = false;
+  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === 'home'));
+  $('#settings-page-title').textContent = t('All settings');
+  paintCrumbs(null);
+  $('#settings-page-desc').hidden = true;
+  $('#settings-howto').replaceChildren();
+  $('#settings-empty').hidden = true;
+  $('.settings-actions').toggleAttribute('data-quiet', true);
+  $('#settings').classList.add('page-open');
+  $('.settings-pages').scrollTop = 0;
+  if (group) document.querySelector(`#settings-home .sh-group[data-group="${CSS.escape(group)}"]`)?.scrollIntoView({ block: 'start' });
   if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
 }
 
@@ -7819,7 +8364,7 @@ async function openSettings(tab, opts = {}) {
   restoreSettingsOrder();
   void loadSlash(); // PL2b: Elsewhere in search lists the chat commands
   clearSettingsSearch();
-  showSettingsTab(typeof tab === 'string' ? tab : (localStorage.getItem('sara.settingsPage') ?? 'her-character'), { howto: opts.howto ?? '' });
+  showSettingsTab(typeof tab === 'string' ? tab : SETTINGS_START(), { howto: opts.howto ?? '' });
   // On a phone, opening Settings from the menu starts at the list of pages.
   if (typeof tab !== 'string') $('#settings').classList.remove('page-open');
   modelCache.clear();
@@ -7850,7 +8395,7 @@ async function loadSettingsPages() {
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
   if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
   await loadTools();
-  await Promise.all([loadDevices().catch(() => {}), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -7873,6 +8418,15 @@ async function rerenderAfterLanguage() {
   await initVoice().catch(() => {}); // call buttons and the live-call notes
 }
 $('#open-settings').addEventListener('click', openSettings);
+// V3 §2: Add-ons is a place in the sidebar (the store page), and Ctrl K sits next to the search box.
+$('#open-addons').addEventListener('click', () => {
+  closeSidebar();
+  void openSettings('ab-store');
+});
+$('#side-cmd').addEventListener('click', () => {
+  closeSidebar();
+  openCommandBar();
+});
 // Phase 114 (PL1b): the use choice, changeable here any time (Getting started, the tour offered and the chips follow it).
 $('#use-path').addEventListener('change', async () => {
   const v = normPath($('#use-path').value);
@@ -7931,12 +8485,13 @@ const SETTINGS_SAVERS = {
   'co-discord': [saveDiscord, () => saveChatCommands('dc'), () => saveChatMedia('dc')],
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
-  'dh-health': [saveRuns],
-  'ab-budgets': [saveBudgets],
+  'dh-health': [saveRuns, saveLogLevel],
+  'ab-budgets': [saveBudgets, saveLearnBudget],
   'ab-persist': [savePersistSettings],
   'ab-precise': [savePreciseSettings],
   'ab-when': [saveWhenSettings],
   'co-pickup': [savePickupSettings],
+  'co-continuity': [saveSessionContinuitySettings, saveSceneSettings],
   'ab-projects': [saveSandboxGate, saveSecPass, saveThreatModel, saveRedTeam],
 };
 const settingsChanged = new Set();
@@ -7967,17 +8522,56 @@ autoSave($('#settings'));
 
 // ---------- Phase 52: usage and costs ----------
 /** The server's usage line ("12.3k tokens (12k in, 300 out) · local") in the app's language. */
-function usageWords(x) {
-  if (!x?.calls) return t('No model usage recorded yet.');
-  const k = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+const kTokens = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
+function usageCost(x) {
   const billing = x.billing ?? [];
   const usd = (v) => `$${v < 0.01 && v > 0 ? v.toFixed(4) : v.toFixed(2)}`;
-  const cost = billing.includes('api')
+  return billing.includes('api')
     ? x.usd > 0 || !x.unpriced
       ? x.unpriced ? t('about {usd} + calls with no price', { usd: usd(x.usd) }) : t('about {usd}', { usd: usd(x.usd) })
       : t('cost unknown (no price for this model)')
     : billing.includes('subscription') ? t('$0 (subscription)') : t('local');
+}
+function usageWords(x) {
+  if (!x?.calls) return t('No model usage recorded yet.');
+  const k = kTokens;
+  const cost = usageCost(x);
   return `${t('{tokens} tokens ({input} in, {output} out)', { tokens: k(x.tokens), input: k(x.input), output: k(x.output) })} · ${cost}`;
+}
+/**
+ * V1 §5: the same rows as a real table (header in text-3, right-aligned tabular numbers), right
+ * after the list. Sara Classic shows the list, the new look the table (screens.css).
+ */
+function usageTable(list, first, rows) {
+  const id = `${list.id}-table`;
+  const table = document.getElementById(id) ?? el('table', 'usage-table');
+  table.id = id;
+  const head = el('tr');
+  for (const [text, num] of [[first, false], [t('Calls'), true], [t('Tokens in'), true], [t('Tokens out'), true], [t('Cost'), true]]) {
+    const th = el('th', num ? 'num' : '', text);
+    th.scope = 'col';
+    head.append(th);
+  }
+  const thead = el('thead');
+  thead.append(head);
+  const tbody = el('tbody');
+  for (const [name, x] of rows) {
+    const tr = el('tr');
+    const who = el('th', '', name);
+    who.scope = 'row';
+    who.dataset.raw = '';
+    tr.append(who, el('td', 'num', String(x.calls)), el('td', 'num', kTokens(x.input ?? 0)), el('td', 'num', kTokens(x.output ?? 0)), el('td', 'num', usageCost(x)));
+    tbody.append(tr);
+  }
+  if (!rows.length) {
+    const none = el('td', 'muted small', '—');
+    none.colSpan = 5;
+    const tr = el('tr');
+    tr.append(none);
+    tbody.append(tr);
+  }
+  table.replaceChildren(thead, tbody);
+  if (!table.isConnected) list.after(table);
 }
 let usageData = null;
 /** "About $0.12 so far, part on this computer": what it cost in words, before any token counts. */
@@ -8012,6 +8606,9 @@ function renderUsage() {
   if (several) $('#usage-companions').replaceChildren(...r.byCompanion.map((c) => row(c.name, c)));
   $('#usage-models').replaceChildren(...(r.byModel.length ? r.byModel.map((m) => row(`${m.model} (${m.providerLabel || m.providerId})`, m)) : [el('li', 'muted small', '—')]));
   $('#usage-purposes').replaceChildren(...(r.byPurpose.length ? r.byPurpose.map((m) => row(purposeWord(m.purpose), m)) : [el('li', 'muted small', '—')]));
+  if (several) usageTable($('#usage-companions'), t('Companion'), r.byCompanion.map((c) => [c.name, c]));
+  usageTable($('#usage-models'), t('Model'), r.byModel.map((m) => [`${m.model} (${m.providerLabel || m.providerId})`, m]));
+  usageTable($('#usage-purposes'), t('For'), r.byPurpose.map((m) => [purposeWord(m.purpose), m]));
 }
 function priceRow(p = {}) {
   // Not an .add-row: its ✕ button would make the boxes "wait for their own button" instead of saving.
@@ -8066,6 +8663,7 @@ $('#usage-price-add').addEventListener('click', () => {
 
 /** The line under the chat: tokens and estimated cost of this conversation so far. */
 async function updateConvUsage() {
+  void refreshSaverBadge();
   const id = state.currentId;
   const box = $('#conv-usage');
   if (!id || state.conv?.offRecord) return void (box.hidden = true);
@@ -8369,7 +8967,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -8544,12 +9142,43 @@ $('#conv-search').addEventListener('keydown', (e) => {
 // ---------- appearance (per device) ----------
 // Phase 21: colour, chat background and layout too.
 const AP_DEFAULTS = { accent: 'rose', chatbg: 'none', density: 'comfy' };
-// Phase 75: Night is the default for everyone who hasn't picked Day (or "Follow the system") on
-// this device; web/theme-boot.js applies the same rule before the first paint.
-const themePick = () => {
+/** V3: the segmented controls' sync functions (filled in below, once the lists are on the page). */
+let apSegSync = [];
+// V3 (docs/ops/V3_DESIGN.md §5, the owner's defaults): Follow the system unless picked on this device
+// (Sara Classic keeps Night); web/theme-boot.js applies the same rules before the first paint.
+const themePick = (pal = palettePick()) => {
   const v = localStorage.getItem('sara.theme');
-  return v === 'light' || v === 'system' ? v : 'dark';
+  return v === 'light' || v === 'system' || v === 'dark' ? v : pal === 'classic' ? 'dark' : 'system';
 };
+// Colour: Blue unless picked (Sara Classic keeps its own rose: the stored "rose" = the palette's own).
+const accentPick = (pal = palettePick()) => localStorage.getItem('sara.accent') ?? (pal === 'classic' ? 'rose' : 'blue');
+// V1 (docs/ops/V1_DESIGN.md → Themes): palette × Night/Day. Graphite unless picked on this device.
+const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'];
+const palettePick = () => {
+  const v = localStorage.getItem('sara.palette');
+  return PALETTES.includes(v) ? v : 'graphite';
+};
+// V3: Full decoration unless picked (outside Sara Classic it is the refined glass and light, v3.css).
+const decorPick = () => {
+  const v = localStorage.getItem('sara.decor');
+  return v === 'on' || v === 'off' ? v : 'on';
+};
+// Her portrait in work views: small unless picked (Sara Classic keeps it large, as before).
+const portraitPick = (pal = palettePick()) => {
+  const v = localStorage.getItem('sara.portrait');
+  return v === 'large' || v === 'small' || v === 'hidden' ? v : pal === 'classic' ? 'large' : 'small';
+};
+// The old colour names show as the presets they map onto (their stored value keeps working).
+const ACCENT_NOW = { lavender: 'violet', ocean: 'cyan', forest: 'green', mono: 'grey' };
+const ACCENT_VARS = [['--accent-solid', 'fill'], ['--accent-text', 'text'], ['--on-accent', 'on'], ['--accent', 'fill'], ['--accent-2', 'text'], ['--btn-fill', 'fill'], ['--on-btn', 'on']];
+function readCustomAccent() {
+  try {
+    const c = JSON.parse(localStorage.getItem('sara.accentCustom') ?? 'null');
+    return c?.dark && c?.light ? c : null;
+  } catch {
+    return null;
+  }
+}
 function applyAppearance() {
   const theme = themePick();
   const light = theme === 'light' || (theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
@@ -8559,9 +9188,20 @@ function applyAppearance() {
   root.classList.toggle('theme-night', !light);
   // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js).
   if (root.classList.contains('shell') && !root.classList.contains('shell-test')) window.saraShellSay?.({ type: 'theme', theme: theme === 'light' ? 'day' : theme === 'system' ? 'system' : 'night' });
-  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  const pal = palettePick();
+  for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = k === 'accent' ? accentPick(pal) : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
+  // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
+  root.dataset.palette = pal;
+  root.dataset.decor = matchMedia('(prefers-reduced-transparency: reduce)').matches ? 'off' : decorPick(pal);
+  root.dataset.portrait = portraitPick();
+  const custom = root.dataset.accent === 'custom' ? readCustomAccent()?.[light ? 'light' : 'dark'] : null;
+  for (const [v, k] of ACCENT_VARS) {
+    if (custom) root.style.setProperty(v, custom[k]);
+    else root.style.removeProperty(v);
+  }
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--surface-0').trim() || (light ? '#faf7f5' : '#0f0d17'));
   root.style.setProperty('--chat-size', `${localStorage.getItem('sara.textSize') ?? '15'}px`);
+  placeRail(pal !== 'classic');
 }
 applyAppearance();
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyAppearance);
@@ -8579,14 +9219,145 @@ $('#ap-size').addEventListener('change', () => {
 });
 for (const k of Object.keys(AP_DEFAULTS)) {
   const sel = $(`#ap-${k}`);
-  sel.value = localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k];
+  const stored = k === 'accent' ? accentPick() : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
+  sel.value = k === 'accent' ? (ACCENT_NOW[stored] ?? stored) : stored;
   sel.addEventListener('change', () => {
+    if (k === 'accent' && sel.value === 'custom' && !readCustomAccent()) return void setCustomAccent($('#ap-accent-custom').value);
     localStorage.setItem(`sara.${k}`, sel.value);
+    // V4d: an explicit pick remembers the palette it was made in (leaving Classic keeps it, see below).
+    if (k === 'accent') localStorage.setItem('sara.accentPicked', palettePick());
+    applyAppearance();
+    showAppearance();
+  });
+}
+// V1: palette cards (a preview of each palette's Night and Day), decoration and her portrait.
+for (const o of $('#ap-palette').options) {
+  const b = el('button', 'ap-pal');
+  b.type = 'button';
+  b.dataset.pal = o.value;
+  b.setAttribute('role', 'radio');
+  const pv = el('span', 'ap-pal-pv');
+  pv.setAttribute('aria-hidden', 'true');
+  pv.append(el('i', 'pv-d'), el('i', 'pv-l'));
+  b.append(pv, el('span', 'ap-pal-name', o.textContent));
+  b.addEventListener('click', () => {
+    $('#ap-palette').value = o.value;
+    $('#ap-palette').dispatchEvent(new Event('change'));
+  });
+  $('#ap-pals').append(b);
+}
+function showAppearance() {
+  const pal = palettePick();
+  $('#ap-palette').value = pal;
+  for (const b of $('#ap-pals').children) b.setAttribute('aria-checked', String(b.dataset.pal === pal));
+  $('#ap-decor').value = decorPick();
+  $('#ap-portrait').value = portraitPick(pal);
+  $('#ap-theme').value = themePick(pal);
+  $('#ap-accent').value = ACCENT_NOW[accentPick(pal)] ?? accentPick(pal);
+  for (const f of apSegSync) f();
+  $('#ap-custom-row').hidden = $('#ap-accent').value !== 'custom';
+  const c = readCustomAccent();
+  if (c) $('#ap-accent-custom').value = $('#ap-accent-hex').value = c.hex;
+}
+// V4d: her picture (orb, her portrait or yours) and how run cards start (folded or open), this device.
+for (const [id, key, def] of [['ap-herpic', 'sara.herPicture', ''], ['ap-runs', 'sara.runDetails', 'folded']]) {
+  const sel = $(`#${id}`);
+  sel.value = localStorage.getItem(key) ?? (def || (state.customAvatar ? 'own' : 'orb'));
+  sel.addEventListener('change', () => {
+    localStorage.setItem(key, sel.value);
+    if (id === 'ap-herpic' && state.lastFace) setFace(state.lastFace);
+  });
+}
+$('#ap-herpic-upload').addEventListener('click', () => {
+  $('#settings').close();
+  void openSara();
+});
+$('#avatar-ap-link').addEventListener('click', () => {
+  $('#sara-dialog').close();
+  void openSettings('you-appearance');
+});
+$('#ap-palette').addEventListener('change', () => {
+  const from = palettePick();
+  const to = $('#ap-palette').value;
+  localStorage.setItem('sara.palette', to);
+  // V4d: leaving Sara Classic with its own rose (never picked for another palette) gives the V4 default, Blue.
+  const swap = accentOnPaletteChange(from, to, localStorage.getItem('sara.accent'), localStorage.getItem('sara.accentPicked'));
+  if (swap) localStorage.setItem('sara.accent', swap);
+  applyAppearance();
+  showAppearance();
+});
+for (const k of ['decor', 'portrait']) {
+  $(`#ap-${k}`).addEventListener('change', () => {
+    localStorage.setItem(`sara.${k}`, $(`#ap-${k}`).value);
     applyAppearance();
   });
 }
+// Custom accent: worked out once on save (web/accent.js), copied by theme-boot.js before paint.
+function setCustomAccent(hex) {
+  const c = customAccent(hex);
+  if (!c) return false;
+  localStorage.setItem('sara.accentCustom', JSON.stringify(c));
+  localStorage.setItem('sara.accent', 'custom');
+  localStorage.setItem('sara.accentPicked', palettePick());
+  $('#ap-accent').value = 'custom';
+  applyAppearance();
+  showAppearance();
+  return true;
+}
+$('#ap-accent-custom').addEventListener('change', () => setCustomAccent($('#ap-accent-custom').value));
+$('#ap-accent-hex').addEventListener('change', () => {
+  const v = $('#ap-accent-hex').value.trim();
+  if (!setCustomAccent(v.startsWith('#') ? v : `#${v}`)) $('#ap-accent-hex').value = readCustomAccent()?.hex ?? '';
+});
+showAppearance();
+// "Use on all my devices": the owner's settings keep the set; a device that never chose starts from it.
+function currentAppearance() {
+  const decor = localStorage.getItem('sara.decor');
+  return {
+    palette: palettePick(), theme: themePick(), accent: accentPick(), density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
+    ...(decor ? { decor } : {}), ...(localStorage.getItem('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
+  };
+}
+$('#ap-sync').addEventListener('click', async () => {
+  try {
+    await api('/settings', { method: 'PUT', body: { appearance: currentAppearance() } });
+    $('#ap-sync-state').textContent = t('Saved. A new device starts with this look.');
+  } catch (err) {
+    $('#ap-sync-state').textContent = err.message;
+  }
+});
+function adoptAppearance(a) {
+  if (!a || localStorage.getItem('sara.palette')) return false;
+  const keys = { palette: 'sara.palette', theme: 'sara.theme', accent: 'sara.accent', density: 'sara.density', portrait: 'sara.portrait', decor: 'sara.decor' };
+  for (const [k, key] of Object.entries(keys)) if (a[k]) localStorage.setItem(key, a[k]);
+  if (a.accentCustom) localStorage.setItem('sara.accentCustom', JSON.stringify(a.accentCustom));
+  localStorage.setItem('sara.v1Notice', 'seen');
+  applyAppearance();
+  $('#ap-theme').value = themePick();
+  $('#ap-accent').value = ACCENT_NOW[accentPick()] ?? accentPick();
+  $('#ap-density').value = a.density ?? 'comfy';
+  showAppearance();
+  return true;
+}
+// The one-time notice for people who used Sara before the new look (new installs never see it).
+function offerV1Notice(existing) {
+  if (localStorage.getItem('sara.palette') || localStorage.getItem('sara.v1Notice')) return;
+  localStorage.setItem('sara.v1Notice', 'seen');
+  if (existing) $('#v1-notice').hidden = false;
+}
+$('#v1-classic').addEventListener('click', () => {
+  localStorage.setItem('sara.palette', 'classic');
+  $('#v1-notice').hidden = true;
+  applyAppearance();
+  showAppearance();
+});
+$('#v1-notice-close').addEventListener('click', () => {
+  localStorage.setItem('sara.palette', palettePick());
+  $('#v1-notice').hidden = true;
+});
 // Colour swatches: tap one instead of using the list.
 for (const o of $('#ap-accent').options) {
+  if (o.value === 'custom') continue;
   const b = document.createElement('button');
   b.type = 'button';
   b.className = 'ap-swatch';
@@ -8599,6 +9370,80 @@ for (const o of $('#ap-accent').options) {
   $('#ap-swatches').append(b);
 }
 $('#ap-swatches').removeAttribute('aria-hidden');
+// V3 (docs/ops/V3_DESIGN.md §4): Custom sits in the swatch row too, and the swatch row is the Colour
+// control (its list stays underneath for Sara Classic, tips and links).
+{
+  const b = el('button', 'ap-swatch ap-swatch-custom');
+  b.type = 'button';
+  b.dataset.accent = 'custom';
+  b.title = t('Custom');
+  b.append(icon('plus') ?? '');
+  b.addEventListener('click', () => {
+    $('#ap-accent').value = 'custom';
+    $('#ap-accent').dispatchEvent(new Event('change'));
+  });
+  $('#ap-swatches').append(b);
+  for (const s of $('#ap-swatches').children) s.setAttribute('aria-label', s.title);
+}
+/**
+ * V3 §4: a segmented control for a short list (Night or Day, Layout, Text size, Her picture, Decoration,
+ * Sessions shown). It drives the list it stands for: the same value, the same change event, the same
+ * tip; screens.css/v3.css show the list in Sara Classic and the segments everywhere else.
+ */
+function apSegment(id) {
+  const sel = $(`#${id}`);
+  const seg = el('span', 'ap-seg');
+  seg.setAttribute('role', 'radiogroup');
+  seg.setAttribute('aria-label', sel.closest('label')?.firstChild?.textContent?.trim() || id);
+  const sync = () => {
+    for (const b of seg.children) b.setAttribute('aria-checked', String(b.dataset.value === sel.value));
+  };
+  for (const o of sel.options) {
+    const b = el('button', 'ap-seg-opt');
+    b.type = 'button';
+    b.dataset.value = o.value;
+    b.setAttribute('role', 'radio');
+    const [head, ...rest] = o.textContent.split(': ');
+    if (rest.length) {
+      seg.classList.add('ap-seg-cards');
+      b.append(el('b', '', head), el('span', '', rest.join(': ')));
+    } else b.textContent = o.textContent;
+    if ('raw' in o.dataset) b.dataset.raw = '';
+    b.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (sel.value === o.value) return;
+      sel.value = o.value;
+      sel.dispatchEvent(new Event('change'));
+      sync();
+    });
+    seg.append(b);
+  }
+  sel.addEventListener('change', sync);
+  sel.closest('label')?.classList.add('ap-has-seg');
+  sel.after(seg);
+  sync();
+  return sync;
+}
+apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
+// Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
+const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
+$('#ap-reset').addEventListener('click', () => {
+  if (!confirm(t('Reset how Sara looks on this device to the defaults?'))) return;
+  for (const k of AP_KEYS) localStorage.removeItem(k);
+  // Leaving the default palette must not bring back the one-time new-look notice.
+  localStorage.setItem('sara.v1Notice', 'seen');
+  applyAppearance();
+  showAppearance();
+  $('#ap-density').value = 'comfy';
+  $('#ap-chatbg').value = 'none';
+  $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
+  $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
+  $('#ap-sessions').value = String(pageSize(localStorage));
+  for (const f of apSegSync) f();
+  shownRows.clear();
+  renderConversations();
+  $('#ap-sync-state').textContent = t('Back to the defaults on this device.');
+});
 
 // ---------- project page ----------
 let pageProject = null;
@@ -8796,6 +9641,8 @@ function taskRow(tk) {
   return row;
 }
 initProjectMap(() => pageProject?.workspace ?? null);
+// C13: the project page's Workspace tab and Settings → GitHub → Her commits (web/workspace-view.js).
+initWorkspaceView({ api, el, workspace: () => pageProject?.workspace ?? null, projectId: () => pageProject?.id ?? null });
 initSkills();
 initPlugins();
 // Phase 116: the split Send button, the waiting chips and the side question's card.
@@ -8806,7 +9653,46 @@ initPersist({ api, state, el, openConversation: (id) => void openConversation(id
 initLean({ api, state, el, reload: () => void openConversation(state.currentId), newSession: () => void runChatCommand('/new') });
 // Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
 initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
+// E5: Read together (web/read-together.js): the Library's Read together opens beside this chat.
+initReadTogether({ api, current: () => state.currentId });
+// E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
+// EC12: Team → Crews (web/crews.js); its chat card opens the Team dialog or the crew's chat.
+initCrews({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
+// C10: Team → Workers that stay (web/workers.js).
+initWorkers({ api, el, openConversation: (id) => openConversation(id) });
+// EC13: Memory → Overnight tidy and its morning card (web/memory-tidy.js).
+initMemoryTidy({ api, el, openMemory: () => $('#open-memory').click() });
+// C12: Memory → How she works with you (web/working-style.js).
+initWorkingStyle({ api, el });
+initPhoneHelper({ api });
+initWatches({
+  api,
+  el,
+  ask: async (id, text) => {
+    if ($('#planner').open) $('#planner').close();
+    if (state.currentId !== id) await openConversation(id);
+    $('#input').value = text;
+    $('#input').dispatchEvent(new Event('input'));
+    $('#input').focus();
+  },
+  openWatches: async () => {
+    await openRoutinesAt('');
+    $('#rt-watch-h')?.scrollIntoView({ block: 'start' });
+  },
+});
 initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
+initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
+// EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
+initSharing({ api, el });
+// EC17: Retention and legal hold (web/data-rights.js).
+initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
+// EC26: Settings → Her → At work (web/work-profile.js).
+initWorkProfile({ api, el });
+initUsageReport({ api, el, isMember });
+// C8: spend limits, Token Saver and its badge (web/spend.js).
+initSpend({ api, el, isMember });
+// EC25: Settings → Household → Trust report (web/trust-report.js).
+initTrustReport({ api, el });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
 initRefs({
   api, state, el, openSettings: (page) => void openSettings(page),
@@ -8835,8 +9721,11 @@ initSlash({
   },
 });
 initWhen({ api, el });
+initSessionContinuity({ api });
+initScenes({ api, openSettings: (page) => openSettings(page) });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
 initLearning();
+initDeviceApproval();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {
   if (!$('#planner').open) await openPlanner();
   document.querySelector(`#planner .tab[data-tab="${tab}"]`)?.click();
@@ -8882,6 +9771,7 @@ $('#pp-ch-unfile').addEventListener('click', async () => {
 });
 // Phase 108: Settings → Appearance → Sessions shown (5 / 8 / 10, this device).
 $('#ap-sessions').value = String(pageSize(localStorage));
+for (const f of apSegSync) f();
 $('#ap-sessions').addEventListener('change', () => {
   localStorage.setItem(PAGE_KEY, $('#ap-sessions').value);
   shownRows.clear();
@@ -9145,7 +10035,7 @@ async function loadUpdates() {
   const st = u.status;
   if (upWait && (Date.now() > upWait.until || (st.at ?? '') !== upWait.at || st.state !== upWait.state)) upWait = null;
   if (upWait && !st.pending && st.state !== 'checking' && st.state !== 'updating') st.pending = upWait.action;
-  const busy = Boolean(st.pending) || st.state === 'checking' || st.state === 'updating';
+  const busy = Boolean(st.pending) || st.state === 'checking' || st.state === 'updating' || st.state === 'downloading';
   $('#up-check').disabled = busy;
   $('#up-go').hidden = !u.available || st.state !== 'available';
   $('#up-go').disabled = busy;
@@ -9153,8 +10043,12 @@ async function loadUpdates() {
   $('#up-message').textContent = msg ? `${msg}${st.at && !busy ? ` (${new Date(st.at).toLocaleString()})` : ''}` : u.available ? t('Press Check for updates to see if there is a new version.') : '';
   // Phase 46: Windows and macOS update with the installer from the download page.
   const release = u.how === 'release';
-  if (release) $('#up-go').hidden = true;
-  $('#up-download-row').hidden = !release || !['available', 'failed'].includes(st.state) || !st.downloadUrl;
+  // C9: with a signed notice Windows (per-user install) and macOS update here; otherwise the download page.
+  const auto = release && Boolean(st.auto);
+  if (release && !auto) $('#up-go').hidden = true;
+  $('#up-auto').hidden = !release || !st.autoWhy || st.state !== 'available';
+  $('#up-auto').textContent = st.autoWhy ?? '';
+  $('#up-download-row').hidden = !release || auto || !['available', 'failed', 'rolledback'].includes(st.state) || !st.downloadUrl;
   if (st.downloadUrl) $('#up-download').href = st.downloadUrl;
   $('#up-download').textContent = st.state === 'available' && st.latest ? t('Download Sara {latest}', { latest: st.latest }) : t('Open the download page');
   $('#up-changes').hidden = st.state !== 'available' || !st.changes?.length;
@@ -9262,7 +10156,21 @@ function paintUpdateLink() {
   const on = updatesShown(upx) && s.state === 'available' && Boolean(s.latest);
   $('#side-update').hidden = !on;
   if (on) $('#side-update').title = t('Sara {latest} is available: open Settings → Updates', { latest: s.latest });
+  // C9: the top bar's Update button; its colour rises with the release's age (web/update-check.js).
+  const tone = updatesShown(upx) ? updateTone(s) : null;
+  const head = $('#head-update');
+  head.hidden = !tone;
+  if (tone) {
+    head.className = `head-update upd-${tone.tone}`;
+    $('#head-update-text').textContent = tone.required ? t('Update required') : t('Update');
+    head.title = tone.required
+      ? t('This version is no longer supported: update to Sara {latest}', { latest: s.latest })
+      : s.security
+        ? t('Sara {latest} fixes a security problem: update soon', { latest: s.latest })
+        : t('Sara {latest} is available: open Settings → Updates', { latest: s.latest });
+  }
 }
+$('#head-update').addEventListener('click', () => void openSettings('dh-updates'));
 function offerUpdate() {
   const s = upx.status ?? {};
   if (!updatesShown(upx) || !shouldRemind({ status: s, version: upx.version, dismissed: store(localStorage, DISMISS_KEY), later: store(sessionStorage, LATER_KEY) })) return;
@@ -9271,7 +10179,8 @@ function offerUpdate() {
   $('#upp-title-text').textContent = t('Sara {latest} is available', { latest: s.latest });
   $('#upp-changes').replaceChildren(...(s.changes ?? []).slice(0, 8).map((c) => el('li', '', c)));
   $('#upp-dismiss').checked = false;
-  const release = upx.how === 'release';
+  // C9: a signed notice lets Windows (per-user) and macOS update here; else the download page.
+  const release = upx.how === 'release' && !s.auto;
   $('#upp-go').hidden = release;
   $('#upp-download').hidden = !release;
   if (release && s.downloadUrl) $('#upp-download').href = s.downloadUrl;
@@ -9660,6 +10569,7 @@ function renderPhotos(p) {
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.grokSubscription ? t('not needed: uses your Grok subscription') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
   $('#ph-status').textContent = p.mode !== 'new' ? '' : p.hasKey ? t('Uses the xAI API key saved here (billed per picture).') : p.grokSubscription ? t('Uses your Grok subscription: counts toward your weekly Grok usage (Imagine).') : p.providerKey ? t("Uses your xAI model provider's API key (billed per picture).") : t('Sign in to Grok (Models → Subscriptions) or add an xAI API key to let her take new pictures.');
+  renderPhotoEngine(p);
   $('#ph-taken').replaceChildren(
     ...p.taken.map((t) => {
       const img = document.createElement('img');
@@ -9678,12 +10588,119 @@ async function loadPhotos() {
   }
 }
 async function savePhotos() {
-  const body = { mode: $('#ph-mode').value, model: $('#ph-model').value };
+  const body = { mode: $('#ph-mode').value, model: $('#ph-model').value, ...photoEngineBody() };
   if ($('#ph-key').value.trim()) body.key = $('#ph-key').value.trim();
   renderPhotos(await api('/photos', { method: 'PUT', body }));
   $('#ph-key').value = '';
 }
 $('#ph-mode').addEventListener('change', () => ($('#ph-new').hidden = $('#ph-mode').value !== 'new'));
+
+// E7: the picture engine (Grok, OpenAI, a ComfyUI workflow, an image tool) and pictures on her own.
+function renderPhotoEngine(p) {
+  const engine = p.engine ?? 'grok';
+  $('#ph-engine').value = engine;
+  const opt = (v, label) => new Option(label, v);
+  $('#ph-comfy-server').replaceChildren(...(p.comfyServers ?? []).map((s) => opt(s, s)));
+  if (p.comfy?.server) $('#ph-comfy-server').value = p.comfy.server;
+  $('#ph-comfy-wf').value = '';
+  $('#ph-comfy-wf').placeholder = p.comfy ? t('Saved: leave empty to keep it, or paste a new one.') : '{ "3": { "class_type": "KSampler", … } }';
+  photoNodes(p.comfy?.nodes ?? [], p.comfy ? `${p.comfy.node}|${p.comfy.input}` : '');
+  $('#ph-comfy-seed').checked = p.comfy?.seed ?? true;
+  $('#ph-tool-name').replaceChildren(...(p.imageTools ?? []).map((n) => opt(n, n)));
+  if (p.tool?.name) $('#ph-tool-name').value = p.tool.name;
+  $('#ph-tool-arg').value = p.tool?.arg ?? '';
+  $('#ph-own-on').checked = Boolean(p.own?.on);
+  $('#ph-own-apps').checked = Boolean(p.own?.toApps);
+  // MNT2: a workflow saved inside ComfyUI (the list loads on request).
+  const savedName = p.comfy?.saved ?? '';
+  const keep = [...$('#ph-comfy-saved').options].map((o) => o.value).filter((v) => v);
+  $('#ph-comfy-saved').replaceChildren(new Option(t('Paste one below instead'), ''), ...[...new Set([...keep, ...(savedName ? [savedName] : [])])].map((n) => new Option(n, n)));
+  $('#ph-comfy-saved').value = savedName;
+  $('#ph-comfy-saved').dataset.current = savedName;
+  $('#ph-comfy-saved-status').textContent = savedName ? t('Using “{name}” from ComfyUI (a copy is kept).', { name: savedName }) : '';
+  $('#ph-own-often').value = p.own?.often ?? 'rarely';
+  $('#ph-own-cap').value = String(p.own?.monthlyCap ?? 8);
+  const est = p.estimate;
+  $('#ph-own-cost').textContent = !est ? '' : est.dollars === undefined ? t('About {n} pictures a month; the cost depends on the tool.', { n: est.pictures }) : est.dollars === 0 ? t('About {n} pictures a month, no cost per picture.', { n: est.pictures }) : t('About {n} pictures a month, roughly ${d} (an estimate; check your provider).', { n: est.pictures, d: est.dollars.toFixed(2) });
+  photoEngineShow(p);
+}
+function photoEngineShow(p = {}) {
+  const e = $('#ph-engine').value;
+  $('#ph-grok').hidden = e !== 'grok';
+  $('#ph-comfy').hidden = e !== 'comfyui';
+  $('#ph-tool').hidden = e !== 'tool';
+  if (e !== 'grok') $('#ph-status').textContent = e === 'openai' ? (p.openaiKey === false ? t('Add OpenAI in Settings → Models first; pictures are billed by OpenAI.') : t('Uses your OpenAI key from Models (billed per picture). Her face can vary.')) : e === 'comfyui' ? (p.comfyServers?.length === 0 ? t('Connect the ComfyUI tool server first (Other programs).') : t('Runs on your ComfyUI. For pictures on her own, allow its safe tools in Tools.')) : t('For pictures on her own, this tool must be Always allowed in Tools.');
+}
+function photoNodes(nodes, current) {
+  $('#ph-comfy-node').replaceChildren(...nodes.map((n) => new Option(n.label, `${n.id}|${n.input}`)));
+  if (current) $('#ph-comfy-node').value = current;
+}
+/** Prompt nodes of a pasted API workflow (the server checks it again on save). */
+function pastedNodes(text) {
+  try {
+    const wf = JSON.parse(text);
+    return Object.entries(wf).flatMap(([id, n]) => Object.entries(n?.inputs ?? {}).filter(([k, v]) => typeof v === 'string' && /^(text|prompt|positive|text_g|text_l|string)$/.test(k)).map(([k]) => ({ id, input: k, label: `${id} · ${n._meta?.title ?? n.class_type ?? 'node'} · ${k}` })));
+  } catch {
+    return [];
+  }
+}
+function photoEngineBody() {
+  const engine = $('#ph-engine').value;
+  const body = { engine, own: { on: $('#ph-own-on').checked, toApps: $('#ph-own-apps').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value) } };
+  const pasted = $('#ph-comfy-wf').value.trim();
+  const saved = $('#ph-comfy-saved').value;
+  if (engine === 'comfyui' && (pasted || saved || $('#ph-comfy-node').value)) {
+    const [node, input] = ($('#ph-comfy-node').value || '|').split('|');
+    const changed = !pasted && saved && saved !== ($('#ph-comfy-saved').dataset.current ?? '');
+    body.comfy = { server: $('#ph-comfy-server').value || 'comfyui', ...(pasted ? { workflow: pasted } : saved ? { saved } : {}), ...(node && !changed ? { node, input } : {}), seed: $('#ph-comfy-seed').checked };
+  }
+  if (engine === 'tool' && $('#ph-tool-name').value) body.tool = { name: $('#ph-tool-name').value, arg: $('#ph-tool-arg').value.trim() || 'prompt' };
+  return body;
+}
+/** Why "Send one now" sent nothing, in plain words. */
+function ownSkip(why) {
+  if (why === 'new pictures off') return t('new pictures are switched off above.');
+  if (why === 'no picture engine') return t('the picture engine is not set up yet.');
+  if (why === 'monthly limit') return t('the monthly limit is reached.');
+  if (why === 'never talked') return t('write to her first.');
+  if (why === 'no chat') return t('there is no chat with her here yet.');
+  if (why === 'busy') return t('she is busy answering right now.');
+  if (why === 'model chose not to') return t('nothing felt natural to her right now; try again later.');
+  if (why === 'failed checks') return t('the picture idea did not pass the safety checks.');
+  if (why === 'no picture') return t('no picture came back from the engine.');
+  if (why === 'not here') return t('only on your own server.');
+  return why.replace(/^no picture: /, '');
+}
+$('#ph-engine').addEventListener('change', () => photoEngineShow());
+$('#ph-comfy-list').addEventListener('click', async () => {
+  const status = $('#ph-comfy-saved-status');
+  status.textContent = t('Asking ComfyUI…');
+  try {
+    const r = await api(`/photos/comfy/workflows?server=${encodeURIComponent($('#ph-comfy-server').value || 'comfyui')}`);
+    const cur = $('#ph-comfy-saved').value;
+    $('#ph-comfy-saved').replaceChildren(new Option(t('Paste one below instead'), ''), ...r.workflows.map((n) => new Option(n, n)));
+    $('#ph-comfy-saved').value = r.workflows.includes(cur) ? cur : '';
+    status.textContent = r.workflows.length ? t('{n} saved workflows found. Pick one, then save.', { n: r.workflows.length }) : t('No saved workflows found. Save one in ComfyUI first, or paste the export below.');
+  } catch (err) {
+    status.textContent = err.message;
+  }
+});
+$('#ph-comfy-wf').addEventListener('input', () => photoNodes(pastedNodes($('#ph-comfy-wf').value), ''));
+$('#ph-own-test').addEventListener('click', async () => {
+  const b = $('#ph-own-test');
+  b.disabled = true;
+  $('#ph-own-status').textContent = t('Making a picture…');
+  try {
+    await savePhotos();
+    const r = await api('/photos/own/test', { method: 'POST', body: {} });
+    const why = String(r.skipped ?? '');
+    $('#ph-own-status').textContent = r.sent ? t('Sent to your chat: “{caption}”', { caption: r.sent.caption }) : t('Not sent: {why}', { why: ownSkip(why) });
+  } catch (err) {
+    $('#ph-own-status').textContent = err.message;
+  } finally {
+    b.disabled = false;
+  }
+});
 
 // ---------- scrapbook ----------
 function sbTab(which) {
@@ -10360,6 +11377,8 @@ async function galleryUse(g) {
 // UX 6: the one Import button for both kinds of file lives in cards.js (Sara files go to #char-file).
 // L12: a ready-made character keeps her current picture; a new look is one click away.
 $('#gallery-look').addEventListener('click', () => showSettingsTab('her-look', { focus: true }));
+// C7: bring your companion from Character.AI, Replika, Kindroid or Nomi (Settings → Her → Companions).
+initBring({ refresh: () => renderCompanionsPage().catch(() => {}), switchTo: (id) => switchCompanion(id) });
 // Phase 57: character cards (import with a preview first, export as a card) and Settings → Other apps.
 initCards({
   onImported: async (r) => {
@@ -10376,6 +11395,15 @@ initOtherApps({ copyText, confirmProof });
 // Phase 100: Settings → Connections → Other agents (A2A).
 initAgents({
   copyText,
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
+  },
+});
+// C4: Settings → Connections → Webhooks → When this happens.
+initEventTriggers({
+  api,
+  el,
   openConversation: (id) => {
     if ($('#settings').open) $('#settings').close();
     void openConversation(id);
@@ -10404,6 +11432,8 @@ initMoveIn({
 });
 initAlexa({ copyText });
 initSsh();
+// C14: Settings → Connections → Spotify.
+initSpotify(api);
 initPresence();
 initLocalModels({ openSettings: (page) => void openSettings(page) });
 initImport();
@@ -11222,6 +12252,7 @@ initSetupWizard({ refreshModelSettings, openSubscriptions: () => showSettingsTab
 // ---------- signed-in devices and owner token ----------
 async function loadDevices() {
   const { devices } = await api('/devices');
+  if (!isMember()) void loadPhoneHelper();
   // Phase 52: apps (terminal, VS Code) waiting for your OK with a device code.
   const waiting = (await api('/device/pending').catch(() => ({ pending: [] }))).pending ?? [];
   $('#devreq-box').hidden = !waiting.length;
@@ -12389,6 +13420,10 @@ const STATUS_WORDS = { planning: 'Planning', running: 'Working', waiting: 'Waiti
 const chip = (s) => el('span', `chip ${s}`, t(STATUS_WORDS[s] ?? s));
 async function openTeam(taskId) {
   await loadTeam();
+  // EC12: the Crews section of the Team dialog (web/crews.js).
+  void loadCrews();
+  // C10: the Workers that stay section (web/workers.js).
+  void loadWorkers();
   if (taskId) team.current = taskId;
   else team.current ??= team.data?.tasks[0]?.id ?? null;
   await renderTeamDetail();
@@ -12684,21 +13719,26 @@ function onTeamEvent(task) {
 }
 
 // ---------- Phase 40: coding projects, issues → workflows, checkpoints ----------
+let codeProjectsLoad = 0;
 async function loadCodeProjects(fresh = false) {
+  const generation = ++codeProjectsLoad;
   const sel = $('#pj-ws');
   if (!sel.options.length) {
     const names = [...new Set(['main', ...(state.conversations ?? []).map((c) => c.workspace).filter(Boolean)])];
     sel.replaceChildren(...names.map((n) => new Option(n, n)));
   }
   const ws = sel.value || 'main';
+  const isCurrent = () => generation === codeProjectsLoad && (sel.value || 'main') === ws;
   const box = $('#pj-list');
   box.replaceChildren(el('p', 'muted small', t('Looking…')));
   let v;
   try {
     v = await api(`/code-projects?workspace=${encodeURIComponent(ws)}${fresh ? '&fresh=1' : ''}`);
   } catch (err) {
+    if (!isCurrent()) return;
     return box.replaceChildren(el('p', 'muted small', err.message));
   }
+  if (!isCurrent()) return;
   if (!v.projects.length) return box.replaceChildren(emptyState({ icon: 'project', text: t('No code here yet. When a repository is in this workspace (cloned, or made in a coding conversation), she learns it.'), howto: true }));
   box.replaceChildren(
     ...v.projects.map((k) => {
@@ -12715,31 +13755,58 @@ async function loadCodeProjects(fresh = false) {
       }
       if (f.conventions.length) card.append(el('span', 'muted', `${t('Conventions')}: ${f.conventions.join('; ')}`));
       const notes = el('ul', 'pj-notes');
-      for (const n of k.notes) {
-        const li = el('li');
-        const del = el('button', 'ghost small', '✕');
-        del.type = 'button';
-        del.title = t('Remove this note');
-        del.addEventListener('click', async () => {
-          await api(`/code-projects/notes/${n.id}`, { method: 'DELETE' });
-          void loadCodeProjects();
-        });
-        li.append(el('span', '', `(${t(n.kind)}) ${n.text}`), del);
-        notes.append(li);
-      }
       const add = el('div', 'add-row');
       const kind = document.createElement('select');
       kind.append(...['decision', 'convention', 'command', 'note'].map((x) => new Option(t(x[0].toUpperCase() + x.slice(1)), x)));
       const inp = Object.assign(document.createElement('input'), { maxLength: 500, placeholder: t('e.g. Run npm run build before the tests') });
       const go = el('button', 'ghost small', t('Add note'));
       go.type = 'button';
+      const noteStatus = el('p', 'muted small');
+      noteStatus.setAttribute('role', 'status');
+      noteStatus.setAttribute('aria-live', 'polite');
+      let noteBusy = false;
+      function noteControls() {
+        for (const control of [kind, inp, go, ...notes.querySelectorAll('button')]) control.disabled = noteBusy;
+      }
+      async function writeNote(action) {
+        if (noteBusy || !isCurrent()) return;
+        noteBusy = true;
+        noteStatus.textContent = '';
+        noteControls();
+        try { await action(); }
+        catch (err) { if (isCurrent()) noteStatus.textContent = err.message; }
+        finally { noteBusy = false; noteControls(); }
+      }
+      function renderNotes() {
+        notes.replaceChildren(...k.notes.map((n) => {
+          const li = el('li');
+          const del = el('button', 'ghost small', '✕');
+          del.type = 'button';
+          del.title = t('Remove this note');
+          del.addEventListener('click', () => writeNote(async () => {
+            await api(`/code-projects/notes/${n.id}`, { method: 'DELETE' });
+            if (!isCurrent()) return;
+            k.notes = k.notes.filter(note => note.id !== n.id);
+            renderNotes();
+          }));
+          li.append(el('span', '', `(${t(n.kind)}) ${n.text}`), del);
+          return li;
+        }));
+        noteControls();
+      }
       go.addEventListener('click', async () => {
         if (!inp.value.trim()) return;
-        await api('/code-projects/notes', { method: 'POST', body: { workspace: ws, path: k.path, kind: kind.value, text: inp.value } });
-        void loadCodeProjects();
+        await writeNote(async () => {
+          const note = await api('/code-projects/notes', { method: 'POST', body: { workspace: ws, path: k.path, kind: kind.value, text: inp.value } });
+          if (!isCurrent()) return;
+          k.notes = [...k.notes.filter(n => n.id !== note.id), note].sort((a, b) => a.id - b.id).slice(-40);
+          inp.value = '';
+          renderNotes();
+        });
       });
+      renderNotes();
       add.append(kind, inp, go);
-      card.append(el('strong', 'small', t('Her notes')), notes, add);
+      card.append(el('strong', 'small', t('Her notes')), notes, add, noteStatus, renderProjectCheckpoint({ workspace: ws, path: k.path, api, t }));
       return card;
     }),
   );
@@ -12748,9 +13815,6 @@ $('#pj-ws').addEventListener('change', () => loadCodeProjects());
 $('#pj-refresh').addEventListener('click', () => loadCodeProjects(true));
 // Phase 86: "Before you ship": red-team the chosen project (the plan with its budget comes first).
 $('#pj-redteam').addEventListener('click', () => void openRedTeam({ workspace: $('#pj-ws').value || 'main' }));
-document.addEventListener('click', (e) => {
-  if (e.target.closest?.('#settings-nav-list [data-page="ab-projects"]')) void loadCodeProjects();
-});
 
 async function loadTeamIssues() {
   const list = $('#team-issues');

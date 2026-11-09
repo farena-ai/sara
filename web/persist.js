@@ -8,6 +8,7 @@
 // → Keep going and repeats holds the limits. Every button has a text label; the strip is a status
 // region and announces state changes once.
 import { t } from './naming.js';
+import { basisWords } from './project-now.js';
 import { icon, paintIcons } from './icons.js';
 import { presetSummary, whichPreset } from './persist-presets.js';
 import { emptyState } from './tidy.js';
@@ -69,8 +70,12 @@ export async function persistOpen(id = conv()) {
 /** Hub events: `goal` / `loop` for the open chat repaint the strip; Planner follows. */
 export function persistEvent(type, ev) {
   if (ev?.conversationId === conv()) {
-    if (type === 'goal') goal = ev.goal;
-    else if (ev.loop) {
+    if (type === 'goal') {
+      // R1C1: keep the basis label of the same check until the next open refreshes it.
+      const kept = goal?.lastCheck && ev.goal?.lastCheck?.id === goal.lastCheck.id ? goal.lastCheck.basisLabel : undefined;
+      goal = ev.goal;
+      if (kept && goal?.lastCheck) goal.lastCheck.basisLabel = kept;
+    } else if (ev.loop) {
       loops = loops.filter((x) => x.id !== ev.loop.id);
       if (!['done', 'ended', 'stopped', 'draft'].includes(ev.loop.state)) loops.push(ev.loop);
     }
@@ -112,6 +117,8 @@ function paintStrip() {
     const used = t('{n} of {max} rounds', { n: g.round, max: g.caps.rounds });
     chip.append(el('span', 'ps-icon', '🎯'), el('span', 'ps-text', g.text), ring(g.frac, `${used}, ${Math.round((g.frac || 0) * 100)}%`), el('span', 'ps-meta muted small', `${t('Round {n} of {max}', { n: g.round, max: g.caps.rounds })} · ${stateWords(g)}`));
     if (g.lastCheck && !g.lastCheck.ok) chip.append(el('span', 'ps-meta muted small', g.lastCheck.failed ? t('{n} failing', { n: g.lastCheck.failed }) : t('not passing yet')));
+    // R1C1: what the last check ran on (stale or unknown is not proof of the code as it is now).
+    if (g.lastCheck?.basisLabel) chip.append(el('span', `ps-meta small ps-basis-${g.lastCheck.basisLabel.state}`, `${t('last check')}: ${basisWords(g.lastCheck.basisLabel)}`));
     const act = (path, body) => () => void ctx.api(`/conversations/${g.conversationId}/goal/${path}`, { method: 'POST', body: body ?? {} }).then((r) => ((goal = r.goal), paintStrip())).catch((e) => alert(e.message));
     if (g.meta?.asking) chip.append(btn(t('Yes, it’s done'), 'ps-yes', act('said', { done: true })), btn(t('Not yet'), 'ps-no', act('said', { done: false })));
     if (g.state === 'running' || g.state === 'checking') chip.append(btn(t('Pause'), 'ps-pause', act('pause')));

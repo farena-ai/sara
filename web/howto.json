@@ -127,6 +127,28 @@
    "show": "#wk-off-all"
   }
  ],
+ "her-work": [
+  {
+   "id": "on",
+   "q": "How do I use her at work in Slack or Teams?",
+   "steps": [
+    "Open Settings → Her → At work.",
+    "Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).",
+    "Give her a name and tone at work if you like, then press Save."
+   ],
+   "show": "#atw-on"
+  },
+  {
+   "id": "copy",
+   "q": "How do I let her know something at work and at home?",
+   "steps": [
+    "Open Settings → Her → At work.",
+    "Under Work memories, find the note.",
+    "Press Copy to work or Copy to personal. The original stays where it is."
+   ],
+   "show": "#atw-space"
+  }
+ ],
  "her-calls": [
   {
    "id": "when",
@@ -251,6 +273,26 @@
     "Pick a Language for the app.",
     "Pick Talk to me in for her replies."
    ]
+  }
+ ],
+ "you-appearance": [
+  {
+   "id": "palette",
+   "q": "How do I change the colours of the app?",
+   "steps": [
+    "Pick a palette card at the top of this page.",
+    "Night or Day picks light or dark for it."
+   ],
+   "show": "#ap-pals"
+  },
+  {
+   "id": "classic",
+   "q": "How do I get the old rose and violet look back?",
+   "steps": [
+    "Pick Sara Classic as the palette.",
+    "Decoration turns the glow and moving light back on."
+   ],
+   "show": "#ap-palette"
   }
  ],
  "you-briefing": [
@@ -515,6 +557,26 @@
     "Switch it off on its card.",
     "Its log stays under What it did."
    ]
+  },
+  {
+   "id": "candidates",
+   "q": "How do I try a workflow candidate?",
+   "steps": [
+    "Open Workflow candidates and read Details and limits.",
+    "Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.",
+    "It stays off for every companion. Enable it separately on its installed card."
+   ],
+   "show": "#plg-discovery"
+  },
+  {
+   "id": "guides",
+   "q": "How do I use a starter guide?",
+   "steps": [
+    "Open Starter guides under Workflow candidates.",
+    "Read its members, qualification, privacy, costs and setup checklist.",
+    "Follow existing Settings links and review each member separately. Nothing installs as a group."
+   ],
+   "show": "#plg-discovery"
   }
  ],
  "ab-search": [
@@ -597,6 +659,29 @@
    "show": "#pr-on"
   }
  ],
+ "co-spotify": [
+  {
+   "id": "connect",
+   "q": "How do I connect Spotify?",
+   "steps": [
+    "Make an app at developer.spotify.com.",
+    "Add the redirect address this page shows.",
+    "Paste its Client ID and press Save.",
+    "Press Connect Spotify and allow access."
+   ],
+   "show": "#spo-connect"
+  },
+  {
+   "id": "playback",
+   "q": "How do I let her play music?",
+   "steps": [
+    "Tick Let her control playback.",
+    "Press Connect again.",
+    "Ask her to play, pause or queue a song."
+   ],
+   "show": "#spo-playback"
+  }
+ ],
  "ab-mcp": [
   {
    "id": "add",
@@ -615,6 +700,26 @@
     "A small program that gives her new tools.",
     "Its tools then appear in Tools and approvals."
    ]
+  },
+  {
+   "id": "previews",
+   "q": "How do I inspect an MCP recipe preview?",
+   "steps": [
+    "Open Connection investigations and filter the list.",
+    "Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.",
+    "Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts."
+   ],
+   "show": "#mcp-discovery"
+  },
+  {
+   "id": "permissions",
+   "q": "How do I verify MCP approval settings?",
+   "steps": [
+    "Inspect each discovered tool in Tools and approvals and select Ask or Off.",
+    "Save, leave the page, reopen it and read back the saved permissions.",
+    "Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits."
+   ],
+   "show": "#mcp-discovery"
   }
  ],
  "ab-projects": [
@@ -762,6 +867,39 @@
     "To end one pickup, press Undo on its chip (or type /continue off)."
    ],
    "show": "#pk-mode"
+  }
+ ],
+ "co-continuity": [
+  {
+   "id": "toggle",
+   "q": "How do I turn session continuity on or off?",
+   "steps": [
+    "Open Settings → Chat apps → Session continuity.",
+    "Switch Use context across my sessions on or off; it saves automatically.",
+    "Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings."
+   ],
+   "show": "#continuity-enabled"
+  },
+  {
+   "id": "inspect",
+   "q": "How do I read the notes from my other sessions?",
+   "steps": [
+    "Close Settings and open one of your own eligible chats with this companion.",
+    "Press the conversation chip at the top, then find Saved session context.",
+    "Press Show saved session context to see the source, time, expiry and notes.",
+    "Notes help later replies; they do not send messages or confirm completed work."
+   ]
+  },
+  {
+   "id": "clear",
+   "q": "How do I clear saved notes, including expired ones?",
+   "steps": [
+    "In This conversation, show the saved session context first.",
+    "Choose Clear saved context, review the confirmation, then Confirm clear; Cancel or Escape leaves the notes alone.",
+    "Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.",
+    "Original chats, old run records, exports and backups stay.",
+    "If the notes changed elsewhere, reload and review them before trying again."
+   ]
   }
  ],
  "ab-github": [
@@ -1052,6 +1190,50 @@
    "show": "#im-box"
   }
  ],
+ "co-slack": [
+  {
+   "id": "connect",
+   "q": "How do I talk to her in Slack?",
+   "steps": [
+    "Press Start on the Slack card, then copy the app manifest it shows.",
+    "At api.slack.com/apps, create an app from that manifest, make the two tokens and paste them into the card.",
+    "Press Link my Slack and send her the code in a Slack DM."
+   ],
+   "show": "#sl-chip"
+  },
+  {
+   "id": "channel",
+   "q": "How do I let her answer in a Slack channel?",
+   "steps": [
+    "In the channel, type /invite and her name.",
+    "In Settings → Chat apps → Slack, press Answer here next to that channel.",
+    "Mention her in the channel; she answers in a thread."
+   ],
+   "show": "#sl-box"
+  }
+ ],
+ "co-teams": [
+  {
+   "id": "connect",
+   "q": "How do I talk to her in Microsoft Teams?",
+   "steps": [
+    "Press Start on the Microsoft Teams card and make the free Azure Bot it describes.",
+    "Paste the App ID, the tenant ID and a client secret, give Teams a public address and paste the messaging endpoint into the bot.",
+    "Download the Teams app package, upload it in Teams, then press Link my Teams and send her the code."
+   ],
+   "show": "#te-chip"
+  },
+  {
+   "id": "channel",
+   "q": "How do I let her answer in a Teams channel?",
+   "steps": [
+    "Add her app to the team (Apps → her app → Add to a team).",
+    "Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.",
+    "Mention her again; she answers in that thread."
+   ],
+   "show": "#te-box"
+  }
+ ],
  "co-apps": [
   {
    "id": "editor",
@@ -1114,6 +1296,182 @@
    ]
   }
  ],
+ "dh-usage-report": [
+  {
+   "id": "report",
+   "q": "How do I see who used how much?",
+   "steps": [
+    "Open Settings → Household → Usage reports.",
+    "Pick Daily, Weekly or Monthly.",
+    "Tick Who, Workspace, Project or Model to split the rows."
+   ],
+   "show": "#ur-period"
+  },
+  {
+   "id": "csv",
+   "q": "How do I get the numbers into a spreadsheet?",
+   "steps": [
+    "Set the period and what to split by.",
+    "Press Download CSV."
+   ],
+   "show": "#ur-csv"
+  },
+  {
+   "id": "budget",
+   "q": "How do I get warned before a budget runs out?",
+   "steps": [
+    "Under Monthly budgets, pick a person or a workspace.",
+    "Enter dollars or tokens for the month.",
+    "Pick when to warn and press Add budget."
+   ],
+   "show": "#ur-b-add"
+  }
+ ],
+ "dh-trust": [
+  {
+   "id": "report",
+   "q": "How do I see what Sara claimed against what ran?",
+   "steps": [
+    "Open Settings → Household → Trust report.",
+    "Pick A week, One run or One project.",
+    "Press Show and read Claims checked and Failed tools."
+   ],
+   "show": "#tr-scope"
+  },
+  {
+   "id": "export",
+   "q": "How do I give the report to a reviewer?",
+   "steps": [
+    "Show the report you want.",
+    "Press Markdown, PDF or Word under Download."
+   ],
+   "show": "#tr-pdf"
+  }
+ ],
+ "dh-shares": [
+  {
+   "id": "share",
+   "q": "How do I share a conversation?",
+   "steps": [
+    "Open the chat and its settings.",
+    "Press Share….",
+    "Check the preview, pick how long the link works and press Make link.",
+    "Copy the link and send it privately."
+   ]
+  },
+  {
+   "id": "revoke",
+   "q": "How do I stop a link from working?",
+   "steps": [
+    "Open Settings → Household → Shared links.",
+    "Press Revoke next to the link."
+   ],
+   "show": "#sl-list"
+  },
+  {
+   "id": "private",
+   "q": "How do I share a private chat?",
+   "steps": [
+    "Open Settings → Household → Shared links.",
+    "Tick Allow sharing private chats.",
+    "Share it from the chat as usual."
+   ],
+   "show": "#sl-private"
+  }
+ ],
+ "dh-audit": [
+  {
+   "id": "find",
+   "q": "How do I see who changed a setting?",
+   "steps": [
+    "Open Settings → Household → Audit trail.",
+    "Pick Settings under What, or a person under Who.",
+    "Each row says when, what, who and where, and whether it was done or refused."
+   ],
+   "show": "#au-action"
+  },
+  {
+   "id": "export",
+   "q": "How do I give a reviewer a copy?",
+   "steps": [
+    "Set the filters to what the reviewer asked for.",
+    "Press Export JSONL or Export CSV.",
+    "Give them the ZIP: its manifest holds the SHA-256 and the signature."
+   ],
+   "show": "#au-jsonl"
+  },
+  {
+   "id": "check",
+   "q": "How do I know nobody edited it?",
+   "steps": [
+    "Press Check the chain.",
+    "It says the chain is fine, or the first row that was changed, removed or cut off."
+   ],
+   "show": "#au-verify"
+  }
+ ],
+ "dh-retention": [
+  {
+   "id": "keep",
+   "q": "How do I delete old chats automatically?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Under Keep, pick how long chats, memories and files stay.",
+    "It runs on the hourly check. Pinned memories always stay."
+   ],
+   "show": "#dr-chats"
+  },
+  {
+   "id": "hold",
+   "q": "How do I make sure nothing is deleted?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Tick Hold next to a person, or Hold everything on this server.",
+    "Nothing of theirs can be deleted until you untick it, not even by them."
+   ],
+   "show": "#dr-instance"
+  },
+  {
+   "id": "export",
+   "q": "How do I give someone a copy of their data?",
+   "steps": [
+    "Open Settings → Household → Retention and legal hold.",
+    "Press Download their data next to the person.",
+    "Give them the ZIP: it holds only their chats, memories, photos and files."
+   ]
+  },
+  {
+   "id": "delete",
+   "q": "How do I delete one person's data for good?",
+   "steps": [
+    "Release any hold on them first.",
+    "Press Delete their data next to the person and confirm.",
+    "The receipt (what was deleted, and when) is in the audit trail."
+   ]
+  }
+ ],
+ "dh-policy": [
+  {
+   "id": "pin",
+   "q": "How do I stop anyone turning a setting back on?",
+   "steps": [
+    "Open Settings → Household → Policy.",
+    "Tick or pick the rule, for example Keep adult mode off.",
+    "Press Save the policy. The setting shows Set by your admin everywhere."
+   ],
+   "show": "#po-save"
+  },
+  {
+   "id": "copy",
+   "q": "How do I set up another server the same way?",
+   "steps": [
+    "Press Export JSON here.",
+    "On the other server, open Policy and press Import JSON.",
+    "Pick the file: it replaces every pin there."
+   ],
+   "show": "#po-export"
+  }
+ ],
  "dh-safety": [
   {
    "id": "check",
@@ -1172,6 +1530,16 @@
     "Use Unresolved or All history, then Load more deliveries to reach older records.",
     "Check the destination first. Unknown messages may have arrived; live queued messages may still send.",
     "Record only what you confirmed. Human resolution is separate from platform acknowledgment; this page never resends."
+   ],
+   "show": "#recovery-content"
+  },
+  {
+   "id": "archive",
+   "q": "How do I archive old delivery evidence?",
+   "steps": [
+    "Enter an explicit UTC cutoff in Recovery. Preview the eligible records first.",
+    "Confirm one batch of up to 500 records. Keep the same cutoff for further batches.",
+    "Use Archived to view retained evidence. Unresolved outcomes and deduplication identity are preserved."
    ],
    "show": "#recovery-content"
   }
@@ -1235,6 +1603,15 @@
    ],
    "show": "#os-now",
    "start": "backup"
+  },
+  {
+   "id": "drill",
+   "q": "How do I prove a backup really restores?",
+   "steps": [
+    "Open Readiness and recovery (Data & health) and press Run a restore drill.",
+    "Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.",
+    "Read the result: how long it took, what it counted and how much a restore now would lose."
+   ]
   }
  ],
  "dh-data": [
@@ -1689,6 +2066,27 @@
     "Each variant is scored next to your settings.",
     "A winner is named only when the evidence says so."
    ]
+  }
+ ],
+ "dh-operations": [
+  {
+   "id": "measurements",
+   "q": "How do I check local operations?",
+   "steps": [
+    "Open Operations and press Refresh operations.",
+    "Read the measurement window and sample count. HTTP timings are not model reply timings.",
+    "A configured model and a saved backup do not prove inference or recovery."
+   ],
+   "show": "#operations-content"
+  },
+  {
+   "id": "active-work",
+   "q": "How do I tell active work from historical records?",
+   "steps": [
+    "Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.",
+    "RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage."
+   ],
+   "show": "#operations-content"
   }
  ]
 }

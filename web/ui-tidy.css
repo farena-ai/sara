@@ -703,6 +703,14 @@ dialog:not(.settings-dialog) .settings-body > :is(.error, p[role="status"]):empt
 .side-update[hidden] { display: none; }
 .side-update svg.ic { width: 18px; height: 18px; flex: none; }
 .side-update:hover, .side-update:focus-visible { background: var(--update-soft); color: var(--update-accent); text-decoration: underline; }
+/* C9: the top bar's Update button; the colour rises with the release's age. */
+.head-update { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 12px; margin-left: auto; border-radius: 999px; border: 1px solid var(--border); background: transparent; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.head-update[hidden] { display: none; }
+.head-update svg.ic { width: 16px; height: 16px; flex: none; }
+.head-update.upd-grey { color: var(--muted); }
+.head-update.upd-accent { color: var(--accent-text); border-color: var(--accent-line); background: var(--accent-soft); }
+.head-update.upd-amber { color: var(--warn); border-color: var(--warn); background: var(--warn-soft); }
+.head-update.upd-red { color: var(--danger); border-color: var(--danger); background: var(--danger-soft); }
 .update-pop { max-width: min(480px, calc(100vw - 24px)); }
 .update-pop-title { display: flex; align-items: center; gap: var(--s-2); }
 .update-pop-title svg.ic { width: 22px; height: 22px; color: var(--update-accent); flex: none; }
@@ -719,3 +727,28 @@ dialog:not(.settings-dialog) .settings-body > :is(.error, p[role="status"]):empt
   /* Above the phone's bottom bar. */
   .update-note { bottom: calc(76px + var(--safe-b)); }
 }
+
+/* R1B1 shared scenes (web/scenes.js): same cards at desktop and phone width. */
+.scene-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.scene-head .status-chip { margin-left: 0; }
+.scene-title { margin: 0; overflow-wrap: anywhere; }
+.scene-premise, .scene-text, .scene-history p { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.scene-field input, .scene-field textarea, .scene-field select { width: 100%; box-sizing: border-box; }
+/* R1B3: the shared room confirm card, the "In scene" chip and the Add to scene dialog. */
+.scene-room-confirm ul { margin: 0; padding-left: 1.2em; }
+.scene-room-confirm li { overflow-wrap: anywhere; }
+/* R1B3 follow-up: the chip opens the scene card; canon chips in the transcript. */
+button.status-chip { font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.canon-line { display: flex; }
+.canon-chip { margin-left: 0; font-size: 11.5px; padding: 0 var(--s-2); }
+.msg .line-canon { margin-top: var(--s-1); }
+#chat-head .scene-chip { margin-left: 0; align-self: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 11.5px; padding: 0 var(--s-2); }
+.scene-add-dialog { width: min(520px, calc(100vw - 24px)); box-sizing: border-box; }
+.scene-add-line { margin: 0; padding: var(--s-2) var(--s-3); border-left: 3px solid var(--hairline-strong); white-space: pre-wrap; overflow-wrap: anywhere; max-height: 30vh; overflow: auto; }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after ui-tidy.css `.side-go.is-open svg` */
+:where(:root:not([data-palette="classic"])) .side-go.is-open svg { color: var(--text-1); }

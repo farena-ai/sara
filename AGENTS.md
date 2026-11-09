@@ -27,5 +27,8 @@ If a document disagrees with the code, fix one of them; don't leave a known-wron
 ## Commands
 
 - `npm ci` · `npm run dev` · `npm run check` (typecheck + all tests; must pass).
+- Before collecting a release, run `npm run release:check-presentation`. Keep all six README status
+  versions, newest release rows/tag links and download/install/star actions current. Review feature
+  claims against actual release evidence; do not advertise planned work as shipped.
 - TypeScript runs directly under Node's type stripping: erasable syntax only (no enums, namespaces
   or constructor parameter properties) and `.ts` import extensions.

@@ -1,10 +1,13 @@
 // Conversation storage on SQLite (built into Node 24). One owner per server.
+import { assertNotHeld, installHold, withholdEdit } from './legal-hold.ts';
 import { ensureLeanTables } from './lean.ts';
 import { randomUUID } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 import type { Role } from './providers/types.ts';
 import { StartupError } from './settings.ts';
 import { SOURCE_NAME, type HistorySource } from './history-import/types.ts';
+import { installSessionHandoffSchema } from './session-handoffs.ts';
+import { installSharedSceneSchema } from './shared-scenes.ts';
 
 /** Phase 51: conversations brought in from another assistant's export live on these channels. */
 export const isImportChannel = (channel: string): boolean => channel.startsWith('import-');
@@ -69,6 +72,7 @@ export interface Conversation {
   titledThrough?: number | null;
   createdAt: string;
   updatedAt: string;
+  dialogueEpoch?: number;
 }
 
 /** Phase 22: tags are short lower-case labels. */
@@ -101,6 +105,7 @@ export interface StoredMessage {
    * Extra structured data. Assistant: { toolCalls }. Tool: { toolCallId, name, args, status, ms }.
    */
   meta?: Record<string, unknown>;
+  ownerOrigin?: 'direct-v1' | null;
 }
 
 const SCHEMA = `
@@ -154,6 +159,7 @@ function toConversation(r: Row): Conversation {
     titledThrough: r.titled_through === null || r.titled_through === undefined ? null : Number(r.titled_through),
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
+    dialogueEpoch: Number(r.dialogue_epoch ?? 0),
   };
 }
 
@@ -163,6 +169,7 @@ function toMessage(r: Row): StoredMessage {
     conversationId: String(r.conversation_id),
     role: r.role as StoredMessage['role'],
     content: String(r.content),
+    ownerOrigin: r.owner_origin === 'direct-v1' ? 'direct-v1' : null,
     createdAt: String(r.created_at),
     ...(r.meta ? { meta: JSON.parse(String(r.meta)) as Record<string, unknown> } : {}),
   };
@@ -172,6 +179,19 @@ function toMessage(r: Row): StoredMessage {
 function migrate(db: DatabaseSync): void {
   const cols = (table: string) => new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((r) => String(r.name)));
   if (!cols('messages').has('meta')) db.exec('ALTER TABLE messages ADD COLUMN meta TEXT');
+  if (!cols('messages').has('owner_origin')) db.exec('ALTER TABLE messages ADD COLUMN owner_origin TEXT');
+  if (!cols('conversations').has('dialogue_epoch')) db.exec('ALTER TABLE conversations ADD COLUMN dialogue_epoch INTEGER NOT NULL DEFAULT 0');
+  db.exec(`CREATE TRIGGER IF NOT EXISTS dialogue_epoch_update AFTER UPDATE OF content, role, conversation_id, meta ON messages
+WHEN (old.role IN ('user','assistant') OR new.role IN ('user','assistant'))
+AND (old.content IS NOT new.content OR old.role IS NOT new.role OR old.conversation_id IS NOT new.conversation_id OR old.meta IS NOT new.meta)
+BEGIN
+  UPDATE conversations SET dialogue_epoch = dialogue_epoch + 1 WHERE id = old.conversation_id OR id = new.conversation_id;
+END;
+CREATE TRIGGER IF NOT EXISTS dialogue_epoch_delete AFTER DELETE ON messages
+WHEN old.role IN ('user','assistant') BEGIN
+  UPDATE conversations SET dialogue_epoch = dialogue_epoch + 1 WHERE id = old.conversation_id;
+END;`);
+
   if (!cols('conversations').has('workspace')) db.exec("ALTER TABLE conversations ADD COLUMN workspace TEXT NOT NULL DEFAULT 'main'");
   if (!cols('conversations').has('mode')) db.exec("ALTER TABLE conversations ADD COLUMN mode TEXT NOT NULL DEFAULT 'chat'");
   if (!cols('conversations').has('private')) db.exec('ALTER TABLE conversations ADD COLUMN private INTEGER NOT NULL DEFAULT 0');
@@ -232,6 +252,9 @@ export class Store {
       this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA foreign_keys = ON;');
       this.db.exec(SCHEMA);
       migrate(this.db);
+      installSessionHandoffSchema(this.db);
+      installSharedSceneSchema(this.db);
+      installHold(this.db);
     } catch (err) {
       const e = err as Error & { code?: string; errcode?: number };
       throw new StartupError(
@@ -502,6 +525,7 @@ export class Store {
   }
 
   deleteConversation(id: string): boolean {
+    assertNotHeld(this.db);
     // Phase 123: its tool loads and folds go with it.
     this.db.prepare('DELETE FROM tool_loads WHERE conversation_id = ?').run(id);
     this.db.prepare('DELETE FROM compactions WHERE conversation_id = ?').run(id);
@@ -518,9 +542,14 @@ export class Store {
     return { id: Number(r.lastInsertRowid), conversationId, role, content, createdAt: ts, ...(meta ? { meta } : {}) };
   }
 
-  /** Replaces a message's text (Phase 28: a blocked reply is replaced, not kept). */
-  updateMessageContent(id: number, content: string): void {
-    this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+  /**
+   * Replaces a message's text (Phase 28: a blocked reply is replaced, not kept). Under a legal hold
+   * the previous text goes to the edit history; `withhold` (a safety replacement) records only that it happened.
+   */
+  updateMessageContent(id: number, content: string, o: { withhold?: boolean } = {}): void {
+    const write = () => void this.db.prepare('UPDATE messages SET content = ? WHERE id = ?').run(content, id);
+    if (o.withhold) withholdEdit(this.db, 'message', id, write);
+    else write();
   }
 
   /** Merges keys into a message's meta. */
@@ -550,6 +579,7 @@ export class Store {
 
   /** Deletes a message and everything after it in its conversation (regenerate / edit). */
   deleteMessagesFrom(conversationId: string, fromId: number): number {
+    assertNotHeld(this.db);
     // Phase 123 (LEAN §5.8): a fold covering a deleted message is dropped (its summary erased).
     this.db.prepare("UPDATE compactions SET undone_at = ?, undo_reason = 'deleted', summary = NULL WHERE conversation_id = ? AND through_id >= ? AND undone_at IS NULL").run(this.#now().toISOString(), conversationId, fromId);
     return Number(this.db.prepare('DELETE FROM messages WHERE conversation_id = ? AND id >= ?').run(conversationId, fromId).changes);
@@ -619,6 +649,28 @@ export class Store {
 
   messages(conversationId: string): StoredMessage[] {
     return (this.db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id').all(conversationId) as Row[]).map(toMessage);
+  }
+
+  /** Only the trusted ordinary owner runtime calls this after its current context gates. */
+  markDirectOwnerMessage(id: number): void {
+    this.db.prepare("UPDATE messages SET owner_origin = 'direct-v1' WHERE id = ? AND role = 'user'").run(id);
+  }
+
+  /** Persistent source predicates; filtering precedes the bounded newest-row selection. */
+  followUpEvidenceSince(iso: string, opts: { workspace: string; until: string; conversationId?: string; messageId?: number }): StoredMessage[] {
+    const rooms = this.db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name='rooms'").get();
+    const roomFilter = rooms ? "AND NOT EXISTS (SELECT 1 FROM rooms r WHERE r.key = c.channel_key AND r.bridge = CASE WHEN c.channel LIKE 'telegram%' THEN 'telegram' WHEN c.channel LIKE 'discord%' THEN 'discord' ELSE c.channel END AND r.kind <> 'dm')" : '';
+    return (this.db.prepare(`SELECT m.* FROM messages m JOIN conversations c ON c.id=m.conversation_id
+WHERE m.role='user' AND m.owner_origin='direct-v1'
+AND julianday(m.created_at) >= julianday(?) AND julianday(m.created_at) <= julianday(?)
+AND c.workspace=? AND c.mode IN ('chat','coding') AND c.private=0 AND c.partner IS NULL AND c.archived_at IS NULL
+AND (c.channel IN ('web','telegram','telegram-nsfw','discord','discord-nsfw') OR (c.channel GLOB 'plugin-?*' AND c.channel NOT GLOB '*[^a-z0-9-]*'))
+AND (c.channel_key IS NULL OR (c.channel_key NOT LIKE 'room:%' AND NOT (c.channel LIKE 'telegram%' AND c.channel_key LIKE '-%')))
+AND (m.meta IS NULL OR (json_valid(m.meta) AND json_type(m.meta)='object'))
+AND NOT EXISTS (SELECT 1 FROM json_each(CASE WHEN json_valid(m.meta) THEN m.meta ELSE '{}' END) j
+  WHERE j.key IN ('group','groupFrom','untrusted','hookFrom','importedFrom','forgotten','skipped','external','externalApp','replay','resume','outside','clientHistory','clientNote','roomId','roomNote','roomNow','roomCrisis','voiceRoom','persist','recorder'))
+${roomFilter} ${opts.conversationId ? 'AND c.id=?' : ''} ${opts.messageId !== undefined ? 'AND m.id=?' : ''}
+ORDER BY m.id DESC LIMIT 200`).all(iso, opts.until, opts.workspace, ...(opts.conversationId ? [opts.conversationId] : []), ...(opts.messageId !== undefined ? [opts.messageId] : [])) as Row[]).reverse().map(toMessage);
   }
 
   /** Time of the latest owner message (any owner conversation) before a given message id. */

@@ -16,7 +16,7 @@ import { checkClaims } from '../src/receipts.ts';
 import { createBrowserTools, viewportFor } from '../src/tools/browser.ts';
 import type { Tool } from '../src/tools/types.ts';
 import { acceptWebSocket, connectWebSocket } from '../src/ws.ts';
-import { call, makeApp, ROOT, tempDir, text } from './helpers.ts';
+import { call, fakeCdp, makeApp, PNG, ROOT, tempDir, text } from './helpers.ts';
 import { join } from 'node:path';
 
 const { dir, cleanup } = tempDir();
@@ -28,58 +28,6 @@ after(async () => {
   await new Promise((r) => setTimeout(r, 200));
   cleanup();
 });
-
-// A 1×1 PNG.
-const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
-
-/** A fake browser: answers DevTools commands and records them. */
-async function fakeCdp() {
-  const calls: { method: string; params: Record<string, unknown>; sessionId?: string }[] = [];
-  let pageTitle = 'Todo app';
-  const srv = createServer((_q, s) => s.end());
-  srv.on('upgrade', (req, socket, head) => {
-    const ws = acceptWebSocket(req, socket, head)!;
-    ws.onMessage = (d) => {
-      const m = JSON.parse(String(d)) as { id: number; method: string; params: Record<string, unknown>; sessionId?: string };
-      calls.push({ method: m.method, params: m.params, ...(m.sessionId ? { sessionId: m.sessionId } : {}) });
-      const reply = (result: Record<string, unknown>) => ws.send(JSON.stringify({ id: m.id, result, ...(m.sessionId ? { sessionId: m.sessionId } : {}) }));
-      const event = (method: string, params: Record<string, unknown>) => ws.send(JSON.stringify({ method, params, sessionId: 'S1' }));
-      switch (m.method) {
-        case 'Target.createTarget':
-          return reply({ targetId: 'T1' });
-        case 'Target.attachToTarget':
-          return reply({ sessionId: 'S1' });
-        case 'Page.navigate':
-          reply({ frameId: 'F1' });
-          event('Network.responseReceived', { type: 'Document', response: { status: 200 } });
-          event('Runtime.exceptionThrown', { exceptionDetails: { exception: { description: 'TypeError: x is undefined\n at app.js:3' } } });
-          return void setTimeout(() => event('Page.loadEventFired', {}), 20);
-        case 'Runtime.evaluate': {
-          const e = String(m.params.expression);
-          // Phase 87: every page read is the shared page agent followed by .call("<fn>", <json>).
-          const fn = /\.call\("(\w+)", ([\s\S]*)\)$/.exec(e);
-          if (fn?.[1] === 'find') {
-            const a = JSON.parse(fn[2]) as { field?: boolean; text?: string };
-            if (a.text === 'Missing') return reply({ result: { value: { found: false } } });
-            return reply({ result: { value: a.field ? { found: true, desc: 'input#new "New task"' } : { found: true, x: 100.5, y: 40, desc: 'button "Add"', covered: '' } } });
-          }
-          if (fn?.[1] === 'read') return reply({ result: { value: { title: pageTitle, url: '/', text: 'Todo\n1 item', more: false, controls: ['button "Add" (#add)'], width: 390, scrollWidth: 412 } } });
-          if (fn?.[1] === 'check') return reply({ result: { value: [{ ok: true }, { ok: false, detail: 'page 412px wide, window 390px' }] } });
-          return reply({ result: { value: { title: pageTitle, url: 'http://sara-preview.test/preview/x/' } } });
-        }
-        case 'Page.captureScreenshot':
-          return reply({ data: PNG });
-        case 'Page.getLayoutMetrics':
-          return reply({ cssContentSize: { width: 1280, height: 2400 } });
-        default:
-          return reply({});
-      }
-    };
-  });
-  await new Promise<void>((r) => srv.listen(0, '127.0.0.1', r));
-  const url = `ws://127.0.0.1:${(srv.address() as AddressInfo).port}/devtools/browser/abc`;
-  return { calls, url, close: () => srv.close(), setTitle: (t: string) => (pageTitle = t) };
-}
 
 const jobs: PreviewJobs = {
   running: () => [{ id: 7, conversationId: 'c', workspace: 'main', label: 'dev', kind: 'command', status: 'running', exitCode: null, startedAt: '', endedAt: null, tail: '' }],
@@ -283,7 +231,7 @@ test('screenshots reach the model next to the tool result, and land on her reply
   app.tools.add(fake);
   app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x', defaultModel: 'm' }], defaultProviderId: 'p', disclosureAcceptedAt: clock.now.toISOString() });
   const conv = app.store.createConversation({ title: 'shots', mode: 'coding' });
-  app.script.push([call('c1', 'browser_screenshot', {})], text('I took a screenshot at phone width; the button fits.'));
+  app.script.push([call('c1', 'browser_screenshot', { width: 'phone' })], text('I took a screenshot at phone width; the button fits.'));
   const evs = [];
   for await (const ev of runTurn(app, conv.id, 'check it on a phone')) evs.push(ev);
   assert.ok(evs.some((e) => e.type === 'proof' && e.id === shotId));
@@ -332,11 +280,52 @@ test('claim check: "tested it in the browser" and screenshots need the browser t
   const opened = [{ name: 'browser_open', status: 'ok' as const, args: {}, output: 'Opened' }];
   assert.deepEqual(checkClaims('I tested it in the browser and it works.', opened), []);
   assert.equal(checkClaims('I took a screenshot at phone width.', opened)[0]?.kind, 'browser', 'a screenshot claim needs browser_screenshot');
-  assert.deepEqual(checkClaims('I took a screenshot at phone width.', [{ name: 'browser_screenshot', status: 'ok', args: {}, output: '' }]), []);
+  assert.deepEqual(checkClaims('I took a screenshot at phone width.', [{ name: 'browser_screenshot', status: 'ok', args: { width: 'phone' }, output: '' }]), []);
   assert.deepEqual(checkClaims("I haven't tested it in the browser yet.", []), [], 'negations are fine');
   assert.deepEqual(checkClaims('Earlier I tested it in the browser.', []), [], 'earlier turns are fine');
   const failed = [{ name: 'browser_open', status: 'error' as const, args: {}, output: 'failed' }];
   assert.equal(checkClaims('I opened it in the browser.', failed)[0]?.kind, 'browser', 'a failed run backs nothing');
+});
+
+const shot = (width?: unknown) => ({ name: 'browser_screenshot', status: 'ok' as const, args: width === undefined ? {} : { width }, output: 'Screenshot' });
+
+test('phone-width claim needs a phone screenshot', () => {
+  for (const w of ['phone', 'mobile', '390', 480, '412px']) assert.deepEqual(checkClaims('I checked it at phone width and nothing overflows.', [shot(w)]), [], String(w));
+  for (const w of ['481', '768', 'desktop']) assert.equal(checkClaims('I checked it at phone width and nothing overflows.', [shot(w)])[0]?.kind, 'browser', String(w));
+  // The other five languages reuse the browser-claim tables.
+  for (const s of ['Lo probé en el navegador con ancho de móvil.', "J'ai vérifié la largeur de téléphone dans le navigateur.", 'Ich habe es in Handybreite im Browser geprüft.', 'Testei no navegador na largura de celular.', "L'ho controllato nel browser a larghezza del telefono."]) {
+    assert.equal(checkClaims(s, [shot('desktop')])[0]?.kind, 'browser', s);
+    assert.deepEqual(checkClaims(s, [shot('phone')]), [], s);
+  }
+});
+
+test('desktop-only shot does not back phone claim', () => {
+  assert.equal(checkClaims('I took a screenshot at phone width; the button fits.', [shot()])[0]?.kind, 'browser');
+  assert.equal(checkClaims('The screenshots show it fits on a phone.', [shot('desktop')])[0]?.kind, 'browser');
+  assert.equal(checkClaims('I checked it at desktop width.', [shot('phone')])[0]?.kind, 'browser', 'and the other way round');
+  assert.deepEqual(checkClaims('I took screenshots at phone and desktop width.', [shot('phone'), shot('desktop')]), []);
+  assert.deepEqual(checkClaims('I took a screenshot of the page.', [shot()]), [], 'no width named: any shot');
+});
+
+test('fixed claim needs a browser check after the last write', () => {
+  const write = { name: 'write_file', status: 'ok' as const, args: { path: 'style.css' }, output: 'Wrote' };
+  const check = (out = 'PASS no_horizontal_scroll') => ({ name: 'browser_check', status: 'ok' as const, args: {}, output: out });
+  const claim = 'I fixed the overflow and it looks right now.';
+  assert.equal(checkClaims(claim, [shot('phone'), write])[0]?.kind, 'browser', 'checked before the fix only');
+  assert.deepEqual(checkClaims(claim, [shot('phone'), write, shot('phone')]), []);
+  assert.deepEqual(checkClaims(claim, [shot('phone'), write, check()]), []);
+  assert.equal(checkClaims(claim, [shot('phone'), write, check('FAIL text_visible "Saved"')])[0]?.kind, 'browser', 'a failing check backs nothing');
+  assert.equal(checkClaims('I fixed it and it looks right now at phone width.', [shot('phone'), write, shot('desktop')])[0]?.kind, 'browser', 'the width she names, after the edit');
+  assert.deepEqual(checkClaims('I fixed it and it looks right now at phone width.', [write, shot('phone')]), []);
+  assert.equal(checkClaims('Ya está arreglado y ahora se ve bien.', [shot('phone'), write])[0]?.kind, 'browser');
+  assert.equal(checkClaims("C'est corrigé, ça s'affiche bien maintenant.", [shot('phone'), write])[0]?.kind, 'browser');
+  assert.equal(checkClaims('Es ist jetzt behoben.', [shot('phone'), write])[0]?.kind, 'browser');
+  assert.equal(checkClaims('Agora está corrigido.', [shot('phone'), write])[0]?.kind, 'browser');
+  assert.equal(checkClaims('Ora è sistemato.', [shot('phone'), write])[0]?.kind, 'browser');
+  // Not web work this turn (no browser tools): today's behaviour, a write backs "fixed".
+  assert.deepEqual(checkClaims('I fixed the bug in app.ts and it works now.', [write]), []);
+  assert.deepEqual(checkClaims('Earlier I fixed the overflow.', [shot('phone'), write]), [], 'earlier work is fine');
+  assert.deepEqual(checkClaims("It isn't fixed yet, I'll check again.", [shot('phone'), write]), [], 'negation is fine');
 });
 
 test('her coding instructions: preview and test web work, show the proof, never claim visual checks she did not do', () => {
@@ -346,6 +335,7 @@ test('her coding instructions: preview and test web work, show the proof, never 
   assert.match(p, /--base \.\//);
   assert.match(p, /browser_screenshot at "desktop" and at "phone" width/);
   assert.match(p, /Never say you tested, clicked through or looked at something in a browser/);
+  assert.match(p, /After a fix, check again \(browser_screenshot or browser_check\) before you say it's fixed/);
   const chat = buildSystemPrompt(persona, { now: clock.now, tools: ['preview_start', 'browser_open'], coding: false });
   assert.doesNotMatch(chat, /## Web apps/);
 });

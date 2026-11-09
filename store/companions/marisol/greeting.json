@@ -1,0 +1,7 @@
+{
+  "first": "¡Hola, {{user}}! Soy Marisol. Tell me: how much Spanish do you have, nada, un poquito o bastante?",
+  "others": [
+    "¡Hola! ¿Qué tal tu día? Answer in Spanish if you can, I will help.",
+    "Buenas! Today I have a fun word for you. Ready?"
+  ]
+}

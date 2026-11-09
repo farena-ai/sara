@@ -6,6 +6,10 @@
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
+import { openReadFeed, openReadTogether } from './read-together.js';
+import { closeResearch, openResearch } from './research.js';
+import { closeLearned, openLearned } from './learn.js';
+import { closeMeetings, openMeetings } from './meetings.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -161,6 +165,7 @@ function statusText(d, { withJob = true } = {}) {
 }
 
 let current = null;
+let currentDoc = null;
 let textFrom = 0;
 
 async function loadList() {
@@ -298,6 +303,9 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   showContents(d, r.sections);
   $('#lib-doc-download').setAttribute('download', d.name);
   $('#lib-doc-keep').hidden = d.keep;
+  // E5: Read together (text and Markdown documents she keeps).
+  $('#lib-doc-together').hidden = !(d.keep && !d.readOnly && d.status === 'ready' && ['text', 'markdown'].includes(d.kind));
+  currentDoc = d;
   $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
   // Phase 110: a room archive is read-only (no re-read, no learning; Remove stays: his records, his choice).
   $('#lib-doc-reread').hidden = Boolean(d.readOnly);
@@ -350,6 +358,9 @@ function showText(passages) {
 
 function showHome() {
   current = null;
+  closeResearch();
+  closeLearned();
+  closeMeetings();
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();
@@ -499,6 +510,14 @@ $('#lib-speed').addEventListener('input', speedLabel);
 
 $('#open-library').addEventListener('click', () => void openLibrary());
 $('#lib-back').addEventListener('click', showHome);
+// EC6: Research a question (web/research.js), inside the Library window.
+$('#lib-research-open').addEventListener('click', () => void openResearch());
+$('#lib-meetings-open').addEventListener('click', () => void openMeetings());
+$('#lib-m-back').addEventListener('click', showHome);
+$('#lib-r-back').addEventListener('click', showHome);
+// C6: What she has learned (web/learn.js).
+$('#lib-topics-open').addEventListener('click', () => void openLearned());
+$('#lib-t-back').addEventListener('click', showHome);
 $('#lib-file').addEventListener('change', async () => {
   await addFiles($('#lib-file').files);
   $('#lib-file').value = '';
@@ -513,6 +532,32 @@ for (const ev of ['dragover', 'drop']) {
 $('#lib-doc-more').addEventListener('click', async () => {
   const r = await api(`/library/${current}/passages?from=${textFrom}&limit=40`);
   showText(r.passages);
+});
+$('#lib-doc-together').addEventListener('click', async () => {
+  if (!currentDoc) return;
+  $('#library').close();
+  let note = '';
+  try {
+    if (!(await openReadTogether(currentDoc))) note = t('Open a chat with her first.');
+  } catch (err) {
+    note = err.message;
+  }
+  if (!note) return;
+  $('#library').showModal();
+  $('#lib-doc-state').textContent = note;
+});
+// E6: a public feed instead of a document (the Feed tab of Read together).
+$('#lib-feed-together').addEventListener('click', async () => {
+  $('#library').close();
+  let note = '';
+  try {
+    if (!(await openReadFeed())) note = t('Open a chat with her first.');
+  } catch (err) {
+    note = err.message;
+  }
+  if (!note) return;
+  $('#library').showModal();
+  $('#lib-upload-status').textContent = note;
 });
 $('#lib-doc-keep').addEventListener('click', async () => {
   await api(`/library/${current}`, { method: 'PATCH', body: { keep: true } });

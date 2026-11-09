@@ -18,6 +18,15 @@ export interface Uncovered {
 export function tipCoverage(html: string, extra: Record<string, unknown> = {}): { total: number; uncovered: Uncovered[] } {
   const out: Uncovered[] = [];
   let total = 0;
+  if (/<body\b[^>]*data-business/.test(html)) {
+    for (const match of html.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
+      if (/type="(?:hidden|submit|button)"/.test(match[2])) continue;
+      total++;
+      const tip = /data-tip="([^"]+)"/.exec(match[2])?.[1];
+      if (!tip?.trim() || tip.length > 260) out.push({ page: 'business', id: /id="([^"]+)"/.exec(match[2])?.[1] ?? '', label: '' });
+    }
+    return { total, uncovered: out };
+  }
   // Sections that hold settings: settings pages and the settings-like dialogs.
   const blocks = [...html.matchAll(/<section class="settings-page" data-page="([^"]+)"[^>]*>([\s\S]*?)<\/section>/g)].map((m) => ({ page: m[1], body: m[2] }));
   // Every other window (dialog) with choices in it, except the settings window (its pages are above).
@@ -52,6 +61,8 @@ export function tipCoverage(html: string, extra: Record<string, unknown> = {}): 
 if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/').replace(/^\//, '')}` || process.argv[1]?.endsWith('tip-coverage.ts')) {
   const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
   const r = tipCoverage(html, (JSON.parse(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')) as { tips: Record<string, unknown> }).tips);
+  const business = tipCoverage(readFileSync(join(ROOT, 'web', 'business.html'), 'utf8'));
+  r.total += business.total; r.uncovered.push(...business.uncovered);
   if (process.argv.includes('--json')) console.log(JSON.stringify(r, null, 2));
   else {
     console.log(`${r.total - r.uncovered.length} of ${r.total} settings have a tip; ${r.uncovered.length} don't:`);

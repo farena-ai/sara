@@ -146,7 +146,9 @@ test('a fight stays with her as long as her forgiveness says; an apology helps; 
   const st = grudge.get(nextDay);
   assert.ok(st.tension > 0.3, `still stings next day (${st.tension})`);
   const lines = describeInner(st, nextDay, 'UTC', 'Alex', { gapHours: 24, daysKnown: null, conflict: 'You sulk a bit until they make an effort.' });
-  assert.match(lines, /24 hours ago you and Alex had a disagreement \(they said: "honestly that was out of line, I'm mad at you"\)\. It still stings a little\. You sulk a bit/);
+  assert.match(lines, /24 hours ago you and Alex had a disagreement\. It still stings a little\. You sulk a bit/);
+  assert.doesNotMatch(lines, /they said:|honestly that was out of line/);
+  assert.deepEqual(grudge.get(nextDay), st, 'rendering does not change historic inner state');
   // A quick forgiver is over it by the next day.
   const quick = new InnerStore(app.store.db, () => t0, { tensionHalfLife: () => tensionHalfLife(10) });
   assert.ok(quick.get(nextDay).tension < 0.05);

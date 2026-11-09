@@ -12,7 +12,7 @@ function fixture(data:any={}) {
  assert.ok(existsSync(path),'recovery module must exist');
  const root=new Node(),body=new Node();const calls:any[]=[];let draft='',conv='chat-a',owner=true,pending=false;
  const api=async(p:string,o:any={})=>{calls.push([p,o]);if(data.error)throw new Error('unavailable');return data[p]??(p==='/jobs'?[]:p==='/team'?{tasks:[]}:p==='/deliveries'?{deliveries:[]}:{});};
- const sandbox:any={document:{createElement:(tag:string)=>new Node(tag),body,activeElement:new Node()},navigator:{clipboard:{writeText:async(s:string)=>{data.copied=s;}}},t:(s:string)=>s};
+ const sandbox:any={document:{createElement:(tag:string)=>new Node(tag),body,activeElement:new Node()},navigator:{clipboard:{writeText:async(s:string)=>{data.copied=s;}}},t:(s:string)=>s,locale:()=>'en-US',Intl,Date};
  runInNewContext(readFileSync(path,'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','' )+'\nthis.createRecovery=createRecovery;',sandbox);
  const recovery=sandbox.createRecovery({root,api,isOwner:()=>owner,hasPendingChat:()=>pending,getDraft:()=>draft,getConversation:()=>conv,useDraft:(s:string)=>{draft=s;}});
  const all=(n:any):any[]=>[n,...n.children.flatMap(all)];const button=(text:string)=>all(body).concat(all(root)).find(n=>n.tag==='button'&&n.textContent===text);
@@ -100,4 +100,17 @@ test('Q3 async disabled launch button restores exact opener after Escape focus l
  runInNewContext(readFileSync(path,'utf8').replace(/^import .*;\n/gm,'').replaceAll('export ','')+'\nthis.createRecovery=createRecovery;',sandbox);
  const recovery=sandbox.createRecovery({root,api:async(p:keyof typeof data)=>{await Promise.resolve();return data[p];},isOwner:()=>true,getDraft:()=>'',getConversation:()=> 'chat-a',useDraft:()=>{}});
  await recovery.refresh();const all=(n:any):any[]=>[n,...n.children.flatMap(all)];const launch=all(root).find(n=>n.tag==='button'&&n.textContent==='Review restart');launch.focus();await launch.listeners.click();const dialog=all(body).find(n=>n.tag==='dialog');assert.ok(dialog.open);dialog.close();await new Promise(resolve=>setTimeout(resolve,5));assert.equal(active,launch,'Escape close must restore actual opener, not body after disable');assert.equal(launch.disabled,false);
+});
+test('Q3 recovery receipt times read as relative and local, with the exact ISO kept', async () => {
+ const created=new Date(Date.now()-5*60_000).toISOString(),archived=new Date(Date.now()-3*86_400_000).toISOString();
+ const f=fixture({'/deliveries':{deliveries:[{id:'x',bridge:'telegram',state:'outcome_unknown',createdAt:created,archivedAt:archived}]}});
+ await f.recovery.refresh();
+ const times=f.all(f.root).filter(n=>n.tag==='time');
+ assert.deepEqual(times.map(n=>n.attrs.datetime).sort(),[archived,created].sort(),'exact timestamps stay on the element');
+ const card=f.all(f.root).find(n=>n.tag==='article');
+ const text=f.all(card).map(n=>n.textContent).join(' ');
+ assert.doesNotMatch(text,/\d{4}-\d{2}-\d{2}T/,'no raw ISO shown on the card');
+ assert.match(text,/5 minutes ago/);
+ assert.match(text,/3 days ago/);
+ assert.ok(times.every(n=>n.attrs.title&&!/T\d{2}:/.test(n.attrs.title)),'hover shows the full local date and time');
 });

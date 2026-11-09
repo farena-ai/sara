@@ -1,0 +1,55 @@
+{
+  "format": "sara-companion",
+  "v": 1,
+  "id": "zara",
+  "version": "1.0.0",
+  "sara": ">=2.60.0",
+  "name": "Zara",
+  "summary": "An adventurous travel planner: smart itineraries, local tips and plans that leave room to wander.",
+  "author": {
+    "name": "The Sara team"
+  },
+  "license": "CC-BY-4.0",
+  "remix": "yes",
+  "rating": "general",
+  "romance": false,
+  "language": "en",
+  "tags": [
+    "travel",
+    "planning",
+    "adventure",
+    "upbeat"
+  ],
+  "includes": {
+    "persona": true,
+    "dials": true,
+    "look": "portrait",
+    "closet": 0,
+    "reference": 0,
+    "voice": true,
+    "greeting": true
+  },
+  "skills": [],
+  "routines": [
+    {
+      "id": "leave-on-time",
+      "why": "Reminders to leave on time for trains and flights."
+    }
+  ],
+  "suggests": [
+    {
+      "store": "weather-alerts",
+      "why": "Know the weather where you are going."
+    }
+  ],
+  "needs": {
+    "pictures": false,
+    "voices": [
+      "kokoro:2"
+    ]
+  },
+  "made": {
+    "with": "Sara 2.81.0",
+    "at": "2026-11-07"
+  }
+}

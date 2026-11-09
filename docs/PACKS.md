@@ -43,6 +43,9 @@ companion with that name, the card suggests another one. Up to 8 companions fit 
 
 ### Explicit packs
 
+Dotted release numbers (for example, 2.69.0) do not make a pack explicit. Explicit prose and
+adults-only settings still need the Explicit rating; the safety and privacy checks always apply.
+
 While Adult mode is off for her, explicit lines in her character are **held aside**, adults-only closet
 looks are kept but never worn, and her intimacy works as Suggestive. When you turn Adult mode on for
 her (Settings → You → Adult mode, in a browser), **⋯ → Add the held lines** puts them back.

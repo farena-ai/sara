@@ -1,0 +1,54 @@
+{
+  "jenkins": {
+    "repository": "https://github.com/jenkinsci/mcp-server-plugin",
+    "pin": {
+      "kind": "source-release",
+      "version": "0.222.v9d40a_8d624e4",
+      "commit": "9d40a8d624e4fc81b0667e5be0ae11744812417d",
+      "archiveSha256": "126c68040fccc2206ba587a88462ee5314ad070146f2ef415a0b67ac408681b2",
+      "archiveUrl": "https://codeload.github.com/jenkinsci/mcp-server-plugin/tar.gz/0.222.v9d40a_8d624e4",
+      "distributionIntegrity": null,
+      "note": "Tagged archive source inspected, not installed package bytes. Registry distribution/dependency lock not qualified."
+    },
+    "status": "blocked-provider-acceptance",
+    "distributionSha256": "6339f21e30595de9bb66d35c67008f6ad5558c88e5b2ce9f585939a0795e04aa",
+    "license": "MIT",
+    "licenseSource": "LICENSE.md (intake LICENSE URL is wrong)",
+    "runtime": "HPI requires Jenkins 2.541.3; manifest Java-Version 17, built JDK21; actual controller runtime not qualified",
+    "blocker": "No authorized existing controller endpoint, ACL identity or historical owned job; do not create CI or install plugin on owner service"
+  },
+  "buildkite": {
+    "repository": "https://github.com/buildkite/buildkite-mcp-server",
+    "pin": {
+      "kind": "source-release",
+      "version": "v1.31.0",
+      "commit": "95ad72ffe1324de0f78e63b8195915dd2ce49189",
+      "archiveSha256": "eb0ef3836e0ef8c1fcaab17e523fcda13983ad2912e6f14eecb3c6e923122426",
+      "archiveUrl": "https://codeload.github.com/buildkite/buildkite-mcp-server/tar.gz/v1.31.0",
+      "distributionIntegrity": null,
+      "note": "Tagged archive source inspected, not installed package bytes. Registry distribution/dependency lock not qualified."
+    },
+    "status": "blocked-provider-acceptance",
+    "binarySha256": "eef92c85d25546f767d50717668df5fa3bfbcf29c9b71f60edf749152b73ff2f",
+    "releaseArchiveSha256": "a43c82cb669b0120490c215872dac272bfe8e699667d8e7eb5f220f8c8e7e1e7",
+    "license": "MIT",
+    "runtime": "Windows x86_64 native Go release binary; build go.mod 1.27.3; no local Go compilation",
+    "selectedToolsets": "builds,logs",
+    "intakeCorrection": "jobs is not a valid v1.31.0 toolset; actual launch refused it",
+    "dependencyPolicy": "Verified vendor release binary; preserved go.mod/go.sum; no package manager resolution or install scripts; no independently rebuilt binary or checksum signature verification"
+  },
+  "circleci": {
+    "repository": "https://github.com/CircleCI-Public/mcp-server-circleci",
+    "pin": {
+      "kind": "managed-endpoint",
+      "version": null,
+      "commit": null,
+      "endpoint": "https://mcp.circleci.com/v1/mcp",
+      "note": "Vendor-controlled deployment is not immutable or release-pinnable. Documentation snapshots are evidence, not runtime pins."
+    },
+    "status": "blocked-provider-acceptance",
+    "license": null,
+    "distribution": null,
+    "blocker": "Hosted OAuth/account consent and exact current tool schemas absent; deprecated npm 0.20.0 explicitly not installed; no substitute local MCP"
+  }
+}

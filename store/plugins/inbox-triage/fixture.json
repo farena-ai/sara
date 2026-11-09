@@ -1,0 +1,14 @@
+{
+  "messages": [
+    {
+      "id": "m1",
+      "subject": "Urgent invoice",
+      "body": "Please review today."
+    },
+    {
+      "id": "m2",
+      "subject": "Newsletter",
+      "body": "News only."
+    }
+  ]
+}

@@ -17,7 +17,7 @@ import { intimacyLevel } from '../bond.ts';
 import { LOOK_PATHS } from '../look.ts';
 import { fromFolder, hashFiles, writePackage, type PackageFile } from '../packages.ts';
 import { validatePersona, type Persona } from '../persona.ts';
-import { compareSemver, satisfies } from '../plugins/manifest.ts';
+import { compareSemver, satisfies, saraSatisfies } from '../plugins/manifest.ts';
 import { SARA_VERSION } from '../plugins/manager.ts';
 import { loadCatalog, MEMBER_ENGINES, ROUTINES_DIR } from '../routines.ts';
 import { detectExplicit, disclosureText } from '../safety.ts';
@@ -307,7 +307,7 @@ export class PackInstaller {
     const m = report.pack!;
     const p = report.persona!;
     const running = this.d.saraVersion ?? this.d.app.pluginManager?.version ?? SARA_VERSION;
-    if (!satisfies(running, m.sara)) throw Object.assign(new InstallError(400, 'sara', `This companion pack needs Sara ${m.sara.replace(/^>=\s*/, '')} or newer. Update Sara first.`), { report });
+    if (!saraSatisfies(running, m.sara)) throw Object.assign(new InstallError(400, 'sara', `This companion pack needs Sara ${m.sara.replace(/^>=\s*/, '')} or newer. Update Sara first.`), { report });
     while (staged.size >= MAX_STAGED) this.cancel(staged.keys().next().value!);
     const token = randomBytes(12).toString('base64url');
     const dir = join(this.stagingRoot, token);

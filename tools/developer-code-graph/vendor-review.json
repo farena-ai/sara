@@ -1,0 +1,284 @@
+{
+  "runtimeBytes": 695640,
+  "packages": [
+    {
+      "name": "@babel/code-frame",
+      "version": "8.0.6",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-code-frame"
+      }
+    },
+    {
+      "name": "@babel/generator",
+      "version": "8.1.0",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-generator"
+      }
+    },
+    {
+      "name": "@babel/helper-globals",
+      "version": "8.0.6",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-helper-globals"
+      }
+    },
+    {
+      "name": "@babel/helper-string-parser",
+      "version": "8.0.8",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-helper-string-parser"
+      }
+    },
+    {
+      "name": "@babel/helper-validator-identifier",
+      "version": "8.0.6",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-helper-validator-identifier"
+      }
+    },
+    {
+      "name": "@babel/parser",
+      "version": "8.1.0",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-parser"
+      }
+    },
+    {
+      "name": "@babel/template",
+      "version": "8.0.0",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-template"
+      }
+    },
+    {
+      "name": "@babel/traverse",
+      "version": "8.1.0",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-traverse"
+      }
+    },
+    {
+      "name": "@babel/types",
+      "version": "8.1.0",
+      "license": "MIT",
+      "engines": {
+        "node": "^22.18.0 || >=24.11.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/babel/babel.git",
+        "directory": "packages/babel-types"
+      }
+    },
+    {
+      "name": "@jridgewell/gen-mapping",
+      "version": "0.4.0-beta.0",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jridgewell/sourcemaps.git",
+        "directory": "packages/gen-mapping"
+      }
+    },
+    {
+      "name": "@jridgewell/resolve-uri",
+      "version": "3.1.2",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6.0.0"
+      },
+      "repository": "https://github.com/jridgewell/resolve-uri"
+    },
+    {
+      "name": "@jridgewell/sourcemap-codec",
+      "version": "1.6.0",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jridgewell/sourcemaps.git",
+        "directory": "packages/sourcemap-codec"
+      }
+    },
+    {
+      "name": "@jridgewell/trace-mapping",
+      "version": "0.3.31",
+      "license": "MIT",
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/jridgewell/sourcemaps.git",
+        "directory": "packages/trace-mapping"
+      }
+    },
+    {
+      "name": "jsesc",
+      "version": "3.1.0",
+      "license": "MIT",
+      "engines": {
+        "node": ">=6"
+      },
+      "repository": {
+        "type": "git",
+        "url": "https://github.com/mathiasbynens/jsesc.git"
+      }
+    },
+    {
+      "name": "obug",
+      "version": "3.0.0",
+      "license": "MIT",
+      "engines": {
+        "node": ">=12.20.0"
+      },
+      "repository": {
+        "type": "git",
+        "url": "git+https://github.com/sxzz/obug.git"
+      }
+    }
+  ],
+  "inputs": [
+    "node_modules/@babel/parser/lib/index.js",
+    "node_modules/obug/dist/core.js",
+    "node_modules/obug/dist/plain.js",
+    "node_modules/obug/dist/browser.js",
+    "node_modules/@babel/helper-validator-identifier/lib/identifier-browser.js",
+    "node_modules/@babel/helper-validator-identifier/lib/index.js",
+    "node_modules/@babel/helper-string-parser/lib/index.js",
+    "node_modules/@babel/types/lib/index.js",
+    "node_modules/@babel/helper-globals/data/builtin-lower.json",
+    "node_modules/@babel/helper-globals/data/builtin-upper.json",
+    "node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs",
+    "node_modules/@jridgewell/resolve-uri/dist/resolve-uri.umd.js",
+    "node_modules/@jridgewell/trace-mapping/dist/trace-mapping.mjs",
+    "node_modules/@jridgewell/gen-mapping/dist/gen-mapping.mjs",
+    "node_modules/jsesc/jsesc.js",
+    "node_modules/@babel/generator/lib/index.js",
+    "node_modules/@babel/code-frame/lib/common-shared.js",
+    "node_modules/@babel/code-frame/lib/browser.js",
+    "node_modules/@babel/template/lib/index.js",
+    "node_modules/@babel/traverse/lib/index.js",
+    "vendor-entry.mjs"
+  ],
+  "outputs": {
+    "parser.mjs": {
+      "imports": [],
+      "exports": [
+        "parse",
+        "traverse"
+      ],
+      "entryPoint": "vendor-entry.mjs",
+      "inputs": {
+        "node_modules/@jridgewell/resolve-uri/dist/resolve-uri.umd.js": {
+          "bytesInOutput": 2137
+        },
+        "node_modules/jsesc/jsesc.js": {
+          "bytesInOutput": 3351
+        },
+        "node_modules/@babel/parser/lib/index.js": {
+          "bytesInOutput": 294823
+        },
+        "vendor-entry.mjs": {
+          "bytesInOutput": 0
+        },
+        "node_modules/obug/dist/core.js": {
+          "bytesInOutput": 1483
+        },
+        "node_modules/obug/dist/plain.js": {
+          "bytesInOutput": 522
+        },
+        "node_modules/obug/dist/browser.js": {
+          "bytesInOutput": 1205
+        },
+        "node_modules/@babel/types/lib/index.js": {
+          "bytesInOutput": 205827
+        },
+        "node_modules/@babel/helper-validator-identifier/lib/identifier-browser.js": {
+          "bytesInOutput": 10195
+        },
+        "node_modules/@babel/helper-validator-identifier/lib/index.js": {
+          "bytesInOutput": 628
+        },
+        "node_modules/@babel/helper-string-parser/lib/index.js": {
+          "bytesInOutput": 2909
+        },
+        "node_modules/@babel/helper-globals/data/builtin-lower.json": {
+          "bytesInOutput": 170
+        },
+        "node_modules/@babel/helper-globals/data/builtin-upper.json": {
+          "bytesInOutput": 577
+        },
+        "node_modules/@jridgewell/sourcemap-codec/dist/sourcemap-codec.mjs": {
+          "bytesInOutput": 2177
+        },
+        "node_modules/@jridgewell/trace-mapping/dist/trace-mapping.mjs": {
+          "bytesInOutput": 2737
+        },
+        "node_modules/@jridgewell/gen-mapping/dist/gen-mapping.mjs": {
+          "bytesInOutput": 2927
+        },
+        "node_modules/@babel/generator/lib/index.js": {
+          "bytesInOutput": 74367
+        },
+        "node_modules/@babel/code-frame/lib/common-shared.js": {
+          "bytesInOutput": 1368
+        },
+        "node_modules/@babel/code-frame/lib/browser.js": {
+          "bytesInOutput": 39
+        },
+        "node_modules/@babel/template/lib/index.js": {
+          "bytesInOutput": 8580
+        },
+        "node_modules/@babel/traverse/lib/index.js": {
+          "bytesInOutput": 78955
+        }
+      },
+      "bytes": 695640
+    }
+  }
+}

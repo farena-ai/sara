@@ -141,3 +141,12 @@ button.td-ag-item.needs { border-left: 3px solid var(--warn); }
   .ag-switch { width: 100%; }
   .ag-hero { padding: var(--s-3); }
 }
+
+/* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
+   Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
+   specificity: each ties the rule it replaces and wins by coming later); decoration by
+   html[data-decor="off"]. Kept at the end of this sheet on purpose. */
+/* [cascade] not in style.css: must come after agenda.css `.td-ag-acts button.ghost` */
+:where(:root:not([data-palette="classic"])) button.ghost:where(:not(.ag-src, .td-ag-item, .rt-setup-first, .msg-more)):hover { background: var(--surface-3); border-color: var(--line); color: var(--text-1); }
+/* [cascade] not in screens.css: must come after agenda.css `.ag-hero-text h3` */
+:where(:root:not([data-palette="classic"])) .settings-body h3 { font-size: 14px; font-weight: 600; }

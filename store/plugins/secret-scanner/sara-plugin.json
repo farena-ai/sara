@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "secret-scanner",
+  "name": "Secret scanner",
+  "version": "1.0.0",
+  "description": "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "Secret scanner": "Detector de secretos",
+      "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.": "Detecta patrones de credenciales en archivos de texto aportados; devuelve ubicaciones e identificadores sin valores. No examina el disco."
+    },
+    "fr": {
+      "Secret scanner": "Détecteur de secrets",
+      "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.": "Détecte des motifs de secrets dans les textes fournis ; renvoie les emplacements et identifiants sans valeurs. Aucun parcours du disque."
+    },
+    "de": {
+      "Secret scanner": "Geheimnisprüfung",
+      "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.": "Erkennt Zugangsdatenmuster in bereitgestellten Texten; liefert Fundorte und IDs ohne Werte. Kein automatischer Festplattenscan."
+    },
+    "pt-BR": {
+      "Secret scanner": "Detector de segredos",
+      "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.": "Detecta padrões de credenciais em textos fornecidos; retorna locais e IDs sem valores. Não varre o disco."
+    },
+    "it": {
+      "Secret scanner": "Rilevatore di segreti",
+      "Detect credential patterns in explicitly supplied text files; return locations and value-free finding IDs. No automatic disk scan.": "Rileva credenziali nei testi forniti; restituisce posizioni e ID senza valori. Nessuna scansione automatica del disco."
+    }
+  }
+}

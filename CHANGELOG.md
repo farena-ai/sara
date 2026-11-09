@@ -5,7 +5,960 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
-- **Tess, the practical maker:** a new gallery character who runs a repair workshop and writes small software tools. Original, adult and non-romantic by default, with no pictures.
+## 3.0.1 (2026-11-08): every page in the new look
+
+- **Every page in the new look:** Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team,
+  Findings, Evals and Settings now match the 3.0 chat. Today opens with her live presence orb next to
+  the greeting (her portrait stays as a small picture, or large, or hidden, as you set it), glass cards
+  with quiet headings, and the weather and usage lines in your colour. Every card, setting, Customise
+  option and button is still there. Sara Classic looks exactly as before.
+- **Leaving Sara Classic:** if you never picked a colour yourself, Sara now switches from Classic's rose
+  to Blue when you pick another palette. A colour you picked stays.
+- **Projects listed once in the sidebar:** each project (Telegram and the other chat apps too, No
+  project, Archived and Hidden) is one folder row that opens to show its chats; its page, a new chat
+  and the ⋯ menu sit at the end of the row. Each chat has a dot for what it is doing (working, open,
+  done, ended). Arrow keys open and close a row. Classic keeps its old list.
+- **Her picture:** Settings → Appearance → Her picture: the presence orb (default), her portrait, or the
+  picture you uploaded, shown round with a thin ring that moves with her (listening, thinking,
+  speaking). Upload a picture on her page.
+- **Clearer run cards:** "Remembered 16 things" now reads "Used 16 memories" (what she already knew that
+  shaped the reply) and opens those notes. The card under a reply is folded to one line until you open
+  it (Settings → Appearance → Show run details), but always opens for an approval, a failed step or work
+  still running.
+
+## 3.0.0 (2026-11-08): a living-system look
+
+- **Android app for Google Play (3.0.0, versionCode 30000):** place reminders now
+  show Google's prominent disclosure (*Place reminders use your location*: Sara collects location data
+  to enable place reminders, even when the app is closed or not in use) before any location prompt,
+  in all six languages. Fixed on the emulator: the first time Hey Sara was switched on, allowing the
+  microphone didn't start it; switching Hey Sara off while nothing listened crashed the app.
+- **Hey Sara for phones (server):** *Get the speech model* now also unpacks the four keyword-model
+  files phones download from the server (before, only the word list was unpacked and Android waited
+  for the model forever).
+- **Live calls in the phone apps on http servers:** the call button shows in the Android app for a
+  server at home on plain http too (the app runs the call itself); voice notes and video calls still
+  need https there.
+- **V4a, the "living system" shell (3.0.0 look):** a live status strip across the top (workers running,
+  runs and research going, triggers armed, the model answering this chat, spend today against your limit;
+  each chip opens its page and only shows when there is something real), *At a glance* at the top of her
+  panel on wide screens (spend today with its line, workers, today: tasks done, waiting on you, what a
+  trigger watches for; folds and is remembered), a very faint background light in her colour that moves a
+  little faster while she works (Settings → Appearance → Background motion; still with reduced motion),
+  and a command bar that previews the highlighted row (a setting's value, before → after for changes,
+  place counts, *Ask her* for any text). One accent: Blue, Rose, Violet, Emerald (new), Amber, Cyan or any
+  colour, always kept readable. Graphite gets the deeper V4 surfaces in Night and Day. A renamed companion's
+  name follows everywhere at once; "Sara Classic" stays the palette's name. Nothing was removed.
+  Design: docs/ops/V4_DESIGN.md.
+- **V4b living parts (the 3.0.0 look):** her **presence orb** in the chat header, the sidebar, her
+  messages, the call screen, the Hey Sara quick-ask window and worker rows: idle, listening (follows the
+  microphone level), thinking (a turn or a tool step running) and speaking (her voice playing), each
+  from the real signal, in your accent colour, with "<her name>: <state>" for screen readers. A picture
+  you chose for her stays; the orb becomes a small badge on it. The step line under her replies becomes
+  a **live run timeline**: the step she is on, a progress bar, Fold / Show steps (remembered), her
+  approval card inside the run, a "verified" mark only when a sandbox try or a clean checks run really
+  checked that step, and the run's tokens, cost and sandbox tries from the run record. Memory →
+  **Memory map**: her notes as a graph (shared words, same conversation, replaced, they disagree;
+  fading notes dimmer, at most 150), point to read a note, click to open it. Reduced motion stops all
+  of it. Sara Classic keeps the portrait and the old step line. Design: docs/ops/V4_DESIGN.md.
+- **V4c, the 3.0.0 look put together:** her memory map now fills the *Memory* card in *At a glance*
+  (redrawn when the panel opens, after a reply and when Memory closes; the card stays hidden while she
+  remembers nothing). One *Today* card: while *At a glance* shows, her next three things (events,
+  reminders, to-dos) sit in its Today card under the counts instead of a second Today further down; they
+  move back when the glance folds or the window narrows. Worker orbs carry the worker's own name and
+  state for screen readers; every orb label, her name over earlier replies and the AI notice follow a
+  rename at once (no reload). On phones the chat title gets the room: the AI badge becomes a short
+  *AI* pill (the full words stay for screen readers; *KI* / *IA* in German, Spanish, French, Italian
+  and Portuguese) and the chat's fullness dial lives in her panel's *This conversation*. Run steps no
+  longer run past their card on phones; your turns show a quiet person mark instead of an empty circle;
+  an empty project's hint stays on one line. Settings → Hey Sara now says Windows, Mac or Android (it
+  still said to use the Talk button on Android). README: the lead picture and *The new look* gallery
+  are retaken in the 3.0 look (same file names) and all six READMEs describe it. Sara Classic is
+  unchanged.
+- Add-ons and store items written for Sara 2.x ("below 3.0.0") keep installing, loading and listing on 3.x: 3.0 changed the look, not the add-on interface.
+
+## 2.88.0 (2026-11-08): coding workspace, Spotify, team pages and Hey Sara everywhere
+
+- **Team pages (C16, business instance):** a *Pages* tab in each workspace. Markdown pages with search
+  (title and text), every saved version kept in *History* (append-only; a stale save is refused, not
+  overwritten), threaded comments with Reply and Resolve, and `@Name` mentions that show the member
+  *Mentions for you*. View only reads and comments, Contributors create and edit, Managers delete.
+  Export a page as Markdown or PDF. *Ask Sara about this page* hands the page and its open comments to
+  the composer as context; *Save as a page* under her answer opens the editor, and nothing is saved
+  until the member chooses Create page. Organization administration gets a legal hold per workspace
+  (nothing in it can be deleted while on) and per-person page export/delete. Audit rows for create,
+  edit, delete, comment, resolve, hold and person delete. Guide: BUSINESS.md → Team pages.
+- **Coding depth (C13):** a coding task can run in its own git worktree (branch `sara/<task>` in
+  `.sara-worktrees`, the main checkout untouched); finish with Merge, Open PR (pushed and opened
+  through your GitHub connection, title and body drafted from the commits) or Discard (never deletes
+  uncommitted or unmerged work without asking; links such as `node_modules` junctions are unlinked
+  first). Language servers on your PATH (typescript-language-server, pyright, gopls, rust-analyzer;
+  none bundled) give her read-only diagnostics, go-to-definition, references and hover, with time and
+  memory caps. Her commits carry a `Co-authored-by` line (Settings → Coding → GitHub → Her commits).
+  Project page → **Workspace**: files, an editor with line numbers, Problems, a terminal (her shell's
+  rules and sandbox) and a chat that sees the open file. Guide: docs/CODING_DEPTH.md.
+- **Music: Spotify (C14):** Settings → Connections → Spotify connects your own Spotify developer app
+  (Client ID only, sign-in with PKCE; tokens in the vault, renewed by themselves). She searches songs,
+  albums, artists and playlists, says what's playing, reads your playlists and most-played music and
+  your devices. *Let her make and change playlists* adds making a private playlist and adding songs
+  (each asks first); *Let her control playback* adds play, pause, skip, volume, shuffle and queue on a
+  chosen device, only when you ask for music; "needs Spotify Premium" comes back as a plain answer.
+  Read-only permissions unless you tick more. Spotify now runs developer apps only for owners with
+  Premium. Guide: docs/MUSIC.md.
+- **Hey Sara on Mac, Android and Linux (C17):** the same on-device keyword spotter as Windows
+  (sherpa-onnx, Apache-2.0). **Android** listens for her phrase in its opt-in foreground service (off by
+  default; notification with Talk, Pause 1 h, Stop), with *Only while charging*, *Only while Sara is
+  open*, and pauses on low battery or Battery Saver. **Mac**: the engine is in the signed app; menu item
+  *Listen for “Hey Sara”*. **Linux**: `sara wake --server URL` in a terminal (PipeWire, PulseAudio or
+  ALSA). New: *Never in my quiet hours* (Settings → Hey Sara). Phones and Linux get the checked speech
+  model from your own server; nothing is sent anywhere until she hears her name.
+
+## 2.87.0 (2026-11-08): workers, spend control and safer updates
+
+- **Bring your companion (C7):** Settings → Her → Companions → *Bring your companion from another app*
+  makes a new companion from Character.AI (the account export), Replika, Kindroid or Nomi: export files
+  (zip, JSON, CSV, text, a saved chat page) and pasted backstory, key memories, journal, diary or
+  Backstory+ notes. A preview shows her name, backstory, greeting, example lines, each memory and the
+  number of chat messages; untick anything, then bring her over. Memories are marked imported with the
+  app and the day; chats are kept archived and read-only. Read on the server only, size-capped, HTML
+  never run, the minors check and Adult mode apply. Guide: IMPORT.md → Bring your companion.
+- **How she works with you (C12):** Sara notices how you like to work (short or long answers, one
+  pick or options, asking first per project, tone, what you're new to or know well, usual hours,
+  feedback) from your own messages only, holds each as a belief with evidence (message numbers, never
+  copied text) and a confidence that fades unless she sees it again, and tells you once when one
+  changes how she answers. Never health, religion, politics, sexuality, personality types,
+  credentials or generalisations about others; nothing from private, partner, imported or adult
+  chats. Memory → *How she works with you* lists them with Confirm, Not true and Forget; admins can
+  pin it off. Guide: docs/WORKING_STYLE.md.
+- **Workers that stay (C10):** Team → *Workers that stay*. A worker is one of your helpers, or a crew
+  member, that keeps going: a name and a character, its own chat in the conversation list (its results
+  land there, not in the chat you are in), the groups of tools it may use, its own daily token budget
+  and a job queue that survives a restart. It does one job at a time, retries a failing job after 1, 5
+  and 30 minutes, and stops a job that runs past its time. Jobs that keep failing go to *Failed jobs*:
+  read why, then replay a copy or drop it. When a worker is blocked (an approval waiting, its budget
+  used up, a job that keeps failing, a stop you did not ask for) it sends you one alert to the chat app
+  you used last (Telegram, Discord) or the app, held in quiet hours, never twice. A lead hands jobs to
+  the workers under it and their results come back to the lead's chat. Export a worker (and the
+  workers it leads) as a file without secrets (its memories only if you tick it) and import one with a
+  look at what it may do first; imported workers start paused. Owner only, audited; the Crews pin
+  turns workers off too. Guide: [WORKERS.md](docs/WORKERS.md).
+- **Spend control (C8):** paid steps show their price before they run (*about $0.07* for a Grok
+  picture, *cost unknown* when nobody knows); add-ons can declare `costs` in `plugin.json`. Spend limits
+  per day, per month and per tool on Usage and costs stop paid steps with a plain card (Allow = one
+  call); a policy pin sets a hard daily cap with no override. Paid tool calls go on the usage record.
+  **Token Saver** (`/saver on|off|auto`, Settings row, header badge): shorter replies, a smaller history,
+  fewer tool steps and the Quick model; auto turns on near a daily line and off at the reset. Off
+  changes nothing. **Add-on auto-update** (off by default, all or per add-on): installs, checks it
+  starts, rolls back by itself and tells you; never when a new version asks for more permissions.
+- **Updates that roll back on Windows and Mac (C9):** every release now publishes a signed update notice
+  (`update-notice.json`, Ed25519: version, date, oldest supported version, security flag, each
+  installer's SHA-256). On Windows (the *only while I'm signed in* install) and the Mac app, **Update
+  now** downloads the installer in the background, checks it against the notice, keeps the previous
+  version (its installer, or the old Sara.app), installs silently, restarts and checks
+  `/api/health`; if the new version doesn't come up within 3 minutes the previous one goes back and
+  Settings says so. Unsigned or older notices are refused; without a notice Sara falls back to
+  GitHub's newest release and the download page. A new **Update** button in the top bar turns from
+  grey to blue (2 days), amber (4) and red (7), red at once for a security release, and says **Update
+  required** below the oldest supported version. Linux keeps its root helper and reads the same
+  notice for the button.
+- **Board questions (C11):** when she works a card and needs your input she parks it in *question*
+  (not failed, and it no longer holds a work slot); answer on the card or in chat (`card_answer`), and
+  the work resumes with your answer. Boards show a question count; an unanswered question gets one
+  reminder after a day (outside quiet hours), then at most one a day. **Make a board from a
+  description**: she drafts columns and cards with dependencies, you edit the preview, then create it.
+- **Approve a new device from chat (C15):** a password or passkey sign-in from elsewhere (another
+  computer, or any tunnel or proxy, even from 127.0.0.1) waits until you type its 5-character code on a
+  device you already use or reply `approve K7Q2M` in Telegram or Discord; 10 minutes = no. From such a
+  device, Always allowed, a new owner token, add-ons from a URL, chat tokens, updates and turning this
+  off ask you first. Allowed addresses (DNS rebinding check), Devices at most, 30-day sign-out, a
+  notice on a new address, and signing out cuts open connections. On for new servers; existing servers
+  get a one-time notice instead. Pairing codes, device codes, API keys, Alexa and the demo unchanged.
+
+## 2.86.0 (2026-11-08): learn a topic, triggers and tool apps
+
+- **Stop works at once on a busy Windows PC (C2):** stopping a background job or command used to wait
+  for `taskkill`, which on a loaded PC took 15-25 seconds and often failed, so the job ran on until it
+  ended by itself. Sara now ends the Git Bash shell's own processes directly (read from Git's `ps`, no
+  WMI); `taskkill` stays as the backstop for anything those started.
+- **Records match reality (C2):** ROADMAP and OWNER_CHECKS say which release shipped each item instead
+  of "on branch, not merged"; BACKLOG lost its duplicates and the entries 2.85.0 fixed. The policy pins
+  are one table in Settings code (`web/policy-pins.js`: key, label, control, locks), checked by a test
+  against the server's pin list and the Policy page. The performance-lab tests judge each run by its own
+  repeat spread, so a busy host can no longer flip them.
+### Fixed (C1 proof sprint: real Keycloak, OpenBao, Podman, Prometheus/Grafana, scim2-cli)
+
+- Company sign-in works on a business instance reached by IP address (a LAN server with a local
+  Keycloak): the "passkeys need a hostname" guard now switches off only the passkey controls.
+- SCIM: `/Schemas/{id}` and `/ResourceTypes/{id}`, every returned sub-attribute declared (`groups` and
+  `members` with `value`, `$ref`, `display`, `type`), `attributes`/`excludedAttributes` on Users and
+  Groups, 405 on writes to discovery, and a group `PUT` without `displayName` is refused. A strict SCIM
+  client (scim2-cli) could not create a group or read a user before; scim2-tester errors 49 → 12.
+- Container sandbox on rootless Podman: the allowed-sites proxy now starts on both networks at once
+  and the command reaches it by address (`network connect` fails on rootless Podman and its internal
+  networks have no DNS), so *Only the sites listed* works with Podman, not just Docker.
+- Vault/OpenBao references: a key typed as `vault:…` is read before Settings → Models answers, so
+  the next chat has it (it said "needs an API key" for a moment), and OpenBao's refusal reads as
+  one plain line ("permission denied").
+### Added
+
+- **Open Responses (`/v1/responses`, C5):** apps that speak the Open Responses / OpenAI Responses API
+  (the official `openai` package's `responses.create`) can talk to her with an API key: input items
+  with text and pictures, `previous_response_id` to continue, streaming with the spec's events, stored
+  responses you can read back or delete. Her own tool steps show as `sara:tool_call` items and
+  approval cards as `sara:approval` events, answered in Sara. Same keys, limits and safety layer as
+  `/v1/chat/completions`. See docs/OTHER_APPS.md.
+- **Kubernetes (C5):** a single-replica Helm chart in `deploy/helm/sara` (the published GHCR image,
+  a kept volume for her data, health probes, non-root by default, optional ingress). See
+  docs/KUBERNETES.md.
+### Added
+
+- **MCP 2026-07-28 and MCP Apps (C3).** Sara's tool-server client speaks the current stateless MCP
+  revision (per-request `_meta`, `server/discover`, `Mcp-Method`/`Mcp-Name` headers, no session) and
+  falls back to the handshake revisions for older servers (ComfyUI, Playwright and the rest keep
+  working). Tool servers' apps (interactive panels, `ui://` pages) now show in the web chat in a
+  sandboxed frame (opaque origin, strict CSP, 512 KB cap); a panel can only call its own server's
+  app tools, through the normal approvals. Per-server switch: *Show its apps in the chat*. Guide:
+  `docs/EXTENDING.md` → *Apps from tool servers*.
+### Added
+
+- **When this happens** (event triggers, C4): a new email, a Slack or Teams message in a channel she
+  is in, a webhook delivery or a tool server's resource update or event can start her work, either
+  your instruction or one of your crews, with the event as information. Each trigger has a filter,
+  a daily run cap and token budget, pause and resume, and a *Last runs* list. Approvals still apply,
+  her own messages never trigger, repeats are skipped, notifications wait in quiet hours, and every
+  run is in the audit trail. Admins can pin `triggers: false`. Settings → Connections → Webhooks;
+  guide [docs/TRIGGERS.md](docs/TRIGGERS.md).
+### Added
+
+- **Learn a topic** (C6, [LEARN.md](docs/LEARN.md)): `/learn <topic or website>`, "learn about X" or Library → *What she has learned*. She researches the topic (or one site, following robots.txt, same site only, page cap, rate-limited), keeps a knowledge skill with a summary, dated key facts, a glossary and its sources with fetch dates, refreshes it daily, weekly or monthly with *What changed since <date>* (older versions kept, one optional message outside quiet hours, *Out of date* when a refresh fails), and answers questions about it citing the pages. Monthly learning budget in Settings → Budgets; policy pin `learning: false`; owner only.
+
+## 2.85.0 (2026-11-08): meetings, phone helper and her at work
+
+### Added
+
+- `SARA_PROGRAM_PATH`: extra program folders for Sara alone, first in her command path inside and outside the Linux sandbox (for example a newer Python on a cPanel server whose system `python3` must stay 3.6).
+### Changed
+
+- Owner-session continuity no longer lets only one model step run at a time across all of your
+  chats: each chat answers one step at a time and up to 4 chats can work at once (Settings → Chat
+  apps → Session continuity → *Replies at the same time*, 1 to 8; policy pin `parallelReplies`). At 20
+  busy chats a turn took 1.8 s instead of 6.6 s, and at 50 none were refused (half before).
+- Pictures from her: pick a ComfyUI workflow you saved inside ComfyUI instead of pasting the API
+  export, and optionally get her pictures on her own in your Telegram or Discord chat too.
+
+### Fixed
+
+- Get more showed `{{user}}` in a companion's description; it now reads "you", as on the Store website.
+- Stopping a background job on a busy Windows PC could leave its program running until its time limit
+  (taskkill can take 15 s or more, or give up); Sara now retries and then ends the program itself.
+- **Meetings and meeting notes (EC19):** Library → *Meetings…* (owner only). Start a meeting room:
+  after a consent tick Sara shows and says *"I'm Sara, an AI. I'm listening and taking notes"*, each
+  of your devices that joins shows the notice and opens its microphone only after *I understand*; she
+  turns what is said into a transcript and answers briefly when called by name (no tools). Or give her
+  a recorded call (WAV up to 3 hours, MP3/OGG/M4A up to 25 MB). The notes (summary, decisions, action
+  items with owners and dates) are kept in her Library; an action item becomes a Planner to-do only
+  when you press *Add to Planner*. No recording kept unless chosen; transcripts stay on the server;
+  private local mode needs the local hearing engine; policy pin *Turn off meetings*; audit rows for
+  start, join, end, notes, to-dos, downloads and deletes. Joining Discord voice itself is not built
+  (Discord's DAVE encryption is required since March 2026); record the call and use *Notes from a
+  recording*. Guide: docs/MEETINGS.md.
+- **Phone as a helper (EC24):** Sara can ask a phone or browser you switched on (Settings → Devices
+  and sign-in → *Phone as a helper*) for one picture from its camera, your location once
+  (approximate unless she needs the exact spot) or one screen picture. Each use is a full-screen
+  prompt on the device with her reason, **Allow once** and **Deny**; nothing is captured before the
+  tap, and no answer in 90 seconds ends it. Owner only; private local mode is respected; one audit
+  row per request (never the picture or coordinates); policy pin *Turn off Phone as a helper*.
+  Android: location for the prompt in the app (new build). Guide: `docs/PHONE_HELPER.md`.
+- **Her at work (EC26):** Settings → Her → *At work*: one companion for you and your workplace. Chats you
+  tick as work (Slack and Teams by default; Matrix, Email, Discord and Telegram work channels optional)
+  get her work name and tone (friendly and professional, formal, or brief), work tools only (research,
+  files in a chosen work workspace, the calendar; commands only when allowed), a separate work memory
+  (notes, recall, "last time" and other chats never cross between work and personal; *Copy to work* /
+  *Copy to personal* is the only way across) and no companion features (moods, diary, romance, adult
+  content, role-play, pictures on her own). Each work chat gets its own AI disclosure in her work name.
+  Policy pin *Keep work mode on everywhere* makes every chat on a business server a work chat. Audit rows
+  `work-profile.change` and `memory.copy-space`. Guide: `docs/AT_WORK.md`.
+- **Business usage reports (EC15):** organization administrators see the spending ledger per
+  person, workspace and model, by day, week or month, with a CSV download (same columns as the
+  personal report; audited). The ledger now records each request's model. Guide:
+  `docs/USAGE_REPORTS.md`.
+- **Household members can share their own chats (EC11):** same hiding, expiry, refusals and
+  revoke as the owner; the owner can turn it off for members (their links then stop opening), sees
+  only how many links members have, and removing a member revokes theirs. Guide: `docs/SHARING.md`.
+- **Edit history while a legal hold is on (EC17):** in-place rewrites of messages and memories
+  keep the previous text in an append-only history (database triggers), exported with the person's
+  data and shown to the owner. Guide: `docs/DATA_RIGHTS.md`.
+
+## 2.84.0 (2026-11-07): enterprise controls, editors and code mode
+
+### Added
+
+- **Secret sources (EC10):** a server key (model provider, chat app, voice, Home Assistant, the
+  business sign-in secret and operator keys) can live outside Sara: type a reference such as
+  `env:OPENAI_KEY`, `file:/run/secrets/openai`, `vault:secret/sara#openai` (HashiCorp Vault or OpenBao,
+  KV v2), `op://Servers/OpenAI/credential` (1Password Connect), `keychain:sara/openai` or, when the
+  server allows it, `cmd:op read …` in the key field. Sara reads it at use time, keeps it in memory for
+  five minutes, never writes it back, hides it in logs and output, and backups hold only the
+  reference. Several keys (`env:A | env:B`) rotate when the provider refuses one. Settings → Data &
+  health → Operations → *Secret sources* shows each key's source and status (never the value) with
+  *Check now*; audit rows for source changes, rotations and failures; policy pin *Server keys only
+  from secret sources*. Guide: `docs/SECRET_SOURCES.md`.
+- **Sara in your code editor (ACP):** Zed, JetBrains IDEs and other editors that speak the Agent
+  Client Protocol (version 1) can use Sara as their coding agent: `sara-chat acp` (or `sara acp`
+  on the server's computer) with a one-time sign-in. Each editor thread is a coding chat; she reads
+  the editor's files (unsaved changes too), her edits are written by the editor as a diff, commands
+  run in the editor's terminal, and every write and command asks in the editor first (her own
+  approval cards show there too). Files outside the folder, env files and keys are never touched.
+  A policy pin turns editors off; each new editor session is an audit row. Guide: docs/EDITORS.md.
+- **Provisioning with SCIM 2.0 (business instances):** Microsoft Entra ID, Okta or any SCIM client
+  creates, updates, disables and removes accounts. Disabling someone ends their sessions at once;
+  groups map to administrator or member like company sign-in; a provisioned person's first company
+  sign-in needs no invitation. Token shown once, kept as a hash in the operator vault; rate limits;
+  audit rows. Organization administration → Provisioning (SCIM). See docs/SCIM.md.
+- **Retention, legal hold and one person's data:** Settings → Household → Retention and legal hold.
+  Keep chats, memories and files until you change it (the default) or for 30, 90, 365 or 730 days;
+  a legal hold on one person or the whole server stops every way their data could be deleted
+  (enforced in the database); download one person's data as a ZIP with a checksum manifest, or
+  delete a household member's data with a receipt in the audit trail. Policy pins *Keep the whole
+  server on legal hold* and *No deleting one person's data*. See docs/DATA_RIGHTS.md.
+- **Trust report** (EC25): Settings → Household → Trust report sets what Sara said against what ran,
+  for a week, one run or one project: flagged claims, tool calls and failures, approvals, policy and
+  loop-guard refusals, sandbox tries, sources cited and the audit rows of the window. Download as
+  Markdown, PDF or Word (each download is audited). Owner only. Guide: `docs/TRUST_REPORT.md`.
+- **Qualified badge** (EC27): Get more shows when and where each Store entry last passed a real
+  install ("Checked on Linux and Windows · 2026-11-07 · Sara 2.81.0", "partly on" where only part
+  worked) and which checks ran, from a second signed Store sidecar (`v1/qualified.json`) that older
+  Saras never read; the store website shows the same line. Owners fold new
+  `scripts/qualify-addons-native.mjs` results in with `sara addons requalify`.
+- Store list 7 is live with the listing translations and the qualification records (no add-on changed).
+- **Readiness and recovery (EC28):** Settings → Data & health → Recovery is now *Readiness and
+  recovery*. On top, one verdict (Ready / Needs attention / Not ready) and twelve areas (backups, the
+  last proven restore, off-computer copy, disk space, model answers, chat apps connected, paused work,
+  updates, HTTPS and who can reach her, sign-in, admin policy, monitoring and audit), each with one
+  fix. **Run a restore drill** restores the newest backup into a throwaway folder, checks every
+  database and the vault, starts the copy on this computer only with everything that acts switched
+  off, deletes it, and reports the measured time and the data a restore now would lose (one audit
+  row per drill). `GET /api/readiness`, `POST /api/readiness/drill`, `POST /api/readiness/probe`
+  (owner only). Interrupted work stays below on the same page. Guide: `docs/RECOVERY.md`.
+- **Scale evidence (EC18):** `scripts/load-test.ts` drives N concurrent users (chats, tool calls,
+  library uploads, Telegram messages) against a throwaway Sara with a fake model and a fake Telegram,
+  and reports p50/p95, errors, CPU, memory, event-loop lag and SQLite contention. Results and the
+  single-server limits found: `docs/ops/SCALE.md`. The operations snapshot now includes the process's
+  CPU time.
+- **Code mode** (EC21, off by default): with many tool calls ahead, she can write one short script
+  (JavaScript or TypeScript) that calls her tools and returns only the result. Every call inside goes
+  through the same approvals, policy, safety checks and audit trail as a direct call: a tool that
+  asks shows its card and the script waits. The script runs in a fenced Node process (no files, no
+  network, no programs; inside bubblewrap or a container when you have one) with time, memory and
+  call limits. Settings → Tools and approvals; admins can pin it off. Guide: docs/CODE_MODE.md.
+- **Embedding SDK** (EC22): `packages/sara-sdk`, a small dependency-free TypeScript client for apps
+  and scripts (Node 18+ and browsers): device-code sign-in, conversations, streamed replies,
+  answering approval cards, file upload, the OpenAI-compatible `/v1` and webhook signature checks,
+  with an example app. The REST reference `docs/API.md` is generated from its route table.
+
+## 2.83.0 (2026-11-07): research, Teams, crews and safer sandboxes
+
+### Added
+
+- **Store listings in your language:** Get more shows a companion's tagline and description in
+  Spanish, French, German, Brazilian Portuguese or Italian when the Sara Store publishes translations
+  (a separate signed file next to the list, which older Saras never read; a missing or bad one just
+  means English). Translations for the 21 first-party companions are ready; they appear once the
+  Store publishes them.
+
+### Fixed
+
+- Slack: an edit to her progress message that arrives while Slack is still answering the post (a slow
+  Slack or a busy computer) now waits for the message instead of being dropped, so the ⏹ message is
+  always updated in place.
+- `scripts/qualify-addons-native.mjs` checks the download hash of the Store index's `latest` version
+  (it took the oldest, so a plugin with two versions wrongly failed).
+- `tools/developer-data/verify-qualified.ts` also verifies Data Contract Validator 1.0.1 (the security
+  rebuild's recorded hashes and the signed package), not only the 1.0.0 receipts.
+- Prerequisites (PRQ): every Store install card detects catalog programs the catalog's way, also when
+  it is built outside Settings (a companion's suggested add-on, a plugin's Store install), so Chrome on
+  Linux shows *found* or *not found* instead of no answer. Local workflow candidates whose jobs run
+  npm show whether npm is there (beside Sara's own Node) before you review them.
+- Red-team mode on a busy Windows PC: stopping the app between probes no longer depends on `taskkill`
+  finishing within 10 s (it could take longer just to start, the app stayed on its port and the fresh
+  restart dropped a real break as "did not happen again"); after a fatal error the driver waits for
+  the app's exit and its output instead of a fixed 200 ms.
+- Test reliability: the performance lab's injected-regression fixture is now about 4x slower (was 2x),
+  so it stays conclusive on a busy host.
+- **Research a question (EC6, owner request; `docs/RESEARCH.md`):** *Library → Research a question…*
+  drafts a plan (steps and web searches) that you edit and start; while she reads, every page read
+  and every page that failed is listed with the reason; **Write the report now** stops reading early
+  and **Stop** still saves a report of what was found and what is missing. Every sentence of the
+  report links a page fetched in that run (the server checks each one and leaves out the rest,
+  counting them). The report is kept in her Library and downloads as PDF, Word or Markdown (new
+  small writers, no new dependency). Owner only; refused when web search or web pages are off.
+- **Microsoft Teams (EC7, `docs/TEAMS.md`):** talk to her in Teams through a free Azure Bot of your own
+  and a Teams app package the new *Settings → Chat apps → Microsoft Teams* card builds (a zip you upload
+  in Teams). Her personal chat is your own chat with tools, pictures and files; her requests for your OK
+  come as an Adaptive Card with **Allow / Deny** that only you can answer; a progress card with ⏹. In
+  channels and group chats you switch on she answers mentions in their thread (no tools unless *Owners
+  can use her tools in groups*). Her files reach your OneDrive after you tap Allow. Teams must reach Sara:
+  the card says plainly what that needs (a public https address, or the Tailscale Funnel door or a
+  tunnel). Sara checks Microsoft's signed token on every call before the plugin reads it. Rate limits
+  waited out, token retries with backoff, secret errors in plain words. The client secret lives in Sara's
+  vault and goes, with the public hook, when the plugin is removed. Off until you add it. Tested against
+  a stand-in Microsoft; a real tenant is an owner check.
+- **Webhooks and plugins (EC7):** a chat plugin's bridge hook may be of kind `botframework`
+  (`permissions.webhooks: {"bridge": ["botframework"]}`, on the review card): Sara validates the Bot
+  Framework JWT (OpenID metadata, keys with a rotation cooldown, RS256, issuer, App ID, time, channel
+  endorsement, serviceUrl) and answers 401 otherwise. Logs mask Microsoft Entra client secrets.
+- **Container sandbox (EC8, owner request; `docs/SANDBOX_AND_EGRESS.md`):** Settings → Tools and
+  approvals → *Isolation* runs shell commands, sandbox tries and add-on jobs in a throwaway rootless
+  Podman or Docker container when you pick it, or automatically where nothing else isolates (Windows).
+  Only the workspace is mounted; read-only root, no capabilities, no network unless allowed; the local
+  image is never downloaded. Commands are built as argument lists (no host shell). bubblewrap stays the
+  Linux default. *Install Docker for me* and *Look again* without a restart. Admin pin *Require the
+  container sandbox*: without a working engine commands and jobs are refused.
+- **Allowed sites for sandboxed work (EC9):** *Only the sites listed* limits commands, add-on jobs and
+  (with bubblewrap or the macOS sandbox) tool servers to a list of hosts through a small proxy, enforced
+  by the container network, the bubblewrap network namespace or the macOS sandbox; a key named for a
+  site is added by Sara so it never enters the sandbox; every refused site is an `egress.refused` audit
+  row. Admin pin *Only these sites for sandboxed work*.
+- **Add-on jobs on Windows have no network unless their plan asks for it:** a Node guard now blocks
+  connections, local pipes, UDP and DNS (before: proxy settings only).
+- **Share a conversation (EC11; `docs/SHARING.md`):** a chat's settings → **Share…** makes a read-only
+  link that expires (1 hour to 30 days) and can be revoked at once. A preview shows exactly what is
+  shared: keys, vault secrets, e-mail addresses and phone numbers are hidden; tool results and
+  pictures only when ticked. Off-the-record, partner, adult, group and imported chats are never
+  shared; private chats (and everything in private local mode) only when allowed. The page is
+  never indexed, has no script, carries the AI disclosure and is rate-limited. Settings → Household → Shared links lists opens and revokes; a policy pin turns sharing off; audit rows for
+  create, first view and revoke.
+- **Usage and cost reports (EC15; `docs/USAGE_REPORTS.md`):** Settings → Household → Usage
+  reports: daily, weekly or monthly tables by person, workspace, project and model from the token
+  meter's own records, CSV download, and monthly budgets per person or workspace that warn once when
+  nearly used and once when reached (push notification and audit row). The owner sees everyone; a
+  household member only their own.
+- **Crews (EC12, owner request; `docs/CREWS.md`):** standing specialist helpers. Team → Crews: one
+  to four of your helpers with standing parts, a brief, a budget and a time (by hand, daily, weekly,
+  or when your own mail to Sara's mailbox has the crew's subject words). Sara leads each run as a
+  team task: one board card per member with its receipts, one summary, a crew card in the crew's
+  chat, a report file in the crew's folder and, if you like, your Telegram. *Stop all* stops and
+  pauses every crew. Three templates: Research desk, Code review crew, Weekly planner. Owner only;
+  policy pin *Crews: Off*; audited.
+- **Overnight memory tidy (EC13, owner request; `docs/MEMORY_TIDY.md`):** opt-in (Memory →
+  Overnight tidy). Once a night in your quiet hours she merges duplicate notes, asks about notes
+  that disagree (Keep the newer / older / both) and sums up old threads; she never deletes, and the
+  morning card has Undo for every change. Models on this computer only by default; private chats
+  and sensitive person facts never go to a cloud model; each household member's tidy keeps to
+  their own notes. Policy pin *Overnight memory tidy: local / off*.
+
+## 2.82.0 (2026-11-07): one-click programs and 21 companions
+
+### Fixed
+
+- Playwright and Chrome DevTools tool servers on Linux find an installed Google Chrome (or Edge/Chromium): its system folder is now visible, read-only, inside the tool-server sandbox.
+
+- **Programs add-ons need, installed with one click (PRQ, owner request; `docs/PREREQUISITES.md`):** a
+  tool server's card and Settings → Add-ons → Other programs show what is missing on the computer
+  where Sara runs (Google Chrome, uv, Docker, Node.js, Python, Blender, FFmpeg), and **Install it for
+  me** installs it with the system's own installer (winget, Homebrew, apt/dnf/zypper/pacman, or a
+  pinned vendor archive checked by sha256): a card with the exact commands first, then live progress
+  with Stop, then a re-check and **Continue install**. Owner only; *Program installs: Ask first /
+  Allowed / Off*, pinnable by the policy; every outcome is an audit row. Docker Desktop, Linux without
+  root or password-less sudo, and other cases Sara can't install show the exact manual steps.
+- **21 companions in the Sara Store (signed sequence 6):** Settings → Add-ons → Get more → Companions now
+  lists the four starters (Juniper, Rowan, Vesper, Jax, which were never actually published) and 17 new
+  first-party companions with different styles and interests: Marisol (Spanish tutor), Élodie (French
+  tutor), Kenji (Japanese tutor), Dex (blunt fitness coach), Lucia (chef), Priya (study buddy), Wren
+  (writing partner), Hollis (a listener, not a therapist), Inês (budget planner, not financial advice),
+  Tavi (gamer), Nia (music producer), Ambrose (history buff), Bram (gardener), Zara (travel planner),
+  Arjun (startup co-founder who codes), Theodora (philosopher) and Kestrel (SFW fantasy role-play
+  captain). Every one is an adult, rated for everyone and not romantic, with a portrait and avatar made
+  with OpenAI GPT Image 2 (`docs/images/companions/PROVENANCE.md`), a built-in voice, a hello and
+  boundaries. *Add* shows her card first and makes a new companion; *Retire her* removes her. The add-ons
+  website shows each companion's portrait and an example exchange.
+
+- **Security:** the Schema and Data Contract Validator add-on 1.0.1 ships rebuilt bundles of protobufjs
+  7.6.6 and Ajv 8.18.0 (1.0.0 carried 7.5.4 and 8.17.1: code execution from a crafted schema,
+  CVE-2026-41242; a hang on a truncated `.proto` option; Ajv `$data` ReDoS). Signed Store sequence 5
+  lists 1.0.1 (1.0.0 kept); *Update* in Settings → Add-ons installs it. Behaviour is unchanged.
+
+## 2.81.0 (2026-11-07): ready for work and teams
+
+- **Security:** developer qualification tool locks bumped for the 26 open Dependabot alerts: protobufjs
+  7.6.6 and Ajv 8.18.0 (developer-data), Ajv 8.18.0 (developer-security), Vite 7.3.7 with esbuild 0.28.2
+  (developer-mcp-public), basic-ftp 6.2.6 by override (developer-mcp-mongodb); `npm audit` is clean there and at the root.
+- **Metrics and tracing for operators (EC3, `docs/OPERATIONS.md`):** Settings → Data & health →
+  Operations → Monitoring. Off by default. A Prometheus `/metrics` endpoint (scrape token in the vault
+  or allowlisted addresses; 404 when off) with replies, model latency, tokens and cost estimates, tool
+  calls, approvals, errors, tool servers, plugin jobs, chat bridges, queues, database size, backup age
+  and uptime; optional OpenTelemetry traces over OTLP/HTTP JSON (sampled per reply, collector headers
+  in the vault, no message text, prompts, files or keys in any span); a public readiness probe
+  `/api/health/ready`; a sample Grafana dashboard (`docs/monitoring/grafana-dashboard.json`). No new
+  dependency and no paid service.
+- **One audit trail with export (EC4, `docs/AUDIT_AND_POLICY.md`):** Settings → Household → Audit
+  trail lists every sensitive change, sign-in, decided approval card and background run for you, your
+  companions and household members (who, what, where, outcome, policy revision; field names, never
+  values, keys or chat text). Rows are SHA-256 chained (*Check the chain* names the first bad row), can
+  be filtered, exported as JSONL or CSV in a ZIP with a hashed, signed manifest, and kept 30/90/365
+  days or for good; unsettled delivery rows are never pruned. Owner only; apps with a device code and
+  household members can't read it.
+- **Policy profiles (EC5):** Settings → Household → Policy pins rules for everyone on the server
+  (allowed provider kinds, Always ask / Never ceilings for commands and tool servers, Always allow off,
+  adult mode off, no internet for commands, private local mode on, Store signed-only or off, audit
+  retention). Pinned settings show *Set by your admin* and the server refuses changes (409, naming the
+  policy) from the app, the API and every route, the owner included; the tool ceiling beats *Always
+  allow this tool* and a tool server's *Everything*. Policy changes and imports are audited; JSON
+  export/import for repeatable setups; the safety check-up reports drift. No policy = no change.
+- **Company sign-in for business instances (EC2, on branch `hermes/ec2`):** organizations can let
+  people sign in with Microsoft Entra ID, Google Workspace, Okta, Keycloak or another OpenID Connect
+  provider next to passkeys. Authorization code flow with PKCE, signed ID tokens checked with Node's
+  own crypto (RS256/ES256, key rotation, issuer/audience/expiry/nonce), an email-domain allowlist,
+  groups mapped to administrator or member, invitation-bound first sign-in by default with optional
+  just-in-time accounts, a session length and a regular session check so a person disabled at the
+  provider loses access. The setup person's passkey always works as a break-glass sign-in. The admin
+  page shows the redirect URL to copy and plain setup steps per provider; the client secret stays in
+  the operator vault. Personal and household installs are unchanged. Guide: `docs/BUSINESS.md`.
+
+- **Slack (EC1, `docs/SLACK.md`):** talk to her in Slack through a small Slack app you create from a
+  manifest the new *Settings → Chat apps → Slack* card shows (copy, paste at api.slack.com). Socket Mode,
+  so Sara needs no public address. Her DM is your own chat with tools, pictures and files both ways and a
+  progress message with ⏹; her requests for your OK come as **Allow / Deny** buttons that only you can
+  answer. DM threads are their own sessions; in channels you switch on she answers mentions in a thread
+  (no tools unless *Owners can use her tools in groups*). `/sara` commands, Slack's rate limits waited
+  out, reconnects with backoff, token errors in plain words. Both tokens live in Sara's vault and go when
+  the plugin is removed. Comes with Sara as a plugin, off until you add it. Tested against a stand-in
+  Slack; a real workspace is an owner check.
+- **Plugins (EC1):** a chat plugin may connect to one named public domain and its subdomains
+  (`"host": "domain:slack.com"`, always encrypted, shown on the review card), and may show her approval
+  requests as Allow / Deny buttons (`permissions.bridgeApprovals`, on the review card; Sara checks that
+  the owner pressed it). A thread turn in a plugin chat now answers in its thread.
+- **Docs:** the GitHub front page and its five translations show the 2.79/2.80 look: a Docker one-liner
+  at the top, real screenshots of the new UI (chat in Night and Day, an approval card with *Always allow
+  this tool*, All settings, Ctrl K, Appearance, Pictures from her, Get more, Today, Planner, a phone) in
+  `docs/screenshots/v3-*.webp`, new art, a Look and navigation row and two developer rows. The 2.8.3
+  animated demo is retired.
+
+## 2.80.0 (2026-11-07): every installer checked end to end
+
+- **Updating a tool server keeps your settings (Q-ADDONS, `docs/ops/Q_ADDONS_MCP.md`):** the update card
+  from Get more now shows the values you saved (for example your ComfyUI address on another computer)
+  instead of the recipe's defaults, and an update that leaves a value out keeps the saved one instead
+  of resetting it. Secrets are still never shown.
+- **ComfyUI recipe 1.0.1 (prepared for the Sara Store):** the B2 tip about a ComfyUI on another
+  computer and the ask-first installers reach existing installs as an update.
+- **Files tool server on Linux:** the folder you pick for it is now reachable inside the tool sandbox
+  (bubblewrap); it refused to start before ("None of the specified directories are accessible").
+- **Plain words for HTTP tool servers:** a refused key says to check the key or token saved for it,
+  and an address where nothing answers says to check that the program is running (were "MCP HTTP
+  401" and "fetch failed").
+- **Playwright recipe 1.0.1 (prepared for the Sara Store):** says it needs Google Chrome on the computer
+  where Sara runs; it never downloads one.
+- **Fix: a Store plugin removed from its Plugins card can be added again (Q-ADDONS):** *Remove* on
+  the Plugins card left the Store's record of it behind, so *Get* in Get more then refused it with
+  "The saved store association no longer matches the installed plugin". Removing it now also forgets
+  that record when it matches the removed version exactly (test/phase125.test.ts).
+- **Fix: retiring a companion right after adding her no longer stops Sara (Q-ADDONS):** her delayed
+  start-up work (resuming a history import after 20 seconds, the first search-index pass) still ran
+  after *Retire her* had closed her data, and the "database is not open" error stopped the whole
+  server. Retiring now cancels it (test/q-addons-retire.test.ts).
+
+## 2.79.0 (2026-11-07): an advanced look and pictures like a person
+
+- **Easier to find everything (V3, `docs/ops/V3_DESIGN.md`):** the sidebar starts with *Go to* (Today,
+  Planner, Library, a new *Add-ons* place for the store, Moments, More), then Projects, then the
+  conversations, with Help and Settings in a footer row and a Ctrl K hint by the search box. Settings
+  opens on *All settings*: every page under its group with a line on what the group is for, one click
+  away, and *Settings › group › page* above each page. Search knows more words for pages ("store",
+  "projects", "documents", "glass"…). Ctrl+K also finds projects and has *All settings*, *Appearance*,
+  *Find a setting* and *Reset the look to the defaults*.
+- **A more advanced look:** *Full* decoration outside Sara Classic is now a refined layer: soft glass on
+  the sidebar, header and windows only, a faint glow on the main button, a thin accent ring around her
+  face instead of the halo and sparkles, and a very slow, faint light behind the app; solid where blur
+  can't be drawn, with Reduce transparency, in forced colours and in High contrast. Text on every glass
+  surface stays at WCAG AA (tested).
+- **Appearance page:** three groups (Theme, Layout and text, Chat behaviour), palette cards and colour
+  swatches as the controls, short choices as segmented buttons, a live preview and *Reset to defaults*.
+- **New defaults (the owner's):** Follow the system, Blue, Full decoration and 5 sessions shown, for
+  every choice not made yet on a device (Graphite, small picture, Comfortable, Normal text and replies
+  as fast as they arrive stay). Choices you made stay; Sara Classic keeps its earlier defaults.
+- **Fixed: "can you see ComfyUI?" ended with a false answer (B2).** When only part of a big tool
+  server fits, read-only and status tools come first (installers, downloads, restarts and
+  report_issue last), so she gets ComfyUI's health check. A tool error that lists allowed values now
+  names the field's values and tells her nothing ran and to try again or use find_tools. After a tool
+  error she no longer guesses a cause or asks you to install something before checking; a reply that
+  says something isn't installed or running after only failed calls, or that she sent a picture or
+  file when nothing was attached, is marked as not checked.
+- **Fixed: pictures from tool servers were dropped.** An image a tool server returns (ComfyUI's
+  get_image) is attached to her reply like her photos (PNG, JPEG, WebP or GIF, up to 8 MB, 4 a call);
+  otherwise the result says why not.
+- **Fixed: the edit form of a Store tool server looked empty.** Settings → Other programs shows its
+  saved settings (secrets as Saved, with Replace), keeps vault values you don't change and keeps the
+  Store's type. An address that answers like a web page says so in plain words. The ComfyUI recipe
+  explains a ComfyUI on another computer (e.g. its Tailscale address), that installing tools act on
+  the computer where Sara runs, and asks before installing, training, snapshot and file-writing tools.
+- **Pictures like a person (E7):** she can send a picture on her own now and then (off by default;
+  rarely, sometimes or often, never more than one a day, inside her own-message rules and a monthly
+  limit), made with the engine you pick: Grok Imagine, OpenAI images, a ComfyUI workflow (paste it in
+  API format, pick the prompt node) or another image tool. **Send one now** tests it.
+- **Always allow:** an approval card can allow a tool for good (with Undo), and each tool server has
+  one choice: Ask me first, Always allow the safe ones, Always allow everything, or Never.
+  Installing, downloading, restarting, removing and training keep asking. Guide: docs/PHOTOS.md.
+
+## 2.78.0 (2026-11-07): a finished professional look and five run-and-check add-ons
+
+- **More developer add-ons that really run things, as local candidates:** Documentation Doctor (N24)
+  finds broken local links and headings in a staged project's Markdown and runs one documented
+  command only when you pick it, as a job you approve, with its real exit code and output; text in
+  the documentation is never run on its own. Release Readiness (N10) runs a project's configured
+  local release gates, one approved job each, and says ready only when every gate really passed; a
+  failing gate blocks, and publish, sign, upload or CI gates are refused. Repository Onboarding (N01)
+  maps a staged repository and reproduces the build its README documents, exactly as written, with
+  a real exit-code and output receipt; invented commands and missing documented prerequisites are
+  refused. `npm` commands, gates and builds are held on Windows (bubblewrap only).
+- **New look, the rest of the design:** each chat turn shows name, time and how long she took; one
+  model · workspace chip with a small context meter in the header; Settings as a full-height panel
+  listing every page under plain headings; usage and a run's model calls as real tables; a Projects
+  section at the top of the sidebar; calmer add-ons/store tabs, first-run cards and offline page.
+  Sara Classic is unchanged.
+- **Under the hood:** `web/pro.css` folded into the screens' own stylesheets (no visual change,
+  checked value by value).
+
+## 2.77.0 (2026-11-06): a professional new look
+
+- **Two developer add-ons that really run tests (N03, N04), as local candidates:** Test Doctor
+  runs one named test once as a job you approve and points at the real failing assertion
+  (expected, actual, line) and the source it calls; timeouts, todo failures and non-assertion
+  errors get no root cause. Flaky Test Lab repeats one test up to 20 times in one approved job and
+  calls it flaky only when it both passed and failed, with every seed's outcome. Both run in a
+  throwaway copy of what you staged; not OS-sandboxed on Windows.
+- **Plugin jobs (H_EXEC):** a plugin that declares `permissions.run` can ask Sara to run `node`
+  (or `npm` where bubblewrap exists) for it. You approve each job on the Plugins page, with the
+  exact command; it runs in a throwaway copy of its own files or your main workspace (no `.git`,
+  links or dependency folders), returns the real exit code, output and changed files, and the copy
+  is deleted. Nothing is written back to your workspace. On Linux with bubblewrap it is sandboxed
+  without network; on Windows and elsewhere it is **not OS-sandboxed** (Node's permission model
+  only, limited to the copy). A job stops when you press Stop, when the plugin is switched off,
+  when its time is up or when the plugin's request ends. See [Plugins](docs/PLUGINS.md).
+- **Fixed: a plugin's tool request could still run after the plugin gave up.** When a plugin asks
+  to use one of her tools, the approval now lasts only as long as the plugin task that asked: when
+  that task times out, finishes, fails or the plugin stops, the card disappears at once and a late
+  Allow answers *expired* (nothing runs). A plugin can no longer ask outside a task Sara started.
+  Chat, team and live-call approvals likewise report *expired* when their turn, step or call ended.
+- **Read a feed together (E6):** in the Library press *Read a feed together*, paste the address of
+  a public RSS or Atom feed and press *Open*. Sara fetches it once (only on *Open* or *Reload*) and
+  lists the items as plain text; press *Share* on one and she comments on exactly that item. If you
+  reload and it changed or vanished she says so. *Stop* ends it; nothing is remembered. Feed text
+  is treated as written by strangers, and her outward tools are off while an item is shared. Owner
+  only; not in private mode. See [A feed together](docs/LIBRARY.md#a-feed-together).
+- **A professional new look and real themes (V1, [design](docs/ops/V1_DESIGN.md)):** Sara now looks
+  like a calm, dense work tool. *Settings → You → Appearance* (its own page now) picks a palette:
+  Graphite (the new default), Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast or
+  **Sara Classic** (the rose and violet look, unchanged), each in Night and Day; a colour (the
+  palette's own, eight presets, or any colour: Sara adjusts its shade so text stays readable);
+  *Layout* (compact sizes now apply app-wide); *Decoration* (aurora, glows, glass and blur: on for
+  Sara Classic, off for the rest); and her picture size in work views (small by default). Chat is a
+  transcript instead of bubbles; buttons, fields, tabs, cards and windows are flat with small radii
+  and system fonts only. *Use on all my devices* saves the look for new devices. People who used Sara
+  before see one notice with *Switch back to Sara Classic*. Every palette's text and accent pairs pass
+  WCAG AA (checked by a test).
+- **Fixed:** markdown tables in her replies show as tables instead of raw `| a | b |` text, and a
+  Settings page title no longer gets a focus box when the page opens.
+- **Expressive voice per engine (R2d):** each voice now gets only the sounds its maker documents.
+  ElevenLabs with an `eleven_v3` model laughs, sighs and whispers too; Grok voice no longer gets a
+  tag it does not know; other voices read the plain words. Not yet confirmed by ear (owner check).
+- **Recovery times in your language:** delivery cards show "5 minutes ago" (or the date after a
+  week) instead of a raw ISO timestamp; hover for the full local date and time. Stored times are unchanged.
+- **Log level in Settings:** Settings → Data & health → Health → *Log level* (owner only) picks how
+  much goes into her log, saved and applied at once. `SARA_LOG_LEVEL` on the server still wins and
+  the page says so. See [Logs](docs/INSTALL.md#logs).
+- **Scene chips in the chat (shared scenes follow-up):** the *In scene* chip now opens the scene
+  card; a fact she saves shows *Saved to the scene: …* in the chat, and a line you picked with Add
+  to scene shows *Canon: …*. Both open the card. Owner only. See [Shared scenes](docs/SCENES.md).
+- **Fixed: the code map on Node 26 (issue #9).** Re-indexing a changed or deleted file stopped with
+  "Value is too large to be represented as a JavaScript number"; every code-map write now reads
+  SQLite's row numbers safely.
+- **Fixed: buttons that waited with several Sara tabs open.** Each tab kept its own live-updates
+  connection, and over plain HTTP a browser opens only six per server, so with six tabs (or five
+  and a streaming reply) every press, such as Allow on a proposal card, waited. All tabs of a
+  browser now share one connection; when that tab closes, another takes over.
+- **Three lab developer add-ons as local candidates (N09, N25, N28):** Performance Regression Lab
+  measures staged baseline/candidate benchmarks interleaved and keeps raw samples (noisy or small
+  runs stay inconclusive, without a percentage); Code Migration Studio previews a scope-aware AST
+  import rename and applies only the approved hash-bound patch to a staged workspace copy; Build
+  Reproducibility Inspector builds a staged fixture twice and explains time/path differences from
+  the artifacts. Off until enabled, tool access Ask, no network or model. Not signed or listed yet.
+  Offline and PWA Auditor (N18) and Mobile Device Lab (N30) stay held. See
+  [Developer add-ons](docs/DEVELOPER_ADDONS.md).
+- **Developer connections in Other programs (MCP):** the thirty developer MCP targets (Local Git
+  through CircleCI) now appear with a plain state. Storybook and local Qdrant passed a real
+  fixture test with pinned upstreams and no account; *Copy into the add form* fills the normal
+  form switched off, and nothing starts until you save it enabled. Twenty-two others show the
+  exact account or service step they need first, and six are blocked with their reason; neither
+  has an install action. See [Developer add-ons](docs/DEVELOPER_ADDONS.md).
+
+## 2.76.0 (2026-11-06): developer add-ons
+
+- **Watch alerts on Telegram or Discord, and in the chat you pick (E4 follow-up):** each watch has
+  *Also send to Telegram / Discord*, off by default and offered only for a bridge linked to you;
+  alerts then also reach your own Telegram chat or Discord DMs (never a group, server channel or
+  anyone else), with the same limits and the same cut, scrubbed line. *Alert cards go to* picks
+  which of your own chats gets the card (default: the most recent). See [Watch a file](docs/WATCHES.md).
+- **Fixed: red-team runs that came out differently on a busy computer.** When she re-runs a break
+  to confirm it, she now waits for the app's actual answer (unless the break was a hang), so a crash
+  that answers slowly is no longer dropped as "did not happen again". Restarting the app between
+  probes waits until the old copy has really stopped and freed its port (a fixed pause used to end
+  in "port already in use"), and each attacker script gets a freshly started app before its own
+  time limit starts. The test app's "breaks only after earlier requests" route now counts in its
+  copy, so its test no longer depends on how busy the computer is.
+- **Developer add-ons in Settings (A2):** the nineteen developer add-ons (secret scanner, license
+  auditor, SBOM builder, API contract guard, HTTP and webhook workbench and more) now appear in
+  *Settings → Plugins → Workflow candidates* beside the twelve workflows, marked *Host-tested*. Same
+  review, install and per-companion switch as before; each installs Off. Every library entry is
+  shown once: 16 signed Store items in *Get more*, 31 workflow candidates, and 21 connection
+  previews or blocked investigations that stay visibly held. See [Add-ons library](docs/ADDONS_LIBRARY.md#what-sara-shows-today).
+
+- **Developer add-ons (merged from the add-ons session, store release separate from a harness
+  version):** nineteen local-only native developer add-ons were published in signed Store
+  sequence 3 by the add-ons session (31 signed items; earlier records unchanged) and listed on
+  the enterprise website. Installs stay Off until enabled. Full supported scopes:
+  [Developer add-ons](docs/DEVELOPER_ADDONS.md). MongoDB stays blocked by its reproduced upstream
+  zero-limit row-cap bypass; Local Git is blocked for project use after real external-diff,
+  textconv and outside-config canaries. Remaining developer targets are not promoted.
+
+## 2.75.0 (2026-11-06): calls work like the chat
+
+- **Calls work like the chat (R2a–R2c):** on a call she has the same memories, other-chat
+  context, checkpoint, tools and Adult-mode rule as typing in that chat (a household member gets
+  their own). A tool that needs your OK shows its card on the call screen and she says so; only a
+  tap answers it, and hanging up, talking over her or two minutes without a tap cancels it. Live
+  calls can now use her tools (not commands, her hands or SSH), with a note of each result in the
+  chat; on a voice without tool calling the screen offers *Switch to classic*. See [Video calls](docs/VIDEO_CALLS.md#what-she-knows-and-can-do-on-a-call).
+
+## 2.74.0 (2026-11-06): read together
+
+- **Fixed: cards that looked stuck.** When you press *Use it*, *Edit first*, *Not now*, *Install* or
+  another button on a suggestion card, the button now says it is working and the card ignores
+  further presses until the answer comes back; if it fails, the card is usable again.
+- **Read together (E5):** open a text or Markdown document in the Library and press *Read
+  together*; it opens above your chat. Select some text and press *Share this passage*, or switch
+  on *Follow my place* (off by default), and she comments on exactly that text at that version. If
+  the document or passage changed she says so instead of using old text. *Stop* (or your stop
+  word) ends sharing at once; a restart ends it too. Owner only, and with *Nothing leaves this
+  computer* on only a model on this computer sees it. See [Read together](docs/LIBRARY.md#read-together).
+- **New GitHub front page:** a brand hero banner, one-sentence summary, download/install/star
+  and update actions, a "What Sara does" grid with one line and guide links per area, a developer
+  path, the recent-releases table cut to six rows with older history folded, and a trust, safety and
+  legal section. The screenshot feature tour moved to [docs/FEATURES.md](docs/FEATURES.md); new
+  illustrations live in `docs/images/brand/`.
+
+## 2.73.0 (2026-11-06): watch a file
+
+- **Watch a file:** in *Planner → Routines*, Sara can watch a log or file in one of your
+  workspaces (or her own log) for a few words like `ERROR`. When a new matching line appears she
+  posts a chat card and sends a notification, at most one every 10 minutes and 12 a day, with
+  repeats counted up. Each watch has *Check now*, *Pause*, *Stop* and *Stop and forget*. Reading uses
+  no model, she never fixes anything by herself, and a line goes to a model only when you ask
+  about it. Owner only; watches pause after a restart and end after 30 days. See
+  [Watch a file](docs/WATCHES.md).
+
+## 2.72.0 (2026-11-06): honest visual checks
+
+- **Honest visual checks:** in web work a "checked at phone width" claim needs a screenshot at
+  phone width (390 or up to 480px), and "it's fixed / looks right now" needs a screenshot or a
+  passing browser check after her last edit; otherwise the reply is marked unverified (not
+  blocked). Her coding instructions say to check again after a fix. A scripted end-to-end test
+  covers edit → preview → screenshot → fix → check again. See
+  [Web pages: look, fix, look again](docs/FOR_CODERS.md#web-pages-look-fix-look-again).
+
+## 2.71.0 (2026-11-06): project continuity
+
+- **Project now:** owner coding chats see which other coding chats of yours
+  are active on the same project (titles, times and touched files, never message text), and every
+  check, goal and checkpoint result says what it ran on: current, stale since a time with what
+  changed, or basis unknown. Sara must re-run a stale check before saying it passes. A note only:
+  nothing is locked or re-asked. See [Project now](docs/FOR_CODERS.md#project-now-other-chats-and-current-checks).
+
+## 2.70.0 (2026-11-05): shared roleplay scenes
+
+- **Shared scenes across your own chats:** play one story
+  across your own web chat and your own Telegram or Discord DMs. Settings → Chat apps → Session
+  continuity → Shared scenes: create a scene, link chats after seeing who will experience it, and
+  keep short canon facts with history, retire, reset and delete. Her replies in linked chats get the
+  current canon in one marked, capped block; messages are never copied between chats. Editing or
+  forgetting a source line, privacy/channel/archive changes and room identity changes revoke what
+  came from them. Crisis turns leave the scene out, the stop word pauses it, adult scenes need Adult
+  mode, minors canon is refused. Household scenes are a later slice. See
+  [Shared scenes](docs/SCENES.md).
+- **One shared room per scene:** link one Discord channel, Telegram group or DM with a guest
+  to a scene after seeing exactly who is in it (Confirm is bound to that room). Guests experience the
+  canon in her replies and keep every partner rule: no tools, approvals, memories or your other
+  chats. Their words become canon only when you pick a line with **Add to scene** in its message
+  menu; her replies there never record canon. Adult scenes take only adult rooms while Adult mode
+  is on, never a guest DM. Linked chats show an "In scene" chip, to you only.
+- **Her scene canon tool:** in your own linked chats she can read the scene's canon and
+  save facts with `scene_canon` (revision-checked, same safety checks as your own canon); retiring
+  a fact always asks you first. Her facts are marked "Written by her in a linked chat" and are erased
+  with the reply they came from. Never offered outside your own scene seats, in replays, on crisis
+  turns or when set to Never.
+
+## 2.69.0 (2026-11-05): add-ons in existing Settings
+
+- **Companion-pack ratings:** dotted release numbers such as 2.69.0 no longer count as explicit
+  prose. Standalone explicit terms still require the Explicit rating; minors, privacy and raw
+  duplicate-field checks remain intact.
+
+- **Development checks:** cap independent test files at four to avoid oversubscribing child
+  processes on large development machines. The full test set, assertions, timeouts and each
+  application's concurrent-user tests remain unchanged.
+
+- **Existing Settings discovery:** twelve supplied-data workflow
+  candidates use the normal Plugins review, trust and per-companion enablement flows. Seven MCP
+  recipe previews, fourteen blocked investigations and six starter guides explain prerequisites,
+  permissions, costs and qualification limits. Search follows displayed translations; disclosures
+  and contained retry work on desktop and phone. No automatic installation, connection or enablement.
+- **Honest source and approval state:** local candidates stay distinct from signed Store releases.
+  Stale reviews, concurrent mutations and outdated downloads cannot replace newer authority;
+  rollback preserves current signed block/yank evidence and cannot invent a signed association.
+  Forgetting an obsolete Store record preserves a replacement plugin. Off remains immediate.
+- **Complete distribution payloads:** Windows, macOS, Docker and Linux copy the twelve candidate
+  packages with their SDKs/assets. Linux also preserves all five existing builtin plugins and
+  removes stale candidate files on rerun.
+- **Scope:** Image Workshop prepares prompts; Home Dashboard summarizes a supplied non-live
+  snapshot. MCP recipes remain preparation previews, with explicit annotation/OAuth/approval/cost
+  limits. The live website, existing signed metadata and package URLs are unchanged. See
+  [the library's scope and limits](docs/ADDONS_LIBRARY.md). 
+- **Qualification:** 3033 automated tests: Windows 3017 pass/0 fail/16 skip; Linux 3018 pass/0
+  fail/15 skip. Thirteen isolated desktop/mobile browser journeys pass. Actual Windows and the
+  signed/notarized universal Mac package pass their recovery/regression profiles and the add-ons
+  checks, including four refusal cases; both container architectures carry exactly the twelve
+  candidate packages and pass personal/business health checks. Windows is unsigned. Synthetic
+  data and scripted providers; physical-device, screen-reader and real-account checks stay separate.
+
+## 2.68.0 (2026-11-05): owner-session continuity
+
+- **Context across eligible personal chats:** refresh linked owner-session context at actual provider boundaries, coordinate provider steps within the same companion store, and offer bounded historical reads and internal handoffs. Source edits, forgetting and privacy changes invalidate affected context. Internal notes never send human messages, grant tool authority or certify completed work.
+- **Owner controls:** separate Session continuity switch and current-conversation inspector with literal-text source/time/expiry, latest-versus-history labels, confirmation and conflict-safe target-only clear. Expired retained notes can be explicitly cleared while the feature is off. Keyboard focus returns to enabled recovery controls.
+- **Accurate provenance and audit:** native JSON imports retain host import markers; historical rows with unknown origin are not labelled authenticated owner speech. Final tool-offer audits are refreshed after waits, including additions, removals and schema-token estimates. Existing audit history is retained.
+- **Guided first use:** Settings navigation, page help and three How do I answers with a real Show me control, translated in five languages. Existing pickup/busy preferences and every previous page remain intact.
+- **Qualification:** reviewed source passed2709 automated tests: Windows2693pass/0fail/16skip; Linux2694pass/0fail/15skip. Ten isolated desktop/mobile browser journeys and actual Windows/Mac recovery, twelve approval-revalidation cases,286 compatibility cases and77 continuity cases pass. The universal Mac installer is signed and notarized; Windows is unsigned. Synthetic data and scripted providers establish harness behavior; physical Intel, screen-reader/device acceptance, real-model tone and production recovery remain separate checks. Household members, business actors, private/partner/off-record/room/imported/external contexts stay separate. Shared roleplay scenes, project coordination and full voice/video parity remain future slices.
+
+## 2.67.0 (2026-11-05): continuity and conversational attunement
+
+Includes the checkpoint and coding hardening work planned for2.66.0, which was not published as
+a separate public release. Earlier qualification evidence remains separate from this release's gates.
+
+- **Recent explicit cues:** normal owner chat/coding replies can adapt to bounded current fatigue,
+  task frustration or directed conflict without treating software criticism as a personal attack.
+  Six-language rules, corrections, current-source rechecks and original expiry use the existing
+  inner-life opt-out. No extra classifier call or separate durable owner mood profile is added.
+- **Character privacy:** newly built prompts omit historical raw disagreement quotations; true
+  owner conflict/apology reactions and ordinary private owner interaction retain their character
+  behavior. External/untrusted and unknown queued origins do not mutate owner-derived state.
+- **Qualified follow-ups:** explicit event outcomes/cancellation/decline replace loose name overlap.
+  Current source ownership, workspace, privacy and chronology are revalidated, including changes
+  during proactive generation. Cancelled or revoked dates do not post or update delivery state;
+  actual usage is still recorded. Old/imported notes remain editable without minting owner proof.
+- **Agenda answer provenance:** identifiable question/answer chains and an event-date witness keep
+  direct replies and rescheduled windows honest. Invalid derived completion returns only to Sent,
+  preserving delivery/no-resend and manual authority; unrelated plans retain normal delivery.
+- **Prompt audit and replay:** final transient notes and input hashes reflect the actual handoff
+  after preparation/approval. Replays omit new transient notes and report changed inputs while
+  preserving original inspection records. See [Recent cues and follow-ups](docs/ATTUNEMENT.md) for
+  limits, opt-outs, source invalidation and existing history/export/backup retention.
+
+- **Project continuity:** explicit project checkpoints keep current logic, blockers and up to three
+  next steps, with bounded history and owner inspect/replace/clear controls. New coding chats can
+  recover historical context without replaying commands or old approvals. Source deletion, covered
+  edits and forgetting invalidate derived records; private/off-record/shared/external contexts are
+  excluded. Checkpoint changes run no commands and carry no earlier approvals forward.
+- **Pending coding authority:** normal turns and team helpers recheck current permissions, tool
+  availability and their original conversation/workspace context before execution and sandbox
+  application. Changed context stops stale planning; valid unchanged approvals and scoped grants
+  retain their existing behavior. Already-started work uses the existing Stop/undo controls.
+- **Windows build provenance:** Git-backed installer builds record their actual source revision
+  even with Git Bash argument conversion disabled. A failed expected Git lookup stops packaging;
+  historyless source archives do not borrow a parent repository's revision.
+- **Coding project navigation:** opening Coding projects from Settings search loads the project
+  cards through the same route as ordinary Settings navigation.
+- **Coding project reliability:** late responses from a previous workspace cannot replace the
+  newly selected workspace. Adding or removing project notes preserves unsaved checkpoint drafts.
+- **Off-record privacy:** off-record coding contexts do not read the persistent project-knowledge
+  store inherited from the ordinary app context.
+- **Release presentation discipline:** local release collection checks that all six README status
+  lines, newest release summaries and primary download/install/star links match the release before
+  changing artifact output. No CI or recurring release watcher is introduced.
+- **Publisher hardening carried forward from the unpublished 2.66 candidate:** author and committer privacy checks compare actual
+  email fields exactly in both full-release and README-only modes.
+
+## GitHub presentation update (2026-11-05; published separately from software 2.65.0)
+
+- **GitHub presentation and publishing:** refreshed all six README entry pages with download,
+  install and star links, current release highlights and folded history. The checked publisher
+  supports an explicitly requested six-README-only update without changing software releases.
+  This six-README-only update was published without changing the 2.65.0 software release.
+
+## 2.65.0 (2026-11-04): guided business setup and invitation management
+
+- **Business first use and administration:** mode-specific name/adult/code guidance, scoped next
+  steps and actionable input feedback. Passkey enrollment and focus changes refresh authoritative
+  access metadata across tabs while keeping unchanged drafts, original requests, unsaved admin
+  choices and displayed private codes. Fresh colleague rows and invitation choices update in place;
+  closed sessions and delayed authentication replies cannot silently reopen protected work.
+
+- **Business operator configuration check:** `--business-check` reports bounded, read-only local
+  configuration evidence and ordered next actions. Missing roots remain missing; databases,
+  credentials, content, pending usage and recovery state are never opened or changed. Unsafe or
+  changing layouts fail closed, and live access, inference, custody and availability stay explicitly
+  unverified. Invalid business command shapes are refused before data initialization.
+
+- **Business invitation history:** authorized administrators and workspace managers can see the
+  latest 100 invitations for their own management scope, with expiry and current status, and revoke
+  pending invitations. Private codes are shown only at creation. Used invitations remain accepted
+  in history even if their code is later revoked; current membership is managed separately.
+
+- **Repeatable business qualification:** a manual combined browser, configuration and encrypted
+  recovery drill preserves original child logs and fails on missing, invalid or failed receipts.
+  Synthetic engineering evidence stays distinct from real people, backup custody and production
+  availability. Container images now include the physical MIT license alongside their metadata.
+
+## 2.64.0 (2026-11-04): separate business workspaces (B1)
+
+- **Business workspaces:** optional separate business profile with individual passkeys,
+  explicit workspace roles and transactional invitations. The business desk shows audience, role
+  and model destination before sharing text/Markdown. Scoped search/events, per-session drafts,
+  bounded document selection and read-only original-request checks preserve workspace boundaries.
+  Operator-only model policy, atomic lifetime allowances and durable request IDs keep uncertain
+  usage held without automatic regeneration. Metadata audit, graceful draining and encrypted
+  generation backups support closed restore with fresh passkeys, explicit grant reconciliation
+  and conservative spending acceptance. Routine lost-sign-in recovery affects only that person;
+  ordinary spending-pause acceptance preserves existing access and held exposure. Personal and
+  household credentials/data remain separate. See [Business workspaces](docs/BUSINESS.md) and
+  [Business installation operations](docs/BUSINESS_OPERATIONS.md). Business provisioning uses the
+  separate manual source/container workflow; personal installers do not convert existing data.
+- **Portable business snapshots:** system temporary-directory aliases are resolved before snapshot
+  creation, including macOS /var paths; archive link checks remain strict.
+- **Clear first use and healthy containers:** signed-out newcomers see the invitation/sign-in
+  screen without a false access-loss warning. Business container health uses the configured
+  hostname while staying on loopback; invalid configuration fails closed.
+
+- **Manual engineering qualification:** a fixed ten-minute, eight-client synthetic loopback soak
+  with periodic worker backups and independently checked restores. Failure receipts wait for
+  accepted workers; restored uncertainty metadata is checked as well as encrypted review text.
+  Added four-space encrypted folder-copy recovery coverage, including wrong-key/tamper refusal.
+  The manual tools use synthetic fixtures; no background schedule or paid service is enabled.
+
+## 2.63.1 (2026-11-04): measured operation and safe retention (Q4)
+
+- **Operations:** owner-only readiness evidence, bounded HTTP latency/error/inflight measurements,
+  generated request IDs and fixed privacy-safe request logs. Process memory/event-loop delay is
+  clearly scoped; configured models and backup files are not presented as successful inference
+  or proven recovery. Public liveness remains minimal.
+- **Archive resolved deliveries:** explicit cutoff, preview and bounded confirmation preserve
+  unresolved uncertainty, human/transport evidence and duplicate-send identities. Archived history
+  remains accessible; no automatic deletion or database-shrinking claim.
+- **Responsive backups:** manual, existing automatic and Safetycheck creation runs in serialized
+  worker threads. Accepted jobs drain on shutdown; later work is refused. Parallel manual snapshots
+  keep distinct complete archives, and asynchronous retention tolerates files disappearing from a
+  concurrent list. The archive format, encryption/key handling and offline CLI remain compatible.
+- **Repeatable qualification:** synthetic workload/backup/upload/archival and real-browser journeys,
+  plus an incident/restore drill. Local commands only, no CI/watchers or provider charges. See
+  [Operations](docs/OPERATIONS.md) and [Recovery](docs/RECOVERY.md) for evidence and scope limits.
 
 ## 2.62.0 (2026-11-04): safe recovery after interruption (Q3)
 

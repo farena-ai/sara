@@ -266,7 +266,9 @@ test('updates on Windows/macOS: a private or missing release page is a plain mes
     assert.match(st.message, /^Couldn't check for updates/);
     assert.equal(st.downloadUrl, DOWNLOAD_PAGE);
   }
-  assert.ok(fetched.every((u) => u === 'https://api.github.com/repos/farena-ai/sara/releases/latest'));
+  // C9: the signed update notice first; without one (here: none), GitHub's newest release.
+  assert.ok(fetched.every((u) => u === 'https://api.github.com/repos/farena-ai/sara/releases/latest' || u === 'https://github.com/farena-ai/sara/releases/latest/download/update-notice.json'));
+  assert.ok(fetched.includes('https://api.github.com/repos/farena-ai/sara/releases/latest'));
 });
 
 test('updates on Windows/macOS: newer release → the download page; Update answers with the link', async () => {

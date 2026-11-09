@@ -4,7 +4,7 @@
 // writing" line under her planned messages and the "Added to her plans" note in the chat.
 // Every value from the server is set as text (nothing becomes markup).
 import { locale, t } from './naming.js';
-import { proposalCard } from './proposal-card.js';
+import { proposalCard, whileBusy } from './proposal-card.js';
 import { emptyState } from './tidy.js';
 
 let ctx = null;
@@ -259,9 +259,12 @@ export function goalProposal(g, onDone) {
   const every = el('select');
   every.setAttribute('aria-label', t('How often she checks in'));
   for (const [v, l] of Object.entries(EVERY)) every.append(new Option(t(l), v, v === (g.checkEvery ?? '7d'), v === (g.checkEvery ?? '7d')));
-  editor.append(nameIn, every, button('', t('Use it'), () => decide('use', { title: nameIn.value, checkEvery: every.value })));
+  const useEdited = button('', t('Use it'), () => {
+    if (!card.classList.contains('prop-busy')) void whileBusy(card, useEdited, decide('use', { title: nameIn.value, checkEvery: every.value }));
+  });
+  editor.append(nameIn, every, useEdited);
   body.push(editor);
-  return proposalCard({
+  const card = proposalCard({
     title: t('A goal to keep at together?'),
     source: t('She suggests'),
     chips: [{ text: g.title }],
@@ -274,6 +277,7 @@ export function goalProposal(g, onDone) {
       { label: t('Never for this'), cls: 'ghost', onClick: () => decide('never') },
     ],
   });
+  return card;
 }
 
 function historyRow(x) {

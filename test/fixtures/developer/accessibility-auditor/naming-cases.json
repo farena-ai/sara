@@ -1,0 +1,11 @@
+[
+ {"id":"imageOwnLabel","body":"<button aria-labelledby=\"n\"></button><img id=\"n\" aria-label=\"Save\">","selector":"button","name":"Save","uncertain":true},
+ {"id":"spanOwnLabel","body":"<button aria-labelledby=\"n\"></button><span id=\"n\" aria-label=\"Save\"></span>","selector":"button","name":"Save","uncertain":true},
+ {"id":"referencedTitle","body":"<span id=\"n\" title=\"Save\"></span><button aria-labelledby=\"n\"></button>","selector":"button","name":"Save","uncertain":true},
+ {"id":"labelNamedImage","body":"<label><img aria-label=\"Name\"><input></label>","selector":"input","name":"Name","uncertain":true},
+ {"id":"labelNamedSpan","body":"<label><span aria-label=\"Name\"></span><input></label>","selector":"input","name":"Name","uncertain":true},
+ {"id":"labelTitleSpan","body":"<label><span title=\"Name\"></span><input></label>","selector":"input","name":"Name","uncertain":true},
+ {"id":"emptyReference","body":"<span id=\"n\"></span><button aria-labelledby=\"n\">Save</button>","selector":"button","name":"Save","uncertain":false},
+ {"id":"hiddenDescendant","body":"<span id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button>","selector":"button","name":"","uncertain":false},
+ {"id":"hiddenRoot","body":"<span hidden id=\"n\"><span hidden>Save</span></span><button aria-labelledby=\"n\"></button>","selector":"button","name":"Save","uncertain":false}
+]

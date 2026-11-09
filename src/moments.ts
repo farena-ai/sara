@@ -224,10 +224,13 @@ export class MomentsStore {
       `INSERT INTO moments (kind, image, conversation_id, message_id, scrap_id, source, pinned, hand, caption_state, text, outfit, adult, backfill, taken_at, added_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING`,
     );
+    // EC26: chats in the work space never feed her album.
+    const hasWork = this.#hasTable('work_spaces');
+    const workConv = (id: string) => hasWork && Boolean(this.db.prepare('SELECT 1 FROM work_spaces WHERE conversation_id = ?').get(id));
     const pinnedMsg = (id: number) => hasScrap && Boolean(this.db.prepare("SELECT 1 FROM scrapbook WHERE message_id = ? AND kind = 'moment'").get(id));
     const addPhotos = (m: Row, pinned: boolean) => {
       const conv = store.getConversation(String(m.conversation_id));
-      if (!autoEligible(conv)) return;
+      if (!autoEligible(conv) || workConv(String(m.conversation_id))) return;
       const msg = { meta: m.meta ? JSON.parse(String(m.meta)) : undefined } as StoredMessage;
       if (isForgotten(msg)) return;
       const from = m.role === 'user' ? 'owner' : 'sara';
@@ -259,7 +262,7 @@ export class MomentsStore {
           continue;
         }
         const convId = (p.conversation_id as string | null) ?? null;
-        if (convId && !autoEligible(store.getConversation(convId))) continue;
+        if (convId && (!autoEligible(store.getConversation(convId)) || workConv(convId))) continue;
         const words = String(p.text ?? '').slice(0, 1000);
         const r = insert.run('moment', null, convId, msgId, Number(p.id), p.added_by === 'sara' ? 'sara' : 'owner', 1, 'pending', words, '', detectExplicit(words) ? 1 : 0, first ? 1 : 0, String(p.created_at), now);
         if (Number(r.changes)) added++;

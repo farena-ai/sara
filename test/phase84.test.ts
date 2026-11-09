@@ -564,7 +564,8 @@ test('the Evals window: owner-only place in the sidebar, tips, translations, no 
   assert.match(html, /<dialog id="evals" aria-label="Evals">/);
   for (const id of ['ev-kind', 'ev-count', 'ev-judge', 'ev-conc', 'ev-variants', 'ev-estimate', 'ev-draft', 'ev-list', 'ev-detail', 'ev-monthly', 'ev-mbudget', 'ev-history']) assert.match(html, new RegExp(`id="${id}"`), id);
   assert.match(html, /<select id="ev-monthly"><option value="off">Off<\/option>/, 'monthly re-check: Off first (the default)');
-  assert.match(web('nav.js'), /'findings', 'evals'\]/);
+  // V3 (docs/ops/V3_DESIGN.md §2): Add-ons came after Evals.
+  assert.match(web('nav.js'), /'findings', 'evals', 'addons'\]/);
   const view = web('evals-view.js');
   assert.doesNotMatch(view, /style=|\.style\./, 'no inline styles');
   assert.match(view, /openDiffSheet\(tr\.control\.runId, x\.runId/, 'each pair links to the M8 diff');

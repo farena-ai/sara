@@ -1,0 +1,79 @@
+{
+  "id": "drawio",
+  "version": "1.0.0",
+  "name": "draw.io",
+  "category": "creative",
+  "tags": [
+    "creative",
+    "mcp"
+  ],
+  "summary": "Prepare editable diagrams and diagram references.",
+  "description": "Prepare editable diagrams and diagram references. Available capabilities depend on the provider and the explicitly granted permissions.",
+  "about": [
+    "Prepare editable diagrams and diagram references. Available capabilities depend on the provider and the explicitly granted permissions.",
+    "Windows initialize/tools-list answered; local fixture executed; no authenticated vendor feature or Sara-host execution.",
+    "Can open a browser; loads editor assets and optional shape/icon services",
+    "Tool server is free; hosted LLM costs are separate.",
+    "Read and write permissions are different. This recipe grants no automatic execution. Sara may still auto-allow tools from server read-only annotations; the owner must inspect and set host permissions before use."
+  ],
+  "license": "Apache-2.0",
+  "source": "https://raw.githubusercontent.com/jgraph/drawio-mcp/HEAD/README.md",
+  "needs": [
+    "node"
+  ],
+  "works": [],
+  "mcp": {
+    "transport": "stdio",
+    "name": "drawio",
+    "command": "npx",
+    "args": [
+      "-y",
+      "@drawio/mcp@1.10.1"
+    ],
+    "fields": [
+      {
+        "key": "DRAWIO_ICON_SERVICE_URL",
+        "kind": "choice",
+        "label": "External icon lookup",
+        "tip": "Disables external icon supplementation. Editor assets, shape indexes and optional layout code may still require network downloads.",
+        "choices": [
+          "off"
+        ],
+        "default": "off"
+      }
+    ],
+    "secrets": [],
+    "reaches": [
+      "app.diagrams.net and viewer.diagrams.net",
+      "shape index CDN and npm registry at installation"
+    ],
+    "needs": [
+      "node"
+    ],
+    "tools": {
+      "readOnly": [],
+      "ask": [
+        "open_drawio_xml",
+        "open_drawio_csv",
+        "open_drawio_mermaid",
+        "get_drawio_reference",
+        "list_pages",
+        "get_page",
+        "set_page",
+        "search_shapes"
+      ]
+    },
+    "guide": [
+      "Use Node 24 LTS; confirm node --version before setup. The dependency check detects presence, not the runtime version.",
+      "This pinned release opens diagram URLs in your default browser. It has no supported browser-disable flag. Set open_drawio_* and set_page to Off; only reference retrieval was exercised.",
+      "Only XML-reference retrieval was exercised. Opening/rendering diagrams and page edits remain unqualified.",
+      "After discovery, open Settings → Coding → Tools and approvals. Set every tool in this server's group to Ask me first or Off before sending any request.",
+      "Save, leave and reopen the page; read back every tool setting. Repeat after restart, update or newly discovered tools. Stop if settings cannot be confirmed."
+    ]
+  },
+  "changes": [
+    "First connection preview. Not published; qualification limitations are explicit."
+  ],
+  "tested": [],
+  "reviewNotes": "Connection preview, not a live vendor screenshot. Windows initialize/tools-list answered; local fixture executed; no authenticated vendor feature or Sara-host execution."
+}

@@ -1,0 +1,56 @@
+{
+  "en": {
+    "title": "Performance Regression Lab",
+    "description": "Run staged baseline and candidate benchmarks interleaved, keep raw samples and report a regression only when the evidence supports it.",
+    "planned": "Plan ready. Nothing has run yet.",
+    "samples": "Samples",
+    "regression": "Regression detected from raw samples.",
+    "no-regression": "No regression beyond the threshold.",
+    "inconclusive": "Inconclusive: too noisy or too few samples."
+  },
+  "es": {
+    "title": "Laboratorio de regresiones de rendimiento",
+    "description": "Ejecuta de forma intercalada las pruebas preparadas de referencia y candidata, conserva las muestras y solo informa de una regresión si los datos lo respaldan.",
+    "planned": "Plan listo. Todavía no se ha ejecutado nada.",
+    "samples": "Muestras",
+    "regression": "Regresión detectada a partir de las muestras.",
+    "no-regression": "Sin regresión por encima del umbral.",
+    "inconclusive": "No concluyente: demasiado ruido o pocas muestras."
+  },
+  "fr": {
+    "title": "Laboratoire de régressions de performance",
+    "description": "Exécute en alternance les tests préparés de référence et candidat, conserve les mesures brutes et ne signale une régression que si les données le justifient.",
+    "planned": "Plan prêt. Rien n’a encore été exécuté.",
+    "samples": "Mesures",
+    "regression": "Régression détectée à partir des mesures brutes.",
+    "no-regression": "Aucune régression au-delà du seuil.",
+    "inconclusive": "Non concluant : trop de bruit ou trop peu de mesures."
+  },
+  "de": {
+    "title": "Performance-Regressionslabor",
+    "description": "Führt vorbereitete Basis- und Kandidaten-Benchmarks abwechselnd aus, behält die Rohmessungen und meldet eine Regression nur, wenn die Daten sie belegen.",
+    "planned": "Plan bereit. Noch wurde nichts ausgeführt.",
+    "samples": "Messungen",
+    "regression": "Regression anhand der Rohmessungen erkannt.",
+    "no-regression": "Keine Regression über dem Schwellenwert.",
+    "inconclusive": "Nicht eindeutig: zu verrauscht oder zu wenige Messungen."
+  },
+  "pt-BR": {
+    "title": "Laboratório de regressão de desempenho",
+    "description": "Executa de forma intercalada os benchmarks preparados de referência e candidato, guarda as amostras brutas e só aponta regressão quando os dados a sustentam.",
+    "planned": "Plano pronto. Nada foi executado ainda.",
+    "samples": "Amostras",
+    "regression": "Regressão detectada a partir das amostras brutas.",
+    "no-regression": "Nenhuma regressão acima do limite.",
+    "inconclusive": "Inconclusivo: ruído demais ou poucas amostras."
+  },
+  "it": {
+    "title": "Laboratorio di regressione delle prestazioni",
+    "description": "Esegue in modo alternato i benchmark preparati di riferimento e candidato, conserva i campioni grezzi e segnala una regressione solo quando i dati la sostengono.",
+    "planned": "Piano pronto. Non è stato ancora eseguito nulla.",
+    "samples": "Campioni",
+    "regression": "Regressione rilevata dai campioni grezzi.",
+    "no-regression": "Nessuna regressione oltre la soglia.",
+    "inconclusive": "Non conclusivo: troppo rumore o pochi campioni."
+  }
+}

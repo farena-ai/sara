@@ -1,0 +1,8 @@
+{
+  "action": "prepare",
+  "brief": "A ceramic vase",
+  "style": "product",
+  "aspect": "1:1",
+  "avoid": "logos",
+  "seed": 42
+}

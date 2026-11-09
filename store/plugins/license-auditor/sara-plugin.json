@@ -1,0 +1,52 @@
+{
+  "manifest": 1,
+  "id": "license-auditor",
+  "name": "License auditor",
+  "version": "1.0.0",
+  "description": "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.",
+  "author": "Sara team",
+  "license": "MIT",
+  "sara": ">=2.68.0 <3.0.0",
+  "main": "main.mjs",
+  "permissions": {
+    "tools": [
+      "analyze"
+    ],
+    "hooks": [],
+    "callTools": [],
+    "network": [],
+    "files": {
+      "read": [],
+      "write": []
+    },
+    "settings": false,
+    "cards": false,
+    "model": {
+      "callsPerDay": 0,
+      "tokensPerDay": 0
+    },
+    "memory": "none"
+  },
+  "i18n": {
+    "es": {
+      "License auditor": "Auditor de licencias",
+      "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.": "Revisa metadatos de licencias npm v2/v3 y expresiones SPDX según una política explícita. Los datos desconocidos requieren revisión; no es asesoría legal."
+    },
+    "fr": {
+      "License auditor": "Audit des licences",
+      "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.": "Examine les licences npm v2/v3 et expressions SPDX selon une politique explicite. Les inconnues nécessitent un examen ; aucun conseil juridique."
+    },
+    "de": {
+      "License auditor": "Lizenzprüfung",
+      "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.": "Prüft npm-v2/v3-Lizenzen und SPDX-Ausdrücke nach expliziter Richtlinie. Unbekanntes muss geprüft werden; keine Rechtsberatung."
+    },
+    "pt-BR": {
+      "License auditor": "Auditor de licenças",
+      "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.": "Audita licenças npm v2/v3 e expressões SPDX conforme política explícita. Dados desconhecidos exigem revisão; não é orientação jurídica."
+    },
+    "it": {
+      "License auditor": "Verifica delle licenze",
+      "Audit npm lockfile v2/v3 license metadata and SPDX expressions against an explicit allow/deny policy. Unknowns require review; not legal advice.": "Verifica licenze npm v2/v3 ed espressioni SPDX con regole esplicite. I dati sconosciuti richiedono revisione; non è consulenza legale."
+    }
+  }
+}
