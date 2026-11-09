@@ -81,14 +81,11 @@ export function customAccent(hex) {
 }
 
 /**
- * V4d (docs/ops/V4_DESIGN.md → V4d): the colour to store when the palette changes. Sara Classic's own
- * rose is the stored value "rose" (Theme colour); leaving Classic with it would keep a colour nobody
- * picked for the new look, so it becomes Blue, the V4 default. A colour picked on purpose stays: any
- * other preset or custom colour, and Theme colour when it was picked in a palette other than Classic
- * (`pickedOn`, sara.accentPicked). Returns the value to store, or null to leave it as it is.
+ * V4e (docs/ops/V4_DESIGN.md → V4e): a palette is a full preset. Its default colour is Violet, except
+ * Sara Classic, whose own rose is the stored value "rose" (Theme colour). Picking a palette clears the
+ * stored colour (PALETTE_RESETS), so the palette's default shows and the person can change it after.
+ * This replaces V4d's Classic-rose migration (leaving Classic now always lands on Violet). The custom
+ * colour itself (sara.accentCustom) is kept so the colour field still offers it.
  */
-export function accentOnPaletteChange(from, to, stored, pickedOn) {
-  if (from !== 'classic' || to === 'classic' || stored !== 'rose') return null;
-  if (pickedOn && pickedOn !== 'classic') return null;
-  return 'blue';
-}
+export const paletteDefaultAccent = (pal) => (pal === 'classic' ? 'rose' : 'violet');
+export const PALETTE_RESETS = ['sara.accent', 'sara.accentPicked'];

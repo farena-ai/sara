@@ -94,6 +94,20 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
 :where(:root:not([data-palette="classic"])) #composer #send { width: 34px; height: 34px; min-height: 0; border-radius: 10px; background: var(--btn-fill); color: var(--on-btn); box-shadow: 0 6px 18px -8px var(--acc-glow); }
 :where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus) { border-color: transparent; border-radius: var(--r-3); background: none; color: var(--text-2); }
 :where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus):hover { background: var(--surface-3); color: var(--text-1); }
+/* V4e: one control height in the composer. While she works the split Send (Tell her now + ▾) reads as
+   one control and Stop matches it; everything sits on the same centre line (phones: 40 px). */
+:where(:root:not([data-palette="classic"])) #composer { --cmp-h: 36px; --cmp-gap: 4px; gap: var(--cmp-gap); align-items: center; }
+:where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus, #composer #send, #composer .send-more, #composer #stop) { height: var(--cmp-h); min-height: 0; margin-top: 0; margin-bottom: 0; align-self: center; }
+:where(:root:not([data-palette="classic"])) :is(#composer > button.icon, #composer-plus) { width: var(--cmp-h); }
+:where(:root:not([data-palette="classic"])) #composer #send { width: var(--cmp-h); }
+:where(:root:not([data-palette="classic"])) #composer #send.busy-send { width: auto; padding: 0 12px 0 10px; border-radius: 10px 0 0 10px; box-shadow: none; }
+:where(:root:not([data-palette="classic"])) #composer .send-more { width: 30px; min-width: 30px; margin-left: 0; border: 0; border-left: 1px solid color-mix(in srgb, var(--on-btn) 28%, transparent); border-radius: 0 10px 10px 0; background: var(--btn-fill); color: var(--on-btn); }
+:where(:root:not([data-palette="classic"])) #composer .send-more:hover { background: color-mix(in srgb, var(--btn-fill) 86%, var(--text-1)); }
+:where(:root:not([data-palette="classic"])) #composer .send-more-wrap { align-self: center; margin-left: calc(-1 * var(--cmp-gap)); }
+:where(:root:not([data-palette="classic"])) #composer #stop { padding: 0 14px; border-radius: 10px; font-size: 13px; font-weight: 600; line-height: 1; }
+@media (max-width: 520px) {
+  :where(:root:not([data-palette="classic"])) #composer { --cmp-h: 40px; --cmp-gap: 2px; }
+}
 
 /* ---------- buttons, inputs, cards (the base look, everywhere) ---------- */
 :where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]), select, textarea):focus-visible { border-color: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); outline: none; }

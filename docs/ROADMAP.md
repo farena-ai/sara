@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Polish, Violet and an easy move-in in 3.0.2
+
+Settings opens as a centered panel, Violet is the default color, and picking a palette resets the color
+to that palette's own. Full decoration is clearly richer (edge light, glow, grain) and Today has quiet
+motion: cards ease in, lines draw, numbers count up, her orb's glow breathes; all of it off with reduced
+motion. Four more relationships that aren't romantic (teammate, tutor, creative partner, gaming buddy),
+US spelling in the app's English, and tidy alignment on Today and the message box. Moving in from
+another agent is a five-step guide with the exact command for Windows, Mac or Linux, and every install
+now includes the collector. New in the gallery: Tess, the practical maker (thanks to @Guilsc).
+
 ## Every page in the new look in 3.0.1
 
 Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team, Findings, Evals and Settings in

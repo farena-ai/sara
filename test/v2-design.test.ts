@@ -71,7 +71,7 @@ test('V2 Settings: a full-height sheet on desktop with flat group headings (Clas
   const css = web('screens.css');
   const v2 = css.slice(css.indexOf('/* ---------- V2 '));
   assert.ok(v2.length > 100, 'the V2 section');
-  assert.match(v2, /@media \(min-width: 721px\) \{[\s\S]*?:where\(:root:not\(\[data-palette="classic"\]\)\) dialog\.settings-dialog \{[^}]*height: 100dvh;[^}]*max-height: 100dvh;[^}]*margin: 0 0 0 auto;/);
+  assert.match(v2, /@media \(min-width: 721px\) \{[\s\S]*?:where\(:root:not\(\[data-palette="classic"\]\)\) dialog\.settings-dialog \{[^}]*height: min\(1000px, calc\(100dvh - 48px\)\);[^}]*max-height: calc\(100dvh - 48px\);[^}]*margin: auto;[^}]*border-radius: 18px;/);
   assert.match(v2, /:where\(:root:not\(\[data-palette="classic"\]\)\) \.settings-nav \.settings-nav-head \{ display: none; \}/);
   assert.match(nav, /export const flatNav = \(\) => typeof matchMedia === 'function' && document\.documentElement\.dataset\.palette !== 'classic' && matchMedia\('\(min-width: 721px\)'\)\.matches;/);
   assert.match(nav, /export function setGroupOpen\(box, open, remember = true\) \{\s*if \(flatNav\(\)\) open = true;/, 'flat: every group stays open');

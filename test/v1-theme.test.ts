@@ -133,7 +133,7 @@ function boot(store: Record<string, string>, media: Record<string, boolean> = {}
 test('V1 boot: Graphite by default (and for unknown names), V3 defaults (Full, Blue, the system), small portrait, custom accent before paint', () => {
   const plain = boot({});
   // V3 (docs/ops/V3_DESIGN.md §5, the owner's defaults): Full decoration, Blue, Follow the system (a dark system here).
-  assert.deepEqual([plain.attrs['data-palette'], plain.attrs['data-decor'], plain.attrs['data-portrait'], plain.attrs['data-accent'], plain.attrs['data-theme']], ['graphite', 'on', 'small', 'blue', 'dark']);
+  assert.deepEqual([plain.attrs['data-palette'], plain.attrs['data-decor'], plain.attrs['data-portrait'], plain.attrs['data-accent'], plain.attrs['data-theme']], ['graphite', 'on', 'small', 'violet', 'dark']);
   assert.equal(boot({ 'sara.palette': 'nonsense' }).attrs['data-palette'], 'graphite');
   for (const p of [...PALETTES, 'classic']) assert.equal(boot({ 'sara.palette': p }).attrs['data-palette'], p);
   assert.equal(boot({ 'sara.palette': 'classic' }).attrs['data-decor'], 'on', 'Classic keeps its decoration');
@@ -218,7 +218,7 @@ test('V1 Appearance page: its own Settings page under You with the same ids, the
   assert.doesNotMatch(about, /id="ap-/, 'moved out of About you');
   assert.match(page, /<select id="ap-palette"><option value="graphite">Graphite \(default\)<\/option><option value="midnight">Midnight<\/option><option value="slate">Slate<\/option><option value="nord">Nord<\/option><option value="solarized">Solarized<\/option><option value="paper">Paper<\/option><option value="ember">Ember<\/option><option value="contrast">High contrast<\/option><option value="classic">Sara Classic<\/option><\/select>/);
   // V3 (docs/ops/V3_DESIGN.md §5): Blue is the default colour; Theme colour stays the first choice.
-  assert.match(page, /<select id="ap-accent"><option value="rose">Theme colour<\/option><option value="blue">Blue \(default\)<\/option>[\s\S]*?<option value="custom">Custom<\/option><\/select>/);
+  assert.match(page, /<select id="ap-accent"><option value="rose">Theme color<\/option><option value="violet">Violet \(default\)<\/option>[\s\S]*?<option value="custom">Custom<\/option><\/select>/);
   assert.match(page, /<select id="ap-portrait"><option value="small">Small \(default\)<\/option><option value="large">Large<\/option><option value="hidden">Hidden<\/option><\/select>/);
   assert.match(page, /class="ap-classic-only"[^>]*>Chat background/, 'the chat background only for Sara Classic');
   const tips = JSON.parse(web('tips.json')).tips ?? JSON.parse(web('tips.json'));

@@ -145,3 +145,52 @@ dialog.memmap { width: min(980px, 96vw); max-width: 96vw; }
   :where(:root:not([data-palette="classic"])) .v4-run li.step.running .step-verb { color: var(--accent-text); background: none; }
 }
 :root[data-motion="off"] .v4-run-prog.live > i, :root[data-motion="off"] .v4-run li.step::before, :root[data-motion="off"] .v4-run .step-verb { animation: none !important; }
+
+/* ---------- V4e: quiet motion so it feels alive (web/v4-motion.js does the counts and the draw) ----------
+   Transforms and opacity only; nothing changes layout. The loops (orb glow, hero shimmer, mood dot) are
+   slow and small and pause while the tab is hidden (data-tab-hidden). Reduced motion and Settings →
+   Appearance → Background motion: Off stop all of it (below). Sara Classic is untouched. */
+@keyframes v4e-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes v4e-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes v4e-glow { from { opacity: .55; transform: scale(.94); } to { opacity: 1; transform: scale(1.06); } }
+@keyframes v4e-sheen { from { transform: translateX(-60%); } to { transform: translateX(60%); } }
+@keyframes v4e-ping { 0% { opacity: .7; transform: scale(1); } 70%, 100% { opacity: 0; transform: scale(2.6); } }
+/* Cards come in one after another when Today opens (backwards fill: no transform is left behind). */
+:where(:root:not([data-palette="classic"])) #today[open] :is(.td-hero, .td-howto, .today-start, .td-begin, .td-sec-h) { animation: v4e-rise .5s var(--ease-out, ease-out) backwards; }
+:where(:root:not([data-palette="classic"])) #today[open] .td-howto { animation-delay: 60ms; }
+:where(:root:not([data-palette="classic"])) #today[open] :is(.today-start, .td-begin) { animation-delay: 110ms; }
+:where(:root:not([data-palette="classic"])) #today[open] .td-grid > .td-tile { animation: v4e-rise .55s var(--ease-out, ease-out) backwards; animation-delay: 160ms; }
+:where(:root:not([data-palette="classic"])) #today[open] .td-grid > .td-tile:nth-child(2) { animation-delay: 220ms; }
+:where(:root:not([data-palette="classic"])) #today[open] .td-grid > .td-tile:nth-child(3) { animation-delay: 280ms; }
+:where(:root:not([data-palette="classic"])) #today[open] .td-grid > .td-tile:nth-child(n+4) { animation-delay: 340ms; }
+:where(:root:not([data-palette="classic"])) .v4-glance .v4-card { animation: v4e-rise .5s var(--ease-out, ease-out) backwards; }
+:where(:root:not([data-palette="classic"])) .v4-glance .v4-card:nth-child(2) { animation-delay: 70ms; }
+:where(:root:not([data-palette="classic"])) .v4-glance .v4-card:nth-child(3) { animation-delay: 140ms; }
+:where(:root:not([data-palette="classic"])) .v4-glance .v4-card:nth-child(n+4) { animation-delay: 210ms; }
+/* A gentle lift under the pointer. */
+:where(:root:not([data-palette="classic"])) :is(#today .td-tile, .v4-glance .v4-card) { transition: transform .2s var(--ease-out, ease-out), box-shadow .2s, border-color .2s; }
+@media (hover: hover) {
+  :where(:root:not([data-palette="classic"])) :is(#today .td-tile, .v4-glance .v4-card):hover { transform: translateY(-2px); }
+}
+/* The weather and spend lines draw in; progress bars and meters fill from the left. */
+:where(:root:not([data-palette="classic"])) svg.v4e-draw { animation: v4e-wipe 1.1s var(--ease-out, ease-out) .15s backwards; }
+:where(:root:not([data-palette="classic"])) #today[open] :is(.td-progress, .td-usage-bar), :where(:root:not([data-palette="classic"])) .v4-bar { animation: v4e-wipe .9s var(--ease-out, ease-out) .25s backwards; }
+/* Her hero orb breathes a soft glow; the hero's top edge carries a slow light; her mood dot pings. */
+:where(:root:not([data-palette="classic"])) #today .td-face-wrap { position: relative; isolation: isolate; }
+:where(:root:not([data-palette="classic"])) #today .td-face-wrap::before { content: ""; position: absolute; z-index: -1; left: 50%; top: 52px; width: 150px; height: 150px; margin: -75px 0 0 -75px; border-radius: 50%; background: radial-gradient(closest-side, hsl(var(--acc-h) 90% 65% / .35), transparent); pointer-events: none; animation: v4e-glow 4.8s ease-in-out infinite alternate; }
+:where(:root:not([data-palette="classic"])) #today .td-hero::after { width: 200%; left: -50%; right: auto; background: linear-gradient(90deg, transparent 20%, var(--acc-line) 42%, hsl(var(--acc-h) 95% 75% / .9) 50%, var(--acc-line) 58%, transparent 80%); animation: v4e-sheen 9s ease-in-out infinite alternate; }
+:where(:root:not([data-palette="classic"])) #today .td-mood .hp-dot { position: relative; }
+:where(:root:not([data-palette="classic"])) #today .td-mood .hp-dot::after { content: ""; position: absolute; inset: 0; border-radius: 50%; background: inherit; animation: v4e-ping 2.6s ease-out infinite; }
+/* Paused while the tab is hidden. */
+:root[data-tab-hidden] :is(#today .td-face-wrap::before, #today .td-hero::after, #today .td-mood .hp-dot::after) { animation-play-state: paused; }
+:root[data-motion="off"] :is(#today .td-hero, #today .td-howto, #today .today-start, #today .td-begin, #today .td-sec-h, #today .td-tile, .v4-glance .v4-card, svg.v4e-draw, #today .td-progress, #today .td-usage-bar, .v4-bar),
+:root[data-motion="off"] #today .td-face-wrap::before, :root[data-motion="off"] #today .td-hero::after, :root[data-motion="off"] #today .td-mood .hp-dot::after { animation: none !important; }
+:root[data-motion="off"] :is(#today .td-tile, .v4-glance .v4-card):hover { transform: none; }
+/* Motion: Off also stills the slow background light (it drifted even with Off before). */
+:root[data-motion="off"] .aurora > i { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :is(#today .td-hero, #today .td-howto, #today .today-start, #today .td-begin, #today .td-sec-h, #today .td-tile, .v4-glance .v4-card, svg.v4e-draw, #today .td-progress, #today .td-usage-bar, .v4-bar),
+  #today .td-face-wrap::before, #today .td-hero::after, #today .td-mood .hp-dot::after { animation: none !important; }
+  :is(#today .td-tile, .v4-glance .v4-card) { transition: none !important; }
+  :is(#today .td-tile, .v4-glance .v4-card):hover { transform: none !important; }
+}

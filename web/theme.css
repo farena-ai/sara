@@ -463,7 +463,7 @@ html.ios-short-view { --safe-b: 0px; }
   --surface-0: #0b0c0e; --surface-1: #121316; --surface-2: #17181c; --surface-3: #1f2025;
   --line: #2a2b31;
   --text-1: #ededef; --text-2: #b4b5bb; --text-3: #8f9098;
-  --accent-solid: #2f6fe0; --accent-text: #7aa7ff; --on-accent: #ffffff;
+  --accent-solid: #a78bfa; --accent-text: #c4b5fd; --on-accent: #0b0b0c;
   --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
   --danger-fill: #b3383d; --update-accent: #fbbf24;
   --btn-off-fill: #17181c; --btn-off-text: #8f9098; --btn-off-line: #676870;
@@ -473,7 +473,7 @@ html.ios-short-view { --safe-b: 0px; }
   --surface-0: #f3f4f6; --surface-1: #ffffff; --surface-2: #f6f7f9; --surface-3: #eceef2;
   --line: #e1e3e8;
   --text-1: #16171b; --text-2: #4a4c55; --text-3: #64666f;
-  --accent-solid: #2563eb; --accent-text: #1d4fd7; --on-accent: #ffffff;
+  --accent-solid: #7c3aed; --accent-text: #6d28d9; --on-accent: #ffffff;
   --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
   --danger-fill: #b42a3a; --update-accent: #a15c07;
   --btn-off-fill: #f6f7f9; --btn-off-text: #64666f; --btn-off-line: #88888d;
@@ -683,7 +683,7 @@ html.ios-short-view { --safe-b: 0px; }
 :root:not([data-palette="classic"])[data-accent="mono"][data-theme="light"] {
   --accent-solid: #52525b; --accent-text: #3f3f46; --on-accent: #ffffff;
 }
-.ap-pal[data-pal="graphite"] { --pv-d0: #0b0c0e; --pv-d1: #17181c; --pv-dt: #ededef; --pv-da: #2f6fe0; --pv-l0: #f3f4f6; --pv-l1: #ffffff; --pv-lt: #16171b; --pv-la: #2563eb; }
+.ap-pal[data-pal="graphite"] { --pv-d0: #0b0c0e; --pv-d1: #17181c; --pv-dt: #ededef; --pv-da: #a78bfa; --pv-l0: #f3f4f6; --pv-l1: #ffffff; --pv-lt: #16171b; --pv-la: #7c3aed; }
 .ap-pal[data-pal="midnight"] { --pv-d0: #0a0e17; --pv-d1: #151b29; --pv-dt: #e6edf7; --pv-da: #22b8cf; --pv-l0: #f4f7fb; --pv-l1: #eaf0f7; --pv-lt: #0f1726; --pv-la: #0e7490; }
 .ap-pal[data-pal="slate"] { --pv-d0: #111417; --pv-d1: #1e2328; --pv-dt: #e8ecef; --pv-da: #10b981; --pv-l0: #f6f8f8; --pv-l1: #edf1f1; --pv-lt: #121a1a; --pv-la: #047857; }
 .ap-pal[data-pal="nord"] { --pv-d0: #2e3440; --pv-d1: #3b4252; --pv-dt: #eceff4; --pv-da: #88c0d0; --pv-l0: #eceff4; --pv-l1: #e5e9f0; --pv-lt: #2e3440; --pv-la: #4c6f9c; }
@@ -692,6 +692,8 @@ html.ios-short-view { --safe-b: 0px; }
 .ap-pal[data-pal="ember"] { --pv-d0: #14110f; --pv-d1: #221d19; --pv-dt: #f1ebe4; --pv-da: #f59e0b; --pv-l0: #fbf7f1; --pv-l1: #f4eee5; --pv-lt: #211a12; --pv-la: #b45309; }
 .ap-pal[data-pal="contrast"] { --pv-d0: #000000; --pv-d1: #141414; --pv-dt: #ffffff; --pv-da: #ffd400; --pv-l0: #ffffff; --pv-l1: #f2f2f2; --pv-lt: #000000; --pv-la: #0040c0; }
 .ap-pal[data-pal="classic"] { --pv-d0: #0f0d17; --pv-d1: #1e1a29; --pv-dt: #f1edf7; --pv-da: #e0607e; --pv-l0: #faf7f5; --pv-l1: #f4eee5; --pv-lt: #221a2a; --pv-la: #c24c74; }
+/* V4e: a palette pick brings its default colour (Violet outside Sara Classic), so the cards show it. */
+.ap-pal:not([data-pal="classic"]) { --pv-da: #a78bfa; --pv-la: #7c3aed; }
 .ap-swatch[data-accent="blue"] { background: #3b82f6; }
 .ap-swatch[data-accent="cyan"] { background: #22d3ee; }
 .ap-swatch[data-accent="green"] { background: #22c55e; }
@@ -739,7 +741,9 @@ html.ios-short-view { --safe-b: 0px; }
 :root:not([data-palette="classic"])[data-decor="on"] {
   --v3-glass: 80%;
   --v3-glass-strong: 90%;
-  --v3-light: 9%;
+  /* V4e: the owner found Full barely different from Reduced at Night: a stronger light (16%), a faint
+     second band and a fine grain. test/v3-design.test.ts still checks AA over the brightest point. */
+  --v3-light: 14%;
   --accent-to: var(--accent-from);
   --accent-grad: linear-gradient(var(--accent-solid), var(--accent-solid));
   --glass: color-mix(in srgb, var(--surface-1) var(--v3-glass), transparent);
@@ -755,9 +759,9 @@ html.ios-short-view { --safe-b: 0px; }
   --aurora-base: linear-gradient(var(--surface-0), var(--surface-0));
   --aurora-1: color-mix(in srgb, var(--accent-solid) var(--v3-light), transparent);
   --aurora-2: color-mix(in srgb, var(--accent-text) calc(var(--v3-light) * .6), transparent);
-  --aurora-3: transparent;
+  --aurora-3: color-mix(in srgb, var(--accent-solid) calc(var(--v3-light) * .45), transparent);
   --aurora-speed: 1.6;
-  --grain-opacity: 0;
+  --grain-opacity: .03;
   --spark-a: transparent;
   --accent-glow: color-mix(in srgb, var(--accent-solid) 22%, transparent);
   --violet-glow: transparent;
@@ -765,7 +769,8 @@ html.ios-short-view { --safe-b: 0px; }
 :root:not([data-palette="classic"])[data-decor="on"][data-theme="light"] {
   --v3-glass: 84%;
   --v3-glass-strong: 94%;
-  --v3-light: 6%;
+  --v3-light: 7%;
+  --grain-opacity: .02;
   --btn-glow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 22%, transparent), 0 6px 16px -8px color-mix(in srgb, var(--accent-solid) 45%, transparent);
 }
 :root[data-palette="contrast"][data-decor="on"] {
@@ -776,6 +781,8 @@ html.ios-short-view { --safe-b: 0px; }
   --v3-ring-glow: 0 0 0 0 transparent;
   --aurora-1: transparent;
   --aurora-2: transparent;
+  --aurora-3: transparent;
+  --grain-opacity: 0;
 }
 
 /* ---------- V4 (docs/ops/V4_DESIGN.md): one accent, as hue / saturation / lightness ----------
@@ -784,7 +791,7 @@ html.ios-short-view { --safe-b: 0px; }
    field, the sparklines and the status dots are drawn from the same accent's hue: --acc-h/s/l
    follow the picked preset here, a custom colour (web/theme-boot.js) and Theme colour (web/v4.js
    reads the palette's own accent). Decorative only: nothing readable uses them. */
-:root { --acc-h: 218; --acc-s: 74%; --acc-l: 53%; }
+:root { --acc-h: 262; --acc-s: 72%; --acc-l: 64%; }
 :root[data-palette="midnight"] { --acc-h: 188; --acc-s: 72%; --acc-l: 47%; }
 :root[data-palette="slate"] { --acc-h: 160; --acc-s: 84%; --acc-l: 39%; }
 :root[data-palette="nord"] { --acc-h: 193; --acc-s: 43%; --acc-l: 67%; }

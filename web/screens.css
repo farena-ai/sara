@@ -485,13 +485,13 @@ button.ghost:disabled, button.ghost:disabled:hover { color: var(--btn-off-text);
 :where(:root:not([data-palette="classic"])) .settings-nav-head { color: var(--text-2); }
 
 /* ---------- V2 · Settings (V1 §5): a full-height sheet on desktop, flat group headings ----------
-   Outside Sara Classic and wider than a phone, Settings slides in as a sheet the height of the
-   window on the right, and the nav lists every page under caps headings (no accordion, no counts;
+   Outside Sara Classic and wider than a phone, Settings opens as a large centred panel (V4e: it was a
+   sheet on the right that left an empty blurred third on wide screens), and the nav lists every page under caps headings (no accordion, no counts;
    settings-nav.js flatNav() keeps every group open there).
    Sara Classic and phones keep the centred window and the accordion. */
 .settings-nav-cap { display: none; }
 @media (min-width: 721px) {
-  :where(:root:not([data-palette="classic"])) dialog.settings-dialog { width: min(1120px, calc(100vw - 72px)); height: 100dvh; max-height: 100dvh; max-width: none; margin: 0 0 0 auto; border: 0; border-left: 1px solid var(--line); border-radius: 0; }
+  :where(:root:not([data-palette="classic"])) dialog.settings-dialog { width: min(1240px, calc(100vw - 64px)); height: min(1000px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); max-width: none; margin: auto; border: 1px solid var(--line); border-radius: 18px; }
   :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-head { display: none; }
   :where(:root:not([data-palette="classic"])) .settings-nav-items { padding: 0 0 4px; }
   :where(:root:not([data-palette="classic"])) .settings-nav-cap { display: block; margin: 14px 0 4px; padding: 0 10px; font-size: 11px; font-weight: 600; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }

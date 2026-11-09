@@ -251,6 +251,10 @@ done
 rm -rf "${APP_DIR:?}/desktop" && mkdir -p "$APP_DIR/desktop/shared"
 cp "$SRC_DIR/desktop/shared/page-agent.js" "$APP_DIR/desktop/shared/"
 cp -r "$SRC_DIR/desktop/linux" "$APP_DIR/desktop/"
+# Phase 104 / V4e: the move-in collector Sara serves (Settings → Data & health → Move in from another
+# agent). Without it the page said "The collector is not on this server." on every server install.
+rm -rf "${APP_DIR:?}/scripts" && mkdir -p "$APP_DIR/scripts"
+cp "$SRC_DIR/scripts/sara-movein.py" "$APP_DIR/scripts/"
 SRC_OWNER="$(stat -c %u "$SRC_DIR")"
 if [[ -d "$SRC_DIR/.git" ]] && command -v git >/dev/null; then
   git -C "$SRC_DIR" rev-parse --short HEAD > "$APP_DIR/REVISION" 2>/dev/null || rm -f "$APP_DIR/REVISION"

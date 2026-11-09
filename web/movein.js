@@ -1,5 +1,7 @@
 // Phase 104 (MI1, docs/design/MOVE_IN.md §7, §12): Settings → Data & health → Move in from another
-// agent. Three steps (get the collector, run it, upload the file), then what the collector packed,
+// agent. V4e: a five-step wizard (pick the agent, run the collector with the exact command for that
+// system, bring the file, check and import, done); before that, three steps (get the collector, run
+// it, upload the file), then what the collector packed,
 // the preview (one card per destination with counts and three folded samples, the personality card
 // to decide by hand, "Was this her?", held categories), Import as one batch with Stop, her report
 // and Undo. Every string goes through t(); colours only through theme tokens (web/movein.css).
@@ -8,6 +10,7 @@
 // column map (no SQL), Looks right / Skip, progress while the rows stream, and saved mappings.
 import { serverText, t } from './naming.js';
 import { emptyState } from './tidy.js';
+import { collectorCommand, EXAMPLE_OUTPUT, fallbackCommand, guessSystem, STEPS, stepForState } from './movein-wizard.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -98,6 +101,7 @@ const WHY = {
 
 export function initMoveIn(h) {
   helpers = { ...helpers, ...h };
+  initWizard();
   $('#mi-copy')?.addEventListener('click', () => void helpers.copyText($('#mi-cmd').textContent, $('#mi-copy')));
   $('#mi-file')?.addEventListener('change', (e) => {
     const f = e.target.files?.[0];
@@ -142,6 +146,13 @@ export function initMoveIn(h) {
 /** Server events: a bundle's state moved on. */
 export function moveInEvent(ev) {
   if (!document.querySelector('[data-page="dh-movein"]:not([hidden])')) return;
+  // V4e: a bundle sent with a move-in code arrives while the person waits on step 3: show it.
+  if (!state.bundle && ev?.id && wiz.step === 'file') {
+    state.bundle = ev.id;
+    wiz.fresh = false;
+    void refresh();
+    return;
+  }
   if (state.bundle && ev?.id === state.bundle) {
     if (ev.line === 'translations' && state.preview?.state === 'ready') void loadTranslations();
     else void refresh();
@@ -155,13 +166,11 @@ export async function loadMoveIn() {
     work(errorCard(err.message));
     return;
   }
-  const col = state.overview.collector;
-  $('#mi-cmd').textContent = col ? col.command : t('The collector is not on this server.');
-  $('#mi-sha').textContent = col ? t('Collector {v}, SHA-256 {sha}', { v: col.version, sha: col.sha256 }) : '';
+  paintCommand();
   renderBatches();
   void renderMappings();
   const live = state.overview.bundles.find((b) => b.state !== 'imported') ?? state.overview.bundles[0];
-  if (live && !state.bundle) state.bundle = live.id;
+  if (live && !state.bundle && !wiz.fresh) state.bundle = live.id;
   if (state.bundle) await refresh();
   else work();
 }
@@ -178,10 +187,94 @@ function errorCard(msg) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// V4e: the guided wizard (1 pick the agent, 2 run the collector, 3 bring the file, 4 check and
+// import, 5 done). Steps 4 and 5 follow the bundle's real state; 1-3 are the person's own pace.
+// ---------------------------------------------------------------------------------------------
+const wiz = { step: 'source', source: null, system: null, fresh: false };
+const OPEN_HOW = {
+  windows: () => t('On that computer: open the Start menu, type PowerShell and press Enter.'),
+  mac: () => t('On that computer: open Terminal (Applications → Utilities → Terminal).'),
+  linux: () => t('On that computer: open a terminal, or connect to it with ssh you@that-computer.'),
+};
+
+function setStep(step) {
+  const box = $('#mi-wizard');
+  if (!box || !STEPS.includes(step)) return;
+  wiz.step = step;
+  box.dataset.step = step;
+  const at = STEPS.indexOf(step);
+  for (const li of box.querySelectorAll('.mi-progress li')) {
+    const i = STEPS.indexOf(li.dataset.step);
+    li.classList.toggle('done', i < at);
+    li.classList.toggle('current', i === at);
+    if (i === at) li.setAttribute('aria-current', 'step');
+    else li.removeAttribute('aria-current');
+  }
+  for (const pane of box.querySelectorAll('.mi-pane')) pane.hidden = pane.dataset.pane !== step;
+  // The preview, the import and her report live under steps 4 and 5.
+  const w = $('#mi-work');
+  if (w) w.hidden = !(step === 'check' || step === 'done');
+}
+
+function paintCommand() {
+  if (!$('#mi-cmd')) return;
+  const col = state.overview?.collector;
+  const system = wiz.system ?? guessSystem();
+  const source = wiz.source ?? 'hermes';
+  for (const b of document.querySelectorAll('#mi-wizard [data-os]')) b.setAttribute('aria-selected', String(b.dataset.os === system));
+  $('#mi-open').textContent = OPEN_HOW[system]();
+  // Without a collector on this server the command fetches the same file from GitHub: it is always real.
+  $('#mi-cmd').textContent = col ? collectorCommand({ origin: location.origin, sha: col.sha256, system, source }) : fallbackCommand({ system, source });
+  $('#mi-nocollector').hidden = Boolean(col);
+  $('#mi-download').hidden = !col;
+  $('#mi-sha').textContent = col ? t('Collector {v}, SHA-256 {sha}', { v: col.version, sha: col.sha256 }) : '';
+  $('#mi-custom-note').hidden = source !== 'custom';
+}
+
+function pickSource(id) {
+  wiz.source = id;
+  for (const b of document.querySelectorAll('#mi-wizard .mi-src')) b.setAttribute('aria-checked', String(b.dataset.source === id));
+  $('#mi-next-1').disabled = false;
+  paintCommand();
+}
+
+function initWizard() {
+  const box = $('#mi-wizard');
+  if (!box) return;
+  $('#mi-example').textContent = EXAMPLE_OUTPUT;
+  for (const b of box.querySelectorAll('.mi-src')) b.addEventListener('click', () => pickSource(b.dataset.source));
+  for (const b of box.querySelectorAll('[data-os]')) {
+    b.addEventListener('click', () => {
+      wiz.system = b.dataset.os;
+      paintCommand();
+    });
+  }
+  $('#mi-next-1').addEventListener('click', () => {
+    paintCommand();
+    setStep('run');
+  });
+  $('#mi-ran').addEventListener('change', () => ($('#mi-next-2').disabled = !$('#mi-ran').checked));
+  $('#mi-next-2').addEventListener('click', () => setStep('file'));
+  for (const b of box.querySelectorAll('.mi-back')) b.addEventListener('click', () => setStep(STEPS[Math.max(0, STEPS.indexOf(wiz.step) - 1)]));
+  $('#mi-again').addEventListener('click', () => {
+    wiz.fresh = true;
+    state.bundle = null;
+    state.choices = null;
+    state.preview = null;
+    $('#mi-ran').checked = false;
+    $('#mi-next-2').disabled = true;
+    work();
+    setStep('source');
+  });
+  setStep('source');
+}
+
+// ---------------------------------------------------------------------------------------------
 // Step 3: the upload (8 MB pieces, resumable)
 // ---------------------------------------------------------------------------------------------
 async function upload(file) {
   state.uploading = file;
+  wiz.fresh = false;
   const box = $('#mi-upload');
   box.hidden = false;
   const bar = $('#mi-upbar');
@@ -236,12 +329,14 @@ async function refresh() {
       state.bundle = null;
       state.choices = null;
       work();
+      if (wiz.step === 'check' || wiz.step === 'done') setStep('source');
       return;
     }
     work(errorCard(err.message));
     return;
   }
   state.preview = pv;
+  setStep(stepForState(pv.state) ?? wiz.step);
   if (['checking', 'reading', 'uploading'].includes(pv.state)) {
     work(progressCard(pv.line || t('Checking the bundle…'), false));
     state.poll = setTimeout(() => void refresh(), 1200);
@@ -763,6 +858,7 @@ async function deleteBundle() {
   state.bundle = null;
   state.choices = null;
   work();
+  setStep('source');
   await loadOverview();
 }
 

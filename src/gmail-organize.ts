@@ -214,7 +214,7 @@ export class GmailOrganizer {
       undone_at TEXT,
       undo_of TEXT
     )`);
-    // Phase 111: the label's name, for Today's "She organised today" (additive).
+    // Phase 111: the label's name, for Today's "She organized today" (additive).
     if (!(db.prepare('PRAGMA table_info(gmail_actions)').all() as { name: string }[]).some((c) => c.name === 'label_name')) db.exec('ALTER TABLE gmail_actions ADD COLUMN label_name TEXT');
     // Older than the undo window (and a day's grace): the ids aren't needed any more.
     db.prepare('DELETE FROM gmail_actions WHERE created_at < ?').run(new Date(this.#o.now().getTime() - (UNDO_DAYS + 1) * 86_400_000).toISOString());
@@ -397,7 +397,7 @@ export class GmailOrganizer {
   }
 
   /**
-   * Phase 111: "She organised today" on Today's Mail tile: this companion's changes since `sinceIso`
+   * Phase 111: "She organized today" on Today's Mail tile: this companion's changes since `sinceIso`
    * that are not undone (undo records left out), grouped by action and label, newest first.
    */
   organisedSince(sinceIso: string): { action: string; label?: string; count: number; ids: string[] }[] {

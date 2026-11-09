@@ -38,31 +38,24 @@ function rules(css: string): { sel: string; body: string }[] {
   return out;
 }
 
-test('V4d migration: leaving Sara Classic swaps its rose for Blue unless Theme colour was picked outside Classic', async () => {
+test('V4e (replaces the V4d migration): a palette is a full preset; picking one resets the colour to its default', async () => {
   const a = await import(pathToFileURL(join(ROOT, 'web', 'accent.js')).href);
-  const f = a.accentOnPaletteChange as (from: string, to: string, stored: string | null, pickedOn: string | null) => string | null;
-  // The owner's case: Classic's own rose was stored (never picked elsewhere), then Graphite.
-  assert.equal(f('classic', 'graphite', 'rose', null), 'blue');
-  assert.equal(f('classic', 'midnight', 'rose', 'classic'), 'blue', 'picked while in Classic = Classic’s own colour');
-  // Explicit picks stay.
-  assert.equal(f('classic', 'graphite', 'pink', 'classic'), null, 'Rose (pink) picked on purpose stays');
-  assert.equal(f('classic', 'graphite', 'violet', null), null);
-  assert.equal(f('classic', 'graphite', 'custom', null), null);
-  assert.equal(f('classic', 'graphite', 'rose', 'nord'), null, 'Theme colour picked outside Classic stays');
-  // Nothing stored: the default already is Blue outside Classic.
-  assert.equal(f('classic', 'graphite', null, null), null);
-  // Not leaving Classic: nothing changes.
-  assert.equal(f('graphite', 'midnight', 'rose', null), null);
-  assert.equal(f('graphite', 'classic', 'blue', null), null);
-  assert.equal(f('classic', 'classic', 'rose', null), null);
+  const def = a.paletteDefaultAccent as (pal: string) => string;
+  // Violet everywhere but Sara Classic, whose own rose is the stored value "rose" (Theme colour).
+  for (const p of ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast']) assert.equal(def(p), 'violet', p);
+  assert.equal(def('classic'), 'rose');
+  // What a palette pick clears: the stored colour (a preset or Custom) and where it was picked. The
+  // custom colour itself (sara.accentCustom) stays, so the colour field still offers it.
+  assert.deepEqual(a.PALETTE_RESETS, ['sara.accent', 'sara.accentPicked']);
+  assert.equal(a.accentOnPaletteChange, undefined, 'the V4d Classic-rose migration is folded into the reset');
 
   const app = read('web', 'app.js');
-  // Wired into the palette change, before the look is applied.
-  assert.match(app, /const swap = accentOnPaletteChange\(from, to, localStorage\.getItem\('sara\.accent'\), localStorage\.getItem\('sara\.accentPicked'\)\);/);
-  assert.match(app, /if \(swap\) localStorage\.setItem\('sara\.accent', swap\);/);
-  // An explicit pick (the list or a swatch, which goes through the list) remembers the palette it was made in.
+  // The default comes from the same function, before the first paint too (theme-boot.js mirrors it).
+  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
+  // Wired into the palette change, before the look is applied; the person can then change the colour.
+  assert.match(app, /localStorage\.setItem\('sara\.palette', to\);\s*(?:\/\/[^\n]*\s*)*for \(const k of PALETTE_RESETS\) localStorage\.removeItem\(k\);\s*applyAppearance\(\);\s*showAppearance\(\);/);
+  // An explicit pick still remembers the palette it was made in; Reset to defaults clears it too.
   assert.match(app, /if \(k === 'accent'\) localStorage\.setItem\('sara\.accentPicked', palettePick\(\)\);/);
-  assert.match(app, /'sara\.accentPicked'/, 'reset with the other look keys');
   assert.match(app, /const AP_KEYS = \[[^\]]*'sara\.accentPicked'/);
 });
 

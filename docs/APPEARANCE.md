@@ -10,9 +10,9 @@ the defaults below (it asks first); Ctrl+K → *Reset the look to the defaults* 
 
 | Setting | What it does | Default |
 |---|---|---|
-| **Palette** | Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, or Sara Classic (the cards). | Graphite |
+| **Palette** | Graphite, Midnight, Slate, Nord, Solarized, Paper, Ember, High contrast, or Sara Classic (the cards). A palette is a full preset: picking one also sets its colour back to the default (Violet; Sara Classic its rose), and you can change the colour after. | Graphite |
 | **Night or Day** | Night, Day or *Follow the system*. Every palette has both. | Follow the system |
-| **Colour** | The swatches: the palette's own colour (*Theme colour*), eight presets, or any colour you pick (+). Sara adjusts its shade so text on it stays readable. | Blue |
+| **Colour** | The swatches: the palette's own colour (*Theme colour*), eight presets, or any colour you pick (+). Sara adjusts its shade so text on it stays readable. | Violet (Sara Classic: its rose) |
 | **Decoration** | *Full*: soft glass on the sidebar, header and windows, a faint glow on the main button and a very slow, faint light behind the app. *Reduced*: flat. Your system's *Reduce transparency* turns it off; High contrast stays solid. | Full |
 | **Her picture in work views** | How big her portrait is in chats and Settings. | Small |
 | **Layout** | *Comfortable* or *Compact* (fits more on screen). | Comfortable |

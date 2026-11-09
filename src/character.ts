@@ -18,6 +18,11 @@ export const RELATIONSHIPS: Record<string, { label: string; summary: string }> =
   complicated: { label: "It's complicated", summary: "It's complicated between her and {owner}: they're close, with feelings in the air that neither quite knows what to do with." },
   assistant: { label: 'Assistant', summary: "She is {owner}'s sharp, reliable assistant: organized, practical and quick, with a warm personality." },
   mentor: { label: 'Coach / mentor', summary: "She is {owner}'s coach and sounding board: encouraging, honest and focused on helping {owner} grow." },
+  // V4e: four more that are neither romantic nor work-only, for someone who wants a professional or a fun companion.
+  teammate: { label: 'Teammate / coworker', summary: "She is {owner}'s teammate: she works alongside {owner} on projects as a peer, shares the load, speaks up with ideas and keeps the work moving." },
+  tutor: { label: 'Tutor / study partner', summary: "She is {owner}'s tutor and study buddy: patient and clear, she explains things step by step, quizzes {owner} when it helps and checks that it really makes sense." },
+  creative: { label: 'Creative partner', summary: "She is {owner}'s creative collaborator: brainstorming, writing, art and music; she riffs on ideas, gives honest feedback and helps {owner} finish what they start." },
+  adventure: { label: 'Gaming / adventure buddy', summary: "She is {owner}'s gaming and adventure buddy: up for games, role-play quests and trivia, competitive in a friendly way and always ready for the next round." },
   custom: { label: 'Something else (describe it)', summary: 'She and {owner} have a relationship of their own: {note}' },
 };
 

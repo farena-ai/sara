@@ -40,8 +40,8 @@
   root.setAttribute('data-theme', light ? 'light' : 'dark');
   root.classList.add(light ? 'theme-day' : 'theme-night');
   // The other per-device looks, so they don't change after the first paint either.
-  // Colour: Blue unless picked (Sara Classic: its own rose, the stored value "rose" = the palette's own).
-  var looks = { accent: pal === 'classic' ? 'rose' : 'blue', chatbg: 'none', density: 'comfy' };
+  // Colour: Violet unless picked (V4e; Sara Classic: its own rose, the stored value "rose" = the palette's own).
+  var looks = { accent: pal === 'classic' ? 'rose' : 'violet', chatbg: 'none', density: 'comfy' };
   for (var k in looks) root.setAttribute('data-' + k, get('sara.' + k) || looks[k]);
   // V1 (docs/ops/V1_DESIGN.md): the palette (Graphite unless picked; unknown names too), decoration
   // (off for every palette but Sara Classic unless picked; the system's reduced transparency forces it

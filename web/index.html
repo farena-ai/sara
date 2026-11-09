@@ -441,7 +441,7 @@
                 <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw>Sara</span> <span id="td-mood-text" class="td-mood-text"></span></p>
                 <div class="today-her"></div>
               </div>
-              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customise</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
+              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customize</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
             </div>
             <div class="td-face-wrap">
               <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""><span class="v4-orb td-orb" data-orb-size="112"></span></button>
@@ -521,7 +521,7 @@
         <!-- Phase 111 (TD1): Customise Today (web/today-layout.js): reorder, resize and hide, saved for this companion. -->
         <div id="td-custom" class="td-custom" role="dialog" aria-modal="false" aria-labelledby="td-custom-h" hidden>
           <div class="td-custom-top">
-            <h2 id="td-custom-h">Customise Today</h2>
+            <h2 id="td-custom-h">Customize Today</h2>
             <button id="td-custom-done" type="button">Done</button>
           </div>
           <p class="muted small td-custom-intro">Move, resize or hide any tile. Your choices are saved for this companion and follow you to every device you use her on.</p>
@@ -1193,11 +1193,11 @@
             <select id="bd-col-wip" aria-label="Limit"><option value="">No limit</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="8">8</option><option value="10">10</option></select>
             <button id="bd-col-add" type="button">Add column</button>
           </div>
-          <h3>Labels <button type="button" class="tip" data-tip="Up to 12 labels per board, each with a colour. Pick them on a card to group work (Bug, Errand, Urgent). She can use them too when she adds a card.">?</button></h3>
+          <h3>Labels <button type="button" class="tip" data-tip="Up to 12 labels per board, each with a color. Pick them on a card to group work (Bug, Errand, Urgent). She can use them too when she adds a card.">?</button></h3>
           <div id="bd-label-list" class="bd-label-list"></div>
           <div class="add-row">
             <input id="bd-label-name" placeholder="New label" maxlength="24" aria-label="New label name">
-            <select id="bd-label-color" aria-label="Colour"></select>
+            <select id="bd-label-color" aria-label="Color"></select>
             <button id="bd-label-add" type="button">Add label</button>
           </div>
           <h3 id="bd-share-h">Shared with <button type="button" class="tip" data-tip="Shared boards are seen by the household people you pick, after they accept. They see its cards and activity. Whoever asks Sara to work a card gets her in their own space, with their limits; the others see the outcome.">?</button></h3>
@@ -1808,7 +1808,7 @@
           </div>
           <div class="ppl-filters" role="group" aria-label="Show">
             <div id="ppl-circles" class="ppl-chips"></div>
-            <button id="ppl-tip-circles" type="button" class="tip" data-tip="Circles group people: family, partner, friends, work, neighbours, other. She guesses from what you call them (&quot;my manager&quot; is work); change it on the card. In a work chat she leans to work people.">?</button>
+            <button id="ppl-tip-circles" type="button" class="tip" data-tip="Circles group people: family, partner, friends, work, neighbors, other. She guesses from what you call them (&quot;my manager&quot; is work); change it on the card. In a work chat she leans to work people.">?</button>
           </div>
           <div id="ppl-new" class="ppl-new" hidden>
             <label>Name <input id="ppl-new-name" required maxlength="80" placeholder="e.g. Jamie"> <button type="button" class="tip" data-tip="How you usually say their name. Add nicknames on the card.">?</button></label>
@@ -1938,7 +1938,7 @@
   <!-- Phase 52: a new project from a tested starter template -->
   <dialog id="starter-dialog">
     <form method="dialog" class="settings-body">
-      <h2>New project from a starter <button type="button" class="tip" data-tip="A small, tested template (Telegram bot, landing page, REST API, command-line tool) copied into a new folder in this project's workspace. Its tests run as a background job, then she customises it with you in the new conversation.">?</button></h2>
+      <h2>New project from a starter <button type="button" class="tip" data-tip="A small, tested template (Telegram bot, landing page, REST API, command-line tool) copied into a new folder in this project's workspace. Its tests run as a background job, then she customizes it with you in the new conversation.">?</button></h2>
       <div id="starter-list" class="starter-list" role="radiogroup" aria-label="Starters"></div>
       <label>Folder name <input id="starter-name" maxlength="64" placeholder="e.g. weather-bot" autocomplete="off"></label>
       <p id="starter-status" class="small" role="status"></p>
@@ -3005,13 +3005,13 @@
           <select id="ap-theme"><option value="dark">Night</option><option value="light">Day</option><option value="system">Follow the system (default)</option></select>
         </label>
         <div class="ap-colour-row">
-        <label>Colour
-          <select id="ap-accent"><option value="rose">Theme colour</option><option value="blue">Blue (default)</option><option value="pink">Rose</option><option value="violet">Violet</option><option value="emerald">Emerald</option><option value="amber">Amber</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="red">Red</option><option value="grey">Grey</option><option value="custom">Custom</option></select>
+        <label>Color
+          <select id="ap-accent"><option value="rose">Theme color</option><option value="violet">Violet (default)</option><option value="blue">Blue</option><option value="pink">Rose</option><option value="emerald">Emerald</option><option value="amber">Amber</option><option value="cyan">Cyan</option><option value="green">Green</option><option value="red">Red</option><option value="grey">Gray</option><option value="custom">Custom</option></select>
         </label>
           <div class="ap-swatches" id="ap-swatches" aria-hidden="true"></div>
         </div>
-        <label id="ap-custom-row" class="ap-custom-row" hidden>Your colour
-          <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#3b82f6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#3b82f6"></span>
+        <label id="ap-custom-row" class="ap-custom-row" hidden>Your color
+          <span class="ap-custom-pick"><input id="ap-accent-custom" type="color" value="#8b5cf6"><input id="ap-accent-hex" maxlength="7" spellcheck="false" autocomplete="off" placeholder="#8b5cf6"></span>
         </label>
         <label>Background motion
           <select id="ap-motion"><option value="on">On: a faint light that moves with how busy she is (default)</option><option value="off">Off: still</option></select>
@@ -3043,7 +3043,7 @@
       </div>
       </div>
       <div class="ap-group" role="group" aria-labelledby="ap-g-chat">
-        <div class="ap-group-h"><h3 id="ap-g-chat">Chat behaviour</h3></div>
+        <div class="ap-group-h"><h3 id="ap-g-chat">Chat behavior</h3></div>
       <div class="row-grid">
         <label>Her replies appear
           <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
@@ -3175,7 +3175,7 @@
       <div class="add-row"><button id="iso-recheck" type="button" class="ghost small">Look again</button><button id="iso-install" type="button" class="small" hidden>Install Docker for me</button></div>
       <div id="iso-host" class="prq-host"></div>
       <h3>Sites sandboxed work may reach <button type="button" class="tip" data-tip="With a list, commands and add-on jobs that have internet reach only these sites; every other site is refused and written to the audit trail. A key named after a site is added by Sara, so it never enters the sandbox.">?</button></h3>
-      <label>Which sites <select id="eg-mode"><option value="open">Any site</option><option value="allowlist">Only the sites listed below</option></select> <button type="button" class="tip" data-tip="Any site keeps today's behaviour. Only the sites listed: an empty list means no internet at all for sandboxed work.">?</button></label>
+      <label>Which sites <select id="eg-mode"><option value="open">Any site</option><option value="allowlist">Only the sites listed below</option></select> <button type="button" class="tip" data-tip="Any site keeps today's behavior. Only the sites listed: an empty list means no internet at all for sandboxed work.">?</button></label>
       <label>Allowed sites, one per line <textarea id="eg-hosts" rows="4" placeholder="registry.npmjs.org"></textarea> <button type="button" class="tip" data-tip="One site per line: example.com, *.example.com for its subdomains, example.com:8443 for another port. Add key=name to have Sara add the saved key of that name (send plain http:// to that site).">?</button></label>
       <p id="eg-note" class="muted small"></p>
       <div class="add-row"><button id="eg-save" type="button">Save</button></div>
@@ -3932,7 +3932,7 @@
       </div>
         </section>
 <section class="settings-page" data-page="co-spotify" data-group="Connections" data-title="Spotify" data-owner-only hidden>
-      <p class="muted small page-lead">Let her search Spotify, see what you're listening to, your playlists and your favourites, and, if you allow it, play, pause, skip and queue songs. It uses a small Spotify developer app that <strong>you</strong> own, so nothing goes through anyone else.</p>
+      <p class="muted small page-lead">Let her search Spotify, see what you're listening to, your playlists and your favorites, and, if you allow it, play, pause, skip and queue songs. It uses a small Spotify developer app that <strong>you</strong> own, so nothing goes through anyone else.</p>
       <p id="spo-status" class="muted small" role="status"></p>
       <div id="spo-connected" class="add-row" hidden><button id="spo-disconnect" type="button" class="ghost">Disconnect Spotify</button></div>
       <details id="spo-setup" data-noauto open>
@@ -4416,51 +4416,83 @@
         </section>
         <section class="settings-page" data-page="dh-movein" data-group="Data & health" data-title="Move in from another agent" data-owner-only hidden>
       <h3>How it works <button type="button" class="tip" data-tip="Bring a Hermes Agent, OpenClaw or custom companion over: personality, notes, past chats, people, skills, schedules and her old databases. The old computer is not changed. Undo removes it all for 30 days.">?</button></h3>
-      <p class="muted small">Three steps. Nothing is changed on the old computer, keys and passwords are never collected, and you see everything before it is imported.</p>
-      <ol class="mi-steps" data-noauto>
-        <li class="mi-step">
-          <span class="mi-num" aria-hidden="true">1</span>
-          <div class="mi-body">
-            <h4>Get the collector <button type="button" class="tip" data-tip="A small read-only program (one Python file, no installs). It finds your old agent, shows what it will pack and writes one .saramove file. It is plain text: read it first if you like.">?</button></h4>
-            <p class="muted small">Copy this command. It downloads the collector from this server and checks its fingerprint before it runs.</p>
-            <pre class="mi-cmd" id="mi-cmd" translate="no"></pre>
-            <p class="actions-left"><button id="mi-copy" type="button">Copy the command</button> <a id="mi-download" class="button ghost" href="/api/movein/collector" download="sara-movein.py">Download the collector</a></p>
-            <p id="mi-sha" class="muted small mi-sha"></p>
+      <p class="muted small">Five short steps. Nothing is changed on the old computer, keys and passwords are never collected, and you see everything before it is imported.</p>
+      <!-- V4e: a guided wizard (web/movein.js + web/movein-wizard.js). Every earlier control keeps its id. -->
+      <div id="mi-wizard" class="mi-wizard" data-noauto data-step="source">
+        <ol class="mi-progress" aria-label="Move-in steps">
+          <li data-step="source"><span class="mi-pnum">1</span><span class="mi-plabel">Pick the agent</span></li>
+          <li data-step="run"><span class="mi-pnum">2</span><span class="mi-plabel">Run the collector</span></li>
+          <li data-step="file"><span class="mi-pnum">3</span><span class="mi-plabel">Bring the file</span></li>
+          <li data-step="check"><span class="mi-pnum">4</span><span class="mi-plabel">Check and import</span></li>
+          <li data-step="done"><span class="mi-pnum">5</span><span class="mi-plabel">Done</span></li>
+        </ol>
+        <section class="mi-pane" data-pane="source" aria-labelledby="mi-h-source">
+          <h4 id="mi-h-source">Which agent is she moving from?</h4>
+          <div class="mi-sources" role="radiogroup" aria-labelledby="mi-h-source">
+            <button type="button" class="mi-src" role="radio" aria-checked="false" data-source="hermes"><strong>Hermes Agent</strong><span class="muted small">Her personality (SOUL.md), memories, past sessions, skills, schedules and board.</span></button>
+            <button type="button" class="mi-src" role="radio" aria-checked="false" data-source="openclaw"><strong>OpenClaw</strong><span class="muted small">Her identity and soul files, memory, past chats, skills and scheduled jobs.</span></button>
+            <button type="button" class="mi-src" role="radio" aria-checked="false" data-source="custom"><strong>Another agent</strong><span class="muted small">A folder with her files, or a SQLite or Postgres store. You check how its tables map in step 4.</span></button>
           </div>
-        </li>
-        <li class="mi-step">
-          <span class="mi-num" aria-hidden="true">2</span>
-          <div class="mi-body">
-            <h4>Run it on your old agent's computer <button type="button" class="tip" data-tip="Open a terminal on the computer where Hermes Agent or OpenClaw lives (or type ssh you@that-computer and press Enter), paste the command and press Enter. It shows a plan first and only reads.">?</button></h4>
-            <p class="muted small">It shows what it found and what it will pack or skip, then asks before writing the file. Health and intimate items stay out unless you say yes.</p>
-            <details class="mi-whatif">
-              <summary>What if…</summary>
-              <ul class="small">
-                <li><strong>There is no Python:</strong> install it from python.org, or run the collector on a computer that can read the agent's folder.</li>
-                <li><strong>Permission denied:</strong> the agent runs as another user. The collector prints the exact sudo line to use.</li>
-                <li><strong>It finds nothing:</strong> point at the folder: --hermes-home PATH or --openclaw-state PATH.</li>
-                <li><strong>A custom agent or a Postgres database:</strong> add --scan FOLDER, --postgres "postgres://user@host/db" (read-only) or --postgres-dump FILE.</li>
-                <li><strong>Only a look:</strong> add --plan-only and nothing is written.</li>
-              </ul>
-            </details>
+          <p class="muted small">Not sure? Pick the closest one: the collector looks for all of them and tells you what it found.</p>
+          <p class="mi-nav"><button id="mi-next-1" type="button" class="primary" disabled>Next</button></p>
+        </section>
+        <section class="mi-pane" data-pane="run" aria-labelledby="mi-h-run" hidden>
+          <h4 id="mi-h-run">Run the collector on the computer where she lives now <button type="button" class="tip" data-tip="A small read-only program (one Python file, no installs). It finds your old agent, shows what it will pack and writes one .saramove file. It is plain text: read it first if you like.">?</button></h4>
+          <p class="muted small">Pick that computer's system, copy the command, paste it into a terminal there and press Enter. The command downloads the collector and checks its fingerprint before it runs.</p>
+          <div class="mi-os tabs" role="tablist" aria-label="The old computer's system">
+            <button type="button" class="tab" role="tab" aria-selected="false" data-os="windows">Windows (PowerShell)</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-os="mac">Mac</button>
+            <button type="button" class="tab" role="tab" aria-selected="false" data-os="linux">Linux</button>
           </div>
-        </li>
-        <li class="mi-step">
-          <span class="mi-num" aria-hidden="true">3</span>
-          <div class="mi-body">
-            <h4>Upload the file <button type="button" class="tip" data-tip="Choose the .saramove file the collector made. Big files go up in pieces and carry on after a dropped connection. It is as private as a diary: delete your copy afterwards.">?</button></h4>
-            <p class="actions-left"><button type="button" class="file-button" data-pick="mi-file">Choose the .saramove file</button><input id="mi-file" type="file" accept=".saramove" hidden data-noauto></p>
-            <div id="mi-upload" class="mi-card" hidden>
-              <progress id="mi-upbar" max="1" value="0"></progress>
-              <p id="mi-upline" class="small" role="status"></p>
-              <p class="actions-left"><button id="mi-pause" type="button" class="ghost small">Pause</button> <button id="mi-resume" type="button" class="ghost small" hidden>Resume</button></p>
-            </div>
-            <p class="muted small">Or send it straight from the old computer: <button id="mi-code" type="button" class="ghost small">Make a move-in code</button> <button type="button" class="tip" data-tip="A six-word code that lets the collector send one bundle here for 30 minutes (python3 sara-movein.py send FILE --to ADDRESS --code WORDS). It opens nothing else.">?</button></p>
-            <pre id="mi-codeline" class="mi-cmd" translate="no" hidden></pre>
+          <p id="mi-open" class="small mi-open"></p>
+          <pre class="mi-cmd" id="mi-cmd" translate="no"></pre>
+          <p class="actions-left"><button id="mi-copy" type="button">Copy the command</button> <a id="mi-download" class="button ghost" href="/api/movein/collector" download="sara-movein.py">Download the collector</a></p>
+          <p id="mi-nocollector" class="small mi-nocollector" hidden>This server can't hand out the collector (it was installed without it), so the command downloads the same file from GitHub instead.</p>
+          <p id="mi-sha" class="muted small mi-sha"></p>
+          <p id="mi-custom-note" class="small" hidden>Replace FOLDER with the folder where that agent keeps its files.</p>
+          <details class="mi-example">
+            <summary>What you'll see</summary>
+            <p class="muted small">First a plan: what it found and what it will pack or skip. Health and intimate items stay out unless you answer yes. Nothing is written until you answer Continue.</p>
+            <pre id="mi-example" class="mi-cmd mi-example-out" translate="no"></pre>
+          </details>
+          <details class="mi-whatif">
+            <summary>What if…</summary>
+            <ul class="small">
+              <li><strong>There is no Python:</strong> install it from python.org, or run the collector on a computer that can read the agent's folder.</li>
+              <li><strong>Windows says py is not recognized:</strong> type python instead of py at the end of the command.</li>
+              <li><strong>Permission denied:</strong> the agent runs as another user. The collector prints the exact sudo line to use.</li>
+              <li><strong>It finds nothing:</strong> point at the folder: --hermes-home PATH or --openclaw-state PATH.</li>
+              <li><strong>A custom agent or a Postgres database:</strong> add --scan FOLDER, --postgres "postgres://user@host/db" (read-only) or --postgres-dump FILE.</li>
+              <li><strong>Only a look:</strong> add --plan-only and nothing is written.</li>
+            </ul>
+          </details>
+          <label class="row mi-ran"><input id="mi-ran" type="checkbox"> I ran it and have the .saramove file</label>
+          <p class="mi-nav"><button type="button" class="ghost mi-back">Back</button> <button id="mi-next-2" type="button" class="primary" disabled>Next</button></p>
+        </section>
+        <section class="mi-pane" data-pane="file" aria-labelledby="mi-h-file" hidden>
+          <h4 id="mi-h-file">Bring the file here <button type="button" class="tip" data-tip="Choose the .saramove file the collector made. Big files go up in pieces and carry on after a dropped connection. It is as private as a diary: delete your copy afterwards.">?</button></h4>
+          <p class="muted small">If the file is on another computer, copy it to this one first (a USB stick or a shared folder), or send it straight from there with a move-in code.</p>
+          <p class="actions-left"><button type="button" class="file-button" data-pick="mi-file">Choose the .saramove file</button><input id="mi-file" type="file" accept=".saramove" hidden data-noauto></p>
+          <div id="mi-upload" class="mi-card" hidden>
+            <progress id="mi-upbar" max="1" value="0"></progress>
+            <p id="mi-upline" class="small" role="status"></p>
+            <p class="actions-left"><button id="mi-pause" type="button" class="ghost small">Pause</button> <button id="mi-resume" type="button" class="ghost small" hidden>Resume</button></p>
           </div>
-        </li>
-      </ol>
-      <div id="mi-work" class="mi-work" aria-live="polite" data-noauto></div>
+          <p class="muted small">Or send it straight from the old computer: <button id="mi-code" type="button" class="ghost small">Make a move-in code</button> <button type="button" class="tip" data-tip="A six-word code that lets the collector send one bundle here for 30 minutes (python3 sara-movein.py send FILE --to ADDRESS --code WORDS). It opens nothing else.">?</button></p>
+          <pre id="mi-codeline" class="mi-cmd" translate="no" hidden></pre>
+          <p class="mi-nav"><button type="button" class="ghost mi-back">Back</button></p>
+        </section>
+        <section class="mi-pane" data-pane="check" aria-labelledby="mi-h-check" hidden>
+          <h4 id="mi-h-check">Check what comes in, then import</h4>
+          <p class="muted small">Each card says how many things come in, with a few samples. Untick anything you don't want. Nothing is imported until you press Import.</p>
+        </section>
+        <section class="mi-pane" data-pane="done" aria-labelledby="mi-h-done" hidden>
+          <h4 id="mi-h-done">She has moved in</h4>
+          <p class="muted small">Below is what came in. To take it all back, press Undo this move-in (here or under Past move-ins) any time in the next 30 days.</p>
+          <p class="mi-nav"><button id="mi-again" type="button" class="ghost">Move in another agent</button></p>
+        </section>
+        <div id="mi-work" class="mi-work" aria-live="polite" data-noauto></div>
+      </div>
       <h3>Past move-ins <button type="button" class="tip" data-tip="Every move-in is one batch. Undo removes exactly what it brought (notes, conversations, skills, tasks, cards) and puts her old personality back. Available for 30 days.">?</button></h3>
       <div id="mi-batches" class="mi-batches" data-noauto></div>
       <h3>Saved store mappings <button type="button" class="tip" data-tip="Every store card you confirm is saved by the shape of its tables (names only, no data). A later bundle with the same tables maps itself with no model calls. Export them to share with someone using the same plugin.">?</button></h3>

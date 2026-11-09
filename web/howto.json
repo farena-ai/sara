@@ -69,7 +69,7 @@
    "steps": [
     "Under Outfits and places, describe the outfit.",
     "Press Try it on.",
-    "Keep favourites in the Closet."
+    "Keep favorites in the Closet."
    ],
    "show": "#look-outfit-go"
   }
@@ -278,7 +278,7 @@
  "you-appearance": [
   {
    "id": "palette",
-   "q": "How do I change the colours of the app?",
+   "q": "How do I change the colors of the app?",
    "steps": [
     "Pick a palette card at the top of this page.",
     "Night or Day picks light or dark for it."
@@ -1817,7 +1817,7 @@
    "id": "arrange",
    "q": "How do I change what Today shows?",
    "steps": [
-    "Press Customise.",
+    "Press Customize.",
     "Switch sections on or off and drag them in order."
    ]
   },

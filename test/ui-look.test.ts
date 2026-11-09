@@ -133,7 +133,7 @@ test('theme-boot: Follow the system unless Night or Day was picked (V3, the owne
   assert.equal(boot({ stored: 'system', light: false }).attrs['data-theme'], 'dark');
   assert.equal(boot({ stored: 'nonsense', light: true }).attrs['data-theme'], 'light', 'unknown values: the default (the system)');
   assert.ok(boot({}).cls.has('theme-night'));
-  assert.equal(boot({}).attrs['data-accent'], 'blue', 'V3: Blue by default');
+  assert.equal(boot({}).attrs['data-accent'], 'violet', 'V4e: Violet by default');
   // Normal browsers: nothing changes.
   const plain = boot({});
   assert.ok(!plain.cls.has('shell'));

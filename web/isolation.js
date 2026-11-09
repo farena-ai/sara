@@ -37,7 +37,7 @@ const ENFORCE = {
   namespace: () => t('Enforced: no network inside the sandbox except the egress proxy.'),
   seatbelt: () => t('Enforced: the macOS sandbox only allows the egress proxy.'),
   'node-guard': () => t('Enforced by a Node guard inside the job (not an operating-system boundary).'),
-  variables: () => t('Not enforced here: only programs that honour proxy settings use the list. Use a container for real enforcement.'),
+  variables: () => t('Not enforced here: only programs that honor proxy settings use the list. Use a container for real enforcement.'),
 };
 
 const hostsText = (hosts) => hosts.map((h) => (typeof h === 'string' ? h : `${h.host} key=${h.key}`)).join('\n');

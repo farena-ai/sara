@@ -50,7 +50,7 @@ export function tileTip(id) {
     'td-weather': t('The weather where you get your morning briefing, from Open-Meteo, updated every 15 minutes.'),
     'td-dates': t('Events, dates she remembered and birthdays from your people cards for the next days.'),
     'td-needs': t('Everything waiting on you in one list: approvals, failed work, overdue to-dos, cards waiting on you, important mail and webhooks.'),
-    'td-mail': t('Your inbox from Gmail: total and unread, the change since yesterday, what looks important, and what she organised today, with Undo.'),
+    'td-mail': t('Your inbox from Gmail: total and unread, the change since yesterday, what looks important, and what she organized today, with Undo.'),
     'td-memories': t('The newest things she learned about you, from her memory.'),
     'td-otd': t('A photo from this day in the past, or your newest moments.'),
     'td-plans': t('Her own plans for today: the messages she plans to send and why.'),
@@ -202,7 +202,7 @@ export function tileMenu(tile) {
       item(t('Move up'), at > 0, () => changed(moveTile(prefs, id, -1))),
       item(t('Move down'), at < sec.length - 1, () => changed(moveTile(prefs, id, 1))),
       item(t('Hide this tile'), true, () => hideWithUndo(id)),
-      item(t('Customise Today'), true, () => openSheet()),
+      item(t('Customize Today'), true, () => openSheet()),
     );
     b.after(menu);
     b.setAttribute('aria-expanded', 'true');

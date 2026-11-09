@@ -5,9 +5,14 @@ It carries her personality, notes, what she knew about you, past conversations, 
 and board cards. The old agent is not changed. Everything comes in as one batch that **Undo**
 removes for 30 days. (Design: [design/MOVE_IN.md](design/MOVE_IN.md).)
 
-## The three steps
+## The steps
 
-Open **Settings → Data & health → Move in from another agent**.
+Open **Settings → Data & health → Move in from another agent**. The page walks you through five
+steps with a progress bar: pick the agent, run the collector, bring the file, check and import, done.
+Step 2 shows the exact command for **Windows (PowerShell)**, **Mac** or **Linux** and an example of
+what you'll see when it runs; step 3 unlocks once you tick *I ran it and have the .saramove file*. If
+your Sara doesn't have the collector, the page shows a command that downloads it from GitHub instead.
+In short:
 
 1. **Get the collector.** Copy the command shown on the page. It downloads `sara-movein.py` from
    your Sara and checks its SHA-256 before running it. The collector is one Python file with no

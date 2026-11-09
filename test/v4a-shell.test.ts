@@ -93,7 +93,7 @@ test('V4a accent: six presets (Blue default, Rose, Violet, Emerald, Amber, Cyan)
     assert.ok(diff <= 15, `${a}: --acc-h ${h} vs fill hue ${fill.toFixed(0)}`);
   }
   // Appearance: the six first (after Theme colour), Emerald is a real stored value on the server too.
-  assert.match(html, /<select id="ap-accent"><option value="rose">Theme colour<\/option><option value="blue">Blue \(default\)<\/option><option value="pink">Rose<\/option><option value="violet">Violet<\/option><option value="emerald">Emerald<\/option><option value="amber">Amber<\/option><option value="cyan">Cyan<\/option>/);
+  assert.match(html, /<select id="ap-accent"><option value="rose">Theme color<\/option><option value="violet">Violet \(default\)<\/option><option value="blue">Blue<\/option><option value="pink">Rose<\/option><option value="emerald">Emerald<\/option><option value="amber">Amber<\/option><option value="cyan">Cyan<\/option>/);
   assert.match(readFileSync(join(ROOT, 'src', 'appearance.ts'), 'utf8'), /'emerald'/);
   assert.match(theme, /\.ap-swatch\[data-accent="emerald"\] \{ background: #10b981; \}/);
   // Nothing readable is drawn from the hue tokens: they only feed glows, haze and the second accent.

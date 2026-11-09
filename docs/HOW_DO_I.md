@@ -39,7 +39,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I change what Today shows?**
 
-1. Press Customise.
+1. Press Customize.
 2. Switch sections on or off and drag them in order.
 
 **How do I set up a routine?**
@@ -248,7 +248,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Under Outfits and places, describe the outfit.
 2. Press Try it on.
-3. Keep favourites in the Closet.
+3. Keep favorites in the Closet.
 
 ### Voice
 
@@ -382,7 +382,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 ### Appearance
 
-**How do I change the colours of the app?**
+**How do I change the colors of the app?**
 
 1. Pick a palette card at the top of this page.
 2. Night or Day picks light or dark for it.

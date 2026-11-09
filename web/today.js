@@ -304,7 +304,7 @@ export function awayLines(away) {
       case 'jobs': return l.failed ? t('Background jobs finished: {n} ({f} failed)', { n: l.n, f: l.failed }) : t('Background jobs finished: {n}', { n: l.n });
       case 'memories': return t('New things she learned: {n}', { n: l.n });
       case 'moments': return t('New moments: {n}', { n: l.n });
-      case 'mail': return t('Emails she organised: {n}', { n: l.n });
+      case 'mail': return t('Emails she organized: {n}', { n: l.n });
       // Phase 112 (TD2): only with Include rooms on: a count and the room titles, nothing else.
       case 'rooms': return l.titles?.length ? t('Rooms she answered in: {n} ({rooms})', { n: l.n, rooms: l.titles.join(', ') }) : t('Rooms she answered in: {n}', { n: l.n });
       default: return '';
@@ -1010,7 +1010,7 @@ export function renderMail(m) {
     }
     const org = m.organised ?? [];
     if (org.length) {
-      out.push(el('h4', 'td-bd-h', t('She organised today')));
+      out.push(el('h4', 'td-bd-h', t('She organized today')));
       if (big) {
         const ul = el('ul', 'td-org-list');
         for (const g of org.slice(0, 3)) {
@@ -1034,7 +1034,7 @@ export function renderMail(m) {
           ul.append(li);
         }
         out.push(ul);
-      } else out.push(el('p', 'small', t('She organised today: {n}', { n: num(org.reduce((a, g) => a + g.count, 0)) })));
+      } else out.push(el('p', 'small', t('She organized today: {n}', { n: num(org.reduce((a, g) => a + g.count, 0)) })));
     }
     if (!m.important?.length && !org.length && !m.change) out.push(el('p', 'muted small', t('Nothing important waiting.')));
   }
@@ -1455,7 +1455,7 @@ function renderSetup(items, prefs) {
   const words = {
     weather: [t('Weather'), t('Add your town for the weather here and in the morning briefing.')],
     calendar: [t('Calendar'), t('Connect Google Calendar to see your events here.')],
-    mail: [t('Mail'), t('Connect Gmail to see your inbox and what she organised here.')],
+    mail: [t('Mail'), t('Connect Gmail to see your inbox and what she organized here.')],
     home: [t('Home'), t('Connect Home Assistant to see your lights and switches here.')],
     github: ['GitHub', t('Connect GitHub to see open pull requests on Coding projects.')],
   };

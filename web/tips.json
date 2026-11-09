@@ -366,7 +366,7 @@
       "start"
     ],
     "ap-accent": [
-      "The app's highlight colour on this device. Blue is the default; Theme colour uses the palette's own.",
+      "The app's highlight color on this device. Violet is the default (Sara Classic: its rose); Theme color uses the palette's own; picking a palette sets it back to the default.",
       "start"
     ],
     "ap-chatbg": [
@@ -378,12 +378,16 @@
       "start"
     ],
     "ap-palette": [
-      "The colours of the whole app on this device. Graphite is the calm default; High contrast is the easiest to read; Sara Classic is the rose and violet look from before. Night or Day still picks light or dark.",
+      "The colors of the whole app on this device. Graphite is the calm default; High contrast is the easiest to read; Sara Classic is the rose and violet look from before. Night or Day still picks light or dark.",
       "start"
     ],
     "ap-decor": [
       "Full (the default) adds soft glass, a faint glow and a slow light behind the app. Reduced keeps it flat. Reduce transparency in your system settings turns it off.",
       "start"
+    ],
+    "mi-ran": [
+      "Tick it once the collector has written the .saramove file on the old computer. Then Next takes you to the upload. Nothing is sent until you choose the file.",
+      "move-in"
     ],
     "ap-motion": [
       "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
@@ -402,11 +406,11 @@
       "start"
     ],
     "ap-accent-custom": [
-      "Pick any colour. Sara adjusts its shade for Night and for Day so text on it and next to it stays easy to read.",
+      "Pick any color. Sara adjusts its shade for Night and for Day so text on it and next to it stays easy to read.",
       "start"
     ],
     "ap-accent-hex": [
-      "The same colour as a code, like #3b82f6. Sara adjusts the shade so it stays readable.",
+      "The same color as a code, like #8b5cf6. Sara adjusts the shade so it stays readable.",
       "start"
     ],
     "ap-sync": [
@@ -1568,7 +1572,7 @@
       "start"
     ],
     "you-appearance": [
-      "How the app looks on this device: palette, Night or Day, colour, layout, decoration and her picture.",
+      "How the app looks on this device: palette, Night or Day, color, layout, decoration and her picture.",
       "start"
     ],
     "you-briefing": [
@@ -1756,7 +1760,7 @@
       "care"
     ],
     "dh-movein": [
-      "Bring a Hermes Agent, OpenClaw or custom companion over in three steps: run the collector on the old computer, upload its file, check the preview. Undo removes it all.",
+      "Bring a Hermes Agent, OpenClaw or custom companion over, one step at a time: pick the agent, run the collector on the old computer, bring its file here, check the preview and import. Undo removes it all.",
       "move-in"
     ],
     "dh-updates": [

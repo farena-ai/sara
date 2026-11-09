@@ -97,7 +97,7 @@ test('V3 slice 3: Ctrl+K is the universal launcher: pages, every Settings page, 
   assert.match(app, /settings: \(\) => settingsPages\(\)\.map\(\(p\) => \(\{ key: `settings:\$\{p\.dataset\.page\}`/);
   assert.match(app, /projects: \(\) => \(state\.projects \?\? \[\]\)\.filter\(\(p\) => !p\.builtin && !p\.hidden\)/);
   for (const k of ["add('reset-look', 'undo', t('Reset the look to the defaults')", "add('settings-home', 'settings', t('All settings')", "add('appearance', 'sliders', t('Appearance')", "add('find-setting', 'search', t('Find a setting')"]) assert.ok(app.includes(k), k);
-  for (const lang of LANGS) for (const k of ['Find a setting', 'Project', 'settings home index every page', 'theme palette colour dark light look']) assert.ok(i18n(lang)[k], `${lang}: ${k}`);
+  for (const lang of LANGS) for (const k of ['Find a setting', 'Project', 'settings home index every page', 'theme palette color dark light look']) assert.ok(i18n(lang)[k], `${lang}: ${k}`);
 });
 
 const theme = web('theme.css');
@@ -124,10 +124,11 @@ test('V3 slice 4: Full decoration outside Classic is refined: solid accent, glas
   const full = block(':root:not([data-palette="classic"])[data-decor="on"] {');
   assert.equal(full['accent-grad'], 'linear-gradient(var(--accent-solid), var(--accent-solid))', 'no gradients');
   assert.equal(full['violet-glow'], 'transparent');
-  assert.equal(full['aurora-3'], 'transparent');
-  assert.equal(full['grain-opacity'], '0');
-  assert.ok(Number(full['v3-light'].replace('%', '')) <= 10, 'the light stays faint');
-  assert.ok(Number(block(':root:not([data-palette="classic"])[data-decor="on"][data-theme="light"] {')['v3-light'].replace('%', '')) <= 6);
+  // V4e: Full is visibly richer than Reduced (owner) but still a light, not a tint: AA is checked below.
+  assert.match(full['aurora-3'], /var\(--v3-light\) \* \.45/);
+  assert.ok(Number(full['grain-opacity']) > 0 && Number(full['grain-opacity']) <= .04, 'a fine grain');
+  assert.ok(Number(full['v3-light'].replace('%', '')) <= 18, 'the light stays a light');
+  assert.ok(Number(block(':root:not([data-palette="classic"])[data-decor="on"][data-theme="light"] {')['v3-light'].replace('%', '')) <= 10);
   const hc = block(':root[data-palette="contrast"][data-decor="on"] {');
   assert.equal(hc['glass-filter'], 'none', 'High contrast stays solid');
   // Halo and sparkles off, glass only on the listed chrome, and solid fallbacks.
@@ -175,8 +176,8 @@ function boot(store: Record<string, string>, media: Record<string, boolean> = {}
 
 test('V3 defaults (owner image): Graphite, Follow the system, Blue, Full, small picture, Comfortable; picked values and Sara Classic keep theirs', () => {
   const pick = (a: Record<string, string>) => [a['data-palette'], a['data-theme'], a['data-accent'], a['data-decor'], a['data-portrait'], a['data-density']];
-  assert.deepEqual(pick(boot({})), ['graphite', 'dark', 'blue', 'on', 'small', 'comfy'], 'a dark system');
-  assert.deepEqual(pick(boot({}, { 'color-scheme: light': true })), ['graphite', 'light', 'blue', 'on', 'small', 'comfy'], 'follows a light system');
+  assert.deepEqual(pick(boot({})), ['graphite', 'dark', 'violet', 'on', 'small', 'comfy'], 'a dark system');
+  assert.deepEqual(pick(boot({}, { 'color-scheme: light': true })), ['graphite', 'light', 'violet', 'on', 'small', 'comfy'], 'follows a light system');
   // Explicit choices win, every one of them.
   assert.deepEqual(pick(boot({ 'sara.theme': 'dark', 'sara.accent': 'rose', 'sara.decor': 'off', 'sara.portrait': 'large', 'sara.density': 'compact' }, { 'color-scheme: light': true })), ['graphite', 'dark', 'rose', 'off', 'large', 'compact']);
   // Sara Classic keeps exactly its earlier defaults: Night, its rose, decoration on, the large picture.
@@ -185,7 +186,8 @@ test('V3 defaults (owner image): Graphite, Follow the system, Blue, Full, small 
   assert.equal(boot({}, { 'reduced-transparency': true })['data-decor'], 'off');
   const app = web('app.js');
   assert.match(app, /const themePick = \(pal = palettePick\(\)\) => \{\s*const v = localStorage\.getItem\('sara\.theme'\);\s*return v === 'light' \|\| v === 'system' \|\| v === 'dark' \? v : pal === 'classic' \? 'dark' : 'system';/);
-  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? \(pal === 'classic' \? 'rose' : 'blue'\);/);
+  assert.match(app, /const accentPick = \(pal = palettePick\(\)\) => localStorage\.getItem\('sara\.accent'\) \?\? paletteDefaultAccent\(pal\);/);
+  assert.match(web('accent.js'), /export const paletteDefaultAccent = \(pal\) => \(pal === 'classic' \? 'rose' : 'violet'\);/);
   assert.match(app, /return v === 'on' \|\| v === 'off' \? v : 'on';/, 'Full by default');
   // Text size Normal (15), replies as they arrive, 5 sessions shown.
   assert.match(app, /localStorage\.getItem\('sara\.textSize'\) \?\? '15'/);
@@ -193,11 +195,12 @@ test('V3 defaults (owner image): Graphite, Follow the system, Blue, Full, small 
   assert.match(web('session-list.js'), /return PAGE_SIZES\.includes\(n\) \? n : 5;/);
   // The list says which choice is the default.
   assert.match(html, /<option value="system">Follow the system \(default\)<\/option>/);
-  assert.match(html, /<option value="blue">Blue \(default\)<\/option>/);
+  assert.match(html, /<option value="violet">Violet \(default\)<\/option>/);
   assert.match(html, /<option value="on">Full: glow, glass and moving light \(default\)<\/option>/);
   assert.match(html, /<option value="5" data-raw>5 \(the default\)<\/option>|<option value="5">5 \(the default\)<\/option>/);
   // The server: a synced look falls back to the same defaults.
-  assert.deepEqual(cleanAppearance({}), { palette: 'graphite', theme: 'system', accent: 'blue', density: 'comfy', portrait: 'small' });
+  assert.deepEqual(cleanAppearance({}), { palette: 'graphite', theme: 'system', accent: 'violet', density: 'comfy', portrait: 'small' });
+  assert.equal(cleanAppearance({ palette: 'classic' })?.accent, 'rose', 'Sara Classic falls back to its own colour');
   // The one-time Switch back to Sara Classic notice is unchanged.
   assert.match(app, /if \(localStorage\.getItem\('sara\.palette'\) \|\| localStorage\.getItem\('sara\.v1Notice'\)\) return;/);
 });
@@ -208,7 +211,7 @@ test('V3 slice 5: Appearance in three groups with a live preview, swatches in th
   const at = order.map((id) => page.indexOf(`id="${id}"`));
   assert.ok(at.every((x) => x > 0), order.filter((_, i) => at[i] < 0).join(', '));
   assert.deepEqual([...at].sort((a, b) => a - b), at, 'Theme / Layout and text / Chat behaviour, then the preview');
-  assert.match(page, /<div class="ap-colour-row">\n\s*<label>Colour\n\s*<select id="ap-accent">[\s\S]*?<\/select>\n\s*<\/label>\n\s*<div class="ap-swatches" id="ap-swatches" aria-hidden="true"><\/div>/, 'the swatches sit in the Colour row (outside its label, so the list keeps a clean name)');
+  assert.match(page, /<div class="ap-colour-row">\n\s*<label>Color\n\s*<select id="ap-accent">[\s\S]*?<\/select>\n\s*<\/label>\n\s*<div class="ap-swatches" id="ap-swatches" aria-hidden="true"><\/div>/, 'the swatches sit in the Colour row (outside its label, so the list keeps a clean name)');
   assert.doesNotMatch(page, /<section/, 'no nested sections (the page is one section)');
   assert.match(page, /<button id="ap-reset" type="button" class="ghost small">Reset to defaults<\/button>/);
   const app = web('app.js');
@@ -220,5 +223,5 @@ test('V3 slice 5: Appearance in three groups with a live preview, swatches in th
   assert.match(app, /if \(!confirm\(t\('Reset how Sara looks on this device to the defaults\?'\)\)\) return;/);
   // Sara Classic keeps the plain list: the new pieces are hidden there by default.
   assert.match(v3, /#ap-preview, \.ap-seg, #ap-reset, \.ap-swatch-custom, \.ap-group-h \{ display: none; \}/);
-  for (const lang of LANGS) for (const k of ['Theme', 'Layout and text', 'Chat behaviour', 'Reset to defaults', 'Preview', 'Reset how Sara looks on this device to the defaults?']) assert.ok(i18n(lang)[k], `${lang}: ${k}`);
+  for (const lang of LANGS) for (const k of ['Theme', 'Layout and text', 'Chat behavior', 'Reset to defaults', 'Preview', 'Reset how Sara looks on this device to the defaults?']) assert.ok(i18n(lang)[k], `${lang}: ${k}`);
 });

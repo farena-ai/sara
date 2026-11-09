@@ -382,3 +382,50 @@
 }
 /* Reduced decoration (and High contrast): flat cards, no blur, no glow. */
 :where(:root:not([data-palette="classic"]))[data-decor="off"] :is(#today .td-tile, #today .td-hero, #today .today-start, #today .td-nowcard, #today .td-away) { background: var(--surface-1); -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none; }
+
+/* V4e: one content column. The safety line is a full-width alert row on the column (not a floating
+   chip), the routine offer's label is a section head like YOUR DAY, and the block keeps its distance
+   from the next head. */
+:where(:root:not([data-palette="classic"])) #today .td-begin { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; margin-bottom: 22px; }
+:where(:root:not([data-palette="classic"])) #today .td-safety-line { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 42px; margin: 0; padding: 0 14px; border: 1px solid color-mix(in srgb, var(--danger) 38%, var(--line)); border-radius: var(--v4-r-card); background: var(--danger-soft); color: var(--text-1); font-size: 13px; font-weight: 600; line-height: 1.35; white-space: normal; text-align: left; justify-content: flex-start; }
+:where(:root:not([data-palette="classic"])) #today .td-safety-line:hover { border-color: var(--danger); background: color-mix(in srgb, var(--danger) 18%, transparent); }
+:where(:root:not([data-palette="classic"])) #today .td-safety-line .td-safety-dot { color: var(--danger); font-size: 10px; }
+:where(:root:not([data-palette="classic"])) #today .td-begin .rt-sub { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; color: var(--text-3); font: var(--v4-label); letter-spacing: .08em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) #today .td-begin .rt-sub::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 8px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) #today .td-begin .rt-sub::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
+/* ---------- V4e: Full decoration you can see (Reduced stays flat) ----------
+   Full only, outside Sara Classic and High contrast: an accent edge light on every card (a 1 px
+   gradient ring drawn with a mask, so the card's own fill is untouched), deeper soft shadows with an
+   accent bloom, a glow under the header and the status strip, and a brighter hero. Static: nothing
+   here moves. Reduced (data-decor="off") and the system's reduced transparency (forces off) skip it. */
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) {
+  --v4e-edge: linear-gradient(150deg, hsl(var(--acc-h) 90% 72% / .55), hsl(var(--acc-h) 60% 60% / .08) 38%, transparent 62%, hsl(calc(var(--acc-h) + 38) 80% 70% / .22));
+  --v4-card-shadow: 0 1px 0 color-mix(in srgb, var(--text-1) 6%, transparent) inset, 0 26px 50px -30px color-mix(in srgb, var(--surface-0) 90%, transparent), 0 18px 44px -32px var(--acc-glow);
+  --v4-card-hover: 0 1px 0 color-mix(in srgb, var(--text-1) 7%, transparent) inset, 0 28px 54px -28px color-mix(in srgb, var(--surface-0) 90%, transparent), 0 16px 40px -18px var(--acc-glow);
+}
+:where(:root:not([data-palette="classic"]))[data-decor="on"][data-theme="light"]:not([data-palette="contrast"]) {
+  --v4e-edge: linear-gradient(150deg, hsl(var(--acc-h) 80% 60% / .45), hsl(var(--acc-h) 60% 60% / .06) 38%, transparent 62%, hsl(calc(var(--acc-h) + 38) 70% 60% / .16));
+  --v4-card-shadow: 0 1px 2px color-mix(in srgb, var(--text-1) 6%, transparent), 0 18px 40px -26px color-mix(in srgb, var(--text-1) 30%, transparent), 0 14px 36px -28px var(--acc-glow);
+  --v4-card-hover: 0 1px 2px color-mix(in srgb, var(--text-1) 7%, transparent), 0 22px 44px -24px color-mix(in srgb, var(--text-1) 30%, transparent), 0 14px 34px -18px var(--acc-glow);
+}
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) :is(#today .td-tile, #today .td-hero, #today .today-start, #today .td-nowcard, #today .td-begin .rcard, .v4-card, .her-panel .hp-sec) { position: relative; }
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) :is(#today .td-tile, #today .td-hero, #today .today-start, #today .td-nowcard, #today .td-begin .rcard, .v4-card, .her-panel .hp-sec)::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  z-index: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--v4e-edge);
+  pointer-events: none;
+  -webkit-mask: linear-gradient(var(--surface-0) 0 0) content-box, linear-gradient(var(--surface-0) 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(var(--surface-0) 0 0) content-box exclude, linear-gradient(var(--surface-0) 0 0);
+}
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) #today .td-hero { background: radial-gradient(520px 260px at 70px 50%, hsl(var(--acc-h) var(--acc-s) var(--acc-l) / .26), transparent 72%), radial-gradient(420px 200px at 100% 0%, hsl(calc(var(--acc-h) + 38) 70% 60% / .10), transparent 70%), var(--v4-card-bg); }
+:where(:root:not([data-palette="classic"]))[data-decor="on"][data-theme="light"]:not([data-palette="contrast"]) #today .td-hero { background: radial-gradient(480px 240px at 70px 50%, color-mix(in srgb, var(--accent-solid) 13%, transparent), transparent 72%), radial-gradient(420px 200px at 100% 0%, hsl(calc(var(--acc-h) + 38) 70% 60% / .08), transparent 70%), var(--v4-card-bg); }
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) #chat > dialog#today.today-view { background: radial-gradient(1100px 420px at 18% -80px, hsl(var(--acc-h) var(--acc-s) var(--acc-l) / .22), transparent 70%), radial-gradient(700px 380px at 100% 100%, hsl(calc(var(--acc-h) + 38) 70% 60% / .08), transparent 70%), color-mix(in srgb, var(--surface-0) 66%, transparent); }
+:where(:root:not([data-palette="classic"]))[data-decor="on"][data-theme="light"]:not([data-palette="contrast"]) #chat > dialog#today.today-view { background: radial-gradient(1100px 380px at 18% -80px, color-mix(in srgb, var(--accent-solid) 12%, transparent), transparent 70%), radial-gradient(700px 380px at 100% 100%, hsl(calc(var(--acc-h) + 38) 70% 60% / .07), transparent 70%), var(--surface-0); }
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) :is(#chat-head, .v4-strip) { box-shadow: 0 1px 0 color-mix(in srgb, var(--accent-solid) 22%, transparent), 0 16px 34px -26px var(--acc-glow); }
+:where(:root:not([data-palette="classic"]))[data-decor="on"]:not([data-palette="contrast"]) #composer { box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 14%, transparent), 0 22px 46px -30px var(--acc-glow); }

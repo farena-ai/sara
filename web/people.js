@@ -40,8 +40,8 @@ async function api(path, opts = {}) {
 }
 
 export const CIRCLES = ['family', 'partner', 'friend', 'work', 'neighbour', 'other'];
-const CIRCLE_WORD = { family: () => t('Family'), partner: () => t('Partner'), friend: () => t('Friends'), work: () => t('Work'), neighbour: () => t('Neighbours'), other: () => t('Other') };
-const CIRCLE_ONE = { family: () => t('family'), partner: () => t('partner'), friend: () => t('friend'), work: () => t('work'), neighbour: () => t('neighbour'), other: () => t('other') };
+const CIRCLE_WORD = { family: () => t('Family'), partner: () => t('Partner'), friend: () => t('Friends'), work: () => t('Work'), neighbour: () => t('Neighbors'), other: () => t('Other') };
+const CIRCLE_ONE = { family: () => t('family'), partner: () => t('partner'), friend: () => t('friend'), work: () => t('work'), neighbour: () => t('neighbor'), other: () => t('other') };
 const CATEGORY_WORD = { health: () => t('health'), intimate: () => t('intimate'), money: () => t('money'), legal: () => t('legal') };
 
 let ctx = null;
@@ -706,7 +706,7 @@ function editForm(p) {
     field(t('Full name'), full),
     field(t('Also called'), aliases, t('Other ways you say it, separated by commas ("Jeff from work", "J"). She uses them to tell two people with the same name apart.')),
     field(t('Who they are to you'), rel, t('In your own words ("my brother", "my manager"). She updates it only when you tell her something new.')),
-    field(t('Circle'), circle, t('Family, partner, friends, work, neighbours or other. In a work chat she leans to work people when a name could be two.')),
+    field(t('Circle'), circle, t('Family, partner, friends, work, neighbors or other. In a work chat she leans to work people when a name could be two.')),
     field(t('Birthday'), bday, t('Month and day (the year if you know it). It shows on Today and she remembers it once a year.')),
     privL,
     row,

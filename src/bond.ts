@@ -17,8 +17,12 @@ export const RELATIONSHIP_INFO: Record<string, { emoji: string; romantic: boolea
   married: { emoji: '💍', romantic: true, blurb: 'A settled, shared life' },
   open: { emoji: '🔓', romantic: true, blurb: 'Together, and free to see others' },
   complicated: { emoji: '🌀', romantic: true, blurb: 'Close, with feelings in the air' },
-  assistant: { emoji: '🗂️', romantic: false, blurb: 'Sharp, organised, warm' },
+  assistant: { emoji: '🗂️', romantic: false, blurb: 'Sharp, organized, warm' },
   mentor: { emoji: '🧭', romantic: false, blurb: 'Encouraging and honest; helps you grow' },
+  teammate: { emoji: '🧩', romantic: false, blurb: 'Works alongside you as a peer' },
+  tutor: { emoji: '📚', romantic: false, blurb: 'Patient explanations; learns with you' },
+  creative: { emoji: '🎨', romantic: false, blurb: 'Brainstorms, writes, makes art and music with you' },
+  adventure: { emoji: '🎲', romantic: false, blurb: 'Games, role-play quests and trivia' },
   custom: { emoji: '✏️', romantic: false, blurb: 'Describe it in your own words' },
 };
 export const isRomantic = (id: string | undefined, intimacy?: Intimacy): boolean => Boolean(id && RELATIONSHIP_INFO[id]?.romantic) || Boolean(intimacy?.level && intimacy.level !== 'none');

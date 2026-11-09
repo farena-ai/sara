@@ -94,6 +94,8 @@ lipo -info "$N/bin/node"
 S="$APP/Resources/server"
 mkdir -p "$S"
 cp -R "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$S/"
+# V4e: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
+mkdir -p "$S/scripts" && cp "$ROOT/scripts/sara-movein.py" "$S/scripts/"
 # Local workflow candidates remain untrusted packages, reviewed separately before installation.
 CANDIDATE_PLUGINS=(
   daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review

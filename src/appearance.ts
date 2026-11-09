@@ -29,9 +29,9 @@ export function cleanAppearance(v: unknown): Appearance | undefined {
   const o = v as Record<string, unknown>;
   const out: Appearance = {
     palette: pick(o.palette, PALETTES, 'graphite'),
-    // V3 (docs/ops/V3_DESIGN.md §5): the owner's defaults, Follow the system and Blue.
+    // V3 (docs/ops/V3_DESIGN.md §5): the owner's defaults, Follow the system and (V4e) Violet; Sara Classic its rose.
     theme: pick(o.theme, ['dark', 'light', 'system'] as const, 'system'),
-    accent: pick(o.accent, ACCENTS, 'blue'),
+    accent: pick(o.accent, ACCENTS, o.palette === 'classic' ? 'rose' : 'violet'),
     density: pick(o.density, ['comfy', 'compact'] as const, 'comfy'),
     portrait: pick(o.portrait, ['large', 'small', 'hidden'] as const, 'small'),
   };

@@ -20,7 +20,7 @@ export interface CastMember {
     humour: string;
     life: Record<string, string>;
     talk: 'texting' | 'thoughtful' | 'brief';
-    relationship: 'friend' | 'best-friend' | 'mentor' | 'assistant';
+    relationship: 'friend' | 'best-friend' | 'mentor' | 'assistant' | 'teammate' | 'tutor' | 'creative' | 'adventure';
   };
   greeting: { first: string; others: string[] };
   voice: { tts: 'local'; localVoice: string; openaiVoice: string; xaiVoice: string };

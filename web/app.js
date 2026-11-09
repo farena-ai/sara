@@ -4,7 +4,7 @@ import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
-import { accentOnPaletteChange, customAccent } from './accent.js';
+import { PALETTE_RESETS, customAccent, paletteDefaultAccent } from './accent.js';
 import { herPictureMode } from './v4-picture.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
@@ -107,6 +107,7 @@ import { initLook, setContextRing, setLookBusy } from './look.js';
 import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, panelMessages, panelMood, panelNow, panelOpen, togglePanel } from './her-panel.js';
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { initV4, v4Kick } from './v4.js';
+import { initMotion } from './v4-motion.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
@@ -1364,6 +1365,8 @@ initTidy();
 void loadHowto().then(() => mountViewHowtos(t));
 initLook();
 initOrbs();
+// V4e: the counts and line draws that make Today feel alive (still with reduced motion or Motion: Off).
+initMotion();
 initMemoryMap({ api, openNote: (id) => void openMemory({ focus: id }) });
 // Phase 75 (stage 2): her panel (web/her-panel.js) and the command bar (web/command-bar.js).
 initHerPanel({
@@ -1435,7 +1438,7 @@ initCommandBar({
     { key: 'place:settings', icon: 'settings', label: t('Settings'), hint: 'Ctrl+,', run: () => openSettings() },
     { key: 'place:help', icon: 'help', label: t('Help'), sub: t('Tours and the guide'), run: () => $('#open-help').click() },
     // Phase 111 (TD1): Customise Today (reorder, resize and hide its tiles).
-    { key: 'place:today-customise', icon: 'sliders', label: t('Customise Today'), sub: t('Move, resize or hide tiles'), run: async () => { await openToday(); openTodayCustomise(); } },
+    { key: 'place:today-customise', icon: 'sliders', label: t('Customize Today'), sub: t('Move, resize or hide tiles'), run: async () => { await openToday(); openTodayCustomise(); } },
   ],
   conversations: () =>
     state.conversations
@@ -1519,13 +1522,13 @@ initCommandBar({
         return { change: { from: r.saver?.on ? t('On') : t('Off'), to: r.saver?.on ? t('Off') : t('On') }, lines: [t('Shorter replies, a smaller history and a cheaper route. Change it any time in Data and health → Usage and costs.')] };
       });
     }
-    add('colour', 'sliders', t('Change her colour'), async () => {
+    add('colour', 'sliders', t('Change her color'), async () => {
       await openSettings('you-appearance');
       $('#ap-swatches')?.scrollIntoView({ block: 'center' });
-    }, '', t('accent colour color hue her colour'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One colour for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
+    }, '', t('accent color color hue her color'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One color for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
     // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
     add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
-    add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette colour dark light look'));
+    add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette color dark light look'));
     add('reset-look', 'undo', t('Reset the look to the defaults'), async () => {
       await openSettings('you-appearance');
       $('#ap-reset').click();
@@ -9150,8 +9153,8 @@ const themePick = (pal = palettePick()) => {
   const v = localStorage.getItem('sara.theme');
   return v === 'light' || v === 'system' || v === 'dark' ? v : pal === 'classic' ? 'dark' : 'system';
 };
-// Colour: Blue unless picked (Sara Classic keeps its own rose: the stored "rose" = the palette's own).
-const accentPick = (pal = palettePick()) => localStorage.getItem('sara.accent') ?? (pal === 'classic' ? 'rose' : 'blue');
+// Colour: Violet unless picked (V4e; Sara Classic keeps its own rose: the stored "rose" = the palette's own).
+const accentPick = (pal = palettePick()) => localStorage.getItem('sara.accent') ?? paletteDefaultAccent(pal);
 // V1 (docs/ops/V1_DESIGN.md → Themes): palette × Night/Day. Graphite unless picked on this device.
 const PALETTES = ['graphite', 'midnight', 'slate', 'nord', 'solarized', 'paper', 'ember', 'contrast', 'classic'];
 const palettePick = () => {
@@ -9277,12 +9280,11 @@ $('#avatar-ap-link').addEventListener('click', () => {
   void openSettings('you-appearance');
 });
 $('#ap-palette').addEventListener('change', () => {
-  const from = palettePick();
   const to = $('#ap-palette').value;
   localStorage.setItem('sara.palette', to);
-  // V4d: leaving Sara Classic with its own rose (never picked for another palette) gives the V4 default, Blue.
-  const swap = accentOnPaletteChange(from, to, localStorage.getItem('sara.accent'), localStorage.getItem('sara.accentPicked'));
-  if (swap) localStorage.setItem('sara.accent', swap);
+  // V4e: a palette is a full preset: its default colour (Violet; Sara Classic its rose) replaces any
+  // picked or custom colour, which can be changed again after.
+  for (const k of PALETTE_RESETS) localStorage.removeItem(k);
   applyAppearance();
   showAppearance();
 });
@@ -10300,8 +10302,9 @@ async function paintBegin(path, offerRoutines = true) {
   if (!isMember()) {
     const line = await todaySafetyLine();
     if (line) {
-      const b = el('button', 'ghost td-safety-line', `● ${line.line}`);
+      const b = el('button', 'ghost td-safety-line');
       b.type = 'button';
+      b.append(el('span', 'td-safety-dot', '●'), ` ${line.line}`);
       b.addEventListener('click', () => void openSettings('dh-safety'));
       parts.push(b);
     }

@@ -5,6 +5,33 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.0.2 (2026-11-08): polish, Violet and an easy move-in
+
+- **Settings opens in the middle:** on a computer Settings is a centered panel instead of a sheet
+  against the right edge (phones stay full screen).
+- **Violet is the default color** outside Sara Classic (a color you picked yourself stays).
+- **A palette is a full preset:** picking a palette resets the color to that palette's own (Violet, or
+  Classic's rose); your custom color is kept to pick again.
+- **US spelling** in the app's English: color, favorite, customize, organize, behavior, gray, honor,
+  neighbor (translations unchanged).
+- **Four more relationships, none romantic:** Teammate / coworker, Tutor / study partner, Creative
+  partner and Gaming / adventure buddy.
+- **Full decoration you can see:** cards get an accent edge light, deeper shadows and a soft glow; the
+  header and message box glow; the background light is stronger with a fine grain (Reduced, High
+  contrast and Classic unchanged).
+- **A little life on Today and At a glance:** cards ease in, lift on hover, lines draw in, numbers count
+  up once, the glow behind her orb breathes and her mood dot pulses. All of it stops with reduced motion
+  or Background motion: Off (which now also stops the background drift).
+- **Tidy alignment:** How do I…? lines up with the cards on Today; a safety notice is a full-width
+  alert row; the message box's Tell her now, its arrow and Stop are one height on one line.
+- **Move in from another agent, step by step:** a five-step guide (pick the agent, run the collector
+  with the exact command for Windows, Mac or Linux and an example of what you'll see, bring the file,
+  check and import, done with Undo explained). Fixed: servers installed with the install script (and
+  the Windows and Mac apps) didn't include the collector, so the page said *The collector is not on
+  this server*; it's included now, and a server without it shows a working command that downloads it
+  from GitHub. A file sent with a move-in code shows up by itself while you wait.
+- Tess, the practical maker: a new gallery character (thanks to @Guilsc).
+
 ## 3.0.1 (2026-11-08): every page in the new look
 
 - **Every page in the new look:** Today, Planner, Memory, Library, Scrapbook, Moments, Your story, Team,

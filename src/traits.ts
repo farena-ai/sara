@@ -594,7 +594,7 @@ const STEP_ROWS: Record<TraitId, { when: string; rows: [StepRow, StepRow, StepRo
     rows: [
       [en('Never'), en('Compliments, no flirting'), en('"Nice shirt."')],
       [en('A little'), en('A wink now and then'), en('"Nice shirt. Good choice."')],
-      [en('Playful'), en('Her usual self'), en('"Nice shirt. Blue is your colour, just saying."')],
+      [en('Playful'), en('Her usual self'), en('"Nice shirt. Blue is your color, just saying."')],
       [en('Flirty'), en('Flirts often'), en('"Okay, you look good in that. Like, really good."')],
       [en('Shameless'), en('Flirts at every chance'), en('"Okay, that shirt should be illegal. You\'re doing this on purpose, aren\'t you? 😏"')],
     ],
@@ -665,7 +665,7 @@ const STEP_ROWS: Record<TraitId, { when: string; rows: [StepRow, StepRow, StepRo
       [en('Silent'), en('The result only'), en('"Fixed. Tests pass."')],
       [en('Terse'), en('Result and cause in one line'), en('"Fixed: time zone dropped in the date parser. Tests pass."')],
       [en('Normal'), en('Her usual self'), en('"Fixed: the date parser dropped the time zone. Tests pass now."')],
-      [en('Chatty'), en('Explains with some colour'), en('"Found it: the date parser was ignoring time zones. Fixed, and the tests agree."')],
+      [en('Chatty'), en('Explains with some color'), en('"Found it: the date parser was ignoring time zones. Fixed, and the tests agree."')],
       [en('Very chatty'), en('Personality in every report'), en('"Got it! The date parser was quietly eating time zones, the little gremlin. Tests pass now, all 48 of them."')],
     ],
   },
@@ -739,7 +739,7 @@ export const traitDef = (id: string): TraitDef | undefined => TRAITS.find((t) =>
 /** Phase 114: `say` = a one-line sample on her humour card (UI copy only, never sent to the model). */
 export const HUMOURS: Record<string, { label: string; line?: string; say: string }> = {
   own: { label: 'Her own mix', say: en('(A bit of everything, whatever fits the moment.)') },
-  dry: { label: 'Dry', line: 'Your humour is dry and deadpan: understatement, said with a straight face.', say: en('"Ah yes, another meeting. My favourite genre."') },
+  dry: { label: 'Dry', line: 'Your humour is dry and deadpan: understatement, said with a straight face.', say: en('"Ah yes, another meeting. My favorite genre."') },
   silly: { label: 'Silly', line: 'Your humour is silly: goofy bits, puns and playful nonsense.', say: en('"Breaking news: local human needs snack."') },
   sarcastic: { label: 'Sarcastic', line: 'Your humour is sarcastic and quick, with eye-roll energy (affectionate, never mean).', say: en('"Oh great, it\'s raining. Exactly what I ordered."') },
   witty: { label: 'Witty wordplay', line: 'Your humour is witty: clever wordplay, sharp observations and callbacks.', say: en('"Your plant is thriving. Clearly it\'s rooting for you."') },
@@ -766,7 +766,7 @@ export const LIFE_FIELDS: LifeFieldDef[] = [
   { id: 'dislikes', label: "Can't stand", placeholder: 'e.g. loud chewing, being late, cilantro', prompt: "Can't stand" },
   { id: 'quirks', label: 'Quirks', placeholder: 'e.g. names her plants; hums when she concentrates', prompt: 'Quirks' },
   { id: 'habits', label: 'Habits', placeholder: 'e.g. up at 6 for a run; tea before bed', prompt: 'Habits' },
-  { id: 'favourites', label: 'Favourite things', placeholder: 'e.g. Studio Ghibli, mango, the colour green', prompt: 'Favourite things' },
+  { id: 'favourites', label: 'Favorite things', placeholder: 'e.g. Studio Ghibli, mango, the color green', prompt: 'Favorite things' },
   { id: 'phrases', label: 'Things she often says', placeholder: 'e.g. "okay but hear me out", "love that for you"', prompt: 'Things you often say (use them now and then, never in every message)' },
   { id: 'languages', label: 'Languages', placeholder: 'e.g. English, some Spanish from her grandma', prompt: 'Languages' },
   { id: 'opinions', label: 'Opinions she holds', placeholder: 'e.g. breakfast for dinner is elite; cats > dogs', prompt: 'Opinions you hold (keep them; argue for them when it comes up)' },

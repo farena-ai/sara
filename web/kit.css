@@ -136,7 +136,8 @@ dialog .settings-body > .howto { margin: 0; }
 @media (min-width: 1101px) {
   body:has(#today[open]) #hp-open-her { display: none; }
 }
-#today .td-howto { margin: 0 0 var(--s-4); }
+/* V4e: auto side margins keep it on Today's content column (the same max-width as the hero and cards). */
+#today .td-howto { margin: 0 auto var(--s-4); }
 #today.td-ff-phone .td-day-empty { display: none; }
 
 /* ---------- 9. Phones ---------- */
