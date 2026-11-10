@@ -910,7 +910,7 @@
   "Inspect Pulumi stacks and previews.",
   "A Pulumi Cloud account; a licensed pinned release",
   "Uses your Pulumi Cloud token",
-  "The pinned package declares no licence and ships no licence file.",
+  "The pinned package declares no license and ships no license file.",
   "Inspect pods, events and logs in a test cluster namespace.",
   "Free when you run the service yourself; hosted versions cost extra.",
   "Owner step: provide a test cluster and a namespace-scoped read-only service-account kubeconfig.",

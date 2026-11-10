@@ -3038,9 +3038,12 @@
           <select id="ap-size"><option value="14">Small</option><option value="15">Normal</option><option value="17">Large</option><option value="19">Larger</option></select>
         </label>
         <label>Her picture
-          <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait</option><option value="own">Your picture</option></select>
+          <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait, animated</option><option value="portrait-still">Her portrait, still</option><option value="own">Your picture</option><option value="vrm">A 3D model (.vrm)</option></select>
         </label>
         <p class="small muted ap-herpic-note">A picture shows round, with a thin ring that moves with her like the orb. <button id="ap-herpic-upload" type="button" class="linkish">Upload your picture of her</button></p>
+        <!-- A1 (docs/ops/A1_AVATAR_DESIGN.md): her animated picture's extras (web/avatar-settings.js). -->
+        <div id="ap-vrm-row" class="ap-avatar-row small" data-nodirty data-noauto hidden><button type="button" class="ghost small" data-pick="ap-vrm-file">Choose a .vrm file</button><input id="ap-vrm-file" type="file" accept=".vrm" hidden> <button id="ap-vrm-remove" type="button" class="linkish small" hidden>Remove the model</button> <span id="ap-vrm-note" class="muted" role="status"></span></div>
+        <div id="ap-fit-row" class="ap-avatar-row small" data-nodirty data-noauto hidden><button id="ap-fit-open" type="button" class="ghost small">Fit the face</button> <span class="muted">Three dots on your picture (eyes, mouth), so she can blink and glance in it.</span></div>
         <label>Show run details
           <select id="ap-runs"><option value="folded">Folded (default)</option><option value="open">Open</option></select>
         </label>

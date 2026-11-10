@@ -216,7 +216,7 @@ export const developerConnectionsData = [
       "Sara can auto-allow server-annotated read-only tools; inspect and explicitly set host permissions before use. Recipe advice alone is not an approval fence."
     ],
     "limitations": [
-      "The pinned package declares no licence and ships no licence file.",
+      "The pinned package declares no license and ships no license file.",
       "No authenticated vendor feature execution or other operating-system qualification is claimed."
     ],
     "cost": "Your provider account, plan and usage charges apply. No paid call was made.",

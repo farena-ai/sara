@@ -188,7 +188,7 @@ export async function openShare(companion) {
     '',
     field(t('Rating'), t('Pick the highest that fits. Explicit packs only work fully when the new owner turns on Adult mode for her. Nothing about minors is ever allowed.'), rating),
     romance.row,
-    field(t('Licence'), t('What others may do with her: share with credit, share alike, or not for money. The Sara Store asks for one of these.'), license),
+    field(t('License'), t('What others may do with her: share with credit, share alike, or not for money. The Sara Store asks for one of these.'), license),
     field(t('Re-sharing changed copies'), t('Whether you’re happy for people to share copies they changed. Shown on her card; Sara never stops anyone editing their own companion.'), remix),
     field(t('Your name on it'), t('Shown to people who add her. It can be a nickname. Your email is never in the pack.'), author),
     field(t('Where her pictures came from'), t('Say how each picture was made. Pictures Sara built say so by themselves. A photo of a real person needs their yes, and never goes to the store.'), from),
@@ -370,7 +370,7 @@ export function openCard(card, o = {}) {
   nl.append(nh, name);
   nodes.push(nl);
   if (card.nameTaken) nodes.push(el('p', 'small', t('You already have a {name}. Pick another name for this one.', { name: card.name })));
-  nodes.push(el('p', 'muted small', `${t('Licence: {licence} · re-sharing: {remix}', { licence: card.licenseWords, remix: card.remix === 'yes' ? t('Yes') : card.remix === 'no' ? t('No') : t('Ask me') })} · ${t('Fingerprint {fp}', { fp: `${card.fingerprint.slice(0, 4)}…${card.fingerprint.slice(-2)}` })} · ${kb(card.size)}`));
+  nodes.push(el('p', 'muted small', `${t('License: {license} · re-sharing: {remix}', { license: card.licenseWords, remix: card.remix === 'yes' ? t('Yes') : card.remix === 'no' ? t('No') : t('Ask me') })} · ${t('Fingerprint {fp}', { fp: `${card.fingerprint.slice(0, 4)}…${card.fingerprint.slice(-2)}` })} · ${kb(card.size)}`));
   const acts = el('div', 'pkp-acts');
   const cancel = btn(t('Cancel'), 'ghost', async () => {
     await api(`/packs/${enc(card.token)}`, { method: 'DELETE' }).catch(() => undefined);

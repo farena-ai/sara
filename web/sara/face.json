@@ -1,0 +1,9 @@
+{
+ "about": "A1 (docs/ops/A1_AVATAR_DESIGN.md): where the built-in look's eyes and mouth are, percent of each portrait (left eye, right eye, mouth). A custom look has none (404): the renderer finds them from its frames.",
+ "default": { "le": { "x": 41.9, "y": 32.5 }, "re": { "x": 52.5, "y": 30.6 }, "mouth": { "x": 47.5, "y": 42.2 } },
+ "happy": { "le": { "x": 43, "y": 31.5 }, "re": { "x": 52.7, "y": 30.3 }, "mouth": { "x": 49.2, "y": 40.4 } },
+ "caring": { "le": { "x": 41.9, "y": 32.5 }, "re": { "x": 51.9, "y": 30.6 }, "mouth": { "x": 47.5, "y": 42.5 } },
+ "sleepy": { "le": { "x": 41.9, "y": 32.5 }, "re": { "x": 52.5, "y": 30.6 }, "mouth": { "x": 48.8, "y": 43.1 } },
+ "hurt": { "le": { "x": 42.5, "y": 32.5 }, "re": { "x": 52.5, "y": 30.6 }, "mouth": { "x": 48.1, "y": 43.1 } },
+ "playful": { "le": { "x": 41.9, "y": 32.5 }, "re": { "x": 52.5, "y": 30.6 }, "mouth": { "x": 47.5, "y": 42.5 } }
+}

@@ -18,7 +18,7 @@ async function webModule<T>(file: string): Promise<T> {
 
 test('V4d her picture: Presence orb (default), Her portrait or Your picture, per device, with a living ring', async () => {
   const html = web('index.html');
-  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb \(default\)<\/option><option value="portrait">Her portrait<\/option><option value="own">Your picture<\/option><\/select>/);
+  assert.match(html, /<select id="ap-herpic"><option value="orb">Presence orb \(default\)<\/option><option value="portrait">Her portrait, animated<\/option><option value="portrait-still">Her portrait, still<\/option><option value="own">Your picture<\/option><option value="vrm">A 3D model \(\.vrm\)<\/option><\/select>/, 'A1 added the animated, still and 3D choices');
   assert.match(html, /id="ap-herpic-upload"/, 'a link to the upload');
   assert.match(html, /id="avatar-ap-link"/, 'her page points at the setting');
   const tips = JSON.parse(web('tips.json')) as Record<string, Record<string, unknown>>;
@@ -40,7 +40,7 @@ test('V4d her picture: Presence orb (default), Her portrait or Your picture, per
   for (const s of ['listening', 'thinking', 'speaking']) assert.ok(css.includes(`[data-her-state="${s}"]`), s);
   assert.match(css, /\.v4-own-face/);
   assert.match(css, /v4-own-face[^{]*\[data-motion="off"\][^{]*\{[^}]*animation: none/);
-  for (const l of LANGS) for (const k of ['Presence orb (default)', 'Her portrait', 'Your picture']) assert.ok(i18n(l)[k], `${l}: ${k}`);
+  for (const l of LANGS) for (const k of ['Presence orb (default)', 'Her portrait, animated', 'Your picture']) assert.ok(i18n(l)[k], `${l}: ${k}`);
 });
 
 test('V4d memory step: "Used n memories" with what it means, opening those notes', () => {

@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## She comes alive: animated avatar, in 3.2.0
+
+Her portrait now breathes, blinks, glances and moves her lips while she speaks, using her own drawn
+mouth and eye frames, and shows listening, thinking, speaking and her mood. It runs in chat, her panel,
+Today and calls, on phones too, costs about the same as the orb, and goes still with reduced motion.
+Your own picture gets breathing and, after Fit the face, a soft blink and glances. People who have a
+3D model can bring a .vrm file (kept in their browser) with blinking, lip-sync and moods.
+
 ## Research that keeps going, in 3.1.2
 
 Asking her to research a topic, make a guide or learn something now starts a research run in the

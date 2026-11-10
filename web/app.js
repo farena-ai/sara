@@ -5,7 +5,10 @@ import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
 import { parse as parseMd, toDom } from './markdown.js';
 import { PALETTE_RESETS, customAccent, paletteDefaultAccent } from './accent.js';
-import { herPictureMode } from './v4-picture.js';
+import { herPictureMode, pictureMotion } from './v4-picture.js';
+import { adoptPresence, avatarConfig, configureAvatar, initAvatar, reloadVrm } from './avatar.js';
+import { currentTap, voiceTap } from './voice-tap.js';
+import { clearFaceFit, initAvatarSettings, readFaceFit } from './avatar-settings.js';
 import { Presence, setLookVersion } from './presence.js';
 import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
@@ -1408,6 +1411,8 @@ initTidy();
 void loadHowto().then(() => mountViewHowtos(t));
 initLook();
 initOrbs();
+// A1: her living picture (web/avatar.js): header, sidebar, Today, her panel, her page, calls.
+initAvatar();
 // V4e: the counts and line draws that make Today feel alive (still with reduced motion or Motion: Off).
 initMotion();
 initMemoryMap({ api, openNote: (id) => void openMemory({ focus: id }) });
@@ -4154,7 +4159,7 @@ function setFace(st) {
   const own = st.customAvatar;
   // V4d: Her portrait (Appearance) shows her mood pictures even when one of yours is uploaded.
   const pic = localStorage.getItem('sara.palette') === 'classic' ? (own ? 'own' : 'orb') : herPictureMode(localStorage.getItem('sara.herPicture'), Boolean(own));
-  const custom = pic === 'portrait' ? null : own;
+  const custom = pic === 'portrait' || pic === 'still' || pic === 'vrm' ? null : own;
   const x = st.expression && st.expression !== 'default' ? st.expression : null;
   // The look's version, so a new look is fetched instead of the copy the page already holds.
   const v = state.lookVersion ? `?v=${state.lookVersion}` : '';
@@ -4168,6 +4173,10 @@ function setFace(st) {
   state.lastFace = st;
   if (!localStorage.getItem('sara.herPicture') && $('#ap-herpic')) $('#ap-herpic').value = pic;
   panelFace({ avatar, portrait, expression: state.expression });
+  // A1: how her picture moves (Classic keeps its own portrait behaviour, the orb has its own life).
+  const fit = pic === 'own' ? readFaceFit() : null;
+  const motion = localStorage.getItem('sara.palette') === 'classic' ? null : pictureMotion(pic, { fitted: Boolean(fit), vrm: localStorage.getItem('sara.vrm') === '1' });
+  configureAvatar({ motion, expression: state.expression, custom: pic === 'own' ? avatar : null, version: v, fit });
   for (const pr of [sdPresence, callPresence]) pr.setExpression(state.expression, state.customAvatar);
   if (videoView.open) videoView.backdrop();
   $('#avatar-reset').hidden = !own;
@@ -4183,6 +4192,8 @@ $('#avatar-file').addEventListener('change', async (e) => {
   const res = await fetch('/api/sara/avatar', { method: 'PUT', headers: { 'content-type': 'application/octet-stream' }, body: f });
   if (!res.ok) alert(serverText(await res.json().catch(() => ({})), t('Upload failed')));
   e.target.value = '';
+  // A1: the face fit belongs to the old picture.
+  if (res.ok) clearFaceFit();
   await refreshSaraStatus();
 });
 $('#avatar-reset').addEventListener('click', async () => {
@@ -4717,6 +4728,7 @@ $('#mic').addEventListener('click', async () => {
 
 // Her animated portrait: on her page (breathes, blinks) and big during calls (also talks).
 const sdPresence = new Presence($('#sd-presence'));
+adoptPresence(sdPresence);
 // Phase 36: tap her picture to see it large (expressions, outfits, the closet).
 $('#sd-presence').classList.add('zoomable');
 $('#sd-presence').title = t('See her picture large');
@@ -4740,6 +4752,21 @@ function timeOfDayLight() {
 timeOfDayLight();
 setInterval(timeOfDayLight, 5 * 60_000);
 const callPresence = new Presence($('#call-presence'));
+adoptPresence(callPresence);
+// A1: her voice in chat moves her lips too: the shared Web Audio tap, made inside a click (a gesture).
+const tapVoice = () => {
+  if (localStorage.getItem('sara.palette') !== 'classic') voiceTap(speaker.audio);
+};
+// A click (not pointerdown: on touch screens that is no user activation yet, the context would start
+// suspended and silence her voice).
+for (const type of ['click', 'keydown'])
+  document.addEventListener(
+    type,
+    () => {
+      if (avatarConfig().motion && navigator.userActivation?.isActive !== false) tapVoice();
+    },
+    { capture: true },
+  );
 // Phase 69: video calls: the call's portrait full size, your camera optional (web/video-call.js).
 const videoView = new VideoCallView({
   presence: callPresence,
@@ -4807,6 +4834,7 @@ speaker.onState = ((prev) => (on) => {
   prev?.(on);
   orbSignal({ type: 'speaking', on });
   if (on) callPresence.ctx?.resume?.();
+  if (on) currentTap()?.ctx.resume?.().catch?.(() => {});
   if (voice.call?.active && !state.streaming) $('#call-status').textContent = on ? t('Speaking…') : t('Listening…');
   if (voice.call?.active && videoView.active) videoView.status(on ? t('Speaking…') : t('Listening…'));
 })(speaker.onState);
@@ -9529,8 +9557,17 @@ for (const [id, key, def] of [['ap-herpic', 'sara.herPicture', ''], ['ap-runs', 
   sel.addEventListener('change', () => {
     localStorage.setItem(key, sel.value);
     if (id === 'ap-herpic' && state.lastFace) setFace(state.lastFace);
+    if (id === 'ap-herpic') syncAvatarRows();
   });
 }
+// A1: the 3D model and the face fit (web/avatar-settings.js).
+const { syncRows: syncAvatarRows } = initAvatarSettings({
+  t,
+  refresh: () => state.lastFace && setFace(state.lastFace),
+  reloadVrm,
+  ownPicture: () => state.customAvatar,
+});
+syncAvatarRows();
 $('#ap-herpic-upload').addEventListener('click', () => {
   $('#settings').close();
   void openSara();

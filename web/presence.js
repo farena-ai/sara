@@ -10,6 +10,7 @@
 // No external libraries; a custom uploaded picture just breathes and glows (no frames for it).
 
 import { MouthShaper, soundFeatures } from './mouth.js';
+import { voiceTap } from './voice-tap.js';
 
 const EXPRESSIONS = ['default', 'happy', 'caring', 'sleepy', 'hurt', 'playful'];
 const all = new Set();
@@ -82,7 +83,8 @@ function changedArea(base, frame, n, minY = 0, maxY = n) {
   return { x: ((x0 + x1) / 2 / n) * 100, y: ((y0 + y1) / 2 / n) * 100, rx: Math.max(6, ((x1 - x0) / 2 / n) * 100), ry: Math.max(4, ((y1 - y0) / 2 / n) * 100), bottom: y1 };
 }
 
-async function findRegions(base, blink, talk) {
+/** Eyes and mouth areas of a picture set (also used by the A1 living renderer, web/avatar-gl.js). */
+export async function findRegions(base, blink, talk) {
   const key = `${base}|${blink}|${talk}`;
   if (!regionCache.has(key)) {
     regionCache.set(
@@ -190,6 +192,7 @@ export class Presence {
   /** Expression name, or a custom picture URL (then no blink/talk frames). */
   setExpression(expression, customUrl = null) {
     const x = EXPRESSIONS.includes(expression) ? expression : 'default';
+    this.delegate?.setExpression?.(x, customUrl);
     if (x === this.expression && customUrl === this.custom) return;
     this.expression = x;
     this.custom = customUrl;
@@ -243,28 +246,19 @@ export class Presence {
   /** Listens to an <audio> element (Sara's voice). Needs a user gesture first (e.g. starting a call). */
   attach(audio) {
     if (this.analyser) return;
-    try {
-      const ctx = new AudioContext();
-      const src = ctx.createMediaElementSource(audio);
-      const an = ctx.createAnalyser();
-      an.fftSize = 512;
-      src.connect(an);
-      // Phase 69: her volume after the analyser (sound off on a video call keeps her lips moving).
-      const vol = ctx.createGain();
-      an.connect(vol);
-      vol.connect(ctx.destination);
-      this.vol = vol;
-      this.ctx = ctx;
-      this.analyser = an;
-      this.data = new Uint8Array(an.fftSize);
-      this.freq = new Uint8Array(an.frequencyBinCount);
-    } catch {
-      /* no Web Audio: she still breathes and blinks */
-    }
+    // A1: one shared tap on her voice (web/voice-tap.js), so the living portrait elsewhere hears it too.
+    const tap = voiceTap(audio);
+    if (!tap) return; /* no Web Audio: she still breathes and blinks */
+    this.vol = tap.vol;
+    this.ctx = tap.ctx;
+    this.analyser = tap.analyser;
+    this.data = new Uint8Array(tap.analyser.fftSize);
+    this.freq = new Uint8Array(tap.analyser.frequencyBinCount);
   }
 
   /** Listens to a Web Audio analyser instead (live calls); null goes back to the <audio> element. */
   listen(analyser) {
+    this.delegate?.listen?.(analyser);
     if (analyser) {
       this.saved ??= { ctx: this.ctx, analyser: this.analyser, data: this.data };
       this.ctx = analyser.context;
@@ -282,6 +276,12 @@ export class Presence {
     if (this.running) return;
     this.running = true;
     this.ctx?.resume?.();
+    // A1: the living portrait (web/avatar.js) draws her instead of the layers when it can.
+    if (this.delegate?.start?.()) {
+      this.living = true;
+      this.root.classList.add('alive', 'living-on');
+      return;
+    }
     this.root.classList.add('alive');
     this.#scheduleBlink();
     const tick = () => {
@@ -294,6 +294,11 @@ export class Presence {
 
   stop() {
     this.running = false;
+    if (this.living) {
+      this.living = false;
+      this.delegate?.stop?.();
+      this.root.classList.remove('living-on');
+    }
     cancelAnimationFrame(this.raf);
     clearTimeout(this.blinkTimer);
     this.root.classList.remove('alive', 'talking');

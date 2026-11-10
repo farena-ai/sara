@@ -222,7 +222,7 @@ export const INTROS = {
     note: t('No Mac? iMessage only works through a Mac. Try Signal or Telegram instead.'),
     rules: {
       title: t('About Apple and BlueBubbles'),
-      bullets: [t('BlueBubbles is not made or approved by Apple. Use your own Mac and a separate Apple ID for her.'), t("Apple's licence forbids spam and harassment, and Apple can lock an Apple ID that misbehaves."), t("Sara never asks you to turn off your Mac's security (SIP).")],
+      bullets: [t('BlueBubbles is not made or approved by Apple. Use your own Mac and a separate Apple ID for her.'), t("Apple's license forbids spam and harassment, and Apple can lock an Apple ID that misbehaves."), t("Sara never asks you to turn off your Mac's security (SIP).")],
       tick: 'im-terms-tick',
     },
   }),

@@ -466,6 +466,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       res.writeHead(200, { 'content-type': 'image/svg+xml', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : svg);
     }
+    // A1: the built-in look's face landmarks don't fit a custom look (or a companion's initial): the
+    // living portrait then finds them from that look's own frames (web/avatar-gl.js).
+    if (rel === 'sara/face.json' && isAuthed(req) && (app.look?.custom || (app.companionId && app.companionId !== 'main'))) throw new HttpError(404, 'Not found');
     // A custom look replaces the built-in art for the signed-in owner.
     const custom = isAuthed(req) ? app.look?.fileFor(rel) : undefined;
     if (!custom && isAuthed(req) && app.look?.missing(rel)) throw new HttpError(404, 'Not found');

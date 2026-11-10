@@ -377,6 +377,21 @@
 :where(:root.v4-own-face:not([data-palette="classic"])) .v4-word .v4-orb > canvas { display: none; }
 :where(:root.v4-own-face:not([data-palette="classic"]))[data-motion="off"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg > img.msg-face, .hp-portrait) { animation: none; }
 @media (prefers-reduced-motion: reduce) { :where(:root.v4-own-face:not([data-palette="classic"])) :is(#her-face > img.avatar, #brand-today > img.avatar, .msg > img.msg-face, .hp-portrait) { animation: none; } }
+/* A1 (docs/ops/A1_AVATAR_DESIGN.md): her living picture (web/avatar.js) is a canvas laid over the picture,
+   which stays underneath with its ring. Her page and the call screen hand their portrait over. */
+:where(:root:not([data-palette="classic"])) .living-canvas { position: absolute; z-index: 1; display: block; pointer-events: none; border-radius: 50%; }
+:where(:root:not([data-palette="classic"])) .living-canvas[hidden] { display: none; }
+:where(:root:not([data-palette="classic"])) .presence > .living-canvas { border-radius: inherit; }
+:where(:root:not([data-palette="classic"])) .presence.living-on { animation: none; }
+:where(:root:not([data-palette="classic"])) .presence.living-on > .presence-head { visibility: hidden; }
+:where(:root:not([data-palette="classic"])) .ap-avatar-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: -2px 0 8px; }
+:where(:root:not([data-palette="classic"])) .ap-fit { max-width: min(92vw, 460px); }
+:where(:root:not([data-palette="classic"])) .ap-fit-stage { position: relative; width: min(80vw, 400px); aspect-ratio: 1; margin: 8px auto; touch-action: none; user-select: none; }
+:where(:root:not([data-palette="classic"])) .ap-fit-stage > img { display: block; width: 100%; height: 100%; object-fit: fill; border-radius: var(--v4-r-card, 14px); }
+:where(:root:not([data-palette="classic"])) .ap-fit-dot { position: absolute; width: 16px; height: 16px; min-width: 0; padding: 0; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid var(--accent-solid); background: radial-gradient(circle, var(--accent-solid) 0 1.5px, transparent 2px); box-shadow: 0 0 0 1px var(--surface-1), 0 0 10px -2px var(--acc-glow); cursor: grab; touch-action: none; }
+:where(:root:not([data-palette="classic"])) .ap-fit-dot::before { content: ""; position: absolute; inset: -12px; } /* a bigger touch target than it looks */
+:where(:root:not([data-palette="classic"])) .ap-fit-dot.ap-fit-mouth { width: 22px; height: 12px; margin: -6px 0 0 -11px; border-radius: 6px; }
+:where(:root:not([data-palette="classic"])) .ap-fit-acts { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
 /* ---------- run cards: one line when folded (web/run-timeline.js), a chevron that turns ---------- */
 :where(:root:not([data-palette="classic"])) .steps.v4-run > .steps-sum { cursor: pointer; }

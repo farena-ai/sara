@@ -955,7 +955,7 @@ function showReport(out, r, key) {
         b.disabled = false;
       }
     });
-    nodes.push(section(t('3 About you'), nl, ml, keyLine, tick('stp-rights', t('I made this, or I have the right to share it under its licence.')), tick('stp-rules', t('I’ve read what the store accepts.')), el('p', 'small', t('What is sent:')), sent, sendB));
+    nodes.push(section(t('3 About you'), nl, ml, keyLine, tick('stp-rights', t('I made this, or I have the right to share it under its license.')), tick('stp-rules', t('I’ve read what the store accepts.')), el('p', 'small', t('What is sent:')), sent, sendB));
   }
   out.replaceChildren(...nodes);
 }

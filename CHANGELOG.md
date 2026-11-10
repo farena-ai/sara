@@ -5,6 +5,8 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.2.0 (2026-11-10): she comes alive
+
 ## 3.1.2 (2026-11-10): research that keeps going
 
 - **Research that doesn't fall over:** asking her in a chat to research something, find out
@@ -29,6 +31,18 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 - **Small models:** with a small talking model, research uses a bigger model you set for another
   job, or works in short steps with a few notes per page so it never overflows. Many pages in one
   chat reply now come with a **Turn this into a research run** button.
+- **Her picture comes alive (A1):** Settings → Appearance → Her picture → **Her portrait, animated**.
+  She breathes, blinks, glances now and then, looks at you while she listens, up and away while she
+  thinks, and her lips follow her voice while she speaks; her mood shows too (sleepy heavy lids and slow
+  breaths, happy smiling eyes, hurt looking down). Everywhere in the new look: the chat header and
+  sidebar (small: breathing and blinking), her panel, Today, her page and calls (lip-sync, big). The
+  blinks and mouths are her look's own drawn frames, blended by a small WebGL renderer of our own, so a
+  new look animates the same way; no new downloads. **Your picture** breathes with its ring, and after
+  **Fit the face** (three dots: eyes, mouth) it blinks and glances too. **A 3D model (.vrm)**: bring a
+  VRM 0.x or 1.0 model (up to 50 MB, kept in this browser, checked first, never uploaded); she blinks,
+  looks around, lip-syncs and shows her mood with it; three.js and three-vrm (MIT) load only then.
+  *Her portrait, still* keeps the still picture; the orb stays the default; Sara Classic is unchanged.
+  Off with Background motion Off or reduced motion, paused when hidden, at most 30 fps.
 
 ## 3.1.1 (2026-11-09): moving in made easy
 

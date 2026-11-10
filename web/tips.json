@@ -394,7 +394,11 @@
       "start"
     ],
     "ap-herpic": [
-      "In the new look she shows as her presence orb. Pick Her portrait or Your picture to see a round picture instead, with a thin ring that moves with her. Upload your picture on her page.",
+      "Orb: her presence orb. Animated portrait: she breathes, blinks and moves her lips as she speaks. Still: no motion. Your picture: the one on her page. 3D model: a .vrm file you bring.",
+      "start"
+    ],
+    "ap-vrm-file": [
+      "A .vrm model (up to 50 MB), e.g. from VRoid Studio. It stays in this browser and is never uploaded; she blinks, looks around and moves her lips with it. Use one you're allowed to use: its license shows here.",
       "start"
     ],
     "ap-runs": [
