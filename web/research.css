@@ -13,6 +13,16 @@
 .rs-list { margin: 4px 0 8px; padding-left: 22px; display: grid; gap: 4px; overflow-wrap: anywhere; }
 .rs-url { overflow-wrap: anywhere; }
 
+/* 3.1.2: a research run's progress, budget and the chat cards (web/research-card.js). */
+.rs-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.rs-chip { border: 1px solid var(--border); border-radius: 999px; padding: 2px 10px; font-size: 13px; }
+.rs-chip-warn { border-color: var(--accent); }
+.rs-budget { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 4px 14px; }
+.rs-budget select { width: 100%; min-height: 44px; }
+.rcard-research .actions-left, .rcard-research-offer .actions-left { flex-wrap: wrap; }
+.rcard-research .rs-list { padding-left: 20px; }
+.rs-card-body { display: grid; gap: 4px; }
+
 /* C6 (docs/LEARN.md): What she has learned (web/learn.js). */
 .lnt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 14px; align-items: end; }
 .lnt-grid select { width: 100%; min-height: 44px; }

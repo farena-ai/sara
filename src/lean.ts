@@ -124,7 +124,7 @@ export interface Family {
 const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(list_dir|read_file|write_file|edit_file|search)$/, 'files', 'files'],
   [/^shell$/, 'shell', 'commands'],
-  [/^(web_fetch|web_search)$/, 'web', 'web'],
+  [/^(web_fetch|web_search|research_start)$/, 'web', 'web'],
   [/^(todo|note|remind|tasks|add_task|list_tasks|complete_task|update_task|delete_task|add_note|list_notes|read_note|update_note|delete_note)$/, 'planner', 'reminders and notes'],
   [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff|scene_canon)$/, 'memory', 'memory'],
   [/^ssh_/, 'ssh', 'SSH servers'],
@@ -197,7 +197,7 @@ export const tokensOf = (tools: { spec: ToolSpec }[]): number => tools.reduce((n
 // §4.2 core, safety pins
 // ---------------------------------------------------------------------------------------------
 
-export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search'] as const;
+export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search', 'research_start'] as const;
 export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind', 'session_context'] as const;
 /** Tools whose absence could leave something running or reachable: always offered when eligible. */
 export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revoke_key', 'ssh_forget_password', 'safety_report'] as const;

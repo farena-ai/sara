@@ -26,7 +26,7 @@ import { complete, quietNow } from './life.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { policy } from './policy-profile.ts';
 import type { ChatMessage } from './providers/types.ts';
-import { checkClaims, fetchPage, RESEARCH } from './research.ts';
+import { checkClaims, fetchPageRetrying, RESEARCH } from './research.ts';
 import { detectExplicit, detectMinorSexualContent } from './safety.ts';
 import { adultModeOn } from './settings.ts';
 import type { SkillView } from './skill-store.ts';
@@ -35,7 +35,7 @@ import { guardedGet, type GuardedGetSeams } from './tools/builtin.ts';
 import { runSearch } from './tools/search.ts';
 
 /** Test seams only (never set by the app): where a checked address connects; the pause between site pages. */
-export const learnDeps: { seams?: GuardedGetSeams; delayMs?: number } = {};
+export const learnDeps: { seams?: GuardedGetSeams; delayMs?: number; retryMs?: number } = {};
 
 export type Depth = 'quick' | 'standard' | 'deep';
 export type Refresh = 'never' | 'daily' | 'weekly' | 'monthly';
@@ -44,10 +44,10 @@ export type LearnStatus = 'queued' | 'learning' | 'ready' | 'stale' | 'failed';
 
 export const LEARN = {
   depths: {
-    quick: { pages: 5, sitePages: 10, searches: 2, tokens: 30_000 },
-    standard: { pages: 12, sitePages: 40, searches: 4, tokens: 80_000 },
-    deep: { pages: 25, sitePages: 80, searches: 6, tokens: 160_000 },
-  } as Record<Depth, { pages: number; sitePages: number; searches: number; tokens: number }>,
+    quick: { pages: 5, sitePages: 10, searches: 2, tokens: 30_000, minutes: 5 },
+    standard: { pages: 12, sitePages: 40, searches: 4, tokens: 80_000, minutes: 15 },
+    deep: { pages: 25, sitePages: 80, searches: 6, tokens: 160_000, minutes: 30 },
+  } as Record<Depth, { pages: number; sitePages: number; searches: number; tokens: number; minutes: number }>,
   refreshDays: { never: 0, daily: 1, weekly: 7, monthly: 30 } as Record<Refresh, number>,
   monthlyChoices: [200_000, 500_000, 1_000_000, 2_000_000, 5_000_000] as const,
   defaultMonthly: 1_000_000,
@@ -96,6 +96,10 @@ export interface LearnTopic {
   lastGoodAt: string | null;
   nextDueAt: string | null;
   createdAt: string;
+  /** 3.1.2: the research run its first notes come from (Save as a skill), until they are written. */
+  seedRun: number | null;
+  /** 3.1.2: the notes were made from a run cut short (or without the writer): partial. */
+  partial: boolean;
   runs: LearnRun[];
 }
 
@@ -230,6 +234,21 @@ export function changesMarkdown(c: LearnChanges): string {
 }
 
 type Row = Record<string, unknown>;
+interface Count {
+  pages: number;
+  failed: number;
+  tokens: number;
+  /** 3.1.2: pages on sites that block automated readers. */
+  blocked?: number;
+}
+/** 3.1.2: notes without the writer (it stopped answering): a quote from each page read, each linked. */
+function extractNotes(read: { n: number; url: string; title: string; text: string }[]): string {
+  const quote = (s: string) => {
+    const t = s.replace(/\s+/g, ' ').trim();
+    return t.length > 280 ? `${t.slice(0, 279)}…` : t;
+  };
+  return ['## Summary', '', 'Partial notes: the writer stopped answering, so these are short quotes from the pages read, not a summary.', '', '## Key facts', '', ...read.map((r) => `- ${mdText(r.title)}: “${mdText(quote(r.text))}” [${r.n}](${r.url})`)].join('\n');
+}
 interface ReadPage {
   n: number;
   url: string;
@@ -255,6 +274,10 @@ export class Learning {
       id INTEGER PRIMARY KEY AUTOINCREMENT, topic_id INTEGER NOT NULL, at TEXT NOT NULL, pages INTEGER NOT NULL DEFAULT 0,
       failed INTEGER NOT NULL DEFAULT 0, tokens INTEGER NOT NULL DEFAULT 0, outcome TEXT NOT NULL, note TEXT, changes TEXT, error TEXT);
     CREATE INDEX IF NOT EXISTS learn_runs_topic ON learn_runs(topic_id);`);
+    // 3.1.2: additive columns (a topic made from a research run; partial notes).
+    const have = new Set((db.prepare('PRAGMA table_info(learn_topics)').all() as Row[]).map((r) => String(r.name)));
+    if (!have.has('seed_run')) db.exec('ALTER TABLE learn_topics ADD COLUMN seed_run INTEGER');
+    if (!have.has('partial')) db.exec('ALTER TABLE learn_topics ADD COLUMN partial INTEGER NOT NULL DEFAULT 0');
     // After a restart a run that was working goes back in the queue (it starts again from the top).
     db.prepare(`UPDATE learn_topics SET status = 'queued' WHERE status = 'learning'`).run();
   }
@@ -282,7 +305,7 @@ export class Learning {
     this.#app.settings.update({ learn: { monthlyTokens: m } } as never);
     return this.settings();
   }
-  caps(depth: Depth): { pages: number; sitePages: number; searches: number; tokens: number } {
+  caps(depth: Depth): { pages: number; sitePages: number; searches: number; tokens: number; minutes: number } {
     return LEARN.depths[depth];
   }
   /** Estimated tokens used for learning this calendar month (UTC) and the monthly budget. */
@@ -333,6 +356,8 @@ export class Learning {
       lastGoodAt: (r.last_good_at as string) ?? null,
       nextDueAt: (r.next_due_at as string) ?? null,
       createdAt: String(r.created_at),
+      seedRun: r.seed_run == null ? null : Number(r.seed_run),
+      partial: Number(r.partial ?? 0) === 1,
       runs,
     };
   }
@@ -381,6 +406,26 @@ export class Learning {
     const at = this.#now();
     const id = Number(this.#db.prepare(`INSERT INTO learn_topics (kind, subject, site, depth, refresh, notify, status, created_at) VALUES (?, ?, ?, ?, ?, ?, 'queued', ?)`).run(kind, subject, site, depth, refresh, input.notify ? 1 : 0, at).lastInsertRowid);
     audit({ action: 'learn.create', role: 'owner', channel: by.channel ?? 'web', target: String(id), keys: [kind, depth, refresh] });
+    this.#next();
+    return this.get(id)!;
+  }
+
+  /**
+   * 3.1.2: Save as a skill (and Keep it fresh) from a research run: a topic whose first notes are
+   * written from the pages that run already read (nothing is read again); later refreshes search as
+   * usual. `partial`: the run was cut short, and the notes say so.
+   */
+  createFromResearch(input: { subject: string; refresh?: unknown; runId: number; partial?: boolean }): LearnTopic {
+    const refresh: Refresh = (REFRESHES as readonly unknown[]).includes(input.refresh) ? (input.refresh as Refresh) : 'never';
+    const subject = oneLine(input.subject, LEARN.subjectMax);
+    if (subject.length < 2) throw new LearnError(400, en('Type a topic or a web address to learn.'));
+    if (detectMinorSexualContent(subject) || (detectExplicit(subject) && !adultModeOn(this.#app.settings.get()))) throw new LearnError(400, en('She can’t learn about that.'));
+    if ((policy().pins as { learning?: false }).learning === false) throw new LearnError(409, en('Learning is switched off by your admin’s policy.'));
+    if (!this.#app.skills || this.#app.skills.writableScopes().length === 0) throw new LearnError(409, en('Skills are not available here.'));
+    if ((this.#db.prepare('SELECT COUNT(*) AS n FROM learn_topics').get() as { n: number }).n >= LEARN.maxTopics) throw new LearnError(409, en('She keeps at most 50 topics. Delete one first.'));
+    const at = this.#now();
+    const id = Number(this.#db.prepare(`INSERT INTO learn_topics (kind, subject, site, depth, refresh, notify, status, seed_run, partial, created_at) VALUES ('topic', ?, NULL, 'standard', ?, 0, 'queued', ?, ?, ?)`).run(subject, refresh, input.runId, input.partial ? 1 : 0, at).lastInsertRowid);
+    audit({ action: 'learn.create', role: 'owner', channel: 'web', target: String(id), keys: ['research', refresh] });
     this.#next();
     return this.get(id)!;
   }
@@ -474,29 +519,55 @@ export class Learning {
     return store.listConversations().find((c) => !c.partner && !c.private) ?? store.createConversation({ title: 'Learning' });
   }
 
+  /** A model call, retried a few times with a pause (3.1.2: a provider hiccup doesn't end the run). */
   async #model(messages: ChatMessage[], maxTokens: number, signal: AbortSignal, count: { tokens: number }): Promise<string> {
-    const out = await complete(this.#app, this.#conv(), messages, maxTokens, 'research', signal);
-    count.tokens += Math.ceil((messages.reduce((n, m) => n + String(m.content).length, 0) + out.length) / 4);
-    return out;
+    const purpose = this.#app.research?.modelChoice().purpose ?? 'research';
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= RESEARCH.modelTries; attempt++) {
+      try {
+        const out = await complete(this.#app, this.#conv(), messages, maxTokens, purpose, signal);
+        count.tokens += Math.ceil((messages.reduce((n, m) => n + String(m.content).length, 0) + out.length) / 4);
+        if (!out.trim()) throw new Error('empty answer');
+        return out;
+      } catch (err) {
+        if (signal.aborted || this.#closed) throw err;
+        lastErr = err;
+        if (attempt < RESEARCH.modelTries) await new Promise((res) => setTimeout(res, (learnDeps.retryMs ?? 1000) * attempt));
+      }
+    }
+    throw lastErr;
   }
 
   async #run(id: number, signal: AbortSignal): Promise<void> {
     const t = this.get(id)!;
     const caps = this.caps(t.depth);
-    const count = { pages: 0, failed: 0, tokens: 0 };
+    const count: Count = { pages: 0, failed: 0, tokens: 0, blocked: 0 };
     const read: ReadPage[] = [];
     const why = this.refusal(t.kind);
     if (why) return this.#fail(id, why, count);
     const b = this.budget();
     if (b.used >= b.monthlyTokens) return this.#fail(id, en('This month’s learning budget is used up.'), count);
-    const take = (p: { url: string; title: string; text: string }) => {
-      read.push({ n: read.length + 1, url: p.url, title: oneLine(p.title, 200) || new URL(p.url).host, text: p.text.slice(0, RESEARCH.sourceChars), at: this.#now().slice(0, 10) });
+    const take = (p: { url: string; title: string; text: string; at?: string }) => {
+      read.push({ n: read.length + 1, url: p.url, title: oneLine(p.title, 200) || new URL(p.url).host, text: p.text.slice(0, RESEARCH.sourceChars), at: (p.at ?? this.#now()).slice(0, 10) });
       count.pages++;
     };
-    if (t.kind === 'site') await this.#crawl(t, caps.sitePages, signal, take, count);
-    else await this.#search(t, caps, signal, take, count);
+    // 3.1.2: a time cap per run; what was read by then is written up (marked partial).
+    const deadline = Date.now() + caps.minutes * 60_000;
+    let partial = false;
+    const late = () => {
+      if (Date.now() < deadline) return false;
+      partial = true;
+      return true;
+    };
+    const seeded = t.seedRun !== null && this.#app.research ? this.#app.research.readPages(t.seedRun) : null;
+    if (seeded) {
+      for (const p of seeded) take(p);
+      partial = t.partial;
+      this.#set(id, { seed_run: null });
+    } else if (t.kind === 'site') await this.#crawl(t, caps.sitePages, signal, take, count, late);
+    else await this.#search(t, caps, signal, take, count, late);
     if (this.#closed || signal.aborted || !this.get(id)) return;
-    if (!read.length) return this.#fail(id, en('No page could be read.'), count);
+    if (!read.length) return this.#fail(id, count.blocked ? en('No page could be read: the sites found block automated readers. Try a website of your own choosing, or other words.') : en('No page could be read.'), count);
     // The writer, held under the run's token cap and what is left of the month.
     const room = Math.min(RESEARCH.promptChars, Math.floor((caps.tokens - count.tokens - 3000) * 4 * 0.9));
     const left = this.budget();
@@ -517,15 +588,18 @@ export class Learning {
     } catch (err) {
       if (this.#closed || signal.aborted) return;
       console.warn(`learn: the writer failed: ${(err as Error).message}`);
-      return this.#fail(id, en('The writer failed, so nothing was changed.'), count);
+      // 3.1.2: a topic she never knew gets partial notes from what was read (quotes, each linked);
+      // a topic she knew keeps its last good notes (stale).
+      if (this.get(id)?.skill) return this.#fail(id, en('The writer failed, so nothing was changed.'), count);
+      return this.#save(id, extractNotes(read), read, new Set(read.map((r) => r.n)), count, true);
     }
     if (this.#closed || signal.aborted || !this.get(id)) return;
     const checked = checkClaims(draft, read);
     if (!checked.kept) return this.#fail(id, en('Her notes had no sentence backed by a page she read, so nothing was changed.'), count);
-    this.#save(id, checked.text, read, checked.cited, count);
+    this.#save(id, checked.text, read, checked.cited, count, partial);
   }
 
-  async #search(t: LearnTopic, caps: { pages: number; searches: number }, signal: AbortSignal, take: (p: { url: string; title: string; text: string }) => void, count: { pages: number; failed: number; tokens: number }): Promise<void> {
+  async #search(t: LearnTopic, caps: { pages: number; searches: number }, signal: AbortSignal, take: (p: { url: string; title: string; text: string }) => void, count: Count, late: () => boolean = () => false): Promise<void> {
     const cfg = searchConfig(this.#app.settings, this.#app.vault);
     let searches = [t.subject, `${t.subject} latest news`, `${t.subject} explained`, `${t.subject} timeline`, `${t.subject} official`, `${t.subject} guide`].slice(0, caps.searches);
     try {
@@ -551,8 +625,8 @@ export class Learning {
     const seen = new Set<string>();
     let tried = 0;
     for (const q of searches) {
-      if (signal.aborted || count.pages >= caps.pages || tried >= caps.pages * 2) return;
-      let results: { title: string; url: string }[] = [];
+      if (signal.aborted || count.pages >= caps.pages || tried >= caps.pages * 2 || late()) return;
+      let results: { title: string; url: string; snippet?: string }[] = [];
       try {
         if (cfg) results = await runSearch(cfg, q, LEARN.perSearch, signal);
       } catch (err) {
@@ -560,7 +634,7 @@ export class Learning {
         console.warn(`learn: search failed: ${(err as Error).message}`);
       }
       for (const res of results) {
-        if (signal.aborted || count.pages >= caps.pages || tried >= caps.pages * 2) return;
+        if (signal.aborted || count.pages >= caps.pages || tried >= caps.pages * 2 || late()) return;
         let key: string;
         try {
           const u = new URL(res.url);
@@ -572,15 +646,20 @@ export class Learning {
         if (seen.has(key)) continue;
         seen.add(key);
         tried++;
-        const p = await fetchPage(key, signal, learnDeps.seams);
+        const p = await fetchPageRetrying(key, signal, learnDeps.seams);
         if (p === 'aborted') return;
         if (p.ok) take({ url: p.url, title: p.title || res.title, text: p.text });
-        else count.failed++;
+        else if (p.reason === 'bot-wall') {
+          // 3.1.2: a site that blocks readers: the search result's own text stands in when it is long enough.
+          count.blocked = (count.blocked ?? 0) + 1;
+          const snip = oneLine(res.snippet ?? '', RESEARCH.sourceChars);
+          if (snip.length >= RESEARCH.snippetMin) take({ url: key, title: res.title, text: snip });
+        } else count.failed++;
       }
     }
   }
 
-  async #crawl(t: LearnTopic, cap: number, signal: AbortSignal, take: (p: { url: string; title: string; text: string }) => void, count: { pages: number; failed: number; tokens: number }): Promise<void> {
+  async #crawl(t: LearnTopic, cap: number, signal: AbortSignal, take: (p: { url: string; title: string; text: string }) => void, count: Count, late: () => boolean = () => false): Promise<void> {
     const start = new URL(t.site!);
     const host = start.hostname;
     const robots = await this.#rawRobots(start, signal);
@@ -589,7 +668,7 @@ export class Learning {
     const seen = new Set<string>([start.href]);
     const delay = learnDeps.delayMs ?? LEARN.delayMs;
     let tried = 0;
-    while (queue.length && count.pages < cap && tried < cap * 2) {
+    while (queue.length && count.pages < cap && tried < cap * 2 && !late()) {
       if (signal.aborted) return;
       const url = queue.shift()!;
       const u = new URL(url);
@@ -597,9 +676,14 @@ export class Learning {
       if (tried > 0 && delay > 0) await new Promise((res) => setTimeout(res, delay));
       if (signal.aborted) return;
       tried++;
-      const p = await fetchPage(url, signal, learnDeps.seams);
+      const p = await fetchPageRetrying(url, signal, learnDeps.seams);
       if (p === 'aborted') return;
       if (!p.ok) {
+        if (p.reason === 'bot-wall') {
+          // 3.1.2: the whole site blocks readers: stop instead of knocking on every page.
+          count.blocked = (count.blocked ?? 0) + 1;
+          if (count.pages === 0) return;
+        }
         count.failed++;
         continue;
       }
@@ -630,10 +714,11 @@ export class Learning {
     }
   }
 
-  #compose(t: LearnTopic, notes: string, read: ReadPage[], cited: Set<number>, changes: string | null): string {
+  #compose(t: LearnTopic, notes: string, read: ReadPage[], cited: Set<number>, changes: string | null, partial = false): string {
     const today = this.#now().slice(0, 10);
     const used = read.filter((s) => cited.has(s.n));
     const out = [`# ${mdText(t.subject)}`, '', `Learned on ${today} from ${used.length} of ${read.length} pages read${t.site ? ` on ${new URL(t.site).hostname}` : ''}. Refresh: ${t.refresh}.`, ''];
+    if (partial) out.push('> **Partial**: these notes come from a run that ended before it read everything it planned to. Say so when you answer from them; a refresh can fill them in.', '');
     if (changes) out.push(changes, '');
     out.push(notes, '');
     out.push(
@@ -651,7 +736,7 @@ export class Learning {
     return out.join('\n');
   }
 
-  #save(id: number, notes: string, read: ReadPage[], cited: Set<number>, count: { pages: number; failed: number; tokens: number }): void {
+  #save(id: number, notes: string, read: ReadPage[], cited: Set<number>, count: Count, partial = false): void {
     const skills = this.#app.skills;
     const t = this.get(id);
     if (!skills || !t || this.#closed) return;
@@ -663,9 +748,9 @@ export class Learning {
       changes = diffFacts(old, `${notes}\n\n## Sources\n\n${read.filter((s) => cited.has(s.n)).map((s) => `${s.n}. [x](${s.url})`).join('\n')}`, (t.lastGoodAt ?? t.createdAt).slice(0, 10));
     }
     const note = changes ? changesMarkdown(changes) : null;
-    const body = this.#compose(t, notes, read, cited, note);
+    const body = this.#compose(t, notes, read, cited, note, partial);
     const description = oneLine(`What she learned about ${t.subject}${t.site ? ` (from ${new URL(t.site).hostname})` : ''}, with sources fetched ${at.slice(0, 10)}. Use when the owner asks about ${t.subject}${t.site ? ` or ${new URL(t.site).hostname}` : ''}.`, 1000);
-    const metadata = { 'sara-kind': 'learned-topic', 'sara-topic-id': String(id), 'sara-learned-at': at.slice(0, 10), ...(t.site ? { 'sara-site': t.site } : {}) };
+    const metadata = { 'sara-kind': 'learned-topic', 'sara-topic-id': String(id), 'sara-learned-at': at.slice(0, 10), ...(t.site ? { 'sara-site': t.site } : {}), ...(partial ? { 'sara-partial': 'yes' } : {}) };
     let name = t.skill;
     try {
       if (existing) skills.save('companion', { name: existing.name, description, body, metadata }, { why: `refreshed ${at.slice(0, 10)}` });
@@ -678,7 +763,7 @@ export class Learning {
     }
     this.#db.prepare(`INSERT INTO learn_runs (topic_id, at, pages, failed, tokens, outcome, note, changes) VALUES (?, ?, ?, ?, ?, 'ok', ?, ?)`).run(id, at, count.pages, count.failed, count.tokens, note, changes ? JSON.stringify(changes) : null);
     this.#prune(id);
-    this.#set(id, { status: 'ready', skill: name, error: null, last_run_at: at, last_good_at: at, next_due_at: this.#dueAfter(at, t.refresh) });
+    this.#set(id, { status: 'ready', skill: name, error: null, last_run_at: at, last_good_at: at, next_due_at: this.#dueAfter(at, t.refresh), partial: partial ? 1 : 0 });
     audit({ action: 'learn.run', role: 'owner', channel: 'web', target: String(id), outcome: 'ok' });
     if (changes && t.notify && (changes.added.length || changes.removed.length)) {
       const s = this.#app.settings.get();
@@ -694,7 +779,7 @@ export class Learning {
     void this.#app.push?.notifyOwner(title, text, conversationId, `learn-${id}`).catch(() => {});
   }
 
-  #fail(id: number, error: string, count: { pages: number; failed: number; tokens: number }): void {
+  #fail(id: number, error: string, count: Count): void {
     if (this.#closed) return;
     const t = this.get(id);
     if (!t) return;

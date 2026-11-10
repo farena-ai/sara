@@ -111,6 +111,9 @@ import { frameNote, noFrameNote } from './video.ts';
 import { metered } from './usage.ts';
 import { cutOtherSpeakers, GROUP_TOOLS, isGroupChannel, otherLine, ownerLine, stripLeadTag } from './group.ts';
 import { cardFor, type Card } from './cards.ts';
+import { BOT_WALL_LINE, looksLikeBotWall, WebTurn } from './web-guard.ts';
+/** 3.1.2: tools whose output may be a bot-check page (commands, browsers, MCP browser tools). */
+const BOT_WALL_TOOLS = /^(shell|run_command|browser_read|browser_open|pc_browser_\w+|mcp_.*(browser|playwright|fetch|navigate|snapshot).*)$/i;
 import { cardOf, checkPlan, contradictionNote, contradictSettings, declinedOutput, gateAct, judgePrompt, judgeSaysNo, type Contradiction, type ContradictionCard } from './contradict.ts';
 import { filesNamed, inputsHash, RunRecorder, toolSetHash, workspaceRef, WORKSPACE_TOOLS, type WorkspaceRef } from './runs.ts';
 import { join } from 'node:path';
@@ -2290,6 +2293,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string }[] = [];
   const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}), ...(pendingFiles.length ? { files: pendingFiles.splice(0) } : {}) });
   const receipts: Receipt[] = [];
+  // 3.1.2: this reply's web reading (guessed 404s, bot walls, how many pages; docs/RESEARCH.md).
+  const webTurn = new WebTurn({ canResearch: Boolean(app.research) && !conv.private && !conv.partner && !opts.group && !opts.outside && !opts.externalApp });
   // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
   let callsThisTurn = 0;
   // Earlier tool receipts in this conversation (for recaps that name the same files).
@@ -3505,6 +3510,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 sandbox,
                 conversationId: conv.id,
                 companionName: app.persona.name,
+                webTurn,
                 attachImage: (id) => { attachedThisTurn++; pendingImages.push(id); },
                 ...(app.uploads ? { saveImage: (b: Buffer) => app.uploads!.saveBytes(b).id } : {}),
                 attachFile: (f) => {
@@ -3614,6 +3620,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         turnTools.load([call.name], 'used');
         if (status === 'error') output = `${output}\n${schemaHint(tool)}`;
       }
+      // 3.1.2: a bot check read through a command or a browser tool: say so, so she moves on.
+      if (ranTool && status === 'ok' && BOT_WALL_TOOLS.test(call.name) && looksLikeBotWall(output)) output = `${output}\n\n[${BOT_WALL_LINE}]`;
       // B2: an argument error with allowed values: say nothing ran and how to go on (last, so she reads it).
       if (status === 'error' && tool) { const hint = argErrorHint(tool, output); if (hint) output = `${output}\n${hint}`; }
       if (turnTools.lean && ranTool && call.name !== FIND_TOOLS) {
@@ -3635,7 +3643,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
       const stored = clip(output, TOOL_RESULT_LIMIT);
       // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
-      const card = cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard ?? appCard : undefined);
+      const offer = call.name === 'web_fetch' && webTurn.takeOffer() ? { kind: 'research-offer' as const, question: clip(text.replace(/\s+/g, ' ').trim(), 300) } : undefined;
+      const card = offer ?? cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard ?? appCard : undefined);
       const flagged = turnContradictions.get(call.id);
       const sbRecord = tried && sbDecision && sbRisk ? sandboxRecord(tried, sbRisk, sbDecision, applied) : undefined;
       // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.

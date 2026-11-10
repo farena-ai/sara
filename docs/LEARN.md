@@ -11,6 +11,10 @@ launch you follow, a team, prices, a product's docs, rules that change.
   `standard` or `deep`, and `daily`, `weekly` or `monthly` to keep it fresh:
   `/learn the Artemis program weekly`. `/learn` alone lists what she has learned.
 - **Or just ask** in the app: "learn about the Artemis program", "keep up with heat pump rebates".
+- **From a research run (3.1.2):** when a research run is done, **Save as a skill** (or **Keep it
+  fresh**, refreshed every week) learns from the pages that run read, without reading them again.
+  Asking in a chat for a guide or a skill about something starts such a run (see
+  [Research a question](RESEARCH.md)).
 - **In the Library:** Library → **What she has learned…** has a form: the topic or website, how deep,
   how often to refresh, and the sources (the open web, or only this site).
 
@@ -26,6 +30,14 @@ works without web search.
   links on the same site only, reads one page at a time with a pause between pages, and stops at the
   page cap: about 10, 40 or 80 pages.
 - She never reads private or local addresses (your router, `localhost`, your network).
+- **Sturdier runs (3.1.2):** a page that times out or answers 429/5xx is tried again (honouring
+  *Retry-After*); a site that blocks automated readers is skipped (the search result's own text
+  stands in when it is long enough), and a whole website that blocks readers is not knocked on page
+  after page. Each run has a time cap (5, 15 or 30 minutes by depth); a model call is tried 3 times.
+- **Partial, not nothing:** if the time runs out, the notes are written from what was read and
+  marked **Partial**. If the writer stops answering on a new topic, she keeps partial notes (a short
+  linked quote from each page read) instead of failing; a topic she already knew keeps its last good
+  notes and is marked *Out of date*.
 - She writes her notes from the pages only, and every sentence must cite a page she read in that run;
   anything else is left out. The notes are a skill (Settings → Skills, marked as a learned topic):
   a summary, key facts with dates, a glossary, how to answer questions on it, and the sources list

@@ -19,11 +19,15 @@ test('ec6 ui: Research lives in the Library with tips, plain controls and no inl
   assert.equal(fields.length, 4, 'question, a step, its searches, pages');
   for (const m of fields) assert.ok(m[1].length <= 260, m[1]);
   assert.equal([...js.matchAll(/document\.createElement\('(input|select|textarea)'\)/g)].length, 4, 'no control without a field');
-  for (const path of ['/start', '/write-now', '/stop', '/plan']) assert.ok(js.includes(`${path}\``), path);
+  // 3.1.2: the run's buttons (Pause, Resume, Write the report now…) live in web/research-card.js, shared with the chat card.
+  const card = web('research-card.js');
+  for (const path of ['/start', '/stop', '/plan']) assert.ok(js.includes(`${path}\``), path);
+  for (const path of ['/start', '/write-now', '/stop', '/pause', '/resume', '/skill', '/budget']) assert.ok(card.includes(`${path}\``), path);
+  assert.doesNotMatch(card, /style=|\.style\./);
   assert.match(js, /export\?format=pdf/);
   assert.match(js, /export\?format=docx/);
   assert.match(js, /s\.reasonText/);
-  assert.match(js, /t\('Write the report now'\)/);
+  assert.match(card, /t\('Write the report now'\)/);
   assert.match(web('library.js'), /openResearch\(\)/);
   assert.match(html, /<link rel="stylesheet" href="\/research\.css">/);
   assert.doesNotMatch(web('research.css'), /!important/);

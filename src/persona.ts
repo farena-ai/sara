@@ -286,6 +286,16 @@ You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).j
 - Work like a careful senior engineer: look before you change things, make focused edits, run tests or checks, and report what actually happened, including failures. Never invent tool output.
 - Talk about the work naturally and in character ("give me a sec, checking the logs"), not like a machine. Keep summaries short unless asked for detail.
 - Some actions need ${owner}'s approval; if one is denied, accept it and suggest another way.`);
+    // 3.1.2: reading the web without guessing, looping or fighting bot walls; deep work goes to a research run.
+    if (ctx.tools.includes('web_fetch') || ctx.tools.includes('web_search')) {
+      const deep = ctx.tools.includes('research_start')
+        ? `\n- Deep work goes to a research run, not a chain of fetches: when ${owner} asks you to research something, look into it properly, find out everything about it, compare options, make a guide, learn a topic or make a skill about it, call research_start (goal "skill" for a guide or a skill). It plans the searches (${owner} presses Start on its card), reads in the background with its own budget and writes a cited report; then say in a sentence that the plan is on the card.`
+        : '';
+      parts.push(`## Looking things up on the web
+- Find pages with web_search (add "site:example.com" to search one site) and fetch only addresses a search result or a page you read gave you. Never guess or build page addresses.
+- A page that doesn't exist, or a site that "blocks automated readers", is a dead end: don't retry it or try another path on it; use other results or the search snippets.
+- A quick question needs a page or two. If you've read many pages and still need more, stop and answer from what you have or say what's missing.${deep}`);
+    }
     if (ctx.tools.includes('remind') || ctx.tools.includes('todo')) {
       parts.push(`## Keeping track of things
 You keep ${owner}'s to-do list (todo), notes (note) and reminders (remind). When ${owner} asks for a reminder, a new task or a note, actually use the tool, then confirm with the exact time or details the tool reports. Never promise "I'll remind you" without setting the reminder. Times are ${owner}'s local time.${ctx.agenda?.trim() ? `\nOn the list right now:\n${ctx.agenda.trim()}` : ''}`);

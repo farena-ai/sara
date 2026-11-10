@@ -5,6 +5,7 @@
 // Polls the run every 1.5 s while it works; nothing here calls a model or fetches a page itself.
 import { parse, toDom } from './markdown.js';
 import { serverText, t } from './naming.js';
+import { budgetBits, progressBits, runButtons, statusLine, topicLine } from './research-card.js';
 
 const $ = (s) => document.querySelector(s);
 const POLL_MS = 1500;
@@ -71,11 +72,11 @@ function stopPolling() {
 }
 
 /** Opens the Research view inside the Library window. */
-export async function openResearch() {
+export async function openResearch(id = null) {
   $('#lib-home').hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-research').hidden = false;
-  runId = null;
+  runId = id;
   draft = null;
   await render();
 }
@@ -96,8 +97,9 @@ async function render() {
       return;
     }
     const { run } = await api(`/research/${runId}`);
+    if (!limits.budgetPages) limits = (await api('/research').catch(() => ({}))).limits ?? limits;
     host.replaceChildren(runView(run));
-    if (working(run.status)) timer = setTimeout(() => void render(), POLL_MS);
+    if (working(run.status) || (run.topic && run.topic.status !== 'ready' && run.topic.status !== 'failed')) timer = setTimeout(() => void render(), POLL_MS);
   } catch (e) {
     host.replaceChildren(el('p', 'small error', e.status === 403 ? t('Only the owner of this server can turn this on.') : e.message));
   }
@@ -150,29 +152,24 @@ function pastRuns(runs) {
 function runView(run) {
   const box = el('div', 'rs-run');
   box.append(el('h3', 'rs-question', run.question));
-  const st = el('p', 'small', STATUS_WORDS[run.status]?.() ?? run.status);
+  const st = el('p', 'small', run.status === 'plan' ? STATUS_WORDS.plan() : statusLine(run));
   st.setAttribute('role', 'status');
   box.append(st);
   if (run.status === 'plan') box.append(planEditor(run));
-  if (run.status === 'running' || run.status === 'writing') {
-    const acts = el('div', 'actions-left');
-    if (run.status === 'running') acts.append(btn(t('Write the report now'), '', () => void act(`/research/${run.id}/write-now`)));
-    acts.append(btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${run.id}/stop`)));
-    box.append(acts);
-  }
-  if (run.status === 'planning') {
-    const acts = el('div', 'actions-left');
-    acts.append(btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${run.id}/stop`)));
-    box.append(acts);
-  }
+  // 3.1.2: progress, the budget he can raise, Pause / Resume, Save as a skill (web/research-card.js).
+  if (run.status !== 'plan' && run.status !== 'planning') box.append(progressBits(run));
+  if (run.status === 'running' || run.status === 'paused') box.append(budgetBits(run, limits, () => void render()));
+  if (run.status !== 'plan') box.append(runButtons(run, act, { open: false }));
+  const tl = topicLine(run);
+  if (tl) box.append(tl);
   if (run.report) box.append(reportView(run));
   if (run.sources.length || run.searched.length) box.append(sourceLists(run));
   return box;
 }
 
-async function act(path) {
+async function act(path, body = {}) {
   try {
-    await api(path, { method: 'POST', body: {} });
+    await api(path, { method: 'POST', body });
   } catch (e) {
     alert(e.message);
   }
@@ -258,6 +255,7 @@ function sourceLists(run) {
   const box = el('div', 'rs-sources');
   const read = run.sources.filter((s) => s.status === 'read');
   const failed = run.sources.filter((s) => s.status === 'failed');
+  const blocked = run.sources.filter((s) => s.status === 'blocked');
   box.append(el('h3', '', t('Pages read ({n})', { n: read.length })));
   const ul = el('ol', 'rs-list');
   for (const s of read) {
@@ -280,6 +278,17 @@ function sourceLists(run) {
   }
   if (failed.length) box.append(fl);
   else box.append(el('p', 'muted small', t('None.')));
+  // 3.1.2: sites that block automated readers are not failures: listed apart.
+  if (blocked.length) {
+    box.append(el('h3', '', t('Sites that block automated readers ({n})', { n: blocked.length })));
+    const bl = el('ul', 'rs-list');
+    for (const s of blocked) {
+      const li = el('li');
+      li.append(el('span', 'rs-url', s.url), el('span', 'muted small', ` · ${s.reasonText}`));
+      bl.append(li);
+    }
+    box.append(bl);
+  }
   if (run.searched.length) box.append(el('p', 'muted small', t('Searches run: {list}', { list: run.searched.join('; ') })));
   return box;
 }

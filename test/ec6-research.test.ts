@@ -107,7 +107,7 @@ test('ec6 research: plan → edit → read (with failures and reasons) → a cit
   assert.equal(read[0].title, 'Cold climate study');
   assert.equal(r.sources.filter((s) => s.url.endsWith('/heat-a')).length, 1, 'a page found twice is read once');
   const reason = (end: string) => failed.find((s) => s.url.endsWith(end))?.reason;
-  assert.equal(reason('/gone'), 'http');
+  assert.equal(reason('/gone'), 'not-found', '3.1.2: a page that does not exist is listed apart');
   assert.equal(failed.find((s) => s.url.endsWith('/gone'))?.detail, 'HTTP 404');
   assert.equal(reason('/tiny'), 'too-short');
   assert.equal(reason('/binary'), 'not-text');
@@ -121,7 +121,7 @@ test('ec6 research: plan → edit → read (with failures and reasons) → a cit
   assert.doesNotMatch(md, /best choice for everyone|404 page proves|9000%|Penguins/);
   assert.match(md, /## What is missing[\s\S]*Cost of running one[\s\S]*4 sentences were left out/);
   assert.match(md, /## Sources\n\n1\. \[Cold climate study\]\(http:\/\/a\.example:\d+\/heat-a\)/);
-  assert.match(md, /## Sources that failed[\s\S]*\/gone[^\n]*HTTP 404/);
+  assert.match(md, /## Pages not found[\s\S]*\/gone[^\n]*not found \(HTTP 404\)/);
   assert.match(md, /\/binary[^\n]*not a text page/i);
   // The sources are fenced as text written by others.
   const writer = app.requests.at(-1)!.messages.map((m) => m.content).join('\n');
@@ -180,7 +180,7 @@ test('ec6 research: Stop mid-run still saves a report listing what is missing (n
   assert.ok(r.reportDocId, 'kept in the Library too');
 });
 
-test('ec6 research: a restart turns a working run into a stopped report; no search setup refuses', async (t) => {
+test('ec6 research: a restart pauses a working run at its checkpoint and it resumes; no search setup refuses', async (t) => {
   const { app, research } = await rig(t, (url) => ({ q: [url('a', '/heat-a'), url('a', '/slow-1'), url('a', '/slow-2'), url('a', '/slow-3')] }));
   app.script.push(text(JSON.stringify({ steps: [{ question: 'Q', searches: ['q'] }] })));
   const run = research.create({ question: 'Cold heat pumps?' });
@@ -190,9 +190,17 @@ test('ec6 research: a restart turns a working run into a stopped report; no sear
   research.close();
   const again = new Research(app, app.store.db);
   t.after(() => again.close());
-  const r = again.get(run.id)!;
-  assert.equal(r.status, 'stopped');
-  assert.match(r.report!, /restart/);
+  // 3.1.2: paused where it stopped (not a stopped report), then it goes on from there.
+  let r = again.get(run.id)!;
+  assert.equal(r.status, 'paused');
+  assert.equal(r.pause?.reason, 'restart');
+  const before = r.sources.length;
+  app.script.push(text('## Answer\n\nModern cold-climate heat pumps keep heating at minus twenty-five degrees [1].'));
+  assert.deepEqual(again.resumeInterrupted(), [run.id]);
+  r = await until(again, run.id, (x) => x.status === 'done');
+  assert.ok(r.sources.length >= before, 'what was read before the restart is kept');
+  assert.equal(r.sources.filter((s) => s.url.endsWith('/heat-a')).length, 1, 'a page read before the restart is not read again');
+  assert.match(r.report!, /\[1\]\(http:\/\/a\.example:\d+\/heat-a\)/);
   app.settings.update({ search: undefined } as never);
   assert.throws(() => again.create({ question: 'Anything?' }), /web search/i);
   app.settings.update({ search: { provider: 'searxng', url: 'http://127.0.0.1:9' }, toolPermissions: { web_fetch: 'never' } } as never);

@@ -23,7 +23,7 @@ export const JOBS: JobInfo[] = [
   { id: 'vision', label: 'Looking at pictures', tip: 'When you send a photo or a screenshot, this model looks at it. The next message goes back to the talking model. It must be a model that can see (gemma4, a "vl" or "vision" model, GPT, Claude, Grok).' },
   { id: 'planning', label: 'Planning', tip: 'Morning briefing, weekly review, and the plans for her team of helpers. A careful, strong model.' },
   { id: 'writing', label: 'Writing', tip: 'Her diary days, filling in her life story and character writing. A model with a nice way with words.' },
-  { id: 'research', label: 'Web research', tip: 'When you ask her to research or look something up. A model that is good with tools and sources.' },
+  { id: 'research', label: 'Web research', tip: 'Research runs, Learn a topic, and when you ask her to look something up. A model that is good with tools and sources; if your talking model is small, pick a bigger one here.' },
   { id: 'review', label: 'Reviewing', tip: 'The second look at her code changes for security problems (after coding turns). A strong model is best; when this is empty, the Coding model does it.' },
   { id: 'quick', label: 'Quick replies', tip: 'Short messages she sends by herself and short notes about finished jobs. A small, fast model is fine.' },
   { id: 'background', label: 'Memory and summaries', tip: 'Noting what matters from your conversations, summaries and other behind-the-scenes work. A fast, cheap model is fine.' },

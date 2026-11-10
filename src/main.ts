@@ -74,6 +74,7 @@ import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
 import { Research } from './research.ts';
+import { createResearchTools } from './tools/research-tool.ts';
 import { Learning } from './learn.ts';
 import { runAutoUpdates } from './addon-autoupdate.ts';
 import { storeAutoUpdateDeps } from './routes/store.ts';
@@ -1113,6 +1114,17 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.watches = new Watches(app, store.db);
     // EC6: research runs; one that was working before the restart becomes a stopped report.
     app.research = new Research(app, store.db);
+    // 3.1.2: deep web work from a chat goes to a research run (research_start), not a fetch loop.
+    for (const t of createResearchTools(() => app)) tools.add(t);
+    // A run a restart interrupted goes on from its last checkpoint, once the server is up.
+    setTimeout(() => {
+      try {
+        const ids = app.research?.resumeInterrupted() ?? [];
+        if (ids.length) console.log(`Research: resumed run ${ids.join(', ')} from where the restart stopped it.`);
+      } catch (err) {
+        console.warn(`research: resuming after the restart failed: ${(err as Error).message}`);
+      }
+    }, 5000).unref();
     // C6: learn a topic; a run that was working before the restart starts again.
     app.learnTopics = new Learning(app, store.db);
     // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).

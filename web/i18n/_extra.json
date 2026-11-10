@@ -238,7 +238,7 @@
   "Morning briefing, weekly review, and the plans for her team of helpers. A careful, strong model.",
   "Her diary days, filling in her life story and character writing. A model with a nice way with words.",
   "Web research",
-  "When you ask her to research or look something up. A model that is good with tools and sources.",
+  "Research runs, Learn a topic, and when you ask her to look something up. A model that is good with tools and sources; if your talking model is small, pick a bigger one here.",
   "Reviewing",
   "The second look at her code changes for security problems (after coding turns). A strong model is best; when this is empty, the Coding model does it.",
   "Quick replies",

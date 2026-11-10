@@ -5,6 +5,31 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.1.2 (2026-11-10): research that keeps going
+
+- **Research that doesn't fall over:** asking her in a chat to research something, find out
+  everything about it, make a guide or a skill now starts a research run (a card with her plan and
+  **Start**) instead of a long chain of page reads inside the chat, which used to fill the
+  conversation until it had to be tidied up. The run works in the background with its own budget
+  (pages, minutes, tokens: you see them and can raise them), can be paused and resumed, and picks up
+  where it stopped after a restart. Its card shows what she is doing, pages read, sites that block
+  readers and pages not found, then the report with **Save as a skill** and **Keep it fresh**.
+- **No more guessed addresses:** a page that doesn't exist comes back to her as one line telling her
+  to search for it, not the "page not found" page; after 3 misses on a site in one reply, more
+  guesses there are refused. Research runs only read pages found by search or linked from pages
+  she read.
+- **Bot checks:** Cloudflare's "Just a moment…", captchas and similar checks are recognised in her
+  web reader, in command output and in browser tools: she says the site blocks automated readers
+  and moves on (never tries to get around it). Research lists those sites apart and uses the search
+  result's own text when it has the page's content.
+- **Patience with the web and the model:** slow pages time out after 15 seconds and are tried again;
+  "slow down" (429) and server errors are retried, honouring the site's wait time; a model that stops
+  answering is tried 3 times, then the run pauses ("the model stopped answering — Resume") instead of
+  failing. A report or skill cut short is clearly marked **Partial**, never blank.
+- **Small models:** with a small talking model, research uses a bigger model you set for another
+  job, or works in short steps with a few notes per page so it never overflows. Many pages in one
+  chat reply now come with a **Turn this into a research run** button.
+
 ## 3.1.1 (2026-11-09): moving in made easy
 
 ## 3.1.0 (2026-11-09): email beyond Gmail

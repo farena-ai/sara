@@ -11,6 +11,8 @@ export interface ToolContext {
   sandbox: SandboxInfo;
   /** Allow web_fetch to reach private/loopback addresses (off by default). */
   allowPrivateNetwork?: boolean;
+  /** 3.1.2: this reply's web reading tally (not-found guesses, bot walls, how many pages). */
+  webTurn?: import('../web-guard.ts').WebTurn;
   /** Conversation the call came from (planner tools deliver reminders there). */
   conversationId?: string;
   /** The companion's name (git commits in the workspace are made under it). */

@@ -17,6 +17,10 @@ export type Card =
   | { kind: 'home'; entity: string; service: string; name?: string; state?: string }
   | { kind: 'photo'; caption: string }
   | { kind: 'search'; query: string; results: { title: string; url: string; host: string }[] }
+  /** 3.1.2: a research run started from the chat (web/research-card.js draws it live from /api/research/:id). */
+  | { kind: 'research'; id: number; question: string; goal?: 'report' | 'skill' }
+  /** 3.1.2: many pages read in one reply: "Turn this into a research run" with the owner's question. */
+  | { kind: 'research-offer'; question: string }
   | { kind: 'gmail'; id: string; action: string; done: number; failed: number; total: number; query: string; link?: string; label?: string; stopped?: boolean; undoOf?: string; provider?: string }
   /** Phase 87: a page in the Sara browser on the owner's computer (with the step's thumbnail hash). */
   | { kind: 'computer'; action: 'open' | 'navigate' | 'look'; url: string; title: string; computer?: string; problems?: string; thumb?: string }
@@ -80,6 +84,10 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       // page: drop them so they're never read as the weather (a card once said the condition was
       // "Web Page Text Is Written By Others…").
       return /(^|\/\/|\.)wttr\.in\b/i.test(arg(args, 'url')) ? weatherCard(arg(args, 'url'), output.replace(/^\[HTTP \d{3}[^\n]*\]\n(\(Web page text is written by others[^\n]*\)\n)?/, '')) : undefined;
+    case 'research_start': {
+      const m = /^Research run #(\d+) (?:is drafting a plan|started) for “([^”]*)”(?: \((skill)\))?/.exec(output);
+      return m ? { kind: 'research', id: Number(m[1]), question: cut(m[2], 300), ...(m[3] ? { goal: 'skill' as const } : {}) } : undefined;
+    }
     case 'todo':
       return taskCard(output);
     case 'remind':

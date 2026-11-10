@@ -121,3 +121,26 @@ for (const mode of ['member', 'demo'] as const) {
     assert.equal((await json('/api/research', 'POST', { question: 'When are spring tides?' })).status, 403);
   });
 }
+
+test('ec6 routes (3.1.2): budget, pause and resume over HTTP; the run view carries counts and partial', async (t) => {
+  const { app, json } = await rig(t);
+  app.script.push(text(JSON.stringify({ steps: [{ question: 'Tides', searches: ['tides'] }] })));
+  const made = await json('/api/research', 'POST', { question: 'When are spring tides?' });
+  const id = made.body.run.id;
+  await waitFor(json, id, 'plan');
+  const list = await json('/api/research');
+  assert.deepEqual(list.body.limits.budgetMinutes, [5, 10, 20, 40, 60]);
+  assert.equal(typeof list.body.model.compact, 'boolean');
+  let r = await json(`/api/research/${id}/budget`, 'PUT', { pages: 12, minutes: 40 });
+  assert.equal(r.status, 200);
+  assert.deepEqual([r.body.run.budget.pages, r.body.run.budget.minutes], [12, 40]);
+  assert.equal((await json(`/api/research/${id}/pause`, 'POST', {})).status, 409, 'only a working run pauses');
+  assert.equal((await json(`/api/research/${id}/resume`, 'POST', {})).status, 409, 'only a paused run resumes');
+  app.script.push(text('## Tides\n\nSpring tides happen twice a month near the new and full moon [1].'));
+  await json(`/api/research/${id}/start`, 'POST', {});
+  r = await waitFor(json, id, 'done');
+  const run = (await json(`/api/research/${id}`)).body.run;
+  assert.deepEqual(run.counts, { read: 1, blocked: 0, notFound: 0, failed: 0 });
+  assert.equal(run.partial, false);
+  assert.equal((await json(`/api/research/${id}/skill`, 'POST', {})).status, 409, 'Save as a skill needs skills (none in this fixture), and says so');
+});

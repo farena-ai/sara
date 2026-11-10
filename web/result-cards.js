@@ -9,6 +9,7 @@ import { gmailResult } from './gmail-view.js';
 import { pluginResultCard } from './plugins.js';
 import { checkupCard, checkupChangeCard } from './checkup-view.js';
 import { mcpAppCard } from './mcp-apps.js';
+import { researchCard, researchOffer } from './research-card.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -228,7 +229,7 @@ function handsInstall(c) {
   return card;
 }
 
-const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard };
+const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {

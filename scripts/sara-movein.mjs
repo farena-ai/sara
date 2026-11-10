@@ -26,7 +26,7 @@ import crypto from 'node:crypto';
 import zlib from 'node:zlib';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-export const VERSION = '3.1.1';
+export const VERSION = '3.1.2';
 const FORMAT = 'saramove';
 const FORMAT_VERSION = 1;
 const MiB = 1024 * 1024;

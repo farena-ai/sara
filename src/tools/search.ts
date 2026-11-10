@@ -82,7 +82,7 @@ export function createWebSearchTool(getConfig: () => SearchConfig | undefined): 
     isAvailable: () => Boolean(getConfig()),
     spec: {
       name: 'web_search',
-      description: 'Search the web. Returns titles, URLs and snippets; use web_fetch to read a result.',
+      description: 'Search the web. Returns titles, URLs and snippets; use web_fetch to read a result. Use it to find pages ("site:example.com topic" searches one site) instead of guessing addresses. For research, guides or learning a topic, use research_start.',
       parameters: {
         type: 'object',
         properties: { query: { type: 'string' }, count: { type: 'integer', description: 'Results, default 5, max 10' } },
@@ -95,7 +95,10 @@ export function createWebSearchTool(getConfig: () => SearchConfig | undefined): 
       const cfg = getConfig();
       if (!cfg) throw new ToolError('Web search is not set up. The owner can add it in Settings.');
       const count = Math.min(10, Math.max(1, Math.floor(num(args, 'count', 5))));
-      return clip(formatResults(await runSearch(cfg, str(args, 'query'), count, ctx.signal)), 20_000);
+      const results = await runSearch(cfg, str(args, 'query'), count, ctx.signal);
+      // 3.1.2: addresses search gave are never refused as guesses.
+      ctx.webTurn?.noteFound(results.map((r) => r.url));
+      return clip(formatResults(results), 20_000);
     },
   };
 }

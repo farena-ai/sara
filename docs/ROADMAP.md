@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Research that keeps going, in 3.1.2
+
+Asking her to research a topic, make a guide or learn something now starts a research run in the
+background with a plan you start, live progress, Pause and Resume. She finds pages by searching instead
+of guessing addresses, skips sites that block automated readers, retries slow or busy sites, picks up
+after a restart, and pauses instead of failing when the model stops answering. A run cut short gives a
+report marked Partial, and a finished one can be saved as a skill and kept fresh.
+
 ## Moving in from Hermes or OpenClaw, made easy, in 3.1.1
 
 When Hermes Agent or OpenClaw is on the same computer, Sara finds it and brings her over with one
