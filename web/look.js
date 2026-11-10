@@ -157,8 +157,10 @@ export function setContextRing(pct, kept) {
   ring.dataset.pct = String(pct);
   ring.classList.toggle('full', pct >= 100);
   ring.classList.toggle('high', pct >= 80 && pct < 100);
+  // 3.3.0 (ezplain): an everyday setup shows the ring only from here (web/v4.css).
+  ring.classList.toggle('warm', pct >= 60);
   $('#ctx-pct').textContent = `${pct}%`;
-  const words = pct >= 100 ? t('This conversation is full: older messages now live on as her notes and summaries.') : t('This conversation is {pct}% full', { pct });
+  const words = pct >= 100 ? t('Nothing is lost, keep talking: this chat is long, so she now keeps its oldest messages as short notes she still remembers.') : t('This conversation is {pct}% full', { pct });
   $('#ctx-full').textContent = words;
   $('#ctx-how').textContent = t('She keeps the last {n} messages of a conversation in mind word for word. Older ones live on as the notes and summaries she writes.', { n: kept });
   ring.title = words;

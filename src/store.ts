@@ -33,6 +33,17 @@ export function movedFrom(conv: { channel: string; channelKey: string | null } |
 /** Phase 51: SQL: message `m` wasn't brought in from an export (imported messages carry meta.importedFrom). */
 export const NOT_IMPORTED = `(m.meta IS NULL OR m.meta NOT LIKE '%"importedFrom"%')`;
 
+/**
+ * 3.3.0: a stand-in conversation for background work (research, learning) that must route a model
+ * call before he has any chat: it is NOT stored, so his first chat is his own (not "Research").
+ */
+export function backgroundConversation(store: Store, title: string): Conversation {
+  const found = store.listConversations().find((c) => !c.partner && !c.private);
+  if (found) return found;
+  const at = new Date().toISOString();
+  return { id: '', title, providerId: null, model: null, workspace: 'main', mode: 'chat', private: false, channel: 'web', channelKey: null, partner: null, projectId: null, archivedAt: null, tags: [], createdAt: at, updatedAt: at };
+}
+
 export interface Conversation {
   id: string;
   title: string;

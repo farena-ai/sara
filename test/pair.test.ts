@@ -5,7 +5,9 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, before, test } from 'node:test';
 import { deviceLabel, OwnerAuth } from '../src/auth.ts';
-import { makeQr } from '../src/qr.ts';
+import { makeQr, qrSvg } from '../src/qr.ts';
+import { setReachDeps } from '../src/reach.ts';
+const qrDataUrl = (s: string) => `data:image/svg+xml;base64,${Buffer.from(qrSvg(s)).toString('base64')}`;
 import { createSaraServer, newPairCode, normalizePairCode } from '../src/server.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
 
@@ -17,10 +19,12 @@ const token = auth.newToken!;
 const server = createSaraServer({ app, auth, webDir: join(ROOT, 'web') });
 let base = '';
 before(async () => {
+  setReachDeps({ cli: () => null, interfaces: () => ({}), env: { SARA_PORT: '7860' } });
   await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
   base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 after(() => {
+  setReachDeps({});
   server.close();
   app.store.close();
   cleanup();
@@ -33,8 +37,12 @@ test('pair: owner makes a code (QR + text); it signs one device in, once; typing
   const p = await (await owner('/api/pair', 'POST')).json();
   assert.match(p.code, /^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
   assert.equal(p.url, `${base}/pair#${p.code}`);
-  assert.match(p.qr, /^data:image\/svg\+xml;base64,/);
-  assert.match(Buffer.from(p.qr.split(',')[1], 'base64').toString(), /^<svg .*<path d="M/);
+  // 3.3.0: opened as 127.0.0.1 with Sara on this computer only, no QR (a phone can't open
+  // 127.0.0.1); the phone QR with a reachable address is in test/reach.test.ts.
+  assert.equal(p.reachable, false);
+  assert.equal(p.qr, undefined);
+  assert.match(qrDataUrl(p.url), /^data:image\/svg\+xml;base64,/);
+  assert.match(Buffer.from(qrDataUrl(p.url).split(',')[1], 'base64').toString(), /^<svg .*<path d="M/);
   assert.equal((await redeem('AAAA-BBBB-CCCC')).status, 401);
   // Lower case and without dashes still works; a session cookie comes back.
   const r = await redeem(` ${p.code.toLowerCase().replaceAll('-', ' ')} `);

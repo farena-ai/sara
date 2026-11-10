@@ -80,6 +80,7 @@ import { createWatchRoutes } from './routes/watches.ts';
 import { createResearchRoutes } from './routes/research.ts';
 import { createLearnRoutes } from './routes/learn.ts';
 import { learnAskCommand } from './learn.ts';
+import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createCrewRoutes } from './routes/crews.ts';
 import { createWorkerRoutes } from './routes/workers.ts';
@@ -1058,6 +1059,15 @@ export function createSaraServer(opts: ServerOptions): Server {
     };
 
     if (a === 'health' && !b && method === 'GET') return send(res, 200, { ok: true });
+    // 3.3.0: "Can my phone reach Sara?" Sara asks herself through her outside address; the answer
+    // is signed with a secret of this process, so another server can't pass for her (src/reach.ts).
+    if (a === 'health' && b === 'reach' && !c && method === 'GET') {
+      const n = String(new URL(req.url ?? '/', 'http://x').searchParams.get('n') ?? '').slice(0, 64);
+      if (!/^[a-f0-9]{8,64}$/.test(n)) throw new HttpError(400, 'Not found');
+      const { reachSignature } = await import('./reach.ts');
+      res.setHeader('cache-control', 'no-store');
+      return send(res, 200, { ok: true, reach: reachSignature(n) });
+    }
     // EC3: readiness for load balancers and orchestrators (fixed names only).
     if (a === 'health' && b === 'ready' && !c && method === 'GET') {
       const r = opts.demo || opts.member ? { ok: true } : readiness(app, operations);
@@ -1510,7 +1520,24 @@ export function createSaraServer(opts: ServerOptions): Server {
       pairing = { hash: createHash('sha256').update(normalizePairCode(code)).digest(), expires: opts.pairs ? opts.pairs.issue(spaceId, code) : Date.now() + PAIR_MS };
       const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `http://${req.headers.host}`;
       const url = `${origin}/pair#${code}`;
-      return send(res, 200, { code, url, expiresAt: new Date(pairing.expires).toISOString(), qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(url)).toString('base64')}` });
+      // 3.3.0: the QR codes carry an address another device can really reach (never 127.0.0.1):
+      // the phone's opens the Sara app paired (https://backstagecoding.com/sara/pair#s=…&c=…), the
+      // computer's opens /pair there. Without such an address there is no QR, and the app says why.
+      const { browserOrigin, computerPairLink, listenPort, phonePairLink, resolveReach } = await import('./reach.ts');
+      const reach = await resolveReach({ origin: browserOrigin(req), dataDir: app.dataDir, port: listenPort(req) });
+      const svg = (s: string) => `data:image/svg+xml;base64,${Buffer.from(qrSvg(s)).toString('base64')}`;
+      const phoneAt = reach.awayAddress ?? reach.address;
+      const phone = phoneAt ? { address: phoneAt, link: phonePairLink(phoneAt, code), away: Boolean(reach.awayAddress) } : null;
+      const computer = reach.address ? { address: reach.address, url: computerPairLink(reach.address, code) } : null;
+      return send(res, 200, {
+        code,
+        url,
+        expiresAt: new Date(pairing.expires).toISOString(),
+        reachable: Boolean(phone),
+        reach: { address: reach.address, kind: reach.kind, away: reach.away, https: reach.https },
+        ...(phone ? { phone: { ...phone, qr: svg(phone.link) }, qr: svg(phone.link) } : {}),
+        ...(computer ? { computer: { ...computer, qr: svg(computer.url) } } : {}),
+      });
     }
     if (a === 'pair' && !b && method === 'DELETE') {
       pairing = undefined;
@@ -1879,6 +1906,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           ownerName: s.ownerName ?? '',
           // Phase 114 (PL1b): the use choice from step 1 (shown again when the wizard is reopened).
           usePath: usePathOf(s.usePath),
+          // 3.3.0: not picked yet: the wizard preselects Company (talk, plan, remember), not Both.
+          usePathSet: Boolean(s.usePath),
           ollama: ollama.slice(0, 1),
           subscriptions: { grok: subs?.grokStatus().signedIn ?? false, claude: subs?.claudeStatus().signedIn ?? false, chatgpt: Boolean(subs?.chatgpt.status().signedIn) },
         });
@@ -1986,6 +2015,8 @@ export function createSaraServer(opts: ServerOptions): Server {
             ...(body.workspace !== undefined ? { workspace: validWorkspace(body.workspace) } : project?.workspace ? { workspace: project.workspace } : {}),
             ...(body.mode !== undefined ? { mode: validMode(body.mode) } : {}),
             ...(body.private !== undefined ? { private: Boolean(body.private) } : {}),
+            // 3.3.0: the first-run guide names the first chat ("Chat with Sara").
+            ...(typeof body.title === 'string' && body.title.trim() ? { title: body.title.replace(/\s+/g, ' ').trim().slice(0, 80) } : {}),
           }),
         );
       }
@@ -2057,7 +2088,9 @@ export function createSaraServer(opts: ServerOptions): Server {
             clearQueue: (id) => pendOf(id).clear(id),
           };
           const r = await runCommand({ app, bridge: 'web', place: 'owner-dm', who: 'owner', lang: appLanguage(app.settings.get()), cmd, adapter });
-          return send(res, 200, { reply: r.text, command: cmd.name, ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}), ...(r.report ? { report: r.report } : {}) });
+          // 3.3.0: /learn without web search answers with the Turn on web search button (never nothing).
+          const webOff = cmd.name === 'learn' && r.refused ? webSearchOff(app, 'search the web') : null;
+          return send(res, 200, { reply: r.text, command: cmd.name, ...(webOff ? { webSearch: webOff } : {}), ...(r.opened ? { opened: r.opened } : {}), ...(r.choices ? { choices: r.choices } : {}), ...(r.approval ? { approvalId: r.approval.id } : {}), ...(r.refused ? { refused: true } : {}), ...(r.report ? { report: r.report } : {}) });
         }
         const view = (m: StoredMessage) => ({
           ...m,

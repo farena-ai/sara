@@ -6,6 +6,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { everydayMatches } from '../web/everyday-words.js';
 import { JOBS } from './modelpicks.ts';
 import { QUIET_FOCUS, TRAITS } from './traits.ts';
 import type { Tool } from './tools/types.ts';
@@ -175,6 +176,14 @@ export function guideEntries(webDir = WEB): GuideEntry[] {
 export function searchGuide(question: string, k = 5, entries = guideEntries()): GuideEntry[] {
   const q = [...new Set(words(question))];
   if (!q.length) return [];
+  // 3.3.0 (ezplain): everyday words ("bigger text", "delete a chat", "how much does this cost") answer
+  // with the right place first, from the same list as the Settings search (web/everyday-words.js).
+  const plain: GuideEntry[] = everydayMatches(question).slice(0, 2).map((e) => ({ title: e.title, text: e.how, link: e.page ? `/#view=settings:${e.page}` : '', ...(e.page ? { place: e.title.replace(/ \(.*$/, '') } : {}), words: [] }));
+  if (plain.length) return [...plain, ...rankGuide(q, question, k, entries).filter((h) => !plain.some((p) => p.link && p.link === h.link))].slice(0, k);
+  return rankGuide(q, question, k, entries);
+}
+
+function rankGuide(q: string[], question: string, k: number, entries: GuideEntry[]): GuideEntry[] {
   // Adult mode isn't advertised: it only comes up when they ask about it.
   if (!/\b(adult|18|explicit|nsfw|sexual|spicy|intima)/i.test(question)) entries = entries.filter((e) => !/adult|18 or older/i.test(e.title) && !e.link.includes('you-adult'));
   const df = new Map<string, number>();
@@ -209,7 +218,7 @@ export function formatGuide(hits: GuideEntry[]): string {
   if (!hits.length) return 'Nothing in the settings guide matches that. Answer from what you know, or point to the guide: [the guide](/help).';
   return [
     'From your settings guide (answer in your own words, briefly; include the most useful link as a markdown link so they can open it):',
-    ...hits.map((h) => `- ${h.title}: ${h.text}\n  Link: [${linkText(h)}](${h.link})`),
+    ...hits.map((h) => (h.link ? `- ${h.title}: ${h.text}\n  Link: [${linkText(h)}](${h.link})` : `- ${h.title}: ${h.text}`)),
   ].join('\n');
 }
 

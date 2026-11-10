@@ -47,6 +47,22 @@ export function starterChips(path, where, t) {
   return [day, hello, look, fix];
 }
 
+/**
+ * 3.3.0: key help per cloud service in the guide: where to get the key (opens their site), what one
+ * looks like. Unknown services get no link (the general words still say what a key is).
+ */
+const KEYS = {
+  'ollama-cloud': { url: 'https://ollama.com/settings/keys', site: 'ollama.com', looks: (t) => t('It is a long mix of letters and numbers.') },
+  openai: { url: 'https://platform.openai.com/api-keys', site: 'platform.openai.com', looks: (t) => t('It starts with sk- and is a long line of letters and numbers.') },
+  anthropic: { url: 'https://console.anthropic.com/settings/keys', site: 'console.anthropic.com', looks: (t) => t('It starts with sk-ant-.') },
+  xai: { url: 'https://console.x.ai', site: 'console.x.ai', looks: (t) => t('It starts with xai-.') },
+  openrouter: { url: 'https://openrouter.ai/keys', site: 'openrouter.ai', looks: (t) => t('It starts with sk-or-.') },
+};
+export function keyHelp(id, t) {
+  const k = KEYS[String(id ?? '').replace(/-\d+$/, '')];
+  return k ? { url: k.url, site: k.site, looks: k.looks(t) } : { url: '', site: '', looks: '' };
+}
+
 /** The tour offer's words: the stops are six, and Help keeps every tour (also the full one). */
 export function offerText(path, t) {
   const p = normPath(path);

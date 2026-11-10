@@ -300,7 +300,9 @@ export function paintElsewhere(raw) {
   for (const h of hits) {
     const b = el('button', 'ghost se-item');
     b.type = 'button';
-    b.append(el('span', 'se-label', h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → ')), ...(h.detail ? [el('span', 'muted small se-detail', h.detail)] : []));
+    // 3.3.0 (ezplain): an everyday place ("delete a chat") says where it is in the app language.
+    const detail = h.id === 'howto:delete-chat' ? t('In the list of chats, press ⋯ next to the chat, then Delete.') : h.detail;
+    b.append(el('span', 'se-label', h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → ')), ...(detail ? [el('span', 'muted small se-detail', detail)] : []));
     b.addEventListener('click', () => void openSearchPlace(h.id));
     list.append(b);
   }

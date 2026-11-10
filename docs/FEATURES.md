@@ -142,10 +142,22 @@ Desktop; [listed on Glama](https://glama.ai/mcp/servers/farena-ai/sara)) and cha
 
 Every page and view starts with a **How do I…?** box: two to four questions with numbered steps, and *Show me* points at the control. Empty pages say what goes there and offer one next step. All 181 answers in one list: [HOW_DO_I.md](HOW_DO_I.md).
 
+Everyday words find the right place: *bigger text*, *dark mode*, *how much does this cost*, *delete a
+chat*, *mute*, *language*, *password*, *backup* and their usual variants (in the six app languages)
+go first to the matching page in Ctrl K, the Settings search and when you ask her "How do I…?". Or
+just ask her to change it: *make the text bigger*, *switch to dark mode*, *change your color to
+green*, *turn off your voice*, *call me Pat*. She changes those few everyday settings herself and the
+chat shows the change with **Undo**. Anything about safety, approvals, privacy or sign-in she only
+explains: you change it yourself.
+
 ### Safety, always on
 
-Risky actions wait for your OK, in the
-chat, in her panel, or as a notification with Allow / Deny in the Windows and Mac apps. The safety
+Risky actions wait for your OK: one card in the chat with Allow and Deny, in plain words
+(*Sara wants to run a small program that came with her "weather-check" skill. It will: …*, the file
+and its code behind *Show details*). Scrolled away from it? The line above the message box gets the
+same two answers and **Show me**, so a waiting step can never be out of reach; her panel and Today's
+*Needs you* (Approve / Not now) point to it, and the chat has a red dot in the list. In the Windows
+and Mac apps it is also a notification with Allow / Deny. The safety
 layer runs in code around every model call and **cannot be switched off**: AI disclosure at the start
 and regularly after, an honest answer whenever she's sincerely asked if she's an AI, crisis resources,
 and a hard block on sexual content involving minors ([COMPLIANCE.md](COMPLIANCE.md),

@@ -449,6 +449,8 @@
               <span class="ai-badge td-ai" title="Sara is an AI companion">AI companion</span>
             </div>
           </header>
+          <!-- 3.3.0: her own trouble (AI service down, key rejected, a mailbox signed out): a banner with one Fix it, first on every screen. -->
+          <div id="td-trouble" class="td-trouble" role="status" hidden></div>
           <!-- Phase 112 (TD2): the Now card on phones and tablets: the next things with a countdown, the weather in one line, her mood. -->
           <section id="td-now" class="td-nowcard" aria-labelledby="td-now-h" hidden>
             <div class="td-now-head"><h2 id="td-now-h" class="td-now-h">Now</h2><span id="td-now-date" class="td-now-date"></span></div>
@@ -946,6 +948,8 @@
             <label>Key <input id="su-key" type="password" autocomplete="off"></label>
             <button id="su-key-go" type="button">Connect</button>
           </div>
+          <!-- 3.3.0: where to get the key for the picked service, what it looks like, what a key is (web/first-run.js keyHelp). -->
+          <p id="su-key-help" class="small su-key-help" aria-live="polite"></p>
         </div>
         <div class="su-way-panel" id="su-subs-box" hidden>
           <p class="small">Signing in takes a browser step. Finish this guide, then press <em>Sign in</em> under Settings → Models → Subscriptions; it opens for you at the end.</p>
@@ -968,9 +972,11 @@
         <p id="su-starters-note" class="muted">Pick one to start, or press Start talking and say anything.</p>
         <div id="su-starters" class="chips su-starters"></div>
         <p class="small"><button id="su-routine" type="button" class="linkish">Or turn on a routine →</button></p>
+        <!-- 3.3.0: an old assistant found on this computer: a quiet line, not a big first chip. -->
+        <p id="su-movein" class="small" hidden><button id="su-movein-go" type="button" class="linkish"></button></p>
         <div id="su-checkin" class="su-checkin"></div>
         <ul class="setup-tips">
-          <li>Just type to talk; 📎 sends a photo or a document. Talking out loud (🎙) and calls (📞) appear once her voice is set up in Settings → Voice.</li>
+          <li>Just type to talk; 📎 sends a photo or a document. Tap 🎙 to talk out loud: the first time, she helps you set up her voice in about a minute.</li>
           <li><strong>✨ Create your companion</strong> (Settings → Name and personality): her personality, life, look and voice in 8 short steps.</li>
           <li>Put her on your phone: Settings → Connections → Install as an app.</li>
           <li>She's an AI. If you ever sincerely ask, she'll say so.</li>
@@ -2494,6 +2500,7 @@
       <p id="ci-msg" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="her-look" data-group="Her" data-title="Look" hidden>
+      <p class="small muted look-where">Which picture shows (the moving orb, her portrait, your own picture or a 3D model) is chosen in Appearance, under Her picture. <button type="button" class="linkish" data-open-page="you-appearance">Open Appearance</button></p>
       <p class="muted small page-lead">Describe a look and Grok Imagine paints it (on your Grok subscription, or an xAI key). Like it? Sara then gets matching happy, caring and sleepy pictures and blink/talk frames, so she animates like the default. About a minute.</p>
       <label>Describe the look <input id="look-desc" maxlength="600" placeholder="e.g. a man in his 30s with short dark curly hair, a beard and a denim jacket"></label>
       <div class="add-row">
@@ -3041,6 +3048,8 @@
           <select id="ap-herpic"><option value="orb">Presence orb (default)</option><option value="portrait">Her portrait, animated</option><option value="portrait-still">Her portrait, still</option><option value="own">Your picture</option><option value="vrm">A 3D model (.vrm)</option></select>
         </label>
         <p class="small muted ap-herpic-note">A picture shows round, with a thin ring that moves with her like the orb. <button id="ap-herpic-upload" type="button" class="linkish">Upload your picture of her</button></p>
+        <!-- 3.3.0 (ezplain): everything about her picture starts here; Look and her page point back. -->
+        <p id="ap-herpic-more" class="small muted ap-herpic-more">New looks and outfits for her are made on the Look page. <button type="button" class="linkish" data-open-page="her-look">Open Look</button></p>
         <!-- A1 (docs/ops/A1_AVATAR_DESIGN.md): her animated picture's extras (web/avatar-settings.js). -->
         <div id="ap-vrm-row" class="ap-avatar-row small" data-nodirty data-noauto hidden><button type="button" class="ghost small" data-pick="ap-vrm-file">Choose a .vrm file</button><input id="ap-vrm-file" type="file" accept=".vrm" hidden> <button id="ap-vrm-remove" type="button" class="linkish small" hidden>Remove the model</button> <span id="ap-vrm-note" class="muted" role="status"></span></div>
         <div id="ap-fit-row" class="ap-avatar-row small" data-nodirty data-noauto hidden><button id="ap-fit-open" type="button" class="ghost small">Fit the face</button> <span class="muted">Three dots on your picture (eyes, mouth), so she can blink and glance in it.</span></div>
@@ -3070,10 +3079,10 @@
       <aside id="ap-preview" class="ap-preview" aria-label="Preview">
         <p class="ap-preview-h">Preview</p>
         <div class="ap-pv-box">
-          <div class="ap-pv-turn"><img class="avatar ap-pv-face" src="/sara-avatar.jpg" alt=""><span class="ap-pv-name">Sara</span> <span class="ap-pv-meta">now · 2 s</span></div>
-          <p class="ap-pv-text">Here is the plan for today. The build passed, so we can ship the alerts fix.</p>
-          <div class="ap-pv-card"><span class="ap-pv-dot"></span><span><strong>Build passed</strong> <span class="ap-pv-meta">142 tests · 38 s</span></span></div>
-          <div class="ap-pv-actions"><span class="ap-pv-btn ap-pv-primary">Ship it</span><span class="ap-pv-btn">Later</span><span class="ap-pv-chip" data-raw>fast-model · main</span></div>
+          <div class="ap-pv-turn"><img class="avatar ap-pv-face" src="/sara-avatar.jpg" alt=""><span class="ap-pv-name">Sara</span> <span class="ap-pv-meta">now</span></div>
+          <p class="ap-pv-text">Good morning! It's sunny today, so the walk at ten still works. I added milk to your shopping list.</p>
+          <div class="ap-pv-card"><span class="ap-pv-dot"></span><span><strong>Reminder set</strong> <span class="ap-pv-meta">Call Grandma · this evening</span></span></div>
+          <div class="ap-pv-actions"><span class="ap-pv-btn ap-pv-primary">Thanks!</span><span class="ap-pv-btn">Later</span><span class="ap-pv-chip">Today · 3 things</span></div>
         </div>
       </aside>
       </div>
@@ -3695,6 +3704,7 @@
       <div id="mcp-discovery" class="addon-discovery" data-noauto></div>
         </section>
         <section class="settings-page" data-page="co-phone" data-group="Connections" data-title="Phone and notifications" hidden>
+      <div id="reach-phone" class="rch-host" data-nodirty data-noauto hidden></div>
       <div id="phone-app" hidden>
         <h3>Phone app</h3>
         <p class="muted small" id="phone-app-note">This phone checks for her messages about every 15 minutes and shows them as notifications (instantly while the app is open).</p>
@@ -4223,8 +4233,9 @@
         </section>
         <section class="settings-page" data-page="dh-health" data-group="Data & health" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">
-        <p class="small"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>
+        <p class="small" id="access-row"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>
         <p id="access-warn" class="muted small" hidden></p>
+        <div id="reach-line" data-nodirty data-noauto hidden></div>
         <img id="access-qr" class="pair-qr" alt="QR code with the address to open on your phone" hidden>
         <p id="access-qr-how" class="muted small qr-how" hidden>Scan with your phone's camera, then tap Open in the Sara app.</p>
       </div>
@@ -4313,15 +4324,25 @@
         <div id="pair-show" hidden>
           <img id="pair-qr" class="pair-qr" alt="QR code for signing in">
           <div class="pair-how small">
-            <p><strong>Phone:</strong> scan with your phone's camera, then tap Open in the Sara app. Or type your server address and this code in the app.</p>
+            <div id="pair-noreach" class="rch-noreach" hidden>
+              <p><strong>Your phone can't reach this computer yet</strong></p>
+              <p>Sara only answers on this computer right now, so a phone or another computer has nowhere to go. A free app called Tailscale links your devices, at home and away.</p>
+              <p><button id="pair-setup-access" type="button" class="primary">Set up access</button></p>
+              <p>The code still works for the Sara app on this computer.</p>
+            </div>
+            <p id="pair-phone-how"><strong>Phone:</strong> scan with your phone's camera and tap the link: the Sara app opens and signs in by itself.</p>
+            <p id="pair-get-app">No app yet? <a href="https://play.google.com/store/apps/details?id=com.backstagecoding.sara" target="_blank" rel="noopener">Sara on Google Play</a></p>
             <p class="pair-code-big" id="pair-code-text" data-raw></p>
-            <p><strong>Computer:</strong> open <code id="pair-url" data-raw></code></p>
+            <p id="pair-phone-addr" hidden>In the app you can also type this address and the code: <code id="pair-addr" data-raw></code></p>
+            <p id="pair-computer-how" hidden><strong>Computer:</strong> in the Sara app or a browser there, open <code id="pair-url" data-raw></code></p>
             <p class="muted" id="pair-exp"></p>
             <p><button id="pair-cancel" type="button" class="ghost small">Cancel the code</button></p>
           </div>
         </div>
         <p id="pair-done" class="small" role="status"></p>
       </div>
+      <h3 id="reach-away-h">Use Sara away from home <button type="button" class="tip" data-tip="Reach Sara from your phone when you are out, with Tailscale: a free app that links your own devices privately. Three steps; Sara checks each one.">?</button></h3>
+      <div id="reach-away" class="rch-host" data-nodirty data-noauto></div>
       <div id="hd-box" class="hd-box" data-nodirty hidden>
         <h3>Phone as a helper <button type="button" class="tip" data-tip="Sara may ask this phone or browser for one picture, its location or one screen picture when you ask her for help. Each time it shows a full-screen prompt here: nothing is taken unless you tap Allow once.">?</button></h3>
         <label class="row"><input id="hd-on" type="checkbox"> Sara may ask this device for its camera, location or screen <button type="button" class="tip" data-tip="Only while Sara is open on this device, never in the background. Location is approximate (about 1 km) unless she asks for the exact spot, and the prompt says which. Signing this device out turns it off.">?</button></label>

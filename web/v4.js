@@ -166,7 +166,9 @@ function renderGlance() {
     const limit = Number(spend.spend?.dayUsd) || 0;
     $('#v4-g-spend-big').textContent = money(day);
     const saver = spend.saver?.on ? t('Token Saver on') : t('Token Saver off');
-    $('#v4-g-spend-sub').textContent = `${limit ? t('of a {limit} daily limit', { limit: money(limit) }) : t('No daily limit set')} · ${saver}`;
+    // 3.3.0 (ezplain): Token Saver is a Coding word; an everyday setup sees only the limit.
+    const plain = document.documentElement.dataset.usePath === 'company';
+    $('#v4-g-spend-sub').textContent = `${limit ? t('of a {limit} daily limit', { limit: money(limit) }) : t('No daily limit set')}${plain ? '' : ` · ${saver}`}`;
     const sp = sparkPath(spend.hours);
     const host = $('#v4-g-spark');
     host.replaceChildren();

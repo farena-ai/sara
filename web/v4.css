@@ -237,3 +237,10 @@ html.shell:where(:not([data-palette="classic"])) .shell-drag { display: none; }
   .v4-chip .v4-dot::after, .v4-bar i { animation: none !important; }
   .v4-field { display: none !important; }
 }
+
+/* 3.3.0 (ezplain): plain words for an everyday setup. The context ring only shows once the chat is
+   getting full (a bare "0%" means nothing); Workers and the token count are for the Coding use. */
+:root:not([data-use-path="coding"]) #ctx-ring:not(.warm):not(.full) { display: none; }
+:root:not([data-use-path="coding"]) #hp-ctx:not(:has(.hp-ctx-ring.warm, .hp-ctx-ring.full)) { display: none; }
+:root[data-use-path="company"] #v4-g-workers { display: none; }
+:root[data-use-path="company"] .td-usage-tok:has(+ span) { display: none; }

@@ -50,6 +50,8 @@ function wizard() {
     t: (s: string) => s, normPath: (s: string) => s || 'both', pathChoices: () => [], starterChips: () => [],
     countWords: () => '3 models', modelCounts: () => ({}), CLOUD_TAG: /cloud/, todayOpen: () => false, suggestModel,
     unfoldFirstRun() {}, foldFirstRun() {}, queueTourOffer() {}, setIdentity() {}, icon: () => '', URL, Intl,
+    // 3.3.0 (ezfirst): key help, closing Today and her name for the first chat.
+    keyHelp: () => ({ url: '', site: '', looks: '' }), closeToday() {}, currentIdentity: () => ({ name: 'Sara' }),
   };
   const src = readFileSync(join(ROOT, 'web/setup-wizard.js'), 'utf8').replace(/^import .*;\r?\n/gm, '').replace(/^export /gm, '');
   runInNewContext(src + '\nglobalThis.wizard = { initSetupWizard, openSetup, openModelSetup, suConnect, su };', env);

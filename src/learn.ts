@@ -16,6 +16,7 @@
 //
 // Tables (additive, her own store.db): learn_topics, learn_runs.
 import type { DatabaseSync } from 'node:sqlite';
+import { backgroundConversation } from './store.ts';
 import { isIP } from 'node:net';
 import { audit } from './audit-trail.ts';
 import type { AppContext } from './chat.ts';
@@ -515,8 +516,8 @@ export class Learning {
   }
 
   #conv() {
-    const store = this.#app.store;
-    return store.listConversations().find((c) => !c.partner && !c.private) ?? store.createConversation({ title: 'Learning' });
+    // 3.3.0: never makes a chat of its own (his first chat is his).
+    return backgroundConversation(this.#app.store, 'Learning');
   }
 
   /** A model call, retried a few times with a pause (3.1.2: a provider hiccup doesn't end the run). */

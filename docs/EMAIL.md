@@ -8,7 +8,8 @@ works with your calendar. Everything is set up in **Settings → Add-ons → Ema
 
 | Provider | How Sara signs in | Mail | Calendar |
 |---|---|---|---|
-| **Gmail / Google Workspace** | Your own Google app (OAuth). Steps: [GMAIL.md](GMAIL.md) | ✓ (labels, stars, categories) | ✓ |
+| **Gmail** (the **Add Gmail** button) | App password (2-Step Verification on; IMAP + SMTP), 3 steps below | ✓ (folders; Gmail labels show as folders) | — |
+| **Gmail / Google Workspace, advanced** | Your own Google app (OAuth). Steps: [GMAIL.md](GMAIL.md) | ✓ (labels, stars, categories) | ✓ |
 | **Outlook.com, Hotmail, Live, MSN, Microsoft 365** | Your own Microsoft app (OAuth, Microsoft Graph). Steps below | ✓ (folders, categories, flags) | ✓ |
 | **Yahoo Mail, AOL** | App password (IMAP + SMTP) | ✓ (folders, flags) | — |
 | **iCloud Mail** | App-specific password | ✓ | — |
@@ -16,42 +17,71 @@ works with your calendar. Everything is set up in **Settings → Add-ons → Ema
 | **Zoho Mail** (.com / .eu) | App password; IMAP access switched on | ✓ | — |
 | **GMX, WEB.DE** | IMAP switched on in their settings; an application-specific password with two-step sign-in | ✓ | — |
 | **Proton Mail** | Proton Mail Bridge on the same computer (paid Proton plans) and the password Bridge shows | ✓ | — |
-| **Gmail with an app password** | App password (2-Step Verification on; IMAP + SMTP). How household members add Gmail | ✓ (folders; Gmail labels show as folders) | — |
 | **Other** | Type the IMAP and SMTP servers and the app password | ✓ | — |
 
-Outlook.com no longer lets programs in with a password over IMAP: Microsoft requires its own sign-in,
-which is why Outlook goes through Microsoft Graph with an app you own. Nothing goes through anyone
-else's servers.
+Outlook.com no longer lets programs in with a password over IMAP (Microsoft switched it off in
+September 2024): Microsoft requires its own sign-in, which is why Outlook goes through Microsoft Graph
+with an app you own. Nothing goes through anyone else's servers.
 
 You can connect **several mailboxes** (for example Gmail and Outlook). One is the **default**: she
 uses it unless you name another ("search my Outlook for the invoice", "what needs an answer in all my
 mail?"). Today's Mail card and the morning briefing show the default mailbox (and its calendar).
 
-## Connecting Outlook or Microsoft 365 (about 10 minutes, once)
+## Adding Gmail (3 steps, about 3 minutes)
 
-Settings → Add-ons → Email and calendar → **Add Outlook or Microsoft 365** shows these steps with
-the exact address to paste and a Copy button:
+**Add Gmail** opens the simple route: an app password (3.3.0; before that it opened the Google Cloud
+setup). An app password is a separate password just for Sara, made by Google; it is not your normal
+password and you can delete it at Google any time.
 
-1. Open the **Microsoft Entra admin center** (entra.microsoft.com) and sign in with your Microsoft
-   account. (A personal Outlook.com account gets a free "Default Directory" the first time.)
-2. **Identity → Applications → App registrations → New registration.** Name: *Sara*. Supported
-   account types: **"Accounts in any organizational directory and personal Microsoft accounts"**.
-3. **Redirect URI**: platform *Web*, paste the address Sara shows
-   (`https://<your Sara>/api/mail/microsoft/callback`), press **Register**. Microsoft accepts
-   `http://` only for `localhost`: sign in from `http://localhost:<port>` on the server's computer, or
-   use Sara over https.
-4. On **Overview**, copy the **Application (client) ID**.
-5. **Certificates & secrets → Client secrets → New client secret** (description *Sara*, 24 months) →
-   copy the **Value** at once (not the Secret ID).
-6. **API permissions → Add a permission → Microsoft Graph → Delegated permissions**: tick
-   `offline_access`, `User.Read`, `Mail.ReadWrite`, `Mail.Send`, `Calendars.ReadWrite` → **Add
-   permissions**. No admin consent is needed for your own mailbox.
-7. Back in Sara: paste the ID and the secret value, **Save**, then **Sign in with Microsoft** and
-   accept. Press **Test** on the account.
+1. Press **Where to make an app password** and sign in at Google. 2-Step Verification must be on
+   (Google Account → Security → 2-Step Verification).
+2. Under App passwords, name it *Sara*, press **Create** and copy the 16 letters.
+3. Back in Sara: your Gmail address, paste the app password, **Add and check**.
 
-The client secret expires (24 months at most). When it does, Microsoft refuses the sign-in and the
-account shows *Signed out*: make a new secret (step 5), save it, and sign in again. Removing Sara's
-access on Microsoft's side: account.live.com/consent/Manage (personal) or My Apps (work accounts).
+The server names are under *Server details (you can ignore these)*. **Advanced: full Gmail organizing
+(Google Cloud)** under the form is the older route with your own Google app ([GMAIL.md](GMAIL.md),
+about 10 minutes): only needed for Gmail labels and Google Calendar.
+
+### When a check fails
+
+**Add and check** and **Check it** on a connected mailbox say why in plain words:
+
+| What you see | What it means |
+|---|---|
+| *didn't accept that app password* | The password was wrong (or it was your normal password). Make a new app password and paste all of it. |
+| *wants an app password … 2-Step Verification on first* | Two-step sign-in is off at the provider, so it has no app passwords yet. |
+| *IMAP is switched off* / *Mail apps are switched off* | Switch IMAP on in the mailbox's web settings (Gmail: Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP). |
+| *couldn't reach the mail server* | No internet on Sara's computer, or a mistyped server name. |
+
+The server's own words are under *What the server said*.
+
+## Connecting Outlook or Microsoft 365 (3 steps, about 5 minutes, once)
+
+Outlook.com, Hotmail and Live **no longer accept app passwords for mail apps**: Microsoft switched
+Basic Authentication off for personal accounts on 16 September 2024 and requires its own sign-in
+(OAuth). So Outlook stays on the Microsoft sign-in (Microsoft Graph). Microsoft wants a sign-in app
+registered by someone for that; Sara can't ship a shared one without a publisher account and
+Microsoft's review, so you register your own, free. Since 3.3.0 it is a *public client* app: **no
+client secret** to make, copy or renew.
+
+Settings → Add-ons → Email and calendar → **Add Outlook or Microsoft 365** shows:
+
+1. **Make a free sign-in app at Microsoft (once).** Press *Open Microsoft app registrations*, sign
+   in with the same Microsoft account as the mailbox (a personal Outlook.com account gets its own
+   free space the first time), press **New registration**, name it *Sara*, pick *"Accounts in any
+   organizational directory and personal Microsoft accounts"*. Under **Redirect URI** pick
+   **Public client/native (mobile & desktop)** and paste the address Sara shows (Copy button), then
+   **Register**.
+2. **Copy its ID into Sara.** The app's Overview page shows the *Application (client) ID*
+   (`1a2b3c4d-…`): paste it and **Save**.
+3. **Sign in with Microsoft**, pick the account, **Accept**. Sara asks for mail and calendar access
+   at sign-in, so no API permissions need ticking.
+
+An app registered as **Web** before 3.3.0 keeps working: its client secret is under *Only if you
+picked "Web" instead*. A Web app's secret expires (24 months at most); the account then shows
+*Signed out*: make a new secret, save it and sign in again. Removing Sara's access on Microsoft's
+side: account.live.com/consent/Manage (personal) or My Apps (work accounts). Microsoft accepts
+`http://` only for `localhost`/`127.0.0.1`: sign in from the server's own computer, or use Sara over https.
 
 ## Connecting another provider
 

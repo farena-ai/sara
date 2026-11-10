@@ -72,8 +72,22 @@ function setOpen(box, open) {
 
 const money = (usd) => (usd < 0.01 && usd > 0 ? '<$0.01' : `$${usd.toFixed(2)}`);
 
+/**
+ * 3.3.0 (ezplain): an everyday chat says what she did in plain words (no steps, no tokens); a coding
+ * chat (or the Coding use) keeps the technical ones.
+ */
+export function plainChat() {
+  const doc = globalThis.document;
+  if (!doc) return false;
+  return !doc.getElementById('main')?.classList.contains('coding-chat') && doc.documentElement.dataset.usePath !== 'coding';
+}
+
 function headText(m) {
   if (m.waiting) return t('Waiting for your OK');
+  if (plainChat()) {
+    if (m.live) return t('Working on it…');
+    return m.total === 1 ? t('She did 1 thing') : t('She did {n} things', { n: m.total });
+  }
   if (m.live) return t('Step {n}', { n: m.active + 1 });
   return m.total === 1 ? t('1 step') : t('{n} steps', { n: m.total });
 }
@@ -81,7 +95,7 @@ function headText(m) {
 function footBits(box, m) {
   const bits = [];
   const tot = runTotals(box._run);
-  if (tot && tot.tokens) bits.push(t('{n} tokens', { n: tot.tokens.toLocaleString() }));
+  if (tot && tot.tokens && !plainChat()) bits.push(t('{n} tokens', { n: tot.tokens.toLocaleString() }));
   if (tot) bits.push(tot.incomplete ? t('{cost} (some calls have no price)', { cost: money(tot.usd) }) : money(tot.usd));
   if (m.sandboxTries) bits.push(m.sandboxTries === 1 ? t('Sandbox: 1 try') : t('Sandbox: {n} tries', { n: m.sandboxTries }));
   if (m.verified) bits.push(m.verified === 1 ? t('1 verified') : t('{n} verified', { n: m.verified }));
@@ -172,7 +186,7 @@ export function runLatest(box) {
 
 /** The fold words and the summary's expanded state (the whole one-line head is the button). */
 function foldWords(box) {
-  box.querySelector('.v4-run-fold').textContent = box.open ? t('Fold') : t('Show steps');
+  box.querySelector('.v4-run-fold').textContent = box.open ? (plainChat() ? t('Hide') : t('Fold')) : plainChat() ? t('Show') : t('Show steps');
   const sum = box.querySelector('.steps-sum');
   if (sum) sum.setAttribute('aria-expanded', String(box.open));
 }

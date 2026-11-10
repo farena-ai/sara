@@ -4,6 +4,9 @@
 // a weather card, "Task added", "Files changed" and so on. Tools without a card keep the step line
 // only. Everything here is pure (no I/O) and every string is clipped, so a card is always small.
 
+import { randomBytes } from 'node:crypto';
+import { EVERYDAY_SETTINGS, everydayValue, type EverydaySetting } from './everyday-settings.ts';
+
 export type WeatherDay = { date: string; max?: string; min?: string; icon?: string };
 export type Card =
   | { kind: 'weather'; place: string; temp?: string; feels?: string; condition?: string; icon?: string; wind?: string; humidity?: string; days?: WeatherDay[] }
@@ -30,6 +33,8 @@ export type Card =
   | { kind: 'checkup'; computer: string; os: string; at: string; windows: boolean; flagged: number; items: CheckupCardItem[]; suggestions: CheckupCardSuggestion[] }
   /** Phase 94: one check-up change, done or declined on the computer. */
   | { kind: 'checkup-change'; id: string; change: string; outcome: 'done' | 'declined'; windows?: boolean; name?: string; bytes?: number; page?: string; computer?: string }
+  /** 3.3.0 (ezplain): an everyday setting she changed when asked (web/everyday-card.js applies a device one once, with Undo). */
+  | { kind: 'setting'; id: string; at: string; setting: string; value: string; device: boolean; from?: string }
   /** Phase 98: a card a plugin made (data only: title, up to 8 lines, a picture from its own folder, a link, up to 3 buttons). */
   | import('./hooks.ts').PluginCard
   /** C3: an MCP App (its page is served by /api/mcp-apps/<id>/frame in a sandboxed frame). */
@@ -62,6 +67,20 @@ export function cardFor(input: CardInput): Card | undefined {
 
 function build({ name, args, output, thumb }: CardInput): Card | undefined {
   switch (name) {
+    case 'change_setting': {
+      // The value the tool settled on is in its own output; device settings are applied by the card.
+      const setting = arg(args, 'setting');
+      if (!/^Changed: /.test(output) || !(setting in EVERYDAY_SETTINGS)) return undefined;
+      const def = EVERYDAY_SETTINGS[setting as EverydaySetting];
+      let value: string;
+      try {
+        value = everydayValue(setting as EverydaySetting, args.value);
+      } catch {
+        return undefined;
+      }
+      const from = def.device ? undefined : /\(was "([^"]*)"\)/.exec(output)?.[1];
+      return { kind: 'setting', id: randomBytes(6).toString('hex'), at: new Date().toISOString(), setting, value: cut(value, 60), device: def.device, ...(from ? { from: cut(from, 60) } : {}) };
+    }
     case 'pc_devices':
       return output.startsWith('No computer is connected') ? { kind: 'hands-install', url: APPS_PAGE } : undefined;
     case 'pc_browser_open': {

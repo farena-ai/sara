@@ -26,6 +26,7 @@ import { disclosureText } from '../safety.ts';
 import { adultModeOn } from '../settings.ts';
 import { clearTodayCache, todayChanged } from '../today.ts';
 import { IMAP_PRESETS } from '../mail/presets.ts';
+import { explainSignIn } from '../mail/explain.ts';
 import { getLayout } from '../today-layout.ts';
 import { ACTION_WORDS, RECONNECT_TEXT } from '../gmail-organize.ts';
 import { sceneAllowed, ENTITY_ID, haCall, switchPlan } from '../home-switch.ts';
@@ -460,7 +461,9 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
           const text = await p.test(AbortSignal.timeout(30_000));
           return send(res, 200, { ok: true, text });
         } catch (err) {
-          return send(res, 200, { ok: false, text: (err as Error).message.slice(0, 300) });
+          // 3.3.0 (ezplain): the reason in plain words on the page (wrong password, 2-step, IMAP off…).
+          const msg = (err as Error).message.slice(0, 300);
+          return send(res, 200, { ok: false, text: msg, reason: explainSignIn(msg, accts.list().find((x) => x.id === c)?.provider ?? '') });
         }
       }
       if (b === 'microsoft' && c === 'client' && method === 'PUT') {
@@ -511,7 +514,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
             last = (err as Error).message;
           }
         }
-        throw new HttpError(400, `Couldn't sign in: ${last.slice(0, 300)}`);
+        throw new HttpError(400, `Couldn't sign in: ${last.slice(0, 300)}`, { reason: explainSignIn(last, String(body.preset ?? 'other')), detail: last.slice(0, 300) });
       }
       if (b === 'undo' && c && method === 'POST') {
         guardOn();

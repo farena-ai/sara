@@ -137,7 +137,8 @@ test('appr: the approval card stays within reach (static)', () => {
   const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
   assert.match(html, /<span id="activity-act" hidden><\/span>/);
   const panel = readFileSync(join(ROOT, 'web', 'her-panel.js'), 'utf8');
-  assert.match(panel, /button\[data-answer="no"\]/, 'her panel\'s Deny never presses Always allow');
+  // 3.3.0 (ezplain): her panel points to the card (Show me) instead of a third Allow / Deny.
+  assert.doesNotMatch(panel, /hp-appr-btns/, 'her panel has no copy of the answers');
   const skills = readFileSync(join(ROOT, 'web', 'skills.js'), 'utf8');
   assert.match(skills, /mark\(btn\(label, 'ghost', \(\) => decide\(false\)\), 'no'\)/);
   const steps = readFileSync(join(ROOT, 'web', 'steps.js'), 'utf8');

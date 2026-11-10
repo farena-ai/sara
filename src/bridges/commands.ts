@@ -22,6 +22,7 @@ import { answerFire, idFromList, mentionLines, mentionSettings, mergeMentionSett
 import { pickupsFor, placeName } from '../pickup.ts';
 import { leanSettings as leanSettingsOf } from '../lean.ts';
 import { compactAllowed as compactAllowedOf, getFold as getFoldSync, undoFold as undoFoldSync } from '../compact.ts';
+import { webSearchOff } from '../web-search-auto.ts';
 
 export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools' | 'learn' | 'saver';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
@@ -449,11 +450,17 @@ async function learnCommand(c: CommandContext): Promise<CommandReply> {
     if (!list.length) return { text: tr('Nothing learned yet. Send /learn and a topic or a web address.') };
     return { text: [tr('What she has learned:'), ...list.slice(0, 15).map((t) => `- ${t.subject} (${t.status})`)].join('\n') };
   }
+  // 3.3.0: the answer stays in the chat (it used to vanish at the next redraw of the web chat).
+  const keep = (reply: CommandReply): CommandReply => {
+    const conv = c.adapter.currentSession();
+    if (conv && c.bridge === 'web') app.store.addMessage(conv.id, 'notice', 'command:learn', { command: 'learn', args: c.cmd.args.trim().slice(0, 200), reply: reply.text, ...(reply.refused ? { refused: true } : {}), ...(reply.refused && webSearchOff(app, 'search the web') ? { webSearch: webSearchOff(app, 'search the web') } : {}) });
+    return reply;
+  };
   try {
     const t = app.learnTopics.create(args, { channel: c.bridge });
-    return { text: tr('Learning about {topic} now. It will be in Library → What she has learned; ask me about it any time.', { topic: t.subject }) };
+    return keep({ text: tr('Learning about {topic} now. It will be in Library → What she has learned; ask me about it any time.', { topic: t.subject }) });
   } catch (err) {
-    if (err instanceof LearnError) return { text: tr(err.message), refused: true };
+    if (err instanceof LearnError) return keep({ text: tr(err.message), refused: true });
     throw err;
   }
 }

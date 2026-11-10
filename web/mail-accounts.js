@@ -16,6 +16,7 @@ let preset = '';
 /** Where each provider makes an app password, in plain steps (the server knows the servers). */
 const HOW = {
   gmail: () => t('Google Account → Security: 2-Step Verification must be on. Then App passwords, name it Sara, Create, and copy the 16 letters.'),
+
   yahoo: () => t('Yahoo Account → Account security → Generate app password, name it Sara, copy the code.'),
   aol: () => t('AOL Account → Account security → Generate app password, name it Sara, copy the code.'),
   icloud: () => t('account.apple.com → Sign-In and Security → App-Specific Passwords → Generate, name it Sara.'),
@@ -30,14 +31,36 @@ const HOW = {
 };
 const KIND = { google: 'Gmail', microsoft: 'Outlook' };
 
-const MS_STEPS = ['register', 'redirect', 'secret', 'permissions', 'signin'];
+// 3.3.0 (ezplain): three plain steps. Outlook.com stopped app passwords for mail apps in September
+// 2024, so Outlook signs in through Microsoft, with a small free app of your own (no secret needed).
+const MS_STEPS = ['register', 'copy', 'signin'];
 const MS_TITLES = {
-  register: () => t('Register a free app in Microsoft Entra'),
-  redirect: () => t('Paste the redirect address'),
-  secret: () => t('Copy the Application ID and make a secret'),
-  permissions: () => t('Give it the mail and calendar permissions'),
-  signin: () => t('Save, sign in and test'),
+  register: () => t('Make a free sign-in app at Microsoft (once)'),
+  copy: () => t('Copy its ID into Sara'),
+  signin: () => t('Sign in with Microsoft'),
 };
+
+/** 3.3.0 (ezplain): why a sign-in failed, in plain words (the server's own words follow, small). */
+const REASON = {
+  password: (p) => (p === 'gmail' ? t("Google didn't accept that app password. Make a new one (your normal Google password doesn't work here) and paste all 16 letters.") : t("The provider didn't accept that password. Use an app password made for Sara, not your normal password, and paste it again.")),
+  'two-step': (p) => (p === 'gmail' ? t('Google wants an app password, and that needs 2-Step Verification on first: Google Account → Security → 2-Step Verification. Then make the app password.') : t('Your provider wants an app password, and that needs two-step sign-in switched on first in your account security settings.')),
+  'imap-off': (p) => (p === 'gmail' ? t('IMAP is switched off for this Gmail. In Gmail on the web: Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP → Save, then press Check it again.') : t('Mail apps are switched off for this mailbox. Switch IMAP on in its web settings, then press Check it again.')),
+  unreachable: () => t("Sara couldn't reach the mail server. Check this computer's internet connection, then try again."),
+  other: () => t("That didn't work. Check the address and the app password, then try again."),
+};
+function reasonLine(out, err, presetId) {
+  const why = err?.data?.reason ?? err?.reason;
+  const box = el('div', 'ma-why');
+  box.append(el('p', 'error small', (REASON[why] ?? REASON.other)(presetId)));
+  const raw = err?.data?.detail ?? err?.text ?? err?.message;
+  if (raw) {
+    const d = el('details', 'small muted');
+    d.append(el('summary', '', t('What the server said')), el('code', '', String(raw)));
+    d.lastChild.dataset.raw = '';
+    box.append(d);
+  }
+  out.replaceChildren(box);
+}
 
 function msBody(id) {
   const body = el('div', 'wa-step-body');
@@ -49,53 +72,54 @@ function msBody(id) {
   };
   if (id === 'register') {
     body.append(
-      el('p', 'small', t('Outlook.com, Hotmail and Microsoft 365 sign in through Microsoft, with a small app that you own (free, about 10 minutes, once). Nothing goes through anyone else.')),
+      el('p', 'small', t('Outlook.com, Hotmail and Microsoft 365 sign in through Microsoft. Microsoft wants a small sign-in app of your own for that: free, about 5 minutes, once. Nothing goes through anyone else.')),
       ol([
-        t('Open the Microsoft Entra admin center and sign in with your Microsoft account (a personal Outlook.com account gets a free directory the first time).'),
-        t('Go to Identity → Applications → App registrations → New registration.'),
-        t('Name: Sara. Supported account types: "Accounts in any organizational directory and personal Microsoft accounts".'),
+        t('Press the button below and sign in with the same Microsoft account as your mailbox. (A personal Outlook.com account gets its own free space there the first time.)'),
+        t('Press New registration. Name: Sara.'),
+        t('Who can use it: pick "Accounts in any organizational directory and personal Microsoft accounts".'),
+        t('Redirect URI: in the first list pick "Public client/native (mobile & desktop)", paste the address below into the box next to it, then press Register.'),
       ]),
-      link(t('Open the Microsoft Entra admin center ↗'), 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', 'button-link'),
-    );
-  }
-  if (id === 'redirect') {
-    body.append(
-      el('p', 'small', t('Still on the New registration page: under Redirect URI choose Web and paste this address, then press Register.')),
       copyRow(t('Redirect URI'), ms.redirect, t('Microsoft sends you back here after you allow Sara. It must match exactly.')),
+      link(t('Open Microsoft app registrations ↗'), 'https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade', 'button-link'),
     );
-    if (!/^https:|^http:\/\/localhost[:/]/.test(ms.redirect)) body.append(el('p', 'muted small', t('Microsoft only accepts http:// addresses for localhost. Open Sara at http://localhost:<port> on this computer (or through https) while you sign in.')));
+    if (!/^https:|^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(ms.redirect)) body.append(el('p', 'muted small', t('Microsoft only accepts http:// addresses for localhost. Open Sara at http://localhost:<port> on this computer (or through https) while you sign in.')));
   }
-  if (id === 'secret') {
-    body.append(ol([
-      t('On the app\'s Overview page, copy the Application (client) ID.'),
-      t('Open Certificates & secrets → Client secrets → New client secret, description Sara, expiry 24 months → Add.'),
-      t('Copy the Value at once (not the Secret ID): Microsoft shows it only now.'),
-    ]));
-  }
-  if (id === 'permissions') {
+  if (id === 'copy') {
     body.append(
-      ol([t('Open API permissions → Add a permission → Microsoft Graph → Delegated permissions.'), t('Tick offline_access, User.Read, Mail.ReadWrite, Mail.Send and Calendars.ReadWrite, then Add permissions.')]),
-      el('p', 'muted small', t('No admin consent is needed for your own mailbox. Sara never deletes mail for good: trash is the Deleted Items folder.')),
+      ol([t('Microsoft now shows the app\'s Overview page. Copy the "Application (client) ID": it looks like 1a2b3c4d-… .'), t('Paste it below and press Save.')]),
+      field('ma-ms-id', t('Application (client) ID'), t('From the app\'s Overview page.'), { value: ms.clientId ?? '', placeholder: '1a2b3c4d-…' }),
     );
+    // Only for an app registered as "Web" earlier (before 3.3.0): its secret, kept as before.
+    const adv = el('details', 'small muted ma-adv');
+    adv.append(
+      el('summary', '', t('Only if you picked "Web" instead: its client secret')),
+      el('p', 'small muted', t('A "Web" app also needs a client secret: Certificates & secrets → New client secret → copy its Value.')),
+      field('ma-ms-secret', t('Client secret value'), t("Kept encrypted in Sara's vault and never shown again."), { type: 'password', placeholder: ms.configured ? t('Saved (type to replace)') : '' }),
+    );
+    const out = el('div', 'wa-check');
+    const row = el('div', 'add-row');
+    row.append(btn(t('Save'), '', async () => {
+      const secret = $('#ma-ms-secret')?.value ?? '';
+      if ($('#ma-ms-secret')) $('#ma-ms-secret').value = '';
+      try {
+        view = await api('/mail/microsoft/client', { method: 'PUT', body: { clientId: $('#ma-ms-id').value.trim(), clientSecret: secret } });
+        msOpen = 'signin';
+        render();
+        status(t('Saved. Now sign in.'));
+      } catch (err) {
+        out.replaceChildren(el('p', 'error small', err.message));
+      }
+    }));
+    body.append(adv, row, out);
   }
   if (id === 'signin') {
     const out = el('div', 'wa-check');
     body.append(
-      field('ma-ms-id', t('Application (client) ID'), t('From the app\'s Overview page.'), { value: ms.clientId ?? '', placeholder: '1a2b3c4d-…' }),
-      field('ma-ms-secret', t('Client secret value'), t("Kept encrypted in Sara's vault and never shown again."), { type: 'password', placeholder: ms.configured ? t('Saved (type to replace)') : '' }),
+      el('p', 'small', t('Press Sign in with Microsoft, pick your account and press Accept. Sara comes back here and checks your mailbox.')),
+      el('p', 'muted small', t('Sara never deletes mail for good: trash is the Deleted Items folder.')),
     );
     const row = el('div', 'add-row');
     row.append(
-      btn(t('Save'), 'ghost', async () => {
-        const secret = $('#ma-ms-secret').value;
-        $('#ma-ms-secret').value = '';
-        try {
-          view = await api('/mail/microsoft/client', { method: 'PUT', body: { clientId: $('#ma-ms-id').value.trim(), clientSecret: secret } });
-          out.replaceChildren(okLine(t('Saved. Now sign in.')));
-        } catch (err) {
-          out.replaceChildren(el('p', 'error small', err.message));
-        }
-      }),
       btn(t('Sign in with Microsoft'), '', async () => {
         try {
           const r = await api('/mail/microsoft/connect', { method: 'POST', body: {} });
@@ -122,8 +146,11 @@ function otherForm() {
   pick.addEventListener('change', () => ((preset = pick.value), render()));
   const label = el('label', 'plg-field');
   label.append(el('span', 'plg-field-name', t('Mail provider')), pick);
-  box.append(el('h3', '', t('Add another provider')), el('p', 'muted small', t('Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail (with Bridge) or your own host, with an app password. Outlook.com and Hotmail use the Microsoft sign-in above.')), label);
+  box.append(el('h3', '', preset === 'gmail' ? t('Add Gmail') : t('Add another provider')), el('p', 'muted small', t('Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail (with Bridge) or your own host, with an app password. Outlook.com and Hotmail use the Microsoft sign-in above.')), label);
+  if (preset === 'gmail') box.children[1].remove();
   if (!preset) return box;
+  // 3.3.0 (ezplain): what an app password is, before the steps.
+  if (preset !== 'other' && preset !== 'proton') box.append(el('p', 'small ma-what', t('An app password is a separate password just for Sara. Your provider makes it for you; it is not your normal password, and you can delete it there any time.')));
   const p = view.presets.find((x) => x.id === preset);
   // Numbered like the move-in wizard: where to click, what to copy, where to paste it.
   const steps = el('ol', 'small setup-steps ma-steps');
@@ -146,7 +173,12 @@ function otherForm() {
       field('ma-smtp-port', t('SMTP port'), t('465 or 587.'), { value: '465', mode: 'numeric' }),
       field('ma-user', t('Sign-in name'), t('Leave empty when it is the email address.'), {}),
     );
-  } else if (p) box.append(el('p', 'muted small', t('Servers: {imap} and {smtp}', { imap: `${p.imap.host}:${p.imap.port}`, smtp: `${p.smtp.host}:${p.smtp.port}` })));
+  } else if (p) {
+    // The server names: there for anyone who wants them, never needed.
+    const d = el('details', 'muted small ma-servers');
+    d.append(el('summary', '', t('Server details (you can ignore these)')), el('p', 'small', t('Servers: {imap} and {smtp}', { imap: `${p.imap.host}:${p.imap.port}`, smtp: `${p.smtp.host}:${p.smtp.port}` })));
+    box.append(d);
+  }
   box.append(
     btn(t('Add and check'), '', async () => {
       const pw = $('#ma-password');
@@ -161,11 +193,18 @@ function otherForm() {
         render();
         status(t('Added. Sara signed in to both servers and sent nothing.'));
       } catch (err) {
-        out.replaceChildren(el('p', 'error small', err.message));
+        reasonLine(out, err, body.preset);
       }
     }),
     out,
   );
+  // 3.3.0 (ezplain): the owner's Google sign-in (full organizing, labels, the calendar) is the
+  // advanced route: it needs a Google Cloud project of your own.
+  if (preset === 'gmail' && !view.member) {
+    const adv = el('p', 'muted small ma-adv');
+    adv.append(btn(t('Advanced: full Gmail organizing (Google Cloud)'), 'linkish', () => globalThis.openSettingsPage?.('ab-google')), ' ', t('About 10 minutes in Google Cloud Console. Only needed for Gmail labels and Google Calendar.'));
+    box.append(adv);
+  }
   return box;
 }
 
@@ -185,10 +224,12 @@ function accountRow(a) {
   if (a.problem) li.append(el('span', 'error small', t('Signed out: sign in again.')));
   const acts = el('span', 'ma-acts');
   if (view.default !== a.id) acts.append(btn(t('Make default'), 'ghost small', async () => ((view = await api('/mail/default', { method: 'PUT', body: { id: a.id } })), render())));
-  acts.append(btn(t('Test'), 'ghost small', async () => {
+  acts.append(btn(t('Check it'), 'ghost small', async () => {
     status(t('Checking…'));
-    const r = await api(`/mail/accounts/${enc(a.id)}/test`, { method: 'POST', body: {} }).catch((err) => ({ ok: false, text: err.message }));
-    status(`${r.ok ? '✓' : '✕'} ${r.text}`);
+    const r = await api(`/mail/accounts/${enc(a.id)}/test`, { method: 'POST', body: {} }).catch((err) => ({ ok: false, text: err.message, reason: err.data?.reason }));
+    if (r.ok) return status(`✓ ${r.text}`);
+    const s = $('#ma-status');
+    if (s) reasonLine(s, r, a.provider);
   }));
   if (a.kind === 'google') acts.append(btn(t('Open'), 'ghost small', () => globalThis.openSettingsPage?.('ab-google')));
   else
@@ -237,11 +278,13 @@ function render() {
   if (!view.accounts.length) list.append(el('li', 'ma-empty small', t('No mailbox yet. Add one below: Gmail, Outlook or another provider.')));
   const add = el('div', 'add-row');
   // A member adds Gmail with an app password (the Google sign-in is the owner's).
-  const addGmail = view.member ? () => ((adding = 'other'), (preset = 'gmail'), render()) : () => globalThis.openSettingsPage?.('ab-google');
+  // 3.3.0 (ezplain): everyone starts with the 3-step app-password route; the Google Cloud sign-in is
+  // Advanced (a link inside it).
+  const addGmail = () => ((adding = 'other'), (preset = 'gmail'), render());
   add.append(
-    btn(t('Add Gmail'), adding === 'google' ? '' : 'ghost', addGmail),
+    btn(t('Add Gmail'), adding === 'other' && preset === 'gmail' ? '' : 'ghost', addGmail),
     btn(t('Add Outlook or Microsoft 365'), adding === 'ms' ? '' : 'ghost', () => ((adding = adding === 'ms' ? '' : 'ms'), render())),
-    btn(t('Add another provider'), adding === 'other' ? '' : 'ghost', () => ((adding = adding === 'other' ? '' : 'other'), render())),
+    btn(t('Add another provider'), adding === 'other' && preset !== 'gmail' ? '' : 'ghost', () => ((adding = adding === 'other' && preset !== 'gmail' ? '' : 'other'), (preset = ''), render())),
     tip(t('Several mailboxes can be connected. She uses the default one unless you name another ("search my Outlook for…").')),
   );
   const parts = [list, add];

@@ -21,6 +21,7 @@
 //
 // Tables (additive, her own store.db): research_runs, research_sources.
 import type { DatabaseSync } from 'node:sqlite';
+import { backgroundConversation } from './store.ts';
 import { audit } from './audit-trail.ts';
 import { resolveFor, type AppContext } from './chat.ts';
 import { en, trOwner } from './i18n.ts';
@@ -528,8 +529,8 @@ export class Research {
   }
 
   #conv() {
-    const store = this.#app.store;
-    return store.listConversations().find((c) => !c.partner && !c.private) ?? store.createConversation({ title: 'Research' });
+    // 3.3.0: never makes a chat of its own (the first chat on a fresh install was called "Research").
+    return backgroundConversation(this.#app.store, 'Research');
   }
 
   /** A model call for a run: retried a few times (with a pause) before giving up; counts tokens. */

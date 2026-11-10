@@ -171,7 +171,7 @@ export const TOOL_ICONS = {
   gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_organize: 'archive', gmail_undo: 'undo', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail', home_control: 'home', home_status: 'home', spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'speaker', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'play', ssh_servers: 'server',
   ssh_connect: 'server', ssh_run: 'server', ssh_forget_password: 'server', ssh_revoke_key: 'server', ssh_remove_server: 'server',
   take_photo: 'photo', share_photo: 'photo', change_outfit: 'shirt', scrapbook: 'scrapbook', shared_list: 'dice',
-  settings_guide: 'help', tune_personality: 'sliders', team_task: 'team', work_on_issue: 'team', start_job: 'job',
+  settings_guide: 'help', tune_personality: 'sliders', change_setting: 'sliders', team_task: 'team', work_on_issue: 'team', start_job: 'job',
   project_note: 'note', preview_start: 'monitor', preview_stop: 'monitor', browser_open: 'compass', browser_screenshot: 'camera',
   phone_camera: 'camera', phone_location: 'compass', phone_screen: 'monitor',
   browser_click: 'pointer', browser_type: 'keyboard', browser_read: 'compass', browser_check: 'check', moments: 'moments',

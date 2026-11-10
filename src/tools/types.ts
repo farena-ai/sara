@@ -136,6 +136,8 @@ export interface SkillApproval {
   args: string[];
   /** The skill's allowed-tools field: shown, never trusted. */
   allowedTools?: string;
+  /** 3.3.0: the skill's description (what it is for), for the card's "It will: …". */
+  about?: string;
   choices: ('once' | 'task')[];
 }
 /** Phase 96: skill_save's card shows the SKILL.md she wants to write. */

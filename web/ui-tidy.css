@@ -359,6 +359,15 @@ dialog:not(.settings-dialog) .settings-body > h2 { margin: 0; }
 .tour-offer p { line-height: 1.4; }
 /* A turn that failed: a soft red banner, not loose red text. */
 .msg.error { max-width: min(640px, 92%); padding: 8px 14px; border: 1px solid color-mix(in srgb, var(--error) 45%, transparent); border-radius: var(--radius-card); background: color-mix(in srgb, var(--error) 9%, transparent); text-align: center; }
+/* 3.3.0: her own trouble (web/trouble.js): her words, then Fix it and Try again. */
+.msg.error.trouble { color: var(--text); font-size: 14px; }
+.msg.error.trouble .trouble-text { margin: 0 0 8px; }
+.msg.error.trouble .trouble-acts { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.msg.error.trouble .trouble-acts button { min-height: 40px; }
+.msg.error.trouble .trouble-more { margin-top: 6px; text-align: left; }
+/* 3.3.0: the mic before her voice is set up: one offer above the box. */
+#composer-voice-offer { align-self: center; max-width: min(640px, 92%); margin: 0 auto 8px; text-align: center; }
+#composer-voice-offer button { margin-top: 6px; min-height: 40px; }
 
 /* ---------- The conversation list: a quieter "empty project" line ---------- */
 .group-empty { padding: 0 10px 6px; font-size: 12px; line-height: 1.35; }

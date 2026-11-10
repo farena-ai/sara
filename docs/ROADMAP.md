@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Easy mode, in 3.3.0
+
+Built from a walkthrough with a first-time, non-technical user. Start talking opens a real chat;
+setup can't be closed by accident and explains keys. When her AI service, key, credit or mailbox stops
+working she says so in plain words with Fix it and Try again. She never promises research she can't do.
+Connect the Sara phone app shows a QR code only when the phone can really reach her, and Use Sara away
+from home walks through Tailscale and tests it. Gmail starts with the 3-step app password, Check it says
+exactly what is wrong, one approval at a time stays in view, search understands everyday words, and you
+can ask her to change everyday settings with Undo.
+
 ## She comes alive: animated avatar, in 3.2.0
 
 Her portrait now breathes, blinks, glances and moves her lips while she speaks, using her own drawn

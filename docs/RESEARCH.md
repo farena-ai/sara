@@ -12,7 +12,10 @@ with **Start**; after that the run works in the background with its own budget a
 and the same card shows how it goes and the report when it is done.
 
 You need **web search** set up first (*Settings → Add-ons → Web search*: Brave, Tavily, Ollama
-web search or your own SearXNG). Only the owner can run research; household members and the demo
+web search or your own SearXNG). Connecting Ollama Cloud with a key turns Ollama web search on with
+the same key. Without web search she never promises to look things up: a message that asks her to
+search shows *"I can't search the web yet"* with a **Turn on web search** button (one tap when an
+Ollama Cloud key is there), and `/learn` answers in the chat with the same button. Only the owner can run research; household members and the demo
 can't.
 
 ## How a run goes

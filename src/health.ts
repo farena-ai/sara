@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
 import { DEFAULT_BACKUP, listBackups } from './backup.ts';
 import { en, fill } from './i18n.ts';
+import { modelHealth } from './trouble.ts';
 
 export interface AppInfo {
   version: string;
@@ -16,6 +17,9 @@ export function appInfo(root: string, startedAt = new Date()): AppInfo {
   const revFile = join(root, 'REVISION');
   return { version: pkg.version, revision: existsSync(revFile) ? readFileSync(revFile, 'utf8').trim() || null : null, startedAt: startedAt.toISOString() };
 }
+
+/** Checks a non-technical owner can't act on (folded away in Company mode). */
+const TECH = new Set(['Memory', 'Tool sandbox', 'Command approvals', 'Run history']);
 
 const size = (f: string) => (existsSync(f) ? statSync(f).size : 0);
 
@@ -38,12 +42,17 @@ export function healthReport(app: AppContext, info: AppInfo) {
   // UX 19: `items` (optional) carries the same facts as `detail` as data, for the app to word them in the owner's language.
   // Phase 61: so do `detailKey` (the English template of `detail`) and `params`; check names are fixed English words.
   type Detail = string | [template: string, params: Record<string, unknown>];
-  const checks: { name: string; ok: boolean; detail: string; detailKey?: string; params?: Record<string, unknown>; items?: unknown[] }[] = [];
+  // 3.3.0: `tech` marks checks only a technical owner can act on (the sandbox, command approvals, a
+  // summary the model returned badly, run snapshots): the app folds them away for Company mode.
+  const checks: { name: string; ok: boolean; detail: string; detailKey?: string; params?: Record<string, unknown>; items?: unknown[]; tech?: boolean }[] = [];
   const add = (name: string, ok: boolean, detail: Detail, items?: unknown[]) => {
     const [key, params] = typeof detail === 'string' ? [detail, undefined] : detail;
-    checks.push({ name, ok, detail: fill(key, params), ...(params ? { detailKey: key, params } : {}), ...(items ? { items } : {}) });
+    checks.push({ name, ok, detail: fill(key, params), ...(params ? { detailKey: key, params } : {}), ...(items ? { items } : {}), ...(TECH.has(name) ? { tech: true } : {}) });
   };
-  add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('No default model: pick one in Settings → Models → Default model.')) : en('No model provider set up'));
+  // 3.3.0: set up is not the same as working: a failed real call since the last good one is not ✓.
+  const down = s.providers.length && s.defaultModel ? modelHealth(app) : null;
+  if (down) add(en('Model'), false, [down.key, down.params]);
+  else add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('No default model: pick one in Settings → Models → Default model.')) : en('No model provider set up'));
   add(en('Disk space'), !disk || disk.freeBytes > 1e9, disk ? [en('{gb} GB free'), { gb: (disk.freeBytes / 1e9).toFixed(1) }] : en('unknown'));
   const last = backups[0];
   const backupAgeH = last ? (now.getTime() - Date.parse(last.createdAt)) / 3600_000 : Infinity;

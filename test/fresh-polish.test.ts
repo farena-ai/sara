@@ -68,7 +68,8 @@ test('fresh: + New in a chat that is still empty stays in it', () => {
 test('fresh: Operations shows local times and setup starts in the name field', () => {
   const ops = read('web', 'operations.js');
   assert.match(ops, /\[t\('Since'\), when\(data\.since\)\], \[t\('Sampled at'\), when\(data\.sampledAt\)\]/);
-  assert.match(read('web', 'setup-wizard.js'), /suShow\(1\);\s*\$\('#setup'\)\.showModal\(\);\s*\/\/[^\n]*\n\s*\$\('#su-owner'\)\.focus\(\);/);
+  // 3.3.0: setup reopens at the step it was on; a fresh pass (step 1) still starts in the name field.
+  assert.match(read('web', 'setup-wizard.js'), /suShow\(resume\);\s*\$\('#setup'\)\.showModal\(\);\s*\/\/[^\n]*\n\s*if \(resume === 1\) \$\('#su-owner'\)\.focus\(\);/);
 });
 
 test('fresh: Sara Classic is untouched (every fresh-pass rule is V4-scoped)', () => {

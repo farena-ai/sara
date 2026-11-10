@@ -40,7 +40,7 @@ export function tip(text) {
 export async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(data.error ?? `HTTP ${res.status}`), { data });
   return data;
 }
 export const link = (text, href, cls = 'small') => {

@@ -35,15 +35,25 @@ notifications won't work, and it doesn't work away from home.)
 
 ## Step 2: sign in without typing the token
 
-1. On your computer, signed in to Sara, open **Settings → Connections → Devices and sign-in**
-   and press **Add a phone or computer**. A QR code and a short code appear (they last 10 minutes
-   and work once).
-2. On the phone, point the camera at the QR code and open the link. On Android, tap **Open in the
-   Sara app**: the app opens with the address and code filled in. (Without the app, the page offers
-   Google Play, or **Sign in this browser**.) You can also type the server's address and the short
-   code in the app.
-3. That's it: the phone is signed in and shows up in the list on Devices and sign-in, where you
+1. On your computer, signed in to Sara, open **Settings → Connections → Phone and notifications**
+   (the **Connect the Sara phone app** card at the top) or **Settings → Connections → Devices and
+   sign-in → Add a phone or computer**. Ctrl K → *Connect the Sara phone app* gets you there too.
+2. Press **Show the code to scan**. A QR code and a short code appear (they last 10 minutes and
+   work once).
+3. On the phone, point the camera at the QR code and tap the link. The link is
+   `https://backstagecoding.com/sara/pair#s=<her address>&c=<code>`: on Android it opens the Sara
+   app, which asks once and then signs in by itself. (Without the app, that page links to Google
+   Play.) You can also type the address and the short code in the app.
+4. That's it: the phone is signed in and shows up in the list on Devices and sign-in, where you
    can sign it out any time.
+
+**The QR only holds an address the phone can really open** (3.3.0). Sara picks it herself: her
+Tailscale address when Tailscale is on, the https address set by the installer or by you, the
+address your browser uses when it isn't this computer's own, or this computer's home-network
+address when Sara listens there. She never puts `127.0.0.1` or `localhost` in it: that is the
+computer itself, which a phone can't open. When there is no such address yet, the card says
+**"Your phone can't reach this computer yet"** with **Set up access**, which opens
+[Use Sara away from home](AWAY_FROM_HOME.md).
 
 (You can also sign in on the phone with the owner token, but the long token is easy to mistype.)
 

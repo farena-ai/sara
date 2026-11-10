@@ -284,6 +284,25 @@ async function otherComputer() {
     box.replaceChildren(errorCard(err.message), backRow());
     return;
   }
+  // 3.3.0: no address another computer can reach (src/reach.ts): no line that can't work there.
+  // Offer the file route, or setting up access with Tailscale first.
+  if (r.reachable === false) {
+    const c = el('section', 'mi-card mi-paste mi-far');
+    c.append(el('h4', '', t('The other computer can’t reach Sara yet')));
+    c.append(el('p', 'small', t('Right now Sara only answers on this computer, so a line pasted on another computer would have nowhere to send to. Two easy ways instead:')));
+    const row = el('div', 'mi-sources');
+    row.append(
+      bigChoice(t('I have a move-in file'), t('Make the file on the old computer, then bring it here on a USB stick, by email or a shared folder.'), () => {
+        easyMode(false);
+        box.replaceChildren(backRow());
+        setStep('file');
+      }),
+      bigChoice(t('Let other devices reach Sara'), t('A free app called Tailscale links your own devices, at home and away. Then come back here.'), () => document.dispatchEvent(new CustomEvent('sara:open-away'))),
+    );
+    c.append(row);
+    box.replaceChildren(c, backRow());
+    return;
+  }
   easy.waiting = r;
   const system = easy.system ?? guessSystem();
   const c = el('section', 'mi-card mi-paste');
@@ -319,8 +338,7 @@ async function otherComputer() {
     pre.textContent = r.lines[os];
   };
   void paint();
-  const far = r.reachable === false ? el('p', 'small mi-far', t('Sara only answers on this computer right now, so another computer can’t send to this address. Open Sara on the old computer with the address you use from elsewhere (for example your https:// one) and make the line there, or use “I have a move-in file”.')) : null;
-  c.append(...[far, tabs, how, pre, el('p', 'mi-nav', ''), wait, det].filter(Boolean));
+  c.append(tabs, how, pre, el('p', 'mi-nav', ''), wait, det);
   c.querySelector('.mi-nav').append(copy);
   box.replaceChildren(c, backRow());
   const expires = Date.parse(r.expiresAt);

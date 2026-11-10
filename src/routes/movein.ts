@@ -42,7 +42,6 @@ import { createReadStream } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { HttpError, readJson, send } from '../http.ts';
 import { BundleError } from '../movein/bundle.ts';
-import { networkInterfaces } from 'node:os';
 import { COLLECTOR_PATH, MoveIn } from '../movein/index.ts';
 import { findLocalAgents, goPs1, goSh, NODE_COLLECTOR_PATH, oneLine, publicAgent, type System } from '../movein/local.ts';
 import { reportMarkdown } from '../movein/report.ts';
@@ -90,12 +89,6 @@ function command(origin: string, sha: string): string {
 export function serveCollector(res: ServerResponse): void {
   res.writeHead(200, { 'content-type': 'text/x-python; charset=utf-8', 'content-disposition': 'attachment; filename="sara-movein.py"', 'x-content-type-options': 'nosniff', 'cache-control': 'no-store' });
   createReadStream(COLLECTOR_PATH).on('error', () => res.end()).pipe(res);
-}
-
-/** This computer's first private IPv4 address (home network), if any. */
-function lanAddress(): string | undefined {
-  for (const list of Object.values(networkInterfaces())) for (const a of list ?? []) if (a.family === 'IPv4' && !a.internal && /^(10|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(a.address)) return a.address;
-  return undefined;
 }
 
 /** This Sara's address as the browser reached it (the one-paste line and its scripts use it). */
@@ -195,18 +188,15 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req, 4096);
         const system = (['windows', 'mac', 'linux'] as const).find((x) => x === body.system) ?? 'linux';
         const code = mi.mintCode();
-        // Opened as localhost: another computer can't reach that address. When Sara listens on the
-        // network, use this computer's LAN address; otherwise the page says so (and offers the file).
-        let origin = originOf(req);
-        let reachable = true;
-        const u = new URL(origin);
-        if (/^(localhost|127\.\d+\.\d+\.\d+|\[::1\])$/.test(u.hostname)) {
-          const lan = lanAddress();
-          const listensWide = /^(0\.0\.0\.0|::|)$/.test(process.env.SARA_HOST ?? '127.0.0.1');
-          if (lan && listensWide) origin = `${u.protocol}//${lan}${u.port ? `:${u.port}` : ''}`;
-          else reachable = false;
-        }
-        return send(res, 200, { ...code, since: new Date().toISOString(), origin, reachable, system, line: oneLine(origin, code.code, system as System), lines: Object.fromEntries((['windows', 'mac', 'linux'] as const).map((s) => [s, oneLine(origin, code.code, s)])) });
+        // 3.3.0: the same answer as the phone pairing (src/reach.ts): Tailscale, the owner's https
+        // address, the address this browser used, or the home-network one. Without one the page
+        // shows no line (one with 127.0.0.1 can't work there) and offers the file or Tailscale.
+        const { cleanOrigin, listenPort, resolveReach } = await import('../reach.ts');
+        const reach = await resolveReach({ origin: cleanOrigin(originOf(req)), dataDir: app.dataDir, port: listenPort(req) });
+        // The API still answers with this computer's own line (it works here); the page shows no
+        // command while `reachable` is false.
+        const origin = reach.address ?? originOf(req);
+        return send(res, 200, { ...code, since: new Date().toISOString(), origin, reachable: Boolean(reach.address), system, line: oneLine(origin, code.code, system as System), lines: Object.fromEntries((['windows', 'mac', 'linux'] as const).map((s) => [s, oneLine(origin, code.code, s)])), reach: { away: reach.away, kind: reach.kind } });
       }
       if (b === 'code' && !c && method === 'POST') return send(res, 200, mi.mintCode());
       if (b === 'uploads') {

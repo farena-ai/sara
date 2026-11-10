@@ -1,13 +1,13 @@
 // The first-run setup guide (moved out of app.js in PL2d, 2.61.3; code moved only,
 // docs/design/POLISH2.md C1): step 1 your name and the use choice, step 2 who she is, step 3
 // connect a brain (a test message must answer), step 4 the starter chips and the check-in card.
-import { setIdentity, t } from './naming.js';
+import { currentIdentity, setIdentity, t } from './naming.js';
 import { icon } from './icons.js';
-import { normPath, pathChoices, starterChips } from './first-run.js';
+import { keyHelp, normPath, pathChoices, starterChips } from './first-run.js';
 import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
 import { suggestModel } from './model-suggest.js';
 import { foldFirstRun, unfoldFirstRun } from './hub.js';
-import { todayOpen } from './today.js';
+import { closeToday, todayOpen } from './today.js';
 import { queueTourOffer } from './tours.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -40,8 +40,17 @@ let modelCache = null;
 // what would pick for coding.
 const su = { step: 1, info: null, provider: null, openSubs: false, original: null, changed: false, path: 'both', brainOk: false, ping: 0, coderPick: '', local: false, who: 'keep', way: '', recovery: false, connect: 0, saved: null };
 
+/** 3.3.0: where the guide was (a reload or a closed window comes back to the same step, not step 1). */
+const STEP_KEY = 'sara.setup.step';
 function suShow(step) {
   su.step = step;
+  if (!su.recovery) {
+    try {
+      localStorage.setItem(STEP_KEY, String(step));
+    } catch {
+      /* private mode */
+    }
+  }
   for (const sec of document.querySelectorAll('#setup [data-step]')) sec.hidden = Number(sec.dataset.step) !== step;
   $('#setup-step').textContent = su.recovery ? t('Connect a brain') : t('Step {step} of 4', { step });
   $('#su-back').hidden = su.recovery || step === 1 || step === 4;
@@ -51,6 +60,8 @@ function suShow(step) {
   // answered (or subscriptions open at the end); skipping is a quiet link, never the strong button.
   $('#su-next').textContent = su.recovery ? t('Use this model') : step === 4 ? t('Start talking') : t('Next');
   $('#su-next').disabled = step === 3 && !su.brainOk && !su.openSubs;
+  // 3.3.0: the answer came: Next stands out (on a phone it is scrolled into view with Connected ✓).
+  $('#su-next').classList.toggle('su-next-ready', step === 3 && su.brainOk);
   $('#su-later').hidden = su.recovery || step !== 3 || su.brainOk;
   $('#su-recovery-note').hidden = !su.recovery;
   if (step === 4) suStepFour();
@@ -174,6 +185,10 @@ async function suPing() {
     su.brainOk = true;
     suStatus('ok');
     $('#su-error').textContent = '';
+    suShow(3);
+    // 3.3.0 (phone): Connected ✓ and Next in view, not below the dialog's fold.
+    $('#su-status').scrollIntoView?.({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => $('#su-next').scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }), 350);
   } catch (err) {
     if (run !== su.ping) return;
     suStatus('fail');
@@ -190,18 +205,20 @@ function suStepFour() {
     su.starter = c;
     return suFinish();
   })));
-  // 3.1.1: an old assistant on this computer (Hermes Agent, OpenClaw): offer to bring her over first.
+  // 3.1.1: an old assistant on this computer (Hermes Agent, OpenClaw): offer to bring her over.
+  // 3.3.0: a quiet line under the chips, not a big first chip (most people have no old assistant).
+  $('#su-movein').hidden = true;
   void api('/movein/local').then((r) => {
     const a = r?.agents?.[0];
-    if (!a || $('#su-starters [data-movein]')) return;
+    if (!a) return;
     const c = { kind: 'page', label: t('Bring her over from {agent}', { agent: a.kind === 'hermes' ? 'Hermes Agent' : 'OpenClaw' }), page: 'dh-movein' };
-    const b = starterButton(c, () => {
+    const go = $('#su-movein-go');
+    go.textContent = t('Used {agent} before? Bring her memories over →', { agent: a.kind === 'hermes' ? 'Hermes Agent' : 'OpenClaw' });
+    go.onclick = () => {
       su.starter = c;
       return suFinish();
-    });
-    b.dataset.movein = '1';
-    $('#su-starters').prepend(b);
-    $('#su-starters-note').hidden = false;
+    };
+    $('#su-movein').hidden = false;
   }).catch(() => {});
   $('#su-starters-note').hidden = !chips.length;
   // Phase 121 (BEGIN §4.9): one quiet link under the chips; the gallery opens after the wizard closes.
@@ -225,7 +242,8 @@ export async function openSetup(info) {
   const presets = state.providers.presets.filter((p) => p.needsKey);
   $('#su-preset').replaceChildren(...presets.map((p) => new Option(p.label, p.id)));
   suShowLocal(info.ollama?.[0]);
-  su.path = normPath(info.usePath);
+  // 3.3.0: not picked yet → Company (talk, plan my day, remember things), the plain choice for most.
+  su.path = info.usePathSet === false ? 'company' : normPath(info.usePath);
   su.brainOk = false;
   su.provider = null;
   $('#su-model-row').hidden = true;
@@ -233,10 +251,41 @@ export async function openSetup(info) {
   suWhoCards();
   suWho('keep');
   suWay(info.ollama?.[0] ? 'local' : '');
-  suShow(1);
+  // 3.3.0: Esc or a click outside never closes the guide (Set up later does); a reload comes back to its step.
+  $('#setup').dataset.required = '1';
+  suKeyHelp();
+  let resume = 1;
+  try {
+    resume = Number(localStorage.getItem(STEP_KEY)) || 1;
+  } catch {
+    /* private mode */
+  }
+  if (!info.ownerName) resume = 1;
+  if (resume === 4 && !state.providers?.providers?.length) resume = 3;
+  resume = Math.min(4, Math.max(1, resume));
+  if (resume >= 3) suOrderBrains();
+  if (resume === 4) $('#su-done-title').textContent = t('All set. Say hi to Sara!');
+  suShow(resume);
   $('#setup').showModal();
   // Fresh pass: start in the name field (the dialog would otherwise focus "Set up later" and ring it).
-  $('#su-owner').focus();
+  if (resume === 1) $('#su-owner').focus();
+}
+
+/** 3.3.0: where to get a key for the picked service, what it looks like, and what a key is. */
+function suKeyHelp() {
+  const h = keyHelp($('#su-preset').value, t);
+  const box = $('#su-key-help');
+  if (!box) return;
+  box.replaceChildren();
+  if (h.url) {
+    const a = el('a', '', t('Get your key at {site} ↗', { site: h.site }));
+    a.href = h.url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    box.append(a, ' ');
+  }
+  if (h.looks) box.append(el('span', '', `${h.looks} `));
+  box.append(el('span', 'muted', t('A key is like a password for Sara: it lets her use your account there. Keep it private; Sara keeps it locked on this computer.')));
 }
 
 /** Reuse only the model step; owner identity and character are never revisited. */
@@ -259,6 +308,8 @@ export async function openModelSetup(info) {
   suOrderBrains();
   suWay(info.ollama?.[0] ? 'local' : '');
   suShow(3);
+  delete $('#setup').dataset.required;
+  suKeyHelp();
   $('#setup').showModal();
 }
 
@@ -334,8 +385,9 @@ async function suConnect(config, apiKey) {
       while (state.providers.providers.some((p) => p.id === id)) id = `${config.id}-${n++}`;
       config = { ...config, id };
     }
-    await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(su.recovery ? { preserveDefault: true } : {}), ...(apiKey ? { apiKey } : {}) } });
+    const saved = await api(`/providers/${config.id}`, { method: 'PUT', body: { ...config, ...(su.recovery ? { preserveDefault: true } : {}), ...(apiKey ? { apiKey } : {}) } });
     if (run !== su.connect) return;
+    su.webSearch = saved?.webSearch === 'ollama';
     await loadProviders();
     $('#su-model-note').textContent = t('Loading models…');
     $('#su-model-row').hidden = false;
@@ -354,7 +406,7 @@ async function suConnect(config, apiKey) {
     fillModelOptions($('#su-model'), view, '', { pick });
     $('#su-model').value = pick;
     const counted = countWords(modelCounts(models), Boolean(config.local), t);
-    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}`;
+    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}${su.webSearch ? ` ${t('Web search is on too, with the same key: she can look things up for you.')}` : ''}`;
     su.provider = config.id;
     await suSaveDefault(pick);
     if (run !== su.connect) return;
@@ -376,6 +428,11 @@ async function suConnect(config, apiKey) {
 
 async function suFinish() {
   await api('/setup/done', { method: 'POST', body: {} });
+  try {
+    localStorage.removeItem(STEP_KEY);
+  } catch {
+    /* private mode */
+  }
   // Phase 114 (F2): the check-in card goes back where it lives (seen; it doesn't come again).
   unfoldFirstRun();
   state.usePath = su.path;
@@ -392,12 +449,29 @@ async function suFinish() {
   // Phase 114 (PL1c, F8): "Make my own" is the one make-her flow, ✨ Create your companion.
   else if (su.who === 'new') await openWizard().catch((err) => void ($('#su-error').textContent = err.message));
   else {
+    // 3.3.0: Start talking opens a chat with the cursor in the box (not Today); the first one is
+    // "Chat with Sara" (never "Research" or another background chat's name).
+    if (!starter || starter.kind === 'send') await suOpenChat().catch(() => undefined);
     if (!state.messages?.length) renderMessages([]);
     // Phase 114 (F2): the tour is offered after her first reply, never on top of something else.
     queueTourOffer();
     if (starter) await runStarter(starter);
+    else $('#input')?.focus();
   }
+  // 3.3.0: the chat's line and her panel show the brain just set up (not "no provider · main folder").
+  ctx.renderConvSummary?.();
   firstRun.pump();
+}
+
+/** The chat to talk in after setup: the open one, the newest of his own, or a new "Chat with Sara". */
+async function suOpenChat() {
+  if (todayOpen()) closeToday({ focus: false });
+  const mine = (state.conversations ?? []).find((c) => !c.archivedAt && !c.partner && !c.offRecord && (c.channel ?? 'web') === 'web' && c.mode !== 'coding');
+  if (state.currentId && state.conv && !state.conv.partner && state.conv.mode !== 'coding') return ctx.renderConvSummary?.();
+  if (mine) return ctx.openConversation(mine.id);
+  const conv = await api('/conversations', { method: 'POST', body: { title: t('Chat with {name}', { name: currentIdentity().name || 'Sara' }) } });
+  state.conversations.unshift(conv);
+  await ctx.openConversation(conv.id);
 }
 
 
@@ -430,6 +504,7 @@ export function initSetupWizard(c) {
     }
   });
 
+  $('#su-preset').addEventListener('change', suKeyHelp);
   $('#su-subs').addEventListener('change', () => {
     su.openSubs = $('#su-subs').checked;
     suShow(su.step);

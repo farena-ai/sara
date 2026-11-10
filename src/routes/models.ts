@@ -18,6 +18,7 @@ import { HOME_VAULT } from '../tools/home.ts';
 import { cleanBudget, cleanPrices, DEFAULT_PRICES, mergeSummaries, priceTable, usageLine } from '../usage.ts';
 import { suggestModel } from '../../web/model-suggest.js';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { autoWebSearch } from '../web-search-auto.ts';
 
 /**
  * 3.0.3: a provider that is the default but has no default model (it just became the default: the
@@ -429,7 +430,9 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         }
         // 3.0.3: the provider that became the default gets a default model from the list just checked.
         if (app.modelCatalog?.known(b)) adoptDefaultModel(app, b, app.modelCatalog.view(b).models);
-        return send(res, 200, providerView());
+        // 3.3.0: an Ollama Cloud key also turns on Ollama web search (when no search is set up yet).
+        const searchOn = autoWebSearch(app, config, body.apiKey);
+        return send(res, 200, { ...providerView(), ...(searchOn ? { webSearch: 'ollama' } : {}) });
       }
       if (b && !c && method === 'DELETE') {
         const s = app.settings.get();

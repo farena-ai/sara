@@ -130,7 +130,9 @@ test('Play 2.88: the phone app offers live calls on http servers too (native cal
   assert.match(init, /voice\.nativeCalls = Boolean\(window\.SaraPhone\?\.startCall\)/);
   assert.match(init, /voice\.callShown = \(micOk && \(voice\.live \|\| \(canHear && canSpeak\)\)\) \|\| \(voice\.nativeCalls && voice\.live\)/);
   // Voice notes and video calls record in the page: still only with a secure context.
-  assert.match(init, /\$\('#mic'\)\.hidden = !\(canHear && micOk\)/);
+  // 3.3.0: the mic shows before her voice is set up (first tap offers setup), but still never without a
+  // secure context, where the page can't record.
+  assert.match(init, /\$\('#mic'\)\.hidden = !micOk \|\| /);
   assert.match(app, /\$\('#video-call-btn'\)\.hidden = \$\('#call'\)\.hidden \|\| voice\.webMic === false/);
   // A live call in the app goes to the native call (not getUserMedia).
   assert.match(app, /if \(window\.SaraPhone\?\.startCall && !video\) \{/);

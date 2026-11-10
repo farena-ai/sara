@@ -28,8 +28,11 @@ put it in your password manager. Read the short note about what Sara is, and pre
 <img src="screenshots/first-run.webp" alt="Setup step 1 of 4: a box with the name Alex and three cards for what you will mostly do with her: Company, Coding or Both (picked)" width="520">
 
 She asks **what you will mostly do with her**: *Company* (talk, plan your day, remember things),
-*Coding* or *Both*. It only changes what she shows you first; every feature stays available, and you can
-change it later in *Settings → You → About you*.
+*Coding* or *Both*. *Company* is picked unless you choose another. It only changes what she shows you
+first; every feature stays available, and you can change it later in *Settings → You → About you*.
+
+Pressing Esc or clicking next to the setup window doesn't close it (*Set up later* does). If the page
+reloads, setup comes back at the step you were on.
 
 ## 3. Keep Sara, or make your own
 
@@ -45,6 +48,11 @@ model and checks that it answers: **Connected ✓**. No graphics card? *My subsc
 already pay for (ChatGPT, Claude, SuperGrok), or add a cloud key. Help choosing:
 [Choosing a model](CHOOSING_A_MODEL.md) and [what it costs](COSTS.md).
 
+*In the cloud* says where to get a key for the service you pick (for Ollama Cloud,
+*ollama.com/settings/keys*) and what one looks like. A key works like a password that lets Sara use your
+account there. An **Ollama Cloud key also turns on web search** with the same key, so she can look
+things up for you (unless you already set up another search).
+
 Skipped this step? Open **Settings → Models → Default model → Connect an AI model** to return
 to the guided choices. You do not need to repeat your name or companion setup. The chooser tests
 that the model answers before you confirm it as the default. Cancelling keeps your current default
@@ -53,7 +61,10 @@ and chat draft; connections you explicitly saved with **Use it** or **Connect** 
 ## 5. Say hello
 
 The last setup step has three starters (*Tell me about yourself*, *Plan my day with me*, *What can you
-do?*), or just type. After her first reply she offers a short six-stop tour.
+do?*), or press **Start talking**: a chat called *Chat with Sara* opens with the cursor in the message
+box. If an old assistant (Hermes Agent, OpenClaw) is on this computer, a small line offers to bring her
+memories over. The microphone is there from the start; the first tap offers to set up her voice
+(about a minute). After her first reply she offers a short six-stop tour.
 
 <img src="screenshots/companion.webp" alt="A chat: Alex asks Sara to put a calmer week on the planner; Sara shows two To-do added cards and a Reminder set card, answers warmly, and a quiet line under her reply says what she did" width="760">
 
@@ -99,6 +110,12 @@ and **Settings → Her → Hey Sara** in the Windows app, to say her name and ta
 ([Hey Sara](HEY_SARA.md)).
 
 ## When you're stuck
+
+**She tells you when something is wrong.** If her AI service doesn't answer, rejects the key, is out
+of credit or busy, or a mailbox signed her out, she says so in plain words in the chat and at the top
+of Today, with one **Fix it** button that opens the right setting; **Try again** asks again and shows
+what happened. *Settings → Health* follows the real answers too: the model line is not ✓ while her
+replies fail. In Company mode the technical checks fold away behind *Show technical checks*.
 
 <img src="screenshots/howto.webp" alt="The How do I…? box at the top of Name and personality, open: How do I change her name?, How do I make her my own? and How do I go back to how she was?" width="760">
 

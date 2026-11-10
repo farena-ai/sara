@@ -48,6 +48,16 @@
 .hub-note-folded p { margin: 0 0 var(--s-2); }
 .hub-first-preview { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); max-height: 220px; overflow: auto; background: var(--surface-0); color: var(--text-1); border: 1px solid var(--line); border-radius: var(--r-control); font: 12px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 .hub-first-preview[hidden] { display: none; }
+/* 3.3.0: in the guide the check-in notice is a plain line with links: Start talking is the one main button. */
+#setup .hub-note-folded { padding: 0; border: 0; background: none; color: var(--text-2); font-size: 13px; }
+#setup .hub-note-folded p { display: inline; margin: 0; }
+#setup .hub-note-folded .hub-note-actions { display: inline; }
+#setup .hub-note-folded .hub-note-actions button { min-height: 32px; padding: 0 var(--s-1); border: 0; background: none; color: var(--accent-text); font-size: 13px; text-decoration: underline; box-shadow: none; }
+#setup .hub-note-folded #hub-first-ok { display: none; }
+/* 3.3.0: key help under the key box, and Next once her brain answered. */
+#setup .su-key-help { margin: var(--s-2) 0 0; line-height: 1.5; }
+#setup .su-key-help:empty { display: none; }
+#setup #su-next.su-next-ready { outline: 3px solid color-mix(in srgb, var(--accent-solid) 45%, transparent); outline-offset: 2px; }
 
 /* The empty chat: "Say hi" and four chips for the use choice (F13). */
 #messages .empty-start { display: grid; justify-items: center; gap: var(--s-3); max-width: 44ch; }

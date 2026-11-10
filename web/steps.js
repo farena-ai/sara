@@ -356,7 +356,8 @@ export function runLink(box, runId, open) {
   const li = el('li', 'step step-run');
   const btn = el('button', 'step-link small run-open');
   btn.type = 'button';
-  btn.append(stepIcon('compass'), el('span', '', t('Show the run')));
+  // 3.3.0 (ezplain): plain words; the Run view itself keeps the technical details.
+  btn.append(stepIcon('compass'), el('span', '', t('How she answered')));
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     open(runId);

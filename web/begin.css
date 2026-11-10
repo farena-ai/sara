@@ -209,6 +209,24 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .dap-notice { background: var(--surface-2); border-radius: var(--r-control, 8px); padding: 8px 12px; }
 .login-wait { display: grid; gap: 4px; }
 
+/* 3.3.0 easy reach (web/reach.js): Connect the Sara phone app, Use Sara away from home. */
+.rch-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 0 0 14px; }
+.rch-card h3 { margin-top: 0; }
+.rch-qr { width: 168px; height: 168px; background: var(--paper); padding: 6px; border-radius: 8px; }
+.rch-noreach { border-left: 3px solid var(--accent); padding: 6px 12px; margin: 8px 0; }
+.rch-status { font-weight: 600; margin: 4px 0 8px; }
+.rch-status.ok, .rch-say.ok { color: var(--success); }
+.rch-steps { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 10px; }
+.rch-step { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+.rch-step-h { display: flex; gap: 10px; align-items: center; margin: 0 0 4px; }
+.rch-mark { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); flex: none; font-size: 13px; }
+.rch-step.done .rch-mark { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.rch-qrs { display: flex; gap: 16px; flex-wrap: wrap; }
+.rch-fig { margin: 0; text-align: center; }
+.rch-fig .rch-qr { width: 132px; height: 132px; }
+.rch-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+.rch-out { white-space: pre-wrap; font-size: 12px; max-height: 160px; overflow: auto; }
+.rch-code code, .rch-away code { word-break: break-all; }
 /* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
 .au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
 .au-filters label { display: flex; flex-direction: column; gap: 4px; }

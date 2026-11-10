@@ -149,6 +149,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shared_list$/, 'shared', 'shared lists'],
   [/^(safety_report|suggest_routine)$/, 'safety', 'safety'],
   [/^(settings_guide|find_tools)$/, 'help', 'help'],
+  [/^change_setting$/, 'settings', 'everyday settings'],
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
@@ -223,6 +224,8 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa'],
+  // 3.3.0 (ezplain): settings by asking (change_setting).
+  settings: ['text', 'font', 'bigger', 'larger', 'smaller', 'zoom', 'dark mode', 'light mode', 'night mode', 'day mode', 'theme', 'color', 'colour', 'your voice', 'voice', 'mute', 'call me', 'my name', 'texto', 'letra', 'modo oscuro', 'tema', 'voz', 'llamame', 'texte', 'police', 'mode sombre', 'couleur', 'voix', 'appelle moi', 'schrift', 'grosser', 'dunkelmodus', 'farbe', 'stimme', 'nenn mich', 'fonte', 'maior', 'modo escuro', 'cor', 'me chame', 'testo', 'carattere', 'piu grande', 'tema scuro', 'colore', 'voce', 'chiamami'],
   personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],
   skills: ['skill', 'skills', 'recipe', 'habilidad', 'receta', 'competence', 'recette', 'fahigkeit', 'rezept', 'habilidade', 'receita', 'abilita', 'ricetta'],
   shared: ['shared list', 'shopping list', 'lista compartida', 'liste partagee', 'einkaufsliste', 'lista compartilhada', 'lista condivisa'],

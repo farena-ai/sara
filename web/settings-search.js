@@ -7,6 +7,8 @@
 // synonyms) → one of its "How do I…?" questions → its labels and tips → its text. *Elsewhere* lists
 // the places outside Settings (Planner tabs, chat commands) that match.
 
+import { everydayMatches } from './everyday-words.js';
+
 export const foldText = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 
 /**
@@ -62,8 +64,10 @@ export const SETTINGS_KEYWORDS = {
   // 3.0.3: where a new phone or computer gets its sign-in code. Words in all six app languages (the
   // titles and labels are matched in the app's language already; these are what people type instead).
   'dh-devices': ['code', 'sign-in code', 'pairing', 'pair', 'pair a device', 'add device', 'add a device', 'add computer', 'add phone', 'add a phone or computer', 'new device', 'sign in another device', 'another device', 'desktop apps', 'qr', 'qr code', 'passkey', 'two-step',
+    // 3.3.0: adding a computer, and reaching her away from home (Tailscale) are on this page too.
+    'add a computer', 'add desktop', 'add a desktop', 'pairing code', 'away from home', 'tailscale', 'use on my phone outside', 'outside the house', 'from anywhere',
     'codigo', 'emparejar', 'vincular', 'anadir dispositivo', 'otro dispositivo', 'jumeler', 'appairer', 'ajouter un appareil', 'autre appareil', 'koppeln', 'gerat hinzufugen', 'anderes gerat', 'codice', 'associa', 'abbina', 'aggiungi dispositivo', 'altro dispositivo', 'parear', 'emparelhar', 'adicionar dispositivo', 'outro dispositivo'],
-  'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile'],
+  'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile', 'connect the phone app', 'get the app', 'android app', 'put her on my phone'],
   'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut'],
 };
 
@@ -117,8 +121,16 @@ export function rankPages(q, pages) {
     if (all(p.head ?? '')) return 3;
     return 0;
   };
-  const scored = pages.map((p, i) => ({ p, i, tier: tierOf(p), exact: foldText(p.title) === phrase || (p.keywords ?? []).includes(phrase) }));
-  const strong = scored.filter((x) => x.tier).sort((a, b) => a.tier - b.tier || Number(b.exact) - Number(a.exact) || a.i - b.i);
+  // 3.3.0 (ezplain): everyday words ("bigger text", "how much does this cost") put their page right
+  // after an exact page name or keyword (web/everyday-words.js).
+  const plain = everydayMatches(q).map((e) => e.page).filter(Boolean);
+  const scored = pages.map((p, i) => {
+    const exact = foldText(p.title) === phrase || (p.keywords ?? []).includes(phrase);
+    const at = plain.indexOf(p.id);
+    return { p, i, exact, tier: exact ? tierOf(p) || 1 : at >= 0 ? 0.5 + at / 100 : tierOf(p) };
+  });
+  const rank = (x) => (x.exact ? 0 : x.tier);
+  const strong = scored.filter((x) => x.tier).sort((a, b) => rank(a) - rank(b) || a.tier - b.tier || a.i - b.i);
   if (strong.length) return strong.map((x) => x.p);
   for (const ok of [(p) => any(p.head ?? ''), (p) => all(p.body ?? ''), (p) => any(p.body ?? '')]) {
     const hits = pages.filter(ok);
@@ -137,6 +149,8 @@ export function rankElsewhere(q, commands = []) {
   if (!stems.length) return [];
   const all = (s) => stems.every((w) => s.includes(w));
   const out = [];
+  // 3.3.0 (ezplain): everyday things that aren't a Settings page ("delete a chat").
+  for (const e of everydayMatches(q)) if (e.place) out.push({ id: e.place, label: [e.title], detail: e.how });
   for (const e of ELSEWHERE) if (e.words.some((w) => all(foldText(w))) || all(foldText(e.label[1]))) out.push({ id: e.id, label: e.label });
   for (const c of commands) {
     const words = [c.name, ...(COMMAND_WORDS[c.name] ?? [])].map(foldText);

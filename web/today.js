@@ -257,7 +257,12 @@ export function repeatedHour(at, offset = (ms) => new Date(ms).getTimezoneOffset
   return '';
 }
 
-const NEEDS_RANK = ['approval', 'failed', 'overdue', 'board', 'mail', 'hook', 'plan', 'model'];
+/** 3.3.0 (src/trouble.ts): her own trouble as Needs you rows (model down, key rejected, a mailbox signed out). */
+function troubleNeeds(list) {
+  return (Array.isArray(list) ? list : []).map((x) => ({ kind: 'trouble', key: `trouble:${x.id}`, title: x.text, why: '', at: null, ref: x }));
+}
+const troubleText = (tr) => (tr?.key ? t(tr.key, tr.params ?? {}) : String(tr?.text ?? ''));
+const NEEDS_RANK = ['trouble', 'approval', 'failed', 'overdue', 'board', 'mail', 'hook', 'plan', 'model'];
 /**
  * B3 · Needs you (§4.4): one ranked list: approvals → failed → overdue (oldest first) → board →
  * mail → hooks → her reach-outs she couldn't send → models. Keys put off with "Not today" are left
@@ -267,7 +272,8 @@ export function needsItems(d, now = Date.now()) {
   const n = d?.needs ?? {};
   const skip = new Set(n.notToday ?? []);
   const { start } = dayRange(d?.day, now);
-  const out = [];
+  // 3.3.0: her own trouble first (model down, key rejected, a mailbox signed out): one Fix it each.
+  const out = troubleNeeds(n.trouble);
   for (const a of n.approvals ?? []) out.push({ kind: 'approval', key: `approval:${a.approvalId}`, title: a.title || a.summary || a.name, why: a.conversation ?? '', at: a.since ?? null, ref: a });
   for (const j of n.failedJobs ?? []) out.push({ kind: 'failed', key: `job:${j.id}`, title: j.label, why: j.status, at: j.at, ref: { ...j, job: true } });
   for (const r of n.failedRuns ?? []) out.push({ kind: 'failed', key: `run:${r.id}`, title: r.title, why: 'error', at: r.at, ref: r });
@@ -824,7 +830,7 @@ function comingRow(x, day, inDaysWords) {
   return row;
 }
 
-const NEEDS_ICON = { approval: 'shield', failed: 'warn', overdue: 'reminder', board: 'todo', mail: 'mail', hook: 'plug', plan: 'calendar', model: 'sparkle' };
+const NEEDS_ICON = { approval: 'shield', failed: 'warn', overdue: 'reminder', board: 'todo', mail: 'mail', hook: 'plug', plan: 'calendar', model: 'sparkle', trouble: 'warn' };
 let lastNeeds = null;
 let lastNeedsSaid = 0;
 /** Needs you (§4.4): one ranked list, one verb per row; "Not today" puts an item off until midnight. */
@@ -858,6 +864,19 @@ export function renderNeeds(d) {
   draw(n);
   body.replaceChildren(ul, ...seeAll(items, n, draw));
 }
+/** 3.3.0: the Today banner: her own trouble in her words, one Fix it (the first notice; the rest are in Needs you). */
+function renderTrouble(d) {
+  const box = $('#td-trouble');
+  if (!box) return;
+  const [x] = troubleNeeds(d?.needs?.trouble).filter((r) => !(d?.needs?.notToday ?? []).includes(r.key));
+  box.hidden = !x;
+  if (!x) return box.replaceChildren();
+  const ic = el('span', 'td-trouble-ic');
+  ic.setAttribute('aria-hidden', 'true');
+  ic.append(icon('warn') ?? '!');
+  box.replaceChildren(ic, raw(el('p', 'td-trouble-text', troubleText(x.ref))), btn('small', t(x.ref.fix?.label || 'Fix it'), () => (closeToday({ focus: false }), void ctx.openSettings(x.ref.fix?.page || 'models-providers'))));
+}
+
 function needsRow(x, d) {
   const li = el('li', `td-need ${x.kind}`);
   const ic = icon(NEEDS_ICON[x.kind] ?? 'dot');
@@ -865,7 +884,7 @@ function needsRow(x, d) {
   mark.setAttribute('aria-hidden', 'true');
   if (ic) mark.append(ic);
   const text = el('div', 'td-need-text');
-  const title = x.kind === 'hook' && !x.title ? t('{name} is sending too much: paused for 10 minutes', { name: x.why }) : x.title;
+  const title = x.kind === 'hook' && !x.title ? t('{name} is sending too much: paused for 10 minutes', { name: x.why }) : x.kind === 'trouble' ? troubleText(x.ref) : x.title;
   text.append(raw(el('span', 'td-need-title', title)));
   const why = needsWhy(x);
   if (why) text.append(raw(el('span', 'td-need-why muted small', why)));
@@ -884,7 +903,8 @@ function needsRow(x, d) {
           await ctx.api(`/approvals/${x.ref.approvalId}`, { method: 'POST', body: { approved: true } });
           li.remove();
         })),
-        btn('ghost small', t('Deny'), go(async () => {
+        // 3.3.0 (ezplain): plain words; it does not run (the same answer as Deny on the card).
+        btn('ghost small', t('Not now'), go(async () => {
           await ctx.api(`/approvals/${x.ref.approvalId}`, { method: 'POST', body: { approved: false } });
           li.remove();
         })),
@@ -909,6 +929,9 @@ function needsRow(x, d) {
       break;
     case 'plan':
       acts.append(btn('ghost small', t('Open her plans'), () => ctx.openHerPlans?.()));
+      break;
+    case 'trouble':
+      acts.append(btn('small', t(x.ref.fix?.label || 'Fix it'), () => (closeToday({ focus: false }), void ctx.openSettings(x.ref.fix?.page || 'models-providers'))));
       break;
     case 'model':
       acts.append(btn('ghost small', t('Pick a model'), () => (closeToday({ focus: false }), void ctx.openSettings('models'))));
@@ -1855,7 +1878,10 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   }
   if (has('weather')) draw('td-weather', () => renderWeather(d.weather));
   if (has('coming')) draw('td-dates', () => renderDates(d, inDaysWords));
-  if (has('needs')) draw('td-needs', () => renderNeeds(d));
+  if (has('needs')) {
+    draw('td-needs', () => renderNeeds(d));
+    renderTrouble(d);
+  }
   if (has('mail')) draw('td-mail', () => renderMail(d.mail));
   if (has('memories')) draw('td-memories', () => renderMemories(d.memories));
   if (has('moments')) draw('td-otd', () => renderMomentsTile(d));

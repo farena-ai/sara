@@ -55,6 +55,7 @@ import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-model
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
 import { DEVICES_PAGE, devicesPath } from './devices-path.js';
+import { initReach, reachLine, renderAway, renderPhoneConnect } from './reach.js';
 import { STORY_RANGE_KEY, storyRange } from './story-range.js';
 import { addToMomentsButton, initMoments, loadMoments, openMoments, renderTodayMoments, renderTodayPhotos } from './moments.js';
 import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToday, todayData, todayOpen, todayPartChanged } from './today.js';
@@ -92,6 +93,7 @@ import { createQueue, normPath, overlayCount, starterChips, todayAction } from '
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
 import { rankElsewhere } from './settings-search.js';
+import { everydayMatches } from './everyday-words.js';
 import { initSlash, loadSlash, slashCommands } from './slash.js';
 import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
 import { choices } from './kit.js';
@@ -128,6 +130,7 @@ import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, t
 import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
+import { troubleBubble } from './trouble.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 import { durationWords, turnHeads } from './turn-meta.js';
 // V4b (docs/ops/V4_DESIGN.md): her presence orb and the live run timeline.
@@ -286,6 +289,8 @@ async function boot() {
   if (session.adultAsk) $('#adult-ask').showModal();
   const setup = await api('/setup').catch(() => ({ done: true }));
   state.usePath = normPath(setup.usePath);
+  // 3.3.0 (ezplain): plain words on the main screens unless she is set up for coding only.
+  document.documentElement.dataset.usePath = state.usePath;
   if (!state.messages?.length) renderMessages([]); // the empty chat's chips follow the use choice
   if (!setup.done) {
     state.setupPending = true;
@@ -1531,7 +1536,13 @@ initCommandBar({
     const weak = labels.filter((x) => x.sc < 3);
     // Phase 128 (PL2b, N30): the same Elsewhere as the Settings search (Planner tabs, chat commands).
     const elsewhere = rankElsewhere(q, isMember() ? [] : slashCommands()).slice(0, 2).map((h) => ({ key: `elsewhere:${h.id}`, icon: h.id.startsWith('planner') ? 'calendar' : 'chat', label: h.label.map((x) => (x.startsWith('/') ? x : t(x))).join(' → '), sub: h.detail ?? t('Elsewhere'), run: () => openSearchPlace(h.id) }));
-    return [...named.slice(0, 3).map(pageItem), ...elsewhere, ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem), ...weak].slice(0, 6);
+    // 3.3.0 (ezplain): everyday words ("bigger text", "delete a chat", "cost") answer first.
+    const plain = everydayFor(q)
+      .map((e) => (e.page ? pages.find((p) => p.dataset.page === e.page) : e))
+      .filter(Boolean)
+      .map((x) => (x.dataset ? pageItem(x) : { key: `elsewhere:${x.place}`, icon: 'chat', label: everydayText(x.place)[0], sub: everydayText(x.place)[1], run: () => openSearchPlace(x.place) }));
+    const keys = new Set(plain.map((x) => x.key));
+    return [...plain, ...named.slice(0, 3).map(pageItem).filter((x) => !keys.has(x.key)), ...elsewhere.filter((x) => !keys.has(x.key)), ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem).filter((x) => !keys.has(x.key)), ...weak].slice(0, 6);
   },
   // V4a: any typed text can go to her as a message from the bar.
   ask: (q) => (q && !state.conv?.readOnly ? { key: 'ask', icon: 'chat', label: t('Ask {name}: “{q}”', { name: currentIdentity().name, q }), raw: true, preview: () => ({ lines: [t('She answers in this chat.')] }), run: async () => {
@@ -1580,6 +1591,14 @@ initCommandBar({
     }, '', t('accent color color hue her color'), () => ({ kv: [[t('Now'), $('#ap-accent')?.selectedOptions?.[0]?.textContent ?? '']], lines: [t('One color for the whole app, her glow and the background. Text stays readable whatever you pick.')] }));
     // 3.0.3: making a sign-in code for a new phone or computer, from anywhere (it starts the code).
     if (!isMember() && !document.body.classList.contains('demo')) add('pair', 'phone', t('Add a phone or computer'), () => startPairing(), '', t('pair pairing code sign in another device add device add phone add computer desktop app QR'), () => ({ lines: [t('Makes a one-time code and QR that sign in your phone or another computer, without the owner token.')], kv: [[t('Where'), devicesPath(t)]] }));
+    // 3.3.0: the phone app and away from home, from anywhere.
+    if (!isMember() && !document.body.classList.contains('demo')) {
+      add('away', 'phone', t('Use Sara away from home'), () => openAway(), '', t('away from home tailscale use on my phone outside anywhere remote reach her from my phone when I am out'), () => ({ lines: [t('Three steps with Tailscale, a free app that links your own devices, so your phone reaches Sara from anywhere.')], kv: [[t('Where'), devicesPath(t)]] }));
+      add('phone-app', 'phone', t('Connect the Sara phone app'), async () => {
+        await openSettings('co-phone');
+        $('#reach-phone')?.scrollIntoView({ block: 'start' });
+      }, '', t('phone app android app get the app install on my phone connect my phone put her on my phone'));
+    }
     // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
     add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
     add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette color dark light look'));
@@ -2144,9 +2163,16 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && (m.kind === 'skill' || m.kind === 'skillfix')) {
       // Phase 97: "make this a skill?" and "a fix for …?" (web/learned-skills.js), after her reply.
       els.push(learnCard(m));
+    } else if (m.role === 'notice' && m.kind === 'websearch') {
+      // 3.3.0: web search is off: she says so, with one button to turn it on (src/web-search-auto.ts).
+      const n = bubble('notice', m.meta?.key ? t(m.meta.key) : m.content, 'websearch', m.id);
+      n.append(' ', webSearchButton(Boolean(m.meta?.oneTap)));
+      els.push(n);
     } else if (m.role === 'notice' && m.kind === 'command') {
       // Phase 107: /new, /reset, /stop… from a chat app or typed here (never a message to her).
-      els.push(bubble('notice', commandNotice(m), 'command', m.id));
+      const cn = bubble('notice', commandNotice(m), 'command', m.id);
+      if (m.content === 'learn' && m.meta?.webSearch) cn.append(' ', webSearchButton(Boolean(m.meta.webSearch.oneTap)));
+      els.push(cn);
     } else if (m.role === 'notice' && m.kind === 'watch') {
       // E4: a watched file's new matching line (or a paused watch), labelled as the app's (web/watches.js).
       els.push(watchNotice(m));
@@ -2262,6 +2288,43 @@ function renderMessages(messages, opts = {}) {
   panelMessages();
 }
 
+/** 3.3.0: Turn on web search: one tap with the Ollama Cloud key she already has, else its Settings page. */
+function webSearchButton(oneTap) {
+  const b = el('button', 'small', t('Turn on web search'));
+  b.type = 'button';
+  b.addEventListener('click', async () => {
+    if (!oneTap) return void openSettings('ab-search');
+    b.disabled = true;
+    try {
+      await api('/search', { method: 'PUT', body: { provider: 'ollama', useProviderKey: true } });
+      b.replaceWith(el('span', 'su-chip', t('Web search is on ✓ Ask me again.')));
+    } catch (err) {
+      b.disabled = false;
+      b.title = err.message;
+      void openSettings('ab-search');
+    }
+  });
+  return b;
+}
+
+/** 3.3.0 (web/trouble.js): Fix it opens the page; Try again continues a half reply or asks again. */
+function troubleNotice(tr, detail) {
+  return troubleBubble(tr, {
+    el,
+    t,
+    detail,
+    onFix: (page) => void openSettings(page || 'models-providers'),
+    onRetry: async (box) => {
+      if (state.streaming || state.watch || !state.currentId) return;
+      box.remove();
+      document.querySelector('#messages .continue-bar')?.remove();
+      const last = (state.messages ?? []).filter((m) => m.role !== 'notice').at(-1);
+      if (last?.role === 'assistant' && last.meta?.partial) await runStream(`/conversations/${state.currentId}/continue`, {}, null);
+      else await regenerate();
+    },
+  });
+}
+
 function continueBar() {
   const bar = el('div', 'msg notice continue-bar', t("Sara didn't finish this reply (it was stopped, failed or the server restarted). "));
   const go = el('button', 'small', t('Continue'));
@@ -2271,6 +2334,11 @@ function continueBar() {
     runStream(`/conversations/${state.currentId}/continue`, {}, null);
   });
   bar.append(go);
+  // 3.3.0: when her AI service is the reason, say so (and offer the fix) instead of the generic line.
+  void api('/health/trouble').then((r) => {
+    const tr = (r?.trouble ?? []).find((x) => String(x.id).startsWith('model:'));
+    if (tr && bar.isConnected) bar.replaceWith(troubleNotice(tr, ''));
+  }).catch(() => {});
   return bar;
 }
 
@@ -2335,6 +2403,8 @@ function commandNotice(m) {
     remember: t('saved in her memory'),
   }[m.content];
   if (m.content === 'offer') return t('She suggested /new: this chat is getting long');
+  // 3.3.0: /learn keeps its answer in the chat (already in the owner's language).
+  if (m.content === 'learn') return `/learn ${meta.args ?? ''} · ${meta.reply ?? ''}`.replace(/\s+·\s*$/, '');
   return said ? `/${m.content}${meta.room ? ' room' : ''} · ${said}` : `/${m.content}`;
 }
 
@@ -2371,6 +2441,7 @@ async function runChatCommand(text) {
     }
     const lines = (r.choices ?? []).map((m, i) => `${i + 1}. ${m.model} (${m.provider})`);
     const reply = bubble('notice', [r.reply, ...lines, ...(lines.length ? [t('Send /model and the number to pick one.')] : [])].filter(Boolean).join('\n'), 'command-reply');
+    if (r.webSearch) reply.append(' ', webSearchButton(Boolean(r.webSearch.oneTap)));
     if (r.approvalId) {
       const row = el('div', 'actions-left');
       for (const [label, approved] of [[t('Allow'), true], [t('Deny'), false]]) {
@@ -2736,6 +2807,7 @@ async function runStream(path, body, userBubble) {
           // Phase 69: the AI notice and crisis help show on the video call screen too.
           if (videoView.active) videoView.notice(ev.kind, ev.key ? serverText(ev, ev.text) : ev.text);
           const n = bubble('notice', ev.key ? serverText(ev, ev.text) : ev.text, ev.kind);
+          if (ev.kind === 'websearch') n.append(' ', webSearchButton(Boolean(ev.oneTap)));
           if (ev.kind === 'disclosure' && userBubble) userBubble.before(n);
           else append(n);
         } else if (ev.type === 'steer') {
@@ -2925,7 +2997,9 @@ async function runStream(path, body, userBubble) {
           place(bubble('assistant', '', 'photo', undefined, [`/api/uploads/${ev.id}`]));
         } else if (ev.type === 'error') {
           dropBuilding();
-          append(bubble('error', ev.speaker ? `${ev.speaker.name}: ${serverText(ev, ev.message)}` : ev.message));
+          // 3.3.0: a service problem (her AI service down, the key rejected…) in her plain words with Fix it and Try again.
+          if (ev.trouble && !ev.speaker) append(troubleNotice(ev.trouble, ev.message));
+          else append(bubble('error', ev.speaker ? `${ev.speaker.name}: ${serverText(ev, ev.message)}` : ev.message));
         }
         // A call that was dropped (a fallback, a blocked reply) never stays half-written.
         if (ev.type === 'notice' || ev.type === 'replace' || ev.type === 'claim_check' || ev.type === 'done') dropBuilding();
@@ -2959,6 +3033,7 @@ async function runStream(path, body, userBubble) {
         const errors = [...document.querySelectorAll('#messages .msg.error')];
         renderMessages(c.messages);
         for (const e of errors) append(e);
+        if (errors.some((e) => e.classList.contains('trouble'))) document.querySelector('#messages .continue-bar')?.remove();
       } else if (c.activity && !state.streaming && !state.watch) {
         // Phase 116: a queued message (or a note she got after her last step) already runs: follow it.
         renderMessages(c.messages, { busy: true });
@@ -3100,7 +3175,23 @@ function flagClaims(el, claims) {
   el.classList.add('unverified');
   const note = document.createElement('div');
   note.className = 'claim-flag';
-  note.textContent = `${t('Not checked:')} ${claims.map((c) => (c.problem === 'contradicted' ? t('"{sentence}" (what really happened says otherwise)', { sentence: c.sentence }) : t('"{sentence}" (nothing she did shows this)', { sentence: c.sentence }))).join('; ')}`;
+  // 3.3.0 (ezplain): say it plainly, and offer the one thing to do about it.
+  const said = claims.map((c) => (c.problem === 'contradicted' ? t('She said "{sentence}", but what really happened says otherwise.', { sentence: c.sentence }) : t('She said "{sentence}", but nothing she did shows it really happened.', { sentence: c.sentence }))).join(' ');
+  const words = document.createElement('span');
+  words.textContent = `${t('Not checked:')} ${said}`;
+  note.append(words);
+  if (!state.conv?.readOnly) {
+    const ask = document.createElement('button');
+    ask.type = 'button';
+    ask.className = 'ghost small claim-ask';
+    ask.textContent = t('Ask her to really do it');
+    ask.addEventListener('click', async () => {
+      ask.disabled = true;
+      await askInChat(t('You said "{sentence}", but I don\'t see that it happened. Please really do it now, or tell me why you can\'t.', { sentence: claims[0].sentence }));
+      $('#composer').requestSubmit();
+    });
+    note.append(' ', ask);
+  }
   el.append(note);
 }
 
@@ -3273,13 +3364,50 @@ function approvalAnswers() {
   if (no && !no.disabled) out.push({ key: 'no', icon: 'close', label: `${no.textContent.trim()}: ${what}`, what, run: () => no.click() });
   return out;
 }
-/** The "Waiting for your OK" line above the box gets the card's answers and Show. */
+/**
+ * 3.3.0 (ezplain): one approval in view at a time. Is the card's answer row inside the visible part
+ * of the chat (and the window)? Then the line above the message box stays quiet.
+ */
+function cardInView(card) {
+  const row = card.querySelector(':scope > .row') ?? card;
+  if (!card.isConnected || !row.getClientRects().length) return false;
+  const r = row.getBoundingClientRect();
+  const b = ($('#messages') ?? document.body).getBoundingClientRect();
+  const top = Math.max(b.top, 0);
+  const bottom = Math.min(b.bottom, innerHeight);
+  return r.bottom > top + 4 && r.top < bottom - 4;
+}
+let restoringCards = 0;
+/** The server waits for an answer but no card is in the chat (it was never drawn): draw it again. */
+async function restoreWaitingCards() {
+  if (!state.currentId || Date.now() - restoringCards < 3000) return;
+  restoringCards = Date.now();
+  try {
+    const c = await api(`/conversations/${state.currentId}?limit=1`);
+    for (const ev of c.activity?.approvals ?? []) {
+      if (document.querySelector(`#messages .approval[data-call="${CSS.escape(ev.id)}"]`)) continue;
+      const card = approvalCard(ev);
+      append(card);
+      revealApproval(card);
+    }
+  } catch {
+    /* the next activity update tries again */
+  }
+}
+/**
+ * The "Waiting for your OK" line above the box. While the card is on screen it only says so; when
+ * the card is scrolled away (or folded inside a long run) it gets the card's two answers and Show me,
+ * so a waiting step can always be answered from where you are.
+ */
 function syncActivityAnswers() {
   const box = $('#activity-act');
   if (!box) return;
-  const card = activity.status === 'waiting' || waitingCards().length ? waitingCards()[0] : null;
-  box.hidden = !card;
-  if (!card) return box.replaceChildren();
+  const card = waitingCards()[0];
+  const offscreen = card ? !cardInView(card) : false;
+  if (!card && activity.status === 'waiting') void restoreWaitingCards();
+  box.hidden = !offscreen;
+  $('#activity')?.classList.toggle('appr-away', offscreen);
+  if (!offscreen) return box.replaceChildren();
   const [yes, no] = answerButtons(card);
   const mirror = (src, cls) => {
     const b = el('button', cls, src.textContent.trim());
@@ -3292,11 +3420,21 @@ function syncActivityAnswers() {
     });
     return b;
   };
-  const show = el('button', 'ghost small', t('Show'));
+  const show = el('button', 'ghost small', t('Show me'));
   show.type = 'button';
   show.addEventListener('click', () => revealApproval(card, { focus: true }));
   box.replaceChildren(...(yes ? [mirror(yes, 'small')] : []), ...(no ? [mirror(no, 'ghost small')] : []), show);
 }
+// Scrolling the chat shows or hides the line's answers (the card came into view, or left it).
+let apprScroll = 0;
+$('#messages')?.addEventListener('scroll', () => {
+  if (apprScroll || !waitingCards().length) return;
+  apprScroll = requestAnimationFrame(() => {
+    apprScroll = 0;
+    syncActivityAnswers();
+  });
+}, { passive: true });
+addEventListener('resize', () => waitingCards().length && syncActivityAnswers());
 
 function approvalCard(ev, block) {
   const card = document.createElement('div');
@@ -3583,6 +3721,7 @@ const TOOL_WORDS = {
   recall: 'Look back through your past conversations.',
   library: 'Read the documents you gave her.',
   tune_personality: 'Change one of her personality dials when you ask her to.',
+  change_setting: 'Change your text size, Night or Day, the color, her voice or your name when you ask her to (with Undo).',
   code_map: 'An overview of the code in her workspace.',
   code_find: 'Find code in her workspace by name or words.',
   code_refs: 'Find where something in the code is used.',
@@ -3698,7 +3837,7 @@ const TOOL_NAME = {
   home_status: 'See your smart home', home_control: 'Switch things at home',
   spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
   ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
-  tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works',
+  tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works', change_setting: 'Change an everyday setting',
   board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
   agenda_add: 'Added to her plans', agenda_goal: 'Suggest a goal', agenda_list: 'Look at her plans',
 };
@@ -3720,7 +3859,7 @@ const TOOL_GROUP_OF = {
   team_task: 'team', team_status: 'team', work_on_issue: 'team',
   preview_start: 'browser', preview_stop: 'browser', browser_open: 'browser', browser_screenshot: 'browser', browser_click: 'browser', browser_type: 'browser', browser_read: 'browser', browser_check: 'browser',
   ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
-  tune_personality: 'her', settings_guide: 'her',
+  tune_personality: 'her', settings_guide: 'her', change_setting: 'her',
   spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'music', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'music',
 };
 const TOOL_GROUP_ORDER = ['plan', 'memory', 'pictures', 'web', 'mail', 'home', 'music', 'her', 'files', 'run', 'git', 'team', 'browser', 'ssh', 'mcp', 'other'];
@@ -3921,11 +4060,17 @@ function renderConvSummary() {
   // L11: "main" is the main folder of her workspaces.
   // Phase 71: members have no workspace folders (the file tools are the owner's), so no folder part.
   const ws = c.workspace === 'main' ? t('main folder') : c.workspace;
-  const folder = isMember() ? '' : `${ws} · `;
+  // 3.3.0: Company mode talks about her AI service in plain words, never folders; an everyday chat in
+  // the main folder doesn't name it either (it only matters for coding).
+  const plain = state.usePath === 'company' && c.mode !== 'coding';
+  const everyday = c.mode !== 'coding' && state.usePath !== 'coding' && c.workspace === 'main';
+  const folder = isMember() || plain || everyday ? '' : `${ws} · `;
   // 3.0.3 (owner): a coding chat (or a chat in a coding project) is about the work: no mood line under
   // the title, and the AI notice as the short "AI" pill (web/style.css), never removed.
   $('#main').classList.toggle('coding-chat', c.mode === 'coding' || Boolean(c.projectId && (state.projects ?? []).find((p) => p.id === c.projectId)?.workspace));
-  setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, isMember() ? '' : ws].filter(Boolean).join(' · '));
+  const service = String(label).replace(/\s*\((API key|Claude|Grok)\)$/, '');
+  if (plain) setConvSummary(prov ? `${t('Thinks with {service}', { service })}${plan}` : t('No AI service yet'), model ? `${service} · ${model}` : service);
+  else setConvSummary(`${c.mode === 'coding' ? `${t('Coding')} · ` : ''}${folder}${model || label}${plan}`, [model || label, folder ? ws : ''].filter(Boolean).join(' · '));
   panelConv();
 }
 
@@ -3949,7 +4094,8 @@ function convFacts() {
   const privacy = c.offRecord ? [t('Off the record: nothing is saved'), 'hp-offrecord'] : c.private ? [t('Private: local models only, nothing leaves your server'), 'hp-private'] : demo ? [t('Demo: not saved, gone after a few hours'), 'hp-offrecord'] : c.channel === 'a2a' ? [t('Another agent: kept here, nothing is learned from it'), 'hp-offrecord'] : c.partner ? [t('Other people: kept here, not in her memory of you'), 'hp-offrecord'] : [t('Saved: she remembers what matters'), ''];
   return [
     [t('Model'), model ? `${model} · ${label}` : label],
-    ...(isMember() || demo ? [] : [[t('Workspace'), c.workspace === 'main' ? t('main folder') : String(c.workspace ?? '')]]),
+    // 3.3.0: the folder only matters for coding; Company mode and an everyday chat in the main folder skip it.
+    ...(isMember() || demo || (state.usePath === 'company' && c.mode !== 'coding') || (c.mode !== 'coding' && state.usePath !== 'coding' && c.workspace === 'main') ? [] : [[t('Workspace'), c.workspace === 'main' ? t('main folder') : String(c.workspace ?? '')]]),
     ...(c.mode === 'coding' ? [[t('Mode'), t('Coding')]] : []),
     [t('Privacy'), privacy[0], privacy[1]],
   ];
@@ -4621,6 +4767,26 @@ const speaker = new Speaker(async (text, who) => {
 });
 const voiceOn = () => localStorage.getItem('sara.speak') === '1' || Boolean(voice.call?.active);
 
+/** 3.3.0: the first tap on the mic before her voice is set up: one plain offer in the chat. */
+function offerVoiceSetup() {
+  // Above the box (not in the messages, which redraw when her reply lands).
+  if (document.querySelector('#composer-voice-offer')) return;
+  const n = el('div', 'msg notice voice-offer', t('To talk out loud, she needs her voice set up first. It takes about a minute.'));
+  n.id = 'composer-voice-offer';
+  n.setAttribute('role', 'status');
+  const go = el('button', 'small', t('Set up her voice (one minute)'));
+  go.type = 'button';
+  go.addEventListener('click', () => {
+    n.remove();
+    void openSettings('her-voice');
+  });
+  const no = el('button', 'ghost small', t('Not now'));
+  no.type = 'button';
+  no.addEventListener('click', () => n.remove());
+  n.append(' ', go, ' ', no);
+  $('#composer').before(n);
+}
+
 async function initVoice() {
   try {
     voice.cfg = await api('/voice');
@@ -4636,7 +4802,11 @@ async function initVoice() {
   // Play 2.88: the phone apps run live calls natively (SaraPhone.startCall), so a server at home on
   // plain http (no secure context, no web microphone) still offers the call there.
   voice.nativeCalls = Boolean(window.SaraPhone?.startCall);
-  $('#mic').hidden = !(canHear && micOk);
+  // 3.3.0: the mic is there from the start (the owner's chats); before her voice is set up, the first
+  // tap offers to set it up instead of failing quietly.
+  voice.canHear = canHear;
+  $('#mic').hidden = !micOk || (!canHear && (isMember() || document.body.classList.contains('demo')));
+  $('#mic').classList.toggle('mic-setup', !canHear);
   // Live calls (Grok or OpenAI realtime voice) when available and chosen; otherwise classic calls.
   const live = await api('/live').catch(() => ({ available: false }));
   voice.live = live.available && (v.calls ?? 'live') === 'live';
@@ -4696,8 +4866,16 @@ async function transcribe(wav) {
 }
 
 // Push to talk: click to start, click again to send.
+// On a phone the keyboard closing moves the box between press and release (the click can miss):
+// before her voice is set up, the offer shows on the press itself.
+$('#mic').addEventListener('pointerdown', (e) => {
+  if (voice.canHear !== false || voice.mic.recording) return;
+  e.preventDefault();
+  offerVoiceSetup();
+});
 $('#mic').addEventListener('click', async () => {
   const btn = $('#mic');
+  if (voice.canHear === false && !voice.mic.recording) return void offerVoiceSetup();
   if (!voice.mic.recording) {
     try {
       speaker.stop();
@@ -5947,12 +6125,17 @@ async function loadAccess() {
   if (!a) return;
   // Phase 61: the server's labels are fixed English texts, shown in the app language.
   const label = t(a.label);
-  $('#access-line').textContent = a.url ? `${label} — ${a.url}` : a.mode ? label : t('{label}. Open the address you use now on your phone.', { label });
+  $('#access-line').textContent = a.url ? `${label} — ${a.url}` : label;
+  // 3.3.0: without an installer's setting, the line below (src/reach.ts) says where other devices
+  // really reach her; "the address you use now" was 127.0.0.1 on a PC, which a phone can't open.
+  $('#access-row').hidden = !a.url && !a.mode;
+  void reachLine($('#reach-line'));
   $('#access-warn').hidden = !a.warning;
   $('#access-warn').textContent = a.warning ? t(a.warning) : '';
   $('#access-qr').hidden = $('#access-qr-how').hidden = !a.qr;
   if (a.qr) $('#access-qr').src = a.qr;
 }
+let healthTech = false;
 async function loadHealth() {
   void loadAccess();
   let h;
@@ -5961,8 +6144,11 @@ async function loadHealth() {
   } catch {
     return;
   }
+  // 3.3.0: in Company mode the technical checks (sandbox, command approvals, summaries, runs) fold away.
+  const plain = state.usePath === 'company' && !healthTech;
+  const techHidden = plain ? h.checks.filter((c) => c.tech).length : 0;
   $('#health-checks').replaceChildren(
-    ...h.checks.map((c) => {
+    ...h.checks.filter((c) => !(plain && c.tech)).map((c) => {
       const li = el('li', c.ok ? 'ok' : 'bad');
       // UX 19: model lists/changes come with their facts (items): worded in the app language.
       // Phase 61: the other details come as a template (detailKey/params) or a fixed English text.
@@ -5979,6 +6165,17 @@ async function loadHealth() {
       return li;
     }),
   );
+  if (techHidden) {
+    const more = el('li', 'muted small health-tech');
+    const show = el('button', 'linkish small', t('Show technical checks ({n})', { n: techHidden }));
+    show.type = 'button';
+    show.addEventListener('click', () => {
+      healthTech = true;
+      void loadHealth();
+    });
+    more.append(show);
+    $('#health-checks').append(more);
+  }
   const up = h.uptimeSeconds > 86400 ? `${Math.floor(h.uptimeSeconds / 86400)} d` : h.uptimeSeconds > 3600 ? `${Math.floor(h.uptimeSeconds / 3600)} h` : `${Math.floor(h.uptimeSeconds / 60)} min`;
   void loadHealthHistory();
   void loadProblems();
@@ -8501,6 +8698,9 @@ function showSettingsTab(page, opts = {}) {
   $('.settings-actions').toggleAttribute('data-quiet', !sec.querySelector('input:not([type=hidden]):not([type=file]), select, textarea'));
   openGroupOf(pick);
   if (pick === 'dh-updates') void loadUpdates();
+  // 3.3.0: reach Sara from the phone and away from home (web/reach.js).
+  if (pick === 'dh-devices') void renderAway($('#reach-away'));
+  if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'dh-recovery') {
     void readiness.refresh();
@@ -8580,9 +8780,24 @@ function showSettingsHome(group = '', opts = {}) {
   if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
 }
 
+/** 3.3.0 (ezplain): the everyday words Ctrl K and the Settings search match (web/everyday-words.js). */
+const everydayFor = (q) => (String(q ?? '').trim().length >= 3 ? everydayMatches(q).slice(0, 2) : []);
+/** Places that aren't a Settings page: their name and one line on where they are. */
+function everydayText(place) {
+  if (place === 'howto:delete-chat') return [t('Delete a chat'), t('In the list of chats, press ⋯ next to the chat, then Delete.')];
+  return [place, ''];
+}
 async function openSearchPlace(id) {
   const [kind, what] = id.split(':');
   if ($('#settings').open) $('#settings').close();
+  // 3.3.0 (ezplain): "delete a chat" opens this chat's ⋯ menu in the list (Delete… is in it).
+  if (kind === 'howto' && what === 'delete-chat') {
+    if (matchMedia('(max-width: 760px)').matches) sidebarUI.open?.();
+    const more = document.querySelector(`#conversations a.conv[data-id="${CSS.escape(String(state.currentId ?? ''))}"] .conv-more`) ?? document.querySelector('#conversations a.conv .conv-more');
+    more?.scrollIntoView({ block: 'nearest' });
+    more?.click();
+    return;
+  }
   if (kind === 'planner') {
     if (what === 'routines') return void openRoutines();
     if (!$('#planner').open) await openPlanner();
@@ -8714,6 +8929,7 @@ $('#use-path').addEventListener('change', async () => {
   try {
     await api('/settings', { method: 'PUT', body: { usePath: v } });
     state.usePath = v;
+    document.documentElement.dataset.usePath = v;
     if (!state.messages?.length) renderMessages([]);
     if (todayOpen()) await loadChecklist();
   } catch (err) {
@@ -9059,9 +9275,17 @@ $('#help-pair')?.addEventListener('click', () => {
 $('#pair-new').addEventListener('click', async () => {
   $('#pair-done').textContent = '';
   const p = await api('/pair', { method: 'POST', body: {} });
-  $('#pair-qr').src = p.qr;
+  // 3.3.0: the QR holds an address the phone can reach (src/reach.ts); without one, no QR but
+  // "Your phone can't reach this computer yet" and Set up access.
+  $('#pair-qr').hidden = !p.phone;
+  if (p.phone) $('#pair-qr').src = p.phone.qr;
+  $('#pair-noreach').hidden = Boolean(p.phone);
+  $('#pair-phone-how').hidden = !p.phone;
+  $('#pair-phone-addr').hidden = !p.phone;
+  $('#pair-addr').textContent = p.phone?.address ?? '';
   $('#pair-code-text').textContent = p.code;
-  $('#pair-url').textContent = p.url.replace(/#.*/, '');
+  $('#pair-computer-how').hidden = !p.computer;
+  $('#pair-url').textContent = p.computer ? `${p.computer.address}/pair` : '';
   $('#pair-show').hidden = false;
   const before = (await api('/devices').catch(() => ({ devices: [] }))).devices.length;
   const ends = Date.parse(p.expiresAt);
@@ -9081,6 +9305,14 @@ $('#pair-new').addEventListener('click', async () => {
     }
   }, 1000);
 });
+$('#pair-setup-access').addEventListener('click', () => void openAway());
+/** 3.3.0: Settings → Devices and sign-in → Use Sara away from home (Ctrl K, pairing, move-in, Health). */
+async function openAway() {
+  await openSettings(DEVICES_PAGE);
+  await renderAway($('#reach-away'), { fresh: true });
+  $('#reach-away-h')?.scrollIntoView({ block: 'start' });
+}
+initReach({ openAway: () => void openAway(), member: () => isMember() });
 $('#pair-cancel').addEventListener('click', async () => {
   await api('/pair', { method: 'DELETE' });
   stopPairing();
@@ -9496,6 +9728,27 @@ function applyAppearance() {
 }
 applyAppearance();
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyAppearance);
+// 3.3.0 (ezplain): Sara Classic is more than colors: say so under the palettes, with the way back.
+function classicNote() {
+  const row = document.querySelector('#settings .ap-pal-row');
+  if (!row) return;
+  let note = document.getElementById('ap-classic-note');
+  if (!note) {
+    note = el('p', 'small muted ap-classic-note');
+    note.id = 'ap-classic-note';
+    row.after(note);
+  }
+  const classic = document.documentElement.dataset.palette === 'classic' || $('#ap-palette')?.value === 'classic';
+  note.textContent = classic ? t('Sara Classic changes the whole layout, not only the colors: chat bubbles, a pink look and the older sidebar. To go back to the new look, pick Graphite (or any other palette).') : t('Sara Classic (the last palette) changes the whole layout, not only the colors.');
+}
+classicNote();
+$('#ap-palette')?.addEventListener('change', () => setTimeout(classicNote, 0));
+document.addEventListener('click', (e) => {
+  if (e.target.closest?.('#ap-pals')) setTimeout(classicNote, 0);
+  // 3.3.0 (ezplain): small "go to that page" links inside Settings (her picture lives in one place).
+  const go = e.target.closest?.('button[data-open-page]');
+  if (go) void openSettings(go.dataset.openPage);
+});
 $('#ap-theme').value = themePick();
 $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
 $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
@@ -12554,7 +12807,7 @@ $('#look-reset').addEventListener('click', async () => {
 });
 
 // PL2d: the first-run setup guide lives in setup-wizard.js.
-initSetupWizard({ refreshModelSettings, openSubscriptions: () => showSettingsTab('models-subs'), el, api, renderGallery, galleryList, starterButton, openRoutines, modelViewFor, fillModelOptions, loadProviders, loadConversations, setChatTitle, loadToday, loadChecklist, openSettings, openWizard, renderMessages, runStarter, state, firstRun, modelCache });
+initSetupWizard({ openConversation, renderConvSummary, refreshModelSettings, openSubscriptions: () => showSettingsTab('models-subs'), el, api, renderGallery, galleryList, starterButton, openRoutines, modelViewFor, fillModelOptions, loadProviders, loadConversations, setChatTitle, loadToday, loadChecklist, openSettings, openWizard, renderMessages, runStarter, state, firstRun, modelCache });
 
 // ---------- signed-in devices and owner token ----------
 async function loadDevices() {

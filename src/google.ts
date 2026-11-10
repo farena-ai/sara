@@ -57,6 +57,8 @@ export interface GoogleStatus {
   calendar: boolean;
   /** Organizing mail (archive, labels, read, trash, spam) needs gmail.modify: older sign-ins lack it. */
   canOrganize: boolean;
+  /** 3.3.0: Google signed Sara out since this server started (her trouble notice: Sign in again). */
+  signedOut?: boolean;
 }
 
 type Fetch = typeof fetch;
@@ -69,6 +71,7 @@ export class GoogleAccount {
   readonly #pending = new Map<string, { verifier: string; redirect: string; at: number }>();
 
   readonly #base: string | undefined;
+  #signedOut = false;
 
   constructor(vault: Vault, opts: { fetch?: Fetch; now?: () => number; apiBase?: string } = {}) {
     this.#vault = vault;
@@ -98,6 +101,7 @@ export class GoogleAccount {
       gmail: Boolean(t) && (scopes.includes('gmail.readonly') || scopes.includes('gmail.modify')),
       calendar: Boolean(t) && scopes.includes('calendar.events'),
       canOrganize: Boolean(t) && scopes.includes('gmail.modify'),
+      ...(this.#signedOut && !t ? { signedOut: true } : {}),
     };
   }
 
@@ -160,6 +164,7 @@ export class GoogleAccount {
     if (!r.ok || !j.access_token) {
       if (j.error === 'invalid_grant') {
         this.#vault.delete(GOOGLE_TOKEN_VAULT);
+        this.#signedOut = true;
         throw new Error('Google signed Sara out (the sign-in expired or was removed). Sign in again in Settings → Add-ons → Gmail and Calendar.');
       }
       throw new Error(`Google sign-in failed: ${j.error_description ?? j.error ?? r.status}`);

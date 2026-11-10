@@ -18,11 +18,14 @@ import { runDoctor } from '../doctor.ts';
 import { healthReport } from '../health.ts';
 import { LOG_LEVELS, type LogLevel } from '../log.ts';
 import { as400, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
-import { appLanguage, toLang } from '../i18n.ts';
+import { appLanguage, toLang, trOwner } from '../i18n.ts';
+import { gatherTrouble } from '../trouble.ts';
+import { useOllamaKeyForSearch } from '../web-search-auto.ts';
 import { mcpSecrets, mergeSecrets, searchConfig } from '../integrations.ts';
 import { proactiveSettings } from '../life.ts';
 import { isCloudModel } from '../modelpicks.ts';
 import { privateLocalOn } from '../net-guard.ts';
+import { DEVICE_TOKEN_PREFIX } from '../auth.ts';
 import { copyOffsite, offsiteSettings, testOffsite } from '../offsite-run.ts';
 import { OFFSITE_PASS_VAULT, OFFSITE_S3_VAULT } from '../offsite.ts';
 import { accessInfo, adminHelp, systemName } from '../platform.ts';
@@ -330,6 +333,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           }
         }
         if (typeof body.apiKey === 'string' && body.apiKey.trim()) app.vault.set(searchVaultKey(provider), body.apiKey.trim());
+        // 3.3.0: one tap: Ollama web search with the connected Ollama Cloud key.
+        else if (provider === 'ollama' && body.useProviderKey === true && !app.vault.has(searchVaultKey('ollama')) && !useOllamaKeyForSearch(app)) throw new HttpError(400, 'Connect Ollama Cloud with a key first, or paste an Ollama key here.');
         app.settings.update({ search: { provider, ...(url ? { url } : {}) } });
         return send(res, 200, { ok: true });
       }
@@ -417,6 +422,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
 
     if (a === 'doctor' && !b && method === 'GET') return send(res, 200, await runDoctor({ dataDir: rootDir, settings: app.settings, vault: app.vault, subscriptions: app.subscriptions, now: app.now(), sandbox: app.sandbox, tools: app.tools }));
     if (a === 'status' && !b && method === 'GET') return send(res, 200, healthReport(app, opts.info ?? { version: 'dev', revision: null, startedAt: new Date().toISOString() }));
+    // 3.3.0: her own trouble now (model down, key rejected, a mailbox signed out, an add-on stopped).
+    if (a === 'health' && b === 'trouble' && method === 'GET') return send(res, 200, { trouble: gatherTrouble(app).map((x) => ({ ...x, text: trOwner(x.key, app.settings.get(), x.params) })) });
     // Phase 30: health history (chart) and Sara's log (recent problems, download).
     if (a === 'health' && b === 'history' && method === 'GET') {
       const days = new URL(req.url ?? '/', 'http://x').searchParams.get('days');
@@ -562,6 +569,33 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'access' && !b && method === 'GET') {
       const acc = accessInfo();
       return send(res, 200, { ...acc, system: systemName(), ...(acc.url ? { qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(acc.url)).toString('base64')}` } : {}) });
+    }
+    // 3.3.0 (easy reach): how other devices reach her (src/reach.ts), the self-test, and
+    // "Turn on secure access with Tailscale" (owner only, with confirmation, and Undo).
+    if (a === 'access' && b === 'reach' && (!c || c === 'check')) {
+      const { browserOrigin, checkReach, listenPort, resolveReach } = await import('../reach.ts');
+      const fresh = new URL(req.url ?? '/', 'http://x').searchParams.get('fresh') === '1' || method === 'POST';
+      const r = await resolveReach({ origin: browserOrigin(req), dataDir: app.dataDir, fresh, port: listenPort(req) });
+      // QR codes for the app stores (Tailscale on the phone; the Sara app), so the phone's camera opens them.
+      const svg = (s: string) => `data:image/svg+xml;base64,${Buffer.from(qrSvg(s)).toString('base64')}`;
+      if (!c && method === 'GET') return send(res, 200, { ...r, qr: { tailscaleAndroid: svg(r.get.tailscale.android), tailscaleIos: svg(r.get.tailscale.ios), saraAndroid: svg(r.get.android) } });
+      if (c === 'check' && method === 'POST') {
+        const target = r.awayAddress ?? r.address;
+        return send(res, 200, { ...(await checkReach(target)), reach: r });
+      }
+    }
+    if (a === 'access' && b === 'serve' && !c && method === 'POST') {
+      if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+      if (String(req.headers.authorization ?? '').startsWith(`Bearer ${DEVICE_TOKEN_PREFIX}`)) throw new HttpError(403, 'Apps signed in with a device code can\'t change how Sara is reached. Use the web app.');
+      const body = await readJson(req, 4096);
+      const action = body.action === 'off' ? 'off' : body.action === 'on' ? 'on' : null;
+      if (!action) throw new HttpError(400, 'Say on or off.');
+      if (body.confirm !== true) throw new HttpError(400, 'Confirm first: this changes how your devices reach Sara.', { needsConfirm: true });
+      if (action === 'on' && privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: nothing reaches Sara from other devices while it is on.');
+      const { browserOrigin, listenPort, resolveReach, serveOff, serveOn } = await import('../reach.ts');
+      const r = action === 'on' ? await serveOn({ dataDir: app.dataDir, port: listenPort(req) }) : await serveOff({ dataDir: app.dataDir, port: listenPort(req) });
+      const reach = await resolveReach({ origin: browserOrigin(req), dataDir: app.dataDir, fresh: true, port: listenPort(req) });
+      return send(res, 200, { ...r, reach });
     }
     // Phase 122 (WHATSAPP §3.1 W2): the public door for /hook/ only. On a tap Sara runs the Tailscale
     // CLI once (desktop apps, installs where it may) and shows its output; otherwise the command to copy.

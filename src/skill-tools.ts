@@ -208,7 +208,8 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
           additionalProperties: false,
         },
       },
-      summarize: (a) => `Run ${String(a.script ?? '').slice(0, 80)} from skill “${String(a.name ?? '').slice(0, 64)}”`,
+      // 3.3.0 (ezplain): plain words on the card, Today and the activity line (the file is on the card's Show details).
+      summarize: (a) => `Run a small program from the “${String(a.name ?? '').slice(0, 64)}” skill`,
       async prepare(args, ctx) {
         let v: SkillView;
         let rel: string;
@@ -223,7 +224,7 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
         const key = taskKey(ctx.conversationId, v);
         const standing = taskAllowed.has(key) || (v.scriptsAuto && (v.source !== 'imported' || v.approvedRuns > 0));
         return {
-          summary: `Run ${rel} from skill “${v.name}”`,
+          summary: `Run a small program from the “${v.name}” skill`,
           skill: {
             kind: 'skill',
             skill: v.name,
@@ -233,6 +234,8 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
             head: scriptHead(abs),
             args: cleanArgs(args.args),
             ...(v.allowedTools ? { allowedTools: v.allowedTools } : {}),
+            // What the skill says it is for, in its own words: "It will: …" on the card.
+            ...(v.description ? { about: v.description.replace(/\s+/g, ' ').trim().slice(0, 240) } : {}),
             choices: ['once', 'task'],
           },
           ...(standing ? { auto: true } : {}),

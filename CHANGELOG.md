@@ -5,6 +5,78 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.3.0 (2026-11-10): easy mode
+
+- **Easy first run:** *Start talking* now opens a chat called *Chat with Sara* with the cursor in the
+  message box, instead of Today. The first chat is never called "Research" any more (background
+  research no longer makes a chat of its own). *Company* is picked on step 1 unless you choose
+  otherwise. Esc or a click next to the window no longer closes setup, and a reload comes back at the
+  same step. *In the cloud* says where to get the key for each service, what it looks like and that
+  a key is like a password for Sara. After *Connect* on a phone, *Connected ✓* and *Next* scroll into
+  view and *Next* stands out. The last step has one main button: the anonymous check-in notice is a
+  plain line with links, and *Bring her over from Hermes Agent* is a quiet line, shown only when an
+  old assistant is on this computer. The chat line and her panel show the brain you just set up (no
+  more "no provider · main folder"); in Company mode they say *Thinks with Ollama Cloud* and leave
+  folders out.
+- **She explains her own problems:** when her AI service doesn't answer, rejects the key, is out of
+  credit, busy, or no longer has the model, the chat says so in plain words and names the service,
+  with one **Fix it** button (it opens the right setting) and **Try again**, which really asks again
+  and shows what happened. The same notice sits at the top of Today and in Needs you, also for a
+  mailbox that signed her out and an add-on that stopped. *Settings → Health* no longer shows ✓ Model
+  while her replies fail: it follows the real answers. In Company mode Health folds the technical
+  checks (tool sandbox, command approvals, summaries, run history) behind *Show technical checks*.
+- **Research that never promises what it can't do:** without web search, asking her to look
+  something up shows *"I can't search the web yet"* with **Turn on web search**, and she is told not to
+  promise to look. `/learn` always answers in the chat (it used to vanish), with the same button.
+  Connecting Ollama Cloud with a key turns on Ollama web search with the same key; when an Ollama
+  Cloud key is already there, *Turn on web search* is one tap.
+- **Voice from the start:** the microphone shows from the first chat; the first tap before her voice
+  is set up offers *Set up her voice (one minute)*.
+- "This conversation is full" now says *Nothing is lost, keep talking*, and what happens to the oldest
+  messages.
+- **Reach Sara from your phone, at home and away, without networking words:**
+  - **Pairing that works:** the phone QR now holds an address the phone can really open (her
+    Tailscale address, your https address or the home-network one) and opens the Sara app already
+    paired. It never holds `127.0.0.1` any more. When no such address exists, the card says
+    "Your phone can't reach this computer yet" with **Set up access** instead of a QR that can't work.
+  - **Connect the Sara phone app** is now at the top of Phone and notifications (where Today's "Put
+    her on your phone" leads), with where to get the app (Google Play, or the download page) and
+    one button for the code. Add a phone or computer on Devices and sign-in works the same way, and
+    the settings search finds it for "code", "add a computer" and "add desktop".
+  - **Use Sara away from home** (Devices and sign-in, or Ctrl K "away from home", "tailscale"): three
+    steps with live checks. Install Tailscale here, install it on the phone with the same account,
+    then **Turn on secure access with Tailscale** (owner only, with a confirmation and Undo) gives a
+    private https address. **Test it** checks the address and says "Your phone can reach Sara
+    anywhere ✓". See [AWAY_FROM_HOME.md](docs/AWAY_FROM_HOME.md).
+  - **Move in from another computer** no longer shows a line that can't work there. Without a
+    reachable address it offers the move-in file or the away-from-home setup.
+  - **Health** says where your other devices really reach her, instead of "open the address you use
+    now on your phone" (127.0.0.1 on a PC).
+- **Email a normal person can set up:** **Add Gmail** now opens the 3-step app-password route
+  (what an app password is, where to make it, paste it, done); the Google Cloud route is under
+  *Advanced: full Gmail organizing*. Outlook.com no longer accepts app passwords (Microsoft switched
+  them off in September 2024), so Outlook keeps the Microsoft sign-in, now in 3 plain steps with no
+  client secret to make. **Check it** and **Add and check** say what went wrong in plain words: wrong
+  password, 2-step sign-in off, IMAP off, or the mail server can't be reached.
+- **One approval at a time:** the card in the chat is the one place with Allow and Deny. When you
+  scroll away from it, the line above the message box gets the answers and **Show me**; if the card
+  is ever missing, Sara draws it again, so a waiting approval can't freeze a chat. Her panel and
+  Today's *Needs you* (now **Approve / Not now**) point to it. A skill's program reads "Sara wants to
+  run a small program that came with her "weather-check" skill. It will: …", with the file and its
+  code behind **Show details**.
+- **Settings you can find, or just ask for:** everyday words (*bigger text*, *delete a chat*, *how
+  much does this cost*, *dark mode*, *mute*, *language*, *password*, *backup*, *update* and more) find
+  the right page first in Ctrl K, the Settings search and "How do I…?" in the chat. Ask her to *make
+  the text bigger*, *switch to dark mode*, *change your color to green*, *turn off your voice* or *call
+  me Pat* and she does it, with a card and **Undo**. Safety, approvals, privacy and sign-in she never
+  changes by asking: she says where they are.
+- **Plain words:** in everyday chats the reply card says "She did 1 thing" and **How she answered**
+  (no steps, tokens or folder names; coding chats keep them), the context ring shows up only when a
+  chat gets full, Token Saver and Workers stay out of the Company view, the Appearance preview is an
+  everyday chat, Sara Classic says it changes the whole layout (and how to go back), her picture
+  settings point to one place, and "Not checked" says what she claimed and offers **Ask her to
+  really do it**.
+
 ## 3.2.0 (2026-11-10): she comes alive
 
 ## 3.1.2 (2026-11-10): research that keeps going

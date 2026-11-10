@@ -699,15 +699,24 @@ export function skillApproval(card, title, ev, decide) {
   const yes = (label, how) => mark(btn(label, '', () => decide(true, how)), how ? '' : 'yes');
   const no = (label) => mark(btn(label, 'ghost', () => decide(false)), 'no');
   if (k.kind === 'skill') {
-    title.textContent = t('{name} wants to run a script from the skill “{skill}”', { name: herName(), skill: k.skill });
-    sec.append(el('p', 'small', t('Where it lives: {where}', { where: scopeWords(k.scope) })));
+    // 3.3.0 (ezplain): plain words first; the file, its arguments and first lines behind Show details.
+    title.textContent = t('{name} wants to run a small program that came with her “{skill}” skill.', { name: herName(), skill: k.skill });
+    const about = el('p', 'small skl-about', k.about ? t('It will: {what}', { what: k.about }) : t('It does what the skill is for. Show details has the program itself.'));
+    about.dataset.raw = '';
+    sec.append(about);
     if (k.source === 'imported') sec.append(el('p', 'skl-warn small', t('This skill was added from outside: read the script before you allow it.')));
-    sec.append(el('p', 'small', t('Script: {path}', { path: k.script })));
-    sec.append(el('p', 'small', k.args.length ? t('Arguments: {args}', { args: k.args.join(' ') }) : t('No arguments')));
+    const more = el('details', 'skl-more');
+    more.append(el('summary', '', t('Show details')));
+    more.append(el('p', 'small', t('Where it lives: {where}', { where: scopeWords(k.scope) })));
+    more.append(el('p', 'small', t('Script: {path}', { path: k.script })));
+    more.append(el('p', 'small', k.args.length ? t('Arguments: {args}', { args: k.args.join(' ') }) : t('No arguments')));
     const pre = el('pre', 'skl-head', k.head || t('(empty file)'));
     pre.dataset.raw = '';
-    sec.append(el('p', 'small muted', t('Its first 40 lines:')), pre);
-    if (k.allowedTools) sec.append(el('p', 'small muted', t('The skill says it uses: {tools} (shown only; it changes nothing)', { tools: k.allowedTools })));
+    more.append(el('p', 'small muted', t('Its first 40 lines:')), pre);
+    if (k.allowedTools) more.append(el('p', 'small muted', t('The skill says it uses: {tools} (shown only; it changes nothing)', { tools: k.allowedTools })));
+    // An imported skill: the program is open to read before Allow.
+    if (k.source === 'imported') more.open = true;
+    sec.append(more);
     row.append(yes(t('Allow once')), ...(k.choices.includes('task') ? [yes(t('Allow for this task'), 'task')] : []), no(t('Deny')));
   } else if (k.kind === 'skill-draft') {
     title.textContent = k.exists ? t('{name} wants to change her skill “{skill}”', { name: herName(), skill: k.skill }) : t('{name} wants to save a new skill “{skill}”', { name: herName(), skill: k.skill });

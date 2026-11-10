@@ -4,6 +4,7 @@
 // - Proactive messages: now and then she texts first, like a person would. Rate-limited, quiet
 //   hours, never double-texts, owner-tunable, AI disclosure still applies.
 import { guard } from './log.ts';
+import { noteCall } from './trouble.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { bondContext, fallbackAfterMs, promptChars, historyFrom, innerEnabled, resolveChain, streamWithin, type AppContext } from './chat.ts';
@@ -74,9 +75,11 @@ export async function complete(app: AppContext, conv: Conversation, messages: Ch
         if (ev.type === 'text') out += ev.text;
         if (out.length > maxTokens * 8) break;
       }
+      noteCall(app, provider.config);
       return out.trim();
     } catch (err) {
       if (out) return out.trim();
+      if (!stop?.aborted) noteCall(app, provider.config, err);
       lastErr = err;
       if (i < chain.length - 1) console.warn(`fallback (${job}): ${provider.config.label} (${model}) failed: ${(err as Error).message}; trying ${chain[i + 1].provider.config.label} (${chain[i + 1].model})`);
     }

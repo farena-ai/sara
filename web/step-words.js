@@ -119,7 +119,7 @@ export function stepWordsWith(t, name, args = {}, named = '') {
     case 'skill_find':
       return pair(t('Looking for a skill…'), t('Looked for a skill'), 'search');
     case 'skill_run':
-      return pair(t("Running a skill's script…"), t("Ran a skill's script"), 'terminal');
+      return pair(t('Running a small program from a skill…'), t('Ran a small program from a skill'), 'terminal');
     // 3.0.3: saves need no OK by default, so the step names the skill (with Open and Undo on the step).
     case 'skill_save':
     case 'recipe_save':
@@ -128,6 +128,9 @@ export function stepWordsWith(t, name, args = {}, named = '') {
       return a.name ? pair(t('Changing a skill…'), t('Changed skill: {name}', { name: String(a.name).slice(0, 64) }), 'book') : pair(t('Changing a skill…'), t('Changed a skill'), 'book');
     case 'settings_guide':
       return pair(t('Looking up how the app works…'), t('Looked up how the app works'), 'help');
+    // 3.3.0 (ezplain): settings by asking (the card under the reply has Undo).
+    case 'change_setting':
+      return pair(t('Changing a setting…'), t('Changed a setting'), 'sliders');
     // Phase 115: a file she shares into the chat.
     case 'send_file':
       return pair(t('Sharing a file…'), t('Shared a file'), 'file');

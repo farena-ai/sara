@@ -50,7 +50,8 @@ test('V2 chat turns: name, time and how long she took, from the message rows onl
 test('V2 header: one model · workspace chip, and the context ring as a small meter with its percentage', () => {
   const app = web('app.js');
   assert.match(app, /function setConvSummary\(full, chip\) \{\s*\$\('#conv-summary'\)\.replaceChildren\(el\('span', 'cs-full', full\), el\('span', 'cs-chip', chip \?\? full\)\);/);
-  assert.match(app, /setConvSummary\(`\$\{c\.mode === 'coding' \? `\$\{t\('Coding'\)\} · ` : ''\}\$\{folder\}\$\{model \|\| label\}\$\{plan\}`, \[model \|\| label, isMember\(\) \? '' : ws\]\.filter\(Boolean\)\.join\(' · '\)\);/);
+  // 3.3.0: the chip names the folder only when it matters (coding, or not the main folder).
+  assert.match(app, /setConvSummary\(`\$\{c\.mode === 'coding' \? `\$\{t\('Coding'\)\} · ` : ''\}\$\{folder\}\$\{model \|\| label\}\$\{plan\}`, \[model \|\| label, folder \? ws : ''\]\.filter\(Boolean\)\.join\(' · '\)\);/);
   assert.doesNotMatch(app, /\$\('#conv-summary'\)\.textContent =/, 'one place builds the chip');
   const look = web('look.css');
   const v2 = look.slice(look.indexOf('/* ---------- V2 '));

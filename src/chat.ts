@@ -80,6 +80,8 @@ import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
+import { noteCall, troubleOf } from './trouble.ts';
+import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
@@ -376,7 +378,7 @@ export interface AppContext {
 
 export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
-  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity'; text: string; key?: string; params?: Record<string, unknown> }
+  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
   | { type: 'token'; text: string }
   /** C8: `price` = this tool costs money ("about $X", or null = unknown), shown on the step before it runs. */
   | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown>; price?: PriceTag }
@@ -436,7 +438,7 @@ export type ChatEvent =
   /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
   | { type: 'refs'; messageId: number; items: RefChip[] }
   | { type: 'done'; messageId: number }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble };
 
 export const HISTORY_LIMIT = 60;
 export const MAX_STEPS = 25;
@@ -2023,6 +2025,17 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     safetyNotes.push(CRISIS_SYSTEM_NOTE);
   }
+  // 3.3.0: web search is off and he asks her to look something up: she says so (never promises to
+  // look), and the chat shows one button to turn it on (in one tap with an Ollama Cloud key).
+  if (!conv.partner && !conv.private && !opts.group && !opts.resume && !opts.replay && !external && !opts.externalApp) {
+    const off = webSearchOff(app, text);
+    if (off) {
+      const key = en('I can’t search the web yet, so I can’t look that up for you. Turn on web search and I can.');
+      store.addMessage(conv.id, 'notice', `websearch:${fill(key)}`, { key, page: 'ab-search', oneTap: off.oneTap });
+      yield { type: 'notice', kind: 'websearch', text: trOwner(key, app.settings.get()), key, oneTap: off.oneTap };
+      safetyNotes.push(`[Web search is not set up, so you can't look anything up on the web right now. Don't say you'll look, search, check or research it later, and don't pretend you did. Answer from what you already know if you can, say plainly that you can't search the web yet, and that the "Turn on web search" button under the message sets it up.]`);
+    }
+  }
   // Phase 35: the stop word ends any scene at once.
   if (!conv.partner && usedStopWord(text, app.persona.intimacy?.stopWord)) {
     safetyNotes.push(STOP_NOTE(app.settings.get().ownerName?.trim() || 'the owner'));
@@ -3040,7 +3053,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         }
       }
       yield* building.flush();
+      noteCall(app, provider.config);
     } catch (err) {
+      // 3.3.0: what the real calls did (Health's Model line and her own trouble notices follow it).
+      if (!signal.aborted && !isToolsUnsupported(err)) noteCall(app, provider.config, err);
       if (tools.length && !reply && !calls.length && isToolsUnsupported(err)) {
         releaseSessionStep();
         noTools.add(`${provider.config.id}/${model}`);
@@ -3087,6 +3103,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             : err instanceof SlowModelError
               ? `${provider.config.label} (${model}) ${err.message}. Try again, or add a backup model in Settings → Which model does what.`
               : msg,
+        // 3.3.0: a service problem comes with her plain words and one Fix it (src/trouble.ts).
+        ...(() => {
+          const tr = signal.aborted ? null : troubleOf(err instanceof SlowModelError ? `no answer within ${err.seconds}` : msg, provider.config.label, `model:${provider.config.id}`);
+          return tr ? { trouble: { ...tr, text: trOwner(tr.key, app.settings.get(), tr.params) } } : {};
+        })(),
       };
       return;
     }

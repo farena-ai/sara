@@ -245,7 +245,8 @@ function renderNow() {
   // The live step line has the friendliest words ("Checking the weather…").
   const live = [...document.querySelectorAll('#messages .steps.live .steps-text')].pop()?.textContent?.trim();
   let words;
-  if (approvals) words = approvals === 1 ? t('Waiting for your OK on one step.') : t('Waiting for your OK: {n} steps', { n: approvals });
+  // 3.3.0 (ezplain): no "steps" in her words.
+  if (approvals) words = approvals === 1 ? t('Waiting for your OK') : t('Waiting for your OK on {n} things', { n: approvals });
   else if (status) words = `${live && (status === 'running' || status === 'thinking') ? live : status === 'answering' && text ? t('{name} is answering…', { name: text }) : statusWords(status)}${startedAt ? ` · ${elapsed(Date.now() - startedAt)}` : ''}`;
   else if (ui.jobs.length) words = ui.jobs.length === 1 ? t('One task is running in the background.') : t('Background tasks running: {n}', { n: ui.jobs.length });
   else words = t('Here with you. Nothing running.');
@@ -265,7 +266,9 @@ function renderStatus() {
   box.dataset.state = approvals || status === 'waiting' ? 'waiting' : status ? 'busy' : 'idle';
 }
 
-// ---------- approvals: the chat's own cards, mirrored ----------
+// ---------- approvals: the chat's own cards, pointed to ----------
+// 3.3.0 (ezplain): one approval in view at a time. Her panel says what waits and has Show me (it
+// scrolls the chat to the card, where Allow and Deny are); it no longer has its own copy of them.
 function renderApprovals() {
   const box = $('#hp-approvals');
   if (!box) return;
@@ -277,55 +280,23 @@ function renderApprovals() {
       const what = (card.querySelector('.approval-what') ?? card.querySelector('p'))?.textContent?.trim() || t('She asks before a step.');
       const words = el('p', 'hp-appr-what', what);
       words.dataset.raw = '';
-      let detail = card.querySelector('pre:not([hidden])')?.textContent?.trim();
-      // The command itself reads better than the JSON around it.
-      try {
-        const args = JSON.parse(detail ?? '');
-        if (args && typeof args.command === 'string') detail = args.command;
-      } catch {
-        /* plain text already */
-      }
       row.append(words);
-      if (detail) {
-        const d = el('code', 'hp-appr-detail', detail.length > 140 ? `${detail.slice(0, 140)}…` : detail);
-        d.dataset.raw = '';
-        row.append(d);
-      }
-      const btns = el('div', 'hp-appr-btns');
-      // 3.0.3: the card's marked Allow / Deny ("Always allow this tool" sits between them on plain cards).
-      const all = [...card.querySelectorAll(':scope > .row > button')];
-      const yes = card.querySelector(':scope > .row > button[data-answer="yes"]') ?? all[0];
-      const no = card.querySelector(':scope > .row > button[data-answer="no"]') ?? (all.length > 1 ? all.at(-1) : undefined);
-      const mirror = (src, cls, label) => {
-        const b = el('button', cls, label);
-        b.type = 'button';
-        b.disabled = !src || src.disabled;
-        b.addEventListener('click', () => {
-          src?.click();
-          b.disabled = true;
-        });
-        return b;
-      };
-      const show = el('button', 'hp-link hp-appr-show', t('Show in the chat'));
-      show.type = 'button';
-      show.addEventListener('click', () => {
-        if (panelMode() !== 'side') closePanel({ restoreFocus: false });
-        card.scrollIntoView({ block: 'center', behavior: 'smooth' });
-        card.querySelector('button')?.focus({ preventScroll: true });
-      });
-      // Phase 77: a card that goes against a decision says so here too, with its own button words
-      // (Do it anyway / Don't); "Update the note" stays on the chat card (Show in the chat).
+      // Phase 77: a card that goes against a decision says so here too.
       const against = card.querySelector('.contradict-note')?.textContent?.trim();
       if (against) {
         const warn = el('p', 'hp-appr-against', `${t('This goes against something you decided')}: ${against}`);
         warn.dataset.raw = '';
-        row.insertBefore(warn, row.children[1] ?? null);
+        row.append(warn);
       }
-      // Phase 80: a sandbox card mirrors Apply to my workspace / Discard (Run for real stays on the
-      // chat card: Show in the chat), and "Try it in a copy" keeps its own words.
-      const own = Boolean(against) || card.classList.contains('approval-sandbox') || Boolean(card.querySelector('.sbx-first'));
-      btns.append(mirror(yes, 'small', own ? yes?.textContent ?? t('Allow') : t('Allow')), mirror(no, 'ghost small', own ? no?.textContent ?? t('Deny') : t('Deny')), show);
-      row.append(btns);
+      const show = el('button', 'ghost small hp-appr-show', t('Show me'));
+      show.type = 'button';
+      show.addEventListener('click', () => {
+        if (panelMode() !== 'side') closePanel({ restoreFocus: false });
+        for (let d = card.parentElement?.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
+        card.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        card.querySelector('button')?.focus({ preventScroll: true });
+      });
+      row.append(show);
       return row;
     }),
   );
@@ -649,6 +620,7 @@ function renderRing() {
   mine.style.setProperty('--ctx', pct);
   mine.classList.toggle('full', ring.classList.contains('full'));
   mine.classList.toggle('high', ring.classList.contains('high'));
+  mine.classList.toggle('warm', ring.classList.contains('warm'));
   $('#hp-ctx-pct').textContent = $('#ctx-pct')?.textContent ?? '';
   const words = [$('#ctx-full')?.textContent, $('#ctx-how')?.textContent, $('#conv-usage')?.hidden ? '' : $('#conv-usage')?.textContent].filter(Boolean);
   const p = $('#hp-ctx-text');

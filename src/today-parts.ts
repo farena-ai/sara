@@ -22,6 +22,7 @@ import { GITHUB_VAULT } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { adultModeOn } from './settings.ts';
+import { gatherTrouble } from './trouble.ts';
 import { mergeSummaries, type UsageTotals } from './usage.ts';
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
@@ -272,11 +273,14 @@ function needs(deps: PartDeps): Loader {
     const failedJobs = own ? (app.jobs?.list({ limit: 20 }) ?? []).filter((j) => j.endedAt && Date.parse(j.endedAt) >= day24 && j.status !== 'ok' && j.status !== 'running' && j.status !== 'stopped').map((j) => ({ id: j.id, label: j.label, status: j.status, at: j.endedAt!, conversationId: j.conversationId })) : [];
     const failedRuns = own && app.runs ? app.runs.list({ limit: 100 }).filter((r) => r.kind === 'turn' && r.status === 'error' && r.endedAt && Date.parse(r.endedAt) >= day24).slice(0, 5).map((r) => ({ id: r.id, title: r.title, at: r.endedAt!, conversationId: r.conversationId })) : [];
     const models = own ? ((c.out.modelItems ?? []) as { reason?: string; from?: string; text?: string }[]).filter((m) => m.reason === 'retired-no-replacement' || m.reason === 'retired-auto-switch-off').map((m, i) => ({ key: `model:${m.from ?? i}`, from: m.from ?? '', text: m.text ?? '' })) : [];
+    // 3.3.0: her own trouble (model down, key rejected, a mailbox signed out, an add-on stopped).
+    const trouble = own ? gatherTrouble(app).map((x) => ({ id: x.id, kind: x.kind, key: x.key, params: x.params, text: x.text, fix: x.fix })) : [];
     return {
       approvals,
       failedJobs,
       failedRuns,
       models,
+      trouble,
       notToday: c.prefs.notToday.keys,
       includeMail: c.prefs.needsMail,
     };

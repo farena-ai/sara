@@ -188,6 +188,11 @@ html.sara-busy .td-face { animation: her-breathe var(--breathe) ease-in-out infi
 @media (prefers-reduced-motion: reduce) { #today .td-tile.td-skel::after { animation: none; } }
 
 /* Since you were away: a quiet strip above the sections. */
+/* 3.3.0: her own trouble, first on Today (web/today.js renderTrouble). */
+.td-trouble { display: flex; align-items: center; gap: 12px; margin: 0 0 16px; padding: 12px 16px; border: 1px solid color-mix(in srgb, var(--warn) 45%, transparent); border-radius: 12px; background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.td-trouble[hidden] { display: none; }
+.td-trouble-text { flex: 1; margin: 0; line-height: 1.45; }
+.td-trouble button { min-height: 44px; flex: none; }
 .td-away {
   display: flex;
   align-items: center;
