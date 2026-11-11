@@ -208,5 +208,10 @@
 "New account": "New account",
 "Issued by: {name}": "Issued by: {name}",
 "Invitation status: {status}": "Invitation status: {status}",
-"Expires: {time}": "Expires: {time}"
+"Expires: {time}": "Expires: {time}",
+"{model} on {service} runs on the processor: she keeps about {words} words in mind (kept small so replies stay quick).": "{model} on {service} runs on the processor: she keeps about {words} words in mind (kept small so replies stay quick).",
+"{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.": "{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.",
+"Keep waiting": "Keep waiting",
+"{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.": "{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.",
+"{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.": "{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model."
 }

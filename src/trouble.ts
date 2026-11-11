@@ -9,7 +9,7 @@ import type { AppContext } from './chat.ts';
 import { en, fill } from './i18n.ts';
 import { todayChanged } from './today.ts';
 
-export type TroubleKind = 'unreachable' | 'key' | 'credit' | 'busy' | 'model' | 'mail' | 'addon';
+export type TroubleKind = 'unreachable' | 'key' | 'credit' | 'busy' | 'model' | 'mail' | 'addon' | 'slow';
 
 export interface Trouble {
   /** Stable id (Today's "Not today" and de-dup): e.g. "model:ollama-cloud", "mail:m1". */
@@ -30,7 +30,7 @@ export interface Trouble {
 const FIX_IT = en('Fix it');
 const SIGN_IN = en('Sign in again');
 
-const MODEL_WORDS: Record<Exclude<TroubleKind, 'mail' | 'addon'>, string> = {
+const MODEL_WORDS: Record<Exclude<TroubleKind, 'mail' | 'addon' | 'slow'>, string> = {
   unreachable: en('I can’t reach my AI service ({service}) right now, so I can’t answer. Check that your internet is working, then press Try again. If it keeps happening, Fix it shows the setting.'),
   key: en('{service} didn’t accept my key, so I can’t think right now. Fix it opens the place to paste a new key; then I’m back.'),
   credit: en('{service} says the account is out of credit or needs a paid plan. Add credit on their website, or pick another service with Fix it.'),
@@ -55,6 +55,21 @@ export function troubleOf(message: string, service: string, id = 'model'): Troub
   // Plain words: "Ollama Cloud", not the picker's "Ollama Cloud (API key)".
   const params = { service: String(service).replace(/\s*\(API key\)$/i, '') };
   return { id, kind, key, params, text: fill(key, params), fix: { label: FIX_IT, page: kind === 'model' ? 'models-default' : 'models-providers' }, retry: true, at: new Date().toISOString() };
+}
+
+/** 3.4.5: what the slow-model notice says (on the processor of an Ollama daemon, or just slow). */
+export const SLOW_CPU = en('{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.');
+export const SLOW_ANY = en('{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.');
+
+/**
+ * 3.4.5: a turn whose first word hasn't come in time (45 seconds on an Ollama that runs the model
+ * on the processor, 90 anywhere): Fix it opens Which model does what; the chat adds Keep waiting
+ * and Stop. Nothing failed, so it isn't recorded as trouble anywhere else.
+ */
+export function slowTrouble(o: { providerId: string; service: string; model: string; cpu: boolean; seconds: number }): Trouble {
+  const key = o.cpu ? SLOW_CPU : SLOW_ANY;
+  const params = { model: o.model, service: String(o.service).replace(/\s*\(API key\)$/i, ''), seconds: String(o.seconds) };
+  return { id: `slow:${o.providerId}`, kind: 'slow', key, params, text: fill(key, params), fix: { label: FIX_IT, page: 'models-routes' }, retry: false, at: new Date().toISOString() };
 }
 
 // ---------- the real calls: the last result per provider ----------

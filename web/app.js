@@ -133,7 +133,7 @@ import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, t
 import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
-import { troubleBubble } from './trouble.js';
+import { slowBubble, troubleBubble } from './trouble.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 import { durationWords, turnHeads } from './turn-meta.js';
 // V4b (docs/ops/V4_DESIGN.md): her presence orb and the live run timeline.
@@ -3012,6 +3012,9 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'image') {
           endReply();
           place(bubble('assistant', '', 'photo', undefined, [`/api/uploads/${ev.id}`]));
+        } else if (ev.type === 'slow') {
+          // 3.4.5: a slow model (an Ollama on the processor): her plain words, Fix it, Keep waiting, Stop.
+          append(slowBubble(ev.trouble, { el, t, onFix: (page) => void openSettings(page || 'models-routes'), onStop: () => $('#stop')?.click() }));
         } else if (ev.type === 'error') {
           dropBuilding();
           // 3.3.0: a service problem (her AI service down, the key rejected…) in her plain words with Fix it and Try again.
@@ -8996,14 +8999,19 @@ function paintBudgetNote(b, choice) {
   if (!note) return;
   if (!b?.model) return void (note.textContent = t('Pick a default model to see how much she keeps in mind.'));
   const lines = [
-    b.windowTokens
+    // 3.4.5: an Ollama that runs the model on the processor (or not known yet) keeps it small.
+    b.hardware === 'cpu'
+      ? t('{model} on {service} runs on the processor: she keeps about {words} words in mind (kept small so replies stay quick).', { model: b.model, service: b.provider ?? '', words: words(b.tokens) })
+      : b.hardware === 'unknown'
+        ? t('{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.', { model: b.model, service: b.provider ?? '', words: words(b.tokens) })
+        : b.windowTokens
       ? t('With {model}: she keeps about {words} words of this chat in mind (the model holds about {total}).', { model: b.model, words: words(b.tokens), total: words(b.windowTokens) })
       : t("With {model}: she keeps about {words} words of this chat in mind. Sara doesn't know how much this model holds, so she keeps the usual amount.", { model: b.model, words: words(b.tokens) }),
   ];
   if (b.billing === 'api' && b.capped === 'balanced') lines.push(t('Pay-per-token model: every reply sends this again, so Balanced stops here. The full window keeps more and costs more on every turn.'));
   else if (b.billing === 'api' && choice !== 'auto') lines.push(t('Pay-per-token model: every reply sends what she keeps in mind again, so a long chat costs more on every turn.'));
   else if (b.billing === 'subscription') lines.push(t('Your subscription: no charge per token (long chats still count toward your plan’s limits).'));
-  if (b.numCtx) lines.push(t('On this computer: Sara asks Ollama to make room for {tokens} tokens (its num_ctx setting). The full window asks for more if the graphics memory allows; that uses more memory.', { tokens: Number(b.numCtx).toLocaleString() }));
+  if (b.numCtx && b.hardware === 'gpu') lines.push(t('On this computer: Sara asks Ollama to make room for {tokens} tokens (its num_ctx setting). The full window asks for more if the graphics memory allows; that uses more memory.', { tokens: Number(b.numCtx).toLocaleString() }));
   note.textContent = lines.join(' ');
 }
 $('#history-budget')?.addEventListener('change', async (e) => {

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-const { troubleBubble, troubleText } = await import(new URL('../web/trouble.js', import.meta.url).href);
+const { slowBubble, troubleBubble, troubleText } = await import(new URL('../web/trouble.js', import.meta.url).href);
 
 type Node = { tag: string; cls: string; text: string; kids: Node[]; dataset: Record<string, string>; type?: string; disabled?: boolean; textContent: string; on: Record<string, () => unknown>; append: (...k: (Node | string)[]) => void; addEventListener: (e: string, f: () => unknown) => void };
 const el = (tag: string, cls = '', text = ''): Node => {
@@ -42,4 +42,30 @@ test('web trouble: Today lists the notices first, with their fix', () => {
   assert.match(readFileSync(new URL('../web/index.html', import.meta.url), 'utf8'), /id="td-trouble"/);
   const app = readFileSync(new URL('../web/app.js', import.meta.url), 'utf8');
   assert.match(app, /ev\.trouble/, 'the chat shows the trouble bubble for a failed reply');
+});
+
+test('web trouble (3.4.5): a slow model: her words, Fix it (Which model does what), Keep waiting removes it, Stop stops', () => {
+  const tr = { id: 'slow:srv', kind: 'slow', key: '{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.', params: { model: 'qwen3.5:4b', service: 'Ollama on the server' }, text: 'x', fix: { label: 'Fix it', page: 'models-routes' }, retry: false };
+  let opened = '';
+  let stopped = 0;
+  const mk = () => {
+    const b = slowBubble(tr, { el, t, onFix: (p: string) => (opened = p), onStop: () => void stopped++ }) as Node & { removed?: boolean; remove?: () => void };
+    b.remove = () => void (b.removed = true);
+    return b;
+  };
+  const b = mk();
+  const all = flat(b);
+  assert.equal(all.find((n) => n.cls === 'trouble-text')?.text, 'qwen3.5:4b on Ollama on the server runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.');
+  const buttons = all.filter((n) => n.tag === 'button');
+  assert.deepEqual(buttons.map((x) => x.text), ['Fix it', 'Keep waiting', 'Stop']);
+  buttons[0].on.click();
+  assert.equal(opened, 'models-routes');
+  buttons[1].on.click();
+  assert.equal(b.removed, true);
+  assert.equal(stopped, 0);
+  const b2 = mk();
+  flat(b2).filter((n) => n.tag === 'button')[2].on.click();
+  assert.equal(stopped, 1);
+  assert.equal(b2.removed, true);
+  assert.match(readFileSync(new URL('../web/app.js', import.meta.url), 'utf8'), /ev\.type === 'slow'[\s\S]{0,300}slowBubble\(ev\.trouble/);
 });

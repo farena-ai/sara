@@ -384,6 +384,7 @@ export function metered(provider: Provider, store: UsageStore, tag: { purpose?: 
     config: provider.config,
     listModels: (signal?: AbortSignal) => provider.listModels(signal),
     ...(provider.modelLimits ? { modelLimits: (model: string, signal?: AbortSignal) => provider.modelLimits!(model, signal) } : {}),
+    ...(provider.loadedModels ? { loadedModels: (signal?: AbortSignal) => provider.loadedModels!(signal) } : {}),
     meter: { rewrap: (h: MeterHook) => metered(provider, store, tag, h) },
     async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {
       const scope = usageScope.getStore();

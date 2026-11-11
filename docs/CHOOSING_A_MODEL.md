@@ -108,12 +108,35 @@ Ollama loads a model with a small context unless the request asks for more (4,09
 machines with less than 24 GB of graphics memory), and it **silently cuts off** anything longer.
 Its OpenAI-compatible endpoint can't ask for more, which is a quiet reason long chats used to go
 wrong with local models. Sara now sends Ollama's own `num_ctx` option (through `/api/chat`) with
-every call: **32,768 tokens** by default (65,536 with 24 GB of graphics memory or more, 131,072
-from 48 GB; never past the model's own maximum); *full window*
-asks for the model's maximum, bounded by the graphics memory (64k under 24 GB, 128k from 24 GB,
-256k from 48 GB); a fixed size asks for enough room for that size. A bigger context uses more
-graphics memory; if a model no longer fits, pick a smaller size. Cloud models through your Ollama
-already get their full window from Ollama.
+every call. How much depends on **where that Ollama runs the model** (see below). On a graphics
+card: **32,768 tokens** by default (65,536 with 24 GB of graphics memory or more, 131,072 from
+48 GB; never past the model's own maximum); *full window* asks for the model's maximum, bounded by
+the graphics memory (64k under 24 GB, 128k from 24 GB, 256k from 48 GB); a fixed size asks for
+enough room for that size. A bigger context uses more graphics memory; if a model no longer fits,
+pick a smaller size. Cloud models through your Ollama already get their full window from Ollama.
+
+### Ollama without a graphics card (or on another computer)
+
+A model running on the processor reads every word of the prompt slowly: with a 32k context a
+4-billion-parameter model on an 8-core server takes several minutes per reply. So Sara asks each
+Ollama where it runs the model (Ollama's own list of loaded models, `/api/ps`: how much of the
+model sits in graphics memory), and remembers it per Ollama and model:
+
+- **On the processor** (no graphics memory used, or only part of the model fits): 8,192 tokens by
+  default, at most 16,384 with *full window*. The conversation she keeps in mind shrinks to what
+  fits (about 3,000 words), everywhere: the reply, the ring, `/status` and tidying.
+- **On a graphics card:** the sizes above. When that card is nearly full (other models loaded,
+  less than 2 GB free), she doesn't ask for more than the model already has or Ollama's own
+  default, so the model isn't pushed off the card or crashed.
+- **Not known yet:** an Ollama on the computer Sara runs on has that computer's graphics card (none
+  = processor). An Ollama on **another computer** (over Tailscale, for example) counts as small
+  (8k) until its list says the model runs on a graphics card; Sara's own card never stands in for
+  another computer's.
+
+If a reply still hasn't started after 45 seconds on the processor (90 seconds anywhere else), the
+chat says so plainly, with **Fix it** (Which model does what), **Keep waiting** and **Stop**. For
+long chats on a computer without a graphics card, a cloud model (or a model on a computer with a
+card) is the better pick; a small local model stays fine for quick chores.
 
 ## Cloud models
 

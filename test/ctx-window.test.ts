@@ -16,6 +16,7 @@ import {
   HARD_MAX_CHARS,
   localNumCtx,
   ModelContextStore,
+  type DaemonHardware,
   noteOllamaDaemon,
   parseAnthropic,
   parseGemini,
@@ -123,15 +124,19 @@ test('chars per token: English 4, Japanese far fewer', () => {
   assert.ok(charsPerToken('今日はとても良い天気ですね。散歩に行きましょう。'.repeat(20)) < 1.6);
 });
 
-test('Ollama num_ctx: 32k by default (more on big cards), the model max with "full" (bounded by graphics memory), enough for a fixed size', () => {
-  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144 }), 32_768);
-  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, vramGb: 12 }), 32_768);
-  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, vramGb: 32 }), 65_536, 'not less than Ollama itself picks on a 32 GB card');
-  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, vramGb: 80 }), 131_072);
-  assert.equal(localNumCtx({ mode: 'auto', modelMax: 8192 }), 8192, 'never past what the model holds');
-  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, vramGb: 32 }), 131_072);
-  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, vramGb: 8 }), 65_536);
-  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, vramGb: 96 }), 262_144);
+test('Ollama num_ctx: 8k on the processor or not known yet; on a graphics card 32k (more on big cards), the model max with "full" (bounded by the card), enough for a fixed size', () => {
+  const gpu = (vramGb?: number): DaemonHardware => ({ kind: 'gpu', basis: 'daemon', ...(vramGb ? { vramGb } : {}) });
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144 }), 8_192, '3.4.5: not known yet = small');
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, hw: { kind: 'cpu', basis: 'daemon' } }), 8_192);
+  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, hw: { kind: 'cpu', basis: 'daemon' } }), 16_384, 'full on the processor: at most 16k');
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, hw: gpu() }), 32_768);
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, hw: gpu(12) }), 32_768);
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, hw: gpu(32) }), 65_536, 'not less than Ollama itself picks on a 32 GB card');
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 262_144, hw: gpu(80) }), 131_072);
+  assert.equal(localNumCtx({ mode: 'auto', modelMax: 8192, hw: gpu() }), 8192, 'never past what the model holds');
+  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, hw: gpu(32) }), 131_072);
+  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, hw: gpu(8) }), 65_536);
+  assert.equal(localNumCtx({ mode: 'full', modelMax: 262_144, hw: gpu(96) }), 262_144);
   assert.ok(localNumCtx({ mode: 'fixed', modelMax: 262_144, fixedChars: 400_000 }) >= 100_000 + 12_000);
 });
 
@@ -235,6 +240,8 @@ async function fakeOllama() {
     const body = await readBody(req);
     if (req.url === '/api/tags') return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(fixture('ollama-tags.json')));
     if (req.url === '/api/show') return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(fixture('ollama-show.json')));
+    // 3.4.5: where the models run (nothing loaded here).
+    if (req.url === '/api/ps') return void res.writeHead(200, { 'content-type': 'application/json' }).end('{"models":[]}');
     if (req.url === '/api/chat') {
       const j = JSON.parse(body) as Record<string, unknown>;
       chats.push(j);
@@ -286,11 +293,15 @@ test('a turn on a local Ollama model sends num_ctx; the history budget follows t
   app.modelContext = new ModelContextStore(dir, app.now);
   app.providerFactory = (config) => new OpenAICompatibleProvider(config);
   const conv = app.store.createConversation();
+  // 3.4.5: this computer has a 12 GB card, so the Ollama on it runs on the card: 32k.
+  app.modelContext.hardwareKnown = true;
+  app.modelContext.vramGb = 12;
   await drain(runTurn(app, conv.id, 'hello', new AbortController().signal));
   assert.equal(o.chats.length >= 1, true);
   assert.equal((o.chats[0].options as { num_ctx: number }).num_ctx, 32_768);
   const b = historyBudgetFor(app, conv);
   assert.equal(b.numCtx, 32_768);
+  assert.equal(b.hardware, 'gpu');
   assert.equal(b.windowTokens, 32_768);
   assert.equal(b.capped, 'local');
   assert.ok(b.chars > HISTORY_BUDGET_CHARS, `32k window: more than the old 12k (${b.chars})`);

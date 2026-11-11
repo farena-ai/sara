@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Quick replies from models on a processor, in 3.4.5
+
+Sara now asks each Ollama whether it runs a model on a graphics card or on the processor. On a
+processor (or when she can't tell) she keeps the context small, about 8,000 tokens, so replies stay
+quick, and says so in plain words. If a model still hasn't started answering after 45 seconds, the chat
+shows which model is slow with Fix it, Keep waiting and Stop. Tidying a long chat no longer holds up
+the reply when a local model is slow or crashes.
+
 ## Interrupt and tell her now, in 3.4.4
 
 While she works you can now cut in: Interrupt now (in the Send menu, Ctrl+Enter, or /now in chat apps)

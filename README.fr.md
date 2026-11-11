@@ -24,7 +24,7 @@
 
 **Mettre à jour :** sur un serveur Linux, `sudo sara update` (sauvegarde d’abord, revient en arrière si elle ne répond pas) · Docker : `sudo git pull && sudo docker compose up -d --build` · apps Windows et Mac : Réglages → Données et santé → Mises à jour · Android : Google Play. [Mettre à niveau](docs/INSTALL.md#upgrading).
 
-> **État :** 3.4.4, [Interrompez-la et dites-le tout de suite](https://github.com/farena-ai/sara/releases/tag/v3.4.4). Intervenez pendant qu’elle travaille : elle s’arrête d’écrire aussitôt et repart de votre message ; modifications et commandes ne sont jamais coupées en plein milieu. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 3.4.5, [Des réponses rapides avec les modèles sur le processeur](https://github.com/farena-ai/sara/releases/tag/v3.4.5). Un modèle sans carte graphique reçoit un contexte petit et rapide, et un modèle lent est nommé avec Réparer. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versions récentes · 6 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Des réponses rapides avec les modèles sur le processeur](docs/CHOOSING_A_MODEL.md)** — Sara demande à chaque Ollama si le modèle tourne sur la carte graphique ; sur le processeur elle garde un petit contexte pour que les réponses restent rapides. Après 45 secondes sans réponse, le chat nomme le modèle lent avec Réparer, Continuer d’attendre et Arrêter. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrompez-la et dites-le tout de suite](docs/CHATS.md)** — Interrompre maintenant (menu Envoyer, Ctrl+Entrée ou /now) arrête sa réponse ou sa réflexion et elle reprend depuis ce que vous avez dit, en gardant les étapes finies et en repliant ce qu’elle disait. Les changements en cours se terminent d’abord, et une longue commande a Arrêter la commande. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Elle lit les images que vous envoyez](docs/CHOOSING_A_MODEL.md)** — Les captures d’analyses, de factures ou de formulaires arrivent maintenant à celui de vos modèles qui voit ; si celui qui répond ne peut pas, un autre la lit d’abord en texte exact. Elle enregistre les valeurs avec note add et, si aucun modèle ne voit, le dit avec Réparer au lieu de faire semblant. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Des notes qui ne perdent jamais ce que vous lui avez dit](docs/FEATURES.md)** — Elle ajoute chaque nouveauté à une note sous un titre daté, un enregistrement qui effacerait une note est refusé, les versions précédentes reviennent avec Restaurer et un « enregistré » non prouvé est signalé. Le haut de l’app Windows suit la page et elle peut lire vos onglets et fichiers. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Elle retient autant que son modèle peut contenir](docs/CHOOSING_A_MODEL.md)** — Auto adapte la part du chat qu’elle garde en tête au modèle utilisé (lue auprès du service ou dans un tableau daté), plafonne l’historique payé au jeton à un niveau équilibré sauf si vous choisissez la fenêtre entière, et donne aux modèles Ollama locaux un vrai contexte. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documents, son nom partout, contrôle de l’ordinateur depuis un serveur](docs/DOCUMENTS.md)** — Elle crée de vrais documents avec n’importe quel modèle (Word, PDF, tableurs, diaporamas) avec Télécharger, Ouvrir et Modifier. Un compagnon renommé affiche son nom et ses pronoms partout, avec des personnages par défaut il et iel. L’extension navigateur et le contrôle de l’ordinateur marchent maintenant en un clic. |
-| **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Mode facile](docs/AWAY_FROM_HOME.md)** — Conçu avec un débutant : la configuration explique les clés et ne se perd pas, les problèmes viennent avec Réparer, Connecter l’app Sara et Utiliser Sara hors de chez vous (Tailscale) sont guidés et testés, Gmail tient en trois étapes et vous pouvez dire « agrandis le texte » avec Annuler. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versions 2.6x précédentes</b>: de la 3.2.0 à la 2.61.5</summary>
+<summary><b>Versions 2.6x précédentes</b>: de la 3.3.0 à la 2.61.5</summary>
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Mode facile](docs/AWAY_FROM_HOME.md)** — Conçu avec un débutant : la configuration explique les clés et ne se perd pas, les problèmes viennent avec Réparer, Connecter l’app Sara et Utiliser Sara hors de chez vous (Tailscale) sont guidés et testés, Gmail tient en trois étapes et vous pouvez dire « agrandis le texte » avec Annuler. |
 | **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Elle prend vie](docs/APPEARANCE.md)** — Choisissez Son portrait, animé dans Apparence : elle respire, cligne des yeux, regarde autour d’elle et bouge les lèvres en parlant, avec des airs d’écoute, de réflexion et de parole et ses humeurs, dans le chat, Aujourd’hui et les appels. Votre propre image ou un modèle 3D .vrm marchent aussi. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Des recherches qui tiennent](docs/RESEARCH.md)** — Demandez-lui de rechercher un sujet, de faire un guide ou d’apprendre quelque chose : elle lance une recherche, cherche au lieu de deviner les adresses, passe les sites qui bloquent les lecteurs automatiques, réessaie les sites lents, reprend après un redémarrage, et une recherche interrompue donne quand même un rapport marqué Partiel. |
 | **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Emménager depuis Hermes ou OpenClaw, simplement](docs/MOVE_IN_GUIDE.md)** — Si Hermes Agent ou OpenClaw est sur le même ordinateur, Sara le trouve et l’amène d’un bouton (personnalité, souvenirs, anciennes conversations, compétences, horaires), avec un aperçu avant et Annuler après. Depuis un autre ordinateur, une ligne à coller et la page de Sara avance seule. |

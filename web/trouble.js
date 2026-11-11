@@ -46,3 +46,30 @@ export function troubleBubble(tr, { el, t, onFix, onRetry, detail = '' }) {
   }
   return box;
 }
+
+/**
+ * 3.4.5: the model hasn't said its first word in a while (src/trouble.ts slowTrouble): her words,
+ * Fix it (Which model does what), Keep waiting (the notice goes away) and Stop. Nothing failed.
+ */
+export function slowBubble(tr, { el, t, onFix, onStop }) {
+  const box = el('div', 'msg notice trouble slow-model');
+  box.dataset.trouble = 'slow';
+  box.append(el('p', 'trouble-text', troubleText(tr, t)));
+  const row = el('div', 'trouble-acts');
+  const fix = el('button', 'small', t(tr.fix?.label || 'Fix it'));
+  fix.type = 'button';
+  fix.dataset.page = tr.fix?.page ?? '';
+  fix.addEventListener('click', () => onFix?.(tr.fix?.page));
+  const wait = el('button', 'ghost small', t('Keep waiting'));
+  wait.type = 'button';
+  wait.addEventListener('click', () => box.remove());
+  const stop = el('button', 'ghost small', t('Stop'));
+  stop.type = 'button';
+  stop.addEventListener('click', () => {
+    box.remove();
+    onStop?.();
+  });
+  row.append(fix, wait, stop);
+  box.append(row);
+  return box;
+}

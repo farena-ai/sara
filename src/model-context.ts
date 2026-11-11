@@ -302,23 +302,124 @@ export function autoHistory(i: AutoInput): HistoryBudget {
   return { ...base, chars, tokens: Math.round(chars / cpt), windowTokens: window, ...(capped ? { capped } : {}) };
 }
 
+/** 3.4.5: an Ollama daemon whose model runs on the processor (or isn't known yet): small and quick. */
+export const CPU_CTX = 8_192;
+/** 3.4.5: the most "full window" asks for on the processor. */
+export const CPU_FULL_CTX = 16_384;
+/** 3.4.5: graphics memory left free below which Sara doesn't ask for more than Ollama's own default. */
+export const GPU_HEADROOM_GB = 2;
+
 /**
- * Ollama on your own computer: the num_ctx Sara asks for. Auto: 32k (64k with 24 GB of graphics
- * memory, 128k with 48 GB; never past the model's own maximum); "full window": the model's maximum,
- * bounded by what the graphics memory can hold; fixed: enough for the owner's size plus the prompt.
+ * 3.4.5: what Sara knows about the hardware of the Ollama daemon a model runs on. `kind` 'gpu':
+ * the model runs on the graphics card (`vramGb` its memory when known, `freeGb` what's left);
+ * 'cpu': on the processor (or split between the two, just as slow); 'unknown': not known yet.
  */
-export function localNumCtx(o: { mode: HistoryMode; modelMax?: number; fixedChars?: number; vramGb?: number }): number {
+export interface DaemonHardware {
+  kind: 'gpu' | 'cpu' | 'unknown';
+  vramGb?: number;
+  freeGb?: number;
+  /** The context the model is loaded with right now (Ollama /api/ps), if loaded. */
+  loadedCtx?: number;
+  /** The Modelfile's num_ctx (what Ollama itself would use). */
+  defaultCtx?: number;
+  /** Where it was learned: Ollama's own /api/ps, this computer's graphics card, or nothing yet. */
+  basis: 'daemon' | 'this-machine' | 'none';
+}
+
+/**
+ * Ollama: the num_ctx Sara asks for, by the daemon's hardware. On the processor (or not known yet)
+ * Auto asks for 8k and "full window" at most 16k: more context there makes every turn take
+ * minutes. On a graphics card Auto asks for 32k (64k with 24 GB, 128k with 48 GB); "full window"
+ * the model's maximum bounded by the card; a nearly full card (other models loaded) gets no more
+ * than the model already has or Ollama's own default. Fixed: enough for the owner's size.
+ */
+export function localNumCtx(o: { mode: HistoryMode; modelMax?: number; fixedChars?: number; hw?: DaemonHardware }): number {
   const max = o.modelMax ?? LOCAL_DEFAULT_CTX;
   const roundUp = (n: number) => Math.ceil(n / 1024) * 1024;
-  if (o.mode === 'full') {
-    const machine = o.vramGb === undefined ? 65_536 : o.vramGb >= 48 ? 262_144 : o.vramGb >= 24 ? 131_072 : 65_536;
-    return Math.min(max, machine);
-  }
+  const hw = o.hw ?? { kind: 'unknown', basis: 'none' };
   if (o.mode === 'fixed' && o.fixedChars) return Math.min(max, Math.max(8_192, roundUp(o.fixedChars / CHARS_PER_TOKEN + OVERHEAD_TOKENS + 8_192)));
-  // Auto: 32k, more on a big graphics card (never less than Ollama itself picks there: 32k from
-  // 24 GB, so 64k; 128k from 48 GB).
-  const machine = o.vramGb === undefined || o.vramGb < 24 ? LOCAL_DEFAULT_CTX : o.vramGb < 48 ? 65_536 : 131_072;
-  return Math.min(max, machine);
+  if (hw.kind !== 'gpu') return Math.min(max, o.mode === 'full' ? CPU_FULL_CTX : CPU_CTX);
+  const v = hw.vramGb;
+  let want = o.mode === 'full' ? (v === undefined ? 65_536 : v >= 48 ? 262_144 : v >= 24 ? 131_072 : 65_536) : v === undefined || v < 24 ? LOCAL_DEFAULT_CTX : v < 48 ? 65_536 : 131_072;
+  // A nearly full card: a bigger context would push the model off the card (or crash it).
+  if (hw.freeGb !== undefined && hw.freeGb < GPU_HEADROOM_GB) want = Math.min(want, hw.loadedCtx ?? hw.defaultCtx ?? CPU_CTX);
+  return Math.min(max, want);
+}
+
+/** One model Ollama has loaded (/api/ps): its size, the part on the graphics card, its context. */
+export interface LoadedModel {
+  name: string;
+  sizeGb: number;
+  vramGb: number;
+  ctx?: number;
+}
+const GB = 1024 ** 3;
+/** Ollama GET /api/ps: the loaded models, with size and size_vram (0 = on the processor). */
+export function parseOllamaPs(body: unknown): LoadedModel[] {
+  const models = (body as { models?: unknown })?.models;
+  if (!Array.isArray(models)) return [];
+  const out: LoadedModel[] = [];
+  for (const m of models as Record<string, unknown>[]) {
+    const name = typeof m?.name === 'string' ? m.name : typeof m?.model === 'string' ? m.model : '';
+    const size = Number(m?.size);
+    if (!name || !Number.isFinite(size) || size <= 0) continue;
+    const vram = Math.max(0, Number(m.size_vram) || 0);
+    const ctx = posInt(m.context_length);
+    out.push({ name, sizeGb: size / GB, vramGb: vram / GB, ...(ctx ? { ctx } : {}) });
+  }
+  return out;
+}
+
+const daemonPs = new Map<string, { at: number; models: LoadedModel[] }>();
+/** 3.4.5: what a daemon's /api/ps said (refreshed when a model loads or a call is slow). */
+export function noteOllamaPs(baseUrl: string, body: unknown, at = Date.now()): void {
+  daemonPs.set(rootOf(baseUrl), { at, models: parseOllamaPs(body) });
+}
+/** When the daemon's /api/ps was last read (0 = never). */
+export const daemonPsAt = (baseUrl: string): number => daemonPs.get(rootOf(baseUrl))?.at ?? 0;
+/** Tests: forget what the daemons said. */
+export function resetDaemonHardware(): void {
+  daemonPs.clear();
+}
+
+/** An address on the computer Sara runs on (the daemon shares its hardware). */
+export function sameMachine(baseUrl: string): boolean {
+  try {
+    const h = new URL(baseUrl).hostname.replace(/^\[|\]$/g, '').toLowerCase();
+    return h === 'localhost' || h === '::1' || h === '0.0.0.0' || /^127\./.test(h);
+  } catch {
+    return false;
+  }
+}
+
+const sameModel = (a: string, b: string) => a === b || a === `${b}:latest` || b === `${a}:latest`;
+
+/**
+ * 3.4.5: the hardware of the daemon at `baseUrl` for `model`. Ollama's own /api/ps decides (the
+ * model's size_vram against its size: all on the card = gpu; none or part = cpu); a daemon with
+ * other models loaded tells whether it has a card at all. Not loaded anywhere: a daemon on this
+ * computer has this computer's card (`here`; none = cpu); another computer's daemon is unknown.
+ * Sara's own graphics memory never stands in for another computer's.
+ */
+export function daemonHardware(baseUrl: string, model: string, here?: { known: boolean; vramGb?: number }, defaultCtx?: number): DaemonHardware {
+  const local = sameMachine(baseUrl);
+  const hereGb = local && here?.known ? here.vramGb : undefined;
+  const ps = daemonPs.get(rootOf(baseUrl))?.models ?? [];
+  const used = ps.reduce((n, m) => n + m.vramGb, 0);
+  const free = hereGb !== undefined ? Math.max(0, hereGb - used) : undefined;
+  const extra = { ...(defaultCtx ? { defaultCtx } : {}), ...(free !== undefined ? { freeGb: Math.round(free * 10) / 10 } : {}) };
+  const mine = ps.find((m) => sameModel(m.name, model));
+  if (mine) {
+    // Within 5% counts as all on the card (Ollama rounds); less is a split, as slow as the processor.
+    if (mine.vramGb >= mine.sizeGb * 0.95) return { kind: 'gpu', basis: 'daemon', ...(hereGb ? { vramGb: hereGb } : {}), ...(mine.ctx ? { loadedCtx: mine.ctx } : {}), ...extra };
+    return { kind: 'cpu', basis: 'daemon', ...(mine.ctx ? { loadedCtx: mine.ctx } : {}), ...extra };
+  }
+  if (ps.length) {
+    if (ps.some((m) => m.vramGb > 0)) return { kind: 'gpu', basis: 'daemon', ...(hereGb ? { vramGb: hereGb } : {}), ...extra };
+    return { kind: 'cpu', basis: 'daemon', ...extra };
+  }
+  if (local && here?.known) return here.vramGb ? { kind: 'gpu', basis: 'this-machine', vramGb: here.vramGb, ...extra } : { kind: 'cpu', basis: 'this-machine', ...extra };
+  return { kind: 'unknown', basis: 'none', ...extra };
 }
 
 const rootOf = (baseUrl: string) => baseUrl.replace(/\/+$/, '').replace(/\/v1$/i, '');
@@ -336,14 +437,47 @@ interface ProviderEntry {
   models: Record<string, ModelLimits>;
 }
 
+const PS_REFRESH_MS = 60_000;
+const psInflight = new Map<string, Promise<void>>();
+/** 3.4.5: reads a daemon's /api/ps now (one at a time per daemon; never throws). */
+export function refreshPs(provider: Pick<Provider, 'config' | 'loadedModels'>): Promise<void> {
+  const root = rootOf(provider.config.baseUrl);
+  let p = psInflight.get(root);
+  if (!p) {
+    p = (async () => {
+      try {
+        const body = await provider.loadedModels!(AbortSignal.timeout(5_000));
+        if (body !== undefined) noteOllamaPs(provider.config.baseUrl, body);
+      } catch {
+        /* the last answer stays */
+      }
+    })().finally(() => psInflight.delete(root));
+    psInflight.set(root, p);
+  }
+  return p;
+}
+async function raceFor(p: Promise<unknown>, ms: number): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  await Promise.race([p, new Promise<void>((r) => (timer = setTimeout(r, ms)))]);
+  clearTimeout(timer);
+}
+
 /** The cache: provider lists (memory + data/model-windows.json), refreshed daily, kept offline. */
 export class ModelContextStore {
   readonly #file: string | undefined;
   readonly #now: () => Date;
   #data: Record<string, ProviderEntry> = {};
   readonly #inflight = new Map<string, Promise<void>>();
-  /** Graphics memory (GB) when known (Ollama's "full window" ceiling). */
+  /** This computer's graphics memory (GB), for Ollama daemons on this computer only. */
   vramGb: number | undefined;
+  /** 3.4.5: this computer's hardware has been checked (no vramGb then = no graphics card). */
+  hardwareKnown = false;
+
+  /** 3.4.5: the hardware of a daemon for a model (see daemonHardware). */
+  hardware(config: Pick<ProviderConfig, 'id' | 'baseUrl' | 'kind'>, model: string): DaemonHardware {
+    const known = this.limits(config, model);
+    return daemonHardware(config.baseUrl, model, { known: this.hardwareKnown, vramGb: this.vramGb }, known.source === 'provider' ? known.limits?.numCtx : undefined);
+  }
 
   constructor(dataDir: string | undefined, now: () => Date = () => new Date()) {
     this.#file = dataDir ? join(dataDir, WINDOWS_FILE) : undefined;
@@ -372,21 +506,27 @@ export class ModelContextStore {
 
   /** Checks the provider's list when it is old or lacks the model (at most `waitMs`; never throws). */
   async prime(provider: Provider, model: string, waitMs = 1500): Promise<void> {
-    if (typeof provider.modelLimits !== 'function') return;
+    // 3.4.5: an Ollama daemon also says where its models run (/api/ps, at most once a minute).
+    const ps = typeof provider.loadedModels === 'function' && isOllamaDaemon(provider.config) && this.#now().getTime() - daemonPsAt(provider.config.baseUrl) > PS_REFRESH_MS ? refreshPs(provider) : undefined;
+    if (typeof provider.modelLimits !== 'function') {
+      if (ps) await raceFor(ps, waitMs);
+      return;
+    }
     const k = ModelContextStore.key(provider.config);
     const e = this.#data[k];
     const now = this.#now().getTime();
     const fresh = e?.checkedAt && now - Date.parse(e.checkedAt) < REFRESH_MS;
     const triedLately = e?.triedAt && now - Date.parse(e.triedAt) < RETRY_MS;
-    if ((fresh && e.models[model]) || triedLately) return;
+    if ((fresh && e.models[model]) || triedLately) {
+      if (ps) await raceFor(ps, waitMs);
+      return;
+    }
     let p = this.#inflight.get(k);
     if (!p) {
       p = this.#refresh(provider, model, k).finally(() => this.#inflight.delete(k));
       this.#inflight.set(k, p);
     }
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    await Promise.race([p, new Promise<void>((r) => (timer = setTimeout(r, waitMs)))]);
-    clearTimeout(timer);
+    await raceFor(ps ? Promise.all([p, ps]).then(() => undefined) : p, waitMs);
   }
 
   async #refresh(provider: Provider, model: string, k: string): Promise<void> {

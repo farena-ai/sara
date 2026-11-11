@@ -1053,6 +1053,7 @@ export class RunRecorder {
       config: p.config,
       listModels: (signal?: AbortSignal) => p.listModels(signal),
       ...(p.modelLimits ? { modelLimits: (model: string, signal?: AbortSignal) => p.modelLimits!(model, signal) } : {}),
+      ...(p.loadedModels ? { loadedModels: (signal?: AbortSignal) => p.loadedModels!(signal) } : {}),
       async *stream(req) {
         const t0 = Date.now();
         let first: number | undefined;

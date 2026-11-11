@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.5 (2026-11-11): quick replies from models on a processor
+
+- **Fixed: a model on a computer without a graphics card took minutes per reply (since 3.4.1).**
+  Sara asked Ollama for a 32k context everywhere, so a small model running on a processor (for
+  example qwen3.5:4b on a server) read a huge prompt every turn and the chat showed the thinking
+  circle for minutes. Sara now asks each Ollama where it runs the model (its own list of loaded
+  models): on the processor she asks for 8k (16k with "Full window") and keeps the conversation
+  memory to what fits, so replies are quick again. An Ollama on another computer counts as small
+  until it says it has a graphics card; Sara's own graphics card no longer counts for another
+  computer. On a graphics card that's nearly full (other models loaded) she doesn't ask for more
+  than the model already has.
+- **New: a plain notice when a model is too slow.** If no word has come after 45 seconds on an
+  Ollama that runs on the processor (90 seconds anywhere else), the chat says so, with Fix it
+  (Which model does what), Keep waiting and Stop.
+- **Tidying a long chat never waits long for a local model.** A local summary gets 30 seconds;
+  if it fails or runs out of time, the quick model (or the plain summary) takes over at once.
+- The Long conversations setting says when a model runs on the processor: "qwen3.5:4b on Ollama
+  on the server runs on the processor: she keeps about 3,000 words in mind (kept small so replies
+  stay quick)."
+
+
 ## 3.4.4 (2026-11-11): interrupt and tell her now
 
 ## 3.4.3 (2026-11-11): she reads the pictures you send

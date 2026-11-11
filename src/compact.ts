@@ -54,7 +54,9 @@ export interface ActiveFold {
 }
 
 /** Tests shorten the automatic fold's wait (§5.7: 20 s, then the turn goes on). */
-export const compactTiming = { autoWaitMs: 20_000 };
+// 3.4.5: `localMs`: the most a summary on a local model may take before the next route (or the
+// plain fold) takes over (a crashing or overloaded Ollama never holds tidying for minutes).
+export const compactTiming = { autoWaitMs: 20_000, localMs: 30_000 };
 export const MIN_FOLD = 8;
 export const MIN_KEPT = 12;
 const INPUT_CAP = 24_000;
@@ -381,13 +383,15 @@ async function compactInner(app: AppContext, conv: Conversation, o: { focus?: st
     outer: for (const route of routes) {
       for (let attempt = 0; attempt < 2; attempt++) {
         if (o.signal?.aborted) return { skipped: 'busy', reason: 'stopped' };
-        const r = await cheapCall(app, { source, purpose: 'compact', conv, model: route, messages: msgs, maxTokens: attempt === 0 ? 700 : 2000, cap: { runs: set.dailyCap.runs, tokens: set.dailyCap.tokens }, estTokens: Math.ceil((msgs[0].content.length + input.length) / 4) + (attempt === 0 ? 700 : 2000) });
+        const r = await cheapCall(app, { source, purpose: 'compact', conv, model: route, messages: msgs, ...(route === 'local' ? { timeoutMs: compactTiming.localMs } : {}), maxTokens: attempt === 0 ? 700 : 2000, cap: { runs: set.dailyCap.runs, tokens: set.dailyCap.tokens }, estTokens: Math.ceil((msgs[0].content.length + input.length) / 4) + (attempt === 0 ? 700 : 2000) });
         // (The retry gets more room: a thinking model on Ollama can spend 700 tokens before writing a word; measured with gemma4:12b.)
         if (!r.ok) {
           if (r.skipped === 'error') console.warn(`compact: the ${route} summary failed: ${r.reason}`);
           why = r.skipped === 'cap' ? 'cap' : r.skipped === 'no-model' ? 'no-model' : 'failed';
           if (r.skipped === 'error') {
             failed = true;
+            // 3.4.5: a local model that failed or ran out of time isn't tried again when another route is next.
+            if (route === 'local' && routes.length > 1) continue outer;
             continue;
           }
           continue outer; // no model on this route (or the cap): the next route, else plain

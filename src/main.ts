@@ -971,7 +971,8 @@ const modelCatalog = isDemo
 // 3.4.1: what each model can hold (one cache for the server; provider lists are the same for all).
 const modelContext = new ModelContextStore(isDemo ? undefined : dataDir);
 // Ollama's "full window" ceiling follows the graphics memory (checked once, in the background).
-if (!isDemo) void detectHardware().then((hw) => { if (hw.gpu) modelContext.vramGb = hw.gpu.vramGb; else if (hw.basis === 'unified') modelContext.vramGb = hw.budgetGb; }).catch(() => {});
+// 3.4.5: this computer's card counts only for an Ollama on this computer (src/model-context.ts daemonHardware).
+if (!isDemo) void detectHardware().then((hw) => { if (hw.gpu) modelContext.vramGb = hw.gpu.vramGb; else if (hw.basis === 'unified') modelContext.vramGb = hw.budgetGb; modelContext.hardwareKnown = true; }).catch(() => {});
 
 function buildCompanion(space: Space, id: string, dir: string): Companion {
   const main = id === MAIN_ID;

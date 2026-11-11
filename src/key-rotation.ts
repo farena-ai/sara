@@ -19,6 +19,7 @@ export function withKeyRotation(vault: Vault, name: string, make: (key: string |
     },
     listModels: (signal?: AbortSignal) => current.listModels(signal),
     modelLimits: (model: string, signal?: AbortSignal) => current.modelLimits?.(model, signal) ?? Promise.resolve({}),
+    loadedModels: (signal?: AbortSignal) => current.loadedModels?.(signal) ?? Promise.resolve(undefined),
     async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {
       for (let attempt = 0; ; attempt++) {
         let started = false;

@@ -832,6 +832,7 @@ export function withCloudPull(provider: Provider, catalog: ModelCatalog): Provid
       return all.filter((m) => !cloudOff(m));
     },
     ...(provider.modelLimits ? { modelLimits: (model: string, signal?: AbortSignal) => provider.modelLimits!(model, signal) } : {}),
+    ...(provider.loadedModels ? { loadedModels: (signal?: AbortSignal) => provider.loadedModels!(signal) } : {}),
     async *stream(req) {
       if (cloudOff(req.model)) throw new ProviderError(CLOUD_OFF(config.label, req.model), 403);
       await catalog.ensurePulled(config, req.model, req.signal);

@@ -71,6 +71,7 @@ export function budgetView(app: RouteCtx['app'], preview?: { mode: HistoryMode; 
     billing: b.billing,
     capped: b.capped ?? null,
     numCtx: b.numCtx ?? null,
+    hardware: b.hardware ?? null,
   };
 }
 

@@ -4,7 +4,7 @@ import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
-import { autoHistory, charsPerToken, CHARS_PER_TOKEN, cloudThroughDaemon, isOllamaDaemon, localNumCtx, lookupTable, type HistoryBudget, type HistoryMode } from './model-context.ts';
+import { autoHistory, charsPerToken, CHARS_PER_TOKEN, cloudThroughDaemon, daemonHardware, isOllamaDaemon, localNumCtx, lookupTable, refreshPs, type DaemonHardware, type HistoryBudget, type HistoryMode } from './model-context.ts';
 import { priceTagFor, SAVER, saverNow, spendCheck, spendSettings, spentNow, stoppedOutput, type PriceTag } from './spend.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
 import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
@@ -82,7 +82,7 @@ import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
-import { noteCall, troubleOf } from './trouble.ts';
+import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
@@ -444,7 +444,9 @@ export type ChatEvent =
   /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
   | { type: 'refs'; messageId: number; items: RefChip[] }
   | { type: 'done'; messageId: number }
-  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble };
+  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble }
+  /** 3.4.5: the model hasn't said its first word in a while (Fix it / Keep waiting / Stop); the turn goes on. */
+  | { type: 'slow'; trouble: import('./trouble.ts').Trouble };
 
 export const HISTORY_LIMIT = 60;
 export const MAX_STEPS = 25;
@@ -665,6 +667,35 @@ export async function* streamWithin<T>(start: (signal: AbortSignal) => AsyncIter
   }
 }
 
+/** 3.4.5: when the slow-model notice comes: an Ollama running the model on the processor, anywhere else. */
+export const slowNoticeTiming = { cpuMs: 45_000, anyMs: 90_000 };
+const SLOW_MARK = { type: 'slow_mark' } as const;
+/**
+ * 3.4.5: passes a stream through; when its first event hasn't come within `ms`, yields one
+ * SLOW_MARK first and keeps waiting (nothing is aborted: streamWithin and Stop still decide).
+ */
+export async function* markSlow<T>(source: AsyncIterable<T>, ms: number): AsyncGenerator<T | typeof SLOW_MARK> {
+  const it = source[Symbol.asyncIterator]();
+  try {
+    const pending = it.next();
+    pending.catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const first = await Promise.race([pending, new Promise<typeof SLOW_MARK>((r) => (timer = setTimeout(() => r(SLOW_MARK), ms)))]);
+    clearTimeout(timer);
+    let next: IteratorResult<T>;
+    if (first === SLOW_MARK) {
+      yield SLOW_MARK;
+      next = await pending;
+    } else next = first as IteratorResult<T>;
+    while (!next.done) {
+      yield next.value;
+      next = await it.next();
+    }
+  } finally {
+    await it.return?.();
+  }
+}
+
 /** Seconds before the next model in a chain takes over (Settings → Which model does what). */
 export function fallbackAfterMs(app: AppContext, opts: { provider?: { config: { local?: boolean; baseUrl?: string } }; promptChars?: number } = {}): number {
   let sec = Math.min(300, Math.max(10, app.settings.get().fallbackAfterSec ?? 60));
@@ -871,6 +902,8 @@ export interface ResolvedBudget extends HistoryBudget {
   providerLabel?: string;
   /** Ollama on your own computer: the num_ctx sent with each call. */
   numCtx?: number;
+  /** 3.4.5: where that Ollama daemon runs the model (the graphics card, the processor, not known yet). */
+  hardware?: DaemonHardware['kind'];
 }
 
 /**
@@ -907,9 +940,11 @@ export function historyBudgetFor(app: AppContext, conv?: Pick<Conversation, 'id'
   // llama.cpp): only what the server itself reports counts there, never the table's guess.
   if (billing === 'local' && known.source === 'table' && !cloudThroughDaemon(config, pick.model)) known = { source: 'default' };
   const local = isOllamaDaemon(config) && !isCloudModelName(pick.model) && known.source === 'provider';
-  const numCtx = local ? localNumCtx({ mode, modelMax: known.limits?.context, fixedChars, vramGb: app.modelContext?.vramGb }) : undefined;
+  // 3.4.5: sized by where this daemon runs the model (its own /api/ps; never Sara's card for another computer).
+  const hw = local ? (app.modelContext ? app.modelContext.hardware(config, pick.model) : daemonHardware(config.baseUrl, pick.model)) : undefined;
+  const numCtx = local ? localNumCtx({ mode, modelMax: known.limits?.context, fixedChars, hw }) : undefined;
   const b = autoHistory({ limits: known.limits, source: known.source, billing, mode, fixedChars, charsPerToken: cpt, ...(numCtx ? { localCtx: numCtx } : {}), cloudThroughDaemon: cloudThroughDaemon(config, pick.model) });
-  return { ...b, model: pick.model, providerLabel: config.label, ...(numCtx ? { numCtx } : {}) };
+  return { ...b, model: pick.model, providerLabel: config.label, ...(numCtx ? { numCtx } : {}), ...(hw ? { hardware: hw.kind } : {}) };
 }
 /** Older tool outputs are shortened to this much once they're past the most recent messages. */
 const OLD_TOOL_OUTPUT = 1_500;
@@ -2453,6 +2488,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const webTurn = new WebTurn({ canResearch: Boolean(app.research) && !conv.private && !conv.partner && !opts.group && !opts.outside && !opts.externalApp });
   // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
   let callsThisTurn = 0;
+  // 3.4.5: the slow-model notice comes once a turn.
+  let slowSaid = false;
   // Earlier tool receipts in this conversation (for recaps that name the same files).
   const priorReceipts: Receipt[] = store
     .messages(conv.id)
@@ -3247,7 +3284,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
       const callCtx = ci === 0 ? turnHistory.numCtx : budgetOf({ provider: p, model: m }).numCtx;
       if (steerable) app.pending?.setPhase(conv.id, { kind: 'model' });
-      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
+      // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
+      const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
+      const slowMs = slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
+      const stream = streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }));
+      for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
+        if (ev.type === 'slow_mark') {
+          slowSaid = true;
+          if (typeof p.loadedModels === 'function') void refreshPs(p);
+          const tr = slowTrouble({ providerId: p.config.id, service: p.config.label, model: m, cpu: onCpu, seconds: Math.round(slowMs / 1000) });
+          yield { type: 'slow', trouble: { ...tr, text: trOwner(tr.key, app.settings.get(), tr.params) } };
+          continue;
+        }
         if (ev.type === 'text') {
           reply += ev.text;
           yield { type: 'token', text: ev.text };

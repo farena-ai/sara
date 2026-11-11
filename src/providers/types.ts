@@ -118,6 +118,8 @@ export interface Provider {
    * cover more models than the one asked for. Absent where the provider says nothing.
    */
   modelLimits?(model: string, signal?: AbortSignal): Promise<Record<string, import('../model-context.ts').ModelLimits>>;
+  /** 3.4.5: an Ollama daemon's /api/ps body (the loaded models and how much of each is on the graphics card). */
+  loadedModels?(signal?: AbortSignal): Promise<unknown>;
 }
 
 export class ProviderError extends Error {

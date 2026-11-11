@@ -15937,5 +15937,10 @@
 "Interrupt her and tell her now: she stops what she is writing and reads it": "Interrompa e diga agora: ela para o que está escrevendo e lê",
 "Tell me what to say after the command, like: /now {example}": "Diga o que falar depois do comando, por exemplo: /now {example}",
 "Got it, stopping to read that now.": "Entendi, vou parar para ler isso agora.",
-"No command is running now.": "Nenhum comando está rodando agora."
+"No command is running now.": "Nenhum comando está rodando agora.",
+"{model} on {service} runs on the processor: she keeps about {words} words in mind (kept small so replies stay quick).": "{model} em {service} roda no processador: ela guarda cerca de {words} palavras na memória (pouco, para as respostas saírem rápido).",
+"{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.": "{model} em {service}: ela guarda cerca de {words} palavras na memória. A Sara ainda não sabe se ele roda numa placa de vídeo, então guarda pouco até saber.",
+"Keep waiting": "Continuar esperando",
+"{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.": "{model} em {service} roda no processador e é muito lento para uma conversa tão longa. Corrigir: escolha um modelo mais rápido.",
+"{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.": "{model} em {service} não começou a responder depois de {seconds} segundos; talvez seja lento demais para uma conversa tão longa. Corrigir: escolha um modelo mais rápido."
 }

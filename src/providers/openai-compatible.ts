@@ -3,7 +3,7 @@
 import { randomUUID } from 'node:crypto';
 import { sseEvents } from '../sse.ts';
 import { isCloudModelName } from '../model-names.ts';
-import { isOllamaDaemon, parseGemini, parseOllamaShow, parseOllamaTags, parseOpenAIList, parseOpenRouter, type ModelLimits } from '../model-context.ts';
+import { isOllamaDaemon, parseGemini, refreshPs, parseOllamaShow, parseOllamaTags, parseOpenAIList, parseOpenRouter, type ModelLimits } from '../model-context.ts';
 import {
   failFromResponse,
   foldSteers,
@@ -164,6 +164,13 @@ export class OpenAICompatibleProvider implements Provider {
     return out;
   }
 
+  /** 3.4.5: Ollama's /api/ps (undefined when this isn't a daemon or it didn't answer). */
+  async loadedModels(signal?: AbortSignal): Promise<unknown> {
+    if (!isDaemon(this.config.baseUrl)) return undefined;
+    const res = await reach(this.config, `${daemonRoot(this.config.baseUrl)}/api/ps`, { signal }).catch(() => undefined);
+    return res?.ok ? await res.json().catch(() => undefined) : undefined;
+  }
+
   async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {
     // 3.4.1: Ollama on your own computer gets the context Sara chose (its /v1 ignores num_ctx).
     const ctxKey = `${daemonRoot(this.config.baseUrl)}|${req.model}`;
@@ -303,7 +310,10 @@ export class OpenAICompatibleProvider implements Provider {
     if (!res.ok) await failFromResponse(res, this.config.label, req.model);
     if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
     const body = res.body;
+    const self = this;
     return (async function* (): AsyncGenerator<StreamEvent> {
+      // 3.4.5: the model is loaded now: where it runs (/api/ps) decides the next calls' context.
+      let loaded = false;
       const decoder = new TextDecoder();
       let buf = '';
       let n = 0;
@@ -327,6 +337,10 @@ export class OpenAICompatibleProvider implements Provider {
           continue;
         }
         if (j.error) throw new ProviderError(`${'Ollama'}: ${j.error}`);
+        if (!loaded) {
+          loaded = true;
+          void refreshPs(self);
+        }
         if (j.message?.content) yield { type: 'text', text: j.message.content };
         for (const c of j.message?.tool_calls ?? []) {
           const name = c.function?.name;
