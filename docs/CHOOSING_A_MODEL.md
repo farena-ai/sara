@@ -170,7 +170,7 @@ only; nothing is sent anywhere). Each job also has *Test* (does it work, how fas
 |---|---|---|
 | **Talking** | Everyday conversation. The most important one | The model whose replies you like best |
 | **Coding** | Coding-mode conversations: files, commands, git | A model that's good with code and tools |
-| **Looking at pictures** | Photos and screenshots you send, and scanned pages in her library | A model that can see: `gemma4`, a "vl" or "vision" model, GPT, Claude or Grok |
+| **Looking at pictures** | Photos and screenshots you send, and scanned pages in her library. When the model she's talking on can't see (Sara checks Ollama's and OpenRouter's model lists), this model reads the picture into text for her and you're told which model read it | A model that can see: `gemma4`, a "vl" or "vision" model, GPT, Claude or Grok (not a subscription app: they get text only) |
 | **Planning** | Morning briefing, weekly review, plans for her team | A careful, strong model |
 | **Writing** | Her diary, her life story, character writing | A model with a nice way with words |
 | **Web research** | When you ask her to look something up | Good with tools and sources |

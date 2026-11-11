@@ -126,6 +126,15 @@ server); a member who wants more than that should run a server of their own. A m
 their data or delete their whole space at any time; when the owner removes someone, they have a few
 days to download it first.
 
+## Photos you send
+
+A photo goes only to models you set up: the model of that job, or, when it can't see, one of your
+other models that can (the *Looking at pictures* model first) to read it into text for her. That
+text is kept with your message in her conversation history on your server. In a private conversation
+(or with *Nothing leaves this computer*) only a model on your own computer is used for this; if none
+can see, the photo goes to no model and she tells you so. A model you never picked for anything is
+never sent your photo, and a household member's photos only go to the models the owner allowed them.
+
 ## Our moments
 
 The photo album ([MOMENTS.md](MOMENTS.md)) stays on your server, per companion. Her captions are

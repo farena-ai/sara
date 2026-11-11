@@ -5,6 +5,29 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.3 (2026-11-11): she reads the pictures you send
+
+- **Photos of documents reach a model that can see them:** a screenshot of lab results sent in a chat
+  that had turned adult went to the adult model with only a "photo shared" note, even when that model
+  was the very model behind *Looking at pictures* and could read it, so she played along instead of
+  reading it. Now every model that can see gets the photo: the *Looking at pictures* models, and any
+  model whose provider says it can see (Ollama's and OpenRouter's model lists are checked).
+- **She reads it when her model can't:** when the model she is talking on can't see pictures, a model
+  you set up that can (the *Looking at pictures* model first, then another of your models whose
+  provider says it sees) reads the picture into text for her: every row, number, unit, range and date
+  exactly as written. You see which model read it, and the text stays with your message, so she still
+  has the values later. Private conversations only use a model on your own computer for this; a model
+  you never picked for anything is never sent your picture.
+- **She says so when nothing can see it:** if no model you set up can see, she tells you plainly (*I
+  can't see pictures with the current model ... Fix it: pick a model that can see in Settings → Which
+  model does what → Looking at pictures*) and is told the picture did not reach her. A reply that acts
+  as if she is looking at it ("my eyes scanning the image") gets the *Not checked* line and she
+  corrects herself.
+- **Document photos become notes:** she is told to copy the text of a document photo exactly and, when
+  you want it kept, to save the values with `note add` and say which note they are in. Later turns on a
+  model that can't see the photo are told which model saw it, so she doesn't take the saved values for
+  made up; "I saved it in note #3" after an earlier turn's save is no longer flagged.
+
 ## 3.4.2 (2026-11-11): notes that never lose what you told her
 
 - **Notes no longer lose what you told her before:** when you kept sending results for one note (for

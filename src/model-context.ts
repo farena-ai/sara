@@ -20,6 +20,19 @@ export interface ModelLimits {
   maxOutput?: number;
   /** Ollama: the num_ctx the model's Modelfile sets (what /v1 calls get without options). */
   numCtx?: number;
+  /**
+   * 3.4.3: whether the model can look at pictures, when its provider's list says so (Ollama's
+   * capabilities, OpenRouter's input modalities). Unknown stays unset.
+   */
+  vision?: boolean;
+}
+
+/** 3.4.3: Ollama's `capabilities` list ("vision" among them) or OpenRouter's input modalities. */
+function visionOf(m: Record<string, unknown>): { vision?: boolean } {
+  if (Array.isArray(m.capabilities)) return { vision: m.capabilities.includes('vision') };
+  const mods = (m.architecture as { input_modalities?: unknown } | undefined)?.input_modalities;
+  if (Array.isArray(mods)) return { vision: mods.includes('image') };
+  return {};
 }
 
 export type LimitsSource = 'provider' | 'table' | 'default';
@@ -133,7 +146,7 @@ export function parseOpenRouter(body: unknown): Record<string, ModelLimits> {
   for (const m of listOf(body)) {
     const top = (m.top_provider ?? {}) as Record<string, unknown>;
     const l = limitsOf(top.context_length ?? m.context_length, top.max_completion_tokens);
-    if (typeof m.id === 'string' && l) out[m.id] = l;
+    if (typeof m.id === 'string' && l) out[m.id] = { ...l, ...visionOf(m) };
   }
   return out;
 }
@@ -179,8 +192,9 @@ export function parseOllamaTags(body: unknown): Record<string, ModelLimits> {
   const out: Record<string, ModelLimits> = {};
   for (const m of listOf(body, 'models')) {
     const name = typeof m.name === 'string' ? m.name : typeof m.model === 'string' ? m.model : undefined;
-    const l = limitsOf(((m.details ?? {}) as Record<string, unknown>).context_length ?? m.context_length);
-    if (name && l) {
+    const l0 = limitsOf(((m.details ?? {}) as Record<string, unknown>).context_length ?? m.context_length);
+    if (name && l0) {
+      const l = { ...l0, ...visionOf(m) };
       out[name] = l;
       if (name.endsWith(':latest')) out[name.slice(0, -7)] = l;
     }
@@ -191,15 +205,16 @@ export function parseOllamaTags(body: unknown): Record<string, ModelLimits> {
 /** Ollama POST /api/show: model_info["<arch>.context_length"] and the Modelfile's num_ctx. */
 export function parseOllamaShow(body: unknown): ModelLimits | undefined {
   if (!body || typeof body !== 'object') return undefined;
-  const b = body as { model_info?: Record<string, unknown>; parameters?: unknown };
+  const b = body as { model_info?: Record<string, unknown>; parameters?: unknown; capabilities?: unknown };
   const info = b.model_info ?? {};
   const arch = typeof info['general.architecture'] === 'string' ? String(info['general.architecture']) : '';
   const ctx = info[`${arch}.context_length`] ?? Object.entries(info).find(([k]) => k.endsWith('.context_length'))?.[1];
   const num = typeof b.parameters === 'string' ? /(?:^|\n)\s*num_ctx\s+(\d+)/.exec(b.parameters)?.[1] : undefined;
   const l = limitsOf(ctx);
   const numCtx = posInt(num);
-  if (!l) return numCtx ? { context: numCtx, numCtx } : undefined;
-  return { ...l, ...(numCtx ? { numCtx } : {}) };
+  const v = visionOf(b as Record<string, unknown>);
+  if (!l) return numCtx ? { context: numCtx, numCtx, ...v } : undefined;
+  return { ...l, ...(numCtx ? { numCtx } : {}), ...v };
 }
 
 /** Rough characters per token for a piece of text (4 for English; less for CJK, Cyrillic, ...). */

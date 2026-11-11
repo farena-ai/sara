@@ -18,6 +18,7 @@ import { redactTypedPassword } from './ssh.ts';
 import { isSshTool } from './tools/ssh.ts';
 import { appLanguage, en, fill, languageLine, talkLanguage, trOwner } from './i18n.ts';
 import { createProvider } from './providers/registry.ts';
+import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, readoutNote, readPictures, type PictureReader } from './picture-reader.ts';
 import { isToolsUnsupported, seesPictures, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
@@ -381,7 +382,7 @@ export interface AppContext {
 
 export type ChatEvent =
   /** Phase 61: `key` + `params` (fallback notices) let the app and the bridges word it in the owner's language; `text` is the English. */
-  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
+  | { type: 'notice'; kind: 'disclosure' | 'crisis' | 'fallback' | 'compact' | 'continuity' | 'websearch' | 'picture'; text: string; key?: string; params?: Record<string, unknown>; oneTap?: boolean }
   | { type: 'token'; text: string }
   /** C8: `price` = this tool costs money ("about $X", or null = unknown), shown on the step before it runs. */
   | { type: 'tool_call'; id: string; name: string; summary: string; args: Record<string, unknown>; price?: PriceTag }
@@ -974,7 +975,10 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
     if (m.role === 'user') {
       const photoIds = Array.isArray(m.meta?.images) ? (m.meta.images as string[]) : [];
       const images = loadImage && withPhotos.includes(m.id) ? photoIds.map(loadImage).filter((x): x is ImageData => Boolean(x)) : [];
-      const note = photoIds.length && !images.length ? ` [${photoIds.length} photo(s) shared earlier]` : '';
+      // 3.4.3: what a picture model read from them stands in for photos this model doesn't get.
+      const readout = m.meta?.readout as { text?: unknown; by?: unknown } | undefined;
+      const seenBy = typeof m.meta?.seenBy === 'string' ? m.meta.seenBy : '';
+      const note = photoIds.length && !images.length ? (typeof readout?.text === 'string' && typeof readout.by === 'string' ? readoutNote({ text: readout.text, by: readout.by }, photoIds.length) : seenBy ? ` [${photoIds.length} photo(s) shared earlier, seen then by ${seenBy}: what was said about ${photoIds.length === 1 ? 'it' : 'them'} right after came from the picture itself, so trust it; it isn't shown to you now]` : ` [${photoIds.length} photo(s) shared earlier]`) : '';
       const docs = Array.isArray(m.meta?.docs) ? docsNote(m.meta.docs as SharedDoc[]) : '';
       // Phase 96: a skill loaded up front for this message rides on it.
       const auto = m.meta?.autoSkill as { name?: string; text?: string } | undefined;
@@ -2182,8 +2186,22 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'error', message: (err as Error).message };
     return;
   }
-  // With a vision model set, other models get a note instead of the photos (they may not see).
-  const sees = (p: Provider, m: string) => !visionSet || job === 'vision' || (p.config.id === jobRoutes.vision!.providerId && m === jobRoutes.vision!.model);
+  // 3.4.3 (owner report: a lab-results screenshot never reached the model that can see): who gets
+  // the photos. The picture job's models do; else what the provider's own list says about the model
+  // (Ollama's capabilities; subscription agents get text only); else, with a picture model set, the
+  // models of that job (primary and fallbacks), and other unknown models get what it read instead.
+  // (Before, an adult turn on the very model of the picture job's fallbacks got only a note.)
+  const visionRefs = visionSet ? [jobRoutes.vision!, ...(jobRoutes.vision!.fallbacks ?? [])] : [];
+  const sees = (p: Provider, m: string) => {
+    if (job === 'vision') return true;
+    const known = modelSees(app, p.config, m);
+    if (known !== undefined) return known;
+    return !visionSet || visionRefs.some((r) => r.providerId === p.config.id && r.model === m);
+  };
+  /** 3.4.3: this turn's photos, read into text for a talking model that can't see them (once a turn). */
+  let pictureRead: 'pending' | 'read' | 'none' = 'pending';
+  /** 3.4.3: this step's model got neither the photos nor what was read from them. */
+  let pictureMissed = false;
   // Phase 49: screenshots from her tools: subscription command-line agents can't look at pictures.
   const seesShots = (p: Provider, m: string) => seesPictures(p.config) && sees(p, m);
   // Phase 49: a screenshot the talking model can't see is described by the picture (vision) model.
@@ -2875,6 +2893,50 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 53: her reply language (the owner's pick, or the language they write in). Not for other people's chats.
       language: conv.partner ? undefined : languageLine(talkLanguage(s, text)),
     });
+    // 3.4.3: the talking model can't see this turn's photos: a model the owner set up that can reads
+    // them into text first (the owner is told which); with none, she is told plainly they didn't reach her.
+    const turnPhotoIds = Array.isArray(userMsg?.meta?.images) ? (userMsg.meta.images as string[]) : [];
+    // 3.4.3: a model that saw the photos is named on the message, so a later model that can't see
+    // them knows the replies right after came from the picture itself (not made up).
+    if (turnPhotoIds.length && app.uploads && !opts.replay && sees(provider, model) && !userMsg.meta?.seenBy) {
+      const seenBy = `${provider.config.label} (${model})`;
+      store.updateMessageMeta(userMsg.id, { seenBy });
+      userMsg.meta = { ...(userMsg.meta ?? {}), seenBy };
+    }
+    if (pictureRead === 'pending' && turnPhotoIds.length && app.uploads && !opts.replay && !sees(provider, model) && !userMsg.meta?.readout) {
+      pictureRead = 'none';
+      const imgs = turnPhotoIds.map((id) => app.uploads!.load(id)).filter((x): x is ImageData => Boolean(x));
+      let readers: PictureReader[] = [];
+      try {
+        const resolve = (pid: string, m: string) => resolveProvider(app, pid, m, { purpose: 'vision', ...(conv.id ? { conversationId: conv.id } : {}) });
+        let visionChain: ModelChoice[] = [];
+        if (visionSet && !privateVisionOff) {
+          try {
+            visionChain = resolveChain(app, conv, 'vision');
+          } catch {
+            /* the picture job isn't usable here */
+          }
+        }
+        if (app.modelContext) await primePictureProviders(app, conv, resolve);
+        readers = pictureReaders(app, conv, { providerId: provider.config.id, model }, visionChain, resolve);
+      } catch (err) {
+        console.warn(`picture readers: ${(err as Error).message}`);
+      }
+      const readout = imgs.length && readers.length ? await readPictures(readers, imgs, signal) : undefined;
+      if (readout) {
+        pictureRead = 'read';
+        store.updateMessageMeta(userMsg.id, { readout: { ...readout, at: app.now().toISOString() } });
+        userMsg.meta = { ...(userMsg.meta ?? {}), readout };
+        const key = en("{model} can't see pictures, so {reader} read yours for her.");
+        const params = { model: `${provider.config.label} (${model})`, reader: readout.by };
+        store.addMessage(conv.id, 'notice', `picture:${fill(key, params)}`, { key, params });
+        yield { type: 'notice', kind: 'picture', text: fill(key, params), key, params };
+      } else {
+        const key = en("I can't see pictures with the current model, so your picture didn't reach me. Fix it: pick a model that can see in Settings → Which model does what → Looking at pictures.");
+        store.addMessage(conv.id, 'notice', `picture:${key}`, { key });
+        yield { type: 'notice', kind: 'picture', text: trOwner(key, app.settings.get()), key };
+      }
+    }
     // Phase 57: with the app's own history, only this turn's lines come from here (the message, her tool steps).
     const historyEpoch = sessionContinuity ? store.getConversation(conv.id)?.dialogueEpoch : undefined;
     // 3.4.1: a fallback model that holds less than the turn's model gets a shorter history.
@@ -2918,12 +2980,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const summary = app.memory?.list({ kind: 'summary', limit: 20 }).find((m) => m.conversationId === conv.id && (m.sourceMessageId ?? 0) < hist.firstKeptId);
       messages.push({ role: 'user', content: `[Note from the app: this conversation is long, so its earliest part is left out here.${summary ? ` Summary of it: ${summary.content}` : ''}]` });
     }
-    // Phase 115 (BR1, §4.5): the picture model of a private conversation isn't on this computer.
-    if (privateVisionOff) {
+    // 3.4.3: this turn's photos didn't reach the model and nothing could read them: she is told
+    // plainly (never a bare "photo shared" she might play along with). Phase 115 (BR1, §4.5): in a
+    // private conversation the picture model isn't on this computer.
+    pictureMissed = Boolean(turnPhotoIds.length && !sees(provider, model) && !userMsg.meta?.readout);
+    if (pictureMissed) {
       const i = hist.messages.findLastIndex((m) => m.role === 'user');
       if (i >= 0) {
         const m = hist.messages[i] as Extract<ChatMessage, { role: 'user' }>;
-        hist.messages[i] = { ...m, content: `${m.content.replace(/ \[\d+ photo\(s\) shared earlier\]/, '')} ${PRIVATE_PHOTO_NOTE}` };
+        const priv = Boolean(conv.private || privateLocalOn());
+        hist.messages[i] = { ...m, content: `${m.content.replace(/ \[\d+ photo\(s\) shared earlier\]/, '')}${privateVisionOff ? ` ${PRIVATE_PHOTO_NOTE}` : ''}${missedPictureNote(s.ownerName?.trim() || 'the owner', turnPhotoIds.length, priv)}` };
       }
     }
     // Phase 69: the camera picture of a classic video call rides on this message (never stored).
@@ -3270,7 +3336,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 120 (PRECISE §4.4): a check still running is waited for once before her reply counts.
       if (checks) await checks.settle();
       const claimReceipts = checks ? [...receipts, ...checks.receipts()] : receipts;
-      let claims = checkClaims(reply, claimReceipts, priorReceipts, { attached: attachedThisTurn > 0 });
+      let claims = checkClaims(reply, claimReceipts, priorReceipts, { attached: attachedThisTurn > 0, pictureMissed });
       if (!claims.length) claims = await judgeUnsure(app, reply, receipts, priorReceipts, { private: Boolean(conv.private) }, rec);
       if (!claims.length) claims = await judgeClaims(app, reply, receipts, priorReceipts, rec);
       if (!claims.length) {

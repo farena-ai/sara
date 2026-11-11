@@ -18,7 +18,7 @@ export interface Receipt {
  * "it isn't installed / running, set it up on your end" after a failed call and no successful one (B2);
  * 'attach': "I sent you the picture", "here it is" while nothing was attached to her reply (B2).
  */
-export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action' | 'status' | 'attach';
+export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit' | 'web' | 'remind' | 'planner' | 'browser' | 'send' | 'schedule' | 'action' | 'status' | 'attach' | 'see';
 
 export interface Claim {
   kind: ClaimKind;
@@ -355,6 +355,17 @@ function priorSupports(sentence: string, prior: Receipt[], kinds: (r: Receipt) =
   return prior.some((r) => r.status === 'ok' && kinds(r) && names.some((n) => JSON.stringify(r.args).toLowerCase().includes(n)));
 }
 
+/**
+ * 3.4.3: "the results I saved in note #1" after a note tool saved note 1 in an earlier turn (from the
+ * live test: the next turn's model was told off for a save that really happened).
+ */
+function priorNote(sentence: string, prior: Receipt[]): boolean {
+  const n = /\bnote\s*(?:#|number\s*|no\.\s*)?(\d{1,6})\b/i.exec(sentence)?.[1];
+  if (!n) return false;
+  const re = new RegExp(String.raw`(?:\bnote\s*#?\s*|#|"id":\s*)${n}\b`, 'i');
+  return prior.some((r) => r.status === 'ok' && r.name === 'note' && re.test(`${r.output} ${JSON.stringify(r.args)}`));
+}
+
 /** What this turn's receipts can back, per kind of claim. */
 function backing(receipts: Receipt[]) {
   const ok = receipts.filter((r) => r.status === 'ok');
@@ -395,8 +406,13 @@ const isQuestion = (s: string) => /[?¿]\s*$/.test(s) || /^\s*¿/.test(s);
 const isEarlier = (s: string) => EARLIER.test(s) || I18N.earlier.test(s);
 
 /** B2: what chat.ts knows beyond receipts; `attached` = a tool attached a picture or file to her reply this turn. */
+/** Sentences that claim to see a picture (for the turn's check when the picture never reached her). */
+export const SEES_CLAIM = /\b(?:I(?:'m| am)?\s+(?:can\s+)?(?:see|seeing|looking at|look(?:ed)? at|read(?:ing)?|scan(?:ned|ning)?|zoom(?:ed|ing)? in on|checked|studied)\b[^.!?]{0,60}\b(?:picture|photo|image|screenshot|pic|it|this|that|these|those|results?|numbers|values|report)|\b(?:my eyes|eyes)\s+(?:scan(?:ning)?|scann?ing|run(?:ning)?|mov(?:e|ing)|drift(?:ing)?|widen(?:ing)?|go(?:ing)?|dart(?:ing)?|flick(?:ing|er)?)\b[^.!?]{0,40}\b(?:picture|photo|image|screen|screenshot|page|results?|numbers)|\b(?:in|on|from) (?:the|this|your) (?:picture|photo|image|screenshot)\b[^.!?]{0,40}\b(?:I see|shows?|says|it looks|there(?:'s| is| are))|\b(?:the|this|your) (?:picture|photo|image|screenshot) (?:shows|says|looks)\b|\b(?:looking|glancing|peering|staring) (?:at|over|down at) (?:the|this|your) (?:picture|photo|image|screenshot|screen|results?)\b)/i;
+
 export interface ClaimContext {
   attached?: boolean;
+  /** 3.4.3: the owner's picture did not reach the model this turn (and nothing read it for her). */
+  pictureMissed?: boolean;
 }
 
 export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[] = [], cx: ClaimContext = {}): Claim[] {
@@ -419,7 +435,8 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     const artifact = ARTIFACT.test(s) || I18N.artifact.test(s) || ART2.test(s);
     // 3.4.2: keeping something for the owner ("I've saved your results to your note") is backed by the note tool too.
     const keep = claimed(s, KEEP);
-    if (artifact && !b.hasWrite && !priorWrite(s) && !(b.hasPlanner && (keep || claimed(s, [PLANNER, I18N.planner]))) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
+    const savedBefore = priorNote(s, prior);
+    if (artifact && !b.hasWrite && !priorWrite(s) && !savedBefore && !(b.hasPlanner && (keep || claimed(s, [PLANNER, I18N.planner]))) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
     if (artifact && !b.hasRun && !priorRun(s) && claimed(s, [RUN_VERB, I18N.run, ...MORE.run!])) add('run', s, 'missing');
     if (claimed(s, [TESTS_PASS, I18N.tests, ...MORE.tests_pass!])) {
       if (!b.testRuns.length && !b.hasRun) add('tests_pass', s, 'missing');
@@ -434,7 +451,7 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     if (remind && !b.hasRemind) add('remind', s, 'missing');
     else if (schedule) {
       if (!b.hasSchedule) add('schedule', s, 'missing');
-    } else if (!remind && !b.hasPlanner && !b.hasWrite && (keep || claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])) && !claims.some((c) => c.sentence === s)) add('planner', s, 'missing');
+    } else if (!remind && !b.hasPlanner && !b.hasWrite && !savedBefore && (keep || claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])) && !claims.some((c) => c.sentence === s)) add('planner', s, 'missing');
     if (!b.hasSend && ((SEND_OBJ.test(s) && claimed(s, SEND_VERB)) || claimed(s, SEND_ALONE))) add('send', s, 'missing');
     if ((claimed(s, SCREENSHOT) && !b.hasShot) || (claimed(s, [BROWSER, BROWSER_I18N]) && !b.hasBrowser)) add('browser', s, 'missing');
     // E3: a phone or desktop claim needs a screenshot at that width; "fixed / looks right now" in web
@@ -446,6 +463,8 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     }
     // B2: after a failed call, with nothing that worked, a guessed cause is not something she saw.
     if (b.failedOnly && NOT_THERE.some((r) => r.test(s))) add('status', s, 'missing');
+    // 3.4.3: "I'm looking at your results" / "*my eyes scanning the image*" when the picture never reached her.
+    if (cx.pictureMissed && SEES_CLAIM.test(s)) add('see', s, 'missing');
     // B2: "I sent you the picture" while no tool attached anything to her reply.
     if (cx.attached === false && (claimed(s, ATTACHED) || (aboutMedia && claimed(s, HERE_IT_IS)))) add('attach', s, 'missing');
   }
@@ -486,6 +505,7 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     action: b.hasAny,
     status: ok.length > 0,
     attach: false,
+    see: false,
   };
   return backed[kind];
 }
@@ -620,7 +640,7 @@ export const CLAIM_JUDGE_TIMEOUT_MS = 8_000;
 
 export function correctionNote(claims: Claim[]): string {
   const lines = claims.map((c) =>
-    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : c.kind === 'attach' ? `- "${c.sentence}": nothing was attached to your reply in this turn; attach it with a tool, or say plainly that you couldn't send it.` : c.kind === 'status' ? `- "${c.sentence}": a tool failed and nothing you ran checked this; check with a read-only tool, or say only that the call failed.` : `- "${c.sentence}": no tool did this in this turn.`,
+    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : c.kind === 'see' ? `- "${c.sentence}": the picture did not reach you, so you cannot see it; say so plainly and don't describe or guess what is in it.` : c.kind === 'attach' ? `- "${c.sentence}": nothing was attached to your reply in this turn; attach it with a tool, or say plainly that you couldn't send it.` : c.kind === 'status' ? `- "${c.sentence}": a tool failed and nothing you ran checked this; check with a read-only tool, or say only that the call failed.` : `- "${c.sentence}": no tool did this in this turn.`,
   );
   return `Receipt check failed. Your last reply made claims that the tool log does not support:\n${lines.join('\n')}\nReceipts are the truth. Correct yourself now, briefly and in character: either actually do it with your tools, or say plainly that it didn't happen (or failed). Do not repeat an unsupported claim.`;
 }

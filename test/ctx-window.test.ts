@@ -46,7 +46,7 @@ async function drain(it: AsyncIterable<unknown>) {
 
 test('OpenRouter /models: context_length and the top provider’s longest reply', () => {
   const got = parseOpenRouter(fixture('openrouter-models.json'));
-  assert.deepEqual(got['openai/gpt-4.1'], { context: 1_047_576, maxOutput: 32_768 });
+  assert.deepEqual(got['openai/gpt-4.1'], { context: 1_047_576, maxOutput: 32_768, vision: true }, '3.4.3: input_modalities has image');
   assert.equal(got['anthropic/claude-sonnet-4.5'].context, 1_000_000);
   assert.equal(got['meta-llama/llama-3.1-8b-instruct'].context, 131_072);
 });
@@ -56,7 +56,7 @@ test('Ollama /api/tags (details.context_length) and /api/show (model_info + Mode
   assert.equal(tags['qwen3.5:9b'].context, 262_144);
   assert.equal(tags['gpt-oss:20b-cloud'].context, 131_072);
   assert.equal(tags['nomic-embed-text'].context, 2048, ':latest is also found without the tag');
-  assert.deepEqual(parseOllamaShow(fixture('ollama-show.json')), { context: 262_144, numCtx: 16_384 });
+  assert.deepEqual(parseOllamaShow(fixture('ollama-show.json')), { context: 262_144, numCtx: 16_384, vision: true }, '3.4.3: capabilities has vision');
   assert.equal(parseOllamaShow({ model_info: { 'general.architecture': 'llama', 'llama.context_length': 131072 }, parameters: '' })?.context, 131_072);
   assert.equal(parseOllamaShow({}), undefined);
 });
@@ -213,7 +213,7 @@ test('a fake OpenRouter /models: looked up once, cached on disk, used offline; t
   const store = new ModelContextStore(dir, () => new Date('2026-11-11T12:00:00Z'));
   assert.equal(store.limits(config, 'openai/gpt-4.1').source, 'table', 'before the list: the table');
   await store.prime(p, 'openai/gpt-4.1', 5000);
-  assert.deepEqual(store.limits(config, 'openai/gpt-4.1'), { limits: { context: 1_047_576, maxOutput: 32_768 }, source: 'provider' });
+  assert.deepEqual(store.limits(config, 'openai/gpt-4.1'), { limits: { context: 1_047_576, maxOutput: 32_768, vision: true }, source: 'provider' });
   await store.prime(p, 'openai/gpt-4.1', 5000);
   assert.equal(hits, 1, 'fresh for a day');
   up = false;
@@ -274,7 +274,7 @@ test('Ollama on your computer: options.num_ctx through /api/chat, remembered for
   assert.equal(o.v1.length, 1);
   // The lookup reads /api/tags and /api/show.
   const lim = await p.modelLimits('qwen3.5:9b');
-  assert.deepEqual(lim['qwen3.5:9b'], { context: 262_144, numCtx: 16_384 });
+  assert.deepEqual(lim['qwen3.5:9b'], { context: 262_144, numCtx: 16_384, vision: true });
 });
 
 test('a turn on a local Ollama model sends num_ctx; the history budget follows the window Sara asks for', async (t) => {

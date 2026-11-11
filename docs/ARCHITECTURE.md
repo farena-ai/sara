@@ -480,7 +480,14 @@ Every module in `src/`, roughly in the order they were added (the phase is noted
 `Provider` = `listModels()` + `stream(request)`, streaming `text`, `tool_call` and `usage` events.
 Conversations can pin a provider and model; otherwise the owner's default is used. Built on that:
 
-- tool calling and vision (pictures go to the "Looking at pictures" model);
+- tool calling and vision (pictures go to the "Looking at pictures" model). 3.4.3: `src/picture-reader.ts`
+  decides who sees a photo (`modelSees`: the provider's own list, Ollama `capabilities` / OpenRouter
+  `input_modalities`, cached by `src/model-context.ts`; subscription agents never), and for a talking
+  model that can't, reads it with a model the owner set up (`pictureReaders`: the vision chain, then
+  configured models that see; private conversations: on this computer only). The text is kept on the
+  message (`meta.readout`), a model that saw it is named (`meta.seenBy`), and with no reader the model
+  gets a plain "the picture did not reach you" note and the receipt check flags "I'm looking at it"
+  (`ClaimKind` `see`);
 - a model for each job (Settings → Models → Which model does what) with backups if one fails, and
   **private conversations** that can only use providers on the owner's own hardware;
 - **subscriptions**: Sign in with ChatGPT (`src/subscriptions/chatgpt.ts`, `src/providers/chatgpt.ts`),

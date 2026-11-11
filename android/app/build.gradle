@@ -17,8 +17,8 @@ android {
         applicationId 'com.backstagecoding.sara'
         minSdk 26
         targetSdk 36
-        versionCode 30402
-        versionName '3.4.2'
+        versionCode 30403
+        versionName '3.4.3'
         // C17: the Hey Sara engine per ABI (fetch-wake-libs.sh); x86_64 is for the emulator.
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64'

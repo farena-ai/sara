@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## She reads the pictures you send, in 3.4.3
+
+A photo or screenshot of a document now reaches whichever of your models can see it, including fallbacks
+and models whose service reports they can see; if the one answering can't, another of your models reads
+it into exact text first and you are told which. She copies tables, numbers, units and dates exactly and
+saves them with note add. When nothing can see it she says so with Fix it, and never pretends to look.
+Private chats only use a model on your own computer for this.
+
 ## Notes that never lose what you told her, in 3.4.2
 
 Adding to a note now puts each new thing under a dated heading and never touches what is already there;
