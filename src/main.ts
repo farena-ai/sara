@@ -2,6 +2,7 @@ import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 // Entry point: `node src/main.ts`. Admin flags (the `sara` command on each system wraps them):
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
 //   --tailscale-status (JSON, for the installers' "How will you reach her?" question)
+import { ModelContextStore } from './model-context.ts';
 import { initialDeviceApproval } from './device-approval.ts';
 import { netFetch } from './net-guard.ts';
 import { randomBytes } from 'node:crypto';
@@ -148,7 +149,7 @@ import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
 import { PrivateLocalStore } from './private-local.ts';
-import { ModelPuller } from './local-models.ts';
+import { detectHardware, ModelPuller } from './local-models.ts';
 import { ModelCatalog } from './model-catalog.ts';
 import { createProvider } from './providers/registry.ts';
 import { HealthHistory } from './health-history.ts';
@@ -967,6 +968,11 @@ const modelCatalog = isDemo
       companions: () => companions.all().map((c) => ({ name: c.app.persona.name, settings: c.app.settings })),
     });
 
+// 3.4.1: what each model can hold (one cache for the server; provider lists are the same for all).
+const modelContext = new ModelContextStore(isDemo ? undefined : dataDir);
+// Ollama's "full window" ceiling follows the graphics memory (checked once, in the background).
+if (!isDemo) void detectHardware().then((hw) => { if (hw.gpu) modelContext.vramGb = hw.gpu.vramGb; else if (hw.basis === 'unified') modelContext.vramGb = hw.budgetGb; }).catch(() => {});
+
 function buildCompanion(space: Space, id: string, dir: string): Companion {
   const main = id === MAIN_ID;
   // Phase 71: in a household member's space only the safe tools are added (docs/HOUSEHOLD.md).
@@ -1172,6 +1178,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   app.modelPuller = modelPuller;
   // Phase 52: the cost and token meter (the owner's prices win over the shipped ones).
   if (modelCatalog) app.modelCatalog = modelCatalog;
+  app.modelContext = modelContext;
   app.usage = new UsageStore(store.db);
   app.usage.prices = () => priceTable(settingsC.get().prices);
   // Phase 78: run snapshots (every step of turns, jobs and team runs), with retention and a size cap.

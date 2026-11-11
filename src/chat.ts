@@ -4,6 +4,7 @@ import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
+import { autoHistory, charsPerToken, CHARS_PER_TOKEN, cloudThroughDaemon, isOllamaDaemon, localNumCtx, lookupTable, type HistoryBudget, type HistoryMode } from './model-context.ts';
 import { priceTagFor, SAVER, saverNow, spendCheck, spendSettings, spentNow, stoppedOutput, type PriceTag } from './spend.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
 import { legacyInnerConversation, ownerEvidenceConversation } from './owner-evidence.ts';
@@ -54,7 +55,7 @@ import { SCENE_CANON_TOOL } from './shared-scenes-tools.ts';
 import { SESSION_TOOLS } from './session-continuity-tools.ts';
 import { pickupForTurn } from './pickup.ts';
 import { afterReply as mentionAfterReply, matchMentions, mentionNote, mentionSettings, outgoingHolds, ownChat, roomMentionToDm, takeCards, wirePeople, type MentionHit } from './mentions.ts';
-import { adultModeOn, type RoutePurpose, type SettingsStore } from './settings.ts';
+import { adultModeOn, type RoutePurpose, type Settings, type SettingsStore } from './settings.ts';
 import { embedTarget, type MemoryVectors } from './embeddings.ts';
 import { isCloudModelName } from './model-names.ts';
 import { projectSection } from './projectknow.ts';
@@ -326,6 +327,8 @@ export interface AppContext {
   recall?: import('./triggers.ts').RecallIndex;
   /** Phase 56: every provider's model list, kept current (shared by every companion). */
   modelCatalog?: import('./model-catalog.ts').ModelCatalog;
+  /** 3.4.1: what each model can hold (src/model-context.ts); without it the dated table is used. */
+  modelContext?: import('./model-context.ts').ModelContextStore;
   /** Phase 67: "Nothing leaves this computer" (server-wide state; the guard is src/net-guard.ts). */
   privateLocal?: import('./private-local.ts').PrivateLocalStore;
   /** Phase 67: downloading a model into the local Ollama (one at a time, server-wide). */
@@ -463,7 +466,7 @@ export function daysKnown(store: Store, now: Date, timeZone?: string): number | 
   return n > 0 ? n : null;
 }
 
-export function resolveProvider(app: AppContext, providerId: string | null, model: string | null, tag?: { purpose?: string; conversationId?: string }): { provider: Provider; model: string } {
+export function resolveProvider(app: AppContext, providerId: string | null, model: string | null, tag?: { purpose?: string; conversationId?: string }, dry = false): { provider: Provider; model: string } {
   const s = app.settings.get();
   const id = providerId ?? s.defaultProviderId;
   if (!id) throw new Error('No model provider is set up yet. Open Settings and add one.');
@@ -473,6 +476,11 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   policy().checkProvider(config);
   const chosen = model ?? (providerId ? undefined : s.defaultModel) ?? config.defaultModel;
   if (!chosen) throw new Error(`No default model is set for ${config.label}. Pick one in Settings → Models → Default model.`);
+  // 3.4.1: `dry` only names the model (the history budget, the ring): no provider is made, nothing is metered.
+  if (dry) {
+    if (config.needsKey && !app.vault.get(vaultKeyFor(config.id))) throw new Error(`${config.label} needs an API key. Add it in Settings.`);
+    return { provider: { config, listModels: async () => [], stream: async function* () {} }, model: chosen };
+  }
   // Phase 71: a household member only uses the models the owner allowed, within their daily limits.
   if (app.member) {
     app.member.checkModel(config.id, chosen);
@@ -510,8 +518,8 @@ export interface ModelChoice {
  * companion's own model (talking jobs), the job's model, the job it inherits from, the default;
  * then that model's fallbacks. Private conversations only ever use local providers.
  */
-export function resolveChain(app: AppContext, conv: Conversation, job: Job, adult = false): ModelChoice[] {
-  const chain = pictureChain(app, conv, job, resolveChainAll(app, conv, job, adult), adult);
+export function resolveChain(app: AppContext, conv: Conversation, job: Job, adult = false, dry = false): ModelChoice[] {
+  const chain = pictureChain(app, conv, job, resolveChainAll(app, conv, job, adult, dry), adult);
   if (!privateLocalOn()) return chain;
   // Phase 67: "Nothing leaves this computer": only models on this computer (loopback, not Ollama
   // Cloud, not a subscription program). The network guard would block the rest anyway; this keeps
@@ -521,7 +529,7 @@ export function resolveChain(app: AppContext, conv: Conversation, job: Job, adul
   const priv = app.settings.get().routes?.private;
   const privConfig = priv && app.settings.get().providers.find((p) => p.id === priv.providerId);
   if (priv && privConfig && onThisComputer(privConfig, priv.model)) {
-    const r = resolveProvider(app, priv.providerId, priv.model, { purpose: 'private', ...(conv.id ? { conversationId: conv.id } : {}) });
+    const r = resolveProvider(app, priv.providerId, priv.model, { purpose: 'private', ...(conv.id ? { conversationId: conv.id } : {}) }, dry);
     return [{ ...r, from: 'private' }];
   }
   throw new Error(`${chain[0]?.provider.config.label ?? 'This model'} is paused in private local mode: it isn't on this computer. Pick a model on this computer in Settings → Models → On this computer, or turn "Nothing leaves this computer" off.`);
@@ -546,14 +554,14 @@ function pictureChain(app: AppContext, conv: Conversation, job: Job, chain: Mode
   return chain;
 }
 
-function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: boolean): ModelChoice[] {
+function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: boolean, dry = false): ModelChoice[] {
   const s = app.settings.get();
   const routes = s.routes ?? {};
   const has = (r?: { providerId: string }) => Boolean(r && s.providers.some((p) => p.id === r.providerId));
   // Phase 66: every model call in a group chat is metered as 'group' (per companion).
   const tagFor = (p: string) => ({ purpose: isGroupChannel(conv.channel) ? 'group' : p, ...(conv.id ? { conversationId: conv.id } : {}) });
   if (conv.providerId) {
-    const r = resolveProvider(app, conv.providerId, conv.model, tagFor(job === 'turn' ? (conv.mode === 'coding' ? 'coding' : 'chat') : job));
+    const r = resolveProvider(app, conv.providerId, conv.model, tagFor(job === 'turn' ? (conv.mode === 'coding' ? 'coding' : 'chat') : job), dry);
     if (conv.private && (!r.provider.config.local || isCloudModelName(r.model))) throw new Error(`This conversation is private, so it only uses models on your own hardware. ${r.provider.config.label} isn't marked local: pick a local model for this conversation, or set a Private route in Settings.`);
     return [{ ...r, from: 'conversation' }];
   }
@@ -578,7 +586,7 @@ function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: b
     }
   }
   const chain: ModelChoice[] = [];
-  const first = primary ? resolveProvider(app, primary.providerId, primary.model, tagFor(purpose)) : resolveProvider(app, null, null, tagFor(purpose));
+  const first = primary ? resolveProvider(app, primary.providerId, primary.model, tagFor(purpose), dry) : resolveProvider(app, null, null, tagFor(purpose), dry);
   if (conv.private && isCloudModelName(first.model)) throw new Error(`This conversation is private, but ${first.model} is an Ollama cloud model (it runs on Ollama's servers). Pick a model that runs on your own hardware for Private conversations in Settings → Which model does what.`);
   if (conv.private && !first.provider.config.local) {
     throw new Error(`This conversation is private, so it only uses models on your own hardware. ${first.provider.config.label} isn't marked local: pick a local model for this conversation, or set a Private route in Settings.`);
@@ -588,7 +596,7 @@ function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: b
   for (const f of more.slice(0, 2)) {
     if (!has(f)) continue;
     try {
-      const r = resolveProvider(app, f.providerId, f.model, tagFor(purpose));
+      const r = resolveProvider(app, f.providerId, f.model, tagFor(purpose), dry);
       if (conv.private && (!r.provider.config.local || isCloudModelName(r.model))) continue;
       if (chain.some((c) => c.provider.config.id === r.provider.config.id && c.model === r.model)) continue;
       chain.push({ ...r, from });
@@ -828,11 +836,87 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 export const OFFSERVER_TOOL = (name: string) =>
   name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
-/** Default size of the conversation history sent to the model (characters, about 4 per token). */
+/**
+ * Size of the conversation history sent to a model whose window isn't known (characters, about 4
+ * per token), and the old fixed default. 3.4.1: "Auto" (the default) follows the model instead
+ * (historyBudgetFor, src/model-context.ts).
+ */
 export const HISTORY_BUDGET_CHARS = 48_000;
+
+/** 3.4.1: the owner's choice; no choice (or the old default saved by the settings page) is Auto. */
+export function historyMode(s: Pick<Settings, 'historyBudgetMode' | 'historyBudgetChars'>): HistoryMode {
+  if (s.historyBudgetMode === 'auto' || s.historyBudgetMode === 'full' || s.historyBudgetMode === 'fixed') return s.historyBudgetMode;
+  return s.historyBudgetChars !== undefined && s.historyBudgetChars !== HISTORY_BUDGET_CHARS ? 'fixed' : 'auto';
+}
+
+const NO_CONV = { id: '', title: '', providerId: null, model: null, workspace: 'main', mode: 'chat', private: false, channel: 'web', channelKey: null, partner: null, projectId: null, archivedAt: null, tags: [], createdAt: '', updatedAt: '' } as unknown as Conversation;
+
+/** 3.4.1: before showing the budget (Settings, the ring): the model's window from its provider, briefly. */
+export async function primeBudget(app: AppContext, conv?: Pick<Conversation, 'id'>, waitMs = 1200): Promise<void> {
+  if (!app.modelContext) return;
+  try {
+    const full = conv?.id ? app.store.getConversation(conv.id) : undefined;
+    const [c] = resolveChain(app, full ?? NO_CONV, 'turn');
+    if (c) await app.modelContext.prime(c.provider, c.model, waitMs);
+  } catch {
+    /* no model yet: nothing to look up */
+  }
+}
+
+export interface ResolvedBudget extends HistoryBudget {
+  model?: string;
+  providerLabel?: string;
+  /** Ollama on your own computer: the num_ctx sent with each call. */
+  numCtx?: number;
+}
+
+/**
+ * 3.4.1: how much of a conversation she keeps in mind with a given model (or the conversation's own
+ * model, as a turn would pick it). One answer for the turn, the ring, /status, the nearly-full
+ * offer, tidying, @-references and skills.
+ */
+export function historyBudgetFor(app: AppContext, conv?: Pick<Conversation, 'id'> | Conversation, choice?: { provider: { config: ProviderConfig }; model: string }, preview?: { mode: HistoryMode; fixedChars?: number }): ResolvedBudget {
+  const s = app.settings.get();
+  const mode = preview?.mode ?? historyMode(s);
+  const fixedChars = preview?.fixedChars ?? s.historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  let pick = choice;
+  const full = conv?.id ? (app.store.getConversation(conv.id) ?? ('channel' in conv ? conv : undefined)) : undefined;
+  if (!pick) {
+    try {
+      pick = resolveChain(app, full ?? NO_CONV, 'turn', false, true)[0];
+    } catch {
+      pick = undefined;
+    }
+  }
+  let cpt = CHARS_PER_TOKEN;
+  if (full?.id) {
+    try {
+      cpt = charsPerToken(app.store.messages(full.id).slice(-30).map((m) => m.content).join('\n'));
+    } catch {
+      /* default */
+    }
+  }
+  if (!pick) return autoHistory({ source: 'default', billing: 'api', mode, fixedChars, charsPerToken: cpt });
+  const config = pick.provider.config;
+  let known = app.modelContext ? app.modelContext.limits(config, pick.model) : lookupTable(config, pick.model);
+  const billing = billingOf(config);
+  // A model server on your own hardware decides its own context (Ollama without num_ctx, LM Studio,
+  // llama.cpp): only what the server itself reports counts there, never the table's guess.
+  if (billing === 'local' && known.source === 'table' && !cloudThroughDaemon(config, pick.model)) known = { source: 'default' };
+  const local = isOllamaDaemon(config) && !isCloudModelName(pick.model) && known.source === 'provider';
+  const numCtx = local ? localNumCtx({ mode, modelMax: known.limits?.context, fixedChars, vramGb: app.modelContext?.vramGb }) : undefined;
+  const b = autoHistory({ limits: known.limits, source: known.source, billing, mode, fixedChars, charsPerToken: cpt, ...(numCtx ? { localCtx: numCtx } : {}), cloudThroughDaemon: cloudThroughDaemon(config, pick.model) });
+  return { ...b, model: pick.model, providerLabel: config.label, ...(numCtx ? { numCtx } : {}) };
+}
 /** Older tool outputs are shortened to this much once they're past the most recent messages. */
 const OLD_TOOL_OUTPUT = 1_500;
 const RECENT_KEEP = 12;
+
+/**
+ * 3.4.1: how many messages a history may hold: 60 at the old default size, more with a bigger
+ * budget (a big window shouldn't be cut at 60 messages), at most 1,000.
+ */
+export const historyLimit = (budgetChars: number): number => (Number.isFinite(budgetChars) ? Math.max(HISTORY_LIMIT, Math.min(1000, Math.round(budgetChars / 800))) : HISTORY_LIMIT);
 
 /** Rebuilds model history from storage; repairs interrupted tool calls so every call has a result. */
 export function historyFrom(messages: StoredMessage[]): ChatMessage[] {
@@ -929,7 +1013,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
   }
   // Shorten old tool outputs, then keep the newest messages that fit the budget.
   const size = (m: ChatMessage) => m.content.length + (m.role === 'assistant' && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0) + 20;
-  let start = Math.max(0, out.length - HISTORY_LIMIT);
+  let start = Math.max(0, out.length - historyLimit(budgetChars));
   let total = out.slice(start).reduce((n, m) => n + size(m), 0);
   if (total > budgetChars) {
     for (let i = start; i < out.length - RECENT_KEEP && total > budgetChars; i++) {
@@ -997,12 +1081,23 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
  * Phase 107 (CH1): how full a conversation's history is right now, measured like the next turn's
  * history (the same budget and limits): /status, the "nearly full" offer and the app's bar.
  */
-export function contextFill(app: AppContext, conv: Pick<Conversation, 'id'>): { used: number; budget: number; dropped: number; percent: number } {
-  const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+export function contextFill(app: AppContext, conv: Pick<Conversation, 'id'>): { used: number; budget: number; dropped: number; percent: number; kept: number; tokens: { used: number; keep: number; window: number }; model?: string; mode: HistoryMode; capped?: string } {
+  const b = historyBudgetFor(app, conv);
+  const budget = b.chars;
   const hist = buildHistory(app.store.messages(conv.id), budget, undefined, undefined, refsTextFor(app), foldFor(app, conv));
   const used = historySize(hist.messages);
   // Older parts already left out: the chat is full, whatever the kept part measures.
-  return { used, budget, dropped: hist.dropped, percent: hist.dropped > 0 ? 100 : fillPercent(used, budget) };
+  return {
+    used,
+    budget,
+    dropped: hist.dropped,
+    percent: hist.dropped > 0 ? 100 : fillPercent(used, budget),
+    kept: historyLimit(budget),
+    tokens: { used: Math.round(used / b.charsPerToken), keep: b.tokens, window: b.windowTokens },
+    ...(b.model ? { model: b.model } : {}),
+    mode: b.mode,
+    ...(b.capped ? { capped: b.capped } : {}),
+  };
 }
 
 /** Phase 120: the @-reference text for buildHistory (full for the newest, stubs for older, or always full). */
@@ -1809,7 +1904,7 @@ export function turnScope(app: AppContext, conv: Conversation, opts: TurnOptions
     const s = app.settings.get();
     const space = spaceOf(app, conv);
     const gate = memoryGate(app, space);
-    const memoryInput = ownerMemoryInput(app, conv, text, app.now(), { related: [], oldestHistoryId: historyFloor(app, conv, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS).oldestHistoryId, budgetChars: memCfg.injectBudgetChars, extra: sharedOwnerFacts(app, text, turn.externalApp, space), ...(gate ? { allow: (m: { conversationId: string | null; id?: number }) => gate({ id: m.id ?? -1, conversationId: m.conversationId }) } : {}) });
+    const memoryInput = ownerMemoryInput(app, conv, text, app.now(), { related: [], oldestHistoryId: historyFloor(app, conv, historyBudgetFor(app, conv).chars).oldestHistoryId, budgetChars: memCfg.injectBudgetChars, extra: sharedOwnerFacts(app, text, turn.externalApp, space), ...(gate ? { allow: (m: { conversationId: string | null; id?: number }) => gate({ id: m.id ?? -1, conversationId: m.conversationId }) } : {}) });
     const memories = call ? '' : selectMemories(app.memory, memoryInput).text;
     if (memories) sections.memories = memories;
     return { ...scopeRest(app, conv, turn, continuity, checkpointExternal, sections), adultOn, voiceRoom, tools, memoryInput };
@@ -2003,7 +2098,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const place = sharedRoom ? undefined : refsPlace(app, conv, { owner: ownerApp && !opts.outside && !opts.clientHistory, external, group: Boolean(opts.group), untrusted: Boolean(opts.untrusted) });
     if (place) {
       try {
-        const r = await expandRefs(app, conv, userMsg.id, opts.refsFrom ?? text, place, { signal, budgetChars: app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS });
+        const r = await expandRefs(app, conv, userMsg.id, opts.refsFrom ?? text, place, { signal, budgetChars: historyBudgetFor(app, conv).chars });
         if (r.chips.length) {
           store.updateMessageMeta(userMsg.id, { refs: r.chips, ...(r.more ? { refsMore: r.more } : {}) });
           yield { type: 'refs', messageId: userMsg.id, items: r.chips };
@@ -2179,7 +2274,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   /** Phase 85: the meaning matches of the message (reused by the recall triggers' task match). */
   let relatedNotes: Awaited<ReturnType<MemoryVectors['related']>> = [];
   const memCfg = memorySettings(app);
-  const budget0 = s.historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  // 3.4.1: the budget follows this turn's model (and is trimmed for a fallback that holds less).
+  // A model seen for the first time: its provider's list is checked first (briefly; never blocks).
+  if (app.modelContext && !opts.replay) await app.modelContext.prime(provider, model, 1500);
+  const budgetOf = (c: { provider: Provider; model: string }): ResolvedBudget => historyBudgetFor(app, conv, c);
+  const turnHistory = budgetOf({ provider, model });
+  const budget0 = turnHistory.chars;
   const budget = saver.on ? Math.round(budget0 * SAVER.historyShare) : budget0;
   // Hardening M3: what another app's turn may draw on (notes from conversations it may know about).
   const appSafe0 = opts.externalApp ? (m: { conversationId: string | null }) => !m.conversationId || sharedWithApps(store.getConversation(m.conversationId)) : undefined;
@@ -2777,11 +2877,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     });
     // Phase 57: with the app's own history, only this turn's lines come from here (the message, her tool steps).
     const historyEpoch = sessionContinuity ? store.getConversation(conv.id)?.dialogueEpoch : undefined;
+    // 3.4.1: a fallback model that holds less than the turn's model gets a shorter history.
+    const stepBudget = ci === 0 ? budget : Math.min(budget, Math.round(budgetOf({ provider, model }).chars * (saver.on ? SAVER.historyShare : 1)));
     const hist = opts.clientHistory
       ? (() => {
           // C5: this turn's own pictures (an Open Responses input_image) still reach a model that can see.
-          const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
-          let room = budget - own.reduce((n, m) => n + m.content.length, 0);
+          const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
+          let room = stepBudget - own.reduce((n, m) => n + m.content.length, 0);
           const earlier: ChatMessage[] = [];
           for (const m of [...opts.clientHistory].reverse()) {
             if (earlier.length >= HISTORY_LIMIT || (room -= m.content.length + 20) < 0) break;
@@ -2789,7 +2891,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
-      : buildHistory(store.messages(conv.id), budget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold);
+      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold);
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
     const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
     const nowPath = projectNowPath(app, conv, nowGate);
@@ -3039,7 +3141,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const offered = codeOffered ? [...baseSpecs, runCodeSpec(baseSpecs.filter((sp) => sp.name !== FIND_TOOLS))] : baseSpecs;
       providerStarted = true;
       const outMax = saver.on ? Math.min(callMax ?? SAVER.replyTokens, SAVER.replyTokens) : callMax;
-      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
+      // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
+      const callCtx = ci === 0 ? turnHistory.numCtx : budgetOf({ provider: p, model: m }).numCtx;
+      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') {
           reply += ev.text;
           yield { type: 'token', text: ev.text };
@@ -3071,6 +3175,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         const was = `${provider.config.label} (${model})`;
         ci++;
         ({ provider, model } = chain[ci]);
+        if (app.modelContext) await app.modelContext.prime(provider, model, 1000);
         // Phase 61: a template and its values, so the owner reads it in the app's language.
         const slow = err instanceof SlowModelError;
         const key = slow ? en('{was} gave no answer within {seconds} seconds, so {now} took over.') : en('{was} failed: {error}, so {now} took over.');

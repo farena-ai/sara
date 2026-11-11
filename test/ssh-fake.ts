@@ -38,6 +38,8 @@ export class FakeSsh {
   /** 2.52.1: what the server lists in "Permission denied (…)" (the `none` reply). */
   methods: string[] = ['publickey', 'password', 'keyboard-interactive'];
   shell: ShellKind = 'bash';
+  /** 3.4.1: what `id -u` says on the server (0 = root under any name). */
+  uid = 1000;
   userExists = true;
   /** A second step (a code) after the key. */
   twoStep = false;
@@ -155,7 +157,7 @@ export class FakeSsh {
     const zero = this.shell === 'jailshell' ? '/usr/local/cpanel/bin/jailshell' : 'bash';
     if (command.startsWith('echo sara-ok;')) {
       const inst = /grep -c '([^']+)'/.exec(command)?.[1] ?? 'sara@';
-      return { code: 0, stdout: `sara-ok\nsara-shell:${zero}:${zero === 'bash' ? '/bin/bash' : zero}\nsara-own:${this.authorized.filter((l) => l.includes(inst)).length}\n`, stderr: '' };
+      return { code: 0, stdout: `sara-ok\nsara-shell:${zero}:${zero === 'bash' ? '/bin/bash' : zero}\nsara-own:${this.authorized.filter((l) => l.includes(inst)).length}\n${command.includes('sara-uid:') ? `sara-uid:${this.uid}\n` : ''}`, stderr: '' };
     }
     if (command.includes('sara-list-begin')) {
       const pat = /grep -F '([^']+)'/.exec(command)![1];

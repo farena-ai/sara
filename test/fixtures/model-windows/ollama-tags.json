@@ -1,0 +1,77 @@
+{
+ "models": [
+  {
+   "name": "nomic-embed-text:latest",
+   "model": "nomic-embed-text:latest",
+   "modified_at": "2026-10-26T07:43:54.1440904-05:00",
+   "size": 274302450,
+   "digest": "0a109f422b47e3a30ba2b10eca18548e944e8a23073ee3f3e947efcf3c45e59f",
+   "details": {
+    "parent_model": "",
+    "format": "gguf",
+    "family": "nomic-bert",
+    "families": [
+     "nomic-bert"
+    ],
+    "parameter_size": "137M",
+    "quantization_level": "F16",
+    "context_length": 2048,
+    "embedding_length": 768,
+    "runner": "ggml"
+   },
+   "capabilities": [
+    "embedding"
+   ]
+  },
+  {
+   "name": "gpt-oss:20b-cloud",
+   "model": "gpt-oss:20b-cloud",
+   "remote_model": "gpt-oss:20b",
+   "remote_host": "https://ollama.com",
+   "modified_at": "2026-09-23T17:26:49.0772143-05:00",
+   "size": 306,
+   "digest": "9a01793d9ef8de5309f157c06dbcbadfb598001b4a6f13cbc699cdff5042eaae",
+   "details": {
+    "parent_model": "",
+    "format": "",
+    "family": "",
+    "families": null,
+    "parameter_size": "20.9B",
+    "quantization_level": "MXFP4",
+    "context_length": 131072,
+    "embedding_length": 2880
+   },
+   "capabilities": [
+    "completion",
+    "tools",
+    "thinking"
+   ]
+  },
+  {
+   "name": "qwen3.5:9b",
+   "model": "qwen3.5:9b",
+   "modified_at": "2026-09-05T12:07:00.8566523-05:00",
+   "size": 6594474711,
+   "digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+   "details": {
+    "parent_model": "",
+    "format": "gguf",
+    "family": "qwen35",
+    "families": [
+     "qwen35"
+    ],
+    "parameter_size": "9.7B",
+    "quantization_level": "Q4_K_M",
+    "context_length": 262144,
+    "embedding_length": 4096,
+    "runner": "ggml"
+   },
+   "capabilities": [
+    "completion",
+    "vision",
+    "tools",
+    "thinking"
+   ]
+  }
+ ]
+}

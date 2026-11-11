@@ -1,5 +1,6 @@
 // Adapter for the Anthropic Messages API (API-key auth).
 import { sseEvents } from '../sse.ts';
+import { parseAnthropic, type ModelLimits } from '../model-context.ts';
 import {
   failFromResponse,
   reach,
@@ -87,6 +88,13 @@ export class AnthropicProvider implements Provider {
 
   #url(path: string): string {
     return `${this.config.baseUrl.replace(/\/+$/, '')}${path}`;
+  }
+
+  /** 3.4.1: max_input_tokens / max_tokens from the models API (src/model-context.ts). */
+  async modelLimits(_model: string, signal?: AbortSignal): Promise<Record<string, ModelLimits>> {
+    const res = await reach(this.config, this.#url('/models?limit=1000'), { headers: this.#headers(), signal });
+    if (!res.ok) return {};
+    return parseAnthropic(await res.json());
   }
 
   async listModels(signal?: AbortSignal): Promise<string[]> {

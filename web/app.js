@@ -4195,7 +4195,7 @@ async function loadConvFill(c) {
   const [f, s] = await Promise.all([api(`/conversations/${c.id}/fill`).catch(() => null), api(`/conversations/${c.id}/sessions`).catch(() => null)]);
   if (state.conv?.id !== c.id) return;
   $('#cs-fill').value = f?.percent ?? 0;
-  $('#cs-fill-text').textContent = f ? `${t('{n}% of what she can keep in mind', { n: f.percent })}${f.dropped ? ` · ${t('older parts left out')}` : ''}` : '';
+  $('#cs-fill-text').textContent = f ? `${t('{n}% of what she can keep in mind', { n: f.percent })}${f.tokens?.keep ? ` · ${t('about {used} of {keep} words', { used: (Math.round((f.tokens.used * 0.75) / 100) * 100).toLocaleString(), keep: (Math.round((f.tokens.keep * 0.75) / 100) * 100).toLocaleString() })}` : ''}${f.dropped ? ` · ${t('older parts left out')}` : ''}` : '';
   const list = s?.sessions ?? [];
   $('#cs-sessions-box').hidden = list.length < 2;
   $('#cs-sessions').replaceChildren(
@@ -8887,10 +8887,13 @@ async function loadSettingsPages(onCore = () => {}) {
   $('#story-yearly').checked = Boolean(s.storyYearly);
   $('#model-auto-switch').checked = s.modelAutoSwitch !== false;
   {
+    // 3.4.1: Auto (the default) follows the model; a fixed size an owner chose stays.
     const sel = $('#history-budget');
-    const v = String(s.historyBudgetChars ?? 48000);
+    const mode = s.historyBudgetMode ?? 'auto';
+    const v = mode === 'fixed' ? String(s.historyBudgetChars ?? 48000) : mode;
     if (![...sel.options].some((o) => o.value === v)) sel.append(new Option(t('Custom ({date} characters)', { date: Number(v).toLocaleString() }), v));
     sel.value = v;
+    paintBudgetNote(s.historyBudget, v);
   }
   renderProviders();
   savedDefaultModelRevision = defaultModelRevision;
@@ -8944,6 +8947,30 @@ $('#use-path').addEventListener('change', async () => {
   }
 });
 
+const words = (tokens) => Math.max(0, Math.round((Number(tokens) * 0.75) / 1000) * 1000).toLocaleString();
+/** The plain line under the setting: what she keeps in mind with the default model, and what it costs. */
+function paintBudgetNote(b, choice) {
+  const note = $('#history-budget-note');
+  if (!note) return;
+  if (!b?.model) return void (note.textContent = t('Pick a default model to see how much she keeps in mind.'));
+  const lines = [
+    b.windowTokens
+      ? t('With {model}: she keeps about {words} words of this chat in mind (the model holds about {total}).', { model: b.model, words: words(b.tokens), total: words(b.windowTokens) })
+      : t("With {model}: she keeps about {words} words of this chat in mind. Sara doesn't know how much this model holds, so she keeps the usual amount.", { model: b.model, words: words(b.tokens) }),
+  ];
+  if (b.billing === 'api' && b.capped === 'balanced') lines.push(t('Pay-per-token model: every reply sends this again, so Balanced stops here. The full window keeps more and costs more on every turn.'));
+  else if (b.billing === 'api' && choice !== 'auto') lines.push(t('Pay-per-token model: every reply sends what she keeps in mind again, so a long chat costs more on every turn.'));
+  else if (b.billing === 'subscription') lines.push(t('Your subscription: no charge per token (long chats still count toward your plan’s limits).'));
+  if (b.numCtx) lines.push(t('On this computer: Sara asks Ollama to make room for {tokens} tokens (its num_ctx setting). The full window asks for more if the graphics memory allows; that uses more memory.', { tokens: Number(b.numCtx).toLocaleString() }));
+  note.textContent = lines.join(' ');
+}
+$('#history-budget')?.addEventListener('change', async (e) => {
+  const v = e.target.value;
+  const q = v === 'auto' || v === 'full' ? `mode=${v}` : `chars=${encodeURIComponent(v)}`;
+  const b = await api(`/settings/history-budget?${q}`).catch(() => null);
+  if (b && $('#history-budget').value === v) paintBudgetNote(b, v);
+});
+
 async function saveCoreSettings() {
   const before = currentLang();
   const modelRevision = defaultModelRevision;
@@ -8960,7 +8987,8 @@ async function saveCoreSettings() {
         defaultProviderId: $('#default-provider').value || null,
         defaultModel: $('#default-model').value.trim() || null,
       } : {}),
-      historyBudgetChars: Number($('#history-budget').value),
+      // 3.4.1: Auto / the full window, or a fixed size.
+      ...(['auto', 'full'].includes($('#history-budget').value) ? { historyBudgetMode: $('#history-budget').value } : { historyBudgetMode: 'fixed', historyBudgetChars: Number($('#history-budget').value) }),
       modelAutoSwitch: $('#model-auto-switch').checked,
     },
   });
@@ -9178,12 +9206,17 @@ async function updateConvUsage() {
   const full = u?.calls ? `${t('This conversation')}: ${usageWords(u)}` : '';
   const billing = u?.billing ?? [];
   const cost = !u?.calls ? '' : billing.includes('api') ? t('about {usd}', { usd: `$${(u.usd ?? 0).toFixed(2)}` }) : billing.includes('subscription') ? t('free (your subscription)') : t('free (on this computer)');
-  const pct = $('#ctx-ring')?.dataset.pct;
-  const lead = [pct ? t('{n}% full', { n: pct }) : '', cost].filter(Boolean).join(' · ');
+  box.dataset.cost = cost;
+  const lead = convLead(cost);
   box.dataset.full = full;
   box.dataset.lead = lead;
   box.textContent = box.classList.contains('show-full') ? full : lead;
   box.title = full;
+}
+/** The chat header's short line: how full (the ring's number) and what it costs. */
+function convLead(cost = $('#conv-usage')?.dataset.cost ?? '') {
+  const pct = $('#ctx-ring')?.dataset.pct;
+  return [pct ? t('{n}% full', { n: pct }) : '', cost].filter(Boolean).join(' · ');
 }
 $('#conv-usage').addEventListener('click', () => {
   const box = $('#conv-usage');
@@ -9203,7 +9236,9 @@ function updateContextRing() {
   const said = msgs.filter((m) => (m.role === 'user' || m.role === 'assistant') && String(m.content ?? '').trim() && !m.meta?.forgotten).length;
   const share = msgs.length ? said / msgs.length : 0;
   const total = said + Math.round((state.conv?.earlier ?? 0) * share);
-  setContextRing(state.currentId && !state.conv?.offRecord && total ? Math.min(100, Math.round((total / KEPT_MESSAGES) * 100)) : null, KEPT_MESSAGES);
+  // 3.4.1: the estimate uses the last measured message limit (it grows with a model's window).
+  const keptNow = state.ctxKept?.[state.currentId] ?? KEPT_MESSAGES;
+  setContextRing(state.currentId && !state.conv?.offRecord && total ? Math.min(100, Math.round((total / keptNow) * 100)) : null, keptNow);
   // Phase 107: then the server's own measure (the same number /status gives and the nearly-full offer uses).
   clearTimeout(ringFillTimer);
   const id = state.currentId;
@@ -9211,7 +9246,16 @@ function updateContextRing() {
     ringFillTimer = setTimeout(() => {
       void api(`/conversations/${id}/fill`)
         .then((f) => {
-          if (state.currentId === id && typeof f.percent === 'number') setContextRing(f.percent, KEPT_MESSAGES);
+          if (state.currentId === id && typeof f.percent === 'number') {
+            setContextRing(f.percent, f.kept ?? KEPT_MESSAGES, f);
+            state.ctxKept = { ...state.ctxKept, [id]: f.kept ?? KEPT_MESSAGES };
+            // The header's "n% full" follows the server's measure too.
+            const box = $('#conv-usage');
+            if (box && !box.hidden) {
+              box.dataset.lead = convLead();
+              if (!box.classList.contains('show-full')) box.textContent = box.dataset.lead;
+            }
+          }
           // Phase 123: the tools line and Tidy this chat in the ring's sheet.
           if (state.currentId === id) paintSheet(f);
         })

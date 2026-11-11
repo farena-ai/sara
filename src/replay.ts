@@ -29,7 +29,7 @@ import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { buildHistory, FOLLOW_UP_NOTE_MARK, HISTORY_BUDGET_CHARS, runTurn, type AppContext, type ChatEvent, type ReplayInputs, type TurnHooks } from './chat.ts';
+import { buildHistory, FOLLOW_UP_NOTE_MARK, historyBudgetFor, runTurn, type AppContext, type ChatEvent, type ReplayInputs, type TurnHooks } from './chat.ts';
 import type { Budget } from './budget.ts';
 import { decayPolicy, type PickNote } from './memory-rank.ts';
 import { localDate, memorySettings } from './memory-worker.ts';
@@ -152,7 +152,7 @@ export function rebuildStep(app: AppContext, runId: number, idx: number): Rebuil
   const toId = step.historyToId ?? 0;
   const stored = source.filter((m) => m.id <= toId);
   const s = app.settings.get();
-  const hist = buildHistory(stored, s.historyBudgetChars ?? HISTORY_BUDGET_CHARS, app.uploads ? (id) => app.uploads!.load(id) : undefined);
+  const hist = buildHistory(stored, historyBudgetFor(app, conversation).chars, app.uploads ? (id) => app.uploads!.load(id) : undefined);
   if ((step.historyFromId ?? 0) !== hist.firstKeptId) problems.push(said(en('The history it saw started at another message (older messages were forgotten or the history size changed).')));
   // Current owner cues are transient evidence, never authority for a later replay.
   // Keep the original step/extras intact for inspection, but rebuild only replayable inputs.

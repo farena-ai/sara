@@ -187,7 +187,8 @@ test('114c.9 views: pin vs keep words (V3), Today hero row (V4/V5), coder subtit
   assert.match(web('findings-view.js'), /redteam: t\('She tries to break it before you ship\.'\)/);
   for (const name of ['copy', 'update', 'flag', 'pin', 'heart', 'edit']) assert.match(app, new RegExp(`act\\('${name}', `), name);
   assert.ok(!/t\('↻ Regenerate'\)/.test(app), 'no symbol-and-word buttons in the row');
-  assert.match(app, /const lead = \[pct \? t\('\{n\}% full', \{ n: pct \}\) : '', cost\]\.filter\(Boolean\)\.join\(' · '\);/);
+  // 3.4.1: the usage line is built by convLead() (also used when the context ring changes).
+  assert.match(app, /return \[pct \? t\('\{n\}% full', \{ n: pct \}\) : '', cost\]\.filter\(Boolean\)\.join\(' · '\);/);
   assert.match(web('today.js'), /classList\?\.toggle\('td-day-empty', !items\.length && !d\.calendar\?\.error\)/);
   assert.match(css, /#today\.td-ff-phone \.td-day-empty \{ display: none; \}/);
 });

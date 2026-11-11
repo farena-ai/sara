@@ -8,7 +8,7 @@
 // (24 h) and is restated by code after that, refused requests never reach the summariser and are
 // counted, the summary and the focus are minors-checked, and a forget inside a fold drops it.
 import { cheapCall, fenceLines, safeLines, type CheapModel } from './cheap.ts';
-import { buildHistory, contextFill, historySize, HISTORY_BUDGET_CHARS, refsTextFor, type AppContext } from './chat.ts';
+import { buildHistory, contextFill, historyBudgetFor, historySize, refsTextFor, type AppContext } from './chat.ts';
 import { appLanguage, LANGUAGE_NAMES } from './i18n.ts';
 import { leanSettings } from './lean.ts';
 import { isForgotten } from './memory-worker.ts';
@@ -357,7 +357,7 @@ async function compactInner(app: AppContext, conv: Conversation, o: { focus?: st
   };
   // A second fold reads the first fold's summary plus the messages after it (bounded input).
   const newPart = older ? range.filter((m) => m.id > older.throughId) : range;
-  const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  const budget = historyBudgetFor(app, conv).chars;
   const before = contextFill(app, conv).used;
   let summary: string | undefined;
   let kind: FoldKind = 'plain';
@@ -532,6 +532,6 @@ export function foldView(app: AppContext, conv: Conversation): { id: number; thr
 
 /** History size after a fold (tests and the fill line). */
 export function foldedSize(app: AppContext, conv: Conversation): number {
-  const budget = app.settings.get().historyBudgetChars ?? HISTORY_BUDGET_CHARS;
+  const budget = historyBudgetFor(app, conv).chars;
   return historySize(buildHistory(app.store.messages(conv.id), budget, undefined, undefined, refsTextFor(app), foldFor(app, conv)).messages);
 }

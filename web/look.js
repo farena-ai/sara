@@ -145,7 +145,7 @@ export const showHeadChips = () => openChips();
  * The header ring: `pct` of what she keeps word for word, or null to hide it. `kept` is how many
  * messages that is (the sheet explains it in plain words).
  */
-export function setContextRing(pct, kept) {
+export function setContextRing(pct, kept, fill) {
   const ring = $('#ctx-ring');
   if (!ring) return;
   ring.hidden = pct === null;
@@ -162,7 +162,12 @@ export function setContextRing(pct, kept) {
   $('#ctx-pct').textContent = `${pct}%`;
   const words = pct >= 100 ? t('Nothing is lost, keep talking: this chat is long, so she now keeps its oldest messages as short notes she still remembers.') : t('This conversation is {pct}% full', { pct });
   $('#ctx-full').textContent = words;
-  $('#ctx-how').textContent = t('She keeps the last {n} messages of a conversation in mind word for word. Older ones live on as the notes and summaries she writes.', { n: kept });
+  // 3.4.1: in plain words, from the server's measure (the same budget /status and tidying use).
+  const tk = fill?.tokens;
+  const w = (n) => Math.max(0, Math.round((Number(n) * 0.75) / 100) * 100).toLocaleString();
+  $('#ctx-how').textContent = tk?.keep
+    ? `${t('About {pct}% of what she can hold: about {used} of {keep} words of this chat, word for word.', { pct, used: w(tk.used), keep: w(tk.keep) })} ${t('Older parts live on as the notes and summaries she writes.')}${fill.model ? ` ${t('Follows the model: {model}.', { model: fill.model })}` : ''}`
+    : t('She keeps the last {n} messages of a conversation in mind word for word. Older ones live on as the notes and summaries she writes.', { n: kept });
   ring.title = words;
   ring.setAttribute('aria-label', words);
 }

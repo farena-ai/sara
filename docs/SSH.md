@@ -51,15 +51,27 @@ end, about 16,000 characters).
      kept until you press *Replace Sara's key*; a failed try never deletes it.
 3. **The ID card, then the way in.** *Is this really your server?* Sara remembers the host key and
    refuses the server if it ever changes (trust on first use, as OpenSSH does; *How can I check it?*
-   says how to compare it if you can). Then the recommended way as a big card, the others under
-   *Other ways*:
+   says how to compare it if you can). Right after your yes, **Sara quietly tries her own key**
+   (the same BatchMode sign-in as *Test connection*): if someone already added it (an admin, an
+   earlier try), she says *Connected* and there is no way in to pick. She tries it again whenever
+   you reopen a server that isn't connected yet (*Reconnect*, the chat's link) and when she looks
+   at it again. A miss records nothing on the card. Otherwise the recommended way is **one box
+   with one big button** (*Easiest way for this server*), the others a short *Other ways* list:
 
 | Sara found | Recommended | Also offered |
 |---|---|---|
-| cPanel on 2083 | **Use a cPanel token** | copy and paste; the password if the server takes one |
+| cPanel on 2083, a cPanel user | **Use a cPanel token** | copy and paste; the password if the server takes one |
+| cPanel on 2083, user `root` (or `id -u` said 0) | **Add Sara's key yourself** (WHM steps), or the password once if the server takes one | copy and paste; **never** a cPanel token |
 | No cPanel, passwords allowed | **Type the password once** | copy and paste |
 | No cPanel, keys only | **Add Sara's key yourself** | a cPanel token |
 | No SSH port | the fix-it box: the ports tried, *Find the port*, *Set the port* | — |
+
+**root and cPanel (3.4.1).** cPanel API tokens belong to cPanel accounts; root signs in to WHM. So
+for user `root`, or any user whose last test showed uid 0, Sara never recommends or offers the token
+path, and the server refuses a token for root before any request (*A cPanel token doesn't work for
+root*, with *Add Sara's key yourself*). The paste path shows the WHM steps instead: **WHM →
+Security Center → Manage root's SSH Keys → Import Key**, then **Authorize**, plus the one-line
+terminal command.
 
 ### (a) A cPanel token
 
@@ -72,7 +84,10 @@ this user?), `SSH::importkey` (her public line as `sara-<id>`), `SSH::authkey` w
 `Tokens::revoke` for the token called `sara`. Any other function is refused in code before a
 request. The certificate must be valid **for the name**; if it is for another name (common on
 shared servers: `server123.host.com`), no token is sent and Sara offers that name instead. The token
-is never written to disk, the vault, a log, the chat or an error text. There is no WHM / root path.
+is never written to disk, the vault, a log, the chat or an error text. There is no WHM / root
+token path (see *root and cPanel* above). Something pasted that doesn't look like a token (32
+capital letters and digits) gets *That doesn't look like a cPanel token* with a button for *Add
+Sara's key yourself*.
 
 `SARA_CPANEL_PORT` changes cPanel's port (default 2083) for a host that moved it.
 
@@ -91,7 +106,9 @@ SSH Keys → Import Key*, then **Manage → Authorize**), SiteGround (*Devs → 
 mkdir -p ~/.ssh && chmod 700 ~/.ssh && echo 'ssh-ed25519 AAAA… sara@home-20261101' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys
 ```
 
-Then **I've added it: check now**.
+Then **I've added it: check now**. While this way is open Sara also checks by herself every 5
+seconds for 4 minutes (the quiet try: a miss records nothing), and at once when you come back to
+the page, so adding the key in another window and coming back just works.
 
 ## When something fails
 

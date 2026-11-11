@@ -85,8 +85,14 @@ export interface Settings {
   offsite?: Partial<OffsiteSettings>;
   /** Morning briefing (Phase 8). */
   briefing?: Partial<BriefingSettings>;
-  /** How much of a conversation is sent to the model each turn (characters; ~4 per token). */
+  /** How much of a conversation is sent to the model each turn (characters; ~4 per token), when fixed. */
   historyBudgetChars?: number;
+  /**
+   * 3.4.1: 'auto' (follows the model; pay-per-token models stop at a balanced size), 'full' (up to
+   * the model's whole window) or 'fixed' (historyBudgetChars). Unset = auto, unless an older version
+   * saved a size other than its default (then that size stays: 'fixed').
+   */
+  historyBudgetMode?: 'auto' | 'full' | 'fixed';
   /** Long-term memory settings (Phase 3). */
   memory?: Partial<MemorySettings>;
   /** Which model handles what (Phase 4). A conversation's own model choice still wins. */

@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.4.0, [Documents, her name everywhere, computer use from a server](https://github.com/farena-ai/sara/releases/tag/v3.4.0). Ask for a Word, PDF, Excel or PowerPoint file; rename her and every screen follows; the desktop app works with a Sara on a server. [See what changed](#whats-new)
+> **Status:** 3.4.1, [She remembers as much as her model can hold](https://github.com/farena-ai/sara/releases/tag/v3.4.1). Chat memory follows each model's real window, with a cost guard; local Ollama models stop forgetting long chats. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[She remembers as much as her model can hold](docs/CHOOSING_A_MODEL.md)** — Auto sizes how much of the chat she keeps in mind to the model in use (looked up from the service or a dated table), caps pay-per-token history at a balanced level unless you choose the full window, and gives local Ollama models a real context size. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documents, her name everywhere, computer use from a server](docs/DOCUMENTS.md)** — She makes real documents with any model (Word, PDF, spreadsheets, slides) with Download, Open and Make changes. A renamed companion shows its own name and pronouns everywhere, with built-in he and they characters. The browser add-on and computer use now work in one click. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Easy mode](docs/AWAY_FROM_HOME.md)** — Made with a first-time user: setup explains keys and can't be lost, problems come with Fix it, Connect the Sara phone app and Use Sara away from home (Tailscale) are guided and tested, Gmail takes three steps, and you can say “make the text bigger” with Undo. |
 | **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[She comes alive](docs/APPEARANCE.md)** — Pick Her portrait, animated in Appearance and she breathes, blinks, glances and moves her lips as she talks, with listening, thinking and speaking looks and her moods, in chat, Today and calls. Your own picture or a 3D .vrm model work too. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Research that keeps going](docs/RESEARCH.md)** — Ask her to research a topic, make a guide or learn something and she starts a research run: she searches instead of guessing addresses, skips sites that block automated readers, retries slow ones, resumes after a restart, and a run cut short still gives a report marked Partial. |
 | **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Moving in from Hermes or OpenClaw, made easy](docs/MOVE_IN_GUIDE.md)** — When Hermes Agent or OpenClaw is on the same computer, Sara finds it and brings her over with one button (personality, memories, past chats, skills, schedules), with a preview first and Undo after. From another computer it is one line to paste and Sara's page moves on by itself. |
-| **[3.1.0](https://github.com/farena-ai/sara/releases/tag/v3.1.0)** | **[Email beyond Gmail](docs/EMAIL.md)** — Outlook.com and Microsoft 365 (mail and calendar), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail and any other mail server: she searches, reads threads, finds what needs an answer, drafts, sends and organizes with Gmail's approvals and Undo. Several mailboxes with one default; each household member can connect their own, private to them. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.0.3 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.1.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.1.0](https://github.com/farena-ai/sara/releases/tag/v3.1.0)** | **[Email beyond Gmail](docs/EMAIL.md)** — Outlook.com and Microsoft 365 (mail and calendar), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail and any other mail server: she searches, reads threads, finds what needs an answer, drafts, sends and organizes with Gmail's approvals and Undo. Several mailboxes with one default; each household member can connect their own, private to them. |
 | **[3.0.3](https://github.com/farena-ai/sara/releases/tag/v3.0.3)** | **[Faster, steadier and easier to find](docs/DEVICE_APPROVAL.md)** — Settings opens at once, there's one search box, and an approval is always in reach (answer it from the bar above the message box or Ctrl K). Saving her own skills no longer asks first, a red dot marks chats that need you, and her reply says how many new memories she saved. Adding a phone or computer is easy to find, and a model picked in setup stays the default. |
 | **[3.0.2](https://github.com/farena-ai/sara/releases/tag/v3.0.2)** | **[Polish, Violet and an easy move-in](docs/MOVE_IN_GUIDE.md)** — Settings opens centered, Violet is the default color and a palette resets the color to its own. Full decoration is richer and Today has quiet motion (all off with reduced motion). Four relationships that aren't romantic, a five-step move-in from Hermes Agent or OpenClaw with the exact command for your system, and Tess, the practical maker, in the gallery (thanks to @Guilsc). |
 | **[3.0.1](https://github.com/farena-ai/sara/releases/tag/v3.0.1)** | **[Every page in the new look](docs/APPEARANCE.md)** — Today, Planner, Library, Memory, Evals and Settings in the 3.0 look, with her presence orb on Today. One project list in the sidebar: folders that open to show their chats with a status dot each, chat apps included. Her picture can be the orb, her portrait or your own picture with a living ring. Run cards fold to one line and open on their own when something needs you; the memory line says how many memories she used. |

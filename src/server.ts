@@ -32,7 +32,7 @@ import { cleanMore } from './budget.ts';
 import { forgetConversationFiles } from './bridges/media.ts';
 import { MAX_IMAGES_PER_MESSAGE, UploadError } from './uploads.ts';
 import { TogetherStore } from './together.ts';
-import { contextFill, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
+import { contextFill, primeBudget, runTurn, type TurnOptions, type AppContext, type ChatEvent } from './chat.ts';
 import { PENDING_LINES, PendingInputs, pendingFor, whileBusySettings } from './pending.ts';
 import { answerAside } from './btw.ts';
 import { nextSession, parseCommand, runCommand, type BridgeAdapter } from './bridges/commands.ts';
@@ -2049,6 +2049,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             const v = toolsView(cx, conv);
             tools = { lean: v.lean, offered: (v.offered as unknown[]).length, eligible: v.eligible, offeredTokens: v.offeredTokens, eligibleTokens: v.eligibleTokens };
           }
+          await primeBudget(cx, conv);
           return send(res, 200, { ...contextFill(cx, conv), fold: foldView(cx, conv), tools });
         }
         // Phase 123 (LEAN §5.13): Tidy this chat (409 while a turn runs: the app queues it).

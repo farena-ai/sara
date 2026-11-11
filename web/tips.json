@@ -294,7 +294,7 @@
       "brain"
     ],
     "history-budget": [
-      "How much of the conversation she rereads each turn. Small local models: Short. Big cloud models: Long remembers more of the chat.",
+      "How much of the chat she rereads each turn. Auto follows each chat's model (on pay-per-token models it stops at a balanced size). Or pick one fixed size for every model.",
       "brain"
     ],
     "sub-chatgpt-url": [

@@ -32,8 +32,14 @@ let current = null;
 let shownPath = '';
 /** The name a "certificate is for another name" diagnosis offered (the "Use that name" button). */
 let lastCertName = '';
+/** 3.4.1: the server whose own key Sara is quietly trying right now (the ways in wait for it). */
+let trying = '';
 
 const PATHS = ['cpanel', 'pw', 'paste', 'key'];
+/** 3.4.1: while "Add Sara's key yourself" is open, she checks by herself this often, for this long. */
+const AUTO_CHECK_MS = 5000;
+const AUTO_CHECK_FOR_MS = 4 * 60_000;
+let auto = null;
 
 // ---------- the diagnosis box (title + fix + buttons + Details), under the button that caused it ----------
 const ACTION_LABEL = {
@@ -338,7 +344,8 @@ function show(id, on) {
 function recommendedPath(s) {
   const p = s.probe;
   if (!p) return 'paste';
-  if (p.recommended === 'cpanel') return 'cpanel';
+  // 3.4.1: root signs in to WHM, not cPanel (an older probe may still say cpanel).
+  if (p.recommended === 'cpanel' && !s.root) return 'cpanel';
   if (p.recommended === 'password') return 'pw';
   return 'paste';
 }
@@ -396,9 +403,11 @@ function fillFlow(s) {
   }
   // The ways in (after the ID card is accepted).
   const trusted = Boolean(s.fingerprint) && !s.pendingFingerprint && !notFound;
-  show('#ssh-paths', trusted && !s.ready);
-  $('#ssh-step-line').textContent = !p && !s.fingerprint ? t('Step 2 of 3: Sara is looking at the server…') : notFound ? t('Step 2 of 3: something needs fixing first.') : s.ready ? t('Done.') : needTrust ? t('Step 3 of 3: say yes to the ID card, then pick the way in.') : t('Step 3 of 3: pick the way in.');
-  if (trusted && !s.ready) showPath(s, shownPath || recommendedPath(s));
+  const waiting = trying === s.id && trusted && !s.ready;
+  show('#ssh-paths', trusted && !s.ready && !waiting);
+  $('#ssh-step-line').textContent = !p && !s.fingerprint ? t('Step 2 of 3: Sara is looking at the server…') : notFound ? t('Step 2 of 3: something needs fixing first.') : s.ready ? t('Done.') : needTrust ? t('Step 3 of 3: say yes to the ID card, then pick the way in.') : waiting ? t('Checking whether Sara’s key already works…') : t('Step 3 of 3: one last thing, then Sara is in.');
+  if (trusted && !s.ready && !waiting) showPath(s, shownPath || recommendedPath(s));
+  else stopAutoCheck();
   // Connected: the result sits right under the checklist (the buttons that led here are gone).
   if (s.ready && !s.hostKeyChanged && !$('#ssh-done').childElementCount) {
     const jailed = /jailshell/.test(s.lastCheck?.shell ?? '');
@@ -410,18 +419,26 @@ function showPath(s, which) {
   const p = s.probe;
   const pwOk = !p || p.passwords !== false;
   if (which === 'pw' && !pwOk) which = recommendedPath(s) === 'pw' ? 'paste' : recommendedPath(s);
+  // 3.4.1: no cPanel token path for root (cPanel tokens belong to cPanel accounts; root uses WHM).
+  if (which === 'cpanel' && s.root) which = 'paste';
   shownPath = which;
   for (const k of PATHS) show(`#ssh-path-${k}`, k === which);
+  // The recommended way is one box with one big button; the others are a short list below.
+  const rec = which === recommendedPath(s);
+  for (const k of PATHS) $(`#ssh-path-${k}`).classList.toggle('ssh-rec', rec && k === which);
+  show('#ssh-rec-tag', rec);
+  if (rec) $(`#ssh-path-${which}`).prepend($('#ssh-rec-tag'));
   // "Other ways": every path but this one (the password only when the server takes passwords).
-  show('#ssh-other-cpanel', which !== 'cpanel');
+  show('#ssh-other-cpanel', which !== 'cpanel' && !s.root);
   show('#ssh-other-pw', which !== 'pw' && pwOk);
   show('#ssh-other-paste', which !== 'paste');
   show('#ssh-other-key', which !== 'key');
   if (which === 'cpanel') $('#ssh-open-cpanel').href = `https://${s.cpanelHost ?? s.host}:${p?.cpanel?.port ?? 2083}/`;
   if (which === 'paste') {
-    if (!$('#ssh-paste-host').dataset.touched) $('#ssh-paste-host').value = p?.cpanel?.found ? 'cpanel' : s.port === 18765 ? 'siteground' : s.port === 65002 ? 'hostinger' : 'console';
+    if (!$('#ssh-paste-host').dataset.touched) $('#ssh-paste-host').value = p?.cpanel?.found ? (s.root ? 'whm' : 'cpanel') : s.port === 18765 ? 'siteground' : s.port === 65002 ? 'hostinger' : 'console';
     fillPaste(s);
-  }
+    startAutoCheck(s);
+  } else stopAutoCheck();
   if (which === 'pw' && s.askedToSavePassword && !$('#ssh-save-pw').dataset.touched) {
     $('#ssh-save-pw').checked = true;
     showWarn();
@@ -432,6 +449,7 @@ const PASTE_STEPS = {
   cpanel: () => [t('In cPanel: Security → SSH Access → Manage SSH Keys → Import Key.'), t('Name: sara. Leave the private key box empty, paste the key into Public Key, press Import.'), t('Go back, find sara under Public Keys and press Manage → Authorize. (Authorize is the step everybody misses: without it the key does nothing.)')],
   siteground: () => [t('In Site Tools: Devs → SSH Keys Manager → Import.'), t('Paste the key and press Import. SiteGround uses SSH port 18765.')],
   hostinger: () => [t('In hPanel: Advanced → SSH Access → SSH keys → Add SSH key.'), t('Paste the key and save. Hostinger uses SSH port 65002.')],
+  whm: () => [t('In WHM: Security Center → Manage root’s SSH Keys → Import Key.'), t('Paste the key into Public Key, press Import, then press Authorize next to it.'), t('Or paste the one line below in a terminal on the server, signed in as root.')],
   console: () => [t('Open your provider’s web console for the server (DigitalOcean, Hetzner, Linode, AWS Lightsail…).'), t('Paste the one line below and press Enter.')],
   home: () => [t('Open a terminal on that computer (Raspberry Pi, Linux box, Mac), signed in as the user above.'), t('Paste the one line below and press Enter.')],
 };
@@ -440,14 +458,15 @@ function fillPaste(s) {
   $('#ssh-paste-steps').replaceChildren(...(PASTE_STEPS[kind] ?? PASTE_STEPS.console)().map((x) => el('li', '', x)));
   $('#ssh-pubkey').textContent = s.publicKey ?? '';
   $('#ssh-oneline').textContent = s.pasteCommand ?? '';
-  const panel = kind === 'cpanel' || kind === 'siteground' || kind === 'hostinger';
-  // A panel takes the key; a terminal or web console takes the one line.
+  const panel = kind === 'cpanel' || kind === 'siteground' || kind === 'hostinger' || kind === 'whm';
+  // A panel takes the key; a terminal or web console takes the one line (WHM: either).
+  const line = !panel || kind === 'whm';
   show('#ssh-paste-what', panel);
   show('#ssh-pubkey', panel);
   show('#ssh-copy-key', panel);
-  show('#ssh-oneline-what', !panel);
-  show('#ssh-oneline', !panel);
-  show('#ssh-copy-line', !panel);
+  show('#ssh-oneline-what', line);
+  show('#ssh-oneline', line);
+  show('#ssh-copy-line', line);
 }
 
 async function reprobe(s, findPort) {
@@ -464,9 +483,12 @@ function openFlow(s, path = '') {
   shownPath = path;
   delete $('#ssh-paste-host').dataset.touched;
   for (const id of ['#ssh-hk-status', '#ssh-cpanel-status', '#ssh-pw-status', '#ssh-check-status', '#ssh-key-status', '#ssh-done']) say($(id), '');
+  stopAutoCheck();
   fillFlow(s);
   // A server from before 2.52.1: look at it first.
   if (!s.probe && !s.ready) void reprobe(s, false);
+  // 3.4.1: her own key first (someone may have added it since): Connected without picking a way in.
+  else if (s.fingerprint && !s.pendingFingerprint && !s.ready && s.keySource === 'made') void quietTry(s);
   $('#ssh-flow').scrollIntoView?.({ block: 'start' });
 }
 
@@ -487,6 +509,8 @@ function closeFlow() {
   if (s?.draft && !s.ready && !s.fingerprint && !s.pendingFingerprint) void api(`/ssh/servers/${s.id}`, { method: 'DELETE', body: {} }).catch(() => undefined);
   current = null;
   shownPath = '';
+  trying = '';
+  stopAutoCheck();
   clearSecrets();
   $('#ssh-flow').hidden = true;
 }
@@ -497,6 +521,60 @@ function showWarn() {
   $('#ssh-confirm-row').hidden = !on;
   $('#ssh-save-warn').textContent = on ? t(state.warning) : '';
   if (!on) $('#ssh-confirm-risk').checked = false;
+}
+
+/** 3.4.1: the quiet try of her own key (BatchMode on the server; a miss records nothing). */
+async function quietTry(s) {
+  trying = s.id;
+  fillFlow(current ?? s);
+  let r;
+  try {
+    r = await api(`/ssh/servers/${s.id}/try-key`, { method: 'POST', body: {} });
+  } catch {
+    r = undefined;
+  }
+  if (trying === s.id) trying = '';
+  if (current?.id !== s.id) return;
+  if (r) render(r);
+  else fillFlow(current);
+}
+
+function autoLine(text) {
+  const p = $('#ssh-auto-line');
+  if (p) p.textContent = text;
+}
+
+/** The paste path checks by itself every few seconds (stops after a few minutes, or when she's in). */
+function startAutoCheck(s) {
+  if (auto?.id === s.id) return;
+  stopAutoCheck();
+  auto = { id: s.id, until: Date.now() + AUTO_CHECK_FOR_MS, timer: setInterval(() => void autoTick(), AUTO_CHECK_MS), busy: false };
+  autoLine(t('Sara checks by herself every few seconds, so you can add it somewhere else and come back.'));
+}
+
+function stopAutoCheck(note = '') {
+  if (auto) clearInterval(auto.timer);
+  auto = null;
+  autoLine(note);
+}
+
+async function autoTick() {
+  const a = auto;
+  if (!a || a.busy) return;
+  if (!current || current.id !== a.id || current.ready || shownPath !== 'paste' || $('#ssh-flow').hidden) return stopAutoCheck();
+  if (Date.now() > a.until) return stopAutoCheck(t('Sara stopped checking by herself. Press the button once you’ve added it.'));
+  a.busy = true;
+  try {
+    const r = await api(`/ssh/servers/${a.id}/try-key`, { method: 'POST', body: {} });
+    if (r.ok && current?.id === a.id) {
+      stopAutoCheck();
+      render(r);
+    }
+  } catch {
+    /* the next tick tries again */
+  } finally {
+    a.busy = false;
+  }
 }
 
 /** After her key went on the server: the result under the button. */
@@ -704,8 +782,15 @@ export function initSsh() {
     if (!r.server.ready || r.server.hostKeyChanged) openFlow(r.server);
     else say(statusOf(id), t('Saved.'));
   });
+  // 3.4.1: back from pasting the key somewhere else: check at once (and keep checking a while).
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !current || current.ready || shownPath !== 'paste' || $('#ssh-flow').hidden) return;
+    if (!auto) startAutoCheck(current);
+    void autoTick();
+  });
   // Nothing typed here outlives the window.
   $('#settings').addEventListener('close', () => {
+    stopAutoCheck();
     clearSecrets();
     $('#ssh-announce').hidden = true;
   });

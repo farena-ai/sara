@@ -93,6 +93,18 @@ Ways to spend less:
   expensive.
 - Set budgets on team tasks and jobs.
 
+### How much of the chat she keeps in mind
+
+Every reply sends the part of the conversation she keeps in mind again, so on a pay-per-token
+model a bigger history costs more **on every turn**, not once. With *Auto: balanced* (the default
+since 3.4.1) a pay-per-token cloud model gets at most about 128,000 tokens of chat (about 96,000
+words), even when the model could hold a million: at $2 per million input tokens that is up to
+about $0.26 per reply in a very long chat, before caching discounts. *Auto: use the model's full
+window* lifts that ceiling (a 1M-token model can then cost about $2 per reply in a chat that long).
+Short chats cost the same either way: only what is actually there is sent. Subscriptions and
+models on your own hardware have no per-token charge, so Auto uses their window. Details:
+[CHOOSING_A_MODEL.md](CHOOSING_A_MODEL.md#how-much-of-the-chat-she-keeps-in-mind-the-context-window).
+
 ### Subscriptions: no extra bill, but limits
 
 Signing in with a **ChatGPT plan, Claude Pro/Max or SuperGrok / X Premium+** (Settings → Models →

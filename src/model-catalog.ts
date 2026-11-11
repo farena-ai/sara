@@ -23,6 +23,7 @@ import { ProviderError, SUBSCRIPTION_KINDS, type Provider, type ProviderConfig }
 import { JOBS, recommend, type Candidate } from './modelpicks.ts';
 import type { ModelRoute, RoutePurpose, SettingsStore } from './settings.ts';
 import { isCloudModelName } from './model-names.ts';
+import { noteOllamaDaemon } from './model-context.ts';
 
 export const CATALOG_FILE = 'model-lists.json';
 /** Ollama's public cloud catalog (no key needed). */
@@ -402,6 +403,8 @@ export class ModelCatalog {
       try {
         const d = JSON.parse(readFileSync(this.#file, 'utf8')) as Partial<CatalogFile>;
         this.#data = { version: 1, providers: d.providers ?? {}, notices: d.notices ?? [] };
+        // 3.4.1: Ollama daemons found earlier on other ports get num_ctx from the first call.
+        for (const p of Object.values(this.#data.providers)) if (p?.daemon === true && p.daemonProbe?.baseUrl) noteOllamaDaemon(p.daemonProbe.baseUrl);
       } catch {
         /* a damaged list is rebuilt by the next check */
       }
@@ -422,7 +425,10 @@ export class ModelCatalog {
   }
   #isDaemon(config: ProviderConfig): boolean {
     const p = this.#data.providers[config.id];
-    return mayBeDaemon(config) && p?.daemonProbe?.baseUrl === config.baseUrl && p.daemon === true;
+    const daemon = mayBeDaemon(config) && p?.daemonProbe?.baseUrl === config.baseUrl && p.daemon === true;
+    // 3.4.1: an Ollama on another port also gets num_ctx (src/model-context.ts).
+    if (daemon) noteOllamaDaemon(config.baseUrl);
+    return daemon;
   }
   /** Asks the address whether it is an Ollama daemon; kept per address (a failed probe is retried after an hour). */
   async #probeDaemon(config: ProviderConfig, before: ProviderCatalog | undefined): Promise<{ daemon: boolean; probe: ProviderCatalog['daemonProbe'] }> {
@@ -570,6 +576,7 @@ export class ModelCatalog {
     delete after.warning;
     if (warning) after.warning = warning;
     after.daemon = daemon;
+    if (daemon) noteOllamaDaemon(config.baseUrl);
     if (probed.probe) after.daemonProbe = probed.probe;
     else delete after.daemonProbe;
     if (daemon) {
@@ -824,6 +831,7 @@ export function withCloudPull(provider: Provider, catalog: ModelCatalog): Provid
       const all = await provider.listModels(signal);
       return all.filter((m) => !cloudOff(m));
     },
+    ...(provider.modelLimits ? { modelLimits: (model: string, signal?: AbortSignal) => provider.modelLimits!(model, signal) } : {}),
     async *stream(req) {
       if (cloudOff(req.model)) throw new ProviderError(CLOUD_OFF(config.label, req.model), 403);
       await catalog.ensurePulled(config, req.model, req.signal);

@@ -2,6 +2,7 @@
 // Route rules (preview): store:false + stream:true, system text in `instructions` (later system
 // notes as developer messages), function tools grouped in a namespace, no temperature /
 // max_output_tokens, full history in `input`. Bearer tokens go only to api.openai.com.
+import { parseOpenAIList, type ModelLimits } from '../model-context.ts';
 import { netFetch } from '../net-guard.ts';
 import { sseEvents } from '../sse.ts';
 import { USAGE_URL, type ChatGptAuth } from '../subscriptions/chatgpt.ts';
@@ -68,6 +69,13 @@ export class ChatGptProvider implements Provider {
     const body = (await res.json()) as { models?: { slug: string; visibility?: string }[]; data?: { id: string }[] };
     if (body.models) return body.models.filter((m) => !m.visibility || m.visibility === 'list').map((m) => m.slug);
     return (body.data ?? []).map((m) => m.id);
+  }
+
+  /** 3.4.1: the plan's model list carries context_window on recent backends (else the table). */
+  async modelLimits(_model: string, signal?: AbortSignal): Promise<Record<string, ModelLimits>> {
+    const res = await netFetch(`${this.#api}/models`, { headers: { authorization: `Bearer ${await this.#auth.accessToken()}` }, signal });
+    if (!res.ok) return {};
+    return parseOpenAIList(await res.json());
   }
 
   async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {

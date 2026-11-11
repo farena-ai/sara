@@ -5,6 +5,34 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.1 (2026-11-11): she remembers as much as her model can hold
+
+- **Adding a server over SSH is far less confusing:** right after you say yes to the server's ID
+  card, Sara quietly tries her own key and says *Connected* at once if it is already there (an
+  admin added it, an earlier try); she tries again when you reopen a server that isn't connected
+  yet. While *Add Sara's key yourself* is open she checks by herself every few seconds (for a few
+  minutes, and at once when you come back to the page), so you no longer have to find and press
+  *I've added it: check now*. User `root` (or uid 0) is never offered the cPanel token path, which
+  can't work for root: Sara recommends *Add Sara's key yourself* with the WHM steps (Security Center
+  → Manage root's SSH Keys → Import Key, then Authorize) and the one-line command, and refuses a
+  token for root before any request. The recommended way is one box with one big button, the
+  others a short *Other ways* list; a token that doesn't look right offers *Add Sara's key
+  yourself*. See docs/SSH.md.
+- **She keeps as much of the chat in mind as the model can hold:** the conversation memory was
+  about 12,000 tokens for every model, even ones that hold a million. Now *Auto* (the new default
+  under Settings → Models → Long conversations) follows the model each chat uses: Sara reads the
+  window from the provider's own model list (OpenRouter, Ollama, Gemini, Anthropic, vLLM, LM Studio
+  and others), or a dated table of well-known models, and keeps the old size for models she doesn't
+  know. A line under the setting says it in words ("she keeps about 96,000 words of this chat in
+  mind"), and the ring in the chat header and `/status` say how much of that a chat uses.
+- **Cost guard:** on pay-per-token cloud models *Auto: balanced* stops at about 128,000 tokens of
+  chat, because every reply sends it again; *Auto: use the model's full window* goes further.
+  Subscriptions and your own hardware use their window. If you picked a size before, it stays.
+- **Long chats with Ollama on your computer no longer get cut off quietly:** Ollama loads models
+  with a small context unless asked (4,096 tokens on most PCs). Sara now asks for 32,768 tokens
+  (64k-128k on big graphics cards, more with *full window*, as far as the graphics memory allows).
+- A backup model with a smaller window gets a shorter history for its reply, instead of an error.
+
 ## 3.4.0 (2026-11-11): documents, her name everywhere, computer use from a server
 
 - **Browser in one click, also on Linux servers:** adding the *Browser (Playwright)* add-on (or

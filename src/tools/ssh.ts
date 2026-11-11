@@ -126,6 +126,7 @@ export function createSshTools(ssh: () => SshManager | undefined): Tool[] {
         } else if (v.ready) plan = `${where} is ready: use ssh_run.`;
         else if (p.recommended === 'cpanel') plan = `${s.host} runs cPanel${p.passwords === false ? " and doesn't take passwords" : ''}. The easiest way: the owner makes a cPanel token (3 clicks) and pastes it on the Connect page, and you install your own key through cPanel (then you delete the token).`;
         else if (p.recommended === 'password') plan = `${s.host} takes a password. The easiest way: the owner types it once on the Connect page; you install your own key and forget the password.`;
+        else if (v.root && p.cpanel?.found) plan = `${s.host} runs cPanel, but ${s.user} is root, and cPanel tokens don't work for root. The easiest way: the owner adds your key in WHM (Security Center → Manage root's SSH Keys → Import Key, then Authorize) or pastes your one line in a terminal there; the Connect page shows both and connects by itself once the key is there.`;
         else plan = `${s.host} doesn't take passwords (keys only). The easiest way: the owner pastes your one line on the server; the Connect page shows it with the steps for their host.`;
         const lines = [
           `Looked at ${where}.`,

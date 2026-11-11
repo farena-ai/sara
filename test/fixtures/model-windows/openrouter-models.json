@@ -1,0 +1,347 @@
+{
+ "data": [
+  {
+   "id": "anthropic/claude-sonnet-4.5",
+   "canonical_slug": "anthropic/claude-4.5-sonnet-20250929",
+   "hugging_face_id": "",
+   "name": "Anthropic: Claude Sonnet 4.5",
+   "created": 1759161676,
+   "description": "Claude Sonnet 4.5 is Anthropic’s most advanced Sonnet model to date, optimized f",
+   "context_length": 1000000,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "text",
+     "image",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Claude",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000003",
+    "completion": "0.000015",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000003",
+    "input_cache_write": "0.00000375",
+    "input_cache_write_1h": "0.000006",
+    "overrides": [
+     {
+      "min_prompt_tokens": 200000,
+      "prompt": "0.000006",
+      "completion": "0.0000225",
+      "input_cache_read": "0.0000006",
+      "input_cache_write": "0.0000075",
+      "input_cache_write_1h": "0.000012"
+     }
+    ]
+   },
+   "top_provider": {
+    "context_length": 1000000,
+    "max_completion_tokens": 64000,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "include_reasoning",
+    "max_completion_tokens",
+    "max_tokens",
+    "reasoning",
+    "response_format",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_p"
+   ],
+   "default_parameters": {
+    "temperature": 1,
+    "top_p": 1,
+    "top_k": null,
+    "frequency_penalty": null,
+    "presence_penalty": null,
+    "repetition_penalty": null
+   },
+   "supported_voices": null,
+   "knowledge_cutoff": "2025-01-31",
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/anthropic/claude-4.5-sonnet-20250929/endpoints"
+   },
+   "endpoints": [
+    "/api/v1/chat/completions",
+    "/api/v1/completions",
+    "/api/v1/messages",
+    "/api/v1/responses"
+   ],
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 1143,
+      "win_rate": 51,
+      "rank": 71
+     },
+     {
+      "arena": "models",
+      "category": "asciiart",
+      "elo": 1202,
+      "win_rate": 56.1,
+      "rank": 27
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1177,
+      "win_rate": 51.5,
+      "rank": 68
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1165,
+      "win_rate": 47.4,
+      "rank": 75
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1160,
+      "win_rate": 51.1,
+      "rank": 72
+     },
+     {
+      "arena": "models",
+      "category": "svg",
+      "elo": 1111,
+      "win_rate": 52.2,
+      "rank": 64
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 1167,
+      "win_rate": 49.4,
+      "rank": 73
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1186,
+      "win_rate": 51.8,
+      "rank": 72
+     },
+     {
+      "arena": "agents",
+      "category": "fullstack",
+      "elo": 1030,
+      "win_rate": 43.7,
+      "rank": 37
+     },
+     {
+      "arena": "agents",
+      "category": "mobileapps",
+      "elo": 1134,
+      "win_rate": 53,
+      "rank": 35
+     },
+     {
+      "arena": "agents",
+      "category": "webapps",
+      "elo": 1044,
+      "win_rate": 43.2,
+      "rank": 42
+     }
+    ],
+    "artificial_analysis": {
+     "intelligence_index": null,
+     "coding_index": 52.1,
+     "agentic_index": 15.8
+    }
+   },
+   "reasoning": {
+    "mandatory": false
+   }
+  },
+  {
+   "id": "openai/gpt-4.1",
+   "canonical_slug": "openai/gpt-4.1-2025-04-14",
+   "hugging_face_id": "",
+   "name": "OpenAI: GPT-4.1",
+   "created": 1744651385,
+   "description": "GPT-4.1 is a flagship large language model optimized for advanced instruction fo",
+   "context_length": 1047576,
+   "architecture": {
+    "modality": "text+image+file->text",
+    "input_modalities": [
+     "image",
+     "text",
+     "file"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "GPT",
+    "instruct_type": null
+   },
+   "pricing": {
+    "prompt": "0.000002",
+    "completion": "0.000008",
+    "web_search": "0.01",
+    "input_cache_read": "0.0000005"
+   },
+   "top_provider": {
+    "context_length": 1047576,
+    "max_completion_tokens": 32768,
+    "is_moderated": true
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "max_completion_tokens",
+    "max_tokens",
+    "response_format",
+    "seed",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": "2024-06-30",
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/openai/gpt-4.1-2025-04-14/endpoints"
+   },
+   "endpoints": [
+    "/api/v1/chat/completions",
+    "/api/v1/completions",
+    "/api/v1/messages",
+    "/api/v1/responses"
+   ],
+   "benchmarks": {
+    "design_arena": [
+     {
+      "arena": "models",
+      "category": "3d",
+      "elo": 835,
+      "win_rate": 30.9,
+      "rank": 132
+     },
+     {
+      "arena": "models",
+      "category": "codecategories",
+      "elo": 1020,
+      "win_rate": 50.9,
+      "rank": 125
+     },
+     {
+      "arena": "models",
+      "category": "dataviz",
+      "elo": 1104,
+      "win_rate": 59.5,
+      "rank": 99
+     },
+     {
+      "arena": "models",
+      "category": "gamedev",
+      "elo": 1073,
+      "win_rate": 59.1,
+      "rank": 107
+     },
+     {
+      "arena": "models",
+      "category": "uicomponent",
+      "elo": 995,
+      "win_rate": 49.7,
+      "rank": 121
+     },
+     {
+      "arena": "models",
+      "category": "website",
+      "elo": 1035,
+      "win_rate": 52.3,
+      "rank": 126
+     }
+    ]
+   }
+  },
+  {
+   "id": "meta-llama/llama-3.1-8b-instruct",
+   "canonical_slug": "meta-llama/llama-3.1-8b-instruct",
+   "hugging_face_id": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+   "name": "Meta: Llama 3.1 8B Instruct",
+   "created": 1721692800,
+   "description": "Meta's latest class of model (Llama 3.1) launched with a variety of sizes & flav",
+   "context_length": 131072,
+   "architecture": {
+    "modality": "text->text",
+    "input_modalities": [
+     "text"
+    ],
+    "output_modalities": [
+     "text"
+    ],
+    "tokenizer": "Llama3",
+    "instruct_type": "llama3"
+   },
+   "pricing": {
+    "prompt": "0.00000002",
+    "completion": "0.00000004"
+   },
+   "top_provider": {
+    "context_length": 131072,
+    "max_completion_tokens": 16384,
+    "is_moderated": false
+   },
+   "per_request_limits": null,
+   "supported_parameters": [
+    "frequency_penalty",
+    "logit_bias",
+    "logprobs",
+    "max_tokens",
+    "min_p",
+    "presence_penalty",
+    "repetition_penalty",
+    "response_format",
+    "seed",
+    "stop",
+    "structured_outputs",
+    "temperature",
+    "tool_choice",
+    "tools",
+    "top_k",
+    "top_logprobs",
+    "top_p"
+   ],
+   "default_parameters": {},
+   "supported_voices": null,
+   "knowledge_cutoff": "2023-12-31",
+   "expiration_date": null,
+   "links": {
+    "details": "/api/v1/models/meta-llama/llama-3.1-8b-instruct/endpoints"
+   },
+   "endpoints": [
+    "/api/v1/chat/completions",
+    "/api/v1/completions",
+    "/api/v1/messages",
+    "/api/v1/responses"
+   ],
+   "benchmarks": {
+    "design_arena": [],
+    "artificial_analysis": {
+     "intelligence_index": null,
+     "coding_index": 5.4,
+     "agentic_index": null
+    }
+   }
+  }
+ ]
+}

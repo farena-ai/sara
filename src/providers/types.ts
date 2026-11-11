@@ -65,6 +65,11 @@ export interface ChatRequest {
   maxResponseBytes?: number;
   /** Business requests require the configured canonical endpoint and refuse all redirects. */
   redirect?: 'error';
+  /**
+   * 3.4.1: Ollama on your own computer: the context to load the model with (options.num_ctx). Its
+   * OpenAI-compatible endpoint ignores it, so the request goes to Ollama's own /api/chat.
+   */
+  numCtx?: number;
 }
 
 /** Streamed output: text deltas as they arrive; tool calls once fully assembled. */
@@ -108,6 +113,11 @@ export interface Provider {
   readonly config: ProviderConfig;
   listModels(signal?: AbortSignal): Promise<string[]>;
   stream(req: ChatRequest): AsyncIterable<StreamEvent>;
+  /**
+   * 3.4.1: context windows from the provider's own model list (tokens), keyed by model id; may
+   * cover more models than the one asked for. Absent where the provider says nothing.
+   */
+  modelLimits?(model: string, signal?: AbortSignal): Promise<Record<string, import('../model-context.ts').ModelLimits>>;
 }
 
 export class ProviderError extends Error {

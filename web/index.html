@@ -2821,15 +2821,19 @@
       <label class="row"><input id="model-auto-switch" type="checkbox"> Switch to the replacement automatically</label>
       </div>
       <h3>Long conversations</h3>
-      <p class="muted small">How much of a conversation Sara rereads each turn. Older parts beyond this are left out (with their summary, once she has written one). Smaller models need a shorter setting.</p>
-      <label>Conversation length
+      <p class="muted small">How much of a conversation Sara rereads each turn. Older parts beyond this are left out (with their summary, once she has written one). Auto follows the model each chat uses.</p>
+      <label>How much of the chat she keeps in mind
         <select id="history-budget">
+          <option value="auto">Auto: balanced (follows the model)</option>
+          <option value="full">Auto: use the model's full window</option>
           <option value="16000">Short (about 4,000 tokens: small local models)</option>
           <option value="48000">Normal (about 12,000 tokens)</option>
           <option value="120000">Long (about 30,000 tokens)</option>
           <option value="400000">Very long (about 100,000 tokens: big cloud models)</option>
+          <option value="1000000">Huge (about 250,000 tokens)</option>
         </select>
       </label>
+      <p id="history-budget-note" class="muted small" role="status"></p>
       <div class="lean-card">
         <h3>Tidy long chats <button type="button" class="tip" data-tip="Folds the older part of this chat into a short summary she reads instead, so the thread stays in view. Your messages stay right where they are, and Undo puts everything back.">?</button></h3>
         <label class="row"><input id="compact-auto" type="checkbox"> Tidy long chats on their own</label>
@@ -3554,6 +3558,7 @@
         </div>
         <div id="ssh-paths" hidden>
           <p class="ssh-secret small">Sara keeps only her own key. The password or token is used once to install it, then forgotten. Nothing is saved unless you ask, and you'll be warned first.</p>
+          <p id="ssh-rec-tag" class="ssh-rec-tag small" hidden>Easiest way for this server</p>
           <div id="ssh-path-cpanel" class="ssh-path" hidden>
             <h4>Let Sara install her key through cPanel</h4>
             <ol class="ssh-steps small">
@@ -3564,7 +3569,7 @@
             <div class="add-row"><a id="ssh-open-cpanel" class="button-link ghost" target="_blank" rel="noopener noreferrer" href="#">Open cPanel</a></div>
             <label>cPanel token <input id="ssh-token" type="password" autocomplete="off" spellcheck="false" maxlength="64"></label>
             <label class="row"><input id="ssh-revoke-token" type="checkbox" checked> <span>Delete the token for me when I'm done</span></label>
-            <div class="add-row"><button id="ssh-cpanel-go" type="button">Install my key</button></div>
+            <div class="add-row"><button id="ssh-cpanel-go" type="button" class="ssh-main">Install my key</button></div>
             <div id="ssh-cpanel-status" class="ssh-status small" role="status" aria-live="polite"></div>
           </div>
           <div id="ssh-path-pw" class="ssh-path" hidden>
@@ -3576,13 +3581,14 @@
               <p id="ssh-save-warn" class="ssh-warn small" hidden></p>
               <label id="ssh-confirm-row" class="row" hidden><input id="ssh-confirm-risk" type="checkbox"> <span>I understand the risk. Keep the password anyway.</span></label>
             </details>
-            <div class="add-row"><button id="ssh-login" type="button">Install my key</button></div>
+            <div class="add-row"><button id="ssh-login" type="button" class="ssh-main">Install my key</button></div>
             <div id="ssh-pw-status" class="ssh-status small" role="status" aria-live="polite"></div>
           </div>
           <div id="ssh-path-paste" class="ssh-path" hidden>
             <h4>Add Sara's key yourself</h4>
             <label>Where is the server? <select id="ssh-paste-host">
               <option value="cpanel">cPanel (any host)</option>
+              <option value="whm">WHM (root on a cPanel server)</option>
               <option value="siteground">SiteGround (Site Tools)</option>
               <option value="hostinger">Hostinger (hPanel)</option>
               <option value="console">A server with a web console</option>
@@ -3595,7 +3601,8 @@
             <p id="ssh-oneline-what" class="muted small">The one line to paste in a terminal on the server (it adds her public key):</p>
             <code id="ssh-oneline" class="ssh-code" data-raw></code>
             <div class="add-row"><button id="ssh-copy-line" type="button" class="ghost">Copy the line</button></div>
-            <div class="add-row"><button id="ssh-check-go" type="button">I've added it: check now</button></div>
+            <div class="add-row"><button id="ssh-check-go" type="button" class="ssh-main">I've added it: check now</button></div>
+            <p id="ssh-auto-line" class="muted small" role="status"></p>
             <div id="ssh-check-status" class="ssh-status small" role="status" aria-live="polite"></div>
           </div>
           <div id="ssh-path-key" class="ssh-path" hidden>
@@ -3603,15 +3610,16 @@
             <p class="muted small">A key cPanel generated with a passphrase can't be used here; use the cPanel token or copy and paste instead.</p>
             <label>Private key <textarea id="ssh-key-text" rows="5" autocomplete="off" spellcheck="false" placeholder="-----BEGIN OPENSSH …"></textarea></label>
             <label>Or the path of a key file on the Sara server <input id="ssh-key-path" autocomplete="off" spellcheck="false" placeholder="/home/alex/.ssh/id_ed25519"></label>
-            <div class="add-row"><button id="ssh-key-go" type="button">Use this key</button></div>
+            <div class="add-row"><button id="ssh-key-go" type="button" class="ssh-main">Use this key</button></div>
             <div id="ssh-key-status" class="ssh-status small" role="status" aria-live="polite"></div>
           </div>
-          <div id="ssh-other" class="ssh-other small"><span class="muted">Other ways:</span>
-            <button id="ssh-other-cpanel" type="button" class="linkish ssh-link">Use a cPanel token</button>
-            <button id="ssh-other-pw" type="button" class="linkish ssh-link">Type the password once</button>
-            <button id="ssh-other-paste" type="button" class="linkish ssh-link">Add Sara's key yourself</button>
-            <button id="ssh-other-key" type="button" class="linkish ssh-link">Use a key I already have</button>
-          </div>
+          <p class="muted small ssh-other-head">Other ways:</p>
+          <ul id="ssh-other" class="ssh-other small">
+            <li><button id="ssh-other-cpanel" type="button" class="linkish ssh-link">Use a cPanel token</button></li>
+            <li><button id="ssh-other-pw" type="button" class="linkish ssh-link">Type the password once</button></li>
+            <li><button id="ssh-other-paste" type="button" class="linkish ssh-link">Add Sara's key yourself</button></li>
+            <li><button id="ssh-other-key" type="button" class="linkish ssh-link">Use a key I already have</button></li>
+          </ul>
         </div>
         <div id="ssh-done" class="ssh-status small" role="status" aria-live="polite"></div>
       </div>

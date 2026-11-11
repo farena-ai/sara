@@ -1588,7 +1588,14 @@ body:not(.member) [data-member-only] { display: none !important; }
 .ssh-steps code, .ssh-fp code { overflow-wrap: anywhere; word-break: break-all; }
 .ssh-code { display: block; padding: 8px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--hairline); font-size: 12px; overflow-wrap: anywhere; word-break: break-all; white-space: pre-wrap; user-select: all; }
 .ssh-secret { margin: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--accent); background: var(--panel); }
-.ssh-other { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.ssh-other { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.ssh-other li:has(> [hidden]) { display: none; }
+.ssh-other-head { margin: 8px 0 0; }
+/* 3.4.1: the recommended way in: one box, one big button. */
+.ssh-path.ssh-rec { padding: 12px 14px; border-radius: 12px; border: 1px solid var(--accent); background: var(--panel); }
+.ssh-rec-tag { margin: 0; font-weight: 600; color: var(--accent); }
+.ssh-rec .ssh-main { min-height: 48px; font-size: 16px; padding-inline: 20px; }
+@media (max-width: 600px) { .ssh-rec .ssh-main { width: 100%; } }
 .ssh-link { min-height: 44px; }
 .ssh-status:empty { display: none; }
 .ssh-status { min-width: 0; overflow-wrap: anywhere; }

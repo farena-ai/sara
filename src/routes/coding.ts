@@ -901,6 +901,11 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
             token.fill(0);
             return send(res, 200, { ok: r.test.ok, tokenRevoked: r.tokenRevoked, test: r.test, server: ssh.view(r.server), ...(await view()) });
           }
+          if (d === 'try-key' && method === 'POST') {
+            // 3.4.1: the quiet try (reopening a server, the paste path's auto-check): a miss records nothing.
+            const t = await ssh.tryOwnKey(id);
+            return send(res, 200, { ok: t.ok, code: t.code, tried: t.tried, ...(t.ok && t.diagnosis ? { diagnosis: t.diagnosis } : {}), server: ssh.view(ssh.get(id)), ...(await view()) });
+          }
           if (d === 'check' && method === 'POST') {
             const t = await ssh.checkKey(id);
             return send(res, 200, { ...t, server: ssh.view(ssh.get(id)), ...(await view()) });
@@ -924,7 +929,9 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
           if (d === 'trust' && method === 'POST') {
             const body = await readJson(req);
             ssh.trust(id, String(body.fingerprint ?? ''));
-            return send(res, 200, { server: ssh.view(ssh.get(id)), ...(await view()) });
+            // 3.4.1: her own key first, quietly: already on the server → Connected, no path to pick.
+            const tried = await ssh.tryOwnKey(id).catch(() => undefined);
+            return send(res, 200, { server: ssh.view(ssh.get(id)), ...(tried ? { tried: { ok: tried.ok, code: tried.code } } : {}), ...(await view()) });
           }
           if (d === 'login' && method === 'POST') {
             // The password arrives here once (a password box in Settings) and is never stored

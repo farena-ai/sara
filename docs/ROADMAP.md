@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## She remembers as much as her model can hold, in 3.4.1
+
+How much of the chat she keeps in mind now follows each model: she looks up its real window (or uses a
+dated table of published sizes) instead of a fixed 12,000 tokens, with a cost guard for pay-per-token
+services and full use for subscriptions and your own computer. Local Ollama models get a real context
+size instead of Ollama's small default, so long local chats keep the thread. Adding a server tries her
+own key first and connects at once when it already works.
+
 ## Documents, her own name everywhere, and computer use from a server, in 3.4.0
 
 Ask for a Word document, PDF, spreadsheet or slides and she makes the file, with Download, Open and

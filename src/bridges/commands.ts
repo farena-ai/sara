@@ -936,7 +936,9 @@ async function statusCommand(c: CommandContext, conv: Conversation | undefined):
   } catch {
     lines.push(tr('Model: none set up yet'));
   }
-  lines.push(tr('Context used: {n}%', { n: fill.percent }) + (fill.dropped > 0 ? ` (${tr('older parts left out')})` : ''));
+  // 3.4.1: in plain words: how much of what she can hold with this chat's model.
+  const tokens = (fill as { tokens?: { used: number; keep: number } }).tokens;
+  lines.push((tokens?.keep ? tr('Context used: {n}% of what she can hold (about {used} of {keep} words)', { n: fill.percent, used: k(Math.round(tokens.used * 0.75)), keep: k(Math.round(tokens.keep * 0.75)) }) : tr('Context used: {n}%', { n: fill.percent })) + (fill.dropped > 0 ? ` (${tr('older parts left out')})` : ''));
   if (conv) {
     const msgs = app.store.messages(conv.id).filter((m) => m.role === 'user' || m.role === 'assistant').length;
     const mins = Math.max(0, Math.round((app.now().getTime() - new Date(conv.createdAt).getTime()) / 60_000));

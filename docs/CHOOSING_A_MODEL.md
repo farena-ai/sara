@@ -48,6 +48,73 @@ Good to know:
   the *Ollama on my computer* template in Settings → Models → Model providers. Use Tailscale or
   your home network, not the open internet.
 
+## How much of the chat she keeps in mind (the context window)
+
+Every model can read a limited amount at once: its **context window**, counted in tokens (a token
+is about ¾ of an English word). Since 3.4.1 Sara sets how much of a conversation she rereads each
+turn from the model that conversation actually uses. Settings → Models → Default model → Long
+conversations → *How much of the chat she keeps in mind*:
+
+- **Auto: balanced** (the default). Follows the model. On pay-per-token cloud models it stops at
+  about 128,000 tokens (about 96,000 words) of chat, because every reply sends that much again and
+  you pay for it every turn (see [COSTS.md](COSTS.md#how-much-of-the-chat-she-keeps-in-mind)). On
+  subscriptions and on your own hardware there is no per-token charge, so she uses the window.
+- **Auto: use the model's full window.** Up to everything the model holds, also on pay-per-token
+  models (more memory, higher cost per turn).
+- **Fixed sizes** (Short, Normal, Long, Very long, Huge): one size for every model, as before 3.4.1.
+
+The line under the setting says it in plain numbers for your default model ("With gpt-4.1: she
+keeps about 96,000 words of this chat in mind (the model holds about 786,000)"). The ring in the
+chat header and `/status` measure against the same number for the conversation's own model.
+
+How she works it out: the window, minus room for her reply (up to 16,000 tokens), minus about
+12,000 tokens for everything she sends besides the chat (her instructions, the tool list, notes and
+skills), times 0.85 as a safety margin; then the cost guard above; at most about a million tokens.
+Characters are counted at about 4 per token (fewer for Chinese, Japanese and Korean, which she
+measures from the chat itself). When a backup model with a smaller window takes over for a reply,
+that reply gets a shorter history.
+
+Where the window comes from, best first:
+
+1. **The provider's own model list**, checked once a day and kept for offline use
+   (`model-windows.json` in the data folder): OpenRouter's `/models`, Ollama's `/api/tags` and
+   `/api/show`, Google Gemini's models API, Anthropic's models API (`max_input_tokens`), and any
+   OpenAI-compatible server that includes a window field (vLLM's `max_model_len`, LM Studio's
+   loaded context, `context_length` / `context_window` elsewhere).
+2. **A table of well-known model families** (checked 2026-11-11 against OpenRouter's public model
+   list and the vendors' pages; conservative values):
+
+   | Family | Window (tokens) |
+   |---|---|
+   | GPT-4.1 | 1,047,576 |
+   | GPT-5.4 and later, GPT-6 | 1,050,000 |
+   | GPT-5 to 5.3 | 400,000 (ChatGPT plan: 272,000) |
+   | GPT-4o, gpt-oss | 128,000 / 131,072 |
+   | Claude (API key or subscription) | 200,000; the opt-in 1M variants (`…[1m]`) 1,000,000 |
+   | Gemini 1.5 to 4 | 1,048,576 |
+   | Grok 4 / 5 | 256,000 (Grok 4.20: 2,000,000) |
+   | Llama 3.1-3.3 / Llama 4 | 131,072 / 524,288 |
+   | Qwen 3.5 and later / Qwen 3 | 262,144 / 40,960 |
+   | Mistral Large/Medium/Small (2025-12 on), Devstral / older | 256,000 / 128,000 |
+   | DeepSeek V3 / V4 | 163,840 / 1,048,576 |
+   | Kimi K2 / K3, GLM 4.6-5.1 / 5.2+, MiniMax M2 / M3 | 262,144 / 1,048,576, 200,000 / 1,048,576, 196,608 / 1,000,000 |
+
+3. **Anything else:** the old default, about 12,000 tokens (48,000 characters). Sara never guesses
+   a bigger window for a model it doesn't know.
+
+### Ollama on your own computer: num_ctx
+
+Ollama loads a model with a small context unless the request asks for more (4,096 tokens on
+machines with less than 24 GB of graphics memory), and it **silently cuts off** anything longer.
+Its OpenAI-compatible endpoint can't ask for more, which is a quiet reason long chats used to go
+wrong with local models. Sara now sends Ollama's own `num_ctx` option (through `/api/chat`) with
+every call: **32,768 tokens** by default (65,536 with 24 GB of graphics memory or more, 131,072
+from 48 GB; never past the model's own maximum); *full window*
+asks for the model's maximum, bounded by the graphics memory (64k under 24 GB, 128k from 24 GB,
+256k from 48 GB); a fixed size asks for enough room for that size. A bigger context uses more
+graphics memory; if a model no longer fits, pick a smaller size. Cloud models through your Ollama
+already get their full window from Ollama.
+
 ## Cloud models
 
 Any current model from OpenAI, Anthropic or xAI works well for chat, coding and tools. The

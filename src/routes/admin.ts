@@ -9,7 +9,8 @@ const activeBackupFiles = new Set<string>();
 import { createReadStream, existsSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { backupName, BACKUPS_DIR, DEFAULT_BACKUP, listBackups } from '../backup.ts';
-import { HISTORY_BUDGET_CHARS } from '../chat.ts';
+import { HISTORY_BUDGET_CHARS, historyBudgetFor, historyMode, primeBudget } from '../chat.ts';
+import { HARD_MAX_CHARS, MIN_HISTORY_CHARS, type HistoryMode } from '../model-context.ts';
 import { cleanAppearance } from '../appearance.ts';
 import { checklist } from '../checklist.ts';
 import { appMenu } from '../bridges/commands.ts';
@@ -56,17 +57,47 @@ function cleanModelList(v: unknown, localOnly: boolean): { providerId: string; m
   });
 }
 
+/** 3.4.1: the Long conversations line: what she keeps in mind with the default model, in plain numbers. */
+export function budgetView(app: RouteCtx['app'], preview?: { mode: HistoryMode; fixedChars?: number }): Record<string, unknown> {
+  const b = historyBudgetFor(app, undefined, undefined, preview);
+  return {
+    model: b.model ?? null,
+    provider: b.providerLabel ?? null,
+    chars: b.chars,
+    tokens: b.tokens,
+    words: Math.round(b.tokens * 0.75),
+    windowTokens: b.windowTokens,
+    source: b.source,
+    billing: b.billing,
+    capped: b.capped ?? null,
+    numCtx: b.numCtx ?? null,
+  };
+}
+
 export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
   const { app, auth, info, opts, rootDir, updater } = ctx;
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
+    // 3.4.1: the Long conversations line for a choice not saved yet (?mode=auto|full or ?chars=n).
+    if (a === 'settings' && b === 'history-budget' && method === 'GET') {
+      const u = new URL(req.url ?? '/', 'http://x');
+      const mode = u.searchParams.get('mode');
+      const chars = Number(u.searchParams.get('chars'));
+      const preview = mode === 'auto' || mode === 'full' ? { mode } as const : Number.isFinite(chars) && chars >= MIN_HISTORY_CHARS && chars <= HARD_MAX_CHARS ? { mode: 'fixed' as const, fixedChars: Math.round(chars) } : undefined;
+      await primeBudget(app);
+      return send(res, 200, budgetView(app, preview));
+    }
     if (a === 'settings') {
       if (method === 'GET') {
+        await primeBudget(app);
         const s = app.settings.get();
         return send(res, 200, {
           ownerName: s.ownerName ?? '',
           timeZone: s.timeZone ?? '',
           historyBudgetChars: s.historyBudgetChars ?? HISTORY_BUDGET_CHARS,
+          // 3.4.1: Auto (the default), the whole window, or a fixed size; and what that means with her default model.
+          historyBudgetMode: historyMode(s),
+          historyBudget: budgetView(app),
           defaultProviderId: s.defaultProviderId ?? null,
           defaultModel: s.defaultModel ?? null,
           routes: s.routes ?? {},
@@ -123,10 +154,16 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         }
         if (body.appearance !== undefined) patch.appearance = cleanAppearance(body.appearance);
         if (body.storyYearly !== undefined) patch.story = { ...app.settings.get().story, yearly: Boolean(body.storyYearly) };
+        if (body.historyBudgetMode !== undefined) {
+          if (body.historyBudgetMode !== 'auto' && body.historyBudgetMode !== 'full' && body.historyBudgetMode !== 'fixed') throw new HttpError(400, 'Pick Auto, the full window or a fixed size.');
+          patch.historyBudgetMode = body.historyBudgetMode;
+        }
         if (body.historyBudgetChars !== undefined) {
           const n = Number(body.historyBudgetChars);
-          if (!Number.isFinite(n) || n < 8_000 || n > 2_000_000) throw new HttpError(400, 'Conversation length must be between 8,000 and 2,000,000 characters.');
+          if (!Number.isFinite(n) || n < MIN_HISTORY_CHARS || n > HARD_MAX_CHARS) throw new HttpError(400, 'Conversation length must be between 8,000 and 4,000,000 characters.');
           patch.historyBudgetChars = Math.round(n);
+          // An older app sends only the size: that is a fixed choice (unless it's the old default).
+          if (body.historyBudgetMode === undefined && patch.historyBudgetChars !== HISTORY_BUDGET_CHARS) patch.historyBudgetMode = 'fixed';
         }
         if (body.timeZone !== undefined) {
           const tz = String(body.timeZone);

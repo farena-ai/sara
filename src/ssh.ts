@@ -149,6 +149,8 @@ export interface SshServer {
   probe?: SshProbe;
   /** 2.52.1: how her key got onto the server. */
   connectedVia?: 'cpanel' | 'password' | 'paste' | 'imported';
+  /** 3.4.1: `id -u` said 0 on the last test (root under another name): no cPanel token path. */
+  uid0?: boolean;
   /** 2.52.1: the cPanel host name the owner accepted for the API (the certificate's name). */
   cpanelHost?: string;
   /** 2.52.1: the last test's diagnosis code and when it ran. */
@@ -185,7 +187,18 @@ export interface ServerView extends Omit<SshServer, 'pending' | 'key'> {
   keyCreatedAt?: string;
   /** 2.52.1: the one line to paste on the server (her public key into authorized_keys). */
   pasteCommand?: string;
+  /** 3.4.1: user root, or uid 0 seen on a test: WHM, not cPanel (no token path). */
+  root?: boolean;
   ready: boolean;
+}
+
+/** 3.4.1: root signs in to WHM, not cPanel: cPanel API tokens belong to cPanel accounts. */
+export const isRootUser = (s: Pick<SshServer, 'user' | 'uid0'>): boolean => s.user === 'root' || s.uid0 === true;
+
+/** The easiest way in (design §2.2): the cPanel token for a cPanel account, else the password once, else copy and paste. */
+export function recommendPath(s: Pick<SshServer, 'user' | 'uid0'>, cpanelFound: boolean, passwords: boolean | undefined): SshProbe['recommended'] {
+  if (cpanelFound && !isRootUser(s)) return 'cpanel';
+  return passwords ? 'password' : 'paste';
 }
 
 /** PL2a (N7): a Connect that never reached the server's SSH port (not listed; Cancel removes it). */
@@ -399,6 +412,7 @@ export class SshManager {
       ...rest,
       passwordSaved: this.#vault.has(vaultKeyOf(s.id)),
       ...(pending ? { pendingFingerprint: pending.fingerprint, hostKeyChanged: pending.changed } : {}),
+      ...(isRootUser(s) ? { root: true } : {}),
       ...(key ? { keyPath: key.path, publicKey: key.publicLine, keySource: key.source, keyCreatedAt: key.createdAt, ...(key.installedAt ? { keyInstalledAt: key.installedAt } : {}), ...(key.source === 'made' && PUBLIC_LINE.test(key.publicLine) ? { pasteCommand: pasteCommand(key.publicLine) } : {}) } : {}),
       // Her key counts once it is on the server (made keys are made before any sign-in now).
       ready: Boolean(s.fingerprint && !pending && ((key && (key.source === 'imported' || key.installedAt)) || this.#vault.has(vaultKeyOf(s.id)))),
@@ -676,7 +690,7 @@ export class SshManager {
           throw new SshError(why, 'LOGIN_FAILED');
         }
         const d = this.diagnose(this.get(id), r, { mode: 'password', secrets: [pwText] }) ?? diagnosis('UNKNOWN', { host: s.host }, scrubbed(r.stderr, [pwText]));
-        if (d.code === 'PASSWORD_OFF' && s.probe) this.#update(id, { probe: { ...s.probe, passwords: false, recommended: s.probe.cpanel?.found ? 'cpanel' : 'paste' } });
+        if (d.code === 'PASSWORD_OFF' && s.probe) this.#update(id, { probe: { ...s.probe, passwords: false, recommended: recommendPath(s, s.probe.cpanel?.found === true, false) } });
         this.#update(id, { lastError: diagText(d) });
         throw diagError(d);
       }
@@ -763,16 +777,19 @@ export class SshManager {
   async test(id: string): Promise<TestResult> {
     const s = this.get(id);
     const inst = keyComment(this.#instance, this.#now()).replace(/-\d{8}$/, '-');
-    const cmd = `echo sara-ok; echo "sara-shell:$0:$SHELL"; echo "sara-own:$(grep -c '${inst}' "$HOME/.ssh/authorized_keys" 2>/dev/null)"`;
+    const cmd = `echo sara-ok; echo "sara-shell:$0:$SHELL"; echo "sara-own:$(grep -c '${inst}' "$HOME/.ssh/authorized_keys" 2>/dev/null)"; echo "sara-uid:$(id -u 2>/dev/null)"`;
     let d: Diagnosis | undefined;
     let shell: string | undefined;
     let own: number | undefined;
+    let uid: number | undefined;
     try {
       const r = await this.exec(id, cmd, { timeoutMs: 30_000, verbose: true });
       if (r.code === 0 && /sara-ok/.test(r.stdout)) {
         shell = /sara-shell:([^\r\n]*)/.exec(r.stdout)?.[1]?.slice(0, 120);
         const n = Number(/sara-own:(\d+)/.exec(r.stdout)?.[1]);
         if (Number.isFinite(n)) own = n;
+        const u = /sara-uid:(\d+)/.exec(r.stdout)?.[1];
+        if (u !== undefined) uid = Number(u);
         d = /jailshell/.test(shell ?? '') ? diagnosis('JAILED', { name: s.name, host: s.host }) : diagnosis('CONNECTED', { name: s.name, host: s.host });
       } else d = this.diagnose(this.get(id), r, { mode: 'test' }) ?? diagnosis('UNKNOWN', { host: s.host }, scrubbed(r.stderr));
     } catch (err) {
@@ -790,8 +807,31 @@ export class SshManager {
       ...(ok && cur.key && !cur.key.installedAt && cur.key.source === 'made' ? { key: { ...cur.key, installedAt: now } } : {}),
       ...(ok && !cur.connectedVia ? { connectedVia: cur.key?.source === 'imported' ? 'imported' : 'paste' } : {}),
       ...(ok ? { lastError: undefined } : { lastError: diagText(d) }),
+      ...(uid !== undefined ? { uid0: uid === 0 || undefined } : {}),
     });
     return { ok, message: ok ? 'Signed in.' : diagText(d), code: d.code, title: d.title, fix: d.fix, diagnosis: d, ...(shell ? { shell } : {}) };
+  }
+
+  /**
+   * 3.4.1: her own key first, quietly (after the ID card is approved, on reopening a server that
+   * isn't connected yet, and every few seconds while "Add Sara's key yourself" is open). Same
+   * BatchMode run and strict options as Test connection; a miss records nothing (no failed check,
+   * no error, no history line), so the page can ask as often as it likes.
+   */
+  async tryOwnKey(id: string): Promise<TestResult & { tried: boolean }> {
+    const s = this.get(id);
+    const view = this.view(s);
+    if (view.ready) return { ok: true, message: 'Signed in.', code: 'CONNECTED', title: '', fix: '', tried: false };
+    if (!s.fingerprint || s.pending || !s.key || s.key.source !== 'made' || !existsSync(s.key.path)) return { ok: false, message: 'Not yet.', code: 'NOT_TRIED', title: '', fix: '', tried: false };
+    const keep = { lastCheck: s.lastCheck, lastError: s.lastError, lastUsedAt: s.lastUsedAt, history: s.history, connectedVia: s.connectedVia, uid0: s.uid0 };
+    const t = await this.test(id);
+    if (t.ok) {
+      this.#note(id, `Sara’s key already worked on ${s.host}.`);
+      return { ...t, tried: true };
+    }
+    // A changed host key is not a quiet miss: Test connection's record (and the pending key) stay.
+    if (t.code !== 'HOSTKEY_CHANGED') this.#update(id, keep);
+    return { ...t, tried: true };
   }
 
   /** "I've added it — check now" (the paste path): signs in with her key and says what happened. */
@@ -927,8 +967,11 @@ export class SshManager {
     // 6. Her own key, made now (before any sign-in), so every path has her public line.
     if (!s.key) await this.ensureKey(id);
     const passwords = methods ? passwordsAllowed(methods) : undefined;
-    const recommended: SshProbe['recommended'] = cpanel?.found ? 'cpanel' : passwords ? 'password' : 'paste';
-    return this.#update(id, { probe: { at, ports: tried, port: found, ...(methods ? { methods } : {}), ...(passwords !== undefined ? { passwords } : {}), ...(cpanel ? { cpanel } : {}), recommended }, lastError: undefined });
+    const recommended = recommendPath(s, cpanel?.found === true, passwords);
+    const out = this.#update(id, { probe: { at, ports: tried, port: found, ...(methods ? { methods } : {}), ...(passwords !== undefined ? { passwords } : {}), ...(cpanel ? { cpanel } : {}), recommended }, lastError: undefined });
+    // 3.4.1: an ID card approved earlier (Reconnect, Look again): her key may already be there.
+    if (out.fingerprint && !out.pending) await this.tryOwnKey(id).catch(() => undefined);
+    return this.get(id);
   }
 
   /**
@@ -1005,6 +1048,7 @@ export class SshManager {
     const tok = Buffer.isBuffer(token) ? Buffer.from(token) : Buffer.from(String(token ?? '').trim(), 'utf8');
     try {
       this.#checkReach(s.host);
+      if (isRootUser(s)) throw diagError(diagnosis('ROOT_CPANEL', { host: s.host, user: s.user }));
       if (!CPANEL_TOKEN.test(tok.toString('utf8'))) throw diagError(diagnosis('BAD_TOKEN', { host: s.host }));
       if (!s.fingerprint || s.pending) throw new SshError('Say yes to the server’s ID card (its host key) first.', 'NO_HOSTKEY');
       // The API host: the SSH address, or a name the certificate showed and the owner accepted.

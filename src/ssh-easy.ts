@@ -292,7 +292,7 @@ export type HostKind = (typeof HOST_KINDS)[number];
 
 export type DiagCode =
   | 'DNS' | 'PORT_CLOSED' | 'TIMEOUT' | 'NOT_SSH' | 'HOSTKEY_CHANGED' | 'PASSWORD_OFF' | 'WRONG_PASSWORD' | 'KEY_NOT_ACCEPTED' | 'WRONG_USER' | 'NO_SHELL'
-  | 'JAILED' | 'TWO_STEP' | 'TOO_MANY' | 'PRIVATE_LOCAL' | 'NO_SSH_PROGRAM' | 'CERT_NAME' | 'CERT_BAD' | 'NO_CPANEL' | 'BAD_TOKEN' | 'CPANEL_FAILED' | 'CONNECTED' | 'UNKNOWN';
+  | 'JAILED' | 'TWO_STEP' | 'TOO_MANY' | 'PRIVATE_LOCAL' | 'NO_SSH_PROGRAM' | 'CERT_NAME' | 'CERT_BAD' | 'NO_CPANEL' | 'BAD_TOKEN' | 'ROOT_CPANEL' | 'CPANEL_FAILED' | 'CONNECTED' | 'UNKNOWN';
 
 /** Buttons a diagnosis offers (web/ssh.js maps each to a handler). */
 export type DiagAction = 'edit-address' | 'find-port' | 'set-port' | 'retry' | 'trust-new' | 'leave' | 'cpanel' | 'paste' | 'password' | 'steps' | 'check' | 'edit-user' | 'test' | 'use-cert-name' | 'details';
@@ -316,7 +316,8 @@ export const DIAG: Record<DiagCode, { title: string; fix: string; actions: DiagA
   CERT_NAME: { title: en('cPanel’s certificate is for {other}, not {host}.'), fix: en('Use that name for cPanel? Your SSH address stays the same. Sara doesn’t send the token until the certificate matches.'), actions: ['use-cert-name', 'paste'] },
   CERT_BAD: { title: en('cPanel’s certificate on {host} can’t be checked.'), fix: en('Sara doesn’t send a token over a connection she can’t verify. Add her key by copy and paste instead.'), actions: ['paste'] },
   NO_CPANEL: { title: en('cPanel doesn’t answer on {host}.'), fix: en('Check the address, or add Sara’s key by copy and paste instead.'), actions: ['paste'] },
-  BAD_TOKEN: { title: en('That doesn’t look like a cPanel token.'), fix: en('A cPanel token is 32 capital letters and digits. Press Copy next to the new token in cPanel and paste it here.'), actions: [] },
+  BAD_TOKEN: { title: en('That doesn’t look like a cPanel token.'), fix: en('A cPanel token is 32 capital letters and digits. Press Copy next to the new token in cPanel and paste it here.'), actions: ['paste'] },
+  ROOT_CPANEL: { title: en('A cPanel token doesn’t work for root.'), fix: en('root signs in to WHM, not cPanel. Add Sara’s key yourself instead. In WHM: Security Center → Manage root’s SSH Keys → Import Key, then Authorize. Or paste the one line in a terminal on the server.'), actions: ['paste'] },
   CPANEL_FAILED: { title: en('cPanel didn’t install the key.'), fix: en('Add the key by copy and paste instead: the steps are below.'), actions: ['paste'] },
   CONNECTED: { title: en('Connected. Sara can work on {name}.'), fix: '', actions: [] },
   UNKNOWN: { title: en('Something else went wrong.'), fix: en('Press Details to see what ssh said, or try again.'), actions: ['details', 'retry'] },
