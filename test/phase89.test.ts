@@ -414,7 +414,7 @@ test('in the Sara browser: her tool opens the job\u2019s app through the tunnel 
     }
     const out = evs.filter((x): x is Extract<ChatEvent, { type: 'tool_result' }> => x.type === 'tool_result');
     assert.deepEqual(out.map((x) => x.status), ['ok', 'ok', 'ok'], JSON.stringify(out.map((x) => x.output)));
-    assert.match(out[0].output, /Opened http:\/\/127\.0\.0\.1:\d+\/ in the Sara browser on Test PC through the dev tunnel \(your background job #11 on port \d+ here; .*storage and hot reload work/);
+    assert.match(out[0].output, /Opened http:\/\/127\.0\.0\.1:\d+\/ in Sara\u2019s browser on Test PC through the dev tunnel \(your background job #11 on port \d+ here; .*storage and hot reload work/);
     assert.match(out[0].output, /Title: Hot app/);
     // The seeded bug, from the logs: an uncaught TypeError at app.js.
     assert.match(out[1].output, /TypeError[^\n]*toFixed[^\n]*app\.js/);

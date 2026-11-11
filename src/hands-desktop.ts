@@ -21,6 +21,13 @@ export const CU5_OPS = ['d.screens', 'd.windows', 'd.shot', 'd.elements'] as con
 /** CU6's command set: typed, supervised desktop input. */
 export const CU6_OPS = ['d.click', 'd.type', 'd.keys', 'd.scroll', 'd.drag', 'd.launch'] as const;
 export const DESKTOP_INPUT_OPS: ReadonlySet<string> = new Set(CU6_OPS);
+/** 3.4.x: the tabs of the person's OWN open browsers (Edge, Chrome, Firefox, Brave…), read only. Needs "The whole screen". */
+export const TAB_OPS = ['d.tabs'] as const;
+/** App/process names of the person's own browsers (d.tabs reads their tab strips; the fallback lists their windows). */
+export const BROWSER_APP = /^(msedge|microsoft edge|chrome|google chrome|chromium|firefox|brave|brave browser|opera|vivaldi|safari|arc)(\.exe)?$/i;
+const BROWSER_LABEL: [RegExp, string][] = [[/edge/i, 'Edge'], [/chrom/i, 'Chrome'], [/firefox/i, 'Firefox'], [/brave/i, 'Brave'], [/opera/i, 'Opera'], [/vivaldi/i, 'Vivaldi'], [/safari/i, 'Safari'], [/^arc/i, 'Arc']];
+/** "msedge" → "Edge" (the browser's plain name). */
+export const browserLabel = (app: string): string => BROWSER_LABEL.find(([re]) => re.test(app))?.[1] ?? app;
 export const DESKTOP_LIMITS = { maxEdge: 1280, elements: 300, depth: 8, viewTtlMs: 20_000, pictureEveryMs: 500, windows: 60 } as const;
 
 /**
@@ -133,6 +140,53 @@ export function desktopWindows(raw: unknown): DesktopWindow[] {
   return out;
 }
 
+export interface BrowserTab {
+  title?: string;
+  url?: string;
+  active?: boolean;
+  /** A tab the blocklist names (banking, a password manager's web vault…): only the kind. */
+  hidden?: string;
+}
+export interface BrowserWindowTabs {
+  id?: string;
+  app?: string;
+  browser?: string;
+  title?: string;
+  tabs: BrowserTab[];
+  /** The whole window is hidden by the blocklist: only the kind. */
+  hidden?: string;
+}
+
+/** The server's re-check of d.tabs: blocked windows and tabs keep only their kind; key-shaped text masked. */
+export function browserTabs(raw: unknown): BrowserWindowTabs[] {
+  if (!Array.isArray(raw)) return [];
+  const out: BrowserWindowTabs[] = [];
+  for (const x of raw.slice(0, 20)) {
+    if (!x || typeof x !== 'object') continue;
+    const o = x as Record<string, unknown>;
+    const app = plain(o.app, 80);
+    const title = plain(o.title, 160);
+    const kind = o.hidden ? plain(o.hidden, 40) || 'hidden' : blockedKind(title, app);
+    if (kind) {
+      out.push({ hidden: kind, tabs: [] });
+      continue;
+    }
+    const tabs: BrowserTab[] = [];
+    for (const t of Array.isArray(o.tabs) ? (o.tabs as unknown[]).slice(0, 100) : []) {
+      if (!t || typeof t !== 'object') continue;
+      const r = t as Record<string, unknown>;
+      // Edge/Chrome add hover details to a tab's name ("Title - Memory usage - 18.6 MB").
+      const tt = plain(r.title, 200).replace(/\s+-\s+(Memory usage|Speicherauslastung|Uso de memoria|Utilisation de la m\S+moire)\s+-\s+[\d.,]+\s*[KMG]B$/i, '').slice(0, 160);
+      const url = plain(r.url, 300);
+      const k = r.hidden ? plain(r.hidden, 40) || 'hidden' : blockedKind(`${tt} ${url}`, '');
+      if (k) tabs.push({ hidden: k, ...(r.active === true ? { active: true } : {}) });
+      else tabs.push({ title: maskDesktopText(tt), ...(url && (/^(https?|file|about|edge|chrome):/i.test(url) || /^[a-z0-9.-]+\.[a-z]{2,}(?:[:/]|$)/i.test(url)) ? { url: maskDesktopText(url) } : {}), ...(r.active === true ? { active: true } : {}) });
+    }
+    out.push({ id: plain(o.id, 40), app, browser: plain(o.browser, 40) || browserLabel(app), title: maskDesktopText(title), tabs });
+  }
+  return out;
+}
+
 // ---------------- a tiny PNG (8-bit RGB, filter 0) ----------------
 export function encodePng(w: number, h: number, rgb: Uint8Array): Buffer {
   const raw = Buffer.alloc((w * 3 + 1) * h);
@@ -196,6 +250,8 @@ export interface FixtureWindow {
   /** One of Sara's own windows (never in a picture or a list). */
   own?: boolean;
   elements: FixtureElement[];
+  /** 3.4.x: a browser window's tab strip (d.tabs). */
+  tabs?: { title: string; url?: string; active?: boolean }[];
 }
 
 /** A small known desktop: a notes window with text and a password field, a fixture KeePass, Sara's own window on top. */
@@ -313,6 +369,21 @@ export class TestDesktop {
       else out.push({ id: w.id, title: maskDesktopText(w.title), app: w.app, bounds: w.bounds, ...(w.minimized ? { minimized: true } : {}), ...(w === front ? { focused: true } : {}), screen: this.screen.id });
     }
     return { windows: out };
+  }
+
+  /** 3.4.x d.tabs: each of the person's own browser windows with its tabs (the apps read the tab strip with UI Automation / Accessibility). */
+  tabs(): Record<string, unknown> {
+    const out: Record<string, unknown>[] = [];
+    for (const w of [...this.windows].reverse()) {
+      if (w.own || !BROWSER_APP.test(w.app)) continue;
+      const k = this.#hidden(w);
+      if (k) {
+        out.push({ hidden: k });
+        continue;
+      }
+      out.push({ id: w.id, app: w.app, browser: browserLabel(w.app), title: maskDesktopText(w.title), ...(w.minimized ? { minimized: true } : {}), tabs: (w.tabs ?? [{ title: w.title, active: true }]).map((t) => { const tk = blockedKind(`${t.title} ${t.url ?? ''}`, '', this.extra); return tk ? { hidden: tk, ...(t.active ? { active: true } : {}) } : { title: maskDesktopText(t.title), ...(t.url ? { url: t.url } : {}), ...(t.active ? { active: true } : {}) }; }) });
+    }
+    return { browsers: out };
   }
 
   #find(id: unknown): FixtureWindow {

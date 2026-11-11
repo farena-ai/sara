@@ -343,7 +343,7 @@ test('her tools through a turn: open → logs → look; run steps keep thumbnail
     assert.ok(!evs.some((x) => x.type === 'approval'), 'a site the owner named opens without a card');
     const results = evs.filter((x): x is Extract<ChatEvent, { type: 'tool_result' }> => x.type === 'tool_result');
     assert.deepEqual(results.map((x) => x.status), ['ok', 'ok', 'ok', 'ok'], JSON.stringify(results.map((x) => x.output)));
-    assert.match(results[1].output, /Opened .* in the Sara browser on Test PC \(HTTP 200\)\. Title: Shop/);
+    assert.match(results[1].output, /Opened .* in Sara\u2019s browser on Test PC \(HTTP 200\)\. Title: Shop/);
     assert.match(results[2].output, /cart\.total is not a function/);
     assert.match(results[2].output, /GET .*\/api\/items → HTTP 500/);
     assert.match(results[3].output, /e1 heading "Your cart"/);

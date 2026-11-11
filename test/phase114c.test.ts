@@ -182,7 +182,7 @@ test('114c.9 views: pin vs keep words (V3), Today hero row (V4/V5), coder subtit
   assert.match(html, /<div class="td-dateline"><button id="td-back"/);
   const css = web('kit.css');
   assert.match(css, /#today \.td-actions > button, #today \.td-actions \.td-hbtn \{ min-height: 44px; border-radius: var\(--r-pill\); \}/);
-  assert.match(css, /body:has\(#today\[open\]\) #hp-open-her \{ display: none; \}/);
+  assert.match(css, /html\.today-open #hp-open-her \{ display: none; \}/, 'docs/PERFORMANCE.md: a class, not a page-wide :has()');
   assert.match(html, /<p id="fnd-tab-sub" class="muted small tab-sub">/);
   assert.match(web('findings-view.js'), /redteam: t\('She tries to break it before you ship\.'\)/);
   for (const name of ['copy', 'update', 'flag', 'pin', 'heart', 'edit']) assert.match(app, new RegExp(`act\\('${name}', `), name);

@@ -78,8 +78,10 @@ const NONAME = '[data-noname]';
 const renderFor = (el, s) => (el?.closest?.(NONAME) ? translate(s) : render(s));
 const needsWork = (s) => NAME_RE.test(s) || (lang !== 'en' && Boolean(dict[norm(s)]));
 
-function fixText(node) {
-  if (raw(node.parentElement)) return;
+// `safe`: called from walk(), whose tree walker already skips raw subtrees (no closest() per node:
+// opening Settings walked ~7,000 nodes and spent ~80 ms in closest(); docs/PERFORMANCE.md).
+function fixText(node, safe = false) {
+  if (!safe && raw(node.parentElement)) return;
   // Text t() made earlier (perhaps for the old name, kept by a panel and put back): made again now.
   const again = !originalText.has(node) && built.get(node.nodeValue);
   if (again) {
@@ -96,8 +98,8 @@ function fixText(node) {
   if (node.nodeValue !== next) node.nodeValue = next;
 }
 
-function fixAttrs(el) {
-  if (raw(el)) return;
+function fixAttrs(el, safe = false) {
+  if (!safe && raw(el)) return;
   let saved = originalAttr.get(el);
   for (const a of ATTRS) {
     if (!el.hasAttribute(a)) continue;
@@ -117,13 +119,13 @@ function fixAttrs(el) {
 function walk(root) {
   if (root.nodeType === Node.TEXT_NODE) return fixText(root);
   if (root.nodeType !== Node.ELEMENT_NODE || raw(root)) return;
-  fixAttrs(root);
+  fixAttrs(root, true);
   const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
     acceptNode: (n) => (n.nodeType === Node.ELEMENT_NODE && n.matches(RAW) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
   });
   for (let n = tw.nextNode(); n; n = tw.nextNode()) {
-    if (n.nodeType === Node.TEXT_NODE) fixText(n);
-    else fixAttrs(n);
+    if (n.nodeType === Node.TEXT_NODE) fixText(n, true);
+    else fixAttrs(n, true);
   }
 }
 
@@ -163,12 +165,34 @@ export function setIdentity(next) {
   if (typeof CustomEvent === 'function') document.dispatchEvent?.(new CustomEvent('sara-identity', { detail: identity }));
 }
 
+const NUMBER_FORMATS = new Map();
+function numberFormat(l, opts) {
+  const key = opts ? `${l}|${JSON.stringify(opts)}` : l;
+  let f = NUMBER_FORMATS.get(key);
+  if (!f) {
+    try {
+      f = new Intl.NumberFormat(l, opts);
+    } catch {
+      return null;
+    }
+    if (NUMBER_FORMATS.size > 200) NUMBER_FORMATS.clear();
+    NUMBER_FORMATS.set(key, f);
+  }
+  return f;
+}
 // Dates and numbers follow the app language (calls that pass no locale of their own).
 for (const [proto, names] of [[Date.prototype, ['toLocaleDateString', 'toLocaleTimeString', 'toLocaleString']], [Number.prototype, ['toLocaleString']]]) {
   for (const name of names) {
     const orig = proto[name];
+    const numbers = proto === Number.prototype;
     proto[name] = function (loc, opts) {
-      return orig.call(this, loc === undefined || (Array.isArray(loc) && !loc.length) ? locale() : loc, opts);
+      const l = loc === undefined || (Array.isArray(loc) && !loc.length) ? locale() : loc;
+      // Numbers: one formatter per locale and options (the same result; a new one per call was slow).
+      if (numbers && typeof l === 'string' && (opts === undefined || (opts && typeof opts === 'object'))) {
+        const f = numberFormat(l, opts);
+        if (f) return f.format(this);
+      }
+      return orig.call(this, l, opts);
     };
   }
 }

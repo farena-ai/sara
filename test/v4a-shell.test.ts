@@ -260,7 +260,7 @@ test('V4a field and motion: at most 30 fps, paused while hidden, still with redu
   assert.equal(fieldPlan({ ...base, classic: true, busy: 1 }).still, false);
   const busy = fieldPlan({ ...base, busy: 1 });
   const idle = fieldPlan({ ...base, busy: 0 });
-  assert.ok(busy.run && busy.fps <= 30 && busy.speed > idle.speed && idle.fps < busy.fps);
+  assert.ok(busy.run && busy.fps <= 15 && busy.speed > idle.speed && idle.fps < busy.fps, 'docs/PERFORMANCE.md: busy speeds the drift, at most 15 frames a second');
   assert.equal(frameDue(0, 20, 30), false);
   assert.equal(frameDue(0, 34, 30), true);
   assert.equal(frameDue(0, 20, 120), false, 'never more than 30 a second');

@@ -104,6 +104,33 @@ export interface ReminderFire {
   at: string;
 }
 
+/** 3.4.2: why a note version was kept: the change that came after it. */
+export type NoteVersionReason = 'edit' | 'replace' | 'add' | 'restore' | 'delete';
+
+/** 3.4.2: a note as it was before one change. */
+export interface NoteVersion {
+  id: number;
+  noteId: number;
+  title: string;
+  body: string;
+  projectId: number | null;
+  /** When the change came (the version was current until then). */
+  at: string;
+  reason: NoteVersionReason;
+}
+
+/** 3.4.2: a deleted note's last version is kept this long (like the skills trash), then cleared. */
+export const NOTE_TRASH_DAYS = 30;
+/** Versions kept per note (the oldest go first); a note's current text is never touched by this. */
+export const NOTE_VERSIONS_KEPT = 100;
+/** The longest a note can be (tool, API and adds). */
+export const NOTE_MAX = 50_000;
+
+/** Lowercase words only, for matching a note by a close title ("Frank's medical records" ~ "medical records"). */
+export function noteTitleKey(s: string): string {
+  return s.toLowerCase().replace(/['’]s\b/g, '').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
+
 /** Phase 29: a place the owner saved (from the phone's location, or an address). */
 export interface Place {
   id: number;
@@ -159,6 +186,18 @@ CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
   INSERT INTO notes_fts(notes_fts, rowid, title, body) VALUES ('delete', old.id, old.title, old.body);
   INSERT INTO notes_fts(rowid, title, body) VALUES (new.id, new.title, new.body);
 END;
+-- 3.4.2: the version of a note before each change (edit, replace, add, restore, delete), so nothing
+-- is lost. No foreign key: a deleted note's last version stays for NOTE_TRASH_DAYS so it can come back.
+CREATE TABLE IF NOT EXISTS note_versions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  note_id INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  project_id INTEGER,
+  at TEXT NOT NULL,
+  reason TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS note_versions_note ON note_versions(note_id, id);
 CREATE TABLE IF NOT EXISTS reminders (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   text TEXT NOT NULL,
@@ -348,6 +387,8 @@ CREATE INDEX IF NOT EXISTS reminder_fires_r ON reminder_fires(reminder_id, at);`
     // Phase 99 (ST4): repeating to-dos (the board's other columns are added by src/board.ts).
     const tcols = new Set((db.prepare('PRAGMA table_info(tasks)').all() as Row[]).map((r) => String(r.name)));
     if (!tcols.has('repeat')) db.exec("ALTER TABLE tasks ADD COLUMN repeat TEXT NOT NULL DEFAULT 'none'");
+    // 3.4.2: old deleted-note copies are cleared when notes are deleted or the deleted list is read,
+    // not here (the clock may not be ready while the app is still being put together).
   }
 
   /** Phase 99: told after every task change (the board's activity and live pushes). */
@@ -545,20 +586,118 @@ CREATE INDEX IF NOT EXISTS reminder_fires_r ON reminder_fires(reminder_id, at);`
     return r ? this.#note(r) : undefined;
   }
 
-  saveNote(n: { id?: number; title: string; body: string; project?: string | null }): Note {
+  saveNote(n: { id?: number; title: string; body: string; project?: string | null }, reason: NoteVersionReason = 'edit'): Note {
     const ts = this.#ts();
     if (n.id) {
       const cur = this.note(n.id);
       if (!cur) throw new ToolError(`No note #${n.id}.`);
-      this.db.prepare('UPDATE notes SET title = ?, body = ?, project_id = ?, updated_at = ? WHERE id = ?').run(n.title || cur.title, n.body, n.project !== undefined ? this.projectId(n.project) : cur.projectId, ts, n.id);
+      const title = n.title || cur.title;
+      const projectId = n.project !== undefined ? this.projectId(n.project) : cur.projectId;
+      if (title === cur.title && n.body === cur.body && projectId === cur.projectId) return cur;
+      this.#keepVersion(cur, reason);
+      this.db.prepare('UPDATE notes SET title = ?, body = ?, project_id = ?, updated_at = ? WHERE id = ?').run(title, n.body, projectId, ts, n.id);
       return this.note(n.id)!;
     }
     const id = this.db.prepare('INSERT INTO notes (project_id, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(this.projectId(n.project), n.title, n.body, ts, ts).lastInsertRowid;
     return this.note(Number(id))!;
   }
 
+  /**
+   * 3.4.2: add a dated section to the end of a note, never touching what is already there. Finds
+   * the note by id, else by the same or a close title (the most recently changed one), else makes
+   * a new note with that title.
+   */
+  addToNote(a: { id?: number; title?: string; text: string; heading: string; project?: string | null }): { note: Note; created: boolean } {
+    const text = a.text.trim();
+    if (!text) throw new ToolError('Give the "text" to add.');
+    const section = `${a.heading}\n${text}`;
+    const cur = a.id ? this.note(a.id) : a.title ? this.noteByTitle(a.title) : undefined;
+    if (a.id && !cur) throw new ToolError(`No note #${a.id}.`);
+    if (!cur) {
+      const title = (a.title ?? text.split('\n')[0]).trim().slice(0, 120) || 'Note';
+      if (section.length > NOTE_MAX) throw new ToolError(`That is too long for one note (max ${NOTE_MAX.toLocaleString('en-US')} characters).`);
+      return { note: this.saveNote({ title, body: section, ...(a.project !== undefined ? { project: a.project } : {}) }), created: true };
+    }
+    const body = cur.body.trim() ? `${cur.body.trimEnd()}\n\n${section}` : section;
+    if (body.length > NOTE_MAX) throw new ToolError(`Note #${cur.id} is full (max ${NOTE_MAX.toLocaleString('en-US')} characters). Nothing was changed: add this to a new note, e.g. "${cur.title.slice(0, 60)} (part 2)".`);
+    return { note: this.saveNote({ id: cur.id, title: cur.title, body }, 'add'), created: false };
+  }
+
+  /** 3.4.2: the note with this title (any case), else the newest whose title contains it or is contained in it. */
+  noteByTitle(title: string): Note | undefined {
+    const key = noteTitleKey(title);
+    if (!key) return undefined;
+    const all = this.notes(undefined, 1000);
+    const exact = all.find((n) => noteTitleKey(n.title) === key);
+    if (exact) return exact;
+    if (key.length < 4) return undefined;
+    return all.find((n) => {
+      const k = noteTitleKey(n.title);
+      return k.length >= 4 && (k.includes(key) || key.includes(k));
+    });
+  }
+
+  #keepVersion(cur: Note, reason: NoteVersionReason): void {
+    this.db.prepare('INSERT INTO note_versions (note_id, title, body, project_id, at, reason) VALUES (?, ?, ?, ?, ?, ?)').run(cur.id, cur.title, cur.body, cur.projectId, this.#ts(), reason);
+    this.db.prepare('DELETE FROM note_versions WHERE note_id = ? AND id NOT IN (SELECT id FROM note_versions WHERE note_id = ? ORDER BY id DESC LIMIT ?)').run(cur.id, cur.id, NOTE_VERSIONS_KEPT);
+  }
+
+  /** 3.4.2: a note's earlier versions, newest first (a deleted note's too, for NOTE_TRASH_DAYS). */
+  noteVersions(noteId: number): NoteVersion[] {
+    return (this.db.prepare('SELECT * FROM note_versions WHERE note_id = ? ORDER BY id DESC').all(noteId) as Row[]).map((r) => ({
+      id: Number(r.id),
+      noteId: Number(r.note_id),
+      title: String(r.title),
+      body: String(r.body),
+      projectId: r.project_id === null ? null : Number(r.project_id),
+      at: String(r.at),
+      reason: String(r.reason) as NoteVersionReason,
+    }));
+  }
+
+  /** 3.4.2: notes deleted in the last NOTE_TRASH_DAYS (their last version), newest first. */
+  deletedNotes(): NoteVersion[] {
+    this.pruneNoteVersions();
+    const rows = this.db.prepare("SELECT v.id FROM note_versions v WHERE v.reason = 'delete' AND v.note_id NOT IN (SELECT id FROM notes) AND v.id = (SELECT MAX(id) FROM note_versions w WHERE w.note_id = v.note_id) ORDER BY v.id DESC").all() as Row[];
+    return rows.map((r) => this.#version(Number(r.id))!);
+  }
+
+  #version(id: number): NoteVersion | undefined {
+    const r = this.db.prepare('SELECT note_id FROM note_versions WHERE id = ?').get(id) as Row | undefined;
+    return r ? this.noteVersions(Number(r.note_id)).find((v) => v.id === id) : undefined;
+  }
+
+  /** 3.4.2: bring a version back (the current text is kept as a version first). A deleted note comes back with its id. */
+  restoreNoteVersion(noteId: number, versionId: number): Note {
+    const v = this.noteVersions(noteId).find((x) => x.id === versionId);
+    if (!v) throw new ToolError(`No version ${versionId} of note #${noteId}.`);
+    const cur = this.note(noteId);
+    if (cur) {
+      this.#keepVersion(cur, 'restore');
+      this.db.prepare('UPDATE notes SET title = ?, body = ?, updated_at = ? WHERE id = ?').run(v.title, v.body, this.#ts(), noteId);
+    } else {
+      const project = v.projectId !== null && this.db.prepare('SELECT 1 FROM projects WHERE id = ?').get(v.projectId) ? v.projectId : null;
+      const ts = this.#ts();
+      this.db.prepare('INSERT INTO notes (id, project_id, title, body, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(noteId, project, v.title, v.body, ts, ts);
+    }
+    return this.note(noteId)!;
+  }
+
+  /** 3.4.2: clear the kept copies of notes deleted more than NOTE_TRASH_DAYS ago. */
+  pruneNoteVersions(): number {
+    const cutoff = new Date(this.#now().getTime() - NOTE_TRASH_DAYS * 86_400_000).toISOString();
+    const gone = this.db.prepare("SELECT DISTINCT note_id FROM note_versions v WHERE note_id NOT IN (SELECT id FROM notes) AND (SELECT MAX(at) FROM note_versions w WHERE w.note_id = v.note_id AND w.reason = 'delete') < ?").all(cutoff) as Row[];
+    for (const r of gone) this.db.prepare('DELETE FROM note_versions WHERE note_id = ?').run(r.note_id);
+    return gone.length;
+  }
+
   deleteNote(id: number): boolean {
-    return Number(this.db.prepare('DELETE FROM notes WHERE id = ?').run(id).changes) > 0;
+    const cur = this.note(id);
+    if (!cur) return false;
+    this.#keepVersion(cur, 'delete');
+    const gone = Number(this.db.prepare('DELETE FROM notes WHERE id = ?').run(id).changes) > 0;
+    this.pruneNoteVersions();
+    return gone;
   }
 
   // reminders
@@ -774,6 +913,23 @@ CREATE INDEX IF NOT EXISTS reminder_fires_r ON reminder_fires(reminder_id, at);`
 
 // ---------------- tools ----------------
 
+/** 3.4.2: the non-empty lines of a note's old text that are gone from the new text. */
+function lostLines(oldBody: string, newBody: string): string[] {
+  if (!oldBody.trim() || newBody.includes(oldBody.trim())) return [];
+  return oldBody.split('\n').map((l) => l.trim()).filter((l) => l && !newBody.includes(l));
+}
+
+/** 3.4.2: how many characters of a note's old text a new text would drop. */
+export function erasedChars(oldBody: string, newBody: string): number {
+  return lostLines(oldBody, newBody).reduce((n, l) => n + l.length, 0);
+}
+
+/** 3.4.2: the share (0-1) of a note's old text that a new text keeps, line by line. */
+export function keptShare(oldBody: string, newBody: string): number {
+  const total = oldBody.split('\n').reduce((n, l) => n + l.trim().length, 0);
+  return total ? 1 - erasedChars(oldBody, newBody) / total : 1;
+}
+
 export interface PlannerToolDeps {
   planner: PlannerStore;
   now: () => Date;
@@ -888,14 +1044,18 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
   const note: Tool = {
     spec: {
       name: 'note',
-      description: 'Notes you keep for the owner (ideas, details, plans, lists). Actions: save (title, body, optional project; with id to replace), search (query), read (id), list, delete (id).',
+      description:
+        "Notes you keep for the owner (ideas, details, plans, lists, records like health results). Actions: add (id or title, text): adds a dated entry to the end of a note and never touches what is already in it; it finds the note by id or by its title (or a close one) and makes it if there is none. Keep adding to a note as the owner shares more: use add, never save with id. One add per thing they share is fine; then tell them the note number. If a note lost things, rebuild it from the chat with add. save (title, body, optional project): a new note; with id it rewrites the whole note (it is refused if it would erase text already there, unless you read it first and send the whole new text with replace: true). search (query), read (id), list, history (id: its earlier versions; no id: notes deleted in the last 30 days), restore (id, version: brings a version or a deleted note back), delete (id; kept 30 days).",
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['save', 'search', 'read', 'list', 'delete'] },
+          action: { type: 'string', enum: ['add', 'save', 'search', 'read', 'list', 'history', 'restore', 'delete'] },
           id: { type: 'number' },
           title: { type: 'string' },
-          body: { type: 'string' },
+          text: { type: 'string', description: 'add: what to add (the whole thing the owner shared, word for word).' },
+          body: { type: 'string', description: 'save: the whole text of the note.' },
+          replace: { type: 'boolean', description: 'save with id: true only after reading the note, to really rewrite it.' },
+          version: { type: 'number', description: 'restore: the version number from history.' },
           project: { type: 'string' },
           query: { type: 'string' },
         },
@@ -907,12 +1067,39 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
     async run(args) {
       const action = str(args, 'action');
       const head = (n: Note) => `#${n.id} "${n.title}"${n.project ? ` (${n.project})` : ''}, updated ${n.updatedAt.slice(0, 10)}`;
+      const size = (n: Note) => `${n.body.length.toLocaleString('en-US')} characters`;
+      const project = args.project !== undefined ? { project: args.project ? String(args.project) : null } : {};
       switch (action) {
+        case 'add': {
+          const text = args.text ?? args.body;
+          if (typeof text !== 'string' || !text.trim()) throw new ToolError('Give the "text" to add (and the note "id" or "title").');
+          if (!args.id && !(typeof args.title === 'string' && args.title.trim())) throw new ToolError('Give the note "id" or its "title" (a new note is made when no note has that title).');
+          const p = zonedParts(deps.now(), deps.timeZone());
+          const pad = (x: number) => String(x).padStart(2, '0');
+          const heading = `— ${p.y}-${pad(p.mo)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)}`;
+          const { note: n, created } = planner.addToNote({ ...(args.id ? { id: idArg(args) } : {}), ...(args.title ? { title: String(args.title) } : {}), text, heading, ...project });
+          return `Saved note ${head(n)}. ${created ? 'Made this new note with the entry' : 'Added the entry at the end; everything already in it is kept'} (now ${size(n)}). Tell the owner it is in note #${n.id}.`;
+        }
         case 'save': {
           const body = str(args, 'body');
-          if (body.length > 50_000) throw new ToolError('Note is too long (max 50,000 characters).');
-          const title = (args.title ? String(args.title) : body.split('\n')[0]).trim().slice(0, 120) || 'Note';
-          const n = planner.saveNote({ ...(args.id ? { id: idArg(args) } : {}), title, body, ...(args.project !== undefined ? { project: args.project ? String(args.project) : null } : {}) });
+          if (body.length > NOTE_MAX) throw new ToolError(`Note is too long (max ${NOTE_MAX.toLocaleString('en-US')} characters).`);
+          const given = typeof args.title === 'string' ? args.title.trim() : '';
+          if (args.id) {
+            const id = idArg(args);
+            const cur = planner.note(id);
+            if (!cur) throw new ToolError(`No note #${id}.`);
+            const lost = erasedChars(cur.body, body);
+            const replace = args.replace === true || args.replace === 'true';
+            if (!replace && lost > 0 && keptShare(cur.body, body) < 0.9) {
+              throw new ToolError(`This would erase ${lost.toLocaleString('en-US')} characters already in note #${id}. To add, use action add. To really rewrite it, read it first and send the whole new text with replace: true.`);
+            }
+            // On an update the title changes only when one is given and short (a body sentence never becomes the title).
+            const title = given && given.length <= 80 ? given : cur.title;
+            const n = planner.saveNote({ id, title, body, ...project }, lost > 0 ? 'replace' : 'edit');
+            return `Saved note ${head(n)}.${lost > 0 ? ' The earlier text is kept in its history.' : ''}`;
+          }
+          const title = (given || body.split('\n')[0]).trim().slice(0, 120) || 'Note';
+          const n = planner.saveNote({ title, body, ...project });
           return `Saved note ${head(n)}.`;
         }
         case 'search': {
@@ -928,13 +1115,32 @@ export function createPlannerTools(deps: PlannerToolDeps): Tool[] {
           if (!n) throw new ToolError(`No note #${String(args.id)}.`);
           return `${head(n)}\n\n${n.body}`;
         }
+        case 'history': {
+          const tz = deps.timeZone();
+          if (!args.id) {
+            const gone = planner.deletedNotes();
+            return gone.length ? `Notes deleted in the last ${NOTE_TRASH_DAYS} days (restore with id and version):\n${gone.map((v) => `#${v.noteId} "${v.title}" (version ${v.id}), deleted ${formatLocal(v.at, tz)}`).join('\n')}` : `No notes were deleted in the last ${NOTE_TRASH_DAYS} days.`;
+          }
+          const id = idArg(args);
+          const list = planner.noteVersions(id);
+          if (!list.length) return planner.note(id) ? `Note #${id} has no earlier versions (versions are kept from Sara 3.4.2 on).` : `No note #${id}.`;
+          const why: Record<NoteVersionReason, string> = { edit: 'an edit', replace: 'a rewrite', add: 'an add', restore: 'a restore', delete: 'delete' };
+          return `Earlier versions of note #${id} (newest first; restore with id and version):\n${list.map((v) => `version ${v.id}: "${v.title}", ${v.body.length.toLocaleString('en-US')} characters, until ${why[v.reason]} on ${formatLocal(v.at, tz)}: ${v.body.replace(/\s+/g, ' ').slice(0, 100)}`).join('\n')}`;
+        }
+        case 'restore': {
+          const id = idArg(args);
+          const version = Number(args.version);
+          if (!Number.isInteger(version) || version <= 0) throw new ToolError('Give the "version" number from history.');
+          const n = planner.restoreNoteVersion(id, version);
+          return `Restored note #${n.id} "${n.title}" to version ${version} (now ${size(n)}). The text it had just before is kept in its history.`;
+        }
         case 'delete': {
           const n = planner.note(idArg(args));
           if (!n || !planner.deleteNote(n.id)) throw new ToolError(`No note #${String(args.id)}.`);
-          return `Deleted note #${n.id} "${n.title}".`;
+          return `Deleted note #${n.id} "${n.title}". A copy is kept for ${NOTE_TRASH_DAYS} days: history shows it and restore brings it back.`;
         }
         default:
-          throw new ToolError('action must be save, search, read, list or delete.');
+          throw new ToolError('action must be add, save, search, read, list, history, restore or delete.');
       }
     },
   };

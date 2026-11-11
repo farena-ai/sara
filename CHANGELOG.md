@@ -5,6 +5,56 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.2 (2026-11-11): notes that never lose what you told her
+
+- **Notes no longer lose what you told her before:** when you kept sending results for one note (for
+  example medical records), each save replaced the whole note with only the newest result, so earlier
+  ones were lost. Now she adds each thing you share to the end of the note as a dated entry
+  (`note add`, by note number or title, making the note if there is none) and never touches what is
+  already there. A rewrite that would erase most of a note is refused with a plain message unless she
+  read the note first and really means to rewrite it. On an update the title only changes when a
+  short title is given, so a sentence of the note can't become its title any more.
+- **Every note change is kept:** each edit, rewrite, add, restore or delete keeps the text the note
+  had just before. In Planner → Notes, *Earlier versions* lists them with *Restore* (the text it has
+  then is kept too), and she can do the same (`note history`, `note restore`). A deleted note can be
+  brought back for 30 days. Versions only exist from this release on: text lost to the old
+  overwrites before it can't be restored this way. If a note is missing things you told her, ask her
+  to rebuild it from the chat; she adds them back with `note add`.
+- **"I've saved it" now has to be true:** a reply that says she saved, noted, recorded, logged or
+  added something you shared ("I've saved your results", "it's in your medical records"), with no
+  note or file tool in that turn, gets the *Not checked* line with **Ask her to really save it**. She
+  is also told to call `note add` every time you share something to keep and to say which note it is
+  in. The secrets check now also looks in notes' earlier versions.
+
+- **Windows app: no more light (or dark) bar across the top of the window:** above the page, the
+  app paints a thin resize band and the place under the minimize / maximize / close buttons
+  itself, and it always used Sara Classic's background there. Every other palette (Graphite, the
+  default, Nord, …) has another top colour, so in Day a cream-white strip and box showed over the
+  page (in Night a dark one, plainest with Nord or Slate). The page now tells the app the colour of
+  its top edge with its theme, and the app paints that (remembered for the next start). Needs both
+  this server and the new Windows app; with an older one of the two it looks as before. See
+  docs/desktop.md.
+- **"Look at my browser tabs" and "look at my files" now mean yours:** through the Sara app on your
+  computer, your companion lists every tab of your own Edge, Chrome, Firefox or Brave windows
+  (`pc_my_tabs`, with *The whole screen* on) and lists and reads text files in your Desktop, Documents
+  and Downloads (`pc_files`, with the new **Files** switch under Computer use, off by default; read
+  only, never outside those folders, hidden and secret-looking files left out). Before, the companion
+  only knew its own browser window and told you to open things there. Its own window is now described
+  as its own everywhere, a switch that is off is named exactly, and an older Sara app is told to update
+  (older apps still show the front tab of each browser window). Every computer-use text uses your
+  companion's name ("Fred’s browser", "Fred is working"). Windows app needed for every tab and
+  files; the Mac app shows front tabs for now. See docs/desktop.md.
+- **Long coding chats stay smooth, especially in Firefox:** a long chat no longer goes start-stop
+  while she works, buttons answer at once and windows open without the slow blurred "fog". The
+  frosted glass behind the header, sidebar and message box was re-blurred on every frame in
+  Firefox; the new *Glass blur* setting (Settings → Appearance) is *Auto* by default: off in
+  Firefox, on elsewhere, and you can pick *On* or *Off*. The V4 background light no longer moves
+  in two layers at once, only her newest face in the chat animates, the streamed reply is drawn
+  once a frame, and the page keeps the last 150 messages after each turn (scroll up for earlier
+  ones). Scrolling up to read while she writes now stays where you are. In our 300-message test
+  chat, Firefox frames went from about 140 ms to 11 ms and button presses from about 200-330 ms to
+  about 30 ms while she streams. See docs/PERFORMANCE.md.
+
 ## 3.4.1 (2026-11-11): she remembers as much as her model can hold
 
 - **Adding a server over SSH is far less confusing:** right after you say yes to the server's ID

@@ -209,6 +209,29 @@ const MORE: Partial<Record<ClaimKind, RegExp[]>> = {
     ),
   ],
 };
+/**
+ * 3.4.2: keeping what the owner shares ("I've saved your results", "I've noted it", "I've recorded
+ * that", "your results are saved", "it's in your medical records"): needs a note, to-do or file
+ * tool in that turn. "Noted." alone and "I noted that you seem tired" are not claims.
+ */
+const KEEP_OBJ = String.raw`(?:records?|results?|readings?|notes?|history|files?|charts?|logs?|labs?|details|info(?:rmation)?|numbers|values|it|that|this|them|these|those|everything)`;
+const KEEP: RegExp[] = [
+  new RegExp(
+    String.raw`\b(?:I(?:'ve| have)?|I just|I've just|I went ahead and)\s+(?:also\s+|now\s+|already\s+)?(?:saved|recorded|logged|stored|filed|kept a record|made a note|noted(?! that \w)(?: down)?|jotted|added|updated)\b[^.!?]{0,80}?\b${KEEP_OBJ}\b|\bI(?:'ve| have)?\s+(?:also\s+|just\s+)?(?:written|wrote|jotted|noted) (?:it|that|this|them|these|those|everything|your [\w ]{1,30}) down\b|\bI(?:'ve| have)?\s+(?:also\s+|just\s+)?put\b[^.!?]{0,40}?\b(?:in|into|on|with)\b[^.!?]{0,40}?\b(?:records?|results|notes?|history|files?|charts?|logs?)\b`,
+    'i',
+  ),
+  /\b(?:results?|records?|readings?|labs?|numbers|values|details|it|they|that|this|everything)\s+(?:is|are|'s|'re|has been|have been)\s+(?:now\s+|all\s+|safely\s+)*(?:saved|recorded|logged|stored|noted)\b/i,
+  /^(?:saved|recorded|logged|added|noted)\s*[!.,:–—-]+\s*\S[^.!?]*\b(?:records?|results?|notes?|history|file|chart)\b|^(?:saved|recorded|logged|added) (?:it |them |this |that )?(?:to|in|into) (?:your|the|my)\b/i,
+  /\b(?:is|are|'s|'re) (?:now |all |safely )*(?:in|on) (?:your|the) (?:[\w'-]+ ){0,3}(?:records?|notes?|file|history|log|chart)\b/i,
+  w(
+    '(?:(?:lo|la|los|las) )?(?:he guardado|guardé|he anotado|anoté|he registrado|registré|he apuntado|apunté)(?: [^.!?]{0,60}?(?:resultados?|registros?|historial|notas?|expediente|datos))?|' +
+      "(?:j'ai|je l'ai|je les ai) (?:bien )?(?:noté|enregistré|sauvegardé|consigné)e?s?|" +
+      `${DE_HAVE}.{0,90}?(?:befunde?|ergebnisse?|werte|akte|notiz|unterlagen|daten|es|das).{0,40}?(?:gespeichert|notiert|eingetragen|aufgeschrieben|festgehalten)|` +
+      'anotei|salvei|registrei|guardei|' +
+      "(?:(?:l'|li |le |lo )?ho) (?:appena |già )?(?:salvat|annotat|registrat|segnat)[oaie]",
+  ),
+];
+
 /** Kinds with their own receipts (Phase 62); a verb plus the right kind of object. */
 const SEND_VERB = [
   /\bI(?:'ve| have)?\s+(?:just\s+|also\s+|already\s+)?(?:sent|forwarded|replied to|answered|posted|wrote back to|messaged)\b/i,
@@ -394,7 +417,9 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     // Earlier work and questions are fine; a negation only clears the clause it is in (Phase 62).
     if (isEarlier(s) || isQuestion(s)) continue;
     const artifact = ARTIFACT.test(s) || I18N.artifact.test(s) || ART2.test(s);
-    if (artifact && !b.hasWrite && !priorWrite(s) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
+    // 3.4.2: keeping something for the owner ("I've saved your results to your note") is backed by the note tool too.
+    const keep = claimed(s, KEEP);
+    if (artifact && !b.hasWrite && !priorWrite(s) && !(b.hasPlanner && (keep || claimed(s, [PLANNER, I18N.planner]))) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
     if (artifact && !b.hasRun && !priorRun(s) && claimed(s, [RUN_VERB, I18N.run, ...MORE.run!])) add('run', s, 'missing');
     if (claimed(s, [TESTS_PASS, I18N.tests, ...MORE.tests_pass!])) {
       if (!b.testRuns.length && !b.hasRun) add('tests_pass', s, 'missing');
@@ -409,7 +434,7 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     if (remind && !b.hasRemind) add('remind', s, 'missing');
     else if (schedule) {
       if (!b.hasSchedule) add('schedule', s, 'missing');
-    } else if (!remind && !b.hasPlanner && !b.hasWrite && claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])) add('planner', s, 'missing');
+    } else if (!remind && !b.hasPlanner && !b.hasWrite && (keep || claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])) && !claims.some((c) => c.sentence === s)) add('planner', s, 'missing');
     if (!b.hasSend && ((SEND_OBJ.test(s) && claimed(s, SEND_VERB)) || claimed(s, SEND_ALONE))) add('send', s, 'missing');
     if ((claimed(s, SCREENSHOT) && !b.hasShot) || (claimed(s, [BROWSER, BROWSER_I18N]) && !b.hasBrowser)) add('browser', s, 'missing');
     // E3: a phone or desktop claim needs a screenshot at that width; "fixed / looks right now" in web

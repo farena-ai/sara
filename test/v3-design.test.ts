@@ -219,7 +219,7 @@ test('V3 slice 5: Appearance in three groups with a live preview, swatches in th
   // A segment drives its list (same value, same change event), so saving, tips and tests are unchanged.
   assert.match(app, /sel\.value = o\.value;\n\s*sel\.dispatchEvent\(new Event\('change'\)\);/);
   // Reset forgets exactly the look's keys on this device, never the notice.
-  assert.match(app, /const AP_KEYS = \['sara\.palette', 'sara\.theme', 'sara\.accent', 'sara\.accentPicked', 'sara\.herPicture', 'sara\.runDetails', 'sara\.accentCustom', 'sara\.decor', 'sara\.portrait', 'sara\.density', 'sara\.chatbg', 'sara\.textSize', 'sara\.typing', PAGE_KEY\];/);
+  assert.match(app, /const AP_KEYS = \['sara\.palette', 'sara\.theme', 'sara\.accent', 'sara\.accentPicked', 'sara\.herPicture', 'sara\.runDetails', 'sara\.accentCustom', 'sara\.decor', 'sara\.glass', 'sara\.portrait', 'sara\.density', 'sara\.chatbg', 'sara\.textSize', 'sara\.typing', PAGE_KEY\];/);
   assert.match(app, /if \(!confirm\(t\('Reset how Sara looks on this device to the defaults\?'\)\)\) return;/);
   // Sara Classic keeps the plain list: the new pieces are hidden there by default.
   assert.match(v3, /#ap-preview, \.ap-seg, #ap-reset, \.ap-swatch-custom, \.ap-group-h \{ display: none; \}/);

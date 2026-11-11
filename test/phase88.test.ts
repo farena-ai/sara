@@ -276,7 +276,7 @@ test('the reference hands act: click, type, select, keys, scroll, upload, downlo
     await until(() => Boolean(e.hub.hello(id)), 10_000);
     // Phase 92: the desktop ops (d.*) are advertised only by a device with a desktop to look at;
     // Phase 94: the check-up ops (s.*) only by one with a (fixture) computer to check.
-    assert.ok(HANDS_OPS.filter((o) => !o.startsWith('d.') && !o.startsWith('s.')).every((o) => e.hub.hello(id)!.ops!.includes(o)));
+    assert.ok(HANDS_OPS.filter((o) => !o.startsWith('d.') && !o.startsWith('s.') && !o.startsWith('f.')).every((o) => e.hub.hello(id)!.ops!.includes(o)));
     // Actions are spaced a little (the device allows 4 a second; the rate limit has its own check below).
     const op = async (name: string, args: Record<string, unknown> = {}, what?: string, fast = false) => {
       if (!fast && /^b\.(click|type|select|keys|scroll|upload)$/.test(name)) await new Promise((r) => setTimeout(r, 300));
@@ -385,7 +385,7 @@ test('a task through her tools: fill the form and submit it, cards per the rows,
     assert.equal(card.site, new URL(fx).host);
     assert.equal(card.text, 'Ada');
     assert.deepEqual(card.choices, ['once', 'task', 'always']);
-    assert.match(cards[0].summary, /type into the field “Name” on 127\.0\.0\.1:\d+ in the Sara browser on Test PC/);
+    assert.match(cards[0].summary, /type into the field “Name” on 127\.0\.0\.1:\d+ in Sara\u2019s browser on Test PC/);
     const results = evs.filter((x): x is Extract<ChatEvent, { type: 'tool_result' }> => x.type === 'tool_result');
     assert.deepEqual(results.map((x) => x.status), ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'], JSON.stringify(results.map((x) => x.output)));
     assert.match(results[5].output, /Clicked the button “Submit”\. The page changed/);

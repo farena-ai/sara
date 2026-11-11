@@ -134,7 +134,7 @@ dialog .settings-body > .howto { margin: 0; }
 #today .td-hero:has(.td-back) .td-face-wrap { margin-top: 0; }
 /* V5: on Today her face already leads the page, so the panel shows her mood without a second portrait. */
 @media (min-width: 1101px) {
-  body:has(#today[open]) #hp-open-her { display: none; }
+  html.today-open #hp-open-her { display: none; }
 }
 /* V4e: auto side margins keep it on Today's content column (the same max-width as the hero and cards). */
 #today .td-howto { margin: 0 auto var(--s-4); }

@@ -38,6 +38,13 @@ Result windows();
 Result shot(const std::string& window, const std::string& screen, const std::vector<int>& area, int maxEdge, bool marks, int thumb);
 /** d.elements {window?, viewId?, limit} */
 Result elements(const std::string& window, const std::string& viewId, int limit);
+/** 3.4.x d.tabs: {browsers:[{id, app, browser, title, minimized, tabs:[{title, url?, active}]} | {hidden: kind}]}: the
+    person's own Edge / Chrome / Firefox / Brave windows and the tabs on their tab strips (UI Automation TabItems,
+    never inside web pages), the address bar's text for the tab in front; blocked windows and tabs keep only their
+    kind; the Sara browser (ownBrowserPid) and Sara's own windows are left out. Read only. */
+Result tabs(DWORD ownBrowserPid, DWORD onlyPid = 0);
+/** Key-shaped text masked (the same shapes as every list). */
+std::string maskSecrets(const std::string& text);
 
 // All coordinates are in the named view, including drag endpoints. The callback is checked
 // before each synthesized event as well as before accessibility actions.

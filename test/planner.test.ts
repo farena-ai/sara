@@ -195,6 +195,16 @@ test('planner API: tasks, projects, reminders, notes, events stream', async (t) 
   const note = await j('/notes', 'POST', { title: 'Rub', body: 'Salt, pepper, garlic.' });
   assert.equal((await j('/notes?q=garlic')).body[0].id, note.body.id);
   assert.equal((await j(`/notes/${note.body.id}`, 'PATCH', { body: 'Salt and pepper only.' })).body.body, 'Salt and pepper only.');
+  // 3.4.2: earlier versions, and Restore.
+  const vers = await j(`/notes/${note.body.id}/versions`);
+  assert.equal(vers.status, 200);
+  assert.equal(vers.body.length, 1);
+  assert.equal(vers.body[0].body, 'Salt, pepper, garlic.');
+  const restored = await j(`/notes/${note.body.id}/restore`, 'POST', { version: vers.body[0].id });
+  assert.equal(restored.status, 200);
+  assert.equal(restored.body.body, 'Salt, pepper, garlic.');
+  assert.equal((await j(`/notes/${note.body.id}/restore`, 'POST', { version: 9999 })).status, 404);
+  assert.equal((await j('/notes/9999/versions')).body.length, 0);
 
   const all = await j('/planner');
   assert.equal(all.body.projects[0].name, 'BBQ');

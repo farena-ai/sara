@@ -1,4 +1,8 @@
 {
+"Files: read my Desktop, Documents and Downloads": "Archivos: leer mi Escritorio, Documentos y Descargas",
+"Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.": "Desactivado por defecto. Activado: Sara puede listar estas carpetas y leer sus archivos de texto cuando se lo pidas. Nunca cambia, mueve ni borra nada. Los archivos ocultos y los que parecen claves o contraseñas quedan fuera.",
+"Sara may read your Desktop, Documents and Downloads here now. She never changes them.": "Ahora Sara puede leer aquí tu Escritorio, Documentos y Descargas. Nunca los cambia.",
+"Sara can’t see your files here now.": "Ahora Sara no puede ver tus archivos aquí.",
 "How do I add an Outlook or Microsoft 365 mailbox?": "¿Cómo añado un buzón de Outlook o Microsoft 365?",
 "Under Microsoft, follow the numbered steps to make your own Microsoft app.": "En Microsoft, sigue los pasos numerados para crear tu propia app de Microsoft.",
 "Paste its client ID and secret, then press Save.": "Pega su ID de cliente y su secreto y pulsa Guardar.",
@@ -15897,5 +15901,17 @@
 "Follows the model: {model}.": "Sigue al modelo: {model}.",
 "Context used: {n}% of what she can hold (about {used} of {keep} words)": "Contexto usado: {n}% de lo que puede abarcar (unas {used} de {keep} palabras)",
 "Pick Auto, the full window or a fixed size.": "Elige Auto, toda la ventana o un tamaño fijo.",
-"Conversation length must be between 8,000 and 4,000,000 characters.": "La longitud de la conversación debe estar entre 8.000 y 4.000.000 caracteres."
+"Conversation length must be between 8,000 and 4,000,000 characters.": "La longitud de la conversación debe estar entre 8.000 y 4.000.000 caracteres.",
+"Ask her to really save it": "Pídele que lo guarde de verdad",
+"No earlier versions yet.": "Aún no hay versiones anteriores.",
+"{count} characters": "{count} caracteres",
+"Restore": "Restaurar",
+"Bring back this version of \"{title}\"? The text it has now is kept as a version too.": "¿Recuperar esta versión de «{title}»? El texto que tiene ahora también se guarda como versión.",
+"Version not found": "No se encontró la versión",
+"an earlier version of a note": "una versión anterior de una nota",
+"Glass blur": "Desenfoque de cristal",
+"Auto: on, except in Firefox (default)": "Automático: activado, salvo en Firefox (predeterminado)",
+"On: frosted panels": "Activado: paneles esmerilados",
+"Off: smooth solid panels": "Desactivado: paneles sólidos y fluidos",
+"The frosted blur behind the header, sidebar and message box. Auto turns it off in Firefox, where it can make a long chat slow to scroll and answer. Off keeps the same colors, solid.": "El desenfoque esmerilado detrás de la cabecera, la barra lateral y el cuadro de mensaje. Automático lo desactiva en Firefox, donde puede volver lento el desplazamiento y la respuesta en un chat largo. Desactivado mantiene los mismos colores, sólidos."
 }

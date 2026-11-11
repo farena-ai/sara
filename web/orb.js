@@ -200,6 +200,7 @@ function drawOrb(o, st, tick, motion, level) {
 let signals = newSignals();
 const orbs = new Set();
 let io = null;
+let ro = null;
 let raf = 0;
 let lastFrame = 0;
 let shownState = '';
@@ -211,8 +212,8 @@ function stateOf(o) {
 }
 
 function sizeOrb(o) {
-  const box = o.el.getBoundingClientRect();
-  const css = Math.round(box.width || Number(o.el.dataset.orbSize) || 28);
+  // The width comes from the ResizeObserver (docs/PERFORMANCE.md: no layout read in the frame loop).
+  const css = Math.round(o.box || Number(o.el.dataset.orbSize) || 28);
   const dpr = Math.min(3, globalThis.devicePixelRatio || 1);
   const W = Math.max(8, Math.round(css * dpr));
   if (o.W === W && o.css === css) return;
@@ -225,12 +226,23 @@ function sizeOrb(o) {
 function label(o) {
   const text = orbLabel(stateOf(o), o.el.dataset.orbName ?? '');
   if (o.el.getAttribute('aria-label') !== text) o.el.setAttribute('aria-label', text);
-  o.el.dataset.orbNow = stateOf(o);
+  const st = stateOf(o);
+  if (o.el.dataset.orbNow !== st) o.el.dataset.orbNow = st;
 }
 
+/** The newest face in the chat (orbs mount in page order, so the last connected one). */
+function latestMsgOrb() {
+  let last = null;
+  for (const o of orbs) if (o.msg && o.el.isConnected) last = o;
+  return last;
+}
+/** docs/PERFORMANCE.md: only her live faces move; earlier replies' faces hold one still frame. */
+const stillOrb = (o, latest) => o.msg && o !== latest;
+
 function paint(now, force = false) {
-  const motion = !isReduced();
+  const reduced = isReduced();
   const level = voiceLevel(signals, Date.now(), now);
+  const latest = latestMsgOrb();
   for (const o of orbs) {
     if (!o.el.isConnected) {
       unmount(o);
@@ -238,11 +250,14 @@ function paint(now, force = false) {
     }
     if (!force && !o.visible) continue;
     const st = stateOf(o);
-    // Reduced motion: one still frame per state (and per resize/recolour).
-    if (!motion && !force && o.drawn === st) continue;
+    const motion = !reduced && !stillOrb(o, latest);
+    // Reduced motion (and earlier replies): one still frame per state (and per resize/recolour).
+    if (!motion && !force && !o.live && o.drawn === st && o.drawnW === o.W) continue;
     sizeOrb(o);
     drawOrb(o, st, motion ? now : 0, motion, level);
     o.drawn = st;
+    o.drawnW = o.W;
+    o.live = motion;
   }
 }
 
@@ -253,7 +268,8 @@ function loop(now) {
     lastFrame = now;
     paint(now);
   }
-  if (!isReduced() && [...orbs].some((o) => o.visible)) raf = requestAnimationFrame(loop);
+  const latest = latestMsgOrb();
+  if (!isReduced() && [...orbs].some((o) => o.visible && !stillOrb(o, latest))) raf = requestAnimationFrame(loop);
 }
 function kick() {
   if (!raf && !document.hidden && !isReduced()) raf = requestAnimationFrame(loop);
@@ -261,6 +277,7 @@ function kick() {
 
 function unmount(o) {
   io?.unobserve(o.el);
+  ro?.unobserve(o.el);
   orbs.delete(o);
 }
 
@@ -274,11 +291,12 @@ export function mountOrbs(root = document) {
     canvas.setAttribute('aria-hidden', 'true');
     el.replaceChildren(canvas);
     el.setAttribute('role', 'img');
-    const o = { el, canvas, ctx: canvas.getContext('2d'), W: 0, css: 0, voice: 0, visible: !io, drawn: '' };
+    const o = { el, canvas, ctx: canvas.getContext('2d'), W: 0, css: 0, box: 0, msg: Boolean(el.closest?.('#messages')), voice: 0, visible: !io, drawn: '' };
     if (!o.ctx) continue;
     el._orb = o;
     orbs.add(o);
     io?.observe(el);
+    ro?.observe(el);
     sizeOrb(o);
     label(o);
     drawOrb(o, stateOf(o), 0, false, 0.6);
@@ -292,7 +310,8 @@ export function orbSignal(ev) {
   const now = orbState(signals);
   if (now !== shownState || ev?.type !== 'level') {
     shownState = now;
-    document.documentElement.dataset.herState = now;
+    const root = document.documentElement;
+    if (root.dataset.herState !== now) root.dataset.herState = now;
     for (const o of orbs) label(o);
     if (isReduced()) paint(performance.now(), true);
   }
@@ -309,18 +328,36 @@ export function initOrbs() {
       kick();
     });
   }
+  if ('ResizeObserver' in globalThis) {
+    ro = new ResizeObserver((entries) => {
+      for (const e of entries) if (e.target._orb) e.target._orb.box = e.borderBoxSize?.[0]?.inlineSize ?? e.contentRect.width;
+      kick();
+    });
+  }
   mountOrbs(document);
   new MutationObserver((records) => {
     for (const r of records) for (const n of r.addedNodes) if (n.nodeType === 1 && (n.matches?.('.v4-orb') || n.querySelector?.('.v4-orb'))) mountOrbs(n);
   }).observe(document.body, { childList: true, subtree: true });
   // The accent or theme changed (Appearance writes on <html>): recolour, redraw still frames.
-  const recolour = () => {
+  const recolourNow = () => {
     const next = readAccent();
     if (next.h === accent.h && next.s === accent.s && next.l === accent.l) return;
     accent = next;
     paint(performance.now(), true);
   };
-  new MutationObserver(recolour).observe(document.documentElement, { attributes: true });
+  // Once a frame at most: each read of the computed style forced the page's style work mid-turn.
+  let recolourQueued = false;
+  const recolour = () => {
+    if (typeof requestAnimationFrame !== 'function') return recolourNow();
+    if (recolourQueued) return;
+    recolourQueued = true;
+    requestAnimationFrame(() => {
+      recolourQueued = false;
+      recolourNow();
+    });
+  };
+  // Only what can change the colour (her state and busy flags change often and never recolour).
+  new MutationObserver(recolour).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style', 'data-theme', 'data-palette', 'data-accent'] });
   new MutationObserver(recolour).observe(document.head, { childList: true, subtree: true, attributes: true });
   addEventListener('sara-accent', recolour);
   document.addEventListener('visibilitychange', kick);

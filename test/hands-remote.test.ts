@@ -128,7 +128,7 @@ test('over a non-loopback address the app counts as another device: pairing wait
   assert.ok(Date.now() - t0 < 5000);
   const said = await pcDevices();
   assert.match(said, /Computers you can use:\n- "Alex Laptop"/);
-  assert.match(said, /the whole screen: you may look/);
+  assert.match(said, /the owner's own screen, windows and browser tabs: you may look \(pc_my_tabs/);
   ws.close();
   await until(() => !hub.connected(handsId));
 });
@@ -211,8 +211,10 @@ test('the shipped proxy setups pass computer use through', () => {
 
 test('her browser tabs vs the owner\u2019s own: the tools say which to use', () => {
   const tabs = app.tools.get('pc_browser_tabs')!.spec.description;
-  assert.match(tabs, /never the owner's own browser/);
-  assert.match(tabs, /pc_windows[^.]*\)[^.]* and then pc_look with that window: its list shows the tab strip/);
+  // 3.4.x: her own window is hers; the owner's own tabs are pc_my_tabs (every tab, read only).
+  assert.match(tabs, /Sara\u2019s OWN browser window/);
+  assert.match(tabs, /It is NOT the owner's own browser: for "look at my tabs \/ my browser \/ what I have open" use pc_my_tabs/);
+  assert.match(app.tools.get('pc_my_tabs')!.spec.description, /The OWNER'S OWN browser tabs/);
 });
 
 test('"look at my browser tabs" loads her computer tools (the owner\u2019s own computer), not only her testing browser', () => {

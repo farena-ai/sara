@@ -44,6 +44,11 @@ struct Host {
   // Phase 92 (CU5): "The whole screen" (desktop look, off by default) and "Also hide these windows" (one per line).
   bool desktopOn = false;
   std::string blockExtra;
+  // 3.4.x: "Files" (read Desktop, Documents and Downloads; off by default). Test runs may point the three
+  // folders at a scratch folder (SARA_FILES_TEST_ROOT) so tests never read the person's real files.
+  bool filesOn = false;
+  std::wstring filesTestRoot;
+  unsigned long tabsTestPid = 0;  // test runs only (SARA_TABS_TEST_PID): d.tabs reads only that browser process
 };
 
 /** Connects (and keeps reconnecting) with these settings; a running connection is replaced. */
@@ -56,6 +61,8 @@ void pressStop();
 void setLocalOnly(bool on);
 /** Phase 92: "The whole screen" changed (the server hears it at once). */
 void setDesktop(bool on);
+/** 3.4.x: "Files" changed (the server hears it at once). */
+void setFiles(bool on);
 /** Phase 92: "Also hide these windows" changed (one app or title per line, UTF-8). */
 void setBlockExtra(const std::string& lines);
 /** Phase 88: "When you move the mouse" changed (true = let Sara keep control). */

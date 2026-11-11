@@ -327,6 +327,32 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   `--desktop --desktop-window "<fixture title>" --desktop-text "<text>" --desktop-blocked-area x,y,w,h` with
   `SARA_CU5_SECRET` (the fixture password field's value); `--ref --desktop` uses the fixture desktop.
 
+### Your own browser tabs and files (3.4.x)
+
+Sara has **her own** browser window on your computer (a separate Edge or Chrome window with its own
+profile, opened by her: `pc_browser_*`) and, separately, can look at **yours**:
+
+- **Your open tabs** (`pc_my_tabs`, device op `d.tabs`, needs **The whole screen**): every tab of each
+  Edge, Chrome, Firefox or Brave window you have open (title, and the address bar's text for the tab in
+  front), read only. Windows: UI Automation over each browser window's tab strip (TabItems; web pages are
+  never entered), in `desktop/windows/src/hands-screen.cpp` (`tabs()`); Sara's own browser window is left
+  out. Banking and password-manager tabs and windows show only as hidden. Older apps (no `d.tabs`) and the
+  Mac app for now: the title of each browser window (its front tab), and Sara says to update the app.
+- **Your files** (`pc_files`, ops `f.list` / `f.read`, needs **Files** under Computer use, off by
+  default; `handsFiles` in `desktop.ini`): list Desktop, Documents and Downloads and folders inside them,
+  and read text files there (.txt, .md, .csv, .json, .log…, up to 1 MB, 32,000 characters back). Nothing
+  is ever changed, moved or deleted. Only inside those three folders (links and junctions that lead out
+  are never followed; `..`, full paths, other drives and UNC paths are refused); hidden files and
+  secret-looking names (keys, certificates, `.env`, password databases, wallets) are left out and never
+  read; key-shaped text is masked. Windows: `desktop/windows/src/hands-files.cpp`; the shared rules and
+  the reference device: `src/hands-files.ts`. Test builds read `SARA_FILES_TEST_ROOT` (its `Desktop`,
+  `Documents`, `Downloads` folders) instead of the person's real folders. Not in the Mac app yet.
+- An app that is too old for these says so in `pc_devices` (update the Sara app to the server's version
+  from the releases page), and a switch that is off is named exactly.
+- The companion's name: every computer-use text from the server uses it ("Fred’s browser"); the app's
+  badge shows the name each request carries ("Fred is working in Fred’s browser"). The download
+  folder keeps its name on disk (`Downloads\Sara`) so existing installs keep working.
+
 ### Desktop actions (Phase 93 implementation draft; not released)
 
 With **The whole screen** on, Sara can request clicks, non-secret typing, safe keys, scrolling,
@@ -522,7 +548,12 @@ The apps tell the page they can host its header in the title bar; the page answe
   `window.chrome.webview.postMessage`, Mac: `window.webkit.messageHandlers.sara.postMessage`). Until then,
   for example with an older server, the app draws its own 40 px strip and starts the page below it.
 - `{type:'theme', theme:'night'|'day'|'system'}` and `{type:'backdrop', backdrop:'mica'|'vibrancy'|'solid'}`
-  are accepted only from the owner's own server.
+  are accepted only from the owner's own server. The theme message also carries `frame:'#rrggbb'`,
+  the colour of the page's top edge (V4's status strip, or the page background on the sign-in page
+  and in Sara Classic); the Windows app paints its top resize band, the place under the caption
+  buttons and the caption in it and keeps it in `desktop.ini` (`frameDay` / `frameNight`). Without
+  it (an older server), and on the app's own setup / offline pages, the app uses Sara Classic's
+  `#faf7f5` / `#0f0d17`.
 - Windows: dark title bar (DWM immersive dark mode), optional Mica, WebView2 non-client regions for CSS
   `app-region: drag`, native caption buttons with snap layouts. Falls back to the normal title bar on
   Windows 10 or a WebView2 runtime older than 123. Mac: full-size content view, transparent title bar,

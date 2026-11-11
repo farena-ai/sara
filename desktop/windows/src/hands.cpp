@@ -53,6 +53,7 @@
 #include <sstream>
 
 #include "hands-screen.h"
+#include "hands-files.h"
 #include "hands-approval.h"  // Phase 92: desktop look
 #include "hands-checkup.h"   // Phase 94: the read-only check-up (s.check)
 
@@ -377,7 +378,9 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     "d.screens", "d.windows", "d.shot", "d.elements", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask",
                                     // Phase 94 (CU7): the read-only check-up (hands-checkup.cpp). No s.apply in this build:
                                     // check-up changes are made by the person (Sara says where).
-                                    "s.check"};
+                                    "s.check",
+                                    // 3.4.x: the person's own browser tabs (with "The whole screen") and files (with "Files"), read only.
+                                    "d.tabs", "f.list", "f.read"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
@@ -2254,7 +2257,7 @@ class Browser {
 
 // ---------------- the hands connection (WinHTTP WebSocket) ----------------
 struct Request {
-  std::string id, op, what;
+  std::string id, op, what, who;
   J args;
   DWORD deadlineMs = 30000;
   std::shared_ptr<std::atomic<bool>> cancel = std::make_shared<std::atomic<bool>>(false);
@@ -2521,6 +2524,7 @@ class Hands {
   std::atomic<bool> isConnected{false};
   std::atomic<bool> localOnly{false};
   std::atomic<bool> desktop{false};  // Phase 92: "The whole screen" (look only), off by default
+  std::atomic<bool> files{false};    // 3.4.x: "Files" (read Desktop, Documents, Downloads), off by default
   std::atomic<bool> lookingDesk_{false};
   std::mutex errM;
   std::wstring err;
@@ -2548,6 +2552,8 @@ class Hands {
     tunnels_->wire([this](const std::string& t) { return sendText(t); }, [this](const std::string& hd, const std::vector<BYTE>& d) { return sendBinary(hd, d); }, [this](const std::wstring& l) { say(l); });
     localOnly = h.localOnly;
     desktop = h.desktopOn;
+    files = h.filesOn;
+    sarafiles::setTestRoot(h.filesTestRoot);
     sarascreen::setExtraBlocklist(h.blockExtra);
     sarascreen::setServerOrigin(u8(h.server));
     keep = h.keepControl;
@@ -2686,7 +2692,11 @@ class Hands {
   }
   /** The switches as the server should know them (Phase 92: with the whole screen). */
   void tellOptIn() {
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
+  }
+  void tellFiles(bool on) {
+    files = on;
+    tellOptIn();
   }
   void tellWalkAway(bool on) { walkAway = on; tellOptIn(); updateBadge(); }
   void tellDesktopLevel(int level) { desktopLevel = level; clearDeskGrants_ = true; }
@@ -2749,6 +2759,7 @@ class Hands {
   std::atomic<bool> opRunning_{false};
   std::mutex whatM_;
   std::string what_;
+  std::string who_;  // 3.4.x: the companion's name from the server ("Sara" until one says otherwise)
   DWORD lastInput_ = 0;
   bool watching_ = false;
   RECT stopRc_{}, resumeRc_{};
@@ -2863,7 +2874,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + "},\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + "},\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -3009,6 +3020,8 @@ class Hands {
     r->op = m["op"].str();
     r->args = m["args"];
     r->what = shortText(m["what"].str(), 120);
+    // 3.4.x: the companion using this computer ("Fred"): the badge says their name.
+    r->who = cleanName(shortText(m["who"].str(), 40));
     r->deadlineMs = (DWORD)std::min(kWaitingOps.count(r->op) ? 600000.0 : 120000.0, std::max(1000.0, m["deadlineMs"].num(30000)));
     if (r->id.empty() || r->id.size() > 100) return;
     // Phase 89: tunnels open and close at once (never queued behind a slow page).
@@ -3053,6 +3066,7 @@ class Hands {
         {
           std::lock_guard<std::mutex> l(whatM_);
           if (!r->what.empty()) what_ = r->what;
+          if (!r->who.empty()) who_ = r->who;
         }
         opRunning_ = true;
         lastOpAt_ = GetTickCount64();
@@ -3779,14 +3793,16 @@ class Hands {
   std::wstring badgeText() {
     std::wstring pre = host.testLabel ? L"TEST \u00b7 " : L"";
     if (isPaused) return pre + L"Paused: you're in control of this computer";
-    std::string w;
+    std::string w, who;
     {
       std::lock_guard<std::mutex> l(whatM_);
       w = what_;
+      who = who_;
     }
-    // Phase 92: the read-only form while she looks at the desktop (§7.2).
-    std::wstring line = pre + (lookingDesk_ ? L"Sara is working on your computer" : L"Sara is working in her browser") + (w.empty() ? L"" : L" \u00b7 " + wide(w));
-    if (keep && keptAt_ && GetTickCount64() - keptAt_ < 8000) line += L" \u00b7 she keeps control";
+    std::wstring name = who.empty() ? L"Sara" : wide(who);
+    // Phase 92: the read-only form while she looks at the desktop (§7.2). 3.4.x: in the companion's name.
+    std::wstring line = pre + name + (lookingDesk_ ? L" is working on your computer" : L" is working in " + name + L"\u2019s browser") + (w.empty() ? L"" : L" \u00b7 " + wide(w));
+    if (keep && keptAt_ && GetTickCount64() - keptAt_ < 8000) line += L" \u00b7 " + name + L" keeps control";
     return line;
   }
   /** Real input (not hers: DevTools input never reaches Windows' input queue) in her window? */
@@ -4049,6 +4065,11 @@ class Hands {
     if (r.op == "d.screens") return "{\"screens\":" + sarascreen::screensJson() + "}";
     sarascreen::Result x;
     if (r.op == "d.windows") x = sarascreen::windows();
+    else if (r.op == "d.tabs") {
+      // 3.4.x: the person's own browsers' tabs (read only; the Sara browser is left out).
+      x = sarascreen::tabs(browser.pid(), (DWORD)host.tabsTestPid);
+      if (x.code.empty()) localLog("d.tabs", "read the tab titles of your own browsers", "");
+    }
     else if (r.op == "d.elements") x = sarascreen::elements(a["window"].str(), a["viewId"].str(), (int)a["limit"].num(300));
     else {
       std::vector<int> area;
@@ -4097,6 +4118,20 @@ class Hands {
       return "{\"locked\":[" + ids + "]}";
     }
     if (r.op == "b.unlock") return unlockOp(r, e);
+    // 3.4.x: the person's own files, read only, only with "Files" on here.
+    if (r.op == "f.list" || r.op == "f.read") {
+      if (!files) {
+        e = {"denied_local", "\"Files\" is off on this computer: only the person here can switch it on, in the Sara app (Settings, Computer use)."};
+        return {};
+      }
+      auto x = r.op == "f.list" ? sarafiles::list(a["folder"].str(), a["path"].str()) : sarafiles::read(a["folder"].str(), a["path"].str(), (int)a["max"].num(32000));
+      if (!x.code.empty()) {
+        e = {x.code, x.message};
+        return {};
+      }
+      localLog(r.op, r.op == "f.list" ? "listed a folder of yours (read only)" : "read a file of yours (read only)", shortText(a["folder"].str() + "/" + a["path"].str(), 200));
+      return x.json;
+    }
     // Phase 92 (CU5): desktop look, never the Sara browser.
     if (r.op.rfind("d.", 0) == 0) return desktopOp(r, e);
     // Phase 94 (CU7): the read-only check-up, only with "The whole screen" on here.
@@ -4306,6 +4341,10 @@ void setDesktop(bool on) {
   if (g_hands) g_hands->tellDesktop(on);
 }
 void setBlockExtra(const std::string& lines) { sarascreen::setExtraBlocklist(lines); }
+void setFiles(bool on) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->tellFiles(on);
+}
 void setTakeover(bool keepControl) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellTakeover(keepControl);

@@ -389,6 +389,10 @@
       "Tick it once the collector has written the .saramove file on the old computer. Then Next takes you to the upload. Nothing is sent until you choose the file.",
       "move-in"
     ],
+    "ap-glass": [
+      "The frosted blur behind the header, sidebar and message box. Auto turns it off in Firefox, where it can make a long chat slow to scroll and answer. Off keeps the same colors, solid.",
+      "start"
+    ],
     "ap-motion": [
       "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
       "start"

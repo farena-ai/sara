@@ -37,6 +37,14 @@ To-dos, notes and reminders from plain sentences, delivered in chat, as notifica
 or computer (Done / Snooze in the Windows and Mac apps) and on Telegram or Discord; a morning
 briefing; place reminders from the phone app.
 
+Notes grow safely: when you keep telling her things for one note (test results, a packing list),
+she adds each one to the end as a dated entry and never rewrites what is already there. Every
+change keeps the note's earlier text (*Earlier versions* → *Restore* on the note, or ask her), a
+deleted note can be brought back for 30 days, and a rewrite that would erase most of a note is
+refused unless she read it first and means it. Notes stay in your own space: household members
+and other people's agents (A2A) never see them; only apps you connect yourself with your own key
+can list them (see [OTHER_APPS.md](OTHER_APPS.md)).
+
 ### Make it yours
 
 <img src="screenshots/dials.webp" alt="Settings, Name and personality: the personality dials (Warmth, Patience, Emotional depth, Starts conversations, Shows affection…), each with its end words, the word for where it sits, a number and a line in her voice" width="760">

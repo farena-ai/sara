@@ -1,4 +1,8 @@
 {
+"Files: read my Desktop, Documents and Downloads": "File: leggere Scrivania, Documenti e Download",
+"Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.": "Disattivato di default. Attivo: Sara può elencare queste cartelle e leggerne i file di testo quando lo chiedi. Non cambia, sposta né cancella mai nulla. I file nascosti e quelli che sembrano chiavi o password restano esclusi.",
+"Sara may read your Desktop, Documents and Downloads here now. She never changes them.": "Ora Sara può leggere qui Scrivania, Documenti e Download. Non li modifica mai.",
+"Sara can’t see your files here now.": "Ora Sara non può vedere i tuoi file qui.",
 "How do I add an Outlook or Microsoft 365 mailbox?": "Come aggiungo una casella Outlook o Microsoft 365?",
 "Under Microsoft, follow the numbered steps to make your own Microsoft app.": "Sotto Microsoft, segui i passaggi numerati per creare la tua app Microsoft.",
 "Paste its client ID and secret, then press Save.": "Incolla l'ID client e il segreto, poi premi Salva.",
@@ -15906,5 +15910,17 @@
 "Follows the model: {model}.": "Segue il modello: {model}.",
 "Context used: {n}% of what she can hold (about {used} of {keep} words)": "Contesto usato: {n}% di ciò che può contenere (circa {used} di {keep} parole)",
 "Pick Auto, the full window or a fixed size.": "Scegli Auto, tutta la finestra o una dimensione fissa.",
-"Conversation length must be between 8,000 and 4,000,000 characters.": "La lunghezza della conversazione deve essere tra 8.000 e 4.000.000 caratteri."
+"Conversation length must be between 8,000 and 4,000,000 characters.": "La lunghezza della conversazione deve essere tra 8.000 e 4.000.000 caratteri.",
+"Ask her to really save it": "Chiedile di salvarlo davvero",
+"No earlier versions yet.": "Ancora nessuna versione precedente.",
+"{count} characters": "{count} caratteri",
+"Restore": "Ripristina",
+"Bring back this version of \"{title}\"? The text it has now is kept as a version too.": "Ripristinare questa versione di «{title}»? Anche il testo attuale resta salvato come versione.",
+"Version not found": "Versione non trovata",
+"an earlier version of a note": "una versione precedente di una nota",
+"Glass blur": "Sfocatura vetro",
+"Auto: on, except in Firefox (default)": "Automatico: attiva, tranne in Firefox (predefinito)",
+"On: frosted panels": "Attiva: pannelli smerigliati",
+"Off: smooth solid panels": "Disattiva: pannelli pieni e fluidi",
+"The frosted blur behind the header, sidebar and message box. Auto turns it off in Firefox, where it can make a long chat slow to scroll and answer. Off keeps the same colors, solid.": "La sfocatura smerigliata dietro l'intestazione, la barra laterale e la casella dei messaggi. Automatico la disattiva in Firefox, dove può rallentare lo scorrimento e le risposte di una chat lunga. Disattiva mantiene gli stessi colori, pieni."
 }

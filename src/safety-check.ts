@@ -258,6 +258,8 @@ export function safetyLogFor(app: AppContext): SafetyLog {
 const SCAN: readonly { table: string; col: string; what: string }[] = [
   { table: 'memories', col: 'content', what: en('a memory') },
   { table: 'notes', col: 'body', what: en('a note') },
+  // 3.4.2: a key pasted into a note and then edited out still sits in the note's earlier versions.
+  { table: 'note_versions', col: 'body', what: en('an earlier version of a note') },
   { table: 'recipes', col: 'steps', what: en('a recipe') },
   { table: 'person_facts', col: 'content', what: en('a people note') },
   { table: 'people', col: 'notes', what: en('a people note') },

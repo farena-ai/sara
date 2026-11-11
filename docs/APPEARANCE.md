@@ -14,6 +14,7 @@ the defaults below (it asks first); Ctrl+K → *Reset the look to the defaults* 
 | **Night or Day** | Night, Day or *Follow the system*. Every palette has both. | Follow the system |
 | **Colour** | The swatches: the palette's own colour (*Theme colour*), eight presets, or any colour you pick (+). Sara adjusts its shade so text on it stays readable. | Violet (Sara Classic: its rose) |
 | **Decoration** | *Full*: soft glass on the sidebar, header and windows, a faint glow on the main button and a very slow, faint light behind the app. *Reduced*: flat. Your system's *Reduce transparency* turns it off; High contrast stays solid. | Full |
+| **Glass blur** | The frosted blur behind the header, sidebar, message box and windows. *Auto* keeps it on, except in Firefox, where blurring the moving page made long chats slow (see [Performance](PERFORMANCE.md)). *Off* keeps the same colors with solid panels. | Auto |
 | **Her picture** | The presence orb, *Her portrait, animated* (she breathes, blinks, glances, moves her lips while she speaks and shows what she is doing and her mood), *Her portrait, still*, *Your picture* (the one uploaded on her page) or *A 3D model (.vrm)*. This device only. | Presence orb |
 | **Her picture in work views** | How big her portrait is in chats and Settings. | Small |
 | **Layout** | *Comfortable* or *Compact* (fits more on screen). | Comfortable |

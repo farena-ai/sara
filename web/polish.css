@@ -54,8 +54,13 @@ body { background: transparent; }
 @keyframes au-drift-1 { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(-9vw, 7vh, 0) scale(1.12); } }
 @keyframes au-drift-2 { from { transform: translate3d(0, 0, 0) scale(1.05); } to { transform: translate3d(10vw, -8vh, 0) scale(.94); } }
 @keyframes au-drift-3 { from { transform: rotate(-24deg) translate3d(-4vw, 0, 0); } to { transform: rotate(-18deg) translate3d(6vw, 6vh, 0) scale(1.06); } }
-/* Paused when nobody sees it: a hidden tab, or a window over the app (its backdrop would re-blur every frame). */
-html.page-hidden .aurora > i, html:has(dialog:modal) .aurora > i { animation-play-state: paused; }
+/* Paused when nobody sees it: a hidden tab, or a window over the app (its backdrop would re-blur every frame).
+   html.modal-open comes from web/smooth.js: a page-wide :has() re-checked the whole page on every change. */
+html.page-hidden .aurora > i, html.modal-open .aurora > i { animation-play-state: paused; }
+/* V4 palettes: the aurora holds still and the light field (web/v4.js, a quarter-size canvas at a few
+   frames a second) is the one moving layer. Three window-sized layers drifting at full frame rate under
+   the glass made every frame re-blur the header, sidebar and composer (docs/PERFORMANCE.md). */
+:root:not([data-palette="classic"]) .aurora > i { animation: none; }
 @media (prefers-reduced-motion: reduce) {
   .aurora > i { animation: none !important; }
 }
@@ -72,6 +77,13 @@ html.today-open #chat > :not(#today) { visibility: hidden; }
 #chat-head { background: color-mix(in srgb, var(--surface-0) 58%, transparent); box-shadow: var(--glass-hi); }
 @media (max-width: 760px) { #sidebar { background: var(--surface-1); } }
 @media (max-width: 720px) { #chat-head { background: color-mix(in srgb, var(--surface-0) 88%, transparent); } }
+
+/* Glass blur off (Settings → Appearance; Auto in Firefox, web/smooth.js glassPlan): the same colours
+   without the blur, the panels a little more solid so text never shows through. In Firefox every frame
+   re-blurred the moving page behind them (~60 ms a frame; docs/PERFORMANCE.md). */
+html[data-glass="off"] *, html[data-glass="off"] *::before, html[data-glass="off"] *::after, html[data-glass="off"] dialog::backdrop { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; }
+:root:not([data-palette="classic"])[data-decor="on"][data-glass="off"] { --v3-glass: 95%; --v3-glass-strong: 97%; }
+html[data-glass="off"]:not([data-palette="classic"]) :is(.v4-strip, #sidebar, .her-panel.mode-side) { background: color-mix(in srgb, var(--surface-1) 95%, transparent); }
 
 /* ---------- 2. Glass and elevation ---------- */
 /* Tiles and cards: a see-through fill, a 1 px edge that is light at the top and fades to a hairline

@@ -24,7 +24,7 @@
 
 **Atualizar:** num servidor Linux, `sudo sara update` (faz backup antes e volta atrás se ela não responder) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows e Mac: Configurações → Dados e saúde → Atualizações · Android: Google Play. [Como atualizar](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.4.1, [Ela lembra tanto quanto o modelo dela comporta](https://github.com/farena-ai/sara/releases/tag/v3.4.1). A memória do chat segue a janela real de cada modelo, com controle de custo; modelos locais do Ollama param de esquecer chats longos. [Veja as novidades](#novidades)
+> **Status:** 3.4.2, [Notas que nunca perdem o que você contou](https://github.com/farena-ai/sara/releases/tag/v3.4.2). Adicionar a uma nota nunca a apaga, toda versão fica guardada com Restaurar e o app do Windows pode ler suas abas e arquivos. [Veja as novidades](#novidades)
 >
 > Instalador Windows: sem assinatura ([guia do SmartScreen](docs/INSTALL.md)). O processo de publicação do macOS exige downloads assinados e notarizados; cada compilação é verificada separadamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web na tela inicial](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versões recentes · 6 de novembro de 2026. [Histórico completo](CHANGELOG.md) 
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notas que nunca perdem o que você contou](docs/FEATURES.md)** — Ela adiciona cada coisa nova a uma nota sob um título com data, um salvamento que apagaria uma nota é recusado, versões anteriores voltam com Restaurar e um “salvo” sem prova é sinalizado. A borda superior do app do Windows acompanha a página e ela pode ler suas abas e arquivos. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Ela lembra tanto quanto o modelo dela comporta](docs/CHOOSING_A_MODEL.md)** — O Auto ajusta quanto do chat ela tem em mente ao modelo em uso (consultado no serviço ou numa tabela datada), limita o histórico pago por token a um nível equilibrado, a menos que você escolha a janela inteira, e dá aos modelos locais do Ollama um contexto real. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documentos, o nome dela em todo lugar, uso do computador a partir de um servidor](docs/DOCUMENTS.md)** — Ela cria documentos de verdade com qualquer modelo (Word, PDF, planilhas, apresentações) com Baixar, Abrir e Fazer alterações. Um companheiro renomeado mostra seu nome e pronomes em todo lugar, com personagens padrão ele e elu. O complemento de navegador e o uso do computador agora funcionam com um clique. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Modo fácil](docs/AWAY_FROM_HOME.md)** — Feito com um usuário iniciante: a configuração explica as chaves e não se perde, problemas vêm com Corrigir, Conectar o app da Sara e Usar a Sara fora de casa (Tailscale) são guiados e testados, o Gmail leva três passos e você pode dizer “aumente o texto” com Desfazer. |
 | **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Ela ganha vida](docs/APPEARANCE.md)** — Escolha O retrato dela, animado em Aparência e ela respira, pisca, olha em volta e mexe os lábios ao falar, com jeitos de ouvir, pensar e falar e seus humores, no chat, em Hoje e nas chamadas. Sua própria imagem ou um modelo 3D .vrm também funcionam. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Pesquisa que não desiste](docs/RESEARCH.md)** — Peça para ela pesquisar um assunto, fazer um guia ou aprender algo e ela inicia uma pesquisa: busca em vez de adivinhar endereços, pula sites que bloqueiam leitores automáticos, tenta de novo os lentos, continua após reiniciar, e uma pesquisa interrompida ainda entrega um relatório marcado como Parcial. |
-| **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Mudar do Hermes ou OpenClaw, agora fácil](docs/MOVE_IN_GUIDE.md)** — Se o Hermes Agent ou o OpenClaw está no mesmo computador, a Sara encontra e a traz com um botão (personalidade, lembranças, conversas antigas, habilidades, horários), com prévia antes e Desfazer depois. De outro computador basta colar uma linha e a página da Sara avança sozinha. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versões 2.6x anteriores</b>: da 3.1.0 até a 2.61.5</summary>
+<summary><b>Versões 2.6x anteriores</b>: da 3.1.1 até a 2.61.5</summary>
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Mudar do Hermes ou OpenClaw, agora fácil](docs/MOVE_IN_GUIDE.md)** — Se o Hermes Agent ou o OpenClaw está no mesmo computador, a Sara encontra e a traz com um botão (personalidade, lembranças, conversas antigas, habilidades, horários), com prévia antes e Desfazer depois. De outro computador basta colar uma linha e a página da Sara avança sozinha. |
 | **[3.1.0](https://github.com/farena-ai/sara/releases/tag/v3.1.0)** | **[E-mail além do Gmail](docs/EMAIL.md)** — Outlook.com e Microsoft 365 (e-mail e agenda), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail e qualquer outro servidor: ela busca, lê conversas, acha o que espera resposta, rascunha, envia e organiza com as aprovações e o Desfazer do Gmail. Várias caixas com uma padrão; cada membro da casa pode conectar as suas, privadas. |
 | **[3.0.3](https://github.com/farena-ai/sara/releases/tag/v3.0.3)** | **[Mais rápida, mais estável e mais fácil de achar](docs/DEVICE_APPROVAL.md)** — As configurações abrem na hora, há uma só busca e uma aprovação está sempre ao alcance (responda pela barra acima da caixa de mensagem ou com Ctrl K). Salvar as próprias habilidades não pergunta mais, um ponto vermelho marca as conversas que precisam de você e a resposta dela diz quantas lembranças novas salvou. Adicionar um celular ou computador é fácil de achar, e o modelo escolhido na configuração continua o padrão. |
 | **[3.0.2](https://github.com/farena-ai/sara/releases/tag/v3.0.2)** | **[Acabamento, violeta e uma mudança fácil](docs/MOVE_IN_GUIDE.md)** — As configurações abrem centralizadas, violeta é a cor padrão e uma paleta volta para a própria cor. A decoração completa está mais rica e Hoje tem movimento sutil (desligado com movimento reduzido). Quatro relacionamentos que não são românticos, uma mudança em cinco passos do Hermes Agent ou OpenClaw com o comando exato para o seu sistema, e Tess, a faz-tudo prática, na galeria (obrigado a @Guilsc). |

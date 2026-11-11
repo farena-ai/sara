@@ -63,6 +63,16 @@ test('Windows app: no white flash, theme colours from the first frame, the shell
   const msg = cpp.slice(cpp.indexOf('static void onMessage('));
   assert.ok(msg.indexOf('L"shell"') < msg.indexOf('if (!fromServer) return;'));
   assert.ok(msg.indexOf('if (!fromServer) return;') < msg.indexOf('m[L"type"] == L"theme"'));
+  // wintop: the top band and the place under the caption buttons in the colour the server's page
+  // says its top edge is (other palettes than Sara Classic), remembered; strictly #rrggbb; Sara
+  // Classic's for a page that doesn't say, the app's own pages and the quick-ask window.
+  assert.ok(msg.indexOf('if (!fromServer) return;') < msg.indexOf('setFrameColor(m[L"frame"])'));
+  assert.match(cpp, /static COLORREF themeColor\(\) \{ return g_frameSet\[g_day\] && !g_framePageLocal \? g_frame\[g_day\] : baseColor\(\); \}/);
+  assert.match(cpp, /if \(s\.size\(\) != 7 \|\| s\[0\] != L'#'\) return false;/);
+  assert.match(cpp, /setPref\(i \? L"frameDay" : L"frameNight"/);
+  assert.match(cpp, /g_day = resolveDay\(g_themePref\);\n  loadFrameColors\(\);/);
+  assert.match(cpp, /setFramePageLocal\(pageOrigin\(u\) == L"local"\)/);
+  assert.match(cpp, /CreateSolidBrush\(baseColor\(\)\)/, 'the quick-ask window keeps its own colours');
   // The app's own pages: the new tokens, Night or Day, and a drag strip.
   assert.match(cpp, /--bg:#0f0d17/);
   assert.match(cpp, /html\.day\{--bg:#faf7f5/);

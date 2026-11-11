@@ -720,7 +720,40 @@ static bool systemUsesLight() {
   return v != 0;
 }
 static bool resolveDay(const std::wstring& pref) { return pref == L"day" || (pref == L"system" && systemUsesLight()); }
-static COLORREF themeColor() { return g_day ? kDay : kNight; }
+/** Sara Classic's background: the quick-ask window and the app's own pages (setup, offline). */
+static COLORREF baseColor() { return g_day ? kDay : kNight; }
+// 3.4.x (wintop): the colour of the page's own top edge, for Day [1] and Night [0], as the server's
+// page said ({type:'theme', frame:'#rrggbb'}). The palettes outside Sara Classic (Graphite, Nord, …)
+// have other backgrounds than kDay/kNight, so the top resize band and the place under the caption
+// buttons showed as a light (or dark) bar of another colour above the page. Remembered in
+// desktop.ini (frameDay / frameNight) for the next start; a page that doesn't say: Sara Classic's.
+static COLORREF g_frame[2] = {kNight, kDay};
+static bool g_frameSet[2] = {false, false};
+static bool g_framePageLocal = false;  // the app's own page is shown (its colours are Sara Classic's)
+/** The window's frame, the top band and the place under the caption buttons: the page's top colour. */
+static COLORREF themeColor() { return g_frameSet[g_day] && !g_framePageLocal ? g_frame[g_day] : baseColor(); }
+/** "#rrggbb" → colour (false for anything else). */
+static bool parseHexColor(const std::wstring& s, COLORREF& out) {
+  if (s.size() != 7 || s[0] != L'#') return false;
+  unsigned v = 0;
+  for (size_t i = 1; i < 7; i++) {
+    wchar_t c = s[i];
+    int d = c >= L'0' && c <= L'9' ? c - L'0' : c >= L'a' && c <= L'f' ? c - L'a' + 10 : c >= L'A' && c <= L'F' ? c - L'A' + 10 : -1;
+    if (d < 0) return false;
+    v = v * 16 + (unsigned)d;
+  }
+  out = RGB((v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff);
+  return true;
+}
+static std::wstring hexOfColor(COLORREF c) {
+  wchar_t b[8];
+  swprintf_s(b, L"#%02x%02x%02x", GetRValue(c), GetGValue(c), GetBValue(c));
+  return b;
+}
+static void loadFrameColors() {
+  const wchar_t* keys[2] = {L"frameNight", L"frameDay"};
+  for (int i = 0; i < 2; i++) g_frameSet[i] = parseHexColor(getPref(keys[i]), g_frame[i]);
+}
 static UINT windowDpi() { return g_wnd ? GetDpiForWindow(g_wnd) : 96; }
 /** The resize border at the top while the page draws into the title area (not when maximized). */
 static int topResizeBand() {
@@ -821,6 +854,25 @@ static void setTheme(std::wstring pref) {
   g_day = day;
   if (getPref(L"theme") != pref) setPref(L"theme", pref);
   if (changed) applyTheme();
+}
+
+/** The server's page said the colour of its top edge for the theme it shows ("" = it didn't say:
+ *  an older server, Sara Classic's colours). */
+static void setFrameColor(const std::wstring& hex) {
+  COLORREF c = 0;
+  bool set = parseHexColor(hex, c);
+  int i = g_day ? 1 : 0;
+  if (set == g_frameSet[i] && (!set || c == g_frame[i])) return;
+  g_frameSet[i] = set;
+  if (set) g_frame[i] = c;
+  setPref(i ? L"frameDay" : L"frameNight", set ? hexOfColor(c) : L"");
+  applyTheme();
+}
+/** The app's own pages (setup, offline) are Sara Classic's colours; a server page its own. */
+static void setFramePageLocal(bool local) {
+  if (local == g_framePageLocal) return;
+  g_framePageLocal = local;
+  if (g_frameSet[g_day ? 1 : 0]) applyTheme();
 }
 
 /** The page draws its header in the title strip (or a new page from another place hasn't said so). */
@@ -1133,6 +1185,13 @@ static void handsSync() {
   // Phase 92: "The whole screen" (look only) and the person's own hidden windows.
   h.desktopOn = getIni(handsSection(), L"handsDesktop") == L"1";
   h.blockExtra = toUtf8(unescapeLines(getIni(handsSection(), L"handsBlockExtra")));
+  // 3.4.x: "Files" (read only, off by default). Test runs: Desktop/Documents/Downloads inside SARA_FILES_TEST_ROOT.
+  h.filesOn = getIni(handsSection(), L"handsFiles") == L"1";
+  if (testRun()) {
+    wchar_t root[MAX_PATH];
+    if (GetEnvironmentVariableW(L"SARA_FILES_TEST_ROOT", root, MAX_PATH) > 0) h.filesTestRoot = root;
+    if (GetEnvironmentVariableW(L"SARA_TABS_TEST_PID", root, MAX_PATH) > 0) h.tabsTestPid = (unsigned long)_wtoi(root);
+  }
   h.downloadsDir = handsDownloads();
   h.logFile = dataDir() + L"\\hands-log.txt";
   h.expiresAt = toUtf8(getIni(handsSection(), L"handsExpires"));
@@ -1176,6 +1235,7 @@ static std::wstring handsPrefsJson() {
          L",\"handsConnected\":" + (sarahands::connected() ? L"true" : L"false") + L",\"handsDeviceId\":\"" + jsonEscape(getIni(handsSection(), L"handsId")) + L"\",\"handsError\":\"" +
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
          L",\"handsDesktopLevel\":\"" + (getIni(handsSection(), L"handsDesktopLevel").empty() ? L"task" : getIni(handsSection(), L"handsDesktopLevel")) + L"\",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsWalkAway\":" + (getIni(handsSection(), L"handsWalkAway") == L"1" ? L"true" : L"false") + L",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
+         L",\"handsFilesSupported\":true,\"handsFiles\":" + (getIni(handsSection(), L"handsFiles") == L"1" ? L"true" : L"false") +
          L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
          L",\"pmSupported\":true" +
          // Phase 92: the whole screen (Windows needs no extra permission to look, so no handsPerms here).
@@ -1341,7 +1401,7 @@ static void styleQuickAsk() {
     g_qaAcrylic = SUCCEEDED(DwmSetWindowAttribute(g_qa, DWMWA_SYSTEMBACKDROP_TYPE, &type, sizeof(type)));
   }
   ComPtr<ICoreWebView2Controller2> c2;
-  COLORREF c = themeColor();
+  COLORREF c = baseColor();
   if (g_qaCtl && SUCCEEDED(g_qaCtl.As(&c2))) c2->put_DefaultBackgroundColor({(BYTE)(g_qaAcrylic ? 0 : 255), GetRValue(c), GetGValue(c), GetBValue(c)});
   InvalidateRect(g_qa, nullptr, TRUE);
 }
@@ -1485,7 +1545,7 @@ static LRESULT CALLBACK QuickProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_PAINT: {
       PAINTSTRUCT ps;
       HDC dc = BeginPaint(h, &ps);
-      HBRUSH b = g_qaAcrylic ? (HBRUSH)GetStockObject(BLACK_BRUSH) : CreateSolidBrush(themeColor());
+      HBRUSH b = g_qaAcrylic ? (HBRUSH)GetStockObject(BLACK_BRUSH) : CreateSolidBrush(baseColor());
       FillRect(dc, &ps.rcPaint, b);
       if (!g_qaAcrylic) DeleteObject(b);
       EndPaint(h, &ps);
@@ -2780,6 +2840,8 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   // background before the next page paints follow it. {type:'theme', theme} or SaraDesktop.call('theme', {theme}).
   if (m[L"type"] == L"theme" || kind == L"theme") {
     setTheme(m[L"theme"]);
+    // wintop: the colour of the page's top edge (its palette's), for the frame above it.
+    setFrameColor(m[L"frame"]);
     if (!m[L"backdrop"].empty()) setBackdrop(m[L"backdrop"]);
     return reply(id, L"true");
   }
@@ -2838,6 +2900,11 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       // Phase 92: "The whole screen" (desktop look; the page showed its explainer first).
       setIni(handsSection(), L"handsDesktop", on ? L"1" : L"0");
       sarahands::setDesktop(on);
+    }
+    else if (key == L"handsFiles") {
+      // 3.4.x: "Files" (read Desktop, Documents and Downloads; the page showed its explainer first).
+      setIni(handsSection(), L"handsFiles", on ? L"1" : L"0");
+      sarahands::setFiles(on);
     }
     else if (key == L"handsBlockExtra") {
       // Phase 92: "Also hide these windows" (one per line; kept on one ini line with \n escapes).
@@ -3017,6 +3084,7 @@ static void createController() {
             if (u.rfind(L"data:", 0) == 0 || u.rfind(L"about:", 0) == 0 || sameOrigin(u)) {
               // Another place (a server, the app's own page): its page says again whether it draws the strip.
               if (g_pageTitle && pageOrigin(u) != g_pageTitleOrigin) setPageTitle(false, L"");
+              setFramePageLocal(pageOrigin(u) == L"local");
               return S_OK;
             }
             a->put_Cancel(TRUE);
@@ -3617,6 +3685,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   g_themePref = getPref(L"theme", L"night");
   if (g_themePref != L"day" && g_themePref != L"system") g_themePref = L"night";
   g_day = resolveDay(g_themePref);
+  loadFrameColors();
   g_wantMica = getPref(L"backdrop") == L"mica" && windowsBuild() >= 22621;
   {
     LPWSTR rt = nullptr;

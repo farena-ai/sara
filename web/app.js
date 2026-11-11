@@ -118,6 +118,7 @@ import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, p
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { initV4, v4Kick } from './v4.js';
 import { initMotion } from './v4-motion.js';
+import { glassPlan, nearBottom, streamFrame, watchModal } from './smooth.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
@@ -187,6 +188,8 @@ const passkeysWork = () => Boolean(window.PublicKeyCredential) && window.isSecur
 
 function show(id) {
   for (const s of document.querySelectorAll('.screen')) s.hidden = s.id !== id;
+  // wintop: the app view's status strip is another colour at the top than the sign-in page.
+  sayShellTheme();
 }
 
 // ---------- boot ----------
@@ -1415,6 +1418,8 @@ const sidebarUI = initSidebar({ main: $('#main'), sidebar: $('#sidebar'), toggle
 // The sidebar's places: pinned ones, the rest under More (web/nav.js).
 initNav();
 initTidy();
+// docs/PERFORMANCE.md: html.modal-open while a window is open (the background rests; no page-wide :has()).
+watchModal();
 void loadHowto().then(() => mountViewHowtos(t));
 initLook();
 initOrbs();
@@ -1804,7 +1809,8 @@ function queueReply(div, raw) {
   div._queued = true;
   requestAnimationFrame(() => {
     div._queued = false;
-    setReply(div, div._raw);
+    // docs/PERFORMANCE.md: one layout read and at most one scroll a frame; a reader who scrolled up stays put.
+    streamFrame($('#messages'), () => setReply(div, div._raw));
   });
 }
 
@@ -2959,7 +2965,6 @@ async function runStream(path, body, userBubble) {
           queueReply(reply, (reply._raw ?? '') + ev.text);
           if (voiceOn()) speaker.feed(ev.text);
           if (videoView.active && voice.call?.active) videoView.her(ev.text);
-          $('#messages').scrollTop = $('#messages').scrollHeight;
         } else if (ev.type === 'claim_check') {
           if (voiceOn() && ev.correcting) speaker.stop();
           const r = reply;
@@ -3028,7 +3033,9 @@ async function runStream(path, body, userBubble) {
     if (current) $('#chat-title').textContent = current.title;
     // Redraw from the server so every message has its id, model and buttons.
     try {
-      const c = await api(`/conversations/${state.currentId}?limit=${Math.max(PAGE, (state.messages?.length ?? 0) + 10)}`);
+      // docs/PERFORMANCE.md: at the bottom the chat keeps a window of the last PAGE messages (earlier ones
+      // come back on scrolling up), so a long session never grows the page; reading up keeps them all.
+      const c = await api(`/conversations/${state.currentId}?limit=${nearBottom($('#messages')) ? PAGE : Math.max(PAGE, (state.messages?.length ?? 0) + 10)}`);
       if (!c.activity && !state.streaming) {
         state.conv = { ...state.conv, earlier: c.earlier, pinned: c.pinned };
         renderPins();
@@ -3191,7 +3198,8 @@ function flagClaims(el, claims) {
     const ask = document.createElement('button');
     ask.type = 'button';
     ask.className = 'ghost small claim-ask';
-    ask.textContent = t('Ask her to really do it');
+    // 3.4.2: "I saved it" with no save: the button says what to do.
+    ask.textContent = claims[0].kind === 'planner' ? t('Ask her to really save it') : t('Ask her to really do it');
     ask.addEventListener('click', async () => {
       ask.disabled = true;
       await askInChat(t('You said "{sentence}", but I don\'t see that it happened. Please really do it now, or tell me why you can\'t.', { sentence: claims[0].sentence }));
@@ -7682,12 +7690,27 @@ function renderNotes(notes) {
           row.append(
             mid,
             btn(t('Edit'), () => openNoteEditor(n)),
+            btn(t('Earlier versions'), () => toggleNoteVersions(n, mid)),
             btn(t('Delete'), () => confirm(t('Delete note "{title}"?', { title: n.title })) && plannerCall(() => api(`/notes/${n.id}`, { method: 'DELETE' }))),
           );
           return row;
         })
       : [emptyState('note', $('#note-q').value.trim() ? t('No matching notes.') : t('No notes yet.'))]),
   );
+}
+// 3.4.2: every change to a note keeps the text it had before; Restore brings one back (kept too).
+async function toggleNoteVersions(n, box) {
+  const open = box.querySelector('.note-versions');
+  if (open) return open.remove();
+  const list = el('div', 'note-versions');
+  box.append(list);
+  const vers = await api(`/notes/${n.id}/versions`).catch(() => []);
+  if (!vers.length) return list.append(el('div', 'sub', t('No earlier versions yet.')));
+  for (const v of vers.slice(0, 20)) {
+    const line = el('div', 'sub', `${fmtDue(v.at, false)} · ${t('{count} characters', { count: v.body.length.toLocaleString() })} · ${v.body.replace(/\s+/g, ' ').slice(0, 80)}`);
+    line.append(' ', btn(t('Restore'), () => confirm(t('Bring back this version of "{title}"? The text it has now is kept as a version too.', { title: n.title })) && plannerCall(() => api(`/notes/${n.id}/restore`, { method: 'POST', body: { version: v.id } }))));
+    list.append(line);
+  }
 }
 function openNoteEditor(n) {
   editingNote = n ?? null;
@@ -9753,6 +9776,46 @@ function readCustomAccent() {
     return null;
   }
 }
+// wintop: the Windows app paints its top resize band and the place under the caption buttons
+// itself; without being told it used Sara Classic's background there, a light (or dark) bar above
+// every other palette. The page says the colour of its top edge: V4's status strip (--surface-1 at
+// 82% over the page) while the app view shows, otherwise the page's own background.
+var shellTheme = '';
+var shellSaid = '';
+function cssHex(value) {
+  const probe = document.createElement('i');
+  probe.style.cssText = 'position:absolute;width:0;height:0;visibility:hidden';
+  probe.style.color = value;
+  document.body?.append(probe);
+  const c = probe.isConnected ? getComputedStyle(probe).color : '';
+  probe.remove();
+  // "rgb(r, g, b)" or, for color-mix(), "color(srgb r g b)" with 0–1 channels.
+  let m = /^rgba?\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)/.exec(c);
+  let rgb = m ? m.slice(1, 4).map(Number) : null;
+  m = rgb ? null : /^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)/.exec(c);
+  if (m) rgb = m.slice(1, 4).map((v) => Number(v) * 255);
+  if (!rgb || rgb.some((v) => !(v >= 0 && v <= 255.5))) return '';
+  return `#${rgb.map((v) => Math.round(Math.min(255, v)).toString(16).padStart(2, '0')).join('')}`;
+}
+function shellFrame() {
+  const root = document.documentElement;
+  const cs = getComputedStyle(root);
+  const s0 = cs.getPropertyValue('--surface-0').trim();
+  const s1 = cs.getPropertyValue('--surface-1').trim();
+  if (!s0) return '';
+  const main = document.getElementById('main');
+  const strip = root.dataset.palette !== 'classic' && main && !main.hidden && s1;
+  return cssHex(strip ? `color-mix(in srgb, ${s1} 82%, ${s0})` : s0);
+}
+function sayShellTheme() {
+  const root = document.documentElement;
+  if (!shellTheme || !root.classList.contains('shell') || root.classList.contains('shell-test')) return;
+  const frame = shellFrame();
+  const said = `${shellTheme} ${frame}`;
+  if (said === shellSaid) return;
+  shellSaid = said;
+  window.saraShellSay?.({ type: 'theme', theme: shellTheme, ...(frame ? { frame } : {}) });
+}
 function applyAppearance() {
   const theme = themePick();
   const light = theme === 'light' || (theme === 'system' && matchMedia('(prefers-color-scheme: light)').matches);
@@ -9760,14 +9823,14 @@ function applyAppearance() {
   root.dataset.theme = light ? 'light' : 'dark';
   root.classList.toggle('theme-day', light);
   root.classList.toggle('theme-night', !light);
-  // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js).
-  if (root.classList.contains('shell') && !root.classList.contains('shell-test')) window.saraShellSay?.({ type: 'theme', theme: theme === 'light' ? 'day' : theme === 'system' ? 'system' : 'night' });
   const pal = palettePick();
   for (const k of Object.keys(AP_DEFAULTS)) root.dataset[k] = k === 'accent' ? accentPick(pal) : (localStorage.getItem(`sara.${k}`) ?? AP_DEFAULTS[k]);
   // V1: palette, decoration, her portrait and a custom accent (the same rules as web/theme-boot.js).
   root.dataset.palette = pal;
   root.dataset.decor = matchMedia('(prefers-reduced-transparency: reduce)').matches ? 'off' : decorPick(pal);
   root.dataset.portrait = portraitPick();
+  // docs/PERFORMANCE.md: Glass blur (Auto is off in Firefox, where the blur made every frame slow).
+  root.dataset.glass = glassPlan(localStorage.getItem('sara.glass'), navigator.userAgent);
   const custom = root.dataset.accent === 'custom' ? readCustomAccent()?.[light ? 'light' : 'dark'] : null;
   for (const [v, k] of ACCENT_VARS) {
     if (custom) root.style.setProperty(v, custom[k]);
@@ -9776,6 +9839,10 @@ function applyAppearance() {
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', getComputedStyle(root).getPropertyValue('--surface-0').trim() || (light ? '#faf7f5' : '#0f0d17'));
   root.style.setProperty('--chat-size', `${localStorage.getItem('sara.textSize') ?? '15'}px`);
   placeRail(pal !== 'classic');
+  // The Windows/Mac app follows: its title bar, backdrop and first paint (web/theme-boot.js), and
+  // (wintop) its frame above the page in this palette's top colour.
+  shellTheme = theme === 'light' ? 'day' : theme === 'system' ? 'system' : 'night';
+  sayShellTheme();
 }
 applyAppearance();
 matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyAppearance);
@@ -9846,6 +9913,7 @@ function showAppearance() {
   $('#ap-palette').value = pal;
   for (const b of $('#ap-pals').children) b.setAttribute('aria-checked', String(b.dataset.pal === pal));
   $('#ap-decor').value = decorPick();
+  $('#ap-glass').value = ['on', 'off'].includes(localStorage.getItem('sara.glass')) ? localStorage.getItem('sara.glass') : 'auto';
   $('#ap-portrait').value = portraitPick(pal);
   $('#ap-theme').value = themePick(pal);
   $('#ap-accent').value = ACCENT_NOW[accentPick(pal)] ?? accentPick(pal);
@@ -9889,7 +9957,7 @@ $('#ap-palette').addEventListener('change', () => {
   applyAppearance();
   showAppearance();
 });
-for (const k of ['decor', 'portrait']) {
+for (const k of ['decor', 'portrait', 'glass']) {
   $(`#ap-${k}`).addEventListener('change', () => {
     localStorage.setItem(`sara.${k}`, $(`#ap-${k}`).value);
     applyAppearance();
@@ -10029,7 +10097,7 @@ function apSegment(id) {
 }
 apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
 // Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
-const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
+const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.glass', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
 $('#ap-reset').addEventListener('click', () => {
   if (!confirm(t('Reset how Sara looks on this device to the defaults?'))) return;
   for (const k of AP_KEYS) localStorage.removeItem(k);
@@ -13183,6 +13251,10 @@ async function loadComputer() {
     $('#cu-desktop').disabled = p.handsOptIn !== true || p.handsDesktopSupported !== true;
     $('#cu-desktop').closest('label').hidden = p.handsDesktopSupported !== true;
     $('#cu-block-extra').closest('label').hidden = p.handsDesktopSupported !== true;
+    // 3.4.x: "Files" (read only; apps from 3.4 on).
+    $('#cu-files').checked = p.handsFiles === true;
+    $('#cu-files').disabled = p.handsOptIn !== true || p.handsFilesSupported !== true;
+    $('#cu-files').closest('label').hidden = p.handsFilesSupported !== true;
     if (document.activeElement !== $('#cu-block-extra')) $('#cu-block-extra').value = p.handsBlockExtra || '';
     $('#cu-block-extra').disabled = p.handsOptIn !== true;
     renderCuPerms(p);
@@ -13584,6 +13656,15 @@ $('#cu-desktop').addEventListener('change', async () => {
   if (r?.error) box.checked = !on;
   $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may look at this screen now. Blocked windows stay black.') : t('Sara only uses her own browser here now.');
   if (r && !r.error) renderCuPerms(r);
+});
+$('#cu-files').addEventListener('change', async () => {
+  const box = $('#cu-files');
+  const d = handsBridge();
+  if (!d) return;
+  const on = box.checked;
+  const r = await d.call('setPref', { key: 'handsFiles', value: on }).catch((err) => ({ error: String(err) }));
+  if (r?.error) box.checked = !on;
+  $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may read your Desktop, Documents and Downloads here now. She never changes them.') : t('Sara can\u2019t see your files here now.');
 });
 $('#cu-block-extra').addEventListener('change', async () => {
   const d = handsBridge();

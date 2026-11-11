@@ -1,4 +1,8 @@
 {
+"Files: read my Desktop, Documents and Downloads": "Fichiers : lire mon Bureau, mes Documents et mes Téléchargements",
+"Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.": "Désactivé par défaut. Activé : Sara peut lister ces dossiers et lire leurs fichiers texte quand tu le demandes. Rien n’est jamais modifié, déplacé ni supprimé. Les fichiers cachés et ceux qui ressemblent à des clés ou des mots de passe restent exclus.",
+"Sara may read your Desktop, Documents and Downloads here now. She never changes them.": "Sara peut maintenant lire ici ton Bureau, tes Documents et tes Téléchargements. Elle ne les modifie jamais.",
+"Sara can’t see your files here now.": "Sara ne peut plus voir tes fichiers ici.",
 "How do I add an Outlook or Microsoft 365 mailbox?": "Comment ajouter une boîte Outlook ou Microsoft 365 ?",
 "Under Microsoft, follow the numbered steps to make your own Microsoft app.": "Sous Microsoft, suivez les étapes numérotées pour créer votre propre appli Microsoft.",
 "Paste its client ID and secret, then press Save.": "Collez son ID client et son secret, puis appuyez sur Enregistrer.",
@@ -15908,5 +15912,17 @@
 "Follows the model: {model}.": "Suit le modèle : {model}.",
 "Context used: {n}% of what she can hold (about {used} of {keep} words)": "Contexte utilisé : {n} % de ce qu’elle peut contenir (environ {used} mots sur {keep})",
 "Pick Auto, the full window or a fixed size.": "Choisissez Auto, toute la fenêtre ou une taille fixe.",
-"Conversation length must be between 8,000 and 4,000,000 characters.": "La longueur de conversation doit être comprise entre 8 000 et 4 000 000 caractères."
+"Conversation length must be between 8,000 and 4,000,000 characters.": "La longueur de conversation doit être comprise entre 8 000 et 4 000 000 caractères.",
+"Ask her to really save it": "Demande-lui de vraiment l'enregistrer",
+"No earlier versions yet.": "Pas encore de versions précédentes.",
+"{count} characters": "{count} caractères",
+"Restore": "Restaurer",
+"Bring back this version of \"{title}\"? The text it has now is kept as a version too.": "Rétablir cette version de « {title} » ? Le texte actuel est aussi gardé comme version.",
+"Version not found": "Version introuvable",
+"an earlier version of a note": "une version précédente d'une note",
+"Glass blur": "Flou de verre",
+"Auto: on, except in Firefox (default)": "Auto : activé, sauf dans Firefox (par défaut)",
+"On: frosted panels": "Activé : panneaux givrés",
+"Off: smooth solid panels": "Désactivé : panneaux pleins et fluides",
+"The frosted blur behind the header, sidebar and message box. Auto turns it off in Firefox, where it can make a long chat slow to scroll and answer. Off keeps the same colors, solid.": "Le flou givré derrière l'en-tête, la barre latérale et la zone de message. Auto le désactive dans Firefox, où il peut ralentir le défilement et les réponses d'une longue discussion. Désactivé garde les mêmes couleurs, en plein."
 }

@@ -85,7 +85,8 @@ export function fieldPlan({ hidden, reduced, motion, classic, decor, busy }) {
   if (classic) return { run: false, still: false, fps: 0, speed: 0 };
   if (reduced || motion === 'off' || decor === 'off') return { run: false, still: true, fps: 0, speed: 0 };
   const b = Math.max(0, Math.min(1, Number(busy) || 0));
-  return { run: true, still: false, fps: b > 0.5 ? 30 : b > 0.2 ? 20 : 12, speed: 0.25 + b * 0.75 };
+  // docs/PERFORMANCE.md: a slow drift needs few frames; busy speeds the drift, not the frame rate.
+  return { run: true, still: false, fps: b > 0.2 ? 15 : 10, speed: 0.25 + b * 0.75 };
 }
 /** A frame is due when enough time passed for the frame rate (never more than 30 a second). */
 export const frameDue = (last, now, fps) => fps > 0 && now - last >= 1000 / Math.min(30, fps);

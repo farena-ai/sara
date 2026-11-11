@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Notes that never lose what you told her, in 3.4.2
+
+Adding to a note now puts each new thing under a dated heading and never touches what is already there;
+a save that would erase a note is refused, and every earlier version is kept with Restore (deleted notes
+come back for 30 days). When she says she saved something and didn't, the reply shows it with a button
+to make her really save it. The Windows app matches the page's colors at the top, and through the app
+she can read your own browser tabs and, with the new Files switch, your Desktop, Documents and Downloads. Long coding
+chats stay smooth: in Firefox, button presses answer in about 30 ms instead of 200-330 ms (new Glass blur
+setting, calmer background motion, one animated face, drawn once a frame).
+
 ## She remembers as much as her model can hold, in 3.4.1
 
 How much of the chat she keeps in mind now follows each model: she looks up its real window (or uses a

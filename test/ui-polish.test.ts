@@ -123,7 +123,7 @@ test('the aurora: one fixed layer, transform-only drift, paused when hidden, sti
   }
   for (const n of [1, 2, 3]) assert.match(polish, new RegExp(`\\.aurora > \\.au-${n} \\{[^}]*animation: au-drift-${n} calc\\((4[0-9]|5[0-9]|60)s \\* var\\(--aurora-speed\\)\\)`), `blob ${n}: 40-60 s`);
   assert.doesNotMatch(polish.slice(polish.indexOf('/* ---------- 1.'), polish.indexOf('/* ---------- 2.')), /filter:\s*blur/, 'no blur filters on the aurora');
-  assert.match(polish, /html\.page-hidden \.aurora > i, html:has\(dialog:modal\) \.aurora > i \{ animation-play-state: paused; \}/);
+  assert.match(polish, /html\.page-hidden \.aurora > i, html\.modal-open \.aurora > i \{ animation-play-state: paused; \}/);
   assert.match(web('app.js'), /document\.addEventListener\('visibilitychange', markHidden\);/);
   assert.match(web('app.js'), /classList\.toggle\('page-hidden', document\.visibilityState === 'hidden'\)/);
   assert.match(polish, /@media \(prefers-reduced-motion: reduce\) \{\s*\.aurora > i \{ animation: none !important; \}/);

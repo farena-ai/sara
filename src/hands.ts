@@ -49,7 +49,8 @@
 //   secure fields are boxed out and never give a value: all on the device, before anything is sent.
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
-import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS } from './hands-desktop.ts';
+import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TAB_OPS } from './hands-desktop.ts';
+import { FILE_OPS, FILE_OPS_SET } from './hands-files.ts';
 import { CU7_OPS } from './hands-checkup.ts';
 import { managerViews, relockMinutes, type ManagerView } from './hands-managers.ts';
 import { Tunnels } from './tunnel.ts';
@@ -66,11 +67,11 @@ export const CU3_OPS = ['c.tunnel', 'c.untunnel'] as const;
 export const CU4_OPS = ['b.login', 'b.saveLogin', 'b.logins', 'b.forgetLogin', 'b.yourTurn'] as const;
 /** Phase 91 (CU4b): the owner's password managers: the person unlocks one in its own prompt; Sara locks them again. */
 export const CU4B_OPS = ['b.unlock', 'b.relock'] as const;
-export { CU5_OPS, CU7_OPS };
+export { CU5_OPS, CU7_OPS, FILE_OPS, TAB_OPS };
 /** CU6: typed browser and desktop operations; no scripts or password-reading operation. */
-export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS, ...CU6_OPS, ...CU7_OPS, 'c.endTask'] as const;
+export const HANDS_OPS = [...CU1_OPS, ...CU2_OPS, ...CU3_OPS, ...CU4_OPS, ...CU4B_OPS, ...CU5_OPS, ...CU6_OPS, ...CU7_OPS, 'c.endTask', ...TAB_OPS, ...FILE_OPS] as const;
 /** Phase 92: the desktop ops (need "The whole screen" on that computer). */
-export const DESKTOP_OPS: ReadonlySet<string> = new Set([...CU5_OPS, ...CU6_OPS, ...CU7_OPS]);
+export const DESKTOP_OPS: ReadonlySet<string> = new Set([...CU5_OPS, ...CU6_OPS, ...CU7_OPS, ...TAB_OPS]);
 /** Ops that wait for the person at the computer (the consent window, "Your turn", a manager's unlock prompt): up to 10 minutes. */
 export const WAITING_OPS: ReadonlySet<string> = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock', ...CU6_OPS, 's.apply']);
 export const WAITING_DEADLINE_MS = 10 * 60_000;
@@ -115,7 +116,8 @@ export interface HandsHello {
   screens?: { id: string; w: number; h: number; scale: number; primary: boolean }[];
   browser?: { found: boolean; kind?: string; name?: string };
   perms?: { capture?: boolean; input?: boolean; ax?: boolean };
-  optIn: { browser: boolean; desktop: boolean };
+  /** 3.4.x: files = "Files" on that computer (read Desktop, Documents and Downloads; off by default; older apps never send it). */
+  optIn: { browser: boolean; desktop: boolean; files?: boolean };
   /** Desktop approval cards are answered on the computer, never in the phone/web chat. */
   approvalsHere?: boolean;
   /** Phase 93: the person's separate walk-away choice on this computer. */
@@ -414,7 +416,7 @@ export class HandsHub {
         ...(Array.isArray(m.screens) ? { screens: (m.screens as HandsHello['screens'])!.slice(0, 8) } : {}),
         ...(m.browser && typeof m.browser === 'object' ? { browser: { found: Boolean((m.browser as Record<string, unknown>).found), ...((m.browser as Record<string, unknown>).kind ? { kind: plain((m.browser as Record<string, unknown>).kind, 20) } : {}), ...((m.browser as Record<string, unknown>).name ? { name: plain((m.browser as Record<string, unknown>).name, 60) } : {}) } } : {}),
         ...(m.perms && typeof m.perms === 'object' ? { perms: { capture: (m.perms as Record<string, unknown>).capture === true, input: (m.perms as Record<string, unknown>).input === true, ax: (m.perms as Record<string, unknown>).ax === true } } : {}),
-        optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true },
+        optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true, ...(optIn.files === true ? { files: true } : {}) },
         approvalsHere: m.approvalsHere === true,
         walkAway: m.walkAway === true,
         logins: loginViews(m.logins),
@@ -492,7 +494,7 @@ export class HandsHub {
       }
       if (kind === 'optin' && d.hello) {
         const o = (m.optIn ?? {}) as Record<string, unknown>;
-        d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true };
+        d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true, ...(o.files === true ? { files: true } : {}) };
         if (typeof m.localOnly === 'boolean') d.hello.localOnly = m.localOnly;
         if (typeof m.walkAway === 'boolean') d.hello.walkAway = m.walkAway;
         if (m.takeover === 'keep' || m.takeover === 'pause') d.hello.takeover = m.takeover;
@@ -566,7 +568,7 @@ export class HandsHub {
    * Asks a device to run one op. Resolves with its result (and any pictures that came with it);
    * rejects with a HandsError (the device's own code, or offline / timeout / stopped).
    */
-  async request(deviceId: string, op: string, args: Record<string, unknown> = {}, opts: { signal?: AbortSignal; deadlineMs?: number; runId?: number; id?: string; what?: string } = {}): Promise<HandsReply> {
+  async request(deviceId: string, op: string, args: Record<string, unknown> = {}, opts: { signal?: AbortSignal; deadlineMs?: number; runId?: number; id?: string; what?: string; who?: string } = {}): Promise<HandsReply> {
     const d = this.#devices.get(deviceId);
     if (!d?.ws?.open) throw new HandsError('offline', 'That computer is not connected right now (the Sara app is closed, asleep or offline).');
     await this.#ready(d);
@@ -574,6 +576,8 @@ export class HandsHub {
     if (op.startsWith('b.') && !d.hello.optIn.browser) throw new HandsError('denied_local', '"Let Sara use this computer" is off on that computer.');
     // Phase 92: the whole screen is a second switch on the computer (off by default); the device refuses too.
     if (DESKTOP_OPS.has(op) && d.hello.ops?.includes(op) && !d.hello.optIn.desktop) throw new HandsError('denied_local', '"The whole screen" is off on that computer: only the owner can switch it on, in the Sara app there.');
+    // 3.4.x: the owner's own files are a third switch there ("Files", off by default); the device refuses too.
+    if (FILE_OPS_SET.has(op) && d.hello.ops?.includes(op) && d.hello.optIn.files !== true) throw new HandsError('denied_local', '"Files" is off on that computer: only the owner can switch it on, in the Sara app there (Settings, Computer use).');
     // Phase 88: paused there because the person took over: nothing acts until they press Resume there.
     if (d.hello.paused && ACTING_OPS.has(op)) throw new HandsError('takeover', 'Paused: the owner took over the Sara browser on that computer. Wait until they press Resume there.');
     if (opts.signal?.aborted) throw new HandsError('stopped', 'Stopped.');
@@ -608,7 +612,8 @@ export class HandsHub {
     };
     this.#pending.set(id, p);
     const what = opts.what ? plain(opts.what, 120) : '';
-    d.ws.send(JSON.stringify({ t: 'req', id, op, args, ...(opts.runId ? { runId: opts.runId } : {}), deadlineMs, ...(what ? { what } : {}) }));
+    // 3.4.x: who: the companion using the computer (the app's badge says "Fred is working").
+    d.ws.send(JSON.stringify({ t: 'req', id, op, args, ...(opts.runId ? { runId: opts.runId } : {}), deadlineMs, ...(what ? { what } : {}), ...(opts.who ? { who: opts.who.replace(/[\u0000-\u001f]/g, ' ').slice(0, 40) } : {}) }));
     // Phase 88: the chat's "Sara is working" badge (what she is doing, on which computer).
     if (op !== 'c.ping') this.#publish({ deviceId, working: true, op, ...(what ? { what } : {}), ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
     return promise;

@@ -427,6 +427,17 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
     if (a === 'notes') {
       const pl = needPlanner();
       if (!b && method === 'GET') return send(res, 200, pl.notes(new URL(req.url ?? '/', 'http://x').searchParams.get('q') ?? undefined));
+      // 3.4.2: a note's earlier versions (newest first), and bringing one back.
+      if (b && c === 'versions' && method === 'GET') return send(res, 200, pl.noteVersions(Number(b)));
+      if (b && c === 'restore' && method === 'POST') {
+        const body = await readJson(req);
+        const version = Number(body.version);
+        if (!pl.noteVersions(Number(b)).some((v) => v.id === version)) throw new HttpError(404, 'Version not found');
+        const n = pl.restoreNoteVersion(Number(b), version);
+        app.events?.publish({ type: 'planner', what: 'notes' });
+        return send(res, 200, n);
+      }
+      if (c) throw new HttpError(404, 'Not found');
       if ((!b && method === 'POST') || (b && method === 'PATCH')) {
         const body = await readJson(req);
         const text = String(body.body ?? '');

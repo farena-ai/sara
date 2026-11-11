@@ -2341,6 +2341,7 @@
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
         <label class="row"><input id="cu-desktop" type="checkbox" data-noauto> The whole screen: apps, mouse and keyboard <button type="button" class="tip" data-tip="Off by default. On: Sara can look and act in apps when asked, with local approvals. Password fields and protected windows stay refused. Stop always works.">?</button></label>
+        <label class="row"><input id="cu-files" type="checkbox" data-noauto> Files: read my Desktop, Documents and Downloads <button type="button" class="tip" data-tip="Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.">?</button></label>
         <div id="cu-perms" class="cu-perms" hidden>
           <p class="small">macOS asks you to allow this once, for the Sara app:</p>
           <ol class="cu-steps">
@@ -3038,6 +3039,9 @@
         </label>
         <label>Decoration
           <select id="ap-decor"><option value="off">Reduced: flat, no glow or blur</option><option value="on">Full: glow, glass and moving light (default)</option></select>
+        </label>
+        <label>Glass blur
+          <select id="ap-glass"><option value="auto">Auto: on, except in Firefox (default)</option><option value="on">On: frosted panels</option><option value="off">Off: smooth solid panels</option></select>
         </label>
       </div>
       </div>

@@ -89,7 +89,8 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
         return m ? { kind: 'hands-install', url: APPS_PAGE, blocked: 'proxy', computer: cut(m[1], 60) } : { kind: 'hands-install', url: APPS_PAGE };
       }
     case 'pc_browser_open': {
-      const m = /^Opened (\S+) in the Sara browser on (.+?)(?: \(HTTP \d+\))?\. Title: (.*?)\. Tab /.exec(output);
+      // 3.4.x: "in Fred\u2019s browser" (the companion's name); older results said "in the Sara browser".
+      const m = /^Opened (\S+) in (?:the Sara browser|.{1,60}?[\u2019']s browser) on (.+?)(?: \(HTTP \d+\))?\. Title: (.*?)\. Tab /.exec(output);
       const p = /Problems on the page so far: ([^(]+)/.exec(output);
       return m ? { kind: 'computer', action: 'open', url: cut(m[1], 300), title: cut(m[3], 120), computer: cut(m[2], 60), ...(p ? { problems: cut(p[1], 120) } : {}), ...(thumb ? { thumb } : {}) } : undefined;
     }

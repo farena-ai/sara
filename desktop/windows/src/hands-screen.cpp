@@ -803,6 +803,118 @@ Result shot(const std::string& window, const std::string& screen, const std::vec
   return res;
 }
 
+std::string maskSecrets(const std::string& text) { return maskText(text); }
+
+namespace {
+/** The person's own browsers (process names; Sara's own browser is told apart by its process id). */
+bool browserApp(const std::string& app) {
+  static const char* kApps[] = {"msedge", "chrome", "chromium", "firefox", "brave", "opera", "vivaldi"};
+  std::string a = lower(app);
+  for (auto* x : kApps)
+    if (a == x) return true;
+  return false;
+}
+const char* browserLabelOf(const std::string& app) {
+  std::string a = lower(app);
+  if (a == "msedge") return "Edge";
+  if (a == "chrome" || a == "chromium") return "Chrome";
+  if (a == "firefox") return "Firefox";
+  if (a == "brave") return "Brave";
+  if (a == "opera") return "Opera";
+  if (a == "vivaldi") return "Vivaldi";
+  return "Browser";
+}
+struct TabInfo {
+  std::string title;
+  bool active = false;
+};
+/** The tab strip of one browser window: TabItems in the browser's own UI (web pages, Document subtrees, are never entered) and the first address field's text. */
+void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string& address) {
+  ComPtr<IUIAutomationCacheRequest> cr;
+  a->CreateCacheRequest(&cr);
+  for (PROPERTYID p : {UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_SelectionItemIsSelectedPropertyId, UIA_ValueValuePropertyId, UIA_IsPasswordPropertyId}) cr->AddProperty(p);
+  ComPtr<IUIAutomationElement> root;
+  if (FAILED(a->ElementFromHandleBuildCache(h, cr.Get(), &root)) || !root) return;
+  ComPtr<IUIAutomationTreeWalker> walk;
+  a->get_ControlViewWalker(&walk);
+  int nodes = 0;
+  struct Rec {
+    static void go(IUIAutomationTreeWalker* walk, IUIAutomationCacheRequest* cr, IUIAutomationElement* el, int depth, int& nodes, std::vector<TabInfo>& tabs, std::string& address) {
+      if (depth > 16 || nodes > kMaxNodes || tabs.size() >= 100) return;
+      ComPtr<IUIAutomationElement> c;
+      walk->GetFirstChildElementBuildCache(el, cr, &c);
+      while (c && nodes <= kMaxNodes) {
+        nodes++;
+        CONTROLTYPEID t = 0;
+        c->get_CachedControlType(&t);
+        VARIANT v;
+        if (t == UIA_TabItemControlTypeId) {
+          c->GetCachedPropertyValue(UIA_NamePropertyId, &v);
+          TabInfo ti;
+          // Edge/Chrome add hover details to a tab's name ("Title - Memory usage - 18.6 MB"): the title only.
+          static const std::regex kHover(R"(\s+-\s+(Memory usage|Speicherauslastung|Uso de memoria|Utilisation de la m\S+moire)\s+-\s+[\d.,]+\s*[KMG]B$)", std::regex::icase);
+          ti.title = maskText(clip(std::regex_replace(bstr(v), kHover, ""), 160));
+          c->GetCachedPropertyValue(UIA_SelectionItemIsSelectedPropertyId, &v);
+          ti.active = vbool(v);
+          if (!ti.title.empty() && tabs.size() < 100) tabs.push_back(ti);
+        } else if (t == UIA_EditControlTypeId && address.empty()) {
+          c->GetCachedPropertyValue(UIA_IsPasswordPropertyId, &v);
+          bool secret = vbool(v);
+          if (!secret) {
+            c->GetCachedPropertyValue(UIA_ValueValuePropertyId, &v);
+            std::string val = bstr(v);
+            // The address bar shows an address (a scheme, or a host with a dot), never typed search text.
+            if (std::regex_search(val, std::regex(R"(^(https?|file|edge|chrome)://|^about:[a-z-]+$|^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:[:/]|$))"))) address = maskText(clip(val, 300));
+          }
+        }
+        // Never into a web page (Document): its own \"tabs\" are content, and it's where the person's data is.
+        if (t != UIA_DocumentControlTypeId && t != UIA_TabItemControlTypeId) go(walk, cr, c.Get(), depth + 1, nodes, tabs, address);
+        ComPtr<IUIAutomationElement> n;
+        walk->GetNextSiblingElementBuildCache(c.Get(), cr, &n);
+        c = n;
+      }
+    }
+  };
+  Rec::go(walk.Get(), cr.Get(), root.Get(), 1, nodes, tabs, address);
+}
+}  // namespace
+
+Result tabs(DWORD ownBrowserPid, DWORD onlyPid) {
+  Result res;
+  Com com;
+  auto a = uia();
+  auto all = listAll();
+  std::string o = "{\"browsers\":[";
+  int n = 0;
+  for (auto& w : all) {
+    if (!listed(w) || n >= 20 || !browserApp(w.app)) continue;
+    DWORD pid = 0;
+    GetWindowThreadProcessId(w.h, &pid);
+    if (ownBrowserPid && pid == ownBrowserPid) continue;  // Sara's own browser window: pc_browser_tabs
+    if (onlyPid && pid != onlyPid) continue;               // test runs: only the test's own browser window
+    o += n++ ? "," : "";
+    if (!w.hidden.empty()) {
+      o += "{\"hidden\":" + jq(w.hidden) + "}";
+      continue;
+    }
+    std::vector<TabInfo> ts;
+    std::string address;
+    if (a) tabStrip(a.Get(), w.h, ts, address);
+    // No tab strip found (an app window of the browser, or a browser that hides it): the window's title is its tab.
+    if (ts.empty()) ts.push_back({maskText(clip(w.title, 160)), true});
+    std::string tl;
+    for (size_t i = 0; i < ts.size(); i++) {
+      tl += i ? "," : "";
+      std::string kind = blockedKind(ts[i].title, "");
+      if (!kind.empty()) tl += "{\"hidden\":" + jq(kind) + (ts[i].active ? ",\"active\":true" : "") + "}";
+      else tl += "{\"title\":" + jq(ts[i].title) + (ts[i].active && !address.empty() && blockedKind(address, "").empty() ? ",\"url\":" + jq(address) : "") + (ts[i].active ? ",\"active\":true" : "") + "}";
+    }
+    o += "{\"id\":" + jq(idOf(w.h)) + ",\"app\":" + jq(clip(w.app, 80)) + ",\"browser\":" + jq(browserLabelOf(w.app)) + ",\"title\":" + jq(maskText(clip(w.title, 160))) + (w.minimized ? ",\"minimized\":true" : "") + ",\"tabs\":[" + tl + "]}";
+  }
+  res.json = o + "]}";
+  return res;
+}
+
 Result elements(const std::string& window, const std::string& viewId, int limit) {
   Result res;
   Com com;
