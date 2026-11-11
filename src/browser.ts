@@ -13,6 +13,7 @@ import { chownSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, 
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { BrowserGuard, PREVIEW_HOST } from './browser-guard.ts';
+import { browserSetup } from './browser-setup.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import type { PreviewManager } from './preview.ts';
 import { bwrapArgs, nativeOf, SANDBOX_EXEC, seatbeltProfile, type SandboxInfo } from './tools/sandbox.ts';
@@ -27,18 +28,22 @@ export interface BrowserInfo {
   path?: string;
   name?: string;
   kind?: 'edge' | 'chrome' | 'chromium' | 'shell';
+  /** Libraries Sara fetched for it into her own folder (Linux, LD_LIBRARY_PATH). */
+  libDir?: string;
+  /** Sara's own download (src/browser-setup.ts), shared with the Browser add-on. */
+  managed?: boolean;
   /** How to get one (when not found). */
   how: string;
 }
 
 const HOW: Record<string, string> = {
-  linux: 'Install it with: sudo bash deploy/install-browser.sh (downloads the pinned Chrome for Testing headless shell, about 120 MB, checks its SHA-256 and unpacks it into /opt/sara-browser; nothing else is installed). Then restart Sara.',
+  linux: 'Sara downloads one herself the first time she needs it (Chromium headless shell, about 110 MB, into her own data folder; no system packages, no root). An administrator can also put one in /opt/sara-browser with deploy/install-browser.sh.',
   win32: 'Microsoft Edge comes with Windows; if it was removed, install it again from microsoft.com/edge and restart Sara.',
   darwin: 'Install Google Chrome, Microsoft Edge or Chromium into Applications, then restart Sara.',
 };
 
-/** Finds a browser for testing (SARA_BROWSER overrides). */
-export function findBrowser(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, exists: (p: string) => boolean = existsSync): BrowserInfo {
+/** Finds a browser for testing (SARA_BROWSER overrides; Sara's own download comes last). */
+export function findBrowser(platform: NodeJS.Platform = process.platform, env: NodeJS.ProcessEnv = process.env, exists: (p: string) => boolean = existsSync, managed: { path: string; libDir?: string } | undefined = browserSetup()?.ready()): BrowserInfo {
   const how = HOW[platform] ?? 'Set SARA_BROWSER to the path of a Chromium-family browser.';
   const kindOf = (p: string): BrowserInfo['kind'] => (/msedge|Microsoft Edge/i.test(p) ? 'edge' : /headless-shell/i.test(p) ? 'shell' : /chromium/i.test(p) ? 'chromium' : 'chrome');
   const names: Record<string, string> = { edge: 'Microsoft Edge', shell: 'Chrome for Testing (headless shell)', chromium: 'Chromium', chrome: 'Google Chrome' };
@@ -62,6 +67,7 @@ export function findBrowser(platform: NodeJS.Platform = process.platform, env: N
       return { found: true, path: p, kind, name: names[kind!], how };
     }
   }
+  if (managed && exists(managed.path)) return { found: true, path: managed.path, kind: 'shell', name: 'Chromium (headless shell)', how, managed: true, ...(managed.libDir ? { libDir: managed.libDir } : {}) };
   return { found: false, how };
 }
 
@@ -122,7 +128,8 @@ export const launchBrowser: Launcher = async (info, sb, guardPort) => {
     // The browser's folder read-only, the throwaway profile as the (only) writable folder.
     const root = info.path.startsWith(`${LINUX_BROWSER_DIR}/`) ? LINUX_BROWSER_DIR : dirname(info.path);
     file = 'bwrap';
-    args = [...bwrapArgs(profile, true, [{ src: root, dest: root }]), info.path, ...browserArgs(info, '/workspace', guardPort, { inSandbox: true })];
+    const libs = info.libDir ? [{ src: info.libDir, dest: info.libDir }] : [];
+    args = [...bwrapArgs(profile, true, [{ src: root, dest: root }, ...libs]), info.path, ...browserArgs(info, '/workspace', guardPort, { inSandbox: true })];
   } else if (sandbox.mode === 'seatbelt') {
     file = SANDBOX_EXEC;
     const app = info.path.includes('.app/') ? info.path.slice(0, info.path.indexOf('.app/') + 4) : dirname(info.path);
@@ -141,7 +148,7 @@ export const launchBrowser: Launcher = async (info, sb, guardPort) => {
   } else {
     args = browserArgs(info, profile, guardPort);
   }
-  const env: NodeJS.ProcessEnv = { PATH: process.env.PATH ?? '', HOME: profile, TMPDIR: profile, LANG: 'en_US.UTF-8' };
+  const env: NodeJS.ProcessEnv = { PATH: process.env.PATH ?? '', HOME: profile, TMPDIR: profile, LANG: 'en_US.UTF-8', ...(info.libDir ? { LD_LIBRARY_PATH: info.libDir } : {}) };
   if (process.platform === 'win32') for (const k of ['SYSTEMROOT', 'SystemRoot', 'WINDIR', 'ProgramFiles', 'ProgramFiles(x86)', 'LOCALAPPDATA', 'APPDATA', 'TEMP', 'TMP', 'USERPROFILE', 'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE']) if (process.env[k] !== undefined) env[k] = process.env[k];
   if (process.platform === 'win32') {
     env.TEMP = profile;
@@ -437,7 +444,15 @@ export class BrowserManager {
       if (pending) s = await pending;
       else {
         if (this.#sessions.size + this.#starting.size >= MAX_SESSIONS) throw new Error(`Already ${MAX_SESSIONS} testing browsers open (other conversations); try again in a few minutes.`);
-        const info = this.status();
+        let info = this.status();
+        // Sara's own download (src/browser-setup.ts): fetched the first time, shared with the add-on.
+        const setup = browserSetup();
+        if (!info.found && setup) {
+          setup.ensure();
+          const st = await setup.wait(5 * 60_000);
+          info = this.refresh();
+          if (!info.found) throw new Error(`No browser for testing yet: ${st.state === 'downloading' || st.state === 'checking' ? 'Sara is still getting it (Settings → Add-ons shows the progress); try again in a minute.' : st.state === 'needs-admin' ? `this server lacks libraries it needs${st.command ? `; the owner's server administrator can run: ${st.command}` : ''}.` : st.state === 'unsupported' ? 'this system cannot run it.' : st.why === 'private' ? 'private local mode is on, and getting it needs the internet.' : (st.error ?? 'getting it did not work.')}`);
+        }
         if (!info.found) throw new Error(`No browser for testing on this server. ${info.how}`);
         const p = BrowserSession.start(info, this.#opts.sandbox(), this.#opts.previews, this.#opts.launcher);
         this.#starting.set(conversationId, p);

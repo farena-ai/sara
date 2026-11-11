@@ -72,6 +72,8 @@ std::wstring statusLine();
 std::wstring hotkeyLabel();
 bool running();
 bool connected();
+/** Connect again now (Try again, after sleep, a network change); dropOpen closes an open connection first. */
+void reconnectNow(bool dropOpen);
 /** The last connection problem, if any ("signed out", "can't reach the server"). */
 std::wstring lastError();
 /** Where the Sara browser is (empty when there is none on this computer). */

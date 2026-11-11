@@ -214,9 +214,28 @@ function computer(c) {
   return card;
 }
 
-/** Phase 87: no computer connected yet: how to let her use one (web-only users). */
+/** Phase 87: no computer connected yet: connect the app you have, or get it. A computer that tries but
+ *  is blocked by the web server in front of Sara gets that said plainly, with the fix for whoever runs it. */
 function handsInstall(c) {
+  if (c.blocked === 'proxy') {
+    const card = shell('hands-install', 'monitor', t('Your computer can\u2019t reach Sara'));
+    card.append(el('p', 'rc-meta', t('{computer} is switched on and trying to connect, but the web server in front of this Sara (a reverse proxy) blocks its connection. Nothing on your computer needs changing.', { computer: c.computer || t('Your computer') })));
+    card.append(el('p', 'rc-meta', t('Whoever runs this server turns on WebSocket forwarding for Sara (one line; see Behind a proxy in the install guide). The app then connects by itself within 30 seconds.')));
+    card.append(el('code', 'rc-meta', 'ProxyPass "/" "http://127.0.0.1:7860/" upgrade=websocket'));
+    return card;
+  }
   const card = shell('hands-install', 'monitor', t('Let Sara use your computer'));
+  // "I already have the app": the steps, and in the desktop app straight to its switch.
+  const have = el('button', 'small', t('I already have the app \u2192 Connect it'));
+  have.type = 'button';
+  const steps = el('ol', 'rc-meta rc-steps');
+  steps.hidden = true;
+  for (const s of [t('Open the Sara app on that computer and check it is signed in to this Sara.'), t('Go to Settings \u2192 Computer use and switch on \u201cLet Sara use this computer\u201d.'), t('Wait for \u201cConnected: Sara can use this computer\u201d (a few seconds), then ask her again.')]) steps.append(el('li', '', s));
+  have.addEventListener('click', () => {
+    if (window.SaraDesktop?.call && typeof globalThis.openSettingsPage === 'function') return globalThis.openSettingsPage('co-computer');
+    steps.hidden = !steps.hidden;
+  });
+  card.append(have, steps);
   card.append(el('p', 'rc-meta', t('Install the Sara app for Windows or Mac and switch on "Let Sara use this computer" in it. Phones can watch and stop her, but can\u2019t be driven.')));
   card.append(el('p', 'rc-meta', t('On a Linux desktop, run Sara hands in a visible terminal with Chrome or Chromium installed.')));
   card.append(el('code', 'rc-meta', 'sara hands --server https://sara.example.com'));

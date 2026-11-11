@@ -10,6 +10,7 @@ import { clientIp, cookies, HttpError, readJson, send } from './http.ts';
 import { en, trOwner } from './i18n.ts';
 import { identityOf } from './persona.ts';
 import { policy } from './policy-profile.ts';
+import { todayChanged } from './today.ts';
 import { telegramSettings } from './bridges/telegram.ts';
 import { discordSettings } from './bridges/discord.ts';
 
@@ -69,6 +70,8 @@ export function createDeviceGate(o: { app: AppContext; auth: OwnerAuth; demo: bo
   approvals.listeners.add((r, what) => {
     const view = { code: undefined, kind: r.kind, action: r.action ?? null, label: r.label, ip: r.ip, expiresAt: r.expiresAt, state: r.state };
     app.events?.publish({ type: 'device-approval', what, request: view } as never);
+    // Today's Needs you lists the open requests too (the code stays on the asking device).
+    todayChanged(app, 'needs');
     if (what === 'new') {
       void tell(tr('Approve a device?'), fill(chatPrompt(r), (t) => tr(t)), `device-approval-${r.code}`);
       return;
@@ -156,7 +159,9 @@ export function createDeviceGate(o: { app: AppContext; auth: OwnerAuth; demo: bo
       if (a === 'device-approvals') {
         if (!b && method === 'GET') {
           // The code is never listed: the owner reads it off the device that asks.
-          send(res, 200, { requests: approvals.pending().map((r) => ({ kind: r.kind, action: r.action ?? null, what: r.action ? ACTION_WORDS[r.action] : null, label: r.label, ip: r.ip, createdAt: r.createdAt, expiresAt: r.expiresAt })), on: on() });
+          // Not this device's own requests: it can never answer them (it shows their code instead).
+          const me = sessionOf(req);
+          send(res, 200, { requests: approvals.pending().filter((r) => r.sessionId !== me).map((r) => ({ kind: r.kind, action: r.action ?? null, what: r.action ? ACTION_WORDS[r.action] : null, label: r.label, ip: r.ip, createdAt: r.createdAt, expiresAt: r.expiresAt })), on: on() });
           return true;
         }
         if (b === 'deny-all' && !c && method === 'POST') {

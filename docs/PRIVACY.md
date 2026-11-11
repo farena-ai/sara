@@ -55,7 +55,8 @@ separate modes you won't run unless you set them up on purpose.
 | Her own Node.js (Linux) | `nodejs.org` (a pinned version checked against its SHA-256) |
 | System packages you agree to (git, curl, bubblewrap, bzip2, Caddy) | Your Linux distribution's package mirrors |
 | Local voice (optional) | `github.com` (the sherpa-onnx releases with the speech models), checked by SHA-256 |
-| Testing browser on Linux (optional) | `storage.googleapis.com` (Google's Chrome for Testing), checked by SHA-256 |
+| Testing browser on Linux (optional script) | `storage.googleapis.com` (Google's Chrome for Testing), checked by SHA-256 |
+| Browser Sara downloads herself (first use, when none is installed) | `registry.npmjs.org` (the pinned `playwright-core`) and Playwright's download servers (`cdn.playwright.dev`, `playwright.download.prss.microsoft.com`); on dnf systems missing libraries come from the distribution's own repositories, signature-checked |
 | Subscription programs (optional) | `registry.npmjs.org` (Claude Code and the Grok program, pinned by a lockfile) |
 | Docker (optional) | Docker Hub (the `node:24-slim` image, and `ollama/ollama` with the Ollama profile) |
 | Tailscale (optional) | Tailscale, if you install it |

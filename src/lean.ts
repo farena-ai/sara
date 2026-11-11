@@ -153,6 +153,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
+  [/^make_document$/, 'documents', 'make documents'],
 ];
 
 const MCP_LABELS: Record<string, string> = { github: 'GitHub', playwright: 'Playwright browser', filesystem: 'files server', files: 'files server', memory: 'memory server', fetch: 'fetch server', everything: 'test server' };
@@ -198,7 +199,7 @@ export const tokensOf = (tools: { spec: ToolSpec }[]): number => tools.reduce((n
 // §4.2 core, safety pins
 // ---------------------------------------------------------------------------------------------
 
-export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search', 'research_start'] as const;
+export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'make_document', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search', 'research_start'] as const;
 export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind', 'session_context'] as const;
 /** Tools whose absence could leave something running or reachable: always offered when eligible. */
 export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revoke_key', 'ssh_forget_password', 'safety_report'] as const;
@@ -218,12 +219,15 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   board: ['board', 'card', 'cards', 'kanban', 'tablero', 'tarjeta', 'tableau', 'carte', 'tafel', 'karte', 'quadro', 'cartao', 'bacheca', 'scheda'],
   google: ['email', 'emails', 'gmail', 'calendar', 'inbox', 'correo', 'calendario', 'courriel', 'calendrier', 'agenda google', 'outlook', 'hotmail', 'yahoo', 'icloud', 'e mail', 'kalender', 'posteingang', 'caixa de entrada', 'posta'],
   home: ['home assistant', 'lights', 'light', 'thermostat', 'luces', 'lumiere', 'lumieres', 'licht', 'lichter', 'luzes', 'luci', 'termostato'],
-  computer: ['my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer'],
+  // "look at my browser tabs" means the owner's own computer (computer use), not her testing browser on the server.
+  computer: ['my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer', 'computer use', 'my laptop', 'my mac', 'my screen', 'my browser', 'my tabs', 'browser tabs', 'open tabs', 'my windows', 'mi navegador', 'mis pestanas', 'mi pantalla', 'mon navigateur', 'mes onglets', 'mon ecran', 'mein browser', 'meine tabs', 'mein bildschirm', 'meu navegador', 'minhas abas', 'minha tela', 'il mio browser', 'le mie schede', 'il mio schermo'],
   preview: ['preview', 'vista previa', 'apercu', 'vorschau', 'pre visualizacao', 'anteprima'],
   team: ['team', 'equipo', 'equipe', 'squadra'],
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa'],
+  // make_document: documents and files she makes (all six languages, folded, no accents).
+  documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella'],
   // 3.3.0 (ezplain): settings by asking (change_setting).
   settings: ['text', 'font', 'bigger', 'larger', 'smaller', 'zoom', 'dark mode', 'light mode', 'night mode', 'day mode', 'theme', 'color', 'colour', 'your voice', 'voice', 'mute', 'call me', 'my name', 'texto', 'letra', 'modo oscuro', 'tema', 'voz', 'llamame', 'texte', 'police', 'mode sombre', 'couleur', 'voix', 'appelle moi', 'schrift', 'grosser', 'dunkelmodus', 'farbe', 'stimme', 'nenn mich', 'fonte', 'maior', 'modo escuro', 'cor', 'me chame', 'testo', 'carattere', 'piu grande', 'tema scuro', 'colore', 'voce', 'chiamami'],
   personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],

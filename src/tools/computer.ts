@@ -33,7 +33,7 @@ import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:pat
 import { actionVerdict, actLevel, askedToSaveLogin, desktopActionVerdict, loginVerdict, looksSecret, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
 import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { managerName } from '../hands-managers.ts';
-import { HandsError, type HandsDeviceView, type HandsReply } from '../hands.ts';
+import { HandsError, PROXY_BLOCKED_MESSAGE, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { desktopItems, desktopWindows, type DesktopItem } from '../hands-desktop.ts';
 import { TunnelError } from '../tunnel.ts';
 import { buildReport, CHECKS, checkupData, orderHints, reportCard, reportText, type CheckName, type CheckupReport } from '../hands-checkup.ts';
@@ -183,7 +183,10 @@ export function createComputerTools(app: AppContext): Tool[] {
       const list = hub()!.devices();
       const online = list.filter((d) => d.connected);
       if (!online.length) {
-        return `${NO_COMPUTER} To let you use their computer, the owner installs the Sara app for Windows or Mac and switches on "Let Sara use this computer" in it (the chat shows them a card with the download link). Phones can watch and stop you but can't be driven. Meanwhile you can test web apps in your own testing browser on the server (browser_open), or they can send you a screenshot.${list.length ? ` Signed in but not connected now: ${list.map((d) => `"${nameOf(d)}"`).join(', ')} (the app there is closed, asleep or offline).` : ''}`;
+        // A computer that tries but can't get through: the web server in front of Sara blocks it.
+        const blocked = list.filter((d) => d.blocked?.why === 'proxy');
+        if (blocked.length) return `${NO_COMPUTER} ${blocked.map((d) => `"${nameOf(d)}"`).join(', ')} ${blocked.length > 1 ? 'are' : 'is'} signed in and trying to connect right now, but it can't get through. ${PROXY_BLOCKED_MESSAGE} Tell the owner exactly this in plain words (the chat shows them a card with the fix): nothing on their computer needs changing and the switch there is already on.`;
+        return `${NO_COMPUTER} If the owner already has the Sara app on that computer: open it there, check it is signed in to this Sara, then Settings \u2192 Computer use \u2192 switch on "Let Sara use this computer". The app then says "Connected: Sara can use this computer" within seconds (or says in plain words why not), and they can ask you again. Without the app, they install the Sara app for Windows or Mac first (the chat shows them a card with both: Connect it, and the download link). Phones can watch and stop you but can't be driven. Meanwhile you can test web apps in your own testing browser on the server (browser_open), or they can send you a screenshot.${list.length ? ` Signed in but not connected now: ${list.map((d) => `"${nameOf(d)}"`).join(', ')} (the app there is closed, asleep or offline, or the switch is off there).` : ''}`;
       }
       const lines = online.map((d) => `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${d.optIn?.browser ? `the Sara browser${d.browser?.name ? ` (${d.browser.name})` : ''} is yours to look, read and navigate` : '"Let Sara use this computer" is off there'}; pictures ${d.localOnly ? 'only to models on the owner\u2019s own computers' : 'to the model in use'}${d.ops?.includes('c.tunnel') ? '; the dev tunnel works there (pc_browser_open with app_port)' : ''}${d.ops?.includes('b.login') ? `; saved logins there: ${d.logins?.length ? d.logins.map((l) => `\u201c${l.name}\u201d${l.sites.length ? ` (${l.sites.join(', ')})` : ''}`).join(', ') : 'none'}` : ''}${managersOn(d).length ? `; the owner's password managers there: ${managersOn(d).map((m) => `${m.name} (${m.state})`).join(', ')}` : ''}${d.ops?.includes('d.shot') ? (d.optIn?.desktop ? `; the whole screen: you may look (pc_windows, pc_look; desktop actions use local approval cards)${d.perms && d.perms.capture === false ? ' but screen pictures are not allowed there yet (Screen Recording permission)' : ''}${d.perms && d.perms.ax === false ? '; element lists need the Accessibility permission there' : ''}` : '; "The whole screen" is off there (only the Sara browser)') : ''}${d.busy ? '; busy with a task now' : ''}.`);
       const off = list.filter((d) => !d.connected);
@@ -389,7 +392,7 @@ export function createComputerTools(app: AppContext): Tool[] {
 
   const tabs: Tool = {
     defaultPermission: 'auto',
-    spec: { name: 'pc_browser_tabs', description: "The tabs open in the Sara browser on the owner's computer.", parameters: obj({ ...COMPUTER_ARG }) },
+    spec: { name: 'pc_browser_tabs', description: "The tabs open in the Sara browser on the owner's computer (her own window and profile, never the owner's own browser). For the owner's own browser tabs (\"look at my browser tabs\"), use pc_windows (each Edge/Chrome/Firefox window's title is the tab in front) and then pc_look with that window: its list shows the tab strip, one item with role tab per open tab. That needs \"The whole screen\" on there.", parameters: obj({ ...COMPUTER_ARG }) },
     isAvailable: anyOnline,
     summarize: () => 'list the Sara browser tabs',
     async run(args, ctx) {
@@ -878,7 +881,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_windows',
-      description: "The windows open on the owner's computer (title, app, where, minimized), when \"The whole screen\" is on there. Windows the computer hides from you (password managers, banking, security settings) show only as hidden, and Sara's own windows never show. Use a window's id (w…) with pc_look.",
+      description: "The windows open on the owner's computer (title, app, where, minimized), when \"The whole screen\" is on there. Windows the computer hides from you (password managers, banking, security settings) show only as hidden, and Sara's own windows never show. Use a window's id (w…) with pc_look. The owner's own browser tabs: pc_look on the browser window lists each open tab (role tab).",
       parameters: obj({ ...COMPUTER_ARG }),
     },
     isAvailable: anyDesk,

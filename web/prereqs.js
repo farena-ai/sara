@@ -203,6 +203,97 @@ export function needsLine(needs, onInstalled) {
 // ---- Settings → Add-ons → Other programs: the programs list and the install setting ----
 
 const STATE = (p) => (p.found ? (p.old ? t('Found, but too old ({version})', { version: p.version ?? '?' }) : p.version ? t('Found ({version})', { version: p.version }) : t('Found')) : t('Not found'));
+
+// ---- Sara's own browser (src/browser-setup.ts): her testing browser and the Browser add-on ----
+
+const WHY = {
+  platform: () => t('This system is not one the browser runs on (Windows, Mac and Linux are).'),
+  arch: () => t('There is no browser build for this processor.'),
+  musl: () => t('This Linux uses musl (for example Alpine), and the browser needs a glibc-based Linux such as Debian, Ubuntu or AlmaLinux.'),
+};
+/** What the card says for one state (exported for tests). */
+export function browserWords(b) {
+  if (b.state === 'ready') return b.browser?.source === 'system' ? t('Ready: it uses {name} on this computer.', { name: b.browser.kind === 'edge' ? 'Microsoft Edge' : 'Google Chrome' }) : t('Ready: Sara downloaded the browser into her own folder and it passed a test.');
+  if (b.state === 'downloading') return b.percent ? t('Downloading the browser… {n}%', { n: b.percent }) : t('Downloading the browser…');
+  if (b.state === 'checking') return b.step === 'libraries' ? t('Checking what the browser needs on this server…') : t('Testing the browser…');
+  if (b.state === 'needs-admin') return b.command ? t('Needs your server admin: this server lacks a few system libraries the browser uses. Ask them to run:') : t('Needs your server admin: this server lacks these system libraries: {list}', { list: (b.missing ?? []).join(', ') });
+  if (b.state === 'unsupported') return t('Not supported on this system: {why}', { why: WHY[b.why]?.() ?? b.why ?? '' });
+  if (b.state === 'failed') return t('Getting the browser did not work: {error}', { error: b.error ?? '' });
+  if (b.why === 'private') return t('Private local mode is on: getting the browser needs the internet. Turn Nothing leaves this computer off for the download, then on again.');
+  return t('Not downloaded yet. Sara gets it the first time it is needed (about 110 MB, into her own folder).');
+}
+/** The status card: Ready / Downloading (progress) / Needs your server admin (command) / Not supported; Try again. */
+export function browserCard() {
+  const box = el('section', 'prop-card prq-card prq-browser');
+  box.setAttribute('aria-label', t('Browser'));
+  const title = el('h4', 'prop-title', t('Browser'));
+  const line = el('p', 'small');
+  line.setAttribute('role', 'status');
+  const bar = el('progress', 'prq-bar');
+  bar.max = 100;
+  const extra = el('div', 'prq-host');
+  const row = el('div', 'prop-buttons');
+  box.append(title, line, bar, extra, row);
+  let timer;
+  const paint = (b) => {
+    line.textContent = browserWords(b);
+    line.className = `small ${b.state === 'ready' ? 'skl-note' : b.state === 'needs-admin' || b.state === 'failed' || b.state === 'unsupported' ? 'skl-warn' : ''}`;
+    box.dataset.state = b.state;
+    bar.hidden = b.state !== 'downloading';
+    if (b.percent) bar.value = b.percent;
+    else bar.removeAttribute('value');
+    extra.replaceChildren();
+    if (b.state === 'needs-admin' && b.command) {
+      const code = el('pre', 'prop-args small prq-lines', b.command);
+      const copy = btn(t('Copy'), 'ghost small', async () => {
+        try {
+          await navigator.clipboard.writeText(b.command);
+          copy.textContent = t('Copied');
+        } catch {
+          copy.textContent = t('Select the line and copy it');
+        }
+      });
+      extra.append(code, copy, el('p', 'muted small', t('Then press Try again. Nothing else on the server changes.')));
+    }
+    if (b.state === 'ready' && b.noSandbox) extra.append(el('p', 'muted small', t("It runs without Chrome's own sandbox here, inside Sara's sandbox instead.")));
+    row.replaceChildren();
+    const busy = b.state === 'downloading' || b.state === 'checking';
+    if (!busy && b.state !== 'unsupported' && b.why !== 'private') {
+      row.append(btn(b.state === 'ready' ? t('Check again') : b.state === 'missing' ? t('Get it now') : t('Try again'), b.state === 'ready' ? 'ghost small' : 'small', async (bt) => {
+        bt.disabled = true;
+        try {
+          paint((await api('/prereqs/browser', { method: 'POST', body: {} })).browser);
+          poll();
+        } catch (err) {
+          line.textContent = err.message;
+          bt.disabled = false;
+        }
+      }));
+    }
+    return busy;
+  };
+  const poll = () => {
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      if (!box.isConnected) return;
+      try {
+        if (paint((await api('/prereqs/browser')).browser)) poll();
+      } catch {
+        poll();
+      }
+    }, 1500);
+  };
+  line.textContent = t('Working…');
+  bar.hidden = true;
+  api('/prereqs/browser').then((r) => {
+    if (paint(r.browser)) poll();
+  }, (err) => {
+    // 403 (not the owner) or 404 (no setup on this server): no card.
+    if (err.status === 403 || err.status === 404) box.remove();
+    else line.textContent = err.message;
+  });
+  return box;
+}
 export async function loadPrograms() {
   const box = document.querySelector('#prq-list');
   if (!box) return;
@@ -221,14 +312,17 @@ export async function loadPrograms() {
   const host = el('div', 'prq-host');
   const rows = r.programs.map((p) => {
     const row = el('div', 'prq-row');
-    row.append(el('span', 'prq-name', p.name), el('span', `small ${p.found && !p.old ? 'muted' : 'prq-missing'}`, STATE(p)));
+    // Only programs one of the owner's add-ons needs are a problem; the rest are just listed.
+    const needed = !Array.isArray(p.neededBy) || p.neededBy.length > 0;
+    row.append(el('span', 'prq-name', p.name), el('span', `small ${(p.found && !p.old) || !needed ? 'muted' : 'prq-missing'}`, STATE(p)));
+    if ((!p.found || p.old) && !needed) row.append(el('span', 'muted small', t('None of your add-ons need it.')));
     if (!p.found || p.old) {
       if (p.manual) row.append(btn(t('How to install'), 'ghost small', () => host.replaceChildren(manualCard(p.manual, p.name, p.after, () => void loadPrograms()))));
       else if (r.installs !== 'off') row.append(btn(t('Install it for me'), 'small', () => void installProgram(p.id, host, () => void loadPrograms())));
     }
     return row;
   });
-  box.replaceChildren(...rows, host);
+  box.replaceChildren(...rows, host, browserCard());
 }
 
 export function wirePrograms() {

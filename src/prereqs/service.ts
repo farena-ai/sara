@@ -104,6 +104,8 @@ export interface PrereqDeps {
   timeoutMs?: number;
   /** Adds a catalog folder to Sara's own PATH after an install (tool servers then find it). */
   addPath?: (dir: string) => void;
+  /** Sara's own Node with npx beside it (tool servers run on it; a system Node is never needed). */
+  ownNode?: () => Detection | undefined;
 }
 
 interface Pending {
@@ -229,13 +231,10 @@ export class PrereqService {
     if (!this.#cache || Date.now() - this.#cache.at > 15_000) this.#cache = { at: Date.now(), list: new Map() };
     const hit = this.#cache.list.get(id);
     if (hit) return hit;
-    let d = detect(program(id), this.#detectEnv());
-    // Sara itself runs on Node: its own folder counts when npx sits beside it.
-    if (id === 'node' && !d.found && !this.d.exists) {
-      const dir = dirname(process.execPath);
-      const npx = ['npx', 'npx.cmd'].map((n) => join(dir, n)).find((f) => existsSync(f));
-      if (npx) d = { id, found: true, path: process.execPath, dir, onPath: false, version: process.versions.node };
-    }
+    // Sara itself runs on Node, and tool servers run on hers (src/tools/mcp.ts puts it first): when
+    // npx sits beside it, that is the Node add-ons get, whatever (old) one the system has.
+    const own = id === 'node' ? (this.d.ownNode ? this.d.ownNode() : this.d.exists ? undefined : ownNodeDetection()) : undefined;
+    const d = own ?? detect(program(id), this.#detectEnv());
     this.#cache.list.set(id, d);
     return d;
   }
@@ -417,6 +416,13 @@ export class PrereqService {
     if (out.code === 0) return undefined;
     return out.error ?? `exit ${out.code}`;
   }
+}
+
+/** Sara's own Node, when npx sits beside it. */
+export function ownNodeDetection(execPath = process.execPath, version = process.versions.node): Detection | undefined {
+  const dir = dirname(execPath);
+  const npx = ['npx', 'npx.cmd'].map((n) => join(dir, n)).find((f) => existsSync(f));
+  return npx ? { id: 'node', found: true, path: execPath, dir, onPath: false, version } : undefined;
 }
 
 /** Adds a folder to this process's PATH (tool servers Sara starts inherit it). */

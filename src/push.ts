@@ -7,7 +7,8 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { ApnsSender } from './apns.ts';
 import type { HubEvent } from './events.ts';
 import type { SettingsStore } from './settings.ts';
-import { trOwner } from './i18n.ts';
+import { appLanguage, trOwner } from './i18n.ts';
+import { type Identity, personalize, swapName } from './identity.ts';
 import type { Vault } from './vault.ts';
 
 export const PUSH_VAULT = 'push:vapid';
@@ -220,11 +221,17 @@ export class PushService {
     return trOwner(text, this.#settings.get(), params);
   }
 
+  /** The companion's name and pronouns (set by main.ts): notification titles are built-in words about her. */
+  who?: () => Identity;
+
   /** A note for the owner (approval needed, long job done); text only if previews are on. */
   async notifyOwner(title: string, text: string, conversationId: string, tag: string): Promise<void> {
     const t = text.replace(/\s+/g, ' ').trim();
     const body = this.settings.preview ? (t.length > 180 ? `${t.slice(0, 177)}…` : t) : this.#tr('Open the app to see it.');
-    await this.sendAll({ title, body, url: `/#c=${conversationId}`, tag });
+    // A title written for Sara ("She learned something new") names a renamed companion; the body may
+    // quote the owner or her, so it is left as it is.
+    const who = this.who?.();
+    await this.sendAll({ title: who ? (appLanguage(this.#settings.get()) === 'en' ? personalize(title, who) : swapName(title, who.name)) : title, body, url: `/#c=${conversationId}`, tag });
   }
 
   /** Reminders and messages Sara starts herself become notifications (the page decides whether to show). */

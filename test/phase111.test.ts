@@ -37,8 +37,8 @@ async function load(file: string) {
   const g = globalThis as Record<string, unknown>;
   g.matchMedia ??= () => ({ matches: false, addEventListener() {} });
   const stub = "const t = (s, p = {}) => s.replace(/\\{(\\w+)\\}/g, (m, k) => (k in p ? String(p[k]) : m)); const locale = () => 'en-US';";
-  let src = web(file).replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, stub).replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`);
-  if (file === 'today-layout.js') src = src.replace(/from '\.\/today\.js';/, `from 'data:text/javascript;base64,${Buffer.from(web('today.js').replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, stub).replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`)).toString('base64')}';`);
+  let src = web(file).replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, stub).replace(/from '\.\/device-approval\.js';/, `from 'data:text/javascript,${encodeURIComponent('export const checkPrompts = async () => {}; export const requestLine = () => "";')}';`).replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`);
+  if (file === 'today-layout.js') src = src.replace(/from '\.\/today\.js';/, `from 'data:text/javascript;base64,${Buffer.from(web('today.js').replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, stub).replace(/from '\.\/device-approval\.js';/, `from 'data:text/javascript,${encodeURIComponent('export const checkPrompts = async () => {}; export const requestLine = () => "";')}';`).replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`)).toString('base64')}';`);
   return import(`data:text/javascript;base64,${Buffer.from(src).toString('base64')}`);
 }
 

@@ -185,6 +185,16 @@ on fds 3 and 4). Both bundle `desktop/shared/page-agent.js` (Windows: RCDATA `ID
   file> --device <computer name>` (75 checks since Phase 89: the command set, refusals on the device, logs, pictures,
   deadlines, acting, the dev tunnel). For a Mac reached over SSH, forward the server and a fixture port with `ssh -R` and pass
   `--fixture-port`.
+- **The state in plain words** (Settings → Computer use → This computer): *Connected: Sara can use
+  this computer*, *Connecting…*, or *Not connected: <why>* with **Try again**. *Why* is the app's own
+  last error (`handsError`): signed out, refused, can't reach the server, or *the web server in front
+  of this Sara blocks the connection (WebSocket)* when a reverse proxy drops the upgrade (Sara answers
+  426; fix the proxy as in docs/INSTALL.md, *Behind a proxy*). The page checks again every 3 seconds
+  while open. The apps reconnect at once after sleep, a network change and Try again (`handsRetry`).
+- **A Sara on another server** (hosted, e.g. `https://sara.example.com`): the app there counts as
+  another device, so switching it on waits for the owner's OK (a code in the app; *Approve a device?*
+  on her other devices and in Today's *Needs you*; or Telegram/Discord). Nothing else differs: the
+  hands connect to the same address the app shows.
 - Testing the Windows app next to an installed one: build with `-DSARA_TEST_HOOKS=ON` and start it
   with `SARA_DESKTOP_TEST_DIR` (its own data folder, profile, lock and Sara browser profile). On the
   Mac, a copy with another bundle id has its own preferences, WebKit data and Keychain item.

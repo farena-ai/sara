@@ -2822,7 +2822,26 @@ class Hands {
     WinHttpQueryHeaders(req, WINHTTP_QUERY_STATUS_CODE | WINHTTP_QUERY_FLAG_NUMBER, WINHTTP_HEADER_NAME_BY_INDEX, &status, &sz, WINHTTP_NO_HEADER_INDEX);
     if (status == 401) return fail(L"This computer was signed out: switch \"Let Sara use this computer\" off and on again.");
     if (status == 403) return fail(L"The server refused this computer (computer use is off for you there).");
-    if (status != 101) return fail(L"The server doesn't take computer use (HTTP " + std::to_wstring(status) + L"): update Sara there.");
+    if (status != 101) {
+      // The server's own words when it has them (a JSON {error, code}): above all, a web server in front
+      // of Sara (a reverse proxy) that turned this WebSocket into a plain request (426, proxy_no_websocket).
+      std::string body;
+      for (int i = 0; i < 8 && body.size() < 8192; i++) {
+        DWORD avail = 0, got = 0;
+        if (!WinHttpQueryDataAvailable(req, &avail) || avail == 0) break;
+        std::string chunk(std::min<DWORD>(avail, 4096), '\0');
+        if (!WinHttpReadData(req, chunk.data(), (DWORD)chunk.size(), &got) || got == 0) break;
+        body.append(chunk.data(), got);
+      }
+      bool ok = false;
+      J j = parse(body, &ok);
+      std::string code = ok ? j["code"].str() : std::string();
+      if (code == "proxy_no_websocket" || status == 426) return fail(L"the web server in front of this Sara (a reverse proxy) blocks the connection (WebSocket). Whoever runs the server turns on WebSocket forwarding for Sara (see Behind a proxy in the install guide); this app then connects by itself.");
+      std::string said = ok ? j["error"].str() : std::string();
+      if (!said.empty() && said.size() < 400) return fail(wide(said) + L" (HTTP " + std::to_wstring(status) + L")");
+      if (status == 404) return fail(L"this Sara doesn't take computer use (HTTP 404): update Sara there, or check the server address.");
+      return fail(L"the server answered HTTP " + std::to_wstring(status) + L" instead of opening the connection. If a web server (proxy) is in front of Sara, it must pass WebSocket connections.");
+    }
     HINTERNET ws = WinHttpWebSocketCompleteUpgrade(req, 0);
     if (!ws) return fail(L"Couldn't open the connection.");
     std::lock_guard<std::mutex> l(sm_);
@@ -2889,9 +2908,30 @@ class Hands {
       }
       // Signed out: wait much longer (the owner switches it on again from the page).
       DWORD s = e.find(L"signed out") != std::wstring::npos ? 300 : backoff[std::min(attempt++, std::size(backoff) - 1)];
-      WaitForSingleObject(wake_, s * 1000);
+      // Try again, the computer woke up or its network came back: the wait ends early (reconnectNow).
+      if (WaitForSingleObject(wake_, s * 1000) == WAIT_OBJECT_0 && !stopping) {
+        ResetEvent(wake_);
+        attempt = 0;
+      }
     }
   }
+
+ public:
+  /** Reconnect now: after sleep (the old connection is dead), a network change or Try again. With
+   *  dropOpen, a connection that is open is closed first (its receive ends, the loop connects again). */
+  void reconnectNow(bool dropOpen) {
+    if (stopping) return;
+    if (dropOpen) {
+      std::lock_guard<std::mutex> l(sm_);
+      if (ws_) {
+        WinHttpCloseHandle(ws_);
+        ws_ = nullptr;
+      }
+    }
+    SetEvent(wake_);
+  }
+
+ private:
 
   void receiveLoop() {
     std::vector<BYTE> buf(64 * 1024);
@@ -4299,6 +4339,10 @@ bool running() {
 bool connected() {
   std::lock_guard<std::mutex> l(g_m);
   return g_hands && g_hands->isConnected;
+}
+void reconnectNow(bool dropOpen) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->reconnectNow(dropOpen);
 }
 std::wstring lastError() {
   std::lock_guard<std::mutex> l(g_m);

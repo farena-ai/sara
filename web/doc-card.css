@@ -1,0 +1,21 @@
+/* make_document (docs/DOCUMENTS.md): the card for a document she made, and its preview dialog. */
+.doc-card { display: flex; flex-direction: column; gap: 10px; width: min(460px, 100%); padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.doc-card-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.doc-card-icon { font-size: 28px; line-height: 1; }
+.doc-card-words { display: flex; flex-direction: column; min-width: 0; }
+.doc-card-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-card-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.doc-card-actions > :is(a.button, button) { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0 14px; font-size: 14px; line-height: 1; }
+.doc-card-actions > a.doc-download { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.doc-versions { margin: 0; padding-left: 18px; }
+.doc-preview { width: min(920px, 96vw); height: min(88vh, 1100px); padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text); overflow: hidden; }
+.doc-preview::backdrop { background: var(--scrim); }
+.doc-preview[open] { display: flex; flex-direction: column; }
+.doc-preview-bar { display: flex; align-items: center; gap: 8px; min-height: 52px; padding: 8px 56px 8px 16px; border-bottom: 1px solid var(--border); background: var(--surface-1); }
+.doc-preview-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.doc-preview-frame { flex: 1; width: 100%; border: 0; background: var(--surface-2); }
+@media (max-width: 600px) {
+  .doc-card { max-width: none; }
+  .doc-card-actions > :is(a.button, button) { flex: 1 1 auto; }
+  .doc-preview { width: 100vw; height: 100dvh; max-width: none; max-height: none; border-radius: 0; }
+}

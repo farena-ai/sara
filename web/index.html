@@ -39,6 +39,7 @@
   <link rel="stylesheet" href="/begin.css">
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/research.css">
+  <link rel="stylesheet" href="/doc-card.css">
   <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
   <link rel="stylesheet" href="/v3.css">
@@ -439,7 +440,7 @@
               <div class="td-dateline"><button id="td-back" type="button" class="ghost small td-back" title="Back to the conversation (Esc)"><i class="ic" data-icon="back"></i>Chat</button><p id="td-date" class="td-date"></p></div>
               <h2 id="td-greeting" tabindex="-1">Today</h2>
               <div id="td-her" class="td-her" hidden>
-                <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw>Sara</span> <span id="td-mood-text" class="td-mood-text"></span></p>
+                <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw></span> <span id="td-mood-text" class="td-mood-text"></span></p>
                 <div class="today-her"></div>
               </div>
               <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customize</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
@@ -563,7 +564,7 @@
       <button id="hp-handle" class="hp-handle" type="button" aria-label="Show more or less of her panel"><span aria-hidden="true"></span></button>
       <div class="hp-scroll">
         <div class="hp-top">
-          <h2 id="hp-name" class="hp-name" data-raw>Sara</h2>
+          <h2 id="hp-name" class="hp-name" data-raw></h2>
           <button id="hp-close" class="ghost icon hp-close" type="button" aria-label="Fold her panel away" title="Fold her panel away"><i class="ic" data-icon="chevron-right"></i></button>
         </div>
         <!-- V4a: At a glance (1180 px and wider; folds, remembered on this device). Real data only, an
@@ -844,7 +845,7 @@
     <h2 id="dap-ask-title">Your OK is needed</h2>
     <p id="dap-ask-what"></p>
     <p class="dap-code" id="dap-ask-code"></p>
-    <p class="muted small">Type this code on a device you already use (Settings → Connections → Devices and sign-in), or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
+    <p class="muted small">Your other signed-in devices (your phone, a browser) now show “Approve a device?” and Today lists it under Needs you: type this code there. Or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
     <p id="dap-ask-status" class="small" role="status"></p>
     <p class="actions-left"><button id="dap-ask-cancel" type="button" class="ghost">Cancel</button></p>
   </dialog>
@@ -1008,7 +1009,7 @@
         <h2>Who she is</h2>
         <div class="add-row">
           <label>Name <input id="wz-name" maxlength="40" autocomplete="off"></label>
-          <label>Pronouns <select id="wz-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
+          <label>Pronouns <select id="wz-pronouns" data-noname><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
           <label>Age <input id="wz-age" type="number" min="18" max="120"></label>
         </div>
         <p class="muted small">Can't decide? <button id="wz-surprise" type="button" class="ghost small">🎁 Surprise me with a whole character</button></p>
@@ -1052,7 +1053,7 @@
         <p class="muted small" id="wz-voice-note"></p>
       </section>
       <section data-wz="8" hidden>
-        <h2>Meet <span data-raw id="wz-meet-name">her</span></h2>
+        <h2>Meet <span data-raw id="wz-meet-name"></span></h2>
         <p class="muted small">How she'd answer a few everyday moments. Not quite right? Go back and change anything.</p>
         <div id="wz-samples" class="samples"></div>
         <p id="wz-status" class="muted small" role="status"></p>
@@ -1101,7 +1102,7 @@
       <h3>Character</h3>
       <div class="add-row">
         <label>Name <input id="pe-name" maxlength="40"></label>
-        <label>Pronouns <select id="pe-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
+        <label>Pronouns <select id="pe-pronouns" data-noname><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
         <label>Age <input id="pe-age" type="number" min="18" max="120"></label>
       </div>
       <label>Looks (for pictures she takes, optional) <input id="pe-appearance" maxlength="600" placeholder="e.g. a woman in her late 20s with long dark hair and a warm smile"></label>
@@ -2206,7 +2207,7 @@
         <div class="yours-who">
           <label>Name <input id="my-name" maxlength="40" autocomplete="off"></label>
           <div class="add-row">
-            <label>Pronouns <select id="my-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
+            <label>Pronouns <select id="my-pronouns" data-noname><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
             <label>Age <input id="my-age" type="number" min="18" max="120"></label>
           </div>
           <p class="muted small">Changes save by themselves. <em>Try it</em> shows how she'd answer now; <em>Undo changes</em> brings back how she was when you opened this page.</p>
@@ -2363,7 +2364,7 @@
           <p id="cu-pm-none" class="muted small" hidden>No supported password manager was found here (Bitwarden CLI, 1Password CLI or KeePassXC).</p>
           <label class="row">Lock again after <select id="cu-pm-relock" data-noauto><option value="5">5 idle minutes</option><option value="15">15 idle minutes</option><option value="30">30 idle minutes</option><option value="60">60 idle minutes</option></select> <button type="button" class="tip" data-tip="Sara locks a password manager she used again after the task, after this many minutes without use, on Stop, and when you turn it off. Then she asks you to unlock it next time.">?</button></label>
         </div>
-        <p class="small"><span id="cu-this-status" class="muted small" role="status"></span></p>
+        <p class="small"><span id="cu-this-status" class="muted small" role="status"></span> <button id="cu-retry" type="button" class="ghost small" hidden>Try again</button></p>
       </div>
       <div id="cu-get" class="cu-get" hidden>
         <h3>Linux hands</h3>
@@ -2442,7 +2443,7 @@
       <h3>Add a companion</h3>
       <div class="add-row">
         <label>Name <input id="cmp-name" maxlength="40" autocomplete="off"></label>
-        <label>Pronouns <select id="cmp-pronouns"><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
+        <label>Pronouns <select id="cmp-pronouns" data-noname><option value="she">she / her</option><option value="he">he / him</option><option value="they">they / them</option></select></label>
       </div>
       <label>Start from <select id="cmp-from"><option value="">A new character (shape them afterwards)</option></select></label>
       <p class="small"><button id="cmp-add" type="button">Add</button> <button id="cmp-from-file" type="button" class="ghost" data-owner-only>From a file…</button> <button id="cmp-store" type="button" class="ghost" data-owner-only>Get a companion from the Store</button> <button type="button" class="tip" data-tip="A companion pack (.sara-companion.zip), a character card (PNG, JSON or CHARX) or a Sara character file. You see her card first. It always makes a new companion; the ones you have don't change.">?</button> <input id="cmp-file" type="file" accept=".zip,.png,.json,.charx,application/zip,image/png,application/json" hidden> <span id="cmp-status" class="muted small"></span></p>
@@ -2518,6 +2519,7 @@
       </div>
       <p id="look-status" class="muted small" role="status"></p>
       <p id="look-fix-row"><button id="look-complete" type="button" class="small" hidden>Add the new mouth shapes</button> <button id="look-reset" type="button" class="ghost small" hidden>Back to the default look</button></p>
+      <p id="look-default-row" class="small"><label for="look-default">Default look</label> <button type="button" class="tip" data-tip="Which built-in character shows until you make a look of your own: Sara (she), the male default (he) or the they/them default. Matches the pronouns follows her pronouns.">?</button> <select id="look-default"><option value="auto">Matches the pronouns</option><option value="she">Default (she)</option><option value="he">Default (he)</option><option value="they">Default (they)</option></select> <span id="look-default-note" class="muted"></span></p>
       <h3>Outfits and places <button type="button" class="tip" data-tip="Dress her for the season, the day or a scenario: the same face and hair, different clothes, and optionally somewhere else. You see a picture first; use it and she gets matching expressions and talking frames (about a minute, on your Grok sign-in). Your current look stays in the closet.">?</button></h3>
       <div class="add-row" data-noauto>
         <label>Outfit <select id="look-outfit"></select></label>

@@ -87,6 +87,15 @@ export const OPEN_DEADLINE_MS = 60_000;
 const FRAMES_KEPT = 4;
 /** §7.3/§6.4: a computer task's budget (actions and minutes) before she summarizes and stops. */
 export const COMPUTER_BUDGET = { steps: 60, minutes: 15 };
+/**
+ * A computer's connection reached Sara as a plain request: the web server in front of her (a reverse
+ * proxy: Apache, nginx, a tunnel) didn't pass the WebSocket upgrade for /api/hands. The app shows this,
+ * and pc_devices and the Computer use page say it, so it is never a silent "connecting…".
+ */
+export const PROXY_BLOCKED_MESSAGE =
+  'The web server in front of this Sara (a reverse proxy such as Apache or nginx) did not pass the computer\u2019s connection (a WebSocket to /api/hands), so the computer can\u2019t connect. Whoever runs the server turns on WebSocket forwarding for all of Sara (Apache 2.4.47 or newer: add upgrade=websocket to the ProxyPass "/" line; nginx: the Upgrade and Connection headers), then the app connects by itself. See docs/INSTALL.md (Behind a proxy).';
+/** How long a blocked attempt is shown after the last one (the app tries again every 30 seconds). */
+export const BLOCKED_SHOWN_MS = 15 * 60_000;
 
 export class HandsError extends Error {
   readonly code: string;
@@ -212,6 +221,8 @@ export interface HandsDeviceView {
   approvalsHere?: boolean;
   walkAway?: boolean;
   screens?: number;
+  /** Not connected because the web server in front of Sara blocks the connection (the last attempt). */
+  blocked?: { why: 'proxy'; at: string };
 }
 
 interface Pending {
@@ -241,6 +252,8 @@ interface Device {
   /** Phase 88: makes a fresh token for this device (set by the upgrade route). */
   renew?: () => { token: string; expiresAt: string } | undefined;
   lastRenew?: number;
+  /** The last attempt that a proxy turned into a plain request (cleared when it connects). */
+  blocked?: { why: 'proxy'; at: string };
 }
 
 /** Splits a binary frame into its JSON header and the picture bytes (undefined when malformed). */
@@ -342,6 +355,7 @@ export class HandsHub {
     }
     d.ws = ws;
     d.hello = undefined;
+    d.blocked = undefined;
     d.connectedAt = new Date().toISOString();
     d.lastSeen = d.connectedAt;
     ws.onMessage = (data) => {
@@ -364,6 +378,15 @@ export class HandsHub {
       ws.ping?.();
     }, this.heartbeatMs);
     d.heartbeat.unref?.();
+  }
+
+  /** A signed-in computer tried to connect but its WebSocket upgrade never arrived (a proxy in front of Sara). */
+  noteBlocked(id: string, label: string): void {
+    const d = this.#device(id, label);
+    if (d.ws?.open) return;
+    const first = !d.blocked;
+    d.blocked = { why: 'proxy', at: new Date().toISOString() };
+    if (first) this.#publish({ deviceId: id, state: 'blocked', why: 'proxy' });
   }
 
   #dropConnection(d: Device, why: string): void {
@@ -647,6 +670,7 @@ export class HandsHub {
       const h = d.hello;
       const prev = out.get(d.id);
       if (!prev && !d.ws) continue;
+      const blocked = !d.ws?.open && d.blocked && now - Date.parse(d.blocked.at) < BLOCKED_SHOWN_MS ? d.blocked : undefined;
       out.set(d.id, {
         id: d.id,
         label: prev?.label || d.label,
@@ -666,6 +690,7 @@ export class HandsHub {
         ...(h?.perms ? { perms: h.perms } : {}),
         ...(h ? { approvalsHere: h.approvalsHere === true, walkAway: h.walkAway === true } : {}),
         ...(h?.screens ? { screens: h.screens.length } : {}),
+        ...(blocked ? { blocked } : {}),
       });
     }
     return [...out.values()];

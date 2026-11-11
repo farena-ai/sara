@@ -2,6 +2,13 @@ import type { ToolSpec } from '../providers/types.ts';
 import type { SandboxInfo } from './sandbox.ts';
 
 export type Permission = 'auto' | 'ask' | 'never';
+/** make_document: the made document a shared file is (the chat's document card). */
+export interface MadeRef {
+  id: number;
+  format: string;
+  version: number;
+  title: string;
+}
 export const PERMISSIONS: readonly Permission[] = ['auto', 'ask', 'never'];
 
 export interface ToolContext {
@@ -22,7 +29,7 @@ export interface ToolContext {
   /** B2: saves picture bytes from a tool (an MCP image block) as an upload; returns its id (throws if not a picture). */
   saveImage?: (bytes: Buffer) => string;
   /** Phase 115 (BR1): a file send_file shared (its `shared_files` id): a chip on her reply, sent by chat apps after the turn. */
-  attachFile?: (file: { id: string; name: string; mime: string; bytes: number; caption?: string }) => void;
+  attachFile?: (file: { id: string; name: string; mime: string; bytes: number; caption?: string; made?: MadeRef }) => void;
   /** Phase 49: a picture the model looks at together with this tool's result (upload id). */
   showModel?: (uploadId: string) => void;
   /** Phase 49: a screenshot for the proof strip on her final message (upload id). */

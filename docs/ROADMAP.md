@@ -102,6 +102,15 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Documents, her own name everywhere, and computer use from a server, in 3.4.0
+
+Ask for a Word document, PDF, spreadsheet or slides and she makes the file, with Download, Open and
+Make changes, saved in her Library. Rename her and the new name and pronouns show everywhere in all six
+languages, with built-in he and they default characters that animate like Sara until you make your own
+look. The Sara app for Windows and Mac now connects for computer use to a Sara on a server, says plainly
+whether it is connected, and reconnects after sleep. The browser add-on downloads its own browser in one
+click, even on Linux servers. A new page lists the few things you may need to do yourself.
+
 ## Easy mode, in 3.3.0
 
 Built from a walkthrough with a first-time, non-technical user. Start talking opens a real chat;

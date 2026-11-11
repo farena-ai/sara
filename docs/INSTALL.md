@@ -9,6 +9,9 @@ New to this? These pages help too: [what it costs](COSTS.md), [what leaves your 
 [your phone](PHONE.md), [moving to a new computer](MOVING.md), the
 [security checklist](SECURITY_CHECKLIST.md) for after installing, and the [FAQ and glossary](FAQ.md).
 
+**What you may need to do yourself** (the few things an installer can't do for you, per system):
+[YOUR_STEPS.md](YOUR_STEPS.md).
+
 ## 1. Install
 
 ### The easy way: one command
@@ -331,7 +334,8 @@ sara.example.com {
 }
 ```
 
-Caddy passes live voice calls (WebSocket) through on its own.
+Caddy passes WebSocket connections (live voice calls, and computer use: the Sara app's connection to
+`/api/hands`) through on its own.
 
 **nginx** (certificate with certbot: `sudo apt install certbot python3-certbot-nginx`, then
 `sudo certbot --nginx -d sara.example.com`):
@@ -352,7 +356,7 @@ server {
         proxy_buffering off;          # live replies (server-sent events) arrive as they're written
         proxy_cache off;
         proxy_read_timeout 1h;
-        proxy_http_version 1.1;       # live voice calls (WebSocket, /api/live/)
+        proxy_http_version 1.1;       # WebSockets: live calls (/api/live/) and computer use (/api/hands)
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
     }
@@ -382,7 +386,7 @@ sudo a2enmod proxy proxy_http proxy_wstunnel headers ssl
     ProxyPreserveHost On
     ProxyPass "/.well-known/acme-challenge/" "!"
     ProxyPass "/api/live/" "ws://127.0.0.1:7860/api/live/" timeout=3700 retry=0
-    ProxyPass "/" "http://127.0.0.1:7860/" timeout=600 retry=0 flushpackets=on
+    ProxyPass "/" "http://127.0.0.1:7860/" timeout=600 retry=0 flushpackets=on upgrade=websocket
     ProxyPassReverse "/" "http://127.0.0.1:7860/"
     RequestHeader set X-Forwarded-Proto "https"
     Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
@@ -390,12 +394,32 @@ sudo a2enmod proxy proxy_http proxy_wstunnel headers ssl
 </VirtualHost>
 ```
 
+`upgrade=websocket` (Apache 2.4.47 or newer) passes computer use through: the Sara app's connection
+to `/api/hands` is a WebSocket too. Older Apache: leave it off and add the three `RewriteRule` lines
+from `deploy/apache-proxy.conf` instead.
+
 ```sh
 sudo a2ensite sara && sudo systemctl reload apache2
 sudo certbot --apache -d sara.example.com
 ```
 
 (cPanel servers: `deploy/apache-proxy.conf` has the same lines and where they go.)
+
+### Behind a proxy: computer use needs WebSockets
+
+Computer use (the Sara app on your computer letting her use it, [design/COMPUTER_USE.md](design/COMPUTER_USE.md))
+connects with a WebSocket to `/api/hands`. A proxy that passes only `/api/live/` turns it into a plain
+request: Sara then answers **426** and the app says *Not connected: the web server in front of this
+Sara blocks the connection*; Settings → Computer use and her chat card say the same. Fix the proxy
+(Apache: `upgrade=websocket` above; nginx: the `Upgrade` and `Connection` lines; Caddy and
+`tailscale serve` already do), reload it, and the app connects by itself within 30 seconds. To check
+from any computer (a `401` with an empty body is right; `426` or a JSON "Sign in first." means the
+proxy still blocks it):
+
+```sh
+curl -si --http1.1 -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" \
+  -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" https://sara.example.com/api/hands | head -5
+```
 
 Then open `https://sara.example.com`.
 
@@ -447,14 +471,15 @@ Sara checks each list once a day. Nothing is sent anywhere for this but the list
 | **Telegram / Discord** | Settings → Chat apps → Telegram / Discord (create a bot, paste its token, link yourself) |
 | **Web search** | Settings → Add-ons → Web search (Brave, Tavily, Ollama or SearXNG) |
 | **MCP tools** | Settings → Add-ons → Other programs (MCP) ("Start from": Email or Calendar presets) |
-| **Browser for testing** (she previews, clicks through and screenshots the web apps she builds) | Linux: `sudo /opt/sara-src/deploy/install-browser.sh` (~120 MB download, ~275 MB in `/opt/sara-browser`); Windows uses Microsoft Edge; macOS uses Chrome, Edge or Chromium if installed. Then restart Sara. `sara doctor` and **Run full check** also show whether it was found and how to install it |
+| **Browser for testing** (she previews, clicks through and screenshots the web apps she builds; also the Browser add-on) | Nothing to do: Windows uses Microsoft Edge, macOS Chrome, Edge or Chromium if installed; anywhere else Sara downloads Playwright's Chromium headless shell into her own data folder the first time it is needed (~110 MB download, no root; see [BROWSER.md](BROWSER.md)). Optional on Linux: `sudo /opt/sara-src/deploy/install-browser.sh` puts a pinned build in `/opt/sara-browser` instead |
 
 The installers download only pinned versions and check each download against its checksum (Node.js,
 the voice models and the testing browser by SHA-256 in the scripts; the subscription programs
 through npm's lockfile). These extras scripts install no system packages (the one-command
 installer and `sudo sara access domain` install only what's listed in section 1, after asking).
 
-**Browser for testing (Linux).** `deploy/install-browser.sh` downloads Google's official *Chrome for
+**Browser for testing (Linux).** Sara gets one herself (see [BROWSER.md](BROWSER.md)); this script is
+the optional administrator route. `deploy/install-browser.sh` downloads Google's official *Chrome for
 Testing* headless shell (a pinned version, checked against the SHA-256 in the script) from
 `storage.googleapis.com` and unpacks it into `/opt/sara-browser`; `--remove` takes it out again.
 It needs a few common system libraries (NSS, ATK, GBM, xkbcommon, ALSA); the script lists any that

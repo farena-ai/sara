@@ -1,12 +1,14 @@
 // Shows all built-in wording on the page in the owner's language, with the companion's name and
-// pronouns. The page is written in English for "Sara" (she/her).
+// pronouns. The page is written in English for "Sara" (she/her). Every companion word goes through
+// render() below: never set her name or a pronoun as raw text (test/name-everywhere.test.ts checks).
 // Phase 53: translate first, then personalize. Translations live in /i18n/<lang>.json, keyed by the
 // English text (trimmed, spaces collapsed). In English, personalize() (shared with the server)
-// rewrites name and pronouns. Other languages only swap the name: their translations are written
-// with the name or neutral wording instead of pronouns, because English pronoun rules don't carry
-// over (German "sie" is also "they", Spanish drops the subject, adjectives agree in gender…).
+// rewrites name and pronouns. Other languages swap the name, pick a translation's
+// {p, select, she {…} he {…} other {…}} variant where grammar needs it, and swap the strong pronouns
+// of strings whose English speaks of her (src/identity.ts personalizeTranslation; German has no rule:
+// "sie" is also "they", "it" and formal "you").
 // Text the owner or the companion wrote (messages, titles, memories, notes, files) is never touched.
-import { personalize } from './identity.js';
+import { personalize, personalizeTranslation, selectPronoun } from './identity.js';
 
 // Where owner/companion text lives: never rewritten.
 const RAW = [
@@ -64,23 +66,33 @@ function translate(s) {
   return /^\s*/.exec(s)[0] + tr + /\s*$/.exec(s)[0];
 }
 /** Built-in text about someone else (a gallery character): translated, but names and pronouns kept. */
-export const translateOnly = (s) => translate(String(s ?? ''));
-/** Name (and in English pronouns) of the owner's companion. */
-function personalizeFor(s) {
-  if (lang === 'en') return personalize(s, identity);
-  return identity.name && identity.name !== 'Sara' ? s.replace(/\bSara\b/g, identity.name) : s;
-}
-const render = (s) => personalizeFor(translate(s));
+export const translateOnly = (s, pronouns = 'she') => selectPronoun(translate(String(s ?? '')), pronouns);
+/**
+ * Built-in English text in the app language for the owner's companion: name and pronouns. English
+ * rewrites pronouns (personalize); translations pick their {p, select, …} variant and, when the
+ * English speaks of her, swap the strong pronouns (src/identity.ts personalizeTranslation).
+ */
+const render = (s) => (lang === 'en' ? personalize(s, identity) : personalizeTranslation(s, translate(s), identity, lang));
+// Text that names pronouns as choices ("she / her" in a pronoun picker): translated, never personalized.
+const NONAME = '[data-noname]';
+const renderFor = (el, s) => (el?.closest?.(NONAME) ? translate(s) : render(s));
 const needsWork = (s) => NAME_RE.test(s) || (lang !== 'en' && Boolean(dict[norm(s)]));
 
 function fixText(node) {
   if (raw(node.parentElement)) return;
+  // Text t() made earlier (perhaps for the old name, kept by a panel and put back): made again now.
+  const again = !originalText.has(node) && built.get(node.nodeValue);
+  if (again) {
+    const v = again();
+    if (v !== node.nodeValue) node.nodeValue = v;
+    return;
+  }
   const orig = originalText.has(node) ? originalText.get(node) : node.nodeValue;
   if (!originalText.has(node)) {
     if (!needsWork(orig)) return;
     originalText.set(node, orig);
   }
-  const next = render(orig);
+  const next = renderFor(node.parentElement, orig);
   if (node.nodeValue !== next) node.nodeValue = next;
 }
 
@@ -96,7 +108,7 @@ function fixAttrs(el) {
       saved[a] = { orig: cur };
       originalAttr.set(el, saved);
     }
-    const next = render(saved[a].orig);
+    const next = renderFor(el, saved[a].orig);
     saved[a].shown = next;
     if (cur !== next) el.setAttribute(a, next);
   }
@@ -117,6 +129,8 @@ function walk(root) {
 
 function applyAll() {
   observer?.disconnect();
+  // Text built in code (t()) under the old name, pronouns or language.
+  refreshBuilt();
   walk(document.body);
   document.title = identity.name;
   document.querySelector('meta[name="apple-mobile-web-app-title"]')?.setAttribute('content', identity.name);
@@ -131,7 +145,7 @@ function ensureObserver() {
       if (r.type === 'childList') for (const n of r.addedNodes) walk(n);
       else if (r.type === 'characterData') {
         // JS replaced the text: forget the old original.
-        if (originalText.has(r.target) && r.target.nodeValue !== render(originalText.get(r.target))) originalText.delete(r.target);
+        if (originalText.has(r.target) && r.target.nodeValue !== renderFor(r.target.parentElement, originalText.get(r.target))) originalText.delete(r.target);
         fixText(r.target);
       } else if (r.type === 'attributes') fixAttrs(r.target);
     }
@@ -203,8 +217,35 @@ export const savedLang = () => {
 export const t = (s, vars) => {
   let out = render(String(s));
   if (vars) for (const [k, v] of Object.entries(vars)) out = out.split(`{${k}}`).join(String(v));
+  // Remembered so a rename re-renders text built in code too (refreshBuilt), not only the page's own.
+  if (out !== s || NAME_RE.test(out)) {
+    if (built.size > 4000) built.delete(built.keys().next().value);
+    built.set(out, () => t(s, vars));
+  }
   return out;
 };
+/** Where words are hers or the owner's (messages, titles, notes, code): never re-rendered. */
+const WRITTEN = '.md, pre, code, #conversations, #chat-title, #mem-list, #note-list, #task-list, .search-hit, #story-list, .lookback-text';
+/** Text t() produced → how to make it again (for the companion's current name and pronouns). */
+const built = new Map();
+/** After a rename or a new language: text that code put on the page with t() follows too. */
+function refreshBuilt() {
+  if (!built.size || !document.body || typeof document.createTreeWalker !== 'function') return;
+  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    if (n.nodeType === Node.TEXT_NODE) {
+      // Also in raw spots (cards and facts that hold names or model ids) when the text is exactly what
+      // t() made; never in what she or the owner wrote.
+      const again = !originalText.has(n) && !n.parentElement?.closest(WRITTEN) && built.get(n.nodeValue);
+      if (again) n.nodeValue = again();
+    } else if (!raw(n)) {
+      for (const a of ATTRS) {
+        const again = n.hasAttribute(a) && !originalAttr.get(n)?.[a] && built.get(n.getAttribute(a));
+        if (again) n.setAttribute(a, again());
+      }
+    }
+  }
+}
 export const currentIdentity = () => identity;
 /**
  * Phase 61: a message the server sent ({ error } or a notice's { key, params }) in the app language.

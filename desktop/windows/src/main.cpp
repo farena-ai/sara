@@ -86,6 +86,9 @@ static const size_t kMaxFiles = 10;
 static const UINT kTrayId = 1;
 static const UINT_PTR kRemoveTimer = 7;
 static const UINT_PTR kNowTimer = 8;            // Phase 75 stage 2: "Now" in the tray menu, every 45 s
+// Computer use: the hands connection is made again after sleep, a network change or the screen unlock.
+static const UINT WM_APP_NETCHANGE = WM_APP + 7;  // from NotifyIpInterfaceChange's thread
+static const UINT_PTR kHandsNetTimer = 9;        // a short wait after a network change (they come in bursts)
 static const int kHotkeyId = 1;                 // the quick-ask shortcut (RegisterHotKey)
 enum MenuId {
   ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF, ID_HANDS_RESUME, ID_HANDS_LOG, ID_HANDS_STATUS,
@@ -2889,6 +2892,12 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     handsSync();
     return reply(id, prefsJson());
   }
+  // Try again (the Computer use page, after "Not connected: …"): connect now, or start again if stopped.
+  if (kind == L"handsRetry") {
+    if (sarahands::running()) sarahands::reconnectNow(false);
+    else handsSync();
+    return reply(id, prefsJson());
+  }
   if (kind == L"handsOff") {
     handsOff();
     return reply(id, prefsJson());
@@ -3344,6 +3353,15 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         g_wakeLocked = wp == WTS_SESSION_LOCK;
         wakeApply();
       }
+      // Computer use: back at the computer, connect now if the connection was lost meanwhile.
+      if (wp == WTS_SESSION_UNLOCK && !sarahands::connected()) sarahands::reconnectNow(false);
+      return 0;
+    case WM_POWERBROADCAST:
+      // Computer use: after sleep the old connection is dead even if it looks open: make a new one now.
+      if (wp == PBT_APMRESUMEAUTOMATIC || wp == PBT_APMRESUMESUSPEND) sarahands::reconnectNow(true);
+      return TRUE;
+    case WM_APP_NETCHANGE:
+      SetTimer(h, kHandsNetTimer, 3000, nullptr);
       return 0;
     case WM_COPYDATA: {
       // Phase 75 stage 3: a second start (Send To, Sara.exe <files>) hands its files over.
@@ -3358,6 +3376,11 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return TRUE;
     }
     case WM_TIMER:
+      if (wp == kHandsNetTimer) {
+        // The network changed (Wi-Fi, VPN, cable): connect now when not connected (an open one is kept).
+        KillTimer(h, kHandsNetTimer);
+        if (!sarahands::connected()) sarahands::reconnectNow(false);
+      }
       if (wp == kRemoveTimer) finishRemove();
       if (wp == kNowTimer) refreshNow();
       if (wp == kWakeTryTimer) {
@@ -3645,6 +3668,16 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   // Phase 126: the talk shortcut, the screen-lock pause and Hey Sara as it was left (off by default).
   registerTalkShortcut();
   WTSRegisterSessionNotification(g_wnd, NOTIFY_FOR_THIS_SESSION);
+  // Computer use: hear about network changes (the callback runs on a system thread: it only posts).
+  // (iphlpapi's NotifyIpInterfaceChange, looked up at run time: its header needs winsock2 before windows.h).
+  if (HMODULE ip = LoadLibraryW(L"iphlpapi.dll")) {
+    using Callback = VOID(WINAPI*)(PVOID, PVOID, int);
+    using Notify = DWORD(WINAPI*)(USHORT, Callback, PVOID, BOOLEAN, HANDLE*);
+    if (auto notify = reinterpret_cast<Notify>(GetProcAddress(ip, "NotifyIpInterfaceChange"))) {
+      static HANDLE note = nullptr;
+      notify(0 /* AF_UNSPEC */, [](PVOID, PVOID, int) { if (g_wnd) PostMessageW(g_wnd, WM_APP_NETCHANGE, 0, 0); }, nullptr, FALSE, &note);
+    }
+  }
   wakeApply();
   if (!background || !files.empty()) ShowWindow(g_wnd, maximized ? SW_SHOWMAXIMIZED : show);
   createWebView();

@@ -41,6 +41,8 @@ import { ownerNames } from '../packs/scrub.ts';
 import { adultModeOn } from '../settings.ts';
 import { packInstallerFor } from './packs.ts';
 import { prereqService } from './prereqs.ts';
+import { browserSetup, isPlaywrightMcp } from '../browser-setup.ts';
+import { programFor } from '../prereqs/catalog.ts';
 import { smokeFence } from '../store/pack-cli.ts';
 import { authorKey, DeskError, deskDown, refreshSubmission, replySubmission, sendReport, submissions, submit } from '../store/submit.ts';
 import { sha256, StoreRefused } from '../store/verify.ts';
@@ -270,12 +272,14 @@ export function createStoreRoutes(ctx: RouteCtx): RouteHandler {
       const trx = client.translationsExtra(ownerLang())[c];
       const about = (trx?.about && trx.about.length === entry.about.length ? trx.about : tr?.description ? [tr.description, ...entry.about.slice(1)] : entry.about).map(reader);
       const lines = enLines.map((l) => translateLineParams(l, trx?.terms));
+      // The Browser add-on: Sara gets its browser herself (src/browser-setup.ts), so no Chrome to install.
+      const ownBrowser = Boolean(entry.mcp && isPlaywrightMcp(entry.mcp as { command?: string; args?: string[] }) && browserSetup());
       return send(res, 200, {
         item: { id: hit.item.id, kind: hit.item.kind, name: hit.item.name, summary: reader(tr?.summary ?? hit.item.summary), trust: hit.item.trust, category: hit.item.category ?? 'more', author: { name: hit.item.author.name, key: shortKey(hit.item.author.key) }, ...(hit.item.iconSha ? { icon: hit.item.iconSha } : {}), ...(hit.item.kind === 'companion' ? { rating: hit.item.rating, romance: hit.item.romance } : {}) },
         version: hit.v.version,
         versions: hit.item.versions.map((v) => ({ version: v.version, published: v.published, ...(v.yanked ? { yanked: v.yanked } : {}) })),
         size: hit.v.size ?? null,
-        entry: { description, about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: entry.needs ?? [], works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
+        entry: { description, about, license: entry.license, source: entry.source ?? null, contact: entry.author.contact ?? null, shots: entry.shots.map((s) => ({ sha: s.sha256, alt: s.alt })), changes: entry.changes, checks: entry.checks, review: entry.review ?? null, tested: entry.tested ?? [], needs: (entry.needs ?? []).filter((n) => !(ownBrowser && programFor(n) === 'chrome')), works: entry.works ?? [], ...(entry.mcp ? { mcp: entry.mcp } : {}), ...(ownBrowser ? { browser: true } : {}), ...(entry.companion ? { companion: entry.companion } : {}) },
         lines,
         // EC27: when and where this version last passed a real install (the signed sidecar).
         qualified: client.qualified()[c] ?? null,

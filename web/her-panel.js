@@ -665,7 +665,11 @@ function lastSpeaker() {
 }
 
 // V4a: a rename shows in the panel's title at once (web/naming.js setIdentity).
-globalThis.document?.addEventListener('sara-identity', () => renderHer());
+// Its conversation facts too: they are raw (model names), so the page's rewriting skips them.
+globalThis.document?.addEventListener('sara-identity', () => {
+  renderHer();
+  renderConv();
+});
 function renderHer() {
   const name = $('#hp-name');
   if (!name || !ui.ctx) return;

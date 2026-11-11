@@ -21,6 +21,7 @@ keystore.properties
 
 # Phase 33: desktop app build output and downloaded SDKs
 desktop/windows/build/
+desktop/windows/build-*/
 desktop/windows/third_party/
 desktop/mac/build/
 

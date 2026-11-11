@@ -66,3 +66,61 @@ picture shows round with a thin ring that follows what she is doing (listening, 
 **Background motion: Off** and your system's *Reduce motion* show one still picture (her mood) and
 the ring; nothing animates. The animation pauses when the tab is hidden or the picture is off screen,
 and runs at most 30 frames a second.
+
+## Default looks: she, he and they
+
+Sara ships three built-in characters, each with the full picture set a look has (portrait, five mood
+portraits, small avatars, a blink and four mouth shapes per mood, and face landmarks for the animated
+picture):
+
+| | Pictures | Who |
+|---|---|---|
+| **Default (she)** | `web/sara-portrait.jpg`, `web/sara/…` | Sara: auburn-brown waves, freckles, cream sweater |
+| **Default (he)** | `web/looks/he/…` (same paths) | a man in his early 30s: short tousled dark brown hair, light stubble, moss-green sweater |
+| **Default (they)** | `web/looks/they/…` (same paths) | an androgynous adult in their late 20s: messy black jaw-length shag, small hoops, mustard sweater |
+
+Until you make or pick a look of your own, the one that matches her pronouns shows (**Default look:
+Matches the pronouns**, in *Settings → Her → Look*), or the one you pick there by name. A custom look
+always wins: it is never replaced, and going back to the default look shows the chosen default again.
+When you change her pronouns while a default look shows, the app asks once whether to use the matching
+one; the pictures change at once, without a reload. The sign-in page and companions other than the
+main one are unchanged (Sara's portrait, or the companion's initial).
+
+How they were made (2026-11, Grok Imagine through Hermes' image tool, painterly style matched to
+Sara's portrait): a first portrait as an edit of Sara's portrait (same room, lamp, plants, synth,
+light and framing, a different person: *"Repaint this exact picture as a different person, keeping the
+identical art style, … The person is now a friendly adult man in his early 30s: short dark brown hair
+neatly tousled, light stubble, warm brown eyes, a kind relaxed closed-mouth smile, … a cozy moss-green
+chunky knit sweater. Original character, not resembling any real person."*; for they: *"… a truly
+androgynous, gender-ambiguous adult in their late 20s …"*, then *"… a messy jaw-length shag of black
+hair with soft wispy bangs …, a small silver hoop earring …"*). Every mood and every blink/mouth frame
+was then made from that portrait with exactly the prompts `src/look.ts` uses for a new look
+(EXPRESSION_EDIT, BLINK, MOUTH_EDIT), so a default animates like any made look. The frames were
+registered to their mood portrait (scale and shift, checked visually), scaled to 512 px (avatars
+160 px) at the same JPEG quality as Sara's, and the landmarks in `sara/face.json` were measured on the
+portrait and refined from where the blink and mouth frames differ (the same method reproduces Sara's
+own landmarks within half a percent). Both sets together are about 2.6 MB.
+
+## Her name and pronouns everywhere
+
+The app is written for "Sara" (she/her). When you rename her or pick other pronouns, every built-in
+word about her follows, in all six languages, on every screen, in the help page, notifications,
+the installed app's name and her own character sheet; text you or she wrote is never rewritten.
+"Sara" stays where it names the product (*the Sara app for Windows*, *Sara Store*, *Update Sara*,
+*Sara 3.3.0*, *Sara Classic*). How it works, for translators and developers:
+
+- `src/identity.ts` is the one place that knows her name and pronouns (shared by the server and the
+  page). English: `personalize()` rewrites the name and she/her/hers/herself. Other languages:
+  `personalizeTranslation()` swaps the name, picks a `{p, select, she {…} he {…} other {…}}` variant
+  where grammar needs one (adjectives and participles that agree with her), fixes agreement right after
+  her name or pronoun (French *doit-elle → doit-il*, *s'est arrêtée → s'est arrêté*; Italian, Spanish
+  and Portuguese participles) and, only in strings whose English speaks of her, the strong pronouns
+  (French *elle/lui*, Spanish *ella/él*, Italian *lei/lui*, Portuguese *ela/ele, dela/dele*; for they, her
+  name). German "sie" is also "they", "it" and formal "you", so German only changes a sentence that
+  starts with her; use `{p, select, …}` where a German string needs it.
+- `web/naming.js` renders all page text and every `t()` string through it, and re-renders text built
+  in code when she is renamed (no reload). The help page does the same (`web/help-i18n.js`).
+- A translation that needs a gendered word for her: write it as `{p, select, she {prête} he {prêt}
+  other {prêt·e}}` (French they takes the inclusive form; other languages use the masculine).
+- `test/name-everywhere.test.ts` keeps it that way: no hand-made renames in web code, no companion
+  words in raw markup, well-formed pronoun choices in every language.

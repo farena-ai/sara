@@ -275,8 +275,11 @@ function needs(deps: PartDeps): Loader {
     const models = own ? ((c.out.modelItems ?? []) as { reason?: string; from?: string; text?: string }[]).filter((m) => m.reason === 'retired-no-replacement' || m.reason === 'retired-auto-switch-off').map((m, i) => ({ key: `model:${m.from ?? i}`, from: m.from ?? '', text: m.text ?? '' })) : [];
     // 3.3.0: her own trouble (model down, key rejected, a mailbox signed out, an add-on stopped).
     const trouble = own ? gatherTrouble(app).map((x) => ({ id: x.id, kind: x.kind, key: x.key, params: x.params, text: x.text, fix: x.fix })) : [];
+    // A device signed in elsewhere waiting for the owner's OK (never the code: that is on the asking device).
+    const devices = own ? (app.deviceApprovals?.pending() ?? []).slice(0, 5).map((r) => ({ kind: r.kind, action: r.action ?? null, label: r.label, ip: r.ip, createdAt: r.createdAt, expiresAt: r.expiresAt })) : [];
     return {
       approvals,
+      devices,
       failedJobs,
       failedRuns,
       models,

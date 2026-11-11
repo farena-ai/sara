@@ -211,7 +211,7 @@ test('viz.js: weather art from the codes, sparklines and rings from real numbers
   assert.match(web('today.js'), /w\.jobs\.slice\(0, small \? 1 : 3\)\.map\(\(j\) => card\(j\.label, since\(j\.startedAt\), small \? '' : lastLine\(j\.tail\), j, null\)\)/, 'running jobs: a moving ring');
   assert.match(web('today.js'), /export function countDoneToday\(tasks, now = Date\.now\(\)\)/);
   (globalThis as Record<string, unknown>).matchMedia ??= () => ({ matches: false, addEventListener() {} });
-  const t = await import(`data:text/javascript;base64,${Buffer.from(web('today.js').replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, "const t = (s) => s; const locale = () => 'en-US';").replace(/from '\.\/(icons|viz)\.js';/g, (_m, n: string) => `from '${pathToFileURL(join(ROOT, 'web', `${n}.js`)).href}';`)).toString('base64')}`);
+  const t = await import(`data:text/javascript;base64,${Buffer.from(web('today.js').replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, "const t = (s) => s; const locale = () => 'en-US';").replace(/from '\.\/device-approval\.js';/, `from 'data:text/javascript,${encodeURIComponent('export const checkPrompts = async () => {}; export const requestLine = () => "";')}';`).replace(/from '\.\/(icons|viz)\.js';/g, (_m, n: string) => `from '${pathToFileURL(join(ROOT, 'web', `${n}.js`)).href}';`)).toString('base64')}`);
   const now = Date.parse('2026-10-29T15:00:00');
   assert.equal(t.countDoneToday([{ status: 'done', doneAt: '2026-10-29T09:00:00' }, { status: 'done', doneAt: '2026-10-28T09:00:00' }, { status: 'open', doneAt: null }], now), 1);
   assert.equal(t.countDoneToday(null, now), null);

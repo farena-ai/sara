@@ -12,7 +12,8 @@ import { deliveryFor } from './delivery.ts';
 import { createCodingTools } from './tools/coding.ts';
 import { createBrowserTools } from './tools/browser.ts';
 import { PreviewManager } from './preview.ts';
-import { BrowserManager } from './browser.ts';
+import { BrowserManager, findBrowser } from './browser.ts';
+import { BrowserSetup, setBrowserSetup } from './browser-setup.ts';
 import { GoogleAccount, googleApiBase } from './google.ts';
 import { SpotifyAccount, spotifyApiBase } from './spotify.ts';
 import { createSpotifyTools } from './tools/spotify.ts';
@@ -115,7 +116,7 @@ import { statusReport } from './status.ts';
 import { tailscaleStatus } from './tailscale.ts';
 import { createWebSearchTool } from './tools/search.ts';
 import { mcpSecrets, searchConfig } from './integrations.ts';
-import { loadPersona } from './persona.ts';
+import { identityOf, loadPersona } from './persona.ts';
 import { createSaraServer, proxyTrust } from './server.ts';
 import { setWakeLexiconDir } from './routes/wake.ts';
 import { HandsHub } from './hands.ts';
@@ -130,6 +131,7 @@ import { ReviewWorker } from './review.ts';
 import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
 import { policyResolver } from './tool-policy.ts';
 import { LookBuilder, PLACES } from './look.ts';
+import { appearanceFor, defaultLookFile, defaultLookFor } from './default-look.ts';
 import { createWardrobeTool, WardrobeWorker } from './wardrobe.ts';
 import { createSharedListTool, TogetherStore } from './together.ts';
 import { ReadTogether } from './read-together.ts';
@@ -155,6 +157,7 @@ import { backfill, RecallIndex, recallMode } from './triggers.ts';
 import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
+import { createMakeDocumentTool } from './tools/make-document.ts';
 import { sweepShared } from './bridges/media.ts';
 import { PendingInputs } from './pending.ts';
 import { createLibraryTool } from './library/use.ts';
@@ -780,6 +783,19 @@ const pairs = new PairRegistry();
 const challenges = new Map<string, { purpose: 'signin' | 'register' | 'confirm'; expires: number }>();
 // Phase 49: preview links (one list for the whole server) and the testing browsers.
 const previews = new PreviewManager({ ownPorts: () => [port] });
+// The browser Sara gets for herself (src/browser-setup.ts): her testing browser and the Browser
+// add-on share one download in <data>/browsers. Desktops use the installed Chrome/Edge first.
+setBrowserSetup(
+  new BrowserSetup({
+    dataDir,
+    // SARA_OWN_BROWSER=download: always Sara's own download, even with Chrome/Edge installed.
+    systemBrowser: () => {
+      if (process.env.SARA_OWN_BROWSER === 'download') return undefined;
+      const b = findBrowser(process.platform, process.env, existsSync, undefined);
+      return b.found && b.path && (b.kind === 'chrome' || b.kind === 'edge') ? { kind: b.kind, path: b.path } : undefined;
+    },
+  }),
+);
 const browsers = new BrowserManager({ sandbox: () => sandbox, previews, sweep: true });
 // Phase 50: the code maps of the workspaces (one per workspace, shared like the workspaces; a
 // rebuildable cache, so backups leave it out). Meaning search uses the first companion's job.
@@ -987,6 +1003,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createLibraryTool(() => app));
   // Phase 115 (BR1): she can share a file in the chat (a chip in the app; a real file in chat apps).
   tools.add(createSendFileTool(() => app));
+  // make_document (docs/DOCUMENTS.md): Word, PDF, Excel, PowerPoint and more, for the owner and members.
+  tools.add(createMakeDocumentTool(() => app));
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.
@@ -1001,12 +1019,13 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     settings: settingsC,
     vault: spaceVault,
     xaiProviderKey: xaiProviderKeyOf,
-    persona: () => app.persona,
+    // A built-in default description follows the default look in use (he/they defaults).
+    persona: () => ({ ...app.persona, appearance: app.look?.custom ? app.persona.appearance : appearanceFor(app.persona.appearance, defaultLookFor(settingsC.get().defaultLook, app.persona.pronouns)) }),
     // Phase 43: shared channels (owner work in a Discord channel or Telegram group) stay non-explicit.
     channelOf: (id) => store.getConversation(id)?.channel,
     grokSignedIn: () => subscriptions.grokStatus().signedIn,
     grokToken: async () => subscriptions.grokAccessToken(),
-    lookFile: (rel) => app.look?.fileFor(rel),
+    lookFile: (rel) => app.look?.fileOrDefault(rel),
     wearing: () => {
       const meta = app.look?.custom ? app.look.currentMeta() : {};
       return { wear: meta.wear, place: meta.place ? (PLACES[meta.place]?.prompt ?? meta.place) : undefined, style: meta.style };
@@ -1028,7 +1047,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
         const f = join(dir, `avatar.${ext}`);
         if (existsSync(f)) return readFileSync(f);
       }
-      return undefined;
+      // The he/they default look, when that is the one shown.
+      const builtin = app.look?.fileOrDefault('sara-portrait.jpg');
+      return builtin ? readFileSync(builtin) : undefined;
     },
   })) {
     // Phase 71: pictures from her follow the member's switch (the owner pays for them).
@@ -1084,6 +1105,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       key: async () => (isMember && !space.member!.limits().pictures ? undefined : ((await xaiImageKey({ vault: spaceVault, xaiProviderKey: xaiProviderKeyOf, grokToken: async () => subscriptions.grokAccessToken() })) ?? undefined)),
       model: () => photoSettings(settingsC).model || DEFAULT_IMAGE_MODEL,
       faceLock: () => settingsC.get().faceLock !== false,
+      // The he/they default look matching her pronouns (or the one picked), until a custom look exists.
+      builtin: (rel) => (id && id !== 'main' ? undefined : defaultLookFile(webDir, rel, defaultLookFor(settingsC.get().defaultLook, app.persona.pronouns))),
     }),
     voice,
     subscriptions,
@@ -1141,6 +1164,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   if (!space.push) {
     space.push = new PushService(store.db, vault, space.settings);
+    space.push.who = () => identityOf(app.persona);
     space.push.apns = new ApnsSender(store.db, vault);
   }
   app.push = space.push;

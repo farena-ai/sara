@@ -208,7 +208,8 @@ export function loadLang(lang: string): Record<string, string> {
 }
 
 /** {name}-style placeholders in a string. */
-export const placeholders = (s: string): string[] => [...s.matchAll(/\{\w+\}/g)].map((m) => m[0]).sort();
+// A pronoun choice ({p, select, she {…} he {…} other {…}}, src/identity.ts) holds words, not placeholders.
+export const placeholders = (s: string): string[] => [...s.replace(/\{p, select,(?:\s*(?:she|he|they|other) \{[^{}]*\})+\s*\}/g, '').matchAll(/\{\w+\}/g)].map((m) => m[0]).sort();
 
 export interface LangReport {
   lang: string;

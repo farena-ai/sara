@@ -151,6 +151,24 @@ API; Mac: `URLSessionWebSocketTask`), no libraries.
   over cleartext is refused).
 - Heartbeat ping every 20 s; reconnect with backoff (1, 2, 5, 10, 30 s); the device shows
   "Connected to Sara at <server>" in its tray menu.
+- **Sara on a remote server.** The upgrade must pass through any web server in front of
+  Sara: a reverse proxy that forwards only `/api/live/` turns it into a plain `GET /api/hands`. Sara
+  answers such a request that carries a valid hands token with **426** `{code: 'proxy_no_websocket'}`
+  and remembers it for 15 minutes (`blocked: {why: 'proxy'}` in `GET /api/hands`); the apps say *Not
+  connected: the web server in front of this Sara blocks the connection*, `pc_devices` says the
+  computer is trying but can't get through (its card says so, with the one-line fix), and
+  `docs/INSTALL.md` (*Behind a proxy*) and `deploy/apache-proxy.conf` pass every WebSocket
+  (`upgrade=websocket`). Any other answer is shown in plain words too (never "update Sara there").
+- **Reconnect at once** after sleep (Windows `WM_POWERBROADCAST` resume, Mac
+  `NSWorkspace.didWakeNotification`: the old connection is dropped first), a network change
+  (`NotifyIpInterfaceChange` / `NWPathMonitor`, when not connected) and the page's **Try again**
+  (`handsRetry`); otherwise the backoff above.
+- **Pairing from another device.** On a remote Sara the app is "another device": *Let Sara use this
+  computer* asks the owner first (C15 `hands`). The app shows the code at once (*Waiting for your OK on
+  Sara…*, on top of Settings); the owner's other devices get *Approve a device?* and Today lists it
+  under *Needs you* (never on the asking device itself, which can't approve its own request).
+  The app's hourly update **check** never asks (only an actual update does), so no unasked prompt
+  covers the real one.
 
 ### 3.4 Messages (version 1)
 

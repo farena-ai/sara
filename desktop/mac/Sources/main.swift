@@ -20,6 +20,10 @@ import AppKit
 import ServiceManagement
 import UserNotifications
 import WebKit
+import Network
+
+/// Computer use: network changes (Wi-Fi, VPN, cable) make the hands connection again when it was lost.
+let handsPathMonitor = NWPathMonitor()
 
 let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.33.0"
 let prefs = UserDefaults.standard
@@ -191,6 +195,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     quick?.ensure()
     statusItem.menu = statusMenu()
     handsSync()  // Phase 87: Sara's hands, if this Mac lets her
+    // Computer use: connect again after sleep (the old connection is dead) and when the network comes back.
+    NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in Hands.shared?.reconnectNow(dropOpen: true) }
+    handsPathMonitor.pathUpdateHandler = { path in
+      if path.status == .satisfied { DispatchQueue.main.asyncAfter(deadline: .now() + 3) { Hands.shared?.reconnectNow(dropOpen: false) } }
+    }
+    handsPathMonitor.start(queue: DispatchQueue.global())
 
     UNUserNotificationCenter.current().delegate = self
     // Phase 75 stage 3: the kinds with buttons; permission is asked the first time there's something to show.
@@ -595,6 +605,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       prefs.set(true, forKey: "hands.\(sid).on")
       prefs.set(body["id"] as? String ?? "", forKey: "hands.\(sid).deviceId")
       handsSync()
+      replyHandler(prefsDict(), nil)
+    // Try again (the Computer use page, after "Not connected: …"): connect now, or start again if stopped.
+    case "handsRetry":
+      if let h = Hands.shared { h.reconnectNow(dropOpen: false) } else { handsSync() }
       replyHandler(prefsDict(), nil)
     case "handsOff":
       handsOff()

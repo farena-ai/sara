@@ -102,11 +102,13 @@ export async function waitForApproval(approval) {
   if (!d) return false;
   $('#dap-ask-what').textContent = t('This device is signed in from elsewhere, so the owner approves this first: {what}.', { what: ACTIONS[approval.action]?.() ?? approval.action });
   $('#dap-ask-code').textContent = approval.code;
-  $('#dap-ask-status').textContent = t('Waiting for your OK…');
+  $('#dap-ask-status').textContent = approval.action === 'hands' ? t('Waiting for your OK on Sara…') : t('Waiting for your OK…');
   let cancelled = false;
   const cancel = () => (cancelled = true);
   $('#dap-ask-cancel').addEventListener('click', cancel, { once: true });
-  if (!d.open) d.showModal();
+  // Always on top: an open dialog (Settings) shown after it would cover it and the wait looks silent.
+  if (d.open) d.close();
+  d.showModal();
   try {
     for (;;) {
       await sleep(2000);

@@ -151,7 +151,7 @@ test('V4a name: her chosen name everywhere she is named (header, sidebar, compos
   assert.match(naming, /const ATTRS = \['placeholder', 'title', 'aria-label'/, 'the composer placeholder and tooltips follow');
   assert.match(naming, /document\.title = identity\.name;/, 'the page title');
   assert.ok(naming.includes("document.dispatchEvent?.(new CustomEvent('sara-identity'"), 'a rename tells the parts that build her name in code');
-  assert.ok(web('her-panel.js').includes("globalThis.document?.addEventListener('sara-identity', () => renderHer());"), 'her panel title follows a rename');
+  assert.match(web('her-panel.js'), /addEventListener\('sara-identity', \(\) => \{\s*renderHer\(\);\s*renderConv\(\);/, 'her panel title (and its conversation facts) follow a rename');
   assert.match(naming, /observer\.observe\(document\.body, \{ childList: true, subtree: true, characterData: true, attributes: true/);
   // The header's title is raw (conversation titles are the owner's) but its default is her name through t().
   assert.match(web('app.js'), /\$\('#chat-title'\)\.textContent = t\('Sara'\);/);

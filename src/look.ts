@@ -142,6 +142,8 @@ export interface LookDeps {
   parallel?: number;
   /** Phase 36: keep her face from the locked reference in every outfit and change (default on). */
   faceLock?: () => boolean;
+  /** The built-in default look's file for a picture path (he/they defaults), when no custom look exists. */
+  builtin?: (rel: string) => string | undefined;
 }
 
 const ADULT_ONLY = /\b(child|children|kid|kids|minor|teen|teenager|underage|toddler|baby|school ?girl|school ?boy|loli|shota|1[0-7] ?(yo|years? old))\b/i;
@@ -184,6 +186,15 @@ export class LookBuilder {
     const alt = olderExpression(rel);
     if (alt && this.custom && existsSync(join(this.dir, alt))) return join(this.dir, alt);
     return undefined;
+  }
+
+  /**
+   * The file for a built-in picture path: the custom look's, else the matching default look's (he/they;
+   * undefined means Sara's own pictures at the web root). Never mixes a default into a custom look.
+   */
+  fileOrDefault(rel: string): string | undefined {
+    if (this.custom) return this.fileFor(rel);
+    return this.#d.builtin?.(rel);
   }
 
   get faceFile(): string {

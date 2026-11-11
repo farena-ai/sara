@@ -77,6 +77,10 @@ export interface Settings {
   wardrobe?: Partial<import('./wardrobe.ts').WardrobeSettings>;
   /** Phase 36: keep her face from the locked picture in every outfit and change (default on). */
   faceLock?: boolean;
+  /** Which built-in look shows until a custom one exists: 'auto' (matches her pronouns), 'she', 'he' or 'they'. */
+  defaultLook?: 'auto' | 'she' | 'he' | 'they';
+  /** The pronouns the "use the matching default look?" offer was last answered for. */
+  defaultLookOffered?: string;
   /** Off-server encrypted backup copies (Phase 8). */
   offsite?: Partial<OffsiteSettings>;
   /** Morning briefing (Phase 8). */

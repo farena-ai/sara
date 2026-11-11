@@ -172,19 +172,21 @@ test('sensitive actions from a remote device ask the owner first; from this comp
   const rem = await login(REMOTE);
   await call(`/api/device-approvals/${rem.json.pendingApproval.code}`, { method: 'POST', body: { approve: true }, cookie: trusted });
   const remote = rem.cookie!;
-  const ask = await call('/api/update', { method: 'POST', body: { action: 'check' }, cookie: remote, headers: REMOTE });
+  // A check only looks (the app does one by itself every hour): never an unasked prompt.
+  assert.notEqual((await call('/api/update', { method: 'POST', body: { action: 'check' }, cookie: remote, headers: REMOTE })).status, 428, 'a check never asks');
+  const ask = await call('/api/update', { method: 'POST', body: { action: 'update' }, cookie: remote, headers: REMOTE });
   assert.equal(ask.status, 428, JSON.stringify(ask.json));
   assert.equal(ask.json.approval.action, 'restart');
   const code = ask.json.approval.code;
   assert.equal((await call(`/api/device-approvals/${code}`, { method: 'POST', body: { approve: true }, cookie: remote, headers: REMOTE })).status, 403, 'not from the asking device');
   assert.equal((await call(`/api/device-approvals/${code}/status`, { cookie: remote, headers: REMOTE })).json.state, 'pending');
   assert.equal((await call(`/api/device-approvals/${code}`, { method: 'POST', body: { approve: true }, cookie: trusted })).status, 200);
-  assert.notEqual((await call('/api/update', { method: 'POST', body: { action: 'check' }, cookie: remote, headers: REMOTE })).status, 428);
-  assert.equal((await call('/api/update', { method: 'POST', body: { action: 'check' }, cookie: remote, headers: REMOTE })).status, 428, 'one approval, one action');
+  assert.notEqual((await call('/api/update', { method: 'POST', body: { action: 'update' }, cookie: remote, headers: REMOTE })).status, 428);
+  assert.equal((await call('/api/update', { method: 'POST', body: { action: 'update' }, cookie: remote, headers: REMOTE })).status, 428, 'one approval, one action');
   assert.equal((await call('/api/owner-token/rotate', { method: 'POST', body: { current: 'x' }, cookie: remote, headers: REMOTE })).status, 428);
   assert.equal((await call('/api/bridges/telegram', { method: 'PUT', body: { token: '' }, cookie: remote, headers: REMOTE })).status, 428);
   assert.equal((await call('/api/device-approval', { method: 'PUT', body: { on: false }, cookie: remote, headers: REMOTE })).status, 428);
-  assert.notEqual((await call('/api/update', { method: 'POST', body: { action: 'check' }, cookie: trusted })).status, 428, 'this computer');
+  assert.notEqual((await call('/api/update', { method: 'POST', body: { action: 'update' }, cookie: trusted })).status, 428, 'this computer');
 });
 
 test('host check: a foreign Host straight to 127.0.0.1 gets 421', async () => {

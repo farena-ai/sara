@@ -19,10 +19,11 @@ import { cleanMeta, isAdultOutfit, LOOK_STYLES, type LookMeta, outfitPrompt, OUT
 import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fillNames, scrubPersona } from '../packs/scrub.ts';
-import { loadPersona, type Persona, SAFETY_BOUNDARIES, validatePersona } from '../persona.ts';
+import { loadPersona, type Persona, SAFETY_BOUNDARIES, validatePersona, withOwnPronouns } from '../persona.ts';
 import { talksHere } from '../private-local.ts';
 import { detectMinorSexualContent } from '../safety.ts';
-import { adultModeOn } from '../settings.ts';
+import { adultModeOn, type Settings } from '../settings.ts';
+import { appearanceFor, DEFAULT_LOOK_IDS, DEFAULT_LOOKS, defaultLookFor, toDefaultLookSetting } from '../default-look.ts';
 import { applyArchetype, applyRelationship, applyTalk, ARCHETYPES, fillLife, fillLifeQuick, makeUnique, savePersona, SCENARIOS, surprise, trySamples } from '../studio.ts';
 import { ACTIVITIES, type ListId, LISTS } from '../together.ts';
 import { GROUP_TITLES, HUMOURS, initiativeToProactive, LIFE_FIELDS, NEVER_CONTROLLING, QUIET_FOCUS, QUIET_FOCUS_SAY, TRAITS } from '../traits.ts';
@@ -423,7 +424,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
             }
           };
           const uploaded = avatarFile();
-          picture = (uploaded ? portraitPng(read(uploaded)) : (portraitPng(read(app.look?.fileFor('sara-portrait.jpg'))) ?? portraitPng(read(join(webRoot, 'sara-portrait.jpg'))))) ?? placeholderPicture(app.persona.name);
+          picture = (uploaded ? portraitPng(read(uploaded)) : (portraitPng(read(app.look?.fileOrDefault('sara-portrait.jpg'))) ?? portraitPng(read(join(webRoot, 'sara-portrait.jpg'))))) ?? placeholderPicture(app.persona.name);
         }
         let out: Buffer;
         try {
@@ -465,11 +466,17 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (a === 'persona' && !b) {
       const file = join(app.dataDir, 'persona.json');
-      if (method === 'GET') return send(res, 200, { persona: app.persona, custom: existsSync(file), safetyBoundaries: SAFETY_BOUNDARIES });
+      if (method === 'GET') {
+        // The shipped description follows the built-in look that shows (he/they defaults).
+        const p = withOwnPronouns(app.persona);
+        const appearance = app.look?.custom ? p.appearance : appearanceFor(p.appearance, defaultLookFor(app.settings.get().defaultLook, p.pronouns));
+        return send(res, 200, { persona: { ...p, appearance }, custom: existsSync(file), safetyBoundaries: SAFETY_BOUNDARIES });
+      }
       if (method === 'PUT') {
         let p: Persona;
         try {
-          p = validatePersona(await readJson(req));
+          // A rename takes the shipped character's lines along (src/persona.ts withOwnPronouns).
+          p = withOwnPronouns(validatePersona(await readJson(req)));
         } catch (err) {
           throw as400(err);
         }
@@ -589,6 +596,12 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         const plan = await app.wardrobe?.plan().catch(() => undefined);
         return {
           custom: look.custom,
+          // The built-in looks (Sara, he, they): which one shows until a custom look exists.
+          defaults: DEFAULT_LOOK_IDS.map((id) => ({ id, label: DEFAULT_LOOKS[id].label })),
+          defaultLook: toDefaultLookSetting(app.settings.get().defaultLook),
+          defaultShown: defaultLookFor(app.settings.get().defaultLook, app.persona.pronouns),
+          defaultMatch: defaultLookFor('auto', app.persona.pronouns),
+          defaultOffered: app.settings.get().defaultLookOffered ?? null,
           missing: look.missingFrames().length,
           status: look.status,
           hasDraft: Boolean(look.draftBytes()),
@@ -631,7 +644,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       if ((b === 'outfit' || b === 'tweak' || b === 'place') && method === 'POST') {
         const body = await readJson(req);
         if (look.status.state === 'drafting' || look.status.state === 'building') throw new HttpError(409, 'A picture is already being made.');
-        const current = readFileSync(look.fileFor('sara-portrait.jpg') ?? join(webRoot, 'sara-portrait.jpg'));
+        const current = readFileSync(look.fileOrDefault('sara-portrait.jpg') ?? join(webRoot, 'sara-portrait.jpg'));
         try {
           if (b === 'outfit') {
             const outfit = String(body.outfit ?? '').trim();
@@ -658,6 +671,16 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 202, await view());
       }
       // Phase 36: face lock and the closet (scenarios per look, dress automatically).
+      // Pick a built-in look by name (auto follows her pronouns). A custom look stays until reset.
+      if (b === 'default' && method === 'PUT') {
+        const body = await readJson(req);
+        const patch: Partial<Settings> = {};
+        if ('look' in body) patch.defaultLook = toDefaultLookSetting(body.look);
+        if (typeof body.offered === 'string') patch.defaultLookOffered = body.offered.slice(0, 10);
+        app.settings.update(patch);
+        app.events?.publish({ type: 'look' });
+        return send(res, 200, await view());
+      }
       if (b === 'face-lock' && method === 'PUT') {
         const body = await readJson(req);
         app.settings.update({ faceLock: body.on !== false });

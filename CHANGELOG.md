@@ -5,6 +5,68 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.0 (2026-11-11): documents, her name everywhere, computer use from a server
+
+- **Browser in one click, also on Linux servers:** adding the *Browser (Playwright)* add-on (or
+  Sara's first `browser_open`) now gets the browser by itself: Edge/Chrome already on a Windows or
+  Mac computer, otherwise Playwright's Chromium headless shell, downloaded by Sara's own Node into
+  `<data>/cache/browsers` (one copy shared by her browser tools and the add-on), checked for missing
+  Linux libraries and test-launched. On RHEL/AlmaLinux servers missing libraries are fetched from the
+  distribution's own signed repositories into Sara's folder, without root. A status card on the add-on
+  (Store page, its *Add* card, Settings → Add-ons → Other programs) shows Ready, Downloading (with
+  progress), Needs your server admin (the exact `dnf`/`apt-get` line with *Copy*) or Not supported,
+  with *Try again*. The add-on no longer asks for Google Chrome, and it is started with that browser
+  and `--isolated`. See docs/BROWSER.md.
+- **No more "upgrade Python" on cPanel/AlmaLinux:** *Settings → Add-ons → Other programs* said Python
+  was too old (the system's 3.6, which dnf and cPanel need) and offered `sudo dnf install -y python3`,
+  which changes nothing; Docker showed *Not found*. A `python3.12` next to the system Python now
+  counts, the offered fix installs `python3.12`, and programs none of your add-ons need are shown
+  quietly ("None of your add-ons need it"). Node for add-ons is always Sara's own Node, never an old
+  system one.
+- **She makes real documents:** ask for a Word document, PDF, Excel spreadsheet, PowerPoint
+  presentation, Markdown, CSV or web page and it arrives in the chat as a card with **Download**,
+  **Open** (a PDF in the browser, the rest as a preview) and **Make changes** (a new version; old
+  versions are kept). Every document is also saved in the Library. Report, letter and resume looks are
+  picked from the request; spreadsheets keep real formulas, slides get speaker notes, and pictures from
+  your uploads or Library can go in. Works with every model, for household members in their own space
+  and in private local mode; no new dependencies. Her instructions now say she can make files, so she
+  no longer answers that she can't. See [docs/DOCUMENTS.md](docs/DOCUMENTS.md).
+- **Computer use with Sara on a server (hosted Saras):** the Sara app for Windows or Mac now connects
+  to a Sara behind a web server (Apache, nginx). Before, a proxy that passed only voice calls turned
+  the app's connection into a plain request: the app kept retrying, the chat said "No computer is
+  connected" and only offered the download. Now Sara answers that with a clear reason, the app says
+  *Not connected: the web server in front of this Sara blocks the connection*, Sara's own card says
+  the same with the one-line fix, and the Apache example (`deploy/apache-proxy.conf`, the install
+  guide) passes it (`upgrade=websocket`). **Server owners behind Apache: add `upgrade=websocket` to
+  the `ProxyPass "/"` line and reload Apache.**
+- **Plain connection states in the app:** *Connected: Sara can use this computer*, *Connecting…* or
+  *Not connected: <why>* with **Try again**, checked every few seconds while the page is open.
+- **Reconnects by itself** after sleep, a network change (Wi-Fi, VPN) and unlocking the computer.
+- **"Let Sara use this computer" from another device:** the app shows the code on top of Settings
+  (*Waiting for your OK on Sara…*); Today lists the request under *Needs you*; the app no longer asks
+  itself to approve its own request, and the app's hourly update check no longer pops an unasked
+  *Your OK is needed* (only an actual update asks).
+- **No computer connected:** her card now starts with **I already have the app → Connect it** (in the
+  desktop app it opens Settings → Computer use; elsewhere it shows the three steps), then the download.
+- **"Look at my browser tabs"** loads her computer tools, and she knows your own browser's tabs come
+  from the window list and a look at that window ("The whole screen" on), not from her own browser.
+- **Her name everywhere:** a renamed companion (say *Fred*, he/him) is named and spoken of as *he*
+  everywhere she was meant: page text built in code (Today's *Plan my day with him*, *He remembered*,
+  *Saved: he remembers what matters*, *Put him on your phone*), Settings and its tips, the help page
+  (it said *Sara/she* about 700 times for a renamed companion), the welcome title, notification titles
+  (*She learned something new*), the character's own shipped lines (*spends her time…*, *Her parents…*)
+  in what he reads about himself, and *make her her own* (both words now change). Translations follow
+  too: name, pronoun variants (`{p, select, …}`), agreement (*Comment Fred doit-il t'appeler ?*, *Fred
+  s'est arrêté*, *Fred si è riavviato*) and strong pronouns where the English speaks of her. "Sara"
+  stays where it is the product (*Sara app*, *Sara Store*, *Update Sara*). A rename shows at once,
+  including text already on screen. A new test keeps new screens on the mechanism.
+- **Default looks for he and they:** besides Sara, a male default and an androgynous they/them default
+  ship with the full picture set (moods, blink and mouth frames, face landmarks), so the animated
+  portrait works with them. Until you make a look of your own, the one matching her pronouns shows;
+  *Settings → Her → Look → Default look* picks one by name (*Default (she)*, *Default (he)*, *Default
+  (they)*). Changing her pronouns offers the matching default once. A custom look is never replaced.
+  Details and prompts: [docs/APPEARANCE.md](docs/APPEARANCE.md).
+
 ## 3.3.0 (2026-11-10): easy mode
 
 - **Easy first run:** *Start talking* now opens a chat called *Chat with Sara* with the cursor in the

@@ -28,7 +28,7 @@ export type Card =
   /** Phase 87: a page in the Sara browser on the owner's computer (with the step's thumbnail hash). */
   | { kind: 'computer'; action: 'open' | 'navigate' | 'look'; url: string; title: string; computer?: string; problems?: string; thumb?: string }
   /** Phase 87: no computer connected: "Get the app" (COMPUTER_USE.md §9.4). */
-  | { kind: 'hands-install'; url: string }
+  | { kind: 'hands-install'; url: string; blocked?: 'proxy'; computer?: string }
   /** Phase 94: a computer check-up's report card (numbers, statuses, short names, the suggestions by number). */
   | { kind: 'checkup'; computer: string; os: string; at: string; windows: boolean; flagged: number; items: CheckupCardItem[]; suggestions: CheckupCardSuggestion[] }
   /** Phase 94: one check-up change, done or declined on the computer. */
@@ -82,7 +82,12 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return { kind: 'setting', id: randomBytes(6).toString('hex'), at: new Date().toISOString(), setting, value: cut(value, 60), device: def.device, ...(from ? { from: cut(from, 60) } : {}) };
     }
     case 'pc_devices':
-      return output.startsWith('No computer is connected') ? { kind: 'hands-install', url: APPS_PAGE } : undefined;
+      if (!output.startsWith('No computer is connected')) return undefined;
+      {
+        // A computer that tries but is blocked by the web server in front of Sara: the card says so.
+        const m = /^No computer is connected for computer use\. "([^"]{1,80})"[^\n]*? trying to connect right now/.exec(output);
+        return m ? { kind: 'hands-install', url: APPS_PAGE, blocked: 'proxy', computer: cut(m[1], 60) } : { kind: 'hands-install', url: APPS_PAGE };
+      }
     case 'pc_browser_open': {
       const m = /^Opened (\S+) in the Sara browser on (.+?)(?: \(HTTP \d+\))?\. Title: (.*?)\. Tab /.exec(output);
       const p = /Problems on the page so far: ([^(]+)/.exec(output);

@@ -14,6 +14,7 @@ import { openLightbox } from './lightbox.js';
 import { dialRows as dialRowsOf, refreshDials, soFarText } from './dials.js';
 import { CLOUD_TAG, countWords, modelCounts } from './model-count.js';
 import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdentity, setLanguage, serverText, t, toLang, translateOnly } from './naming.js';
+import { initDefaultLook, renderDefaultLook } from './default-look.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
 import { initRooms, loadRoomList, openRoom } from './rooms.js';
@@ -50,6 +51,7 @@ import { initSpotify, loadSpotify } from './spotify.js';
 import { initPresence, loadPresence } from './home-presence.js';
 import { initBring } from './bring.js';
 import { initCards } from './cards.js';
+import { docCard } from './doc-card.js';
 import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
@@ -3144,6 +3146,11 @@ const fileSize = (n) => (n < 1024 ? `${n} B` : n < 1024 * 1024 ? `${Math.round(n
 function fileChips(files) {
   const box = el('div', 'file-chips');
   for (const f of files) {
+    // make_document: a document she made gets its card (Download, Open, Make changes).
+    if (f.made?.id) {
+      box.append(docCard(f));
+      continue;
+    }
     const a = el('a', 'file-chip');
     a.href = `/api/files/${encodeURIComponent(f.id)}`;
     a.setAttribute('download', f.name ?? 'file');
@@ -12357,6 +12364,7 @@ async function refreshLook() {
   yours.lastLookState = st.state;
   $('#look-fix-row').hidden = $('#look-complete').hidden && $('#look-reset').hidden;
   renderLookExtras(l);
+  renderDefaultLook(l);
 }
 
 // Phase 21: outfits and saved looks. Phase 36: places, one change at a time, face lock, the closet
@@ -12749,6 +12757,8 @@ $('#char-import-go').addEventListener('click', async () => {
   }
 });
 
+// Built-in looks: the picker, and renames that change the pronouns (web/default-look.js).
+initDefaultLook({ api, onChange: () => lookChanged() });
 function lookChanged() {
   const v = Date.now();
   state.lookVersion = v;
@@ -13146,7 +13156,7 @@ async function loadComputer() {
     $('#cu-verify').disabled = p.handsOptIn !== true || p.loginsSupported !== true;
     void renderThisLogins();
     void renderThisManagers(p);
-    $('#cu-this-status').textContent = p.handsOptIn ? (p.handsConnected ? t('On: connected to Sara.') : t('On: connecting…')) : t('Off.');
+    cuThisState(p, (h.devices ?? []).find((x) => x.id === p.handsDeviceId));
   }
   const list = h.devices ?? [];
   $('#cu-none').hidden = list.length > 0;
@@ -13426,6 +13436,34 @@ $('#cu-members').addEventListener('change', async () => {
     $('#cu-members').checked = !$('#cu-members').checked;
   }
 });
+/** This computer's connection in plain words (Connected / Not connected: why / connecting), polled until it settles. */
+let cuStateTimer = 0;
+function cuThisState(p, dev) {
+  clearTimeout(cuStateTimer);
+  const st = $('#cu-this-status');
+  const retry = $('#cu-retry');
+  retry.hidden = true;
+  if (!p.handsOptIn) return void (st.textContent = t('Off.'));
+  if (p.handsConnected) return void (st.textContent = t('Connected: Sara can use this computer.'));
+  const why = dev?.blocked?.why === 'proxy' ? t('the web server in front of this Sara blocks the connection (WebSocket). Whoever runs the server turns on WebSocket forwarding (see Behind a proxy in the install guide).') : p.handsError;
+  st.textContent = why ? t('Not connected: {why}', { why }) : t('Connecting…');
+  retry.hidden = !why;
+  // Check again in a few seconds while this page is open (the app reconnects by itself).
+  cuStateTimer = setTimeout(async () => {
+    if ($('#cu-this').hidden || $('#cu-this').closest('.settings-page')?.hidden) return;
+    const q = await handsPrefs();
+    const h = q && !q.handsConnected ? await api('/hands').catch(() => null) : null;
+    if (q) cuThisState(q, (h?.devices ?? []).find((x) => x.id === q.handsDeviceId));
+  }, 3000);
+}
+$('#cu-retry').addEventListener('click', async () => {
+  const d = handsBridge();
+  if (!d) return;
+  $('#cu-this-status').textContent = t('Connecting…');
+  $('#cu-retry').hidden = true;
+  await d.call('handsRetry').catch(() => null);
+  setTimeout(() => void loadComputer(), 1500);
+});
 /** The first-time explainer: resolves true when the owner chose "Turn it on". */
 function computerExplainer() {
   const dlg = $('#cu-explain');
@@ -13455,10 +13493,12 @@ $('#cu-optin').addEventListener('change', async () => {
         return;
       }
       const p = await handsPrefs();
+      st.textContent = t('Connecting…');
+      // From a device signed in elsewhere this waits for your OK on another device (the dialog says where).
       const r = await api('/hands/pair', { method: 'POST', body: { name: p?.computerName || '' } });
       const done = await d.call('handsPair', { token: r.token, id: r.id, expiresAt: r.expiresAt });
       if (done?.error) throw new Error(done.error);
-      st.textContent = t('On: connecting…');
+      st.textContent = t('Connecting…');
     } else {
       const p = await handsPrefs();
       await d.call('handsOff');
@@ -13467,11 +13507,15 @@ $('#cu-optin').addEventListener('change', async () => {
     }
   } catch (err) {
     box.checked = !on;
-    st.textContent = err.name === t('Cancelled') ? '' : err.message;
+    // Said in plain words and kept (not overwritten by the reload): what stopped it, then Try again.
+    st.textContent = err.name === t('Cancelled') ? '' : on ? t('Not connected: {why}', { why: err.message }) : err.message;
+    $('#cu-retry').hidden = true;
+    box.disabled = false;
+    return;
   } finally {
     box.disabled = false;
-    setTimeout(() => void loadComputer(), 1500);
   }
+  setTimeout(() => void loadComputer(), 1500);
 });
 // Phase 92 (CU5): "The whole screen" (its own explainer), the person's own hidden windows, the Mac's permissions.
 function deskExplainer() {

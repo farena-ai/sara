@@ -7,11 +7,15 @@
 //   GET  /api/prereqs/jobs/:job                progress, then the re-check
 //   POST /api/prereqs/jobs/:job/stop           Stop
 //   GET|PUT /api/prereqs/settings              { installs: allowed | ask | off }
+//   GET  /api/prereqs/browser                  Sara's own browser (src/browser-setup.ts): ready, downloading…
+//   POST /api/prereqs/browser                  get it now / Try again
 import { join } from 'node:path';
+import { audit } from '../audit-trail.ts';
+import { browserSetup, isPlaywrightMcp } from '../browser-setup.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { en } from '../i18n.ts';
 import { policy } from '../policy-profile.ts';
-import { isProgramId, type ProgramId } from '../prereqs/catalog.ts';
+import { isProgramId, programFor, type ProgramId } from '../prereqs/catalog.ts';
 import { addToPath, INSTALLS, PrereqRefused, PrereqService, prereqOverrides, type InstallsSetting } from '../prereqs/service.ts';
 import type { AppContext } from '../chat.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -51,6 +55,33 @@ function said(err: unknown): never {
   throw new HttpError(err.status, words[err.code] ?? err.message, { code: err.code });
 }
 
+/**
+ * Which of the owner's add-ons need each program (Settings → Other programs only warns about those).
+ * The Browser add-on's Chrome is not counted: Sara gets its browser herself.
+ */
+export function neededBy(app: AppContext): Map<ProgramId, string[]> {
+  const out = new Map<ProgramId, string[]>();
+  const rows = app.storeInstalls?.all().filter((r) => r.kind === 'mcp') ?? [];
+  for (const s of app.settings.get().mcpServers ?? []) {
+    const row = rows.find((r) => r.local_ref === s.name);
+    let needs: string[] = [];
+    try {
+      needs = row?.recipe ? ((JSON.parse(row.recipe) as { needs?: string[] }).needs ?? []) : [];
+    } catch {
+      needs = [];
+    }
+    const own = isPlaywrightMcp(s) && browserSetup() !== undefined;
+    for (const tok of [s.command ?? '', ...needs]) {
+      const id = tok ? programFor(tok) : undefined;
+      if (!id || (own && id === 'chrome')) continue;
+      const list = out.get(id) ?? [];
+      if (!list.includes(s.name)) list.push(s.name);
+      out.set(id, list);
+    }
+  }
+  return out;
+}
+
 export function createPrereqRoutes(ctx: RouteCtx): RouteHandler {
   const { app, opts } = ctx;
   return async (req, res, method, parts) => {
@@ -65,7 +96,20 @@ export function createPrereqRoutes(ctx: RouteCtx): RouteHandler {
     if (!b && method === 'GET') {
       const q = new URL(req.url ?? '/', 'http://x').searchParams.get('ids');
       const ids = q ? q.split(',').filter(isProgramId) : undefined;
-      return send(res, 200, { programs: svc.status(ids as ProgramId[] | undefined), ...settings() });
+      const need = neededBy(app);
+      return send(res, 200, { programs: svc.status(ids as ProgramId[] | undefined).map((p) => ({ ...p, neededBy: need.get(p.id) ?? [] })), ...settings() });
+    }
+    if (b === 'browser' && !c) {
+      const bs = browserSetup();
+      if (!bs) throw new HttpError(404, 'Not available');
+      if (method === 'GET') return send(res, 200, { browser: bs.status() });
+      if (method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        const st = bs.ensure({ force: true });
+        audit({ action: 'prereq.browser', target: 'browser', who: 'owner', role: 'owner', channel: 'web', outcome: 'ok', keys: [st.state] });
+        return send(res, 200, { browser: st });
+      }
+      throw new HttpError(405, 'Method not allowed');
     }
     if (b === 'settings' && !c) {
       if (method === 'GET') return send(res, 200, settings());

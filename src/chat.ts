@@ -418,7 +418,7 @@ export type ChatEvent =
   /** Phase 49: a screenshot she took (upload id): the proof strip on her reply. */
   | { type: 'proof'; id: string }
   /** Phase 115 (BR1): a file she shared with send_file (a `shared_files` id): a chip on her reply; chat apps send it after the turn. */
-  | { type: 'file'; id: string; name: string; mime: string; bytes: number; caption?: string }
+  | { type: 'file'; id: string; name: string; mime: string; bytes: number; caption?: string; made?: import('./tools/types.ts').MadeRef }
   /** Phase 98: what a plugin did at a hook point (a note, a card, a stop, an ask, no answer in time). */
   | (import('./hooks.ts').PluginEvent & { messageId?: number })
   /** Phase 107 (CH1): how full this turn's history is (characters used of the budget; `dropped` = older messages left out). */
@@ -1684,7 +1684,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
   // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
   // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
-  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file');
+  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file' && t.spec.name !== 'make_document');
   // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
   // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
   if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));
@@ -2303,7 +2303,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 49: screenshots from her testing browser go on her final reply as a proof strip.
   const pendingProof: string[] = [];
   // Phase 115 (BR1): files she shared with send_file ride on her reply too (the web app's file chips).
-  const pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string }[] = [];
+  const pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string; made?: import('./tools/types.ts').MadeRef }[] = [];
   const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}), ...(pendingFiles.length ? { files: pendingFiles.splice(0) } : {}) });
   const receipts: Receipt[] = [];
   // 3.1.2: this reply's web reading (guessed 404s, bot walls, how many pages; docs/RESEARCH.md).

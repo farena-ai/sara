@@ -28,7 +28,7 @@ voice is x86_64 only for now, so not on a Pi. Running AI models on a Pi is too s
 | Add-on | Extra disk | Extra memory | Notes |
 |---|---|---|---|
 | **Local voice** (speech recognition and voices on the server) | about 1.3 GB (650 MB download) | plan on about 1 GB more while she speaks or listens (not measured exactly) | Linux x86_64 only; runs on the CPU |
-| **Testing browser** (she tests the web apps she builds) | about 275 MB on Linux (120 MB download) | a few hundred MB while it runs, as a rough guide (one per conversation, closed after 5 idle minutes) | Windows uses Edge and macOS uses Chrome, Edge or Chromium if installed |
+| **Testing browser** (she tests the web apps she builds; shared with the Browser add-on) | about 280 MB in her data folder's `cache/browsers` (110 MB download, fetched by Sara on first use) | a few hundred MB while it runs, as a rough guide (one per conversation, closed after 5 idle minutes) | Windows uses Edge and macOS uses Chrome, Edge or Chromium if installed; see [BROWSER.md](BROWSER.md) |
 | **Subscription programs** (Claude Code, Grok) | about 0.5 GB | a little while one runs | Linux native installs |
 | **Her coding projects** | what the projects need | what their builds and tests need | `node_modules` and similar folders are left out of backups |
 

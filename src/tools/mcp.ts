@@ -11,6 +11,7 @@
 // io.modelcontextprotocol/ui): a tool whose _meta.ui.resourceUri names a ui:// page gets that page
 // read after the call and kept in memory (McpAppStore) for the web chat's sandboxed frame.
 import { randomUUID } from 'node:crypto';
+import { browserSetup, isPlaywrightMcp, ownNpx, playwrightLaunch } from '../browser-setup.ts';
 import { clearSizes } from '../lean.ts';
 import { en } from '../i18n.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
@@ -519,6 +520,12 @@ export class McpConnection {
     if (!c.command) throw new Error('No command set.');
     const home = join(opts.dataDir, 'mcp', c.name);
     mkdirSync(home, { recursive: true, mode: 0o700 });
+    // The Browser (Playwright) add-on gets Sara's own browser (src/browser-setup.ts): the installed
+    // Chrome/Edge on a desktop, else the headless shell she downloads into her data folder.
+    const setup = isPlaywrightMcp(c) ? browserSetup() : undefined;
+    if (setup && !setup.ready()) setup.ensure();
+    const pw = setup ? playwrightLaunch(c.args ?? [], setup.ready(), setup.dir) : undefined;
+    const cArgs = pw?.args ?? c.args ?? [];
     const baseEnv: NodeJS.ProcessEnv = {
       PATH: opts.sandbox.mode === 'bwrap' || process.platform !== 'darwin' ? `${opts.sandbox.mode === 'bwrap' && runtimeMountArgs().length ? `${RUNTIME_MOUNT}/bin:` : ''}/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin` : commandPath('darwin'),
       LANG: 'C.UTF-8',
@@ -528,24 +535,31 @@ export class McpConnection {
       // (bubblewrap, macOS) and the no-network settings everywhere else (best effort).
       ...(privateLocalOn() ? PRIVATE_LOCAL_ENV : {}),
       ...(this.#egress?.env ?? {}),
+      ...(pw?.env ?? {}),
     };
+    // npx/npm/node come from Sara's own Node (never an old system one) outside bubblewrap too;
+    // inside it, RUNTIME_MOUNT already comes first.
+    if (opts.sandbox.mode !== 'bwrap' && /^(npx|npm|node)$/i.test(c.command) && ownNpx()) {
+      const own = dirname(process.execPath);
+      if (!(baseEnv.PATH ?? '').split(delimiter).includes(own)) baseEnv.PATH = `${own}${delimiter}${baseEnv.PATH ?? ''}`;
+    }
     const eg = this.#egress;
     const net = !privateLocalOn() && !eg;
     if (opts.sandbox.mode === 'bwrap') {
-      const cmd = eg?.prefix ? ['/bin/sh', '-c', `${eg.prefix}exec "$@"`, 'sara-mcp', c.command, ...(c.args ?? [])] : [c.command, ...(c.args ?? [])];
-      return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds(), ...(eg?.binds ?? [])]), ...cmd], { ...baseEnv, HOME: '/workspace' }, home);
+      const cmd = eg?.prefix ? ['/bin/sh', '-c', `${eg.prefix}exec "$@"`, 'sara-mcp', c.command, ...cArgs] : [c.command, ...cArgs];
+      return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds(), ...(pw?.binds ?? []), ...(eg?.binds ?? [])]), ...cmd], { ...baseEnv, HOME: '/workspace' }, home);
     }
     if (opts.sandbox.mode === 'seatbelt') {
       // macOS: the add-on runs inside the sandbox too, with its own folder as home (network on).
       const profile = seatbeltProfile({ workspace: home, tmp: tmpdir(), ...(opts.sandbox.dataDir ? { dataDir: opts.sandbox.dataDir } : {}), ...(eg?.proxyPort ? { proxyPort: eg.proxyPort } : {}) }, net);
-      return new StdioTransport(SANDBOX_EXEC, ['-p', profile, c.command, ...(c.args ?? [])], { ...baseEnv, HOME: home }, home);
+      return new StdioTransport(SANDBOX_EXEC, ['-p', profile, c.command, ...cArgs], { ...baseEnv, HOME: home }, home);
     }
     if (opts.sandbox.mode === 'user') {
       // Containers: the server runs as the separate tools user (can't read Sara's data).
       prepareForToolsUser(home, opts.sandbox.gid!);
-      return new StdioTransport(c.command, c.args ?? [], { ...baseEnv, HOME: home }, home, { uid: opts.sandbox.uid!, gid: opts.sandbox.gid! });
+      return new StdioTransport(c.command, cArgs, { ...baseEnv, HOME: home }, home, { uid: opts.sandbox.uid!, gid: opts.sandbox.gid! });
     }
-    const [file, args] = windowsCommand(c.command, c.args ?? [], baseEnv.PATH);
+    const [file, args] = windowsCommand(c.command, cArgs, baseEnv.PATH);
     return new StdioTransport(file, args, { ...baseEnv, HOME: home }, home);
   }
 

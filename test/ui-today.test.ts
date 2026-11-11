@@ -158,7 +158,7 @@ async function load(file: string) {
   const stub = "const t = (s, p = {}) => s.replace(/\\{(\\w+)\\}/g, (m, k) => (k in p ? String(p[k]) : m)); const locale = () => 'en-US';";
   const src = web(file).replace(/^import \{[^}]*\} from '\.\/naming\.js';$/m, stub)
     // 2.8: the icon set and the small charts are plain modules; a data: URL module imports them by their file URL.
-    .replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`);
+    .replace(/from '\.\/device-approval\.js';/, `from 'data:text/javascript,${encodeURIComponent('export const checkPrompts = async () => {}; export const requestLine = () => "";')}';`).replace(/from '\.\/(icons|viz)\.js';/g, (_m, name: string) => `from '${pathToFileURL(join(ROOT, 'web', `${name}.js`)).href}';`);
   return import(`data:text/javascript;base64,${Buffer.from(src).toString('base64')}`);
 }
 

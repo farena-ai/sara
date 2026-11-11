@@ -8,7 +8,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { personalize, type Identity } from './identity.ts';
+import { personalize, personalizeTranslation, selectPronoun, type Identity } from './identity.ts';
 import type { Settings } from './settings.ts';
 
 export const LANGUAGES = ['en', 'es', 'fr', 'de', 'pt-BR', 'it'] as const;
@@ -165,7 +165,8 @@ export function tr(text: string, lang: Lang | string | undefined, params?: Recor
   const l = toLang(lang) ?? 'en';
   const found = l === 'en' ? undefined : dictFor(l)[text.replace(/\s+/g, ' ').trim()];
   let out = typeof found === 'string' && found.trim() ? found : text;
-  if (who) out = l === 'en' ? personalize(out, who) : who.name && who.name !== 'Sara' ? out.replace(/\bSara\b/g, who.name) : out;
+  // Translations may hold {p, select, she {…} he {…} other {…}} for gendered grammar (src/identity.ts).
+  out = who ? (l === 'en' ? personalize(out, who) : personalizeTranslation(text, out, who, l)) : selectPronoun(out, 'she');
   return fill(out, params);
 }
 

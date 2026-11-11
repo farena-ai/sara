@@ -11,7 +11,7 @@ import { showStoreImport } from './skills.js';
 import { proposalCard } from './proposal-card.js';
 import { openCard } from './packs.js';
 import { icon as lineIcon } from './icons.js';
-import { needsLine } from './prereqs.js';
+import { browserCard, needsLine } from './prereqs.js';
 
 const $ = (sel) => document.querySelector(sel);
 async function api(path, opts = {}) {
@@ -453,6 +453,7 @@ export async function openItem(id, o = {}) {
     nodes.push(section(t('Screenshots'), shots));
   }
   if (r.entry.needs?.length) nodes.push(section(t('Needs'), el('p', 'small', r.entry.needs.join(' · '))));
+  if (r.entry.browser) nodes.push(browserCard());
   if (r.entry.works?.length) nodes.push(section(t('Works on'), el('p', 'small', r.entry.works.map((w) => ({ windows: 'Windows', macos: 'Mac', linux: 'Linux' })[w] ?? w).join(' · '))));
   const checks = el('ul', 'stp-checks small');
   for (const c of r.entry.checks?.results ?? []) checks.append(el('li', c.ok ? 'ok' : 'bad', `${c.ok ? '✓' : '✗'} ${c.id}${c.note ? ` · ${c.note}` : ''}`));
@@ -568,6 +569,8 @@ export function mcpCard(r) {
   } else body.push(el('p', 'small', t('It talks to {url}', { url: r.url })));
   // PRQ: a missing program gets *Install it for me*; afterwards the card looks again (Continue install).
   if (r.needs?.length) body.push(needsLine(r.needs, () => void recheckMcp(r)));
+  // Sara gets the browser for the Browser add-on herself: its status instead of "install Chrome".
+  if (r.browser) body.push(browserCard());
   if (r.reaches?.length) body.push(el('p', 'small', t('It reaches: {list}', { list: r.reaches.join(' · ') })));
   body.push(el('p', `small${r.fence === 'none' ? ' skl-warn' : ''}`, t('Fence: {line}', { line: FENCE_LINE[r.fence]?.() ?? r.fence })));
   if (r.renamed) body.push(el('p', 'muted small', t('You already have one with this name, so this one is called {name}.', { name: r.serverName })));
@@ -669,7 +672,8 @@ async function approveMcp(b) {
     const tip = el('span', 'muted small');
     tip.append(tipBtn(t('Starts the tool server and asks it for its tools. Nothing is sent to anyone else. If it fails, Sara says what to check, like whether ComfyUI is running.')));
     row.append(tip);
-    panel(r.name, [res, row], { push: false });
+    // The Browser add-on: Sara is getting its browser now; the card shows Downloading → Ready.
+    panel(r.name, [res, row, ...(r.browser ? [browserCard()] : [])], { push: false });
     void loadGetMore();
   } catch (err) {
     say(err.message);

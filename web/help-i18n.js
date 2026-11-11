@@ -30,7 +30,10 @@ async function translateHelp() {
     for (const n of el.childNodes) {
       if (n.nodeType !== Node.TEXT_NODE) continue;
       const tr = dict[norm(n.nodeValue)];
-      if (tr) n.nodeValue = n.nodeValue.replace(norm(n.nodeValue), tr);
+      if (tr) {
+        englishOf.set(tr, norm(n.nodeValue));
+        n.nodeValue = n.nodeValue.replace(norm(n.nodeValue), tr);
+      }
     }
   };
   const title = dict[norm(document.title)];
@@ -38,13 +41,46 @@ async function translateHelp() {
   // Phase 114 (PL1d): the How do I…? index adds h4 page titles and <summary> questions (keys the app has).
   for (const el of document.querySelectorAll('nav a, nav .brand, main h1, main h2, main h3, main h4, main summary')) textOf(el);
   for (const el of document.querySelectorAll(BLOCKS)) {
-    const tr = dict[norm(el.innerHTML)];
-    if (tr) el.innerHTML = tr;
+    const en = norm(el.innerHTML);
+    const tr = dict[en];
+    if (tr) {
+      el.innerHTML = tr;
+      // Each text piece of the block takes the block's English (it says whether the block speaks of her).
+      const about = en;
+      for (const t of el.querySelectorAll('*')) for (const c of t.childNodes) if (c.nodeType === Node.TEXT_NODE) englishOf.set(c.nodeValue, about);
+      for (const c of el.childNodes) if (c.nodeType === Node.TEXT_NODE) englishOf.set(c.nodeValue, about);
+    }
   }
 }
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void translateHelp());
-else void translateHelp();
+// The guide is written for "Sara" (she/her): a renamed companion's name and pronouns replace hers in
+// every text node after translating (code samples, [data-raw] and product names are kept; the same
+// rules as the app, src/identity.ts). Only for the signed-in owner: the session knows her name.
+async function personalizeHelp() {
+  const session = await fetch('/api/session', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  // Signed out: Sara (translations still pick their {p, select, …} variant).
+  const id = session?.identity?.name ? session.identity : { name: 'Sara', pronouns: 'she' };
+  const l = document.documentElement.lang || 'en';
+  if (l === 'en' && id.name === 'Sara' && id.pronouns === 'she') return;
+  const { personalize, personalizeTranslation } = await import('/identity.js');
+  const fix = (s) => (l === 'en' ? personalize(s, id) : personalizeTranslation(englishOf.get(s) ?? '', s, id, l));
+  const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => (n.parentElement?.closest('code, pre, script, style, [data-raw]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  });
+  for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+    const next = fix(n.nodeValue);
+    if (next !== n.nodeValue) n.nodeValue = next;
+  }
+  for (const el of document.querySelectorAll('[title], [aria-label], [alt], [placeholder]')) {
+    for (const a of ['title', 'aria-label', 'alt', 'placeholder']) if (el.hasAttribute(a)) el.setAttribute(a, fix(el.getAttribute(a)));
+  }
+  document.title = fix(document.title);
+}
+/** Translated text → its English (so pronoun rules only apply where the English speaks of her). */
+const englishOf = new Map();
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => void translateHelp().then(personalizeHelp));
+else void translateHelp().then(personalizeHelp);
 
 // Phase 114 (PL1d): a link to one answer of the How do I…? index (#howto-<page>-<question>) opens it.
 function openTarget() {

@@ -1,5 +1,6 @@
 // Builds Sara's system prompt from the character sheet plus live context (time, owner).
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { type Identity, personalize, type Pronouns, toIdentity } from './identity.ts';
 import { AWAY, bondLines, cleanIntimacy, CONFLICT, type Intimacy, OTHERS } from './bond.ts';
 import { cleanLife, cleanTraits, HUMOURS, type Life, lifeLines, traitLines, type Traits, workLines } from './traits.ts';
@@ -221,7 +222,29 @@ export function identityOf(p: Pick<Persona, 'name' | 'pronouns'>): Identity {
   return toIdentity(p.name, p.pronouns);
 }
 
-export function buildSystemPrompt(p: Persona, ctx: PromptContext): string {
+// The shipped character's own lines (persona/sara.json), written for Sara (she/her).
+const SHIPPED_LINES: Set<string> = (() => {
+  try {
+    const j = JSON.parse(readFileSync(join(import.meta.dirname, '..', 'persona', 'sara.json'), 'utf8')) as Record<string, unknown>;
+    return new Set([j.summary, ...[j.background, j.personality, j.speech].flatMap((x) => (Array.isArray(x) ? x : []))].filter((x): x is string => typeof x === 'string'));
+  } catch {
+    return new Set<string>();
+  }
+})();
+
+/**
+ * A renamed companion keeps the shipped character's lines the owner didn't rewrite ("spends her
+ * time…", "Her parents…"): those follow the new name and pronouns. Lines the owner wrote are kept.
+ */
+export function withOwnPronouns(p: Persona): Persona {
+  const id = identityOf(p);
+  if (id.name === 'Sara' && id.pronouns === 'she') return p;
+  const fix = (s: string) => (SHIPPED_LINES.has(s) ? personalize(s, id) : s);
+  return { ...p, summary: fix(p.summary), background: p.background.map(fix), personality: p.personality.map(fix), speech: p.speech.map(fix) };
+}
+
+export function buildSystemPrompt(sheet: Persona, ctx: PromptContext): string {
+  const p = withOwnPronouns(sheet);
   const owner = ctx.ownerName?.trim() || 'the owner';
   const you = identityOf(p);
   const pr = you.pronouns === 'he' ? 'he/him' : you.pronouns === 'they' ? 'they/them' : 'she/her';
@@ -296,6 +319,9 @@ You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).j
 - A page that doesn't exist, or a site that "blocks automated readers", is a dead end: don't retry it or try another path on it; use other results or the search snippets.
 - A quick question needs a page or two. If you've read many pages and still need more, stop and answer from what you have or say what's missing.${deep}`);
     }
+    // make_document (docs/DOCUMENTS.md): every model is told it can make real files.
+    if (ctx.tools.includes('make_document')) parts.push(`## Making documents
+- You can make real files: Word (.docx), PDF, Excel (.xlsx), PowerPoint (.pptx), Markdown, CSV and web pages. When ${owner} asks for a document, report, letter, resume, invoice, table, spreadsheet or slides, call make_document with the whole content as Markdown${ctx.toolsOffered && !ctx.toolsOffered.includes('make_document') ? ' (call find_tools with "make a document" first to load it)' : ''}; never say you can't make files or tell ${owner} to copy text into Word. If details are missing (a resume with no work history), make a good first draft with clear placeholders like [Your phone] and say what to fill in, rather than only asking. The file arrives in the chat with Download and Open buttons; after it, say in a sentence what you made.`);
     if (ctx.tools.includes('remind') || ctx.tools.includes('todo')) {
       parts.push(`## Keeping track of things
 You keep ${owner}'s to-do list (todo), notes (note) and reminders (remind). When ${owner} asks for a reminder, a new task or a note, actually use the tool, then confirm with the exact time or details the tool reports. Never promise "I'll remind you" without setting the reminder. Times are ${owner}'s local time.${ctx.agenda?.trim() ? `\nOn the list right now:\n${ctx.agenda.trim()}` : ''}`);

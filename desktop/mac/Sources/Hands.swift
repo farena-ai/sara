@@ -31,6 +31,7 @@ import Carbon.HIToolbox
 import Security
 import LocalAuthentication
 import IOKit.pwr_mgt
+import Network
 
 // MARK: small helpers
 
@@ -1329,9 +1330,24 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
     req.httpShouldHandleCookies = false
     let t = session.webSocketTask(with: req)
+    let old = task
     task = t
+    old?.cancel(with: .goingAway, reason: nil)
     t.resume()
     receive(t)
+  }
+
+  /// Connect again now: after sleep (the old connection is dead even if it looks open), a network
+  /// change or Try again. Without dropOpen, an open connection is kept.
+  private var laterGen = 0
+  func reconnectNow(dropOpen: Bool) {
+    lock.lock()
+    let stop = stopping
+    lock.unlock()
+    if stop || (connected && !dropOpen) { return }
+    attempt = 0
+    laterGen += 1
+    DispatchQueue.global().asyncAfter(deadline: .now() + 0.5) { [weak self] in self?.connect() }
   }
 
   private func later() {
@@ -1342,7 +1358,13 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     let backoff: [Double] = [1, 2, 5, 10, 30]
     let s = lastError.contains("signed out") ? 300 : backoff[min(attempt, backoff.count - 1)]
     attempt += 1
-    DispatchQueue.global().asyncAfter(deadline: .now() + s) { [weak self] in self?.connect() }
+    laterGen += 1
+    let gen = laterGen
+    // A reconnectNow meanwhile (wake, network, Try again) already connected: this wait is dropped.
+    DispatchQueue.global().asyncAfter(deadline: .now() + s) { [weak self] in
+      guard let self, self.laterGen == gen else { return }
+      self.connect()
+    }
   }
 
   func urlSession(_ session: URLSession, webSocketTask: URLSessionWebSocketTask, didOpenWithProtocol protocol: String?) {
@@ -1365,7 +1387,10 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       case 401: lastError = "This Mac was signed out: switch \"Let Sara use this computer\" off and on again."
       case 403: lastError = "The server refused this Mac (computer use is off for you there)."
       case 101: break
-      default: lastError = "The server doesn't take computer use (HTTP \(r.statusCode)): update Sara there."
+      // A web server in front of Sara (a reverse proxy) turned this WebSocket into a plain request.
+      case 426: lastError = "the web server in front of this Sara (a reverse proxy) blocks the connection (WebSocket). Whoever runs the server turns on WebSocket forwarding for Sara (see Behind a proxy in the install guide); this app then connects by itself."
+      case 404: lastError = "this Sara doesn't take computer use (HTTP 404): update Sara there, or check the server address."
+      default: lastError = "the server answered HTTP \(r.statusCode) instead of opening the connection. If a web server (proxy) is in front of Sara, it must pass WebSocket connections."
       }
     } else if error != nil { lastError = "Couldn't reach the server." }
     dropped()

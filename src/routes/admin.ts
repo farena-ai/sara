@@ -626,10 +626,12 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET') return send(res, 200, await view());
       if (method === 'POST') {
         if (opts.demo) throw new HttpError(403, 'Not in the demo.');
-        // C15: from a remote device, an update (it restarts her) asks the owner first.
-        ctx.askFirst(req, 'restart');
-        if (privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
         const body = await readJson(req);
+        // C15: from a remote device, an update (it restarts her) asks the owner first. A check only
+        // looks (the app does it by itself every hour): it never asks, so no device shows an unasked
+        // "Your OK is needed" that could hide a real request (computer use) behind it.
+        if (body.action === 'update') ctx.askFirst(req, 'restart');
+        if (privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
         // Phase 46: Windows and macOS check the release page; the installer does the update.
         if (updater.how === 'release') {
           const status = body.action === 'update' ? await updater.update(app.now()) : await updater.check(app.now());

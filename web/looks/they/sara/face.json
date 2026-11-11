@@ -1,0 +1,27 @@
+{
+ "about": "A1 (docs/ops/A1_AVATAR_DESIGN.md): where the built-in look's eyes and mouth are, percent of each portrait (left eye, right eye, mouth). Measured from where the blink and mouth frames differ from the portrait (docs/APPEARANCE.md).",
+ "default": {
+  "le": { "x": 43.3, "y": 32.5 },
+  "re": { "x": 53, "y": 30.4 },
+  "mouth": { "x": 50.2, "y": 41 } },
+ "happy": {
+  "le": { "x": 43.2, "y": 32.3 },
+  "re": { "x": 53, "y": 30.2 },
+  "mouth": { "x": 49.8, "y": 40 } },
+ "caring": {
+  "le": { "x": 43.3, "y": 32.4 },
+  "re": { "x": 53, "y": 30.4 },
+  "mouth": { "x": 49.9, "y": 40.8 } },
+ "sleepy": {
+  "le": { "x": 43.2, "y": 32.3 },
+  "re": { "x": 52.7, "y": 30 },
+  "mouth": { "x": 50.1, "y": 41 } },
+ "hurt": {
+  "le": { "x": 43, "y": 32.3 },
+  "re": { "x": 52.7, "y": 30.2 },
+  "mouth": { "x": 50, "y": 40.9 } },
+ "playful": {
+  "le": { "x": 43.2, "y": 32.8 },
+  "re": { "x": 53, "y": 30.6 },
+  "mouth": { "x": 50.2, "y": 41 } }
+}

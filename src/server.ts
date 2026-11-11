@@ -118,6 +118,7 @@ import { createHerRoutes } from './routes/her.ts';
 import { createVoiceRoutes } from './routes/voice.ts';
 import { createLiveUpgrade } from './routes/live.ts';
 import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
+import { PROXY_BLOCKED_MESSAGE } from './hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector, serveMoveInFile } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createStoreRoutes } from './routes/store.ts';
@@ -471,7 +472,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     // living portrait then finds them from that look's own frames (web/avatar-gl.js).
     if (rel === 'sara/face.json' && isAuthed(req) && (app.look?.custom || (app.companionId && app.companionId !== 'main'))) throw new HttpError(404, 'Not found');
     // A custom look replaces the built-in art for the signed-in owner.
-    const custom = isAuthed(req) ? app.look?.fileFor(rel) : undefined;
+    // The he/they default look (when no custom look exists) also comes from fileOrDefault.
+    const custom = isAuthed(req) ? app.look?.fileOrDefault(rel) : undefined;
     if (!custom && isAuthed(req) && app.look?.missing(rel)) throw new HttpError(404, 'Not found');
     if (custom) {
       const cs = statSync(custom);
@@ -481,7 +483,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         return void res.end();
       }
       const head = readFileSync(custom).subarray(0, 4);
-      res.writeHead(200, { 'content-type': head[0] === 0x89 ? 'image/png' : head[0] === 0x52 ? 'image/webp' : 'image/jpeg', 'cache-control': 'no-cache', etag: ctag, ...SECURITY_HEADERS });
+      res.writeHead(200, { 'content-type': custom.endsWith('.json') ? 'application/json' : head[0] === 0x89 ? 'image/png' : head[0] === 0x52 ? 'image/webp' : 'image/jpeg', 'cache-control': 'no-cache', etag: ctag, ...SECURITY_HEADERS });
       if (req.method === 'HEAD') return void res.end();
       return void createReadStream(custom).pipe(res);
     }
@@ -1365,6 +1367,17 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Phase 104: the collector's `send` (a move-in code, the upload routes only) comes before sign-in.
     if (a === 'movein' && !isAuthed(req) && (await moveInPublic(req, res, method, parts)) !== NEXT) return;
+    // A computer's hands connection that arrived as a plain request: the web server in front of Sara
+    // dropped its WebSocket upgrade (only the hands channel ever sends a hands token). Say so to the
+    // app (426 + a code it shows) and remember it for pc_devices and the Computer use page.
+    if (a === 'hands' && !b && method === 'GET' && app.hands && !opts.demo) {
+      const h = String(req.headers.authorization ?? '');
+      const id = h.startsWith('Bearer sara_hands.') ? auth.handsTokenId(h.slice(7).trim()) : undefined;
+      if (id) {
+        app.hands.noteBlocked(id, auth.deviceLabelOf(id) ?? "Sara's hands");
+        throw new HttpError(426, PROXY_BLOCKED_MESSAGE, { code: 'proxy_no_websocket' });
+      }
+    }
     // C15: the asking device checks its own request before (and after) it is signed in.
     if (await gate.publicRoutes(req, res, method, parts)) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');

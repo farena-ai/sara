@@ -20,6 +20,7 @@ import { pluginInstallation, type StoreClient } from './client.ts';
 import { parseRecipe, type McpRecipe, type RecipeField, type StoreEntry, type StoreItem, type StoreVersion } from './format.ts';
 import type { StoreInstallRow, StoreInstalls } from './installs.ts';
 import { StoreRefused } from './verify.ts';
+import { browserSetup, isPlaywrightMcp } from '../browser-setup.ts';
 import { programFor, type ProgramId } from '../prereqs/catalog.ts';
 import type { Detection } from '../prereqs/detect.ts';
 import { PrereqService, prereqOverrides } from '../prereqs/service.ts';
@@ -50,6 +51,8 @@ export interface Need {
 export interface McpReview {
   id: string;
   kind: 'mcp';
+  /** Sara gets the browser for it herself (the Browser add-on): the card shows its status. */
+  browser?: true;
   mode: 'install' | 'update';
   item: string;
   version: string;
@@ -287,7 +290,9 @@ export class StoreInstaller {
       fence,
       needsTrust: fence === 'none',
       tested: entry.tested ?? [],
-      guide: recipe.guide ?? [],
+      // Older signed text said Chrome must be installed; with Sara's own browser it is not true.
+      guide: (recipe.guide ?? []).filter((g) => !(isPlaywrightMcp(recipe) && browserSetup() && /Google Chrome/.test(g))),
+      ...(isPlaywrightMcp(recipe) && browserSetup() ? { browser: true } : {}),
       ...(recipe.registry ? { registry: recipe.registry } : {}),
       changes,
       ...(updating ? { from: row.version, saved } : {}),
@@ -305,13 +310,21 @@ export class StoreInstaller {
   #ownPrograms(platform: NodeJS.Platform, pathVar: string | undefined): { detect(id: ProgramId): Detection } {
     return new PrereqService({ platform, env: { ...process.env, PATH: pathVar ?? '' }, tmpRoot: '', setting: () => 'off', ...prereqOverrides() });
   }
+  /** What a recipe needs on this computer (the card's "It needs" line). */
+  needsOf(recipe: McpRecipe): Need[] {
+    return this.#needs(recipe);
+  }
   /** What a recipe needs on this computer; catalog programs are detected (PRQ), the rest looked up on PATH. */
   #needs(recipe: McpRecipe): Need[] {
     const plat = this.#platform;
     const pathVar = this.d.pathVar ?? process.env.PATH;
     const needs: Need[] = [];
+    // The Browser (Playwright) add-on: Sara gets its browser herself (src/browser-setup.ts), so the
+    // signed recipe's "app:Google Chrome" is not something the owner has to install.
+    const ownBrowser = isPlaywrightMcp(recipe) && browserSetup() !== undefined;
     const add = (what: string) => {
       const id = programFor(what);
+      if (ownBrowser && id === 'chrome') return;
       if (needs.some((x) => x.what === what || (id && x.program === id))) return;
       if (id) {
         const d = (this.d.programs ?? this.#ownPrograms(plat, pathVar)).detect(id);

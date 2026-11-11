@@ -13,6 +13,7 @@
 // deep link (/#view=today, Alt+T). Since 2.7.1 the app opens on Today (web/start-view.js).
 import { locale, t } from './naming.js';
 import { icon } from './icons.js';
+import { checkPrompts as answerDevicePrompt, requestLine as deviceRequestLine } from './device-approval.js';
 import { ring, share, sparkline, weatherArt } from './viz.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -262,7 +263,7 @@ function troubleNeeds(list) {
   return (Array.isArray(list) ? list : []).map((x) => ({ kind: 'trouble', key: `trouble:${x.id}`, title: x.text, why: '', at: null, ref: x }));
 }
 const troubleText = (tr) => (tr?.key ? t(tr.key, tr.params ?? {}) : String(tr?.text ?? ''));
-const NEEDS_RANK = ['trouble', 'approval', 'failed', 'overdue', 'board', 'mail', 'hook', 'plan', 'model'];
+const NEEDS_RANK = ['trouble', 'device', 'approval', 'failed', 'overdue', 'board', 'mail', 'hook', 'plan', 'model'];
 /**
  * B3 · Needs you (§4.4): one ranked list: approvals → failed → overdue (oldest first) → board →
  * mail → hooks → her reach-outs she couldn't send → models. Keys put off with "Not today" are left
@@ -274,6 +275,8 @@ export function needsItems(d, now = Date.now()) {
   const { start } = dayRange(d?.day, now);
   // 3.3.0: her own trouble first (model down, key rejected, a mailbox signed out): one Fix it each.
   const out = troubleNeeds(n.trouble);
+  // A device signed in elsewhere asks for your OK (a sign-in, or e.g. letting Sara use a computer): the code is on that device.
+  for (const r of n.devices ?? []) out.push({ kind: 'device', key: `device:${r.createdAt}`, title: deviceRequestLine(r), why: '', at: r.createdAt ?? null, ref: r });
   for (const a of n.approvals ?? []) out.push({ kind: 'approval', key: `approval:${a.approvalId}`, title: a.title || a.summary || a.name, why: a.conversation ?? '', at: a.since ?? null, ref: a });
   for (const j of n.failedJobs ?? []) out.push({ kind: 'failed', key: `job:${j.id}`, title: j.label, why: j.status, at: j.at, ref: { ...j, job: true } });
   for (const r of n.failedRuns ?? []) out.push({ kind: 'failed', key: `run:${r.id}`, title: r.title, why: 'error', at: r.at, ref: r });
@@ -830,7 +833,7 @@ function comingRow(x, day, inDaysWords) {
   return row;
 }
 
-const NEEDS_ICON = { approval: 'shield', failed: 'warn', overdue: 'reminder', board: 'todo', mail: 'mail', hook: 'plug', plan: 'calendar', model: 'sparkle', trouble: 'warn' };
+const NEEDS_ICON = { device: 'shield', approval: 'shield', failed: 'warn', overdue: 'reminder', board: 'todo', mail: 'mail', hook: 'plug', plan: 'calendar', model: 'sparkle', trouble: 'warn' };
 let lastNeeds = null;
 let lastNeedsSaid = 0;
 /** Needs you (§4.4): one ranked list, one verb per row; "Not today" puts an item off until midnight. */
@@ -910,6 +913,10 @@ function needsRow(x, d) {
         })),
       );
       break;
+    case 'device':
+      // The prompt where you type the code that device shows (Approve or Deny there).
+      acts.append(btn('small', t('Answer'), go(() => answerDevicePrompt())));
+      break;
     case 'failed':
       if (x.ref.conversationId) acts.append(btn('ghost small', t('Open'), () => (closeToday({ focus: false }), void ctx.openConversation(x.ref.conversationId))));
       break;
@@ -956,6 +963,7 @@ function needsWhy(x) {
   const at = x.at && Number.isFinite(Date.parse(x.at)) ? time(Date.parse(x.at)) : '';
   switch (x.kind) {
     case 'approval': return [at ? t('Waiting since {time}', { time: at }) : '', x.why].filter(Boolean).join(' · ');
+    case 'device': return t('Type the code that device shows');
     case 'failed': return at ? t('Failed at {time}', { time: at }) : t('Failed');
     case 'overdue': return x.at ? t('Overdue since {date}', { date: new Date(x.at).toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' }) }) : '';
     case 'board': return x.why || t('Waiting on you');

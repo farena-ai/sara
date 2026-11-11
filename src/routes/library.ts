@@ -13,6 +13,8 @@ import { answerOcr, cancelJob, isPdfDoc, jobView, pauseJob, resumeJob } from '..
 import { detectKind, SUPPORTED } from '../library/read.ts';
 import { cleanLibraryLimits, type LibraryDoc, libraryLimits, MAX_DOC_BYTES, sha256File } from '../library/store.ts';
 import { bodyToFile, CHUNK_BYTES, diskHasRoom, LibraryUploadError as LibUploadError, LibraryUploads } from '../library/uploads.ts';
+import { madeDocs, madeFile, madePreview } from '../documents/make.ts';
+import { MIME as DOC_MIME } from '../documents/spec.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
@@ -167,6 +169,31 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
       const uploads = new LibraryUploads(lib.dir);
       const q = new URL(req.url ?? '/', 'http://x').searchParams;
       const d = parts[3];
+      // make_document (docs/DOCUMENTS.md): a document she made: its versions, its file, its preview.
+      //   GET /api/library/made/:id            { id, title, format, version, versions: [...] }
+      //   GET /api/library/made/:id/file       the file (?inline=1: a PDF opens in the browser)
+      //   GET /api/library/made/:id/preview    a self-contained page (no scripts, nothing fetched)
+      if (b === 'made' && c && method === 'GET') {
+        const m = madeDocs(app).get(Number(c));
+        if (!m) throw new HttpError(404, 'That document is not here.');
+        if (!d) {
+          const versions = madeDocs(app).versions(m.family).map((v) => ({ id: v.id, version: v.version, name: v.name, bytes: v.bytes, format: v.format, createdAt: v.createdAt, libraryId: v.libraryId }));
+          return send(res, 200, { id: m.id, title: m.title, name: m.name, format: m.format, version: m.version, bytes: m.bytes, libraryId: m.libraryId, createdAt: m.createdAt, versions });
+        }
+        if (d === 'file') {
+          const bytes = madeFile(app, m);
+          const inline = q.get('inline') === '1' && m.format === 'pdf';
+          const name = m.name.replace(/["\\\r\n]/g, '_');
+          res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': inline ? 'application/pdf' : DOC_MIME[m.format].startsWith('text/') ? 'application/octet-stream' : DOC_MIME[m.format], 'content-disposition': `${inline ? 'inline' : 'attachment'}; filename="${name.replace(/[^\x20-\x7e]/g, '_')}"; filename*=UTF-8''${encodeURIComponent(name)}`, 'content-length': String(bytes.length), 'x-content-type-options': 'nosniff', 'cache-control': 'private, no-store' });
+          return void res.end(bytes);
+        }
+        if (d === 'preview') {
+          const html = madePreview(app, m);
+          res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'text/html; charset=utf-8', 'content-security-policy': "default-src 'none'; img-src data:; style-src 'unsafe-inline'; frame-ancestors 'self'; sandbox", 'x-frame-options': 'SAMEORIGIN', 'x-content-type-options': 'nosniff', 'cache-control': 'private, no-store' });
+          return void res.end(html);
+        }
+        throw new HttpError(404, 'Not found');
+      }
       const checkConversation = (conversationId: string | null) => {
         if (!conversationId) return;
         if (offStore.getConversation(conversationId)) throw new HttpError(400, "Off-the-record chats don't save files, so documents can't be shared here.");

@@ -180,13 +180,17 @@ export const PROGRAMS: readonly Program[] = [
     name: 'Python',
     url: 'https://www.python.org/downloads/',
     detect: {
-      commands: ['python3', 'python'],
-      paths: { win32: ['{LOCALAPPDATA}\\Programs\\Python\\Python312\\python.exe', '{ProgramFiles}\\Python312\\python.exe'], darwin: ['/opt/homebrew/bin/python3', '/usr/local/bin/python3'], linux: ['/usr/bin/python3'] },
+      // A newer Python beside the system's own counts (RHEL/Alma/Rocky 8 and 9 keep python3 at 3.6/3.9
+      // for dnf and cPanel; python3.12 installs next to it and never replaces it).
+      commands: ['python3.13', 'python3.12', 'python3.11', 'python3.10', 'python3', 'python'],
+      paths: { win32: ['{LOCALAPPDATA}\\Programs\\Python\\Python312\\python.exe', '{ProgramFiles}\\Python312\\python.exe'], darwin: ['/opt/homebrew/bin/python3', '/usr/local/bin/python3'], linux: ['/usr/bin/python3.12', '/usr/bin/python3'] },
       version: { args: ['--version'], re: /Python (\d+\.\d+\.\d+)/, min: '3.10.0' },
     },
     winget: 'Python.Python.3.12',
     brew: { name: 'python@3.12' },
-    linux: { apt: apt('python3', 'python3-venv'), dnf: dnf('python3'), yum: yum('python3'), zypper: zypper('python3'), pacman: pacman('python') },
+    // dnf: `dnf install python3` changes nothing on RHEL-family 8/9 (python3 is the platform's 3.6/3.9);
+    // python3.12 is the distribution's own newer Python, installed beside it.
+    linux: { apt: apt('python3', 'python3-venv'), dnf: dnf('python3.12'), yum: yum('python3'), zypper: zypper('python3'), pacman: pacman('python') },
   },
   {
     id: 'blender',
