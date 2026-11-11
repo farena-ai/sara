@@ -474,7 +474,7 @@ export class DiscordBridge {
       // Phase 116: /steer and /queue with their text (the turn's reply goes to the channel as usual).
       ...(asker
         ? {
-            take: (kind: 'steer' | 'queue', text: string) => {
+            take: (kind: 'steer' | 'queue' | 'interrupt', text: string) => {
               const conv = app.store.currentChannelConversation(channel, channelId, ownerSide ? 'owner' : 'partner') ?? this.#newConversation(channel, channelId, place === 'owner-dm', place === 'work-room');
               const content = place === 'owner-dm' ? text : `[${(asker.name ?? 'someone').replace(/[[\]]/g, '')}]: ${text}`;
               return this.#enqueue(conv, channelId, content, ownerSide, false, [], { place, lang: ownerSide ? ownerLanguage(app) : 'en', userId: asker.userId, ...(asker.msgId ? { msgId: asker.msgId } : {}) }, {}, kind, false);
@@ -929,7 +929,7 @@ export class DiscordBridge {
    * she works the owner's plain message is a steer or waits (`chats.whileBusy`, /steer, /queue);
    * everyone else's (and bots') always waits. Returns the line to say ('' = nothing).
    */
-  async #enqueue(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], where: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra, explicit?: 'steer' | 'queue', wait = true): Promise<string> {
+  async #enqueue(conv: Conversation, channelId: string, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], where: { place: Place; lang: string; userId: string; msgId?: string; replyTo?: string | null }, extra: TurnExtra, explicit?: 'steer' | 'queue' | 'interrupt', wait = true): Promise<string> {
     const app = this.#app;
     const pend = pendingFor(app);
     const runner = async (item?: PendingItem) => {
@@ -948,9 +948,10 @@ export class DiscordBridge {
     const line = (t: string, p?: Record<string, unknown>) => say(app, where.lang, t, p);
     if (!r.ok) return line(r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { max: cfg.queueMax });
     if (r.item.kind === 'steer' && r.item.state === 'waiting') {
-      if (!where.msgId) return line(PENDING_LINES.steered);
+      const said = r.item.meta.now ? PENDING_LINES.interrupting : PENDING_LINES.steered;
+      if (!where.msgId) return line(said);
       const ok = await this.#rest('PUT', `/channels/${channelId}/messages/${where.msgId}/reactions/${encodeURIComponent('👀')}/@me`).then(() => true, () => false);
-      return ok ? '' : line(PENDING_LINES.steered);
+      return ok ? '' : line(said);
     }
     if (r.item.kind === 'steer') return '';
     return line(PENDING_LINES.queued, { n: r.waiting });

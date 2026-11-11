@@ -128,7 +128,7 @@ import { billingOf, findPrice, priceTable } from './usage.ts';
 import type { SecurityPass } from './security/pass.ts';
 import { declinedInstallOutput, type AdvisoryCard } from './security/advisories.ts';
 import { recordTurnFindings, type FindingStore } from './security/findings.ts';
-import { pendingFor } from './pending.ts';
+import { interruptible, pendingFor } from './pending.ts';
 import { blockedOutput, LOOP_NOTE, LoopGuard, toolsPausedNote, type GuardHit } from './loop-guard.ts';
 import { EDITOR_TOOLS, editorCalls, editorNote, editorTools, type EditorLink } from './editor-link.ts';
 
@@ -428,7 +428,9 @@ export type ChatEvent =
   /** Phase 107 (CH1): how full this turn's history is (characters used of the budget; `dropped` = older messages left out). */
   | { type: 'context'; used: number; budget: number; dropped: number }
   /** Phase 116 (BR2 §5.4): a message sent while she worked was taken at the safe point after step `afterStep`. */
-  | { type: 'steer'; messageId: number; afterStep: number; text: string; pendingId: string; images?: string[] }
+  | { type: 'steer'; messageId: number; afterStep: number; text: string; pendingId: string; images?: string[]; now?: boolean }
+  /** Interrupt now: the owner's message stopped the model call; what she had written is kept (`messageId`, null when nothing). */
+  | { type: 'interrupted'; messageId: number | null; text: string }
   /** Phase 116 (BR2 §5.8): the loop guard refused a call (`paused`: tools are off for the rest of the turn). */
   | { type: 'loop_guard'; id: string; name: string; kind: 'loop' | 'declined'; quote: string; count: number; paused?: boolean }
   /** Phase 118 (PERSIST §5.4): a loop tick refused a call that would ask (nobody is watching); `key` is its call key. */
@@ -1000,7 +1002,9 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
     else if (m.role === 'assistant') {
       const toolCalls = (m.meta?.toolCalls as ToolCall[] | undefined) ?? undefined;
       const sent = Array.isArray(m.meta?.images) ? (m.meta.images as unknown[]).length : 0;
-      out.push({ role: 'assistant', content: m.content + (sent ? ` [You sent ${sent} photo${sent === 1 ? '' : 's'} with this message.]` : ''), ...(toolCalls?.length ? { toolCalls } : {}) });
+      // Interrupt now: her unfinished words stay in her history, marked where they were cut.
+      const cutOff = m.meta?.interrupted === 'steer' ? ' [cut off here: a new message came in]' : '';
+      out.push({ role: 'assistant', content: m.content + cutOff + (sent ? ` [You sent ${sent} photo${sent === 1 ? '' : 's'} with this message.]` : ''), ...(toolCalls?.length ? { toolCalls } : {}) });
     } else if (m.role === 'tool') {
       const shotIds = Array.isArray(m.meta?.images) ? (m.meta.images as string[]) : [];
       const shots = loadImage && withShots.includes(m.id) ? shotIds.map(loadImage).filter((x): x is ImageData => Boolean(x)) : [];
@@ -1999,6 +2003,27 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const abortGate = () => { gateAbort.abort(signal.reason); if (!providerStarted) releaseSessionStep(); };
   signal.addEventListener('abort', abortGate, { once: true });
   if (signal.aborted) abortGate();
+  // Interrupt now (src/pending.ts): `cut` stops this step's model call or read-only tool; `stopCmd`
+  // is the running command's own cancel ("Stop the command"). Tools that change things never see `cut`.
+  let cut = new AbortController();
+  let stopCmd: AbortController | undefined;
+  /** The last model call was cut mid-reply (the steer note says so). */
+  let cutReply = false;
+  const steerable = !opts.replay && !opts.group;
+  const offInterrupt = steerable
+    ? app.pending?.attach(conv.id, {
+        interrupt: () => cut.abort(new Error('interrupt')),
+        stopTool: () => {
+          if (!stopCmd || stopCmd.signal.aborted) return false;
+          stopCmd.abort(new Error('stopped'));
+          return true;
+        },
+      })
+    : undefined;
+  const askCard = () => {
+    if (steerable) app.pending?.setPhase(conv.id, { kind: 'approval' });
+    return app.approvals.request(conv.id, signal);
+  };
   try {
   // Phase 102 (ST7): a webhook's conversation holds outside text as its "user" lines. Only the
   // webhook's own runs (with their OutsidePolicy) answer there; Continue, Regenerate or a typed
@@ -2791,10 +2816,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // history built below includes them, after the tool results), checked like a turn's first
     // message, and announced. A steer never approves anything: cards are answered by buttons only.
     const steerNotes: string[] = [];
-    const steers = step > 0 && !opts.replay && !opts.group ? (app.pending?.takeSteers(conv.id) ?? []) : [];
+    // A fresh cut for this step (an interrupt that arrives from here on stops this step).
+    if (cut.signal.aborted) cut = new AbortController();
+    const wasCut = cutReply;
+    cutReply = false;
+    const steers = step > 0 && steerable ? (app.pending?.takeSteers(conv.id) ?? []) : [];
     for (const it of steers) {
       const said = redactTypedPassword(it.content).text || '(photo)';
-      const sm = store.addMessage(conv.id, 'user', said, { steer: { afterStep: step, pendingId: it.id, ...(rec.on ? { runId: rec.id } : {}) }, ...(it.meta.images?.length ? { images: it.meta.images } : {}), ...(typeof it.meta.source === 'string' && it.meta.source !== 'web' ? { via: it.meta.source } : {}) });
+      const sm = store.addMessage(conv.id, 'user', said, { steer: { afterStep: step, pendingId: it.id, ...(it.meta.now ? { now: true } : {}), ...(rec.on ? { runId: rec.id } : {}) }, ...(it.meta.images?.length ? { images: it.meta.images } : {}), ...(typeof it.meta.source === 'string' && it.meta.source !== 'web' ? { via: it.meta.source } : {}) });
       const ownerSteer = !!legacyInnerConversation(app, conv.id, opts)
         && ownerWebPendingInput(app, conv.id, it.content, it.id);
       if (ownerSteer && ownerEvidenceConversation(app, conv.id, opts)) {
@@ -2806,7 +2835,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         innerState = app.inner.onOwnerMessage(said, previous ? (steerNow.getTime() - previous.getTime()) / 3_600_000 : null, steerNow, app.persona.name);
       }
       app.pending?.stored(it.id, sm.id);
-      yield { type: 'steer', messageId: sm.id, afterStep: step, text: said, pendingId: it.id, ...(it.meta.images?.length ? { images: it.meta.images } : {}) };
+      yield { type: 'steer', messageId: sm.id, afterStep: step, text: said, pendingId: it.id, ...(it.meta.images?.length ? { images: it.meta.images } : {}), ...(it.meta.now ? { now: true } : {}) };
       // Phase 120 (§5.7): references in a steer are read when it is taken (the text at this moment).
       if (it.sender === 'owner' && said.includes('@') && !minorSexualMatch(said, { owner: true })) {
         const place = refsPlace(app, conv, { owner: ownerApp, external, group: false, untrusted: Boolean(opts.untrusted) });
@@ -2847,7 +2876,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     if (steers.length) {
       const who = steers[0].sender === 'member' || opts.outside ? 'The person you are helping' : ownerWord === 'the owner' ? 'The owner' : ownerWord;
-      steerNotes.push(`[Note from the app: ${who} sent ${steers.length === 1 ? 'this' : 'these'} while you were working, after step ${step}. Take ${steers.length === 1 ? 'it' : 'them'} into account from here. Don't redo finished work unless asked to. ${steers.length === 1 ? "It doesn't" : "They don't"} answer any approval.]`);
+      const one = steers.length === 1;
+      const now = steers.some((x) => x.meta.now === true);
+      steerNotes.push(
+        wasCut
+          ? `[Note from the app: ${who} stopped you mid-reply to send ${one ? 'this' : 'these'}, after step ${step}. Your unfinished reply is above, cut off. Take ${one ? 'it' : 'them'} into account from here; don't repeat what you already said unless it still fits. Don't redo finished work unless asked to. ${one ? "It doesn't" : "They don't"} answer any approval.]`
+          : now
+            ? `[Note from the app: ${who} interrupted your work to send ${one ? 'this' : 'these'}, after step ${step}. Tool results above are real; calls marked "Not run" did not happen. Take ${one ? 'it' : 'them'} into account from here. Don't redo finished work unless asked to. ${one ? "It doesn't" : "They don't"} answer any approval.]`
+            : `[Note from the app: ${who} sent ${one ? 'this' : 'these'} while you were working, after step ${step}. Take ${one ? 'it' : 'them'} into account from here. Don't redo finished work unless asked to. ${one ? "It doesn't" : "They don't"} answer any approval.]`,
+      );
     }
     const system = opts.replay ? replaySystem : buildSystemPrompt(app.persona, {
       now,
@@ -3065,7 +3102,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (plan.ask && meter) {
         // "Ask me before going on": the owner's explicit OK is the only way past the limit here.
         for (const ev of plan.events ?? []) yield ev;
-        const { id, decision } = app.approvals.request(conv.id, signal);
+        const { id, decision } = askCard();
         yield { type: 'approval', approvalId: id, id: `budget-${rec.id || 'turn'}-${step}`, name: 'budget', summary: plan.ask.summary, args: {}, budget: plan.ask.state };
         const t0 = Date.now();
         const yes = await decision;
@@ -3209,7 +3246,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const outMax = saver.on ? Math.min(callMax ?? SAVER.replyTokens, SAVER.replyTokens) : callMax;
       // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
       const callCtx = ci === 0 ? turnHistory.numCtx : budgetOf({ provider: p, model: m }).numCtx;
-      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), signal, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
+      if (steerable) app.pending?.setPhase(conv.id, { kind: 'model' });
+      for await (const ev of streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }))) {
         if (ev.type === 'text') {
           reply += ev.text;
           yield { type: 'token', text: ev.text };
@@ -3225,6 +3263,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       yield* building.flush();
       noteCall(app, provider.config);
     } catch (err) {
+      // Interrupt now: the owner's message stopped this call. What she had written stays (marked
+      // interrupted, shown as "She was saying…"); half-written tool calls are dropped; the next
+      // step takes his message at once.
+      if (cut.signal.aborted && !signal.aborted) {
+        const kept = reply ? addAssistantMessage(reply, { model, provider: provider.config.label, partial: true, interrupted: 'steer' }) : undefined;
+        releaseSessionStep();
+        cutReply = true;
+        yield { type: 'interrupted', messageId: kept?.id ?? null, text: reply };
+        continue;
+      }
       // 3.3.0: what the real calls did (Health's Model line and her own trouble notices follow it).
       if (!signal.aborted && !isToolsUnsupported(err)) noteCall(app, provider.config, err);
       if (tools.length && !reply && !calls.length && isToolsUnsupported(err)) {
@@ -3423,6 +3471,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
       const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
       let ranTool = false;
+      /** Interrupt now cut this call short (never counted by the loop guard). */
+      let cutShort = false;
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
       // only when the call may run at all (offered this turn, not off, not blocked by privacy).
       const mayPrepare = !admissionFailure && !guardHit && Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
@@ -3546,7 +3596,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           // (Windows copy mode) a tool that asks first still asks before the try.
           const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk) || (permission === 'ask' && (!gate || gate.askFirst)));
           if (firstCard) {
-            const { id, decision } = app.approvals.request(conv.id, signal);
+            const { id, decision } = askCard();
             const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
             // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
             const alwaysOk = set === 'ask' && permission === 'ask' && !spendAsk && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord && policy().alwaysAllowOn;
@@ -3618,7 +3668,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               } else if (verdict.act === 'allow') {
                 sbDecision = 'auto-applied';
               } else {
-                const { id, decision } = app.approvals.request(conv.id, signal);
+                const { id, decision } = askCard();
                 const waitFrom = Date.now();
                 yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, sandbox: sandboxCard(tried, gate.risk) };
                 const ok = await decision;
@@ -3652,7 +3702,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               }
             } else if (permission === 'ask' && !firstCard) {
               // No try was possible: fall back to the plain approval.
-              const { id, decision } = app.approvals.request(conv.id, signal);
+              const { id, decision } = askCard();
               yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepSkill ? { skill: prepSkill } : {}) };
               allowed = await decision;
               explicitlyApproved = allowed;
@@ -3685,6 +3735,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             admit();
             ranTool = true;
             checks?.before(call.name, call.arguments);
+            // Interrupt now: a read-only call may be cancelled; a command may be stopped by the owner
+            // (its own cancel); anything else that changes things always finishes.
+            const cutOk = interruptible(call.name, tool);
+            stopCmd = !cutOk && tool.runsCommands ? new AbortController() : undefined;
+            if (steerable && !parent) app.pending?.setPhase(conv.id, { kind: 'tool', tool: call.name, summary, stoppable: Boolean(stopCmd) });
+            const toolSignal = cutOk ? AbortSignal.any([signal, cut.signal]) : stopCmd ? AbortSignal.any([signal, stopCmd.signal]) : signal;
             try {
               // EC14: in an editor turn her file and command tools run in the editor, after the checks above.
               const editorAsk = call.name !== RUN_CODE && opts.editor && EDITOR_TOOLS.has(call.name) ? editorCalls.open(conv.id, signal) : undefined;
@@ -3698,7 +3754,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 if (!r.ok) status = 'error';
               } else output = editorAsk ? await editorAsk.result : await tool.run(call.arguments, {
                 workspaceDir: wsDir,
-                signal,
+                signal: toolSignal,
                 sandbox,
                 conversationId: conv.id,
                 companionName: app.persona.name,
@@ -3767,6 +3823,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               status = 'error';
               output = err instanceof ToolError ? `Error: ${SESSION_TOOLS.has(call.name) || (call.name === SCENE_CANON_TOOL && err.message === en('Shared scene canon is unavailable in this context.')) ? trOwner(err.message, app.settings.get()) : err.message}` : `Error: ${(err as Error).message}`;
             }
+            if (!signal.aborted && cutOk && cut.signal.aborted && status === 'error') {
+              output = `Stopped before it finished: ${ownerWord} sent a new message. Nothing was changed.`;
+              cutShort = true;
+            }
+            if (!signal.aborted && stopCmd?.signal.aborted) {
+              status = 'error';
+              output = `${ownerWord === 'the owner' ? 'The owner' : ownerWord} stopped this command before it finished.\n${output}`;
+              cutShort = true;
+            }
+            stopCmd = undefined;
           }
         } catch (err) {
           if (!(err instanceof ToolAdmissionError)) throw err;
@@ -3830,7 +3896,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
       // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
-      if (ranTool && !signal.aborted && guard.record(call.name, call.arguments, status, output)) guardOut();
+      if (ranTool && !signal.aborted && !cutShort && guard.record(call.name, call.arguments, status, output)) guardOut();
       else if (approval === 'denied' && !tried && !signal.aborted) guard.declined(call.name, call.arguments);
       const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
       const stored = clip(output, TOOL_RESULT_LIMIT);
@@ -3908,6 +3974,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     };
     for (const [callIdx, call] of calls.entries()) {
       callsThisTurn++;
+      // Interrupt now: calls not started yet are skipped (each still gets its result, so the history stays whole).
+      if (cut.signal.aborted && !signal.aborted) {
+        const tl = app.tools.get(call.name);
+        const summary = app.redactor.redact(tl?.summarize(call.arguments) ?? call.name);
+        const shownArgs = app.redactor.redactValue(call.arguments);
+        const out = `Not run: ${ownerWord} sent a new message first.`;
+        store.addMessage(conv.id, 'tool', out, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status: 'error', ms: 0, interrupted: true });
+        receipts.push({ name: call.name, status: 'error', args: call.arguments, output: out });
+        yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs };
+        yield { type: 'tool_result', id: call.id, name: call.name, status: 'error', output: out, ms: 0 };
+        continue;
+      }
       if ((yield* oneCall(call, callIdx)) === 'end') return;
     }
     if (step === maxSteps - 1 && !meter?.final) {
@@ -3976,6 +4054,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   } finally {
     gateClosed = true;
     gateAbort.abort();
+    offInterrupt?.();
     signal.removeEventListener('abort', abortGate);
     releaseSessionStep();
   }

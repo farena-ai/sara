@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 3.4.3, [Legge le immagini che le mandi](https://github.com/farena-ai/sara/releases/tag/v3.4.3). La foto di un documento arriva a un modello che può vederla; copia i valori esattamente e lo dice chiaramente quando nessuno può. [Scopri le novità](#novità)
+> **Stato:** 3.4.4, [Interrompila e diglielo subito](https://github.com/farena-ai/sara/releases/tag/v3.4.4). Intervieni mentre lavora: smette subito di scrivere e riprende dal tuo messaggio; modifiche e comandi non vengono mai interrotti a metà. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrompila e diglielo subito](docs/CHATS.md)** — Interrompi ora (menu Invia, Ctrl+Invio o /now) ferma la sua risposta o il suo ragionamento e lei riprende da ciò che hai detto, tenendo i passi finiti e ripiegando ciò che stava dicendo. Le modifiche in corso finiscono prima e un comando lungo ha Ferma il comando. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Legge le immagini che le mandi](docs/CHOOSING_A_MODEL.md)** — Gli screenshot di esami, bollette o moduli arrivano ora a quello dei tuoi modelli che vede; se quello che risponde non può, un altro la legge prima come testo esatto. Salva i valori con note add e, se nessun modello vede, lo dice con Sistema invece di fingere. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Note che non perdono mai quello che le hai detto](docs/FEATURES.md)** — Aggiunge ogni novità a una nota sotto un titolo con data, un salvataggio che cancellerebbe una nota viene rifiutato, le versioni precedenti tornano con Ripristina e un «salvato» senza prova viene segnalato. Il bordo superiore dell'app Windows segue la pagina e lei può leggere le tue schede e i tuoi file. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Ricorda quanto il suo modello può contenere](docs/CHOOSING_A_MODEL.md)** — Auto adatta quanto della chat tiene a mente al modello in uso (letto dal servizio o da una tabella datata), limita la cronologia a pagamento per token a un livello equilibrato a meno che tu scelga la finestra intera, e dà ai modelli Ollama locali un contesto reale. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documenti, il suo nome ovunque, uso del computer da un server](docs/DOCUMENTS.md)** — Crea veri documenti con qualsiasi modello (Word, PDF, fogli di calcolo, presentazioni) con Scarica, Apri e Modifica. Un compagno rinominato mostra ovunque il suo nome e i suoi pronomi, con personaggi predefiniti lui e loro. L'estensione del browser e l'uso del computer ora funzionano con un clic. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Modalità facile](docs/AWAY_FROM_HOME.md)** — Fatto con un utente alle prime armi: la configurazione spiega le chiavi e non si perde, i problemi arrivano con Sistema, Collega l'app Sara e Usa Sara fuori casa (Tailscale) sono guidati e verificati, Gmail richiede tre passi e puoi dire «ingrandisci il testo» con Annulla. |
-| **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Prende vita](docs/APPEARANCE.md)** — Scegli Il suo ritratto, animato in Aspetto e lei respira, sbatte le palpebre, si guarda intorno e muove le labbra mentre parla, con espressioni per ascoltare, pensare e parlare e i suoi umori, in chat, Oggi e nelle chiamate. Vanno bene anche la tua immagine o un modello 3D .vrm. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 3.1.2 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 3.2.0 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Prende vita](docs/APPEARANCE.md)** — Scegli Il suo ritratto, animato in Aspetto e lei respira, sbatte le palpebre, si guarda intorno e muove le labbra mentre parla, con espressioni per ascoltare, pensare e parlare e i suoi umori, in chat, Oggi e nelle chiamate. Vanno bene anche la tua immagine o un modello 3D .vrm. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Ricerche che vanno avanti](docs/RESEARCH.md)** — Chiedile di fare una ricerca, una guida o di imparare qualcosa e avvia una ricerca: cerca invece di indovinare gli indirizzi, salta i siti che bloccano i lettori automatici, riprova quelli lenti, riparte dopo un riavvio, e una ricerca interrotta dà comunque un rapporto segnato come Parziale. |
 | **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Trasloco da Hermes o OpenClaw, semplice](docs/MOVE_IN_GUIDE.md)** — Se Hermes Agent o OpenClaw è sullo stesso computer, Sara lo trova e la porta con un pulsante (personalità, ricordi, chat passate, abilità, orari), con anteprima prima e Annulla dopo. Da un altro computer basta incollare una riga e la pagina di Sara va avanti da sola. |
 | **[3.1.0](https://github.com/farena-ai/sara/releases/tag/v3.1.0)** | **[La posta oltre Gmail](docs/EMAIL.md)** — Outlook.com e Microsoft 365 (posta e calendario), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail e qualsiasi altro server: cerca, legge le conversazioni, trova ciò che attende risposta, scrive bozze, invia e riordina con le approvazioni e l'Annulla di Gmail. Più caselle con una predefinita; ogni membro della casa può collegare le proprie, private. |

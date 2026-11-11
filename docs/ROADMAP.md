@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Interrupt and tell her now, in 3.4.4
+
+While she works you can now cut in: Interrupt now (in the Send menu, Ctrl+Enter, or /now in chat apps)
+stops what she is writing or thinking at once and she carries on from your message, with what she was
+saying folded under She was saying. Finished steps are kept, reads and searches are cancelled, and
+anything that changes things (edits, commands, sends) is never cut off midway: she stops right after it,
+and a long command gets Stop the command. A new While she's working choice makes every message interrupt.
+
 ## She reads the pictures you send, in 3.4.3
 
 A photo or screenshot of a document now reaches whichever of your models can see it, including fallbacks

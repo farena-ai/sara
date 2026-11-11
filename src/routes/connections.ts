@@ -128,7 +128,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         app.settings.update({
           chats: {
             ...cur,
-            whileBusy: body.whileBusy === 'queue' || body.whileBusy === 'steer' ? body.whileBusy : was.whileBusy,
+            whileBusy: body.whileBusy === 'queue' || body.whileBusy === 'steer' || body.whileBusy === 'interrupt' ? body.whileBusy : was.whileBusy,
             queueMax: (QUEUE_MAX_CHOICES as readonly number[]).includes(q) ? q : was.queueMax,
             btw: { model: body.btwModel === 'local' || body.btwModel === 'quick' ? body.btwModel : was.btw.model, dailyCap: (BTW_CAP_CHOICES as readonly number[]).includes(cap) ? cap : was.btw.dailyCap },
           } as never,

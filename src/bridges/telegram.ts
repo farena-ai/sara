@@ -592,7 +592,7 @@ export class TelegramBridge {
    * works, the owner's plain message is a steer or waits its turn (`chats.whileBusy`, or /steer and
    * /queue); everyone else's always waits. /reset and /new drop what waits.
    */
-  async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean, explicit?: 'steer' | 'queue'): Promise<string> {
+  async #enqueue(msg: TgMessage, conv: Conversation, content: string, isOwner: boolean, voice: boolean, docs: SharedDoc[], place: Place, fromOwner: boolean, extra: TurnExtra, queued: boolean, explicit?: 'steer' | 'queue' | 'interrupt'): Promise<string> {
     const app = this.#app;
     const where = { place, lang: fromOwner ? ownerLanguage(app) : askerLanguage(msg.from?.language_code), ownerChat: msg.from!.id, msgId: String(msg.message_id), replyTo: msg.reply_to_message?.message_id !== undefined ? String(msg.reply_to_message.message_id) : null };
     const pend = pendingFor(app);
@@ -616,7 +616,7 @@ export class TelegramBridge {
     if (r.item.kind === 'steer' && r.item.state === 'waiting') {
       // 👀 on his message; a short line when the reaction can't be set.
       const ok = await this.#call('setMessageReaction', { chat_id: msg.chat.id, message_id: msg.message_id, reaction: [{ type: 'emoji', emoji: '👀' }] }).then(() => true, () => false);
-      return ok ? '' : line(PENDING_LINES.steered);
+      return ok ? '' : line(r.item.meta.now ? PENDING_LINES.interrupting : PENDING_LINES.steered);
     }
     if (r.item.kind === 'steer') return '';
     return line(PENDING_LINES.queued, { n: r.waiting });

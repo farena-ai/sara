@@ -2283,10 +2283,27 @@ export function createSaraServer(opts: ServerOptions): Server {
         }
         if ((c === 'retry' || c === 'continue') && method === 'POST' && isGroupChannel(conv.channel)) throw new HttpError(400, 'Regenerate, edit and continue aren’t available in group chats yet.');
         // Phase 116 (BR2 §5.10): what waits while she works, and side questions.
-        if (c === 'pending' && !parts[3] && method === 'GET') return send(res, 200, { pending: pendOf(b).list(b), steerAt: pendOf(b).live(b) ? (active.get(b)?.status === 'waiting' ? 'approval' : active.get(b)?.status === 'running' ? 'step' : 'next') : null, detail: active.get(b)?.detail ?? '' });
+        if (c === 'pending' && !parts[3] && method === 'GET') {
+          const pd = pendOf(b);
+          const steerAt = pd.live(b) ? (active.get(b)?.status === 'waiting' ? 'approval' : active.get(b)?.status === 'running' ? 'step' : 'next') : null;
+          // Interrupt now: what she is stopping (the model call: at once; a tool that changes things: when it returns; a card: Allow or Deny first).
+          const ph = pd.interrupting(b) && pd.live(b) ? pd.phase(b) : undefined;
+          const interrupt = ph ? (steerAt === 'approval' || ph.kind === 'approval' ? { state: 'approval' } : ph.kind === 'tool' ? { state: 'tool', tool: ph.tool ?? '', summary: ph.summary ?? '', stoppable: ph.stoppable === true } : { state: 'interrupting' }) : pd.interrupting(b) && pd.live(b) ? { state: 'interrupting' } : null;
+          return send(res, 200, { pending: pd.list(b), steerAt, detail: active.get(b)?.detail ?? '', interrupt });
+        }
+        // Interrupt now: "Stop the command" on the pill (the command's own cancel; only commands).
+        if (c === 'pending' && parts[3] === 'stop-tool' && !parts[4] && method === 'POST') {
+          if (!pendOf(b).stopTool(b)) throw new HttpError(404, 'No command is running now.');
+          return send(res, 200, { ok: true });
+        }
         if (c === 'pending' && parts[3] && !parts[4] && method === 'DELETE') {
           if (!pendOf(b).cancel(b, parts[3])) throw new HttpError(404, 'That message is no longer waiting.');
           return send(res, 200, { ok: true, pending: pendOf(b).list(b) });
+        }
+        if (c === 'pending' && parts[3] && parts[4] === 'interrupt' && !parts[5] && method === 'POST') {
+          const it = pendOf(b).interrupt(b, parts[3]);
+          if (!it) throw new HttpError(404, 'That message is no longer waiting.');
+          return send(res, 200, { item: it, pending: pendOf(b).list(b) });
         }
         if (c === 'pending' && parts[3] && parts[4] === 'now' && method === 'POST') {
           const it = pendOf(b).promote(b, parts[3]);
@@ -2337,7 +2354,7 @@ export function createSaraServer(opts: ServerOptions): Server {
           // Phase 116 (BR2 §5.7): while she works, a client that sends `whileBusy` gets a 202 with the
           // waiting item (a steer for the owner and members, or a queued turn); older clients keep the 409.
           const pend = pendOf(b);
-          if ((active.has(b) || pend.busy(b)) && (body.whileBusy === 'steer' || body.whileBusy === 'queue')) {
+          if ((active.has(b) || pend.busy(b)) && (body.whileBusy === 'steer' || body.whileBusy === 'queue' || body.whileBusy === 'interrupt')) {
             const sender = conv.partner ? 'person' : opts.member ? 'member' : 'owner';
             const cfg = whileBusySettings(cx);
             const r = pend.add(b, { kind: body.whileBusy, content, sender, meta: { source: 'web', ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) } }, undefined, { queueMax: cfg.queueMax });

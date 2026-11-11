@@ -67,6 +67,11 @@
   font-size: var(--fs-small);
 }
 .pending-chip.steer.waiting { border-color: var(--accent); background: var(--accent-soft); }
+/* Interrupt now: the pill says what she is stopping; her cut-off reply folds under "She was saying…". */
+.pending-chip.interrupting { border-width: 2px; }
+.msg.was-saying { opacity: 0.85; border-style: dashed; }
+.msg.was-saying.collapsed { max-height: 4.6em; overflow: hidden; }
+.msg.was-saying .saying-toggle { display: block; min-height: 32px; margin: 0 0 4px; padding: 0; color: var(--text-2); font-style: italic; text-align: left; }
 .pending-chip.stale { border-style: dashed; }
 .pending-chip .pending-text { min-width: 0; overflow-wrap: anywhere; }
 .pending-chip .pending-text { flex: 1 1 12em; }

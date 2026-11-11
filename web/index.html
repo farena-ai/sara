@@ -421,6 +421,7 @@
           <button id="send-more" class="send-more" type="button" aria-label="More ways to send while she works" aria-haspopup="menu" aria-expanded="false" aria-controls="send-menu" hidden><i class="ic" data-icon="chevron-down"></i></button>
           <div id="send-menu" class="send-menu head-pop" role="menu" hidden>
             <button class="pop-item" type="button" role="menuitem" data-busy="steer" title="She reads it before her next step. It can't answer an approval card: use Allow or Deny for that."><strong>Tell her now</strong><span class="muted small">She reads it before her next step.</span></button>
+            <button class="pop-item" type="button" role="menuitem" data-busy="interrupt" title="She stops what she's writing or thinking at once and reads it (Ctrl+Enter). Something that changes things, like a command, finishes first."><strong>Interrupt now</strong><span class="muted small">She stops at once and reads it. Ctrl+Enter.</span></button>
             <button class="pop-item" type="button" role="menuitem" data-busy="queue" title="She does it when she's finished, as its own message."><strong>After this</strong><span class="muted small">She does it when she's finished.</span></button>
             <button class="pop-item" type="button" role="menuitem" data-busy="btw" title="A quick answer on the side from what's in this chat. It isn't saved and she doesn't stop working."><strong>Just asking</strong><span class="muted small">A quick answer on the side. Not added to the chat.</span></button>
           </div>
@@ -2992,8 +2993,8 @@
       <!-- Phase 116 (BR2 §5.5): talking to her while she works. -->
       <div id="wb-card" class="tidy-card tidy-stack wb-card">
         <h3>While she's working</h3>
-        <label>When you send a message while she's working <button type="button" class="tip" data-tip="Tell her now: she reads it before her next step and adjusts. Queue it: she does it when she's finished. Either way you can change it per message with the ▾ next to Send.">?</button>
-          <select id="wb-mode"><option value="steer">Tell her now</option><option value="queue">Queue it for after</option></select>
+        <label>When you send a message while she's working <button type="button" class="tip" data-tip="At her next step: she finishes what she's writing, then reads it. Right away: she stops at once and reads it (a command or a change she's making finishes first). Queue it: she does it when she's finished. You can pick per message with the ▾ next to Send, or Ctrl+Enter to interrupt.">?</button>
+          <select id="wb-mode"><option value="steer">Tell her now, at her next step</option><option value="interrupt">Tell her now, right away (interrupt)</option><option value="queue">Queue it for after</option></select>
         </label>
         <label>Messages that can wait <button type="button" class="tip" data-tip="How many messages can wait their turn in one conversation. More than this and she asks you to wait a moment.">?</button>
           <select id="wb-max"><option value="3" data-raw>3</option><option value="5">5 (the default)</option><option value="10" data-raw>10</option></select>

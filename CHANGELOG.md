@@ -5,7 +5,19 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.4.4 (2026-11-11): interrupt and tell her now
+
 ## 3.4.3 (2026-11-11): she reads the pictures you send
+- **Interrupt and tell her now:** while she works you can now cut in at once instead of waiting for
+  her next step. Send ▾ → *Interrupt now*, Ctrl+Enter (⌘+Enter on a Mac), *Interrupt now* on a
+  waiting note, or `/now <text>` in Telegram, Discord and plugin chats. She stops what she is writing
+  or thinking right away, keeps what she had written (folded under *She was saying…*), keeps every
+  finished step, and answers your message. A read, search or page fetch in progress is cancelled;
+  anything that changes things (file edits, commands, emails, payments, computer actions) is never
+  cut off halfway: she stops as soon as it is done, and the note says what she is waiting for, with
+  *Stop the command* for a command. A waiting approval card still needs Allow or Deny. Settings → You
+  → *While she's working* has a third choice, *Tell her now, right away*; the default stays *at her
+  next step*, so nothing changes until you pick it. Esc in the empty message box stops her.
 
 - **Photos of documents reach a model that can see them:** a screenshot of lab results sent in a chat
   that had turned adult went to the adult model with only a "photo shared" note, even when that model

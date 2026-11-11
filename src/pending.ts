@@ -4,6 +4,10 @@
 // - A *steer* waits for the turn's next safe point (between steps, src/chat.ts takes it there with
 //   `takeSteers`) and is stored as a user message only then. If the turn ends first, it becomes the
 //   first queued turn ('moved').
+// - An *interrupt* is a steer marked `meta.now`: the running turn is told at once (`attach`) and
+//   stops the model call it is in (what she wrote stays, marked interrupted), cancels a read-only
+//   tool in progress, and never kills a tool that changes things: she stops right after it returns.
+//   An approval card keeps waiting: a steer never answers one.
 // - A *queued* message runs as its own turn after the current one. It is NOT written to the
 //   conversation until its turn starts: the turn rebuilds its history from the store at every step,
 //   so a queued message stored early would quietly act as a steer.
@@ -20,12 +24,44 @@ export const PENDING_LINES = {
   queued: en("I'll do this next ({n} waiting)."),
   full: en("I already have {max} waiting here. I'll take more when I've done some."),
   steered: en("Got it, I'll use that at the next step."),
+  interrupting: en('Got it, stopping to read that now.'),
   steers: en("That's enough notes for this step. I'll read them before the next one."),
   moved: en("She'd already finished; she'll answer your note now."),
   restarted: en('I restarted before I got to your message: "{text}". Send it again if you still want it.'),
 } as const;
 
 export type PendingKind = 'steer' | 'queue';
+/** What a message sent while she works does: wait for the next step, wait its turn, or cut in now. */
+export type BusyMode = 'steer' | 'queue' | 'interrupt';
+/** What the running turn is doing right now (the Interrupt pill says what she waits for). */
+export interface TurnPhase {
+  kind: 'model' | 'tool' | 'approval';
+  /** The tool running (kind 'tool'). */
+  tool?: string;
+  /** Its short line ("npm run build"). */
+  summary?: string;
+  /** A command the owner may stop (the run's own cancel kills the process). */
+  stoppable?: boolean;
+}
+/** The running turn's side of an interrupt (src/chat.ts). */
+export interface TurnHooks {
+  /** Stop the model call / read-only tool in progress and take the waiting notes next. */
+  interrupt: () => void;
+  /** Stop the command in progress (only commands); false when none runs. */
+  stopTool: () => boolean;
+}
+
+/**
+ * Tools an interrupt may cancel mid-way: they only read, search, look or fetch, so stopping them
+ * changes nothing. Everything else (writes, edits, commands, sends, payments, computer actions)
+ * finishes first. A tool can say so itself (`interruptible`).
+ */
+const READ_ONLY_INTERRUPTIBLE: ReadonlySet<string> = new Set([
+  'list_dir', 'read_file', 'search', 'code_map', 'code_find', 'code_refs', 'code_deps', 'recall', 'search_library', 'library', 'search_memory', 'list_facts', 'list_notes', 'list_tasks', 'list_recent_conversations', 'read_note', 'get_today', 'settings_guide', 'web_search', 'web_fetch', 'job_status', 'recipe_find', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'mail_search', 'mail_read', 'mail_thread', 'mail_needs_answer', 'mail_accounts', 'mail_folders', 'calendar_events', 'home_status', 'github_list', 'github_read', 'ssh_servers', 'browser_read', 'browser_screenshot', 'find_tools', 'skill_read', 'moments', 'scrapbook',
+]);
+export function interruptible(name: string, tool?: { interruptible?: boolean }): boolean {
+  return tool?.interruptible === true || READ_ONLY_INTERRUPTIBLE.has(name);
+}
 export type PendingState = 'waiting' | 'taken' | 'moved' | 'dropped' | 'stale';
 export type PendingSender = 'owner' | 'member' | 'person';
 
@@ -68,7 +104,7 @@ const KEEP_DONE_MS = 7 * 24 * 3600_000;
 
 /** Settings → Chats → While she's working (owner settings; members use the owner's). */
 export interface WhileBusySettings {
-  whileBusy: 'steer' | 'queue';
+  whileBusy: BusyMode;
   queueMax: number;
   btw: { model: 'local' | 'quick'; dailyCap: number };
 }
@@ -77,7 +113,8 @@ export function whileBusySettings(app: AppContext): WhileBusySettings {
   const q = Number(c.queueMax);
   const cap = Number(c.btw?.dailyCap);
   return {
-    whileBusy: c.whileBusy === 'queue' ? 'queue' : 'steer',
+    // New installs: at the next step (the turn keeps its rhythm); the owner may pick 'interrupt'.
+    whileBusy: c.whileBusy === 'queue' ? 'queue' : c.whileBusy === 'interrupt' ? 'interrupt' : 'steer',
     queueMax: Number.isFinite(q) && q >= 1 ? Math.min(20, Math.round(q)) : QUEUE_MAX_DEFAULT,
     btw: { model: c.btw?.model === 'local' ? 'local' : 'quick', dailyCap: Number.isFinite(cap) && cap >= 1 ? Math.min(1000, Math.round(cap)) : BTW_CAP_DEFAULT },
   };
@@ -117,6 +154,10 @@ export class PendingInputs {
   readonly #running = new Map<string, Promise<void>>();
   /** Conversations with a turn between its start and its end (runTurn). */
   readonly #live = new Map<string, number>();
+  /** Conversation → its running turn's interrupt hooks (one turn per conversation runs at a time). */
+  readonly #hooks = new Map<string, TurnHooks>();
+  /** Conversation → what its running turn is doing (model call, tool, approval card). */
+  readonly #phase = new Map<string, TurnPhase>();
   /** Hub events (`{type:'pending', …}`); unset for off-the-record conversations. */
   publish?: (ev: { type: 'pending'; conversationId: string; item: PendingItem | null; line?: string }) => void;
   /** The server's own busy test (its `active` map), so a queued turn never meets the 409. */
@@ -193,18 +234,20 @@ export class PendingInputs {
    * A message that arrived while she works. Steers wait for the safe point (or, with no turn
    * running, become the next turn at once: 'moved'); queued ones wait their turn.
    */
-  add(conversationId: string, input: { kind: PendingKind; content: string; meta?: PendingMeta; sender: PendingSender }, runner?: Runner, caps: { queueMax?: number } = {}): AddResult {
+  add(conversationId: string, input: { kind: PendingKind | BusyMode; content: string; meta?: PendingMeta; sender: PendingSender }, runner?: Runner, caps: { queueMax?: number } = {}): AddResult {
     const content = input.content.trim().slice(0, PENDING_TEXT_MAX);
     if (!content && !input.meta?.images?.length) return { ok: false, reason: 'empty' };
-    // Partners always queue (they have no tools: steering means nothing there).
-    const kind: PendingKind = input.sender === 'person' ? 'queue' : input.kind;
+    // Partners always queue (they have no tools: steering means nothing there, and they never cut in).
+    const kind: PendingKind = input.sender === 'person' ? 'queue' : input.kind === 'queue' ? 'queue' : 'steer';
+    const now = kind === 'steer' && input.kind === 'interrupt';
+    if (now) input = { ...input, meta: { ...(input.meta ?? {}), now: true } };
     const waiting = this.#rows(conversationId, ['waiting', 'moved']);
     const queueMax = caps.queueMax ?? QUEUE_MAX_DEFAULT;
     if (kind === 'queue' && waiting.filter((x) => x.kind === 'queue' || x.state === 'moved').length >= queueMax) return { ok: false, reason: 'full' };
     if (kind === 'steer' && waiting.filter((x) => x.kind === 'steer').length >= STEERS_PER_TURN) return { ok: false, reason: 'steers' };
-    const now = this.#now();
+    const at0 = this.#now();
     // Rows keep their arrival order (rowid) even when two arrive in the same millisecond.
-    const createdAt = now.toISOString();
+    const createdAt = at0.toISOString();
     const id = `p-${randomBytes(6).toString('hex')}`;
     const state: PendingState = kind === 'steer' && !this.live(conversationId) ? 'moved' : 'waiting';
     this.#db.prepare('INSERT INTO pending_inputs (id, conversation_id, kind, content, meta, sender, state, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, conversationId, kind, content, JSON.stringify(input.meta ?? {}), input.sender, state, createdAt);
@@ -212,6 +255,7 @@ export class PendingInputs {
     const item = this.get(id)!;
     this.#emit(conversationId, item, state === 'moved' ? 'moved' : undefined);
     if (state === 'moved') this.drain(conversationId);
+    else if (now) this.#cut(conversationId);
     return { ok: true, item, waiting: this.#rows(conversationId, ['waiting', 'moved']).filter((x) => x.kind === 'queue' || x.state === 'moved').length };
   }
 
@@ -232,6 +276,65 @@ export class PendingInputs {
   /** The user message an item became. */
   stored(id: string, messageId: number): void {
     this.#db.prepare('UPDATE pending_inputs SET message_id = ? WHERE id = ?').run(messageId, id);
+  }
+
+  // ------------------------------------------------------------------ interrupt now
+
+  /** The running turn hands over its interrupt hooks; returns the detach. */
+  attach(conversationId: string, hooks: TurnHooks): () => void {
+    this.#hooks.set(conversationId, hooks);
+    // A note marked now that arrived before the turn could listen still cuts in.
+    if (this.interrupting(conversationId)) hooks.interrupt();
+    return () => {
+      if (this.#hooks.get(conversationId) === hooks) this.#hooks.delete(conversationId);
+      this.#phase.delete(conversationId);
+    };
+  }
+
+  /** The turn says what it is doing (undefined = between steps). */
+  setPhase(conversationId: string, phase: TurnPhase | undefined): void {
+    const was = this.#phase.get(conversationId);
+    if (phase) this.#phase.set(conversationId, phase);
+    else this.#phase.delete(conversationId);
+    // The pill follows ("Waiting for the command…") only while something is interrupting.
+    if (this.interrupting(conversationId) && JSON.stringify(was) !== JSON.stringify(phase)) this.#emit(conversationId, null, 'phase');
+  }
+  phase(conversationId: string): TurnPhase | undefined {
+    return this.#phase.get(conversationId);
+  }
+
+  /** A note marked now waits here (the turn is stopping to read it). */
+  interrupting(conversationId: string): boolean {
+    return this.#rows(conversationId, ['waiting']).some((x) => x.kind === 'steer' && x.meta.now === true);
+  }
+
+  /**
+   * *Interrupt now* on a pill: a waiting note (a steer, or a queued one: it becomes a steer) is
+   * marked now and the running turn is told. Undefined when it no longer waits or isn't one of
+   * the sender's own (partners never cut in).
+   */
+  interrupt(conversationId: string, id: string): PendingItem | undefined {
+    const it = this.get(id);
+    if (!it || it.conversationId !== conversationId || it.state !== 'waiting' || it.sender === 'person') return undefined;
+    if (!this.live(conversationId)) return this.promote(conversationId, id);
+    this.#db.prepare('UPDATE pending_inputs SET kind = ?, meta = ? WHERE id = ?').run('steer', JSON.stringify({ ...it.meta, now: true }), id);
+    const item = this.get(id)!;
+    this.#emit(conversationId, item);
+    this.#cut(conversationId);
+    return item;
+  }
+
+  /** *Stop the command*: the command in progress is stopped by its own cancel (true when one was). */
+  stopTool(conversationId: string): boolean {
+    return this.#phase.get(conversationId)?.stoppable === true && Boolean(this.#hooks.get(conversationId)?.stopTool());
+  }
+
+  #cut(conversationId: string): void {
+    try {
+      this.#hooks.get(conversationId)?.interrupt();
+    } catch (err) {
+      console.warn(`interrupt: ${(err as Error).message}`);
+    }
   }
 
   /** Steers waiting for this conversation's next safe point. */

@@ -2099,7 +2099,7 @@ export class PluginManager {
    * the owner (`chats.whileBusy`, /steer) or a queued turn (everyone else; 2.48 dropped these).
    * Phase 117: a v1.2 plugin with `ack: 'react'` gets a 👀 on the message instead of a line.
    */
-  async #bridgeTake(a: Attached, run: Running, m: BridgeTurn, explicit?: 'steer' | 'queue'): Promise<Record<string, unknown>> {
+  async #bridgeTake(a: Attached, run: Running, m: BridgeTurn, explicit?: 'steer' | 'queue' | 'interrupt'): Promise<Record<string, unknown>> {
     const { pendingFor, whileBusySettings, PENDING_LINES } = await import('../pending.ts');
     const { say } = await import('../bridges/commands.ts');
     // EC12: a crew's mail rule (the owner's own verified mail to her mailbox; only its subject is read).
@@ -2122,7 +2122,7 @@ export class PluginManager {
     const react = ack === 'react' && run.bridge?.react && m.messageId;
     if (react) run.proc.send({ v: 1, type: 'bridge.react', bridge: m.bridge, chatId: m.chatId, messageId: m.messageId, emoji: '👀' });
     else if (ack !== 'none') {
-      if (r.item.kind === 'steer' && r.item.state === 'waiting') sendLine(PENDING_LINES.steered);
+      if (r.item.kind === 'steer' && r.item.state === 'waiting') sendLine(r.item.meta.now ? PENDING_LINES.interrupting : PENDING_LINES.steered);
       else if (r.item.kind === 'queue') sendLine(PENDING_LINES.queued, { n: r.waiting });
     }
     this.store.log(run.row.id, a.id, 'call', `bridge ${m.bridge}: ${r.item.kind === 'steer' ? 'a steer' : 'a queued message'}`);

@@ -80,6 +80,7 @@ done…** and **+ → Repeat this…**. The table is generated from the same lis
 | `/btw` | A quick side question while she works (not saved) | You and household members |
 | `/queue` | Queue a message for when she has finished | You and household members |
 | `/steer` | Tell her something now: she reads it before her next step | You and household members |
+| `/now` | Interrupt her and tell her now: she stops what she is writing and reads it | You and household members |
 | `/stop` | Stop her current reply | You and household members |
 | `/new` | Start a fresh session (the last one is kept) | You and household members |
 | `/reset` | Clear a stuck reply and listen again | You and household members |
@@ -243,18 +244,20 @@ one shared *Chats* project instead of one each.
 
 ## Talking to her while she works (2.49.0)
 
-You don't have to wait for her to finish. Whatever you send while she's working goes one of three ways:
+You don't have to wait for her to finish. Whatever you send while she's working goes one of four ways:
 
 | Choice | What happens | In the app | In Telegram / Discord |
 |---|---|---|---|
 | **Tell her now** (the default for you) | She reads it before her next step and changes course. It never approves anything and never interrupts a tool that's running or a card that's waiting. | Send (or Enter) | Just send it; she reacts 👀 and says she got your note |
+| **Interrupt now** | She stops what she's writing or thinking at once and reads it, then carries on from there. What she had already written stays in the chat, folded under *She was saying…*, so she knows where she was. Finished steps stay done. A read, search or web page she's fetching is cancelled. Something that changes things (a file edit, a command, an email, a payment, a computer action) is never cut off halfway: she stops as soon as it's done, and the chip says what she's waiting for. For a command the chip also offers **Stop the command**. A waiting approval card still needs your Allow or Deny; your message is read right after. | Send ▾ → *Interrupt now* (or Ctrl+Enter, ⌘+Enter on a Mac), or *Interrupt now* on a waiting *Tell her now* chip | `/now <text>` |
 | **After this** | It waits and runs as its own turn when she's done. Remove it or send it now from its chip. | Send ▾ → *After this* (or Alt+Enter) | `/queue <text>` |
 | **Just asking** | A quick answer on the side from a small model. Nothing is saved, she uses no tools, and the work carries on. | Send ▾ → *Just asking* | `/btw <question>` |
 
 - People you chat with in rooms or partner chats always wait their turn; only you can steer her.
 - After a restart, waiting messages don't run by themselves; she tells you they were dropped.
 - `/reset` and *New* drop anything still waiting.
-- Change the default in Settings → You → *While she's working*. Side questions have a daily cap (60 by default); in private chats they use only a model on this computer.
+- Press Esc in the empty message box to stop her altogether (the same as Stop).
+- Change the default in Settings → You → *While she's working*: *Tell her now, at her next step* (the default), *Tell her now, right away (interrupt)*, or *Queue it for after*. With *right away*, Enter interrupts and the chat apps' plain messages interrupt too. Side questions have a daily cap (60 by default); in private chats they use only a model on this computer.
 
 ### She stops repeating herself
 

@@ -1,9 +1,11 @@
 // Phase 116 (BR2 §5.5, docs/design/BRIDGES2.md): talking to her while she works.
 //
 // While a turn runs the composer stays open: Send becomes a split button whose main part does the
-// default (Tell her now / After this, Settings → You → While she's working) and whose ▾ offers the
-// three ways. Enter = the default, Alt+Enter = the other one; /steer, /queue and /btw pick
-// explicitly. What waits is shown as chips above the composer (× to cancel, Now to make a queued
+// default (Tell her now / Interrupt now / After this, Settings → You → While she's working) and whose
+// ▾ offers the four ways. Enter = the default, Alt+Enter = the other one, Ctrl/Cmd+Enter = Interrupt
+// now; /steer, /now, /queue and /btw pick explicitly. Interrupt now stops what she is writing at
+// once; a tool that changes things finishes first (the pill says so, with Stop the command for a
+// command), and an approval card still needs Allow or Deny. What waits is shown as chips above the composer (× to cancel, Now to make a queued
 // one a steer, Send now / Remove after a restart). A side question's answer appears in a small card
 // that is gone after a reload: it was never stored.
 import { t } from './naming.js';
@@ -16,13 +18,13 @@ let busy = false;
 
 /** The default from Settings → You → While she's working. */
 export function setBusyDefault(m) {
-  mode = m === 'queue' ? 'queue' : 'steer';
+  mode = m === 'queue' || m === 'interrupt' ? m : 'steer';
   paint();
 }
 
-const other = (k) => (k === 'steer' ? 'queue' : 'steer');
-const effective = (k) => (ctx && !ctx.canSteer() && k === 'steer' ? 'queue' : k);
-const words = (k) => (k === 'queue' ? t('After this') : t('Tell her now'));
+const other = (k) => (k === 'queue' ? 'steer' : 'queue');
+const effective = (k) => (ctx && !ctx.canSteer() && (k === 'steer' || k === 'interrupt') ? 'queue' : k);
+const words = (k) => (k === 'queue' ? t('After this') : k === 'interrupt' ? t('Interrupt now') : t('Tell her now'));
 
 function paint() {
   const send = $('#send');
@@ -40,7 +42,7 @@ function paint() {
   else send.removeAttribute('title');
   more.hidden = !on;
   if (!on) closeMenu();
-  for (const b of document.querySelectorAll('#send-menu [data-busy="steer"]')) b.hidden = Boolean(ctx && !ctx.canSteer());
+  for (const b of document.querySelectorAll('#send-menu [data-busy="steer"], #send-menu [data-busy="interrupt"]')) b.hidden = Boolean(ctx && !ctx.canSteer());
 }
 
 /** Called by setComposerBusy: the split button while she works, the plain Send otherwise. */
@@ -56,10 +58,12 @@ function closeMenu() {
   $('#send-more')?.setAttribute('aria-expanded', 'false');
 }
 
-/** A typed /steer, /queue or /btw (with its text), or undefined for a plain message. */
+/** A typed /steer, /queue, /btw or /now (with its text), or undefined for a plain message. */
 export function typedBusy(text) {
-  const m = /^\/(steer|queue|btw)(?:\s+([\s\S]*))?$/i.exec(text.trim());
-  return m ? { kind: m[1].toLowerCase(), text: (m[2] ?? '').trim() } : undefined;
+  const m = /^\/(steer|queue|btw|now)(?:\s+([\s\S]*))?$/i.exec(text.trim());
+  if (!m) return undefined;
+  const k = m[1].toLowerCase();
+  return { kind: k === 'now' ? 'interrupt' : k, text: (m[2] ?? '').trim() };
 }
 
 /**
@@ -123,7 +127,16 @@ const snippet = (s, n = 60) => {
   return one.length > n ? `${one.slice(0, n - 1)}…` : one;
 };
 
-let lastInfo = { steerAt: null, detail: '' };
+let lastInfo = { steerAt: null, detail: '', interrupt: null };
+
+/** What the pill says while an interrupt waits (plain words: what she is stopping, and why it may wait). */
+function interruptWhen(info) {
+  const i = info.interrupt;
+  if (info.steerAt === 'approval' || i?.state === 'approval') return t("She's waiting for your answer on the card. Allow or Deny it, and she reads this right after. Your message doesn't answer the card.");
+  if (i?.state === 'tool' && i.stoppable) return t("Waiting for the command she's running to finish ({step}).", { step: snippet(i.summary || i.tool, 40) });
+  if (i?.state === 'tool') return t("Waiting for this step to finish ({step}): it changes things, so it isn't cut off halfway.", { step: snippet(i.summary || i.tool, 40) });
+  return t('Stopping her now…');
+}
 
 /** The chips above the composer (waiting, moved and stale items, in order). */
 export function renderPending(items, info = lastInfo) {
@@ -138,8 +151,11 @@ export function renderPending(items, info = lastInfo) {
     chip.setAttribute('role', 'listitem');
     chip.dataset.id = it.id;
     const text = snippet(it.content);
+    const now = it.state === 'waiting' && it.kind === 'steer' && it.meta?.now === true;
     const say =
-      it.state === 'stale'
+      now
+        ? `⚡ ${t('Interrupting…')} “${text}”`
+        : it.state === 'stale'
         ? `⏸ ${t('Not sent (Sara restarted): “{text}”', { text })}`
         : it.state === 'moved'
           ? `⏭ ${t('Next: “{text}”', { text })}`
@@ -148,7 +164,10 @@ export function renderPending(items, info = lastInfo) {
             : `⏭ ${t('After this: “{text}”', { text })}`;
     const line = ctx.el('span', 'pending-text', say);
     chip.append(line);
-    if (it.state === 'waiting' && it.kind === 'steer') {
+    if (now) {
+      chip.classList.add('interrupting');
+      chip.append(ctx.el('span', 'pending-when muted small', interruptWhen(info)));
+    } else if (it.state === 'waiting' && it.kind === 'steer') {
       const when = info.steerAt === 'approval' ? t('Answer the card first: Allow or Deny.') : info.steerAt === 'step' && info.detail ? t("She'll read it after this step ({step})", { step: snippet(info.detail, 40) }) : t('waiting for the next step');
       chip.append(ctx.el('span', 'pending-when muted small', when));
     }
@@ -162,13 +181,23 @@ export function renderPending(items, info = lastInfo) {
       b.addEventListener('click', () => void fn().catch((err) => ctx.append(ctx.bubble('error', err.message))));
       chip.append(b);
     };
-    const now = async () => renderPending((await ctx.api(`/conversations/${ctx.state.currentId}/pending/${it.id}/now`, { method: 'POST', body: {} })).pending);
+    const promote = async () => renderPending((await ctx.api(`/conversations/${ctx.state.currentId}/pending/${it.id}/now`, { method: 'POST', body: {} })).pending);
+    const cutIn = async () => {
+      await ctx.api(`/conversations/${ctx.state.currentId}/pending/${it.id}/interrupt`, { method: 'POST', body: {} });
+      await refreshPending();
+    };
+    const stopCmd = async () => {
+      await ctx.api(`/conversations/${ctx.state.currentId}/pending/stop-tool`, { method: 'POST', body: {} });
+      await refreshPending();
+    };
     const drop = async () => renderPending((await ctx.api(`/conversations/${ctx.state.currentId}/pending/${it.id}`, { method: 'DELETE' })).pending);
     if (it.state === 'stale') {
-      btn(t('Send now'), 'small', now);
+      btn(t('Send now'), 'small', promote);
       btn(t('Remove'), 'ghost small', drop);
     } else {
-      if (it.state === 'waiting' && it.kind === 'queue' && it.sender !== 'person' && ctx.canSteer()) btn(t('Now'), 'ghost small', now, t('Tell her now instead'));
+      if (it.state === 'waiting' && it.kind === 'queue' && it.sender !== 'person' && ctx.canSteer()) btn(t('Now'), 'ghost small', promote, t('Tell her now instead'));
+      if (it.state === 'waiting' && it.kind === 'steer' && !now && ctx.canSteer()) btn(t('Interrupt now'), 'ghost small', cutIn, t("Stop what she's doing and read this now"));
+      if (now && info.interrupt?.state === 'tool' && info.interrupt.stoppable) btn(t('Stop the command'), 'small', stopCmd, t('Stops the command she is running; she then reads your message'));
       btn('×', 'ghost small icon-x', drop, t('Remove'));
     }
     box.append(chip);
@@ -180,7 +209,7 @@ export async function refreshPending() {
   if (!ctx?.state.currentId) return;
   try {
     const r = await ctx.api(`/conversations/${ctx.state.currentId}/pending`);
-    renderPending(r.pending ?? [], { steerAt: r.steerAt ?? null, detail: r.detail ?? '' });
+    renderPending(r.pending ?? [], { steerAt: r.steerAt ?? null, detail: r.detail ?? '', interrupt: r.interrupt ?? null });
   } catch {
     /* keep what is shown */
   }
@@ -190,6 +219,21 @@ export async function refreshPending() {
 export function steerBubble(ev) {
   const b = ctx.bubble('user', ev.text, 'steer', ev.messageId);
   b.prepend(ctx.el('span', 'msg-from muted small steer-from', t('You, while she worked:')));
+  return b;
+}
+
+/** Interrupt now: her reply that was cut off, folded to its first line under "She was saying…". */
+export function sayingFold(b) {
+  if (!b || b.querySelector(':scope > .saying-toggle')) return b;
+  b.classList.add('was-saying', 'collapsed');
+  const tg = ctx.el('button', 'saying-toggle linkish small', t('She was saying…'));
+  tg.type = 'button';
+  tg.setAttribute('aria-expanded', 'false');
+  tg.addEventListener('click', () => {
+    const open = b.classList.toggle('collapsed') === false;
+    tg.setAttribute('aria-expanded', String(open));
+  });
+  b.prepend(tg);
   return b;
 }
 

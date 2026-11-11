@@ -24,7 +24,7 @@ import { leanSettings as leanSettingsOf } from '../lean.ts';
 import { compactAllowed as compactAllowedOf, getFold as getFoldSync, undoFold as undoFoldSync } from '../compact.ts';
 import { webSearchOff } from '../web-search-auto.ts';
 
-export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools' | 'learn' | 'saver';
+export type CommandName = 'new' | 'reset' | 'stop' | 'status' | 'help' | 'model' | 'remember' | 'start' | 'settings' | 'bug' | 'idea' | 'progress' | 'steer' | 'now' | 'queue' | 'btw' | 'goal' | 'loop' | 'when' | 'continue' | 'problems' | 'compact' | 'tools' | 'learn' | 'saver';
 /** Where the line was written: his DM, someone else's DM, a shared room, a room where he works with her. */
 export type Place = 'owner-dm' | 'partner-dm' | 'room' | 'work-room';
 /** Who wrote it (decided by the bridge from the platform user id, never by a name). */
@@ -42,7 +42,8 @@ export const BUSY_COMMANDS = ['steer', 'queue', 'btw'] as const;
 export const PERSIST_COMMANDS = ['goal', 'loop'] as const;
 /** Phase 119: owner-only commands that don't exist for anyone else (their line stays a normal message). */
 export const OWNER_ONLY_COMMANDS: ReadonlySet<CommandName> = new Set(['when', 'continue', 'problems', 'learn', 'saver']);
-const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, ...PERSIST_COMMANDS, 'when', 'problems', 'tools', 'learn', 'saver'];
+// Interrupt now: /now <text> stops what she is writing at once (typed, owner only; not in the menus).
+const ALL: readonly CommandName[] = [...MENU_COMMANDS, 'start', 'settings', 'bug', 'idea', 'progress', ...BUSY_COMMANDS, 'now', ...PERSIST_COMMANDS, 'when', 'problems', 'tools', 'learn', 'saver'];
 export const isCommandName = (s: string): s is CommandName => (ALL as readonly string[]).includes(s);
 
 /** One line per command (menus and /help). The owner's /status says more than the one others get. */
@@ -60,6 +61,7 @@ export const DESCRIPTIONS: Record<CommandName, string> = {
   idea: en('Suggest something to the people who make Sara'),
   progress: en('Show or hide her progress message in this chat (on / off)'),
   steer: en('Tell her something now: she reads it before her next step'),
+  now: en('Interrupt her and tell her now: she stops what she is writing and reads it'),
   queue: en('Queue a message for when she has finished'),
   btw: en('A quick side question while she works (not saved)'),
   goal: en('Keep going until it’s done: a goal for this chat that only a check you pick can end'),
@@ -155,6 +157,7 @@ export const APP_MENU: readonly { name: CommandName; args?: boolean; own?: boole
   { name: 'btw', args: true, member: true },
   { name: 'queue', args: true, member: true },
   { name: 'steer', args: true, member: true },
+  { name: 'now', args: true, member: true },
   { name: 'stop', member: true },
   { name: 'new', member: true },
   { name: 'reset', member: true },
@@ -263,7 +266,7 @@ export interface BridgeAdapter {
    * Phase 116 (BR2 §5.7): /steer and /queue with their text (the bridge's own runner keeps its reply
    * path). Returns the line to say ('' = nothing, e.g. a reaction was set instead).
    */
-  take?(kind: 'steer' | 'queue', text: string): Promise<string> | string;
+  take?(kind: 'steer' | 'queue' | 'interrupt', text: string): Promise<string> | string;
 }
 
 export interface ModelPick {
@@ -396,6 +399,7 @@ export async function runCommand(c: CommandContext): Promise<CommandReply> {
     case 'progress':
       return progressCommand(c);
     case 'steer':
+    case 'now':
     case 'queue':
       return takeCommand(c);
     case 'btw':
@@ -812,13 +816,14 @@ function loopCommand(c: CommandContext, conv: Conversation | undefined): Command
   }
 }
 
-/** Phase 116 (BR2 §5.7): /steer and /queue. */
+/** Phase 116 (BR2 §5.7): /steer and /queue; /now interrupts (stops her current step at once). */
 async function takeCommand(c: CommandContext): Promise<CommandReply> {
   const tr = (text: string, params?: Record<string, unknown>) => say(c.app, c.lang, text, params);
   const text = c.cmd.args.trim();
+  if (!text && c.cmd.name === 'now') return { text: tr('Tell me what to say after the command, like: /now {example}', { example: 'stop, use pnpm instead' }) };
   if (!text) return { text: c.cmd.name === 'steer' ? tr('Tell me what to change after the command, like: /steer {example}', { example: 'use pnpm, not npm' }) : tr('Tell me what to do next after the command, like: /queue {example}', { example: 'then update the docs' }) };
   if (!c.adapter.take) return { text: tr('That only works in a chat with her.') };
-  return { text: await c.adapter.take(c.cmd.name === 'steer' ? 'steer' : 'queue', text) };
+  return { text: await c.adapter.take(c.cmd.name === 'steer' ? 'steer' : c.cmd.name === 'now' ? 'interrupt' : 'queue', text) };
 }
 
 /** Phase 116 (BR2 §5.6): /btw, a side question beside the work (nothing stored, no tools). */
@@ -861,7 +866,7 @@ function helpText(app: AppContext, c: CommandContext): string {
   if (c.who === 'owner' && c.place === 'work-room') lines.push(`/new room: ${tr('Also start a new conversation for the whole room')}`);
   if (c.who === 'owner') for (const n of ['bug', 'idea'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/progress: ${tr(DESCRIPTIONS.progress)}`);
-  if (c.who === 'owner') for (const n of BUSY_COMMANDS) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
+  if (c.who === 'owner') for (const n of [...BUSY_COMMANDS, 'now'] as const) lines.push(`/${n}: ${tr(DESCRIPTIONS[n])}`);
   if (c.who === 'owner' && c.place === 'owner-dm') lines.push(`/when: ${tr(DESCRIPTIONS.when)}`);
   if (c.who === 'owner' && (c.place === 'owner-dm' || c.place === 'work-room')) lines.push(`/problems: ${tr(DESCRIPTIONS.problems)}`, `/help refs: ${tr('Attach a file, your changes or a web page with @')}`);
   const name = chatsSettings(app).namePrefix && c.bridge !== 'web' ? `\n${tr('You can also write just my name and the word, like "{example}".', { example: `${app.persona.name} ${c.lang === 'de' ? 'neu' : 'new'}` })}` : '';

@@ -86,6 +86,11 @@ export interface Tool {
    */
   runsCommands?: boolean;
   /**
+   * The call only reads, searches, looks or fetches: an owner's "Interrupt now" may cancel it
+   * mid-way (src/pending.ts `interruptible` also knows the built-in read-only tools by name).
+   */
+  interruptible?: boolean;
+  /**
    * Phase 73: calls that ask the owner first even when the tool is set to run on its own (the
    * "ask first" list: e.g. ssh_run with rm -rf, shutdown, a changed firewall).
    */

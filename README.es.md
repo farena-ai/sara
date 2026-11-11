@@ -24,7 +24,7 @@
 
 **Actualizar:** en un servidor Linux, `sudo sara update` (antes hace una copia de seguridad y vuelve atrás si ella no responde) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows y Mac: Ajustes → Datos y salud → Actualizaciones · Android: Google Play. [Cómo actualizar](docs/INSTALL.md#upgrading).
 
-> **Estado:** 3.4.3, [Lee las imágenes que le envías](https://github.com/farena-ai/sara/releases/tag/v3.4.3). La foto de un documento llega a un modelo que puede verla; copia los valores con exactitud y lo dice claramente cuando ninguno puede. [Ver novedades](#novedades)
+> **Estado:** 3.4.4, [Interrumpe y díselo ya](https://github.com/farena-ai/sara/releases/tag/v3.4.4). Interviene mientras trabaja: deja de escribir al instante y sigue desde tu mensaje; las ediciones y comandos nunca se cortan a medias. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versiones recientes · 6 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrumpe y díselo ya](docs/CHATS.md)** — Interrumpir ahora (menú Enviar, Ctrl+Enter o /now) detiene su respuesta o razonamiento y sigue desde lo que dijiste, conservando los pasos terminados y plegando lo que estaba diciendo. Los cambios en curso terminan primero y un comando largo tiene Detener el comando. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Lee las imágenes que le envías](docs/CHOOSING_A_MODEL.md)** — Las capturas de análisis, facturas o formularios llegan ahora a cualquiera de tus modelos que pueda ver; si el que responde no puede, otro la convierte primero en texto exacto. Guarda los valores con note add y, si ningún modelo puede verla, lo dice con Arréglalo en vez de fingir. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notas que nunca pierden lo que le contaste](docs/FEATURES.md)** — Añade cada cosa nueva a una nota bajo un título con fecha, se rechaza un guardado que borraría una nota, las versiones anteriores vuelven con Restaurar y un «guardado» sin respaldo se señala. El borde superior de la app de Windows coincide con la página y puede leer tus pestañas y archivos. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Recuerda tanto como su modelo puede contener](docs/CHOOSING_A_MODEL.md)** — Auto ajusta cuánto del chat tiene presente al modelo en uso (consultado al servicio o en una tabla con fecha), limita el historial de pago por token a un nivel equilibrado salvo que elijas la ventana completa, y da a los modelos locales de Ollama un contexto real. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documentos, su nombre en todas partes, uso del ordenador desde un servidor](docs/DOCUMENTS.md)** — Crea documentos reales con cualquier modelo (Word, PDF, hojas de cálculo, presentaciones) con Descargar, Abrir y Hacer cambios. Un acompañante con otro nombre muestra su nombre y pronombres en todas partes, con personajes predeterminados él y elle. El complemento de navegador y el uso del ordenador ahora funcionan con un clic. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Modo fácil](docs/AWAY_FROM_HOME.md)** — Hecho con un usuario primerizo: la configuración explica las claves y no se pierde, los problemas traen Arréglalo, Conectar la app de Sara y Usar Sara fuera de casa (Tailscale) están guiados y probados, Gmail son tres pasos y puedes decir «pon el texto más grande» con Deshacer. |
-| **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Cobra vida](docs/APPEARANCE.md)** — Elige Su retrato, animado en Apariencia y respira, parpadea, mira a su alrededor y mueve los labios al hablar, con gestos de escuchar, pensar y hablar y sus estados de ánimo, en el chat, Hoy y las llamadas. También sirven tu propia imagen o un modelo 3D .vrm. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versiones 2.6x anteriores</b>: de la 3.1.2 a la 2.61.5</summary>
+<summary><b>Versiones 2.6x anteriores</b>: de la 3.2.0 a la 2.61.5</summary>
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Cobra vida](docs/APPEARANCE.md)** — Elige Su retrato, animado en Apariencia y respira, parpadea, mira a su alrededor y mueve los labios al hablar, con gestos de escuchar, pensar y hablar y sus estados de ánimo, en el chat, Hoy y las llamadas. También sirven tu propia imagen o un modelo 3D .vrm. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Investigación que no se rinde](docs/RESEARCH.md)** — Pídele investigar un tema, hacer una guía o aprender algo y empieza una investigación: busca en vez de adivinar direcciones, salta los sitios que bloquean lectores automáticos, reintenta los lentos, sigue tras un reinicio, y una investigación interrumpida da igualmente un informe marcado como Parcial. |
 | **[3.1.1](https://github.com/farena-ai/sara/releases/tag/v3.1.1)** | **[Mudarse desde Hermes u OpenClaw, ahora fácil](docs/MOVE_IN_GUIDE.md)** — Si Hermes Agent u OpenClaw está en el mismo ordenador, Sara lo encuentra y la trae con un botón (personalidad, recuerdos, chats pasados, habilidades, horarios), con vista previa antes y Deshacer después. Desde otro ordenador basta pegar una línea y la página de Sara avanza sola. |
 | **[3.1.0](https://github.com/farena-ai/sara/releases/tag/v3.1.0)** | **[Correo más allá de Gmail](docs/EMAIL.md)** — Outlook.com y Microsoft 365 (correo y calendario), Yahoo, AOL, iCloud, Fastmail, Zoho, GMX, WEB.DE, Proton Mail y cualquier otro servidor de correo: busca, lee hilos, encuentra lo que espera respuesta, redacta, envía y organiza con las aprobaciones y el Deshacer de Gmail. Varios buzones con uno predeterminado; cada miembro del hogar puede conectar los suyos, privados. |

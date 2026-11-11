@@ -85,7 +85,7 @@ import { initUsageReport } from './usage-report.js';
 import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
-import { askAside, guardLine, initBusy, refreshPending, renderPending, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
+import { askAside, guardLine, initBusy, refreshPending, renderPending, sayingFold, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
@@ -2228,6 +2228,7 @@ function renderMessages(messages, opts = {}) {
       // Phase 115: files she shared, and where a photo came from.
       if (m.role === 'assistant' && Array.isArray(m.meta?.files) && m.meta.files.length) b.append(fileChips(m.meta.files));
       if (m.role === 'user' && m.meta?.steer) b.prepend(el('span', 'msg-from muted small steer-from', t('You, while she worked:')));
+      if (m.role === 'assistant' && m.meta?.interrupted === 'steer') sayingFold(b);
       if (m.role === 'user' && m.meta?.via && Array.isArray(m.meta?.images) && m.meta.images.length) b.prepend(el('span', 'msg-from muted small via-badge', t('Photo from {app}', { app: VIA_NAMES[m.meta.via] ?? String(m.meta.via).replace(/^plugin-/, '') })));
       if (m.meta?.team?.id) {
         const tb = el('button', 'ghost small team-link', `👥 ${t('Team task')} #${m.meta.team.id}`);
@@ -2818,6 +2819,15 @@ async function runStream(path, body, userBubble) {
           if (ev.kind === 'websearch') n.append(' ', webSearchButton(Boolean(ev.oneTap)));
           if (ev.kind === 'disclosure' && userBubble) userBubble.before(n);
           else append(n);
+        } else if (ev.type === 'interrupted') {
+          // Interrupt now: his message stopped her mid-reply; what she wrote folds under "She was saying…".
+          if (voiceOn()) speaker.stop();
+          const r = reply;
+          endReply();
+          if (r && ev.text) sayingFold(r);
+          else r?.remove();
+          setActivity('thinking');
+          void refreshPending();
         } else if (ev.type === 'steer') {
           // Phase 116 (§5.4): his message was taken at the safe point: shown inside the turn.
           endReply();
@@ -3065,17 +3075,20 @@ async function runStream(path, body, userBubble) {
 $('#composer').addEventListener('submit', (e) => {
   e.preventDefault();
   const alt = state.altSend === true;
+  const now = state.nowSend === true;
   state.altSend = false;
+  state.nowSend = false;
   const text = $('#input').value.trim() || (state.photos.length ? '(photo)' : state.docs.length ? '(document)' : '');
   if (!text) return;
   if (state.streaming || state.watch) {
-    // Phase 116 (BR2 §5.5): while she works: the default (Enter), the other one (Alt+Enter), or /steer /queue /btw.
+    // Phase 116 (BR2 §5.5): while she works: the default (Enter), the other one (Alt+Enter), Interrupt now
+    // (Ctrl/Cmd+Enter), or /steer /now /queue /btw.
     if (!busySendAllowed() || state.docs.length) return;
     $('#input').value = '';
     autosize();
     const images = state.photos.splice(0);
     renderAttachments();
-    void sendBusy(text, { alt, images });
+    void sendBusy(text, { alt, images, ...(now ? { kind: 'interrupt' } : {}) });
     return;
   }
   $('#input').value = '';
@@ -3087,7 +3100,13 @@ $('#input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
     e.preventDefault();
     state.altSend = e.altKey;
+    state.nowSend = e.ctrlKey || e.metaKey;
     $('#composer').requestSubmit();
+  }
+  // Esc in the empty message box while she works = Stop (the same as the Stop button).
+  if (e.key === 'Escape' && !e.isComposing && state.streaming && !$('#input').value.trim() && $('#send-menu')?.hidden !== false) {
+    e.preventDefault();
+    $('#stop')?.click();
   }
 });
 
