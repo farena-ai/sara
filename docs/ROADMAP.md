@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## A desktop app that does more than the browser, in 3.5.0
+
+The Windows app now updates itself (checked against Sara's signed release notice; Settings, Devices
+shows each app's version with Update it). Quick ask takes the text you selected in any app or a picture
+of the window in front, push-to-talk sends when you let go, and her replies can be spoken with the window
+closed. Drop files, folders and links anywhere on her window, and save her documents straight to your PC
+or a folder of your choice. With a switch you turn on, she can run commands and open things on your PC,
+each one approved on that PC and stoppable. Recent chats and notes stay readable offline, and messages
+written offline are sent once when you're back.
+
 ## Quick replies from models on a processor, in 3.4.5
 
 Sara now asks each Ollama whether it runs a model on a graphics card or on the processor. On a

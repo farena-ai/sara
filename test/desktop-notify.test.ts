@@ -37,7 +37,12 @@ test('Windows: the AUMID is set on the process and on the shortcuts, with the to
   const clsid = '57448757-B168-47CE-9852-892129855C82';
   assert.ok(c.includes(`L"{${clsid}}"`));
   assert.match(c, /\{0x57448757, 0xb168, 0x47ce, \{0x98, 0x52, 0x89, 0x21, 0x29, 0x85, 0x5c, 0x82\}\}/);
-  assert.match(iss(), new RegExp(`Name: "\\{autoprograms\\}\\\\Sara";.*AppUserModelID: "BackstageCoding\\.Sara"; AppUserModelToastActivatorCLSID: "${clsid}"`));
+  // The release values sit in sara.iss's #else branch (TestInstall, the app's update test, has its own).
+  assert.match(iss(), /Name: "\{autoprograms\}\\\{#AppTitle\}";.*AppUserModelID: "\{#AppAumid\}"; AppUserModelToastActivatorCLSID: "\{#AppToastClsid\}"/);
+  const release = iss().split('#else')[1].split('#endif')[0];
+  assert.match(release, /#define AppTitle "Sara"\n/);
+  assert.match(release, /#define AppAumid "BackstageCoding\.Sara"\n/);
+  assert.ok(release.includes(`#define AppToastClsid "${clsid}"`));
   // The app's own Start-menu shortcut (self-install) and older shortcuts / taskbar pins get both too.
   assert.match(c, /PKEY_AppUserModel_ID/);
   assert.match(c, /PKEY_AppUserModel_ToastActivatorCLSID/);
@@ -57,7 +62,7 @@ test('Windows: the AUMID is set on the process and on the shortcuts, with the to
   assert.match(read('desktop', 'windows', 'CMakeLists.txt'), /runtimeobject propsys/);
   // Uninstall removes what the app registered (the app's own uninstall and the installer's).
   assert.match(fn(c, 'static void uninstall()', '// ---------- window, tray'), /saratoast::unregisterApp\(aumid\(\), toastClsidText\(\)\);/);
-  assert.match(iss(), /Subkey: "Software\\Classes\\AppUserModelId\\BackstageCoding\.Sara"; Flags: uninsdeletekey dontcreatekey/);
+  assert.match(iss(), /Subkey: "Software\\Classes\\AppUserModelId\\\{#AppAumid\}"; Flags: uninsdeletekey dontcreatekey/);
   // A test run never uses the real app's AUMID, activator, lock or Send To entry.
   assert.match(c, /testRun\(\) \? L"BackstageCoding\.Sara\.Test" : kAumid/);
   assert.match(fn(c, 'static bool testRun()', '}\n'), /#ifdef SARA_TEST_HOOKS/);
@@ -176,7 +181,7 @@ test('Windows: a second start forwards its files (WM_COPYDATA) and Send To is of
   assert.match(main, /if \(GetLastError\(\) == ERROR_ALREADY_EXISTS\) \{/);
   assert.match(main, /COPYDATASTRUCT cd\{kCopyFiles,/);
   assert.match(main, /SendMessageTimeoutW\(other, WM_COPYDATA, 0, \(LPARAM\)&cd, SMTO_ABORTIFHUNG, 5000, &r\);/);
-  assert.match(main, /testRun\(\) \? L"Local\\\\SaraDesktopAppTest" : L"Local\\\\SaraDesktopApp"/);
+  assert.match(main, /testRun\(\) \? \(L"Local\\\\SaraDesktopAppTest-" \+ testRunTag\(\)\)\.c_str\(\) : L"Local\\\\SaraDesktopApp"/);
   // The running app finds the window it shared (never another app's of the same class in a test run).
   assert.match(c, /if \(!w && !testRun\(\)\) w = FindWindowW\(kWindowClass, nullptr\);/);
   const cd = fn(c, 'case WM_COPYDATA: {', 'return TRUE;');
@@ -190,7 +195,8 @@ test('Windows: a second start forwards its files (WM_COPYDATA) and Send To is of
   assert.match(c, /L"Send to Sara in Explorer"/);
   assert.match(c, /case ID_SENDTO: setSendTo\(!sendToOn\(\)\); break;/);
   assert.match(fn(c, 'static void uninstall()', '// ---------- window, tray'), /DeleteFileW\(sendToPath\(\)\.c_str\(\)\)/);
-  assert.match(iss(), /Type: files; Name: "\{usersendto\}\\Sara\.lnk"/);
+  assert.match(iss(), /Type: files; Name: "\{usersendto\}\\\{#AppSendTo\}"/);
+  assert.match(iss().split('#else')[1].split('#endif')[0], /#define AppSendTo "Sara\.lnk"/);
 });
 
 test('files go into the message box (the page\'s own attach), never sent by themselves', () => {
@@ -236,7 +242,9 @@ test('quick ask: talking instead of typing, through the server\'s own hearing', 
   assert.match(p, /fetch\('\/api\/voice\/transcribe', \{ method: 'POST', credentials: 'same-origin', headers: \{ 'content-type': 'audio\/wav' \}/);
   assert.match(p, /st\.stt === 'openai' \|\| \(st\.stt === 'local' && local\.stt\)/, 'shown only when her hearing is set up');
   assert.match(p, /setTimeout\(\(\) => stopMic\(true\), 120000\)/, 'at most 2 minutes');
-  assert.match(p, /hidden\(\) \{ stopMic\(false\);/, 'hiding the window stops a recording (2.59: and ends a wake)');
+  assert.match(p, /hidden\(o = \{\}\) \{\s+stopMic\(false\);/, 'hiding the window stops a recording (2.59: and ends a wake)');
+  // Quick ask anywhere: only a click elsewhere (soft) lets her voice turn go on; Esc / ✕ end it.
+  assert.match(p, /if \(o\.soft\) return true;\s+if \(wake\) \{ wake\.stopped = wake\.cancelled = true;[^\n]*endWake\('cancel'\); \}/);
   assert.doesNotMatch(p, /\sstyle=["']/);
   // The microphone for the quick-ask page only (Windows) / its server origin only (Mac).
   const c = cpp();

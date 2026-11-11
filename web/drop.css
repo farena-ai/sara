@@ -1,0 +1,56 @@
+/* Drop anywhere on her window (web/drop.js) and Save to my PC (web/save-to-pc.js). */
+#drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: color-mix(in srgb, var(--surface-0) 72%, transparent);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+#drop-overlay.on { display: flex; }
+#drop-overlay .drop-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+  max-width: 520px;
+  width: 100%;
+  padding: 40px 28px;
+  border: 2px dashed var(--accent);
+  border-radius: 18px;
+  background: var(--surface-2);
+  color: var(--text-1);
+  text-align: center;
+}
+#drop-overlay .drop-title { font-size: 1.35rem; }
+#drop-overlay .drop-sub { opacity: 0.8; font-size: 0.92rem; }
+
+.pc-save { display: inline-flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pc-save .pc-saved { font-size: 0.86rem; opacity: 0.85; }
+.file-chips .pc-save { margin: 2px 0 6px; }
+.doc-card-actions .pc-save { flex-basis: 100%; }
+.doc-card[draggable="true"] { cursor: grab; }
+
+#pc-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 9001;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  max-width: min(520px, calc(100vw - 36px));
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  color: var(--text-1);
+  box-shadow: 0 6px 24px var(--scrim);
+}
+#pc-toast[hidden] { display: none; }
+#pc-toast .pc-toast-text { flex: 1; }
+
+.dk-save-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }

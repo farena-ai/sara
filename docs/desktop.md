@@ -93,6 +93,61 @@ HTTP (the Windows installer, the Windows app and the Mac app use the same rule).
   `~/Library/Application Support/Sara` until `sara uninstall --delete-data`, and *Set up Sara on this
   Mac…* brings her back as she was).
 
+## How the app updates
+
+Sara's server updates itself (Settings → Updates). **The Windows app updates itself too**, which
+matters most for the app-only install (*Connect to a Sara somewhere else*): nothing else ever
+updated it, so an app could stay on an old version for months while its server moved on.
+
+- **What it trusts.** The app reads the same signed update notice as the server
+  (`update-notice.json` on each GitHub release, `src/update-notice.ts`): the version, each
+  platform's installer and its SHA-256, signed with the release-notice Ed25519 key. Windows builds
+  are not code-signed, so that signature and the SHA-256 are the trust anchor. The app checks the
+  signature itself (`desktop/windows/src/ed25519-verify.cpp`: TweetNaCl's public-domain Ed25519
+  arithmetic with Windows' own SHA-512, because Windows has no Ed25519 signatures of its own), so it
+  never depends on the server it is connected to: an old server, a newer one, or one somebody else
+  runs. It refuses a notice that isn't signed by the release key, one older than a notice it has
+  already seen, a file that isn't on the release page, and never installs a version older than its own.
+- **When it checks.** At start (unless it checked in the last 15 minutes), then every 6 hours, and
+  soon after its server says it is newer than the app (at most once an hour). Offline, behind a proxy
+  (it uses the system's proxy settings) or blocked: it tries again an hour later and says nothing.
+- **Update the app by itself** (Settings → This computer, on by default): a new app is downloaded in
+  the background to `%LOCALAPPDATA%\Sara\updates`, checked against the notice's SHA-256 and
+  installed when you quit the app, or at a quiet moment (the window is closed to the tray and nobody
+  has used the computer for 20 minutes). Never while Sara is using the computer (computer use). Off:
+  the tray menu and the window say *Sara app 3.4.6 is ready* with **Update now** and **Later**.
+- **Installing.** A copy of `Sara.exe` in the updates folder (the watcher, `Sara.exe --apply-update`)
+  waits for the app to close, checks the SHA-256 once more, runs Setup silently in the mode it was
+  installed (`/VERYSILENT /MODE=remote`, the same server), puts the app's server settings back as
+  they were, checks the new app's version and starts the app again (hidden next to the clock when it
+  was). Your sign-in, servers and settings stay: Setup keeps the same address, so the sign-in is never
+  cleared.
+- **When something goes wrong.** A download that doesn't match the notice is deleted and nothing is
+  installed. If Setup fails (or the app is still the old version afterwards), the old app stays, it
+  starts again and says so in plain words with the download page. A version that failed is not tried
+  by itself again for a while (1 hour, then 2, 4… up to 2 days), so it never loops; **Update now** (or
+  the server's **Update it**) tries again at once.
+- **Settings → Devices** shows, for each signed-in Sara app, its version and whether it is older
+  than the server, with **Update it**: the app updates the next time it checks in (its page checks in
+  every 5 minutes while it runs). The owner sees their own apps and their household members' apps;
+  a member sees only their own (`/api/app-updates`, a member route). Apps from before this feature
+  don't check in and aren't listed: update them once by hand (download Sara-Setup and run it).
+- **With Sara's server on the same PC** (*Run Sara on this computer*), the server's own update
+  installs the app with her (Settings → Updates; the service install uses the Sara Update task). The
+  app then only points there.
+- **The Mac app doesn't update itself yet.** The signed notice already lists the Mac download, and
+  macOS can check Ed25519 itself (CryptoKit), but replacing a signed `Sara.app` safely needs the Mac
+  build and a Mac to test on. Until then: download the new `Sara.dmg` and drag Sara into
+  Applications (a Mac running Sara's server updates the whole app from Settings → Updates).
+- **Testing it** (never with the real key or a real install): `SARA_TEST_INSTALL=1
+  SARA_APP_VERSION=3.4.4 bash desktop/windows/build-installer.sh` builds a test-hooks app in an
+  installer of its own (`outputs/windows-updtest`: another AppId, `%LOCALAPPDATA%\Programs\SaraUpdTest`,
+  data in `%LOCALAPPDATA%\SaraUpdTest\data`, so a real Sara on the PC is never touched). Run that app
+  with `SARA_DESKTOP_TEST_DIR` set to that data folder and `SARA_UPDATE_NOTICE_URL`,
+  `SARA_UPDATE_ASSET_BASE` (an `http://127.0.0.1:<port>/` test server) and `SARA_UPDATE_KEY` (a test
+  public key); release builds don't contain these. `test/app-update-native.test.ts` checks the
+  native notice check against notices Node signed (build `desktop/windows/build-test` first).
+
 ## Private: everything on this computer (Phase 67)
 
 In *Run Sara on this computer* mode both installers ask one more thing: **Private: everything on
@@ -146,6 +201,16 @@ a Sara somewhere else*. How it works:
 The app keeps only the server addresses and its own settings. Each sign-in is that server's session
 cookie, stored in the app's own web view profile for that server; sign it out from Settings →
 Devices and sign-in like any other device, or remove the server in the app (Phase 68). Adult mode can't be turned on from the apps (web browser only).
+
+## Without a connection (works offline)
+
+When her server can't be reached, the app shows the chats and notes it kept, read-only, under
+"Offline — showing what this device kept (as of 10:42)", and what you write waits as *Waiting to
+send* until she answers again (sent once, in order: "Back online — sent 2 messages"). In the apps
+*Keep a copy on this device for offline* is on by default (Settings → Connections → Devices and
+sign-in); the copy is encrypted by the app's web view and deleted when you sign out. The app's own
+"Can't reach your Sara" page only appears when the page was never loaded on this computer; otherwise
+the page's offline page shows the kept copy. See [OFFLINE.md](OFFLINE.md).
 
 ## Building
 
@@ -352,6 +417,43 @@ profile, opened by her: `pc_browser_*`) and, separately, can look at **yours**:
 - The companion's name: every computer-use text from the server uses it ("Fred’s browser"); the app's
   badge shows the name each request carries ("Fred is working in Fred’s browser"). The download
   folder keeps its name on disk (`Downloads\Sara`) so existing installs keep working.
+
+### Commands on this computer (3.5, PC tools)
+
+Off by default. In the Sara app: Settings → Computer use → **Let her run commands on this computer**
+(needs *Let Sara use this computer*). Then she can:
+
+- **run one command** (`pc_run`): PowerShell (default) or cmd, in a folder you name or your home
+  folder, for up to 10 minutes (60 seconds unless she asks for more). She gets the exit code and the
+  start and end of the output (at most 64 KB from the computer, 16,000 characters for her model);
+- **open one thing** (`pc_open`): a web address (https, mailto), a file or folder by its full path,
+  or an app by its Start-menu name. Never a program or script file, never a command line.
+
+**Every command is shown on this computer** in the app's own card: the shell, the folder and the
+whole command, with **Allow once**, **Allow for this task** and **Don't** (closing it is Don't). The
+answer exists only on this computer: a phone or the web chat can't approve. *Approvals for commands*
+has the same choices as desktop actions (*Ask once per task*, *Ask every time*, *Always allowed*,
+which asks you to confirm). Commands that delete, change settings, stop programs or download and run
+things always ask, and only offer *Allow once*. **Simple read-only commands without asking** (off by
+default) lets a short list run without the card: one `dir` / `Get-ChildItem` / `Get-Content` /
+`type` / `Get-Process` / `git status|log|diff|branch`, with pipes only to `Select-Object`,
+`Sort-Object`, `Format-*` or `Measure-Object`, no `;`, `&`, redirects or subexpressions.
+
+Commands run as you, **never as administrator**: `runas`, `sudo` and `-Verb RunAs` are refused, and
+if the app itself runs as administrator nothing runs. Each command runs in a Windows Job object:
+**Stop** (the chat card, the badge, Ctrl+Alt+Esc), the timeout and the end of the command end it and
+everything it started (use `pc_open` for an app that should stay open). Nothing new starts while the
+computer is locked or you took over. Key-shaped text (API keys, tokens) in the output is replaced by
+`[hidden]` here and again on the server. *What Sara did on this computer* lists every command (ran,
+stopped, said no), and the server's audit trail has a `pc.run` line for each.
+
+Household members' companions never get these tools; private chats can use them (the command runs
+here and its output goes to the model that chat uses). An app older than 3.5 doesn't offer commands:
+she says to update it. The Mac app can't run commands yet.
+
+To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it as a model provider
+(*Ollama on my computer*, over Tailscale or your home network): see
+[CHOOSING_A_MODEL.md](CHOOSING_A_MODEL.md).
 
 ### Desktop actions (Phase 93 implementation draft; not released)
 
@@ -574,6 +676,58 @@ The apps tell the page they can host its header in the title bar; the page answe
 - **Tray / menu bar:** her face and mood at the top, *Ask Sara…*, then *Now*: approvals waiting (Allow /
   Deny / Open in Sara) and running jobs. Refreshed every 45 s, when the menu opens and on job/turn events.
 
+## Quick ask anywhere: selected text, this window, voice
+
+Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in `main.cpp`; the page is
+`desktop/shared/quick-ask.html`).
+
+- **Selected text:** when the quick-ask shortcut is pressed, the app remembers the window in front and
+  reads its selection: UI Automation's `TextPattern` selection of the focused control first (an empty
+  selection stays empty); only when that control has no text pattern, a simulated Ctrl+C after the
+  shortcut's keys are let go, with every clipboard format saved before and put back right after. If any
+  format can't be put back byte for byte (GDI handles other than a DIB-backed bitmap or EMF, over
+  64 MB), there is no Ctrl+C. Never for a password field (UI Automation `IsPassword`, `ES_PASSWORD` /
+  `EM_GETPASSWORDCHAR` on Edit-based controls, checked again just before the copy), Sara's own
+  windows, or a window hidden from her hands' rules (`sarascreen::hiddenKindOf`: password managers,
+  banking, security settings, the person's own list). Key-shaped text is masked; at most 8,000
+  characters. The page shows a chip `From Notepad: “…”` with ✕; on Send the question carries it as
+  `Selected in Notepad:` and a fenced block. The log says the app, the length and how it was read,
+  never the text. Tray: *Quick ask includes selected text* (`quickAskSelection`, on); `quickAskCopy=0`
+  in `desktop.ini` keeps it to UI Automation only. Note: an app that copies (the fallback) may show the
+  selection in Windows' clipboard history (Win+V).
+- **This window:** the picture button (shown when another app was in front) sends `{a:'window'}`; the
+  app takes one picture of that window with hands-screen's `shot()` (PrintWindow, hidden windows
+  blacked out, password fields boxed, 1600 px) and hands it to `saraQuick.picture({data, w, h})`. One
+  removable thumbnail chip; it goes as a normal photo (`images`) with the question. No second shortcut.
+- **Push-to-talk:** the talk shortcut still taps as before (stops after a pause or a second press).
+  Held longer than 350 ms (`pttTick`, `GetAsyncKeyState`) the page gets `saraQuick.hold()` (no stop on
+  a pause, up to 2 minutes), letting go `saraQuick.release()` sends it to `/api/wake/turn`, Esc
+  `saraQuick.cancelTalk()` throws it away (nothing is sent).
+- **Spoken replies in the app:** her voice turns already play in the quick-ask web view, which lives in
+  the app (not the main window). *Speak her replies* in the tray (`speakReplies`, off) also speaks typed
+  quick-ask answers through `/api/voice/speak`, only when her voice is on, not in private local mode
+  unless the voice is on this computer, and not in quiet hours (`/api/wake/config` `paused:'quiet'`).
+  Clicking elsewhere hides quick ask softly (`saraQuick.hidden({soft:true})`): the turn and her voice go
+  on; Esc / ✕ stop them. The quick-ask page's CSP now allows `media-src blob:` (before, her spoken
+  pieces there were blocked).
+- **The pill:** `SaraVoicePill`, a no-activate topmost window above the notification area, shows
+  *Listening…* / *Listening · let go to send* / *Thinking…* / *Speaking · click to stop* while her voice
+  state is active and quick ask isn't in front. A click stops her speaking (or shows quick ask).
+- **Mac:** not done yet. The page part is shared and degrades cleanly (no context → no chips, no picture
+  button). Cheap next steps: `AXUIElementCopyAttributeValue(kAXSelectedTextAttribute)` on the focused
+  element (needs the Accessibility permission; no pasteboard fallback without it), `CGWindowListCreateImage`
+  / ScreenCaptureKit for the window (Screen Recording permission), and Carbon's `kEventHotKeyReleased`
+  for push-to-talk; pass `context` in `saraQuick.show` and answer `{a:'window'}` like Windows.
+- **Checked on Windows 11 (test build, throwaway server with a fake model and fake speech API):** text
+  selected in Notepad became the chip through UI Automation; with `SARA_QA_FORCE_COPY=1` (test builds
+  only) the Ctrl+C path read it and the clipboard (text, a bitmap and a private format) came back
+  unchanged; a WinForms password box was skipped on both paths; Sara's own window was skipped; the
+  window picture arrived (1107×1018) and the server stored the question with the selection and the
+  photo; push-to-talk held 3 s went through transcription, her reply and her voice with the pill
+  showing; Esc while holding sent nothing; *Speak her replies* off / on spoke 0 / 1 times. The fake
+  microphone was `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<wav>` in
+  `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`.
+
 ## Notifications and files (2.7)
 
 - **Notifications:** Windows toasts (app ID `BackstageCoding.Sara`, set on the Start-menu shortcut by the
@@ -589,6 +743,51 @@ The apps tell the page they can host its header in the title bar; the page answe
   normal type and size checks; nothing is sent until the owner presses Send.
 - **Quick ask voice:** records up to 2 minutes and uses the server's `/api/voice/transcribe`; the mic shows
   only when her hearing is set up.
+
+## Drop files in, save her documents out
+
+**Drop anywhere** (`web/drop.js`, `web/drop-files.js`, in the page, so the browser, the Windows app
+and the Mac app all get it): dragging files, folders, pictures, text or a link over her window shows
+a full-window "Drop to give these to Sara" with the limits (5 documents and 4 photos per message, the
+Library's size limit per document; non-PDFs over 100 MB need to be PDFs). Folders give their files
+(up to 20, a few levels deep, hidden files and folders left out; files she can't read are skipped
+quietly). Text and links go into the message box at the cursor. Nothing is ever sent by a drop. Her
+own drags (a conversation onto a project, a document card) don't open the overlay. The limits come
+from `GET /api/library/settings` (`maxBytes`, `maxOtherBytes`; members see theirs).
+
+**Quick ask** (Windows): files dropped on it go to the main window's message box like Send To
+(`chrome.webview.postMessageWithAdditionalObjects` → the app reads the paths → the same route as
+`Sara.exe <files>`). A folder from Send To, `Sara.exe <folder>` or the quick ask gives its top-level
+files (up to 10). Mac: the quick ask says to drop them on her main window (WKWebView can't hand
+dropped files to the app); drops on the main window work there as in a browser.
+
+**Save to my PC** (Windows app, `desktop/windows/src/save-files.cpp`): on document cards, files she
+shared and the Library's document page, "Save to…" opens the Windows Save window (in the folder used
+last, else Documents) and "Save to Downloads" saves straight there (a name that's taken becomes
+`Report (2).docx`); then Open and Show in folder. Settings → This computer → "Put her documents in a
+folder automatically" (off by default; Choose folder…, Documents\Sara at first) saves each new
+document she makes in the live chat (not on reload) and shows "Saved Report.docx to Documents\Sara".
+How: the page calls `SaraDesktop.call('saveFile', {url, name, mode})` with one of her own file
+addresses (`/api/library/made/<n>/file`, `/api/library/<n>/file`, `/api/files/<id>`; nothing else);
+the app starts that download in the page (so the page's own sign-in applies and the server's
+household rules decide: members only get their own) and WebView2's `DownloadStarting` writes it to
+the chosen path with no download bubble. The page gets back only the file name, a two-part folder
+label and a token for `saveOpen`; full paths never leave the app. Prefs in desktop.ini:
+`saveLastDir`, `docsAutoOn`, `docsAutoDir`. Test runs save into their own data folder
+(`Downloads`, `Documents\Sara` there). Older apps don't send `saveFiles` in `getPrefs`, so the page
+shows only the Download links, as in a browser.
+
+**Mac:** Save to… / Downloads / the automatic folder are not in the Mac app yet (its cards keep
+Download, which WKWebView saves to Downloads).
+
+**Drag out:** a document card carries Chromium's `DownloadURL`, so in Chrome and Edge it can be
+dragged to a folder. In the Windows app this was not verified on a real desktop drag (WebView2 may
+not support `DownloadURL` drags); use Save to… there.
+
+**Testing:** `test/desktop-drop.test.ts`. A real run on Windows: a throwaway server and an
+OpenAI-compatible fake model that calls `make_document`, the test build (`-DSARA_TEST_HOOKS=ON`,
+`SARA_DESKTOP_TEST_DIR`, `--portable`) with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=…`,
+and CDP's `Input.dispatchDragEvent` with real file paths for the drops.
 
 ## Linux hands (CU8 implementation draft)
 

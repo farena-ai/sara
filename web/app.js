@@ -39,6 +39,8 @@ import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
+import { onPcRunEvent } from './pc-run-card.js';
+import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { checkPrompts as checkDevicePrompts, initDeviceApproval, loadDeviceApproval, waitForApproval, waitOnSignIn } from './device-approval.js';
@@ -52,6 +54,8 @@ import { initPresence, loadPresence } from './home-presence.js';
 import { initBring } from './bring.js';
 import { initCards } from './cards.js';
 import { docCard } from './doc-card.js';
+import { initDrop } from './drop.js';
+import { addSaveButtons, autoSaveMade, fillSaveSettings } from './save-to-pc.js';
 import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
@@ -79,6 +83,7 @@ import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
+import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
 import { initDataRights } from './data-rights.js';
 import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
@@ -170,6 +175,10 @@ async function api(path, opts = {}) {
     headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {},
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     signal: opts.signal,
+  }).catch((err) => {
+    // Feature 4: no server answered: the offline check runs now (web/offline-hook.js).
+    if (err?.name !== 'AbortError') offlineHint();
+    throw err;
   });
   if (opts.raw) return res;
   const data = await res.json().catch(() => ({}));
@@ -266,6 +275,8 @@ async function boot() {
   // 2.18: "Sara was updated to X", the on-open update check and the version watch (web/update-check.js).
   initUpdates(session);
   startEvents();
+  // Feature 4: this device's copy of the recent chats and notes, and the outbox (web/offline-hook.js).
+  void initOffline({ session, t, current: () => state.currentId, onBack: () => void backFromOffline(), open: (id) => (state.currentId = id) });
   // EC24: a helper prompt that was asked before this page opened shows now (owner only).
   if (session.role === 'owner') void loadPhoneHelper();
   void api('/settings').then((s) => {
@@ -475,6 +486,8 @@ $('#demo-start').addEventListener('click', async () => {
 });
 
 $('#logout').addEventListener('click', async () => {
+  // Feature 4: signing out deletes this device's offline copy and outbox.
+  await offlineSignOut();
   await api('/logout', { method: 'POST', body: {} });
   show('login');
 });
@@ -495,6 +508,12 @@ async function loadConversations() {
     for (const [k, n] of Object.entries(r.totals)) if (k !== 'none' || n) state.unloaded[k] = Math.max(0, n - (loaded[k] ?? 0) - (k === 'none' ? state.conversations.filter((c) => c.offRecord).length : 0));
   }
   renderConversations();
+  offlineSawList(state.conversations);
+}
+/** Feature 4: back online (the outbox was sent): the list and the open chat again. */
+async function backFromOffline() {
+  await loadConversations().catch(() => {});
+  if (state.currentId && !state.streaming) await openConversation(state.currentId).catch(() => {});
 }
 
 // ---------- conversation list: channel projects, projects, no project, archived, hidden ----------
@@ -2028,6 +2047,8 @@ function renderMessages(messages, opts = {}) {
   renderSceneChip(state.conv);
   const box = $('#messages');
   state.messages = messages;
+  // Feature 4: what the chat shows now is kept on this device for offline reading (debounced).
+  if (state.conv?.id && messages.length) offlineSawChat(state.conv, messages);
   if (!messages.length) {
     const empty = document.createElement('div');
     empty.className = 'empty';
@@ -2723,12 +2744,14 @@ window.saraDesktopAttach = (files) => {
   $('#input').focus();
   return true;
 };
-for (const ev of ['dragover', 'drop']) {
-  $('#chat').addEventListener(ev, (e) => {
-    if (!e.dataTransfer?.types.includes('Files')) return;
-    e.preventDefault();
-    if (ev === 'drop') addFiles(e.dataTransfer.files);
-  });
+// Drop anywhere on the window (web/drop.js): files, folders, pictures, text and links.
+initDrop({ take: (files) => window.saraDesktopAttach(files), insertText: (s) => insertComposer(s), say: (msg) => append(bubble('error', msg)), isDoc: isDocFile, ready: () => !document.body.classList.contains('demo') });
+function insertComposer(s) {
+  const input = $('#input');
+  const at = input.selectionStart ?? input.value.length;
+  input.value = `${input.value.slice(0, at)}${s}${input.value.slice(input.selectionEnd ?? at)}`;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
 }
 
 /** Posts to a turn endpoint and shows the streamed reply, tools and approvals as they arrive. */
@@ -3009,6 +3032,7 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'file') {
           // Phase 115: a file she shared (send_file): a chip that downloads it.
           place(fileChips([ev]));
+          if (ev.made?.id) void autoSaveMade(ev);
         } else if (ev.type === 'image') {
           endReply();
           place(bubble('assistant', '', 'photo', undefined, [`/api/uploads/${ev.id}`]));
@@ -3186,6 +3210,7 @@ function fileChips(files) {
     a.append(el('span', 'file-chip-name', f.name ?? t('File')), el('span', 'file-chip-size muted small', fileSize(Number(f.bytes ?? 0))));
     a.title = t('Download {name}', { name: f.name ?? '' });
     box.append(a);
+    addSaveButtons(box, { url: `/api/files/${encodeURIComponent(f.id)}`, name: f.name ?? 'file' });
   }
   return box;
 }
@@ -8752,6 +8777,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-updates') void loadUpdates();
   // 3.3.0: reach Sara from the phone and away from home (web/reach.js).
   if (pick === 'dh-devices') void renderAway($('#reach-away'));
+  if (pick === 'dh-devices') showOfflineSettings();
   if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'dh-recovery') {
@@ -12996,6 +13022,7 @@ async function loadDevices() {
   $('#dev-list').replaceChildren(
     ...devices.map((d) => {
       const li = el('li', d.current ? 'current' : '');
+      li.dataset.dev = d.id;
       // API keys read like on Other apps: "made …", coarse use, and Remove (not "signed in / Sign out").
       const key = d.kind === 'api';
       const when = key
@@ -13016,6 +13043,7 @@ async function loadDevices() {
     }),
   );
   $('#dev-others').hidden = devices.length < 2;
+  void loadAppInstalls();
 }
 $('#dev-others').addEventListener('click', async () => {
   if (!confirm(t('Sign out every other browser and phone?'))) return;
@@ -13186,6 +13214,7 @@ async function loadDesktop() {
   $('#dk-notify').checked = p.notifications !== false;
   $('#dk-version').textContent = `${t('Sara for {platform}', { platform: p.platform === 'mac' ? 'Mac' : 'Windows' })} ${p.version ?? ''} · ${t('connected to {host}', { host: location.host })}`;
   fillQuickAsk(p);
+  fillSaveSettings(p);
 }
 /**
  * Phase 75 (stage 3): the quick-ask shortcut, read and set through the app's bridge
@@ -13226,6 +13255,145 @@ if (window.SaraDesktop) {
   });
   $('#dk-quick-try').addEventListener('click', () => void window.SaraDesktop.call('quickAsk').catch(() => {}));
   $('#dk-test').addEventListener('click', () => window.SaraDesktop.call('testNotification', { title: t('Sara'), body: t('Notifications from Sara will look like this.') }));
+}
+
+// ---------- the Sara app's own updates (docs/desktop.md → How the app updates) ----------
+// The Windows app checks Sara's signed release notice by itself and installs the new app (app-only
+// installs; with Sara's server on that computer the server's update brings it). This page shows its
+// banner and its switch on This computer, checks in with the server every few minutes (Settings →
+// Devices lists the app's version; the server's Update it reaches the app here) and tells the app
+// when the server is newer than it. Apps without this (older ones, the Mac app) send no appUpdate.
+const appUpd = { st: null, lastState: '', soon: 0 };
+async function appUpdPrefs() {
+  const d = window.SaraDesktop;
+  if (!d?.call) return null;
+  const p = await d.call('getPrefs').catch(() => null);
+  return p && p.appUpdate && typeof p.appUpdate === 'object' ? p : null;
+}
+function appUpdText(st) {
+  const v = { version: st.latest || '' };
+  if (st.state === 'current') return t('The Sara app is up to date ({version}).', { version: st.version });
+  if (st.state === 'checking') return t('Checking for a new app…');
+  if (st.state === 'downloading') return t('Downloading Sara app {version}…', v);
+  if (st.state === 'ready') return t('Sara app {version} is ready.', v);
+  if (st.state === 'installing') return t('Installing Sara app {version}…', v);
+  if (st.state === 'available' && st.how === 'server') return t('Sara {version} is out. Sara’s server on this computer brings the new app with her: Settings → Updates.', v);
+  if (st.state === 'available' && st.how === 'manual') return t('Sara app {version} is out. This copy wasn’t installed with Sara-Setup: download it from the download page.', v);
+  if (st.state === 'available') return t('Sara app {version} is out.', v);
+  if (st.state === 'failed') return t('The app update didn’t work: {why}', { why: st.message || '' });
+  return '';
+}
+function renderAppUpdate(st) {
+  if (!st || typeof st !== 'object') return;
+  appUpd.st = st;
+  // The banner: a new app that waits for the person (not after Later, unless it fixes a security problem).
+  const waiting = st.latest && (st.state === 'ready' || (st.state === 'available' && st.how === 'remote'));
+  const later = st.later === st.latest && !st.security;
+  $('#app-update-note-text').textContent = st.state === 'ready' ? t('Sara app {version} is ready.', { version: st.latest }) : t('Sara app {version} is out.', { version: st.latest || '' });
+  $('#app-update-note').hidden = !waiting || later || st.want === true;
+  // This computer: the switch, the state and the buttons.
+  if ($('#dk-appupd-row')) {
+    $('#dk-appupd-row').hidden = false;
+    $('#dk-appupd-auto').checked = st.auto !== false;
+    $('#dk-appupd-auto').disabled = st.how !== 'remote';
+    $('#dk-appupd-status').textContent = appUpdText(st);
+    $('#dk-appupd-now').hidden = !(st.how === 'remote' && (st.state === 'ready' || st.state === 'available'));
+  }
+  // Tell the server soon when the app's state changed (Settings → Devices shows it).
+  if (appUpd.lastState && appUpd.lastState !== st.state) {
+    clearTimeout(appUpd.soon);
+    appUpd.soon = setTimeout(() => void appCheckin(), 2000);
+  }
+  appUpd.lastState = st.state;
+}
+async function appUpdCall(what, extra = {}) {
+  const r = await window.SaraDesktop.call('appUpdate', { do: what, ...extra }).catch(() => null);
+  if (r) renderAppUpdate(r);
+  return r;
+}
+async function appCheckin() {
+  const p = await appUpdPrefs();
+  if (!p) return;
+  renderAppUpdate(p.appUpdate);
+  if (document.body.classList.contains('demo')) return;
+  const st = p.appUpdate;
+  const body = { platform: p.platform === 'mac' ? 'mac' : 'windows', version: p.version, computer: p.computer ?? '', how: st.how, auto: st.auto !== false, selfUpdate: true, state: st.state, latest: st.latest ?? '', message: st.message ?? '' };
+  const r = await api('/app-updates/checkin', { method: 'POST', body }).catch(() => null);
+  if (!r) return;
+  if (r.server) void appUpdCall('server', { version: r.server });
+  if (r.ask) void appUpdCall('install', { from: 'server' });
+}
+if (window.SaraDesktop) {
+  window.addEventListener('sara-app-update', (e) => renderAppUpdate(e.detail));
+  setTimeout(() => void appCheckin(), 4000);
+  setInterval(() => void appCheckin(), 300_000);
+  $('#app-update-now').addEventListener('click', () => {
+    $('#app-update-note').hidden = true;
+    void appUpdCall('install');
+  });
+  $('#app-update-later').addEventListener('click', () => {
+    $('#app-update-note').hidden = true;
+    void appUpdCall('later');
+  });
+  $('#dk-appupd-now').addEventListener('click', () => void appUpdCall('install'));
+  $('#dk-appupd-check').addEventListener('click', () => {
+    $('#dk-appupd-status').textContent = t('Checking for a new app…');
+    void appUpdCall('check');
+  });
+  $('#dk-appupd-auto').addEventListener('change', async () => {
+    await appUpdCall('auto', { value: $('#dk-appupd-auto').checked });
+    $('#dk-status').textContent = t('Saved');
+  });
+}
+/** Settings → Devices: each Sara app's version and Update it (members: their own; the owner: members' too). */
+function appInstallLine(a, server, path) {
+  const box = el('span', 'muted small dev-app');
+  const what = t('Sara app for {platform} {version}', { platform: a.platform === 'mac' ? 'Mac' : 'Windows', version: a.version });
+  let state;
+  if (a.state === 'installing') state = t('installing {version}', { version: a.latest || server });
+  else if (a.state === 'downloading') state = t('downloading {version}', { version: a.latest || server });
+  else if (a.asked && (a.behind || a.state === 'ready')) state = t('asked to update');
+  else if (a.state === 'ready' && a.latest) state = t('{version} is ready there', { version: a.latest });
+  else if (a.behind) state = t('older than this server ({version})', { version: server });
+  else state = t('up to date');
+  box.append(` · ${what}${a.computer ? ` · ${a.computer}` : ''} · ${state}`);
+  if (a.canAsk && !a.asked) {
+    const b = el('button', 'ghost small', t('Update it'));
+    b.type = 'button';
+    b.addEventListener('click', async () => {
+      b.disabled = true;
+      try {
+        await api(path, { method: 'POST' });
+        $('#dev-apps-status').textContent = t('Asked. The app updates the next time it checks in (within a few minutes, while it is running).');
+      } catch (err) {
+        $('#dev-apps-status').textContent = err.message;
+      }
+      void loadAppInstalls();
+    });
+    box.append(' ', b);
+  } else if ((a.behind || a.state === 'ready') && a.how === 'server') box.append(` · ${t('it updates with Sara’s server on that computer')}`);
+  else if (a.behind && !a.canAsk) box.append(` · ${t('update it there: download Sara-Setup and run it')}`);
+  return box;
+}
+async function loadAppInstalls() {
+  const r = await api('/app-updates').catch(() => null);
+  if (!r) return;
+  for (const old of $('#dev-list').querySelectorAll('.dev-app')) old.remove();
+  for (const a of r.apps ?? []) {
+    const li = [...$('#dev-list').children].find((x) => x.dataset.dev === a.id);
+    if (li) li.querySelector('strong')?.after(appInstallLine(a, r.server, `/app-updates/${encodeURIComponent(a.id)}/update`));
+  }
+  const members = r.members ?? [];
+  $('#dev-apps-members').hidden = !members.length;
+  $('#dev-apps-list').replaceChildren(
+    ...members.flatMap((m) =>
+      m.apps.map((a) => {
+        const li = el('li');
+        li.append(el('strong', '', m.name), appInstallLine(a, r.server, `/app-updates/member/${encodeURIComponent(m.id)}/${encodeURIComponent(a.id)}/update`));
+        return li;
+      }),
+    ),
+  );
 }
 
 // ---------- Phase 87: computer use (docs/design/COMPUTER_USE.md §9) ----------
@@ -13282,6 +13450,7 @@ async function loadComputer() {
     $('#cu-files').checked = p.handsFiles === true;
     $('#cu-files').disabled = p.handsOptIn !== true || p.handsFilesSupported !== true;
     $('#cu-files').closest('label').hidden = p.handsFilesSupported !== true;
+    renderPcRunPrefs(p);
     if (document.activeElement !== $('#cu-block-extra')) $('#cu-block-extra').value = p.handsBlockExtra || '';
     $('#cu-block-extra').disabled = p.handsOptIn !== true;
     renderCuPerms(p);
@@ -13684,6 +13853,7 @@ $('#cu-desktop').addEventListener('change', async () => {
   $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may look at this screen now. Blocked windows stay black.') : t('Sara only uses her own browser here now.');
   if (r && !r.error) renderCuPerms(r);
 });
+initPcRunSettings(() => handsBridge());
 $('#cu-files').addEventListener('change', async () => {
   const box = $('#cu-files');
   const d = handsBridge();
@@ -13865,6 +14035,11 @@ function hideLiveView() {
 async function onComputerEvent(ev) {
   if (!ev || typeof ev !== 'object') return;
   const mine = !ev.conversationId || ev.conversationId === state.currentId;
+  // 3.5 (PC tools): a command on the owner's computer: the live panel with its output and Stop.
+  if (ev.run) {
+    onPcRunEvent(ev, state.currentId, { stop: async (id) => { if (state.streaming) $('#stop')?.click(); await api(`/hands/${encodeURIComponent(id)}/stop`, { method: 'POST', body: {} }).catch(() => {}); } });
+    return;
+  }
   if (ev.stopped || ev.state === 'offline') {
     if (ev.deviceId === cuBadge.deviceId) hideBadge();
     if (ev.deviceId === liveView.deviceId) hideLiveView();

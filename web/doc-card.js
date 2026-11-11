@@ -3,6 +3,7 @@
 // kind shows its preview, a page with no scripts, in a sandboxed frame), Make changes (asks her in
 // the composer, which makes the next version and keeps the old ones) and the other versions.
 import { t } from './naming.js';
+import { addSaveButtons, dragOut } from './save-to-pc.js';
 
 const ICON = { docx: '📘', pdf: '📕', xlsx: '📗', pptx: '📙', md: '📝', csv: '📊', html: '🌐' };
 const KIND = () => ({ docx: t('Word document'), pdf: t('PDF'), xlsx: t('Excel spreadsheet'), pptx: t('PowerPoint presentation'), md: t('Markdown file'), csv: t('CSV file'), html: t('Web page') });
@@ -102,6 +103,9 @@ export function docCard(f) {
   change.type = 'button';
   change.addEventListener('click', () => askChanges(made));
   acts.append(dl, open, change);
+  // The desktop app: Save to… / Save to Downloads, and dragging the card out to a folder.
+  addSaveButtons(acts, { url: `${base(made.id)}/file`, name: f.name ?? made.title });
+  dragOut(card, { url: `${base(made.id)}/file`, name: f.name ?? made.title, format: made.format });
   const versions = el('div', 'doc-card-versions');
   if (made.version > 1) {
     const older = el('button', 'ghost', t('Other versions'));

@@ -60,7 +60,7 @@ export type HubEvent = (
   /** Phase 84: an eval moved on (a run finished, the judge, the result). */
   | { type: 'eval'; id: number; status: string; progress?: unknown }
   /** Phase 87: Sara's hands on a computer: online/offline, a new live-view frame, Stop pressed there. */
-  | { type: 'computer'; deviceId: string; state?: 'online' | 'offline'; frame?: number; conversationId?: string; stopped?: boolean; by?: string; ev?: string }
+  | { type: 'computer'; deviceId: string; state?: 'online' | 'offline'; frame?: number; conversationId?: string; stopped?: boolean; by?: string; ev?: string; run?: { id: string; state: string; command?: string; shell?: string; chunk?: string; exitCode?: number | null; outcome?: string } }
   /** Phase 118 (PERSIST §4.16): a chat goal changed state (the chip, Today, the board). */
   | { type: 'goal'; conversationId: string; goal: import('./goals.ts').GoalView | null }
   /** Phase 118: a goal's check finished (the step line, the progress message). */

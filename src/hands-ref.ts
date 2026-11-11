@@ -50,6 +50,7 @@ import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TAB_OPS, TestDesktop } from './han
 import { FILE_OPS, FileRuleError, listFiles, readTextFile, type FileFolder } from './hands-files.ts';
 import { applyAllowed, applyCardText, CheckupError, CU7_OPS, TestSystem, type CheckData } from './hands-checkup.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
+import { RUN_OPS, RUN_OPS_SET, RunDevice, RunRuleError, type RunDeviceOptions } from './hands-run.ts';
 import { managerName, ManagerError, MANAGER_IDS, type ManagerId, type ManagerSessions } from './hands-managers.ts';
 import { connectWebSocket, type WsConnection } from './ws.ts';
 
@@ -57,14 +58,14 @@ export const REF_VERSION = 'hands-ref 8';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 /** Phase 92: the desktop ops are in the command set only with a (fixture) desktop to look at. */
-const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o) && !(CU7_OPS as readonly string[]).includes(o) && !(TAB_OPS as readonly string[]).includes(o) && !(FILE_OPS as readonly string[]).includes(o)));
+const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o) && !(CU7_OPS as readonly string[]).includes(o) && !(TAB_OPS as readonly string[]).includes(o) && !(FILE_OPS as readonly string[]).includes(o) && !RUN_OPS_SET.has(o)));
 const DESKTOP_OP = new Set<string>([...CU5_OPS, ...CU6_OPS]);
 const DESKTOP_INPUT = new Set<string>(DESKTOP_INPUT_OPS);
 /** §7.7: the device's own input limits. */
 export const INPUT_LIMITS = { perSecond: 4, perMinute: 120, chars: 2000 };
 const INPUT_OPS = new Set(['b.click', 'b.type', 'b.select', 'b.keys', 'b.scroll', 'b.upload', 'b.login']);
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const WAITING = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock']);
+const WAITING = new Set(['b.saveLogin', 'b.yourTurn', 'b.unlock', ...RUN_OPS]);
 const BACKOFF_S = [1, 2, 5, 10, 30];
 const MAX_LOGS = 500;
 const SECRET_SHAPES = [/\bsk-[A-Za-z0-9_-]{16,}/g, /\b[sr]k_(?:live|test)_[A-Za-z0-9]{10,}/g, /\bgh[pousr]_[A-Za-z0-9]{20,}/g, /\bxox[abprs]-[A-Za-z0-9-]{10,}/g, /\bAKIA[0-9A-Z]{16}\b/g, /\bxai-[A-Za-z0-9]{20,}/g, /\bsara_(?:dev|hands|m)\.[\w-]+\.[\w-]+/g, /\beyJ[\w-]{8,}\.[\w-]{8,}\.[\w-]{8,}/g];
@@ -544,6 +545,8 @@ export interface HandsRefOptions {
   flushSecrets?: () => Promise<void>;
   /** Phase 94: the computer's card for one check-up change (true = Allow once). Without it nothing changes. */
   checkupConsent?: (p: { kind: string; target: string; what: string; text: string }) => Promise<boolean>;
+  /** 3.5 (PC tools): c.run / c.open here ("Let her run commands on this computer"; src/hands-run.ts). */
+  run?: RunDeviceOptions;
   /** Tests: keep every frame of the hands channel in `wire`. */
   recordWire?: boolean;
   log?: (line: string) => void;
@@ -558,6 +561,8 @@ export class HandsRef {
   #attempt = 0;
   #timer?: NodeJS.Timeout;
   readonly desktopConsent = new DesktopConsent();
+  /** 3.5: commands and "open this" here (undefined: an older device without them). */
+  readonly runner?: RunDevice;
   #desktopQueue: Promise<unknown> = Promise.resolve();
   #browserQueue: Promise<unknown> = Promise.resolve();
   readonly #answers = new Map<string, string>();
@@ -591,6 +596,7 @@ export class HandsRef {
     if (opts.desktop) { const url = new URL(opts.server); opts.desktop.transportSecure = url.protocol === 'https:' || ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname); }
     this.browser = new SaraBrowser({ ...(opts.info ? { info: opts.info } : {}), headless: opts.headless !== false, ...(opts.profileDir ? { profileDir: opts.profileDir } : {}), ...(opts.folder ? { folder: opts.folder } : {}), ...(opts.browserArgs ? { extraArgs: opts.browserArgs } : {}), realProfile: opts.realProfile, serverOrigin: new URL(opts.server).origin });
     this.vault = opts.vault ?? new TestVault();
+    if (opts.run) this.runner = new RunDevice({ ...opts.run, paused: () => this.paused || opts.run?.paused?.() === true });
     if (opts.logFile && existsSync(opts.logFile)) {
       // Keep 30 days of the local log.
       const cut = Date.now() - 30 * 86_400_000;
@@ -695,13 +701,14 @@ export class HandsRef {
       screens: this.opts.desktop ? [this.opts.desktop.screen] : [],
       browser: { found: this.browser.info.found, ...(this.browser.info.kind ? { kind: this.browser.info.kind } : {}), ...(this.browser.info.name ? { name: this.browser.info.name } : {}) },
       perms: { capture: Boolean(this.opts.desktop), input: Boolean(this.opts.desktop), ax: Boolean(this.opts.desktop) },
-      optIn: { browser: this.opts.optIn?.browser !== false, desktop: this.#desktopOn, files: Boolean(this.opts.files) && this.opts.optIn?.files === true },
-      approvalsHere: Boolean(this.opts.desktopConsent) && this.opts.approvalsHere !== false,
+      optIn: { browser: this.opts.optIn?.browser !== false, desktop: this.#desktopOn, files: Boolean(this.opts.files) && this.opts.optIn?.files === true, run: this.opts.run?.on === true },
+      runReadOnly: this.opts.run?.readOnlyAuto === true,
+      approvalsHere: Boolean(this.opts.desktopConsent || this.opts.run?.consent) && this.opts.approvalsHere !== false,
       logins: this.vault.list(this.serverOrigin),
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
-      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS, ...(this.opts.noTabs ? [] : TAB_OPS)] : []), ...(this.opts.files ? FILE_OPS : []), ...(this.opts.system ? CU7_OPS : this.opts.checkSystem ? ['s.check'] : [])],
+      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS, ...(this.opts.noTabs ? [] : TAB_OPS)] : []), ...(this.opts.files ? FILE_OPS : []), ...(this.opts.run ? RUN_OPS : []), ...(this.opts.system ? CU7_OPS : this.opts.checkSystem ? ['s.check'] : [])],
       takeover: this.opts.takeover ?? 'pause',
       hotkey: '',
       paused: this.paused,
@@ -791,6 +798,7 @@ export class HandsRef {
 
   /** Stop pressed on the computer: everything running is cancelled and the server is told. */
   pressStop(): void {
+    this.runner?.clearGrants();
     this.opts.desktop?.stop();
     this.desktopConsent.clear();
     this.opts.desktop?.endTask();
@@ -860,7 +868,7 @@ export class HandsRef {
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
-      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !(op === 'd.tabs' && this.opts.desktop && !this.opts.noTabs) && !(op.startsWith('f.') && this.opts.files && (FILE_OPS as readonly string[]).includes(op)) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system) && !(op === 's.check' && this.opts.checkSystem)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
+      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !(op === 'd.tabs' && this.opts.desktop && !this.opts.noTabs) && !(op.startsWith('f.') && this.opts.files && (FILE_OPS as readonly string[]).includes(op)) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system) && !(op === 's.check' && this.opts.checkSystem) && !(RUN_OPS_SET.has(op) && this.runner)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
       if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       // Phase 92: the whole screen only with its own switch on here.
       if ((op.startsWith('d.') || op.startsWith('s.')) && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
@@ -1360,6 +1368,17 @@ export class HandsRef {
     // Phase 91: after the task (and "Lock now"): every manager unlocked for Sara locks again.
     if (op === 'b.relock') return { locked: (await this.opts.managers?.lockAll('the task ended')) ?? [] };
     if (op === 'b.unlock') return this.#unlock(id, args);
+    // 3.5 (PC tools): a command or "open this", approved here (src/hands-run.ts).
+    if (RUN_OPS_SET.has(op) && this.runner) {
+      const ac = this.#running.get(id);
+      const rctx = { signal: ac?.signal ?? new AbortController().signal, computer: this.opts.name ?? hostname(), send: (ev: Record<string, unknown>) => this.#send(JSON.stringify({ t: 'ev', kind: 'run', id, ...ev })), log: (what: string, target: string) => this.#localLog(op, what, target) };
+      try {
+        return op === 'c.run' ? { ...(await this.runner.run(args, rctx)) } : await this.runner.open(args, rctx);
+      } catch (err) {
+        if (err instanceof RunRuleError) throw new OpError(err.code, err.message);
+        throw err;
+      }
+    }
     // 3.4.x: the person's own files, read only (src/hands-files.ts).
     if (op === 'f.list' || op === 'f.read') {
       try {

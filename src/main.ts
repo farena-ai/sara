@@ -122,6 +122,7 @@ import { createSaraServer, proxyTrust } from './server.ts';
 import { setWakeLexiconDir } from './routes/wake.ts';
 import { HandsHub } from './hands.ts';
 import { createComputerTools } from './tools/computer.ts';
+import { createPcRunTools } from './tools/pc-run.ts';
 import { PhoneHelper } from './phone-helper.ts';
 import { createPhoneTools } from './tools/phone.ts';
 import { UploadStore } from './uploads.ts';
@@ -1263,6 +1264,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (space.hands) {
     app.hands = space.hands;
     for (const t of createComputerTools(app)) tools.add(t);
+    // 3.5 (PC tools): commands and "open this" on the owner's own computer (owner space only).
+    if (!isMember) for (const t of createPcRunTools(app)) tools.add(t);
   }
   // EC24: her borrowed phone (the owner's space only; each use approved on the phone).
   if (space.phoneHelper && !isMember) {

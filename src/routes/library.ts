@@ -355,7 +355,7 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { hits: hits.map((h) => ({ docId: h.doc.id, name: h.doc.name, collection: h.doc.collection, place: h.passage.place, page: h.passage.page, heading: h.passage.heading, text: h.passage.text, ord: h.passage.ord, by: h.by })) });
       }
       if (b === 'settings' && !c) {
-        const view = () => ({ shared: app.settings.get().companionLibrary === 'shared', ...libraryLimits(app.settings.get()), owner: !opts.member, maxBytes });
+        const view = () => ({ shared: app.settings.get().companionLibrary === 'shared', ...libraryLimits(app.settings.get()), owner: !opts.member, maxBytes, maxOtherBytes: MAX_DOC_BYTES });
         if (method === 'GET') return send(res, 200, view());
         if (method === 'PUT') {
           const body = await readJson(req);

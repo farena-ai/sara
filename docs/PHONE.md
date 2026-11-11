@@ -84,6 +84,14 @@ signs the phone out of that server only. [SERVERS.md](SERVERS.md)
   on (off by default; the phone asks for the camera the first time). A video call runs inside the
   app, so keep it open; voice calls keep going with the screen off. [VIDEO_CALLS.md](VIDEO_CALLS.md)
 
+## Without a connection
+
+With no signal (or while her server restarts), the app shows the recent chats and notes it kept,
+read-only, and keeps what you write as *Waiting to send* bubbles (edit or delete them) until it can
+send them, once each. On by default in the phone app; in a phone browser turn on *Keep a copy on this
+device for offline* in Settings → Connections → Devices and sign-in (an installed web app has it on).
+Needs an https address (Tailscale or your own domain). See [OFFLINE.md](OFFLINE.md).
+
 ## Sara as your phone's assistant (Android, 2.1)
 
 Phone settings → **Apps → Default apps → Digital assistant app → Default digital assistant app →

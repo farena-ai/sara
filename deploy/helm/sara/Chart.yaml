@@ -3,7 +3,7 @@ name: sara
 description: Sara, a self-hosted AI companion and coding partner. One replica only (SQLite data on one volume).
 type: application
 version: 0.1.0
-appVersion: "3.4.5"
+appVersion: "3.5.0"
 home: https://github.com/farena-ai/sara
 sources:
   - https://github.com/farena-ai/sara

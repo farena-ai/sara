@@ -804,6 +804,18 @@ Result shot(const std::string& window, const std::string& screen, const std::vec
 }
 
 std::string maskSecrets(const std::string& text) { return maskText(text); }
+// Quick ask (desktop/windows/src/quick-context.cpp): the same id and the same hidden-window rules.
+std::string windowId(HWND h) { return idOf(h); }
+std::string hiddenKindOf(HWND h) {
+  DWORD pid = 0;
+  GetWindowThreadProcessId(h, &pid);
+  std::wstring exe = exeOf(pid), exeL = exe;
+  for (auto& c : exeL) c = (wchar_t)towlower(c);
+  if (pid == GetCurrentProcessId() || (!exeL.empty() && exeL == ownExe())) return "sara";
+  wchar_t t[512];
+  int n = GetWindowTextW(h, t, 512);
+  return blockedKind(u8(std::wstring(t, std::max(0, n))), appName(exe));
+}
 
 namespace {
 /** The person's own browsers (process names; Sara's own browser is told apart by its process id). */

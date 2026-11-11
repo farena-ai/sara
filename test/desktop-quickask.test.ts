@@ -111,7 +111,9 @@ test('Windows: the shortcut is registered, unregistered, changeable; clashes are
   assert.match(c, /RegisterHotKey\(g_wnd, kHotkeyId, s->mods \| MOD_NOREPEAT, s->vk\)/);
   assert.match(c, /UnregisterHotKey\(g_wnd, kHotkeyId\);/);
   assert.match(c, /case WM_DESTROY:\s+UnregisterHotKey\(h, kHotkeyId\);/);
-  assert.match(c, /case WM_HOTKEY:[\s\S]{0,120}toggleQuickAsk\(\)/);
+  assert.match(c, /case WM_HOTKEY:[\s\S]{0,120}quickAskHotkey\(\)/);
+  // A second press while it's in front hides it, as toggleQuickAsk() does.
+  assert.match(c, /static void quickAskHotkey\(\) \{\s+if \(quickAskVisible\(\) && GetForegroundWindow\(\) == g_qa\) return hideQuickAsk\(\);/);
   assert.match(c, /is already used by another app\. Right-click Sara's icon/);
   assert.match(c, /L"  \(used by another app\)"/);
   assert.match(c, /L"Quick ask shortcut"/);
@@ -123,7 +125,7 @@ test('Windows: the shortcut is registered, unregistered, changeable; clashes are
 test('Windows: the floating window hides on Escape and when it loses focus, and remembers its place', () => {
   const c = cpp();
   assert.match(c, /key == VK_ESCAPE && kind == COREWEBVIEW2_KEY_EVENT_KIND_KEY_DOWN/);
-  assert.match(c, /LOWORD\(wp\) == WA_INACTIVE && GetTickCount\(\) - g_qaShownAt > 400\) hideQuickAsk\(\)/);
+  assert.match(c, /LOWORD\(wp\) == WA_INACTIVE && GetTickCount\(\) - g_qaShownAt > 400\) hideQuickAsk\(true\)/);
   assert.match(c, /setPref\(L"quickAskPlace"/);
   assert.match(c, /WS_EX_TOOLWINDOW \| WS_EX_TOPMOST/);
   assert.match(c, /DWMSBT_TRANSIENTWINDOW/, 'frosted (acrylic) on Windows 11');

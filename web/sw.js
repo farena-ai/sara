@@ -1,5 +1,7 @@
 // Sara service worker: makes the app installable, shows push notifications, and gives a friendly
-// page when the server can't be reached. It never caches API data or conversations.
+// page when the server can't be reached. It never caches API data or conversations (feature 4: the
+// page itself keeps an encrypted copy of the recent chats and notes in IndexedDB, web/offline-store.js;
+// the offline page shows it through the cached offline-*.js files below).
 const OFFLINE = '/offline.html';
 // v6 (Phase 75, stage 3): the offline page uses the app's theme files too.
 // v7 (2.7.1): new app files (viewport.js, start-view.js); a fresh cache after the iPhone fix.
@@ -46,7 +48,7 @@ const OFFLINE = '/offline.html';
 //   Phase 92 had caches.open('sara-shell-v26'); every older cache is deleted below.
 // v28 (Phase 94): computer check-ups (checkup-view.js: the report card and the one-change card).
 //   Phase 93 had caches.open('sara-shell-v29'); every older cache is deleted below.
-const SHELL = [OFFLINE, '/offline.css', '/offline.js', '/theme.css', '/theme-boot.js', '/icon-192.png', '/project-checkpoints.js'];
+const SHELL = [OFFLINE, '/offline.css', '/offline.js', '/theme.css', '/theme-boot.js', '/icon-192.png', '/project-checkpoints.js', '/offline-page.js', '/offline-store.js', '/offline-sync.js', '/offline-view.js', '/offline-view.css'];
 
 // v29 (CU8 draft): Linux hands installation and explicit device-code computer-control warning.
 // v30 (Phase 96): skills (skills.js: Settings → Abilities → Skills, the editor, Add a skill and its
@@ -164,12 +166,14 @@ self.addEventListener('install', (event) => {
   // v78 (EC1): Slack (slack.js: Settings → Chat apps → Slack, the guided setup card). v77 had caches.open('sara-shell-v77').
   // v79 (EC7): Microsoft Teams (teams.js: Settings → Chat apps → Microsoft Teams). EC1 had caches.open('sara-shell-v78').
   // v80 (C14): Spotify (spotify.js: Settings → Connections → Spotify). EC7 had caches.open('sara-shell-v79').
-  event.waitUntil(caches.open('sara-shell-v80').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  // v81 (feature 4, works offline): the offline page shows what this device kept (offline-page.js,
+  //   offline-store.js, offline-sync.js, offline-view.js and offline-view.css). C14 had caches.open('sara-shell-v80').
+  event.waitUntil(caches.open('sara-shell-v81').then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (event) => {
-  // Every older cache goes (sara-shell-v79 from EC7, sara-shell-v78 from EC1, sara-shell-v77 before EC1, sara-shell-v71 from 2.61.2, sara-shell-v70 from 2.61.1, sara-shell-v69 from 2.61.0, sara-shell-v68 from 2.60.0, sara-shell-v67 from 2.59.0, sara-shell-v66 from 2.58.0, sara-shell-v65 from 2.57.0, sara-shell-v64 from 2.56.0, sara-shell-v63 from 2.55.2, sara-shell-v62 from 2.55.1, sara-shell-v61 and sara-shell-v60 from Phase 122, sara-shell-v59 from Phase 121, sara-shell-v58 from Phase 120, sara-shell-v57 from 2.52.1, sara-shell-v56 from Phase 119, sara-shell-v55 from Phase 118, sara-shell-v54 from Phase 117 part B, sara-shell-v53 from Phase 117 part A, sara-shell-v52 from Phase 116, sara-shell-v51 from Phase 115, sara-shell-v50 from PL1c, sara-shell-v49 from PL1b, sara-shell-v48 from PL1a, sara-shell-v47 from Phase 113, sara-shell-v46 from Phase 112, sara-shell-v45 from Phase 111, sara-shell-v44 from Phase 110, sara-shell-v43 from Phase 109, sara-shell-v42 from Phase 108, sara-shell-v41 from Phase 107, sara-shell-v40 from Phase 106, sara-shell-v39 from Phase 105, sara-shell-v38 from Phase 104, sara-shell-v37 from Phase 103, sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
-  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v80').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
+  // Every older cache goes (sara-shell-v80 from C14, sara-shell-v79 from EC7, sara-shell-v78 from EC1, sara-shell-v77 before EC1, sara-shell-v71 from 2.61.2, sara-shell-v70 from 2.61.1, sara-shell-v69 from 2.61.0, sara-shell-v68 from 2.60.0, sara-shell-v67 from 2.59.0, sara-shell-v66 from 2.58.0, sara-shell-v65 from 2.57.0, sara-shell-v64 from 2.56.0, sara-shell-v63 from 2.55.2, sara-shell-v62 from 2.55.1, sara-shell-v61 and sara-shell-v60 from Phase 122, sara-shell-v59 from Phase 121, sara-shell-v58 from Phase 120, sara-shell-v57 from 2.52.1, sara-shell-v56 from Phase 119, sara-shell-v55 from Phase 118, sara-shell-v54 from Phase 117 part B, sara-shell-v53 from Phase 117 part A, sara-shell-v52 from Phase 116, sara-shell-v51 from Phase 115, sara-shell-v50 from PL1c, sara-shell-v49 from PL1b, sara-shell-v48 from PL1a, sara-shell-v47 from Phase 113, sara-shell-v46 from Phase 112, sara-shell-v45 from Phase 111, sara-shell-v44 from Phase 110, sara-shell-v43 from Phase 109, sara-shell-v42 from Phase 108, sara-shell-v41 from Phase 107, sara-shell-v40 from Phase 106, sara-shell-v39 from Phase 105, sara-shell-v38 from Phase 104, sara-shell-v37 from Phase 103, sara-shell-v36 from Phase 102, sara-shell-v35 from Phase 101, sara-shell-v34 from Phase 100, sara-shell-v33 from Phase 99, sara-shell-v32 from Phase 98, sara-shell-v31 from Phase 97, sara-shell-v30 from Phase 96, sara-shell-v29 from Phase 95, sara-shell-v28 from Phase 94, sara-shell-v27 from Phase 93, sara-shell-v26 from Phase 92, sara-shell-v25 from Phase 91, sara-shell-v24 from Phase 90, sara-shell-v23 from Phase 89, sara-shell-v22 from Phase 88, sara-shell-v21 from Phase 87, sara-shell-v20 from Phase 86, sara-shell-v19 from 2.18, sara-shell-v18 from Phase 85, sara-shell-v17 from Phase 84, sara-shell-v16 from Phase 83, sara-shell-v15 from Phase 82, sara-shell-v14 from Phase 81, sara-shell-v13 from Phase 80, sara-shell-v12 from Phase 79, sara-shell-v11 from Phase 78, sara-shell-v10 from Phase 77 and before).
+  event.waitUntil(caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== 'sara-shell-v81').map((k) => caches.delete(k)))).then(() => self.clients.claim()));
 });
 
 self.addEventListener('fetch', (event) => {
@@ -177,11 +181,22 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(fetch(event.request).catch(() => caches.match(OFFLINE)));
 });
 
-// The offline page's own files come from the cache when the server is down.
+// The offline page's own files come from the cache when the server is down. Feature 4: a fresh
+// copy from the server replaces the cached one, so the offline page matches the app it hands over to.
 self.addEventListener('fetch', (event) => {
   const path = new URL(event.request.url).pathname;
   if (event.request.mode === 'navigate' || !SHELL.includes(path) || path === OFFLINE) return;
-  event.respondWith(fetch(event.request).catch(() => caches.match(path)));
+  event.respondWith(
+    fetch(event.request)
+      .then((res) => {
+        if (res.ok && event.request.method === 'GET') {
+          const copy = res.clone();
+          event.waitUntil(caches.open('sara-shell-v81').then((c) => c.put(path, copy)).catch(() => {}));
+        }
+        return res;
+      })
+      .catch(() => caches.match(path)),
+  );
 });
 
 self.addEventListener('push', (event) => {

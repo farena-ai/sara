@@ -1160,6 +1160,8 @@ export const historySize = (messages: ChatMessage[]): number => messages.reduce(
 export const fillPercent = (used: number, budget: number): number => (budget > 0 && Number.isFinite(budget) ? Math.min(100, Math.round((used / budget) * 100)) : 0);
 
 export interface TurnOptions {
+  /** Feature 4: the outbox key of a message written offline (saved as `meta.clientKey`; it is stored once). */
+  clientKey?: string;
   /** Answer the last owner message again without adding a new one (Continue after a restart/error). */
   resume?: boolean;
   /** Photo upload ids sent with this message. */
@@ -2092,7 +2094,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
-  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}), ...(opts.untrusted ? { untrusted: true } : {}) };
+  const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}), ...(opts.untrusted ? { untrusted: true } : {}), ...(opts.clientKey ? { clientKey: opts.clientKey } : {}) };
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
   // Phase 107: a line /reset cleared isn't answered again on Continue.
   if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {

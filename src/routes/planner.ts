@@ -7,7 +7,8 @@ import { as400, fromPhoneApp, HttpError, readJson, send, validWorkspace } from '
 import { findAddress, leaveBySettings } from '../leaveby.ts';
 import { localDate } from '../memory-worker.ts';
 import { netFetch } from '../net-guard.ts';
-import { parseWhen, PLACE_DUE, type PlannerStore, type Priority, type Project, type Repeat, REPEATS } from '../planner.ts';
+import { ClientKeys, cleanClientKey } from '../offline-keys.ts';
+import { type Note, parseWhen, PLACE_DUE, type PlannerStore, type Priority, type Project, type Repeat, REPEATS, zonedParts } from '../planner.ts';
 import { channelName, channelOfBuiltin, channelOn, filedCount, roomChip, roomOfConversation, roomsByKey, unfileChannelChats } from '../bridges/rooms.ts';
 import type { Conversation } from '../store.ts';
 import { ReminderScheduler } from '../reminders.ts';
@@ -434,6 +435,34 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         const version = Number(body.version);
         if (!pl.noteVersions(Number(b)).some((v) => v.id === version)) throw new HttpError(404, 'Version not found');
         const n = pl.restoreNoteVersion(Number(b), version);
+        app.events?.publish({ type: 'planner', what: 'notes' });
+        return send(res, 200, n);
+      }
+      // Feature 4: a note written on a device while it was offline is added to the end (never
+      // overwriting what changed meanwhile), once per outbox key. A note deleted meanwhile: by title.
+      if (b === 'add' && !c && method === 'POST') {
+        const body = await readJson(req);
+        const key = cleanClientKey(body.clientKey);
+        const keys = new ClientKeys(app.store.db, app.now);
+        const seen = key ? (keys.seen('note', key) as { id: number } | undefined) : undefined;
+        const again = seen ? pl.note(seen.id) : undefined;
+        if (again) return send(res, 200, again);
+        const text = String(body.text ?? '');
+        if (!text.trim() || text.length > 50_000) throw new HttpError(400, 'Note must be 1-50,000 characters');
+        const title = typeof body.title === 'string' ? body.title.trim().slice(0, 120) : '';
+        const id = Number(body.id) > 0 && pl.note(Number(body.id)) ? Number(body.id) : undefined;
+        if (!id && !title) throw new HttpError(400, 'Give the note a title.');
+        const at = typeof body.writtenAt === 'string' && !Number.isNaN(Date.parse(body.writtenAt)) ? new Date(body.writtenAt) : app.now();
+        const p = zonedParts(at, app.settings.get().timeZone);
+        const pad = (x: number) => String(x).padStart(2, '0');
+        const heading = `— ${p.y}-${pad(p.mo)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)} (written offline)`;
+        let n: Note;
+        try {
+          n = pl.addToNote({ ...(id ? { id } : { title }), text, heading }).note;
+        } catch (err) {
+          throw as400(err);
+        }
+        if (key) keys.remember('note', key, { id: n.id });
         app.events?.publish({ type: 'planner', what: 'notes' });
         return send(res, 200, n);
       }

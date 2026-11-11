@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/research.css">
   <link rel="stylesheet" href="/doc-card.css">
+  <link rel="stylesheet" href="/drop.css">
   <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
   <link rel="stylesheet" href="/v3.css">
@@ -47,6 +48,7 @@
   <link rel="stylesheet" href="/v4.css">
   <link rel="stylesheet" href="/v4-living.css">
   <link rel="stylesheet" href="/v4-pages.css">
+  <link rel="stylesheet" href="/offline-view.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
@@ -364,6 +366,12 @@
       <div id="cu-live" class="cu-live" role="region" aria-label="Live view" hidden>
         <img id="cu-live-img" class="cu-live-img" alt="What Sara sees in the Sara browser">
         <div class="cu-live-bar"><span id="cu-live-text" class="cu-live-text"></span> <button id="cu-live-big" type="button" class="ghost small">Bigger</button> <button id="cu-live-stop" type="button" class="danger small">Stop</button></div>
+      </div>
+      <!-- 3.5 (PC tools): a command on your own computer: what it is, its output as it comes, Stop (web/pc-run-card.js). -->
+      <div id="pc-run-live" class="cu-live pc-run-live" role="region" aria-label="Command on your computer" hidden>
+        <code id="pc-run-cmd" class="pc-run-cmd"></code>
+        <pre id="pc-run-out" class="pc-run-out" hidden></pre>
+        <div class="cu-live-bar"><span id="pc-run-text" class="cu-live-text"></span> <button id="pc-run-stop" type="button" class="danger small">Stop</button></div>
       </div>
       <div id="together-bar" class="offrecord-bar" hidden><span id="together-now"></span> <button id="together-end" type="button" class="ghost small">End</button></div>
       <div id="attachments" class="attachments" hidden></div>
@@ -872,6 +880,11 @@
     <span id="hub-banner-text" class="hub-banner-text"></span>
     <a id="hub-banner-link" class="hub-banner-link" target="_blank" rel="noopener noreferrer" hidden>More</a>
     <button id="hub-banner-close" type="button" class="ghost icon" aria-label="Close"><i class="ic" data-icon="close"></i></button>
+  </div>
+  <div id="app-update-note" class="update-note app-update-note" role="status" aria-live="polite" hidden>
+    <i class="ic" data-icon="update"></i><span id="app-update-note-text"></span>
+    <button id="app-update-now" type="button">Update now</button>
+    <button id="app-update-later" type="button" class="ghost">Later</button>
   </div>
   <div id="update-note" class="update-note" role="status" aria-live="polite" hidden>
     <i class="ic" data-icon="update"></i><span id="update-note-text"></span>
@@ -2333,6 +2346,8 @@
       </div>
       <label class="row"><input id="dk-notify" type="checkbox"> Show notifications <button type="button" class="tip" data-tip="Messages, reminders and calls from her appear as system notifications when the Sara window isn't in front. Click one to open that conversation.">?</button></label>
       <p class="small"><button id="dk-test" type="button" class="ghost">Show a test notification</button> <button id="dk-server" type="button" class="ghost">Your Saras…</button> <button type="button" class="tip" data-tip="Add another server to this app and switch between them without signing out. Notifications, the microphone and files you pick go to the one in use.">?</button> <span id="dk-status" class="muted small"></span></p>
+      <label class="row"><input id="dk-appupd-auto" type="checkbox"> Update the app by itself <button type="button" class="tip" data-tip="On: a new Sara app is downloaded in the background, checked against Sara's signed release notice, and installed when you close the app or nobody is using the computer, never while Sara is using it. Off: you choose when, with Update now.">?</button></label>
+      <p id="dk-appupd-row" class="small" hidden><span id="dk-appupd-status" class="muted" role="status"></span> <button id="dk-appupd-now" type="button" class="small" hidden>Update now</button> <button id="dk-appupd-check" type="button" class="ghost small">Check for a new app</button></p>
       <p id="dk-version" class="muted small"></p>
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
@@ -2342,6 +2357,10 @@
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
         <label class="row"><input id="cu-desktop" type="checkbox" data-noauto> The whole screen: apps, mouse and keyboard <button type="button" class="tip" data-tip="Off by default. On: Sara can look and act in apps when asked, with local approvals. Password fields and protected windows stay refused. Stop always works.">?</button></label>
+        <!-- 3.5 (PC tools): commands on this computer (web/pc-run-settings.js; apps from 3.5 on). -->
+        <label class="row" hidden><input id="cu-run" type="checkbox" data-noauto> Let her run commands on this computer <button type="button" class="tip" data-tip="Off by default. On: she can run PowerShell or cmd commands and open pages, files and apps here, as you, never as administrator. Every command is shown on this computer first and runs only if you allow it here. Stop (Ctrl+Alt+Esc) ends it and everything it started.">?</button></label>
+        <label class="row" hidden>Approvals for commands <select id="cu-run-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Commands that delete, change settings or download and run things always ask, whatever you pick here.">?</button></label>
+        <label class="row" hidden><input id="cu-run-readonly" type="checkbox" data-noauto> Simple read-only commands without asking <button type="button" class="tip" data-tip="Off by default. On: a short list of commands that only look (like dir, Get-ChildItem, Get-Content, git status) runs without the approval card. Everything else still asks.">?</button></label>
         <label class="row"><input id="cu-files" type="checkbox" data-noauto> Files: read my Desktop, Documents and Downloads <button type="button" class="tip" data-tip="Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.">?</button></label>
         <div id="cu-perms" class="cu-perms" hidden>
           <p class="small">macOS asks you to allow this once, for the Sara app:</p>
@@ -4358,6 +4377,12 @@
       </div>
       <h3 id="reach-away-h">Use Sara away from home <button type="button" class="tip" data-tip="Reach Sara from your phone when you are out, with Tailscale: a free app that links your own devices privately. Three steps; Sara checks each one.">?</button></h3>
       <div id="reach-away" class="rch-host" data-nodirty data-noauto></div>
+      <div id="offline-box" class="offline-box" data-nodirty data-noauto>
+        <h3>Offline on this device <button type="button" class="tip" data-tip="When her server can't be reached, this device shows the chats and notes it kept, read-only, and keeps what you write to send when the connection is back.">?</button></h3>
+        <label class="row"><input id="offline-keep" type="checkbox" data-nodirty> Keep a copy on this device for offline</label>
+        <label class="row"><input id="offline-private" type="checkbox" data-nodirty> Also keep private chats</label>
+        <p id="offline-note" class="muted small">The last 30 chats (their last 200 messages) and your notes, encrypted by this browser. Off-the-record chats are never kept. Signing out deletes the copy.</p>
+      </div>
       <div id="hd-box" class="hd-box" data-nodirty hidden>
         <h3>Phone as a helper <button type="button" class="tip" data-tip="Sara may ask this phone or browser for one picture, its location or one screen picture when you ask her for help. Each time it shows a full-screen prompt here: nothing is taken unless you tap Allow once.">?</button></h3>
         <label class="row"><input id="hd-on" type="checkbox"> Sara may ask this device for its camera, location or screen <button type="button" class="tip" data-tip="Only while Sara is open on this device, never in the background. Location is approximate (about 1 km) unless she asks for the exact spot, and the prompt says which. Signing this device out turns it off.">?</button></label>
@@ -4371,6 +4396,11 @@
       </div>
       <p class="muted small">Every browser, phone or app signed in to Sara. Sign out any you don't recognize or no longer use.</p>
       <ul id="dev-list" class="dev-list"></ul>
+      <div id="dev-apps-members" class="dev-apps-members" data-owner-only hidden>
+        <h3>Household members' apps <button type="button" class="tip" data-tip="The Sara apps your household members signed in to, with their versions. Update it asks that app to update itself the next time it checks in (within a few minutes, when it is running).">?</button></h3>
+        <ul id="dev-apps-list" class="dev-list"></ul>
+      </div>
+      <p id="dev-apps-status" class="muted small" role="status"></p>
       <div id="dap-box" class="dap-box" data-nodirty data-noauto data-owner-only>
         <h3>Approve new devices <button type="button" class="tip" data-tip="A sign-in from another address, through a tunnel or a proxy waits for your OK: type the 5-character code it shows here on a device you already use, or reply approve and the code to her in Telegram or Discord. 10 minutes without an answer is a no.">?</button></h3>
         <p id="dap-notice" class="dap-notice small" hidden>New: approve new devices from chat. It stays off on this server until you turn it on, so nobody is locked out. <button id="dap-notice-ok" type="button" class="ghost small">Got it</button></p>

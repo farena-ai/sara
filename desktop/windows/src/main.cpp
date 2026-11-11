@@ -53,11 +53,15 @@
 #include "resource.h"
 #include "page-logo.h"
 #include "toast.h"
+#include "quick-context.h"  // quick ask: selected text, this window
+#include "voice-pill.h"     // the listening / thinking / speaking pill
 #include "wake.h"
+#include "save-files.h"
 #include <wtsapi32.h>
 #include <memory>
 #include <thread>
 #include "hands.h"
+#include "app-update.h"
 #include <propkey.h>
 #include <propvarutil.h>
 #include <set>
@@ -89,9 +93,12 @@ static const UINT_PTR kNowTimer = 8;            // Phase 75 stage 2: "Now" in th
 // Computer use: the hands connection is made again after sleep, a network change or the screen unlock.
 static const UINT WM_APP_NETCHANGE = WM_APP + 7;  // from NotifyIpInterfaceChange's thread
 static const UINT_PTR kHandsNetTimer = 9;        // a short wait after a network change (they come in bursts)
+// The app updates itself (src/app-update.cpp, docs/desktop.md → How the app updates).
+static const UINT WM_APP_UPDATE = WM_APP + 30;    // the updater's status changed (from its thread)
+static const UINT_PTR kUpdateTimer = 30;          // every minute: due checks, quiet-moment installs
 static const int kHotkeyId = 1;                 // the quick-ask shortcut (RegisterHotKey)
 enum MenuId {
-  ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF, ID_HANDS_RESUME, ID_HANDS_LOG, ID_HANDS_STATUS,
+  ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF, ID_HANDS_RESUME, ID_HANDS_LOG, ID_HANDS_STATUS, ID_APP_UPDATE,
   ID_SERVER0 = 200, ID_NOW0 = 300, ID_ALLOW0 = 340, ID_DENY0 = 380, ID_SHORTCUT0 = 420
 };
 static const size_t kNowMax = 10;
@@ -179,6 +186,8 @@ static bool installedWithServer() { return fileExists(exeDir() + L"\\SaraService
 /** Phase 55: installed by Sara-Setup.exe (with her server, or the app only for a Sara elsewhere):
  *  the installer owns the folder, shortcut and uninstall entry. */
 static bool installedBySetup() { return installedWithServer() || fileExists(exeDir() + L"\\unins000.exe"); }
+/** How the app updates: 'server' (Sara's server here brings it), 'remote' (app only: by itself), 'manual'. */
+static std::wstring updateHow() { return installedWithServer() ? L"server" : installedBySetup() ? L"remote" : L"manual"; }
 /** Her port on this computer (sara.env next to SaraService.exe), or "" when she doesn't run here. */
 static std::wstring localPort() {
   if (!installedWithServer()) return L"";
@@ -1165,6 +1174,10 @@ static std::wstring unescapeLines(const std::wstring& v) {
   }
   return o;
 }
+/** 3.5: "ask" / "task" (default) / "always" → 0 / 1 / 2. */
+static int runLevelOf(const std::wstring& v) { return v == L"ask" ? 0 : v == L"always" ? 2 : 1; }
+/** 3.5: the command choices, as kept here, to the hands. */
+static void runSync() { sarahands::setRun(getIni(handsSection(), L"handsRun") == L"1", runLevelOf(getIni(handsSection(), L"handsRunLevel")), getIni(handsSection(), L"handsRunReadOnly") == L"1"); }
 /** Starts or stops the hands for the server in use, as its settings say. */
 static void handsSync() {
   if (!handsOn() || g_server.empty()) return sarahands::stop();
@@ -1187,6 +1200,10 @@ static void handsSync() {
   h.blockExtra = toUtf8(unescapeLines(getIni(handsSection(), L"handsBlockExtra")));
   // 3.4.x: "Files" (read only, off by default). Test runs: Desktop/Documents/Downloads inside SARA_FILES_TEST_ROOT.
   h.filesOn = getIni(handsSection(), L"handsFiles") == L"1";
+  // 3.5 (PC tools): commands here (off by default), their approvals, the read-only list (off by default).
+  h.runOn = getIni(handsSection(), L"handsRun") == L"1";
+  h.runLevel = runLevelOf(getIni(handsSection(), L"handsRunLevel"));
+  h.runReadOnly = getIni(handsSection(), L"handsRunReadOnly") == L"1";
   if (testRun()) {
     wchar_t root[MAX_PATH];
     if (GetEnvironmentVariableW(L"SARA_FILES_TEST_ROOT", root, MAX_PATH) > 0) h.filesTestRoot = root;
@@ -1236,6 +1253,7 @@ static std::wstring handsPrefsJson() {
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
          L",\"handsDesktopLevel\":\"" + (getIni(handsSection(), L"handsDesktopLevel").empty() ? L"task" : getIni(handsSection(), L"handsDesktopLevel")) + L"\",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsWalkAway\":" + (getIni(handsSection(), L"handsWalkAway") == L"1" ? L"true" : L"false") + L",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
          L",\"handsFilesSupported\":true,\"handsFiles\":" + (getIni(handsSection(), L"handsFiles") == L"1" ? L"true" : L"false") +
+         L",\"handsRunSupported\":true,\"handsRun\":" + (getIni(handsSection(), L"handsRun") == L"1" ? L"true" : L"false") + L",\"handsRunLevel\":\"" + (getIni(handsSection(), L"handsRunLevel").empty() ? L"task" : getIni(handsSection(), L"handsRunLevel")) + L"\",\"handsRunReadOnly\":" + (getIni(handsSection(), L"handsRunReadOnly") == L"1" ? L"true" : L"false") +
          L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
          L",\"pmSupported\":true" +
          // Phase 92: the whole screen (Windows needs no extra permission to look, so no handsPerms here).
@@ -1441,12 +1459,16 @@ static void placeQuickAsk() {
   SetWindowPos(g_qa, HWND_TOPMOST, x, y, w, h, SWP_NOACTIVATE);
 }
 static bool quickAskVisible() { return g_qa && IsWindowVisible(g_qa); }
-static void hideQuickAsk() {
+static void voicePillSync();
+/** soft: it lost the focus (a click elsewhere): her voice turn and spoken reply go on, the pill shows them. */
+static void hideQuickAsk(bool soft = false) {
   if (!quickAskVisible()) return;
   saveQuickPlace();
   ShowWindow(g_qa, SW_HIDE);
-  if (g_qaWeb) g_qaWeb->ExecuteScript(L"window.saraQuick&&saraQuick.hidden()", nullptr);
+  if (g_qaWeb) g_qaWeb->ExecuteScript(soft ? L"window.saraQuick&&saraQuick.hidden({soft:true})" : L"window.saraQuick&&saraQuick.hidden()", nullptr);
+  voicePillSync();
 }
+static std::wstring g_qaContext = L"{}";  // what the shortcut found in the app in front (quickAskHotkey)
 static void ensureQuickAsk();
 /** The shortcut (or the tray's "Ask Sara…"): show it over whatever is in front, typing ready. */
 static void showQuickAsk() {
@@ -1466,8 +1488,10 @@ static void showQuickAsk() {
   g_qaCtl->put_IsVisible(TRUE);
   g_qaCtl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
   std::wstring js = std::wstring(L"window.saraQuick&&saraQuick.show({theme:'") + (g_day ? L"day" : L"night") + L"',solid:" + (g_qaAcrylic ? L"false" : L"true") +
-                    L",shortcut:'" + jsonEscape(shortcutLabel()) + L"'})";
+                    L",shortcut:'" + jsonEscape(shortcutLabel()) + L"',context:" + g_qaContext + L",speak:" + (prefOn(L"speakReplies", false) ? L"true" : L"false") + L"})";
+  g_qaContext = L"{}";
   g_qaWeb->ExecuteScript(js.c_str(), nullptr);
+  voicePillSync();
 }
 static void toggleQuickAsk() {
   if (quickAskVisible() && GetForegroundWindow() == g_qa) hideQuickAsk();
@@ -1485,6 +1509,9 @@ static void decideFromTray(const std::wstring& approvalId, bool ok) {
 static void openConversation(const std::wstring& conv);
 
 static void onQuickWake(std::map<std::wstring, std::wstring>& m);  // Phase 126 (below)
+static void takeFiles(const std::vector<std::wstring>& paths);
+static std::vector<std::wstring> g_qaDropped;
+static void quickWindowShot();  // quick ask anywhere (below)
 static void onQuickMessage(const std::wstring& json, const std::wstring& source) {
   // Only the quick-ask page this app served for the server in use.
   if (g_qaServer.empty() || g_qaServer != g_server || source.rfind(g_qaServer + kQuickPath, 0) != 0) return;
@@ -1517,6 +1544,14 @@ static void onQuickMessage(const std::wstring& json, const std::wstring& source)
     notifyReminder(m);  // Phase 75 stage 3: a reminder went off (the page's /api/events)
   } else if (a == L"wake") {
     onQuickWake(m);  // Phase 126: Hey Sara and the talk shortcut
+  } else if (a == L"files") {
+    // Files dropped on the quick ask: into the main window's message box, like Send To.
+    auto files = g_qaDropped;
+    g_qaDropped.clear();
+    hideQuickAsk();
+    takeFiles(files);
+  } else if (a == L"window") {
+    quickWindowShot();  // "This window": one picture of the app that was in front
   }
 }
 
@@ -1527,7 +1562,7 @@ static LRESULT CALLBACK QuickProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       break;
     case WM_ACTIVATE:
       // Clicking anywhere else hides it (not in the first moment after showing).
-      if (LOWORD(wp) == WA_INACTIVE && GetTickCount() - g_qaShownAt > 400) hideQuickAsk();
+      if (LOWORD(wp) == WA_INACTIVE && GetTickCount() - g_qaShownAt > 400) hideQuickAsk(true);
       break;
     case WM_EXITSIZEMOVE:
       saveQuickPlace();
@@ -1591,7 +1626,7 @@ static void serveQuickAskFrom(ICoreWebView2* web) {
     // Its own rules: scripts and styles only from itself, requests only to this server.
     if (g_env && SUCCEEDED(g_env->CreateWebResourceResponse(body.Get(), 200, L"OK",
                                                              L"Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\n"
-                                                             L"Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self'; base-uri 'none'; form-action 'none'",
+                                                             L"Content-Security-Policy: default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src 'self' data: blob:; media-src blob:; connect-src 'self'; base-uri 'none'; form-action 'none'",
                                                              &resp)))
       a->put_Response(resp.Get());
     return S_OK;
@@ -1704,6 +1739,7 @@ static void ensureQuickAsk() {
       std::wstring j = json ? json : L"", s = src ? src : L"";
       CoTaskMemFree(json);
       CoTaskMemFree(src);
+      g_qaDropped = sarasave::messageFiles(a);  // files dropped on the quick ask (the page's 'files')
       onQuickMessage(j, s);
       return S_OK;
     }).Get(), nullptr);
@@ -2149,6 +2185,7 @@ static void wakeSetState(const std::wstring& st, const std::wstring& reason = L"
   g_wakeState = st;
   g_wakeReason = reason;
   wakeTray();
+  voicePillSync();
 }
 static sarawake::Events wakeEvents() {
   sarawake::Events ev;
@@ -2281,11 +2318,13 @@ static void onQuickWake(std::map<std::wstring, std::wstring>& m) {
     if (g_wakeTalking) return;
     wakeSetState(L"hearing");
     sarawake::setMode(sarawake::Mode::Recording);
+  } else if (what == L"thinking") {
+    if (g_wakeTalking || g_wakeState == L"hearing") wakeSetState(L"thinking");  // the recording went to her
   } else if (what == L"speaking") {
     wakeSetState(L"speaking");
     if (sarawake::running()) sarawake::setMode(sarawake::Mode::Speaking);  // only "stop" is listened for
   } else if (what == L"done") {
-    wakeBackToSleep(m[L"why"] != L"lost");
+    wakeBackToSleep(m[L"why"] != L"lost" && m[L"why"] != L"reply");  // a typed question's spoken reply: no chime
   } else if (what == L"config") {
     // The page's poll of /api/wake/config (every 60 s): the lines, the server's word, a remote off.
     std::wstring lines = m[L"lines"];
@@ -2313,6 +2352,104 @@ static void onQuickWake(std::map<std::wstring, std::wstring>& m) {
     if (changed && sarawake::running()) sarawake::setKeywords(g_wakeLines);
     wakeApply();
   }
+}
+// ---------- Quick ask anywhere: selected text, this window, push-to-talk, spoken replies ----------
+// (docs/desktop.md "Quick ask anywhere"). The quick-ask shortcut remembers the app in front and reads
+// what's selected there (quick-context.cpp: UI Automation, then a Ctrl+C with the clipboard put back;
+// never a password field, Sara's own or a hidden window); the page shows it as a removable chip, and
+// "This window" asks for one picture of that app (hands-screen's capture). Nothing is sent until Send.
+// The talk shortcut held down is push-to-talk (records while held, sends when let go, Esc cancels).
+// "Speak her replies" (tray, off by default) has the quick-ask page speak typed answers through the
+// server's /api/voice/speak, so she talks with the main window closed; the pill shows listening /
+// thinking / speaking while quick ask isn't in front.
+static const UINT_PTR kPttTimer = 23;
+enum : UINT { ID_SPEAK_REPLIES = 4010, ID_QA_SELECTION };
+static HWND g_qaFront = nullptr;  // the app that was in front when the shortcut was pressed
+static bool g_pttHeld = false;
+static UINT g_pttVk = 0;
+static ULONGLONG g_pttAt = 0;
+
+static void quickAskHotkey() {
+  if (quickAskVisible() && GetForegroundWindow() == g_qa) return hideQuickAsk();
+  if (g_server.empty()) return showWindow();
+  HWND fg = GetForegroundWindow();
+  saractx::Read read = !prefOn(L"quickAskSelection", true) ? saractx::kReadNone : prefOn(L"quickAskCopy", true) ? saractx::kReadAll : saractx::kReadUia;
+  saractx::pick(fg, read, [](const saractx::Picked& p) {
+    g_qaFront = p.window;
+    g_qaContext = L"{\"app\":\"" + jsonEscape(p.app) + L"\",\"window\":" + (p.window ? L"true" : L"false") + L",\"text\":\"" + jsonEscape(p.text) + L"\",\"via\":\"" + p.via +
+                  L"\",\"skipped\":\"" + p.skipped + L"\"}";
+    // The log says how, never what: the app, the way it was read and how long it was.
+    logLine(L"quick ask: " + (p.app.empty() ? L"no app" : p.app) + L": " + (p.text.empty() ? L"nothing selected" : std::to_wstring(p.text.size()) + L" characters selected") + L" (" + p.path +
+            (p.skipped.empty() ? L"" : L"; skipped: " + p.skipped) + L")");
+    showQuickAsk();
+  });
+}
+static void quickWindowShot() {
+  std::string url;
+  int w = 0, h = 0;
+  std::wstring why;
+  if (!g_qaFront || !saractx::captureWindow(g_qaFront, url, w, h, why)) {
+    if (why.empty()) why = L"There was no other app in front when you pressed the shortcut.";
+    return quickJs(L"window.saraQuick&&saraQuick.picture({error:\"" + jsonEscape(why) + L"\"})");
+  }
+  logLine(L"quick ask: a picture of " + saractx::appLabel(g_qaFront) + L" (" + std::to_wstring(w) + L"x" + std::to_wstring(h) + L")");
+  quickJs(L"window.saraQuick&&saraQuick.picture({data:\"" + std::wstring(url.begin(), url.end()) + L"\",w:" + std::to_wstring(w) + L",h:" + std::to_wstring(h) + L"})");
+}
+static void voicePillSync() {
+  const std::wstring& st = g_wakeState;
+  bool active = st == L"woken" || st == L"hearing" || st == L"thinking" || st == L"speaking";
+  if (!active || (quickAskVisible() && GetForegroundWindow() == g_qa)) return sarapill::hide();  // quick ask in front shows it itself
+  std::wstring kind = st == L"thinking" ? L"thinking" : st == L"speaking" ? L"speaking" : L"listening";
+  std::wstring text = kind == L"thinking" ? L"Thinking\u2026" : kind == L"speaking" ? L"Speaking \u00B7 click to stop" : g_pttHeld ? L"Listening \u00B7 let go to send" : L"Listening\u2026";
+  static bool hooked = false;
+  if (!hooked) {
+    hooked = true;
+    sarapill::onClick([] {
+      if (g_wakeState == L"speaking") quickJs(L"window.saraQuick&&saraQuick.stopSpeaking&&saraQuick.stopSpeaking()");
+      else showQuickAsk();
+    });
+  }
+  sarapill::show(kind, text);
+}
+static void talkHotkey() {
+  bool starting = !g_wakeTalking;
+  wakeTalk();
+  const Shortcut* sc = talkShortcut();
+  if (!starting || !sc || !g_wakeTalking) return;
+  g_pttVk = sc->vk;
+  g_pttAt = GetTickCount64();
+  g_pttHeld = false;
+  SetTimer(g_wnd, kPttTimer, 40, nullptr);
+}
+static void pttTick() {
+  if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
+    KillTimer(g_wnd, kPttTimer);
+    g_pttHeld = false;
+    return quickJs(L"window.saraQuick&&saraQuick.cancelTalk&&saraQuick.cancelTalk()");
+  }
+  ULONGLONG held = GetTickCount64() - g_pttAt;
+  if ((GetAsyncKeyState((int)g_pttVk) & 0x8000) && held < 125000) {
+    if (!g_pttHeld && held > 350) {
+      g_pttHeld = true;  // held, not tapped: push-to-talk (no stop on a pause; letting go sends)
+      quickJs(L"window.saraQuick&&saraQuick.hold&&saraQuick.hold()");
+      voicePillSync();
+    }
+    return;
+  }
+  KillTimer(g_wnd, kPttTimer);
+  if (!g_pttHeld) return;  // a tap: the old way (stops by itself after a pause, or a second press)
+  g_pttHeld = false;
+  quickJs(L"window.saraQuick&&saraQuick.release&&saraQuick.release()");
+  voicePillSync();
+}
+static void toggleSpeakReplies() {
+  bool on = !prefOn(L"speakReplies", false);
+  setPref(L"speakReplies", on ? L"1" : L"0");
+  quickJs(std::wstring(L"window.saraQuick&&saraQuick.setSpeak&&saraQuick.setSpeak(") + (on ? L"true" : L"false") + L")");
+}
+static void quickAskMenu(HMENU m, bool grey) {
+  AppendMenuW(m, MF_STRING | (prefOn(L"speakReplies", false) ? MF_CHECKED : 0) | (grey ? MF_GRAYED : 0), ID_SPEAK_REPLIES, L"Speak her replies");
+  AppendMenuW(m, MF_STRING | (prefOn(L"quickAskSelection", true) ? MF_CHECKED : 0), ID_QA_SELECTION, L"Quick ask includes selected text");
 }
 /** From Settings → Hey Sara in the main window: SaraDesktop.call('wake', {op, key, value}). */
 static void onWakeCall(const std::wstring& id, std::map<std::wstring, std::wstring>& m) {
@@ -2394,6 +2531,7 @@ static void trayMenu() {
       AppendMenuW(m, MF_STRING | (wakePref(L"wakeOn", false) ? MF_CHECKED : 0) | (g_now.demo || !g_now.signedIn ? MF_GRAYED : 0), ID_WAKE_ON, L"Listen for \u201CHey Sara\u201D");
       if (wakePref(L"wakeOn", false)) AppendMenuW(m, MF_STRING, g_wakePauseUntil ? ID_WAKE_RESUME : ID_WAKE_PAUSE, g_wakePauseUntil ? L"Resume Hey Sara" : L"Pause Hey Sara for 1 hour");
       AppendMenuW(m, MF_STRING, ID_WAKE_SETTINGS, L"Hey Sara settings\u2026");
+      quickAskMenu(m, g_now.demo || !g_now.signedIn);  // Speak her replies · Include selected text
     }
     if (g_now.signedIn && !g_now.demo) {
       // "Now": background jobs still running and approvals waiting (refreshed every 45 s).
@@ -2414,6 +2552,17 @@ static void trayMenu() {
       }
     }
     AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
+  }
+  {
+    // The app's own update (src/app-update.cpp).
+    auto st = saraupdate::status();
+    std::wstring how = updateHow();
+    if (st.state == saraupdate::State::Ready) AppendMenuW(m, MF_STRING, ID_APP_UPDATE, (L"Update Sara app to " + st.latest).c_str());
+    else if (st.state == saraupdate::State::Downloading) AppendMenuW(m, MF_STRING | MF_GRAYED, 0, (L"Downloading Sara app " + st.latest + L"\u2026").c_str());
+    else if (st.state == saraupdate::State::Installing) AppendMenuW(m, MF_STRING | MF_GRAYED, 0, (L"Installing Sara app " + st.latest + L"\u2026").c_str());
+    else if (st.state == saraupdate::State::Available && !st.latest.empty())
+      AppendMenuW(m, MF_STRING, ID_APP_UPDATE, (how == L"server" ? L"Sara " + st.latest + L" is out: Settings\u2026" : how == L"manual" ? L"Download Sara app " + st.latest + L"\u2026" : L"Update Sara app to " + st.latest).c_str());
+    if (st.state >= saraupdate::State::Available && st.state <= saraupdate::State::Installing) AppendMenuW(m, MF_SEPARATOR, 0, nullptr);
   }
   AppendMenuW(m, MF_STRING, ID_OPEN, L"Open Sara");
   AppendMenuW(m, MF_STRING | needsServer, ID_SETTINGS, L"Settings…");
@@ -2685,6 +2834,8 @@ static const wchar_t* kShim = LR"JS(
     const d = e.data || {};
     if (d.id && pending.has(d.id)) { const p = pending.get(d.id); pending.delete(d.id); d.error ? p.reject(new Error(d.error)) : p.resolve(d.result); }
     if (d.open) location.hash = 'c=' + d.open;
+    // The app's own update status changed (the page's banner listens).
+    if (d.appUpdate) window.dispatchEvent(new CustomEvent('sara-app-update', { detail: d.appUpdate }));
     // Phase 75 stage 3: files from Explorer's Send To / Sara.exe <files>: into the message box as
     // attachments (never sent by themselves). The page's own hook when it has one, else its attach
     // button's file input, so the page's own rules (types, sizes, how many) apply as for a drop.
@@ -2787,12 +2938,125 @@ static void filesAttached(bool ok) {
 }
 /** Files from a second start or the command line: shown in the window, attached when her page is there. */
 static void takeFiles(const std::vector<std::wstring>& paths) {
-  auto files = realFiles(paths);
+  auto files = realFiles(sarasave::expandFolders(paths, kMaxFiles));
   if (files.empty()) return;
   for (auto& f : files)
     if (g_pendingFiles.size() < kMaxFiles) g_pendingFiles.push_back(f);
   showWindow();
   deliverFiles();
+}
+
+// ---------- the app updates itself (src/app-update.cpp, docs/desktop.md → How the app updates) ----------
+// The app-only install (Sara-Setup /MODE=remote) updates itself from the signed update notice; with
+// Sara's server on this computer the server's own update brings the app (Settings → Updates).
+static std::wstring g_updateTold;  // what the last balloon was about (one per version or problem)
+static DWORD testNumber(const wchar_t* name, DWORD def) {
+#ifdef SARA_TEST_HOOKS
+  wchar_t b[32];
+  if (GetEnvironmentVariableW(name, b, 32) > 0) return (DWORD)_wtoi(b);
+#else
+  (void)name;
+#endif
+  return def;
+}
+static void initUpdates() {
+  saraupdate::Options o;
+  o.version = kVersion;
+  o.dataDir = dataDir();
+  o.iniPath = iniPath();
+  o.exePath = exePath();
+  o.how = updateHow();
+  o.wnd = g_wnd;
+  o.msg = WM_APP_UPDATE;
+  o.log = [](const std::wstring& l) { logLine(l); };
+#ifdef SARA_TEST_HOOKS
+  // Test builds only: a local notice signed with a test key (release builds always use the release key).
+  wchar_t b[2048];
+  if (GetEnvironmentVariableW(L"SARA_UPDATE_NOTICE_URL", b, 2048) > 0) o.noticeUrl = toUtf8(b);
+  if (GetEnvironmentVariableW(L"SARA_UPDATE_ASSET_BASE", b, 2048) > 0) o.assetBase = toUtf8(b);
+  if (GetEnvironmentVariableW(L"SARA_UPDATE_KEY", b, 2048) > 0) o.keys = {{"test", toUtf8(b)}};
+#endif
+  saraupdate::init(o);
+  bool ok = false;
+  std::wstring result = saraupdate::takeResult(ok);
+  if (!result.empty()) {
+    logLine(L"app update: " + result);
+    g_pendingConv.clear();
+    notifyPlain(ok ? L"Sara app updated" : L"The app update didn't install", result);
+  }
+  SetTimer(g_wnd, kUpdateTimer, testNumber(L"SARA_UPDATE_TICK_MS", 60000), nullptr);
+}
+/** Nobody is using the app or the computer (and Sara isn't using it either). */
+static bool quietMoment() {
+  if (IsWindowVisible(g_wnd) && !IsIconic(g_wnd)) return false;
+  if (g_qa && IsWindowVisible(g_qa)) return false;
+  LASTINPUTINFO li{sizeof(li)};
+  if (!GetLastInputInfo(&li)) return false;
+  return (GetTickCount() - li.dwTime) / 1000 >= testNumber(L"SARA_UPDATE_QUIET_SECONDS", 20 * 60);
+}
+/** Hands over to the watcher and quits (it starts the app again). Never while computer use is active. */
+static bool installUpdate(bool relaunch) {
+  if (sarahands::busy()) return false;
+  bool hidden = !IsWindowVisible(g_wnd) || IsIconic(g_wnd);
+  std::wstring why = saraupdate::install(relaunch, hidden);
+  if (!why.empty()) {
+    g_pendingConv.clear();
+    notifyPlain(L"The app update didn't start", why);
+    return false;
+  }
+  g_quitting = true;
+  PostMessageW(g_wnd, WM_CLOSE, 0, 0);
+  return true;
+}
+static void updateTick() {
+  saraupdate::check(false);
+  if (!saraupdate::ready() || sarahands::busy()) return;
+  if (saraupdate::wantsInstall()) installUpdate(true);
+  else if (saraupdate::mayInstallByItself() && quietMoment()) installUpdate(true);
+}
+static void onUpdateChanged() {
+  auto st = saraupdate::status();
+  if (g_web) g_web->PostWebMessageAsJson((L"{\"appUpdate\":" + saraupdate::statusJson() + L"}").c_str());
+  if (st.state == saraupdate::State::Ready && saraupdate::wantsInstall()) return updateTick();
+  // One balloon per version when it waits for the person (by itself off, or a security fix), and per problem.
+  std::wstring about;
+  if (st.state == saraupdate::State::Ready && (!saraupdate::autoOn() || st.security)) about = L"ready:" + st.latest;
+  if (st.state == saraupdate::State::Failed) about = L"failed:" + st.message;
+  if (about.empty() || about == g_updateTold) return;
+  g_updateTold = about;
+  g_pendingConv.clear();
+  if (st.state == saraupdate::State::Ready) notifyPlain(L"Sara app " + st.latest + L" is ready", L"Update now from Sara's icon next to the clock, or in the Sara window.");
+  else notifyPlain(L"App update", st.message);
+}
+/** Update now (the tray menu, the page's banner, the server's Update it). */
+static void updateNow(bool fromServer) {
+  auto st = saraupdate::status();
+  if (updateHow() == L"server" && st.state == saraupdate::State::Available) return openView(L"settings");
+  if (updateHow() == L"manual") {
+    ShellExecuteW(nullptr, L"open", saraupdate::kDownloadPage, nullptr, nullptr, SW_SHOWNORMAL);
+    return;
+  }
+  if (st.state == saraupdate::State::Ready && !sarahands::busy()) {
+    installUpdate(true);
+    return;
+  }
+  saraupdate::wantInstall(fromServer);
+  if (sarahands::busy()) {
+    g_pendingConv.clear();
+    notifyPlain(L"The app updates when Sara is done", L"Sara is using this computer right now. The update installs when she has finished.");
+  }
+}
+static void onAppUpdateCall(const std::wstring& id, std::map<std::wstring, std::wstring>& m) {
+  const std::wstring& what = m[L"do"];
+  if (what == L"check") saraupdate::check(true);
+  else if (what == L"install") {
+    reply(id, saraupdate::statusJson());
+    return updateNow(m[L"from"] == L"server");
+  } else if (what == L"later") saraupdate::later();
+  else if (what == L"server") saraupdate::serverVersion(toUtf8(m[L"version"]));
+  else if (what == L"auto") saraupdate::setAuto(m[L"value"] == L"true");
+  else if (what != L"status") return reply(id, L"null", L"Unknown update request");
+  reply(id, saraupdate::statusJson());
 }
 
 static std::wstring prefsJson() {
@@ -2801,7 +3065,8 @@ static std::wstring prefsJson() {
          L",\"server\":\"" + jsonEscape(g_server) + L"\",\"theme\":\"" + g_themePref + L"\",\"titlebar\":" + std::to_wstring(g_customFrame ? kTitlebarDip : 0) +
          // Phase 75 stage 2: the quick-ask shortcut, the choices, and whether another app has it.
          L",\"quickAskShortcut\":\"" + shortcutId() + L"\",\"quickAskShortcutLabel\":\"" + shortcutLabel() + L"\",\"quickAskShortcutFree\":" + (g_shortcutTaken ? L"false" : L"true") +
-         L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() + L"}";
+         L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() +
+         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
 }
 
 
@@ -2851,6 +3116,9 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     return reply(id, g_mica ? L"\"mica\"" : L"\"solid\"");
   }
   if (kind == L"getPrefs") return reply(id, prefsJson());
+  // The app's own updates (status, check, Update now / Later, by itself; the server's version and Update it).
+  if (kind == L"appUpdate") return onAppUpdateCall(id, m);
+  if (kind.rfind(L"save", 0) == 0) return sarasave::onCall(kind, id, m);  // Save to my PC (save-files.cpp)
   // Phase 68: the page's ⇄ menu. Names and hosts only: no sign-in ever goes to a page.
   if (kind == L"servers") return reply(id, serversJson());
   if (kind == L"useServer") {
@@ -2891,6 +3159,7 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     } else if (key == L"startAtLogin") setStartAtLogin(on);
     else if (key == L"sendTo") setSendTo(on);  // Phase 75 stage 3: "Send to → Sara" in Explorer
     else if (key == L"keepRunning" || key == L"notifications") setPref(key.c_str(), on ? L"1" : L"0");
+    else if (key == L"appUpdateAuto") saraupdate::setAuto(on);  // "Update the app by itself"
     else if (key == L"handsLocalOnly") {
       // Phase 87: "Screenshots only to models on this computer" (the server hears it at once).
       setIni(handsSection(), L"handsLocalOnly", on ? L"1" : L"0");
@@ -2905,6 +3174,18 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       // 3.4.x: "Files" (read Desktop, Documents and Downloads; the page showed its explainer first).
       setIni(handsSection(), L"handsFiles", on ? L"1" : L"0");
       sarahands::setFiles(on);
+    }
+    else if (key == L"handsRun" || key == L"handsRunReadOnly") {
+      // 3.5 (PC tools): "Let her run commands on this computer" and "Simple read-only commands without asking" (both off by default).
+      setIni(handsSection(), key.c_str(), on ? L"1" : L"0");
+      runSync();
+    }
+    else if (key == L"handsRunLevel") {
+      std::wstring value = m[L"value"];
+      if (value != L"ask" && value != L"task" && value != L"always") return reply(id, L"null", L"Invalid command approval level");
+      if (value == L"always" && MessageBoxW(g_wnd, L"Sara may run commands on this computer without approval cards. Commands that delete, change settings or download and run things still ask. Nothing runs as administrator. Stop always works. Allow this on this computer?", L"Commands: Always allowed", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES) return reply(id, L"null", L"Not allowed on this computer");
+      setIni(handsSection(), L"handsRunLevel", value);
+      runSync();
     }
     else if (key == L"handsBlockExtra") {
       // Phase 92: "Also hide these windows" (one per line; kept on one ini line with \n escapes).
@@ -3040,6 +3321,8 @@ static void createController() {
           if (FAILED(r2) || !ctl) return S_OK;
           g_controller = ctl;
           g_controller->get_CoreWebView2(&g_web);
+          // Save to my PC (save-files.cpp): her files straight into a folder on this computer.
+          sarasave::attach(g_web.Get(), {g_wnd, [](const wchar_t* k) { return getPref(k); }, [](const wchar_t* k, const std::wstring& v) { setPref(k, v); }, reply, [] { return g_server; }, logLine, testRun() ? dataDir() : L""});
           // Phase 75: the theme colour behind every page (no white flash on start, navigation or resize).
           ComPtr<ICoreWebView2Controller2> c2;
           COLORREF bg = themeColor();
@@ -3130,6 +3413,8 @@ static void createController() {
             COREWEBVIEW2_PERMISSION_KIND k;
             a->get_PermissionKind(&k);
             bool wanted = k == COREWEBVIEW2_PERMISSION_KIND_MICROPHONE || k == COREWEBVIEW2_PERMISSION_KIND_CAMERA || k == COREWEBVIEW2_PERMISSION_KIND_NOTIFICATIONS || k == COREWEBVIEW2_PERMISSION_KIND_CLIPBOARD_READ;
+            // Save to my PC: the app's own downloads of her files (save-files.cpp), only while one is asked for.
+            if (k == COREWEBVIEW2_PERMISSION_KIND_MULTIPLE_AUTOMATIC_DOWNLOADS && sarasave::pending()) wanted = true;
             a->put_State(sameOrigin(u) && wanted ? COREWEBVIEW2_PERMISSION_STATE_ALLOW : COREWEBVIEW2_PERMISSION_STATE_DEFAULT);
             return S_OK;
           }).Get(), nullptr);
@@ -3376,8 +3661,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_HOTKEY:
       // Phase 75 stage 2: the quick-ask shortcut, from any app.
-      if (wp == kHotkeyId) toggleQuickAsk();
-      if (wp == kTalkHotkeyId) wakeTalk();  // Phase 126: Talk to Sara
+      if (wp == kHotkeyId) quickAskHotkey();  // toggleQuickAsk() with what's selected in the app in front
+      if (wp == kTalkHotkeyId) talkHotkey();  // Phase 126: Talk to Sara (wakeTalk), held: push-to-talk
       return 0;
     case WM_DESTROY:
       UnregisterHotKey(h, kHotkeyId);
@@ -3387,6 +3672,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       sarahands::stop();  // Phase 87: the connection and the Sara browser close with the app
       saratoast::unregisterActivator();
       KillTimer(h, kNowTimer);
+      KillTimer(h, kUpdateTimer);
       closeQuickAskWebView();
       if (g_qa) DestroyWindow(g_qa);
       Shell_NotifyIconW(NIM_DELETE, &g_tray);
@@ -3408,6 +3694,9 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_APP_REMOVED:
       afterRemove();
+      return 0;
+    case WM_APP_UPDATE:
+      onUpdateChanged();
       return 0;
     case WM_APP_TOAST:
       runToastQueue();  // Phase 75 stage 3: clicks on her toasts
@@ -3451,6 +3740,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       }
       if (wp == kRemoveTimer) finishRemove();
       if (wp == kNowTimer) refreshNow();
+      if (wp == kUpdateTimer) updateTick();
+      if (wp == kPttTimer) pttTick();  // push-to-talk: the talk shortcut let go / Esc
       if (wp == kWakeTryTimer) {
         // Phase 126: Try it: 20 seconds of listening, the labels heard, nothing asked.
         KillTimer(h, kWakeTryTimer);
@@ -3491,6 +3782,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_COMMAND:
       switch (LOWORD(wp)) {
         case ID_OPEN: showWindow(); break;
+        case ID_APP_UPDATE: updateNow(false); break;
         case ID_LOGIN: setStartAtLogin(!startAtLogin()); break;
         case ID_SETTINGS: openView(L"settings"); break;
         case ID_HELP: openView(L"help"); break;
@@ -3498,6 +3790,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_HEADER: showWindow(); break;
         case ID_ASK: showQuickAsk(); break;
         case ID_WAKE_TALK: wakeTalk(); break;
+        case ID_SPEAK_REPLIES: toggleSpeakReplies(); break;
+        case ID_QA_SELECTION: setPref(L"quickAskSelection", prefOn(L"quickAskSelection", true) ? L"0" : L"1"); break;
         case ID_WAKE_ON:
           // Switching on needs the consent card and the download: that's on Settings → Hey Sara.
           if (wakePref(L"wakeOn", false)) {
@@ -3556,6 +3850,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
           }
           break;
         case ID_QUIT:
+          // "Update the app by itself": a downloaded update installs now, as the app closes (not relaunched).
+          if (saraupdate::mayInstallByItself() && !sarahands::busy()) saraupdate::install(false, false);
           g_quitting = true;
           SendMessageW(h, WM_CLOSE, 0, 0);
           break;
@@ -3568,9 +3864,19 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
 /** Phase 75 stage 3: the running Sara's window, for a second start (shared by name, so a test run
  *  and the real app never find each other's window by its class). */
 static HANDLE g_windowShare = nullptr;
-static const wchar_t* windowShareName() { return testRun() ? L"Local\\SaraDesktopAppTestWindow" : L"Local\\SaraDesktopAppWindow"; }
+/** A test run's single-instance names carry its data folder, so two test runs on one PC (another
+ *  session's, the app's update test) never take each other for "already running". */
+static std::wstring testRunTag() {
+  std::wstring d = dataDir(), tag;
+  unsigned h = 2166136261u;
+  for (wchar_t c : d) h = (h ^ (unsigned)towlower(c)) * 16777619u;
+  wchar_t b[16];
+  swprintf_s(b, L"%08x", h);
+  return b;
+}
+static std::wstring windowShareName() { return testRun() ? L"Local\\SaraDesktopAppTestWindow-" + testRunTag() : L"Local\\SaraDesktopAppWindow"; }
 static void shareWindow(HWND w) {
-  g_windowShare = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(unsigned long long), windowShareName());
+  g_windowShare = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(unsigned long long), windowShareName().c_str());
   if (!g_windowShare) return;
   if (auto* v = static_cast<unsigned long long*>(MapViewOfFile(g_windowShare, FILE_MAP_WRITE, 0, 0, sizeof(unsigned long long)))) {
     *v = (unsigned long long)(ULONG_PTR)w;
@@ -3579,7 +3885,7 @@ static void shareWindow(HWND w) {
 }
 static HWND sharedWindow() {
   HWND w = nullptr;
-  if (HANDLE m = OpenFileMappingW(FILE_MAP_READ, FALSE, windowShareName())) {
+  if (HANDLE m = OpenFileMappingW(FILE_MAP_READ, FALSE, windowShareName().c_str())) {
     if (auto* v = static_cast<unsigned long long*>(MapViewOfFile(m, FILE_MAP_READ, 0, 0, sizeof(unsigned long long)))) {
       w = (HWND)(ULONG_PTR)*v;
       UnmapViewOfFile(v);
@@ -3595,6 +3901,8 @@ static HWND sharedWindow() {
 
 int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   g_inst = inst;
+  // The app's update watcher (a copy of Sara.exe in <data>\updates; src/app-update.cpp): installs, then starts the app again.
+  if (wcsstr(cmd, L"--apply-update")) return saraupdate::runWatcher();
   // Phase 126: Sara.exe --test-wake <pack folder> <wav> [keywords file]: the native check (WAKE.md §12).
   if (wcsstr(cmd, L"--test-wake")) {
     int argc = 0;
@@ -3631,7 +3939,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
     return 0;
   }
   // One Sara at a time: a second start just shows the first.
-  HANDLE single = CreateMutexW(nullptr, TRUE, testRun() ? L"Local\\SaraDesktopAppTest" : L"Local\\SaraDesktopApp");
+  HANDLE single = CreateMutexW(nullptr, TRUE, testRun() ? (L"Local\\SaraDesktopAppTest-" + testRunTag()).c_str() : L"Local\\SaraDesktopApp");
   if (GetLastError() == ERROR_ALREADY_EXISTS) {
     // Phase 75 stage 3: files go to the running Sara (WM_COPYDATA); otherwise she just shows up.
     if (HWND other = sharedWindow()) {
@@ -3750,6 +4058,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   wakeApply();
   if (!background || !files.empty()) ShowWindow(g_wnd, maximized ? SW_SHOWMAXIMIZED : show);
   createWebView();
+  initUpdates();  // checks on start (the first tick), then every 6 hours
   if (!files.empty()) takeFiles(files);  // attached once her page has loaded
   if (!g_toastQueue.empty()) PostMessageW(g_wnd, WM_APP_TOAST, 0, 0);
 

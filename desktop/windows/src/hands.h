@@ -48,6 +48,11 @@ struct Host {
   // folders at a scratch folder (SARA_FILES_TEST_ROOT) so tests never read the person's real files.
   bool filesOn = false;
   std::wstring filesTestRoot;
+  // 3.5 (PC tools): "Let her run commands on this computer" (off by default), its approvals (0 ask, 1 task, 2 always),
+  // and "Simple read-only commands without asking" (off by default). hands-run.cpp.
+  bool runOn = false;
+  int runLevel = 1;
+  bool runReadOnly = false;
   unsigned long tabsTestPid = 0;  // test runs only (SARA_TABS_TEST_PID): d.tabs reads only that browser process
 };
 
@@ -70,6 +75,8 @@ void setTakeover(bool keepControl);
 /** Phase 93: "Keep working when I walk away" changed (never unlocks or bypasses approvals). */
 void setWalkAway(bool on);
 void setDesktopLevel(int level);
+/** 3.5 (PC tools): the three command choices changed here (the server hears the switch at once). */
+void setRun(bool on, int level, bool readOnly);
 /** Phase 88: Resume after the person took over (the badge's button, the tray menu). */
 void resume();
 bool paused();
@@ -79,6 +86,8 @@ std::wstring statusLine();
 std::wstring hotkeyLabel();
 bool running();
 bool connected();
+/** Computer use is active now (the "Sara is working" badge shows, or she acted in the last 30 s). */
+bool busy();
 /** Connect again now (Try again, after sleep, a network change); dropOpen closes an open connection first. */
 void reconnectNow(bool dropOpen);
 /** The last connection problem, if any ("signed out", "can't reach the server"). */

@@ -4,6 +4,7 @@
 // a long document shows its reading progress (Pause / Resume / Cancel), its contents with section
 // summaries, and opens at a page (the links in her answers: /#view=library:<id>:<page>).
 import { serverText, t } from './naming.js';
+import { addSaveButtons } from './save-to-pc.js';
 import { emptyState } from './tidy.js';
 import { choices } from './kit.js';
 import { openReadFeed, openReadTogether } from './read-together.js';
@@ -302,6 +303,8 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   showJob(d);
   showContents(d, r.sections);
   $('#lib-doc-download').setAttribute('download', d.name);
+  $('#lib-doc-download').parentElement.querySelector('.pc-save')?.remove();
+  addSaveButtons($('#lib-doc-download').parentElement, { url: `/api/library/${d.id}/file`, name: d.name });
   $('#lib-doc-keep').hidden = d.keep;
   // E5: Read together (text and Markdown documents she keeps).
   $('#lib-doc-together').hidden = !(d.keep && !d.readOnly && d.status === 'ready' && ['text', 'markdown'].includes(d.kind));

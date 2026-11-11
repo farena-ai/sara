@@ -1,0 +1,108 @@
+/* Feature 4 (works offline): the kept chats and notes, read-only, with the outbox (web/offline-view.js).
+   Over the app (fixed, above everything) and on the offline page. Theme tokens only (theme.css). */
+.offv {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-0);
+  color: var(--text-1);
+  font: var(--fs-body, 15px)/1.5 var(--font-ui, system-ui, sans-serif);
+}
+.offv[hidden] { display: none; }
+html.shell .offv { top: var(--titlebar, 0px); }
+.offv-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: max(10px, env(safe-area-inset-top)) 16px 10px;
+  background: color-mix(in srgb, var(--warn) 18%, var(--surface-1));
+  border-bottom: 1px solid color-mix(in srgb, var(--warn) 45%, var(--line));
+  font-weight: 600;
+}
+.offv-bar-text { flex: 1; min-width: 0; }
+.offv button { font: inherit; color: inherit; cursor: pointer; }
+.offv-retry, .offv-small, .offv-back {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-2, 8px);
+  background: var(--surface-1);
+}
+.offv-small { min-height: 30px; padding: 0 10px; font-size: 13px; }
+.offv .primary { min-height: 40px; padding: 0 16px; border: 0; border-radius: var(--r-2, 8px); background: var(--btn-fill); color: var(--on-btn); font-weight: 600; }
+.offv-small.primary { min-height: 30px; }
+.offv-retry:disabled { opacity: 0.6; cursor: default; }
+.offv button:focus-visible, .offv-input:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.offv-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 300px) 1fr; }
+.offv-side { overflow: auto; padding: 12px; border-right: 1px solid var(--line); background: var(--surface-1); }
+.offv-h { margin: 14px 6px 6px; font-size: 12px; font-weight: 650; letter-spacing: 0.04em; text-transform: uppercase; color: var(--text-3); }
+.offv-h-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.offv-h-row .offv-small { margin-top: 8px; }
+.offv-list { list-style: none; margin: 0; padding: 0; }
+.offv-item {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-2, 8px);
+  background: none;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.offv-item:hover { background: var(--surface-2); }
+.offv-item.on { background: var(--surface-3); font-weight: 600; }
+.offv-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.offv-pane-head { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.offv-back { display: none; }
+.offv-title { margin: 0; font-size: 17px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.offv-msgs { flex: 1; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+.offv-muted { color: var(--text-2); margin: 10px 6px; }
+.offv-center { text-align: center; margin: 24px auto; max-width: 460px; }
+.offv-msg { max-width: min(720px, 86%); padding: 8px 12px; border-radius: 14px; background: var(--surface-1); border: 1px solid var(--line); }
+.offv-msg.user { align-self: flex-end; background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); }
+.offv-msg.waiting { border-style: dashed; border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); background: var(--surface-1); }
+.offv-msg.refused { border-color: var(--danger); }
+.offv-who { font-size: 12px; font-weight: 600; color: var(--text-3); margin-bottom: 2px; }
+.offv-text, .offv-note { white-space: pre-wrap; overflow-wrap: anywhere; }
+.offv-note { padding: 4px 2px; }
+.offv-wait { margin-top: 4px; font-size: 12px; color: var(--text-2); }
+.offv-msg.refused .offv-wait { color: var(--danger); }
+.offv-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+.offv-compose { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; padding: 10px 16px max(12px, env(safe-area-inset-bottom)); border-top: 1px solid var(--line); background: var(--surface-1); }
+.offv-input { flex: 1 1 240px; min-width: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-2, 8px); background: var(--surface-0); color: var(--text-1); font: inherit; resize: vertical; }
+.offv-title-input { flex-basis: 100%; }
+.offv-msg .offv-input { width: 100%; min-width: 260px; }
+/* Phones: the list, then one chat or note with Back. */
+@media (max-width: 799px) {
+  .offv-body { grid-template-columns: 1fr; }
+  .offv-side { border-right: 0; }
+  .offv-pane { display: none; }
+  .offv.offv-reading .offv-side { display: none; }
+  .offv.offv-reading .offv-pane { display: flex; }
+  .offv-back { display: inline-flex; align-items: center; }
+  .offv-msg { max-width: 92%; }
+}
+/* The "Back online — sent 2 messages" note over the app. */
+.offv-note-pop {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  z-index: 2147483001;
+  max-width: calc(100vw - 32px);
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-2);
+  color: var(--text-1);
+  box-shadow: var(--elev-2);
+  font-weight: 600;
+}
+.offv-note-pop[hidden] { display: none; }
+/* Phones: above the message box and the bottom bar. */
+@media (max-width: 799px) { .offv-note-pop { bottom: calc(140px + env(safe-area-inset-bottom)); } }
+.offv-note-pop .offv-small { margin-left: 10px; }

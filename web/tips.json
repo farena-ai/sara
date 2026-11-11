@@ -1,6 +1,14 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "offline-keep": [
+      "On in the Sara apps and installed web apps, off in a plain browser tab (it may be a shared computer). Turning it off deletes this device's copy at once.",
+      "signin"
+    ],
+    "offline-private": [
+      "Off by default: private chats stay on the server only. Turn it on for your own phone or computer if you want to read them offline too.",
+      "signin"
+    ],
     "wm-text": [
       "What she reminds you of when it comes up, in your words: “he owes me $20”, “ask about the rollback plan”.",
       "when"

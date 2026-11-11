@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.4.5, [Quick replies from models on a processor](https://github.com/farena-ai/sara/releases/tag/v3.4.5). A model running without a graphics card gets a small, fast context, and a slow model is named with Fix it. [See what changed](#whats-new)
+> **Status:** 3.5.0, [A desktop app that does more](https://github.com/farena-ai/sara/releases/tag/v3.5.0). The Windows app updates itself, quick-asks with your selection or window, takes drops, saves to your PC, runs approved commands and works offline. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[A desktop app that does more](docs/desktop.md)** — Quick ask takes selected text or a window picture, push-to-talk and spoken replies work with the window closed, drops and Save to my PC handle files, approved commands run on your PC with Stop, and recent chats stay readable offline. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Quick replies from models on a processor](docs/CHOOSING_A_MODEL.md)** — Sara asks each Ollama whether the model runs on a graphics card; on a processor she keeps the context small so replies stay quick. After 45 seconds without an answer the chat names the slow model with Fix it, Keep waiting and Stop. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrupt and tell her now](docs/CHATS.md)** — Interrupt now (Send menu, Ctrl+Enter or /now) stops her current reply or thinking and she continues from what you said, keeping finished steps and folding what she was saying. Changes in progress finish first, and a long command gets Stop the command. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[She reads the pictures you send](docs/CHOOSING_A_MODEL.md)** — Screenshots of lab results, bills or forms now reach whichever of your models can see; if the one answering can't, another reads it into exact text first. She saves the values with note add, and when no model can see she says so with Fix it instead of pretending. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notes that never lose what you told her](docs/FEATURES.md)** — She adds each new thing to a note under a dated heading, a save that would erase a note is refused, earlier versions come back with Restore, and an unbacked “saved” is flagged. The Windows app's top edge matches the page, and she can read your own browser tabs and files. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[She remembers as much as her model can hold](docs/CHOOSING_A_MODEL.md)** — Auto sizes how much of the chat she keeps in mind to the model in use (looked up from the service or a dated table), caps pay-per-token history at a balanced level unless you choose the full window, and gives local Ollama models a real context size. |
-| **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documents, her name everywhere, computer use from a server](docs/DOCUMENTS.md)** — She makes real documents with any model (Word, PDF, spreadsheets, slides) with Download, Open and Make changes. A renamed companion shows its own name and pronouns everywhere, with built-in he and they characters. The browser add-on and computer use now work in one click. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.3.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.4.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documents, her name everywhere, computer use from a server](docs/DOCUMENTS.md)** — She makes real documents with any model (Word, PDF, spreadsheets, slides) with Download, Open and Make changes. A renamed companion shows its own name and pronouns everywhere, with built-in he and they characters. The browser add-on and computer use now work in one click. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Easy mode](docs/AWAY_FROM_HOME.md)** — Made with a first-time user: setup explains keys and can't be lost, problems come with Fix it, Connect the Sara phone app and Use Sara away from home (Tailscale) are guided and tested, Gmail takes three steps, and you can say “make the text bigger” with Undo. |
 | **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[She comes alive](docs/APPEARANCE.md)** — Pick Her portrait, animated in Appearance and she breathes, blinks, glances and moves her lips as she talks, with listening, thinking and speaking looks and her moods, in chat, Today and calls. Your own picture or a 3D .vrm model work too. |
 | **[3.1.2](https://github.com/farena-ai/sara/releases/tag/v3.1.2)** | **[Research that keeps going](docs/RESEARCH.md)** — Ask her to research a topic, make a guide or learn something and she starts a research run: she searches instead of guessing addresses, skips sites that block automated readers, retries slow ones, resumes after a restart, and a run cut short still gives a report marked Partial. |

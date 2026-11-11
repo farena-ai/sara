@@ -31,10 +31,34 @@
 #ifndef Stage
   #define Stage "..\..\..\outputs\windows\stage"
 #endif
+; The app's update test (docs/desktop.md → How the app updates; build-installer.sh with SARA_TEST_INSTALL=1):
+; an installer of its own (another AppId, folder, Start-menu name and app data folder), so testing an
+; app-only update on a PC never touches a real Sara there. Release builds never define TestInstall.
+#ifdef TestInstall
+  #define AppGuid "8C1D7E52-3F0A-4B6E-9D21-5A7B3C9E0F64"
+  #define AppTitle "Sara update test"
+  #define AppFolder "SaraUpdTest"
+  #define AppData "{localappdata}\SaraUpdTest\data"
+  #define AppAumid "BackstageCoding.Sara.Test"
+  #define AppToastClsid "06518AB6-E425-4C52-A92F-FB52BE7867E6"
+  #define AppSendTo "Sara (test).lnk"
+#else
+  #define AppGuid "6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17"
+  #define AppTitle "Sara"
+  #define AppFolder "Sara"
+  #define AppData "{localappdata}\Sara"
+  #define AppAumid "BackstageCoding.Sara"
+  #define AppToastClsid "57448757-B168-47CE-9852-892129855C82"
+  #define AppSendTo "Sara.lnk"
+#endif
 
 [Setup]
+#ifdef TestInstall
+AppId={{8C1D7E52-3F0A-4B6E-9D21-5A7B3C9E0F64}
+#else
 AppId={{6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17}
-AppName=Sara
+#endif
+AppName={#AppTitle}
 AppVersion={#AppVersion}
 AppVerName=Sara {#AppVersion}
 AppPublisher=Backstage Coding
@@ -43,7 +67,7 @@ AppSupportURL=https://github.com/farena-ai/sara
 AppUpdatesURL=https://github.com/farena-ai/sara/releases/latest
 VersionInfoVersion={#AppVersion}
 VersionInfoDescription=Sara setup (server and desktop app)
-DefaultDirName={autopf}\Sara
+DefaultDirName={autopf}\{#AppFolder}
 DisableDirPage=yes
 DisableProgramGroupPage=yes
 DisableWelcomePage=yes
@@ -61,7 +85,7 @@ SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\src\sara.ico
 UninstallDisplayIcon={app}\Sara.exe
-UninstallDisplayName=Sara
+UninstallDisplayName={#AppTitle}
 ChangesEnvironment=yes
 CloseApplications=yes
 RestartApplications=no
@@ -88,21 +112,21 @@ Source: "{#Stage}\server\*"; DestDir: "{app}\server"; Flags: ignoreversion recur
 [Icons]
 ; Phase 75 stage 3: the shortcut says it is Sara (the AUMID the app sets for itself) and names the
 ; COM class that takes clicks on her notifications (desktop/windows/src/main.cpp, kToastClsid).
-Name: "{autoprograms}\Sara"; Filename: "{app}\Sara.exe"; Comment: "Sara, your companion"; AppUserModelID: "BackstageCoding.Sara"; AppUserModelToastActivatorCLSID: "57448757-B168-47CE-9852-892129855C82"
+Name: "{autoprograms}\{#AppTitle}"; Filename: "{app}\Sara.exe"; Comment: "Sara, your companion"; AppUserModelID: "{#AppAumid}"; AppUserModelToastActivatorCLSID: "{#AppToastClsid}"
 
 [Registry]
 ; "Only while I'm signed in": her server starts when this user signs in.
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Sara server"; ValueData: """{app}\SaraService.exe"" --run"; Flags: uninsdeletevalue; Check: (not IsAdminInstallMode) and (not IsRemote)
 ; Phase 75 stage 3: what the app registers for its notifications (per user, when it runs) goes on uninstall.
-Root: HKCU; Subkey: "Software\Classes\AppUserModelId\BackstageCoding.Sara"; Flags: uninsdeletekey dontcreatekey
-Root: HKCU; Subkey: "Software\Classes\CLSID\{{57448757-B168-47CE-9852-892129855C82}"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AppAumid}"; Flags: uninsdeletekey dontcreatekey
+Root: HKCU; Subkey: "Software\Classes\CLSID\{{{#AppToastClsid}}"; Flags: uninsdeletekey dontcreatekey
 
 [Run]
 Filename: "{app}\Sara.exe"; Parameters: "{code:OpenParams}"; Description: "Open Sara"; Flags: postinstall nowait skipifsilent runasoriginaluser
 
 [UninstallDelete]
 ; Phase 75 stage 3: the app's "Send to → Sara" entry in Explorer.
-Type: files; Name: "{usersendto}\Sara.lnk"
+Type: files; Name: "{usersendto}\{#AppSendTo}"
 Type: files; Name: "{app}\sara.env"
 Type: filesandordirs; Name: "{app}\server"
 Type: filesandordirs; Name: "{app}\updater"
@@ -117,7 +141,7 @@ const
   EM_SETSEL = $00B1;
   ID_QUIT = 102;
   GUIDE_URL = 'https://github.com/farena-ai/sara/blob/main/docs/INSTALL.md#2-reach-her-securely-https';
-  APP_KEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17}_is1';
+  APP_KEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{{#AppGuid}}_is1';
   RUN_KEY = 'Software\Microsoft\Windows\CurrentVersion\Run';
 
 function SetEnvironmentVariable(lpName, lpValue: String): BOOL;
@@ -241,6 +265,11 @@ end;
 procedure CloseDesktopApp;
 var H: HWND; I: Integer;
 begin
+#ifdef TestInstall
+  // The update test: its watcher has closed the test app already. Never close another window here
+  // (a real Sara, or another test run's app, can be open on this PC).
+  exit;
+#endif
   H := FindWindowByClassName('SaraDesktopWindow');
   if H = 0 then exit;
   PostMessage(H, WM_COMMAND, ID_QUIT, 0);
@@ -363,7 +392,7 @@ end;
 
 function AppIni: String;
 begin
-  Result := ExpandConstant('{localappdata}\Sara\desktop.ini');
+  Result := ExpandConstant('{#AppData}\desktop.ini');
 end;
 
 function AppServer: String;
@@ -1013,7 +1042,7 @@ var Ini, Cur: String;
 begin
   // The app on this computer opens her local address, so you only paste the token. (Force: this
   // computer was set up for a Sara somewhere else until now, and now runs its own.)
-  Ini := ExpandConstant('{localappdata}\Sara\desktop.ini');
+  Ini := ExpandConstant('{#AppData}\desktop.ini');
   ForceDirectories(ExtractFileDir(Ini));
   Cur := GetIniString('sara', 'server', '', Ini);
   if Force or (Cur = '') or (Pos('http://127.0.0.1:', Cur) = 1) or (Pos('http://localhost:', Cur) = 1) then begin
@@ -1040,7 +1069,7 @@ var Srv: String;
 begin
   Srv := ChosenServer;
   if (OldServer <> '') and (OldServer <> Srv) then begin
-    DelTree(ExpandConstant('{localappdata}\Sara\WebView'), True, True, True);
+    DelTree(ExpandConstant('{#AppData}\WebView'), True, True, True);
     Log('New server address: the old sign-in was removed.');
   end;
   ForceDirectories(ExtractFileDir(AppIni));
@@ -1273,13 +1302,13 @@ begin
     // The app's "Start with Windows" entry (when it points at this copy).
     if RegQueryStringValue(HKCU, RUN_KEY, 'Sara', O) and (Pos(Uppercase(App), Uppercase(O)) > 0) then RegDeleteValue(HKCU, RUN_KEY, 'Sara');
     // The app's own files on this computer (its sign-in, window place).
-    DeleteFile(ExpandConstant('{localappdata}\Sara\desktop.ini'));
-    DeleteFile(ExpandConstant('{localappdata}\Sara\desktop.log'));
-    DelTree(ExpandConstant('{localappdata}\Sara\WebView'), True, True, True);
+    DeleteFile(ExpandConstant('{#AppData}\desktop.ini'));
+    DeleteFile(ExpandConstant('{#AppData}\desktop.log'));
+    DelTree(ExpandConstant('{#AppData}\WebView'), True, True, True);
     if DeleteData and (UninstData <> '') then begin
       DelTree(UninstData, True, True, True);
       Log('Deleted her data: ' + UninstData);
     end;
-    RemoveDir(ExpandConstant('{localappdata}\Sara'));
+    RemoveDir(ExpandConstant('{#AppData}'));
   end;
 end;

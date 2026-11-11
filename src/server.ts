@@ -52,6 +52,7 @@ import { exportAll } from './export.ts';
 import { type AppInfo } from './health.ts';
 import { summarizeConversation } from './memory-worker.ts';
 import { audit } from './audit-trail.ts';
+import { cleanClientKey, InFlightKeys, messageWithKey, serverIdOf } from './offline-keys.ts';
 import { as400, bodyKeys, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
@@ -126,6 +127,7 @@ import { createSpendRoutes } from './routes/spend.ts';
 import { createPrereqRoutes } from './routes/prereqs.ts';
 import { createPackRoutes } from './routes/packs.ts';
 import { createWakeRoutes } from './routes/wake.ts';
+import { createAppUpdateRoutes } from './routes/app-updates.ts';
 
 // Kept exported from here for main.ts and the tests.
 export { clientIp, fromPhoneApp, fromSaraApp, proxyTrust } from './http.ts';
@@ -404,12 +406,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -673,6 +675,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   }
   // Phase 57: other apps (OpenAI-compatible /v1, MCP /mcp): per-key limits.
   const appLimiter = new KeyLimiter(60);
+  // Feature 4: outbox keys being sent right now.
+  const outboxKeys = new InFlightKeys();
 
   /** Runs a turn with nobody streaming it; her reply is published as a message (→ notifications). */
   async function runBackground(conversationId: string, content: string, opts: TurnOptions = {}): Promise<void> {
@@ -1047,6 +1051,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const prereqRoutes = createPrereqRoutes(ctx);
   // Phase 126: Hey Sara (src/routes/wake.ts).
   const wakeRoutes = createWakeRoutes(ctx);
+  // The Sara apps' versions and Update it (src/routes/app-updates.ts).
+  const appUpdateRoutes = createAppUpdateRoutes(ctx);
   // Phase 127: companion packs (src/routes/packs.ts).
   const packRoutes = createPackRoutes(ctx);
   app.hands?.onStop((conversationId) => active.get(conversationId)?.controller.abort());
@@ -1281,6 +1287,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           return st && (st.open || st.closed) ? { claim: st } : {};
         })(),
         ...(authed ? { identity: identityOf(app.persona) } : {}),
+        // Feature 4: whose offline copy this page may keep (per server and per person on it).
+        ...(authed && !opts.demo ? { serverId: serverIdOf(app.rootDir ?? app.dataDir), space: spaceId } : {}),
         // Phase 67: the header badge while nothing may leave this computer.
         ...(authed && privateLocalOn() ? { privateLocal: true } : {}),
         // 2.18: the version this server runs, so open pages notice an update and reload (web/update-check.js). Not in the demo.
@@ -1506,6 +1514,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Voice: voice settings and notes, calls (ringing), video frames, push notifications, live-call status: src/routes/voice.ts.
     // Phase 126: Hey Sara: phrases, devices, the claim and the wake turn: src/routes/wake.ts.
     if ((await wakeRoutes(req, res, method, parts)) !== NEXT) return;
+    // The Sara apps' versions (Settings → Devices) and Update it: src/routes/app-updates.ts.
+    if ((await appUpdateRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await voiceRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Planner: tasks, projects, places, reminders, notes, Today, briefing, review, leave-by, story: src/routes/planner.ts.
@@ -2338,38 +2348,57 @@ export function createSaraServer(opts: ServerOptions): Server {
           if (!content) throw new HttpError(400, 'Message is empty');
           if (content.length > 100_000) throw new HttpError(413, 'Message too long');
           demoTurnAllowed(req);
-          // EC14: a turn linked to an editor (ACP): her file and command tools run in the editor.
-          // The owner's only; the policy can pin editors off. It shares like another app (G21).
-          const editor = body.editor !== undefined ? cleanEditorLink(body.editor) : undefined;
-          if (editor) {
-            if (opts.member || cx.member || opts.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
-            if (!policy().editorsOn) throw policy().refusal('editors');
+          // Feature 4: an outbox item (written offline) is stored once, however often it is sent.
+          const clientKey = cleanClientKey(body.clientKey);
+          const keyHeld = clientKey ? outboxKeys.hold(`chat:${b}`, clientKey) : undefined;
+          if (clientKey) {
+            const sent = messageWithKey(cx.store.db, b, clientKey);
+            if (sent !== undefined || !keyHeld) {
+              keyHeld?.();
+              if (sent === undefined) throw new HttpError(409, 'This message is already being sent.');
+              return send(res, 200, { duplicate: true, messageId: sent });
+            }
           }
-          const editorOpts = editor ? { editor, externalApp: true } : {};
-          // Phase 69: a classic video call: the newest camera picture goes with this message (in memory
-          // only, never saved), unless the camera was paused by a safety block meanwhile.
-          const blockedAt = cx.store.lastSafetyEventAt('minor_sexual_block', b)?.getTime();
-          const frameBuf = body.liveFrame === true && !(blockedAt !== undefined && app.now().getTime() - blockedAt < SAFETY_PAUSE_MS) ? videos.take(b, app.now().getTime()) : undefined;
-          const liveFrame = frameBuf ? { liveFrame: { image: { mime: 'image/jpeg', data: frameBuf.toString('base64') }, ask: body.liveFrameAsk === true } } : body.videoCall === true ? { videoCall: true } : {};
-          // Phase 116 (BR2 §5.7): while she works, a client that sends `whileBusy` gets a 202 with the
-          // waiting item (a steer for the owner and members, or a queued turn); older clients keep the 409.
-          const pend = pendOf(b);
-          if ((active.has(b) || pend.busy(b)) && (body.whileBusy === 'steer' || body.whileBusy === 'queue' || body.whileBusy === 'interrupt')) {
-            const sender = conv.partner ? 'person' : opts.member ? 'member' : 'owner';
-            const cfg = whileBusySettings(cx);
-            const r = pend.add(b, { kind: body.whileBusy, content, sender, meta: { source: 'web', ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) } }, undefined, { queueMax: cfg.queueMax });
-            if (!r.ok) throw new HttpError(429, r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { params: { max: cfg.queueMax } });
-            return send(res, 202, { pending: { id: r.item.id, kind: r.item.kind, state: r.item.state }, waiting: r.waiting, items: pend.list(b) });
+          let handedOff = false; // a background turn lets go of the key when it ends
+          try {
+            const keyOpts = clientKey ? { clientKey } : {};
+            // EC14: a turn linked to an editor (ACP): her file and command tools run in the editor.
+            // The owner's only; the policy can pin editors off. It shares like another app (G21).
+            const editor = body.editor !== undefined ? cleanEditorLink(body.editor) : undefined;
+            if (editor) {
+              if (opts.member || cx.member || opts.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+              if (!policy().editorsOn) throw policy().refusal('editors');
+            }
+            const editorOpts = editor ? { editor, externalApp: true } : {};
+            // Phase 69: a classic video call: the newest camera picture goes with this message (in memory
+            // only, never saved), unless the camera was paused by a safety block meanwhile.
+            const blockedAt = cx.store.lastSafetyEventAt('minor_sexual_block', b)?.getTime();
+            const frameBuf = body.liveFrame === true && !(blockedAt !== undefined && app.now().getTime() - blockedAt < SAFETY_PAUSE_MS) ? videos.take(b, app.now().getTime()) : undefined;
+            const liveFrame = frameBuf ? { liveFrame: { image: { mime: 'image/jpeg', data: frameBuf.toString('base64') }, ask: body.liveFrameAsk === true } } : body.videoCall === true ? { videoCall: true } : {};
+            // Phase 116 (BR2 §5.7): while she works, a client that sends `whileBusy` gets a 202 with the
+            // waiting item (a steer for the owner and members, or a queued turn); older clients keep the 409.
+            const pend = pendOf(b);
+            if ((active.has(b) || pend.busy(b)) && (body.whileBusy === 'steer' || body.whileBusy === 'queue' || body.whileBusy === 'interrupt')) {
+              const sender = conv.partner ? 'person' : opts.member ? 'member' : 'owner';
+              const cfg = whileBusySettings(cx);
+              const r = pend.add(b, { kind: body.whileBusy, content, sender, meta: { source: 'web', ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) } }, undefined, { queueMax: cfg.queueMax });
+              if (!r.ok) throw new HttpError(429, r.reason === 'steers' ? PENDING_LINES.steers : PENDING_LINES.full, { params: { max: cfg.queueMax } });
+              return send(res, 202, { pending: { id: r.item.id, kind: r.item.kind, state: r.item.state }, waiting: r.waiting, items: pend.list(b) });
+            }
+            if (pend.busy(b) && !active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
+            // Phase 18: from a notification's Reply box or the share sheet, the phone doesn't wait.
+            // The reply arrives like her other messages: as an event, so as a notification too.
+            if (body.background === true) {
+              if (active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
+              handedOff = true;
+              const release = keyHeld;
+              void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...keyOpts }).finally(() => release?.());
+              return send(res, 202, { ok: true });
+            }
+            return await streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts, ...keyOpts });
+          } finally {
+            if (!handedOff) keyHeld?.();
           }
-          if (pend.busy(b) && !active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
-          // Phase 18: from a notification's Reply box or the share sheet, the phone doesn't wait.
-          // The reply arrives like her other messages: as an event, so as a notification too.
-          if (body.background === true) {
-            if (active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
-            void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}) });
-            return send(res, 202, { ok: true });
-          }
-          return streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts });
         }
         // Regenerate the last reply, or edit the last owner message and answer it again.
         if (c === 'retry' && method === 'POST') {
@@ -2472,7 +2501,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
         // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).
-        if (method !== 'GET' && method !== 'HEAD' && AUDITED.has(parts[0]) && !opts.demo) res.once('finish', () => auditRequest(req, res, method, parts));
+        // (an app's check-in every few minutes is not an action: only Update it is recorded)
+        if (method !== 'GET' && method !== 'HEAD' && AUDITED.has(parts[0]) && !opts.demo && !(parts[0] === 'app-updates' && parts[1] === 'checkin')) res.once('finish', () => auditRequest(req, res, method, parts));
         await api(req, res, method, parts);
       } else if (method === 'GET' || method === 'HEAD') {
         await serveStatic(req, res, url.pathname);

@@ -54,6 +54,7 @@
 
 #include "hands-screen.h"
 #include "hands-files.h"
+#include "hands-run.h"
 #include "hands-approval.h"  // Phase 92: desktop look
 #include "hands-checkup.h"   // Phase 94: the read-only check-up (s.check)
 
@@ -380,11 +381,13 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // check-up changes are made by the person (Sara says where).
                                     "s.check",
                                     // 3.4.x: the person's own browser tabs (with "The whole screen") and files (with "Files"), read only.
-                                    "d.tabs", "f.list", "f.read"};
+                                    "d.tabs", "f.list", "f.read",
+                                    // 3.5 (PC tools): commands and "open this", with "Let her run commands" on (hands-run.cpp).
+                                    "c.run", "c.open"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
 const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
+const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.run", "c.open"};
 const int kMaxChars = 2000;
 
 /** Now as ISO 8601 (UTC). */
@@ -2522,6 +2525,8 @@ class Hands {
   Host host;
   std::atomic<bool> stopping{false};
   std::atomic<bool> isConnected{false};
+  /** Computer use is active (for the app's updates: never while she works). */
+  bool busyNow() { return badgeActive(); }
   std::atomic<bool> localOnly{false};
   std::atomic<bool> desktop{false};  // Phase 92: "The whole screen" (look only), off by default
   std::atomic<bool> files{false};    // 3.4.x: "Files" (read Desktop, Documents, Downloads), off by default
@@ -2554,6 +2559,7 @@ class Hands {
     desktop = h.desktopOn;
     files = h.filesOn;
     sarafiles::setTestRoot(h.filesTestRoot);
+    sararun::configure({h.runOn, h.runLevel, h.runReadOnly, h.testLabel});
     sarascreen::setExtraBlocklist(h.blockExtra);
     sarascreen::setServerOrigin(u8(h.server));
     keep = h.keepControl;
@@ -2641,6 +2647,7 @@ class Hands {
 
   void pressStop() {
     deskUntil_ = 0; clearDeskGrants_ = true; takeoverPending_ = false;
+    sararun::clearGrants();  // 3.5: Stop ends every "Allow for this task" for commands too
     {
       std::lock_guard<std::mutex> l(qm_);
       for (auto& r : queue_) r->cancel->store(true);
@@ -2692,7 +2699,18 @@ class Hands {
   }
   /** The switches as the server should know them (Phase 92: with the whole screen). */
   void tellOptIn() {
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + "},\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + ",\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
+  }
+  /** 3.5: the command switch as the server should know it (in optIn), and the read-only choice beside it. */
+  static std::string runOptIn() {
+    auto s = sararun::settings();
+    return std::string(",\"run\":") + (s.on ? "true" : "false");
+  }
+  static std::string runReadOnlyJson() { return std::string(",\"runReadOnly\":") + (sararun::settings().readOnlyAuto ? "true" : "false");
+  }
+  void tellRun(bool on, int level, bool readOnly) {
+    sararun::configure({on, level, readOnly, host.testLabel});
+    tellOptIn();
   }
   void tellFiles(bool on) {
     files = on;
@@ -2874,7 +2892,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + "},\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + ",\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -4118,6 +4136,25 @@ class Hands {
       return "{\"locked\":[" + ids + "]}";
     }
     if (r.op == "b.unlock") return unlockOp(r, e);
+    // 3.5 (PC tools): a command or "open this", shown and decided here (hands-run.cpp).
+    if (r.op == "c.run" || r.op == "c.open") {
+      sararun::Args ra;
+      ra.op = r.op; ra.command = a["command"].str(); ra.shell = a["shell"].str(); ra.cwd = a["cwd"].str(); ra.target = a["target"].str();
+      ra.task = a["task"].str(); ra.approvalLevel = a["approvalLevel"].str(); ra.timeoutMs = a["timeoutMs"].num(60000);
+      sararun::Ctx rc;
+      std::string rid = r.id;
+      rc.ev = [this, rid](const std::string& frag) { sendText("{\"t\":\"ev\",\"kind\":\"run\",\"id\":" + q(rid) + "," + frag + "}"); };
+      rc.cancel = r.cancel.get();
+      rc.paused = [this] { return isPaused.load(); };
+      rc.approving = &approving_;
+      rc.log = [this, &r](const std::string& what, const std::string& target) { localLog(r.op, what, shortText(target, 200)); };
+      auto x = sararun::handle(ra, rc);
+      if (!x.code.empty()) {
+        e = {x.code, x.message};
+        return {};
+      }
+      return x.json;
+    }
     // 3.4.x: the person's own files, read only, only with "Files" on here.
     if (r.op == "f.list" || r.op == "f.read") {
       if (!files) {
@@ -4355,6 +4392,11 @@ void setWalkAway(bool on) {
 void setDesktopLevel(int level) {
   std::lock_guard<std::mutex> l(g_m); if (g_hands) g_hands->tellDesktopLevel(level);
 }
+void setRun(bool on, int level, bool readOnly) {
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->tellRun(on, level, readOnly);
+  else sararun::configure({on, level, readOnly, false});
+}
 void resume() {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->resume();
@@ -4378,6 +4420,10 @@ bool running() {
 bool connected() {
   std::lock_guard<std::mutex> l(g_m);
   return g_hands && g_hands->isConnected;
+}
+bool busy() {
+  std::lock_guard<std::mutex> l(g_m);
+  return g_hands && g_hands->busyNow();
 }
 void reconnectNow(bool dropOpen) {
   std::lock_guard<std::mutex> l(g_m);

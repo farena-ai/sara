@@ -33,6 +33,8 @@ export type Card =
   | { kind: 'checkup'; computer: string; os: string; at: string; windows: boolean; flagged: number; items: CheckupCardItem[]; suggestions: CheckupCardSuggestion[] }
   /** Phase 94: one check-up change, done or declined on the computer. */
   | { kind: 'checkup-change'; id: string; change: string; outcome: 'done' | 'declined'; windows?: boolean; name?: string; bytes?: number; page?: string; computer?: string }
+  /** 3.5 (PC tools): a command on the owner's computer (pc_run): the command, how it ended, the end of its output. */
+  | { kind: 'pc-run'; id: string; computer: string; shell: string; command: string; cwd?: string; outcome: 'done' | 'stopped' | 'timeout' | 'denied'; exitCode?: number | null; seconds?: number; output?: string; truncated?: boolean }
   /** 3.3.0 (ezplain): an everyday setting she changed when asked (web/everyday-card.js applies a device one once, with Undo). */
   | { kind: 'setting'; id: string; at: string; setting: string; value: string; device: boolean; from?: string }
   /** Phase 98: a card a plugin made (data only: title, up to 8 lines, a picture from its own folder, a link, up to 3 buttons). */
@@ -94,6 +96,8 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       const p = /Problems on the page so far: ([^(]+)/.exec(output);
       return m ? { kind: 'computer', action: 'open', url: cut(m[1], 300), title: cut(m[3], 120), computer: cut(m[2], 60), ...(p ? { problems: cut(p[1], 120) } : {}), ...(thumb ? { thumb } : {}) } : undefined;
     }
+    case 'pc_run':
+      return pcRunCard(output);
     case 'pc_browser_navigate': {
       const m = /now on (\S+) \((.*?)\)\./.exec(output);
       return m ? { kind: 'computer', action: 'navigate', url: cut(m[1], 300), title: cut(m[2], 120), ...(thumb ? { thumb } : {}) } : undefined;
@@ -224,6 +228,16 @@ function checkupCard(output: string): Card | undefined {
     return [{ id: String(x.id), kind: String(x.kind), check: cut(x.check, 20), how: x.how === 'apply' ? ('apply' as const) : ('guide' as const), ...(x.name ? { name: cut(x.name, 80) } : {}), ...(typeof x.bytes === 'number' && Number.isFinite(x.bytes) ? { bytes: Math.max(0, Math.round(x.bytes)) } : {}), ...(PAGES.has(String(x.page)) ? { page: String(x.page) } : {}) }];
   });
   return { kind: 'checkup', computer: cut(j.computer, 60), os: cut(j.os, 30), at: cut(j.at, 40), windows: j.windows === true, flagged: typeof j.flagged === 'number' ? Math.max(0, Math.round(j.flagged)) : 0, items, suggestions };
+}
+const RUN_OUTCOMES = new Set(['done', 'stopped', 'timeout', 'denied']);
+/** 3.5: pc_run's [pc-run …] line (masked on the computer and the server already; clipped again here). */
+function pcRunCard(output: string): Card | undefined {
+  const m = /^\[pc-run (\{.*\})\]$/m.exec(output);
+  if (!m) return undefined;
+  const j = JSON.parse(m[1]) as Record<string, unknown>;
+  if (!RUN_OUTCOMES.has(String(j.outcome))) return undefined;
+  const out = typeof j.output === 'string' ? j.output.replace(/\r/g, '').slice(-2000) : undefined;
+  return { kind: 'pc-run', id: cut(j.id, 40), computer: cut(j.computer, 60), shell: j.shell === 'cmd' ? 'cmd' : 'powershell', command: String(j.command ?? '').slice(0, 400), ...(j.cwd ? { cwd: cut(j.cwd, 120) } : {}), outcome: String(j.outcome) as 'done', ...(typeof j.exitCode === 'number' || j.exitCode === null ? { exitCode: j.exitCode as number | null } : {}), ...(typeof j.seconds === 'number' ? { seconds: j.seconds } : {}), ...(out !== undefined ? { output: out } : {}), ...(j.truncated === true ? { truncated: true } : {}) };
 }
 function checkupChangeCard(output: string): Card | undefined {
   const m = /^\[checkup-change (\{.*\})\]$/m.exec(output);

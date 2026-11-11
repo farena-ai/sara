@@ -5,6 +5,80 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.5.0 (2026-11-11): a desktop app that does more than the browser
+
+- **New: the Windows app updates itself.** Most useful for the app on its own (*Connect to a Sara
+  somewhere else*), which nothing updated before. It checks Sara's signed release notice by itself
+  at start and every 6 hours (and when its server is newer), downloads the new app, checks it
+  against the notice and installs it when you quit the app or nobody is using the computer, never
+  while Sara is using it. Your sign-in and settings stay. Turn it off on Settings → This computer;
+  then the window and the tray say *Sara app X is ready* with Update now and Later. A download that
+  doesn't match is deleted; a failed install keeps the old app and says so, with the download page.
+  The first time, apps from before this version still need one update by hand.
+- **New: Settings → Devices shows each Sara app's version**, with **Update it** when it is older
+  than the server. The owner also sees household members' apps; members see only their own.
+- The Mac app doesn't update itself yet (download the new Sara.dmg as before).
+- **New: works offline.** When her server can't be reached, the app, the browser, an installed web
+  app and the phone apps show the 30 newest chats (their last 200 messages) and your notes, read-only,
+  under "Offline — showing what this device kept (as of 10:42)", instead of the bare "Can't reach your
+  Sara" page (which now hands over to the kept copy). Messages written meanwhile wait as *Waiting to
+  send* bubbles you can edit or delete, and note changes as additions; when the connection is back
+  they are sent in order ("Back online — sent 2 messages"). Each carries its own key, so a reconnect
+  or a dropped answer never sends anything twice (the server stores the key with the message, and
+  `POST /api/notes/add` adds to the end of a note, never overwriting). The copy is encrypted by the
+  browser, kept per server and per person (another household member signing in on the same browser
+  deletes it first), never includes off-the-record chats (private chats only if you allow it), and
+  signing out deletes it. *Keep a copy on this device for offline* (Settings → Connections → Devices
+  and sign-in) is on by default in Sara's apps and installed web apps and off in a plain browser tab,
+  which may be a shared computer. See docs/OFFLINE.md.
+- **New: Sara can run commands on your own computer (PC tools; Windows app).** Off by default: in the
+  Sara app, Settings → Computer use → *Let her run commands on this computer*. Then `pc_run` runs
+  one PowerShell or cmd command there (a folder, a timeout up to 10 minutes, output capped) and
+  `pc_open` opens a web page, a file or folder, or an installed app. Every command is shown on that
+  computer first (*Allow once / Allow for this task / Don't*; a phone can't approve), with the same
+  choices as desktop actions; commands that delete, change settings or download and run things
+  always ask; an opt-in short list of read-only commands (like `dir`, `git status`) can run without
+  asking. Never as administrator; Stop (the chat card, the badge, Ctrl+Alt+Esc) ends the command and
+  everything it started; key-shaped text in the output is hidden; both the computer and the server
+  keep a log. The chat shows the command with its output as it comes, and Stop. Household members
+  never get these tools. Older apps say to update; the Mac app can't yet. Design:
+  [docs/design/PC_TOOLS.md](docs/design/PC_TOOLS.md).
+- Windows app test runs are keyed by their own test folder, so two test runs on one PC don't stop
+  each other.
+- **Drop files anywhere on her window.** Files, whole folders (their files, up to 20; hidden ones
+  left out), pictures, text and links from a browser: a full-window "Drop to give these to Sara"
+  shows the limits, and everything lands in the message box with the usual checks. Nothing is sent
+  until you press Send. A file that is too big says the limit plainly ("the most she takes is
+  100 MB"). Works in the browser too. In the Windows app, dropping on the quick ask puts the files in
+  the main window, and a folder from Send To or `Sara.exe <folder>` gives its files.
+- **Save her documents to your PC (Windows app).** Documents she makes, files she shares and Library
+  documents get "Save to…" (the Windows Save window, which remembers the last folder) and "Save to
+  Downloads", then Open and Show in folder. Settings → This computer → "Put her documents in a folder
+  automatically" saves each new document she makes into a folder you pick (Documents\Sara at first)
+  and says "Saved Report.docx to Documents\Sara". The folder stays on your computer; her server only
+  sends the file, and household members only get their own. In a browser the Download links stay.
+- Document cards can be dragged out to a folder in browsers that support it (Chrome, Edge).
+- Test runs of the Windows app (test builds) now keep one instance per test data folder, so test
+  runs from different working copies never meet.
+- **New in the Windows app: quick ask brings what you selected.** Select text in any app and press
+  the quick-ask shortcut: it shows up as a chip ("From Notepad: “…”") under the question, with ✕ to
+  remove it, and goes with your question when you press Send. Sara reads the selection through
+  Windows' accessibility interface; for apps that don't offer it she copies it and puts your
+  clipboard back exactly as it was (if she can't put it back exactly, she doesn't copy). Never from
+  a password field, her own windows, or a window hidden from her (password managers, banking, your
+  own list). The tray's "Quick ask includes selected text" switches it off.
+- **New: "This window" in quick ask.** The picture button adds one picture of the app you were in
+  (the same capture, blacking-out and password boxing as Sara on this computer), shown as a
+  thumbnail chip you can remove; nothing is sent until Send.
+- **New: push-to-talk and spoken replies without a browser tab.** Hold the talk shortcut
+  (Ctrl+Alt+Space unless you changed it) to talk: she records while you hold it, sends when you let
+  go, and Esc throws it away. A tap works as before. "Speak her replies" in the tray (off by
+  default) has her read typed quick-ask answers aloud from the app itself, with the main window
+  closed; it follows her voice settings, private local mode and your quiet hours. A small pill
+  above the clock shows when she's listening, thinking or speaking (click it to stop her).
+- **Fixed: her spoken replies in the quick-ask window were silent** (the window's security policy
+  blocked the audio).
+
 ## 3.4.5 (2026-11-11): quick replies from models on a processor
 
 - **Fixed: a model on a computer without a graphics card took minutes per reply (since 3.4.1).**

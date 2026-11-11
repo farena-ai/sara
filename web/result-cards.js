@@ -11,6 +11,7 @@ import { checkupCard, checkupChangeCard } from './checkup-view.js';
 import { mcpAppCard } from './mcp-apps.js';
 import { researchCard, researchOffer } from './research-card.js';
 import { settingCard } from './everyday-card.js';
+import { pcRunCard } from './pc-run-card.js';
 
 const el = (tag, cls, text) => {
   const e = document.createElement(tag);
@@ -249,7 +250,7 @@ function handsInstall(c) {
   return card;
 }
 
-const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c) };
+const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c) };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {

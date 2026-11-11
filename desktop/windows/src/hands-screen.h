@@ -45,6 +45,9 @@ Result elements(const std::string& window, const std::string& viewId, int limit)
 Result tabs(DWORD ownBrowserPid, DWORD onlyPid = 0);
 /** Key-shaped text masked (the same shapes as every list). */
 std::string maskSecrets(const std::string& text);
+/** Quick ask: a window's id for shot(), and why it's hidden from Sara ("sara" for her own windows; empty when it isn't). */
+std::string windowId(HWND h);
+std::string hiddenKindOf(HWND h);
 
 // All coordinates are in the named view, including drag endpoints. The callback is checked
 // before each synthesized event as well as before accessibility actions.

@@ -23,6 +23,12 @@ if [ ! -f third_party/sherpa/include/sherpa-onnx/c-api/c-api.h ]; then
   tar -xjf third_party/sherpa.tar.bz2 -C third_party/sherpa "$SHERPA/include"
   mv "third_party/sherpa/$SHERPA/include" third_party/sherpa/include && rm -rf "third_party/sherpa/$SHERPA" third_party/sherpa.tar.bz2
 fi
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64 >/dev/null
-cmake --build build --config Release -- -nologo -verbosity:minimal
-ls -la build/Release/Sara.exe build/Release/SaraService.exe
+# The app's update test (docs/desktop.md → How the app updates): SARA_TEST_INSTALL=1 builds with test
+# hooks into build-test (never a release); SARA_APP_VERSION=x.y.z overrides package.json's version.
+BUILD=build
+EXTRA=()
+if [ "${SARA_TEST_INSTALL:-}" = 1 ]; then BUILD=build-test; EXTRA+=(-DSARA_TEST_HOOKS=ON); fi
+if [ -n "${SARA_APP_VERSION:-}" ]; then EXTRA+=("-DSARA_APP_VERSION=$SARA_APP_VERSION"); else EXTRA+=(-USARA_APP_VERSION); fi
+cmake -S . -B "$BUILD" -G "Visual Studio 17 2022" -A x64 "${EXTRA[@]}" >/dev/null
+cmake --build "$BUILD" --config Release -- -nologo -verbosity:minimal
+ls -la "$BUILD/Release/Sara.exe" "$BUILD/Release/SaraService.exe"

@@ -499,6 +499,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'session', 'logout', 'disclosure', 'household',
   // their own sign-in, devices and apps
   'security', 'passkey', 'two-step', 'owner-token', 'devices', 'device', 'pair',
+  // their own Sara apps' versions and Update it (src/routes/app-updates.ts; a member's app list is their own)
+  'app-updates',
   // talking
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
   // EC11: share links of their own chats (the share routes refuse when the owner turned it off)

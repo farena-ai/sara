@@ -45,12 +45,17 @@ if [[ ! -f "$ISCC" ]]; then
 fi
 
 # 4. Stage the payload
-VERSION="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -1)"
+VERSION="${SARA_APP_VERSION:-$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$ROOT/package.json" | head -1)}"
 OUT="$ROOT/outputs/windows"
+BUILD=build
+ISS_EXTRA=()
+# The app's update test (docs/desktop.md): a test-hooks app in an installer of its own (TestInstall:
+# its own AppId, folder and data folder), in outputs/windows-updtest. Never published.
+if [[ "${SARA_TEST_INSTALL:-}" == 1 ]]; then OUT="$ROOT/outputs/windows-updtest"; BUILD=build-test; ISS_EXTRA+=(/DTestInstall); fi
 STAGE="$OUT/stage"
 rm -rf "$STAGE"
 mkdir -p "$STAGE/server" "$STAGE/node" "$STAGE/bin"
-cp build/Release/Sara.exe build/Release/SaraService.exe "$STAGE/"
+cp "$BUILD/Release/Sara.exe" "$BUILD/Release/SaraService.exe" "$STAGE/"
 cp "$NODE_DIR/node.exe" "$STAGE/node/"
 cp "$NODE_DIR/LICENSE" "$STAGE/node/LICENSE.txt"
 cp -r "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$STAGE/server/"
@@ -86,6 +91,6 @@ fi
 sed 's/\r$//; s/$/\r/' "$HERE/installer/sara.cmd" > "$STAGE/bin/sara.cmd"
 
 # 5. The installer
-"$ISCC" /Q "/DAppVersion=$VERSION" "/DStage=$(winpath "$STAGE")" "/O$(winpath "$OUT")" "$(winpath "$HERE/installer/sara.iss")"
+"$ISCC" /Q "/DAppVersion=$VERSION" "/DStage=$(winpath "$STAGE")" "${ISS_EXTRA[@]}" "/O$(winpath "$OUT")" "$(winpath "$HERE/installer/sara.iss")"
 ls -la "$OUT/Sara-Setup-$VERSION.exe"
 sha256sum "$OUT/Sara-Setup-$VERSION.exe"

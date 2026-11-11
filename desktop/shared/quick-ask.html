@@ -87,8 +87,21 @@ footer{display:flex;align-items:center;gap:8px;padding:0 14px 12px;font-size:12p
 footer[hidden]{display:none}
 footer .grow{flex:1}
 kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--border-2);border-radius:5px;padding:0 4px}
+/* Quick ask anywhere: what was selected in the app in front and its window's picture, as removable chips. */
+#ctx{display:flex;flex-wrap:wrap;gap:6px;margin:2px 14px 0}
+#ctx[hidden]{display:none}
+.chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:13px;color:var(--text);background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:2px 4px 2px 10px}
+.chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.chip img{height:28px;max-width:56px;border-radius:5px;object-fit:cover;margin-left:-4px}
+.chip button{width:22px;height:22px;padding:0;border:0;border-radius:50%;font-size:12px;line-height:1;color:var(--muted)}
+.chip button:hover{color:var(--text);background:var(--panel)}
+#win{width:36px;height:36px;flex:0 0 auto;display:inline-flex;align-items:center;justify-content:center}
+#win:disabled{opacity:.45;cursor:default}
+.q .from{display:block;font-size:12px}
 @keyframes pulse{0%,100%{opacity:.35}50%{opacity:1}}
 @media (prefers-reduced-motion:reduce){.a.typing::after{animation:none}}
+#drop{position:fixed;inset:6px;display:none;align-items:center;justify-content:center;border:2px dashed var(--accent,#8b7cf6);border-radius:14px;background:rgba(15,13,23,.82);color:#fff;font-weight:600;text-align:center;padding:12px;pointer-events:none;z-index:9}
+#drop.on{display:flex}
 </style>
 </head>
 <body>
@@ -102,13 +115,16 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     <button id="new" class="icon" hidden title="Ask something new" aria-label="Ask something new">＋</button>
     <button id="close" class="icon" title="Close (Esc)" aria-label="Close">✕</button>
   </header>
+  <div id="ctx" hidden aria-label="Going with your question"></div>
   <form id="ask" autocomplete="off">
     <textarea id="q" rows="1" placeholder="Ask Sara anything…" aria-label="Your question" spellcheck="true"></textarea>
+    <button id="win" class="icon" type="button" hidden aria-label="Add a picture of this window" title="Add a picture of the window you were in (nothing is sent until you ask)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2.5"/><path d="M3 8.5h18"/><circle cx="6" cy="6.25" r=".6" fill="currentColor"/><path d="m7 17 3.5-4 2.5 2.5 2-2 3 3.5"/></svg></button>
     <button id="mic" class="icon" type="button" hidden aria-label="Talk instead of typing" title="Talk instead of typing (click again when you're done)">🎙</button>
     <button id="send" class="primary" type="submit" aria-label="Ask" title="Ask (Enter)">↑</button>
   </form>
   <div class="info" id="info" hidden></div>
   <div id="out" aria-live="polite"></div>
+  <div id="drop" aria-hidden="true">Drop to give these to Sara</div>
   <footer id="foot"><span class="grow" id="hint">Enter to ask · Shift+Enter for a new line · Esc to close</span><span id="shortcut"></span></footer>
 </div></div>
 <script>
@@ -124,6 +140,29 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       else if (isMac) window.webkit.messageHandlers.quick.postMessage(msg);
     } catch (e) { /* the app is going away */ }
   };
+  // Files dropped here go to her main window's message box (Windows: the app gets their paths and
+  // attaches them there like Send To). Nothing is sent until Send there. The Mac app: drop them on
+  // her main window (WKWebView can't hand dropped files to the app).
+  let dragDepth = 0;
+  const hasFiles = (e) => Boolean(e.dataTransfer && [...e.dataTransfer.types].includes('Files'));
+  window.addEventListener('dragenter', (e) => { if (!hasFiles(e)) return; e.preventDefault(); dragDepth++; $('drop').classList.add('on'); });
+  window.addEventListener('dragover', (e) => { if (!hasFiles(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
+  window.addEventListener('dragleave', (e) => { if (!hasFiles(e)) return; if (--dragDepth <= 0) { dragDepth = 0; $('drop').classList.remove('on'); } });
+  window.addEventListener('drop', (e) => {
+    dragDepth = 0;
+    $('drop').classList.remove('on');
+    if (!hasFiles(e)) return;
+    e.preventDefault();
+    const files = [...e.dataTransfer.files];
+    const wv = window.chrome && window.chrome.webview;
+    if (files.length && wv && typeof wv.postMessageWithAdditionalObjects === 'function') {
+      try { wv.postMessageWithAdditionalObjects({ m: 'qa', a: 'files' }, files); } catch (err) { /* the app is going away */ }
+    } else if (files.length) {
+      $('drop').textContent = 'Drop them on Sara\u2019s main window';
+      $('drop').classList.add('on');
+      setTimeout(() => { $('drop').classList.remove('on'); $('drop').textContent = 'Drop to give these to Sara'; }, 2500);
+    }
+  });
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
   /** Her reply, lightly formatted: paragraphs, ```code```, `code`, **bold**. No links or HTML. */
   const render = (text) => {
@@ -345,10 +384,10 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     };
   };
 
-  const ask = async (text) => {
+  const ask = async (text, extra = {}) => {
     if (blocked() || busy) return;
     $('new').hidden = false;
-    add('q', esc(text));
+    add('q', esc(extra.shown || text) + (extra.from ? '<span class=from>' + esc(extra.from) + '</span>' : ''));
     const reply = add('a typing', '');
     let raw = '';
     busy = new AbortController();
@@ -358,7 +397,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       // questions in this window go to the same one, and "Open in Sara" continues it there.
       if (!conv) conv = await api('/conversations', { method: 'POST', body: {} });
       $('open').hidden = false;
-      const res = await api('/conversations/' + encodeURIComponent(conv.id) + '/messages', { method: 'POST', body: { content: text }, raw: true, signal: busy.signal });
+      const res = await api('/conversations/' + encodeURIComponent(conv.id) + '/messages', { method: 'POST', body: Object.assign({ content: text }, extra.images && extra.images.length ? { images: extra.images } : {}), raw: true, signal: busy.signal });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         if (res.status === 403 && /disclosure/i.test(data.error || '')) { session.disclosureAccepted = false; showInfo(); }
@@ -402,6 +441,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
           fit();
         }
       }
+      if (raw) void speakReply(raw);
     } catch (err) {
       if (err.name !== 'AbortError') add('err', esc(err.message));
     } finally {
@@ -417,10 +457,12 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   $('ask').onsubmit = (e) => {
     e.preventDefault();
     const text = q.value.trim();
-    if (!text) return;
+    if (!text && !ctx.text && !pics.length) return;
+    if (blocked() || busy) return;
     q.value = '';
+    const m = withContext(text);
     fit();
-    ask(text);
+    ask(m.content, m);
   };
   q.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ask').requestSubmit(); }
@@ -442,6 +484,105 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     if (e.button === 0 && !e.target.closest('button,.badge')) { e.preventDefault(); post({ a: 'drag' }); }
   });
 
+  // ---------- quick ask anywhere: what was selected, this window, spoken replies ----------
+  // The app reads what was selected in the app in front when the shortcut was pressed (never a password
+  // field or Sara's own windows) and passes it in show({context}); "This window" asks the app for one
+  // picture of that window (saraQuick.picture). Both are chips here, each with ✕; nothing is sent until
+  // the question is. "Speak her replies" (the app's tray switch) speaks typed answers through the
+  // server's /api/voice/speak: only when her voice is on, on this computer in private local mode, and
+  // not in his quiet hours.
+  let ctx = { app: '', window: false, text: '', skipped: '' };
+  let pics = [];
+  let speakOn = false, quietNow = false, voiceInfo = null, speech = null;
+  const ctxBox = $('ctx'), winBtn = $('win');
+  const short = (s, n) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const chip = (label, title, onRemove, img) => {
+    const c = document.createElement('span');
+    c.className = 'chip';
+    if (img) { const i = document.createElement('img'); i.src = img; i.alt = ''; c.append(i); }
+    const l = document.createElement('span');
+    l.textContent = label;
+    l.title = title;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '✕';
+    x.setAttribute('aria-label', 'Remove ' + label);
+    x.title = 'Remove';
+    x.onclick = () => { onRemove(); q.focus(); };
+    c.append(l, x);
+    return c;
+  };
+  const renderCtx = () => {
+    ctxBox.textContent = '';
+    if (ctx.text) {
+      const c = chip((ctx.app ? 'From ' + ctx.app : 'Selected text') + ': “' + short(ctx.text, 70) + '”', ctx.text.slice(0, 800), () => { ctx.text = ''; renderCtx(); });
+      c.dataset.kind = 'text';
+      ctxBox.append(c);
+    }
+    pics.forEach((p, i) => {
+      const c = chip((ctx.app || 'Window') + ' window', 'A picture of ' + (ctx.app || 'the window') + (p.w ? ' (' + p.w + ' × ' + p.h + ')' : ''), () => { pics.splice(i, 1); renderCtx(); }, p.data);
+      c.dataset.kind = 'picture';
+      ctxBox.append(c);
+    });
+    ctxBox.hidden = !ctxBox.childElementCount;
+    winBtn.hidden = !ctx.window || pics.length > 0 || Boolean(blocked());
+    winBtn.title = 'Add a picture of ' + (ctx.app || 'the window you were in') + ' (nothing is sent until you ask)';
+    winBtn.setAttribute('aria-label', 'Add a picture of ' + (ctx.app || 'this window'));
+    fit();
+  };
+  const setContext = (c) => {
+    ctx = { app: String((c && c.app) || '').slice(0, 80), window: Boolean(c && c.window), text: String((c && c.text) || '').slice(0, 8000), skipped: String((c && c.skipped) || '') };
+    pics = [];
+    winBtn.disabled = false;
+    renderCtx();
+  };
+  winBtn.onclick = () => {
+    if (winBtn.disabled || blocked()) return;
+    winBtn.disabled = true;
+    post({ a: 'window' });
+  };
+  /** The question with what goes with it: the selected text quoted after it, the picture as a photo. */
+  const withContext = (text) => {
+    const sel = ctx.text, app = ctx.app, images = pics.map((p) => p.data);
+    let content = text;
+    if (sel) content = (text ? text + '\n\n' : '') + 'Selected in ' + (app || 'another app') + ':\n```\n' + sel + '\n```';
+    if (!content) content = images.length ? '(photo)' : '';
+    const from = [sel ? 'With the text selected in ' + (app || 'another app') : '', images.length ? 'With a picture of ' + (app || 'the window') : ''].filter(Boolean).join(' · ');
+    ctx.text = '';
+    pics = [];
+    renderCtx();
+    return { content, shown: text || (sel ? '“' + short(sel, 120) + '”' : 'A picture of ' + (app || 'the window')), from, images };
+  };
+  const canSpeak = () => speakOn && !quietNow && Boolean(voiceInfo) && voiceInfo.tts !== 'off' && !(session && session.privateLocal && !(voiceInfo.tts === 'local' && voiceInfo.localTts));
+  const stopSpeech = () => {
+    const s = speech;
+    speech = null;
+    if (!s) return;
+    s.stopped = true;
+    if (s.audio) { try { s.audio.pause(); } catch (e) { /* gone */ } }
+    if (s.end) s.end();
+  };
+  /** A typed question's answer, spoken (the main window can be closed; this page lives in the app). */
+  const speakReply = async (text) => {
+    if (!canSpeak() || wake || !String(text).trim()) return;
+    stopSpeech();
+    const s = { stopped: false };
+    speech = s;
+    wakePost('speaking');
+    document.body.dataset.state = 'speaking';
+    try {
+      const res = await fetch('/api/voice/speak', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: String(text).slice(0, 2400) }) });
+      if (res.ok && !s.stopped) {
+        const a = new Audio(URL.createObjectURL(await res.blob()));
+        s.audio = a;
+        await new Promise((resolve) => { s.end = resolve; a.onended = a.onerror = () => resolve(); a.play().catch(() => resolve()); });
+      }
+    } catch (e) { /* her text stays on screen */ }
+    if (speech === s) speech = null;
+    if (!wake) document.body.dataset.state = '';
+    wakePost('done', { why: 'reply' });
+  };
+
   // ---------- talking instead of typing (Phase 75 stage 3) ----------
   // Click the mic, talk, click again: the recording (16 kHz mono WAV, at most 2 minutes) goes to the
   // server's /api/voice/transcribe (her hearing, as set up in Settings → Voice) and the words are
@@ -455,6 +596,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     const v = await api('/voice').catch(() => null);
     const st = v && v.settings, local = (v && v.local) || {};
     const canHear = Boolean(st) && (st.stt === 'openai' || (st.stt === 'local' && local.stt));
+    voiceInfo = { tts: st ? st.tts : 'off', localTts: Boolean(local.tts) };
     mic.hidden = !(canHear && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.isSecureContext);
     fit();
   };
@@ -556,6 +698,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     if (!w) return;
     document.body.dataset.state = 'thinking';
     add('step', esc('Thinking…'));
+    wakePost('thinking');
     const headers = { 'content-type': 'audio/wav', 'X-Sara-Wake-Claim': w.claim, 'X-Sara-Wake-Label': w.label };
     if (w.companion) headers['X-Sara-Companion'] = w.companion;
     let data = {};
@@ -597,16 +740,18 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     const src = ctx.createMediaStreamSource(stream);
     const node = ctx.createScriptProcessor(4096, 1, 1);
     const chunks = [];
-    let floor = 0.006, spoke = false, quietMs = 0, total = 0;
+    let floor = 0.006, spoke = false, quietMs = 0, total = 0, held = false;
     return await new Promise((resolve) => {
       const finish = () => {
         try { node.disconnect(); src.disconnect(); } catch (e) { /* already */ }
         stream.getTracks().forEach((t) => t.stop());
         const rate = ctx.sampleRate;
         ctx.close().catch(() => {});
-        resolve(spoke ? wav(chunks, rate) : null);
+        const keep = !(wake && wake.cancelled) && (spoke || (held && total > 400));
+        resolve(keep ? wav(chunks, rate) : null);
       };
       wake.finish = finish;
+      if (wake.released || wake.cancelled) return finish();
       node.onaudioprocess = (e) => {
         const d = new Float32Array(e.inputBuffer.getChannelData(0));
         chunks.push(d);
@@ -615,6 +760,10 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
         const rms = Math.sqrt(sum / d.length), ms = (d.length / ctx.sampleRate) * 1000;
         total += ms;
         if (rms > floor * 3) { spoke = true; quietMs = 0; } else { floor = floor * 0.98 + rms * 0.02; if (spoke) quietMs += ms; }
+        const w = wake;
+        // Push-to-talk (the shortcut held down): no stop on a pause; letting go sends, Esc throws it away.
+        if (w && (w.cancelled || w.released)) return finish();
+        if (w && w.hold) { held = true; if (total > 120000) finish(); return; }
         if ((spoke && quietMs > 800) || total > 15000 || (!spoke && total > 5000)) finish();
       };
       src.connect(node);
@@ -633,6 +782,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       const c = await res.json();
       const lines = [...(c.phrases || []).flatMap((p) => p.lines), ...(c.stop || [])].join('\n');
       const map = (c.phrases || []).map((p) => p.label + '=' + p.companionId).join(';');
+      quietNow = c.paused === 'quiet';
       wakePost('config', { lines, map, on: c.on ? '1' : '0', known: c.offBy ? '1' : '0', paused: c.paused || '', server: c.paused === 'server-off' || c.paused === 'members-off' ? 'off' : 'on' });
     } catch (e) { /* the server is away: the app pauses after a while */ }
   };
@@ -644,6 +794,8 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       document.documentElement.classList.toggle('night', o.theme !== 'day');
       document.documentElement.classList.toggle('solid', Boolean(o.solid));
       $('shortcut').innerHTML = o.shortcut ? '<kbd>' + esc(o.shortcut) + '</kbd>' : '';
+      if (o.speak !== undefined) speakOn = Boolean(o.speak);
+      if (o.context) setContext(o.context);
       q.focus();
       refresh().then(() => { listen(); showInfo(); q.focus(); });
       fit();
@@ -666,7 +818,30 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       await api('/reminders', { method: 'POST', body: Object.assign({ text: t, when: 'in 10 minutes' }, conv ? { conversationId: String(conv) } : {}) });
       return true;
     },
-    hidden() { stopMic(false); if (wake) { wake.stopped = true; endWake('cancel'); } return true; },
+    hidden(o = {}) {
+      stopMic(false);
+      // A click elsewhere (soft): her voice turn and spoken reply go on (the app's pill shows them).
+      if (o.soft) return true;
+      if (wake) { wake.stopped = wake.cancelled = true; if (wake.finish) wake.finish(); endWake('cancel'); }
+      stopSpeech();
+      setContext({});
+      return true;
+    },
+    /** Quick ask anywhere: the app's picture of the window that was in front ({data, w, h} or {error}). */
+    picture(o = {}) {
+      winBtn.disabled = false;
+      if (o.error || !/^data:image\/jpeg;base64,/.test(String(o.data || ''))) { add('err', esc(o.error || 'No picture came from that window.')); return false; }
+      pics = [{ data: String(o.data), w: Number(o.w) || 0, h: Number(o.h) || 0 }];
+      renderCtx();
+      q.focus();
+      return true;
+    },
+    /** Push-to-talk: the talk shortcut is held (no stop on a pause), let go (send), Esc (throw it away). */
+    hold() { if (wake) { wake.hold = true; add('step', esc('Listening… let go of the shortcut to send, Esc to cancel.')); } return Boolean(wake); },
+    release() { if (!wake) return false; wake.hold = false; wake.released = true; if (wake.finish) wake.finish(); return true; },
+    cancelTalk() { if (!wake) return false; wake.cancelled = true; wake.hold = false; if (wake.finish) wake.finish(); if (wake.audio) wake.audio.pause(); return true; },
+    setSpeak(on) { speakOn = Boolean(on); if (!speakOn) stopSpeech(); return speakOn; },
+    context() { return { app: ctx.app, text: ctx.text, window: ctx.window, skipped: ctx.skipped, pictures: pics.length }; },
     /** Phase 126: the talk shortcut (no phrase, no download): record here, then the wake turn. A second press sends. */
     async talk() {
       if (wake && wake.finish) { wake.finish(); return true; }
@@ -677,7 +852,10 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       try {
         wake.claim = (await claimWake('TALK')).claim;
         if (!wake.claim) throw new Error('Another device answered.');
+        if (wake.cancelled) { add('step', esc('Cancelled.')); return endWake('cancel'); }
         const blob = await recordTalk();
+        if (!wake) return true;
+        if (wake.cancelled) { add('step', esc('Cancelled.')); return endWake('cancel'); }
         if (!blob) { add('step', esc('I didn’t catch that.')); return endWake('nothing'); }
         await wakeTurn(blob);
       } catch (err) {
@@ -707,7 +885,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     /** Phase 126: the recording the app made after the phrase (base64 WAV, 16 kHz mono, ≤ 15 s). */
     heard(b64) { if (wake && wake.claim) void wakeTurn(b64ToBlob(String(b64 || ''))); return true; },
     /** Phase 126: "stop" heard while she speaks (or Esc): she stops at once; the text stays. */
-    stopSpeaking() { if (wake) { wake.stopped = true; if (wake.audio) wake.audio.pause(); } return true; },
+    stopSpeaking() { if (wake) { wake.stopped = true; if (wake.audio) wake.audio.pause(); } stopSpeech(); return true; },
     state() { return { state: document.body.dataset.state || '', conv: conv ? conv.id : '', text: out.innerText.slice(0, 2000) }; },
   };
   fit();
