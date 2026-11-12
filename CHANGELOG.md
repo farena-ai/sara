@@ -5,6 +5,24 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.0 (2026-11-12): her own face and the whole computer
+
+- **She knows everything she can do on your computer, and uses it:** asked "what can you do on my computer?" she lists it plainly (see your whole screen and windows, read your browser tabs, click and type in your apps after you allow it on the PC, run commands you approve, read your files). Questions about your screen, apps, programs, windows or browser now bring her the screen and app tools instead of only the files tool.
+- **Files beyond three folders (Windows app):** Settings → Computer use → Files → *Which folders*: Desktop, Documents and Downloads (default), those plus folders you pick, your whole user folder, or all your drives. Always read only; system folders, other people's folders and places that hold keys, passwords, browser profiles or wallets stay out; only the folder names reach the server.
+- **Your own browser:** she reads your open tabs and can look, click and type in your browser window that's in front, with your approval on the PC. Payment, account and sign-in pages always ask; she never types passwords; banking and password managers stay blocked. (Switching to another of your tabs is built and held back until it is fast and reliable.)
+- **Desktop actions after Allow:** the app brings the approved window to the front reliably (Windows blocks this from background apps; it now asks correctly), and a window's title-bar menu getting a new internal id when it comes forward no longer makes her look again.
+- Fixed (Windows app): a white bar across the top of a dark window. With "Follow the system", the page
+  and the app could disagree about light or dark; the page's light top colour was then kept for Night
+  and painted above the dark page on every start. The app now follows what the page really shows,
+  ignores a kept colour that doesn't fit its theme, and no longer turns Mica back on from an old
+  setting. desktop.log says which Windows it is (edition and build), light or dark, accent colour on
+  title bars, high contrast, and what the frame shows and why.
+- New (Windows app): a renamed companion with a look of their own is the app's face: the window,
+  taskbar, tray (also the Hey Sara dots), notifications and the app's own Start-menu, desktop and
+  taskbar shortcut show their picture, and the window title is their name. Each server keeps its
+  own; Sara with her own look keeps the Sara icon.
+- New: Settings → Devices shows each app's Windows edition and build (the app sends it when it checks in).
+
 ## 3.5.1 (2026-11-12): typing always reaches her
 
 - Fixed (Windows app): typing sometimes went nowhere. When the window came to the front without a click

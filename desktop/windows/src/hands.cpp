@@ -382,12 +382,14 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     "s.check",
                                     // 3.4.x: the person's own browser tabs (with "The whole screen") and files (with "Files"), read only.
                                     "d.tabs", "f.list", "f.read",
+                                    // d.tabswitch (switching the person's own tabs) is built but not offered yet: held back
+                                    // until desktop input after an approval is fast and reliable (docs/BACKLOG.md).
                                     // 3.5 (PC tools): commands and "open this", with "Let her run commands" on (hands-run.cpp).
                                     "c.run", "c.open"};
 /** Ops that act: they count against the input rate limit and stop when the person takes over. */
-const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"};
+const std::set<std::string> kInputOps = {"b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "d.tabswitch"};
 /** Phase 90: ops that wait for the person (the consent window, "Your turn"): up to 10 minutes. */
-const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.run", "c.open"};
+const std::set<std::string> kWaitingOps = {"b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "d.tabswitch", "c.run", "c.open"};
 const int kMaxChars = 2000;
 
 /** Now as ISO 8601 (UTC). */
@@ -2559,6 +2561,7 @@ class Hands {
     desktop = h.desktopOn;
     files = h.filesOn;
     sarafiles::setTestRoot(h.filesTestRoot);
+    sarafiles::setRoots(h.filesScope, h.filesFolders);
     sararun::configure({h.runOn, h.runLevel, h.runReadOnly, h.testLabel});
     sarascreen::setExtraBlocklist(h.blockExtra);
     sarascreen::setServerOrigin(u8(h.server));
@@ -2699,7 +2702,7 @@ class Hands {
   }
   /** The switches as the server should know them (Phase 92: with the whole screen). */
   void tellOptIn() {
-    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + ",\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
+    sendText(std::string("{\"t\":\"ev\",\"kind\":\"optin\",\"optIn\":{\"browser\":true,\"desktop\":") + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + sarafiles::rootsJson() + ",\"localOnly\":" + (localOnly ? "true" : "false") + ",\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"perms\":{\"capture\":true,\"input\":true,\"ax\":true}}");
   }
   /** 3.5: the command switch as the server should know it (in optIn), and the read-only choice beside it. */
   static std::string runOptIn() {
@@ -2892,7 +2895,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + ",\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + sarafiles::rootsJson() + ",\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -4025,7 +4028,19 @@ class Hands {
       if (GetEnvironmentVariableW(L"SARA_TEST_BADGE_VISIBLE", v, 8) > 0) exclude = false;  // test screenshots of the badge
 #endif
       if (exclude) SetWindowDisplayAffinity(badge_, 0x11 /* WDA_EXCLUDEFROMCAPTURE */);
-      hotkeyOk = RegisterHotKey(badge_, kStopHotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_ESCAPE) != FALSE;
+      UINT stopKey = VK_ESCAPE;
+#ifdef SARA_TEST_HOOKS
+      // Test builds only: SARA_TEST_STOP_KEY=F1…F24 makes the stop shortcut Ctrl+Alt+F<n>, so a test copy can run
+      // desktop input beside the person's own Sara (which holds Ctrl+Alt+Esc). Release builds never read it.
+      {
+        wchar_t k[8];
+        if (host.testLabel && GetEnvironmentVariableW(L"SARA_TEST_STOP_KEY", k, 8) > 0 && (k[0] == L'F' || k[0] == L'f')) {
+          int n = _wtoi(k + 1);
+          if (n >= 1 && n <= 24) stopKey = VK_F1 + n - 1;
+        }
+      }
+#endif
+      hotkeyOk = RegisterHotKey(badge_, kStopHotkeyId, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, stopKey) != FALSE;
       say(hotkeyOk ? L"stop shortcut Ctrl+Alt+Esc ready" : L"stop shortcut Ctrl+Alt+Esc is taken by another app");
       hookOwner_ = this;
       mouseHook_ = SetWindowsHookExW(WH_MOUSE_LL, MouseHook, inst, 0);
@@ -4060,6 +4075,7 @@ class Hands {
       action.text = a["text"].str(); action.combo = a["combo"].str(); action.app = a["app"].str();
       action.x = a["x"].num(-1); action.y = a["y"].num(-1); action.toX = a["toX"].num(-1); action.toY = a["toY"].num(-1);
       action.dx = a["dx"].num(0); action.dy = a["dy"].num(0); action.right = a["button"].str() == "right"; action.twice = a["double"].truthy();
+      action.tab = (int)a["tab"].num(0); action.title = a["title"].str(); action.ownBrowserPid = browser.pid(); action.onlyPid = (DWORD)host.tabsTestPid;
       sarascreen::ActionInfo info; auto checked = sarascreen::inspect(action, info);
       if (!checked.code.empty()) { e = {checked.code, checked.message}; return {}; }
       if (clearDeskGrants_.exchange(false)) deskGrants_.clear();
@@ -4076,7 +4092,7 @@ class Hands {
         approving_ = false;
         sendText(std::string("{\"t\":\"ev\",\"kind\":\"local_approval\",\"allowed\":") + (answer ? "true" : "false") + "}");
         if (!answer || r.cancel->load()) { e = {"denied_local", "The person at this computer did not approve that action."}; return {}; }
-        if (r.op != "d.launch") { auto fresh = sarascreen::refreshApproved(action); if (!fresh.code.empty()) { e = {fresh.code, fresh.message}; return {}; } }
+        if (r.op != "d.launch" && r.op != "d.tabswitch") { auto fresh = sarascreen::refreshApproved(action); if (!fresh.code.empty()) { e = {fresh.code, fresh.message}; return {}; } }
         if (answer == 2) deskGrants_[task] = GetTickCount64();
       }
       auto result = sarascreen::input(action, [&] { return r.cancel->load() || isPaused || takeoverPending_ || stopping || !desktop; });
@@ -4385,6 +4401,11 @@ void setBlockExtra(const std::string& lines) { sarascreen::setExtraBlocklist(lin
 void setFiles(bool on) {
   std::lock_guard<std::mutex> l(g_m);
   if (g_hands) g_hands->tellFiles(on);
+}
+void setFileRoots(int scope, const std::vector<std::wstring>& folders) {
+  sarafiles::setRoots(scope, folders);
+  std::lock_guard<std::mutex> l(g_m);
+  if (g_hands) g_hands->tellOptIn();
 }
 void setTakeover(bool keepControl) {
   std::lock_guard<std::mutex> l(g_m);

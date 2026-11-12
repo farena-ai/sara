@@ -30,12 +30,14 @@ import { policy } from '../policy-profile.ts';
 import type { AppContext } from '../chat.ts';
 import { readFileSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve as resolvePath } from 'node:path';
-import { actionVerdict, actLevel, askedToSaveLogin, desktopActionVerdict, loginVerdict, looksSecret, navigationVerdict, siteOf, type ActKind } from '../computer-policy.ts';
+import { actionVerdict, actLevel, askedToSaveLogin, desktopActionVerdict, loginVerdict, looksSecret, navigationVerdict, ownBrowserPage, siteOf, type ActKind } from '../computer-policy.ts';
 import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { managerName } from '../hands-managers.ts';
 import { HandsError, PROXY_BLOCKED_MESSAGE, type HandsDeviceView, type HandsReply } from '../hands.ts';
-import { BROWSER_APP, browserLabel, browserTabs, desktopItems, desktopWindows, type DesktopItem } from '../hands-desktop.ts';
-import { cleanRelPath, FILE_FOLDER_NAMES, FILE_FOLDERS, fileEntries, fileFolder, FileRuleError } from '../hands-files.ts';
+import { BROWSER_APP, browserLabel, browserTabs, desktopItems, desktopWindows, maskDesktopText, type DesktopItem } from '../hands-desktop.ts';
+import { cleanRelPath, fileEntries, fileRootsOf, FileRuleError, matchRoot, rootLabel } from '../hands-files.ts';
+/** 3.5.x: "Desktop, Documents, Downloads and Projects" (the allowed places by name; never paths). */
+const rootsText = (roots: readonly string[]): string => { const l = roots.map((r) => (r === 'home' ? 'their whole user folder ("home")' : rootLabel(r))); return l.length > 1 ? `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}` : l[0] ?? 'no folders'; };
 import { personalize, toIdentity } from '../identity.ts';
 import { APPS_PAGE } from '../cards.ts';
 import { TunnelError } from '../tunnel.ts';
@@ -226,20 +228,34 @@ export function createComputerTools(app: AppContext): Tool[] {
         if (d.ops?.includes('b.login')) bits.push(`saved logins there: ${d.logins?.length ? d.logins.map((l) => `\u201c${l.name}\u201d${l.sites.length ? ` (${l.sites.join(', ')})` : ''}`).join(', ') : 'none'}`);
         if (managersOn(d).length) bits.push(`the owner's password managers there: ${managersOn(d).map((m) => `${m.name} (${m.state})`).join(', ')}`);
         if (d.ops?.includes('d.shot')) {
-          if (d.optIn?.desktop) bits.push(`the owner's own screen, windows and browser tabs: you may look (pc_my_tabs for their open tabs, pc_windows, pc_look; desktop actions use local approval cards)${d.perms && d.perms.capture === false ? ' but screen pictures are not allowed there yet (Screen Recording permission)' : ''}${d.perms && d.perms.ax === false ? '; element lists need the Accessibility permission there' : ''}`);
+          if (d.optIn?.desktop) bits.push(`the owner's own screen, windows and browser tabs: you may look (pc_my_tabs for their open tabs, pc_windows, pc_look) and act in their apps and browser windows with pc_click, pc_type, pc_keys, pc_scroll, pc_drag (the owner approves on that computer)${d.perms && d.perms.capture === false ? ' but screen pictures are not allowed there yet (Screen Recording permission)' : ''}${d.perms && d.perms.ax === false ? '; element lists need the Accessibility permission there' : ''}`);
           else bits.push(`"The whole screen" is off there, so the owner's own browser tabs, windows and screen are not visible to you (only ${BR()}); the owner can switch it on in the Sara app there (Settings \u2192 Computer use)`);
         }
         // 3.5 (PC tools): commands there (src/tools/pc-run.ts).
         if (d.ops?.includes('c.run')) bits.push(d.optIn?.run ? `you may run PowerShell or cmd commands there and open things (pc_run, pc_open; the owner approves each on that computer${d.runReadOnly ? ', except simple read-only commands' : ''})` : `"Let ${NAME()} run commands on this computer" is off there (they can switch it on in the Sara app there: Settings \u2192 Computer use)`);
-        if (d.ops?.includes('f.list')) bits.push(d.optIn?.files ? "the owner's own files: you may list and read (never change) Desktop, Documents and Downloads (pc_files)" : `"Files" is off there (the owner's own files; they can switch it on in the Sara app there: Settings \u2192 Computer use \u2192 Files)`);
+        const roots = fileRootsOf(d.fileRoots);
+        if (d.ops?.includes('f.list')) bits.push(d.optIn?.files ? `the owner's own files: you may list and read (never change) ${rootsText(roots)} (pc_files)` : `"Files" is off there (the owner's own files; they can switch it on in the Sara app there: Settings \u2192 Computer use \u2192 Files)`);
         const missing = [d.ops?.includes('d.shot') && !d.ops?.includes('d.tabs') ? 'see every open tab of their own browsers' : '', !d.ops?.includes('f.list') ? 'read their files' : ''].filter(Boolean);
         if (missing.length && /windows/i.test(d.app ?? '')) bits.push(`this Sara app is older (${d.app}): to let you ${missing.join(' and ')}, the owner needs to ${updateHow(d)}. Tell them that in plain words when they ask for it`);
         else if (missing.length && isMac(d)) bits.push(`the Sara app for Mac can't ${missing.join(' or ')} yet (pc_my_tabs shows the front tab of each browser window there)`);
         if (d.busy) bits.push('busy with a task now');
-        return `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${bits.join('; ')}.`;
+        // 3.5.x (reach): first a short plain list of everything she can do there now and what each needs.
+        const can: string[] = [];
+        const cannot: string[] = [];
+        const desk = Boolean(d.optIn?.desktop && d.ops?.includes('d.shot'));
+        if (desk) {
+          can.push('see the whole screen and every open window, and read what is in them (pc_look, pc_windows): no approval needed');
+          if (d.ops?.includes('d.tabs')) can.push(`read the owner's own browser tabs (pc_my_tabs)${d.ops.includes('d.tabswitch') ? ' and bring one to the front (pc_my_tabs with action "switch"; they approve on that computer)' : ''}`);
+          if (d.ops?.includes('d.click')) can.push(`click, type, press keys, scroll and drag in their apps${d.ops.includes('d.tabswitch') ? ' and their own browser windows' : ''} (pc_click, pc_type, pc_keys, pc_scroll, pc_drag after a pc_look) and open an installed app (pc_open_app): they approve on that computer${d.approvalsHere === false ? ' (but this app can\u2019t show approval cards, so actions are refused)' : ''}`);
+        } else if (d.ops?.includes('d.shot')) cannot.push('see their screen, windows and tabs or act in their apps: "The whole screen" is off');
+        if (d.ops?.includes('c.run')) (d.optIn?.run ? can : cannot).push(d.optIn?.run ? 'run commands they approve (pc_run) and open pages, files or apps (pc_open)' : `run commands or open things: "Let ${NAME()} run commands on this computer" is off`);
+        if (d.ops?.includes('f.list')) (d.optIn?.files ? can : cannot).push(d.optIn?.files ? `read (never change) their files in ${rootsText(roots)} (pc_files)` : 'read their files: "Files" is off');
+        if (d.optIn?.browser) can.push(`use ${BR()}, your own separate browser window (pc_browser_*)`);
+        const summary = `\n  What you can do there right now:\n${can.map((c) => `  \u2022 ${c}`).join('\n') || '  (nothing yet)'}${cannot.length ? `\n  Not now (the owner can switch these on in the Sara app there, Settings \u2192 Computer use):\n${cannot.map((c) => `  \u2022 ${c}`).join('\n')}` : ''}`;
+        return `- "${nameOf(d)}" (${d.app ?? 'Sara app'}${d.os ? `, ${d.os}` : ''}): ${bits.join('; ')}.${summary}`;
       });
       const off = list.filter((d) => !d.connected);
-      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nTwo different browsers: ${BR()} is your OWN separate window you open to browse for the owner (pc_browser_*); the owner's OWN browser and its tabs are theirs (pc_my_tabs reads them, read only). "Look at my tabs / my browser / what I have open / my screen" means theirs: use pc_my_tabs, pc_windows or pc_look, never pc_browser_*. "My files / my Desktop / my Documents" means pc_files.\nIn ${BR()} you can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in ${BR()}) you are paused: stop and wait. Sign-ins: never ask for a password in chat. Use a saved login with pc_browser_login (the computer fills it; you never see it; the owner approves each use), or hand ${BR()} to the owner with pc_browser_your_turn so they sign in themselves (it then stays signed in).`;
+      return `Computers you can use:\n${lines.join('\n')}${off.length ? `\nNot connected now: ${off.map((d) => `"${nameOf(d)}"`).join(', ')}.` : ''}\nWhen the owner asks what you can do on their computer, answer with ALL of "What you can do there right now" in a few plain words (not only the files), and what the "Not now" items need.\nTwo different browsers: ${BR()} is your OWN separate window you open to browse for the owner (pc_browser_*); the owner's OWN browser and its tabs are theirs (pc_my_tabs lists them and can bring one to the front; then pc_look at that window and pc_click/pc_type in it, with their approval). "Look at my tabs / my browser / what I have open / my screen / this app" means theirs: LOOK first (pc_look, pc_windows or pc_my_tabs), say what you see, then offer to act; never pc_browser_* for that. "My files / my Desktop / my Documents" means pc_files.\nIn ${BR()} you can open pages, go back/forward/reload, look (element list, screenshot), read text, list tabs, read console and network logs, and act: click, type, choose in lists, press keys, scroll and upload a file the owner named. Look first; act on refs from your latest look; look again after each action. Actions may ask the owner first (an approval card); payments and account settings always do. If the owner takes over (moves the mouse in ${BR()}) you are paused: stop and wait. Sign-ins: never ask for a password in chat. Use a saved login with pc_browser_login (the computer fills it; you never see it; the owner approves each use), or hand ${BR()} to the owner with pc_browser_your_turn so they sign in themselves (it then stays signed in).`;
     },
   };
 
@@ -951,7 +967,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     spec: {
       name: 'pc_look',
       description:
-        "Look at the owner's computer screen (desktop mode, when \"The whole screen\" is on there): the numbered list of what's in a window (buttons, fields, text: e1, e2…, from the system's accessibility, with where each is) and, when your model can see pictures, a screenshot with the same numbers drawn on it. Give window (an id from pc_windows, or words of its title) to look at one window; without it you see the whole screen and the list of the window in front. Password fields never show a value; password managers, banking and security windows are blacked out and left out; Sara's own windows never show. If your model can't see pictures you get the list (picture:true asks the picture model to describe it). Looking needs no approval, but don't look more than you need: look, then say what you see. Use pc_click/type/keys/scroll/drag after looking; approvals are answered on that computer.",
+        "Look at the owner's computer screen (desktop mode, when \"The whole screen\" is on there): the numbered list of what's in a window (buttons, fields, text: e1, e2…, from the system's accessibility, with where each is) and, when your model can see pictures, a screenshot with the same numbers drawn on it. Give window (an id from pc_windows, or words of its title) to look at one window; without it you see the whole screen and the list of the window in front. Password fields never show a value; password managers, banking and security windows are blacked out and left out; Sara's own windows never show. If your model can't see pictures you get the list (picture:true asks the picture model to describe it). Use it first when the owner asks what's open, what they are doing, about \"this app\" or \"this window\", or to use one of their programs. Looking needs no approval, but don't look more than you need: look, then say what you see and offer to do the next step. Use pc_click/type/keys/scroll/drag after looking; approvals are answered on that computer.",
       parameters: obj({ window: { type: 'string', description: 'A window id from pc_windows (w…) or words of its title; default: the whole screen' }, picture: { type: 'boolean', description: 'false: only the list (cheaper). true with a model that can\u2019t see: the picture model describes it.' }, ...COMPUTER_ARG }),
     },
     isAvailable: anyDesk,
@@ -1060,8 +1076,8 @@ export function createComputerTools(app: AppContext): Tool[] {
     prepare: (a, c) => prepareDesktop(action, a, c),
     async run(a, c) { return desktopRun(action, opName, a, c); },
   });
-  const desktopClick = desktopTool('click', 'd.click', 'Click a button or control in an owner desktop window. Look first; use a ref or coordinates from the latest desktop picture. The computer refuses blocked, secure, elevated, locked, paused, or unsafe targets.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, button: { type: 'string', enum: ['left', 'right'] }, double: { type: 'boolean' }, window: { type: 'string' } });
-  const desktopType = desktopTool('type', 'd.type', 'Type non-secret text into the focused desktop field from the latest look. Password and secure fields are always refused on the computer.', { ref: { type: 'string' }, text: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, window: { type: 'string' } }, ['text']);
+  const desktopClick = desktopTool('click', 'd.click', 'Click a button, link or control in one of the owner\u2019s own windows: any app, or their own browser window (after pc_my_tabs switch, when the computer can check its address). Look first (pc_look); use a ref or coordinates from that look. The owner approves on that computer; payment, account and sign-in pages always ask. The computer refuses blocked (banking, password managers), secure, elevated, locked, paused, or unsafe targets.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, button: { type: 'string', enum: ['left', 'right'] }, double: { type: 'boolean' }, window: { type: 'string' } });
+  const desktopType = desktopTool('type', 'd.type', 'Type non-secret text into a field (ref) from your latest pc_look, in any of the owner\u2019s apps or their own browser window (e.g. Notepad, a web form). The owner approves on that computer. Never a password: password and secure fields are always refused there.', { ref: { type: 'string' }, text: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, window: { type: 'string' } }, ['text']);
   const desktopKeys = desktopTool('keys', 'd.keys', 'Press a safe key combination in the owner desktop. The computer blocks system and destructive combinations.', { ref: { type: 'string' }, combo: { type: 'string' }, window: { type: 'string' } }, ['combo']);
   const desktopScroll = desktopTool('scroll', 'd.scroll', 'Scroll an owner desktop window after a fresh look.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' }, amount: { type: 'number' }, window: { type: 'string' } });
   const desktopDrag = desktopTool('drag', 'd.drag', 'Drag a visible desktop control to a destination in the same fresh view.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, to_x: { type: 'number' }, to_y: { type: 'number' }, window: { type: 'string' } }, ['to_x', 'to_y']);
@@ -1170,19 +1186,55 @@ export function createComputerTools(app: AppContext): Tool[] {
   };
   const SCREEN_SWITCH = (d: HandsDeviceView) => `"The whole screen" is off on ${nameOf(d)}, so the owner's own browser tabs are not visible to you. Tell the owner: to let you see them, open the Sara app on ${nameOf(d)} \u2192 Settings \u2192 Computer use \u2192 switch on "The whole screen" (you only read tab titles and addresses; nothing is changed). Don't suggest opening things in your own browser instead.`;
 
+  /** 3.5.x: "w1a2#3" (a window id and the tab's number) or words of a tab's title or address. */
+  const tabRef = (wins: ReturnType<typeof browserTabs>, raw: string): { window: string; index: number; title: string; url?: string } | string => {
+    const want = raw.trim();
+    if (!want) return 'tab: which tab, by its id from pc_my_tabs (like "w1a2b#3") or words of its title.';
+    const id = /^(w[0-9a-z]+)#(\d{1,3})$/i.exec(want);
+    const all = wins.flatMap((w) => (w.hidden ? [] : w.tabs.map((t, i) => ({ w, t, i: i + 1 }))));
+    const hits = id ? all.filter((x) => x.w.id === id[1] && x.i === Number(id[2])) : all.filter((x) => !x.t.hidden && `${x.t.title ?? ''} ${x.t.url ?? ''}`.toLowerCase().includes(want.toLowerCase()));
+    if (!hits.length) return `No open tab ${id ? `\u201c${want}\u201d` : `matches \u201c${want.slice(0, 60)}\u201d`}. List the tabs again (pc_my_tabs) and use a tab id.`;
+    if (hits.length > 1) return `Several tabs match \u201c${want.slice(0, 60)}\u201d: ${hits.slice(0, 6).map((x) => `${x.w.id}#${x.i} \u201c${(x.t.title ?? '').slice(0, 50)}\u201d`).join(', ')}. Say which by its id.`;
+    const h = hits[0];
+    if (h.t.hidden) return `That tab is hidden from you on purpose (${h.t.hidden}): never act there.`;
+    if (!h.w.id) return 'That browser window has no id: list the tabs again.';
+    return { window: h.w.id, index: h.i, title: h.t.title ?? '', ...(h.t.url ? { url: h.t.url } : {}) };
+  };
   const myTabs: Tool = {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_my_tabs',
-      description: "The OWNER'S OWN browser tabs on their computer: every open tab (title, and the address where the browser shows it) of each Edge, Chrome, Firefox or Brave window they have open, read only. Use it for \"look at my tabs\", \"what do I have open\", \"what's in my browser\". Not Sara's browser (that is pc_browser_tabs). Needs \"The whole screen\" on there; if it is off, this says which switch the owner turns on. Banking and password-manager tabs show only as hidden. Then say what you see; to look inside one, use pc_look on that window.",
-      parameters: obj({ ...COMPUTER_ARG }),
+      description: "The OWNER'S OWN browser tabs on their computer: every open tab (id, title, and the address where the browser shows it) of each Edge, Chrome, Firefox or Brave window they have open. Use it for \"look at my tabs\", \"what do I have open\", \"what's in my browser\". action \"switch\" with tab (an id like \"w1a2b#3\" or words of its title) brings that tab and its window to the front (the owner approves it on that computer); then pc_look at that window and pc_click / pc_type there (also approved there). Not Sara's browser (that is pc_browser_tabs). Needs \"The whole screen\" on there; if it is off, this says which switch the owner turns on. Banking and password-manager tabs show only as hidden and can't be switched to; payment, account and sign-in pages always ask the owner.",
+      parameters: obj({ action: { type: 'string', enum: ['list', 'switch'], description: 'list the tabs (default) or switch to one' }, tab: { type: 'string', description: 'For switch: the tab id from the list (\"w1a2b#3\") or words of its title' }, ...COMPUTER_ARG }),
     },
     isAvailable: anyConnected,
-    summarize: () => 'look at your open browser tabs (read only)',
+    summarize: (a) => (a.action === 'switch' ? `switch to your browser tab ${String(a.tab ?? '').slice(0, 60)} (you approve on the computer)` : 'look at your open browser tabs (read only)'),
+    async prepare(a, c) {
+      if (a.action !== 'switch') return {};
+      if (!c.conversationId) return { refuse: 'Error: No owner conversation for this.' };
+      if (c.replay) replayDesktop.add(a);
+      const d = pickAny(a, deskOn);
+      if (d.optIn?.desktop && d.ops?.includes('d.tabswitch') && d.approvalsHere !== true) return { refuse: 'Error: Switching tabs needs an approval surface on that computer.' };
+      return {};
+    },
     async run(args, ctx) {
       const d = pickAny(args, deskOn);
       if (!d.ops?.includes('d.shot')) return `The Sara app on ${nameOf(d)} can't see the owner's own browser yet. Tell the owner to ${updateHow(d)}.`;
       if (!d.optIn?.desktop) return SCREEN_SWITCH(d);
+      if (args.action === 'switch') {
+        if (!d.ops.includes('d.tabswitch')) return `The Sara app on ${nameOf(d)} can't switch the owner's tabs${isMac(d) ? ' yet (the Mac app reads them only)' : `: tell the owner to ${updateHow(d)}`}. Meanwhile ask the owner to click the tab, then pc_look at that window.`;
+        if (!d.ops.includes('d.tabs')) return 'This computer can\u2019t list the tabs yet.';
+        const conv = convOf(ctx);
+        const list = browserTabs((await deskOp(ctx, d, 'd.tabs', {}, 'reading your browser tabs')).result.browsers);
+        const t = tabRef(list, String(args.tab ?? ''));
+        if (typeof t === 'string') throw new ToolError(t);
+        const page = ownBrowserPage(t.title, t.url ?? '');
+        hub()!.desktopUsed(conv.id, d.id);
+        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task: taskOf(conv.id).key, forceOnce: replayDesktop.delete(args) || page.act === 'once' }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
+        deskViews.delete(d.id);
+        const x = r.result;
+        return `${UNTRUSTED_SCREEN}\nSwitched on ${nameOf(d)} (the owner allowed it there): the tab \u201c${maskDesktopText(String(x.title ?? t.title)).slice(0, 160)}\u201d${x.url || t.url ? ` (${maskDesktopText(String(x.url ?? t.url)).slice(0, 200)})` : ''} is in front in window ${String(x.window ?? t.window)}. Next: pc_look with window "${String(x.window ?? t.window)}" to see the page, then pc_click / pc_type there (each approved on that computer; payment, account and sign-in pages always ask; never type a password).`;
+      }
       if (d.ops.includes('d.tabs')) {
         const r = await deskOp(ctx, d, 'd.tabs', {}, 'reading your browser tabs');
         const wins = browserTabs(r.result.browsers);
@@ -1190,15 +1242,17 @@ export function createComputerTools(app: AppContext): Tool[] {
         const hidden = wins.filter((w) => w.hidden).length;
         if (!shown.length) return `None of the owner's own browser windows are open on ${nameOf(d)} (Edge, Chrome, Firefox, Brave…)${hidden ? `; ${hidden} browser window${hidden === 1 ? ' is' : 's are'} hidden from you on purpose (banking or a password manager)` : ''}. ${BR()} is not counted: it is yours.`;
         let n = 0;
+        const canSwitch = d.ops.includes('d.tabswitch');
         const block = shown.map((w) => {
-          const tl = w.tabs.map((t) => {
+          const tl = w.tabs.map((t, i) => {
             n++;
-            return t.hidden ? `  - (hidden: ${t.hidden})${t.active ? ' [in front]' : ''}` : `  - ${t.active ? '[in front] ' : ''}${t.title || '(no title)'}${t.url ? ` \u2014 ${t.url}` : ''}`;
+            const tid = canSwitch && w.id ? `${w.id}#${i + 1} ` : '';
+            return t.hidden ? `  - (hidden: ${t.hidden})${t.active ? ' [in front]' : ''}` : `  - ${tid}${t.active ? '[in front] ' : ''}${t.title || '(no title)'}${t.url ? ` \u2014 ${t.url}` : ''}`;
           });
           return `${w.browser || 'Browser'} window${w.id ? ` ${w.id}` : ''} (${w.tabs.length} tab${w.tabs.length === 1 ? '' : 's'}):\n${tl.join('\n') || '  (no tabs listed)'}`;
         });
         const text = shown.flatMap((w) => w.tabs.map((t) => t.title ?? '')).join(' ');
-        return `${UNTRUSTED_SCREEN}\nThe owner's own browser tabs on ${nameOf(d)} (${n} tab${n === 1 ? '' : 's'}, read only; ${BR()} is not included):\n${block.join('\n')}${hidden ? `\n(${hidden} more browser window${hidden === 1 ? ' is' : 's are'} hidden on purpose: banking or a password manager; never ask about ${hidden === 1 ? 'it' : 'them'}.)` : ''}${flagged(text)}`;
+        return `${UNTRUSTED_SCREEN}\nThe owner's own browser tabs on ${nameOf(d)} (${n} tab${n === 1 ? '' : 's'}; ${BR()} is not included):\n${block.join('\n')}${hidden ? `\n(${hidden} more browser window${hidden === 1 ? ' is' : 's are'} hidden on purpose: banking or a password manager; never ask about ${hidden === 1 ? 'it' : 'them'}.)` : ''}${canSwitch ? '\nTo work in one: pc_my_tabs with action "switch" and its id (the owner approves), then pc_look at that window.' : ''}${flagged(text)}`;
       }
       // An older app: each browser window's title is the tab in front.
       const r = await deskOp(ctx, d, 'd.windows', {}, 'listing the windows');
@@ -1214,14 +1268,12 @@ export function createComputerTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_files',
-      description: "The OWNER'S OWN files on their computer, read only: list a folder (action list) in Desktop, Documents or Downloads or a folder inside them, or read a text file there (action read: .txt, .md, .csv, .json, .log…, up to 1 MB). Use it for \"what's on my Desktop\", \"look at my files\", \"read notes.txt in my Documents\". Nothing is ever changed, moved or deleted. Needs \"Files\" on there (off by default); if it is off, this says which switch the owner turns on. Hidden files and files that look like they hold secrets (keys, passwords) are never shown. For Word or PDF files, ask the owner to send them in the chat.",
-      parameters: obj({ action: { type: 'string', enum: ['list', 'read'], description: 'list a folder (default) or read a text file' }, folder: { type: 'string', enum: [...FILE_FOLDERS], description: 'desktop, documents or downloads' }, path: { type: 'string', description: 'Inside that folder, e.g. "Projects" or "Projects/notes.txt" (empty: the folder itself)' }, ...COMPUTER_ARG }, ['folder']),
+      description: "The OWNER'S OWN files on their computer, read only: list a folder (action list) or read a text file (action read: .txt, .md, .csv, .json, .log…, up to 1 MB) in the folders the owner allows there: Desktop, Documents and Downloads by default, and any others they added in the Sara app (pc_devices names them, e.g. \"Projects\", \"home\" for their whole user folder, \"drive D\"). Use it for \"what's on my Desktop\", \"look at my files\", \"read notes.txt in my Documents\". Nothing is ever changed, moved or deleted. Needs \"Files\" on there (off by default); if it is off, this says which switch the owner turns on. Hidden files, system folders, other people's folders and anything that looks like keys or passwords are never shown. For Word or PDF files, ask the owner to send them in the chat.",
+      parameters: obj({ action: { type: 'string', enum: ['list', 'read'], description: 'list a folder (default) or read a text file' }, folder: { type: 'string', description: 'Which allowed folder: desktop, documents, downloads, or another one by the name pc_devices gives (e.g. "Projects", "home", "drive D"). May be left out when path starts with it.' }, path: { type: 'string', description: 'Inside that folder, e.g. "Projects" or "Projects/notes.txt" (empty: the folder itself). Without folder, start with the folder\u2019s name: "Documents/notes.txt".' }, ...COMPUTER_ARG }),
     },
     isAvailable: anyConnected,
-    summarize: (a) => `${a.action === 'read' ? 'read' : 'list'} ${FILE_FOLDER_NAMES[fileFolder(a.folder) ?? 'desktop']}${a.path ? `/${String(a.path).slice(0, 80)}` : ''} on your computer (read only)`,
+    summarize: (a) => `${a.action === 'read' ? 'read' : 'list'} ${a.folder ? rootLabel(String(a.folder)).slice(0, 60) : ''}${a.path ? `${a.folder ? '/' : ''}${String(a.path).slice(0, 80)}` : ''} on your computer (read only)`,
     async run(args, ctx) {
-      const folder = fileFolder(args.folder);
-      if (!folder) throw new ToolError('folder: desktop, documents or downloads.');
       const action = args.action === 'read' ? 'read' : 'list';
       let parts: string[];
       try {
@@ -1229,11 +1281,19 @@ export function createComputerTools(app: AppContext): Tool[] {
       } catch (err) {
         throw new ToolError((err as FileRuleError).message);
       }
-      if (action === 'read' && !parts.length) throw new ToolError('path: which file to read, e.g. "notes.txt".');
       const d = pickAny(args, filesOn);
       if (!d.ops?.includes('f.list')) return isMac(d) ? `The Sara app for Mac can't read the owner's files yet. Ask them to send the file in the chat.` : `The Sara app on ${nameOf(d)} can't read the owner's files yet. Tell the owner to ${updateHow(d)}; then switch on "Files" there (Settings \u2192 Computer use). Meanwhile they can send the file in the chat.`;
-      if (!d.optIn?.files) return `"Files" is off on ${nameOf(d)}, so the owner's own files are not visible to you. Tell the owner: to let you see them, open the Sara app on ${nameOf(d)} \u2192 Settings \u2192 Computer use \u2192 switch on "Files" (you can then list and read files in Desktop, Documents and Downloads, never change them). Or they can send the file in the chat.`;
-      const where = `${FILE_FOLDER_NAMES[folder]}${parts.length ? `/${parts.join('/')}` : ''}`;
+      const roots = fileRootsOf(d.fileRoots);
+      if (!d.optIn?.files) return `"Files" is off on ${nameOf(d)}, so the owner's own files are not visible to you. Tell the owner: to let you see them, open the Sara app on ${nameOf(d)} \u2192 Settings \u2192 Computer use \u2192 switch on "Files" (you can then list and read files in ${rootsText(roots)}, never change them; under "Which folders" they can allow more). Or they can send the file in the chat.`;
+      // 3.5.x: the folder by its name, or the path's first part when that names an allowed folder.
+      let folder = args.folder !== undefined && String(args.folder).trim() ? matchRoot(args.folder, roots) : undefined;
+      if (!folder && !(args.folder !== undefined && String(args.folder).trim()) && parts.length) {
+        folder = matchRoot(parts[0], roots);
+        if (folder) parts = parts.slice(1);
+      }
+      if (!folder) throw new ToolError(`${args.folder ? `"${String(args.folder).slice(0, 60)}" is not a folder you may read on ${nameOf(d)}. ` : ''}folder: one of ${roots.map((r) => `"${r}"`).join(', ')}.${d.fileScope === 'three' || !d.fileScope ? ' The owner can allow more folders in the Sara app there (Settings \u2192 Computer use \u2192 Files \u2192 Which folders).' : ''}`);
+      if (action === 'read' && !parts.length) throw new ToolError('path: which file to read, e.g. "notes.txt".');
+      const where = `${rootLabel(folder)}${parts.length ? `/${parts.join('/')}` : ''}`;
       if (action === 'list') {
         const r = await op(ctx, d, 'f.list', { folder, path: parts.join('/') }, `listing ${where}`);
         const entries = fileEntries(r.result.entries);
@@ -1241,7 +1301,7 @@ export function createComputerTools(app: AppContext): Tool[] {
         const hidden = Number(r.result.hidden ?? 0);
         const kb = (b?: number) => (b === undefined ? '' : b < 1024 ? `${b} bytes` : b < 1024 * 1024 ? `${Math.round(b / 1024)} KB` : `${(b / 1024 / 1024).toFixed(1)} MB`);
         const lines = entries.map((e) => (e.dir ? `- ${e.name}/ (folder)` : `- ${e.name} (${kb(e.bytes)}${e.at ? `, ${e.at.slice(0, 10)}` : ''})`));
-        return `${UNTRUSTED_FILES}\n${where} on ${nameOf(d)} (${total} item${total === 1 ? '' : 's'}, read only):\n${lines.join('\n') || '(empty)'}${total > entries.length ? `\n[\u2026 ${total - entries.length} more not shown]` : ''}${hidden ? `\n(${hidden} hidden or secret-looking item${hidden === 1 ? '' : 's'} left out on purpose.)` : ''}${flagged(entries.map((e) => e.name).join(' '))}`;
+        return `${UNTRUSTED_FILES}\n${where} on ${nameOf(d)} (${total} item${total === 1 ? '' : 's'}, read only):\n${lines.join('\n') || '(empty)'}${total > entries.length ? `\n[\u2026 ${total - entries.length} more not shown]` : ''}${hidden ? `\n(${hidden} hidden, system or secret-looking item${hidden === 1 ? '' : 's'} left out on purpose.)` : ''}${flagged(entries.map((e) => e.name).join(' '))}`;
       }
       const r = await op(ctx, d, 'f.read', { folder, path: parts.join('/'), max: 32_000 }, `reading ${where}`);
       const text = String(r.result.text ?? '');

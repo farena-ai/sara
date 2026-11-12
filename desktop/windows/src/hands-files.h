@@ -6,6 +6,7 @@
 // characters back, binary refused, key-shaped text masked. Nothing is ever written, moved or deleted.
 #pragma once
 #include <string>
+#include <vector>
 
 namespace sarafiles {
 
@@ -16,6 +17,14 @@ struct Reply {
 
 /** Test runs only: Desktop / Documents / Downloads are folders inside this one (never the person's real ones). */
 void setTestRoot(const std::wstring& dir);
+/** 3.5.x: "Which folders" (0 Desktop/Documents/Downloads, 1 those and the folders picked, 2 the whole user folder,
+    3 all fixed drives; always read only). Picked folders are full paths the person chose with the folder picker.
+    Whatever the scope, system folders, other people's user folders and key/credential places stay out. */
+void setRoots(int scope, const std::vector<std::wstring>& picked);
+/** The hello's and optin's fragment: ,"fileRoots":[names…],"fileScope":"…" (names only, never paths). */
+std::string rootsJson();
+/** Whether a folder the person picked may be a root (not a system folder, another person's folder or a key store). */
+bool pickable(const std::wstring& path, std::string& why);
 /** f.list {folder, path} */
 Reply list(const std::string& folder, const std::string& path);
 /** f.read {folder, path, max} */

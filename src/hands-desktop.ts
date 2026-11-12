@@ -13,14 +13,16 @@
 // Also here: a tiny PNG encoder (no dependencies) and the fixture desktop the reference hands use in
 // tests and conformance (recorded-screen style windows with known text, a fixture "KeePass" window,
 // Sara's own window), so desktop look is tested without anyone's real screen.
-import { desktopActionVerdict, looksSecret } from './computer-policy.ts';
+import { desktopActionVerdict, looksSecret, ownBrowserPage } from './computer-policy.ts';
 import { deflateSync, inflateSync, crc32 } from 'node:zlib';
 
 /** CU5's command set: look at the desktop. */
 export const CU5_OPS = ['d.screens', 'd.windows', 'd.shot', 'd.elements'] as const;
 /** CU6's command set: typed, supervised desktop input. */
 export const CU6_OPS = ['d.click', 'd.type', 'd.keys', 'd.scroll', 'd.drag', 'd.launch'] as const;
-export const DESKTOP_INPUT_OPS: ReadonlySet<string> = new Set(CU6_OPS);
+/** 3.5.x: bring one of the person's OWN browser tabs to the front (approved on the computer like a desktop action). */
+export const TAB_SWITCH_OPS = ['d.tabswitch'] as const;
+export const DESKTOP_INPUT_OPS: ReadonlySet<string> = new Set([...CU6_OPS, ...TAB_SWITCH_OPS]);
 /** 3.4.x: the tabs of the person's OWN open browsers (Edge, Chrome, Firefox, Brave…), read only. Needs "The whole screen". */
 export const TAB_OPS = ['d.tabs'] as const;
 /** App/process names of the person's own browsers (d.tabs reads their tab strips; the fallback lists their windows). */
@@ -252,6 +254,8 @@ export interface FixtureWindow {
   elements: FixtureElement[];
   /** 3.4.x: a browser window's tab strip (d.tabs). */
   tabs?: { title: string; url?: string; active?: boolean }[];
+  /** 3.5.x: a link on the page in front (a tab's elements, keyed by the tab's title), for the fixture browser. */
+  pages?: Record<string, FixtureElement[]>;
 }
 
 /** A small known desktop: a notes window with text and a password field, a fixture KeePass, Sara's own window on top. */
@@ -435,13 +439,25 @@ export class TestDesktop {
     return v;
   }
 
-  inspect(op: string, a: Record<string, unknown>): { window?: FixtureWindow; element?: FixtureElement } {
+  inspect(op: string, a: Record<string, unknown>): { window?: FixtureWindow; element?: FixtureElement; once?: boolean; tab?: number } {
     const fail = (code: string, message: string): never => { throw Object.assign(new Error(message), { code }); };
     if (!DESKTOP_INPUT_OPS.has(op)) fail('unsupported', 'Unsupported desktop action.');
     if (this.stopped) fail('stopped', 'Stopped on the computer.');
     if (!this.transportSecure) fail('denied_local', 'Desktop input is refused over an unencrypted connection unless it is loopback.');
     if (this.locked) fail('denied_local', 'The screen is locked or the secure desktop is active; Sara cannot control it.');
     if (this.paused) fail('takeover', 'Paused: the owner took over the computer. Press Resume.');
+    if (op === 'd.tabswitch') {
+      // 3.5.x: one of the person's own browser tabs to the front (the tab strip, never the page).
+      const w = this.#find(a.window);
+      if (!BROWSER_APP.test(w.app) || !w.tabs?.length) fail('denied_local', 'That window is not one of your own browser windows with a tab strip.');
+      const i = Number(a.tab);
+      if (!Number.isInteger(i) || i < 1 || i > w.tabs!.length) fail('stale_view', 'That tab is not there any more: list the tabs again (pc_my_tabs).');
+      const t = w.tabs![i - 1];
+      if (typeof a.title === 'string' && a.title && maskDesktopText(t.title) !== a.title) fail('stale_view', 'The tabs changed: list them again (pc_my_tabs).');
+      const page = ownBrowserPage(t.title, t.url ?? '', blockedKind(`${t.title} ${t.url ?? ''}`, '', this.extra) ?? '');
+      if (page.act === 'block') fail('denied_local', page.why);
+      return { window: w, tab: i, once: page.act === 'once' };
+    }
     if (op === 'd.launch') {
       if (!['fixture-notes', 'fixture-calculator'].includes(String(a.app))) fail('denied_local', 'Only an installed, allowed app may be opened; no paths or commands.');
       return {};
@@ -453,7 +469,12 @@ export class TestDesktop {
     }
     const w = this.#find(v.window);
     if (w.elevated) fail('denied_local', "I can't control windows running as administrator");
-    if (/msedge|chrome|chromium|safari|firefox|brave|opera/i.test(w.app) && (!w.origin || w.origin === this.ownOrigin)) fail('denied_local', 'Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked.');
+    const browserWin = /msedge|chrome|chromium|safari|firefox|brave|opera/i.test(w.app);
+    if (browserWin && (!w.origin || w.origin === this.ownOrigin)) fail('denied_local', 'Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked.');
+    // 3.5.x: the person's own browser: banking and password-manager pages stay blocked; payment, account and sign-in pages ask every time.
+    const front = browserWin ? w.tabs?.find((t) => t.active) : undefined;
+    const pageRule = front ? ownBrowserPage(front.title, front.url ?? '', blockedKind(`${front.title} ${front.url ?? ''}`, '', this.extra) ?? '') : undefined;
+    if (pageRule?.act === 'block') fail('denied_local', pageRule.why);
     if (this.foreground !== w.id) fail('denied_local', 'The target window is not in front: look again.');
     if (v.signature !== this.#signature(w)) fail('stale_view', 'The window or controls changed: look again.');
     let element: FixtureElement | undefined;
@@ -478,7 +499,7 @@ export class TestDesktop {
     if (op === 'd.type' && (String(a.text ?? '').length > 2000 || looksSecret(String(a.text ?? '')))) fail('denied_local', 'Text is too long or looks like a secret.');
     if (op === 'd.keys' && !/^(?:Enter|Tab|Shift\+Tab|Escape|ArrowLeft|ArrowRight|ArrowUp|ArrowDown|Home|End|PageUp|PageDown|Backspace|Ctrl\+A)$/i.test(String(a.combo))) fail('denied_local', 'That key combination is not an allowed desktop key.');
     if (op === 'd.drag' && (![a.toX, a.toY].every(n => typeof n === 'number' && Number.isFinite(n)) || Number(a.toX) < 0 || Number(a.toY) < 0 || Number(a.toX) >= (v.width ?? 0) || Number(a.toY) >= (v.height ?? 0))) fail('denied_local', 'The drag endpoint is outside this picture.');
-    return { window: w, element };
+    return { window: w, element, ...(pageRule?.act === 'once' ? { once: true } : {}) };
   }
 
   /** A local decision may take time; revalidate the exact approved identity before refreshing its age. */
@@ -492,7 +513,23 @@ export class TestDesktop {
 
   /** Observable fixture effects; unsupported operations never report success. */
   act(op: string, a: Record<string, unknown>): Record<string, unknown> {
-    const { window: w, element: e } = this.inspect(op, a);
+    const { window: w, element: e, tab } = this.inspect(op, a);
+    if (op === 'd.tabswitch') {
+      // The tab comes to the front, its page's controls become the window's, and the window comes to the front.
+      w!.tabs!.forEach((t, i) => (t.active = i === tab! - 1));
+      const t = w!.tabs![tab! - 1];
+      w!.title = `${t.title} - ${browserLabel(w!.app)}`;
+      try {
+        w!.origin = t.url ? new URL(t.url).origin : undefined;
+      } catch {
+        w!.origin = undefined;
+      }
+      if (w!.pages?.[t.title]) w!.elements = w!.pages[t.title];
+      this.foreground = w!.id;
+      this.windows.splice(this.windows.indexOf(w!), 1);
+      this.windows.push(w!);
+      return { switched: true, window: w!.id, title: maskDesktopText(t.title), ...(t.url ? { url: t.url } : {}) };
+    }
     if (op === 'd.launch') {
       const app = String(a.app);
       this.launched.push(app);

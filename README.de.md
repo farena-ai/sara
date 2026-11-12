@@ -24,7 +24,7 @@
 
 **Aktualisieren:** auf einem Linux-Server `sudo sara update` (sichert zuerst und rollt zurück, wenn sie nicht antwortet) · Docker: `sudo git pull && sudo docker compose up -d --build` · Apps für Windows und Mac: Einstellungen → Daten und Zustand → Updates · Android: Google Play. [Upgrade](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.5.1, [Was du tippst, kommt immer an](https://github.com/farena-ai/sara/releases/tag/v3.5.1). Die Windows-App gibt der Seite nach der Computernutzung die Tastatur zurück, und Schnell fragen liest Markiertes in ihrem eigenen Chat. [Was ist neu?](#was-ist-neu)
+> **Status:** 3.6.0, [Ihr eigenes Gesicht, der ganze Computer](https://github.com/farena-ai/sara/releases/tag/v3.6.0). Die App trägt das Gesicht des Begleiters, oben passt sie zum Thema, und sie nutzt Bildschirm, Apps und gewählte Ordner. [Was ist neu?](#was-ist-neu)
 >
 > Windows-Installer: unsigniert ([SmartScreen-Hilfe](docs/INSTALL.md)). Der macOS-Release-Prozess verlangt signierte und notarisierte Downloads; jeder Build wird gesondert geprüft. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [Web-App auf dem Home-Bildschirm](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Aktuelle Releases · 6. November 2026. [Vollständiges Änderungsprotokoll](CHAN
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Ihr eigenes Gesicht, der ganze Computer](docs/desktop.md)** — Freds Gesicht (oder ein eigenes Aussehen) auf Fenster, Taskleiste, Infobereich und Verknüpfungen; der Fensterrand folgt dem Thema der Seite. Sie nennt und nutzt alles, was sie auf deinem PC kann, und Dateien liest die gewählten Ordner, ohne sie zu ändern. |
 | **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Was du tippst, kommt immer an](docs/desktop.md)** — Immer wenn ihr Fenster aktiv wird, nach ihren Karten und der Computernutzung und beim Start, gibt die App die Tastatur an die Seite. Schnell fragen nimmt in Saras Chat markierten Text mit und sagt, wenn nichts markiert war. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Eine Desktop-App, die mehr kann](docs/desktop.md)** — Schnell fragen nimmt markierten Text oder ein Fensterbild mit, Halten zum Sprechen und gesprochene Antworten gehen bei geschlossenem Fenster, Ablegen und Auf meinem PC speichern erledigen Dateien, bestätigte Befehle laufen auf deinem PC mit Stopp, und neue Chats bleiben offline lesbar. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Schnelle Antworten von Modellen auf dem Prozessor](docs/CHOOSING_A_MODEL.md)** — Sara fragt jedes Ollama, ob das Modell auf der Grafikkarte läuft; auf dem Prozessor hält sie den Kontext klein, damit Antworten schnell bleiben. Nach 45 Sekunden ohne Antwort nennt der Chat das langsame Modell mit Beheben, Weiter warten und Stoppen. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Unterbrechen und sofort sagen](docs/CHATS.md)** — Jetzt unterbrechen (Senden-Menü, Strg+Enter oder /now) stoppt ihre Antwort oder ihr Nachdenken, und sie macht mit deinen Worten weiter, behält fertige Schritte und klappt ein, was sie gerade sagte. Laufende Änderungen enden zuerst, ein langer Befehl bekommt Befehl stoppen. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Sie liest die Bilder, die du schickst](docs/CHOOSING_A_MODEL.md)** — Screenshots von Laborwerten, Rechnungen oder Formularen erreichen jetzt das deiner Modelle, das sehen kann; kann das antwortende es nicht, liest ein anderes sie zuerst als genauen Text. Sie speichert die Werte mit note add und sagt mit Beheben Bescheid, wenn kein Modell sehen kann, statt so zu tun. |
-| **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notizen, die nichts verlieren](docs/FEATURES.md)** — Sie ergänzt jede neue Sache unter einer datierten Überschrift, ein Speichern, das eine Notiz löschen würde, wird abgelehnt, frühere Versionen kommen mit Wiederherstellen zurück, und ein unbelegtes „gespeichert“ wird markiert. Der obere Rand der Windows-App passt zur Seite, und sie kann deine Tabs und Dateien lesen. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Frühere 2.6x-Releases</b>: 3.4.1 zurück bis 2.61.5</summary>
+<summary><b>Frühere 2.6x-Releases</b>: 3.4.2 zurück bis 2.61.5</summary>
 
 | Version | Was sich für dich ändert |
 |---|---|
+| **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notizen, die nichts verlieren](docs/FEATURES.md)** — Sie ergänzt jede neue Sache unter einer datierten Überschrift, ein Speichern, das eine Notiz löschen würde, wird abgelehnt, frühere Versionen kommen mit Wiederherstellen zurück, und ein unbelegtes „gespeichert“ wird markiert. Der obere Rand der Windows-App passt zur Seite, und sie kann deine Tabs und Dateien lesen. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Sie merkt sich so viel, wie ihr Modell fassen kann](docs/CHOOSING_A_MODEL.md)** — Auto passt an, wie viel vom Chat sie im Kopf behält, an das genutzte Modell an (beim Dienst nachgeschlagen oder aus einer datierten Tabelle), begrenzt bezahlte Tokens auf ein ausgewogenes Maß, außer du wählst das volle Fenster, und gibt lokalen Ollama-Modellen einen echten Kontext. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Dokumente, ihr Name überall, Computersteuerung von einem Server](docs/DOCUMENTS.md)** — Sie erstellt echte Dokumente mit jedem Modell (Word, PDF, Tabellen, Folien) mit Herunterladen, Öffnen und Ändern. Ein umbenannter Begleiter zeigt überall seinen Namen und seine Pronomen, mit eingebauten Standardfiguren für er und they. Die Browser-Erweiterung und die Computersteuerung funktionieren jetzt mit einem Klick. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Einfacher Modus](docs/AWAY_FROM_HOME.md)** — Mit einem Erstnutzer gebaut: die Einrichtung erklärt Schlüssel und geht nicht verloren, Probleme kommen mit Beheben, Sara-App verbinden und Sara unterwegs nutzen (Tailscale) sind geführt und getestet, Gmail braucht drei Schritte, und du kannst „mach die Schrift größer“ sagen, mit Rückgängig. |

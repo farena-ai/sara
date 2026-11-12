@@ -16041,5 +16041,17 @@
 "Put her documents in a folder automatically": "Metti i suoi documenti in una cartella automaticamente",
 "Each new document she makes is saved there too, and a message says where. The folder stays on this computer; her server never learns it.": "Ogni nuovo documento che crea viene salvato anche lì e un messaggio dice dove. La cartella resta su questo computer; il suo server non la conosce mai.",
 "Choose folder…": "Scegli cartella…",
-"Drag this card to your desktop or a folder to save it.": "Trascina questa scheda sul desktop o in una cartella per salvarla."
+"Drag this card to your desktop or a folder to save it.": "Trascina questa scheda sul desktop o in una cartella per salvarla.",
+"Which folders": "Quali cartelle",
+"Desktop, Documents and Downloads": "Desktop, Documenti e Download",
+"Those and folders I pick": "Quelle e le cartelle che scelgo",
+"My whole user folder": "Tutta la mia cartella utente",
+"All my drives": "Tutte le mie unità",
+"No folders added yet.": "Nessuna cartella aggiunta finora.",
+"Add a folder…": "Aggiungi una cartella…",
+"Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.": "Sempre in sola lettura. Le cartelle di sistema, quelle di altre persone, i file nascosti e i posti che contengono chiavi o password (come .ssh, gestori di password, profili del browser e portafogli) restano esclusi, qualunque cosa tu scelga.",
+"She may read files on all drives here now (read only).": "Ora può leggere i file su tutte le unità qui (sola lettura).",
+"She may read files in your whole user folder here now (read only).": "Ora può leggere i file in tutta la tua cartella utente qui (sola lettura).",
+"Add the folders she may read.": "Aggiungi le cartelle che può leggere.",
+  "Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people's folders and places that hold keys, passwords, browser profiles or wallets always stay out.": "Sempre in sola lettura. Desktop, Documenti e Download è l’impostazione predefinita; puoi aggiungere cartelle che scegli, tutta la tua cartella utente o tutte le unità. Le cartelle di sistema, quelle di altre persone e i luoghi con chiavi, password, profili del browser o portafogli restano sempre esclusi."
 }

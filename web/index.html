@@ -2362,6 +2362,13 @@
         <label class="row" hidden>Approvals for commands <select id="cu-run-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Commands that delete, change settings or download and run things always ask, whatever you pick here.">?</button></label>
         <label class="row" hidden><input id="cu-run-readonly" type="checkbox" data-noauto> Simple read-only commands without asking <button type="button" class="tip" data-tip="Off by default. On: a short list of commands that only look (like dir, Get-ChildItem, Get-Content, git status) runs without the approval card. Everything else still asks.">?</button></label>
         <label class="row"><input id="cu-files" type="checkbox" data-noauto> Files: read my Desktop, Documents and Downloads <button type="button" class="tip" data-tip="Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.">?</button></label>
+        <!-- 3.5.x: which folders Files may read (web/pc-files-settings.js; Windows app 3.5.2 on). -->
+        <label class="row" hidden>Which folders <button type="button" class="tip" data-tip="Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people&#39;s folders and places that hold keys, passwords, browser profiles or wallets always stay out.">?</button> <select id="cu-files-scope" data-noauto><option value="three">Desktop, Documents and Downloads</option><option value="picked">Those and folders I pick</option><option value="home">My whole user folder</option><option value="drives">All my drives</option></select> <button type="button" class="tip" data-tip="Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.">?</button></label>
+        <div id="cu-files-picked" class="cu-files-picked" hidden>
+          <p id="cu-files-none" class="muted small">No folders added yet.</p>
+          <ul id="cu-files-list" class="cu-files-list"></ul>
+          <button id="cu-files-add" type="button" class="ghost small">Add a folder…</button>
+        </div>
         <div id="cu-perms" class="cu-perms" hidden>
           <p class="small">macOS asks you to allow this once, for the Sara app:</p>
           <ol class="cu-steps">

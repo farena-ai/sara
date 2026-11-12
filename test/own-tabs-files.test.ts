@@ -166,7 +166,7 @@ test('pc_files on the device: lists without hidden or secret files, reads text o
   refuse({ folder: 'desktop', path: 'photo.png' }, /Only text files/);
   refuse({ folder: 'desktop', path: 'binary.txt' }, /binary/);
   refuse({ folder: 'desktop', path: 'big.log' }, /up to 1 MB/);
-  refuse({ folder: 'system32', path: 'x.txt' }, /Only Desktop, Documents or Downloads/);
+  refuse({ folder: 'system32', path: 'x.txt' }, /Only these folders: Desktop, Documents, Downloads/);
   assert.throws(() => listFiles(roots, { folder: 'desktop', path: 'escape' }), FileRuleError);
   // At most 200 entries per list.
   for (let i = 0; i < 230; i++) writeFileSync(join(roots.downloads, `f${i}.txt`), 'x');
@@ -191,7 +191,7 @@ test('"look at my browser tabs" with Fred: the owner\u2019s own tabs, every tab,
   const e = await env();
   await device(e, { name: 'Alex Laptop' });
   const out = await run(e, 'pc_my_tabs');
-  assert.match(out, /The owner's own browser tabs on Alex Laptop \(4 tabs, read only; Fred\u2019s browser is not included\)/);
+  assert.match(out, /The owner's own browser tabs on Alex Laptop \(4 tabs; Fred\u2019s browser is not included\)/);
   assert.match(out, /Edge window w120 \(4 tabs\)/);
   assert.match(out, /\[in front\] Example Domain \u2014 https:\/\/example\.com\//);
   assert.match(out, /New tab \u2014 about:blank/);
@@ -222,7 +222,7 @@ test('consent and old apps: the exact switch to turn on, the fallback to window 
   const line = said.split('\n').find((l) => l.includes('SheltonLaptop'))!;
   assert.match(line, /Fred\u2019s browser \(a separate Microsoft Edge window with its own profile, opened by you, not the owner's own browser\)/);
   assert.match(line, new RegExp(`this Sara app is older \\(Sara for Windows 3\\.1\\.1\\): to let you see every open tab of their own browsers and read their files, the owner needs to update the Sara app on SheltonLaptop to Sara ${SERVER_VERSION().replace(/\./g, '\\.')} or later \\(download it from https://github\\.com/farena-ai/sara/releases/latest`));
-  assert.match(said, /"Look at my tabs \/ my browser \/ what I have open \/ my screen" means theirs: use pc_my_tabs/);
+  assert.match(said, /"Look at my tabs \/ my browser \/ what I have open \/ my screen \/ this app" means theirs: LOOK first \(pc_look, pc_windows or pc_my_tabs\)/);
   assert.doesNotMatch(said, NO_SARA_BROWSER);
   const files = await run(e, 'pc_files', { folder: 'desktop', computer: 'SheltonLaptop' });
   assert.match(files, /The Sara app on SheltonLaptop can't read the owner's files yet\. Tell the owner to update the Sara app on SheltonLaptop to Sara/);
@@ -242,7 +242,7 @@ test('"what files are on my Desktop" with Fred: list and read through the app, "
   assert.match(read, /Desktop\/Projects\/plan\.md on Files PC/);
   assert.match(read, /Ship it\./);
   assert.match(read, /\[Note: this text/, 'orders inside a file are flagged as content');
-  assert.match(await run(e, 'pc_files', { action: 'read', folder: 'desktop', path: '../Private/diary.txt' }), /^Error: Only folders inside Desktop, Documents or Downloads/);
+  assert.match(await run(e, 'pc_files', { action: 'read', folder: 'desktop', path: '../Private/diary.txt' }), /^Error: Only folders inside the allowed folders/);
   assert.match(await run(e, 'pc_files', { action: 'read', folder: 'desktop', path: 'C:\\Windows\\win.ini' }), /^Error: Only a path inside/);
   assert.match(await run(e, 'pc_files', { action: 'read', folder: 'desktop', path: 'id_rsa' }), /secrets/);
   const e2 = await env();
@@ -275,7 +275,13 @@ test('names: every computer-use description and the cards use the companion\u201
     for (const name of ['pc_devices', 'pc_my_tabs', 'pc_files']) assert.ok(plan.isOffered(name), `${text}: ${name}`);
   }
   const prompt = buildSystemPrompt(e.app.persona, { now: NOW, tools: ['pc_devices', 'pc_my_tabs', 'pc_files'] });
-  assert.match(prompt, /use pc_my_tabs, pc_windows or pc_look \(theirs, read only\); for their files \(Desktop, Documents, Downloads\) use pc_files\. Never tell .* to open things in your browser/);
+  assert.match(prompt, /read their browser tabs \(pc_my_tabs\) and read their files \(pc_files\)/);
+  assert.match(prompt, /needs "The whole screen" on/);
+  assert.match(prompt, /never tell .* to open things in your browser/);
+  const full = buildSystemPrompt(e.app.persona, { now: NOW, tools: ['pc_devices', 'pc_my_tabs', 'pc_files', 'pc_look', 'pc_windows', 'pc_click', 'pc_type', 'pc_run'] });
+  assert.match(full, /see the whole screen and every open window \(pc_look, pc_windows\), read their browser tabs and bring one to the front \(pc_my_tabs\), click and type in their apps/);
+  assert.match(full, /LOOK first \(pc_look\), say what you see, then offer to do it/);
+  assert.match(full, /give the whole list briefly, not just the files/);
 });
 
 test('the apps: the Windows app reads every tab with UI Automation and files read only, with the same rules', () => {

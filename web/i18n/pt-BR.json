@@ -16036,5 +16036,17 @@
 "Put her documents in a folder automatically": "Colocar os documentos dela em uma pasta automaticamente",
 "Each new document she makes is saved there too, and a message says where. The folder stays on this computer; her server never learns it.": "Cada novo documento que ela cria também é salvo ali, e um aviso diz onde. A pasta fica neste computador; o servidor dela nunca sabe qual é.",
 "Choose folder…": "Escolher pasta…",
-"Drag this card to your desktop or a folder to save it.": "Arraste este cartão para a área de trabalho ou uma pasta para salvá-lo."
+"Drag this card to your desktop or a folder to save it.": "Arraste este cartão para a área de trabalho ou uma pasta para salvá-lo.",
+"Which folders": "Quais pastas",
+"Desktop, Documents and Downloads": "Área de Trabalho, Documentos e Downloads",
+"Those and folders I pick": "Essas e as pastas que eu escolher",
+"My whole user folder": "Minha pasta de usuário inteira",
+"All my drives": "Todas as minhas unidades",
+"No folders added yet.": "Nenhuma pasta adicionada ainda.",
+"Add a folder…": "Adicionar uma pasta…",
+"Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.": "Sempre somente leitura. Pastas do sistema, pastas de outras pessoas, arquivos ocultos e lugares que guardam chaves ou senhas (como .ssh, gerenciadores de senhas, perfis do navegador e carteiras) ficam de fora, seja qual for a escolha.",
+"She may read files on all drives here now (read only).": "Agora ela pode ler arquivos em todas as unidades aqui (somente leitura).",
+"She may read files in your whole user folder here now (read only).": "Agora ela pode ler arquivos em toda a sua pasta de usuário aqui (somente leitura).",
+"Add the folders she may read.": "Adicione as pastas que ela pode ler.",
+  "Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people's folders and places that hold keys, passwords, browser profiles or wallets always stay out.": "Sempre só leitura. Área de Trabalho, Documentos e Downloads é o padrão; você pode adicionar pastas que escolher, sua pasta de usuário inteira ou todas as suas unidades. Pastas do sistema, de outras pessoas e lugares com chaves, senhas, perfis de navegador ou carteiras ficam sempre de fora."
 }

@@ -841,7 +841,7 @@ struct TabInfo {
   bool active = false;
 };
 /** The tab strip of one browser window: TabItems in the browser's own UI (web pages, Document subtrees, are never entered) and the first address field's text. */
-void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string& address) {
+void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string& address, std::vector<ComPtr<IUIAutomationElement>>* els = nullptr) {
   ComPtr<IUIAutomationCacheRequest> cr;
   a->CreateCacheRequest(&cr);
   for (PROPERTYID p : {UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_SelectionItemIsSelectedPropertyId, UIA_ValueValuePropertyId, UIA_IsPasswordPropertyId}) cr->AddProperty(p);
@@ -851,7 +851,7 @@ void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string&
   a->get_ControlViewWalker(&walk);
   int nodes = 0;
   struct Rec {
-    static void go(IUIAutomationTreeWalker* walk, IUIAutomationCacheRequest* cr, IUIAutomationElement* el, int depth, int& nodes, std::vector<TabInfo>& tabs, std::string& address) {
+    static void go(IUIAutomationTreeWalker* walk, IUIAutomationCacheRequest* cr, IUIAutomationElement* el, int depth, int& nodes, std::vector<TabInfo>& tabs, std::string& address, std::vector<ComPtr<IUIAutomationElement>>* els) {
       if (depth > 16 || nodes > kMaxNodes || tabs.size() >= 100) return;
       ComPtr<IUIAutomationElement> c;
       walk->GetFirstChildElementBuildCache(el, cr, &c);
@@ -868,7 +868,10 @@ void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string&
           ti.title = maskText(clip(std::regex_replace(bstr(v), kHover, ""), 160));
           c->GetCachedPropertyValue(UIA_SelectionItemIsSelectedPropertyId, &v);
           ti.active = vbool(v);
-          if (!ti.title.empty() && tabs.size() < 100) tabs.push_back(ti);
+          if (!ti.title.empty() && tabs.size() < 100) {
+            tabs.push_back(ti);
+            if (els) els->push_back(c);  // 3.5.x: the same order, for switching to a tab
+          }
         } else if (t == UIA_EditControlTypeId && address.empty()) {
           c->GetCachedPropertyValue(UIA_IsPasswordPropertyId, &v);
           bool secret = vbool(v);
@@ -880,14 +883,27 @@ void tabStrip(IUIAutomation* a, HWND h, std::vector<TabInfo>& tabs, std::string&
           }
         }
         // Never into a web page (Document): its own \"tabs\" are content, and it's where the person's data is.
-        if (t != UIA_DocumentControlTypeId && t != UIA_TabItemControlTypeId) go(walk, cr, c.Get(), depth + 1, nodes, tabs, address);
+        if (t != UIA_DocumentControlTypeId && t != UIA_TabItemControlTypeId) go(walk, cr, c.Get(), depth + 1, nodes, tabs, address, els);
         ComPtr<IUIAutomationElement> n;
         walk->GetNextSiblingElementBuildCache(c.Get(), cr, &n);
         c = n;
       }
     }
   };
-  Rec::go(walk.Get(), cr.Get(), root.Get(), 1, nodes, tabs, address);
+  Rec::go(walk.Get(), cr.Get(), root.Get(), 1, nodes, tabs, address, els);
+}
+/** 3.5.x: the address in a browser window's own address bar (never a web page's fields), masked; empty when unknown. */
+std::string browserAddress(HWND h) {
+  auto a = uia();
+  std::vector<TabInfo> ts;
+  std::string address;
+  if (a) tabStrip(a.Get(), h, ts, address);
+  return address;
+}
+/** 3.5.x: payment, account/security and sign-in pages in the person's own browser always ask (src/computer-policy.ts SENSITIVE_PAGE). */
+bool sensitivePage(const std::string& text) {
+  static const std::regex re(R"(check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet|account|security|privacy|password|passkey|sign[ _-]?in|sign[ _-]?up|log[ _-]?in|\bauth|oauth|\bsso\b|2fa|mfa|two[- ]factor|verify|verification)", std::regex::icase);
+  return std::regex_search(text, re);
 }
 }  // namespace
 
@@ -1078,8 +1094,22 @@ bool secureAncestors(IUIAutomation* u, IUIAutomationElement* element, std::strin
   }
   return false;
 }
-struct Bound { View view; Win win; Item item; POINT point{}; };
-Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = false) {
+struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false; };
+/** After the person's Allow: bring that exact window to the front. Windows refuses SetForegroundWindow from a
+ *  process that isn't in front, so for that one call this thread shares input with the window in front. */
+bool bringToFront(HWND h) {
+  if (GetForegroundWindow() == h) return true;
+  if (IsIconic(h)) ShowWindow(h, SW_RESTORE);
+  HWND fg = GetForegroundWindow();
+  DWORD me = GetCurrentThreadId(), them = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
+  bool attached = them && them != me && AttachThreadInput(me, them, TRUE);
+  BringWindowToTop(h);
+  SetForegroundWindow(h);
+  if (attached) AttachThreadInput(me, them, FALSE);
+  for (int i = 0; i < 10 && GetForegroundWindow() != h; i++) Sleep(50);
+  return GetForegroundWindow() == h;
+}
+Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = false, bool beforeApproval = false) {
   if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active; Sara cannot control it.");
   {
     std::lock_guard<std::mutex> l(g_m); auto i = g_views.find(a.viewId);
@@ -1094,11 +1124,29 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   if (elevated(w->h)) return refusal("denied_local", "I can't control windows running as administrator");
   if (dangerousApp(w->app)) return refusal("denied_local", "Terminal, system settings and protected applications are not desktop input targets.");
   if (!browserAllowed(w->h, w->app)) return refusal("denied_local", "Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked safely.");
-  if (activate && GetForegroundWindow() != w->h) SetForegroundWindow(w->h);
-  if (GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
+  // 3.5.x: the person's own browser: banking and password-manager pages stay blocked; payment, account and sign-in pages ask every time.
+  if (browserApp(w->app)) {
+    std::string address = browserAddress(w->h), kind = blockedKind(w->title + " " + address, "");
+    if (!kind.empty()) return refusal("denied_local", "That page is hidden from Sara on purpose (" + kind + "): she never acts there.");
+    b.sensitive = sensitivePage(w->title + " " + address);
+  }
+  // 3.5.x: before the approval (inspect) the target may be behind other windows: the person sees the card, and only
+  // after Allow does the app bring that exact window to the front; every check below then runs again with it in front.
+  // Only the look-up before the approval card (inspect) may skip the in-front checks; the guard during input never does.
+  bool checking = beforeApproval && !activate && !approvedRefresh;
+  if (activate) bringToFront(w->h);
+  if (!checking && GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
   std::vector<Item> items; int total = 0; collect(w->h, kMaxElements, items, total);
   if (items.size() != b.view.identity.size()) return refusal("stale_view", "The controls changed: look again.");
-  for (size_t i = 0; i < items.size(); ++i) if (items[i].identity != b.view.identity[i]) return refusal("stale_view", "A control changed: look again.");
+  // The target (checked below by its ref) must be the very same control, runtime id included; the rest of the window
+  // must keep every control's type, name, place and state. Their runtime ids are not compared: Windows hands out new
+  // ones for some controls (the title bar's System menu) when the window comes to the front after the person's Allow.
+  auto layoutOf = [](const std::string& id) { size_t p = id.find('|'); return p == std::string::npos ? id : id.substr(p); };
+  int targetIndex = !a.ref.empty() && std::regex_match(a.ref, std::regex("e[1-9][0-9]{0,3}")) ? atoi(a.ref.c_str() + 1) - 1 : -1;
+  for (size_t i = 0; i < items.size(); ++i) {
+    bool same = (int)i == targetIndex ? items[i].identity == b.view.identity[i] : layoutOf(items[i].identity) == layoutOf(b.view.identity[i]);
+    if (!same) return refusal("stale_view", "A control changed: look again.");
+  }
   int index = -1;
   if (!a.ref.empty()) {
     if (!std::regex_match(a.ref, std::regex("e[1-9][0-9]{0,3}"))) return refusal("stale_view", "That ref is not in this look.");
@@ -1125,8 +1173,12 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   std::string context;
   if (!automation || secureAncestors(automation.Get(), b.item.element.Get(), &context)) return refusal("denied_local", "That is a password or secure field.");
   ComPtr<IUIAutomationElement> actualHit;
-  if (FAILED(automation->ElementFromPoint(b.point, &actualHit)) || !actualHit || secureAncestors(automation.Get(), actualHit.Get(), &context)) return refusal("denied_local", "The point is a secure or uninspectable control.");
-  BOOL exact = FALSE; automation->CompareElements(b.item.element.Get(), actualHit.Get(), &exact);
+  BOOL exact = FALSE;
+  // Behind other windows (before the approval) the point hits them: the hit checks run once the window is in front.
+  if (!checking) {
+    if (FAILED(automation->ElementFromPoint(b.point, &actualHit)) || !actualHit || secureAncestors(automation.Get(), actualHit.Get(), &context)) return refusal("denied_local", "The point is a secure or uninspectable control.");
+    automation->CompareElements(b.item.element.Get(), actualHit.Get(), &exact);
+  } else exact = TRUE;
   bool pointAction = a.op == "d.drag" || (a.op == "d.click" && (a.right || a.twice));
   if (a.op == "d.click" && !a.right && !a.twice) {
     ComPtr<IUIAutomationInvokePattern> invoke;
@@ -1136,9 +1188,10 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   b.item.name += context;
   if (b.item.secret) return refusal("denied_local", "That is a password field: Sara never types or presses keys into those.");
   if (b.item.disabled) return refusal("denied_local", "That control is disabled.");
-  if (GetAncestor(WindowFromPoint(b.point), GA_ROOT) != w->h) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
+  if (!checking && GetAncestor(WindowFromPoint(b.point), GA_ROOT) != w->h) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
   if (neverAction(b.item.name)) return refusal("denied_local", "That protected desktop action is always refused.");
-  // Even keys aimed at an innocent ref must not spill into a secure focused control.
+  // Even keys aimed at an innocent ref must not spill into a secure focused control (checked with the window in front).
+  if (checking) return {};
   auto u = uia(); ComPtr<IUIAutomationElement> focus;
   if (!u || FAILED(u->GetFocusedElement(&focus)) || !focus) return refusal("denied_local", "The focused control cannot be inspected safely.");
   BOOL secure = TRUE;
@@ -1183,16 +1236,69 @@ Result launch(const Action& a, bool execute, const std::function<bool()>& cancel
 }
 }
 
+namespace {
+/** 3.5.x d.tabswitch: one of the person's own browser tabs (by its place on the tab strip, checked against its title) to the front.
+    UI Automation only: SelectionItem.Select, else Invoke, else the MSAA default action (Firefox); never synthetic clicks. */
+Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
+  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active.");
+  auto all = listAll(); Result r;
+  Win* w = findWin(all, a.window, r);
+  if (!w) return r;
+  if (!browserApp(w->app)) return refusal("denied_local", "That window is not one of your own browser windows.");
+  DWORD pid = 0; GetWindowThreadProcessId(w->h, &pid);
+  if (a.ownBrowserPid && pid == a.ownBrowserPid) return refusal("denied_local", "That is Sara's own browser window (pc_browser_tabs), not yours.");
+  if (a.onlyPid && pid != a.onlyPid) return refusal("denied_local", "Test runs only switch tabs in the test's own browser window.");
+  if (elevated(w->h)) return refusal("denied_local", "I can't control windows running as administrator");
+  auto u = uia();
+  if (!u) return refusal("denied_local", "Accessibility is not available.");
+  std::vector<TabInfo> ts; std::vector<ComPtr<IUIAutomationElement>> els; std::string address;
+  tabStrip(u.Get(), w->h, ts, address, &els);
+  if (a.tab < 1 || a.tab > (int)ts.size() || ts.size() != els.size()) return refusal("stale_view", "That tab is not there any more: list the tabs again (pc_my_tabs).");
+  const TabInfo& t = ts[a.tab - 1];
+  if (!a.title.empty() && t.title != a.title) return refusal("stale_view", "The tabs changed: list them again (pc_my_tabs).");
+  std::string kind = blockedKind(t.title, "");
+  if (!kind.empty()) return refusal("denied_local", "That tab is hidden from Sara on purpose (" + kind + ").");
+  if (info) {
+    info->target = std::string("Switch to your ") + browserLabelOf(w->app) + " tab:\n" + t.title;
+    info->once = sensitivePage(t.title);
+  }
+  if (!execute) return {};
+  ComPtr<IUIAutomationElement> el = els[a.tab - 1];
+  bringToFront(w->h);
+  bool done = false;
+  ComPtr<IUIAutomationSelectionItemPattern> sel;
+  if (SUCCEEDED(el->GetCurrentPatternAs(UIA_SelectionItemPatternId, IID_PPV_ARGS(&sel))) && sel && SUCCEEDED(sel->Select())) done = true;
+  ComPtr<IUIAutomationInvokePattern> inv;
+  if (!done && SUCCEEDED(el->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&inv))) && inv && SUCCEEDED(inv->Invoke())) done = true;
+  ComPtr<IUIAutomationLegacyIAccessiblePattern> legacy;
+  if (!done && SUCCEEDED(el->GetCurrentPatternAs(UIA_LegacyIAccessiblePatternId, IID_PPV_ARGS(&legacy))) && legacy && SUCCEEDED(legacy->DoDefaultAction())) done = true;
+  if (!done) return refusal("unsupported", std::string("This ") + browserLabelOf(w->app) + " window's tabs can't be switched through accessibility: ask the person to click the tab.");
+  std::vector<TabInfo> after; std::string now;
+  for (int i = 0; i < 10; i++) {
+    Sleep(150);
+    after.clear(); now.clear();
+    tabStrip(u.Get(), w->h, after, now);
+    if (a.tab <= (int)after.size() && after[a.tab - 1].active) break;
+  }
+  bringToFront(w->h);
+  bool active = a.tab <= (int)after.size() && after[a.tab - 1].active;
+  Result ok;
+  ok.json = "{\"switched\":" + std::string(active ? "true" : "false") + ",\"window\":" + jq(idOf(w->h)) + ",\"title\":" + jq(t.title) + (!now.empty() && blockedKind(now, "").empty() ? ",\"url\":" + jq(now) : "") + ",\"front\":" + (GetForegroundWindow() == w->h ? "true" : "false") + "}";
+  return ok;
+}
+}  // namespace
+
 Result inspect(const Action& a, ActionInfo& info) {
   Com com;
   if (a.op == "d.launch") { info.target = "Open installed app: " + a.app; info.once = onceAction(a.app); return launch(a, false); }
+  if (a.op == "d.tabswitch") return tabSwitch(a, false, &info);
   Bound b; auto r = bind(a, b, false); if (!r.code.empty()) return r;
   if (a.op == "d.keys" && !std::regex_match(lower(a.combo), std::regex("enter|tab|shift\\+tab|escape|arrowleft|arrowright|arrowup|arrowdown|home|end|pageup|pagedown|backspace|ctrl\\+a"))) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
   if (a.text.size() > 8000 || maskText(a.text) != a.text) return refusal("denied_local", "That text is too long or looks like a secret.");
   info.target = a.op + " in " + b.win.title + " / " + b.item.role + " " + b.item.name;
   if (a.op == "d.type") info.target += "\nText: " + a.text;
   if (a.op == "d.keys") info.target += "\nKeys: " + a.combo;
-  info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text);
+  info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text) || b.sensitive;
   if (a.op == "d.drag") {
     Action destination = a; destination.ref.clear(); destination.x = a.toX; destination.y = a.toY;
     Bound end; auto checked = bind(destination, end, false); if (!checked.code.empty()) return checked;
@@ -1213,6 +1319,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
   Com com;
   if (cancelled()) return refusal("stopped", "Stopped before desktop input.");
   if (a.op == "d.launch") return launch(a, true, cancelled);
+  if (a.op == "d.tabswitch") return tabSwitch(a, true, nullptr);
   Bound b; auto r = bind(a, b, true); if (!r.code.empty()) return r;
   bool dragging = false;
   auto guard = [&]() {

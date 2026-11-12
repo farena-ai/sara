@@ -198,6 +198,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   let conv = null;      // the conversation this window's question went to
   let busy = null;      // AbortController of the reply being streamed
   let lastFace = '';
+  let lastIcon = '';
   let refreshing = null;
   let lastSize = 0;
 
@@ -266,6 +267,35 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     img.src = url;
   });
 
+  /** 3.5.2: the companion's face as the app's icon (256 px, rounded square), or 'builtin' (Sara's own
+   *  look: the app keeps its icon). Only when the server's tag changes (a new look, picture, name). */
+  const makeIcon = (url) => new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      try {
+        const c = document.createElement('canvas');
+        c.width = c.height = 256;
+        const g = c.getContext('2d');
+        g.beginPath();
+        g.roundRect(0, 0, 256, 256, 40);
+        g.clip();
+        const s = Math.min(img.naturalWidth, img.naturalHeight);
+        g.drawImage(img, (img.naturalWidth - s) / 2, Math.max(0, (img.naturalHeight - s) / 4), s, s, 0, 0, 256, 256);
+        resolve(c.toDataURL('image/png'));
+      } catch (e) { resolve(''); }
+    };
+    img.onerror = () => resolve('');
+    img.src = url;
+  });
+  const iconFor = async (f) => {
+    if (!f || typeof f.kind !== 'string') return '';  // an older server: the app keeps what it has
+    const key = f.kind + ' ' + f.tag;
+    if (key === lastIcon) return '';
+    const icon = f.kind === 'builtin' ? 'builtin' : await makeIcon(f.src + (f.src.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(f.tag));
+    if (icon) lastIcon = key;
+    return icon;
+  };
+
   const clean = (s, n) => String(s || '').replace(/[\t\r\n]+/g, ' ').trim().slice(0, n);
   /** The command (or the main argument) an approval is about, for the notification's text. */
   const detailOf = (ap) => {
@@ -324,16 +354,19 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
         lines.push(['job', String(j.id), clean(j.conversationId, 60), clean(j.label, 70) + '… ' + since(j.startedAt)].join('\t'));
       }
       const url = faceUrl();
+      // 3.5.2: a new look keeps the same address: the server's face tag tells it changed.
+      const faceKey = url + ' ' + ((session.face && session.face.tag) || '');
       let face = '';
-      if (url !== lastFace) {
-        face = await makeFace(url);
-        if (face) lastFace = url;
+      if (faceKey !== lastFace) {
+        face = await makeFace(url + (session.face && session.face.tag ? (url.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(session.face.tag) : ''));
+        if (face) lastFace = faceKey;
       }
       const faceImg = $('face');
       faceImg.src = url;
       faceImg.hidden = false;
       faceImg.closest('header').classList.toggle('own-face', Boolean(her && her.customAvatar));
-      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
+      const icon = await iconFor(session.face);
+      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, icon, now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
       checkVoice();
     })().finally(() => { refreshing = null; });
     return refreshing;

@@ -16043,5 +16043,17 @@
 "Put her documents in a folder automatically": "Ranger ses documents dans un dossier automatiquement",
 "Each new document she makes is saved there too, and a message says where. The folder stays on this computer; her server never learns it.": "Chaque nouveau document qu’elle crée y est aussi enregistré, et un message indique où. Le dossier reste sur cet ordinateur ; son serveur ne le connaît jamais.",
 "Choose folder…": "Choisir le dossier…",
-"Drag this card to your desktop or a folder to save it.": "Faites glisser cette carte sur le bureau ou dans un dossier pour l’enregistrer."
+"Drag this card to your desktop or a folder to save it.": "Faites glisser cette carte sur le bureau ou dans un dossier pour l’enregistrer.",
+"Which folders": "Quels dossiers",
+"Desktop, Documents and Downloads": "Bureau, Documents et Téléchargements",
+"Those and folders I pick": "Ceux-là et les dossiers que je choisis",
+"My whole user folder": "Tout mon dossier utilisateur",
+"All my drives": "Tous mes lecteurs",
+"No folders added yet.": "Aucun dossier ajouté pour l’instant.",
+"Add a folder…": "Ajouter un dossier…",
+"Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.": "Toujours en lecture seule. Les dossiers système, ceux des autres personnes, les fichiers cachés et les endroits qui contiennent des clés ou des mots de passe (comme .ssh, les gestionnaires de mots de passe, les profils de navigateur et les portefeuilles) restent exclus, quel que soit votre choix.",
+"She may read files on all drives here now (read only).": "Elle peut maintenant lire les fichiers de tous les lecteurs ici (lecture seule).",
+"She may read files in your whole user folder here now (read only).": "Elle peut maintenant lire les fichiers de tout votre dossier utilisateur ici (lecture seule).",
+"Add the folders she may read.": "Ajoutez les dossiers qu’elle peut lire.",
+  "Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people's folders and places that hold keys, passwords, browser profiles or wallets always stay out.": "Toujours en lecture seule. Bureau, Documents et Téléchargements par défaut ; vous pouvez ajouter des dossiers choisis, tout votre dossier utilisateur ou tous vos lecteurs. Les dossiers système, ceux d’autres personnes et les endroits qui contiennent des clés, des mots de passe, des profils de navigateur ou des portefeuilles restent toujours exclus."
 }

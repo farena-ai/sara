@@ -58,7 +58,7 @@ test('Windows app: no white flash, theme colours from the first frame, the shell
   assert.match(cpp, /if \(pref == L"dark"\) pref = L"night";/);
   // Until the page says it draws the strip (an older server), the app keeps its own title strip.
   assert.match(cpp, /rc\.top \+= g_customFrame && !g_pageTitle \? titlebarPx\(\) : topResizeBand\(\)/);
-  assert.match(cpp, /DrawTextW\(t, L"Sara"/);
+  assert.match(cpp, /DrawTextW\(t, companionName\(\)\.c_str\(\)/, '3.5.2: her name');
   // Theme / backdrop only from the owner's server; "shell" from any page (it only moves the view).
   const msg = cpp.slice(cpp.indexOf('static void onMessage('));
   assert.ok(msg.indexOf('L"shell"') < msg.indexOf('if (!fromServer) return;'));

@@ -455,7 +455,23 @@ To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it 
 (*Ollama on my computer*, over Tailscale or your home network): see
 [CHOOSING_A_MODEL.md](CHOOSING_A_MODEL.md).
 
-### Desktop actions (Phase 93 implementation draft; not released)
+### Which folders, your own browser (3.5.2)
+
+- **Files → Which folders** (Windows app): `three` (Desktop, Documents, Downloads; default), `picked`
+  (those plus folders chosen with the folder picker), `home` (your user folder) or `drives` (all fixed
+  drives). Read only. Refused everywhere: Windows and program folders, other users' folders, and places
+  holding keys or credentials (`.ssh`, `.gnupg`, password stores, browser profiles, wallets); key-shaped
+  text is masked. The server is told only the root names (`Desktop`, `Folder 2`, `C:`), never the paths.
+- **Your own browser:** `pc_my_tabs` lists your tabs; `pc_look` / `pc_click` / `pc_type` work in your browser
+  window that is in front through UI Automation. Payment, account and sign-in pages always ask; password fields
+  are never typed into; banking and password manager windows stay blocked; Sara's own server and sign-in pages are
+  refused. `d.tabswitch` (bring another tab to the front) is built but not offered by the app yet: desktop input
+  after an approval was found slow on a test run (see BACKLOG).
+- **After Allow** the app brings that exact window to the front (sharing input with the window in front for that
+  one call, as Windows requires) and repeats every check; the target must be the very same control (runtime id),
+  the other controls the same type, name, place and state.
+
+### Desktop actions (Phase 93, released in 2.26.0)
 
 With **The whole screen** on, Sara can request clicks, non-secret typing, safe keys, scrolling,
 dragging and installed-app launch. She looks first and checks the result after each action. Text-only
@@ -507,7 +523,7 @@ variant for a connected test copy without Accessibility. Do not count either as 
 input, card interaction or a full-screen Stop test. `--ref --desktop` runs the complete reference
 suite. The test-only `CU6Fixture` target is a small native form; no installed app/data is replaced.
 
-### Check-ups (Phase 94 implementation draft, computer use CU7; not released)
+### Check-ups (Phase 94, computer use CU7)
 
 With **The whole screen** on, the apps answer `s.check`: a READ-ONLY check-up of the computer through a
 fixed list of OS calls (nothing from the server is run, nothing is written, deleted or opened).
@@ -661,6 +677,35 @@ The apps tell the page they can host its header in the title bar; the page answe
   Windows 10 or a WebView2 runtime older than 123. Mac: full-size content view, transparent title bar,
   traffic lights inset; WebKit has no `app-region`, so a press on the strip calls `performDrag`.
 - Test in a browser with `?shell=windows&titlebar=32` or `?shell=mac` (stand-in window buttons).
+- 3.5.2: the theme message also says `shown:'day'|'night'`, what the page really renders. With
+  *Follow the system* the page decides by its own `prefers-color-scheme`, which the app's reading of
+  the registry (`AppsUseLightTheme`) can disagree with; the app follows `shown`, so the frame colour
+  lands in the right slot. A kept `frameNight` that is light (or a `frameDay` that is dark) is
+  ignored at start, and Mica is only on once a page asks for it in this run (no page does today).
+- desktop.log: at start `Windows 11 Home (26100.4061), system dark mode, accent on title bars off,
+  high contrast off`; then a `frame:` line whenever the theme, colour, whose title strip, backdrop
+  or the DWM results change. Test builds: `SARA_TEST_SYSTEM_THEME=dark|light` (the registry reading
+  and the web view's colour scheme) and `SARA_TEST_WINBUILD=19045` (the Windows 10 path).
+
+## Her face as the app's icon (3.5.2)
+
+- `/api/session` (signed in, not the demo) says `face: { kind, src, tag }` (`src/app-face.ts`):
+  `custom` (an uploaded picture, `/api/sara/avatar`), `look` (a custom look or the he/they default
+  look, `/sara-avatar.jpg`), `initial` (another companion without a look) or `builtin` (Sara with
+  her own look). `tag` changes with the picture.
+- The quick-ask page draws it at 256 px (rounded square) when the tag changes and posts it with its
+  state (`icon: 'data:image/png;base64,…'` or `'builtin'`); an older server says nothing and nothing
+  changes.
+- The Windows app keeps it per server (`icon-<host>.png` in its data folder) and makes from it: the
+  window icons (`WM_SETICON`, at the screen's sizes), the tray icon and its Hey Sara dot variants,
+  the notifications' icon and name (the AUMID's `IconUri` / `DisplayName`), a `.ico` named after its
+  content for the taskbar (`PKEY_AppUserModel_RelaunchIconResource`, removed on `WM_DESTROY`) and for
+  the app's own shortcuts (Start menu, desktop, taskbar pin: only ones that point at this exe and
+  carry its AUMID). `builtin` puts the exe's icon back on those shortcuts and deletes the files.
+  The uninstaller removes the shortcuts as before; the files go with the data folder.
+- The window title, the app's own title strip and the tray tooltip use her name (kept per server
+  too). Switching servers switches both. Test builds never touch real shortcuts:
+  `SARA_TEST_SHORTCUT=<path to a .lnk>` names one to update.
 
 ## Quick ask and the tray "Now" (2.6)
 

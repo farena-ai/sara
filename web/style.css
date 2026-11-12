@@ -1658,6 +1658,8 @@ body:not(.member) [data-member-only] { display: none !important; }
 /* Phase 92 (CU5): the whole-screen switch, the Mac's guided permission steps, the person's own hidden windows */
 .cu-perms { display: grid; gap: 6px; margin: 4px 0 8px; padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); }
 .cu-steps { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.cu-files-picked { display: grid; gap: 6px; margin: 0 0 8px 28px; }
+.cu-files-list { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
 .cu-step { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-height: 44px; }
 .cu-step-text { flex: 1 1 180px; min-width: 0; overflow-wrap: anywhere; }
 .cu-step button { min-height: 44px; }

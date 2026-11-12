@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Her own face and the whole computer, in 3.6.0
+
+The Windows app shows the companion's own face (Fred's, a custom look) on its window, taskbar, tray,
+shortcuts and notifications, and the top of the window always matches the page's theme. She tells you
+plainly everything she can do on your computer and uses it: your screen and windows, your tabs, clicking
+and typing in your apps with your approval, commands you approve, and your files, now with Which folders
+(the three folders, folders you pick, your user folder or all drives; always read only).
+
 ## Typing always reaches her, in 3.5.1
 
 The Windows app now hands the keyboard to the page whenever its window becomes active, after her

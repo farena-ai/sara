@@ -22,6 +22,8 @@ export interface AppInstall {
   platform: AppPlatform;
   version: string;
   computer: string;
+  /** 3.5.2: the computer's system, as the app says it ("Windows 11 Home (26100.4061)"). */
+  os?: string;
   how: AppHow;
   /** "Update the app by itself" is on there. */
   auto: boolean;
@@ -67,6 +69,7 @@ export function cleanCheckin(body: Record<string, unknown>): Omit<AppInstall, 's
     platform,
     version,
     computer: plain(body.computer, 80),
+    ...(plain(body.os, 60) ? { os: plain(body.os, 60) } : {}),
     how,
     auto: body.auto !== false,
     selfUpdate: body.selfUpdate === true,
@@ -160,6 +163,7 @@ export interface AppInstallView {
   platform: AppPlatform;
   version: string;
   computer: string;
+  os?: string;
   label: string;
   how: AppHow;
   auto: boolean;
@@ -185,6 +189,7 @@ export function appInstallView(id: string, a: AppInstall, serverVersion: string,
     platform: a.platform,
     version: a.version,
     computer: a.computer,
+    ...(a.os ? { os: a.os } : {}),
     label: a.label ?? '',
     how: a.how,
     auto: a.auto,

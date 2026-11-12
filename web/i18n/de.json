@@ -16043,5 +16043,17 @@
 "Put her documents in a folder automatically": "Ihre Dokumente automatisch in einem Ordner ablegen",
 "Each new document she makes is saved there too, and a message says where. The folder stays on this computer; her server never learns it.": "Jedes neue Dokument, das sie erstellt, wird auch dort gespeichert, und eine Meldung sagt, wo. Der Ordner bleibt auf diesem Computer; ihr Server erfährt ihn nie.",
 "Choose folder…": "Ordner wählen…",
-"Drag this card to your desktop or a folder to save it.": "Ziehe diese Karte auf den Desktop oder in einen Ordner, um sie zu speichern."
+"Drag this card to your desktop or a folder to save it.": "Ziehe diese Karte auf den Desktop oder in einen Ordner, um sie zu speichern.",
+"Which folders": "Welche Ordner",
+"Desktop, Documents and Downloads": "Desktop, Dokumente und Downloads",
+"Those and folders I pick": "Diese und Ordner, die ich auswähle",
+"My whole user folder": "Mein ganzer Benutzerordner",
+"All my drives": "Alle meine Laufwerke",
+"No folders added yet.": "Noch keine Ordner hinzugefügt.",
+"Add a folder…": "Ordner hinzufügen…",
+"Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.": "Immer nur lesen. Systemordner, Ordner anderer Personen, versteckte Dateien und Orte mit Schlüsseln oder Passwörtern (wie .ssh, Passwortspeicher, Browserprofile und Wallets) bleiben außen vor, egal was du wählst.",
+"She may read files on all drives here now (read only).": "Sie darf hier jetzt Dateien auf allen Laufwerken lesen (nur lesen).",
+"She may read files in your whole user folder here now (read only).": "Sie darf hier jetzt Dateien in deinem ganzen Benutzerordner lesen (nur lesen).",
+"Add the folders she may read.": "Füge die Ordner hinzu, die sie lesen darf.",
+  "Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people's folders and places that hold keys, passwords, browser profiles or wallets always stay out.": "Immer nur lesen. Standard sind Desktop, Dokumente und Downloads; du kannst gewählte Ordner, deinen ganzen Benutzerordner oder alle Laufwerke hinzufügen. Systemordner, Ordner anderer Personen und Orte mit Schlüsseln, Passwörtern, Browserprofilen oder Wallets bleiben immer außen vor."
 }

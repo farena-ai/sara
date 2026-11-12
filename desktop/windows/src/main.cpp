@@ -61,6 +61,7 @@
 #include <memory>
 #include <thread>
 #include "hands.h"
+#include "hands-files.h"  // 3.5.x: "Which folders" (a picked folder is checked there)
 #include "app-update.h"
 #include <propkey.h>
 #include <propvarutil.h>
@@ -644,7 +645,7 @@ static void uninstall() {
     return;
   }
   if (MessageBoxW(nullptr, L"Remove Sara from this computer? Your conversations stay on your Sara server; this only removes the app here.", L"Sara", MB_YESNO | MB_ICONQUESTION | MB_SETFOREGROUND | MB_TOPMOST) != IDYES) return;
-  if (HWND other = FindWindowW(kWindowClass, L"Sara")) {
+  if (HWND other = FindWindowW(kWindowClass, nullptr)) {  // 3.5.2: titled with her name
     // Quit the running app and wait for it (and its WebView) to finish, so nothing is rewritten afterwards.
     DWORD pid = 0;
     GetWindowThreadProcessId(other, &pid);
@@ -722,9 +723,38 @@ static DWORD windowsBuild() {
       if (fn(&v) == 0) build = v.dwBuildNumber;
     }
   }
+#ifdef SARA_TEST_HOOKS
+  // Test builds only: pretend to be another Windows (SARA_TEST_WINBUILD=19045 → the Windows 10 path).
+  wchar_t fake[16];
+  if (GetEnvironmentVariableW(L"SARA_TEST_WINBUILD", fake, 16) > 0 && _wtoi(fake) > 0) build = (DWORD)_wtoi(fake);
+#endif
   return build;
 }
+/** "Windows 11 Home (26100.4061)": for desktop.log and the app's check-in (Settings → Devices). */
+static std::wstring osLabel() {
+  auto reg = [](const wchar_t* name) {
+    wchar_t v[128] = L"";
+    DWORD n = sizeof(v);
+    RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", name, RRF_RT_REG_SZ, nullptr, v, &n);
+    return std::wstring(v);
+  };
+  DWORD ubr = 0, n = sizeof(ubr);
+  RegGetValueW(HKEY_LOCAL_MACHINE, L"SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion", L"UBR", RRF_RT_REG_DWORD, nullptr, &ubr, &n);
+  std::wstring ed = reg(L"EditionID");
+  // EditionID: Core (Home), Professional, Enterprise, Education, … (ProductName says "Windows 10" on 11).
+  if (ed.rfind(L"Core", 0) == 0) ed = L"Home";
+  else if (ed.rfind(L"Professional", 0) == 0) ed = L"Pro";
+  DWORD b = windowsBuild();
+  std::wstring out = std::wstring(b >= 22000 ? L"Windows 11" : b >= 10240 ? L"Windows 10" : L"Windows") + (ed.empty() ? L"" : L" " + ed.substr(0, 30)) + L" (" + std::to_wstring(b);
+  if (ubr) out += L"." + std::to_wstring(ubr);
+  return out + L")";
+}
 static bool systemUsesLight() {
+#ifdef SARA_TEST_HOOKS
+  // Test builds only: the system's light/dark (SARA_TEST_SYSTEM_THEME=dark|light) without touching it.
+  wchar_t t[8];
+  if (GetEnvironmentVariableW(L"SARA_TEST_SYSTEM_THEME", t, 8) > 0) return wcscmp(t, L"light") == 0;
+#endif
   DWORD v = 0, n = sizeof(v);
   if (RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize", L"AppsUseLightTheme", RRF_RT_REG_DWORD, nullptr, &v, &n) != ERROR_SUCCESS) return false;
   return v != 0;
@@ -737,6 +767,7 @@ static COLORREF baseColor() { return g_day ? kDay : kNight; }
 // have other backgrounds than kDay/kNight, so the top resize band and the place under the caption
 // buttons showed as a light (or dark) bar of another colour above the page. Remembered in
 // desktop.ini (frameDay / frameNight) for the next start; a page that doesn't say: Sara Classic's.
+static void logLine(const std::wstring& line);
 static COLORREF g_frame[2] = {kNight, kDay};
 static bool g_frameSet[2] = {false, false};
 static bool g_framePageLocal = false;  // the app's own page is shown (its colours are Sara Classic's)
@@ -762,7 +793,18 @@ static std::wstring hexOfColor(COLORREF c) {
 }
 static void loadFrameColors() {
   const wchar_t* keys[2] = {L"frameNight", L"frameDay"};
-  for (int i = 0; i < 2; i++) g_frameSet[i] = parseHexColor(getPref(keys[i]), g_frame[i]);
+  for (int i = 0; i < 2; i++) {
+    g_frameSet[i] = parseHexColor(getPref(keys[i]), g_frame[i]);
+    // 3.5.2: a light colour kept as the Night frame (or a dark one as Day) came from a page that
+    // showed the other theme (before `shown`): not used, the page says the right one again.
+    COLORREF c = g_frame[i];
+    int luma = (GetRValue(c) * 299 + GetGValue(c) * 587 + GetBValue(c) * 114) / 1000;
+    if (g_frameSet[i] && (i == 0 ? luma > 140 : luma < 110)) {
+      logLine(std::wstring(L"frame: ") + keys[i] + L"=" + hexOfColor(c) + L" doesn't fit that theme: not used");
+      g_frameSet[i] = false;
+      g_frame[i] = i ? kDay : kNight;
+    }
+  }
 }
 static UINT windowDpi() { return g_wnd ? GetDpiForWindow(g_wnd) : 96; }
 /** The resize border at the top while the page draws into the title area (not when maximized). */
@@ -816,12 +858,27 @@ static void extendFrame() {
 }
 
 static void themeMenus();
+// 3.5.2: what the frame shows and why, in desktop.log whenever it changes (a white bar reported
+// from another PC can then be told apart: the page's theme, its frame colour, Mica, whose strip).
+static std::wstring g_themeLogged;
+static HRESULT g_captionHr = S_OK, g_darkHr = S_OK;
+static void logThemeState() {
+  std::wstring s = L"frame: page theme " + g_themePref + L", shown " + (g_day ? L"day" : L"night") + L", colour " + hexOfColor(themeColor()) +
+                   (g_framePageLocal ? L" (the app's own page)" : g_frameSet[g_day] ? L" (the page's)" : L" (built-in: the page didn't say)") +
+                   L", title bar " + (g_customFrame ? (g_pageTitle ? L"the page's" : L"the app's own strip") : L"Windows'") + L", backdrop " + (g_mica ? L"mica" : L"solid") +
+                   L", dark mode " + (SUCCEEDED(g_darkHr) ? L"ok" : L"failed") + L", caption colour " +
+                   (windowsBuild() < 22000 ? L"n/a (Windows 10)" : SUCCEEDED(g_captionHr) ? L"ok" : L"failed (0x" + [] { wchar_t b[12]; swprintf_s(b, L"%08x", (unsigned)g_captionHr); return std::wstring(b); }() + L")");
+  if (s == g_themeLogged) return;
+  g_themeLogged = s;
+  logLine(s);
+}
 /** Title bar colours, Mica and the web view's background for the theme shown now. */
 static void applyTheme() {
   if (!g_wnd) return;
   BOOL dark = g_day ? FALSE : TRUE;
   // 20 = DWMWA_USE_IMMERSIVE_DARK_MODE (Windows 10 20H1+ and 11); 19 was its number before that.
-  if (FAILED(DwmSetWindowAttribute(g_wnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark)))) DwmSetWindowAttribute(g_wnd, 19, &dark, sizeof(dark));
+  g_darkHr = DwmSetWindowAttribute(g_wnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+  if (FAILED(g_darkHr)) g_darkHr = DwmSetWindowAttribute(g_wnd, 19, &dark, sizeof(dark));
   DWORD build = windowsBuild();
   // Mica only when the page asked for it (it then leaves its background see-through, so Mica shows
   // behind the whole header). Otherwise the frame and the place under the caption buttons are the
@@ -836,7 +893,7 @@ static void applyTheme() {
     // With Mica: the default (DWMWA_COLOR_DEFAULT), or DWM paints the caption strip over Mica.
     COLORREF caption = g_mica ? DWMWA_COLOR_DEFAULT : themeColor();
     COLORREF text = g_mica ? DWMWA_COLOR_DEFAULT : g_day ? RGB(0x24, 0x1c, 0x2b) : RGB(0xee, 0xe9, 0xf3);
-    DwmSetWindowAttribute(g_wnd, DWMWA_CAPTION_COLOR, &caption, sizeof(caption));
+    g_captionHr = DwmSetWindowAttribute(g_wnd, DWMWA_CAPTION_COLOR, &caption, sizeof(caption));
     DwmSetWindowAttribute(g_wnd, DWMWA_TEXT_COLOR, &text, sizeof(text));
   }
   HBRUSH old = g_bgBrush;
@@ -851,14 +908,19 @@ static void applyTheme() {
   extendFrame();
   SetWindowPos(g_wnd, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
   InvalidateRect(g_wnd, nullptr, TRUE);
+  logThemeState();
 }
 
-/** The page said which theme it shows (or the system's light/dark changed while it follows it). */
-static void setTheme(std::wstring pref) {
+/** The page said which theme it shows (or the system's light/dark changed while it follows it).
+ *  `shown` (3.5.2): what the page really renders ('day'/'night'). It wins over the registry: with
+ *  "Follow the system" the page decides by its own prefers-color-scheme, and when that and the
+ *  registry disagree, the page's light top colour was kept as the Night frame (a white bar above a
+ *  dark page on every later start) and the caption buttons got the wrong colours. */
+static void setTheme(std::wstring pref, const std::wstring& shown = L"") {
   if (pref == L"dark") pref = L"night";  // the page's own words for them (localStorage sara.theme)
   if (pref == L"light") pref = L"day";
   if (pref != L"night" && pref != L"day" && pref != L"system") return;
-  bool day = resolveDay(pref);
+  bool day = shown == L"day" ? true : shown == L"night" ? false : resolveDay(pref);
   bool changed = pref != g_themePref || day != g_day;
   g_themePref = pref;
   g_day = day;
@@ -892,6 +954,7 @@ static void setPageTitle(bool on, const std::wstring& origin) {
   g_pageTitle = on;
   layoutWebView();
   if (g_wnd) InvalidateRect(g_wnd, nullptr, TRUE);
+  logThemeState();
 }
 /** "https://host" for server pages, "local" for the app's own pages (data: / about:). */
 static std::wstring pageOrigin(const std::wstring& uri) {
@@ -1175,6 +1238,53 @@ static std::wstring unescapeLines(const std::wstring& v) {
   }
   return o;
 }
+// 3.5.x: "Which folders" for Files (read only): three (Desktop, Documents, Downloads), picked (those and folders
+// chosen with the folder picker, full paths one per line in handsFilesFolders), home (the whole user folder) or
+// drives (all fixed drives). The server only ever hears the folders' names (hands-files.cpp rootsJson).
+static int filesScopeOf(const std::wstring& v) { return v == L"picked" ? 1 : v == L"home" ? 2 : v == L"drives" ? 3 : 0; }
+static std::vector<std::wstring> filesFolders() {
+  std::vector<std::wstring> out;
+  std::wstring all = unescapeLines(getIni(handsSection(), L"handsFilesFolders")), cur;
+  for (size_t i = 0; i <= all.size(); i++) {
+    if (i == all.size() || all[i] == L'\n') {
+      if (!cur.empty() && out.size() < 20) out.push_back(cur);
+      cur.clear();
+    } else cur += all[i];
+  }
+  return out;
+}
+static void saveFilesFolders(const std::vector<std::wstring>& v) {
+  std::wstring all;
+  for (auto& f : v) all += (all.empty() ? L"" : L"\n") + f;
+  setIni(handsSection(), L"handsFilesFolders", escapeLines(all));
+}
+static void filesRootsSync() { sarahands::setFileRoots(filesScopeOf(getIni(handsSection(), L"handsFilesScope")), filesFolders()); }
+static std::wstring folderLeaf(std::wstring p) {
+  while (p.size() > 3 && (p.back() == L'\\' || p.back() == L'/')) p.pop_back();
+  size_t s = p.find_last_of(L"\\/");
+  return s == std::wstring::npos ? p : p.substr(s + 1);
+}
+static std::wstring pickFilesFolder() {
+  Microsoft::WRL::ComPtr<IFileOpenDialog> dlg;
+  if (FAILED(CoCreateInstance(CLSID_FileOpenDialog, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dlg)))) return L"";
+  DWORD o = 0;
+  dlg->GetOptions(&o);
+  dlg->SetOptions(o | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM | FOS_PATHMUSTEXIST);
+  dlg->SetTitle(L"Choose a folder Sara may read (read only)");
+  if (dlg->Show(g_wnd) != S_OK) return L"";
+  Microsoft::WRL::ComPtr<IShellItem> item;
+  wchar_t* p = nullptr;
+  std::wstring out;
+  if (SUCCEEDED(dlg->GetResult(&item)) && SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &p))) out = p;
+  CoTaskMemFree(p);
+  return out;
+}
+/** The picked folders for the page: their names only (the page and the server never get the paths). */
+static std::wstring filesFoldersJson() {
+  std::wstring o = L"[";
+  for (auto& f : filesFolders()) o += (o.size() > 1 ? L"," : L"") + (L"\"" + jsonEscape(folderLeaf(f)) + L"\"");
+  return o + L"]";
+}
 /** 3.5: "ask" / "task" (default) / "always" → 0 / 1 / 2. */
 static int runLevelOf(const std::wstring& v) { return v == L"ask" ? 0 : v == L"always" ? 2 : 1; }
 /** 3.5: the command choices, as kept here, to the hands. */
@@ -1201,6 +1311,8 @@ static void handsSync() {
   h.blockExtra = toUtf8(unescapeLines(getIni(handsSection(), L"handsBlockExtra")));
   // 3.4.x: "Files" (read only, off by default). Test runs: Desktop/Documents/Downloads inside SARA_FILES_TEST_ROOT.
   h.filesOn = getIni(handsSection(), L"handsFiles") == L"1";
+  h.filesScope = filesScopeOf(getIni(handsSection(), L"handsFilesScope"));
+  h.filesFolders = filesFolders();
   // 3.5 (PC tools): commands here (off by default), their approvals, the read-only list (off by default).
   h.runOn = getIni(handsSection(), L"handsRun") == L"1";
   h.runLevel = runLevelOf(getIni(handsSection(), L"handsRunLevel"));
@@ -1256,6 +1368,7 @@ static std::wstring handsPrefsJson() {
          jsonEscape(sarahands::lastError()) + L"\",\"handsBrowser\":" + (sarahands::browserPath().empty() ? L"false" : L"true") + L",\"computerName\":\"" + jsonEscape(computerName()) + L"\"" +
          L",\"handsDesktopLevel\":\"" + (getIni(handsSection(), L"handsDesktopLevel").empty() ? L"task" : getIni(handsSection(), L"handsDesktopLevel")) + L"\",\"handsTakeover\":\"" + (getIni(handsSection(), L"handsTakeover") == L"keep" ? L"keep" : L"pause") + L"\",\"handsWalkAway\":" + (getIni(handsSection(), L"handsWalkAway") == L"1" ? L"true" : L"false") + L",\"handsHotkey\":\"" + jsonEscape(sarahands::hotkeyLabel()) + L"\"" +
          L",\"handsFilesSupported\":true,\"handsFiles\":" + (getIni(handsSection(), L"handsFiles") == L"1" ? L"true" : L"false") +
+         L",\"handsFilesScopeSupported\":true,\"handsFilesScope\":\"" + std::wstring(filesScopeOf(getIni(handsSection(), L"handsFilesScope")) == 1 ? L"picked" : filesScopeOf(getIni(handsSection(), L"handsFilesScope")) == 2 ? L"home" : filesScopeOf(getIni(handsSection(), L"handsFilesScope")) == 3 ? L"drives" : L"three") + L"\",\"handsFilesFolders\":" + filesFoldersJson() +
          L",\"handsRunSupported\":true,\"handsRun\":" + (getIni(handsSection(), L"handsRun") == L"1" ? L"true" : L"false") + L",\"handsRunLevel\":\"" + (getIni(handsSection(), L"handsRunLevel").empty() ? L"task" : getIni(handsSection(), L"handsRunLevel")) + L"\",\"handsRunReadOnly\":" + (getIni(handsSection(), L"handsRunReadOnly") == L"1" ? L"true" : L"false") +
          L",\"loginsSupported\":true,\"loginsVerify\":" + (getIni(handsSection(), L"loginsVerify") == L"1" ? L"true" : L"false") +
          L",\"pmSupported\":true" +
@@ -1327,6 +1440,336 @@ static HBITMAP faceBitmap() {
   return g_faceBmp;
 }
 
+// ---------- 3.5.2: her face as the app's icon (docs/desktop.md → Her face as the app's icon) ----------
+// The server says which picture is the companion's face (/api/session → face: kind, src, tag); the
+// quick-ask page draws it at 256 px with the sign-in and hands it over ({a:'state', icon}), or says
+// 'builtin' (Sara with her own default look: the app's own icon stays). Cached per server
+// (icon-<host>.png), so the next start shows it at once; another server switches it. Made from it:
+// the window's icons (WM_SETICON), the tray icon and its dot variants, the notifications' icon (the
+// AUMID's IconUri), a .ico for the taskbar (the window's relaunch icon) and the app's own Start-menu /
+// desktop / taskbar-pin shortcut (only one that points at this exe with this app's AUMID).
+static std::vector<BYTE> g_iconPng;
+static HICON g_winBig = nullptr, g_winSmall = nullptr;
+static std::wstring g_iconIco;  // the generated .ico in use ("" = the built-in icon)
+static bool g_relaunchSet = false;
+
+static std::wstring serverTag() {
+  std::wstring host;
+  for (wchar_t c : hostOfUrl(g_server)) host += iswalnum(c) || c == L'.' || c == L'-' ? c : L'_';
+  return host.empty() ? L"none" : host.substr(0, 100);
+}
+static std::wstring iconCachePath() { return dataDir() + L"\\icon-" + serverTag() + L".png"; }
+/** Her name as the page last said it for this server (window title, tray, notifications). */
+static std::wstring companionName() {
+  if (!g_now.name.empty() && g_now.name != L"Sara") return g_now.name;
+  std::wstring n = getPref((L"name-" + serverTag()).c_str());
+  return n.empty() ? L"Sara" : n.substr(0, 60);
+}
+static std::wstring fnvHex(const std::vector<BYTE>& b) {
+  uint32_t h = 2166136261u;
+  for (BYTE c : b) h = (h ^ c) * 16777619u;
+  wchar_t s[12];
+  swprintf_s(s, L"%08x", h);
+  return s;
+}
+static std::vector<BYTE> readAll(const std::wstring& path, size_t max) {
+  std::vector<BYTE> out;
+  FILE* f = nullptr;
+  if (_wfopen_s(&f, path.c_str(), L"rb") != 0 || !f) return out;
+  BYTE buf[8192];
+  size_t n;
+  while ((n = fread(buf, 1, sizeof(buf), f)) > 0 && out.size() < max) out.insert(out.end(), buf, buf + n);
+  fclose(f);
+  return out;
+}
+static bool writeAll(const std::wstring& path, const std::vector<BYTE>& b) {
+  FILE* f = nullptr;
+  if (_wfopen_s(&f, path.c_str(), L"wb") != 0 || !f) return false;
+  bool ok = fwrite(b.data(), 1, b.size(), f) == b.size();
+  fclose(f);
+  return ok;
+}
+static bool isPng(const std::vector<BYTE>& b) { return b.size() > 8 && b[1] == 'P' && b[2] == 'N' && b[3] == 'G'; }
+
+/** The PNG at size×size as straight BGRA; small sizes show a closer crop of the face (as sara.ico). */
+static bool faceBgra(const std::vector<BYTE>& png, int size, std::vector<BYTE>& out) {
+  ComPtr<IWICImagingFactory> f;
+  ComPtr<IWICStream> st;
+  ComPtr<IWICBitmapDecoder> dec;
+  ComPtr<IWICBitmapFrameDecode> frame;
+  ComPtr<IWICBitmapClipper> clip;
+  ComPtr<IWICBitmapScaler> sc;
+  ComPtr<IWICFormatConverter> cv;
+  UINT w = 0, h = 0;
+  if (png.empty() || size <= 0 || FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&f))) || FAILED(f->CreateStream(&st)) ||
+      FAILED(st->InitializeFromMemory(const_cast<BYTE*>(png.data()), (DWORD)png.size())) || FAILED(f->CreateDecoderFromStream(st.Get(), nullptr, WICDecodeMetadataCacheOnLoad, &dec)) ||
+      FAILED(dec->GetFrame(0, &frame)) || FAILED(frame->GetSize(&w, &h)) || w < 8 || h < 8)
+    return false;
+  IWICBitmapSource* src = frame.Get();
+  if (size <= 48) {
+    WICRect r{(INT)(w * 12 / 100), (INT)(h * 6 / 100), (INT)(w * 76 / 100), (INT)(h * 76 / 100)};
+    if (SUCCEEDED(f->CreateBitmapClipper(&clip)) && SUCCEEDED(clip->Initialize(frame.Get(), &r))) src = clip.Get();
+  }
+  if (FAILED(f->CreateBitmapScaler(&sc)) || FAILED(sc->Initialize(src, (UINT)size, (UINT)size, WICBitmapInterpolationModeHighQualityCubic)) || FAILED(f->CreateFormatConverter(&cv)) ||
+      FAILED(cv->Initialize(sc.Get(), GUID_WICPixelFormat32bppBGRA, WICBitmapDitherTypeNone, nullptr, 0, WICBitmapPaletteTypeCustom)))
+    return false;
+  out.assign((size_t)size * size * 4, 0);
+  return SUCCEEDED(cv->CopyPixels(nullptr, (UINT)size * 4, (UINT)out.size(), out.data()));
+}
+static HICON iconFromBgra(const std::vector<BYTE>& px, int size) {
+  BITMAPV5HEADER bi{};
+  bi.bV5Size = sizeof(bi);
+  bi.bV5Width = size;
+  bi.bV5Height = -size;
+  bi.bV5Planes = 1;
+  bi.bV5BitCount = 32;
+  bi.bV5Compression = BI_BITFIELDS;
+  bi.bV5RedMask = 0x00FF0000;
+  bi.bV5GreenMask = 0x0000FF00;
+  bi.bV5BlueMask = 0x000000FF;
+  bi.bV5AlphaMask = 0xFF000000;
+  void* bits = nullptr;
+  HDC dc = GetDC(nullptr);
+  HBITMAP color = CreateDIBSection(dc, reinterpret_cast<BITMAPINFO*>(&bi), DIB_RGB_COLORS, &bits, nullptr, 0);
+  ReleaseDC(nullptr, dc);
+  if (!color) return nullptr;
+  memcpy(bits, px.data(), px.size());
+  HBITMAP mask = CreateBitmap(size, size, 1, 1, nullptr);
+  ICONINFO ii{TRUE, 0, 0, mask, color};
+  HICON out = CreateIconIndirect(&ii);
+  DeleteObject(mask);
+  DeleteObject(color);
+  return out;
+}
+/** Her face as an icon of this size (nullptr: none, use the built-in one). */
+static HICON faceIcon(int size) {
+  std::vector<BYTE> px;
+  return !g_iconPng.empty() && faceBgra(g_iconPng, size, px) ? iconFromBgra(px, size) : nullptr;
+}
+/** A new icon for the tray / title strip: her face, else the built-in one (the caller destroys it). */
+static HICON baseIcon(int size) {
+  if (HICON h = faceIcon(size)) return h;
+  return (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, size, size, 0);
+}
+static std::vector<BYTE> pngOfBgra(const std::vector<BYTE>& px, int size) {
+  ComPtr<IWICImagingFactory> f;
+  ComPtr<IWICBitmap> bmp;
+  ComPtr<IStream> mem;
+  ComPtr<IWICBitmapEncoder> enc;
+  ComPtr<IWICBitmapFrameEncode> frame;
+  std::vector<BYTE> out;
+  if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&f))) ||
+      FAILED(f->CreateBitmapFromMemory((UINT)size, (UINT)size, GUID_WICPixelFormat32bppBGRA, (UINT)size * 4, (UINT)px.size(), const_cast<BYTE*>(px.data()), &bmp)) ||
+      FAILED(CreateStreamOnHGlobal(nullptr, TRUE, &mem)) || FAILED(f->CreateEncoder(GUID_ContainerFormatPng, nullptr, &enc)) || FAILED(enc->Initialize(mem.Get(), WICBitmapEncoderNoCache)) ||
+      FAILED(enc->CreateNewFrame(&frame, nullptr)) || FAILED(frame->Initialize(nullptr)) || FAILED(frame->WriteSource(bmp.Get(), nullptr)) || FAILED(frame->Commit()) || FAILED(enc->Commit()))
+    return out;
+  HGLOBAL g = nullptr;
+  if (FAILED(GetHGlobalFromStream(mem.Get(), &g))) return out;
+  STATSTG ss{};
+  mem->Stat(&ss, STATFLAG_NONAME);
+  if (void* p = GlobalLock(g)) {
+    out.assign(static_cast<BYTE*>(p), static_cast<BYTE*>(p) + (size_t)ss.cbSize.QuadPart);
+    GlobalUnlock(g);
+  }
+  return out;
+}
+/** A .ico with PNG frames (16…256 px) for the taskbar and the shortcut. */
+static bool writeFaceIco(const std::wstring& path) {
+  const int sizes[] = {16, 20, 24, 32, 40, 48, 64, 128, 256};
+  std::vector<std::vector<BYTE>> frames;
+  for (int s : sizes) {
+    std::vector<BYTE> px;
+    if (!faceBgra(g_iconPng, s, px)) return false;
+    frames.push_back(pngOfBgra(px, s));
+    if (frames.back().empty()) return false;
+  }
+  std::vector<BYTE> ico(6 + 16 * frames.size());
+  auto put16 = [&](size_t at, uint16_t v) { ico[at] = (BYTE)v; ico[at + 1] = (BYTE)(v >> 8); };
+  auto put32 = [&](size_t at, uint32_t v) { for (int i = 0; i < 4; i++) ico[at + i] = (BYTE)(v >> (8 * i)); };
+  put16(2, 1);
+  put16(4, (uint16_t)frames.size());
+  uint32_t offset = (uint32_t)ico.size();
+  for (size_t i = 0; i < frames.size(); i++) {
+    size_t e = 6 + 16 * i;
+    ico[e] = (BYTE)(sizes[i] >= 256 ? 0 : sizes[i]);
+    ico[e + 1] = ico[e];
+    put16(e + 4, 1);
+    put16(e + 6, 32);
+    put32(e + 8, (uint32_t)frames[i].size());
+    put32(e + 12, offset);
+    offset += (uint32_t)frames[i].size();
+  }
+  for (auto& fr : frames) ico.insert(ico.end(), fr.begin(), fr.end());
+  return writeAll(path, ico);
+}
+/** Removes the earlier generated files of this server (another hash), so the folder doesn't grow. */
+static void dropOldIconFiles(const std::wstring& prefix, const std::wstring& ext, const std::wstring& keep) {
+  WIN32_FIND_DATAW fd;
+  std::wstring dir = dataDir();
+  HANDLE h = FindFirstFileW((dir + L"\\" + prefix + L"*" + ext).c_str(), &fd);
+  if (h == INVALID_HANDLE_VALUE) return;
+  do {
+    std::wstring p = dir + L"\\" + fd.cFileName;
+    if (_wcsicmp(p.c_str(), keep.c_str()) != 0) DeleteFileW(p.c_str());
+  } while (FindNextFileW(h, &fd));
+  FindClose(h);
+}
+
+/** The taskbar button: the window's relaunch icon, name and command (cleared for the built-in icon). */
+static void setRelaunchIcon(const std::wstring& ico) {
+  if (!g_wnd) return;
+  ComPtr<IPropertyStore> ps;
+  if (FAILED(SHGetPropertyStoreForWindow(g_wnd, IID_PPV_ARGS(&ps)))) return;
+  auto put = [&](const PROPERTYKEY& k, const std::wstring& v) {
+    PROPVARIANT pv;
+    PropVariantInit(&pv);
+    if (v.empty()) ps->SetValue(k, pv);  // VT_EMPTY removes it
+    else if (SUCCEEDED(InitPropVariantFromString(v.c_str(), &pv))) {
+      ps->SetValue(k, pv);
+      PropVariantClear(&pv);
+    }
+  };
+  if (ico.empty()) {
+    if (!g_relaunchSet) return;
+    put(PKEY_AppUserModel_RelaunchIconResource, L"");
+    put(PKEY_AppUserModel_RelaunchDisplayNameResource, L"");
+    put(PKEY_AppUserModel_RelaunchCommand, L"");
+    g_relaunchSet = false;
+  } else {
+    put(PKEY_AppUserModel_ID, aumid());
+    put(PKEY_AppUserModel_RelaunchCommand, L"\"" + exePath() + L"\"");
+    put(PKEY_AppUserModel_RelaunchDisplayNameResource, companionName());
+    put(PKEY_AppUserModel_RelaunchIconResource, ico + L",0");
+    g_relaunchSet = true;
+  }
+  ps->Commit();
+}
+
+/** The app's own shortcuts (this exe, this AUMID) show her face (or the built-in icon again). */
+static void setShortcutIcons(const std::wstring& ico) {
+  std::vector<std::wstring> links;
+  if (testRun()) {
+#ifdef SARA_TEST_HOOKS
+    // Test builds: never the real app's shortcuts; one made for the test (SARA_TEST_SHORTCUT).
+    wchar_t t[MAX_PATH];
+    if (GetEnvironmentVariableW(L"SARA_TEST_SHORTCUT", t, MAX_PATH) > 0) links.push_back(t);
+#endif
+  } else {
+    for (auto id : {FOLDERID_Programs, FOLDERID_CommonPrograms, FOLDERID_Desktop}) {
+      wchar_t* p = nullptr;
+      if (SUCCEEDED(SHGetKnownFolderPath(id, 0, nullptr, &p))) links.push_back(std::wstring(p) + L"\\Sara.lnk");
+      CoTaskMemFree(p);
+    }
+    wchar_t* p = nullptr;
+    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &p))) links.push_back(std::wstring(p) + L"\\Microsoft\\Internet Explorer\\Quick Launch\\User Pinned\\TaskBar\\Sara.lnk");
+    CoTaskMemFree(p);
+  }
+  std::wstring exe = exePath();
+  std::wstring want = ico.empty() ? exe : ico;
+  for (auto& lnk : links) {
+    if (!fileExists(lnk)) continue;
+    ComPtr<IShellLinkW> link;
+    ComPtr<IPersistFile> file;
+    ComPtr<IPropertyStore> props;
+    wchar_t path[MAX_PATH] = L"", icon[MAX_PATH] = L"";
+    int index = 0;
+    if (FAILED(CoCreateInstance(CLSID_ShellLink, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&link))) || FAILED(link.As(&file)) || FAILED(file->Load(lnk.c_str(), STGM_READWRITE)) ||
+        FAILED(link->GetPath(path, MAX_PATH, nullptr, SLGP_RAWPATH)) || _wcsicmp(path, exe.c_str()) != 0)
+      continue;  // not this app's
+    PROPVARIANT v;
+    PropVariantInit(&v);
+    bool ours = SUCCEEDED(link.As(&props)) && SUCCEEDED(props->GetValue(PKEY_AppUserModel_ID, &v)) && v.vt == VT_LPWSTR && v.pwszVal && wcscmp(v.pwszVal, aumid()) == 0;
+    PropVariantClear(&v);
+    if (!ours) continue;
+    link->GetIconLocation(icon, MAX_PATH, &index);
+    // Back to the built-in icon only from one of ours (a face .ico in the data folder).
+    std::wstring mine = dataDir() + L"\\icon-";
+    bool fromUs = _wcsnicmp(icon, mine.c_str(), mine.size()) == 0;
+    if (ico.empty() ? !fromUs : (_wcsicmp(icon, ico.c_str()) == 0 && index == 0)) continue;
+    // The built-in icon: the exe's own (as the installer made it); her face: the generated .ico.
+    if (SUCCEEDED(link->SetIconLocation(want.c_str(), 0)) && SUCCEEDED(file->Save(lnk.c_str(), TRUE))) {
+      SHChangeNotify(SHCNE_UPDATEITEM, SHCNF_PATHW, lnk.c_str(), nullptr);
+      logLine(L"shortcut icon: " + lnk + L" → " + (ico.empty() ? L"the app's own" : ico));
+    }
+  }
+}
+
+static void rebuildTrayIcons();
+static std::wstring toastIconPath();
+/** Window, tray, notifications, taskbar and shortcut icons for the face now in g_iconPng. */
+static void applyCompanionIcon() {
+  if (!g_wnd) return;
+  UINT dpi = GetDpiForWindow(g_wnd);
+  int bigPx = GetSystemMetricsForDpi(SM_CXICON, dpi), smallPx = GetSystemMetricsForDpi(SM_CXSMICON, dpi);
+  HICON nb = faceIcon(bigPx), ns = faceIcon(smallPx);
+  if (!nb || !ns) {
+    if (nb) DestroyIcon(nb);
+    if (ns) DestroyIcon(ns);
+    nb = ns = nullptr;
+    if (!g_iconPng.empty()) logLine(L"her face couldn't be made into an icon: the built-in one stays");
+    g_iconPng.clear();
+  }
+  SendMessageW(g_wnd, WM_SETICON, ICON_BIG, (LPARAM)(nb ? nb : LoadIconW(g_inst, MAKEINTRESOURCEW(IDI_SARA))));
+  SendMessageW(g_wnd, WM_SETICON, ICON_SMALL, (LPARAM)(ns ? ns : (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, smallPx, smallPx, LR_SHARED)));
+  if (g_winBig) DestroyIcon(g_winBig);
+  if (g_winSmall) DestroyIcon(g_winSmall);
+  g_winBig = nb;
+  g_winSmall = ns;
+  rebuildTrayIcons();
+  // Notifications: the AUMID's icon and name (Windows shows them on every toast).
+  saratoast::registerApp(aumid(), toastClsidText(), companionName() + (testRun() ? L" (test)" : L""), toastIconPath(), exePath());
+  // Taskbar and shortcuts: a .ico named after its content (Explorer caches icons by path).
+  std::wstring ico;
+  if (!g_iconPng.empty()) {
+    ico = dataDir() + L"\\icon-" + serverTag() + L"-" + fnvHex(g_iconPng) + L".ico";
+    if (!fileExists(ico) && !writeFaceIco(ico)) ico.clear();
+  }
+  setRelaunchIcon(ico);
+  setShortcutIcons(ico);
+  if (ico != g_iconIco) {
+    logLine(L"app icon: " + (ico.empty() ? std::wstring(L"the built-in one") : L"her face (" + ico + L")"));
+    g_iconIco = ico;
+  }
+  // The earlier faces of this server (a new look, or back to Sara's own icon).
+  dropOldIconFiles(L"icon-" + serverTag() + L"-", L".ico", ico);
+  if (ico.empty()) dropOldIconFiles(L"toast-icon-" + serverTag() + L"-", L".png", L"");
+  InvalidateRect(g_wnd, nullptr, TRUE);  // the app's own title strip draws the smallPx icon
+}
+/** At start and after a switch: this server's face as the page last gave it. */
+static void loadCachedIcon() {
+  g_iconPng = readAll(iconCachePath(), 2 * 1024 * 1024);
+  if (!isPng(g_iconPng)) g_iconPng.clear();
+}
+/** {a:'state', icon: 'builtin' | 'data:image/png;base64,…'} from the quick-ask page. */
+static void takeIcon(const std::wstring& icon) {
+  if (icon.empty()) return;  // an older server: nothing said, nothing changes
+  if (icon == L"builtin") {
+    if (g_iconPng.empty() && g_iconIco.empty()) return;
+    g_iconPng.clear();
+    DeleteFileW(iconCachePath().c_str());
+    return applyCompanionIcon();
+  }
+  const std::wstring prefix = L"data:image/png;base64,";
+  if (icon.rfind(prefix, 0) != 0) return;
+  auto png = base64Decode(toUtf8(icon.substr(prefix.size())));
+  if (!isPng(png) || png == g_iconPng) return;
+  g_iconPng = png;
+  writeAll(iconCachePath(), png);
+  applyCompanionIcon();
+}
+/** The window title is her name (the taskbar's and Alt+Tab's label). */
+static void applyCompanionName(const std::wstring& name) {
+  if (name.empty()) return;
+  std::wstring key = L"name-" + serverTag();
+  bool changed = getPref(key.c_str()) != name;
+  if (changed) setPref(key.c_str(), name);
+  std::wstring title = name + (testRun() ? L" (TEST)" : L"");
+  wchar_t now[128] = L"";
+  if (g_wnd) GetWindowTextW(g_wnd, now, 128);
+  if (g_wnd && title != now) SetWindowTextW(g_wnd, title.c_str());
+  if (changed && !g_iconPng.empty()) applyCompanionIcon();  // the toast name and the taskbar label
+}
+
 /** The tray tooltip: "Sara · relaxed" (+ approvals waiting, + which Sara when there are several). */
 static void updateTrayTip() {
   std::wstring tip = g_now.name.empty() ? L"Sara" : g_now.name;
@@ -1390,6 +1833,11 @@ static void takeNow(std::map<std::wstring, std::wstring>& m) {
     }
   }
   g_now = n;
+  // 3.5.2: her name on the window, her face as the app's icon (when the page drew it).
+  if (n.signedIn && !n.demo) {
+    applyCompanionName(n.name);
+    takeIcon(m[L"icon"]);
+  }
   updateTrayTip();
   // Phase 75 stage 3: approvals waiting → a toast with Allow / Deny (once each); decided ones go away.
   notifyApprovals(n.signedIn && !n.demo ? m[L"asks"] : L"");
@@ -1880,6 +2328,14 @@ static void forgetOld(std::map<std::wstring, DWORD>& m) {
 
 /** Her icon as a PNG for the toast (written once, next to the settings). */
 static std::wstring toastIconPath() {
+  // 3.5.2: her face, when the server has one for her (the same 256 px picture).
+  if (!g_iconPng.empty()) {
+    std::wstring face = dataDir() + L"\\toast-icon-" + serverTag() + L"-" + fnvHex(g_iconPng) + L".png";
+    if (fileExists(face) || writeAll(face, g_iconPng)) {
+      dropOldIconFiles(L"toast-icon-" + serverTag() + L"-", L".png", face);
+      return face;
+    }
+  }
   std::wstring path = dataDir() + L"\\toast-icon.png";
   if (fileExists(path)) return path;
   HICON icon = (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, 256, 256, 0);
@@ -2163,7 +2619,7 @@ static void registerTalkShortcut() {
 /** The tray icon with a dot in its corner: a second icon made at start (dim, bright, grey). */
 static HICON dotIcon(COLORREF c) {
   int cx = GetSystemMetrics(SM_CXSMICON), cy = GetSystemMetrics(SM_CYSMICON);
-  HICON base = (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, cx, cy, 0);
+  HICON base = baseIcon(cx);  // 3.5.2: her face when the server has one
   BITMAPV5HEADER bi{};
   bi.bV5Size = sizeof(bi);
   bi.bV5Width = cx;
@@ -2211,10 +2667,26 @@ static void wakeTray() {
   const std::wstring& st = g_wakeState;
   g_tray.hIcon = st == L"off" ? g_iconPlain : st == L"asleep" ? g_iconDim : st == L"paused" ? g_iconGrey : g_iconBright;
   g_tray.uFlags = NIF_ICON | NIF_TIP;
-  std::wstring tip = st == L"off" ? L"Sara" : st == L"paused" ? L"Hey Sara is paused" + (g_wakeReason.empty() ? L"" : L" (" + g_wakeReason + L")") : st == L"asleep" ? L"Listening for \u201CHey Sara\u201D \u00B7 Pause from this menu" : L"Sara is listening\u2026";
+  std::wstring tip = st == L"off" ? companionName() : st == L"paused" ? L"Hey Sara is paused" + (g_wakeReason.empty() ? L"" : L" (" + g_wakeReason + L")") : st == L"asleep" ? L"Listening for \u201CHey Sara\u201D \u00B7 Pause from this menu" : L"Sara is listening\u2026";
   wcsncpy_s(g_tray.szTip, tip.c_str(), _TRUNCATE);
   Shell_NotifyIconW(NIM_MODIFY, &g_tray);
   logLine(L"hey sara: " + st + (g_wakeReason.empty() ? L"" : L" (" + g_wakeReason + L")"));
+}
+/** 3.5.2: the tray icon and its dot variants again (her face came, changed or went). */
+static void rebuildTrayIcons() {
+  if (!g_tray.hWnd) return;
+  HICON olds[] = {g_iconPlain, g_iconDim, g_iconBright, g_iconGrey};
+  HICON was = g_tray.hIcon;
+  g_iconPlain = baseIcon(GetSystemMetrics(SM_CXSMICON));
+  g_iconDim = dotIcon(RGB(120, 110, 170));
+  g_iconBright = dotIcon(RGB(255, 196, 64));
+  g_iconGrey = dotIcon(RGB(140, 140, 140));
+  const std::wstring& st = g_wakeState;
+  g_tray.hIcon = st == L"off" ? g_iconPlain : st == L"asleep" ? g_iconDim : st == L"paused" ? g_iconGrey : g_iconBright;
+  g_tray.uFlags = NIF_ICON;
+  Shell_NotifyIconW(NIM_MODIFY, &g_tray);
+  for (HICON h : olds) if (h) DestroyIcon(h);
+  if (was && std::find(std::begin(olds), std::end(olds), was) == std::end(olds)) DestroyIcon(was);
 }
 static void wakeSetState(const std::wstring& st, const std::wstring& reason = L"") {
   if (st == g_wakeState && reason == g_wakeReason) return;
@@ -3138,7 +3610,7 @@ static std::wstring prefsJson() {
          // Phase 75 stage 2: the quick-ask shortcut, the choices, and whether another app has it.
          L",\"quickAskShortcut\":\"" + shortcutId() + L"\",\"quickAskShortcutLabel\":\"" + shortcutLabel() + L"\",\"quickAskShortcutFree\":" + (g_shortcutTaken ? L"false" : L"true") +
          L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() +
-         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
+         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
 }
 
 
@@ -3176,7 +3648,7 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   // Phase 75: the page's theme (Night / Day / follow the system): the title bar, Mica and the
   // background before the next page paints follow it. {type:'theme', theme} or SaraDesktop.call('theme', {theme}).
   if (m[L"type"] == L"theme" || kind == L"theme") {
-    setTheme(m[L"theme"]);
+    setTheme(m[L"theme"], m[L"shown"]);
     // wintop: the colour of the page's top edge (its palette's), for the frame above it.
     setFrameColor(m[L"frame"]);
     if (!m[L"backdrop"].empty()) setBackdrop(m[L"backdrop"]);
@@ -3246,6 +3718,15 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       // 3.4.x: "Files" (read Desktop, Documents and Downloads; the page showed its explainer first).
       setIni(handsSection(), L"handsFiles", on ? L"1" : L"0");
       sarahands::setFiles(on);
+    }
+    else if (key == L"handsFilesScope") {
+      // 3.5.x: "Which folders" (read only in every case; the page showed its explainer).
+      std::wstring value = m[L"value"];
+      if (value != L"three" && value != L"picked" && value != L"home" && value != L"drives") return reply(id, L"null", L"Invalid folder choice");
+      if ((value == L"home" || value == L"drives") && MessageBoxW(g_wnd, value == L"drives" ? L"Sara may list and read files on all of this computer's drives (read only: she never changes, moves or deletes anything). System folders, other people's folders, hidden files and places that hold keys or passwords stay out. Allow this on this computer?" : L"Sara may list and read files anywhere in your user folder (read only: she never changes, moves or deletes anything). AppData, hidden folders and places that hold keys or passwords stay out. Allow this on this computer?", L"Files: which folders", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES)
+        return reply(id, L"null", L"Cancelled");
+      setIni(handsSection(), L"handsFilesScope", value);
+      filesRootsSync();
     }
     else if (key == L"handsRun" || key == L"handsRunReadOnly") {
       // 3.5 (PC tools): "Let her run commands on this computer" and "Simple read-only commands without asking" (both off by default).
@@ -3365,6 +3846,28 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     sarahands::setKeepassDb(db);
     return reply(id, sarahands::managersJson());
   }
+  // 3.5.x: "Which folders" → "Any folder I pick": add one with the folder picker, or remove one (by its place in the list).
+  if (kind == L"filesAddFolder") {
+    std::wstring f = pickFilesFolder();
+    if (f.empty()) return reply(id, L"{\"cancelled\":true}");
+    std::string why;
+    if (!sarafiles::pickable(f, why)) return reply(id, L"null", fromUtf8(why));
+    auto list = filesFolders();
+    for (auto& x : list) if (_wcsicmp(x.c_str(), f.c_str()) == 0) return reply(id, prefsJson());
+    if (list.size() >= 20) return reply(id, L"null", L"At most 20 folders.");
+    list.push_back(f);
+    saveFilesFolders(list);
+    filesRootsSync();
+    return reply(id, prefsJson());
+  }
+  if (kind == L"filesRemoveFolder") {
+    auto list = filesFolders();
+    int i = _wtoi(m[L"index"].c_str());
+    if (i >= 0 && i < (int)list.size()) list.erase(list.begin() + i);
+    saveFilesFolders(list);
+    filesRootsSync();
+    return reply(id, prefsJson());
+  }
   if (kind == L"handsStop") {
     sarahands::pressStop();
     return reply(id, L"true");
@@ -3394,6 +3897,16 @@ static void createController() {
           g_controller = ctl;
           g_controller->get_CoreWebView2(&g_web);
           PostMessageW(g_wnd, WM_APP_FOCUSPAGE, 0, 0);  // 3.5.1: at start the frame has the keyboard: the page takes it
+#ifdef SARA_TEST_HOOKS
+          {
+            // Test builds only: the page's prefers-color-scheme as SARA_TEST_SYSTEM_THEME says.
+            wchar_t t[8];
+            ComPtr<ICoreWebView2_13> w13;
+            ComPtr<ICoreWebView2Profile> prof;
+            if (GetEnvironmentVariableW(L"SARA_TEST_SYSTEM_THEME", t, 8) > 0 && SUCCEEDED(g_web.As(&w13)) && SUCCEEDED(w13->get_Profile(&prof)))
+              prof->put_PreferredColorScheme(wcscmp(t, L"light") == 0 ? COREWEBVIEW2_PREFERRED_COLOR_SCHEME_LIGHT : COREWEBVIEW2_PREFERRED_COLOR_SCHEME_DARK);
+          }
+#endif
           // Save to my PC (save-files.cpp): her files straight into a folder on this computer.
           sarasave::attach(g_web.Get(), {g_wnd, [](const wchar_t* k) { return getPref(k); }, [](const wchar_t* k, const std::wstring& v) { setPref(k, v); }, reply, [] { return g_server; }, logLine, testRun() ? dataDir() : L""});
           // Phase 75: the theme colour behind every page (no white flash on start, navigation or resize).
@@ -3420,6 +3933,10 @@ static void createController() {
             g_now = NowState{};
             loadCachedFace();
             updateTrayTip();
+            // 3.5.2: another server, another face and name (the cached ones until its page says).
+            loadCachedIcon();
+            applyCompanionIcon();
+            applyCompanionName(companionName());
           }
           ensureQuickAsk();
           ComPtr<ICoreWebView2Settings2> s2;
@@ -3682,7 +4199,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         int strip = titlebarPx(), icon = GetSystemMetricsForDpi(SM_CXSMICON, dpi), pad = MulDiv(14, (int)dpi, 96);
         int top = topResizeBand();
         int mid = top + (strip - top) / 2;
-        if (HICON ic = (HICON)LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_SARA), IMAGE_ICON, icon, icon, 0)) {
+        if (HICON ic = baseIcon(icon)) {  // 3.5.2: her face when the server has one
           DrawIconEx(t, pad, mid - icon / 2, ic, icon, icon, 0, nullptr, DI_NORMAL);
           DestroyIcon(ic);
         }
@@ -3693,7 +4210,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         SetBkMode(t, TRANSPARENT);
         SetTextColor(t, g_day ? RGB(0x24, 0x1c, 0x2b) : RGB(0xee, 0xe9, 0xf3));
         RECT tr{pad + icon + MulDiv(10, (int)dpi, 96), top, MulDiv(400, (int)dpi, 96), strip};
-        DrawTextW(t, L"Sara", -1, &tr, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
+        DrawTextW(t, companionName().c_str(), -1, &tr, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
         SelectObject(t, oldFont);
         DeleteObject(f);
       }
@@ -3714,6 +4231,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_DPICHANGED: {
       const RECT* r = reinterpret_cast<const RECT*>(lp);
       SetWindowPos(h, nullptr, r->left, r->top, r->right - r->left, r->bottom - r->top, SWP_NOZORDER | SWP_NOACTIVATE);
+      if (!g_iconPng.empty()) applyCompanionIcon();  // 3.5.2: her face at this screen's icon sizes
       extendFrame();
       layoutWebView();
       return 0;
@@ -3760,6 +4278,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_DESTROY:
       UnregisterHotKey(h, kHotkeyId);
+      setRelaunchIcon(L"");  // 3.5.2: a window's taskbar properties are removed before it closes
       UnregisterHotKey(h, kTalkHotkeyId);
       sarawake::stop();  // Phase 126: the microphone closes with the app
       WTSUnRegisterSessionNotification(h);
@@ -4088,12 +4607,16 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   if (g_themePref != L"day" && g_themePref != L"system") g_themePref = L"night";
   g_day = resolveDay(g_themePref);
   loadFrameColors();
-  g_wantMica = getPref(L"backdrop") == L"mica" && windowsBuild() >= 22621;
+  // 3.5.2: Mica only once a page asks for it in this run (no page asks any more): a 'mica' kept in
+  // desktop.ini by an older page left a Mica box under the caption buttons and the default caption.
+  g_wantMica = false;
   {
     LPWSTR rt = nullptr;
     int cmp = -1;
     if (SUCCEEDED(GetAvailableCoreWebView2BrowserVersionString(nullptr, &rt)) && rt) CompareBrowserVersions(rt, L"123.0.2420.47", &cmp);
-    logLine(std::wstring(L"WebView2 runtime ") + (rt ? rt : L"(none)") + L", Windows build " + std::to_wstring(windowsBuild()));
+    logLine(std::wstring(L"WebView2 runtime ") + (rt ? rt : L"(none)") + L", " + osLabel() + L", system " + (systemUsesLight() ? L"light" : L"dark") + L" mode, accent on title bars " +
+            [] { DWORD v = 0, n = sizeof(v); RegGetValueW(HKEY_CURRENT_USER, L"Software\\Microsoft\\Windows\\DWM", L"ColorPrevalence", RRF_RT_REG_DWORD, nullptr, &v, &n); return v ? L"on" : L"off"; }() +
+            L", high contrast " + [] { HIGHCONTRASTW hc{sizeof(hc)}; return SystemParametersInfoW(SPI_GETHIGHCONTRAST, sizeof(hc), &hc, 0) && (hc.dwFlags & HCF_HIGHCONTRASTON) ? L"on" : L"off"; }());
     CoTaskMemFree(rt);
     g_wantCustomFrame = windowsBuild() >= 22000 && cmp >= 0;
 #ifdef SARA_TEST_HOOKS
@@ -4132,6 +4655,10 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   shareWindow(g_wnd);
   // Phase 75 stage 3: toasts (and clicks on them, also the one that started us) and Send To.
   initToasts();
+  // 3.5.2: her face and name as this server's page last gave them (the built-in icon for Sara).
+  loadCachedIcon();
+  applyCompanionIcon();
+  applyCompanionName(companionName());
   ensureSendTo();
   // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start), "Now" every 45 s.
   registerShortcut(true);

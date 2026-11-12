@@ -46,8 +46,8 @@ import { findBrowser, pageAgentCall, type BrowserInfo } from './browser.ts';
 import { CdpClient, type CdpEvent } from './cdp.ts';
 import { HANDS_OPS, HANDS_PROTOCOL, packBinary, parseBinary } from './hands.ts';
 import { DesktopConsent, type DesktopPrompt } from './hands-desktop-consent.ts';
-import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TAB_OPS, TestDesktop } from './hands-desktop.ts';
-import { FILE_OPS, FileRuleError, listFiles, readTextFile, type FileFolder } from './hands-files.ts';
+import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TAB_OPS, TAB_SWITCH_OPS, TestDesktop } from './hands-desktop.ts';
+import { FILE_OPS, FileRuleError, listFiles, readTextFile, type FileAreas, type FileScope } from './hands-files.ts';
 import { applyAllowed, applyCardText, CheckupError, CU7_OPS, TestSystem, type CheckData } from './hands-checkup.ts';
 import { CAUGHT_KEEP_MS, cleanLoginName, defaultLoginName, LoginError, loginOrigin, SAVE_LOGIN_WARNING, siteMatches, TestVault, type ConsentAnswer, type ConsentRequest } from './hands-logins.ts';
 import { RUN_OPS, RUN_OPS_SET, RunDevice, RunRuleError, type RunDeviceOptions } from './hands-run.ts';
@@ -58,7 +58,7 @@ export const REF_VERSION = 'hands-ref 8';
 /** Phase 89 (CU3): the device's own dev-tunnel limits (loopback only, whatever the server says). */
 export const TUNNEL_DEVICE_LIMITS = { tunnels: 4, streams: 64, chunk: 64 * 1024, highWater: 4 * 1024 * 1024 };
 /** Phase 92: the desktop ops are in the command set only with a (fixture) desktop to look at. */
-const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o) && !(CU7_OPS as readonly string[]).includes(o) && !(TAB_OPS as readonly string[]).includes(o) && !(FILE_OPS as readonly string[]).includes(o) && !RUN_OPS_SET.has(o)));
+const OPS = new Set<string>(HANDS_OPS.filter((o) => !(CU5_OPS as readonly string[]).includes(o) && !(CU6_OPS as readonly string[]).includes(o) && !(CU7_OPS as readonly string[]).includes(o) && !(TAB_OPS as readonly string[]).includes(o) && !(TAB_SWITCH_OPS as readonly string[]).includes(o) && !(FILE_OPS as readonly string[]).includes(o) && !RUN_OPS_SET.has(o)));
 const DESKTOP_OP = new Set<string>([...CU5_OPS, ...CU6_OPS]);
 const DESKTOP_INPUT = new Set<string>(DESKTOP_INPUT_OPS);
 /** §7.7: the device's own input limits. */
@@ -502,7 +502,11 @@ export interface HandsRefOptions {
   localOnly?: boolean;
   optIn?: { browser: boolean; desktop?: boolean; files?: boolean };
   /** 3.4.x: the person's own folders this "computer" may read with "Files" on (f.list / f.read; tests point them at scratch folders). */
-  files?: Partial<Record<FileFolder, string>>;
+  files?: Partial<Record<string, string>>;
+  /** 3.5.x: the person's own user folder and where all user folders live (other people's are refused). */
+  fileAreas?: FileAreas;
+  /** 3.5.x: "Which folders" (the hello says it; the roots are the keys of files). */
+  fileScope?: FileScope;
   /** Tests: an older app without d.tabs (the server falls back to the window titles). */
   noTabs?: boolean;
   /** Phase 92: a desktop to look at (the fixture desktop: known windows, a fixture KeePass, Sara's own window). */
@@ -703,12 +707,13 @@ export class HandsRef {
       perms: { capture: Boolean(this.opts.desktop), input: Boolean(this.opts.desktop), ax: Boolean(this.opts.desktop) },
       optIn: { browser: this.opts.optIn?.browser !== false, desktop: this.#desktopOn, files: Boolean(this.opts.files) && this.opts.optIn?.files === true, run: this.opts.run?.on === true },
       runReadOnly: this.opts.run?.readOnlyAuto === true,
+      ...(this.opts.files ? { fileRoots: Object.keys(this.opts.files).filter((k) => this.opts.files![k]), fileScope: this.opts.fileScope ?? 'three' } : {}),
       approvalsHere: Boolean(this.opts.desktopConsent || this.opts.run?.consent) && this.opts.approvalsHere !== false,
       logins: this.vault.list(this.serverOrigin),
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
       localOnly: this.opts.localOnly === true,
-      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS, ...(this.opts.noTabs ? [] : TAB_OPS)] : []), ...(this.opts.files ? FILE_OPS : []), ...(this.opts.run ? RUN_OPS : []), ...(this.opts.system ? CU7_OPS : this.opts.checkSystem ? ['s.check'] : [])],
+      ops: [...OPS, ...(this.opts.desktop ? [...CU5_OPS, ...CU6_OPS, ...(this.opts.noTabs ? [] : [...TAB_OPS, ...TAB_SWITCH_OPS])] : []), ...(this.opts.files ? FILE_OPS : []), ...(this.opts.run ? RUN_OPS : []), ...(this.opts.system ? CU7_OPS : this.opts.checkSystem ? ['s.check'] : [])],
       takeover: this.opts.takeover ?? 'pause',
       hotkey: '',
       paused: this.paused,
@@ -868,7 +873,7 @@ export class HandsRef {
     const timer = setTimeout(() => ac.abort(new OpError('timeout', `Took longer than ${Math.round(deadline / 1000)} s.`)), deadline);
     let reply: Record<string, unknown>;
     try {
-      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !(op === 'd.tabs' && this.opts.desktop && !this.opts.noTabs) && !(op.startsWith('f.') && this.opts.files && (FILE_OPS as readonly string[]).includes(op)) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system) && !(op === 's.check' && this.opts.checkSystem) && !(RUN_OPS_SET.has(op) && this.runner)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
+      if (!OPS.has(op) && !(DESKTOP_OP.has(op) && this.opts.desktop) && !((op === 'd.tabs' || op === 'd.tabswitch') && this.opts.desktop && !this.opts.noTabs) && !(op.startsWith('f.') && this.opts.files && (FILE_OPS as readonly string[]).includes(op)) && !((CU7_OPS as readonly string[]).includes(op) && this.opts.system) && !(op === 's.check' && this.opts.checkSystem) && !(RUN_OPS_SET.has(op) && this.runner)) throw new OpError('unsupported', `This computer doesn't do "${op.slice(0, 40)}" (not in its command set).`);
       if ((op.startsWith('b.') || op === 'c.tunnel') && this.opts.optIn?.browser === false) throw new OpError('denied_local', '"Let Sara use this computer" is off here.');
       // Phase 92: the whole screen only with its own switch on here.
       if ((op.startsWith('d.') || op.startsWith('s.')) && !this.#desktopOn) throw new OpError('denied_local', '"The whole screen" is off on this computer.');
@@ -1293,12 +1298,12 @@ export class HandsRef {
           if (signal.aborted) throw new OpError('stopped', 'The queued desktop request was cancelled.');
           const target = dt.inspect(op, a);
           dt.beginTask(this.opts.walkAway === true);
-          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask', task: String(a.task ?? ''), target: { role: target.element?.role, name: target.element?.name ?? String(a.app ?? ''), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}) };
+          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask' || target.once === true, task: String(a.task ?? ''), target: { role: target.element?.role ?? (op === 'd.tabswitch' ? 'tab' : undefined), name: target.element?.name ?? (op === 'd.tabswitch' ? String(a.title ?? '') : String(a.app ?? '')), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}) };
           const ok = await this.desktopConsent.allow(prompt, this.opts.desktopConsent, signal);
           if (signal?.aborted) throw new OpError('stopped', 'Stopped.');
           this.ws?.send(JSON.stringify({ t: 'ev', kind: 'local_approval', op, allowed: ok }));
           if (!ok) throw new OpError('denied_local', 'The person at this computer did not approve that action.');
-          if (op !== 'd.launch') dt.refreshApproved(a);
+          if (op !== 'd.launch' && op !== 'd.tabswitch') dt.refreshApproved(a);
           const result = dt.act(op, a); // Re-check after the person answers; never trust the earlier inspection.
           this.#localLog(op, String(a.task ?? ''), String(target.element?.name ?? a.app ?? ''));
           return result;
@@ -1382,7 +1387,7 @@ export class HandsRef {
     // 3.4.x: the person's own files, read only (src/hands-files.ts).
     if (op === 'f.list' || op === 'f.read') {
       try {
-        const r = op === 'f.list' ? listFiles(this.opts.files ?? {}, args) : readTextFile(this.opts.files ?? {}, args);
+        const r = op === 'f.list' ? listFiles(this.opts.files ?? {}, args, this.opts.fileAreas) : readTextFile(this.opts.files ?? {}, args, this.opts.fileAreas);
         this.#localLog(op, op === 'f.list' ? 'listed a folder' : 'read a file', `${String(args.folder ?? '')}/${String(args.path ?? '')}`.slice(0, 200));
         return r;
       } catch (err) {

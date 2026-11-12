@@ -42,6 +42,7 @@ import { DISCLOSURE_TEXT, disclosureText } from './safety.ts';
 import { personalize } from './identity.ts';
 import { stripTypeScriptTypes } from 'node:module';
 import { identityOf } from './persona.ts';
+import { appFaceOf } from './app-face.ts';
 import { cleanTags, CONVERSATION_MODES, Store, type Conversation, type ConversationMode, type StoredMessage } from './store.ts';
 import { titleView } from './titles.ts';
 import { clampBanter, GROUP_CHANNEL, groupRooms, isGroupChannel, MAX_MEMBERS, MIN_MEMBERS, TURN_STYLES, type GroupRoom, type TurnStyle } from './group.ts';
@@ -1287,6 +1288,8 @@ export function createSaraServer(opts: ServerOptions): Server {
           return st && (st.open || st.closed) ? { claim: st } : {};
         })(),
         ...(authed ? { identity: identityOf(app.persona) } : {}),
+        // 3.5.2: which picture is her face, for the desktop apps' icons (src/app-face.ts).
+        ...(authed && !opts.demo ? { face: appFaceOf(app) } : {}),
         // Feature 4: whose offline copy this page may keep (per server and per person on it).
         ...(authed && !opts.demo ? { serverId: serverIdOf(app.rootDir ?? app.dataDir), space: spaceId } : {}),
         // Phase 67: the header badge while nothing may leave this computer.

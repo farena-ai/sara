@@ -41,6 +41,7 @@ import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
+import { initPcFilesSettings, renderPcFilesPrefs } from './pc-files-settings.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { checkPrompts as checkDevicePrompts, initDeviceApproval, loadDeviceApproval, waitForApproval, waitOnSignIn } from './device-approval.js';
@@ -9864,10 +9865,13 @@ function sayShellTheme() {
   const root = document.documentElement;
   if (!shellTheme || !root.classList.contains('shell') || root.classList.contains('shell-test')) return;
   const frame = shellFrame();
-  const said = `${shellTheme} ${frame}`;
+  // 3.5.2: also what it really shows ("Follow the system" is decided by this page's own
+  // prefers-color-scheme, which the app's reading of the registry can disagree with).
+  const shown = root.dataset.theme === 'light' ? 'day' : 'night';
+  const said = `${shellTheme} ${shown} ${frame}`;
   if (said === shellSaid) return;
   shellSaid = said;
-  window.saraShellSay?.({ type: 'theme', theme: shellTheme, ...(frame ? { frame } : {}) });
+  window.saraShellSay?.({ type: 'theme', theme: shellTheme, shown, ...(frame ? { frame } : {}) });
 }
 function applyAppearance() {
   const theme = themePick();
@@ -13317,7 +13321,7 @@ async function appCheckin() {
   renderAppUpdate(p.appUpdate);
   if (document.body.classList.contains('demo')) return;
   const st = p.appUpdate;
-  const body = { platform: p.platform === 'mac' ? 'mac' : 'windows', version: p.version, computer: p.computer ?? '', how: st.how, auto: st.auto !== false, selfUpdate: true, state: st.state, latest: st.latest ?? '', message: st.message ?? '' };
+  const body = { platform: p.platform === 'mac' ? 'mac' : 'windows', version: p.version, computer: p.computer ?? '', os: p.os ?? '', how: st.how, auto: st.auto !== false, selfUpdate: true, state: st.state, latest: st.latest ?? '', message: st.message ?? '' };
   const r = await api('/app-updates/checkin', { method: 'POST', body }).catch(() => null);
   if (!r) return;
   if (r.server) void appUpdCall('server', { version: r.server });
@@ -13356,7 +13360,7 @@ function appInstallLine(a, server, path) {
   else if (a.state === 'ready' && a.latest) state = t('{version} is ready there', { version: a.latest });
   else if (a.behind) state = t('older than this server ({version})', { version: server });
   else state = t('up to date');
-  box.append(` · ${what}${a.computer ? ` · ${a.computer}` : ''} · ${state}`);
+  box.append(` · ${what}${a.computer ? ` · ${a.computer}` : ''}${a.os ? ` (${a.os})` : ''} · ${state}`);
   if (a.canAsk && !a.asked) {
     const b = el('button', 'ghost small', t('Update it'));
     b.type = 'button';
@@ -13451,6 +13455,7 @@ async function loadComputer() {
     $('#cu-files').disabled = p.handsOptIn !== true || p.handsFilesSupported !== true;
     $('#cu-files').closest('label').hidden = p.handsFilesSupported !== true;
     renderPcRunPrefs(p);
+    renderPcFilesPrefs(p);
     if (document.activeElement !== $('#cu-block-extra')) $('#cu-block-extra').value = p.handsBlockExtra || '';
     $('#cu-block-extra').disabled = p.handsOptIn !== true;
     renderCuPerms(p);
@@ -13854,6 +13859,7 @@ $('#cu-desktop').addEventListener('change', async () => {
   if (r && !r.error) renderCuPerms(r);
 });
 initPcRunSettings(() => handsBridge());
+initPcFilesSettings(() => handsBridge());
 $('#cu-files').addEventListener('change', async () => {
   const box = $('#cu-files');
   const d = handsBridge();
@@ -13862,6 +13868,7 @@ $('#cu-files').addEventListener('change', async () => {
   const r = await d.call('setPref', { key: 'handsFiles', value: on }).catch((err) => ({ error: String(err) }));
   if (r?.error) box.checked = !on;
   $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may read your Desktop, Documents and Downloads here now. She never changes them.') : t('Sara can\u2019t see your files here now.');
+  if (r && !r.error) renderPcFilesPrefs(r);
 });
 $('#cu-block-extra').addEventListener('change', async () => {
   const d = handsBridge();

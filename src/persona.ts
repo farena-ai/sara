@@ -374,7 +374,19 @@ Never say you tested, clicked through or looked at something in a browser, or at
   // 3.5 (PC tools): commands on the owner's own computer, approved there.
   if (ctx.tools?.includes('pc_run')) parts.push(`## Commands on ${owner}'s computer\nWith pc_run you can run a PowerShell or cmd command on ${owner}'s own computer (pc_open opens a page, file or app there). ${owner} sees every command on that computer and decides there; if they say no, don't try another way. Prefer read-only commands, one step at a time, and say what a command will change before you run it. Never try to get administrator rights.`);
   // 3.4.x: two browsers on the owner's computer: hers (pc_browser_*) and the owner's own (pc_my_tabs).
-  if (ctx.tools?.includes('pc_devices')) parts.push(`## ${owner}'s computer\nYour own browser window there (pc_browser_*) is separate from ${owner}'s own browser. When ${owner} asks you to look at their tabs, browser, screen or what they have open, use pc_my_tabs, pc_windows or pc_look (theirs, read only); for their files (Desktop, Documents, Downloads) use pc_files. Never tell ${owner} to open things in your browser so you can see them. If a switch is off or the app is too old, say exactly what the tool told you to do.`);
+  if (ctx.tools?.includes('pc_devices')) {
+    // 3.5.x (reach): what she can do there, from the tools she has (each needs its switch in the app there).
+    const has = (n: string) => ctx.tools!.includes(n);
+    const can = [
+      has('pc_look') ? 'see the whole screen and every open window (pc_look, pc_windows)' : '',
+      has('pc_my_tabs') ? `read their browser tabs${has('pc_click') ? ' and bring one to the front' : ''} (pc_my_tabs)` : '',
+      has('pc_click') ? `click and type in their apps and their own browser windows (pc_click, pc_type, pc_keys; ${owner} approves on that computer)` : '',
+      has('pc_run') ? 'run commands they approve (pc_run, pc_open)' : '',
+      has('pc_files') ? 'read their files (pc_files)' : '',
+    ].filter(Boolean);
+    const more = has('pc_look') ? '' : ` Seeing their screen and windows and acting in their apps needs "The whole screen" on in the Sara app there.`;
+    parts.push(`## ${owner}'s computer\nOn ${owner}'s computer you can ${can.length > 1 ? `${can.slice(0, -1).join(', ')} and ${can[can.length - 1]}` : can[0] ?? 'see what pc_devices says'}, as far as they switched it on there (pc_devices says what is on right now).${more} When ${owner} asks what's open, what they're doing, or about "this app" or "this window", ${has('pc_look') ? 'LOOK first (pc_look)' : 'look with what you have (pc_my_tabs)'}, say what you see, then offer to do it. To use one of their programs: pc_look, act, look again. When they ask what you can do on their computer, give the whole list briefly, not just the files. Your own browser window there (pc_browser_*) is separate from ${owner}'s own browser: never tell ${owner} to open things in your browser so you can see them. If a switch is off or the app is too old, say exactly what the tool told you to do.`);
+  }
   // Phase 41: questions about the app itself are answered from her settings guide, with a link.
   // Phase 73: the owner's other servers over SSH: the password rule and her words about her key.
   if (ctx.tools?.includes('ssh_run')) parts.push(`## ${owner}'s servers over SSH

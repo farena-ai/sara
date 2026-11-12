@@ -61,6 +61,10 @@ struct Action {
   std::string op, window, viewId, ref, text, combo, app;
   double x = -1, y = -1, toX = -1, toY = -1, dx = 0, dy = 0;
   bool right = false, twice = false;
+  // 3.5.x d.tabswitch: the tab's place on the strip (1…) and its title as listed; Sara's own browser and (test runs) only the test browser.
+  int tab = 0;
+  std::string title;
+  DWORD ownBrowserPid = 0, onlyPid = 0;
 };
 struct ActionInfo { std::string target; bool once = false; };
 Result inspect(const Action& a, ActionInfo& info);

@@ -9,6 +9,7 @@
 // preview links), 20 page loads a minute, password fields never read, key-shaped text masked.
 #pragma once
 #include <functional>
+#include <vector>
 #include <string>
 
 namespace sarahands {
@@ -48,6 +49,9 @@ struct Host {
   // folders at a scratch folder (SARA_FILES_TEST_ROOT) so tests never read the person's real files.
   bool filesOn = false;
   std::wstring filesTestRoot;
+  // 3.5.x: "Which folders" (0 Desktop/Documents/Downloads, 1 + folders picked, 2 the whole user folder, 3 all drives; read only).
+  int filesScope = 0;
+  std::vector<std::wstring> filesFolders;
   // 3.5 (PC tools): "Let her run commands on this computer" (off by default), its approvals (0 ask, 1 task, 2 always),
   // and "Simple read-only commands without asking" (off by default). hands-run.cpp.
   bool runOn = false;
@@ -71,6 +75,8 @@ void setLocalOnly(bool on);
 void setDesktop(bool on);
 /** 3.4.x: "Files" changed (the server hears it at once). */
 void setFiles(bool on);
+/** 3.5.x: "Which folders" changed (the server hears the folder names at once, never the paths). */
+void setFileRoots(int scope, const std::vector<std::wstring>& folders);
 /** Phase 92: "Also hide these windows" changed (one app or title per line, UTF-8). */
 void setBlockExtra(const std::string& lines);
 /** Phase 88: "When you move the mouse" changed (true = let Sara keep control). */

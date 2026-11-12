@@ -198,6 +198,26 @@ const DESKTOP_NEVER = /admin(?:istrator)?|elevat(?:ed|ion)|uac|secure desktop|pa
 const DESKTOP_ACCOUNT = /account|password|2fa|two[- ]factor|recovery|security|privacy|sign out|revoke/i;
 const DESKTOP_PAYMENT = /pay|purchase|buy|checkout|order|donate|card/i;
 
+/**
+ * 3.5.x: a page in the person's OWN browser. Banking and password-manager pages stay blocked (the
+ * computer's blocklist); payment, account/security settings and sign-in pages always ask (once, never
+ * "for this task"); everything else follows the desktop approval level. The Windows app has the same
+ * words (hands-screen.cpp, sensitivePage).
+ */
+export const SENSITIVE_PAGE = /check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet|account|security|privacy|password|passkey|sign[ -_]?in|sign[ -_]?up|log[ -_]?in|\bauth|oauth|\bsso\b|2fa|mfa|two[- ]factor|verify|verification/i;
+export function ownBrowserPage(title: string, url = '', blocked = ''): { act: 'block' | 'once' | 'level'; why: string } {
+  if (blocked) return { act: 'block', why: `That tab is hidden from you on purpose (${blocked}): never act there.` };
+  let path = url;
+  try {
+    const u = new URL(/^[a-z]+:/i.test(url) ? url : `https://${url}`);
+    path = `${u.hostname} ${u.pathname} ${u.search}`;
+  } catch {
+    /* the text as it is */
+  }
+  if (SENSITIVE_PAGE.test(`${title} ${path}`)) return { act: 'once', why: 'a payment, account, security or sign-in page (asks every time)' };
+  return { act: 'level', why: '' };
+}
+
 export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
   const words = `${f.target.name ?? ''} ${f.text ?? ''}`;
   const risk: ActRisk = DESKTOP_PAYMENT.test(words) ? 'payment' : DESKTOP_ACCOUNT.test(words) ? 'account' : 'normal';

@@ -16032,5 +16032,17 @@
 "Put her documents in a folder automatically": "Guardar sus documentos en una carpeta automáticamente",
 "Each new document she makes is saved there too, and a message says where. The folder stays on this computer; her server never learns it.": "Cada documento nuevo que crea se guarda también ahí y un aviso dice dónde. La carpeta se queda en este ordenador; su servidor nunca la conoce.",
 "Choose folder…": "Elegir carpeta…",
-"Drag this card to your desktop or a folder to save it.": "Arrastra esta tarjeta al escritorio o a una carpeta para guardarla."
+"Drag this card to your desktop or a folder to save it.": "Arrastra esta tarjeta al escritorio o a una carpeta para guardarla.",
+"Which folders": "Qué carpetas",
+"Desktop, Documents and Downloads": "Escritorio, Documentos y Descargas",
+"Those and folders I pick": "Esas y las carpetas que elija",
+"My whole user folder": "Toda mi carpeta de usuario",
+"All my drives": "Todas mis unidades",
+"No folders added yet.": "Aún no has añadido carpetas.",
+"Add a folder…": "Añadir una carpeta…",
+"Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.": "Siempre solo lectura. Las carpetas del sistema, las de otras personas, los archivos ocultos y los lugares que guardan claves o contraseñas (como .ssh, gestores de contraseñas, perfiles del navegador y monederos) quedan fuera elijas lo que elijas.",
+"She may read files on all drives here now (read only).": "Ahora puede leer archivos de todas las unidades aquí (solo lectura).",
+"She may read files in your whole user folder here now (read only).": "Ahora puede leer archivos de toda tu carpeta de usuario aquí (solo lectura).",
+"Add the folders she may read.": "Añade las carpetas que puede leer.",
+  "Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people's folders and places that hold keys, passwords, browser profiles or wallets always stay out.": "Siempre solo lectura. Escritorio, Documentos y Descargas es lo predeterminado; puedes añadir carpetas que elijas, toda tu carpeta de usuario o todas tus unidades. Las carpetas del sistema, las de otras personas y los lugares con claves, contraseñas, perfiles del navegador o monederos siempre quedan fuera."
 }
