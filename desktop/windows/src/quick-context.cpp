@@ -313,6 +313,8 @@ std::wstring appLabel(HWND w) {
   return name;
 }
 
+std::wstring tidyText(const std::wstring& t) { return tidy(t); }
+
 void pick(HWND front, Read read, std::function<void(const Picked&)> done) {
   if (g_job) finish();  // a second press while copying: the first one ends now
   Picked p;

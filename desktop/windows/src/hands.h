@@ -54,6 +54,9 @@ struct Host {
   int runLevel = 1;
   bool runReadOnly = false;
   unsigned long tabsTestPid = 0;  // test runs only (SARA_TABS_TEST_PID): d.tabs reads only that browser process
+  // 3.5.1: called (on the hands' threads) after each op, its cards and pictures, and when the badge
+  // goes: the app gives its own page the keyboard back when its window is in front.
+  std::function<void()> onFocusBack;
 };
 
 /** Connects (and keeps reconnecting) with these settings; a running connection is replaced. */

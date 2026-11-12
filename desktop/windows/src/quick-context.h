@@ -2,7 +2,8 @@
 // shortcut is pressed, the app in front is remembered and the text selected in it is read: UI Automation's
 // TextPattern selection first; only when the focused control has no TextPattern, a simulated Ctrl+C with
 // the clipboard saved and put back exactly (every format; if any format can't be copied back exactly,
-// no Ctrl+C at all). Never for a password field, Sara's own windows, or a window hidden from Sara
+// no Ctrl+C at all). Never for a password field, Sara's own windows (3.5.1: her main window's page
+// selection is read by main.cpp instead), or a window hidden from Sara
 // (password managers, banking, the person's own list: the same rules as her hands). Key-shaped text is
 // masked. "This window" is one still picture of that window through hands-screen's capture (PrintWindow,
 // the same blacking-out of hidden windows and boxing-out of password fields). Nothing leaves the computer
@@ -33,6 +34,9 @@ enum Read { kReadNone = 0, kReadUia = 1, kReadAll = 2 };
 void pick(HWND front, Read read, std::function<void(const Picked&)> done);
 /** One picture of that window: a JPEG (data: URL), its size, or why not. */
 bool captureWindow(HWND w, std::string& dataUrl, int& width, int& height, std::wstring& why);
+/** 3.5.1: text read elsewhere (Sara's own page), made like a picked selection: trimmed, at most
+ *  kMaxText characters, key-shaped text masked. */
+std::wstring tidyText(const std::wstring& t);
 /** The program's friendly name ("Notepad"), from its version resource or its file name. */
 std::wstring appLabel(HWND w);
 

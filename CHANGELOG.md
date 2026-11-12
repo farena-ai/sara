@@ -5,6 +5,21 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.5.1 (2026-11-12): typing always reaches her
+
+- Fixed (Windows app): typing sometimes went nowhere. When the window came to the front without a click
+  in the page (at start, from the taskbar or Alt+Tab, when an approval card or the computer-use badge
+  went away, or when it opened behind another app), Windows gave the keyboard to the window's frame,
+  which drops it, while the message box still showed its cursor. The app now always hands the keyboard
+  to the page (and the same for quick ask). Checked on a test build with real key presses: at start the
+  keys used to land on the frame (lost) and now reach the page; after a turn that listed computers,
+  read Downloads and looked at the screen, typing still lands.
+- Quick ask over Sara's own window now picks up the text selected in her page (or in the message box)
+  and shows it as "From Sara: “…”", masked and capped like text from other apps. Her other windows
+  (approval cards) are still skipped.
+- Quick ask says "Nothing selected in Notepad" (in a muted line) when it looked in the app in front and
+  nothing was selected, so you know it looked.
+
 ## 3.5.0 (2026-11-11): a desktop app that does more than the browser
 
 - **New: the Windows app updates itself.** Most useful for the app on its own (*Connect to a Sara

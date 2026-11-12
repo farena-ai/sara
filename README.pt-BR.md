@@ -24,7 +24,7 @@
 
 **Atualizar:** num servidor Linux, `sudo sara update` (faz backup antes e volta atrás se ela não responder) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows e Mac: Configurações → Dados e saúde → Atualizações · Android: Google Play. [Como atualizar](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.5.0, [Um app de desktop que faz mais](https://github.com/farena-ai/sara/releases/tag/v3.5.0). O app do Windows se atualiza sozinho, faz perguntas rápidas com sua seleção ou janela, aceita arquivos arrastados, salva no seu PC, executa comandos aprovados e funciona offline. [Veja as novidades](#novidades)
+> **Status:** 3.5.1, [O que você digita sempre chega](https://github.com/farena-ai/sara/releases/tag/v3.5.1). O app do Windows devolve o teclado à página depois do uso do computador, e a pergunta rápida lê o que foi selecionado no próprio chat. [Veja as novidades](#novidades)
 >
 > Instalador Windows: sem assinatura ([guia do SmartScreen](docs/INSTALL.md)). O processo de publicação do macOS exige downloads assinados e notarizados; cada compilação é verificada separadamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web na tela inicial](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versões recentes · 6 de novembro de 2026. [Histórico completo](CHANGELOG.md) 
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[O que você digita sempre chega](docs/desktop.md)** — Sempre que a janela dela fica ativa, depois dos cartões, do uso do computador e ao iniciar, o app passa o teclado para a página. A pergunta rápida pega o texto selecionado no chat da Sara e avisa quando nada estava selecionado. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Um app de desktop que faz mais](docs/desktop.md)** — A pergunta rápida pega o texto selecionado ou uma imagem da janela, segurar para falar e as respostas faladas funcionam com a janela fechada, arrastar e Salvar no meu PC cuidam dos arquivos, comandos aprovados rodam no seu PC com Parar e os chats recentes ficam legíveis offline. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Respostas rápidas com modelos no processador](docs/CHOOSING_A_MODEL.md)** — A Sara pergunta a cada Ollama se o modelo roda na placa de vídeo; no processador ela mantém o contexto pequeno para as respostas continuarem rápidas. Após 45 segundos sem resposta, o chat aponta o modelo lento com Corrigir, Continuar esperando e Parar. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrompa e diga agora](docs/CHATS.md)** — Interromper agora (menu Enviar, Ctrl+Enter ou /now) para a resposta ou o raciocínio dela e ela continua do que você disse, mantendo os passos concluídos e recolhendo o que estava dizendo. Mudanças em andamento terminam primeiro, e um comando longo ganha Parar o comando. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Ela lê as imagens que você envia](docs/CHOOSING_A_MODEL.md)** — Capturas de exames, contas ou formulários agora chegam a qualquer um dos seus modelos que enxergue; se o que responde não consegue, outro a lê primeiro como texto exato. Ela salva os valores com note add e, quando nenhum modelo vê, diz isso com Corrigir em vez de fingir. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notas que nunca perdem o que você contou](docs/FEATURES.md)** — Ela adiciona cada coisa nova a uma nota sob um título com data, um salvamento que apagaria uma nota é recusado, versões anteriores voltam com Restaurar e um “salvo” sem prova é sinalizado. A borda superior do app do Windows acompanha a página e ela pode ler suas abas e arquivos. |
-| **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Ela lembra tanto quanto o modelo dela comporta](docs/CHOOSING_A_MODEL.md)** — O Auto ajusta quanto do chat ela tem em mente ao modelo em uso (consultado no serviço ou numa tabela datada), limita o histórico pago por token a um nível equilibrado, a menos que você escolha a janela inteira, e dá aos modelos locais do Ollama um contexto real. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versões 2.6x anteriores</b>: da 3.4.0 até a 2.61.5</summary>
+<summary><b>Versões 2.6x anteriores</b>: da 3.4.1 até a 2.61.5</summary>
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Ela lembra tanto quanto o modelo dela comporta](docs/CHOOSING_A_MODEL.md)** — O Auto ajusta quanto do chat ela tem em mente ao modelo em uso (consultado no serviço ou numa tabela datada), limita o histórico pago por token a um nível equilibrado, a menos que você escolha a janela inteira, e dá aos modelos locais do Ollama um contexto real. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documentos, o nome dela em todo lugar, uso do computador a partir de um servidor](docs/DOCUMENTS.md)** — Ela cria documentos de verdade com qualquer modelo (Word, PDF, planilhas, apresentações) com Baixar, Abrir e Fazer alterações. Um companheiro renomeado mostra seu nome e pronomes em todo lugar, com personagens padrão ele e elu. O complemento de navegador e o uso do computador agora funcionam com um clique. |
 | **[3.3.0](https://github.com/farena-ai/sara/releases/tag/v3.3.0)** | **[Modo fácil](docs/AWAY_FROM_HOME.md)** — Feito com um usuário iniciante: a configuração explica as chaves e não se perde, problemas vêm com Corrigir, Conectar o app da Sara e Usar a Sara fora de casa (Tailscale) são guiados e testados, o Gmail leva três passos e você pode dizer “aumente o texto” com Desfazer. |
 | **[3.2.0](https://github.com/farena-ai/sara/releases/tag/v3.2.0)** | **[Ela ganha vida](docs/APPEARANCE.md)** — Escolha O retrato dela, animado em Aparência e ela respira, pisca, olha em volta e mexe os lábios ao falar, com jeitos de ouvir, pensar e falar e seus humores, no chat, em Hoje e nas chamadas. Sua própria imagem ou um modelo 3D .vrm também funcionam. |

@@ -676,6 +676,18 @@ The apps tell the page they can host its header in the title bar; the page answe
 - **Tray / menu bar:** her face and mood at the top, *Ask Sara…*, then *Now*: approvals waiting (Allow /
   Deny / Open in Sara) and running jobs. Refreshed every 45 s, when the menu opens and on job/turn events.
 
+## The keyboard goes to the page (3.5.1)
+
+A window that is activated without a click in its page (at start, from the taskbar or Alt+Tab, when an
+approval card, the computer-use badge or another app's window goes away, or when it was shown behind
+another app) gets the keyboard on its own frame; WebView2 doesn't take it from there, so keys were
+lost while the page still showed its caret. The Windows app passes it on with
+`MoveFocus(PROGRAMMATIC)`: on `WM_SETFOCUS`, after `WM_ACTIVATE` / `WM_ACTIVATEAPP`, when the web view
+is created, after every hands op (its cards and pictures, `Host::onFocusBack`), when the badge hides,
+and when a key still lands on the frame (that key is lost, the next ones arrive). Only when the frame
+itself (or nothing) has the keyboard and the window is Sara's main window or quick ask, in front or
+the active window of its thread. Quick ask does the same for its own web view.
+
 ## Quick ask anywhere: selected text, this window, voice
 
 Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in `main.cpp`; the page is
@@ -687,13 +699,17 @@ Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in 
   shortcut's keys are let go, with every clipboard format saved before and put back right after. If any
   format can't be put back byte for byte (GDI handles other than a DIB-backed bitmap or EMF, over
   64 MB), there is no Ctrl+C. Never for a password field (UI Automation `IsPassword`, `ES_PASSWORD` /
-  `EM_GETPASSWORDCHAR` on Edit-based controls, checked again just before the copy), Sara's own
-  windows, or a window hidden from her hands' rules (`sarascreen::hiddenKindOf`: password managers,
+  `EM_GETPASSWORDCHAR` on Edit-based controls, checked again just before the copy), Sara's other
+  windows (approval cards, the badge), or a window hidden from her hands' rules (`sarascreen::hiddenKindOf`: password managers,
   banking, security settings, the person's own list). Key-shaped text is masked; at most 8,000
   characters. The page shows a chip `From Notepad: “…”` with ✕; on Send the question carries it as
   `Selected in Notepad:` and a fenced block. The log says the app, the length and how it was read,
   never the text. Tray: *Quick ask includes selected text* (`quickAskSelection`, on); `quickAskCopy=0`
-  in `desktop.ini` keeps it to UI Automation only. Note: an app that copies (the fallback) may show the
+  in `desktop.ini` keeps it to UI Automation only. 3.5.1: with Sara's own main window in front, the
+  text selected in her page (or in its message box, never a password field) is read with
+  `ExecuteScript` (400 ms limit), masked and capped the same way, and shown as `From Sara: “…”`.
+  When it looked and nothing was selected, the page says `Nothing selected in Notepad` in a muted
+  line (context `looked: true`). Note: an app that copies (the fallback) may show the
   selection in Windows' clipboard history (Win+V).
 - **This window:** the picture button (shown when another app was in front) sends `{a:'window'}`; the
   app takes one picture of that window with hands-screen's `shot()` (PrintWindow, hidden windows

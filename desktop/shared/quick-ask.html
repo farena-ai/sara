@@ -90,6 +90,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
 /* Quick ask anywhere: what was selected in the app in front and its window's picture, as removable chips. */
 #ctx{display:flex;flex-wrap:wrap;gap:6px;margin:2px 14px 0}
 #ctx[hidden]{display:none}
+#ctx .none{font-size:12px;color:var(--muted);margin:0}
 .chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;font-size:13px;color:var(--text);background:var(--panel-2);border:1px solid var(--border-2);border-radius:999px;padding:2px 4px 2px 10px}
 .chip span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .chip img{height:28px;max-width:56px;border-radius:5px;object-fit:cover;margin-left:-4px}
@@ -493,6 +494,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   // not in his quiet hours.
   let ctx = { app: '', window: false, text: '', skipped: '' };
   let pics = [];
+  let nothingIn = '';  // 3.5.1: it looked in that app and nothing was selected there
   let speakOn = false, quietNow = false, voiceInfo = null, speech = null;
   const ctxBox = $('ctx'), winBtn = $('win');
   const short = (s, n) => { const t = String(s).replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
@@ -519,6 +521,12 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       c.dataset.kind = 'text';
       ctxBox.append(c);
     }
+    if (nothingIn && !ctx.text && !pics.length) {
+      const n = document.createElement('p');
+      n.className = 'none';
+      n.textContent = 'Nothing selected in ' + nothingIn;
+      ctxBox.append(n);
+    }
     pics.forEach((p, i) => {
       const c = chip((ctx.app || 'Window') + ' window', 'A picture of ' + (ctx.app || 'the window') + (p.w ? ' (' + p.w + ' × ' + p.h + ')' : ''), () => { pics.splice(i, 1); renderCtx(); }, p.data);
       c.dataset.kind = 'picture';
@@ -532,6 +540,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   };
   const setContext = (c) => {
     ctx = { app: String((c && c.app) || '').slice(0, 80), window: Boolean(c && c.window), text: String((c && c.text) || '').slice(0, 8000), skipped: String((c && c.skipped) || '') };
+    nothingIn = c && c.looked && ctx.app && !ctx.text && !ctx.skipped ? ctx.app : '';
     pics = [];
     winBtn.disabled = false;
     renderCtx();
@@ -549,6 +558,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     if (!content) content = images.length ? '(photo)' : '';
     const from = [sel ? 'With the text selected in ' + (app || 'another app') : '', images.length ? 'With a picture of ' + (app || 'the window') : ''].filter(Boolean).join(' · ');
     ctx.text = '';
+    nothingIn = '';
     pics = [];
     renderCtx();
     return { content, shown: text || (sel ? '“' + short(sel, 120) + '”' : 'A picture of ' + (app || 'the window')), from, images };

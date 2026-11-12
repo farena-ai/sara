@@ -102,6 +102,12 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Typing always reaches her, in 3.5.1
+
+The Windows app now hands the keyboard to the page whenever its window becomes active, after her
+cards and computer use, and at start, so your typing never goes missing. Quick ask also picks up text
+you selected in Sara's own chat, and says Nothing selected in an app when it found nothing.
+
 ## A desktop app that does more than the browser, in 3.5.0
 
 The Windows app now updates itself (checked against Sara's signed release notice; Settings, Devices

@@ -6,7 +6,7 @@
 name: sara
 services:
   sara:
-    image: ghcr.io/farena-ai/sara:3.4.5
+    image: ghcr.io/farena-ai/sara:3.5.0
     container_name: sara
     restart: unless-stopped
     ports:
@@ -60,7 +60,7 @@ x-casaos:
   architectures:
     - amd64
     - arm64
-  version: "3.4.5"
+  version: "3.5.0"
   update_at: "2026-11-11"
   website: https://sara.backstagecoding.com/
   repo: https://github.com/farena-ai/sara

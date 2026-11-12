@@ -92,6 +92,7 @@ static const UINT_PTR kRemoveTimer = 7;
 static const UINT_PTR kNowTimer = 8;            // Phase 75 stage 2: "Now" in the tray menu, every 45 s
 // Computer use: the hands connection is made again after sleep, a network change or the screen unlock.
 static const UINT WM_APP_NETCHANGE = WM_APP + 7;  // from NotifyIpInterfaceChange's thread
+static const UINT WM_APP_FOCUSPAGE = WM_APP + 8;  // 3.5.1: the keyboard back to the page in front (focusPageIfFrame; any thread)
 static const UINT_PTR kHandsNetTimer = 9;        // a short wait after a network change (they come in bursts)
 // The app updates itself (src/app-update.cpp, docs/desktop.md → How the app updates).
 static const UINT WM_APP_UPDATE = WM_APP + 30;    // the updater's status changed (from its thread)
@@ -1229,6 +1230,8 @@ static void handsSync() {
     if (testRun() && GetEnvironmentVariableW(L"SARA_PM_IDLE_SECONDS", idle, 16) > 0) h.pmIdleSeconds = _wtoi(idle);
   }
 #endif
+  // 3.5.1: after each op (its cards, its pictures) and when the badge goes, the page in front gets the keyboard back.
+  h.onFocusBack = [] { if (g_wnd) PostMessageW(g_wnd, WM_APP_FOCUSPAGE, 0, 0); };
   std::wstring section = handsSection();
   h.onToken = [section](const std::string& tok, const std::string& exp) {
     std::wstring sealed = sarahands::protect(tok);
@@ -1555,6 +1558,28 @@ static void onQuickMessage(const std::wstring& json, const std::wstring& source)
   }
 }
 
+// 3.5.1: typing always reaches the page. When a window is activated without a click in its page (at
+// start, from the taskbar or Alt+Tab, when one of her cards, her badge or another app's window goes
+// away) Windows gives the keyboard to the window itself, and nothing passed it on to the web view: the
+// keys went to the frame, which drops them, while the page still showed its caret. So whenever the
+// frame of the window in front has the keyboard, its web view takes it (MoveFocus, as WebView2 asks
+// hosts to do): on WM_SETFOCUS, after activation, after each hands op (cards, pictures), when the badge
+// goes, and when a key still lands on the frame.
+static void focusPage(HWND w) {
+  if (w && w == g_wnd && g_controller && IsWindowVisible(w) && !IsIconic(w)) g_controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+  else if (w && w == g_qa && g_qaCtl && IsWindowVisible(w)) g_qaCtl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+}
+static void focusPageIfFrame() {
+  // The window in front, or else this thread's active window: shown behind another app (at start) or
+  // under one of her cards, it is the one that gets the keys when it comes back, and coming back to
+  // the front sends it nothing when its focus doesn't change.
+  HWND fg = GetForegroundWindow(), a = GetActiveWindow();
+  HWND w = fg && (fg == g_wnd || fg == g_qa) ? fg : a && (a == g_wnd || a == g_qa) ? a : nullptr;
+  if (!w) return;  // another app's window is this thread's, or nothing of hers is active: leave it be
+  HWND f = GetFocus();  // this thread's keyboard focus (shared with the web view's windows)
+  if (!f || f == w) focusPage(w);
+}
+
 static LRESULT CALLBACK QuickProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
   switch (msg) {
     case WM_NCCALCSIZE:
@@ -1563,7 +1588,18 @@ static LRESULT CALLBACK QuickProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
     case WM_ACTIVATE:
       // Clicking anywhere else hides it (not in the first moment after showing).
       if (LOWORD(wp) == WA_INACTIVE && GetTickCount() - g_qaShownAt > 400) hideQuickAsk(true);
+      else if (LOWORD(wp) != WA_INACTIVE && g_wnd) PostMessageW(g_wnd, WM_APP_FOCUSPAGE, 0, 0);  // 3.5.1: after Windows has set the focus
       break;
+    case WM_SETFOCUS:
+      if (g_qaCtl) {
+        g_qaCtl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);  // 3.5.1: the frame never keeps the keyboard
+        return 0;
+      }
+      break;
+    case WM_KEYDOWN:
+    case WM_CHAR:
+      focusPage(h);  // 3.5.1: a key landed on the frame (lost): the next ones go to the page
+      return 0;
     case WM_EXITSIZEMOVE:
       saveQuickPlace();
       break;
@@ -2369,20 +2405,56 @@ static bool g_pttHeld = false;
 static UINT g_pttVk = 0;
 static ULONGLONG g_pttAt = 0;
 
+static void quickAskFound(const saractx::Picked& p) {
+  g_qaFront = p.window;
+  // looked: it read (or tried to read) that app's selection, so "Nothing selected in …" can say so.
+  g_qaContext = L"{\"app\":\"" + jsonEscape(p.app) + L"\",\"window\":" + (p.window ? L"true" : L"false") + L",\"text\":\"" + jsonEscape(p.text) + L"\",\"via\":\"" + p.via +
+                L"\",\"skipped\":\"" + p.skipped + L"\",\"looked\":" + (p.path.empty() ? L"false" : L"true") + L"}";
+  // The log says how, never what: the app, the way it was read and how long it was.
+  logLine(L"quick ask: " + (p.app.empty() ? L"no app" : p.app) + L": " + (p.text.empty() ? L"nothing selected" : std::to_wstring(p.text.size()) + L" characters selected") + L" (" + p.path +
+          (p.skipped.empty() ? L"" : L"; skipped: " + p.skipped) + L")");
+  showQuickAsk();
+}
+// 3.5.1: the selection in Sara's own page (the main window): the text selected in the page, or in its
+// message box (never a password field), read with a short time limit; masked and capped like the rest.
+static const wchar_t* kPageSelectionJs =
+    L"(()=>{try{const a=document.activeElement;let t='';"
+    L"if(a&&(a.tagName==='TEXTAREA'||(a.tagName==='INPUT'&&/^(text|search|url|email|tel)$/i.test(a.type)))&&a.selectionEnd>a.selectionStart)t=a.value.slice(a.selectionStart,a.selectionEnd);"
+    L"else t=String(getSelection()||'');return{t:t.slice(0,8000)}}catch(e){return{t:''}}})()";
+static bool g_qaPageWaiting = false;
+static UINT_PTR g_qaPageTimer = 0;
+static void quickAskPageDone(const std::wstring& text, const wchar_t* path) {
+  if (!g_qaPageWaiting) return;  // already answered (or timed out)
+  g_qaPageWaiting = false;
+  if (g_qaPageTimer) KillTimer(nullptr, g_qaPageTimer);
+  g_qaPageTimer = 0;
+  saractx::Picked p;
+  p.app = L"Sara";
+  p.text = saractx::tidyText(text.substr(0, saractx::kMaxText));
+  p.via = p.text.empty() ? L"" : L"page";
+  p.path = path;
+  quickAskFound(p);
+}
+static void quickAskFromPage() {
+  if (g_qaPageWaiting) return;  // a second press while reading: the first answer opens it
+  g_qaPageWaiting = true;
+  g_qaPageTimer = SetTimer(nullptr, 0, 400, [](HWND, UINT, UINT_PTR, DWORD) { quickAskPageDone(L"", L"page: no answer in time"); });
+  HRESULT hr = g_web->ExecuteScript(kPageSelectionJs, Callback<ICoreWebView2ExecuteScriptCompletedHandler>([](HRESULT r, LPCWSTR result) -> HRESULT {
+                                       quickAskPageDone(SUCCEEDED(r) && result ? parseFlatJson(result)[L"t"] : std::wstring(), L"page");
+                                       return S_OK;
+                                     }).Get());
+  if (FAILED(hr)) quickAskPageDone(L"", L"page: not readable");
+}
+
 static void quickAskHotkey() {
   if (quickAskVisible() && GetForegroundWindow() == g_qa) return hideQuickAsk();
   if (g_server.empty()) return showWindow();
   HWND fg = GetForegroundWindow();
   saractx::Read read = !prefOn(L"quickAskSelection", true) ? saractx::kReadNone : prefOn(L"quickAskCopy", true) ? saractx::kReadAll : saractx::kReadUia;
-  saractx::pick(fg, read, [](const saractx::Picked& p) {
-    g_qaFront = p.window;
-    g_qaContext = L"{\"app\":\"" + jsonEscape(p.app) + L"\",\"window\":" + (p.window ? L"true" : L"false") + L",\"text\":\"" + jsonEscape(p.text) + L"\",\"via\":\"" + p.via +
-                  L"\",\"skipped\":\"" + p.skipped + L"\"}";
-    // The log says how, never what: the app, the way it was read and how long it was.
-    logLine(L"quick ask: " + (p.app.empty() ? L"no app" : p.app) + L": " + (p.text.empty() ? L"nothing selected" : std::to_wstring(p.text.size()) + L" characters selected") + L" (" + p.path +
-            (p.skipped.empty() ? L"" : L"; skipped: " + p.skipped) + L")");
-    showQuickAsk();
-  });
+  // 3.5.1: Sara's own main window in front: what is selected in her page (her other windows, like
+  // the approval cards, are still skipped by pick).
+  if (fg && g_wnd && GetAncestor(fg, GA_ROOT) == g_wnd && g_web && read != saractx::kReadNone) return quickAskFromPage();
+  saractx::pick(fg, read, quickAskFound);
 }
 static void quickWindowShot() {
   std::string url;
@@ -3321,6 +3393,7 @@ static void createController() {
           if (FAILED(r2) || !ctl) return S_OK;
           g_controller = ctl;
           g_controller->get_CoreWebView2(&g_web);
+          PostMessageW(g_wnd, WM_APP_FOCUSPAGE, 0, 0);  // 3.5.1: at start the frame has the keyboard: the page takes it
           // Save to my PC (save-files.cpp): her files straight into a folder on this computer.
           sarasave::attach(g_web.Get(), {g_wnd, [](const wchar_t* k) { return getPref(k); }, [](const wchar_t* k, const std::wstring& v) { setPref(k, v); }, reply, [] { return g_server; }, logLine, testRun() ? dataDir() : L""});
           // Phase 75: the theme colour behind every page (no white flash on start, navigation or resize).
@@ -3567,7 +3640,28 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       break;
     case WM_ACTIVATE:
       extendFrame();
+      // 3.5.1: activated without a click in the page, Windows gives the keyboard to this frame: once
+      // DefWindowProc has done that, the page takes it (focusPageIfFrame).
+      if (LOWORD(wp) != WA_INACTIVE && !HIWORD(wp)) PostMessageW(h, WM_APP_FOCUSPAGE, 0, 0);
       break;
+    case WM_SETFOCUS:
+      if (g_controller && !IsIconic(h)) {
+        g_controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);  // 3.5.1: the frame never keeps the keyboard
+        return 0;
+      }
+      break;
+    case WM_KEYDOWN:
+    case WM_CHAR:
+      focusPage(h);  // 3.5.1: a key landed on the frame (lost): the next ones go to the page
+      break;
+    case WM_ACTIVATEAPP:
+      // 3.5.1: coming to the front while already this thread's active window (at start, when it was
+      // shown behind another app) sends no WM_ACTIVATE: check the keyboard here too.
+      if (wp) PostMessageW(h, WM_APP_FOCUSPAGE, 0, 0);
+      break;
+    case WM_APP_FOCUSPAGE:
+      focusPageIfFrame();
+      return 0;
     case WM_ERASEBKGND:
       return 1;  // WM_PAINT fills it (no flash of the old colour)
     case WM_PAINT: {

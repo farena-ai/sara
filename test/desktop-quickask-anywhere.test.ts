@@ -60,7 +60,8 @@ test('the Ctrl+C fallback: waits for the keys, saves every format, puts the clip
 
 test('main.cpp: the shortcut reads the front app, "This window", push-to-talk, the pill, the tray switches', () => {
   const c = cpp();
-  assert.match(c, /saractx::pick\(fg, read, \[\]\(const saractx::Picked& p\)/);
+  assert.match(c, /saractx::pick\(fg, read, quickAskFound\);/);
+  assert.match(c, /static void quickAskFound\(const saractx::Picked& p\) \{\s+g_qaFront = p\.window;/);
   assert.match(c, /prefOn\(L"quickAskSelection", true\)/);
   assert.match(c, /L"',context:" \+ g_qaContext \+ L",speak:"/);
   assert.match(c, /\} else if \(a == L"window"\) \{\s+quickWindowShot\(\);/);
@@ -188,4 +189,26 @@ test('the page: ✕ removes a chip; closing drops both; the tray\'s Ask has no c
   assert.deepEqual({ ...(sq.context() as object) }, { app: '', text: '', window: false, skipped: '', pictures: 0 });
   sq.show({ context: {} });
   assert.equal(byId('win').hidden, true);
+});
+
+test('the page (3.5.1): text selected in Sara\'s own window is a chip; "Nothing selected in …" when it looked and found nothing', async () => {
+  const { sq, byId } = runPage();
+  await new Promise((r) => setImmediate(r));
+  sq.show({ context: { app: 'Sara', window: false, text: 'her own words', via: 'page', looked: true } });
+  const kids = () => byId('ctx').children as unknown as { className: string; textContent: string; children: { textContent: string }[] }[];
+  assert.equal(kids().length, 1);
+  assert.equal(kids()[0].children[0].textContent, 'From Sara: “her own words”');
+  assert.equal(byId('win').hidden, true, 'no picture of her own window');
+  sq.show({ context: { app: 'Notepad', window: true, text: '', looked: true } });
+  assert.equal(kids().length, 1);
+  assert.equal(kids()[0].className, 'none');
+  assert.equal(kids()[0].textContent, 'Nothing selected in Notepad');
+  assert.equal(byId('ctx').hidden, false);
+  // A picture replaces the line; not looked (selection reading off), skipped or no app: no line.
+  sq.picture({ data: 'data:image/jpeg;base64,/9j/AAAA' });
+  assert.ok(!kids().some((k) => k.className === 'none'));
+  for (const c of [{ app: 'Notepad', window: true, text: '' }, { app: 'KeePass', text: '', skipped: 'hidden', looked: true }, { app: '', text: '', skipped: 'sara', looked: false }]) {
+    sq.show({ context: c });
+    assert.equal(kids().length, 0, JSON.stringify(c));
+  }
 });

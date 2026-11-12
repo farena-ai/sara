@@ -3115,6 +3115,7 @@ class Hands {
         lastOpAt_ = r->cancel->load() ? 0 : GetTickCount64();
         updateBadge();
       }
+      if (host.onFocusBack) host.onFocusBack();  // 3.5.1: cards and pictures are over: typing goes to her page again
       {
         std::lock_guard<std::mutex> l(qm_);
         current_.reset();
@@ -3970,7 +3971,10 @@ class Hands {
             if (on) {
               self->layoutBadge(h);
               ShowWindow(h, SW_SHOWNOACTIVATE);
-            } else ShowWindow(h, SW_HIDE);
+            } else {
+              ShowWindow(h, SW_HIDE);
+              if (self->host.onFocusBack) self->host.onFocusBack();
+            }
           }
         }
         return 0;
