@@ -6,6 +6,7 @@
 import { readEpub } from './epub.ts';
 import { type Block, blocksToParts, htmlToText } from './html.ts';
 import { readDocx, readPptx, readXlsx } from './ooxml.ts';
+import { formFieldsText } from '../documents/pdf-form.ts';
 import { readPdf } from './pdf.ts';
 import { openZip } from './zip.ts';
 
@@ -300,6 +301,11 @@ export async function readDocument(name: string, bytes: Buffer, opts: { signal?:
     switch (kind) {
       case 'pdf':
         result = await readPdf(bytes, { signal: opts.signal, maxChars });
+        {
+          // A fillable form: its field names and values, so fill_document can be given the right names.
+          const fields = formFieldsText(bytes);
+          if (fields) result.parts.push({ text: fields, where: 'form fields' });
+        }
         break;
       case 'docx':
         result = readDocx(openZip(bytes), opts);

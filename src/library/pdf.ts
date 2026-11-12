@@ -1578,6 +1578,11 @@ export class PdfBook {
     return this.pages.length;
   }
 
+  /** The document catalog (/Root). */
+  get root(): Dict {
+    return this.#root;
+  }
+
   /** Runs one page's drawing instructions (0-based index). */
   run(i: number): { out: PageOut; damaged: boolean } {
     const p = this.pages[i];
@@ -1788,3 +1793,7 @@ export async function readPdf(bytes: Buffer, opts: { signal?: AbortSignal; maxCh
   if (scansSkipped) warnings.push(`${scansSkipped} more scanned pages were not read here (in her library every scanned page is read).`);
   return { kind: 'pdf', ...(book.title ? { title: book.title } : {}), parts, images, warnings };
 }
+
+// The object model, for the form filler (src/documents/pdf-form.ts), which reads and updates fields.
+export { Doc as PdfDoc, Lexer as PdfLexer, Name as PdfName, PStr as PdfString, Ref as PdfRef, isDict as isPdfDict, isStream as isPdfStream, textString as pdfTextString };
+export type { Dict as PdfDict, PVal as PdfValue, Stream as PdfStream, Run as PdfRun };

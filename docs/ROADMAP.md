@@ -102,6 +102,13 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## PDF forms too, in 3.6.5
+
+Fillable PDF forms join Excel and Word: text boxes, check boxes, radio buttons and drop-downs are
+filled in a copy of your own PDF, matched by the words printed next to each box when the field names
+are cryptic, and read back before she says it's done. Protected and scanned PDFs get a plain answer
+and the next best step.
+
 ## Busy web apps work, in 3.6.4
 
 Clicking and typing in web apps that redraw all the time (Outlook, Gmail, Teams, calendars) no longer

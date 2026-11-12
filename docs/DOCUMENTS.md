@@ -63,7 +63,8 @@ Pictures from your uploads or Library can go into Word, PDF, PowerPoint and web 
 ## Filling in your own forms
 
 Give her your own form or template (a time sheet, an application, an order form) as an **Excel
-(.xlsx)** or **Word (.docx)** file, in the chat or the Library, and tell her what goes in it:
+(.xlsx)** or **Word (.docx)** file or a **fillable PDF form**, in the chat or the Library, and tell
+her what goes in it:
 
 > "Fill in this time sheet: week of 11/8, Kent Shelton, nights 2200 to 0600 Sunday to Wednesday."
 
@@ -82,7 +83,16 @@ merged cells and formulas; your original is never changed. The copy arrives as t
 - **Checked before she says it's done:** she reads the new copy back and checks every value is where
   it should be. She tells you "Filled 23 of 23 fields", or exactly which ones she couldn't fill and
   why (no such label, a label in two places, no empty space next to it), and asks for what's missing.
-- **PDF forms** can't be filled yet; ask for the form as Excel or Word.
+- **PDF forms:** a PDF with fillable fields (the boxes you can type into in a PDF reader) is filled
+  field by field: text boxes (one line, several lines, boxes of single letters), check boxes ("yes"
+  or "no"), radio buttons and drop-down lists (one of their choices). She finds each field by its
+  name, its tooltip, or the words printed next to it on the page; when she reads a fillable PDF in
+  the Library she also sees its list of fields and their current values. The filled copy is your
+  original file with the values added at its end, so everything else in it stays exactly as it was.
+  Read-only fields and signature fields are left for you, and she says so. A **password-protected**
+  PDF, an **XFA** (LiveCycle) form, or a PDF with no fillable fields (a scan or a printed form) is not
+  filled; she says why and can make a new document with your values, or fill an Excel or Word version
+  of the form instead.
 
 ## Reading documents
 
@@ -105,5 +115,16 @@ existing style ids (`s=`) are kept (a new cell takes its row's or column's style
 changed sheet lose their cached answers and the workbook gets `fullCalcOnLoad`. The copy is checked
 with the Library's reader (`readXlsxCells` / `readDocx` in `src/library/ooxml.ts`). The filled copy is
 recorded in `made_docs` with `spec.filled` (its form), so make_document won't rebuild it from Markdown.
-PDF AcroForm filling is not built yet: the PDF reader (`src/library/pdf.ts`) parses objects but has no
-writer; it needs an incremental-update writer for field values plus `NeedAppearances`.
+PDF forms (`src/documents/pdf-form.ts`) use the Library's PDF reader (`src/library/pdf.ts`) for the
+AcroForm field tree (inherited `/FT /Ff /DA /V /Opt`, full names joined with dots, `/TU` tooltips) and
+the page text positions (the words left of a box, right of a check box, or the label block above it).
+The copy is an **incremental update**: the original bytes untouched, then the changed field and widget
+objects, a simple appearance stream per text/combo widget (the `/DA` font from `/AcroForm /DR`, or
+Helvetica added as `/Helv`; auto size, `/Q`, multi-line, comb; the `/MK` border and background), and a
+new cross-reference section with `/Prev` (a classic table if the file had one, else an xref stream).
+Values are PDF text strings (UTF-16BE with a byte-order mark beyond Latin-1); check boxes and radio
+buttons set `/V` and each widget's `/AS`; choices must be one of `/Opt` unless an editable combo.
+`/NeedAppearances true` asks viewers to redraw the fields, and an `/XFA` entry is removed so viewers
+show the AcroForm values. Encrypted files (`/Encrypt`), XFA-only forms, flat PDFs and damaged
+cross-reference tables are refused. The copy is parsed again and each field's `/V` (and `/AS`) is
+checked before the report. `readDocument` adds a "form fields" part (`formFieldsText`) for fillable PDFs.

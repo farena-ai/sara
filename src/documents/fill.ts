@@ -6,11 +6,13 @@
 // Numbers go in as numbers, times and dates as times and dates only where the cell is formatted for
 // them, text as text. The copy is then read back with the Library's own reader and every value is
 // checked where it should be, so the report (filled / label not found / ambiguous / …) is the truth.
-// Excel (.xlsx) and Word (.docx: text after labels, table cells, content controls) for now.
+// Excel (.xlsx), Word (.docx: text after labels, table cells, content controls) and PDF forms
+// (AcroForm fields, in src/documents/pdf-form.ts: an incremental update to the original bytes).
 import { excelDate, formatNumber, readDocx, readRels, readXlsxCells } from '../library/ooxml.ts';
 import { attr, find, findAll, kid, kids, parseXml, textOf, type XmlChild, type XmlElement } from '../library/xml.ts';
 import { openZip, type Zip } from '../library/zip.ts';
 import { cloneEl, element, removeAttr, repack, serializeXml, setAttr, xmlSafe } from './ooxml-edit.ts';
+import { fillPdf } from './pdf-form.ts';
 import { DocError } from './spec.ts';
 
 export type FillValue = string | number | boolean;
@@ -18,7 +20,7 @@ export type FillItem =
   | { kind: 'label'; label: string; value: FillValue; sheet?: string }
   | { kind: 'cell'; cell: string; value: FillValue; sheet?: string }
   | { kind: 'table'; table: string; rows: Record<string, FillValue>[]; sheet?: string };
-export type FieldStatus = 'filled' | 'not_found' | 'ambiguous' | 'formula' | 'no_space' | 'not_verified';
+export type FieldStatus = 'filled' | 'not_found' | 'ambiguous' | 'formula' | 'no_space' | 'not_verified' | 'skipped' | 'invalid';
 export interface FieldResult {
   /** What was asked: a label, a cell address, or \"TABLE ROW / COLUMN\". */
   field: string;
@@ -29,7 +31,7 @@ export interface FieldResult {
   detail?: string;
 }
 export interface FillResult {
-  format: 'xlsx' | 'docx';
+  format: 'xlsx' | 'docx' | 'pdf';
   data: Buffer;
   fields: FieldResult[];
   filled: number;
@@ -38,7 +40,7 @@ export interface FillResult {
   labels: string[];
 }
 
-export const FILL_FORMATS = ['xlsx', 'docx'] as const;
+export const FILL_FORMATS = ['xlsx', 'docx', 'pdf'] as const;
 const MAX_FIELDS = 2000;
 
 // ---------------------------------------------------------------- the model's arguments
@@ -135,13 +137,14 @@ function finish(format: 'xlsx' | 'docx', data: Buffer, fields: FieldResult[], la
   return { format, data, fields, filled: fields.filter((f) => f.status === 'filled').length, total: fields.length, labels: [...new Set(labels)].slice(0, 60) };
 }
 
-/** Fills a copy of an .xlsx or .docx form (by its name and content). */
+/** Fills a copy of an .xlsx, .docx or .pdf form (by its name and content). */
 export function fillFile(name: string, bytes: Buffer, items: FillItem[]): FillResult {
   const ext = /\.([a-z0-9]+)$/i.exec(name)?.[1]?.toLowerCase();
+  if (ext === 'pdf' || (!ext && bytes.subarray(0, 1024).includes('%PDF-'))) return fillPdf(bytes, items);
   const zip = openZip(bytes);
   if (ext === 'xlsx' || (!ext && zip.has('xl/workbook.xml'))) return fillXlsx(bytes, items);
   if (ext === 'docx' || (!ext && zip.has('word/document.xml'))) return fillDocx(bytes, items);
-  throw new DocError('She can fill in Excel (.xlsx) and Word (.docx) forms.');
+  throw new DocError('She can fill in Excel (.xlsx), Word (.docx) and PDF forms.');
 }
 
 // ---------------------------------------------------------------- Excel
@@ -973,11 +976,11 @@ export function fillReport(r: FillResult): string {
   const lines = [`Filled ${r.filled} of ${r.total} field${r.total === 1 ? '' : 's'} (each one checked by reading the new copy back).`];
   const bad = r.fields.filter((f) => f.status !== 'filled');
   if (bad.length) {
-    const why: Record<FieldStatus, string> = { filled: '', not_found: 'not found', ambiguous: 'ambiguous', formula: 'left as is', no_space: 'no empty place', not_verified: 'not confirmed' };
+    const why: Record<FieldStatus, string> = { filled: '', not_found: 'not found', ambiguous: 'ambiguous', formula: 'left as is', no_space: 'no empty place', not_verified: 'not confirmed', skipped: 'left as is', invalid: 'not an allowed value' };
     lines.push('Not filled:');
-    for (const f of bad.slice(0, 40)) lines.push(`- ${f.field}: ${f.status === 'not_found' && f.detail === 'no label like that in the form' ? 'no label like that in the form' : `${why[f.status]}${f.detail ? ` (${f.detail})` : ''}`}`);
+    for (const f of bad.slice(0, 40)) lines.push(`- ${f.field}: ${f.status === 'not_found' && (f.detail === 'no label like that in the form' || f.detail === 'no field like that in the form') ? f.detail : `${why[f.status]}${f.detail ? ` (${f.detail})` : ''}`}`);
     if (bad.length > 40) lines.push(`- …and ${bad.length - 40} more`);
-    if (r.labels.length) lines.push(`Labels in this form: ${r.labels.join(', ')}.`);
+    if (r.labels.length) lines.push(`${r.format === 'pdf' ? 'Fields' : 'Labels'} in this form: ${r.labels.join(', ')}.`);
   }
   return lines.join('\n');
 }

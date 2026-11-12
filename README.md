@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.6.4, [Busy web apps work](https://github.com/farena-ai/sara/releases/tag/v3.6.4). Clicking and typing in Outlook, Gmail and other busy web apps no longer stops when the page redraws. [See what changed](#whats-new)
+> **Status:** 3.6.5, [PDF forms too](https://github.com/farena-ai/sara/releases/tag/v3.6.5). Fillable PDF forms are filled in a copy of your own file and checked field by field. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[PDF forms too](docs/DOCUMENTS.md)** — Text boxes, check boxes, radio buttons and drop-downs, matched by the words printed next to each box. Protected or scanned PDFs get a plain answer and the next best step. |
 | **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Busy web apps work](docs/desktop.md)** — She checks only the button or field she is about to use, types into rich editors, and when she does stop she says it's her own check and tries again. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[She fills in your own forms](docs/DOCUMENTS.md)** — Values go into the right cells by label and table column, layout and formatting kept, original untouched. She reads the copy back and reports exactly how many fields were filled. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[She does it for you](docs/desktop.md)** — Removing a browser extension, switching off a startup app or cleaning up files: she does each step and you approve changes on your computer. When she can't, she names what's missing. Failed replies show Try again and Report it, and reports reach the support desk. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Using your apps is fast](docs/desktop.md)** — A window listing that waited on the app's own busy thread made approved actions take minutes; now they take seconds. She switches to one of your tabs when you allow it, acts on windows behind others after your Allow, and sees links on your pages. |
 | **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Her own face, the whole computer](docs/desktop.md)** — Fred's face (or any custom look) on the window, taskbar, tray and shortcuts; the window top follows the page's theme. She lists and uses everything she can do on your PC, and Files reads the folders you choose, never changing them. |
-| **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Typing always reaches her](docs/desktop.md)** — Whenever her window becomes active, after her cards and computer use and at start, the app hands the keyboard to the page. Quick ask picks up text selected in Sara's chat and says when nothing was selected. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.5.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.5.1 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Typing always reaches her](docs/desktop.md)** — Whenever her window becomes active, after her cards and computer use and at start, the app hands the keyboard to the page. Quick ask picks up text selected in Sara's chat and says when nothing was selected. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[A desktop app that does more](docs/desktop.md)** — Quick ask takes selected text or a window picture, push-to-talk and spoken replies work with the window closed, drops and Save to my PC handle files, approved commands run on your PC with Stop, and recent chats stay readable offline. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Quick replies from models on a processor](docs/CHOOSING_A_MODEL.md)** — Sara asks each Ollama whether the model runs on a graphics card; on a processor she keeps the context small so replies stay quick. After 45 seconds without an answer the chat names the slow model with Fix it, Keep waiting and Stop. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrupt and tell her now](docs/CHATS.md)** — Interrupt now (Send menu, Ctrl+Enter or /now) stops her current reply or thinking and she continues from what you said, keeping finished steps and folding what she was saying. Changes in progress finish first, and a long command gets Stop the command. |

@@ -24,7 +24,7 @@
 
 **Mettre à jour :** sur un serveur Linux, `sudo sara update` (sauvegarde d’abord, revient en arrière si elle ne répond pas) · Docker : `sudo git pull && sudo docker compose up -d --build` · apps Windows et Mac : Réglages → Données et santé → Mises à jour · Android : Google Play. [Mettre à niveau](docs/INSTALL.md#upgrading).
 
-> **État :** 3.6.4, [Les applis web animées fonctionnent](https://github.com/farena-ai/sara/releases/tag/v3.6.4). Cliquer et taper dans Outlook, Gmail et autres applis web animées ne s’arrête plus quand la page se redessine. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 3.6.5, [Les formulaires PDF aussi](https://github.com/farena-ai/sara/releases/tag/v3.6.5). Les formulaires PDF remplissables sont remplis dans une copie de votre propre fichier, vérifiés champ par champ. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versions récentes · 6 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Les formulaires PDF aussi](docs/DOCUMENTS.md)** — Zones de texte, cases à cocher, boutons radio et listes, repérés par les mots imprimés à côté de chaque case. Les PDF protégés ou scannés reçoivent une réponse claire et l’étape suivante. |
 | **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Les applis web animées fonctionnent](docs/desktop.md)** — Elle vérifie seulement le bouton ou le champ qu’elle va utiliser, tape dans les éditeurs riches et, si elle s’arrête, dit que c’est sa propre vérification et réessaie. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Elle remplit vos propres formulaires](docs/DOCUMENTS.md)** — Les valeurs vont dans les bonnes cellules selon l’étiquette et la colonne, mise en page et format conservés, original intact. Elle relit la copie et indique combien de champs sont remplis. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Elle le fait pour vous](docs/desktop.md)** — Retirer une extension du navigateur, désactiver une app au démarrage ou faire le ménage dans les fichiers : elle fait chaque étape et vous approuvez les changements sur votre ordinateur. Si elle ne peut pas, elle dit ce qui manque. Les réponses ratées proposent Réessayer et Signaler, et les signalements arrivent au support. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Utiliser vos apps est rapide](docs/desktop.md)** — Une liste de fenêtres qui attendait le fil occupé de l’app faisait durer les actions approuvées des minutes ; elles prennent maintenant quelques secondes. Elle passe à l’un de vos onglets quand vous l’autorisez, agit sur des fenêtres derrière d’autres après votre accord et voit les liens de vos pages. |
 | **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Son propre visage, tout l’ordinateur](docs/desktop.md)** — Le visage de Fred (ou toute apparence personnalisée) sur la fenêtre, la barre des tâches, la zone de notification et les raccourcis ; le haut de la fenêtre suit le thème. Elle liste et utilise tout ce qu’elle peut faire sur votre PC, et Fichiers lit les dossiers choisis sans les modifier. |
-| **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Ce que vous tapez lui parvient toujours](docs/desktop.md)** — Chaque fois que sa fenêtre devient active, après ses cartes et l’utilisation de l’ordinateur et au démarrage, l’app donne le clavier à la page. La question rapide prend le texte sélectionné dans le chat de Sara et indique quand rien n’était sélectionné. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versions 2.6x précédentes</b>: de la 3.5.0 à la 2.61.5</summary>
+<summary><b>Versions 2.6x précédentes</b>: de la 3.5.1 à la 2.61.5</summary>
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Ce que vous tapez lui parvient toujours](docs/desktop.md)** — Chaque fois que sa fenêtre devient active, après ses cartes et l’utilisation de l’ordinateur et au démarrage, l’app donne le clavier à la page. La question rapide prend le texte sélectionné dans le chat de Sara et indique quand rien n’était sélectionné. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Une app de bureau qui en fait plus](docs/desktop.md)** — La question rapide prend le texte sélectionné ou une image de la fenêtre, le parler en maintenant et les réponses parlées marchent fenêtre fermée, le glisser-déposer et Enregistrer sur mon PC gèrent les fichiers, les commandes approuvées tournent sur votre PC avec Arrêter et les chats récents restent lisibles hors ligne. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Des réponses rapides avec les modèles sur le processeur](docs/CHOOSING_A_MODEL.md)** — Sara demande à chaque Ollama si le modèle tourne sur la carte graphique ; sur le processeur elle garde un petit contexte pour que les réponses restent rapides. Après 45 secondes sans réponse, le chat nomme le modèle lent avec Réparer, Continuer d’attendre et Arrêter. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrompez-la et dites-le tout de suite](docs/CHATS.md)** — Interrompre maintenant (menu Envoyer, Ctrl+Entrée ou /now) arrête sa réponse ou sa réflexion et elle reprend depuis ce que vous avez dit, en gardant les étapes finies et en repliant ce qu’elle disait. Les changements en cours se terminent d’abord, et une longue commande a Arrêter la commande. |

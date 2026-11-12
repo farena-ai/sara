@@ -5,6 +5,16 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.5 (2026-11-12): PDF forms too
+
+- New: she fills in your fillable PDF forms too (text boxes, check boxes, radio buttons and drop-down
+  lists). She finds each field by its name, its tooltip or the words printed next to it, writes the
+  values into a copy that keeps your original file exactly as it was with the values added at the end,
+  reads the copy back, and says "Filled 6 of 6 fields" or which ones she couldn't fill and why.
+  Read-only and signature fields are left for you. Password-protected PDFs, XFA forms and PDFs without
+  fillable fields are not filled; she says why and offers a new document or an Excel or Word version.
+- New: when she reads a fillable PDF from the Library she also sees its form fields and their values.
+
 ## 3.6.4 (2026-11-12): busy web apps work
 
 ## 3.6.3 (2026-11-12): she fills in your own forms

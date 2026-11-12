@@ -17,12 +17,12 @@ import { ToolError, type Tool } from './types.ts';
 
 export const FILL_DOCUMENT = 'fill_document';
 
-const FILLABLE = /\.(xlsx|docx)$/i;
+const FILLABLE = /\.(xlsx|docx|pdf)$/i;
 
 /** The person's document to fill: by number or by (part of) its name; this chat's files first. */
 export function findForm(docs: LibraryDoc[], q: string): LibraryDoc {
   const query = q.trim().replace(/^#/, '').toLowerCase();
-  const forms = docs.filter((d) => FILLABLE.test(d.name) || /\.pdf$/i.test(d.name));
+  const forms = docs.filter((d) => FILLABLE.test(d.name));
   if (!query) {
     const pick = forms.find((d) => FILLABLE.test(d.name));
     if (!pick) throw new ToolError('Say which document to fill in (its name or number). Use the library tool (action list) to see them.');
@@ -60,7 +60,7 @@ export function createFillDocumentTool(getApp: () => AppContext): Tool {
     spec: {
       name: FILL_DOCUMENT,
       description:
-        "Fill in the person's own form or template (an Excel .xlsx or Word .docx they uploaded, or one you made): writes the values into a new copy of THEIR file, keeping its layout and formatting (the original is not changed), then reads the copy back and reports exactly what was filled. Use this, not make_document, whenever they give you a form, time sheet, application or template to fill in. values: {\"EMPLOYEE NAME\": \"Kent\", \"WEEK OF\": \"11/08/2026\"} (the label as it is in the form; the value goes in the empty cell or blank next to it), or a list with {\"cell\": \"B3\", \"value\": 8} for a spreadsheet cell. tables: [{\"table\": \"DAY\", \"rows\": [{\"DAY\": \"SUNDAY\", \"START TIME\": \"2200\", \"END TIME\": \"0600\"}]}] (table = one of its column headers; each row is found by its label in that column). Leave totals that are formulas alone (they work themselves out). Only say the form is filled when the result says every field was filled; otherwise say which weren't.",
+        "Fill in the person's own form or template (an Excel .xlsx, Word .docx or fillable PDF form they uploaded, or one you made): writes the values into a new copy of THEIR file, keeping its layout and formatting (the original is not changed), then reads the copy back and reports exactly what was filled. Use this, not make_document, whenever they give you a form, time sheet, application or template to fill in. values: {\"EMPLOYEE NAME\": \"Kent\", \"WEEK OF\": \"11/08/2026\"} (the label as it is in the form; the value goes in the empty cell or blank next to it), or a list with {\"cell\": \"B3\", \"value\": 8} for a spreadsheet cell. For a PDF form use the field names the Library shows under \"Form fields\" (or the words printed next to each box); check boxes take yes/no, choices take one of their options. tables: [{\"table\": \"DAY\", \"rows\": [{\"DAY\": \"SUNDAY\", \"START TIME\": \"2200\", \"END TIME\": \"0600\"}]}] (table = one of its column headers; each row is found by its label in that column). Leave totals that are formulas alone (they work themselves out). Only say the form is filled when the result says every field was filled; otherwise say which weren't.",
       parameters: {
         type: 'object',
         properties: {
@@ -83,8 +83,7 @@ export function createFillDocumentTool(getApp: () => AppContext): Tool {
       if (!lib) throw new ToolError('There is no library here, so there is no form to fill.');
       const docs = [...(conv ? lib.list({ conversationId: conv.id }) : []), ...lib.list()];
       const doc = findForm(docs, String(args.document ?? ''));
-      if (/\.pdf$/i.test(doc.name)) throw new ToolError(`“${doc.name}” is a PDF. She can fill in Excel (.xlsx) and Word (.docx) forms so far, not PDF forms. Ask for the form as .xlsx or .docx (or open the PDF in a PDF reader to type in it); don't say it's filled.`);
-      if (!FILLABLE.test(doc.name)) throw new ToolError(`“${doc.name}” isn't an Excel (.xlsx) or Word (.docx) form, so it can't be filled in here.`);
+      if (!FILLABLE.test(doc.name)) throw new ToolError(`“${doc.name}” isn't an Excel (.xlsx), Word (.docx) or PDF form, so it can't be filled in here.`);
       const bytes = lib.file(doc);
       if (!bytes) throw new ToolError(`The file for “${doc.name}” isn't here any more; ask for it again.`);
       let items;
@@ -99,14 +98,14 @@ export function createFillDocumentTool(getApp: () => AppContext): Tool {
       try {
         res = fillFile(doc.name, bytes, items);
       } catch (err) {
-        if (err instanceof DocError) throw new ToolError(err.message);
+        if (err instanceof DocError) throw new ToolError(`${err.message}${/\.pdf$/i.test(doc.name) ? " Don't say it's filled." : ''}`);
         throw new ToolError(`“${doc.name}” couldn't be opened to fill in: ${(err as Error).message}`);
       }
       const report = fillReport(res);
       if (!res.filled) return `${report}\nNothing was filled, so no copy was made. Don't say the form is filled; check the labels above (or use cell addresses) and try again.`;
       if (res.data.length > LIMITS.outBytes) throw new ToolError('The filled copy is too big to keep.');
       const base = doc.name.replace(/\.[a-z0-9]+$/i, '');
-      const title = String(args.title ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\.(xlsx|docx)$/i, '').replace(/\s+/g, ' ').trim().slice(0, LIMITS.titleChars) || `${base} (filled)`;
+      const title = String(args.title ?? '').replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\.(xlsx|docx|pdf)$/i, '').replace(/\s+/g, ' ').trim().slice(0, LIMITS.titleChars) || `${base} (filled)`;
       const read = await readDocument(fileName(title, res.format), res.data).catch(() => undefined);
       const spec: DocSpec = { format: res.format, title, template: 'plain', content: read ? contentOf(read.parts, res.format) : report, filled: { fromId: doc.id, fromName: doc.name, fields: res.total, filled: res.filled } };
       const made = keepMade(app, { spec, data: res.data, ...(conv ? { conversationId: conv.id } : {}), keep: !conv?.private });
