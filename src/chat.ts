@@ -1921,7 +1921,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
   // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
   // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
-  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file' && t.spec.name !== 'make_document');
+  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file' && t.spec.name !== 'make_document' && t.spec.name !== 'fill_document');
   // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
   // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
   if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));

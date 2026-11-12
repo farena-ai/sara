@@ -142,25 +142,32 @@ export function makeDocument(app: AppContext, args: Record<string, unknown>, o: 
   const baseId = Number(args.basedOn);
   const base = args.basedOn !== undefined && args.basedOn !== null && args.basedOn !== '' ? store.get(baseId) : undefined;
   if (args.basedOn !== undefined && args.basedOn !== null && args.basedOn !== '' && !base) throw new DocError(`There is no document #${String(args.basedOn)} here.`);
+  if (base?.spec.filled) throw new DocError(`Document #${base.id} is the person's own form, filled in with fill_document; remaking it here would lose its layout. To change it, call fill_document again on the original form "${base.spec.filled.fromName}" with all the values (the corrected ones too).`);
   const spec = cleanSpec({ ...args, format: args.format ?? base?.format, title: args.title ?? base?.title, template: args.template ?? base?.spec.template });
   const data = renderDocument(spec, imagesOf(app));
   if (data.length > LIMITS.outBytes) throw new DocError(`That document came out at ${Math.round(data.length / 1048576)} MB; documents can be up to ${LIMITS.outBytes / 1048576} MB. Use fewer or smaller pictures, or split it.`);
-  const family = base?.family;
+  const made = keepMade(app, { spec, data, family: base?.family, conversationId: o.conversationId, keep: o.keep });
+  return { made, data, mime: MIME[spec.format] };
+}
+
+/** Saves a finished file in the Library and records it as a made document (a new version when `family` is given). */
+export function keepMade(app: AppContext, m: { spec: DocSpec; data: Buffer; family?: number; conversationId?: string; keep?: boolean }): MadeDoc {
+  const store = madeDocs(app);
+  const { spec, data, family } = m;
   const version = family ? Math.max(...store.versions(family).map((v) => v.version)) + 1 : 1;
   const name = fileName(spec.title, spec.format, version);
   let libraryId: number | null = null;
   if (app.library) {
     try {
-      const keep = o.keep !== false;
-      libraryId = app.library.add({ name, bytes: data, keep, conversationId: keep ? null : (o.conversationId ?? null), origin: keep ? 'library' : 'chat', learn: false }).id;
+      const keep = m.keep !== false;
+      libraryId = app.library.add({ name, bytes: data, keep, conversationId: keep ? null : (m.conversationId ?? null), origin: keep ? 'library' : 'chat', learn: false }).id;
       app.libraryNudge?.();
       app.events?.publish({ type: 'library', id: libraryId });
     } catch (err) {
       console.warn(`make_document: saving to the Library failed: ${(err as Error).message}`);
     }
   }
-  const made = store.add({ ...(family ? { family } : {}), version, format: spec.format, title: spec.title, name, bytes: data.length, spec, libraryId, conversationId: o.conversationId ?? null, createdAt: app.now().toISOString() });
-  return { made, data, mime: MIME[spec.format] };
+  return store.add({ ...(family ? { family } : {}), version, format: spec.format, title: spec.title, name, bytes: data.length, spec, libraryId, conversationId: m.conversationId ?? null, createdAt: app.now().toISOString() });
 }
 
 /** A made document's file (from the Library, or made again from its record if the file was removed). */

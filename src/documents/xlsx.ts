@@ -23,11 +23,13 @@ function sheetXml(sheet: Sheet): string {
     const v = r[c];
     return v === null || v === undefined ? 0 : String(v).length * (typeof v === 'number' ? 1.1 : 1) + 2;
   }))));
-  const head = sheet.rows.length > 1;
+  const h = sheet.head ?? 0;
+  const head = sheet.rows.length > h + 1;
+  const tableEnd = sheet.tableRows ? h + sheet.tableRows : sheet.rows.length;
   const rows = sheet.rows.map((r, i) => {
     const cells = r.map((v, c) => {
       const ref = `${colName(c)}${i + 1}`;
-      const s = i === 0 && head ? ' s="1"' : '';
+      const s = i === h && head ? ' s="1"' : '';
       if (v === null || v === undefined || v === '') return s ? `<c r="${ref}"${s}/>` : '';
       if (typeof v === 'number') return `<c r="${ref}"${s}><v>${v}</v></c>`;
       if (typeof v === 'boolean') return `<c r="${ref}"${s} t="b"><v>${v ? 1 : 0}</v></c>`;
@@ -37,8 +39,10 @@ function sheetXml(sheet: Sheet): string {
     return `<row r="${i + 1}">${cells.join('')}</row>`;
   });
   const last = `${colName(cols - 1)}${Math.max(1, sheet.rows.length)}`;
-  const pane = head ? '<sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>' : '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
-  return `${HEAD}<worksheet xmlns="${SS}" xmlns:r="${REL}"><dimension ref="A1:${last}"/>${pane}<sheetFormatPr defaultRowHeight="15"/><cols>${widths.map((w, c) => `<col min="${c + 1}" max="${c + 1}" width="${w.toFixed(1)}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData>${head ? `<autoFilter ref="A1:${last}"/>` : ''}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>`;
+  const tableCols = Math.max(1, sheet.rows[h]?.length ?? cols);
+  const filter = `A${h + 1}:${colName(tableCols - 1)}${Math.max(h + 1, tableEnd)}`;
+  const pane = head ? `<sheetViews><sheetView workbookViewId="0"><pane ySplit="${h + 1}" topLeftCell="A${h + 2}" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>` : '<sheetViews><sheetView workbookViewId="0"/></sheetViews>';
+  return `${HEAD}<worksheet xmlns="${SS}" xmlns:r="${REL}"><dimension ref="A1:${last}"/>${pane}<sheetFormatPr defaultRowHeight="15"/><cols>${widths.map((w, c) => `<col min="${c + 1}" max="${c + 1}" width="${w.toFixed(1)}" customWidth="1"/>`).join('')}</cols><sheetData>${rows.join('')}</sheetData>${head ? `<autoFilter ref="${filter}"/>` : ''}<pageMargins left="0.7" right="0.7" top="0.75" bottom="0.75" header="0.3" footer="0.3"/></worksheet>`;
 }
 
 export function makeXlsx(spec: DocSpec): Buffer {

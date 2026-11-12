@@ -160,6 +160,7 @@ import { backfill, RecallIndex, recallMode } from './triggers.ts';
 import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
+import { createFillDocumentTool } from './tools/fill-document.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
 import { sweepShared } from './bridges/media.ts';
 import { PendingInputs } from './pending.ts';
@@ -1014,6 +1015,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createSendFileTool(() => app));
   // make_document (docs/DOCUMENTS.md): Word, PDF, Excel, PowerPoint and more, for the owner and members.
   tools.add(createMakeDocumentTool(() => app));
+  // fill_document (docs/DOCUMENTS.md): she fills in the person's own Excel or Word form (a checked copy).
+  tools.add(createFillDocumentTool(() => app));
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.

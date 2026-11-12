@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 3.6.2, [Lo fa lei per te](https://github.com/farena-ai/sara/releases/tag/v3.6.2). Chiedile di sistemare qualcosa sul PC e lo fa, con il tuo ok per ogni modifica; le risposte fallite dicono sempre perché. [Scopri le novità](#novità)
+> **Stato:** 3.6.3, [Compila i tuoi moduli](https://github.com/farena-ai/sara/releases/tag/v3.6.3). Il tuo modulo Excel o Word viene compilato in una copia del tuo file, controllato campo per campo. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Compila i tuoi moduli](docs/DOCUMENTS.md)** — I valori vanno nelle celle giuste per etichetta e colonna, layout e formattazione restano, l’originale intatto. Rilegge la copia e dice quanti campi sono stati compilati. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Lo fa lei per te](docs/desktop.md)** — Rimuovere un’estensione del browser, disattivare un’app all’avvio o fare pulizia di file: fa ogni passo e tu approvi le modifiche sul computer. Quando non può, dice cosa manca. Le risposte fallite mostrano Riprova e Segnala, e le segnalazioni arrivano al supporto. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Usare le tue app è veloce](docs/desktop.md)** — Un elenco di finestre che aspettava il thread occupato dell’app faceva durare minuti le azioni approvate; ora bastano secondi. Passa a una delle tue schede quando lo permetti, agisce su finestre dietro altre dopo il tuo ok e vede i link delle tue pagine. |
 | **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Il suo volto, tutto il computer](docs/desktop.md)** — Il volto di Fred (o un aspetto personalizzato) su finestra, barra delle applicazioni, area di notifica e collegamenti; la parte alta segue il tema della pagina. Elenca e usa tutto ciò che può fare sul tuo PC, e File legge le cartelle che scegli senza modificarle. |
 | **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Ciò che scrivi le arriva sempre](docs/desktop.md)** — Ogni volta che la sua finestra diventa attiva, dopo le sue schede, l’uso del computer e all’avvio, l’app passa la tastiera alla pagina. La domanda rapida prende il testo selezionato nella chat di Sara e dice quando non era selezionato nulla. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Un'app desktop che fa di più](docs/desktop.md)** — La domanda rapida prende il testo selezionato o un’immagine della finestra, tieni premuto per parlare e le risposte parlate funzionano a finestra chiusa, trascina e Salva sul mio PC gestiscono i file, i comandi approvati girano sul tuo PC con Ferma e le chat recenti restano leggibili offline. |
-| **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Risposte rapide con modelli sul processore](docs/CHOOSING_A_MODEL.md)** — Sara chiede a ogni Ollama se il modello gira sulla scheda grafica; sul processore tiene il contesto piccolo così le risposte restano rapide. Dopo 45 secondi senza risposta, la chat indica il modello lento con Sistema, Continua ad aspettare e Ferma. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 3.4.4 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 3.4.5 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Risposte rapide con modelli sul processore](docs/CHOOSING_A_MODEL.md)** — Sara chiede a ogni Ollama se il modello gira sulla scheda grafica; sul processore tiene il contesto piccolo così le risposte restano rapide. Dopo 45 secondi senza risposta, la chat indica il modello lento con Sistema, Continua ad aspettare e Ferma. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrompila e diglielo subito](docs/CHATS.md)** — Interrompi ora (menu Invia, Ctrl+Invio o /now) ferma la sua risposta o il suo ragionamento e lei riprende da ciò che hai detto, tenendo i passi finiti e ripiegando ciò che stava dicendo. Le modifiche in corso finiscono prima e un comando lungo ha Ferma il comando. |
 | **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Legge le immagini che le mandi](docs/CHOOSING_A_MODEL.md)** — Gli screenshot di esami, bollette o moduli arrivano ora a quello dei tuoi modelli che vede; se quello che risponde non può, un altro la legge prima come testo esatto. Salva i valori con note add e, se nessun modello vede, lo dice con Sistema invece di fingere. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Note che non perdono mai quello che le hai detto](docs/FEATURES.md)** — Aggiunge ogni novità a una nota sotto un titolo con data, un salvataggio che cancellerebbe una nota viene rifiutato, le versioni precedenti tornano con Ripristina e un «salvato» senza prova viene segnalato. Il bordo superiore dell'app Windows segue la pagina e lei può leggere le tue schede e i tuoi file. |

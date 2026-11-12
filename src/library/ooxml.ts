@@ -261,7 +261,7 @@ function isDateFormat(code: string): boolean {
   return /[dmyhs]/i.test(bare) && !/^[#0.,%\sE+-]*$/.test(bare);
 }
 
-function excelDate(serial: number, date1904: boolean): string {
+export function excelDate(serial: number, date1904: boolean): string {
   const ms = Math.round((serial + (date1904 ? 1462 : 0) - 25569) * 86400000);
   const d = new Date(ms);
   if (!Number.isFinite(d.getTime())) return String(serial);
@@ -270,7 +270,7 @@ function excelDate(serial: number, date1904: boolean): string {
   return Number.isInteger(serial) || iso.slice(11, 19) === '00:00:00' ? iso.slice(0, 10) : iso.slice(0, 16).replace('T', ' ');
 }
 
-function formatNumber(v: string): string {
+export function formatNumber(v: string): string {
   const n = Number(v);
   if (!Number.isFinite(n)) return v;
   if (Number.isInteger(n)) return String(n);
@@ -319,11 +319,12 @@ function sharedStrings(zip: Zip, path: string | undefined): string[] {
   return out;
 }
 
-function readSheet(xml: string, strings: string[], styles: CellStyles, date1904: boolean, maxRows: number): { rows: string[]; capped: boolean } {
+function readSheet(xml: string, strings: string[], styles: CellStyles, date1904: boolean, maxRows: number, onCell?: (row: number, col: number, text: string) => void): { rows: string[]; capped: boolean } {
   const rows: string[] = [];
   let capped = false;
   let row: string[] = [];
   let inRow = false;
+  let rowNum = 0;
   let cell: { t: string; s: number; col: number } | undefined;
   let value = '';
   let inV = false;
@@ -337,6 +338,7 @@ function readSheet(xml: string, strings: string[], styles: CellStyles, date1904:
       if (l === 'row') {
         row = [];
         nextCol = 0;
+        rowNum = Number(a.r) || rowNum + 1;
         inRow = !selfClosing;
       } else if (l === 'c' && inRow) {
         const col = colIndex(a.r) ?? nextCol;
@@ -376,6 +378,7 @@ function readSheet(xml: string, strings: string[], styles: CellStyles, date1904:
         if (cell.col < 16384) {
           while (row.length < cell.col) row.push('');
           row[cell.col] = text.replace(/\s*\n\s*/g, ' ').trim();
+          onCell?.(rowNum, cell.col, row[cell.col]);
         }
         cell = undefined;
       } else if (l === 'row' && inRow) {
@@ -399,6 +402,30 @@ function readSheet(xml: string, strings: string[], styles: CellStyles, date1904:
 }
 
 export function readXlsx(zip: Zip, opts: OoxmlOptions = {}): ReadResult {
+  return readXlsxWith(zip, opts);
+}
+
+/**
+ * fill_document (docs/DOCUMENTS.md): every cell's text as the Library reads it, by sheet and
+ * address ("B3"), so a filled copy is checked with the very reader that reads it later.
+ */
+export function readXlsxCells(zip: Zip): Map<string, Map<string, string>> {
+  const out = new Map<string, Map<string, string>>();
+  readXlsxWith(zip, {}, (sheet, row, col, text) => {
+    let m = out.get(sheet);
+    if (!m) out.set(sheet, (m = new Map()));
+    m.set(`${colLetters(col)}${row}`, text);
+  });
+  return out;
+}
+
+function colLetters(i: number): string {
+  let s = '';
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s;
+  return s;
+}
+
+function readXlsxWith(zip: Zip, opts: OoxmlOptions, onCell?: (sheet: string, row: number, col: number, text: string) => void): ReadResult {
   const warnings: string[] = [];
   const maxRows = opts.maxRowsPerSheet ?? 20_000;
   const wbPath = zip.has('xl/workbook.xml') ? 'xl/workbook.xml' : [...zip.entries.keys()].find((k) => /^xl\/workbook[^/]*\.xml$/i.test(k)) ?? 'xl/workbook.xml';
@@ -424,7 +451,7 @@ export function readXlsx(zip: Zip, opts: OoxmlOptions = {}): ReadResult {
     const target = rid ? rels.get(rid)?.target : undefined;
     if (!target || !zip.has(target)) continue; // chart sheets and missing sheets have no cells
     const xml = zip.text(target) ?? '';
-    const { rows, capped } = readSheet(xml, strings, styles, date1904, maxRows);
+    const { rows, capped } = readSheet(xml, strings, styles, date1904, maxRows, onCell ? (r, c, text) => onCell(name, r, c, text) : undefined);
     if (capped) warnings.push(`Sheet "${name}" is very long, so she only read the first ${maxRows.toLocaleString('en-US')} rows.`);
     if (rows.length) parts.push({ text: rows.join('\n'), where: `sheet ${name}`, heading: name });
   }

@@ -1,6 +1,6 @@
 {
   "name": "sara-chat",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "private": true,
   "description": "Sara in your terminal: chat, ask about a folder, send a file. Signs in with a device code.",
   "type": "module",

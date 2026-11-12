@@ -102,6 +102,13 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## She fills in your own forms, in 3.6.3
+
+Give her your Excel or Word form (a time sheet, an application) and she writes the values into a copy
+of your own file, matched by its labels and table columns, keeping its layout and formatting. She reads
+the copy back and says "Filled 23 of 23 fields" or names what didn't go in; she never says a form is
+filled when it isn't.
+
 ## She does it for you, in 3.6.2
 
 When you ask her to fix something on your computer (remove a browser extension, switch off a startup

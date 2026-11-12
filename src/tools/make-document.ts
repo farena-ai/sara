@@ -12,7 +12,9 @@ import { DocError, FORMAT_LABEL, madeDocs, makeDocument } from '../documents/mak
 import { FORMATS, TEMPLATES } from '../documents/spec.ts';
 import { minorSexualMatch } from '../safety.ts';
 import { humanSize } from './send-file.ts';
-import { ToolError, type Tool } from './types.ts';
+import { ToolError, type Tool, type ToolContext } from './types.ts';
+import type { MadeDoc } from '../documents/make.ts';
+import type { Conversation } from '../store.ts';
 
 export const MAKE_DOCUMENT = 'make_document';
 
@@ -48,6 +50,7 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
         const m = madeDocs(app).get(Number(args.basedOn));
         if (!m) throw new ToolError(`There is no document #${String(args.basedOn)} here.`);
         const extra = m.spec.sheets ? `\nSheets (JSON): ${JSON.stringify(m.spec.sheets).slice(0, 20_000)}` : m.spec.slides ? `\nSlides (JSON): ${JSON.stringify(m.spec.slides).slice(0, 20_000)}` : '';
+        if (m.spec.filled) return `Document #${m.id} “${m.title}” is the person's own form “${m.spec.filled.fromName}”, filled in with fill_document (${m.spec.filled.filled} of ${m.spec.filled.fields} fields). It reads:\n\n${m.spec.content.slice(0, 60_000)}\n\nTo change it, call fill_document again on the original form “${m.spec.filled.fromName}” with all the values (the corrected ones too); don't remake it with make_document (that would lose its layout).`;
         return `Document #${m.id} “${m.title}” (${FORMAT_LABEL[m.format]}, version ${m.version}). Its content now:\n\n${m.spec.content.slice(0, 60_000)}${extra}\n\nTo change it, call make_document with basedOn: ${m.id} and the whole changed content.`;
       }
       const text = `${String(args.title ?? '')}\n${String(args.content ?? '').slice(0, 200_000)}`;
@@ -60,21 +63,23 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
         throw err;
       }
       const { made, data, mime } = out;
-      // The chat card (and the real file in Telegram, Discord and plugin chats).
-      let shared = false;
-      if (conv && ctx.attachFile && !fileQuotaHit(app, data.length)) {
-        const hash = sha256(data);
-        const copy = join(sharedDir(app), hash);
-        if (!existsSync(copy)) writeFileSync(copy, data, { mode: 0o600 });
-        const keep = (app.settings.get() as { chats?: { media?: { sentKeepDays?: number } } }).chats?.media?.sentKeepDays;
-        const days = [7, 30, 90].includes(Number(keep)) ? Number(keep) : 30;
-        const ch = conv.channel;
-        const id = recordShared(app, { conversationId: conv.id, direction: 'out', bridge: ch.startsWith('telegram') ? 'telegram' : ch.startsWith('discord') ? 'discord' : ch.startsWith('plugin-') ? ch : 'web', chatKey: conv.channelKey ?? conv.id, sender: 'her', kind: 'file', name: made.name, mime, bytes: data.length, path: copy, status: 'ok', expiresAt: new Date(app.now().getTime() + days * 86_400_000).toISOString() });
-        ctx.attachFile({ id, name: made.name, mime, bytes: data.length, made: { id: made.id, format: made.format, version: made.version, title: made.title } });
-        shared = true;
-      }
+      const shared = shareMade(app, ctx, conv, made, data, mime);
       const where = [shared ? 'it is in the chat with Download, Open and Make changes buttons' : '', made.libraryId ? `it is saved in the Library (document ${made.libraryId})` : ''].filter(Boolean).join(', and ');
       return `Made “${made.title}” as a ${FORMAT_LABEL[made.format]} (${made.name}, ${humanSize(data.length)}), document #${made.id}${made.version > 1 ? `, version ${made.version}` : ''}.${where ? ` ${where[0].toUpperCase()}${where.slice(1)}.` : ''} Tell the owner in a sentence; don't paste the content again. To change it later, call make_document with basedOn: ${made.id}.`;
     },
   };
+}
+
+/** The chat card for a made document (and the real file in Telegram, Discord and plugin chats). */
+export function shareMade(app: AppContext, ctx: ToolContext, conv: Conversation | undefined, made: MadeDoc, data: Buffer, mime: string): boolean {
+  if (!conv || !ctx.attachFile || fileQuotaHit(app, data.length)) return false;
+  const hash = sha256(data);
+  const copy = join(sharedDir(app), hash);
+  if (!existsSync(copy)) writeFileSync(copy, data, { mode: 0o600 });
+  const keep = (app.settings.get() as { chats?: { media?: { sentKeepDays?: number } } }).chats?.media?.sentKeepDays;
+  const days = [7, 30, 90].includes(Number(keep)) ? Number(keep) : 30;
+  const ch = conv.channel;
+  const id = recordShared(app, { conversationId: conv.id, direction: 'out', bridge: ch.startsWith('telegram') ? 'telegram' : ch.startsWith('discord') ? 'discord' : ch.startsWith('plugin-') ? ch : 'web', chatKey: conv.channelKey ?? conv.id, sender: 'her', kind: 'file', name: made.name, mime, bytes: data.length, path: copy, status: 'ok', expiresAt: new Date(app.now().getTime() + days * 86_400_000).toISOString() });
+  ctx.attachFile({ id, name: made.name, mime, bytes: data.length, made: { id: made.id, format: made.format, version: made.version, title: made.title } });
+  return true;
 }

@@ -42,6 +42,10 @@ export type Cell = string | number | boolean | null;
 export interface Sheet {
   name: string;
   rows: Cell[][];
+  /** The table's header row (0-based; default 0) when label rows come above it. */
+  head?: number;
+  /** How many rows the table has, header included (default: to the end). */
+  tableRows?: number;
 }
 export interface SlideLine {
   runs: Run[];
@@ -65,6 +69,8 @@ export interface DocSpec {
   content: string;
   sheets?: Sheet[];
   slides?: Slide[];
+  /** fill_document: this file is the person's own form filled in (content is what the copy reads as). */
+  filled?: { fromId: number; fromName: string; fields: number; filled: number };
 }
 
 /** A picture from her library or uploads, ready to place. */
@@ -195,9 +201,38 @@ export function cleanSpec(args: Record<string, unknown>): DocSpec {
   const title = cleanTitle(String(args.title ?? '').replace(/\.(docx?|pdf|xlsx?|pptx?|md|markdown|csv|html?|txt)$/i, ''), cleanTitle(/^#\s+(.+)$/m.exec(content)?.[1], 'Document'));
   const t = String(args.template ?? '').toLowerCase();
   const template = (TEMPLATES as readonly string[]).includes(t) ? (t as Template) : guessTemplate(title, content);
+  if (content.includes('|')) checkTables(content);
   const images = (content.match(/!\[[^\]]*\]\((upload|library):/gi) ?? []).length + (slides?.filter((s) => s.image).length ?? 0);
   if (images > LIMITS.images) throw new DocError(`A document can have up to ${LIMITS.images} pictures.`);
   return { format, title, template, content, ...(sheets ? { sheets } : {}), ...(slides ? { slides } : {}) };
+}
+
+/** A table row with more cells than its header would shift every value after it (totals land in the wrong column). */
+function checkTables(content: string): void {
+  for (const b of parseMarkdown(content)) {
+    if (b.t !== 'table') continue;
+    const bad = b.rows.findIndex((r) => r.length > b.head.length);
+    if (bad >= 0) {
+      const name = plain(b.head[0] ?? []).trim();
+      throw new DocError(`Row ${bad + 1} of a table${name ? ` (the one starting "${name.slice(0, 40)}")` : ''} has ${b.rows[bad].length} cells but its header has ${b.head.length} columns. Put each value under its own column (leave a cell empty with | |) so nothing shifts, and send it again.`);
+    }
+  }
+}
+
+/** A line "**Label:** value" or "Label: value" as two cells; other lines as one. */
+function lineCells(line: Run[]): Cell[] {
+  const text = plain(line).trim();
+  if (!text) return [];
+  const first = line[0];
+  if (first?.bold) {
+    const label = first.text.trim();
+    const rest = plain(line.slice(1)).trim();
+    if (label.endsWith(':') && rest) return [label, cellValue(rest)];
+    if (rest.startsWith(':') && rest.slice(1).trim()) return [`${label}:`, cellValue(rest.slice(1).trim())];
+  }
+  const m = /^([^:|]{1,40}):\s+(\S.*)$/.exec(text);
+  if (m && !/^https?$/i.test(m[1].trim())) return [`${m[1].trim()}:`, cellValue(m[2])];
+  return [cellValue(text)];
 }
 
 /** The blocks to lay out: the title is the first heading unless the Markdown starts with one. */
@@ -212,29 +247,55 @@ export function docBlocks(spec: DocSpec): Block[] {
 /** The section level of a heading: # (when not the title) and ## are sections, ### a subsection. */
 export const sectionLevel = (level: 1 | 2 | 3): 1 | 2 => (level === 3 ? 2 : 1);
 
-/** Sheets for a spreadsheet (or a CSV): given ones, else the Markdown's tables, else its lines. */
+/**
+ * Sheets for a spreadsheet (or a CSV): given ones, else the Markdown's tables, else its lines. Label
+ * lines around a table ("**EMPLOYEE NAME:** Kent") go on its sheet, above or below it, as label | value cells.
+ */
 export function sheetsOf(spec: DocSpec): Sheet[] {
   if (spec.sheets?.length) return spec.sheets;
-  const blocks = parseMarkdown(spec.content);
+  const blocks = parseMarkdown(spec.content, { keepLines: true });
   const out: Sheet[] = [];
   let heading = '';
   const names = new Set<string>();
   let cells = 0;
+  let pending: Cell[][] = [];
+  const linesOf = (runs: Run[]): Run[][] => {
+    const lines: Run[][] = [[]];
+    for (const r of runs) {
+      const parts = r.text.split('\n');
+      parts.forEach((t, i) => {
+        if (i) lines.push([]);
+        if (t) lines[lines.length - 1].push({ ...r, text: t });
+      });
+    }
+    return lines;
+  };
   for (const b of blocks) {
     if (b.t === 'h') heading = plain(b.runs);
+    if (b.t === 'p' || b.t === 'li' || b.t === 'quote') for (const l of linesOf(b.runs)) {
+      // Label lines ("EMPLOYEE NAME: Kent") go on the sheet; other prose stays in the Markdown only.
+      const row = lineCells(l);
+      if (row.length === 2) pending.push(row);
+    }
     if (b.t !== 'table') continue;
+    if (out.length >= LIMITS.sheets) break;
     let name = (heading || `Sheet${out.length + 1}`).replace(/[\\/?*[\]:]/g, ' ').trim().slice(0, 31) || `Sheet${out.length + 1}`;
     while (names.has(name.toLowerCase())) name = `${name.slice(0, 28)} ${out.length + 1}`;
     names.add(name.toLowerCase());
-    const rows = [b.head, ...b.rows].map((r) => r.map((c) => cellValue(plain(c))));
+    const table = [b.head, ...b.rows].map((r) => r.map((c) => cellValue(plain(c))));
+    const above = pending.length ? [...pending, []] : [];
+    pending = [];
+    const rows = [...above, ...table];
     cells += rows.reduce((n, r) => n + r.length, 0);
     if (cells > LIMITS.cells || rows.length > LIMITS.rowsPerSheet) throw new DocError('That table is too big for one spreadsheet.');
-    out.push({ name, rows });
-    if (out.length >= LIMITS.sheets) break;
+    out.push({ name, rows, ...(above.length ? { head: above.length } : {}), tableRows: table.length });
   }
-  if (out.length) return out;
-  const lines = spec.content.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, LIMITS.rowsPerSheet);
-  return [{ name: 'Sheet1', rows: lines.map((l) => [cellValue(l.replace(/^#+\s+|^[-*]\s+/, ''))]) }];
+  if (out.length) {
+    if (pending.length) out[out.length - 1].rows.push([], ...pending);
+    return out;
+  }
+  const lines = blocks.flatMap((b) => (b.t === 'h' ? [[cellValue(plain(b.runs))]] : b.t === 'p' || b.t === 'li' || b.t === 'quote' ? linesOf(b.runs).map(lineCells) : b.t === 'code' ? b.text.split('\n').map((l) => [cellValue(l)]) : [])).filter((r) => r.length).slice(0, LIMITS.rowsPerSheet);
+  return [{ name: 'Sheet1', rows: lines.length ? lines : [[cellValue(spec.content.trim())]] }];
 }
 
 /** Slides for a presentation: given ones, else one per # / ## heading of the Markdown. */

@@ -153,7 +153,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
-  [/^make_document$/, 'documents', 'make documents'],
+  [/^(make_document|fill_document)$/, 'documents', 'make documents'],
 ];
 
 const MCP_LABELS: Record<string, string> = { github: 'GitHub', playwright: 'Playwright browser', filesystem: 'files server', files: 'files server', memory: 'memory server', fetch: 'fetch server', everything: 'test server' };
@@ -240,7 +240,9 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa'],
   // make_document: documents and files she makes (all six languages, folded, no accents).
-  documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella'],
+  documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella',
+    // fill_document: forms and templates to fill in.
+    'form', 'forms', 'fill', 'fill in', 'fill out', 'template', 'time sheet', 'timesheet', 'application form', 'formulario', 'plantilla', 'rellena', 'rellenar', 'llena', 'llenar', 'formulaire', 'modele', 'remplis', 'remplir', 'formular', 'vorlage', 'ausfullen', 'preencha', 'preencher', 'modulo', 'compila', 'compilare'],
   // 3.3.0 (ezplain): settings by asking (change_setting).
   settings: ['text', 'font', 'bigger', 'larger', 'smaller', 'zoom', 'dark mode', 'light mode', 'night mode', 'day mode', 'theme', 'color', 'colour', 'your voice', 'voice', 'mute', 'call me', 'my name', 'texto', 'letra', 'modo oscuro', 'tema', 'voz', 'llamame', 'texte', 'police', 'mode sombre', 'couleur', 'voix', 'appelle moi', 'schrift', 'grosser', 'dunkelmodus', 'farbe', 'stimme', 'nenn mich', 'fonte', 'maior', 'modo escuro', 'cor', 'me chame', 'testo', 'carattere', 'piu grande', 'tema scuro', 'colore', 'voce', 'chiamami'],
   personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],

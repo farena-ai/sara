@@ -5,8 +5,18 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.3 (2026-11-12): she fills in your own forms
+
 ## 3.6.2 (2026-11-12): she does it for you
 
+- New: she fills in your own forms. Give her an Excel or Word form or template (a time sheet, an
+  application) and the values; she writes them into a copy of your file that keeps its layout,
+  formatting and formulas (the original isn't changed), reads the copy back to check every value,
+  and says "Filled 23 of 23 fields" or exactly which ones she couldn't fill and why. PDF forms are
+  not supported yet.
+- Fixed: a spreadsheet she made from a write-up lost lines like "EMPLOYEE NAME: Kent" written above
+  or below the table; they now go on the sheet as label and value cells. A table row with more cells
+  than its header is sent back to her to fix instead of shifting the totals into the wrong column.
 - Fixed: a reply could fail without a word. Some models (seen with beam:cloud through Ollama) answer
   with only their private thinking; she now asks once more for a plain answer. A model writing a tool
   call as text runs it as the real call, and thinking tags never stay in her words. Every failed reply
