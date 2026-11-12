@@ -121,6 +121,16 @@ std::string blockedKind(const std::string& title, const std::string& app) {
   return {};
 }
 
+#ifdef SARA_TEST_HOOKS
+static void tdbg(const std::string& line) {
+  static ULONGLONG t0 = GetTickCount64();
+  wchar_t d[MAX_PATH]; if (GetEnvironmentVariableW(L"SARA_DESKTOP_TEST_DIR", d, MAX_PATH) == 0) return;
+  FILE* f = nullptr; if (_wfopen_s(&f, (std::wstring(d) + L"\\timing.log").c_str(), L"a") == 0 && f) { fprintf(f, "%llu [%lu] %s\n", GetTickCount64() - t0, GetCurrentThreadId(), line.c_str()); fclose(f); }
+}
+#define TDBG(x) tdbg(x)
+#else
+#define TDBG(x)
+#endif
 std::wstring exeOf(DWORD pid) {
   std::wstring out;
   if (HANDLE p = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid)) {
@@ -172,7 +182,7 @@ std::vector<Win> listAll() {
         Win w;
         w.h = h;
         wchar_t t[512];
-        int n = GetWindowTextW(h, t, 512);
+        int n = InternalGetWindowText(h, t, 512);  // never sends WM_GETTEXT (our own windows' threads may be busy)
         w.title = u8(std::wstring(t, std::max(0, n)));
         DWORD pid = 0;
         GetWindowThreadProcessId(h, &pid);
@@ -405,9 +415,15 @@ ComPtr<IUIAutomationCacheRequest> cacheReq(IUIAutomation* a) {
   for (PROPERTYID p : {UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId, UIA_BoundingRectanglePropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsOffscreenPropertyId, UIA_ValueValuePropertyId}) cr->AddProperty(p);
   return cr;
 }
-/** The control view of one window: depth ≤ 8, at most `limit` items listed (and how many there were). */
+bool browserApp(const std::string& app);
+static thread_local int g_collectDepth = 8;
+static int collectDepth() { return g_collectDepth; }
+/** The control view of one window: depth ≤ 8 (browsers 20), at most `limit` items listed (and how many there were). */
 void collect(HWND h, int limit, std::vector<Item>& out, int& total) {
   total = 0;
+  // 3.6.x: a browser's page content sits deeper than an app's controls (Edge: depth 9+), so browser windows get more depth.
+  DWORD pid__ = 0; GetWindowThreadProcessId(h, &pid__);
+  g_collectDepth = browserApp(appName(exeOf(pid__))) ? 20 : kMaxDepth;
   auto a = uia();
   if (!a) return;
   auto cr = cacheReq(a.Get());
@@ -418,7 +434,7 @@ void collect(HWND h, int limit, std::vector<Item>& out, int& total) {
   int nodes = 0;
   struct Rec {
     static void go(IUIAutomationTreeWalker* walk, IUIAutomationCacheRequest* cr, IUIAutomationElement* el, int depth, int limit, int& nodes, std::vector<Item>& out, int& total) {
-      if (depth > kMaxDepth || nodes > kMaxNodes) return;
+      if (depth > collectDepth() || nodes > kMaxNodes) return;
       ComPtr<IUIAutomationElement> c;
       walk->GetFirstChildElementBuildCache(el, cr, &c);
       while (c && nodes <= kMaxNodes) {
@@ -813,7 +829,7 @@ std::string hiddenKindOf(HWND h) {
   for (auto& c : exeL) c = (wchar_t)towlower(c);
   if (pid == GetCurrentProcessId() || (!exeL.empty() && exeL == ownExe())) return "sara";
   wchar_t t[512];
-  int n = GetWindowTextW(h, t, 512);
+  int n = InternalGetWindowText(h, t, 512);  // never sends WM_GETTEXT (our own windows' threads may be busy)
   return blockedKind(u8(std::wstring(t, std::max(0, n))), appName(exe));
 }
 
@@ -909,9 +925,12 @@ bool sensitivePage(const std::string& text) {
 
 Result tabs(DWORD ownBrowserPid, DWORD onlyPid) {
   Result res;
+  TDBG("tabs start");
   Com com;
   auto a = uia();
+  TDBG("uia made");
   auto all = listAll();
+  TDBG("listAll " + std::to_string(all.size()));
   std::string o = "{\"browsers\":[";
   int n = 0;
   for (auto& w : all) {
@@ -927,7 +946,9 @@ Result tabs(DWORD ownBrowserPid, DWORD onlyPid) {
     }
     std::vector<TabInfo> ts;
     std::string address;
+    TDBG("strip " + w.app);
     if (a) tabStrip(a.Get(), w.h, ts, address);
+    TDBG("strip done " + std::to_string(ts.size()));
     // No tab strip found (an app window of the browser, or a browser that hides it): the window's title is its tab.
     if (ts.empty()) ts.push_back({maskText(clip(w.title, 160)), true});
     std::string tl;
@@ -1134,9 +1155,11 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   // after Allow does the app bring that exact window to the front; every check below then runs again with it in front.
   // Only the look-up before the approval card (inspect) may skip the in-front checks; the guard during input never does.
   bool checking = beforeApproval && !activate && !approvedRefresh;
-  if (activate) bringToFront(w->h);
+  TDBG("bind start op=" + a.op + " activate=" + std::to_string(activate));
+  if (activate) { bringToFront(w->h); TDBG("front done"); }
   if (!checking && GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
   std::vector<Item> items; int total = 0; collect(w->h, kMaxElements, items, total);
+  TDBG("collected " + std::to_string(items.size()));
   if (items.size() != b.view.identity.size()) return refusal("stale_view", "The controls changed: look again.");
   // The target (checked below by its ref) must be the very same control, runtime id included; the rest of the window
   // must keep every control's type, name, place and state. Their runtime ids are not compared: Windows hands out new
@@ -1289,10 +1312,11 @@ Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
 }  // namespace
 
 Result inspect(const Action& a, ActionInfo& info) {
+  TDBG("inspect " + a.op);
   Com com;
   if (a.op == "d.launch") { info.target = "Open installed app: " + a.app; info.once = onceAction(a.app); return launch(a, false); }
   if (a.op == "d.tabswitch") return tabSwitch(a, false, &info);
-  Bound b; auto r = bind(a, b, false); if (!r.code.empty()) return r;
+  Bound b; auto r = bind(a, b, false, false, true); if (!r.code.empty()) return r;
   if (a.op == "d.keys" && !std::regex_match(lower(a.combo), std::regex("enter|tab|shift\\+tab|escape|arrowleft|arrowright|arrowup|arrowdown|home|end|pageup|pagedown|backspace|ctrl\\+a"))) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
   if (a.text.size() > 8000 || maskText(a.text) != a.text) return refusal("denied_local", "That text is too long or looks like a secret.");
   info.target = a.op + " in " + b.win.title + " / " + b.item.role + " " + b.item.name;
@@ -1301,7 +1325,7 @@ Result inspect(const Action& a, ActionInfo& info) {
   info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text) || b.sensitive;
   if (a.op == "d.drag") {
     Action destination = a; destination.ref.clear(); destination.x = a.toX; destination.y = a.toY;
-    Bound end; auto checked = bind(destination, end, false); if (!checked.code.empty()) return checked;
+    Bound end; auto checked = bind(destination, end, false, false, true); if (!checked.code.empty()) return checked;
     info.target += "\nDrop on: " + end.item.role + " " + end.item.name;
     info.once = info.once || onceAction(end.item.name);
   }
@@ -1309,6 +1333,7 @@ Result inspect(const Action& a, ActionInfo& info) {
 }
 
 Result refreshApproved(Action& a) {
+  TDBG("refreshApproved");
   Com com; Bound b; auto r = bind(a, b, true, true); if (!r.code.empty()) return r;
   b.view.at = GetTickCount64();
   std::lock_guard<std::mutex> l(g_m); a.viewId = "v" + std::to_string(++g_viewN); g_views[a.viewId] = b.view;
@@ -1368,9 +1393,9 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     std::wstring text(n, 0); MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), text.data(), n);
     ComPtr<IUIAutomationValuePattern> pattern;
     if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
-      if (!guard()) return refusal("stopped", "Stopped before SetValue.");
-      BSTR value = SysAllocStringLen(text.data(), (UINT)text.size()); HRESULT set = pattern->SetValue(value); SysFreeString(value);
-      if (FAILED(set)) return refusal("denied_local", "The field refused its accessibility value action.");
+      TDBG("guard before SetValue"); if (!guard()) return refusal("stopped", "Stopped before SetValue.");
+      TDBG("SetValue start"); BSTR value = SysAllocStringLen(text.data(), (UINT)text.size()); HRESULT set = pattern->SetValue(value); SysFreeString(value);
+      TDBG("SetValue end hr=" + std::to_string((long)set)); if (FAILED(set)) return refusal("denied_local", "The field refused its accessibility value action.");
       done = true;
     } else {
       if (FAILED(b.item.element->SetFocus())) return refusal("denied_local", "The target could not receive keyboard focus.");

@@ -5,6 +5,13 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.1 (2026-11-12): using your apps is fast
+
+- **Using your apps is fast again:** an approved typing step into an app could take minutes and leave her slow to read your tabs afterwards. Listing windows read the Sara app's own window titles in a way that waits for its busy screen thread; it now reads them without waiting (seen live: 2.5 minutes before, 4 seconds after).
+- **Switch to one of your browser tabs:** she can bring one of your open tabs to the front (you allow it on the PC), then look, click and type there; tried live: switch tab, click a link, the page opened.
+- **Windows behind others:** she can prepare an action on a window that's behind other windows; after your Allow the app brings that exact window forward and checks everything again.
+- **Your own browser pages:** her element list now reaches into the page in your browser window (links, buttons, fields), so text-only models can act on page content too.
+
 ## 3.6.0 (2026-11-12): her own face and the whole computer
 
 - **She knows everything she can do on your computer, and uses it:** asked "what can you do on my computer?" she lists it plainly (see your whole screen and windows, read your browser tabs, click and type in your apps after you allow it on the PC, run commands you approve, read your files). Questions about your screen, apps, programs, windows or browser now bring her the screen and app tools instead of only the files tool.

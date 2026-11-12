@@ -465,8 +465,9 @@ To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it 
 - **Your own browser:** `pc_my_tabs` lists your tabs; `pc_look` / `pc_click` / `pc_type` work in your browser
   window that is in front through UI Automation. Payment, account and sign-in pages always ask; password fields
   are never typed into; banking and password manager windows stay blocked; Sara's own server and sign-in pages are
-  refused. `d.tabswitch` (bring another tab to the front) is built but not offered by the app yet: desktop input
-  after an approval was found slow on a test run (see BACKLOG).
+  refused. `pc_my_tabs` with `switch` (op `d.tabswitch`) brings another of your tabs to the front, approved on the PC.
+  Browser windows are listed 20 levels deep (apps 8), so page links and fields are in the element list.
+- **Before the approval card** the target window may be behind other windows (inspect only).
 - **After Allow** the app brings that exact window to the front (sharing input with the window in front for that
   one call, as Windows requires) and repeats every check; the target must be the very same control (runtime id),
   the other controls the same type, name, place and state.

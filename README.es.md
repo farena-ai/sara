@@ -24,7 +24,7 @@
 
 **Actualizar:** en un servidor Linux, `sudo sara update` (antes hace una copia de seguridad y vuelve atrás si ella no responde) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows y Mac: Ajustes → Datos y salud → Actualizaciones · Android: Google Play. [Cómo actualizar](docs/INSTALL.md#upgrading).
 
-> **Estado:** 3.6.0, [Su propia cara, toda la computadora](https://github.com/farena-ai/sara/releases/tag/v3.6.0). La app lleva la cara del compañero, su parte superior sigue el tema y usa tu pantalla, tus apps y las carpetas que elijas. [Ver novedades](#novedades)
+> **Estado:** 3.6.1, [Usar tus apps es rápido](https://github.com/farena-ai/sara/releases/tag/v3.6.1). Escribir y hacer clic aprobados en tus apps tarda segundos, y puede cambiar a tus pestañas con tu permiso. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versiones recientes · 6 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Usar tus apps es rápido](docs/desktop.md)** — Una lista de ventanas que esperaba al hilo ocupado de la app hacía que las acciones aprobadas tardaran minutos; ahora tardan segundos. Cambia a una de tus pestañas cuando lo permites, actúa en ventanas detrás de otras tras tu permiso y ve los enlaces de tus páginas. |
 | **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Su propia cara, toda la computadora](docs/desktop.md)** — La cara de Fred (o cualquier aspecto propio) en la ventana, la barra de tareas, la bandeja y los accesos directos; la parte superior sigue el tema de la página. Enumera y usa todo lo que puede hacer en tu PC, y Archivos lee las carpetas que elijas sin cambiarlas. |
 | **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Lo que escribes siempre le llega](docs/desktop.md)** — Cada vez que su ventana se activa, tras sus tarjetas y el uso de la computadora y al iniciar, la app pasa el teclado a la página. La pregunta rápida toma el texto seleccionado en el chat de Sara y avisa cuando no había nada seleccionado. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Una app de escritorio que hace más](docs/desktop.md)** — La pregunta rápida toma el texto seleccionado o una imagen de la ventana, pulsar para hablar y las respuestas habladas funcionan con la ventana cerrada, arrastrar y Guardar en mi PC manejan archivos, los comandos aprobados se ejecutan en tu PC con Detener y los chats recientes se leen sin conexión. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Respuestas rápidas con modelos en el procesador](docs/CHOOSING_A_MODEL.md)** — Sara pregunta a cada Ollama si el modelo corre en la tarjeta gráfica; en el procesador mantiene el contexto pequeño para que las respuestas sigan siendo rápidas. Tras 45 segundos sin respuesta, el chat nombra el modelo lento con Arréglalo, Seguir esperando y Detener. |
 | **[3.4.4](https://github.com/farena-ai/sara/releases/tag/v3.4.4)** | **[Interrumpe y díselo ya](docs/CHATS.md)** — Interrumpir ahora (menú Enviar, Ctrl+Enter o /now) detiene su respuesta o razonamiento y sigue desde lo que dijiste, conservando los pasos terminados y plegando lo que estaba diciendo. Los cambios en curso terminan primero y un comando largo tiene Detener el comando. |
-| **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Lee las imágenes que le envías](docs/CHOOSING_A_MODEL.md)** — Las capturas de análisis, facturas o formularios llegan ahora a cualquiera de tus modelos que pueda ver; si el que responde no puede, otro la convierte primero en texto exacto. Guarda los valores con note add y, si ningún modelo puede verla, lo dice con Arréglalo en vez de fingir. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versiones 2.6x anteriores</b>: de la 3.4.2 a la 2.61.5</summary>
+<summary><b>Versiones 2.6x anteriores</b>: de la 3.4.3 a la 2.61.5</summary>
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.4.3](https://github.com/farena-ai/sara/releases/tag/v3.4.3)** | **[Lee las imágenes que le envías](docs/CHOOSING_A_MODEL.md)** — Las capturas de análisis, facturas o formularios llegan ahora a cualquiera de tus modelos que pueda ver; si el que responde no puede, otro la convierte primero en texto exacto. Guarda los valores con note add y, si ningún modelo puede verla, lo dice con Arréglalo en vez de fingir. |
 | **[3.4.2](https://github.com/farena-ai/sara/releases/tag/v3.4.2)** | **[Notas que nunca pierden lo que le contaste](docs/FEATURES.md)** — Añade cada cosa nueva a una nota bajo un título con fecha, se rechaza un guardado que borraría una nota, las versiones anteriores vuelven con Restaurar y un «guardado» sin respaldo se señala. El borde superior de la app de Windows coincide con la página y puede leer tus pestañas y archivos. |
 | **[3.4.1](https://github.com/farena-ai/sara/releases/tag/v3.4.1)** | **[Recuerda tanto como su modelo puede contener](docs/CHOOSING_A_MODEL.md)** — Auto ajusta cuánto del chat tiene presente al modelo en uso (consultado al servicio o en una tabla con fecha), limita el historial de pago por token a un nivel equilibrado salvo que elijas la ventana completa, y da a los modelos locales de Ollama un contexto real. |
 | **[3.4.0](https://github.com/farena-ai/sara/releases/tag/v3.4.0)** | **[Documentos, su nombre en todas partes, uso del ordenador desde un servidor](docs/DOCUMENTS.md)** — Crea documentos reales con cualquier modelo (Word, PDF, hojas de cálculo, presentaciones) con Descargar, Abrir y Hacer cambios. Un acompañante con otro nombre muestra su nombre y pronombres en todas partes, con personajes predeterminados él y elle. El complemento de navegador y el uso del ordenador ahora funcionan con un clic. |

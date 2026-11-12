@@ -102,6 +102,12 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Using your apps is fast, in 3.6.1
+
+Approved actions in your apps take seconds again (a window listing waited on the app's own busy screen
+thread, for minutes). She can switch to one of your browser tabs with your approval, act on a window
+that is behind others after you allow it, and see the links and fields on your browser pages.
+
 ## Her own face and the whole computer, in 3.6.0
 
 The Windows app shows the companion's own face (Fred's, a custom look) on its window, taskbar, tray,

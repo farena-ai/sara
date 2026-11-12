@@ -381,7 +381,7 @@ const std::set<std::string> kOps = {"b.start", "b.tabs", "b.open", "b.navigate",
                                     // check-up changes are made by the person (Sara says where).
                                     "s.check",
                                     // 3.4.x: the person's own browser tabs (with "The whole screen") and files (with "Files"), read only.
-                                    "d.tabs", "f.list", "f.read",
+                                    "d.tabs", "f.list", "f.read", "d.tabswitch",
                                     // d.tabswitch (switching the person's own tabs) is built but not offered yet: held back
                                     // until desktop input after an approval is fast and reliable (docs/BACKLOG.md).
                                     // 3.5 (PC tools): commands and "open this", with "Let her run commands" on (hands-run.cpp).
