@@ -5,6 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.2 (2026-11-12): she does it for you
+
+- Fixed: a reply could fail without a word. Some models (seen with beam:cloud through Ollama) answer
+  with only their private thinking; she now asks once more for a plain answer. A model writing a tool
+  call as text runs it as the real call, and thinking tags never stay in her words. Every failed reply
+  now leaves a notice in the chat with the reason, Try again and Report it, and the server log says why.
+- Fixed: Report a problem said "The support desk didn't answer" while the desk was there and turned
+  the report down (the report carried a field it doesn't take, and an empty description). Reports now
+  send only what the desk accepts, and a refusal shows the desk's own reason (also in the log).
+- New: ask her to report a problem for you. She drafts it with the last error, shows you the whole
+  draft, and sends it only after you allow it.
+- Windows app: the app's check-in now says how it draws the top of its window (who draws the title
+  strip, its colour, light or dark), shown in Settings → Devices, so a white bar on another PC can be
+  pinned down. The page now repeats that it draws the title strip with every theme change and after
+  a page comes back from the browser's back/forward cache.
+- **She does it for you instead of "do it yourself":** if you could do it on your computer, she offers to do it, with your approval on that computer for anything that changes something. After a check-up, "take care of #3 and remove them" now removes the browser extensions you named: she opens your browser's extensions page, presses Remove and confirms, each step allowed by you on the PC. The other check-up suggestions work the same way (a startup app that starts for everyone, files you pick from Downloads to the Recycle Bin, the browser cache, old temp files, a restore point).
+- **Your browser's own settings pages:** she can act on pages like edge://extensions, chrome://extensions and about:addons (always asking), and type an address into your browser's address bar. Your browser's passwords, payment methods and sync/account pages stay off limits.
+- **Settings app:** she can use the Apps (Installed apps, Startup, Default apps) and Storage pages, always asking. Accounts, sign-in, privacy, Windows Security, BitLocker and the firewall stay off limits.
+- **Administrator prompts:** she never answers them. When one is needed she tells you "Windows will ask you to allow this change — press Yes" and waits.
+- **"I can't" says why:** when she can't do something, she says exactly what's missing (which switch and where, an app update, or which hard limit) and offers the next best step. Words like remove, uninstall, clean or disable about your computer now bring her the tools to do it.
+
 ## 3.6.1 (2026-11-12): using your apps is fast
 
 - **Using your apps is fast again:** an approved typing step into an app could take minutes and leave her slow to read your tabs afterwards. Listing windows read the Sara app's own window titles in a way that waits for its busy screen thread; it now reads them without waiting (seen live: 2.5 minutes before, 4 seconds after).

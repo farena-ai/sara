@@ -193,7 +193,7 @@ test('read-only commands skip the card only when the owner chose that; elevated 
   const el = await device(e2, { elevated: true });
   assert.match(await call(e2, 'pc_run', { command: 'Get-Date' }), /running as administrator/);
   assert.equal(el.ran.length, 0);
-  assert.match(await call(e2, 'pc_run', { command: 'Start-Process cmd -Verb RunAs' }), /never run as administrator/);
+  assert.match(await call(e2, 'pc_run', { command: 'Start-Process cmd -Verb RunAs' }), /never ask for administrator rights themselves.*Windows shows its own prompt/);
 });
 
 test('output cap and masking: the computer and the server both cap and mask; nothing key-shaped crosses the wire', async () => {

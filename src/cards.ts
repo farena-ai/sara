@@ -42,7 +42,7 @@ export type Card =
   /** C3: an MCP App (its page is served by /api/mcp-apps/<id>/frame in a sandboxed frame). */
   | import('./tools/mcp.ts').McpAppCard;
 export type CheckupCardItem = { check: string; status: string; facts: Record<string, string | number | boolean | string[]> };
-export type CheckupCardSuggestion = { id: string; kind: string; check: string; how: 'apply' | 'guide'; name?: string; bytes?: number; page?: string };
+export type CheckupCardSuggestion = { id: string; kind: string; check: string; how: 'apply' | 'assist' | 'guide'; browser?: string; name?: string; bytes?: number; page?: string };
 
 /** Phase 87: where the desktop apps are downloaded (the install card for web-only users). */
 export const APPS_PAGE = 'https://github.com/farena-ai/sara/releases/latest';
@@ -201,7 +201,7 @@ function gmailCard(output: string): Card | undefined {
 // ---------- Phase 94: check-ups ----------
 const CHECK_KEYS = new Set(['startup', 'disk', 'folders', 'updates', 'battery', 'extensions', 'temp']);
 const STATUSES = new Set(['good', 'warn', 'bad', 'info', 'unavailable']);
-const SUGG_KINDS = new Set(['startup.disable', 'temp.clean', 'trash.empty', 'settings.open', 'restore-point', 'guide']);
+const SUGG_KINDS = new Set(['startup.disable', 'temp.clean', 'trash.empty', 'settings.open', 'restore-point', 'guide', 'extensions.remove', 'startup.admin', 'folder.review', 'cache.clear']);
 const PAGES = new Set(['startup', 'storage', 'updates', 'battery']);
 const fact = (v: unknown): string | number | boolean | string[] | undefined => {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
@@ -225,7 +225,7 @@ function checkupCard(output: string): Card | undefined {
   });
   const suggestions = (Array.isArray(j.suggestions) ? j.suggestions : []).slice(0, 16).flatMap((x: Record<string, unknown>) => {
     if (!/^s\d{1,2}$/.test(String(x?.id)) || !SUGG_KINDS.has(String(x?.kind))) return [];
-    return [{ id: String(x.id), kind: String(x.kind), check: cut(x.check, 20), how: x.how === 'apply' ? ('apply' as const) : ('guide' as const), ...(x.name ? { name: cut(x.name, 80) } : {}), ...(typeof x.bytes === 'number' && Number.isFinite(x.bytes) ? { bytes: Math.max(0, Math.round(x.bytes)) } : {}), ...(PAGES.has(String(x.page)) ? { page: String(x.page) } : {}) }];
+    return [{ id: String(x.id), kind: String(x.kind), check: cut(x.check, 20), how: x.how === 'apply' ? ('apply' as const) : x.how === 'assist' ? ('assist' as const) : ('guide' as const), ...(x.browser ? { browser: cut(x.browser, 30) } : {}), ...(x.name ? { name: cut(x.name, 80) } : {}), ...(typeof x.bytes === 'number' && Number.isFinite(x.bytes) ? { bytes: Math.max(0, Math.round(x.bytes)) } : {}), ...(PAGES.has(String(x.page)) ? { page: String(x.page) } : {}) }];
   });
   return { kind: 'checkup', computer: cut(j.computer, 60), os: cut(j.os, 30), at: cut(j.at, 40), windows: j.windows === true, flagged: typeof j.flagged === 'number' ? Math.max(0, Math.round(j.flagged)) : 0, items, suggestions };
 }

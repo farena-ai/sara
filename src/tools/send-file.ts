@@ -48,7 +48,7 @@ interface Found {
 function locate(app: AppContext, args: Record<string, unknown>, conversationId: string | undefined): Found {
   const conv = conversationId ? app.store.getConversation(conversationId) : undefined;
   if (!conv) throw new ToolError('There is no conversation to share the file in.');
-  if (conv.partner) throw new ToolError("Files can't be shared in this chat.");
+  if (conv.partner) throw new ToolError("Files can't be shared in this chat (a chat with another companion or person): ask the owner to ask for it in their own chat with you.");
   const libId = Number(args.libraryId);
   if (args.libraryId !== undefined && args.libraryId !== null && args.libraryId !== '') {
     const doc = Number.isInteger(libId) ? app.library?.get(libId) : undefined;

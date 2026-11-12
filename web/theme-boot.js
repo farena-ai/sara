@@ -104,6 +104,10 @@
     // Tell the app the page draws its header in the strip (until then it keeps its own title strip).
     if (h > 0 && !(shell && shell.test)) {
       window.saraShellSay && window.saraShellSay({ type: 'shell', titlebar: true });
+      // Fred fix A: a page restored from the back/forward cache runs no script again: say it again.
+      if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', function (e) {
+        if (e.persisted) window.saraShellSay && window.saraShellSay({ type: 'shell', titlebar: true });
+      });
     }
   }
 })();

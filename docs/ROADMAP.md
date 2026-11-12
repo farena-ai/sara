@@ -102,6 +102,14 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## She does it for you, in 3.6.2
+
+When you ask her to fix something on your computer (remove a browser extension, switch off a startup
+app, clean up files), she does it step by step and you approve each change on that computer, instead
+of telling you to do it yourself. When she can't, she says exactly what's missing. A reply that fails
+now always shows why, with Try again and Report it, and reports reach the support desk again; she can
+draft one for you and sends it only after you allow it.
+
 ## Using your apps is fast, in 3.6.1
 
 Approved actions in your apps take seconds again (a window listing waited on the app's own busy screen

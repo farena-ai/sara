@@ -191,6 +191,8 @@ export interface DesktopFacts {
   taskGranted?: boolean;
   kind?: 'click' | 'type' | 'keys' | 'scroll' | 'drag' | 'launch' | 'open_app';
   text?: string;
+  /** 3.6.x: the window of the latest look (its app and title), when known. */
+  window?: { app?: string; title?: string };
 }
 export type DesktopVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
 
@@ -205,8 +207,37 @@ const DESKTOP_PAYMENT = /pay|purchase|buy|checkout|order|donate|card/i;
  * words (hands-screen.cpp, sensitivePage).
  */
 export const SENSITIVE_PAGE = /check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet|account|security|privacy|password|passkey|sign[ -_]?in|sign[ -_]?up|log[ -_]?in|\bauth|oauth|\bsso\b|2fa|mfa|two[- ]factor|verify|verification/i;
+/**
+ * 3.6.x (do it for them): a page of the person's own browser itself (edge://, chrome://, about:…). '' a web page;
+ * 'settings' its own settings pages (extensions, add-ons, clear browsing data…): she may act there, and they always
+ * ask; 'blocked' its passwords, payment methods, autofill, sync, profile/account and security pages: never. The
+ * Windows app has the same words (hands-screen.cpp, internalPage).
+ */
+export function browserInternalPage(address: string): '' | 'settings' | 'blocked' {
+  if (!/^\s*(?:(?:edge|chrome|brave|opera|vivaldi):\/\/|about:)/i.test(address)) return '';
+  return /password|passkey|autofill|payment|wallet|sync|profile|people|sign-?in|account|security|credential|logins/i.test(address) ? 'blocked' : 'settings';
+}
+/** The address of the extensions / add-ons page of a browser (by its name as pc_my_tabs and check-ups show it). */
+export function extensionsAddress(browser: string): string {
+  const b = browser.toLowerCase();
+  if (/firefox/.test(b)) return 'about:addons';
+  if (/chrome|chromium/.test(b)) return 'chrome://extensions';
+  if (/brave/.test(b)) return 'brave://extensions';
+  if (/opera/.test(b)) return 'opera://extensions';
+  if (/vivaldi/.test(b)) return 'vivaldi://extensions';
+  return 'edge://extensions';
+}
+/** A window of the person's own browser showing its extensions / add-ons page, or its \"Remove …?\" confirmation. */
+export const BROWSER_APP_NAME = /^(?:msedge|chrome|chromium|firefox|brave|opera|vivaldi)$/i;
+const EXTENSIONS_TITLE = /\b(?:extensions?|add-?ons?(?: manager)?|erweiterungen|extensiones|extensões|estensioni|modules complémentaires|complementos|componenti aggiuntivi)\b|^(?:remove|entfernen|quitar|supprimer|remover|rimuovere)\b[^\n]*\?\s*$/i;
+export function extensionsWindow(app: string, title: string): boolean {
+  return BROWSER_APP_NAME.test(app) && EXTENSIONS_TITLE.test(title) && !/password|passkey|payment|wallet|sync|account|security/i.test(title);
+}
 export function ownBrowserPage(title: string, url = '', blocked = ''): { act: 'block' | 'once' | 'level'; why: string } {
   if (blocked) return { act: 'block', why: `That tab is hidden from you on purpose (${blocked}): never act there.` };
+  const internal = browserInternalPage(url);
+  if (internal === 'blocked') return { act: 'block', why: 'That is the browser\u2019s own passwords, payment methods or account/sync page: never act there (the owner does that part).' };
+  if (internal === 'settings') return { act: 'once', why: 'the browser\u2019s own settings page (asks every time)' };
   let path = url;
   try {
     const u = new URL(/^[a-z]+:/i.test(url) ? url : `https://${url}`);
@@ -222,7 +253,11 @@ export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
   const words = `${f.target.name ?? ''} ${f.text ?? ''}`;
   const risk: ActRisk = DESKTOP_PAYMENT.test(words) ? 'payment' : DESKTOP_ACCOUNT.test(words) ? 'account' : 'normal';
   if (f.target.secret || f.target.blocked || f.target.elevated) return { act: 'block', risk, why: f.target.secret ? 'That is a password field: Sara never types into those.' : f.target.elevated ? "I can't control windows running as administrator" : 'That window is blocked on the computer.' };
-  if (DESKTOP_NEVER.test(words) || /\b(?:delete|remove|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)/i.test(f.target.name ?? '')) return { act: 'block', risk, why: 'The computer refuses that protected desktop action.' };
+  // 3.6.x: on the person's own browser's extensions page (or its \"Remove …?\" confirmation) Remove removes an extension: it asks every time.
+  const extensions = Boolean(f.window && extensionsWindow(f.window.app ?? '', f.window.title ?? ''));
+  const removeWord = extensions ? /\b(?:delete|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)|\bremove (?:a |the )?(?:file|folder)s?\b/i : /\b(?:delete|remove|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)/i;
+  if (DESKTOP_NEVER.test(words) || removeWord.test(f.target.name ?? '')) return { act: 'block', risk, why: 'The computer refuses that protected desktop action.' };
+  if (extensions && /\bremove\b/i.test(f.target.name ?? '')) return { act: 'ask', risk: 'account', why: 'removing a browser extension (asks every time)', choices: ['once'] };
   if (risk === 'payment' || risk === 'account') return { act: 'ask', risk, why: `${risk === 'payment' ? 'payment or purchase' : 'account or security setting'} (asks once)`, choices: ['once'] };
   if (f.level === 'always' || (f.level === 'task' && f.taskGranted)) return { act: 'allow', risk, why: f.level === 'always' ? 'desktop actions are always allowed' : 'allowed for this task' };
   return { act: 'ask', risk, why: f.level === 'ask' ? 'every desktop action asks' : 'the first desktop action in this task asks', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };

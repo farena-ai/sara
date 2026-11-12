@@ -11,7 +11,7 @@ import { OwnerAuth } from '../src/auth.ts';
 import { cardFor } from '../src/cards.ts';
 import { CHECKUP_EVAL_TASKS, runCheckupEval, startCheckupFixtures } from '../src/checkup-evals.ts';
 import { ACTING_OPS, CU7_OPS, DESKTOP_OPS, HANDS_OPS, HandsHub, WAITING_OPS } from '../src/hands.ts';
-import { APPLY_KINDS, applyAllowed, buildReport, checkupData, fixtureCheck, orderHints, reportCard, reportText, TestSystem } from '../src/hands-checkup.ts';
+import { APPLY_KINDS, ASSIST_KINDS, applyAllowed, buildReport, checkupData, fixtureCheck, orderHints, reportCard, reportText, TestSystem } from '../src/hands-checkup.ts';
 import { TestDesktop } from '../src/hands-desktop.ts';
 import { HandsRef } from '../src/hands-ref.ts';
 import { SCREEN_INJECTION_PROBES, screenProbeFlags, screenProbePage, screenProbeWindows } from '../src/redteam-probes.ts';
@@ -49,21 +49,24 @@ test('the report: plain findings, suggestions from numbers and kinds only, resto
   const r = buildReport(fixtureCheck('disk-full'), 'Fixture PC');
   assert.equal(r.windows, true);
   assert.equal(r.suggestions[0].kind, 'restore-point');
-  assert.equal(r.suggestions[0].how, 'guide');
-  for (const s of r.suggestions) assert.ok([...APPLY_KINDS, 'restore-point', 'guide'].includes(s.kind), s.kind);
+  // 3.6.x (do it for them): she opens System Protection; the owner presses Yes and Create (an administrator window).
+  assert.equal(r.suggestions[0].how, 'assist');
+  for (const s of r.suggestions) assert.ok([...APPLY_KINDS, ...ASSIST_KINDS, 'restore-point'].includes(s.kind), s.kind);
   assert.ok(r.suggestions.some((s) => s.kind === 'temp.clean' && s.target === 'temp'));
   assert.ok(r.suggestions.some((s) => s.kind === 'trash.empty'));
   assert.ok(r.suggestions.some((s) => s.kind === 'settings.open' && s.page === 'storage'));
-  // A machine-wide startup app needs an administrator: guide only, never an apply.
-  assert.ok(r.suggestions.some((s) => s.kind === 'guide' && s.target === 'hklm:FixtureAudio'));
+  // A machine-wide startup app: she does it in Settings → Apps → Startup (never an s.apply, never the admin prompt).
+  assert.ok(r.suggestions.some((s) => s.kind === 'startup.admin' && s.how === 'assist' && s.target === 'hklm:FixtureAudio'));
   assert.ok(!r.suggestions.some((s) => s.how === 'apply' && s.target === 'hklm:FixtureAudio'));
   const disk = r.items.find((i) => i.check === 'disk')!;
   assert.equal(disk.status, 'bad');
   const txt = reportText(r);
   assert.match(txt, /read-only: nothing was changed/);
   assert.match(txt, /Downloads/);
-  // Without s.apply on the device every suggestion is the owner's to do (she explains how).
-  assert.ok(buildReport(fixtureCheck('disk-full'), 'Fixture PC', { canApply: false }).suggestions.every((s) => s.how === 'guide'));
+  // Without s.apply on the device she still does them, with approved commands and desktop actions.
+  assert.ok(buildReport(fixtureCheck('disk-full'), 'Fixture PC', { canApply: false }).suggestions.every((s) => s.how === 'assist'));
+  // No suggestion tells the owner to do it themselves.
+  assert.doesNotMatch(txt, /yourself|never changes your own browser|doesn't delete your own files/);
   // A Mac gets no restore-point suggestion.
   assert.ok(!buildReport({ ...fixtureCheck('disk-full'), os: 'mac 15.1' }, 'Mac').suggestions.some((s) => s.kind === 'restore-point'));
 });
@@ -72,7 +75,7 @@ test('names that give orders are data: flagged, never a new kind of suggestion, 
   const r = buildReport(fixtureCheck('injection'), 'Fixture PC');
   assert.equal(r.flagged, 3, 'the startup app, the extension and the folder names are flagged');
   for (const s of r.suggestions) {
-    assert.ok([...APPLY_KINDS, 'restore-point', 'guide'].includes(s.kind));
+    assert.ok([...APPLY_KINDS, ...ASSIST_KINDS, 'restore-point'].includes(s.kind));
     assert.ok(!/documents/i.test(String(s.target ?? '')), 'no suggestion targets the Documents folder');
   }
   assert.match(reportText(r), /read like instructions/);
@@ -307,4 +310,46 @@ test('native check-ups read only through fixed OS APIs, with no shell commands f
   assert.doesNotMatch(mac, /removeItem|trashItem|NSWorkspace\.shared\.open|\.write\(to/);
   assert.ok(readFileSync(join(ROOT, 'desktop/windows/src/hands.cpp'), 'utf8').includes('"s.check"'));
   assert.ok(readFileSync(join(ROOT, 'desktop/mac/Sources/Hands.swift'), 'utf8').includes('"s.check"'));
+});
+
+// 3.6.x (do it for them): suggestions without a single computer change come back as the exact approved steps she
+// takes herself; when a switch is off or the app is old the reply names it; nothing says "do it yourself".
+test('do it for them: extension removal and the other assist suggestions return approved step plans, or say what is missing', async () => {
+  const r = await rig();
+  try {
+    const conv = r.app.store.createConversation({});
+    r.app.store.addMessage(conv.id, 'user', 'check my computer');
+    const ctx = { conversationId: conv.id, signal: new AbortController().signal } as never;
+    const run = async (name: string, args: Record<string, unknown>) => {
+      try {
+        return String(await r.app.tools.get(name)!.run(args, ctx));
+      } catch (err) {
+        return `Error: ${(err as Error).message}`;
+      }
+    };
+    const report = await run('pc_checkup', {});
+    assert.match(report, /pc_checkup_apply gives the steps/);
+    assert.doesNotMatch(report, /remove it yourself|never changes your own browser|doesn't delete your own files|the owner does it/);
+    const card = JSON.parse(/\[checkup-result (.+)\]$/m.exec(report)![1]) as { suggestions: { id: string; kind: string; how: string; browser?: string }[] };
+    const ext = card.suggestions.find((x) => x.kind === 'extensions.remove' && x.browser === 'edge');
+    assert.ok(ext && ext.how === 'assist', 'one remove-extensions suggestion per browser, done by her');
+    const plan = await run('pc_checkup_apply', { suggestion: ext!.id });
+    assert.match(plan, /edge:\/\/extensions/);
+    assert.match(plan, /pc_my_tabs/);
+    assert.match(plan, /pc_type/);
+    assert.match(plan, /pc_click the "Remove"/);
+    assert.match(plan, /Fixture Ad Blocker/);
+    assert.doesNotMatch(plan, /for the owner to do themselves|yourself/);
+    // The restore point: she opens it; the administrator prompt and window stay the owner's (a named hard limit).
+    const rp = card.suggestions.find((x) => x.kind === 'restore-point');
+    if (rp) assert.match(await run('pc_checkup_apply', { suggestion: rp.id }), /run commands on this computer" is off|can't run commands yet: update the Sara app|SystemPropertiesProtection/);
+    // An older app (no desktop clicks): the reply names what is missing (update, where) and the next best step.
+    const devices = r.hub.devices.bind(r.hub);
+    (r.hub as unknown as { devices: () => unknown[] }).devices = () => devices().map((x) => (x.id === r.pair.id ? { ...x, optIn: { ...(x.optIn ?? {}), desktop: true }, ops: (x.ops ?? []).filter((o) => o !== 'd.click') } : x));
+    const old = await run('pc_checkup_apply', { suggestion: ext!.id });
+    assert.match(old, /older and can't click or type for you yet: update the Sara app/);
+    assert.match(old, /Nothing was changed/);
+  } finally {
+    await r.close();
+  }
 });

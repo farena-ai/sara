@@ -2212,6 +2212,12 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'tidy') {
       // EC13: the overnight memory tidy's morning card (web/memory-tidy.js): Undo per change.
       els.push(memoryTidyNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'turnerror') {
+      // Fred fix B: a turn that failed (kept by the server): her plain notice with Try again and Report it.
+      const tr = m.meta?.trouble;
+      const n = tr && typeof tr === 'object' && tr.key ? troubleNotice(tr, m.content) : turnErrorNotice(m.content, m.id);
+      n.dataset.saved = String(m.id);
+      els.push(n);
     } else if (m.role === 'notice' && m.kind === 'call') {
       els.push(bubble('notice', `📞 ${t('Sara called you')}: ${m.content}`, 'call', m.id));
     } else if (m.role === 'assistant' && !m.content.trim() && !m.meta?.proof?.length) {
@@ -2354,6 +2360,32 @@ function troubleNotice(tr, detail) {
       else await regenerate();
     },
   });
+}
+
+/** Fred fix B: a turn that ended in an error: the error in plain words, Try again and Report it. */
+function turnErrorNotice(message, id) {
+  const box = bubble('error', '', 'turnerror', id);
+  box.replaceChildren(el('span', 'turnerror-text', t('This reply failed: {error}', { error: String(message ?? '') })));
+  const row = el('span', 'turnerror-actions');
+  const retry = el('button', 'small', t('Try again'));
+  retry.type = 'button';
+  retry.addEventListener('click', async () => {
+    if (state.streaming || state.watch || !state.currentId) return;
+    box.remove();
+    document.querySelector('#messages .continue-bar')?.remove();
+    const last = (state.messages ?? []).filter((m) => m.role !== 'notice').at(-1);
+    if (last?.role === 'assistant' && last.meta?.partial) await runStream(`/conversations/${state.currentId}/continue`, {}, null);
+    else await regenerate();
+  });
+  row.append(' ', retry);
+  if (hubReady && !document.body.classList.contains('demo')) {
+    const rep = el('button', 'link small hub-report-this', t('Report it'));
+    rep.type = 'button';
+    rep.addEventListener('click', () => openHubReport({ kind: 'bug', error: String(message ?? ''), conversationId: state.currentId }));
+    row.append(' ', rep);
+  }
+  box.append(row);
+  return box;
 }
 
 function continueBar() {
@@ -3043,8 +3075,10 @@ async function runStream(path, body, userBubble) {
         } else if (ev.type === 'error') {
           dropBuilding();
           // 3.3.0: a service problem (her AI service down, the key rejected…) in her plain words with Fix it and Try again.
-          if (ev.trouble && !ev.speaker) append(troubleNotice(ev.trouble, ev.message));
-          else append(bubble('error', ev.speaker ? `${ev.speaker.name}: ${serverText(ev, ev.message)}` : ev.message));
+          // Fred fix B: the server keeps every turn error as a notice (ev.messageId): Try again and Report it.
+          const shown = ev.trouble && !ev.speaker ? troubleNotice(ev.trouble, ev.message) : ev.speaker ? bubble('error', `${ev.speaker.name}: ${serverText(ev, ev.message)}`) : turnErrorNotice(ev.message);
+          if (ev.messageId) shown.dataset.saved = String(ev.messageId);
+          append(shown);
         }
         // A call that was dropped (a fallback, a blocked reply) never stays half-written.
         if (ev.type === 'notice' || ev.type === 'replace' || ev.type === 'claim_check' || ev.type === 'done') dropBuilding();
@@ -3079,7 +3113,8 @@ async function runStream(path, body, userBubble) {
         renderPins();
         const errors = [...document.querySelectorAll('#messages .msg.error')];
         renderMessages(c.messages);
-        for (const e of errors) append(e);
+        // Fred fix B: an error the server kept (a turnerror notice) is drawn from the chat itself.
+        for (const e of errors) if (!e.dataset.saved || !c.messages.some((m) => String(m.id) === e.dataset.saved)) append(e);
         if (errors.some((e) => e.classList.contains('trouble'))) document.querySelector('#messages .continue-bar')?.remove();
       } else if (c.activity && !state.streaming && !state.watch) {
         // Phase 116: a queued message (or a note she got after her last step) already runs: follow it.
@@ -9868,10 +9903,12 @@ function sayShellTheme() {
   // 3.5.2: also what it really shows ("Follow the system" is decided by this page's own
   // prefers-color-scheme, which the app's reading of the registry can disagree with).
   const shown = root.dataset.theme === 'light' ? 'day' : 'night';
-  const said = `${shellTheme} ${shown} ${frame}`;
+  // Fred fix A: and that it draws the title strip (the app keeps its own strip until a page says so).
+  const titlebar = (Number.parseInt(root.style.getPropertyValue('--titlebar'), 10) || 0) > 0;
+  const said = `${shellTheme} ${shown} ${frame} ${titlebar}`;
   if (said === shellSaid) return;
   shellSaid = said;
-  window.saraShellSay?.({ type: 'theme', theme: shellTheme, shown, ...(frame ? { frame } : {}) });
+  window.saraShellSay?.({ type: 'theme', theme: shellTheme, shown, ...(frame ? { frame } : {}), ...(titlebar ? { titlebar: true } : {}) });
 }
 function applyAppearance() {
   const theme = themePick();
@@ -13321,7 +13358,7 @@ async function appCheckin() {
   renderAppUpdate(p.appUpdate);
   if (document.body.classList.contains('demo')) return;
   const st = p.appUpdate;
-  const body = { platform: p.platform === 'mac' ? 'mac' : 'windows', version: p.version, computer: p.computer ?? '', os: p.os ?? '', how: st.how, auto: st.auto !== false, selfUpdate: true, state: st.state, latest: st.latest ?? '', message: st.message ?? '' };
+  const body = { platform: p.platform === 'mac' ? 'mac' : 'windows', version: p.version, computer: p.computer ?? '', os: p.os ?? '', frame: p.frame ?? '', how: st.how, auto: st.auto !== false, selfUpdate: true, state: st.state, latest: st.latest ?? '', message: st.message ?? '' };
   const r = await api('/app-updates/checkin', { method: 'POST', body }).catch(() => null);
   if (!r) return;
   if (r.server) void appUpdCall('server', { version: r.server });
@@ -13361,6 +13398,8 @@ function appInstallLine(a, server, path) {
   else if (a.behind) state = t('older than this server ({version})', { version: server });
   else state = t('up to date');
   box.append(` · ${what}${a.computer ? ` · ${a.computer}` : ''}${a.os ? ` (${a.os})` : ''} · ${state}`);
+  // Fred fix A: how that app draws its window's top (who draws the title strip, its colour, the theme shown).
+  if (a.frame) box.title = t('Window top: {frame}', { frame: a.frame });
   if (a.canAsk && !a.asked) {
     const b = el('button', 'ghost small', t('Update it'));
     b.type = 'button';

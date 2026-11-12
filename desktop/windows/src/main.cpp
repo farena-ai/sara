@@ -710,6 +710,10 @@ static bool g_wantMica = false;               // the page asked for Mica (its ba
 // (an older Sara server, a page still loading) the app keeps a plain title strip of its own above it.
 static bool g_pageTitle = false;
 static std::wstring g_pageTitleOrigin;
+// Fred fix A: what the check-in reports about the window's top (Settings → Devices, app-installs.json).
+static bool g_regions = true;          // this WebView2 lets the page draw in the title area (app-region)
+static int g_pageTitleSaid = 0;        // how many times a page said it draws the strip ('shell' / 'theme' titlebar)
+static bool g_paintFallback = false;   // buffered paint failed once (the strip was painted without alpha)
 static HBRUSH g_bgBrush = nullptr;
 static const int kTitlebarDip = 40;           // the page's header strip (CSS px)
 
@@ -871,6 +875,17 @@ static void logThemeState() {
   if (s == g_themeLogged) return;
   g_themeLogged = s;
   logLine(s);
+}
+/** Fred fix A: the frame decision in one short line for the app's check-in (who draws the title
+ *  strip, its colour and where that came from, the theme shown, whether the page said it draws the
+ *  strip, app-region support, Mica, the caption colour call). Plain ASCII, under 160 characters. */
+static std::wstring frameReport() {
+  std::wstring who = !g_customFrame ? L"windows" : g_pageTitle ? L"page" : L"app";
+  std::wstring from = g_framePageLocal ? L"local" : g_frameSet[g_day] ? L"page" : L"builtin";
+  return L"strip " + who + L", " + hexOfColor(themeColor()) + L" " + from + L", shown " + (g_day ? L"day" : L"night") + L", pref " + g_themePref +
+         L", page said " + std::to_wstring(g_pageTitleSaid) + L"x" + L", regions " + (g_regions ? L"yes" : L"no") + L", mica " + (g_mica ? L"on" : L"off") +
+         L", caption " + (windowsBuild() < 22000 ? L"n/a" : SUCCEEDED(g_captionHr) ? L"ok" : L"failed") + L", dpi " + std::to_wstring(windowDpi()) +
+         (g_paintFallback ? L", paint fallback" : L"");
 }
 /** Title bar colours, Mica and the web view's background for the theme shown now. */
 static void applyTheme() {
@@ -3610,7 +3625,7 @@ static std::wstring prefsJson() {
          // Phase 75 stage 2: the quick-ask shortcut, the choices, and whether another app has it.
          L",\"quickAskShortcut\":\"" + shortcutId() + L"\",\"quickAskShortcutLabel\":\"" + shortcutLabel() + L"\",\"quickAskShortcutFree\":" + (g_shortcutTaken ? L"false" : L"true") +
          L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() +
-         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
+         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"frame\":\"" + jsonEscape(frameReport()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
 }
 
 
@@ -3629,6 +3644,7 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   }
   // Phase 75: the page draws its header in the title strip (any page: it only moves the web view up).
   if (m[L"type"] == L"shell" || kind == L"shell") {
+    if (m[L"titlebar"] == L"true") g_pageTitleSaid++;
     setPageTitle(m[L"titlebar"] == L"true", pageOrigin(source));
     return reply(id, L"true");
   }
@@ -3648,6 +3664,13 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   // Phase 75: the page's theme (Night / Day / follow the system): the title bar, Mica and the
   // background before the next page paints follow it. {type:'theme', theme} or SaraDesktop.call('theme', {theme}).
   if (m[L"type"] == L"theme" || kind == L"theme") {
+    // Fred fix A: every theme message says again whether the page draws the title strip, so a
+    // 'shell' message that was missed (a page restored from the back/forward cache, a page that
+    // loaded before the app listened) never leaves the app's own strip above the page.
+    if (m[L"titlebar"] == L"true") {
+      g_pageTitleSaid++;
+      setPageTitle(true, pageOrigin(source));
+    }
     setTheme(m[L"theme"], m[L"shown"]);
     // wintop: the colour of the page's top edge (its palette's), for the frame above it.
     setFrameColor(m[L"frame"]);
@@ -3922,6 +3945,7 @@ static void createController() {
           // maximizes). A WebView2 without it keeps the normal title bar.
           ComPtr<ICoreWebView2Settings9> s9;
           bool regions = SUCCEEDED(settings.As(&s9)) && SUCCEEDED(s9->put_IsNonClientRegionSupportEnabled(TRUE));
+          g_regions = regions;
           if (!regions && g_wantCustomFrame) {
             logLine(L"this WebView2 has no app-region support: the normal title bar is used");
             g_wantCustomFrame = false;
@@ -4190,6 +4214,11 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       HPAINTBUFFER pb = BeginBufferedPaint(dc, &ps.rcPaint, BPBF_TOPDOWNDIB, nullptr, &buf);
       // With Mica all of it is see-through (black, alpha 0) and Mica shows.
       HBRUSH b = g_mica ? (HBRUSH)GetStockObject(BLACK_BRUSH) : CreateSolidBrush(themeColor());
+      if (!pb && !g_paintFallback) {
+        // Fred fix A: without the buffer the fill has no alpha and DWM may show its own frame there.
+        g_paintFallback = true;
+        logLine(L"frame: buffered paint failed (" + std::to_wstring(GetLastError()) + L"): the top is painted without alpha");
+      }
       FillRect(pb ? buf : dc, &ps.rcPaint, b);
       if (!g_mica) DeleteObject(b);
       if (pb && g_customFrame && !g_pageTitle && !g_mica) {

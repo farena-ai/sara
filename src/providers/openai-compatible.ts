@@ -216,6 +216,7 @@ export class OpenAICompatibleProvider implements Provider {
     let usage: StreamEvent | undefined;
     let strictUsageInvalid = false;
     let finished = false;
+    let reasoned = 0;
     const flush = function* (): Generator<StreamEvent> {
       for (const [, c] of [...calls.entries()].sort((a, b) => a[0] - b[0])) {
         if (c.name) yield { type: 'tool_call', call: { id: c.id || `call_${randomUUID()}`, name: c.name, arguments: parseToolArguments(c.args) } };
@@ -227,7 +228,7 @@ export class OpenAICompatibleProvider implements Provider {
       if (ev.data === '[DONE]') break;
       let json: {
         choices?: {
-          delta?: { content?: string; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] };
+          delta?: { content?: string; reasoning?: string; reasoning_content?: string; tool_calls?: { index?: number; id?: string; function?: { name?: string; arguments?: string } }[] };
           finish_reason?: string | null;
         }[];
         error?: { message?: string };
@@ -243,6 +244,8 @@ export class OpenAICompatibleProvider implements Provider {
       const choice = json.choices?.[0];
       const delta = choice?.delta;
       if (delta?.content) yield { type: 'text', text: delta.content };
+      const thought = delta?.reasoning ?? delta?.reasoning_content;
+      if (typeof thought === 'string') reasoned += thought.length;
       for (const [i, tc] of (delta?.tool_calls ?? []).entries()) {
         const index = tc.index ?? i;
         const cur = calls.get(index) ?? { id: '', name: '', args: '' };
@@ -274,6 +277,7 @@ export class OpenAICompatibleProvider implements Provider {
       if (choice?.finish_reason) { finished = true; yield* flush(); }
     }
     yield* flush();
+    if (reasoned) yield { type: 'reasoning', chars: reasoned };
     if (req.strictUsage && (strictUsageInvalid || !finished)) yield { type: 'usage', input: NaN, output: NaN };
     else if (usage) yield usage;
   }
@@ -317,6 +321,7 @@ export class OpenAICompatibleProvider implements Provider {
       const decoder = new TextDecoder();
       let buf = '';
       let n = 0;
+      let thought = 0;
       const lines = async function* (): AsyncGenerator<string> {
         for await (const chunk of body as unknown as AsyncIterable<Uint8Array>) {
           buf += decoder.decode(chunk, { stream: true });
@@ -330,7 +335,7 @@ export class OpenAICompatibleProvider implements Provider {
         if (buf.trim()) yield buf.trim();
       };
       for await (const line of lines()) {
-        let j: { message?: { content?: string; tool_calls?: { id?: string; function?: { name?: string; arguments?: unknown } }[] }; done?: boolean; error?: string; prompt_eval_count?: number; eval_count?: number };
+        let j: { message?: { content?: string; thinking?: string; tool_calls?: { id?: string; function?: { name?: string; arguments?: unknown } }[] }; done?: boolean; error?: string; prompt_eval_count?: number; eval_count?: number };
         try {
           j = JSON.parse(line);
         } catch {
@@ -342,6 +347,7 @@ export class OpenAICompatibleProvider implements Provider {
           void refreshPs(self);
         }
         if (j.message?.content) yield { type: 'text', text: j.message.content };
+        if (typeof j.message?.thinking === 'string') thought += j.message.thinking.length;
         for (const c of j.message?.tool_calls ?? []) {
           const name = c.function?.name;
           if (!name) continue;
@@ -353,6 +359,7 @@ export class OpenAICompatibleProvider implements Provider {
           n++;
         }
         if (j.done) {
+          if (thought) yield { type: 'reasoning', chars: thought };
           if (j.prompt_eval_count !== undefined || j.eval_count !== undefined) yield { type: 'usage', input: Number(j.prompt_eval_count ?? 0), output: Number(j.eval_count ?? 0) };
           break;
         }

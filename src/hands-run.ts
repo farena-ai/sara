@@ -78,7 +78,7 @@ export function runPlan(args: Record<string, unknown>): RunPlan {
   if (!command) throw new RunRuleError('denied_local', 'command: the PowerShell or cmd command to run.');
   if (command.length > RUN_LIMITS.commandChars) throw new RunRuleError('denied_local', `That command is longer than ${RUN_LIMITS.commandChars} characters.`);
   if (/[\u0000]/.test(command)) throw new RunRuleError('denied_local', 'That command has a NUL character.');
-  if (ELEVATE.some((re) => re.test(command))) throw new RunRuleError('denied_local', 'Commands never run as administrator on this computer (no runas, sudo or -Verb RunAs). Ask the owner to do that part themselves.');
+  if (ELEVATE.some((re) => re.test(command))) throw new RunRuleError('denied_local', 'Commands never ask for administrator rights themselves (no runas, sudo or -Verb RunAs). Run it normally: when a program needs them (winget uninstall, an installer), Windows shows its own prompt on that computer and the person presses Yes there, so tell them that first.');
   const shell = runShell(args.shell);
   const cwd = String(args.cwd ?? '').trim();
   if (cwd) {

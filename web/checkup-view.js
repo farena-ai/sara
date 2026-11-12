@@ -68,7 +68,15 @@ function suggestionText(s, windows) {
   const size = s.bytes ? fmtSize(s.bytes) : '';
   switch (s.kind) {
     case 'restore-point':
-      return t('Make a restore point first (Start, then type \u201cCreate a restore point\u201d). It needs your administrator yes, so you do it.');
+      return t('Make a restore point first: Sara opens it for you, then you press Yes and Create (they need your administrator yes).');
+    case 'extensions.remove':
+      return t('Remove the {browser} extensions you don\u2019t use (Sara presses Remove for the ones you name)', { browser: s.browser ?? s.name ?? '' });
+    case 'startup.admin':
+      return t('Stop \u201c{name}\u201d from starting for everyone (in Settings, Startup)', { name });
+    case 'folder.review':
+      return t('Move files you pick from \u201c{name}\u201d ({size}) to the Recycle Bin', { name, size });
+    case 'cache.clear':
+      return t('Clear your browser\u2019s cached images and files ({size})', { size });
     case 'startup.disable':
       return t('Stop \u201c{name}\u201d from starting by itself', { name });
     case 'temp.clean':
@@ -122,7 +130,7 @@ export function checkupCard(c) {
     const [main, detail] = lines(it, windows);
     tile.append(top, el('p', 'ck-main', main));
     if (detail) tile.append(el('p', 'ck-detail', detail));
-    if (it.check === 'extensions') tile.append(el('p', 'ck-note', t('Shown only: Sara never changes your own browser.')));
+    if (it.check === 'extensions') tile.append(el('p', 'ck-note', t('Nothing changed: Sara removes only the extensions you name, with your OK on the computer.')));
     grid.append(tile);
   }
   card.append(grid);
@@ -134,9 +142,11 @@ export function checkupCard(c) {
     for (const s of sugg) {
       const li = el('li', `ck-sugg${s.kind === 'restore-point' ? ' ck-first' : ''}`);
       li.append(el('span', 'ck-id', s.id), el('span', 'ck-text', suggestionText(s, windows)));
-      const b = el('button', s.how === 'apply' ? 'ck-do' : 'ck-how ghost', s.how === 'apply' ? t('Do this') : t('How?'));
+      // 3.6.x: \"assist\" ones she does too, step by step, each step approved on the computer.
+      const does = s.how === 'apply' || s.how === 'assist';
+      const b = el('button', does ? 'ck-do' : 'ck-how ghost', does ? t('Do this') : t('How?'));
       b.type = 'button';
-      b.addEventListener('click', () => ask(s.how === 'apply' ? t('Please do suggestion {id} from the check-up.', { id: s.id }) : t('How do I do suggestion {id} from the check-up?', { id: s.id })));
+      b.addEventListener('click', () => ask(does ? t('Please do suggestion {id} from the check-up.', { id: s.id }) : t('How do I do suggestion {id} from the check-up?', { id: s.id })));
       li.append(b);
       ol.append(li);
     }

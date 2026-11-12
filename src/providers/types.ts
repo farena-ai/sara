@@ -84,7 +84,12 @@ export type StreamEvent =
    */
   | { type: 'tool_delta'; index: number; id?: string; name?: string; args: string }
   /** Phase 52: the token counts the provider reported for this call (once, at the end). */
-  | { type: 'usage'; input: number; output: number; cached?: number };
+  | { type: 'usage'; input: number; output: number; cached?: number }
+  /**
+   * Fred fix B: the model's private reasoning (Ollama's `reasoning`, `reasoning_content`, /api/chat
+   * `thinking`): only how much there was, once at the end. Never shown and never saved as her words.
+   */
+  | { type: 'reasoning'; chars: number };
 
 /**
  * 'chatgpt' = ChatGPT plan via Sign in with ChatGPT; 'claude-code' / 'grok-cli' = subscription

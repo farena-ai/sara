@@ -12,7 +12,7 @@ import { packPaused } from './packs/install.ts';
 import { roomNoteSection, roomNowSection } from './bridges/room.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { onThisComputer } from './private-local.ts';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { buildSystemPrompt, identityOf, type Persona } from './persona.ts';
 import { redactTypedPassword } from './ssh.ts';
 import { isSshTool } from './tools/ssh.ts';
@@ -444,7 +444,7 @@ export type ChatEvent =
   /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
   | { type: 'refs'; messageId: number; items: RefChip[] }
   | { type: 'done'; messageId: number }
-  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble }
+  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble; errorClass?: string; messageId?: number }
   /** 3.4.5: the model hasn't said its first word in a while (Fix it / Keep waiting / Stop); the turn goes on. */
   | { type: 'slow'; trouble: import('./trouble.ts').Trouble };
 
@@ -1644,6 +1644,51 @@ type CallEnd = 'end' | { status: 'ok' | 'error' | 'denied'; output: string; summ
 /** EC21: one call a run_code script made (on the run_code message: its receipts list). */
 type CodeInner = { name: string; status: 'ok' | 'error' | 'denied'; summary: string; ms: number };
 
+/** Fred fix B: the app's note when her answer had no words (never stored). */
+export const EMPTY_REPLY_NOTE = '[Note from the app: your last answer had no words in it (only private reasoning, or nothing). Answer the person now, in plain words, in this reply. Call a tool only if you really need one.]';
+
+/** Fred fix B: <think>…</think> (and an unclosed <think> at the end) never count as her words. */
+export function stripThinkTags(text: string): string {
+  if (!/<\/?think>/i.test(text)) return text;
+  return text.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/i, '').replace(/^\s*<\/think>/i, '').trim();
+}
+
+/**
+ * Fred fix B: some models (beam:cloud through Ollama, small local ones) write a tool call as text.
+ * When the WHOLE answer is one JSON call naming a tool offered this step ({"name", "arguments" |
+ * "parameters"}, optionally in a ```json fence or <tool_call> tags), it becomes that call. Anything
+ * else (prose, a tool she wasn't offered) stays her words.
+ */
+export function toolCallFromText(text: string, offered: readonly string[]): ToolCall | undefined {
+  if (!offered.length) return undefined;
+  let t = text.trim();
+  const fenced = /^```(?:json)?\s*([\s\S]*?)\s*```$/i.exec(t);
+  if (fenced) t = fenced[1].trim();
+  const tagged = /^<tool_call>\s*([\s\S]*?)\s*<\/tool_call>$/i.exec(t);
+  if (tagged) t = tagged[1].trim();
+  if (!t.startsWith('{') || !t.endsWith('}') || t.length > 20_000) return undefined;
+  let j: unknown;
+  try {
+    j = JSON.parse(t);
+  } catch {
+    return undefined;
+  }
+  if (!j || typeof j !== 'object' || Array.isArray(j)) return undefined;
+  const o = j as { name?: unknown; arguments?: unknown; parameters?: unknown; function?: { name?: unknown; arguments?: unknown } };
+  const name = typeof o.name === 'string' ? o.name : typeof o.function?.name === 'string' ? o.function.name : undefined;
+  if (!name || !offered.includes(name)) return undefined;
+  let args = o.arguments ?? o.parameters ?? o.function?.arguments ?? {};
+  if (typeof args === 'string') {
+    try {
+      args = JSON.parse(args);
+    } catch {
+      return undefined;
+    }
+  }
+  if (!args || typeof args !== 'object' || Array.isArray(args)) return undefined;
+  return { id: `call_${randomUUID()}`, name, arguments: args as Record<string, unknown> };
+}
+
 export async function* runTurn(app: AppContext, conversationId: string, userText: string, signal: AbortSignal = new AbortController().signal, opts: TurnOptions = {}): AsyncGenerator<ChatEvent> {
   chatTurns.running++;
   for (const f of chatTurns.onStart) f();
@@ -1661,14 +1706,34 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
   let sawApproval = false;
   const toolNames: string[] = [];
   try {
-    for await (const ev of runTurnInner(app, conversationId, userText, signal, opts, rec)) {
-      if (ev.type === 'approval') sawApproval = true;
-      else if (ev.type === 'tool_call') toolNames.push(ev.name);
-      if (ev.type === 'done') {
-        status = 'ok';
-        replyId = ev.messageId;
-      } else if (ev.type === 'error') status = signal.aborted ? 'stopped' : 'error';
-      yield ev;
+    let inner: AsyncGenerator<ChatEvent>;
+    try {
+      inner = runTurnInner(app, conversationId, userText, signal, opts, rec);
+    } catch (err) {
+      if (!signal.aborted) noteTurnError(app, conversationId, rec, opts, { message: (err as Error)?.message ?? String(err), errorClass: errorClassOf(err) });
+      throw err;
+    }
+    try {
+      for await (const ev of inner) {
+        if (ev.type === 'approval') sawApproval = true;
+        else if (ev.type === 'tool_call') toolNames.push(ev.name);
+        if (ev.type === 'done') {
+          status = 'ok';
+          replyId = ev.messageId;
+        } else if (ev.type === 'error') {
+          status = signal.aborted ? 'stopped' : 'error';
+          // Fred fix B: every turn error is logged and kept in the chat (Try again, Report it), never silent.
+          if (status === 'error' && ev.message !== 'Stopped.') {
+            const id = noteTurnError(app, conversationId, rec, opts, ev);
+            yield id ? { ...ev, messageId: id } : ev;
+            continue;
+          }
+        }
+        yield ev;
+      }
+    } catch (err) {
+      if (!signal.aborted) noteTurnError(app, conversationId, rec, opts, { message: (err as Error)?.message ?? String(err), errorClass: errorClassOf(err) });
+      throw err;
     }
     // Phase 98 (ST3, STAPLES §6.4): reply.after, once, with the final reply as it was sent (past the
     // safety checks; never a blocked reply or a turn the budget stopped). Cards and notes from plugins
@@ -1723,6 +1788,38 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
       /* best effort; the computer also locks it after its idle minutes */
     }
     if (!opts.recorder) rec.close(status === 'ok' && rec.outcome ? rec.outcome : status, replyId || rec.lastReplyId || undefined);
+  }
+}
+
+const errorClassOf = (err: unknown): string => err instanceof Error ? (err.constructor?.name && err.constructor.name !== 'Object' ? err.constructor.name : err.name) || 'Error' : typeof err;
+
+/**
+ * Fred fix B: a turn that ends in an error is (1) logged with its class and (redacted) message and
+ * (2) kept in the conversation as a `turnerror:` notice the app shows with Try again and Report it.
+ * Returns the notice's id (none for evals, replays or a conversation that isn't there).
+ */
+function noteTurnError(app: AppContext, conversationId: string, rec: { on: boolean; id: number }, opts: TurnOptions, ev: { message: string; errorClass?: string; trouble?: unknown }): number | undefined {
+  const msg = app.redactor.redact(String(ev.message ?? '')).replace(/\s+/g, ' ').trim().slice(0, 600);
+  const cls = ev.errorClass || 'TurnError';
+  let where = '';
+  try {
+    const conv = app.store.getConversation(conversationId);
+    const s = app.settings.get();
+    const pid = conv?.providerId ?? s.defaultProviderId;
+    const model = conv?.model ?? s.defaultModel;
+    where = ` model=${s.providers.find((p) => p.id === pid)?.id ?? pid ?? '?'}/${model ?? '?'}`;
+  } catch {
+    /* best effort */
+  }
+  console.warn(`turn error: ${cls}: ${msg} (conversation ${conversationId.slice(0, 8)}${rec.on ? `, run ${rec.id}` : ''}${where})`);
+  if (opts.recorder || opts.replay) return undefined;
+  try {
+    if (!app.store.getConversation(conversationId)) return undefined;
+    const n = app.store.addMessage(conversationId, 'notice', `turnerror:${msg}`, { error: msg, errorClass: cls, ...(rec.on ? { runId: rec.id } : {}), ...(ev.trouble ? { trouble: ev.trouble } : {}) });
+    return n.id;
+  } catch (err) {
+    console.warn(`turn error: could not keep the notice: ${(err as Error).message}`);
+    return undefined;
   }
 }
 
@@ -2815,6 +2912,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const checks = checksAllowed(app, conv, { replay: Boolean(opts.replay), external: external || Boolean(opts.externalApp) || Boolean(opts.outside), group: Boolean(opts.group), tools: tools.length }) && !opts.noTools ? new TurnChecks(app, conv, wsDir, sandbox) : undefined;
   /** Phase 120 (§4.7): the nudge's note for the next step (never stored). */
   let checkNote: string | undefined;
+  /** Fred fix B: an answer with no words (reasoning only, think tags only) gets one more go, without thinking. */
+  let emptyRetried = false;
+  let thinkOffNext = false;
   /** Tools as they were before the guard paused them (an owner steer brings them back). */
   let toolsBeforePause: typeof tools | undefined;
   let crisisSteer = false;
@@ -2845,6 +2945,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   for (let step = 0; step < maxSteps; step++) {
     // EC21: the tools a run_code script may call in this step (the ones offered to the model now).
     let codeNames: string[] = [];
+    let offeredNames: string[] = [];
     try { currentScope(); } catch (err) {
       if (!(err instanceof ToolAdmissionError)) throw err;
       yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
@@ -3173,6 +3274,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       callMax = plan.maxTokens;
       callThink = plan.noThinking ? 'none' : undefined;
     }
+    if (thinkOffNext) {
+      callThink = 'none';
+      thinkOffNext = false;
+    }
 
     // Hooks and budget approval are complete. A lease covers only a real provider step.
     try { currentScope(); } catch (err) {
@@ -3270,6 +3375,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       });
     }
     let reply = '';
+    let reasoningChars = 0;
     const calls: ToolCall[] = [];
     // Phase 63: calls being written show up live (throttled, secrets hidden, same minors pattern check as her words).
     const building = new ToolStreamTracker({ redact: (x) => app.redactor.redact(x), withhold: (x) => Boolean(minorSexualMatch(x)) });
@@ -3281,6 +3387,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       codeNames = baseSpecs.map((sp) => sp.name).filter((n) => n !== FIND_TOOLS);
       const codeOffered = tools.some((t) => t.spec.name === RUN_CODE) && codeModeOffer({ on: true, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', callsThisTurn, partner: Boolean(conv.partner), group: Boolean(opts.group) });
       const offered = codeOffered ? [...baseSpecs, runCodeSpec(baseSpecs.filter((sp) => sp.name !== FIND_TOOLS))] : baseSpecs;
+      offeredNames = offered.map((sp) => sp.name);
       providerStarted = true;
       const outMax = saver.on ? Math.min(callMax ?? SAVER.replyTokens, SAVER.replyTokens) : callMax;
       // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
@@ -3308,6 +3415,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           if (shown) yield shown;
         } else if (ev.type === 'tool_call') {
           calls.push(ev.call);
+        } else if (ev.type === 'reasoning') {
+          reasoningChars += ev.chars;
         }
       }
       yield* building.flush();
@@ -3372,6 +3481,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             : err instanceof SlowModelError
               ? `${provider.config.label} (${model}) ${err.message}. Try again, or add a backup model in Settings → Which model does what.`
               : msg,
+        errorClass: err instanceof Error ? (err.constructor?.name && err.constructor.name !== 'Object' ? err.constructor.name : err.name) : 'Error',
         // 3.3.0: a service problem comes with her plain words and one Fix it (src/trouble.ts).
         ...(() => {
           const tr = signal.aborted ? null : troubleOf(err instanceof SlowModelError ? `no answer within ${err.seconds}` : msg, provider.config.label, `model:${provider.config.id}`);
@@ -3381,12 +3491,43 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       return;
     }
 
+    // Fred fix B: think tags never stay in her words; a tool call written as text (JSON naming an
+    // offered tool) runs as the real call it meant to be.
+    let shownChanged = false;
+    const thinkless = stripThinkTags(reply);
+    if (thinkless !== reply) {
+      reply = thinkless;
+      shownChanged = true;
+    }
+    if (!calls.length && reply) {
+      const asCall = toolCallFromText(reply, offeredNames);
+      if (asCall) {
+        calls.push(asCall);
+        reply = '';
+        shownChanged = true;
+      }
+    }
     if (!reply && !calls.length) {
       releaseSessionStep();
       // Phase 79: the budget's summary came back empty (small models): the app writes its own words
       // after the loop (what was done, what was dropped, Continue), not an error.
       if (meter?.final) break;
-      yield { type: 'error', message: 'The model returned an empty reply.' };
+      // Fred fix B (shelton runs 147/148): beam:cloud wrote only its reasoning. One more go, with a
+      // plain note and no thinking, before it counts as an error.
+      if (!emptyRetried && step < maxSteps - 1 && !signal.aborted) {
+        emptyRetried = true;
+        thinkOffNext = true;
+        checkNote = EMPTY_REPLY_NOTE;
+        console.warn(`turn: ${provider.config.label} (${model}) answered with no words${reasoningChars ? ` (only ${reasoningChars} characters of reasoning)` : ''}; asking once more`);
+        continue;
+      }
+      yield {
+        type: 'error',
+        message: reasoningChars
+          ? trOwner(en('{model} wrote only its private reasoning and no answer (twice). Try again, or pick another model in Settings → Which model does what.'), app.settings.get(), { model: `${provider.config.label} (${model})` })
+          : trOwner(en('{model} returned an empty reply (twice). Try again, or pick another model in Settings → Which model does what.'), app.settings.get(), { model: `${provider.config.label} (${model})` }),
+        errorClass: 'EmptyReply',
+      };
       return;
     }
     const meta: Record<string, unknown> = { model, provider: provider.config.label, ...(calls.length ? {} : takeImages()) };
@@ -3404,6 +3545,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const saved = addAssistantMessage(untagged, meta);
     releaseSessionStep();
     lastAssistantId = saved.id;
+    if (shownChanged && untagged === reply) yield { type: 'replace', messageId: saved.id, text: untagged };
     // Phase 78 seam 4: the step's message is saved.
     await hooks.afterReply({ step, messageId: saved.id, reply: untagged, calls, final: !calls.length });
     // Phase 76: notes that went in because they MATCHED count as used today (+1 a day at most);

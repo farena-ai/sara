@@ -207,6 +207,14 @@ const SAFETY_SET = new Set<string>(SAFETY_PINS);
 /** Families offered whole once any working tool of theirs is offered (never half a remote session). */
 const WHOLE_FAMILIES = new Set(['ssh', 'computer']);
 export const FIND_TOOLS = 'find_tools';
+/**
+ * 3.6.x (do it for them): a doing word (remove, uninstall, clean, fix, delete, disable…) about something on the
+ * computer (an extension, an app, startup, files, the browser…) or about a check-up suggestion (\"#3\", \"s2\") loads
+ * her computer tools, so the desktop actions and approved commands are there to do it. Six languages, folded.
+ */
+export const DO_WORDS = /\b(?:remove|uninstall|clean|cleanup|clear|fix|delete|disable|turn off|switch off|get rid of|speed up|take care of|quitar|eliminar|desinstalar|limpiar|borrar|arreglar|desactivar|supprimer|desinstaller|nettoyer|effacer|reparer|desactiver|entfernen|deinstallieren|bereinigen|loschen|reparieren|deaktivieren|remover|limpar|apagar|consertar|rimuovere|disinstallare|pulire|cancellare|riparare|disattivare)\b/;
+export const PC_THINGS = /\b(?:uninstall|desinstalar|desinstaller|deinstallieren|disinstallare|extensions?|add ?ons?|startup|startup apps|temp|temporary files|cache|browser|computer|pc|laptop|disk|disk space|downloads|recycle bin|trash|updates?|edge|chrome|firefox|brave|toolbar|antivirus|bloatware|webadvisor|extension(?:es)?|extensao|extensoes|estension[ei]|erweiterung(?:en)?|navegador|navigateur|ordinateur|ordenador|rechner|computador|descargas|telechargements|papelera|corbeille|papierkorb|lixeira|cestino|demarrage|autostart|inicio)\b/;
+export const CHECKUP_REF = /#\s?\d{1,2}\b|\bs\d{1,2}\b|\b(?:number|suggestion|numero|nummer|vorschlag|sugerencia|suggestion|sugestao|suggerimento) \d{1,2}\b/i;
 
 // ---------------------------------------------------------------------------------------------
 // §4.4 words in six languages (folded, no accents)
@@ -582,6 +590,7 @@ export function leanFor(set: LeanSettings['tools'], eligible: Tool[], input: Lea
     }
   }
   for (const [fam, list] of Object.entries(FAMILY_WORDS)) if (list.some((p) => hasPhrase(plain, p))) famAsked.add(fam);
+  if (DO_WORDS.test(plain) && (PC_THINGS.test(plain) || CHECKUP_REF.test(fold(input.text)))) famAsked.add('computer');
   tt.add(asked, 'asked');
   for (const fam of famAsked) {
     const members = eligible.filter((t) => familyOf(t).id === fam || (fam === 'github' && familyOf(t).id === 'mcp:github') || (fam === 'browser' && familyOf(t).id === 'mcp:playwright'));

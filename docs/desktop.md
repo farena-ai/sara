@@ -541,12 +541,45 @@ fixed list of OS calls (nothing from the server is run, nothing is written, dele
   from `softwareupdate --list --no-scan` (macOS's own last scan), battery (IOKit power sources and the
   `AppleSmartBattery` entry), Chrome / Edge / Brave extension manifests, temp, caches and the Trash (needs Full
   Disk Access).
-- The apps don't make check-up changes themselves in this draft (`s.apply` is `unsupported`): Sara's report
-  shows each suggestion with **How?** and she explains where you change it. Changes are qualified on the
-  reference device only.
+- The apps don't make check-up changes through `s.apply` in this draft (`unsupported`). Instead (3.6.x, "do it
+  for them") every suggestion has **Do this**: `pc_checkup_apply` returns the exact steps and Sara does them with
+  the approved tools she already has, each step approved on the PC: removing the browser extensions you name
+  (she opens the browser's extensions page in your own browser and presses Remove, then confirms), a startup app
+  that starts for everyone (Settings → Apps → Startup), files you pick from Downloads (to the Recycle Bin, with
+  `pc_run`), the browser cache (Clear browsing data, cached files only), old temp files and the Recycle Bin
+  (`pc_run`), and a restore point (she opens System Protection; you press Yes and Create, because that window
+  runs as administrator). If a switch is off or the app is old, the reply names the switch and where it is, or
+  says to update.
 - Testing: the test-hooks build adds `CU7NativeChecks.exe`, which runs the check on this PC and prints counts
   and sizes only (never a name). On a Mac, compile `test/fixtures/cu7-mac-checks.swift` as `main.swift` with
   `Sources/HandsCheckup.swift`. `scripts/hands-conformance.ts --checkup` adds section 14.
+
+### Doing it for you (3.6.x)
+
+If you could do it on your computer, Sara can do it for you, with your approval on that computer for anything
+that changes something. The Windows app's desktop rules (`src/hands-screen.cpp`) now allow:
+
+- **Your browser's own settings pages** (`edge://extensions`, `chrome://extensions`, `about:addons`, Clear
+  browsing data…): she may click there, and they always ask (Allow once only). On the extensions page (and its
+  "Remove …?" confirmation, which may be its own small window: its owner window's address decides) the Remove
+  button works; deleting files stays refused everywhere. Your browser's passwords, payment methods, autofill,
+  sync, profile/account and security pages stay refused (`internalPage`).
+- **The address bar:** while it is being edited, only one address may be typed in (never Sara's own server, never
+  a blocked page) and then Enter; before, an address bar being edited refused every action.
+- **The Settings app** on its Apps (Installed apps, Startup, Default apps) and Storage pages, told apart by the
+  page's header, always asking. Accounts, sign-in, privacy, Windows Security, BitLocker, firewall, family and
+  recovery stay refused, as do terminals, the Registry Editor and other protected apps (commands go through
+  `pc_run`, which you approve).
+- **Windows' administrator prompt:** never answered and never automated. When it is showing (the secure desktop
+  with `consent.exe`), her actions stop with "the person presses Yes there", and she tells you "Windows will ask
+  you to allow this change — press Yes" and waits. Commands still never ask for administrator rights themselves
+  (no `-Verb RunAs`); programs that need them (`winget uninstall`, installers) show Windows' own prompt.
+
+When she can't, she says exactly what is missing: a switch (its name and where: the Sara app → Settings →
+Computer use), an older app (update), or which hard limit (passwords, banking, password managers, the
+administrator prompt or an administrator window, a locked computer). Words like remove, uninstall, clean, fix,
+delete or disable about something on the computer (or a check-up number like "#3") bring her the desktop and
+command tools. `CU6NativeChecks.exe` (test-hooks build) checks the new rules natively.
 
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
@@ -687,6 +720,15 @@ The apps tell the page they can host its header in the title bar; the page answe
   high contrast off`; then a `frame:` line whenever the theme, colour, whose title strip, backdrop
   or the DWM results change. Test builds: `SARA_TEST_SYSTEM_THEME=dark|light` (the registry reading
   and the web view's colour scheme) and `SARA_TEST_WINBUILD=19045` (the Windows 10 path).
+- Check-in (after 3.6.1): the app sends its frame decision with its check-in (`frame` in
+  `app-installs.json`; the tooltip on the app's line in Settings → Devices), for example
+  `strip page, #0b0c0e page, shown night, pref system, page said 2x, regions yes, mica off, caption ok, dpi 144`:
+  who draws the title strip (`page`, `app` = the app's own strip, `windows`), its colour and where it
+  came from (`page`, `builtin`, `local`), the theme shown, how often a page said it draws the strip,
+  app-region support, Mica, the caption-colour call, the DPI, and `paint fallback` if buffered paint
+  failed. `strip app` with `page said 0x` on a server page means the page never announced its title
+  strip. Every `{type:'theme'}` message from the page now also carries `titlebar: true`, and a page
+  restored from the back/forward cache says `{type:'shell'}` again.
 
 ## Her face as the app's icon (3.5.2)
 

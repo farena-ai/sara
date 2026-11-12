@@ -1067,6 +1067,7 @@ async function reportCommand(c: CommandContext, conv: Conversation | undefined):
     if (r.ok) return tr('Sent as {ticket}. You can follow it in Sara: Help → My reports.', { ticket: r.ticket });
     if (r.code === 'private') return tr("Reports can't be sent while “Nothing leaves this computer” is on.");
     if (r.code === 'limit') return tr('Too many reports today. Try again tomorrow.');
+    if (r.code === 'refused') return tr('The support desk refused the report: {reason}', { reason: r.reason || 'no reason given' });
     return tr("The support desk didn't answer. Try again later.");
   });
   const summary = kind === 'idea' ? tr('Send this idea to the people who make Sara (no diagnostics): {text}', { text }) : tr('Send this problem report to the people who make Sara (no diagnostics): {text}', { text });

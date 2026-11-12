@@ -15,11 +15,13 @@
 //   POST /api/hub/tickets/:ticket/reply   { text } answer the team
 import { en } from '../i18n.ts';
 import { HttpError, readJson, send } from '../http.ts';
-import { buildDiagnostics, buildPing, fileTicket, hubRequest, isTicketId, ticketBlocked, type DiagStep, type FileResult, type HubSpace } from '../hub.ts';
+import { buildDiagnostics, buildPing, fileTicket, hubReason, hubRequest, isTicketId, ticketBlocked, type DiagStep, type FileResult, type HubSpace } from '../hub.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 /** What the page shows when a report can't go (the app translates these by their English text). */
-export function ticketError(code: Extract<FileResult, { ok: false }>['code']): HttpError {
+export function ticketError(code: Extract<FileResult, { ok: false }>['code'], reason?: string): HttpError {
+  // Fred fix C: the hub answered no: its reason, in plain words (and logged where it was refused).
+  if (code === 'refused') return new HttpError(502, en('The support desk refused the report: {reason}'), { params: { reason: reason || 'no reason given' } });
   if (code === 'demo') return new HttpError(403, en('Not available in the demo.'));
   if (code === 'private') return new HttpError(409, en("Reports can't be sent while “Nothing leaves this computer” is on."));
   if (code === 'email') return new HttpError(400, en("That email address doesn't look right."));
@@ -108,7 +110,7 @@ export function createHubRoutes(ctx: RouteCtx): RouteHandler {
     if (b === 'tickets' && !c && method === 'POST') {
       const body = await readJson(req, 600 * 1024);
       const r = await fileTicket(hub, body);
-      if (!r.ok) throw ticketError(r.code);
+      if (!r.ok) throw ticketError(r.code, r.reason);
       return send(res, 201, { ticket: r.ticket, tickets: hub.tickets.list() });
     }
     if (b === 'tickets' && c === 'refresh' && !d && method === 'POST') {
@@ -137,11 +139,20 @@ export function createHubRoutes(ctx: RouteCtx): RouteHandler {
       let r;
       try {
         r = await hubRequest(hub.base, `/v1/tickets/${encodeURIComponent(c)}/reply`, { body: { token: row.token, text: hub.scrub(text) }, send: hub.send });
-      } catch {
+      } catch (err) {
+        console.warn(`hub: the reply didn't reach the support desk: ${(err as Error).name}: ${(err as Error).message}`);
         throw new HttpError(502, en("The support desk didn't answer. Try again later."));
       }
       if (r.status === 429) throw new HttpError(429, en('Too many reports today. Try again tomorrow.'));
-      if (r.status >= 300) throw new HttpError(502, en("The support desk didn't answer. Try again later."));
+      if (r.status >= 400 && r.status < 500) {
+        const reason = hubReason(r.json, r.status);
+        console.warn(`hub: the support desk refused the reply (${r.status}): ${reason}`);
+        throw ticketError('refused', reason);
+      }
+      if (r.status >= 300) {
+        console.warn(`hub: the support desk gave an error for the reply (${r.status}): ${hubReason(r.json, r.status)}`);
+        throw new HttpError(502, en("The support desk didn't answer. Try again later."));
+      }
       try {
         const g = await hubRequest(hub.base, `/v1/tickets/${encodeURIComponent(c)}?token=${encodeURIComponent(row.token)}`, { send: hub.send, timeoutMs: 10_000 });
         if (g.status === 200) hub.tickets.refresh(c, g.json, new Date().toISOString());

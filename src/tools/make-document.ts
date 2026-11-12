@@ -41,7 +41,7 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
     run: async (args, ctx) => {
       const app = getApp();
       const conv = ctx.conversationId ? app.store.getConversation(ctx.conversationId) : undefined;
-      if (conv?.partner) throw new ToolError("Documents can't be made in this chat.");
+      if (conv?.partner) throw new ToolError("Documents can't be made in this chat (a chat with another companion or person): ask the owner to ask for it in their own chat with you.");
       const has = (k: string) => args[k] !== undefined && args[k] !== null && args[k] !== '' && !(Array.isArray(args[k]) && !(args[k] as unknown[]).length);
       // Read a document's content first (to change it).
       if (has('basedOn') && !has('content') && !has('sheets') && !has('slides')) {

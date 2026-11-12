@@ -154,7 +154,7 @@ test('theme-boot: Follow the system unless Night or Day was picked (V3, the owne
   assert.match(app, /shellTheme = theme === 'light' \? 'day' : theme === 'system' \? 'system' : 'night';\n  sayShellTheme\(\);/);
   // wintop: with the colour of the page's top edge (the V4 strip or the page), so the Windows app's
   // frame above it isn't Sara Classic's colour over another palette; said again when the view changes.
-  assert.match(app, /window\.saraShellSay\?\.\(\{ type: 'theme', theme: shellTheme, shown, \.\.\.\(frame \? \{ frame \} : \{\}\) \}\)/);
+  assert.match(app, /window\.saraShellSay\?\.\(\{ type: 'theme', theme: shellTheme, shown, \.\.\.\(frame \? \{ frame \} : \{\}\), \.\.\.\(titlebar \? \{ titlebar: true \} : \{\}\) \}\)/);
   assert.match(app, /color-mix\(in srgb, \$\{s1\} 82%, \$\{s0\}\)/);
   assert.match(app, /function show\(id\) \{\n[^\n]*\n[^\n]*\n  sayShellTheme\(\);\n\}/);
   // Trying it in a browser.

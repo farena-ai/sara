@@ -681,6 +681,13 @@ export function buildDiagnostics(h: HubSpace, o: { error?: string; settings: Rec
   return d;
 }
 
+/** Fred fix C: the hub's reason in one short plain line (its `message`, else its `error` code). */
+export function hubReason(json: Record<string, unknown>, status: number): string {
+  const m = typeof json.message === 'string' && json.message.trim() ? json.message : typeof json.error === 'string' && json.error.trim() ? json.error : `HTTP ${status}`;
+  // eslint-disable-next-line no-control-regex
+  return m.replace(/[\u0000-\u001f\u007f]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 200);
+}
+
 /** Where a ticket may not go now: the demo, private local mode, or the guard blocking the hub. */
 export function ticketBlocked(h: HubSpace): 'demo' | 'private' | 'offline' | undefined {
   if (h.demo || process.env.SARA_DEMO === '1') return 'demo';
@@ -690,7 +697,34 @@ export function ticketBlocked(h: HubSpace): 'demo' | 'private' | 'offline' | und
   return undefined;
 }
 
-export type FileResult = { ok: true; ticket: string } | { ok: false; code: 'demo' | 'private' | 'title' | 'email' | 'limit' | 'down' };
+export type FileResult = { ok: true; ticket: string } | { ok: false; code: 'demo' | 'private' | 'title' | 'email' | 'limit' | 'down' | 'refused'; reason?: string };
+
+/**
+ * Fred fix C: exactly what the hub's ticket schema accepts (sara-hub src/validate.ts TICKET_SCHEMA:
+ * kind, title, body ≥ 1 character, contact, lang, version, os, and diagnostics with only log, error,
+ * settingsShape, steps). The system line the person saw rides at the top of the log; an empty body
+ * becomes the title. Anything else (a field a newer app adds) never goes, so the hub can't refuse it.
+ */
+export function ticketWire(p: { kind: string; title: string; body: string; contact?: string; lang?: string; version?: string; os?: string; diagnostics?: Diagnostics }): { kind: string; title: string; body: string; contact?: string; lang?: string; version?: string; os?: string; diagnostics?: Omit<Diagnostics, 'system'> } {
+  const body = String(p.body ?? '').trim() || String(p.title ?? '').trim();
+  const out: ReturnType<typeof ticketWire> = { kind: p.kind, title: p.title, body: body.slice(0, 8000) };
+  if (p.contact) out.contact = p.contact;
+  if (typeof p.lang === 'string' && p.lang) out.lang = p.lang;
+  if (typeof p.version === 'string' && p.version) out.version = p.version;
+  if (typeof p.os === 'string' && p.os) out.os = p.os;
+  const d = p.diagnostics;
+  if (d) {
+    const w: Omit<Diagnostics, 'system'> = {};
+    const system = typeof d.system === 'string' ? d.system.trim().slice(0, 2000) : '';
+    const log = typeof d.log === 'string' ? d.log : '';
+    if (system || log.trim()) w.log = system ? `${system}\n${log.slice(-(LOG_MAX - system.length - 1))}`.trimEnd() : log.slice(-LOG_MAX);
+    if (typeof d.error === 'string' && d.error.trim()) w.error = d.error.slice(0, 16_000);
+    if (d.settingsShape && typeof d.settingsShape === 'object') w.settingsShape = d.settingsShape;
+    if (Array.isArray(d.steps) && d.steps.length) w.steps = d.steps.slice(0, 100).map((x) => ({ tool: String(x.tool).slice(0, 64), status: String(x.status).slice(0, 32) }));
+    if (Object.keys(w).length) out.diagnostics = w;
+  }
+  return out;
+}
 
 /**
  * Sends one report from this space and keeps its ticket id and reply token here (the routes, the
@@ -708,17 +742,27 @@ export async function fileTicket(h: HubSpace, body: Record<string, unknown>, at 
   }
   const f = h.facts();
   const diagnostics = cleanDiagnostics(body.diagnostics, h.scrub);
-  const payload = { kind: t.kind, title: t.title, body: h.scrub(t.body), ...(t.contact ? { contact: t.contact } : {}), lang: f.lang, version: f.version, os: f.os, ...(diagnostics ? { diagnostics } : {}) };
+  const payload = ticketWire({ kind: t.kind, title: t.title, body: h.scrub(t.body), ...(t.contact ? { contact: t.contact } : {}), lang: f.lang, version: f.version, os: f.os, ...(diagnostics ? { diagnostics } : {}) });
   let r;
   try {
     r = await sendTicket({ base: h.base, state: h.state, payload, send: h.send });
-  } catch {
+  } catch (err) {
+    console.warn(`hub: the ticket didn't reach the support desk (${h.base}): ${(err as Error).name}: ${(err as Error).message}`);
     return { ok: false, code: 'down' };
   }
   if (r.status === 429) return { ok: false, code: 'limit' };
   const ticket = String(r.json.ticket ?? '');
   const token = String(r.json.token ?? '');
-  if (r.status >= 300 || !isTicketId(ticket) || !/^[0-9a-f]{32}$/.test(token)) return { ok: false, code: 'down' };
+  // Fred fix C: the hub's own words when it refuses (a 4xx), logged and shown; never "didn't answer".
+  if (r.status >= 400 && r.status < 500) {
+    const reason = hubReason(r.json, r.status);
+    console.warn(`hub: the support desk refused the ticket (${r.status}): ${reason}`);
+    return { ok: false, code: 'refused', reason };
+  }
+  if (r.status >= 300 || !isTicketId(ticket) || !/^[0-9a-f]{32}$/.test(token)) {
+    console.warn(`hub: the support desk gave no ticket (${r.status}): ${hubReason(r.json, r.status)}`);
+    return { ok: false, code: 'down' };
+  }
   h.tickets.add({ ticket, token, kind: t.kind, title: t.title, createdAt: at.toISOString() });
   return { ok: true, ticket };
 }

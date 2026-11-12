@@ -371,9 +371,10 @@ test('R1 provider retry/fallback/partial/error/empty paths release without overl
     } }; };
     try {
       const events = await collect(runTurn(f.app, f.web.id, 'First.', abort.signal));
-      assert.equal(count, ['unsupported', 'fallback'].includes(action) ? 2 : 1, action);
+      // Fred fix B: an empty answer gets one more go (here it recovers), still one step at a time.
+      assert.equal(count, ['unsupported', 'fallback', 'empty'].includes(action) ? 2 : 1, action);
       if (action === 'partial') assert.ok(f.app.store.messages(f.web.id).some(m => m.meta?.partial && m.content === 'Partial answer.'));
-      if (!['unsupported', 'fallback'].includes(action)) assert.ok(events.some(e => e.type === 'error'), action);
+      if (!['unsupported', 'fallback', 'empty'].includes(action)) assert.ok(events.some(e => e.type === 'error'), action);
       const next = acquireSessionStep(f.app.store.db, 'after', new AbortController().signal); assert.equal(next.waiting, false, action); (await next.ready)();
     } finally { f.close(); }
   }

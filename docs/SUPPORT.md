@@ -40,6 +40,21 @@ sent until you press **Send**.
 
 A small puzzle runs while sending (it keeps spam away); it takes a moment and nothing freezes.
 
+If the support desk turns a report down, you see its reason ("The support desk refused the report:
+…") instead of a vague error, and the server's log has it too.
+
+### Ask her to report it
+
+Say "tell the support desk" (or "report this"): she writes a short report in your words, adds the last
+error from the chat and the same scrubbed diagnostics, and shows you the whole draft on a confirm card.
+Nothing is sent unless you press **Allow**; it then shows up in **My reports**.
+
+### When a reply fails
+
+A reply that fails (the AI service gave no answer, only its private thinking, or an error) leaves a
+notice in the chat with the reason, **Try again** and **Report it**. The server's log names the error
+too, so a failure is never silent.
+
 ### In Telegram or Discord
 
 `/bug` or `/idea` on its own answers with where the full form is (with a link when your server has a

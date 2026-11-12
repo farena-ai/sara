@@ -24,6 +24,8 @@ export interface AppInstall {
   computer: string;
   /** 3.5.2: the computer's system, as the app says it ("Windows 11 Home (26100.4061)"). */
   os?: string;
+  /** Fred fix A: how the app draws its window's top ("strip page, #0b0c0e page, shown night, …"). */
+  frame?: string;
   how: AppHow;
   /** "Update the app by itself" is on there. */
   auto: boolean;
@@ -70,6 +72,7 @@ export function cleanCheckin(body: Record<string, unknown>): Omit<AppInstall, 's
     version,
     computer: plain(body.computer, 80),
     ...(plain(body.os, 60) ? { os: plain(body.os, 60) } : {}),
+    ...(plain(body.frame, 200) ? { frame: plain(body.frame, 200) } : {}),
     how,
     auto: body.auto !== false,
     selfUpdate: body.selfUpdate === true,
@@ -164,6 +167,7 @@ export interface AppInstallView {
   version: string;
   computer: string;
   os?: string;
+  frame?: string;
   label: string;
   how: AppHow;
   auto: boolean;
@@ -190,6 +194,7 @@ export function appInstallView(id: string, a: AppInstall, serverVersion: string,
     version: a.version,
     computer: a.computer,
     ...(a.os ? { os: a.os } : {}),
+    ...(a.frame ? { frame: a.frame } : {}),
     label: a.label ?? '',
     how: a.how,
     auto: a.auto,

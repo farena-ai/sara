@@ -23,6 +23,7 @@
 #include <shobjidl.h>
 #include <shellapi.h>
 #include <winhttp.h>
+#include <tlhelp32.h>
 
 using Microsoft::WRL::ComPtr;
 
@@ -914,6 +915,13 @@ std::string browserAddress(HWND h) {
   std::vector<TabInfo> ts;
   std::string address;
   if (a) tabStrip(a.Get(), h, ts, address);
+  // 3.6.x: a browser's own dialog (\"Remove this extension?\") has no address bar: the page of the window it belongs to.
+  if (address.empty()) {
+    HWND owner = GetWindow(h, GW_OWNER);
+    DWORD p1 = 0, p2 = 0;
+    GetWindowThreadProcessId(h, &p1);
+    if (owner && GetWindowThreadProcessId(owner, &p2) && p1 == p2 && a) tabStrip(a.Get(), owner, ts, address);
+  }
   return address;
 }
 /** 3.5.x: payment, account/security and sign-in pages in the person's own browser always ask (src/computer-policy.ts SENSITIVE_PAGE). */
@@ -922,6 +930,36 @@ bool sensitivePage(const std::string& text) {
   return std::regex_search(text, re);
 }
 }  // namespace
+
+/** 3.6.x (do it for them): a page of the person's own browser itself (edge://, chrome://, about:…). "" a web page;
+ *  "settings" its own settings pages (extensions, add-ons, clear browsing data…): allowed, and they always ask;
+ *  "blocked" its passwords, payment methods, autofill, sync, profile/account and security pages: never
+ *  (src/computer-policy.ts browserInternalPage has the same words). */
+std::string internalPage(const std::string& address) {
+  static const std::regex scheme(R"(^\s*(edge|chrome|brave|opera|vivaldi)://|^\s*about:)", std::regex::icase);
+  if (!std::regex_search(address, scheme)) return {};
+  static const std::regex never(R"(password|passkey|autofill|payment|wallet|sync|profile|people|sign-?in|account|security|credential|logins)", std::regex::icase);
+  return std::regex_search(address, never) ? "blocked" : "settings";
+}
+/** The extensions / add-ons page of the person's own browser: there \"Remove\" removes an extension (asks every time). */
+bool extensionsPage(const std::string& address) {
+  static const std::regex re(R"(^\s*((edge|chrome|brave|opera|vivaldi)://extensions|about:addons)\b)", std::regex::icase);
+  return internalPage(address) == "settings" && std::regex_search(address, re);
+}
+/** 3.6.x: Windows' own administrator prompt (consent.exe on the secure desktop) is showing. Sara never answers it. */
+bool adminPrompt() {
+  HANDLE snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+  if (snap == INVALID_HANDLE_VALUE) return false;
+  PROCESSENTRY32W e{sizeof(e)};
+  bool found = false;
+  for (BOOL ok = Process32FirstW(snap, &e); ok && !found; ok = Process32NextW(snap, &e)) found = _wcsicmp(e.szExeFile, L"consent.exe") == 0;
+  CloseHandle(snap);
+  return found;
+}
+std::string lockedWhy() {
+  return adminPrompt() ? "Windows is showing its administrator prompt (the secure desktop). Sara never answers it: the person presses Yes there to allow the change (or No). Look again when it is gone."
+                       : "The screen is locked or the secure desktop is active; Sara cannot control it.";
+}
 
 Result tabs(DWORD ownBrowserPid, DWORD onlyPid) {
   Result res;
@@ -1033,9 +1071,41 @@ bool dangerousApp(const std::string& app) {
   static const std::regex re(R"((^|[ ._-])(explorer|cmd|powershell|pwsh|terminal|windowsterminal|conhost|bash|wsl|regedit|mmc|control|systemsettings|sara)([ ._-]|$))", std::regex::icase);
   return std::regex_search(app, re) || !blockedKind(app, app).empty();
 }
-bool neverAction(const std::string& label) {
+/** 3.6.x: the Windows Settings app (its own process, or the frame that hosts it). */
+bool settingsWindow(const std::string& app, const std::string& title) {
+  static const std::regex own(R"(^systemsettings$)", std::regex::icase), frame(R"(^applicationframehost$)", std::regex::icase);
+  static const std::regex name(R"(^(Settings|Einstellungen|Configuraci\S+n|Param\S+tres|Configura\S+es|Impostazioni)$)", std::regex::icase);
+  return std::regex_search(app, own) || (std::regex_search(app, frame) && std::regex_search(title, name));
+}
+/** 3.6.x: which Settings page is open, from its header / breadcrumb (never the side menu, which lists every page).
+ *  "" when it can't be told or is not one of the pages Sara may use: Apps (Installed apps, Startup, Default apps) and
+ *  Storage. Accounts, sign-in, privacy, security, BitLocker, firewall, family and recovery pages are never used. */
+std::string settingsPage(HWND h) {
+  auto u = uia(); ComPtr<IUIAutomationElement> root; ComPtr<IUIAutomationTreeWalker> walk;
+  if (!u || FAILED(u->ElementFromHandle(h, &root)) || FAILED(u->get_ControlViewWalker(&walk))) return {};
+  std::string header; int nodes = 0;
+  std::function<void(IUIAutomationElement*, int)> scan = [&](IUIAutomationElement* e, int depth) {
+    if (depth > 16 || ++nodes > 3000) return;
+    BSTR id = nullptr; e->get_CurrentAutomationId(&id);
+    std::string aid = id ? lower(u8(id)) : ""; SysFreeString(id);
+    if (std::regex_search(aid, std::regex("breadcrumb|pageheader|pagetitle|headertext|pagetitletextblock"))) {
+      BSTR name = nullptr; e->get_CurrentName(&name);
+      if (name) { header += " " + u8(name); SysFreeString(name); }
+    }
+    ComPtr<IUIAutomationElement> child; walk->GetFirstChildElement(e, &child);
+    while (child) { scan(child.Get(), depth + 1); ComPtr<IUIAutomationElement> next; walk->GetNextSiblingElement(child.Get(), &next); child = next; }
+  };
+  scan(root.Get(), 0);
+  static const std::regex never(R"(account|sign-?in|anmelde|inicio de sesi|connexion|password|kennw|contrase|mot de passe|senha|privacy|datenschutz|privacidad|confidentialit|privacidade|security|sicherheit|seguridad|s\S+curit\S+|seguran|sicurezza|bitlocker|firewall|encrypt|verschl|family|familie|familia|famille|fam\S+lia|famiglia|recovery|wiederherstell|recuperaci|r\S+cup\S+ration|recupera)", std::regex::icase);
+  static const std::regex ok(R"(\b(apps?|installed apps|startup|default apps|storage|autostart|speicher|inicio|almacenamiento|d\S+marrage|stockage|inicializa\S+o|armazenamento|avvio|archiviazione|aplicaciones|applications|aplicativos|app)\b)", std::regex::icase);
+  if (header.empty() || std::regex_search(header, never) || !std::regex_search(header, ok)) return {};
+  return header.substr(1);
+}
+bool neverAction(const std::string& label, bool extensions = false) {
   static const std::regex re(R"(\b(delete|remove|erase|trash|recycle|unlink)\b(?!\s+(my |your |this |the )?account\b)|run as administrator|elevat(ed|ion)|\buac\b|delete (a )?(file|folder)|remove (a )?(file|folder)|empty (the )?(trash|recycle)|move to trash|format (disk|drive)|security settings)", std::regex::icase);
-  return std::regex_search(label, re);
+  // 3.6.x: on the browser's own extensions page \"Remove\" removes an extension (it asks every time); files and the rest stay refused.
+  static const std::regex ext(R"(\b(delete|erase|trash|recycle|unlink)\b(?!\s+(my |your |this |the )?account\b)|run as administrator|elevat(ed|ion)|\buac\b|remove (a |the )?(file|folder)s?\b|empty (the )?(trash|recycle)|move to trash|format (disk|drive)|security settings)", std::regex::icase);
+  return std::regex_search(label, extensions ? ext : re);
 }
 bool onceAction(const std::string& label) {
   static const std::regex re(R"(\b(pay|payment|purchase|buy|checkout|order|donate|card|credit|billing|cvv|cvc|account|password|recovery|privacy|security|send|post|install|uninstall)\b|cc-number|cc-csc|2fa|two.factor)", std::regex::icase);
@@ -1052,7 +1122,17 @@ std::string authority(std::string raw) {
   else if (raw.size() > 3 && raw.substr(raw.size() - 3) == ":80") raw.resize(raw.size() - 3);
   return raw;
 }
-bool browserAllowed(HWND hwnd, const std::string& app) {
+/** 3.6.x: an address the person's own address bar may be given: one address (no spaces), not Sara's own server, not a
+ *  blocked page (banking, password managers, the browser's own password / payment / account pages). */
+bool addressOk(std::string t, const std::string& own) {
+  while (!t.empty() && isspace((unsigned char)t.back())) t.pop_back();
+  while (!t.empty() && isspace((unsigned char)t.front())) t.erase(0, 1);
+  if (t.empty() || t.size() > 300 || t.find_first_of(" \t\r\n") != std::string::npos) return false;
+  static const std::regex looks(R"(^(https?://|(edge|chrome|brave|opera|vivaldi)://|about:)|^[A-Za-z0-9.-]+\.[A-Za-z]{2,}(?:[:/]|$))", std::regex::icase);
+  if (!std::regex_search(t, looks)) return false;
+  return authority(t) != own && internalPage(t) != "blocked" && blockedKind(t, "").empty();
+}
+bool browserAllowed(HWND hwnd, const std::string& app, const Action* act = nullptr, bool viaOwner = false) {
   bool webSurface = std::regex_search(app, std::regex("msedge|chrome|chromium|firefox|brave|opera|vivaldi|arc|zen|duckduckgo", std::regex::icase));
   // Registered browsers are identified by their executable, rather than relying on names.
   for (HKEY hive : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE}) {
@@ -1075,7 +1155,7 @@ bool browserAllowed(HWND hwnd, const std::string& app) {
   if (!u || FAILED(u->ElementFromHandle(hwnd, &root)) || FAILED(u->get_ControlViewWalker(&walk))) return false;
   std::string own; { std::lock_guard<std::mutex> l(g_m); own = authority(g_serverAuthority); }
   if (own.empty()) return false;
-  int nodes = 0; bool found = false, ownPage = false, editingAddress = false;
+  int nodes = 0; bool found = false, ownPage = false, editingAddress = false; std::string typed;
   std::function<void(IUIAutomationElement*, int)> scan = [&](IUIAutomationElement* e, int depth) {
     if (depth > 8 || ++nodes > 1000 || ownPage) return;
     CONTROLTYPEID type = 0; e->get_CurrentControlType(&type);
@@ -1093,7 +1173,7 @@ bool browserAllowed(HWND hwnd, const std::string& app) {
         if (!secret && SUCCEEDED(e->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&value))) && value) {
           BSTR text = nullptr;
           if (SUCCEEDED(value->get_CurrentValue(&text)) && text) {
-            std::string site = authority(u8(text)); found = !site.empty(); ownPage = site == own; SysFreeString(text);
+            typed = u8(text); std::string site = authority(typed); found = !site.empty(); ownPage = site == own; SysFreeString(text);
           }
         }
       }
@@ -1102,7 +1182,21 @@ bool browserAllowed(HWND hwnd, const std::string& app) {
     while (child) { scan(child.Get(), depth + 1); ComPtr<IUIAutomationElement> next; walk->GetNextSiblingElement(child.Get(), &next); child = next; }
   };
   scan(root.Get(), 0);
-  return !webSurface && !found ? true : found && !ownPage && !editingAddress;
+  if (!webSurface && !found) return true;
+  // 3.6.x: a browser's own dialog (\"Remove this extension?\") has no address bar: the window it belongs to decides.
+  if (!found && !viaOwner) {
+    HWND owner = GetWindow(hwnd, GW_OWNER);
+    DWORD p1 = 0, p2 = 0;
+    GetWindowThreadProcessId(hwnd, &p1);
+    return owner && GetWindowThreadProcessId(owner, &p2) && p1 == p2 && browserAllowed(owner, app, nullptr, true);
+  }
+  if (!found || ownPage) return false;
+  if (!editingAddress) return true;
+  // 3.6.x: while the address bar is being edited only an address goes in (typed, then Enter), never Sara's own server.
+  if (!act) return false;
+  if (act->op == "d.type") return addressOk(act->text, own);
+  if (act->op == "d.keys" && lower(act->combo) == "enter") return addressOk(typed, own);
+  return false;
 }
 bool secureAncestors(IUIAutomation* u, IUIAutomationElement* element, std::string* labels = nullptr) {
   ComPtr<IUIAutomationTreeWalker> walker; if (FAILED(u->get_ControlViewWalker(&walker))) return true;
@@ -1115,7 +1209,7 @@ bool secureAncestors(IUIAutomation* u, IUIAutomationElement* element, std::strin
   }
   return false;
 }
-struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false; };
+struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false; };
 /** After the person's Allow: bring that exact window to the front. Windows refuses SetForegroundWindow from a
  *  process that isn't in front, so for that one call this thread shares input with the window in front. */
 bool bringToFront(HWND h) {
@@ -1131,7 +1225,7 @@ bool bringToFront(HWND h) {
   return GetForegroundWindow() == h;
 }
 Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = false, bool beforeApproval = false) {
-  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active; Sara cannot control it.");
+  if (!inputDesktop()) return refusal("denied_local", lockedWhy());
   {
     std::lock_guard<std::mutex> l(g_m); auto i = g_views.find(a.viewId);
     if (i == g_views.end() || GetTickCount64() - i->second.at > (approvedRefresh ? 600000 : kViewTtl)) return refusal("stale_view", "That look is older than 20 seconds: look again.");
@@ -1143,13 +1237,21 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   if (!w->h || w->h != b.view.hwnd || w->title != b.view.title || w->app != b.view.app || !EqualRect(&w->r, &b.view.frame)) return refusal("stale_view", "The target window changed or is not the window in this look.");
   b.win = *w;
   if (elevated(w->h)) return refusal("denied_local", "I can't control windows running as administrator");
-  if (dangerousApp(w->app)) return refusal("denied_local", "Terminal, system settings and protected applications are not desktop input targets.");
-  if (!browserAllowed(w->h, w->app)) return refusal("denied_local", "Sara cannot control her own server/sign-in in a browser, or a browser whose address cannot be checked safely.");
+  // 3.6.x: the Settings app on its Apps (Installed apps, Startup, Default apps) and Storage pages only, and those always ask.
+  if (settingsWindow(w->app, w->title)) {
+    if (settingsPage(w->h).empty()) return refusal("denied_local", "In Settings Sara only uses the Apps pages (Installed apps, Startup, Default apps) and Storage; accounts, sign-in, privacy, security, BitLocker, firewall and recovery stay with the person. Open one of those pages first (for example ms-settings:startupapps).");
+    b.sensitive = true;
+  } else if (dangerousApp(w->app)) return refusal("denied_local", "Terminals, Windows Security, the Registry Editor and protected applications are not desktop input targets (commands go through pc_run, which the person approves).");
+  if (!browserAllowed(w->h, w->app, &a)) return refusal("denied_local", "Sara cannot control her own server/sign-in in a browser, a browser whose address cannot be checked safely, or an address bar being edited (only an address may be typed there, then Enter).");
   // 3.5.x: the person's own browser: banking and password-manager pages stay blocked; payment, account and sign-in pages ask every time.
   if (browserApp(w->app)) {
     std::string address = browserAddress(w->h), kind = blockedKind(w->title + " " + address, "");
     if (!kind.empty()) return refusal("denied_local", "That page is hidden from Sara on purpose (" + kind + "): she never acts there.");
-    b.sensitive = sensitivePage(w->title + " " + address);
+    // 3.6.x: the browser's own pages: its settings (extensions, add-ons…) always ask; passwords, payments and account/sync never.
+    std::string internal = internalPage(address);
+    if (internal == "blocked") return refusal("denied_local", "That browser page holds passwords, payment methods or account and sync settings: Sara never acts there. The person does that part.");
+    b.sensitive = sensitivePage(w->title + " " + address) || internal == "settings";
+    b.extensions = extensionsPage(address);
   }
   // 3.5.x: before the approval (inspect) the target may be behind other windows: the person sees the card, and only
   // after Allow does the app bring that exact window to the front; every check below then runs again with it in front.
@@ -1212,7 +1314,7 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   if (b.item.secret) return refusal("denied_local", "That is a password field: Sara never types or presses keys into those.");
   if (b.item.disabled) return refusal("denied_local", "That control is disabled.");
   if (!checking && GetAncestor(WindowFromPoint(b.point), GA_ROOT) != w->h) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
-  if (neverAction(b.item.name)) return refusal("denied_local", "That protected desktop action is always refused.");
+  if (neverAction(b.item.name, b.extensions)) return refusal("denied_local", "That protected desktop action is always refused.");
   // Even keys aimed at an innocent ref must not spill into a secure focused control (checked with the window in front).
   if (checking) return {};
   auto u = uia(); ComPtr<IUIAutomationElement> focus;
@@ -1222,7 +1324,7 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   return {};
 }
 Result launch(const Action& a, bool execute, const std::function<bool()>& cancelled = [] { return false; }) {
-  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active.");
+  if (!inputDesktop()) return refusal("denied_local", lockedWhy());
   if (a.app.empty() || a.app.size() > 100 || a.app.find_first_of("\\/:\"|<>\r\n") != std::string::npos || dangerousApp(a.app)) return refusal("denied_local", "Choose an installed Start-menu app by its name; commands, paths and protected apps are refused.");
   std::wstring path;
   for (const KNOWNFOLDERID* folder : {&FOLDERID_StartMenu, &FOLDERID_CommonStartMenu}) {
@@ -1263,7 +1365,7 @@ namespace {
 /** 3.5.x d.tabswitch: one of the person's own browser tabs (by its place on the tab strip, checked against its title) to the front.
     UI Automation only: SelectionItem.Select, else Invoke, else the MSAA default action (Firefox); never synthetic clicks. */
 Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
-  if (!inputDesktop()) return refusal("denied_local", "The screen is locked or the secure desktop is active.");
+  if (!inputDesktop()) return refusal("denied_local", lockedWhy());
   auto all = listAll(); Result r;
   Win* w = findWin(all, a.window, r);
   if (!w) return r;
@@ -1283,7 +1385,7 @@ Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
   if (!kind.empty()) return refusal("denied_local", "That tab is hidden from Sara on purpose (" + kind + ").");
   if (info) {
     info->target = std::string("Switch to your ") + browserLabelOf(w->app) + " tab:\n" + t.title;
-    info->once = sensitivePage(t.title);
+    info->once = sensitivePage(t.title) || !internalPage(t.title).empty();
   }
   if (!execute) return {};
   ComPtr<IUIAutomationElement> el = els[a.tab - 1];
@@ -1466,6 +1568,9 @@ std::string policyConformance() {
   checks.push_back({"Real keyboard input is not Sara", !ownKeyInput(0, kInputTag)});
   checks.push_back({"Other injected keyboard input is not Sara", !ownKeyInput(LLKHF_INJECTED, 123)});
   checks.push_back({"Tagged injected keyboard input is Sara", ownKeyInput(LLKHF_INJECTED, kInputTag)});
+  checks.push_back({"Browser extensions page asks and may remove", extensionsPage("edge://extensions") && extensionsPage("about:addons") && !neverAction("Remove", true) && neverAction("Remove", false) && neverAction("Delete file", true)});
+  checks.push_back({"Browser password, payment and sync pages are refused", internalPage("edge://settings/passwords") == "blocked" && internalPage("chrome://password-manager/passwords") == "blocked" && internalPage("edge://settings/payments") == "blocked" && internalPage("chrome://settings/syncSetup") == "blocked" && internalPage("about:logins") == "blocked"});
+  checks.push_back({"An address bar takes addresses, never Sara's own server", addressOk("edge://extensions", "localhost:7885") && !addressOk("http://localhost:7885/", "localhost:7885") && !addressOk("edge://settings/passwords", "localhost:7885") && !addressOk("rm -rf files", "localhost:7885")});
   checks.push_back({"Own server authority canonicalizes", authority("http://localhost:7885/sign-in") == authority("localhost:7885")});
   int failed = 0; std::string out = "{\"checks\":[";
   for (size_t i = 0; i < checks.size(); ++i) { if (!checks[i].second) failed++; out += (i ? "," : "") + std::string("{\"name\":") + jq(checks[i].first) + ",\"ok\":" + (checks[i].second ? "true" : "false") + "}"; }

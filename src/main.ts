@@ -67,6 +67,7 @@ import { createProjectCheckpointTool } from './project-checkpoints.ts';
 import { createSessionContinuityTools } from './session-continuity-tools.ts';
 import { createSceneCanonTools } from './shared-scenes-tools.ts';
 import { createSettingsGuideTool } from './settingsguide.ts';
+import { createReportProblemTool } from './tools/report-problem.ts';
 import { createEverydaySettingsTool } from './everyday-settings.ts';
 import { findToolsTool } from './lean.ts';
 import { createReviewTools } from './codereview.ts';
@@ -1407,6 +1408,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // R1B2: offered only where the host binds ToolContext.sceneCanon (an eligible owner scene seat).
   if (!isMember && !isDemo) for (const t of createSceneCanonTools()) tools.add(t);
   tools.add(createSettingsGuideTool());
+  // Fred fix C: she can file a problem report for the person (the draft is shown; nothing goes without a yes).
+  if (!isDemo) tools.add(createReportProblemTool(() => app));
   // 3.3.0 (ezplain): settings by asking ("make the text bigger"): her own small allow-list, with Undo.
   tools.add(createEverydaySettingsTool(() => app));
   // Phase 123 (LEAN §4.7): she looks up and loads tools she wasn't sent (offered in lean turns only).
