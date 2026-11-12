@@ -36,6 +36,40 @@ constexpr ULONGLONG kViewTtl = 20000, kShotEvery = 500;
 std::mutex g_m;
 std::vector<std::string> g_extra;
 std::string g_serverAuthority;
+/** One listed control as it was in a look: its runtime id ("" when Windows gave none), role, name, and its layout
+ *  ("|role|name|rect[|secret][|disabled]", what the strict whole-window rule compares). */
+struct Mark { std::string rid, role, name, layout; };
+/** 3.6.x (busy web apps): which control in a fresh list is the one a ref named.
+ *  strict (drags and picture points, whose meaning depends on where everything is): the whole window must keep every
+ *  control's type, name, place and state, and the target its runtime id too.
+ *  Otherwise only the target matters: the same control (runtime id) with the same role and name; the rest of the
+ *  page (clocks, counters, a panel sliding in) may change. If the target's node was re-created (web apps replace
+ *  nodes), mayRefind (only before the approval card) takes the one control with the same role and name; none or
+ *  several is a refusal. Returns the fresh index (refound says it was re-found), or -1 with why. */
+int matchTarget(const std::vector<Mark>& was, int index, const std::vector<Mark>& now, bool strict, bool mayRefind, bool& refound, std::string& why) {
+  refound = false;
+  if (index < 0 || index >= (int)was.size()) { why = "That ref is not in this look."; return -1; }
+  const Mark& t = was[index];
+  if (strict) {
+    if (now.size() != was.size()) { why = "The controls changed"; return -1; }
+    for (size_t i = 0; i < now.size(); ++i)
+      if (now[i].layout != was[i].layout || ((int)i == index && now[i].rid != t.rid)) { why = "A control changed"; return -1; }
+    return index;
+  }
+  if (!t.rid.empty())
+    for (size_t i = 0; i < now.size(); ++i)
+      if (now[i].rid == t.rid) {
+        if (now[i].role != t.role || now[i].name != t.name) { why = "That control changed"; return -1; }
+        return (int)i;
+      }
+  if (!mayRefind || t.name.empty()) { why = "That control is not there any more"; return -1; }
+  int found = -1, count = 0;
+  for (size_t i = 0; i < now.size(); ++i)
+    if (now[i].role == t.role && now[i].name == t.name) { found = (int)i; count++; }
+  if (count != 1) { why = count ? "Several controls now have that name" : "That control is not there any more"; return -1; }
+  refound = true;
+  return found;
+}
 struct View {
   ULONGLONG at = 0;
   int ox = 0, oy = 0;
@@ -45,6 +79,7 @@ struct View {
   RECT frame{};
   int width = 0, height = 0;
   std::vector<std::string> identity;
+  std::vector<Mark> marks;
 };
 std::map<std::string, View> g_views;
 unsigned g_viewN = 0;
@@ -410,6 +445,10 @@ struct Item {
   ComPtr<IUIAutomationElement> element;
   std::string identity;
 };
+Mark markOf(const Item& it) {
+  size_t bar = it.identity.find('|');
+  return {bar == std::string::npos ? std::string() : it.identity.substr(0, bar), it.role, it.name, bar == std::string::npos ? it.identity : it.identity.substr(bar)};
+}
 ComPtr<IUIAutomationCacheRequest> cacheReq(IUIAutomation* a) {
   ComPtr<IUIAutomationCacheRequest> cr;
   a->CreateCacheRequest(&cr);
@@ -781,7 +820,7 @@ Result shot(const std::string& window, const std::string& screen, const std::vec
   v.title = boundWindow ? boundWindow->title : ""; v.app = boundWindow ? boundWindow->app : "";
   v.frame = boundWindow ? boundWindow->r : RECT{};
   v.width = pic.w; v.height = pic.h;
-  if (boundWindow) { std::vector<Item> items; int total = 0; collect(boundWindow->h, kMaxElements, items, total); for (auto& it : items) v.identity.push_back(it.identity); }
+  if (boundWindow) { std::vector<Item> items; int total = 0; collect(boundWindow->h, kMaxElements, items, total); for (auto& it : items) { v.identity.push_back(it.identity); v.marks.push_back(markOf(it)); } }
   std::string extra;
   if (marks) {
     Win* target = win ? win : frontIn(all, cap);
@@ -1040,7 +1079,7 @@ Result elements(const std::string& window, const std::string& viewId, int limit)
     v.at = GetTickCount64(); v.hwnd = w->h; v.title = w->title; v.app = w->app; v.frame = w->r; v.scale = 1; v.width = GetSystemMetrics(SM_CXVIRTUALSCREEN); v.height = GetSystemMetrics(SM_CYVIRTUALSCREEN);
     // List-only views have no picture coordinates; refs remain usable without taking a screenshot.
     v.width = 0; v.height = 0;
-    for (auto& it : items) v.identity.push_back(it.identity);
+    for (auto& it : items) { v.identity.push_back(it.identity); v.marks.push_back(markOf(it)); }
     std::lock_guard<std::mutex> l(g_m); vid = "v" + std::to_string(++g_viewN);
     for (auto i = g_views.begin(); i != g_views.end();) i = v.at - i->second.at > kViewTtl * 3 ? g_views.erase(i) : std::next(i);
     g_views[vid] = v;
@@ -1052,6 +1091,8 @@ Result elements(const std::string& window, const std::string& viewId, int limit)
 
 namespace {
 Result refusal(const std::string& code, const std::string& why) { Result r; r.code = code; r.message = why; return r; }
+/** 3.6.x: a stale look says plainly that this is Sara's own check (never the website or its security). */
+std::string changedWhy(const std::string& what) { return "The page changed while I was about to act (" + what + "). This is Sara's own safety check on this computer, not the website: look again."; }
 bool inputDesktop() {
   HDESK d = OpenInputDesktop(0, FALSE, DESKTOP_READOBJECTS | DESKTOP_SWITCHDESKTOP);
   if (!d) return false;
@@ -1209,7 +1250,29 @@ bool secureAncestors(IUIAutomation* u, IUIAutomationElement* element, std::strin
   }
   return false;
 }
-struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false; };
+/** True when focus is on the target or inside it (a rich editor's caret sits in its paragraphs). */
+bool focusInside(IUIAutomation* u, IUIAutomationElement* target) {
+  ComPtr<IUIAutomationElement> f; ComPtr<IUIAutomationTreeWalker> walk;
+  if (!target || FAILED(u->GetFocusedElement(&f)) || !f || FAILED(u->get_RawViewWalker(&walk)) || !walk) return false;
+  for (int i = 0; f && i < 12; ++i) {
+    BOOL same = FALSE;
+    if (SUCCEEDED(u->CompareElements(f.Get(), target, &same)) && same) return true;
+    ComPtr<IUIAutomationElement> parent; if (FAILED(walk->GetParentElement(f.Get(), &parent))) return false;
+    f = parent;
+  }
+  return false;
+}
+/** 3.6.x: a web page's rich text editor (contenteditable, multi-line) in a browser window. */
+bool richWebEditor(IUIAutomationElement* e, const std::string& app) {
+  if (!e || !browserApp(app)) return false;
+  CONTROLTYPEID type = 0; if (FAILED(e->get_CurrentControlType(&type)) || (type != UIA_EditControlTypeId && type != UIA_DocumentControlTypeId && type != UIA_GroupControlTypeId)) return false;
+  BSTR fw = nullptr, aria = nullptr; e->get_CurrentFrameworkId(&fw); e->get_CurrentAriaProperties(&aria);
+  std::string framework = fw ? lower(u8(fw)) : "", props = aria ? lower(u8(aria)) : "";
+  SysFreeString(fw); SysFreeString(aria);
+  TDBG("rich? framework=" + framework + " aria=" + props);
+  return (framework == "chrome" || framework == "gecko") && props.find("multiline=true") != std::string::npos;
+}
+struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false; std::string ownName; };
 /** After the person's Allow: bring that exact window to the front. Windows refuses SetForegroundWindow from a
  *  process that isn't in front, so for that one call this thread shares input with the window in front. */
 bool bringToFront(HWND h) {
@@ -1234,7 +1297,10 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   auto all = listAll(); Result r;
   Win* w = findWin(all, a.window.empty() ? idOf(b.view.hwnd) : a.window, r);
   if (!w) return r;
-  if (!w->h || w->h != b.view.hwnd || w->title != b.view.title || w->app != b.view.app || !EqualRect(&w->r, &b.view.frame)) return refusal("stale_view", "The target window changed or is not the window in this look.");
+  // 3.6.x: refs follow their own control (matchTarget); drags and picture points keep the whole-window rule. A web
+  // app's window title may change with the page (unread counts) when a ref is used: the target itself is checked.
+  bool strict = a.op == "d.drag" || a.ref.empty();
+  if (!w->h || w->h != b.view.hwnd || (strict && w->title != b.view.title) || w->app != b.view.app || !EqualRect(&w->r, &b.view.frame)) return refusal("stale_view", changedWhy("The target window changed or is not the window in this look"));
   b.win = *w;
   if (elevated(w->h)) return refusal("denied_local", "I can't control windows running as administrator");
   // 3.6.x: the Settings app on its Apps (Installed apps, Startup, Default apps) and Storage pages only, and those always ask.
@@ -1262,23 +1328,25 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   if (!checking && GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
   std::vector<Item> items; int total = 0; collect(w->h, kMaxElements, items, total);
   TDBG("collected " + std::to_string(items.size()));
-  if (items.size() != b.view.identity.size()) return refusal("stale_view", "The controls changed: look again.");
-  // The target (checked below by its ref) must be the very same control, runtime id included; the rest of the window
-  // must keep every control's type, name, place and state. Their runtime ids are not compared: Windows hands out new
-  // ones for some controls (the title bar's System menu) when the window comes to the front after the person's Allow.
-  auto layoutOf = [](const std::string& id) { size_t p = id.find('|'); return p == std::string::npos ? id : id.substr(p); };
-  int targetIndex = !a.ref.empty() && std::regex_match(a.ref, std::regex("e[1-9][0-9]{0,3}")) ? atoi(a.ref.c_str() + 1) - 1 : -1;
-  for (size_t i = 0; i < items.size(); ++i) {
-    bool same = (int)i == targetIndex ? items[i].identity == b.view.identity[i] : layoutOf(items[i].identity) == layoutOf(b.view.identity[i]);
-    if (!same) return refusal("stale_view", "A control changed: look again.");
-  }
+  std::vector<Mark> now; for (auto& it : items) now.push_back(markOf(it));
   int index = -1;
   if (!a.ref.empty()) {
     if (!std::regex_match(a.ref, std::regex("e[1-9][0-9]{0,3}"))) return refusal("stale_view", "That ref is not in this look.");
-    index = atoi(a.ref.c_str() + 1) - 1;
-    if (index < 0 || index >= (int)items.size()) return refusal("stale_view", "That ref is not in this look.");
+    int asked = atoi(a.ref.c_str() + 1) - 1; bool refound = false; std::string why;
+    index = matchTarget(b.view.marks, asked, now, strict, checking, refound, why);
+    if (index < 0) return refusal("stale_view", changedWhy(why));
+    if (refound) {
+      // Before the card only: the card then names this control, and every later check (after Allow, before each input) needs this very one.
+      b.view.marks[asked] = now[index]; b.view.identity[asked] = items[index].identity;
+      std::lock_guard<std::mutex> l(g_m); auto i = g_views.find(a.viewId);
+      if (i != g_views.end() && asked < (int)i->second.marks.size()) { i->second.marks[asked] = now[index]; i->second.identity[asked] = items[index].identity; }
+    }
+    // The control's current place (it may have moved with the page), never the place in the look.
     RECT f = items[index].r; b.point = {(f.left + f.right) / 2, (f.top + f.bottom) / 2};
   } else {
+    // A picture point means something only while everything stays where it was: the whole window must be unchanged.
+    if (now.size() != b.view.marks.size()) return refusal("stale_view", changedWhy("The controls changed"));
+    for (size_t i = 0; i < now.size(); ++i) if (now[i].layout != b.view.marks[i].layout) return refusal("stale_view", changedWhy("A control changed"));
     if (!std::isfinite(a.x) || !std::isfinite(a.y) || a.x < 0 || a.y < 0 || a.x >= b.view.width || a.y >= b.view.height) return refusal("denied_local", "The point is outside this picture; list-only looks require a ref.");
     b.point = {(LONG)std::lround(b.view.ox + a.x / b.view.scale), (LONG)std::lround(b.view.oy + a.y / b.view.scale)};
     auto u = uia(); ComPtr<IUIAutomationElement> at;
@@ -1310,6 +1378,9 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
     pointAction = FAILED(b.item.element->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&invoke))) || !invoke;
   }
   if (pointAction && !exact) return refusal("stale_view", "That container's point hits a different control. Look again and use that control's ref.");
+  // 3.6.x: the labels around it (the page title, with its counts) are for the card and the never-list only; the
+  // checks before each input compare the control's own name.
+  b.ownName = b.item.name;
   b.item.name += context;
   if (b.item.secret) return refusal("denied_local", "That is a password field: Sara never types or presses keys into those.");
   if (b.item.disabled) return refusal("denied_local", "That control is disabled.");
@@ -1362,6 +1433,17 @@ Result launch(const Action& a, bool execute, const std::function<bool()>& cancel
 }
 
 namespace {
+/** 3.6.x: a busy web app's tab title changes with its counts and clock ("Inbox (12)" → "Inbox (13)"): the same tab
+ *  title is the same text with every run of digits counted as one. */
+std::string titleShape(const std::string& t) {
+  std::string o;
+  for (size_t i = 0; i < t.size(); ++i) {
+    if (isdigit((unsigned char)t[i])) { o += '#'; while (i + 1 < t.size() && isdigit((unsigned char)t[i + 1])) ++i; }
+    else o += t[i];
+  }
+  return o;
+}
+bool sameTabTitle(const std::string& now, const std::string& asked) { return now == asked || titleShape(now) == titleShape(asked); }
 /** 3.5.x d.tabswitch: one of the person's own browser tabs (by its place on the tab strip, checked against its title) to the front.
     UI Automation only: SelectionItem.Select, else Invoke, else the MSAA default action (Firefox); never synthetic clicks. */
 Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
@@ -1380,7 +1462,7 @@ Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
   tabStrip(u.Get(), w->h, ts, address, &els);
   if (a.tab < 1 || a.tab > (int)ts.size() || ts.size() != els.size()) return refusal("stale_view", "That tab is not there any more: list the tabs again (pc_my_tabs).");
   const TabInfo& t = ts[a.tab - 1];
-  if (!a.title.empty() && t.title != a.title) return refusal("stale_view", "The tabs changed: list them again (pc_my_tabs).");
+  if (!a.title.empty() && !sameTabTitle(t.title, a.title)) return refusal("stale_view", "The tabs changed: list them again (pc_my_tabs).");
   std::string kind = blockedKind(t.title, "");
   if (!kind.empty()) return refusal("denied_local", "That tab is hidden from Sara on purpose (" + kind + ").");
   if (info) {
@@ -1449,12 +1531,17 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
   if (a.op == "d.tabswitch") return tabSwitch(a, true, nullptr);
   Bound b; auto r = bind(a, b, true); if (!r.code.empty()) return r;
   bool dragging = false;
+  std::string guardWhy;  // set when the page (not Stop or a takeover) halted the input
   auto guard = [&]() {
+    guardWhy.clear();
     if (cancelled()) return false;
     if (!dragging) {
-      Bound check; if (!bind(a, check, false).code.empty()) return false;
+      Bound check; auto again = bind(a, check, false);
+      if (!again.code.empty()) { TDBG("guard: " + again.message); if (!cancelled()) guardWhy = again.code == "stale_view" ? again.message : ""; return false; }
       auto u = uia(); BOOL same = FALSE;
-      return u && SUCCEEDED(u->CompareElements(b.item.element.Get(), check.item.element.Get(), &same)) && same && b.item.name == check.item.name && b.item.role == check.item.role;
+      bool ok = u && SUCCEEDED(u->CompareElements(b.item.element.Get(), check.item.element.Get(), &same)) && same && b.ownName == check.ownName && b.item.role == check.item.role;
+      if (!ok) { TDBG("guard: not the same control"); guardWhy = changedWhy("That control changed"); }
+      return ok;
     }
     // A dragged widget may move its bounds. Keep the native source identity and recheck
     // the window and sensitive state instead of treating our own movement as a stale look.
@@ -1463,6 +1550,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     return w && w->h == GetForegroundWindow() && inputDesktop() && !elevated(w->h) && browserAllowed(w->h, w->app) && u &&
       SUCCEEDED(b.item.element->get_CurrentIsEnabled(&enabled)) && enabled && !secureAncestors(u.Get(), b.item.element.Get());
   };
+  auto halted = [&](const char* what) { return guardWhy.empty() ? refusal("stopped", what) : refusal("stale_view", guardWhy); };
   auto send = [&](std::vector<INPUT> events) {
     if (!guard()) return false;
     for (auto& e : events) { if (e.type == INPUT_MOUSE) e.mi.dwExtraInfo = kInputTag; else e.ki.dwExtraInfo = kInputTag; }
@@ -1484,7 +1572,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
   if (a.op == "d.click" && !a.right && !a.twice) {
     ComPtr<IUIAutomationInvokePattern> pattern;
     if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_InvokePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
-      if (!guard()) return refusal("stopped", "Stopped before Invoke.");
+      if (!guard()) return halted("Stopped before Invoke.");
       if (FAILED(pattern->Invoke())) return refusal("denied_local", "The control refused its accessibility action.");
       done = true;
     }
@@ -1494,19 +1582,31 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     if ((!a.text.empty() && n == 0) || n > 2000 || maskText(a.text) != a.text) return refusal("denied_local", "Text must be valid, non-secret and at most 2,000 characters.");
     std::wstring text(n, 0); MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), text.data(), n);
     ComPtr<IUIAutomationValuePattern> pattern;
-    if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
-      TDBG("guard before SetValue"); if (!guard()) return refusal("stopped", "Stopped before SetValue.");
+    // 3.6.x: a web page's rich editor (contenteditable: mail and event bodies) takes SetValue without telling the page
+    // (no input events), so the app never sees the text: there the text is typed. Plain fields keep SetValue.
+    bool rich = richWebEditor(b.item.element.Get(), b.win.app);
+    TDBG(std::string("type rich=") + (rich ? "1" : "0"));
+    if (!rich && SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
+      TDBG("guard before SetValue"); if (!guard()) return halted("Stopped before SetValue.");
       TDBG("SetValue start"); BSTR value = SysAllocStringLen(text.data(), (UINT)text.size()); HRESULT set = pattern->SetValue(value); SysFreeString(value);
       TDBG("SetValue end hr=" + std::to_string((long)set)); if (FAILED(set)) return refusal("denied_local", "The field refused its accessibility value action.");
       done = true;
     } else {
       if (FAILED(b.item.element->SetFocus())) return refusal("denied_local", "The target could not receive keyboard focus.");
-      auto u = uia(); ComPtr<IUIAutomationElement> focus; BOOL same = FALSE;
-      if (!u || FAILED(u->GetFocusedElement(&focus)) || FAILED(u->CompareElements(focus.Get(), b.item.element.Get(), &same)) || !same) return refusal("denied_local", "Focus is not on the target field.");
-      for (wchar_t ch : text) { INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wScan = ch; down.ki.dwFlags = KEYEVENTF_UNICODE; INPUT up = down; up.ki.dwFlags |= KEYEVENTF_KEYUP; if (!send({down, up})) return refusal("stopped", "Text input was interrupted; some characters may have been entered."); }
+      auto u = uia();
+      // The caret may sit in a child of the editor (a paragraph): focus must be the target or inside it, before every chunk.
+      for (int i = 0; i < 10 && u && !focusInside(u.Get(), b.item.element.Get()); ++i) Sleep(50);
+      if (!u || !focusInside(u.Get(), b.item.element.Get())) return refusal("denied_local", "Focus is not on the target field.");
+      for (size_t at = 0; at < text.size(); at += 16) {
+        if (!focusInside(u.Get(), b.item.element.Get())) return refusal("stopped", "Focus left the target field; some characters may have been entered.");
+        std::vector<INPUT> chunk;
+        for (wchar_t ch : text.substr(at, 16)) { INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wScan = ch; down.ki.dwFlags = KEYEVENTF_UNICODE; INPUT up = down; up.ki.dwFlags |= KEYEVENTF_KEYUP; chunk.push_back(down); chunk.push_back(up); }
+        if (!send(chunk)) return at ? refusal("stopped", "Text input was interrupted; some characters may have been entered.") : halted("Stopped before typing.");
+      }
       done = true;
     }
   }
+
   if (a.op == "d.keys") {
     static const std::map<std::string, int> keys = {{"enter", VK_RETURN}, {"tab", VK_TAB}, {"shift+tab", VK_TAB}, {"escape", VK_ESCAPE}, {"arrowleft", VK_LEFT}, {"arrowright", VK_RIGHT}, {"arrowup", VK_UP}, {"arrowdown", VK_DOWN}, {"home", VK_HOME}, {"end", VK_END}, {"pageup", VK_PRIOR}, {"pagedown", VK_NEXT}, {"backspace", VK_BACK}, {"ctrl+a", static_cast<WORD>('A')}};
     auto key = keys.find(lower(a.combo)); if (key == keys.end()) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
@@ -1523,7 +1623,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     if (!std::isfinite(a.dx) || !std::isfinite(a.dy) || std::abs(a.dx) > 2400 || std::abs(a.dy) > 2400) return refusal("denied_local", "Scroll amount is outside the limit.");
     ComPtr<IUIAutomationScrollPattern> pattern;
     if (SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ScrollPatternId, IID_PPV_ARGS(&pattern))) && pattern) {
-      if (!guard()) return refusal("stopped", "Stopped before Scroll.");
+      if (!guard()) return halted("Stopped before Scroll.");
       auto amount = [](double n) { return n == 0 ? ScrollAmount_NoAmount : n > 0 ? ScrollAmount_SmallIncrement : ScrollAmount_SmallDecrement; };
       if (FAILED(pattern->Scroll(amount(a.dx), amount(a.dy)))) return refusal("denied_local", "The control refused its accessibility scroll action."); done = true;
     } else if (move(b.point)) {
@@ -1572,6 +1672,28 @@ std::string policyConformance() {
   checks.push_back({"Browser password, payment and sync pages are refused", internalPage("edge://settings/passwords") == "blocked" && internalPage("chrome://password-manager/passwords") == "blocked" && internalPage("edge://settings/payments") == "blocked" && internalPage("chrome://settings/syncSetup") == "blocked" && internalPage("about:logins") == "blocked"});
   checks.push_back({"An address bar takes addresses, never Sara's own server", addressOk("edge://extensions", "localhost:7885") && !addressOk("http://localhost:7885/", "localhost:7885") && !addressOk("edge://settings/passwords", "localhost:7885") && !addressOk("rm -rf files", "localhost:7885")});
   checks.push_back({"Own server authority canonicalizes", authority("http://localhost:7885/sign-in") == authority("localhost:7885")});
+  {
+    // 3.6.x busy web apps: refs follow their own control; drags and picture points keep the whole-window rule.
+    auto m = [](std::string rid, std::string role, std::string name, std::string rect) { return Mark{rid, role, name, "|" + role + "|" + name + "|" + rect}; };
+    std::vector<Mark> was = {m("1:", "text", "10:00:01", "0,0,50,10"), m("2:", "button", "New event", "60,0,120,20"), m("3:", "text", "Inbox 3 unread", "0,30,80,40")};
+    std::vector<Mark> busy = {m("9:", "text", "10:00:02", "0,0,50,10"), m("8:", "text", "Draft autosaved", "0,12,50,20"), m("2:", "button", "New event", "60,4,120,24"), m("7:", "text", "Inbox 4 unread", "0,30,80,40")};
+    bool re = false; std::string why;
+    checks.push_back({"A ref survives unrelated changes and follows its control", matchTarget(was, 1, busy, false, false, re, why) == 2 && !re});
+    checks.push_back({"Drags and picture points keep the whole-window rule", matchTarget(was, 1, busy, true, true, re, why) < 0 && matchTarget(was, 1, was, true, false, re, why) == 1});
+    auto renamed = busy; renamed[2].name = "Delete event"; renamed[2].layout = "|button|Delete event|60,4,120,24";
+    checks.push_back({"A renamed target is refused", matchTarget(was, 1, renamed, false, true, re, why) < 0});
+    auto retyped = busy; retyped[2].role = "link";
+    checks.push_back({"A target with another role is refused", matchTarget(was, 1, retyped, false, true, re, why) < 0});
+    auto recreated = busy; recreated[2].rid = "42:";
+    checks.push_back({"A re-created target is found again before the card when it is the only one", matchTarget(was, 1, recreated, false, true, re, why) == 2 && re});
+    checks.push_back({"A re-created target is never swapped after Allow", matchTarget(was, 1, recreated, false, false, re, why) < 0});
+    auto twice = recreated; twice.push_back(m("43:", "button", "New event", "200,0,260,20"));
+    checks.push_back({"Two controls with the target's name are refused", matchTarget(was, 1, twice, false, true, re, why) < 0});
+    auto gone = recreated; gone.erase(gone.begin() + 2);
+    checks.push_back({"A target that is gone is refused", matchTarget(was, 1, gone, false, true, re, why) < 0});
+    checks.push_back({"A tab title may change only in its numbers", sameTabTitle("Inbox (13) - Gmail", "Inbox (12) - Gmail") && sameTabTitle("Dyn Calendar (10 new)", "Dyn Calendar (3 new)") && !sameTabTitle("Bank (12)", "Inbox (12)")});
+    checks.push_back({"A stale look says it is Sara's own check", changedWhy("A control changed").find("Sara's own") != std::string::npos});
+  }
   int failed = 0; std::string out = "{\"checks\":[";
   for (size_t i = 0; i < checks.size(); ++i) { if (!checks[i].second) failed++; out += (i ? "," : "") + std::string("{\"name\":") + jq(checks[i].first) + ",\"ok\":" + (checks[i].second ? "true" : "false") + "}"; }
   return out + "],\"passed\":" + std::to_string(checks.size() - failed) + ",\"failed\":" + std::to_string(failed) + "}";

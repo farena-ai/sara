@@ -102,6 +102,13 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Busy web apps work, in 3.6.4
+
+Clicking and typing in web apps that redraw all the time (Outlook, Gmail, Teams, calendars) no longer
+stops with "the page changed". She checks only the button or field she is about to use: still the same
+one, still enabled, not a password field. She types into rich editors like a person, and when she does
+stop, she says it's her own safety check, looks again and tries once more.
+
 ## She fills in your own forms, in 3.6.3
 
 Give her your Excel or Word form (a time sheet, an application) and she writes the values into a copy

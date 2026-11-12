@@ -182,8 +182,8 @@ export function createComputerTools(app: AppContext): Tool[] {
           takeover: 'Paused on the computer',
           stale_view: 'The page changed',
         };
-        const after = err.code === 'denied_local' ? (/administrator prompt/i.test(err.message) ? ' Tell the owner: \u201cWindows will ask you to allow this change \u2014 press Yes\u201d (or No). Wait for them, then look again; never try to answer it yourself.' : ' Accept this: the computer decides. Tell the owner exactly what it refused and why, and offer the next best way (another approved step, or the one part only they can do).') : err.code === 'takeover' ? ` The owner is using ${BR()} now. Stop acting: tell them what you were about to do and that you will go on when they press Resume on the computer (or ask you to).` : err.code === 'stale_view' ? ' Look again (pc_browser_look) and use the new refs.' : '';
-        throw new ToolError(`${what[err.code] ?? 'The computer refused that'}: ${namedDevice(err.message)}${after}`);
+        const after = err.code === 'denied_local' ? (/administrator prompt/i.test(err.message) ? ' Tell the owner: \u201cWindows will ask you to allow this change \u2014 press Yes\u201d (or No). Wait for them, then look again; never try to answer it yourself.' : ' Accept this: the computer decides. Tell the owner exactly what it refused and why, and offer the next best way (another approved step, or the one part only they can do).') : err.code === 'takeover' ? ` The owner is using ${BR()} now. Stop acting: tell them what you were about to do and that you will go on when they press Resume on the computer (or ask you to).` : err.code === 'stale_view' ? (name.startsWith('d.') ? ` That is ${NAME()}'s own safety check on the computer, never the website or its security: look again (pc_look) and use the new refs.` : ' Look again (pc_browser_look) and use the new refs.') : '';
+        throw Object.assign(new ToolError(`${what[err.code] ?? 'The computer refused that'}: ${namedDevice(err.message)}${after}`), { code: err.code });
       }
       throw new ToolError((err as Error).message);
     }
@@ -1061,14 +1061,33 @@ export function createComputerTools(app: AppContext): Tool[] {
     const d = pickDesk(args);
     const target = action === 'open_app' ? { app: String(args.app ?? '') } : desktopTarget(d, args);
     hub()!.desktopUsed(convOf(ctx).id, d.id);
-    const r = await op(ctx, d, opName, { ...target, task: taskOf(convOf(ctx).id).key, forceOnce: replayDesktop.delete(args), ...(action === 'type' ? { text: str(args, 'text') } : {}), ...(action === 'keys' ? { combo: str(args, 'combo') } : {}), ...(action === 'scroll' ? { dx: Number(args.dx ?? 0), dy: Number(args.dy ?? args.amount ?? 0) } : {}), ...(action === 'drag' ? { toX: Number(args.to_x), toY: Number(args.to_y) } : {}), ...(action === 'click' ? { button: args.button === 'right' ? 'right' : 'left', double: args.double === true } : {}) }, desktopSummary(args, d, action));
+    const forceOnce = replayDesktop.delete(args);
+    const send = (where: Record<string, unknown>) => op(ctx, d, opName, { ...where, task: taskOf(convOf(ctx).id).key, forceOnce, ...(action === 'type' ? { text: str(args, 'text') } : {}), ...(action === 'keys' ? { combo: str(args, 'combo') } : {}), ...(action === 'scroll' ? { dx: Number(args.dx ?? 0), dy: Number(args.dy ?? args.amount ?? 0) } : {}), ...(action === 'drag' ? { toX: Number(args.to_x), toY: Number(args.to_y) } : {}), ...(action === 'click' ? { button: args.button === 'right' ? 'right' : 'left', double: args.double === true } : {}) }, desktopSummary(args, d, action));
+    // 3.6.x: busy web apps change while she acts. The computer refuses when the very control she named changed (its
+    // own check, not the website's); she looks again once by herself and retries on the one control with the same
+    // role and name. The computer checks it again from the start (and asks again when it would ask).
+    let again = '';
+    try {
+      await send(target);
+    } catch (err) {
+      const was = typeof target.ref === 'string' ? deskViews.get(d.id)?.refs.get(target.ref) : undefined;
+      if ((err as { code?: string }).code !== 'stale_view' || !was?.name) throw err;
+      const fresh = await deskOp(ctx, d, 'd.elements', { ...(target.window ? { window: target.window } : {}), limit: 300 }, 'looking again after the page changed');
+      const items = Array.isArray(fresh.result.items) ? desktopItems(fresh.result.items) : [];
+      const same = items.filter((i) => i.role === was.role && i.name === was.name);
+      if (same.length !== 1 || typeof fresh.result.viewId !== 'string') throw new ToolError(`${(err as Error).message} I looked again once: ${same.length ? 'several controls now have that name' : 'that control is not there now'}, so use pc_look and pick it again.`);
+      const fw = (fresh.result.window ?? {}) as Record<string, unknown>;
+      deskViews.set(d.id, { viewId: fresh.result.viewId, ...(target.window ? { window: String(target.window) } : {}), ...(fw.app ? { app: String(fw.app) } : {}), ...(fw.title ? { title: String(fw.title) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
+      await send({ ...target, ref: same[0].ref, viewId: fresh.result.viewId });
+      again = ' (The page changed while I was about to act: I looked again once and acted on the same control.)';
+    }
     // CU6's receipt is deliberately a fresh look, not the device's cached after-state.
     const verify = action === 'open_app' ? await deskOp(ctx, d, 'd.windows', {}, 'verifying the app launch') : await deskOp(ctx, d, 'd.elements', { ...(target.window ? { window: target.window } : {}), limit: 300 }, 'verifying the desktop action');
     const items = Array.isArray(verify.result.items) ? desktopItems(verify.result.items) : [];
     deskViews.delete(d.id);
     const vw = (verify.result.window ?? {}) as Record<string, unknown>;
     if (items.length) deskViews.set(d.id, { ...(typeof verify.result.viewId === 'string' ? { viewId: verify.result.viewId } : {}), ...(target.window ? { window: String(target.window) } : {}), ...(vw.app ? { app: String(vw.app) } : {}), ...(vw.title ? { title: String(vw.title) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
-    return `${UNTRUSTED_SCREEN}\n${action === 'open_app' ? `Asked ${nameOf(d)} to open ${String(args.app ?? '')}.` : `Completed ${action} on ${nameOf(d)}.`} Fresh verification: ${items.map((i) => `${i.ref} ${i.role}${i.name ? ` "${i.name}"` : ''}`).join('; ') || '(no accessible elements returned)'}`;
+    return `${UNTRUSTED_SCREEN}\n${action === 'open_app' ? `Asked ${nameOf(d)} to open ${String(args.app ?? '')}.` : `Completed ${action} on ${nameOf(d)}.${again}`} Fresh verification: ${items.map((i) => `${i.ref} ${i.role}${i.name ? ` "${i.name}"` : ''}`).join('; ') || '(no accessible elements returned)'}`;
   };
   const desktopTool = (action: DesktopAction, opName: string, description: string, properties: Record<string, unknown>, required: string[] = []): Tool => ({
     defaultPermission: 'auto',

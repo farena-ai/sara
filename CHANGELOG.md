@@ -5,6 +5,8 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.6.4 (2026-11-12): busy web apps work
+
 ## 3.6.3 (2026-11-12): she fills in your own forms
 
 ## 3.6.2 (2026-11-12): she does it for you
@@ -17,6 +19,13 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 - Fixed: a spreadsheet she made from a write-up lost lines like "EMPLOYEE NAME: Kent" written above
   or below the table; they now go on the sheet as label and value cells. A table row with more cells
   than its header is sent back to her to fix instead of shifting the totals into the wrong column.
+- Fixed: in busy web apps (Outlook on the web, Gmail, Teams, Google Calendar) her clicks and typing often
+  stopped with "the page shifted" because a clock or an unread count changed somewhere else on the page.
+  Now she checks only the control she is about to use: it must be the same one, with the same name, still
+  enabled. She acts where it is now, and anything else on the page may change. Drags and clicks on a
+  picture point keep the stricter check. If that control itself changes, she says it is her own safety
+  check (not the website), looks again once and tries again, asking you again if needed. Text typed into
+  a web page's rich editor (an event or mail body) now reaches the page.
 - Fixed: a reply could fail without a word. Some models (seen with beam:cloud through Ollama) answer
   with only their private thinking; she now asks once more for a plain answer. A model writing a tool
   call as text runs it as the real call, and thinking tags never stay in her words. Every failed reply

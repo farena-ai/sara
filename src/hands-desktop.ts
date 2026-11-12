@@ -293,7 +293,13 @@ interface View {
   width?: number;
   height?: number;
   signature?: string;
+  /** 3.6.x: each listed control as it was (the object is its runtime identity), so a ref follows its own control. */
+  marks?: { el: FixtureElement; role: string; name?: string }[];
+  bounds?: string;
 }
+
+/** 3.6.x: a stale look says plainly that it is Sara's own check (the same words as the apps). */
+export const changedWhy = (what: string) => `The page changed while I was about to act (${what}). This is Sara's own safety check on this computer, not the website: look again.`;
 
 /** The fixture desktop: the same rules as the apps, on known windows. */
 export class TestDesktop {
@@ -425,10 +431,12 @@ export class TestDesktop {
     }
     const limit = Math.max(1, Math.min(DESKTOP_LIMITS.elements, Number(a.limit) || DESKTOP_LIMITS.elements));
     const coords = v ? 'picture' : 'screen';
-    if (!v) { v = { id: `v${++this.#viewN}`, at: this.now(), ox: 0, oy: 0, scale: 1, window: w.id, width: this.screen.w, height: this.screen.h, signature: this.#signature(w) }; this.#views.set(v.id, v); }
+    if (!v) { v = { id: `v${++this.#viewN}`, at: this.now(), ox: 0, oy: 0, scale: 1, window: w.id, width: this.screen.w, height: this.screen.h, signature: this.#signature(w), ...this.#marks(w) }; this.#views.set(v.id, v); }
     const { items, total } = this.#items(w, v, limit);
     return { viewId: v.id, window: { id: w.id, title: maskDesktopText(w.title), app: w.app }, items, total, ...(total > items.length ? { more: true } : {}), coords };
   }
+
+  #marks(w: FixtureWindow): Pick<View, 'marks' | 'bounds'> { return { marks: w.elements.map((el) => ({ el, role: el.role, ...(el.name !== undefined ? { name: el.name } : {}) })), bounds: JSON.stringify(w.bounds) }; }
 
   #signature(w: FixtureWindow): string { return JSON.stringify([w.bounds, w.elements.map(e => [e.role, e.name, e.box, !!e.secure, !!e.disabled])]); }
 
@@ -453,7 +461,9 @@ export class TestDesktop {
       const i = Number(a.tab);
       if (!Number.isInteger(i) || i < 1 || i > w.tabs!.length) fail('stale_view', 'That tab is not there any more: list the tabs again (pc_my_tabs).');
       const t = w.tabs![i - 1];
-      if (typeof a.title === 'string' && a.title && maskDesktopText(t.title) !== a.title) fail('stale_view', 'The tabs changed: list them again (pc_my_tabs).');
+      // 3.6.x: a busy app's title may change in its numbers only (unread counts, clocks).
+      const shape = (x: string) => x.replace(/\d+/g, '#');
+      if (typeof a.title === 'string' && a.title && shape(maskDesktopText(t.title)) !== shape(a.title)) fail('stale_view', 'The tabs changed: list them again (pc_my_tabs).');
       const page = ownBrowserPage(t.title, t.url ?? '', blockedKind(`${t.title} ${t.url ?? ''}`, '', this.extra) ?? '');
       if (page.act === 'block') fail('denied_local', page.why);
       return { window: w, tab: i, once: page.act === 'once' };
@@ -476,10 +486,16 @@ export class TestDesktop {
     const pageRule = front ? ownBrowserPage(front.title, front.url ?? '', blockedKind(`${front.title} ${front.url ?? ''}`, '', this.extra) ?? '') : undefined;
     if (pageRule?.act === 'block') fail('denied_local', pageRule.why);
     if (this.foreground !== w.id) fail('denied_local', 'The target window is not in front: look again.');
-    if (v.signature !== this.#signature(w)) fail('stale_view', 'The window or controls changed: look again.');
+    // 3.6.x: a ref follows its own control (same object, role and name; the rest may change); drags and picture
+    // points keep the whole-window rule.
+    const byRef = typeof a.ref === 'string' && /^e[1-9]\d{0,3}$/.test(a.ref);
+    if ((op === 'd.drag' || !byRef) && v.signature !== this.#signature(w)) fail('stale_view', changedWhy('The window or controls changed'));
     let element: FixtureElement | undefined;
-    if (typeof a.ref === 'string' && /^e[1-9]\d{0,3}$/.test(a.ref)) element = w.elements[Number(a.ref.slice(1)) - 1];
-    else {
+    if (byRef) {
+      const mark = v.marks?.[Number(String(a.ref).slice(1)) - 1];
+      if (!mark || v.bounds !== JSON.stringify(w.bounds) || !w.elements.includes(mark.el) || mark.el.role !== mark.role || mark.el.name !== mark.name) fail('stale_view', changedWhy('That control changed or is not there any more'));
+      element = mark!.el;
+    } else {
       const x = Number(a.x), y = Number(a.y);
       if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x >= (v.width ?? 0) || y >= (v.height ?? 0)) fail('denied_local', 'The point is outside this picture.');
       const sx = v.ox + x / v.scale, sy = v.oy + y / v.scale;
@@ -622,7 +638,7 @@ export class TestDesktop {
     }
     const viewId = `v${++this.#viewN}`;
     const targetWindow = win ?? this.front();
-    const v: View = { id: viewId, at: t, ox, oy, scale, width: w, height: h, ...(targetWindow ? { window: targetWindow.id, signature: this.#signature(targetWindow) } : {}) };
+    const v: View = { id: viewId, at: t, ox, oy, scale, width: w, height: h, ...(targetWindow ? { window: targetWindow.id, signature: this.#signature(targetWindow), ...this.#marks(targetWindow) } : {}) };
     this.#views.set(viewId, v);
     for (const [k, old] of this.#views) if (t - old.at > DESKTOP_LIMITS.viewTtlMs * 3) this.#views.delete(k);
     const result: Record<string, unknown> = { viewId, w, h, scale, blackedOut: blacked, masked, ...(win ? { window: { id: win.id, title: maskDesktopText(win.title), app: win.app } } : { screen: S.id }) };

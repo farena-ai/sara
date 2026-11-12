@@ -469,8 +469,9 @@ To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it 
   Browser windows are listed 20 levels deep (apps 8), so page links and fields are in the element list.
 - **Before the approval card** the target window may be behind other windows (inspect only).
 - **After Allow** the app brings that exact window to the front (sharing input with the window in front for that
-  one call, as Windows requires) and repeats every check; the target must be the very same control (runtime id),
-  the other controls the same type, name, place and state.
+  one call, as Windows requires) and repeats every check; the target must be the very same control (runtime id)
+  with the same role and name, enabled, not secure, in the same window; she acts at its current place (see Busy web
+  apps below). Drags and picture points also need every other control unchanged.
 
 ### Desktop actions (Phase 93, released in 2.26.0)
 
@@ -553,6 +554,36 @@ fixed list of OS calls (nothing from the server is run, nothing is written, dele
 - Testing: the test-hooks build adds `CU7NativeChecks.exe`, which runs the check on this PC and prints counts
   and sizes only (never a name). On a Mac, compile `test/fixtures/cu7-mac-checks.swift` as `main.swift` with
   `Sources/HandsCheckup.swift`. `scripts/hands-conformance.ts --checkup` adds section 14.
+
+### Busy web apps (3.6.x)
+
+Outlook on the web, Gmail, Teams and Google Calendar redraw all the time (clocks, unread counts, a panel sliding
+in), so a check that the whole window is unchanged failed there with "the page changed". The Windows app
+(`matchTarget` in `src/hands-screen.cpp`) now checks only the control she named:
+
+- **A ref follows its own control:** the same control (UI Automation runtime id) with the same role and name,
+  enabled, not a password or secure field, in the same window; she acts at its current place (the centre of its
+  current box, not where it was in the look). Everything else on the page may change, and so may the window
+  title's numbers. These checks run before the card, again after Allow, and before every input chunk. They compare
+  the control's own name, not the labels around it shown on the card (those include the page title and its counts).
+  If the page stops an input before anything was sent, the refusal is the same "page changed" one (so she retries
+  once); after some text went in, it stays "stopped" (she never types it twice).
+- **Kept strict:** drags and clicks at picture points still need the whole window unchanged (their positions
+  mean something only while everything stays where it was).
+- **A re-created control** (web apps replace nodes): before the approval card only, she takes the one control
+  with the same role and name. If there are none or several, she refuses. After Allow it is never swapped. If
+  the page changes after Allow, she looks again once by herself and retries on the same control (role and name),
+  and the computer asks again if it would ask.
+- **Typing:** plain fields get UI Automation's SetValue. A web page's rich text editor (contenteditable,
+  multi-line, such as a mail or event body) is typed with real keystrokes, 16 characters at a time. Focus must
+  be on the editor or inside it before each chunk, so the page sees the text.
+- **Wording:** a refusal says "The page changed while I was about to act … This is Sara's own safety check on
+  this computer, not the website". She never blames the website's security for her own refusals.
+- **Your tabs:** switching to a tab accepts a title that changed only in its numbers ("Inbox (12)" → "(13)").
+- Tests: `test/desktop-busy-pages.test.ts` and the `CU6NativeChecks` matcher checks. Tried live on this PC with a
+  test build and a test Edge on a page that rebuilds its clock, counters, lists and grid every 500 ms (and changes
+  its title): New event, a title (SetValue), a contenteditable description (typed) and Save; the page's own state
+  got both texts, with no refusal.
 
 ### Doing it for you (3.6.x)
 
