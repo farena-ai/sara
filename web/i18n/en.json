@@ -213,5 +213,19 @@
 "{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.": "{model} on {service}: she keeps about {words} words in mind. Sara doesn’t know yet whether it runs on a graphics card, so she keeps it small until it tells her.",
 "Keep waiting": "Keep waiting",
 "{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.": "{model} on {service} runs on the processor and is very slow for a chat this long. Fix it: pick a faster model.",
-"{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.": "{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model."
+"{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.": "{model} on {service} hasn’t started answering after {seconds} seconds; it may be too slow for a chat this long. Fix it: pick a faster model.",
+"My teams": "My teams",
+"Live": "Live",
+"Next": "Next",
+"Next game": "Next game",
+"Last game": "Last game",
+"vs {team}": "vs {team}",
+"at {team}": "at {team}",
+"time TBD": "time TBD",
+"won {score}": "won {score}",
+"lost {score}": "lost {score}",
+"tied {score}": "tied {score}",
+"ESPN did not answer; try again later.": "ESPN did not answer; try again later.",
+"From ESPN, {when}": "From ESPN, {when}",
+"The teams you follow: the next game, the last result and a live score, from ESPN. Shows once you follow a team.": "The teams you follow: the next game, the last result and a live score, from ESPN. Shows once you follow a team."
 }

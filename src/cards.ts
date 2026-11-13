@@ -6,6 +6,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { EVERYDAY_SETTINGS, everydayValue, type EverydaySetting } from './everyday-settings.ts';
+import { compareCardOf, decisionCardOf } from './decisions.ts';
 
 export type WeatherDay = { date: string; max?: string; min?: string; icon?: string };
 export type Card =
@@ -37,6 +38,9 @@ export type Card =
   | { kind: 'pc-run'; id: string; computer: string; shell: string; command: string; cwd?: string; outcome: 'done' | 'stopped' | 'timeout' | 'denied'; exitCode?: number | null; seconds?: number; output?: string; truncated?: boolean }
   /** 3.3.0 (ezplain): an everyday setting she changed when asked (web/everyday-card.js applies a device one once, with Undo). */
   | { kind: 'setting'; id: string; at: string; setting: string; value: string; device: boolean; from?: string }
+  /** E5: a decision's ranked options (web/decision-card.js), and a side-by-side comparison. */
+  | import('./decisions.ts').DecisionCard
+  | import('./decisions.ts').CompareCard
   /** Phase 98: a card a plugin made (data only: title, up to 8 lines, a picture from its own folder, a link, up to 3 buttons). */
   | import('./hooks.ts').PluginCard
   /** C3: an MCP App (its page is served by /api/mcp-apps/<id>/frame in a sandboxed frame). */
@@ -83,6 +87,10 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       const from = def.device ? undefined : /\(was "([^"]*)"\)/.exec(output)?.[1];
       return { kind: 'setting', id: randomBytes(6).toString('hex'), at: new Date().toISOString(), setting, value: cut(value, 60), device: def.device, ...(from ? { from: cut(from, 60) } : {}) };
     }
+    case 'decide':
+      return decisionCardOf(args, output);
+    case 'compare':
+      return compareCardOf(args);
     case 'pc_devices':
       if (!output.startsWith('No computer is connected')) return undefined;
       {
@@ -158,6 +166,9 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return gmailCard(output);
     case 'web_search':
       return searchCard(arg(args, 'query'), output);
+    // E2: the finder's ranked list (numbered lines with the store's link) as the search card.
+    case 'find_product':
+      return searchCard(arg(args, 'what'), output);
     case 'pc_checkup':
       return checkupCard(output);
     case 'pc_checkup_apply':

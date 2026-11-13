@@ -58,6 +58,8 @@ export interface TurnHooks {
  */
 const READ_ONLY_INTERRUPTIBLE: ReadonlySet<string> = new Set([
   'list_dir', 'read_file', 'search', 'code_map', 'code_find', 'code_refs', 'code_deps', 'recall', 'search_library', 'library', 'search_memory', 'list_facts', 'list_notes', 'list_tasks', 'list_recent_conversations', 'read_note', 'get_today', 'settings_guide', 'web_search', 'web_fetch', 'job_status', 'recipe_find', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'mail_search', 'mail_read', 'mail_thread', 'mail_needs_answer', 'mail_accounts', 'mail_folders', 'calendar_events', 'home_status', 'github_list', 'github_read', 'ssh_servers', 'browser_read', 'browser_screenshot', 'find_tools', 'skill_read', 'moments', 'scrapbook',
+  // E1: live data and table reads (docs/DATA.md).
+  'market_quote', 'sports_scores', 'sports_schedule', 'sports_standings', 'odds_lines', 'watch_list', 'analyze_table',
 ]);
 export function interruptible(name: string, tool?: { interruptible?: boolean }): boolean {
   return tool?.interruptible === true || READ_ONLY_INTERRUPTIBLE.has(name);

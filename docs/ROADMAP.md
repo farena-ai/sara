@@ -102,6 +102,26 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## An everyday assistant, in 3.7.0
+
+Money: your portfolio from a brokerage export (value, today's move, gain, with the price source and
+time), a budget from your bank exports (categories, subscriptions, monthly limits) and bill reminders.
+Sports: follow your teams for games on the calendar, live and final-score alerts and a briefing line;
+compare odds across books, keep a bet log with profit and ROI, and use the odds calculator and your own
+loss limits; she never places bets. Settings warn when your chat model is slow or can't use tools on
+this computer and offer faster choices, and "Try something new" cards show each everyday area.
+
+Stock prices, game scores, standings and betting odds from free sources, always with the source and
+time, and "tell me when" alerts for a price, a game or a line move. Ask for a product and she checks the
+stores near you and the big online retailers for price and stock, says plainly which ones she couldn't
+check, and can watch it for you. She also analyzes your own spreadsheets with real math, and in your
+browser she can now answer a confirmation such as removing an extension after you approve it.
+A decision helper weighs your options against what matters to you, shows the math, says when it's a
+close call and checks back later on how it went; comparisons line things up side by side without
+inventing values. Business tools make numbered invoices and quotes (your own template or a clean
+layout) and track paid and overdue, list who you owe a reply, read contracts for dates, money and
+unusual clauses (every point quoted), turn receipts into an expense report and notes into action items.
+
 ## PDF forms too, in 3.6.5
 
 Fillable PDF forms join Excel and Word: text boxes, check boxes, radio buttons and drop-downs are
@@ -394,6 +414,15 @@ How she works with you: Sara notices how you like to work (short answers, one re
 asking first) from your own messages, lets it fade unless she sees it again, never learns anything
 about health, religion, politics or sexuality, and tells you once when it changes how she answers.
 Built, coming with a later release.
+
+Live data and "tell me when": stock prices, scores, standings and betting lines from free sources
+(source and time named with every number), alerts when a price crosses a line or a game ends, and
+exact totals from your own CSV and Excel files. Built, coming with a later release.
+
+Money, as information and math: your portfolio from a brokerage export (value, today's move, gain,
+with the price source and time), a budget from your bank exports (categories, a subscription finder,
+monthly limits), bill reminders and "tell me when this person emails". Built, coming with a later
+release.
 
 Read-only share links for a conversation (expiring, revocable, scrubbed, never indexed) and usage
 and cost reports per person, workspace and project with CSV export and monthly budget warnings are

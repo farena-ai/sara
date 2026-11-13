@@ -1,0 +1,125 @@
+{
+ "timestamp": "2026-11-13T17:02:04Z",
+ "injuries": [
+  {
+   "id": "22",
+   "displayName": "Arizona Cardinals",
+   "injuries": [
+    {
+     "status": "Questionable",
+     "date": "2026-11-13T01:58Z",
+     "shortComment": "Froholdt (concussion) did not participate at practice Thursday, Zach Gershman of the Cardinals' official site reports.",
+     "athlete": {
+      "displayName": "Hjalte Froholdt",
+      "position": {
+       "abbreviation": "C"
+      }
+     },
+     "type": {
+      "description": "questionable"
+     },
+     "details": {
+      "type": "Concussion",
+      "returnDate": "2026-11-15"
+     }
+    },
+    {
+     "status": "Questionable",
+     "date": "2026-11-13T01:54Z",
+     "shortComment": "Williams (knee) was a limited participant at practice Thursday, Zach Gershman of the Cardinals' official site reports.",
+     "athlete": {
+      "displayName": "Jayden Williams",
+      "position": {
+       "abbreviation": "OT"
+      }
+     },
+     "type": {
+      "description": "questionable"
+     },
+     "details": {
+      "type": "Knee",
+      "returnDate": "2026-11-15"
+     }
+    },
+    {
+     "status": "Questionable",
+     "date": "2026-11-13T01:08Z",
+     "shortComment": "Wingard (groin) did not practice Thursday, Zach Gershman of the team's official site reports.",
+     "athlete": {
+      "displayName": "Andrew Wingard",
+      "position": {
+       "abbreviation": "S"
+      }
+     },
+     "type": {
+      "description": "questionable"
+     },
+     "details": {
+      "type": "Groin",
+      "returnDate": "2026-11-15"
+     }
+    }
+   ]
+  },
+  {
+   "id": "12",
+   "displayName": "Kansas City Chiefs",
+   "injuries": [
+    {
+     "status": "Active",
+     "date": "2026-11-13T14:05Z",
+     "shortComment": "Mahomes (elbow/knee) has had \"limited swelling\" and \"limited pain\" in his right (throwing) elbow in recent days, and he is in line to start Sunday's game against the Falcons, Ian Rapoport of ESPN and NFL Network reports.",
+     "athlete": {
+      "displayName": "Patrick Mahomes",
+      "position": {
+       "abbreviation": "QB"
+      }
+     },
+     "type": {
+      "description": "active"
+     },
+     "details": {
+      "type": null,
+      "returnDate": null
+     }
+    },
+    {
+     "status": "Questionable",
+     "date": "2026-11-12T21:39Z",
+     "shortComment": "questionable",
+     "athlete": {
+      "displayName": "Jaydn Ott",
+      "position": {
+       "abbreviation": "RB"
+      }
+     },
+     "type": {
+      "description": "questionable"
+     },
+     "details": {
+      "type": "Hamstring",
+      "returnDate": "2026-11-15"
+     }
+    },
+    {
+     "status": "Active",
+     "date": "2026-11-12T03:14Z",
+     "shortComment": "Jones recorded four tackles (two solo), including 2.0 sacks, and a pass breakup in Sunday's 35-12 win over the Jets.",
+     "athlete": {
+      "displayName": "Chris Jones",
+      "position": {
+       "abbreviation": "DT"
+      }
+     },
+     "type": {
+      "description": "active"
+     },
+     "details": {
+      "type": null,
+      "returnDate": null
+     }
+    }
+   ]
+  }
+ ]
+}

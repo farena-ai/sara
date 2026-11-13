@@ -61,6 +61,10 @@ export class ReminderScheduler {
     this.#app.goals?.tick(now.getTime());
     // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
     this.#app.watches?.due(now);
+    // E1: "tell me when" on live data (prices, games, odds) on the same tick; the checks run async, one pass at a time.
+    this.#app.liveWatches?.due(now);
+    // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
+    this.#app.productWatches?.due(now);
     // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.
     this.#app.learnTopics?.due(now);
     // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.

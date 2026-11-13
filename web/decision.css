@@ -1,0 +1,19 @@
+/* E5 (docs/DECISIONS_HELPER.md): the decision card and the comparison table (web/decision-card.js). Theme variables only. */
+.rcard-decision, .rcard-compare { width: min(520px, calc(100% - 60px)); }
+.dc-badge { margin-left: auto; padding: 2px 10px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--warning, var(--accent)) 18%, transparent); color: var(--text-1); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.dc-rows { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.dc-row { display: grid; gap: 4px; }
+.dc-line { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.dc-name { min-width: 0; overflow-wrap: anywhere; color: var(--text-1); }
+.dc-top .dc-name { font-weight: 600; }
+.dc-pct { font-size: var(--fs-meta); color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dc-bar { height: 8px; border-radius: var(--r-pill); background: color-mix(in srgb, var(--surface-3) 75%, transparent); overflow: hidden; }
+.dc-fill { display: block; height: 100%; width: var(--dc-pct, 0%); border-radius: inherit; background: color-mix(in srgb, var(--accent) 55%, transparent); }
+.dc-top .dc-fill { background: var(--accent); }
+.dc-choose { justify-self: start; min-height: 32px; }
+.dc-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.dc-table-wrap { overflow-x: auto; }
+.dc-table { width: 100%; border-collapse: collapse; font-size: var(--fs-meta); }
+.dc-table :is(th, td) { padding: 6px 8px; border-bottom: 1px solid var(--hairline-strong); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.dc-table thead th { color: var(--text-2); font-weight: 600; }
+.dc-missing { color: var(--text-2); }

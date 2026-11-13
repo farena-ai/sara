@@ -13,6 +13,7 @@ import { zonedParts } from './planner.ts';
 import { checkClaims } from './receipts.ts';
 import { detectMinorSexualContent, disclosureDue, disclosureText } from './safety.ts';
 import { calendarToday, mailToday } from './today.ts';
+import { portfolioLine } from './money/core.ts';
 
 export interface BriefingPlace {
   name: string;
@@ -95,6 +96,10 @@ export interface BriefingFacts {
   calendar?: string;
   /** Phase 20: important unread mail ("3 unread; important: - Ana: Lunch Friday?"). */
   mail?: string;
+  /** E3: "Portfolio: $48,210, +0.8% today (Yahoo Finance, 9:31 AM)", when the person has holdings. */
+  money?: string;
+  /** E4: the followed teams' line ("Chiefs play tonight 7:20 PM vs Bills; Royals won 5-3 at Twins (ESPN, as of 7:02 AM)."). */
+  sports?: string;
 }
 
 export async function gatherFacts(app: AppContext, now: Date, fetchImpl: FetchLike = netFetch): Promise<BriefingFacts> {
@@ -110,11 +115,11 @@ export async function gatherFacts(app: AppContext, now: Date, fetchImpl: FetchLi
     }
   }
   // Phase 20: the calendar and mail that matter, when Google is connected (each part optional).
-  const [cal, mail] = await Promise.all([calendarToday(app, now, tz).catch(() => undefined), mailToday(app).catch(() => undefined)]);
+  const [cal, mail, money, sports] = await Promise.all([calendarToday(app, now, tz).catch(() => undefined), mailToday(app).catch(() => undefined), portfolioLine(app).catch(() => undefined), app.sports?.briefingLine(now).catch(() => undefined)]);
   const time = (iso: string) => new Date(iso).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
   const calendar = cal && !cal.error ? cal.events.map((e) => `- ${e.allDay ? 'all day' : time(e.start)} ${e.title}${e.location ? ` (${e.location})` : ''}`).join('\n') || '(nothing on the calendar)' : undefined;
   const mailLine = mail && !mail.error ? `${mail.unread} unread${mail.important.length ? `; important:\n${mail.important.map((m) => `- ${m.from}: ${m.subject}`).join('\n')}` : ''}` : undefined;
-  return { date, ...(weather ? { weather } : {}), agenda: app.planner?.agenda(now, tz) ?? '', ...(calendar ? { calendar } : {}), ...(mailLine ? { mail: mailLine } : {}) };
+  return { date, ...(weather ? { weather } : {}), agenda: app.planner?.agenda(now, tz) ?? '', ...(calendar ? { calendar } : {}), ...(mailLine ? { mail: mailLine } : {}), ...(money ? { money } : {}), ...(sports ? { sports } : {}) };
 }
 
 /** The facts as a plain message (used when the model is unavailable). */
@@ -128,6 +133,8 @@ export function plainBriefing(f: BriefingFacts): string {
   lines.push(items.length ? `On your list:\n${items.join('\n')}` : 'Nothing on your list today.');
   if (f.calendar) lines.push(`Calendar:\n${f.calendar}`);
   if (f.mail) lines.push(`Mail: ${f.mail}`);
+  if (f.money) lines.push(`${f.money}.`);
+  if (f.sports) lines.push(`Your teams: ${f.sports}`);
   return lines.join('\n');
 }
 
@@ -239,7 +246,7 @@ export class BriefingWorker {
 Date: ${facts.date}
 ${facts.weather ? `Weather: ${facts.weather}` : 'Weather: (not set up)'}
 List:
-${facts.agenda || '(nothing due)'}${facts.calendar ? `\nCalendar today:\n${facts.calendar}` : ''}${facts.mail ? `\nMail: ${facts.mail}` : ''}]`;
+${facts.agenda || '(nothing due)'}${facts.calendar ? `\nCalendar today:\n${facts.calendar}` : ''}${facts.mail ? `\nMail: ${facts.mail}` : ''}${facts.money ? `\n${facts.money} (say it with the source and time, as information, no advice)` : ''}${facts.sports ? `\nYour teams: ${facts.sports}` : ''}]`;
       text = (await complete(app, conv, [{ role: 'system', content: system }, { role: 'user', content: note }], 400, 'planning')).trim();
     } catch (err) {
       console.warn(`briefing: model failed, sending plain facts: ${(err as Error).message}`);

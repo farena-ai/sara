@@ -77,8 +77,15 @@ import { fileChannelChats } from './bridges/rooms.ts';
 import { Goals } from './goals.ts';
 import { Loops } from './loops.ts';
 import { Watches } from './watch.ts';
+import { DataSources } from './data-sources.ts';
+import { createDataTools } from './tools/data.ts';
+import { LiveWatches, createLiveWatchTools } from './live-watch.ts';
+import { Sports } from './sports/follow.ts';
+import { createSportsTools } from './tools/sports.ts';
+import { createAnalyzeTableTool } from './table-query.ts';
 import { Research } from './research.ts';
 import { createResearchTools } from './tools/research-tool.ts';
+import { createShoppingTools } from './tools/shopping.ts';
 import { Learning } from './learn.ts';
 import { runAutoUpdates } from './addon-autoupdate.ts';
 import { storeAutoUpdateDeps } from './routes/store.ts';
@@ -161,7 +168,10 @@ import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
 import { createFillDocumentTool } from './tools/fill-document.ts';
+import { createBizTools } from './tools/biz.ts';
+import { createMoneyTools } from './tools/money.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
+import { createDecisionTools } from './decisions.ts';
 import { sweepShared } from './bridges/media.ts';
 import { PendingInputs } from './pending.ts';
 import { createLibraryTool } from './library/use.ts';
@@ -674,6 +684,8 @@ interface Space {
   events: EventHub;
   companions: CompanionManager;
   push?: PushService;
+  /** E1: live data sources (this space's choices and keys; one cache and quota record per space). */
+  dataSources?: DataSources;
   member?: MemberPolicy;
   /** Phase 87: this person's hands devices (computer use), shared by their companions. */
   hands?: HandsHub;
@@ -1015,8 +1027,14 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createSendFileTool(() => app));
   // make_document (docs/DOCUMENTS.md): Word, PDF, Excel, PowerPoint and more, for the owner and members.
   tools.add(createMakeDocumentTool(() => app));
+  // E5: the decision helper and comparisons (each space's own decisions; members too).
+  for (const t of createDecisionTools(() => app)) tools.add(t);
   // fill_document (docs/DOCUMENTS.md): she fills in the person's own Excel or Word form (a checked copy).
   tools.add(createFillDocumentTool(() => app));
+  // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
+  if (!isDemo) for (const t of createBizTools(() => app)) tools.add(t);
+  // E3 (docs/MONEY.md): portfolio, budget and bills (each person's own space; never the demo).
+  if (!isDemo) for (const t of createMoneyTools(() => app)) tools.add(t);
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.
@@ -1152,6 +1170,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.research = new Research(app, store.db);
     // 3.1.2: deep web work from a chat goes to a research run (research_start), not a fetch loop.
     for (const t of createResearchTools(() => app)) tools.add(t);
+    // E2: find it near me (find_product, stores_near) and product watches on the reminder tick.
+    for (const t of createShoppingTools(app, store.db)) tools.add(t);
     // A run a restart interrupted goes on from its last checkpoint, once the server is up.
     setTimeout(() => {
       try {
@@ -1180,6 +1200,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     space.push.apns = new ApnsSender(store.db, vault);
   }
   app.push = space.push;
+  // E1 (docs/DATA.md): live data and "tell me when", each person's own (their space's choices,
+  // keys, cache and watches; a member's watches live in their own store). Never the demo.
+  if (!isDemo) {
+    space.dataSources ??= new DataSources({ choices: () => space.settings.get().dataSources, keys: spaceVault });
+    app.dataSources = space.dataSources;
+    app.liveWatches = new LiveWatches(app, store.db);
+    for (const t of createDataTools(() => app)) tools.add(t);
+    for (const t of createLiveWatchTools(() => app)) tools.add(t);
+    // E4 (docs/SPORTS.md): followed teams, odds comparison, the bet log and the odds calculator.
+    app.sports = new Sports(app, store.db);
+    for (const t of createSportsTools(() => app)) tools.add(t);
+  }
+  tools.add(createAnalyzeTableTool(() => app));
   app.privateLocal = privateLocal;
   app.modelPuller = modelPuller;
   // Phase 52: the cost and token meter (the owner's prices win over the shipped ones).

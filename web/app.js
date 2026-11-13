@@ -34,6 +34,7 @@ import { loadIsolation, wireIsolation } from './isolation.js';
 import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
+import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
@@ -75,6 +76,7 @@ import { compactNotice, dimFolded, initLean, loadLean, paintSheet } from './lean
 import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCard, persistEvent, persistMessage, persistOpen, savePersistSettings } from './persist.js';
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initWatches, watchNotice } from './watches.js';
+import { initDataSources, liveWatchNotice, loadDataSources, renderWatchingTile, saveDataSources } from './data-sources.js';
 import { crewNotice, initCrews, loadCrews } from './crews.js';
 import { initWorkers, loadWorkers } from './workers.js';
 import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
@@ -104,6 +106,7 @@ import { rankElsewhere } from './settings-search.js';
 import { everydayMatches } from './everyday-words.js';
 import { initSlash, loadSlash, slashCommands } from './slash.js';
 import { NEXT_HIDDEN_KEY, nextSteps } from './next-steps.js';
+import { markTried, triedSet, tryCards } from './try-cards.js';
 import { choices } from './kit.js';
 import { addStep, finishStep, hasSteps, memoryStep, pluginStep, recallStep, runLink, runStep, savedStep, setBudget, skillStep, stepLine, waitStep } from './steps.js';
 import { budgetCard, budgetMeter, fillBudgetSelect, overrideNote } from './budget-view.js';
@@ -308,6 +311,7 @@ async function boot() {
   state.usePath = normPath(setup.usePath);
   // 3.3.0 (ezplain): plain words on the main screens unless she is set up for coding only.
   document.documentElement.dataset.usePath = state.usePath;
+  await Promise.race([loadToolNames(), new Promise((r) => setTimeout(r, 1500))]); // E7: the empty chat's try chips
   if (!state.messages?.length) renderMessages([]); // the empty chat's chips follow the use choice
   if (!setup.done) {
     state.setupPending = true;
@@ -1706,6 +1710,7 @@ initToday({
   openCard: (boardId, ref) => openCardOnBoard(boardId, ref),
   // Phase 103: Today's "Her plans" tile (web/agenda.js).
   renderPlans: (plans, head) => renderPlansTile(plans, head),
+  renderWatching: (part, head) => renderWatchingTile(part, head),
   renderPhotos: renderTodayPhotos,
   // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
   renderMoments: renderTodayMoments,
@@ -2056,6 +2061,8 @@ function renderMessages(messages, opts = {}) {
     empty.textContent = t('Say hi to Sara.');
     // Phase 114 (F13): starter chips for the use choice (not on the demo, which has its own start).
     const chips = document.body.classList.contains('demo') || !state.providers?.providers?.length ? [] : starterChips(state.usePath, 'chat', t);
+    // E7: two everyday starter cards as chips too (web/try-cards.js), until used or dismissed.
+    if (chips.length) chips.push(...tryNow().slice(0, 2).map((x) => ({ kind: 'prefill', label: x.title, text: x.message, id: x.id, message: x.message })));
     if (chips.length) {
       empty.classList.add('empty-start');
       const row = el('div', 'chips empty-chips');
@@ -2203,6 +2210,9 @@ function renderMessages(messages, opts = {}) {
       const cn = bubble('notice', commandNotice(m), 'command', m.id);
       if (m.content === 'learn' && m.meta?.webSearch) cn.append(' ', webSearchButton(Boolean(m.meta.webSearch.oneTap)));
       els.push(cn);
+    } else if (m.role === 'notice' && m.kind === 'livewatch') {
+      // E1: a "tell me when" watch fired (or paused), labelled as the app's (web/data-sources.js).
+      els.push(liveWatchNotice(m));
     } else if (m.role === 'notice' && m.kind === 'watch') {
       // E4: a watched file's new matching line (or a paused watch), labelled as the app's (web/watches.js).
       els.push(watchNotice(m));
@@ -7164,6 +7174,7 @@ function startEvents() {
       if (ev.message.meta?.call) b.classList.add('missed-call');
       if (ev.message.role === 'notice' && ev.message.content.startsWith('agenda:')) append(agendaNotice(ev.message));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('watch:')) append(watchNotice({ ...ev.message, content: ev.message.content.slice(6) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('livewatch:')) append(liveWatchNotice(ev.message));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('crew:')) append(crewNotice({ ...ev.message, content: ev.message.content.slice(5) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('tidy:')) append(memoryTidyNotice({ ...ev.message, content: ev.message.content.slice(5) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
@@ -8846,6 +8857,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-persist') void loadPersistSettings();
   // Phase 123: the Short tool list and Tidy long chats cards.
   if (pick === 'ab-tools' || pick === 'models-default') void loadLean();
+  if (pick === 'models-default') void paintFitness($('#model-fitness'));
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
@@ -9006,9 +9018,9 @@ async function loadSettingsPages(onCore = () => {}) {
   savedDefaultModelRevision = defaultModelRevision;
   onCore();
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
-  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop()]));
+  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
   await tools;
-  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -9117,9 +9129,11 @@ const SETTINGS_SAVERS = {
   'you-briefing': [saveCoreSettings, saveBriefing, saveReview],
   'models-default': [saveCoreSettings],
   'you-leave-by': [saveLeaveBy],
+  'you-business': [saveBusinessDetails],
   'dh-backups': [saveOffsite, saveBackups],
   'her-pictures': [savePhotos],
   'ab-search': [saveSearch],
+  'ab-data': [saveDataSources],
   'ab-library': [saveLibrarySettings],
   'ab-tools': [saveTools],
   'models-routes': [saveRoutes],
@@ -9601,7 +9615,7 @@ const TODAY_FMT = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWord
 async function openToday() {
   const first = !todayOpen();
   if (first) showToday();
-  await Promise.all([loadToday(), loadChecklist()]);
+  await Promise.all([loadToday(), loadChecklist(), paintTryCards()]);
 }
 $('#open-today').addEventListener('click', openToday);
 // Phase 111: back from Today, the conversation underneath catches up with what happened meanwhile.
@@ -9615,6 +9629,7 @@ $('#brand-today').addEventListener('click', () => {
   void openToday();
 });
 $('#td-refresh').addEventListener('click', () => Promise.all([loadToday(true), loadChecklist()]));
+$('#td-refresh').addEventListener('click', () => void paintTryCards());
 $('#td-otd-open').addEventListener('click', () => {
   $('#today').close();
   void openMoments();
@@ -9701,6 +9716,7 @@ function starterButton(c, onClick) {
 /** What a starter chip does: a real message (a coding conversation for code ones), the starter projects, or a page. */
 async function runStarter(c) {
   if (c.kind === 'page') return void (await openSettings(c.page));
+  if (c.kind === 'prefill') return void (await startTry(c));
   if (todayOpen()) closeToday({ focus: false });
   if (c.kind === 'starter') return void $('#pp-starter').click();
   if (c.kind === 'code' && state.conv?.mode !== 'coding') {
@@ -10430,6 +10446,8 @@ initMemoryTidy({ api, el, openMemory: () => $('#open-memory').click() });
 // C12: Memory → How she works with you (web/working-style.js).
 initWorkingStyle({ api, el });
 initPhoneHelper({ api });
+// E1: Settings → Data sources, the Watching tile and the live-watch chat card (web/data-sources.js).
+initDataSources({ api, el, openSettings: (page) => void openSettings(page) });
 initWatches({
   api,
   el,
@@ -11146,6 +11164,100 @@ function paintNextSteps(c) {
     return b;
   }));
 }
+/** E7: tool names on this server (owner only; members have no tools), for the starter cards. */
+let toolNamesP = null;
+function loadToolNames() {
+  if (isMember() || document.body.classList.contains('demo')) return Promise.resolve([]);
+  toolNamesP ??= api('/tools').then((r) => (state.toolNames = (r.tools ?? []).filter((x) => x.available !== false).map((x) => x.name)), () => ((toolNamesP = null), []));
+  return toolNamesP;
+}
+const tryNow = () => tryCards({ tools: state.toolNames ?? [], path: state.usePath, done: triedSet(), t });
+/** E7: starter cards on Today, one per everyday area, until used once or dismissed (web/try-cards.js). */
+async function paintTryCards() {
+  await loadToolNames();
+  const cards = tryNow();
+  $('#td-try').hidden = !cards.length;
+  $('#td-try-list').replaceChildren(...cards.map((x) => {
+    const box = el('div', 'try-card');
+    box.dataset.try = x.id;
+    const go = el('button', 'start-item try-go');
+    go.type = 'button';
+    go.append(icon(x.icon, 'try-ic') ?? '', el('span', 'try-title', x.title), el('span', 'try-text muted small', x.text));
+    go.addEventListener('click', () => void startTry(x));
+    const no = el('button', 'ghost small try-x', '×');
+    no.type = 'button';
+    no.setAttribute('aria-label', t('Not now: {title}', { title: x.title }));
+    no.title = t('Not now');
+    no.addEventListener('click', () => {
+      markTried(localStorage, x.id);
+      void paintTryCards();
+    });
+    box.append(go, no);
+    return box;
+  }));
+}
+/** A starter card or chip: a new chat with its first message written in the box, ready to finish and send. */
+async function startTry(x) {
+  markTried(localStorage, x.id);
+  if (todayOpen()) closeToday({ focus: false });
+  if (!state.currentId || state.messages?.length || state.conv?.offRecord) await newConversation();
+  const input = $('#input');
+  input.value = x.message;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+  input.setSelectionRange(input.value.length, input.value.length);
+}
+
+/** E7: is the talking model right for this computer? A plain notice with one-click better choices (and Undo). */
+async function paintFitness(host) {
+  if (!host || isMember() || document.body.classList.contains('demo')) return;
+  const r = await api('/model-jobs/fitness').catch(() => null);
+  const f = r?.fitness;
+  host.hidden = !f?.reasons?.length;
+  if (host.hidden) return void host.replaceChildren();
+  const slow = f.reasons.includes('slow-replies') || f.reasons.includes('cpu-big');
+  const lines = [];
+  if (f.reasons.includes('slow-replies') && f.medianS != null) lines.push(t('Replies take about {s} s with {model} on this computer.', { s: f.medianS, model: f.model }));
+  else if (f.reasons.includes('cpu-big')) lines.push(t('{model} runs on the processor here (no graphics card), so replies can take minutes.', { model: f.model }));
+  if (f.reasons.includes('no-tools')) lines.push(t("{model} can't use tools: computer use, documents and shopping won't work.", { model: f.model }));
+  const kids = [el('strong', '', slow ? t('Replies are slow with this model here') : t("This model can't use tools")), el('p', '', lines.join(' '))];
+  if (f.choices.length) {
+    kids.push(el('p', 'muted small', slow ? t('Faster choices:') : t('Better choices:')));
+    const row = el('div', 'fit-choices');
+    for (const c of f.choices) {
+      const b = el('button', 'small', t('Use {model}', { model: c.model }));
+      b.type = 'button';
+      b.title = c.kind === 'cloud' ? t('Ollama Cloud, through {provider}', { provider: c.provider }) : c.kind === 'small' ? t('A small model on this computer') : c.provider;
+      b.addEventListener('click', () => void useChatModel(c, host, f.model));
+      row.append(b);
+    }
+    kids.push(row);
+  } else kids.push(el('p', 'muted small', t('Faster choices: an Ollama Cloud model, a smaller local model, or a computer with a graphics card.')));
+  host.replaceChildren(...kids);
+}
+/** "Use this": the talking model changes through the settings API; Undo puts the old choice back. */
+async function useChatModel(c, host, was) {
+  const before = await api('/settings');
+  const prev = { routes: before.routes ?? {}, companionModel: before.companionModel ?? null };
+  const pick = { providerId: c.providerId, model: c.model };
+  const fallbacks = prev.routes.chat?.fallbacks;
+  try {
+    await api('/settings', { method: 'PUT', body: { routes: { ...prev.routes, chat: { ...pick, ...(fallbacks?.length ? { fallbacks } : {}) } }, ...(prev.companionModel ? { companionModel: pick } : {}) } });
+  } catch (err) {
+    return void host.append(el('p', 'bad small', err.message));
+  }
+  const undo = el('button', 'ghost small', t('Undo'));
+  undo.type = 'button';
+  undo.addEventListener('click', async () => {
+    undo.disabled = true;
+    await api('/settings', { method: 'PUT', body: { routes: prev.routes, companionModel: prev.companionModel } }).catch((err) => void host.append(el('p', 'bad small', err.message)));
+    host.replaceChildren(el('p', '', t('Back to {model}.', { model: was })));
+    refreshModelSettings();
+  });
+  host.replaceChildren(el('p', '', t('Now talking with {model}.', { model: c.model })), undo);
+  refreshModelSettings();
+}
+
 $('#td-next-hide').addEventListener('click', () => {
   localStorage.setItem(NEXT_HIDDEN_KEY, '1');
   $('#td-next').hidden = true;
@@ -11315,10 +11427,11 @@ $('#doctor-run').addEventListener('click', async () => {
   $('#doctor-run').disabled = true;
   try {
     const checks = await api('/doctor');
+    void paintFitness($('#doctor-fitness'));
     list.replaceChildren(
       ...checks.map((c) => {
         const li = el('li', c.status === 'ok' ? 'ok' : c.status === 'warn' ? 'warn' : 'bad');
-        li.append(el('strong', '', `${c.status === 'ok' ? '✓' : c.status === 'warn' ? '!' : '✗'} ${t(c.name)}`), el('span', 'muted', ` ${t(c.detailKey ?? c.detail, c.params)}`));
+        li.append(el('strong', '', `${c.status === 'ok' ? '✓' : c.status === 'warn' ? '!' : '✗'} ${t(c.name)}`), el('span', 'muted', ` ${c.parts ? c.parts.map((p) => t(p.key, p.params)).join(' ') : t(c.detailKey ?? c.detail, c.params)}`));
         return li;
       }),
     );

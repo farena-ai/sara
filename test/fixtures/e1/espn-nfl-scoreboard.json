@@ -1,0 +1,324 @@
+{
+ "leagues": [
+  {
+   "abbreviation": "NFL",
+   "name": "National Football League"
+  }
+ ],
+ "events": [
+  {
+   "id": "401873052",
+   "date": "2026-11-13T01:15Z",
+   "name": "Washington Commanders at New York Giants",
+   "shortName": "WSH @ NYG",
+   "status": {
+    "displayClock": "0:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873052",
+     "date": "2026-11-13T01:15Z",
+     "status": {
+      "displayClock": "0:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "MetLife Stadium"
+     },
+     "broadcast": "Prime Video",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": "21",
+       "team": {
+        "id": "19",
+        "abbreviation": "NYG",
+        "displayName": "New York Giants",
+        "shortDisplayName": "Giants",
+        "location": "New York",
+        "name": "Giants"
+       },
+       "records": [
+        {
+         "summary": "5-3-1"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": "24",
+       "team": {
+        "id": "28",
+        "abbreviation": "WSH",
+        "displayName": "Washington Commanders",
+        "shortDisplayName": "Commanders",
+        "location": "Washington",
+        "name": "Commanders"
+       },
+       "records": [
+        {
+         "summary": "3-5-1"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401873053",
+   "date": "2026-11-15T14:30Z",
+   "name": "New England Patriots at Detroit Lions",
+   "shortName": "NE VS DET",
+   "status": {
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Sun, November 15th at 9:30 AM EST",
+     "shortDetail": "11/15 - 9:30 AM EST"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873053",
+     "date": "2026-11-15T14:30Z",
+     "status": {
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, November 15th at 9:30 AM EST",
+       "shortDetail": "11/15 - 9:30 AM EST"
+      }
+     },
+     "venue": {
+      "fullName": "FC Bayern Munich Stadium"
+     },
+     "broadcast": "Fox",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "8",
+        "abbreviation": "DET",
+        "displayName": "Detroit Lions",
+        "shortDisplayName": "Lions",
+        "location": "Detroit",
+        "name": "Lions"
+       },
+       "records": [
+        {
+         "summary": "6-2"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "17",
+        "abbreviation": "NE",
+        "displayName": "New England Patriots",
+        "shortDisplayName": "Patriots",
+        "location": "New England",
+        "name": "Patriots"
+       },
+       "records": [
+        {
+         "summary": "5-4"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401873058",
+   "date": "2026-11-15T18:00Z",
+   "name": "Kansas City Chiefs at Atlanta Falcons",
+   "shortName": "KC @ ATL",
+   "status": {
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Sun, November 15th at 1:00 PM EST",
+     "shortDetail": "11/15 - 1:00 PM EST"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873058",
+     "date": "2026-11-15T18:00Z",
+     "status": {
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, November 15th at 1:00 PM EST",
+       "shortDetail": "11/15 - 1:00 PM EST"
+      }
+     },
+     "venue": {
+      "fullName": "Mercedes-Benz Stadium"
+     },
+     "broadcast": "CBS",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "1",
+        "abbreviation": "ATL",
+        "displayName": "Atlanta Falcons",
+        "shortDisplayName": "Falcons",
+        "location": "Atlanta",
+        "name": "Falcons"
+       },
+       "records": [
+        {
+         "summary": "3-6"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "12",
+        "abbreviation": "KC",
+        "displayName": "Kansas City Chiefs",
+        "shortDisplayName": "Chiefs",
+        "location": "Kansas City",
+        "name": "Chiefs"
+       },
+       "records": [
+        {
+         "summary": "6-2"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401873056",
+   "date": "2026-11-15T18:00Z",
+   "name": "Houston Texans at Cleveland Browns",
+   "shortName": "HOU @ CLE",
+   "status": {
+    "displayClock": "0:00",
+    "period": 0,
+    "type": {
+     "id": "1",
+     "name": "STATUS_SCHEDULED",
+     "state": "pre",
+     "completed": false,
+     "description": "Scheduled",
+     "detail": "Sun, November 15th at 1:00 PM EST",
+     "shortDetail": "11/15 - 1:00 PM EST"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401873056",
+     "date": "2026-11-15T18:00Z",
+     "status": {
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, November 15th at 1:00 PM EST",
+       "shortDetail": "11/15 - 1:00 PM EST"
+      }
+     },
+     "venue": {
+      "fullName": "Huntington Bank Field"
+     },
+     "broadcast": "Fox",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "id": "5",
+        "abbreviation": "CLE",
+        "displayName": "Cleveland Browns",
+        "shortDisplayName": "Browns",
+        "location": "Cleveland",
+        "name": "Browns"
+       },
+       "records": [
+        {
+         "summary": "5-4"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "id": "34",
+        "abbreviation": "HOU",
+        "displayName": "Houston Texans",
+        "shortDisplayName": "Texans",
+        "location": "Houston",
+        "name": "Texans"
+       },
+       "records": [
+        {
+         "summary": "3-5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

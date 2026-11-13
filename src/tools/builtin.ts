@@ -295,9 +295,11 @@ export interface GuardedPage {
   retryAfter?: number;
   /** 3.1.2: Cloudflare's cf-mitigated header ("challenge" on a bot check). */
   cfMitigated?: string;
+  /** E2: the page's HTML itself, when asked for (keepHtml; the product finder reads its JSON-LD). */
+  html?: string;
 }
 
-export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPrivate?: boolean; seams?: GuardedGetSeams; timeoutMs?: number }): Promise<GuardedPage> {
+export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPrivate?: boolean; seams?: GuardedGetSeams; timeoutMs?: number; keepHtml?: boolean }): Promise<GuardedPage> {
   let url = start;
   let res: PinnedResponse | undefined;
   for (let hop = 0; hop < 5; hop++) {
@@ -319,7 +321,7 @@ export async function guardedGet(start: URL, o: { signal: AbortSignal; allowPriv
   const title = /<title[^>]*>([^<]{1,300})<\/title>/i.exec(body)?.[1];
   // 3.1.2: a bot check is recognised from its markup (scripts and all), so keep a little of it.
   const raw = res.status === 403 || res.status === 429 || res.status === 503 || /just a moment|attention required|challenge|captcha/i.test(title ?? '') ? { raw: body.slice(0, 20_000) } : {};
-  return { status: res.status, url, contentType: type, text: htmlToText(body), ...(title?.trim() ? { title: htmlToText(title).replace(/\s+/g, ' ').trim() } : {}), links: pageLinks(body, url), ...extra, ...raw };
+  return { status: res.status, url, contentType: type, text: htmlToText(body), ...(title?.trim() ? { title: htmlToText(title).replace(/\s+/g, ' ').trim() } : {}), links: pageLinks(body, url), ...extra, ...raw, ...(o.keepHtml ? { html: body } : {}) };
 }
 
 /** C6: the page's http(s) links, absolute, without #fragments, in order, at most 300 (site learning). */

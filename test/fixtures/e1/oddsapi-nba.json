@@ -1,0 +1,10 @@
+[
+ {"id":"e1a2b3","sport_key":"basketball_nba","sport_title":"NBA","commence_time":"2026-11-14T00:30:00Z","home_team":"Los Angeles Lakers","away_team":"Houston Rockets",
+  "bookmakers":[
+   {"key":"draftkings","title":"DraftKings","last_update":"2026-11-13T15:40:12Z","markets":[
+     {"key":"h2h","last_update":"2026-11-13T15:40:12Z","outcomes":[{"name":"Houston Rockets","price":120},{"name":"Los Angeles Lakers","price":-140}]},
+     {"key":"spreads","last_update":"2026-11-13T15:40:12Z","outcomes":[{"name":"Houston Rockets","price":-110,"point":3.5},{"name":"Los Angeles Lakers","price":-110,"point":-3.5}]}]},
+   {"key":"fanduel","title":"FanDuel","last_update":"2026-11-13T15:41:02Z","markets":[
+     {"key":"h2h","last_update":"2026-11-13T15:41:02Z","outcomes":[{"name":"Houston Rockets","price":118},{"name":"Los Angeles Lakers","price":-138}]},
+     {"key":"spreads","last_update":"2026-11-13T15:41:02Z","outcomes":[{"name":"Houston Rockets","price":-108,"point":3.5},{"name":"Los Angeles Lakers","price":-112,"point":-3.5}]}]}]}
+]

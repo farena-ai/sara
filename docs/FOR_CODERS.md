@@ -183,6 +183,7 @@ other chat apps ([CHATS.md](CHATS.md)). The table is generated from the app's ow
 | `/btw` | A quick side question while she works (not saved) | You and household members |
 | `/queue` | Queue a message for when she has finished | You and household members |
 | `/steer` | Tell her something now: she reads it before her next step | You and household members |
+| `/now` | Interrupt her and tell her now: she stops what she is writing and reads it | You and household members |
 | `/stop` | Stop her current reply | You and household members |
 | `/new` | Start a fresh session (the last one is kept) | You and household members |
 | `/reset` | Clear a stuck reply and listen again | You and household members |

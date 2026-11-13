@@ -50,6 +50,8 @@ export const TILES = [
   { id: 'td-dates', section: 'day', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-needs', section: 'needs', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-mail', section: 'needs', sizes: ['M', 'L'], size: 'L' },
+  { id: 'td-business', section: 'needs', sizes: ['S', 'M'], size: 'S' },
+  { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },
@@ -61,6 +63,8 @@ export const TILES = [
   { id: 'td-home', section: 'more', sizes: ['M', 'L'], size: 'L', ownerOnly: true },
   { id: 'td-models', section: 'more', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-hooks', section: 'more', sizes: ['S', 'M'], size: 'M', hidden: true, ownerOnly: true },
+  { id: 'td-watching', section: 'more', sizes: ['S', 'M'], size: 'S' },
+  { id: 'td-teams', section: 'more', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-agenda', section: 'more', sizes: ['S', 'M'], size: 'M', hidden: true },
   { id: 'td-setup', section: 'more', sizes: ['S', 'M', 'L'], size: 'S', ownerOnly: true },
 ];
@@ -495,7 +499,7 @@ export function pullTracker({ threshold = 64, onRefresh, reduced = () => false }
 }
 
 /** How old each part may get before a return to Today reloads it (§7.4, §8.2). */
-export const PART_LIMIT = { day: 120_000, coming: 120_000, mail: 120_000, home: 30_000, weather: 15 * 60_000, projects: 10 * 60_000, needs: 5 * 60_000, work: 5 * 60_000, usage: 5 * 60_000, board: 5 * 60_000, plans: 5 * 60_000, memories: 5 * 60_000, moments: 5 * 60_000, her: 5 * 60_000, models: 5 * 60_000, hooks: 5 * 60_000, rooms: 5 * 60_000, away: 5 * 60_000 };
+export const PART_LIMIT = { day: 120_000, coming: 120_000, mail: 120_000, home: 30_000, weather: 15 * 60_000, projects: 10 * 60_000, needs: 5 * 60_000, work: 5 * 60_000, usage: 5 * 60_000, board: 5 * 60_000, plans: 5 * 60_000, memories: 5 * 60_000, moments: 5 * 60_000, her: 5 * 60_000, models: 5 * 60_000, hooks: 5 * 60_000, watching: 5 * 60_000, teams: 5 * 60_000, rooms: 5 * 60_000, away: 5 * 60_000 };
 /**
  * Back to a visible Today (§7.4): after more than 2 minutes away, the parts older than their
  * limits (not a full refresh, no spinner); a short look away reloads nothing.
@@ -571,7 +575,7 @@ const num = (n) => Number(n ?? 0).toLocaleString(locale());
 const kTok = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group' };
+const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -1240,6 +1244,84 @@ const freshAgo = (at) => {
   return ms < 3600_000 ? rtf.format(-Math.max(1, Math.floor(ms / 60_000)), 'minute') : ms < 86_400_000 ? rtf.format(-Math.floor(ms / 3600_000), 'hour') : rtf.format(-Math.floor(ms / 86_400_000), 'day');
 };
 
+/** E6: Money in (unpaid invoices, overdue count) and Owe a reply (the last follow-ups check). */
+export function renderBusiness(b) {
+  const tile = $('#td-business');
+  if (!tile) return;
+  tile.hidden = !b;
+  if (!b) return;
+  tileHead(tile, t('Money and replies'));
+  const body = tile.querySelector('.td-body');
+  body.replaceChildren();
+  const list = el('ul', 'td-biz');
+  if (b.moneyIn) {
+    const money = new Intl.NumberFormat(locale(), { style: 'currency', currency: b.moneyIn.currency || 'USD' }).format(b.moneyIn.unpaidCents / 100);
+    const li = el('li', 'td-biz-row');
+    li.append(el('span', 'td-biz-k small muted', t('Money in')), el('span', 'td-biz-v', money), el('span', `small ${b.moneyIn.overdue ? 'td-biz-late' : 'muted'}`, b.moneyIn.overdue ? t('{n} overdue', { n: b.moneyIn.overdue }) : t('{n} unpaid', { n: b.moneyIn.unpaid })));
+    list.append(li);
+  }
+  if (b.followUps) {
+    const li = el('li', 'td-biz-row');
+    li.append(el('span', 'td-biz-k small muted', t('Owe a reply')), el('span', 'td-biz-v', String(b.followUps.count)), el('span', 'small muted', t('checked {when}', { when: freshAgo(b.followUps.at) })));
+    list.append(li);
+  }
+  body.append(list);
+}
+
+/** E3: Money: portfolio value and today's move (with its source and time), bills due this week, spent this month. */
+export function renderMoney(m) {
+  const tile = $('#td-money');
+  if (!tile) return;
+  tile.hidden = !m;
+  if (!m) return;
+  tileHead(tile, t('Money'));
+  const body = tile.querySelector('.td-body');
+  body.replaceChildren();
+  const cur = (cents, currency) => new Intl.NumberFormat(locale(), { style: 'currency', currency: currency || 'USD', maximumFractionDigits: cents >= 100_000 ? 0 : 2 }).format(cents / 100);
+  const list = el('ul', 'td-biz');
+  const row = (k, v, note, late) => {
+    const li = el('li', 'td-biz-row');
+    li.append(el('span', 'td-biz-k small muted', k), el('span', 'td-biz-v', v), el('span', `small ${late ? 'td-biz-late' : 'muted'}`, note));
+    list.append(li);
+  };
+  if (m.portfolio) {
+    const p = m.portfolio;
+    const move = p.dayPct === null ? '' : `${p.dayPct > 0 ? '+' : ''}${new Intl.NumberFormat(locale(), { maximumFractionDigits: 2 }).format(p.dayPct)}%`;
+    const when = new Date(p.at).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+    row(t('Portfolio'), cur(p.valueCents, p.currency), move ? t('{move} today · {source}, {time}', { move, source: p.source, time: when }) : t('from {source} at {time}', { source: p.source, time: when }));
+  }
+  if (m.bills) {
+    const due = new Date(`${m.bills.next.due}T12:00:00Z`).toLocaleDateString(locale(), { weekday: 'short', timeZone: 'UTC' });
+    row(t('Bills this week'), String(m.bills.count), t('next: {name}, {day}', { name: m.bills.next.name, day: due }));
+  }
+  if (m.month) row(t('Spent this month'), cur(m.month.spentCents), m.month.over ? t('over the limit in {n}', { n: m.month.over }) : m.month.through ? t('through {day}', { day: new Date(`${m.month.through}T12:00:00Z`).toLocaleDateString(locale(), { month: 'short', day: 'numeric', timeZone: 'UTC' }) }) : '', m.month.over > 0);
+  body.append(list);
+}
+
+/** E4: My teams (next game, last result, a live score), only while following a team. */
+export function renderTeams(p) {
+  const tile = $('#td-teams');
+  if (!tile) return;
+  const items = p?.items ?? [];
+  tile.hidden = !items.length;
+  if (!items.length) return;
+  tileHead(tile, t('My teams'));
+  const when = (iso, tbd) => new Date(iso).toLocaleString(locale(), tbd ? { weekday: 'short', month: 'short', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const vs = (x) => (x.home ? t('vs {team}', { team: x.opponent }) : t('at {team}', { team: x.opponent }));
+  const list = el('ul', 'td-biz');
+  for (const s of items) {
+    const li = el('li', 'td-teams-row');
+    const lines = [];
+    if (s.live) lines.push(el('span', 'td-teams-live', `${t('Live')} ${s.live.me ?? 0}-${s.live.them ?? 0} ${vs(s.live)} · ${s.live.detail}`));
+    if (s.next) lines.push(el('span', 'small', `${t('Next game')}: ${vs(s.next)} · ${when(s.next.start, s.next.tbd)}${s.next.tbd ? ` (${t('time TBD')})` : ''}`));
+    if (s.last?.result) lines.push(el('span', 'small muted', `${t('Last game')}: ${s.last.result === 'W' ? t('won {score}', { score: `${s.last.me}-${s.last.them}` }) : s.last.result === 'L' ? t('lost {score}', { score: `${s.last.me}-${s.last.them}` }) : t('tied {score}', { score: `${s.last.me}-${s.last.them}` })} ${vs(s.last)}`));
+    if (s.error) lines.push(el('span', 'small muted', t('ESPN did not answer; try again later.')));
+    li.append(el('span', 'td-biz-k', s.team), ...lines);
+    list.append(li);
+  }
+  tile.querySelector('.td-body').replaceChildren(list, el('p', 'small muted', t('From ESPN, {when}', { when: freshAgo(p.at) })));
+}
+
 /** Usage today (§6.3): tokens and estimated cost since local midnight; a ring against a budget, else the last 7 days. */
 export function renderUsage(u) {
   const tile = $('#td-usage');
@@ -1899,10 +1981,14 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   if (has('board')) draw('td-board', () => renderBoardTile(d.board));
   if (has('projects')) draw('td-projects', () => renderProjects(d.projects));
   if (has('usage')) draw('td-usage', () => renderUsage(d.usage));
+  if (has('business')) draw('td-business', () => renderBusiness(d.business));
+  if (has('money')) draw('td-money', () => renderMoney(d.money));
   let home = 'hidden';
   if (has('home')) draw('td-home', () => (home = renderHome(d.home, prefs)));
   if (has('models')) draw('td-models', () => renderModels(d));
   if (has('hooks')) draw('td-hooks', () => renderHooksTile(d.hooks));
+  if (has('watching')) draw('td-watching', () => ctx.renderWatching?.(d.watching, tileHead));
+  if (has('teams')) draw('td-teams', () => renderTeams(d.teams));
   draw('td-setup', () => renderSetup(setupItems({ weather: d.weather ?? (has('weather') ? { setUp: false } : undefined), calendar: d.calendar, mail: d.mail === undefined && has('mail') && !ctx.member() ? null : d.mail, home: d.home?.connected === false ? 'not-connected' : home, projects: d.projects, member: ctx.member(), demo: ctx.demo(), hidden: prefs?.setupHidden ?? [] }), prefs));
   if (has('away')) renderAway(d.away);
   Object.assign(lastEmpty, empty);

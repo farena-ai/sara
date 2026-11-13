@@ -1,0 +1,228 @@
+{
+ "version": 0.6,
+ "generator": "Overpass API (trimmed sample)",
+ "elements": [
+  {
+   "type": "node",
+   "id": 2670976782,
+   "lat": 39.1485243,
+   "lon": -94.581076,
+   "tags": {
+    "brand": "Advance Auto Parts",
+    "brand:wikidata": "Q4686051",
+    "name": "Advance Auto Parts",
+    "shop": "car_parts",
+    "website": "https://stores.advanceautoparts.com/mo/kansas-city/2610-burlington-st"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2673566891,
+   "lat": 39.0873984,
+   "lon": -94.6242545,
+   "tags": {
+    "addr:city": "Kansas City",
+    "addr:housenumber": "631",
+    "addr:postcode": "66105-1327",
+    "addr:state": "KS",
+    "addr:street": "Kansas Avenue",
+    "brand": "True Value",
+    "brand:wikidata": "Q7847545",
+    "name": "True Value",
+    "phone": "+1 816-555-0101",
+    "ref": "7339",
+    "shop": "hardware",
+    "website": "https://www.truevalue.com/lakctruevalue"
+   }
+  },
+  {
+   "type": "node",
+   "id": 2910016283,
+   "lat": 39.0506339,
+   "lon": -94.5992895,
+   "tags": {
+    "brand": "Dollar Tree",
+    "brand:wikidata": "Q5289230",
+    "check_date": "2024-07-11",
+    "check_date:opening_hours": "2024-07-11",
+    "name": "Dollar Tree",
+    "opening_hours": "Mo-Sa 09:00-20:00; Su 09:00-18:00",
+    "shop": "variety_store",
+    "website": "https://www.dollartree.com/locations/mo/kansas-city/4106/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4454303462,
+   "lat": 39.1043486,
+   "lon": -94.5631111,
+   "tags": {
+    "addr:city": "Kansas City",
+    "addr:housenumber": "721",
+    "addr:postcode": "64106",
+    "addr:state": "MO",
+    "addr:street": "The Paseo",
+    "brand": "ALDI",
+    "brand:wikidata": "Q41171672",
+    "name": "ALDI",
+    "opening_hours": "Mo-Su 08:30-20:00",
+    "payment:cash": "yes",
+    "payment:contactless": "yes",
+    "payment:debit_cards": "yes",
+    "phone": "+1 816-555-0103",
+    "shop": "supermarket",
+    "website": "https://stores.aldi.us/mo/kansas-city/721-paseo-blvd"
+   }
+  },
+  {
+   "type": "way",
+   "id": 73534108,
+   "center": {
+    "lat": 39.0666618,
+    "lon": -94.5833417
+   },
+   "tags": {
+    "addr:city": "Kansas City",
+    "addr:housenumber": "111",
+    "addr:postcode": "64111",
+    "addr:state": "MO",
+    "addr:street": "East Linwood Boulevard",
+    "alt_name": "Home Depot",
+    "branch": "Midtown Kansas City",
+    "brand": "The Home Depot",
+    "brand:wikidata": "Q864407",
+    "building": "yes",
+    "name": "The Home Depot",
+    "opening_hours": "Mo-Sa 06:00-21:00; Su 08:00-20:00",
+    "phone": "+1 816-555-0104",
+    "ref": "3021",
+    "shop": "doityourself",
+    "website": "https://www.homedepot.com/l/midtown-kansas-city/mo/kansas-city/64111/3021",
+    "wheelchair": "limited"
+   }
+  },
+  {
+   "type": "way",
+   "id": 181689247,
+   "center": {
+    "lat": 39.0668655,
+    "lon": -94.5534398
+   },
+   "tags": {
+    "addr:city": "Kansas City",
+    "addr:housenumber": "3230",
+    "addr:postcode": "64128",
+    "addr:state": "MO",
+    "addr:street": "Prospect Avenue",
+    "brand": "AutoZone",
+    "brand:wikidata": "Q4826087",
+    "building": "yes",
+    "name": "AutoZone",
+    "shop": "car_parts",
+    "website": "https://www.autozone.com/locations/mo/kansas-city/3230-prospect-ave.html"
+   }
+  },
+  {
+   "type": "way",
+   "id": 192803937,
+   "center": {
+    "lat": 39.1056786,
+    "lon": -94.5184325
+   },
+   "tags": {
+    "addr:housenumber": "5400",
+    "addr:postcode": "64123",
+    "addr:street": "Independence Avenue",
+    "brand": "Walgreens",
+    "brand:wikidata": "Q1591889",
+    "building": "yes",
+    "building:levels": "1",
+    "name": "Walgreens",
+    "opening_hours": "Mo-Su 08:00-22:00",
+    "phone": "+1 816-555-0106",
+    "shop": "chemist",
+    "website": "https://www.walgreens.com/locator/walgreens-5400+independence+ave-kansas+city-mo-64123/id=4222"
+   }
+  },
+  {
+   "type": "way",
+   "id": 203829382,
+   "center": {
+    "lat": 39.1060169,
+    "lon": -94.5514619
+   },
+   "tags": {
+    "addr:city": "Kansas City",
+    "addr:housenumber": "2435",
+    "addr:postcode": "64124",
+    "addr:state": "MO",
+    "addr:street": "Independence Avenue",
+    "brand": "CVS Pharmacy",
+    "brand:website": "https://www.cvs.com/",
+    "brand:wikidata": "Q2078880",
+    "building": "yes",
+    "name": "CVS Pharmacy",
+    "shop": "chemist",
+    "short_name": "CVS",
+    "website": "https://www.cvs.com/store-locator/kansas-city-mo-pharmacies/2435-e-independence-kansas-city-mo-64124/storeid=8576"
+   }
+  },
+  {
+   "type": "way",
+   "id": 239710199,
+   "center": {
+    "lat": 39.0435979,
+    "lon": -94.6193724
+   },
+   "tags": {
+    "addr:city": "Westwood",
+    "addr:country": "US",
+    "addr:housenumber": "4701",
+    "addr:postcode": "66205",
+    "addr:state": "KS",
+    "addr:street": "Mill Road",
+    "brand": "Walmart",
+    "brand:wikidata": "Q483551",
+    "building": "retail",
+    "building:levels": "1",
+    "name": "Walmart Neighborhood Market",
+    "opening_hours": "Mo-Su 06:00-24:00",
+    "operator": "Walmart",
+    "operator:wikidata": "Q483551",
+    "payment:app:walmart": "yes",
+    "payment:apple_pay": "no",
+    "payment:google_pay": "no",
+    "payment:samsung_pay": "no",
+    "phone": "+1 816-555-0108",
+    "ref": "998",
+    "ref:walmart": "998",
+    "sensory_friendly:accommodation": "dimmed_light;static_screens;no_pa",
+    "sensory_friendly:conditional": "yes @ 08:00-10:00",
+    "shop": "supermarket",
+    "website": "https://www.walmart.com/store/998-westwood-ks",
+    "wheelchair": "yes"
+   }
+  },
+  {
+   "type": "way",
+   "id": 253808268,
+   "center": {
+    "lat": 39.0623324,
+    "lon": -94.6203708
+   },
+   "tags": {
+    "addr:housenumber": "910",
+    "addr:postcode": "66103",
+    "addr:street": "Southwest Boulevard",
+    "building": "yes",
+    "building:levels": "2",
+    "contact:facebook": "StrasserHardware",
+    "name": "Strasser Hardware",
+    "opening_hours": "Mo-Fr 07:00-19:00; Sa-Su 08:00-17:00",
+    "phone": "+1 816-555-0109",
+    "shop": "hardware",
+    "website": "https://www.strasser-hardware.com/"
+   }
+  }
+ ]
+}

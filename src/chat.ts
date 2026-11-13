@@ -236,6 +236,14 @@ export interface AppContext {
   loops?: import('./loops.ts').Loops;
   /** E4: the owner's file/log watches (owner space only; src/watch.ts). Checked on the reminder tick. */
   watches?: import('./watch.ts').Watches;
+  /** E1: live data (quotes, sports, odds) from this space's chosen free sources. */
+  dataSources?: import('./data-sources.ts').DataSources;
+  /** E1: "tell me when" watches on live data (this companion's store). */
+  liveWatches?: import('./live-watch.ts').LiveWatches;
+  /** E4: followed teams, the bet log and its limits (each person's own store; docs/SPORTS.md). */
+  sports?: import('./sports/follow.ts').Sports;
+  /** E2: product watches (back in stock, price below, any change; owner space only; src/shopping/watch.ts). Checked on the reminder tick. */
+  productWatches?: import('./shopping/watch.ts').ProductWatches;
   /** EC6: the owner's research runs (owner space only; src/research.ts). */
   research?: import('./research.ts').Research;
   /** C6: topics and sites she learned (owner space only; src/learn.ts). Refreshes ride the reminder tick. */
@@ -867,8 +875,10 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 }
 
 // Phase 115: send_file shares a file out of the server (a chat app), so it is off in private chats too.
+/** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
+export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'delegate_task' || name === 'git_push' || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4

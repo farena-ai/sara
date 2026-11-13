@@ -79,16 +79,19 @@ import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createWatchRoutes } from './routes/watches.ts';
+import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
 import { createLearnRoutes } from './routes/learn.ts';
 import { learnAskCommand } from './learn.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
+import { createBizRoutes } from './routes/biz.ts';
 import { createCrewRoutes } from './routes/crews.ts';
 import { createWorkerRoutes } from './routes/workers.ts';
 import { createTriggerRoutes } from './routes/triggers.ts';
 import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
 import { createWorkingStyleRoutes } from './routes/working-style.ts';
+import { createDecisionRoutes } from './routes/decisions.ts';
 import { createReadTogetherRoutes } from './routes/read-together.ts';
 import { createRecallRoutes } from './routes/recall.ts';
 import { createSessionContinuityRoutes } from './routes/session-continuity.ts';
@@ -412,7 +415,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates']);
+  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -978,12 +981,16 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
   const watchRoutes = createWatchRoutes(ctx);
+  // E1: Settings → Data sources and the live-data watches, each person's own (src/routes/data-sources.ts).
+  const dataSourceRoutes = createDataSourceRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
   const researchRoutes = createResearchRoutes(ctx);
   // C6: learn a topic, the owner's only (src/routes/learn.ts).
   const learnRoutes = createLearnRoutes(ctx);
   // EC19: meeting rooms and meeting notes, the owner's only (src/routes/meetings.ts).
   const meetingRoutes = createMeetingRoutes(ctx);
+  // E6: Settings → Business details, each person's own (src/routes/biz.ts).
+  const bizRoutes = createBizRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
   // C10: workers that stay, the owner's only (src/routes/workers.ts).
@@ -994,6 +1001,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const tidyRoutes = createMemoryTidyRoutes(ctx);
   // C12: how she works with you, this space's own (src/routes/working-style.ts).
   const workingStyleRoutes = createWorkingStyleRoutes(ctx);
+  // E5: saved decisions, this space's own (src/routes/decisions.ts).
+  const decisionRoutes = createDecisionRoutes(ctx);
   // E5: read together, the owner's only (src/routes/read-together.ts).
   const readTogetherRoutes = createReadTogetherRoutes(ctx);
   // Phase 119: when it comes up, and picking a chat up in another app (src/routes/recall.ts).
@@ -1493,14 +1502,17 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workingStyleRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await decisionRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readTogetherRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await recallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sessionContinuityRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1935,6 +1947,9 @@ export function createSaraServer(opts: ServerOptions): Server {
           // 3.3.0: not picked yet: the wizard preselects Company (talk, plan, remember), not Both.
           usePathSet: Boolean(s.usePath),
           ollama: ollama.slice(0, 1),
+          // E7: this computer has a graphics card (null: not checked yet). Without one the guide
+          // prefers an Ollama Cloud model over a big model on the processor.
+          gpu: app.modelContext?.hardwareKnown ? Boolean(app.modelContext.vramGb) : null,
           subscriptions: { grok: subs?.grokStatus().signedIn ?? false, claude: subs?.claudeStatus().signedIn ?? false, chatgpt: Boolean(subs?.chatgpt.status().signedIn) },
         });
       }

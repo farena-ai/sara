@@ -69,6 +69,8 @@ export interface Settings {
   egress?: Partial<import('./isolation.ts').EgressSettings>;
   /** Web search backend (key, if any, is in the vault under search:<provider>). */
   search?: { provider: SearchProvider; url?: string };
+  /** E1: the live-data provider per kind (keys in the vault as data:<provider>); unset = the free default. */
+  dataSources?: Partial<Record<import('./data-sources.ts').DataKind, string>>;
   /** MCP servers (secrets for env/headers are in the vault under mcp:<name>). */
   mcpServers?: McpServerConfig[];
   /** Pictures from Sara (Phase 9). */

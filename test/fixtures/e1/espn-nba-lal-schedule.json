@@ -1,0 +1,286 @@
+{
+ "team": {
+  "id": "13",
+  "abbreviation": "LAL",
+  "displayName": "Los Angeles Lakers",
+  "location": "Los Angeles",
+  "name": "Lakers"
+ },
+ "events": [
+  {
+   "id": "401909952",
+   "date": "2026-11-10T00:00Z",
+   "name": "Los Angeles Lakers at Atlanta Hawks",
+   "shortName": "LAL @ ATL",
+   "status": {},
+   "competitions": [
+    {
+     "id": "401909952",
+     "date": "2026-11-10T00:00Z",
+     "status": {
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "State Farm Arena"
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "value": 114,
+        "displayValue": "114"
+       },
+       "team": {
+        "id": "1",
+        "abbreviation": "ATL",
+        "displayName": "Atlanta Hawks",
+        "shortDisplayName": "Hawks",
+        "location": "Atlanta"
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": {
+        "value": 124,
+        "displayValue": "124"
+       },
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "location": "Los Angeles"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909971",
+   "date": "2026-11-12T01:00Z",
+   "name": "Los Angeles Lakers at Milwaukee Bucks",
+   "shortName": "LAL @ MIL",
+   "status": {},
+   "competitions": [
+    {
+     "id": "401909971",
+     "date": "2026-11-12T01:00Z",
+     "status": {
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "Fiserv Forum"
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": {
+        "value": 112,
+        "displayValue": "112"
+       },
+       "team": {
+        "id": "15",
+        "abbreviation": "MIL",
+        "displayName": "Milwaukee Bucks",
+        "shortDisplayName": "Bucks",
+        "location": "Milwaukee"
+       }
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": {
+        "value": 123,
+        "displayValue": "123"
+       },
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "location": "Los Angeles"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909986",
+   "date": "2026-11-15T21:00Z",
+   "name": "Los Angeles Lakers at Phoenix Suns",
+   "shortName": "LAL @ PHX",
+   "status": {},
+   "competitions": [
+    {
+     "id": "401909986",
+     "date": "2026-11-15T21:00Z",
+     "status": {
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, November 15th at 4:00 PM EST",
+       "shortDetail": "11/15 - 4:00 PM EST"
+      }
+     },
+     "venue": {
+      "fullName": "Mortgage Matchup Center"
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "21",
+        "abbreviation": "PHX",
+        "displayName": "Phoenix Suns",
+        "shortDisplayName": "Suns",
+        "location": "Phoenix"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "location": "Los Angeles"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401910005",
+   "date": "2026-11-18T04:00Z",
+   "name": "Charlotte Hornets at Los Angeles Lakers",
+   "shortName": "CHA @ LAL",
+   "status": {},
+   "competitions": [
+    {
+     "id": "401910005",
+     "date": "2026-11-18T04:00Z",
+     "status": {
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Tue, November 17th at 11:00 PM EST",
+       "shortDetail": "11/17 - 11:00 PM EST"
+      }
+     },
+     "venue": {
+      "fullName": "crypto.com Arena"
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "location": "Los Angeles"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "displayName": "Charlotte Hornets",
+        "shortDisplayName": "Hornets",
+        "location": "Charlotte"
+       }
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401910017",
+   "date": "2026-11-19T03:00Z",
+   "name": "Utah Jazz at Los Angeles Lakers",
+   "shortName": "UTAH @ LAL",
+   "status": {},
+   "competitions": [
+    {
+     "id": "401910017",
+     "date": "2026-11-19T03:00Z",
+     "status": {
+      "displayClock": "0.0",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Wed, November 18th at 10:00 PM EST",
+       "shortDetail": "11/18 - 10:00 PM EST"
+      }
+     },
+     "venue": {
+      "fullName": "crypto.com Arena"
+     },
+     "competitors": [
+      {
+       "homeAway": "home",
+       "team": {
+        "id": "13",
+        "abbreviation": "LAL",
+        "displayName": "Los Angeles Lakers",
+        "shortDisplayName": "Lakers",
+        "location": "Los Angeles"
+       }
+      },
+      {
+       "homeAway": "away",
+       "team": {
+        "id": "26",
+        "abbreviation": "UTAH",
+        "displayName": "Utah Jazz",
+        "shortDisplayName": "Jazz",
+        "location": "Utah"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

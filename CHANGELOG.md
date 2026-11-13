@@ -5,6 +5,94 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+- New: Sara checks whether the talking model suits this computer. A model bigger than 3 billion
+  parameters running on the processor (no graphics card), replies that usually take over 30 seconds,
+  or a model without tool support get a plain notice in Settings → Models → Default model and in
+  the full check ("Chat model speed"), with up to three faster choices from what is connected
+  (Ollama Cloud models first). **Use this** switches the talking model, with Undo; nothing switches
+  by itself.
+- New: the first-run guide on a computer without a graphics card picks an Ollama Cloud model over a
+  big local one when your Ollama has one, and says why.
+- New: *Try something new* on Today: one card per everyday area (fill in a form, watch a stock or
+  team, find something near me, help me decide, make an invoice, check my spending), shown only when
+  this server has the tools for it, until you use it or press ×. Each starts a new chat with the
+  first message written for you; new chats show two of them as suggestions too.
+- New: the full check has lines for the live data sources (stock prices, sports, odds): a missing
+  optional key, and whether the chosen source answers.
+- Fixed: the Watching tile's rows on Today were filled accent buttons with a hard-to-read second line;
+  they now use the calm row look.
+- New: money (information and math, not advice). Give Sara your brokerage's positions export
+  (Fidelity, Schwab, Vanguard, Robinhood, E*TRADE and others) or a list like "AAPL 10 @ 150" and ask
+  how your stocks are doing: value now, today's change, gain against what you paid and each
+  holding's share, with the price source and time. Your bank or card exports (CSV, Excel, OFX, QFX)
+  become a budget: categories you can correct once ("Costco is groceries"), monthly totals against
+  the month before, top merchants, a subscription finder with next dates and yearly costs, and
+  optional monthly limits that tell you once when passed. Bills get a Planner reminder a few days
+  before they're due. The morning briefing adds a portfolio line, and Today a Money tile once you use
+  any of it. See [docs/MONEY.md](docs/MONEY.md).
+- New: "tell me when Dana emails" (or when mail with certain words arrives): a watch on your
+  connected mailboxes, checked every 10 minutes, telling you the sender and subject once per message.
+- New: sports and odds, tracking and math only. Follow your teams ("follow the Chiefs"): alerts when
+  a game starts and ends, optionally when it's close late on or when the point spread moves; their
+  games go into Sara's planner (or your Google or Outlook calendar when you ask) without duplicates,
+  and a moved game is moved; ESPN headlines and injury reports; a line in the morning briefing and a
+  "My teams" tile on Today. Compare a game's lines across sportsbooks (best price, fair odds, each
+  book's cut), an odds calculator (formats, implied probability, expected value, Kelly, parlays), and
+  your own bet log with bankroll, profit, ROI, win rate and closing-line value; settle a bet from the
+  final score when you want. Optional limits you set yourself (weekly loss, most per bet, cool-off)
+  are said plainly when crossed; logging is never blocked. She never places bets or links to a
+  sportsbook. See [docs/SPORTS.md](docs/SPORTS.md).
+
+## 3.7.0 (2026-11-13): decisions and business tools
+
+- Fixed: on Windows, approving a click in a pop-up (like Edge's "Remove ... from Microsoft Edge?"
+  confirm, a menu or a dropdown) no longer closes that pop-up before Sara can press it. The approval
+  card no longer takes focus from the window you were using (answer it with the mouse; Stop and
+  "closing means Don't" work as before).
+- New: a decision helper. Tell her the options and what matters (or she asks), and she weighs them
+  with the math shown: every score says where it came from (you, a named source, or her estimate,
+  flagged), raw prices and other values are scaled per criterion, and she says when it's a close call
+  or when one small change would flip the winner. A short "what could go wrong / how to undo it"
+  follows. The chat card ranks the options with bars and has "I chose this" and "Save as document".
+  Decisions are saved (each household member's are their own); pick a date and the planner asks you
+  later how it worked out, and the next similar decision recalls what you chose last time. Also new:
+  side-by-side comparisons that mark missing values instead of filling them in. See
+  [docs/DECISIONS_HELPER.md](docs/DECISIONS_HELPER.md).
+- New: invoices and quotes. Ask "make an invoice for Rivera Co: 10 hours at $85" and she numbers it
+  (INV-2026-0001), works out the totals and makes a PDF or Word file, or fills in your own invoice
+  template. Tell her when it was sent and paid: she reminds you the day before it is due and if it is
+  3 days late. Your name, logo and how to get paid are in Settings → You → Business details. She never
+  emails an invoice herself; she can write a draft for you to send.
+- New: "who do I owe a reply". From your connected mailboxes, the people still waiting on you (no
+  newsletters or automatic mail), questions first, plus to-dos that are due; she drafts replies for you
+  to review.
+- New: she reads contracts and leases: parties, dates, the last day to give notice, money, late fees,
+  and clauses worth a second look, each with the exact sentence and page. A reading aid, not legal
+  advice.
+- New: receipts to an expense report (Excel or PDF, totals by category), with the same receipt caught
+  twice; meeting notes to action items with owners and dates.
+- New: a small "Money and replies" tile on Today once you use these.
+  Details: [docs/BUSINESS_TOOLS.md](docs/BUSINESS_TOOLS.md).
+- New: live data from free sources. Ask for a stock price, a score, a team's next games, standings or
+  betting lines; she names the source and the time with every number and says plainly when a source
+  doesn't answer. Stock prices come from Yahoo Finance (no key), sports from ESPN (no key), odds from
+  The Odds API with a free key, with implied and no-vig probabilities. Choose sources, paste free keys
+  and test them in Settings → Add-ons → Data sources.
+- New: "tell me when". A price crossing a number or moving a % in a day, a game starting, ending or the
+  score changing, an odds line moving: she checks in the background and tells you once per crossing
+  with a chat card and a notification. Watches share one budget so free allowances last, pause with a
+  note if one runs out, and are listed on Today under Watching.
+- New: exact totals from your own spreadsheets. Ask about a CSV or Excel file in your Library or in the
+  chat ("what did I spend on food in March?") and she computes sums, averages, counts and groups with a
+  built-in engine; the numbers come from the file, never from guesses.
+- New: find it near me. Ask where to buy something and Sara checks the stores near you
+  (OpenStreetMap) and the big retailers' own pages (Walmart, Target, Home Depot, Lowe's, Best Buy,
+  Walgreens, CVS, AutoZone, Amazon and more) for price and stock, one page at a time, and gives a
+  short ranked list with distance, pickup or delivery when shown, the link, where each fact came from
+  and when. Sites that block her are listed with the reason, the store's phone number and an offer to
+  check in your own browser. She never buys. Product watches tell you when something is back in
+  stock, under a price, or changes (checked at most every 6 hours). Guide: docs/SHOPPING.md.
+
 ## 3.6.5 (2026-11-12): PDF forms too
 
 - New: she fills in your fillable PDF forms too (text boxes, check boxes, radio buttons and drop-down

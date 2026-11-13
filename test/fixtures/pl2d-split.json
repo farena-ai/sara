@@ -264,6 +264,8 @@
    "Signed in ✓",
    "Start talking",
    "Step {step} of 4",
+   "This computer has no graphics card, so big models on it answer slowly; a cloud model through Ollama answers in seconds.",
+   "This computer has no graphics card, so models on it answer slowly. An Ollama Cloud model (free account at ollama.com) or a service with a key answers in seconds.",
    "Type that computer's address.",
    "Type your name so Sara knows what to call you (or press Set up later).",
    "Use it",

@@ -72,8 +72,16 @@ export interface Today {
   models?: string[];
   /** UX 19: the same as `models`, as data (ModelNotice / RetiredUse from model-catalog.ts), for translating. */
   modelItems?: unknown[];
+  /** E1: live-data watches (Watching). */
+  watching?: ReturnType<import('./live-watch.ts').LiveWatches['todayTile']>;
+  /** E4: My teams (next game, last result, live score), only when following a team. */
+  teams?: Awaited<ReturnType<import('./sports/follow.ts').Sports['todayTile']>>;
   /** TD1: the calendar's next N days (Coming up). */
   coming?: { events: TodayEvent[]; days: number };
+  /** E6: Money in (unpaid invoices) and Owe a reply (the last follow-ups check); only once used. */
+  business?: import('./biz/today.ts').BusinessTile;
+  /** E3: portfolio value and today's move, bills due this week, spending this month; only once used. */
+  money?: import('./money/core.ts').MoneyTile;
   /** TD1: this companion's layout preferences. */
   layout?: TodayPrefs & { seenAt: string | null };
   /** TD1: every part that was built, with when it was read. */
@@ -81,7 +89,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'money', 'teams', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -470,6 +478,24 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
         }
       }
       meta('models');
+    },
+    watching: () => {
+      // E1: the person's "tell me when" watches on live data (their own space's).
+      const tile = demo ? undefined : app.liveWatches?.todayTile();
+      if (tile) out.watching = tile;
+      meta('watching');
+    },
+    teams: async () => {
+      // E4: My teams (ESPN, cached 10 minutes in the data sources); nothing when no team is followed.
+      if (!demo && app.sports?.list().length) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const tile = await Promise.race([app.sports.todayTile().catch(() => undefined), new Promise<undefined>((res) => {
+          timer = setTimeout(() => res(undefined), 8000);
+        })]);
+        clearTimeout(timer);
+        if (tile) out.teams = tile;
+      }
+      meta('teams');
     },
     layout: () => {
       out.layout = { ...prefs, seenAt: layout.seenAt };

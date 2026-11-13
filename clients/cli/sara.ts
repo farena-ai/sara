@@ -15,7 +15,7 @@ import { hostname, homedir, platform } from 'node:os';
 import { basename, join, relative, resolve, sep } from 'node:path';
 import { createInterface, type Interface } from 'node:readline';
 
-export const VERSION = '1.6.5';
+export const VERSION = '1.7.0';
 
 // ---------- output ----------
 export interface Io {

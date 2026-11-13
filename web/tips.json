@@ -1,6 +1,38 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "ds-quote": [
+      "Where stock prices come from. Yahoo Finance needs no key (prices can be 15 minutes late). Finnhub and Alpha Vantage need a free key. Test checks it with an AAPL price.",
+      "data"
+    ],
+    "ds-sports": [
+      "Where scores, schedules and standings come from. ESPN needs no key. TheSportsDB has a free test key built in and answers per team; standings always come from ESPN.",
+      "data"
+    ],
+    "ds-odds": [
+      "Betting lines come from The Odds API with a free key: 500 credits a month, one per market. Answers are cached 5 minutes and watches check at most every 2 hours to save them.",
+      "data"
+    ],
+    "ds-keys": [
+      "Keys are kept in this server's encrypted vault, never shown again and never sent to a model. Leave a field empty to keep the saved key.",
+      "data"
+    ],
+    "ds-key-finnhub": [
+      "Your free Finnhub key (finnhub.io → Register). Kept in the encrypted vault; never shown again or sent to a model.",
+      "data"
+    ],
+    "ds-key-alphavantage": [
+      "Your free Alpha Vantage key (25 requests a day). Kept in the encrypted vault; never shown again or sent to a model.",
+      "data"
+    ],
+    "ds-key-theoddsapi": [
+      "Your free key from The Odds API. Kept in the encrypted vault; never shown again or sent to a model. The quota line shows the credits left.",
+      "data"
+    ],
+    "ds-key-thesportsdb": [
+      "Optional: your own TheSportsDB key. Without one Sara uses its free test key.",
+      "data"
+    ],
     "offline-keep": [
       "On in the Sara apps and installed web apps, off in a plain browser tab (it may be a shared computer). Turning it off deletes this device's copy at once.",
       "signin"
@@ -460,6 +492,46 @@
     "rv-time": [
       "The time the weekly review arrives.",
       "planner"
+    ],
+    "biz-name": [
+      "The name at the top of your invoices and quotes. Example: Alex Design LLC, or just your own name.",
+      "business"
+    ],
+    "biz-email": [
+      "Where clients reach you about an invoice. It is printed on the invoice; Sara never sends from it by herself.",
+      "business"
+    ],
+    "biz-phone": [
+      "Printed under your name on invoices. Leave empty to leave it off.",
+      "business"
+    ],
+    "biz-tax-id": [
+      "Your EIN, VAT or GST number, if your clients need it on the invoice. Leave empty if not.",
+      "business"
+    ],
+    "biz-address": [
+      "Your business address, one line per row, printed on invoices and quotes.",
+      "business"
+    ],
+    "biz-logo": [
+      "A picture from your Library shown at the top of invoices. Put a PNG or JPG of your logo in the Library first.",
+      "business"
+    ],
+    "biz-payment": [
+      "Printed at the bottom of every invoice. Example: Bank transfer to account 0000 0000, or pay online at example.com/pay. Never put passwords here.",
+      "business"
+    ],
+    "biz-currency": [
+      "The currency on new invoices, quotes and expense reports. Invoices you already made keep theirs.",
+      "business"
+    ],
+    "biz-tax": [
+      "Tax added to new invoices, in percent (8.25 for 8.25%). Use 0 if you don't charge tax. You can still give a different rate for one invoice.",
+      "business"
+    ],
+    "biz-due": [
+      "Days until a new invoice is due (and how long a quote is valid). 30 is common; 0 means due on receipt. Sara reminds you the day before and 3 days after if unpaid.",
+      "business"
     ],
     "lb-enabled": [
       "A heads-up when it's time to leave for calendar events that have an address.",
@@ -1519,6 +1591,10 @@
     ]
   },
   "pages": {
+    "ab-data": [
+      "Where live prices, scores and odds come from: free sources, a key field for those that need one, a Test button and your “tell me when” watches.",
+      "data"
+    ],
     "dh-recovery": [
       "Is this install ready for real use: each area ready, needs attention or not ready, with one fix, and a restore drill that proves a backup opens. Below, interrupted work to review; nothing restarts by itself.",
       "recovery"
@@ -1598,6 +1674,10 @@
     "you-leave-by": [
       "A heads-up when it’s time to leave for calendar events that have an address.",
       "planner"
+    ],
+    "you-business": [
+      "Your business name, address, logo and how to get paid, for the invoices and quotes Sara makes. Plus the currency, tax rate and payment terms she uses by default.",
+      "business"
     ],
     "you-adult": [
       "Off by default. Can only be changed in a web browser, by an adult.",

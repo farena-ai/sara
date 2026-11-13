@@ -29,6 +29,10 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-dates', section: 'day', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-needs', section: 'needs', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-mail', section: 'needs', sizes: ['M', 'L'], size: 'L' },
+  // E6: Money in and Owe a reply (shown only once invoices or follow-ups are used).
+  { id: 'td-business', section: 'needs', sizes: ['S', 'M'], size: 'S' },
+  // E3: Money (portfolio, bills this week, spent this month), shown only once used.
+  { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },
@@ -42,6 +46,7 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-models', section: 'more', sizes: ['S', 'M'], size: 'S' },
   // Folded into Needs you / Your day (§4.1, §4.6): still registered, hidden by default.
   { id: 'td-hooks', section: 'more', sizes: ['S', 'M'], size: 'M', hidden: true, ownerOnly: true },
+  { id: 'td-watching', section: 'more', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-agenda', section: 'more', sizes: ['S', 'M'], size: 'M', hidden: true },
   { id: 'td-setup', section: 'more', sizes: ['S', 'M', 'L'], size: 'S', ownerOnly: true },
 ];

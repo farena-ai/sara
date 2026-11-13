@@ -24,7 +24,7 @@
 
 **Actualizar:** en un servidor Linux, `sudo sara update` (antes hace una copia de seguridad y vuelve atrás si ella no responde) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows y Mac: Ajustes → Datos y salud → Actualizaciones · Android: Google Play. [Cómo actualizar](docs/INSTALL.md#upgrading).
 
-> **Estado:** 3.6.5, [También formularios PDF](https://github.com/farena-ai/sara/releases/tag/v3.6.5). Los formularios PDF rellenables se completan en una copia de tu propio archivo, comprobados campo por campo. [Ver novedades](#novedades)
+> **Estado:** 3.7.0, [Un asistente para cada día: dinero, deportes, compras, decisiones, negocio](https://github.com/farena-ai/sara/releases/tag/v3.7.0). Cartera y presupuesto desde tus exportaciones, facturas, equipos seguidos y registro de apuestas, precios y cuotas en vivo con avisos, encuentra un producto cerca, ayuda para decidir, facturas, contratos y gastos. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versiones recientes · 6 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Un asistente para cada día: dinero, deportes, compras, decisiones, negocio](docs/BUSINESS_TOOLS.md)** — Sopesa opciones según lo que te importa, avisa cuando está reñido y vuelve a preguntar después. Facturas y presupuestos numerados con seguimiento de pagos y vencidos, a quién debes responder, contratos leídos citando cada punto, recibos convertidos en informes de gastos. |
 | **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[También formularios PDF](docs/DOCUMENTS.md)** — Cuadros de texto, casillas, botones de opción y listas, encontrados por las palabras impresas junto a cada cuadro. Los PDF protegidos o escaneados reciben una respuesta clara y el siguiente paso. |
 | **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Las apps web activas funcionan](docs/desktop.md)** — Comprueba solo el botón o campo que va a usar, escribe en editores enriquecidos y, si se detiene, dice que es su propia comprobación y lo intenta otra vez. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Rellena tus propios formularios](docs/DOCUMENTS.md)** — Los valores van a las celdas correctas según la etiqueta y la columna, con el diseño y el formato intactos y el original sin tocar. Relee la copia e indica cuántos campos quedaron rellenos. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Lo hace por ti](docs/desktop.md)** — Quitar una extensión del navegador, desactivar una app de inicio o limpiar archivos: hace cada paso y apruebas los cambios en tu computadora. Si no puede, dice qué falta. Las respuestas fallidas muestran Reintentar e Informar, y los informes llegan al soporte. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Usar tus apps es rápido](docs/desktop.md)** — Una lista de ventanas que esperaba al hilo ocupado de la app hacía que las acciones aprobadas tardaran minutos; ahora tardan segundos. Cambia a una de tus pestañas cuando lo permites, actúa en ventanas detrás de otras tras tu permiso y ve los enlaces de tus páginas. |
-| **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Su propia cara, toda la computadora](docs/desktop.md)** — La cara de Fred (o cualquier aspecto propio) en la ventana, la barra de tareas, la bandeja y los accesos directos; la parte superior sigue el tema de la página. Enumera y usa todo lo que puede hacer en tu PC, y Archivos lee las carpetas que elijas sin cambiarlas. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versiones 2.6x anteriores</b>: de la 3.5.1 a la 2.61.5</summary>
+<summary><b>Versiones 2.6x anteriores</b>: de la 3.6.0 a la 2.61.5</summary>
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Su propia cara, toda la computadora](docs/desktop.md)** — La cara de Fred (o cualquier aspecto propio) en la ventana, la barra de tareas, la bandeja y los accesos directos; la parte superior sigue el tema de la página. Enumera y usa todo lo que puede hacer en tu PC, y Archivos lee las carpetas que elijas sin cambiarlas. |
 | **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Lo que escribes siempre le llega](docs/desktop.md)** — Cada vez que su ventana se activa, tras sus tarjetas y el uso de la computadora y al iniciar, la app pasa el teclado a la página. La pregunta rápida toma el texto seleccionado en el chat de Sara y avisa cuando no había nada seleccionado. |
 | **[3.5.0](https://github.com/farena-ai/sara/releases/tag/v3.5.0)** | **[Una app de escritorio que hace más](docs/desktop.md)** — La pregunta rápida toma el texto seleccionado o una imagen de la ventana, pulsar para hablar y las respuestas habladas funcionan con la ventana cerrada, arrastrar y Guardar en mi PC manejan archivos, los comandos aprobados se ejecutan en tu PC con Detener y los chats recientes se leen sin conexión. |
 | **[3.4.5](https://github.com/farena-ai/sara/releases/tag/v3.4.5)** | **[Respuestas rápidas con modelos en el procesador](docs/CHOOSING_A_MODEL.md)** — Sara pregunta a cada Ollama si el modelo corre en la tarjeta gráfica; en el procesador mantiene el contexto pequeño para que las respuestas sigan siendo rápidas. Tras 45 segundos sin respuesta, el chat nombra el modelo lento con Arréglalo, Seguir esperando y Detener. |

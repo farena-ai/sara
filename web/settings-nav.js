@@ -62,10 +62,10 @@ const WAS_WORDS = { Abilities: () => t('Abilities'), Connections: () => t('Conne
 // The order of the pages inside each group. Page ids stay the same: links, tips, tours and tests use them.
 const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-work', 'her-companions', 'her-import',
-  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-adult',
+  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'you-business', 'ab-when', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local',
   'co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity',
-  'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-library', 'ab-mail', 'ab-google', 'ab-home', 'ab-recipes',
+  'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-data', 'ab-library', 'ab-mail', 'ab-google', 'ab-home', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools',
   // 3.0.3: Devices and sign-in (where codes for a new phone or computer are made) leads Connections;
   // it sat deep in Data & health and the owner could not find it. Its id stays dh-devices.

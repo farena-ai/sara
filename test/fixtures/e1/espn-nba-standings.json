@@ -1,0 +1,358 @@
+{
+ "name": "National Basketball Association",
+ "abbreviation": "NBA",
+ "children": [
+  {
+   "name": "Eastern Conference",
+   "abbreviation": "East",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "15",
+       "abbreviation": "MIL",
+       "displayName": "Milwaukee Bucks",
+       "shortDisplayName": "Bucks",
+       "location": "Milwaukee",
+       "name": "Bucks"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 9,
+        "displayValue": "9"
+       },
+       {
+        "name": "losses",
+        "value": 11,
+        "displayValue": "11"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 15,
+        "displayValue": "15"
+       },
+       {
+        "name": "points",
+        "value": -5,
+        "displayValue": "-5.0"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.083333336,
+        "displayValue": ".083"
+       },
+       {
+        "name": "wins",
+        "value": 1,
+        "displayValue": "1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "4",
+       "abbreviation": "CHI",
+       "displayName": "Chicago Bulls",
+       "shortDisplayName": "Bulls",
+       "location": "Chicago",
+       "name": "Bulls"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 8,
+        "displayValue": "8"
+       },
+       {
+        "name": "losses",
+        "value": 9,
+        "displayValue": "9"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 14,
+        "displayValue": "14"
+       },
+       {
+        "name": "points",
+        "value": -4,
+        "displayValue": "-4.0"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.1,
+        "displayValue": ".100"
+       },
+       {
+        "name": "wins",
+        "value": 1,
+        "displayValue": "1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "27",
+       "abbreviation": "WSH",
+       "displayName": "Washington Wizards",
+       "shortDisplayName": "Wizards",
+       "location": "Washington",
+       "name": "Wizards"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 6.5,
+        "displayValue": "6.5"
+       },
+       {
+        "name": "losses",
+        "value": 9,
+        "displayValue": "9"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 12,
+        "displayValue": "12"
+       },
+       {
+        "name": "points",
+        "value": -2.5,
+        "displayValue": "-2.5"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.30769232,
+        "displayValue": ".308"
+       },
+       {
+        "name": "wins",
+        "value": 4,
+        "displayValue": "4"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "17",
+       "abbreviation": "BKN",
+       "displayName": "Brooklyn Nets",
+       "shortDisplayName": "Nets",
+       "location": "Brooklyn",
+       "name": "Nets"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 6.5,
+        "displayValue": "6.5"
+       },
+       {
+        "name": "losses",
+        "value": 8,
+        "displayValue": "8"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 13,
+        "displayValue": "13"
+       },
+       {
+        "name": "points",
+        "value": -2.5,
+        "displayValue": "-2.5"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.27272728,
+        "displayValue": ".273"
+       },
+       {
+        "name": "wins",
+        "value": 3,
+        "displayValue": "3"
+       }
+      ]
+     }
+    ]
+   }
+  },
+  {
+   "name": "Western Conference",
+   "abbreviation": "West",
+   "standings": {
+    "entries": [
+     {
+      "team": {
+       "id": "26",
+       "abbreviation": "UTAH",
+       "displayName": "Utah Jazz",
+       "shortDisplayName": "Jazz",
+       "location": "Utah",
+       "name": "Jazz"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 9.5,
+        "displayValue": "9.5"
+       },
+       {
+        "name": "losses",
+        "value": 11,
+        "displayValue": "11"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 15,
+        "displayValue": "15"
+       },
+       {
+        "name": "points",
+        "value": -5,
+        "displayValue": "-5.0"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.083333336,
+        "displayValue": ".083"
+       },
+       {
+        "name": "wins",
+        "value": 1,
+        "displayValue": "1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "23",
+       "abbreviation": "SAC",
+       "displayName": "Sacramento Kings",
+       "shortDisplayName": "Kings",
+       "location": "Sacramento",
+       "name": "Kings"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 9,
+        "displayValue": "9"
+       },
+       {
+        "name": "losses",
+        "value": 10,
+        "displayValue": "10"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 14,
+        "displayValue": "14"
+       },
+       {
+        "name": "points",
+        "value": -4.5,
+        "displayValue": "-4.5"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.09090909,
+        "displayValue": ".091"
+       },
+       {
+        "name": "wins",
+        "value": 1,
+        "displayValue": "1"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "12",
+       "abbreviation": "LAC",
+       "displayName": "LA Clippers",
+       "shortDisplayName": "Clippers",
+       "location": "LA",
+       "name": "Clippers"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 7.5,
+        "displayValue": "7.5"
+       },
+       {
+        "name": "losses",
+        "value": 8,
+        "displayValue": "8"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 13,
+        "displayValue": "13"
+       },
+       {
+        "name": "points",
+        "value": -3,
+        "displayValue": "-3.0"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.2,
+        "displayValue": ".200"
+       },
+       {
+        "name": "wins",
+        "value": 2,
+        "displayValue": "2"
+       }
+      ]
+     },
+     {
+      "team": {
+       "id": "3",
+       "abbreviation": "NO",
+       "displayName": "New Orleans Pelicans",
+       "shortDisplayName": "Pelicans",
+       "location": "New Orleans",
+       "name": "Pelicans"
+      },
+      "stats": [
+       {
+        "name": "gamesBehind",
+        "value": 6.5,
+        "displayValue": "6.5"
+       },
+       {
+        "name": "losses",
+        "value": 8,
+        "displayValue": "8"
+       },
+       {
+        "name": "playoffSeed",
+        "value": 12,
+        "displayValue": "12"
+       },
+       {
+        "name": "points",
+        "value": -2,
+        "displayValue": "-2.0"
+       },
+       {
+        "name": "winPercent",
+        "value": 0.33333334,
+        "displayValue": ".333"
+       },
+       {
+        "name": "wins",
+        "value": 4,
+        "displayValue": "4"
+       }
+      ]
+     }
+    ]
+   }
+  }
+ ]
+}

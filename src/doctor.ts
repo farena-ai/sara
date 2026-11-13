@@ -18,6 +18,8 @@ import { type SandboxInfo } from './tools/sandbox.ts';
 import type { ToolRegistry } from './tools/registry.ts';
 import { findBrowser, type BrowserInfo } from './browser.ts';
 import { en } from './i18n.ts';
+import type { FitnessView } from './model-fitness.ts';
+import { DATA_KINDS, type DataSources } from './data-sources.ts';
 
 export interface DoctorCheck {
   name: string;
@@ -25,6 +27,8 @@ export interface DoctorCheck {
   detail: string;
   detailKey?: string;
   params?: Record<string, unknown>;
+  /** E7: a detail made of several translated sentences. */
+  parts?: { key: string; params?: Record<string, unknown> }[];
 }
 
 export interface DoctorDeps {
@@ -42,6 +46,42 @@ export interface DoctorDeps {
   platform?: NodeJS.Platform;
   /** Finds the optional browser used to test web previews. */
   browser?: () => BrowserInfo;
+  /** E7: the talking model against this computer (src/model-fitness.ts). */
+  fitness?: () => Promise<FitnessView | undefined>;
+  /** E7: the live data sources (stock prices, sports, odds): which one, has a key, does it answer. */
+  dataSources?: { kinds(): { kind: string; label: string; needsKey: boolean; hasKey: boolean }[]; test(kind: string): Promise<{ ok: boolean; message: string; source: string }> };
+}
+
+/** E7: the server's live data sources as the doctor reads them. */
+export function doctorDataSources(ds: DataSources): NonNullable<DoctorDeps['dataSources']> {
+  return {
+    kinds: () => DATA_KINDS.map((kind) => {
+      const p = ds.provider(kind);
+      return { kind, label: p.label, needsKey: p.needsKey, hasKey: ds.hasKey(p.id) };
+    }),
+    test: (kind) => ds.test(kind as (typeof DATA_KINDS)[number]),
+  };
+}
+
+const DATA_NAMES: Record<string, string> = { quote: en('Live data: stock prices'), sports: en('Live data: sports'), odds: en('Live data: betting odds') };
+
+/** E7: the doctor's line for the talking model (key + params so the app can translate it). */
+export function fitnessLine(f: FitnessView): DoctorCheck {
+  const name = en('Chat model speed');
+  if (!f.reasons.length) {
+    const key = f.medianS !== undefined ? en('{model}: fine for this computer (replies in about {s} s).') : en('{model}: fine for this computer.');
+    const params = { model: f.model, s: f.medianS };
+    return { name, status: 'ok', detail: key.replace('{model}', f.model).replace('{s}', String(f.medianS)), detailKey: key, params };
+  }
+  const params: Record<string, unknown> = { model: f.model, s: f.medianS, choices: f.choices.map((c) => c.model).join(', ') };
+  const keys: string[] = [];
+  if (f.medianS !== undefined && f.reasons.includes('slow-replies')) keys.push(en('Replies take about {s} s with {model} on this computer.'));
+  else if (f.reasons.includes('cpu-big')) keys.push(en('{model} runs on the processor here (no graphics card), so replies can take minutes.'));
+  if (f.reasons.includes('no-tools')) keys.push(en("{model} can't use tools: computer use, documents and shopping won't work."));
+  keys.push(f.choices.length ? en('Faster choices: {choices} (Settings → Models → Default model).') : en('Faster choices: an Ollama Cloud model, a smaller local model, or a computer with a graphics card.'));
+  const fill = (k: string) => Object.entries(params).reduce((a, [p, v]) => a.replaceAll(`{${p}}`, String(v)), k);
+  // `parts`: each sentence is its own translated key (the app joins them).
+  return { name, status: 'warn', detail: keys.map(fill).join(' '), parts: keys.map((key) => ({ key, params })) };
 }
 
 export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
@@ -133,6 +173,23 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
     for (const kind of ['claude', 'grok'] as const) {
       if (d.subscriptions.installed(kind)) add(`${kind === 'claude' ? 'Claude Code' : 'Grok'} (optional)`, 'ok', 'installed');
     }
+  }
+  // E7: is the talking model right for this computer?
+  if (d.fitness) {
+    const f = await d.fitness().catch(() => undefined);
+    if (f) out.push(fitnessLine(f));
+  }
+  // E7: the live data sources: the chosen one has its key, and answers.
+  if (d.dataSources) {
+    await Promise.all(
+      d.dataSources.kinds().map(async (k) => {
+        const name = DATA_NAMES[k.kind] ?? `Live data: ${k.kind}`;
+        if (k.needsKey && !k.hasKey) return out.push({ name, status: 'warn', detail: `${k.label}: no key yet (optional; Settings → Add-ons → Data sources)`, detailKey: en('{source}: no key yet (optional; Settings → Add-ons → Data sources)'), params: { source: k.label } });
+        const r = await d.dataSources!.test(k.kind).catch((err: Error) => ({ ok: false, message: err.message, source: k.label }));
+        if (r.ok) out.push({ name, status: 'ok', detail: `${k.label} answered`, detailKey: en('{source} answered'), params: { source: k.label } });
+        else out.push({ name, status: 'warn', detail: `${k.label}: ${r.message}`.slice(0, 200) });
+      }),
+    );
   }
   if (!s.timeZone) add('Time zone', 'warn', 'not set: reminders and briefings use the server clock (Settings → You)');
   return out;

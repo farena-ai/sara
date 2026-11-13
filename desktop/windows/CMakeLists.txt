@@ -49,6 +49,12 @@ if(SARA_TEST_HOOKS)
   target_compile_definitions(CU7NativeChecks PRIVATE UNICODE _UNICODE)
   target_compile_options(CU7NativeChecks PRIVATE /W4 /permissive- /utf-8)
   target_link_libraries(CU7NativeChecks PRIVATE ole32 oleaut32 shell32 advapi32 setupapi)
+  # The desktop approval card never takes activation from the window Sara acts on (test/approval-card-noactivate.test.ts).
+  add_executable(ApprovalCardChecks ../../test/fixtures/approval-card-checks.cpp src/hands-approval.cpp)
+  target_include_directories(ApprovalCardChecks PRIVATE src)
+  target_compile_definitions(ApprovalCardChecks PRIVATE UNICODE _UNICODE)
+  target_compile_options(ApprovalCardChecks PRIVATE /W4 /permissive- /utf-8)
+  target_link_libraries(ApprovalCardChecks PRIVATE user32 gdi32)
   # The app's own updates: the signed-notice check and version rules, against notices Node signed (test/app-update-native.test.ts).
   add_executable(AppUpdateNativeChecks ../../test/fixtures/app-update-native-checks.cpp src/app-update.cpp src/ed25519-verify.cpp)
   target_include_directories(AppUpdateNativeChecks PRIVATE src)

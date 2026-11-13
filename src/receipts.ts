@@ -379,8 +379,9 @@ function backing(receipts: Receipt[]) {
     hasRun: shells.length > 0 || mcp,
     hasCommit: ok.some((r) => r.name === 'git_commit' || r.name === 'git_push') || shells.some((r) => /\bgit\b[\s\S]*\b(commit|push|merge|tag)\b/.test(cmd(r)) && exitCode(r.output) === 0),
     hasWeb: ok.some((r) => r.name === 'web_search' || r.name === 'web_fetch'),
-    hasRemind: ok.some((r) => r.name === 'remind' && String(r.args.action) === 'set'),
-    hasPlanner: ok.some((r) => r.name === 'todo' || r.name === 'note') || mcp,
+    // E6: invoice_mark sent sets the due reminders; action_items with create_tasks adds to-dos.
+    hasRemind: ok.some((r) => (r.name === 'remind' && String(r.args.action) === 'set') || (r.name === 'invoice_mark' && r.args.status === 'sent')),
+    hasPlanner: ok.some((r) => r.name === 'todo' || r.name === 'note' || (r.name === 'action_items' && r.args.create_tasks === true)) || mcp,
     hasBrowser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
     hasShot: ok.some((r) => r.name === 'browser_screenshot'),
     // E3: the widths her screenshots were taken at, and whether she looked again after her last edit:
@@ -497,8 +498,9 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     types_clean: receipts.some((r) => r.name === 'diagnostics' && r.status === 'ok'),
     commit: mcp || ok.some((r) => r.name === 'git_push' || r.name === 'git_commit' || (r.name === 'shell' && /\bgit\b[\s\S]*\b(commit|push|merge|tag)\b/.test(String(r.args.command ?? '')))),
     web: mcp || ok.some((r) => r.name === 'web_search' || r.name === 'web_fetch'),
-    remind: ok.some((r) => r.name === 'remind'),
-    planner: mcp || ok.some((r) => r.name === 'todo' || r.name === 'note' || WRITE_TOOLS.has(r.name)),
+    // E6: invoice_mark sent sets the due reminders; action_items with create_tasks adds to-dos.
+    remind: ok.some((r) => r.name === 'remind' || (r.name === 'invoice_mark' && r.args.status === 'sent')),
+    planner: mcp || ok.some((r) => r.name === 'todo' || r.name === 'note' || WRITE_TOOLS.has(r.name) || (r.name === 'action_items' && r.args.create_tasks === true)),
     browser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
     send: b.hasSend,
     schedule: b.hasSchedule,

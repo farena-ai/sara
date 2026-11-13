@@ -217,7 +217,7 @@ test('114b.5 F3/F5/F6: Next is primary and waits for a test ping; no primary but
   assert.match(app, /su\.useLocal\?\.replaceWith\(el\('span', 'su-chip', t\('Connected ✓'\)\)\)/, 'F6: Use it becomes a chip');
   // F5 builds on fillModelOptions' pick (PL1a); coding picks what Use recommended picks for code.
   assert.match(app, /fillModelOptions\(\$\('#su-model'\), view, '', \{ pick \}\)/);
-  assert.match(app, /const pick = su\.path === 'coding' && su\.coderPick \? su\.coderPick : suggestModel\(models\);/);
+  assert.match(app, /const pick = su\.path === 'coding' && su\.coderPick \? su\.coderPick : suggestModel\(models, \{ noGpu \}\);/);
   assert.match(app, /t\('Good for coding'\)/);
 });
 

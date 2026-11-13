@@ -15,7 +15,8 @@ import { cleanAppearance } from '../appearance.ts';
 import { checklist } from '../checklist.ts';
 import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
-import { runDoctor } from '../doctor.ts';
+import { doctorDataSources, runDoctor } from '../doctor.ts';
+import { modelFitness } from '../model-fitness.ts';
 import { healthReport } from '../health.ts';
 import { LOG_LEVELS, type LogLevel } from '../log.ts';
 import { as400, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
@@ -458,7 +459,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
 
-    if (a === 'doctor' && !b && method === 'GET') return send(res, 200, await runDoctor({ dataDir: rootDir, settings: app.settings, vault: app.vault, subscriptions: app.subscriptions, now: app.now(), sandbox: app.sandbox, tools: app.tools }));
+    if (a === 'doctor' && !b && method === 'GET') return send(res, 200, await runDoctor({ dataDir: rootDir, settings: app.settings, vault: app.vault, subscriptions: app.subscriptions, now: app.now(), sandbox: app.sandbox, tools: app.tools, fitness: () => modelFitness(app), ...(app.dataSources ? { dataSources: doctorDataSources(app.dataSources) } : {}) }));
     if (a === 'status' && !b && method === 'GET') return send(res, 200, healthReport(app, opts.info ?? { version: 'dev', revision: null, startedAt: new Date().toISOString() }));
     // 3.3.0: her own trouble now (model down, key rejected, a mailbox signed out, an add-on stopped).
     if (a === 'health' && b === 'trouble' && method === 'GET') return send(res, 200, { trouble: gatherTrouble(app).map((x) => ({ ...x, text: trOwner(x.key, app.settings.get(), x.params) })) });

@@ -1,0 +1,335 @@
+{
+ "leagues": [
+  {
+   "abbreviation": "NBA",
+   "name": "National Basketball Association"
+  }
+ ],
+ "day": {
+  "date": "2026-11-12"
+ },
+ "events": [
+  {
+   "id": "401909976",
+   "date": "2026-11-13T00:00Z",
+   "name": "Toronto Raptors at Philadelphia 76ers",
+   "shortName": "TOR @ PHI",
+   "status": {
+    "displayClock": "12:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909976",
+     "date": "2026-11-13T00:00Z",
+     "status": {
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "Xfinity Mobile Arena"
+     },
+     "broadcast": "",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": "123",
+       "team": {
+        "id": "20",
+        "abbreviation": "PHI",
+        "displayName": "Philadelphia 76ers",
+        "shortDisplayName": "76ers",
+        "location": "Philadelphia",
+        "name": "76ers"
+       },
+       "records": [
+        {
+         "summary": "10-3"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": "112",
+       "team": {
+        "id": "28",
+        "abbreviation": "TOR",
+        "displayName": "Toronto Raptors",
+        "shortDisplayName": "Raptors",
+        "location": "Toronto",
+        "name": "Raptors"
+       },
+       "records": [
+        {
+         "summary": "5-7"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909977",
+   "date": "2026-11-13T00:00Z",
+   "name": "Detroit Pistons at Washington Wizards",
+   "shortName": "DET @ WSH",
+   "status": {
+    "displayClock": "5:00",
+    "period": 6,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final/2OT",
+     "shortDetail": "Final/2OT",
+     "altDetail": "2OT"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909977",
+     "date": "2026-11-13T00:00Z",
+     "status": {
+      "displayClock": "5:00",
+      "period": 6,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final/2OT",
+       "shortDetail": "Final/2OT",
+       "altDetail": "2OT"
+      }
+     },
+     "venue": {
+      "fullName": "Capital One Arena"
+     },
+     "broadcast": "",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": false,
+       "score": "140",
+       "team": {
+        "id": "27",
+        "abbreviation": "WSH",
+        "displayName": "Washington Wizards",
+        "shortDisplayName": "Wizards",
+        "location": "Washington",
+        "name": "Wizards"
+       },
+       "records": [
+        {
+         "summary": "4-9"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "winner": true,
+       "score": "144",
+       "team": {
+        "id": "8",
+        "abbreviation": "DET",
+        "displayName": "Detroit Pistons",
+        "shortDisplayName": "Pistons",
+        "location": "Detroit",
+        "name": "Pistons"
+       },
+       "records": [
+        {
+         "summary": "8-3"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909978",
+   "date": "2026-11-13T01:00Z",
+   "name": "Dallas Mavericks at Minnesota Timberwolves",
+   "shortName": "DAL @ MIN",
+   "status": {
+    "displayClock": "0.0",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909978",
+     "date": "2026-11-13T01:00Z",
+     "status": {
+      "displayClock": "0.0",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "Target Center"
+     },
+     "broadcast": "NBA TV",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": "133",
+       "team": {
+        "id": "16",
+        "abbreviation": "MIN",
+        "displayName": "Minnesota Timberwolves",
+        "shortDisplayName": "Timberwolves",
+        "location": "Minnesota",
+        "name": "Timberwolves"
+       },
+       "records": [
+        {
+         "summary": "9-3"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": "94",
+       "team": {
+        "id": "6",
+        "abbreviation": "DAL",
+        "displayName": "Dallas Mavericks",
+        "shortDisplayName": "Mavericks",
+        "location": "Dallas",
+        "name": "Mavericks"
+       },
+       "records": [
+        {
+         "summary": "7-5"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  },
+  {
+   "id": "401909979",
+   "date": "2026-11-13T02:00Z",
+   "name": "Charlotte Hornets at Phoenix Suns",
+   "shortName": "CHA @ PHX",
+   "status": {
+    "displayClock": "12:00",
+    "period": 4,
+    "type": {
+     "id": "3",
+     "name": "STATUS_FINAL",
+     "state": "post",
+     "completed": true,
+     "description": "Final",
+     "detail": "Final",
+     "shortDetail": "Final"
+    }
+   },
+   "competitions": [
+    {
+     "id": "401909979",
+     "date": "2026-11-13T02:00Z",
+     "status": {
+      "displayClock": "12:00",
+      "period": 4,
+      "type": {
+       "id": "3",
+       "name": "STATUS_FINAL",
+       "state": "post",
+       "completed": true,
+       "description": "Final",
+       "detail": "Final",
+       "shortDetail": "Final"
+      }
+     },
+     "venue": {
+      "fullName": "Mortgage Matchup Center"
+     },
+     "broadcast": "",
+     "competitors": [
+      {
+       "homeAway": "home",
+       "winner": true,
+       "score": "101",
+       "team": {
+        "id": "21",
+        "abbreviation": "PHX",
+        "displayName": "Phoenix Suns",
+        "shortDisplayName": "Suns",
+        "location": "Phoenix",
+        "name": "Suns"
+       },
+       "records": [
+        {
+         "summary": "5-6"
+        }
+       ]
+      },
+      {
+       "homeAway": "away",
+       "winner": false,
+       "score": "96",
+       "team": {
+        "id": "30",
+        "abbreviation": "CHA",
+        "displayName": "Charlotte Hornets",
+        "shortDisplayName": "Hornets",
+        "location": "Charlotte",
+        "name": "Hornets"
+       },
+       "records": [
+        {
+         "summary": "4-8"
+        }
+       ]
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

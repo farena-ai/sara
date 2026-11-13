@@ -40,6 +40,7 @@
   <link rel="stylesheet" href="/refs.css">
   <link rel="stylesheet" href="/research.css">
   <link rel="stylesheet" href="/doc-card.css">
+  <link rel="stylesheet" href="/decision.css">
   <link rel="stylesheet" href="/drop.css">
   <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
@@ -472,6 +473,11 @@
             <div class="today-start-head"><h3 id="td-next-title">Next steps</h3> <button type="button" class="tip" data-tip="Three things worth a look now that Getting started is done, picked for how you use her. Hide puts them away on this device.">?</button><button id="td-next-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-next-list" class="today-next-list"></div>
           </section>
+          <!-- E7: one starter card per everyday area, until used once or dismissed (web/try-cards.js). -->
+          <section id="td-try" class="today-start today-try" aria-labelledby="td-try-title" hidden>
+            <div class="today-start-head"><h3 id="td-try-title">Try something new</h3> <button type="button" class="tip" data-tip="Things she can do for you every day. Each card starts a new chat with the first message written for you to finish. A card goes away once you use it, or with its ×.">?</button></div>
+            <div id="td-try-list" class="today-try-list"></div>
+          </section>
           <section id="td-start" class="today-start" hidden>
             <div class="today-start-head"><h3>Getting started</h3><span id="td-start-count" class="muted small"></span><button id="td-start-hide" type="button" class="ghost small">Hide</button></div>
             <div id="td-start-list" class="today-start-list"></div>
@@ -497,6 +503,8 @@
               <div class="td-grid">
                 <section class="today-card td-tile td-needs-tile" id="td-needs" hidden tabindex="0" aria-labelledby="td-needs-h"><div class="td-tile-head"><h3 id="td-needs-h" aria-hidden="true">Needs you</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-mail" hidden tabindex="0" aria-labelledby="td-mail-h"><div class="td-tile-head"><h3 id="td-mail-h">Mail</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-business" hidden tabindex="0" aria-labelledby="td-business-h"><div class="td-tile-head"><h3 id="td-business-h">Money and replies</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-money" hidden tabindex="0" aria-labelledby="td-money-h"><div class="td-tile-head"><h3 id="td-money-h">Money</h3></div><div class="td-body"></div></section>
               </div>
             </section>
             <section class="td-sec" id="td-sec-her" data-sec="her" aria-labelledby="td-sec-her-h">
@@ -523,6 +531,8 @@
                 <section class="today-card td-tile" id="td-home" hidden tabindex="0" aria-labelledby="td-home-h"><div class="td-tile-head"><h3 id="td-home-h">Home</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-models" hidden tabindex="0" aria-labelledby="td-models-h"><div class="td-tile-head"><h3 id="td-models-h">Model changes</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile" id="td-hooks" hidden tabindex="0" aria-labelledby="td-hooks-h"><div class="td-tile-head"><h3 id="td-hooks-h">From your webhooks</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-watching" hidden tabindex="0" aria-labelledby="td-watching-h"><div class="td-tile-head"><h3 id="td-watching-h">Watching</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-teams" hidden tabindex="0" aria-labelledby="td-teams-h"><div class="td-tile-head"><h3 id="td-teams-h">My teams</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-agenda" hidden tabindex="0" aria-labelledby="td-agenda-h"><div class="td-tile-head"><h3 id="td-agenda-h">Planner</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile td-setup" id="td-setup" hidden tabindex="0" aria-labelledby="td-setup-h"><div class="td-tile-head"><h3 id="td-setup-h">Add to your day</h3></div><div class="td-body"></div></section>
               </div>
@@ -2844,6 +2854,8 @@
         <input id="default-model" placeholder="model name">
       </label>
       <p class="muted small"><span id="models-status"></span> <button id="load-models" type="button" class="ghost">↻ Refresh</button></p>
+      <!-- E7: is the talking model right for this computer (GET /api/model-jobs/fitness)? -->
+      <div id="model-fitness" class="lean-card fit-card" role="status" hidden></div>
       <h3>Always-current model lists</h3>
       <p class="muted small">Sara checks every provider's model list once a day by herself: new models are marked “New” for a week, and retired ones disappear. ↻ Refresh checks now. Each provider's own switches are under Model providers.</p>
       <label class="row"><input id="model-auto-switch" type="checkbox"> Switch to the replacement automatically</label>
@@ -3155,6 +3167,24 @@
         <label>Getting there by <select id="lb-mode"><option value="car">Car</option><option value="bike">Bike</option><option value="foot">On foot</option></select></label>
         <label>Extra minutes <input id="lb-buffer" type="number" min="0" max="60" step="5" value="10"></label>
       </div>
+        </section>
+        <section class="settings-page" data-page="you-business" data-group="You" data-title="Business details" hidden>
+      <p class="muted small page-lead">What goes at the top of the invoices and quotes Sara makes for you, and how you get paid. Only the name is needed; leave the rest empty if you don't use it. Ask her "make an invoice for…" and she uses these. <a href="/help#business" target="_blank" rel="noopener">How invoices, receipts and contracts work</a></p>
+      <div class="row-grid">
+        <label>Business name <input id="biz-name" maxlength="120" placeholder="Your business, or your own name"></label>
+        <label>Email <input id="biz-email" type="email" maxlength="200" placeholder="billing@example.com"></label>
+        <label>Phone <input id="biz-phone" maxlength="60"></label>
+        <label>Tax ID <input id="biz-tax-id" maxlength="60" placeholder="EIN or VAT number"></label>
+      </div>
+      <label>Address <textarea id="biz-address" rows="2" maxlength="400" placeholder="12 Main St&#10;Springfield, IL 62701"></textarea></label>
+      <label>Logo picture <select id="biz-logo"><option value="">No logo</option></select></label>
+      <label>How to pay you <textarea id="biz-payment" rows="2" maxlength="600" placeholder="Bank transfer to … or pay online at …"></textarea></label>
+      <div class="row-grid">
+        <label>Currency <select id="biz-currency"></select></label>
+        <label>Tax rate (%) <input id="biz-tax" type="number" min="0" max="50" step="0.01" value="0"></label>
+        <label>Due in (days) <input id="biz-due" type="number" min="0" max="365" step="1" value="30"></label>
+      </div>
+      <p id="biz-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="you-adult" data-group="You" data-title="Adult mode" hidden>
       <p id="adult-state" class="small" role="status"></p>
@@ -3679,6 +3709,29 @@
       <label id="search-key-row">API key <input id="search-key" type="password" autocomplete="off" placeholder="leave blank to keep current"></label>
       <label id="search-url-row" hidden>SearXNG URL <input id="search-url" placeholder="http://127.0.0.1:8888"></label>
       <p id="search-status" class="muted small"></p>
+        </section>
+        <section class="settings-page" data-page="ab-data" data-group="Add-ons" data-title="Data sources" hidden>
+      <p class="muted small page-lead">Where Sara gets live prices, scores and odds. Every source here is free; some need a free key from the provider. She names the source and the time with every number, and says so plainly when a source doesn't answer. Information only: she never trades or bets.</p>
+      <p id="ds-status" class="muted small" role="status"></p>
+      <h3>Stock prices</h3>
+      <label>Source <select id="ds-quote"></select></label>
+      <p id="ds-about-quote" class="muted small"></p>
+      <label id="ds-key-finnhub-row" hidden>Finnhub key <input id="ds-key-finnhub" type="password" autocomplete="off"> <a id="ds-key-finnhub-get" href="https://finnhub.io/register" target="_blank" rel="noopener">Get a free key</a></label>
+      <label id="ds-key-alphavantage-row" hidden>Alpha Vantage key <input id="ds-key-alphavantage" type="password" autocomplete="off"> <a id="ds-key-alphavantage-get" href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noopener">Get a free key</a></label>
+      <p class="small"><button id="ds-test-quote" type="button" class="ghost">Test</button> <span id="ds-test-quote-out" class="muted small" role="status"></span></p>
+      <h3>Sports</h3>
+      <label>Source <select id="ds-sports"></select></label>
+      <p id="ds-about-sports" class="muted small"></p>
+      <label id="ds-key-thesportsdb-row" hidden>TheSportsDB key (optional) <input id="ds-key-thesportsdb" type="password" autocomplete="off"> <a id="ds-key-thesportsdb-get" href="https://www.thesportsdb.com/pricing" target="_blank" rel="noopener">Get a key</a></label>
+      <p class="small"><button id="ds-test-sports" type="button" class="ghost">Test</button> <span id="ds-test-sports-out" class="muted small" role="status"></span></p>
+      <h3>Odds</h3>
+      <label>Source <select id="ds-odds"></select></label>
+      <p id="ds-about-odds" class="muted small"></p>
+      <div id="ds-keys"><label id="ds-key-theoddsapi-row" hidden>The Odds API key <input id="ds-key-theoddsapi" type="password" autocomplete="off"> <a id="ds-key-theoddsapi-get" href="https://the-odds-api.com/#get-access" target="_blank" rel="noopener">Get a free key</a></label></div>
+      <p class="small"><button id="ds-test-odds" type="button" class="ghost">Test</button> <span id="ds-test-odds-out" class="muted small" role="status"></span></p>
+      <h3>Tell me when</h3>
+      <p class="muted small">Your watches on prices, games and odds. She checks them in the background and tells you once each time a line is crossed. Ask her to add one.</p>
+      <div id="ds-watches"></div>
         </section>
         <section class="settings-page" data-page="ab-library" data-group="Add-ons" data-title="Library" data-owner-only hidden>
       <p class="muted small page-lead">How big the documents in her library may be, and how she reads long ones. A 1,000-page book is read in the background, page by page, and can be paused; every scanned page is read by her picture model. Saved as you change it.</p>
@@ -4284,6 +4337,7 @@
       <p id="health-info" class="muted small"></p>
       <p class="small"><button id="doctor-run" type="button" class="ghost">Run full check</button> <span class="muted small">Also checks the database, asks every model provider for its models and checks the off-server copy (same as <code data-admin="doctor">sudo sara doctor</code>).</span></p>
       <ul id="doctor-checks" class="health" hidden></ul>
+      <div id="doctor-fitness" class="lean-card fit-card" role="status" hidden></div>
       <h3>Run history <button type="button" class="tip" data-tip="Each reply, background job and team task keeps a record of its steps: the model, what went into the prompt, the tools and their results, files touched, tokens and cost. Open it with Show the run under a reply. Secrets are hidden in it.">?</button></h3>
       <p class="small"><label>Keep runs <select id="runs-keep"><option value="30">for 30 days</option><option value="90" selected>for 90 days</option><option value="365">for a year</option><option value="0">until deleted</option></select></label> <span id="runs-stats" class="muted small"></span></p>
       <p class="small"><button id="runs-delete" type="button" class="small danger">Delete run history</button> <span class="muted small">Chats, memories and files stay; only the step records go.</span></p>

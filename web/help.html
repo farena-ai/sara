@@ -228,6 +228,9 @@
 <h4 id="howto-you-leave-by">Leave-by reminders</h4>
 <details class="howto-q" id="howto-you-leave-by-on"><summary>How do I get leave-by reminders?</summary><ol><li>Type your Home address.</li><li>Pick how you're Getting there by.</li><li>Events with a place get a Leave by row on Today.</li></ol></details>
 <details class="howto-q" id="howto-you-leave-by-extra"><summary>How do I leave earlier?</summary><ol><li>Raise Extra minutes.</li><li>Every leave-by time moves that much earlier.</li></ol></details>
+<h4 id="howto-you-business">Business details</h4>
+<details class="howto-q" id="howto-you-business-details"><summary>How do I put my business name and logo on invoices?</summary><ol><li>Type your Business name (and the address and email if you like).</li><li>Put a picture of your logo in the Library, then pick it under Logo picture.</li><li>Ask her to make an invoice: she uses these.</li></ol></details>
+<details class="howto-q" id="howto-you-business-terms"><summary>How do I change the tax and when invoices are due?</summary><ol><li>Set Tax rate (%) (0 if you don't charge tax).</li><li>Set Due in (days); she reminds you the day before and 3 days after if unpaid.</li></ol></details>
 <h4 id="howto-you-adult">Adult mode</h4>
 <details class="howto-q" id="howto-you-adult-on"><summary>How do I turn on adult mode?</summary><ol><li>Press Turn on adult mode and confirm you're 18 or older.</li><li>It works only in a web browser, not in the phone apps.</li></ol></details>
 <details class="howto-q" id="howto-you-adult-off"><summary>How do I turn it off again?</summary><ol><li>Press Turn off adult mode.</li><li>Conversations go back to normal right away.</li></ol></details>
@@ -305,6 +308,9 @@
 <h4 id="howto-ab-search">Web search</h4>
 <details class="howto-q" id="howto-ab-search-on"><summary>How do I let her search the web?</summary><ol><li>Pick a Search service.</li><li>Paste its API key if it needs one.</li><li>Ask her to look something up.</li></ol></details>
 <details class="howto-q" id="howto-ab-search-free"><summary>How do I search without a key?</summary><ol><li>Pick a service marked Free · no key.</li><li>Or run your own SearXNG and paste its URL.</li></ol></details>
+<h4 id="howto-ab-data">Data sources</h4>
+<details class="howto-q" id="howto-ab-data-key"><summary>How do I add a free key for odds or prices?</summary><ol><li>Pick the source.</li><li>Open its Get a free key link and sign up.</li><li>Paste the key and press Test.</li></ol></details>
+<details class="howto-q" id="howto-ab-data-watch"><summary>How do I get told when a price crosses a number?</summary><ol><li>Ask her: “tell me when AAPL goes above 400”.</li><li>She checks it in the background and tells you once per crossing.</li><li>Remove it under Tell me when.</li></ol></details>
 <h4 id="howto-ab-library">Library</h4>
 <details class="howto-q" id="howto-ab-library-add"><summary>How do I give her a document?</summary><ol><li>Open Library from the sidebar.</li><li>Drop the file on the box at the top.</li><li>Ask her about it in any chat.</li></ol></details>
 <details class="howto-q" id="howto-ab-library-speed"><summary>How do I make reading gentler on my computer?</summary><ol><li>Pick Gentle under Background reading.</li><li>Big documents then take longer.</li></ol></details>
@@ -759,6 +765,7 @@
 <ul>
   <li><strong>Planner:</strong> to-dos, reminders and notes. Ask her ("remind me to call Mom at 6") or add them yourself.</li>
   <li id="today"><strong>Today</strong> is your home screen, and the app opens on it (a link to a conversation or a place, like a notification, still goes straight there): a greeting with her face and mood, then five sections: <em>Your day</em> (one timeline of events, reminders and to-dos, the weather, what's coming up), <em>Needs you</em> (approvals, failed work, overdue to-dos and your mail), <em>With her</em>, <em>Work</em> and <em>Home &amp; more</em>. Tiles with nothing in them stay away; <em>Add to your day</em> sets up what is missing. Tiles that read from outside say how fresh they are, and Mail updates by itself after she tidies your inbox or you press Undo. Open Today from the sidebar, from her face and name, with <em>Alt+T</em>, or from the bar at the bottom on a phone.</li>
+  <li id="data"><strong>Data sources and “tell me when”:</strong> ask for a stock price, a score, standings or betting lines and she reads them from free sources (Yahoo Finance, ESPN, The Odds API with a free key), naming the source and the time. “Tell me when AAPL goes above 400” or “when the Lakers game ends” sets a watch; it is checked in the background and tells you once per crossing, on Today under <em>Watching</em>. She also adds up your own CSV and Excel files exactly. Pick sources and paste keys in <em>Settings → Add-ons → Data sources</em>. Information only: she never trades or bets.</li>
   <li id="today-customise"><strong>Customize Today:</strong> <em>Customize</em> (or a tile's <em>⋯</em> menu) moves, resizes and hides tiles and whole sections. With the keyboard, focus a tile and press <kbd>Alt</kbd> with the arrow keys. Your layout is saved for this companion and follows you to every device; <em>Reset</em> brings back the designed one. Household members arrange their own Today.</li>
   <li><strong>Rooms tile:</strong> off until you switch it on in <em>Customize</em>. It shows, for the Discord channels and Telegram groups she keeps up with, the current topic, who spoke lately and when, with <em>Peek</em> to open the room. It uses her own room summary (no extra model calls), is only for you and never shows for household members.</li>
   <li id="today-phone"><strong>Today on a phone or tablet:</strong> a <em>Now</em> card comes first (the next things with how soon, the weather in one line, her mood), then <em>Needs you</em>, <em>Your day</em>, Weather and Mail; <em>With her</em> and <em>Work</em> are rows you swipe sideways, or move with the arrow buttons under them. Tap a heading to fold a section: phones and tablets each remember their own. Pull down at the top to refresh. <em>Customize → Phone: when Today opens</em> can open everything or only Now.</li>
@@ -767,6 +774,25 @@
   <li><strong>Morning briefing:</strong> weather, list, calendar and mail at the time you pick (<em>Settings → You → Morning briefing</em>).</li>
   <li><strong>Weekly review:</strong> what got done, what's stalled, and a plan for next week (same page, or <em>Planner → Review my week</em>).</li>
   <li><strong>Leave-by reminders:</strong> for calendar events with an address she tells you when to leave (<em>Settings → You → Leave-by reminders</em>).</li>
+</ul>
+
+<h2 id="business">Invoices, receipts, contracts and replies</h2>
+<ul>
+  <li><strong>Invoices and quotes:</strong> say "make an invoice for Rivera Co: 10 hours of design at $85". She numbers it (INV-2026-0001, quotes Q-2026-0001), works out the totals, and makes a PDF or Word file, or fills in your own invoice template from the Library. Your name, logo and how to get paid come from <em>Settings → You → Business details</em>. Tell her when you sent it and when it was paid: she reminds you the day before it is due and if it is 3 days late. She never emails it herself; she can write a draft for you to send.</li>
+  <li><strong>Who do I owe a reply:</strong> from your connected mailboxes, the people who wrote to you and are still waiting, newest questions first (no newsletters or automatic mail), plus to-dos that are due. She can draft the replies for you to review.</li>
+  <li><strong>Contracts and leases:</strong> share the file and ask her to read it. She lists the parties, dates (start, end, renewal, the last day to give notice), money and late fees, and flags clauses worth a second look (automatic renewal, unlimited liability, non-compete, exclusivity, arbitration, one-sided changes, late fees above 1.5% a month, indemnity), each with the exact sentence and page. It is a reading aid, not legal advice.</li>
+  <li><strong>Receipts and expense reports:</strong> send a photo or PDF of a receipt and she saves the vendor, date, total and tax (and catches the same receipt twice). Ask for an expense report for any dates: an Excel or PDF file with totals by category and the receipts listed.</li>
+  <li><strong>Action items:</strong> paste meeting notes or share them, and she lists who does what by when, with the line it came from; she adds them to your to-dos when you ask.</li>
+  <li><strong>On Today:</strong> a small <em>Money and replies</em> tile shows unpaid invoices and who is waiting on a reply, once you use these.</li>
+</ul>
+
+<h2 id="money">Portfolio, budget and bills</h2>
+<ul>
+  <li><strong>Portfolio:</strong> share your brokerage's positions export (CSV or Excel from Fidelity, Schwab, Vanguard, Robinhood, E*TRADE…) or type a list like "AAPL 10 @ 150", then ask "how are my stocks doing?". She shows the value now, today's change, the gain against what you paid and each holding's share, with the price source and time. With the morning briefing on, it adds one portfolio line.</li>
+  <li><strong>Budget:</strong> share your bank or card export (CSV, Excel, OFX or QFX from the bank's website). Rows you loaded before are skipped. Ask "what did I spend in October?" for totals by category against the month before, or "what subscriptions do I have?". Fix a category once ("Costco is groceries") and she remembers it. A monthly limit per category tells you once when passed.</li>
+  <li><strong>Bills:</strong> "remind me about the electric bill, $120 on the 20th" adds a Planner reminder 3 days before; tell her when it's paid.</li>
+  <li><strong>Email alerts:</strong> "tell me when Dana emails" checks your connected mail every 10 minutes and tells you the sender and subject.</li>
+  <li>It's information and math, not financial advice: she never buys, sells, moves money or pays anything. A <em>Money</em> tile on Today appears once you use these. More: <a href="https://github.com/farena-ai/sara/blob/main/docs/MONEY.md">MONEY.md</a>.</li>
 </ul>
 
 <h2 id="coding">Coding help</h2>

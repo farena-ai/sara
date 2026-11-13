@@ -402,11 +402,13 @@ async function suConnect(config, apiKey) {
     const rec = su.path === 'company' ? null : (await api('/model-jobs/recommend').catch(() => null))?.picks?.coding;
     if (run !== su.connect) return;
     su.coderPick = rec && rec.providerId === config.id && models.includes(rec.model) ? rec.model : '';
-    const pick = su.path === 'coding' && su.coderPick ? su.coderPick : suggestModel(models);
+    // E7: no graphics card here: an Ollama Cloud model (or a small one) over a big model on the processor.
+    const noGpu = su.info?.gpu === false && Boolean(config.local);
+    const pick = su.path === 'coding' && su.coderPick ? su.coderPick : suggestModel(models, { noGpu });
     fillModelOptions($('#su-model'), view, '', { pick });
     $('#su-model').value = pick;
     const counted = countWords(modelCounts(models), Boolean(config.local), t);
-    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}${su.webSearch ? ` ${t('Web search is on too, with the same key: she can look things up for you.')}` : ''}`;
+    $('#su-model-note').textContent = `${config.label}: ${counted}. ${models.length > 1 ? t('Any of them works; you can change it now or later.') : t('You can change it later.')}${su.webSearch ? ` ${t('Web search is on too, with the same key: she can look things up for you.')}` : ''}${noGpu ? ` ${CLOUD_TAG.test(pick) ? t('This computer has no graphics card, so big models on it answer slowly; a cloud model through Ollama answers in seconds.') : t('This computer has no graphics card, so models on it answer slowly. An Ollama Cloud model (free account at ollama.com) or a service with a key answers in seconds.')}` : ''}`;
     su.provider = config.id;
     await suSaveDefault(pick);
     if (run !== su.connect) return;

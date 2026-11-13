@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 212 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 216 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -418,6 +418,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Raise Extra minutes.
 2. Every leave-by time moves that much earlier.
 
+### Business details
+
+**How do I put my business name and logo on invoices?**
+
+1. Type your Business name (and the address and email if you like).
+2. Put a picture of your logo in the Library, then pick it under Logo picture.
+3. Ask her to make an invoice: she uses these.
+
+**How do I change the tax and when invoices are due?**
+
+1. Set Tax rate (%) (0 if you don't charge tax).
+2. Set Due in (days); she reminds you the day before and 3 days after if unpaid.
+
 ### Adult mode
 
 **How do I turn on adult mode?**
@@ -763,6 +776,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick a service marked Free · no key.
 2. Or run your own SearXNG and paste its URL.
+
+### Data sources
+
+**How do I add a free key for odds or prices?**
+
+1. Pick the source.
+2. Open its Get a free key link and sign up.
+3. Paste the key and press Test.
+
+**How do I get told when a price crosses a number?**
+
+1. Ask her: “tell me when AAPL goes above 400”.
+2. She checks it in the background and tells you once per crossing.
+3. Remove it under Tell me when.
 
 ### Library
 

@@ -1275,8 +1275,20 @@ bool richWebEditor(IUIAutomationElement* e, const std::string& app) {
 struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false; std::string ownName; };
 /** After the person's Allow: bring that exact window to the front. Windows refuses SetForegroundWindow from a
  *  process that isn't in front, so for that one call this thread shares input with the window in front. */
+/** The target is in front when it is the foreground window or the foreground window is its own popup (owned by it,
+ *  same process): Edge's "Remove … from Microsoft Edge?" bubble, a menu or a dropdown. Activating the frame then
+ *  would deactivate that popup, which closes it, so the control Sara was approved to press would be gone. */
+bool ownPopupOf(HWND x, HWND h) {
+  if (!h || !x) return false;
+  HWND root = GetAncestor(x, GA_ROOT);
+  if (root == h) return true;
+  DWORD a = 0, b = 0; GetWindowThreadProcessId(root, &a); GetWindowThreadProcessId(h, &b);
+  return a == b && GetAncestor(root, GA_ROOTOWNER) == h;
+}
+bool targetInFront(HWND h) { return ownPopupOf(GetForegroundWindow(), h); }
 bool bringToFront(HWND h) {
-  if (GetForegroundWindow() == h) return true;
+  if (targetInFront(h)) { TDBG("already in front"); return true; }
+  if (HWND fg0 = GetForegroundWindow()) { wchar_t c[64] = L""; GetClassNameW(fg0, c, 64); TDBG("front was " + u8(c)); }
   if (IsIconic(h)) ShowWindow(h, SW_RESTORE);
   HWND fg = GetForegroundWindow();
   DWORD me = GetCurrentThreadId(), them = fg ? GetWindowThreadProcessId(fg, nullptr) : 0;
@@ -1284,8 +1296,8 @@ bool bringToFront(HWND h) {
   BringWindowToTop(h);
   SetForegroundWindow(h);
   if (attached) AttachThreadInput(me, them, FALSE);
-  for (int i = 0; i < 10 && GetForegroundWindow() != h; i++) Sleep(50);
-  return GetForegroundWindow() == h;
+  for (int i = 0; i < 10 && !targetInFront(h); i++) Sleep(50);
+  return targetInFront(h);
 }
 Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = false, bool beforeApproval = false) {
   if (!inputDesktop()) return refusal("denied_local", lockedWhy());
@@ -1325,7 +1337,7 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   bool checking = beforeApproval && !activate && !approvedRefresh;
   TDBG("bind start op=" + a.op + " activate=" + std::to_string(activate));
   if (activate) { bringToFront(w->h); TDBG("front done"); }
-  if (!checking && GetForegroundWindow() != w->h) return refusal("denied_local", "The target window is not in front. Look again when it is.");
+  if (!checking && !targetInFront(w->h)) return refusal("denied_local", "The target window is not in front. Look again when it is.");
   std::vector<Item> items; int total = 0; collect(w->h, kMaxElements, items, total);
   TDBG("collected " + std::to_string(items.size()));
   std::vector<Mark> now; for (auto& it : items) now.push_back(markOf(it));
@@ -1384,7 +1396,7 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   b.item.name += context;
   if (b.item.secret) return refusal("denied_local", "That is a password field: Sara never types or presses keys into those.");
   if (b.item.disabled) return refusal("denied_local", "That control is disabled.");
-  if (!checking && GetAncestor(WindowFromPoint(b.point), GA_ROOT) != w->h) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
+  if (!checking && !ownPopupOf(WindowFromPoint(b.point), w->h)) return refusal("denied_local", "Another window covers that point. Sara will not act on it.");
   if (neverAction(b.item.name, b.extensions)) return refusal("denied_local", "That protected desktop action is always refused.");
   // Even keys aimed at an innocent ref must not spill into a secure focused control (checked with the window in front).
   if (checking) return {};
@@ -1547,7 +1559,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     // the window and sensitive state instead of treating our own movement as a stale look.
     auto all = listAll(); Result check; auto w = findWin(all, idOf(b.win.h), check);
     auto u = uia(); BOOL enabled = FALSE;
-    return w && w->h == GetForegroundWindow() && inputDesktop() && !elevated(w->h) && browserAllowed(w->h, w->app) && u &&
+    return w && targetInFront(w->h) && inputDesktop() && !elevated(w->h) && browserAllowed(w->h, w->app) && u &&
       SUCCEEDED(b.item.element->get_CurrentIsEnabled(&enabled)) && enabled && !secureAncestors(u.Get(), b.item.element.Get());
   };
   auto halted = [&](const char* what) { return guardWhy.empty() ? refusal("stopped", what) : refusal("stale_view", guardWhy); };
@@ -1557,7 +1569,7 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     return SendInput((UINT)events.size(), events.data(), sizeof(INPUT)) == events.size();
   };
   auto move = [&](POINT p) {
-    if (GetAncestor(WindowFromPoint(p), GA_ROOT) != b.win.h) return false;
+    if (!ownPopupOf(WindowFromPoint(p), b.win.h)) return false;
     if (dragging) {
       auto u = uia(); ComPtr<IUIAutomationElement> hit; std::string labels;
       if (!u || FAILED(u->ElementFromPoint(p, &hit)) || !hit || secureAncestors(u.Get(), hit.Get(), &labels) || neverAction(labels)) return false;

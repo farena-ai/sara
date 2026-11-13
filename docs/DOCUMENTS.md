@@ -99,6 +99,9 @@ merged cells and formulas; your original is never changed. The copy arrives as t
 She already reads Word, Excel, PowerPoint, PDF, EPUB, web pages, Markdown and CSV files you add to
 the chat or the Library ("summarize this document"); see [LIBRARY.md](LIBRARY.md).
 
+Invoices and quotes (from your own template too), contracts, receipts and action items have their own
+tools: see [BUSINESS_TOOLS.md](BUSINESS_TOOLS.md).
+
 ## For developers
 
 The tool is `make_document` (`src/tools/make-document.ts`). Everything is written by Sara's own

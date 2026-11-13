@@ -336,6 +336,27 @@
    ]
   }
  ],
+ "you-business": [
+  {
+   "id": "details",
+   "q": "How do I put my business name and logo on invoices?",
+   "steps": [
+    "Type your Business name (and the address and email if you like).",
+    "Put a picture of your logo in the Library, then pick it under Logo picture.",
+    "Ask her to make an invoice: she uses these."
+   ],
+   "show": "#biz-name"
+  },
+  {
+   "id": "terms",
+   "q": "How do I change the tax and when invoices are due?",
+   "steps": [
+    "Set Tax rate (%) (0 if you don't charge tax).",
+    "Set Due in (days); she reminds you the day before and 3 days after if unpaid."
+   ],
+   "show": "#biz-tax"
+  }
+ ],
  "you-adult": [
   {
    "id": "on",
@@ -597,6 +618,28 @@
     "Pick a service marked Free · no key.",
     "Or run your own SearXNG and paste its URL."
    ]
+  }
+ ],
+ "ab-data": [
+  {
+   "id": "key",
+   "q": "How do I add a free key for odds or prices?",
+   "steps": [
+    "Pick the source.",
+    "Open its Get a free key link and sign up.",
+    "Paste the key and press Test."
+   ],
+   "show": "#ds-odds"
+  },
+  {
+   "id": "watch",
+   "q": "How do I get told when a price crosses a number?",
+   "steps": [
+    "Ask her: “tell me when AAPL goes above 400”.",
+    "She checks it in the background and tells you once per crossing.",
+    "Remove it under Tell me when."
+   ],
+   "show": "#ds-watches"
   }
  ],
  "ab-library": [

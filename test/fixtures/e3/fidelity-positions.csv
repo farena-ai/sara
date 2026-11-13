@@ -1,0 +1,9 @@
+Account Number,Account Name,Symbol,Description,Quantity,Last Price,Last Price Change,Current Value,Today's Gain/Loss Dollar,Today's Gain/Loss Percent,Total Gain/Loss Dollar,Total Gain/Loss Percent,Percent Of Account,Cost Basis Total,Average Cost Basis,Type
+X00000001,Individual,SPAXX**,HELD IN MONEY MARKET,,,,$1520.33,,,,,3.1%,,,Cash
+X00000001,Individual,AAPL,APPLE INC,10,$150.00,+$1.20,$1500.00,+$12.00,+0.81%,+$300.00,+25.00%,40%,$1200.00,$120.00,Cash
+X00000001,Individual,VTI,VANGUARD TOTAL STOCK MKT ETF,5.5,$200.00,-$1.00,$1100.00,-$5.50,-0.5%,+$100.00,+10%,30%,"$1,000.00",$181.82,Cash
+Z00000002,ROTH IRA,FXAIX,FIDELITY 500 INDEX FUND,2.123,$180.00,+$0.50,$382.14,,,,,,$300.00,$141.31,Cash
+Pending Activity,,,,,,,$-25.00,,,,,,,,
+
+"The data and information in this spreadsheet is provided to you solely for your use and is not for distribution."
+"Date downloaded 11/13/2026 10:00 AM ET"

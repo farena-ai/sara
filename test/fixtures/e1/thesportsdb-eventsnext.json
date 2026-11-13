@@ -1,0 +1,18 @@
+{
+ "events": [
+  {
+   "idEvent": "2494100",
+   "strEvent": "Newcastle United vs Arsenal",
+   "strHomeTeam": "Newcastle United",
+   "strAwayTeam": "Arsenal",
+   "intHomeScore": null,
+   "intAwayScore": null,
+   "dateEvent": "2026-11-21",
+   "strTime": "17:30:00",
+   "strTimestamp": "2026-11-21T17:30:00",
+   "strStatus": "NS",
+   "strLeague": "English Premier League",
+   "strVenue": "St James Park"
+  }
+ ]
+}

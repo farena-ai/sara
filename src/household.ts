@@ -517,6 +517,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'memories', 'memory', 'memory-tidy', 'working-style', 'scrapbook', 'moments', 'story', 'together',
   // Phase 101 (ST6): their own people cards (each person's space, per companion; nothing shared)
   'people', 'person-facts',
+  // E5: their own saved decisions (I chose this, Save as document; src/routes/decisions.ts)
+  'decisions',
   // Phase 103 (ST8): their own agenda (her plans in their space, per companion; the owner can't read it)
   'agenda',
   // planner and days

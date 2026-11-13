@@ -138,6 +138,30 @@ chat says so plainly, with **Fix it** (Which model does what), **Keep waiting** 
 long chats on a computer without a graphics card, a cloud model (or a model on a computer with a
 card) is the better pick; a small local model stays fine for quick chores.
 
+### Is my model right for this computer?
+
+Sara checks the talking model against the computer it runs on and says so plainly in **Settings →
+Models → Default model** and in **Data & health → Health → Run full check** ("Chat model speed"):
+
+- **Slow here:** a model on your own Ollama that runs on the processor (Ollama's `/api/ps` shows
+  no graphics memory for it, or this computer has no graphics card) and has more than 3 billion
+  parameters (Ollama's `/api/show`, else the tag, like `qwen3.5:4b`).
+- **Slow replies:** the middle of the last ten chat replies (at least three) took more than 30
+  seconds ("Replies take about 95 s with qwen3.5:4b on this computer").
+- **No tools:** Ollama's `/api/show` doesn't list `tools` for the model, so computer use, documents
+  and shopping won't work with it.
+
+The notice lists up to three faster (or tool-capable) choices from what is already connected: an
+Ollama Cloud model through your Ollama first, then a cloud service you have a key or plan for, then
+(on the processor) a small local model up to 3B. **Use this** makes it the talking model through the
+same setting as Which model does what, with **Undo**. Nothing switches by itself. With nothing
+connected to switch to it says what would help: an Ollama Cloud model, a smaller local model, or a
+computer with a graphics card.
+
+In the first-run guide, when this computer has no graphics card and you connect the Ollama on it,
+the guide picks an Ollama Cloud model if that Ollama has one (else the smallest usable local model)
+and says why in one sentence.
+
 ## Cloud models
 
 Any current model from OpenAI, Anthropic or xAI works well for chat, coding and tools. The

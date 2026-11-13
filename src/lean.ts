@@ -131,12 +131,16 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
   [/^(person_|people_)/, 'people', 'people'],
+  // E5: the decision helper and side-by-side comparisons (src/decisions.ts).
+  [/^(decide|decision_(list|record|review)|compare)$/, 'decisions', 'decisions'],
   [/^(start_job|stop_job|job_status|delegate_task)$/, 'jobs', 'background jobs'],
   [/^git(_|$)/, 'git', 'git'],
   [/^preview_/, 'preview', 'preview'],
   [/^browser_/, 'browser', 'testing browser'],
   [/^pc_/, 'computer', 'your computer'],
   [/^phone_(camera|location|screen)$/, 'phone', 'your phone'],
+  // E4: teams, odds comparison, the bet log and the odds calculator.
+  [/^(team_follow|team_unfollow|teams_followed|schedule_to_calendar|team_news|odds_compare|odds_math|bet_add|bet_settle|bet_list|bet_stats|bet_limits)$/, 'sports', 'sports and bets'],
   [/^team/, 'team', 'team'],
   [/^(board_|card_)/, 'board', 'board'],
   [/^(gmail_|mail_|calendar_|calendar$)/, 'google', 'Email and calendar'],
@@ -149,11 +153,19 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shared_list$/, 'shared', 'shared lists'],
   [/^(safety_report|suggest_routine)$/, 'safety', 'safety'],
   [/^(settings_guide|find_tools)$/, 'help', 'help'],
+  [/^(find_product|stores_near|product_watch_add|product_watch_list|product_watch_remove)$/, 'shopping', 'shopping'],
   [/^change_setting$/, 'settings', 'everyday settings'],
+  [/^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines)$/, 'live-data', 'prices, scores and odds'],
+  [/^watch_(add|list|remove)$/, 'live-watch', 'tell me when'],
+  [/^analyze_table$/, 'tables', 'spreadsheet totals'],
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
   [/^(make_document|fill_document)$/, 'documents', 'make documents'],
+  // E6: invoices and quotes, follow-ups, contracts, expenses, action items.
+  [/^(invoice_\w+|follow_ups|contract_review|expense_\w+|action_items)$/, 'business', 'business and documents'],
+  // E3: portfolio, budget and bills.
+  [/^(portfolio_\w+|budget_\w+|bill_\w+)$/, 'money', 'money'],
 ];
 
 const MCP_LABELS: Record<string, string> = { github: 'GitHub', playwright: 'Playwright browser', filesystem: 'files server', files: 'files server', memory: 'memory server', fetch: 'fetch server', everything: 'test server' };
@@ -239,14 +251,53 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa'],
+  // E5 (decide, compare): weighing options, in six languages (folded, no accents).
+  decisions: ['should i', 'decide', 'decision', 'which is better', 'which one is better', 'compare', 'comparison', 'pros and cons', 'choose between', 'vs', 'versus', 'side by side', 'decidir', 'decision', 'cual es mejor', 'comparar', 'pros y contras', 'elegir entre', 'dois je', 'decider', 'quel est le meilleur', 'comparer', 'avantages et inconvenients', 'choisir entre', 'soll ich', 'entscheiden', 'entscheidung', 'was ist besser', 'vergleichen', 'vor und nachteile', 'wahlen zwischen', 'decisao', 'qual e melhor', 'pros e contras', 'escolher entre', 'decidere', 'decisione', 'quale e meglio', 'confrontare', 'pro e contro', 'scegliere tra'],
   // make_document: documents and files she makes (all six languages, folded, no accents).
   documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella',
     // fill_document: forms and templates to fill in.
     'form', 'forms', 'fill', 'fill in', 'fill out', 'template', 'time sheet', 'timesheet', 'application form', 'formulario', 'plantilla', 'rellena', 'rellenar', 'llena', 'llenar', 'formulaire', 'modele', 'remplis', 'remplir', 'formular', 'vorlage', 'ausfullen', 'preencha', 'preencher', 'modulo', 'compila', 'compilare'],
+  // E6: invoices and quotes, follow-ups, contracts, expenses, action items (six languages, folded).
+  business: ['invoice', 'invoices', 'quote', 'quotes', 'estimate', 'bill', 'paid', 'overdue', 'unpaid', 'follow up', 'follow ups', 'followup', 'reply', 'replies', 'owe a reply', 'contract', 'agreement', 'lease', 'receipt', 'receipts', 'expense', 'expenses', 'reimburse', 'reimbursement', 'action items', 'action item',
+    'factura', 'facturas', 'presupuesto', 'cotizacion', 'pagada', 'pagado', 'vencida', 'seguimiento', 'responder', 'contrato', 'acuerdo', 'arrendamiento', 'recibo', 'gasto', 'gastos', 'reembolso', 'puntos de accion',
+    'facture', 'factures', 'devis', 'payee', 'en retard', 'relance', 'relancer', 'repondre', 'contrat', 'bail', 'recu', 'ticket de caisse', 'depense', 'depenses', 'note de frais', 'rembourser', 'remboursement', 'actions a mener',
+    'rechnung', 'rechnungen', 'angebot', 'kostenvoranschlag', 'bezahlt', 'uberfallig', 'nachfassen', 'antworten', 'vertrag', 'vereinbarung', 'mietvertrag', 'quittung', 'beleg', 'kassenbon', 'ausgabe', 'ausgaben', 'spesen', 'erstattung', 'aufgaben',
+    'fatura', 'faturas', 'orcamento', 'cotacao', 'atrasada', 'acompanhamento', 'acordo', 'aluguel', 'despesa', 'despesas', 'reembolsar', 'itens de acao',
+    'fattura', 'fatture', 'preventivo', 'pagata', 'scaduta', 'rispondere', 'contratto', 'accordo', 'locazione', 'ricevuta', 'scontrino', 'spesa', 'spese', 'rimborso', 'rimborsare', 'azioni da fare'],
   // 3.3.0 (ezplain): settings by asking (change_setting).
   settings: ['text', 'font', 'bigger', 'larger', 'smaller', 'zoom', 'dark mode', 'light mode', 'night mode', 'day mode', 'theme', 'color', 'colour', 'your voice', 'voice', 'mute', 'call me', 'my name', 'texto', 'letra', 'modo oscuro', 'tema', 'voz', 'llamame', 'texte', 'police', 'mode sombre', 'couleur', 'voix', 'appelle moi', 'schrift', 'grosser', 'dunkelmodus', 'farbe', 'stimme', 'nenn mich', 'fonte', 'maior', 'modo escuro', 'cor', 'me chame', 'testo', 'carattere', 'piu grande', 'tema scuro', 'colore', 'voce', 'chiamami'],
+  // E1 (docs/DATA.md): live prices, scores and odds; "tell me when"; totals from their spreadsheets.
+  'live-data': ['stock', 'stocks', 'share price', 'shares', 'ticker', 'portfolio', 'stock price', 'market', 'score', 'scores', 'game', 'games', 'standings', 'schedule', 'odds', 'spread', 'line', 'moneyline', 'over under',
+    'accion', 'acciones', 'precio de la accion', 'cartera', 'bolsa', 'marcador', 'partido', 'clasificacion', 'cuotas', 'apuestas',
+    'action', 'actions', 'cours', 'cours de bourse', 'portefeuille', 'bourse', 'match', 'classement', 'cotes', 'paris',
+    'aktie', 'aktien', 'aktienkurs', 'kurs', 'depot', 'borse', 'spielstand', 'spiel', 'tabelle', 'quoten', 'wetten',
+    'acao', 'acoes', 'preco da acao', 'carteira', 'placar', 'jogo', 'classificacao', 'odds', 'apostas',
+    'azione', 'azioni', 'prezzo delle azioni', 'portafoglio', 'borsa', 'punteggio', 'partita', 'classifica', 'quote', 'scommesse'],
+  'live-watch': ['tell me when', 'alert me', 'let me know when', 'watch', 'notify me when', 'avisame cuando', 'alertame', 'vigila', 'dis moi quand', 'previens moi', 'alerte moi', 'surveille', 'sag mir wann', 'benachrichtige mich', 'beobachte', 'me avise quando', 'me alerte', 'vigie', 'dimmi quando', 'avvisami', 'tieni d occhio'],
+  // E3 (docs/MONEY.md): portfolio, budget, subscriptions and bills (six languages, folded).
+  money: ['portfolio', 'my stocks', 'stocks', 'holdings', 'investments', 'budget', 'spending', 'spend', 'spent', 'subscriptions', 'subscription', 'bills', 'bill', 'due', 'bank statement', 'bank export', 'transactions',
+    'cartera', 'mis acciones', 'inversiones', 'presupuesto', 'gastos', 'gaste', 'suscripciones', 'facturas', 'vence', 'extracto bancario', 'estado de cuenta',
+    'portefeuille', 'mes actions', 'placements', 'budget', 'depenses', 'depense', 'abonnements', 'factures', 'echeance', 'releve bancaire', 'releve de compte',
+    'depot', 'meine aktien', 'anlagen', 'budget', 'ausgaben', 'ausgegeben', 'abos', 'abonnements', 'rechnungen', 'fallig', 'kontoauszug',
+    'carteira', 'minhas acoes', 'investimentos', 'orcamento', 'gastos', 'gastei', 'assinaturas', 'contas', 'vence', 'extrato bancario',
+    'portafoglio', 'le mie azioni', 'investimenti', 'budget', 'spese', 'speso', 'abbonamenti', 'bollette', 'scadenza', 'estratto conto'],
+  // E4 (docs/SPORTS.md): followed teams, odds comparison, the bet log and the odds calculator; six languages, folded.
+  sports: ['my team', 'my teams', 'follow', 'game tonight', 'score', 'schedule', 'standings', 'injury', 'injuries', 'odds', 'line', 'spread', 'moneyline', 'over under', 'parlay', 'bet', 'bets', 'wager', 'bankroll', 'roi', 'sportsbook', 'implied probability', 'kelly',
+    'mi equipo', 'seguir', 'partido esta noche', 'marcador', 'calendario', 'clasificacion', 'lesion', 'lesiones', 'cuotas', 'linea', 'diferencial', 'linea de dinero', 'mas menos', 'parlay', 'apuesta', 'apuestas', 'banca', 'casa de apuestas',
+    'mon equipe', 'suivre', 'match ce soir', 'score', 'calendrier', 'classement', 'blessure', 'blessures', 'cotes', 'ligne', 'ecart', 'plus moins', 'combine', 'pari', 'paris', 'mise', 'bankroll', 'bookmaker',
+    'mein team', 'meine mannschaft', 'folgen', 'spiel heute abend', 'spielstand', 'spielplan', 'tabelle', 'verletzung', 'verletzungen', 'quoten', 'linie', 'handicap', 'uber unter', 'kombiwette', 'wette', 'wetten', 'einsatz', 'wettkasse', 'buchmacher',
+    'meu time', 'seguir', 'jogo hoje a noite', 'placar', 'calendario', 'classificacao', 'lesao', 'lesoes', 'odds', 'linha', 'handicap', 'mais menos', 'multipla', 'aposta', 'apostas', 'banca', 'casa de apostas',
+    'la mia squadra', 'seguire', 'partita stasera', 'punteggio', 'calendario', 'classifica', 'infortunio', 'infortuni', 'quote', 'linea', 'handicap', 'sopra sotto', 'multipla', 'scommessa', 'scommesse', 'puntata', 'cassa', 'bookmaker'],
+  tables: ['spreadsheet', 'csv', 'xlsx', 'excel', 'total', 'totals', 'sum', 'average', 'hoja de calculo', 'suma', 'promedio', 'tableur', 'somme', 'moyenne', 'tabelle', 'summe', 'durchschnitt', 'planilha', 'soma', 'media', 'foglio di calcolo', 'somma'],
   personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],
   skills: ['skill', 'skills', 'recipe', 'habilidad', 'receta', 'competence', 'recette', 'fahigkeit', 'rezept', 'habilidade', 'receita', 'abilita', 'ricetta'],
+  // E2: the shopping assistant (find_product, stores_near, product watches), six languages, folded.
+  shopping: ['where can i buy', 'where to buy', 'in stock', 'near me', 'price of', 'cheapest', 'store', 'stores', 'amazon', 'walmart', 'target', 'home depot', 'best buy', 'lowes', 'buy', 'find me', 'back in stock', 'price drop',
+    'donde comprar', 'donde puedo comprar', 'en stock', 'en existencia', 'cerca de mi', 'precio de', 'mas barato', 'tienda', 'tiendas', 'comprar', 'busca',
+    'ou acheter', 'ou puis je acheter', 'en stock', 'pres de chez moi', 'prix de', 'moins cher', 'magasin', 'magasins', 'acheter', 'trouve',
+    'wo kaufen', 'wo kann ich', 'auf lager', 'vorratig', 'in meiner nahe', 'preis von', 'am billigsten', 'gunstigste', 'laden', 'geschaft', 'kaufen', 'finde',
+    'onde comprar', 'onde posso comprar', 'em estoque', 'perto de mim', 'preco de', 'mais barato', 'loja', 'lojas', 'comprar', 'encontre',
+    'dove comprare', 'dove posso comprare', 'disponibile', 'vicino a me', 'prezzo di', 'piu economico', 'negozio', 'negozi', 'comprare', 'trova'],
   shared: ['shared list', 'shopping list', 'lista compartida', 'liste partagee', 'einkaufsliste', 'lista compartilhada', 'lista condivisa'],
   'mcp:playwright': ['playwright', 'browser', 'click', 'screenshot', 'navegador', 'navigateur', 'klicken', 'clicca'],
   'mcp:filesystem': ['files server', 'filesystem'],
@@ -675,7 +726,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'delegate_task' || n === 'git_push' || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

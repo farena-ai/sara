@@ -24,6 +24,8 @@ import { workspaceDir } from './tools/workspace.ts';
 import { adultModeOn } from './settings.ts';
 import { gatherTrouble } from './trouble.ts';
 import { mergeSummaries, type UsageTotals } from './usage.ts';
+import { businessPart } from './biz/today.ts';
+import { moneyPart } from './money/core.ts';
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 type Loader = (c: PartCtx) => Promise<unknown> | unknown;
@@ -437,7 +439,7 @@ function rooms(): Loader {
 
 /** Every loader this module adds to buildToday (src/routes/planner.ts passes the route's own). */
 export function todayLoaders(deps: PartDeps = {}): Partial<Record<TodayPartName, Loader>> {
-  return { memories, moments, work, usage: usage(deps), home: home(deps), projects: projects(deps), needs: needs(deps), away: away(), rooms: rooms() };
+  return { memories, moments, work, usage: usage(deps), home: home(deps), projects: projects(deps), needs: needs(deps), away: away(), rooms: rooms(), business: businessPart, money: moneyPart };
 }
 
 export { dayBounds };

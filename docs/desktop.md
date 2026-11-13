@@ -472,6 +472,7 @@ To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it 
   one call, as Windows requires) and repeats every check; the target must be the very same control (runtime id)
   with the same role and name, enabled, not secure, in the same window; she acts at its current place (see Busy web
   apps below). Drags and picture points also need every other control unchanged.
+- **The approval card never takes focus** (shown without activation, mouse only, topmost re-asserted, Sara's own tagged input ignored), and a window's own popup in front (a confirm bubble, menu or dropdown) counts as that window in front, so the popup Sara asks about stays open.
 
 ### Desktop actions (Phase 93, released in 2.26.0)
 

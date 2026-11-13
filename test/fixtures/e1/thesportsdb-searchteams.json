@@ -1,0 +1,12 @@
+{
+ "teams": [
+  {
+   "idTeam": "133604",
+   "strTeam": "Arsenal",
+   "strTeamShort": "ARS",
+   "strSport": "Soccer",
+   "strLeague": "English Premier League",
+   "idLeague": "4328"
+  }
+ ]
+}

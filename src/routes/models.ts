@@ -17,6 +17,7 @@ import { GITHUB_VAULT } from '../tools/coding.ts';
 import { HOME_VAULT } from '../tools/home.ts';
 import { cleanBudget, cleanPrices, DEFAULT_PRICES, mergeSummaries, priceTable, usageLine } from '../usage.ts';
 import { suggestModel } from '../../web/model-suggest.js';
+import { modelFitness } from '../model-fitness.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { autoWebSearch } from '../web-search-auto.ts';
 
@@ -218,6 +219,8 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           costs: Object.fromEntries(s.providers.map((p) => [p.id, { local: Boolean(p.local), hint: costHint(p, p.defaultModel ?? '') }])),
         });
       }
+      // E7: is the talking model right for this computer (src/model-fitness.ts)? Read only.
+      if (b === 'fitness' && method === 'GET') return send(res, 200, { fitness: (await modelFitness(app)) ?? null });
       if (b === 'recommend' && method === 'GET') {
         const s = app.settings.get();
         const cands = await connectedModels(app);
