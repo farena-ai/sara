@@ -17,6 +17,8 @@ import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
 import { doctorDataSources, runDoctor } from '../doctor.ts';
 import { modelFitness } from '../model-fitness.ts';
+import { AUTO_JOBS } from '../auto-route.ts';
+import { qualityReport } from '../quality.ts';
 import { healthReport } from '../health.ts';
 import { LOG_LEVELS, type LogLevel } from '../log.ts';
 import { as400, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
@@ -89,6 +91,11 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       await primeBudget(app);
       return send(res, 200, budgetView(app, preview));
     }
+    // N1: "How she did" (owner only: 'quality' is not a member route): counts, top failures with chat links, tips.
+    if (a === 'quality' && !b && method === 'GET') {
+      const days = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('days'));
+      return send(res, 200, qualityReport(app.store.db, app.now(), [7, 14, 30].includes(days) ? days : 7));
+    }
     if (a === 'settings') {
       if (method === 'GET') {
         await primeBudget(app);
@@ -107,6 +114,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           claimJudge: s.claimJudge ?? null,
           fallbackAfterSec: s.fallbackAfterSec ?? 60,
           defaultFallbacks: s.defaultFallbacks ?? [],
+          autoJobs: s.autoJobs ?? [],
           companionModel: s.companionModel ?? null,
           // Phase 56: retired models in use switch to their replacement (default on).
           modelAutoSwitch: s.modelAutoSwitch !== false,
@@ -211,6 +219,11 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         }
         // Phase 38: backups for the default model, how long to wait, her own model.
         if (body.defaultFallbacks !== undefined) patch.defaultFallbacks = cleanModelList(body.defaultFallbacks, false);
+        // N1: the jobs Auto picks for (src/auto-route.ts).
+        if (body.autoJobs !== undefined) {
+          if (!Array.isArray(body.autoJobs)) throw new HttpError(400, 'autoJobs must be a list');
+          patch.autoJobs = AUTO_JOBS.filter((j) => (body.autoJobs as unknown[]).includes(j));
+        }
         if (body.fallbackAfterSec !== undefined) {
           const n = Math.round(Number(body.fallbackAfterSec));
           if (!Number.isFinite(n) || n < 10 || n > 300) throw new HttpError(400, 'Switch after: between 10 and 300 seconds.');

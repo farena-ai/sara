@@ -141,3 +141,12 @@ export function stepWordsWith(t, name, args = {}, named = '') {
       return [t('Using {tool}…', { tool: named || name }), t('Used {tool}', { tool: named || name }), 'tool'];
   }
 }
+
+/**
+ * A command the person stopped (Stop the command): the server marks it with an error status and
+ * opens its output with "<who> stopped this command before it finished." (src/chat.ts). Such a
+ * step reads "Stopped", not "Didn't work".
+ */
+export function stoppedByPerson(x) {
+  return Boolean(x && x.status === 'error' && (x.stopped === true || /^[^\n]{1,80} stopped this command before it finished\./.test(String(x.output ?? ''))));
+}

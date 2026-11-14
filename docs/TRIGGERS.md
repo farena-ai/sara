@@ -5,7 +5,8 @@ a webhook delivery or an event from one of your tool servers (MCP). She then doe
 or starts one of your [crews](CREWS.md), with the event as information. Approvals, budgets and
 quiet hours still apply.
 
-Where: **Settings → Connections → Webhooks → When this happens**. Only the owner of the server
+Where: **Settings → Connections → Webhooks → When this happens**. Triggers are also listed, with
+their switch and last runs, on **Settings → You → Automations** ([AUTOMATIONS.md](AUTOMATIONS.md)). Only the owner of the server
 can see or change triggers. Members and the demo can't, and device tokens can't either.
 
 ## Make a trigger

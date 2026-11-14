@@ -102,6 +102,16 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Gets it right, and runs on its own, in 3.8.0
+
+Auto picks the right model for each job from what you have connected and hands a turn to a backup when a
+model is slow or fails, with a note saying so. After every change she checks it worked and says what she
+checked. A "How she did" page counts failed and slow replies each week. Automations put everything that
+runs on its own in one place, "When ___, do ___", made by asking her, with a preview, a dry run, history
+and a pause after repeated failures; a starter fills your weekly time sheet from your calendar. Plus
+fixes: app updates no longer miss a new version, pictures skip models that can't see, stopped commands
+say "Stopped", charts for table answers, earnings dates and headlines in your portfolio.
+
 ## An everyday assistant, in 3.7.0
 
 Money: your portfolio from a brokerage export (value, today's move, gain, with the price source and

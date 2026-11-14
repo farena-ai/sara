@@ -36,7 +36,7 @@ export function tileTitle(id) {
     'td-calendar': t('Your day'), 'td-weather': t('Weather'), 'td-dates': t('Coming up'), 'td-needs': t('Needs you'), 'td-mail': t('Mail'),
     'td-memories': t('She remembered'), 'td-otd': t('Moments'), 'td-plans': t('Her plans'), 'td-rooms': t('Rooms'), 'td-jobs': t('Running now'),
     'td-board': t('On the board'), 'td-projects': t('Coding projects'), 'td-usage': t('Usage today'), 'td-business': t('Money and replies'), 'td-money': t('Money'), 'td-home': t('Home'), 'td-models': t('Model changes'),
-    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-teams': t('My teams'), 'td-agenda': t('Planner'), 'td-setup': t('Add to your day'),
+    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-automations': t('Automations'), 'td-teams': t('My teams'), 'td-agenda': t('Planner'), 'td-setup': t('Add to your day'),
   };
   return words[id] ?? id;
 }
@@ -65,6 +65,7 @@ export function tileTip(id) {
     'td-models': t('Models that were retired and what uses their replacement now.'),
     'td-hooks': t('Important webhook deliveries. They also show in Needs you.'),
     'td-watching': t('Your “tell me when” watches on prices, games and odds, with the last value she saw.'),
+    'td-automations': t('Shown only when an automation failed, waits for your OK, or runs today.'),
     'td-teams': t('The teams you follow: the next game, the last result and a live score, from ESPN. Shows once you follow a team.'),
     'td-agenda': t('Your to-dos for today as a list. They also show on Your day and in Needs you.'),
     'td-setup': t('Things you could add to Today, like the weather or your calendar.'),

@@ -900,6 +900,38 @@
    "show": "#pref-on"
   }
  ],
+ "you-automations": [
+  {
+   "id": "make",
+   "q": "How do I make something run on its own?",
+   "steps": [
+    "Describe it in your own words, like “every Friday at 3, fill my time sheet”.",
+    "Press Preview: it shows when it runs, the next three times and what asks you first.",
+    "Press Try it to test it (nothing is done), then Turn it on."
+   ],
+   "show": "#atm-words"
+  },
+  {
+   "id": "timesheet",
+   "q": "How do I fill my time sheet every week?",
+   "steps": [
+    "Add your blank time sheet to the Library.",
+    "Press Fill my time sheet every week, then Preview.",
+    "Tell Sara your shift rules if your calendar has no times, like “shifts are 2200-0700, no lunch”."
+   ],
+   "show": "#atm-starters"
+  },
+  {
+   "id": "failed",
+   "q": "How do I see why one didn't run?",
+   "steps": [
+    "Press History on its row: each run shows what started it and what each step did.",
+    "Three failed runs in a row pause it; fix the problem and switch it back on.",
+    "A run waiting for your OK shows Allow and Decline at the top."
+   ],
+   "show": "#atm-list"
+  }
+ ],
  "ab-when": [
   {
    "id": "set",
@@ -1635,6 +1667,27 @@
     "Or press Delete run history."
    ],
    "show": "#runs-delete"
+  }
+ ],
+ "dh-quality": [
+  {
+   "id": "see",
+   "q": "How do I see how her replies went this week?",
+   "steps": [
+    "Open How she did.",
+    "Pick the period.",
+    "Press a chat under Top problems to open it."
+   ],
+   "show": "#q-days"
+  },
+  {
+   "id": "fix",
+   "q": "How do I make slow replies faster?",
+   "steps": [
+    "Open Models → Which model does what.",
+    "Pick Auto (recommended) for the job."
+   ],
+   "show": "#q-tips"
   }
  ],
  "dh-devices": [

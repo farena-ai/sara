@@ -234,6 +234,10 @@
 <h4 id="howto-you-adult">Adult mode</h4>
 <details class="howto-q" id="howto-you-adult-on"><summary>How do I turn on adult mode?</summary><ol><li>Press Turn on adult mode and confirm you're 18 or older.</li><li>It works only in a web browser, not in the phone apps.</li></ol></details>
 <details class="howto-q" id="howto-you-adult-off"><summary>How do I turn it off again?</summary><ol><li>Press Turn off adult mode.</li><li>Conversations go back to normal right away.</li></ol></details>
+<h4 id="howto-you-automations">Automations</h4>
+<details class="howto-q" id="howto-you-automations-make"><summary>How do I make something run on its own?</summary><ol><li>Describe it in your own words, like “every Friday at 3, fill my time sheet”.</li><li>Press Preview: it shows when it runs, the next three times and what asks you first.</li><li>Press Try it to test it (nothing is done), then Turn it on.</li></ol></details>
+<details class="howto-q" id="howto-you-automations-timesheet"><summary>How do I fill my time sheet every week?</summary><ol><li>Add your blank time sheet to the Library.</li><li>Press Fill my time sheet every week, then Preview.</li><li>Tell Sara your shift rules if your calendar has no times, like “shifts are 2200-0700, no lunch”.</li></ol></details>
+<details class="howto-q" id="howto-you-automations-failed"><summary>How do I see why one didn't run?</summary><ol><li>Press History on its row: each run shows what started it and what each step did.</li><li>Three failed runs in a row pause it; fix the problem and switch it back on.</li><li>A run waiting for your OK shows Allow and Decline at the top.</li></ol></details>
 <h4 id="howto-ab-when">When it comes up</h4>
 <details class="howto-q" id="howto-ab-when-set"><summary>How do I have her remind me when someone comes up?</summary><ol><li>In any of your chats, say “when Dan comes up, remind me he owes me $20” (or type /when Dan: he owes me $20).</li><li>A card under her reply shows it, with Undo.</li><li>The next time you mention Dan in one of your own chats, she brings it up once.</li></ol></details>
 <details class="howto-q" id="howto-ab-when-forget"><summary>How do I see or forget what she is waiting to bring up?</summary><ol><li>Open Planner → Reminders → When it comes up.</li><li>Press Forget next to one; Done lists the ones that already came up.</li><li>Or type /when for the list and /when forget 1.</li></ol></details>
@@ -393,6 +397,9 @@
 <h4 id="howto-dh-health">Health</h4>
 <details class="howto-q" id="howto-dh-health-check"><summary>How do I check everything works?</summary><ol><li>Press Run full check.</li><li>Fix anything marked red with its button.</li></ol></details>
 <details class="howto-q" id="howto-dh-health-runs"><summary>How do I clear old run history?</summary><ol><li>Pick how long to Keep runs.</li><li>Or press Delete run history.</li></ol></details>
+<h4 id="howto-dh-quality">How she did</h4>
+<details class="howto-q" id="howto-dh-quality-see"><summary>How do I see how her replies went this week?</summary><ol><li>Open How she did.</li><li>Pick the period.</li><li>Press a chat under Top problems to open it.</li></ol></details>
+<details class="howto-q" id="howto-dh-quality-fix"><summary>How do I make slow replies faster?</summary><ol><li>Open Models → Which model does what.</li><li>Pick Auto (recommended) for the job.</li></ol></details>
 <h4 id="howto-dh-backups">Backups</h4>
 <details class="howto-q" id="howto-dh-backups-now"><summary>How do I make a backup now?</summary><ol><li>Press Back up now.</li></ol></details>
 <details class="howto-q" id="howto-dh-backups-offsite"><summary>How do I keep a copy somewhere else?</summary><ol><li>Pick where under Copy backups to.</li><li>Fill in the folder or bucket and a passphrase.</li><li>Press Copy the latest backup now, then Test restore now.</li></ol></details>
@@ -1082,6 +1089,14 @@
   <li><strong>Agents she can ask:</strong> paste the agent's address under <em>Add an agent she can ask</em>. She reads its card and shows what it is, where it answers, how it signs in and its skills; nothing is added until you press <strong>Add</strong>. Paste the key its owner gave you; it's kept encrypted in her vault.</li>
   <li>Each message she sends an agent waits for your OK and shows exactly what goes to whom. She refuses to send lines from your private conversations. Answers are treated as information from outside, never as instructions. A task the agent is still working on becomes a board card <em>Waiting on …</em> that moves to Done with its answer; you can also assign a board card to an agent.</li>
   <li>The agents' conversations are in the <strong>Agents</strong> project, and the last 20 requests are on the settings page. Removing an agent stops its key at once. Details: <code>docs/A2A.md</code>.</li>
+</ul>
+
+<h2 id="automations">Automations: when ___, do ___</h2>
+<ul>
+  <li><em>Settings → You → Automations</em> lists everything that runs on its own: the automations you make there or by asking her (“every Friday at 3, fill my time sheet from my calendar and send it to me”), and the watches, triggers, routines and repeating reminders set up elsewhere, each with its on/off switch.</li>
+  <li>It starts on a schedule, when an email or a webhook arrives, when a price, score, product or file watch fires, or some minutes before a calendar event. Then she tells you, does a task you wrote, drafts an email, fills one of your forms, runs a recipe or adds a bill or an expense.</li>
+  <li><strong>Preview</strong> shows what will run, the next three times and which approvals each run asks. <strong>Try it</strong> is a test run: nothing is saved, sent or done. Changes keep their approvals (a run waits for your <strong>Allow</strong>), and drafts are never sent unless you turn that on for one.</li>
+  <li><strong>History</strong> keeps the last 50 runs. Three failed runs in a row pause one and tell you why. Details: <code>docs/AUTOMATIONS.md</code>.</li>
 </ul>
 
 <h2 id="webhooks">Webhooks: when something happens elsewhere</h2>

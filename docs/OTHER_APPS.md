@@ -212,8 +212,8 @@ history, documents shared in one chat only, and, while Adult mode is off, anythi
 | `update_task` | Changes a to-do's title, due time (`none` clears it), project, priority, details or status | `todo` |
 | `delete_task` | Deletes a to-do for good | `todo` |
 | `add_note` | Saves a note (title, text, project) | `note` |
-| `update_note` | Changes a note's title, whole text or project | `note` |
-| `delete_note` | Deletes a note for good | `note` |
+| `update_note` | Changes a note's title, whole text or project (the old text is kept as an earlier version) | `note` |
+| `delete_note` | Deletes a note (its last version is kept 30 days, so it can come back) | `note` |
 | `remember_fact` | Adds a fact about you to her memory | always asks |
 
 They follow her approval rules: the to-do and note tools use the setting of her `todo` and `note`

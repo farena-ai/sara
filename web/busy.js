@@ -222,11 +222,22 @@ export function steerBubble(ev) {
   return b;
 }
 
-/** Interrupt now: her reply that was cut off, folded to its first line under "She was saying…". */
+/** The folded reply's preview: its first ~80 characters on one line, cut at a word. */
+export function sayingPreview(text, n = 80) {
+  const s = String(text ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= n) return s;
+  const cut = s.slice(0, n);
+  const sp = cut.lastIndexOf(' ');
+  return `${(sp > n * 0.6 ? cut.slice(0, sp) : cut).trimEnd()}…`;
+}
+
+/** Interrupt now: her reply that was cut off, folded under "She was saying…" with its first words. */
 export function sayingFold(b) {
   if (!b || b.querySelector(':scope > .saying-toggle')) return b;
   b.classList.add('was-saying', 'collapsed');
   const tg = ctx.el('button', 'saying-toggle linkish small', t('She was saying…'));
+  const preview = sayingPreview(b.querySelector(':scope > .md')?.textContent ?? b._raw ?? '');
+  if (preview) tg.append(' ', ctx.el('span', 'saying-preview', preview));
   tg.type = 'button';
   tg.setAttribute('aria-expanded', 'false');
   tg.addEventListener('click', () => {

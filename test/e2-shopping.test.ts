@@ -216,6 +216,10 @@ test('find_product: nearby chains and online retailers, one page at a time, rank
   const card = cardFor({ name: 'find_product', args: { what: 'WD-40 12 oz' }, status: 'ok', output: text });
   assert.equal(card?.kind, 'search');
   assert.ok((card as { results: { host: string }[] }).results.some((x) => x.host === 'walmart.com'));
+  // Leftover 9: its own title, "Shopping: <query>"; a web search keeps "Web search: …".
+  assert.equal((card as { shopping?: true }).shopping, true);
+  assert.equal((cardFor({ name: 'web_search', args: { query: 'wd-40' }, status: 'ok', output: '1. WD-40\n   https://www.wd40.com/' }) as { shopping?: true } | undefined)?.shopping, undefined);
+  assert.match(readFileSync(join(import.meta.dirname, '..', 'web', 'result-cards.js'), 'utf8'), /c\.shopping \? t\('Shopping: \{query\}', \{ query: c\.query \}\) : t\('Web search: \{query\}'/);
 });
 
 test('find_product: max price, named stores, page budget, and no search set up', async () => {

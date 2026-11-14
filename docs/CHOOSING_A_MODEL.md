@@ -160,7 +160,16 @@ computer with a graphics card.
 
 In the first-run guide, when this computer has no graphics card and you connect the Ollama on it,
 the guide picks an Ollama Cloud model if that Ollama has one (else the smallest usable local model)
-and says why in one sentence.
+and says why in one sentence. The notice also offers **Use Auto (recommended)** when Auto is off.
+
+### Auto: let her pick per job
+
+**Auto (recommended)** (Talking, Coding, Looking at pictures, Web research) picks from what is
+connected by tool support, picture support, on this computer or not, how fast each model really
+answered here, recent errors and the spend limit, and hands over to the next-best model once when
+the pick fails, stays empty or is silent for 45 seconds (with a note). Private chats stay on this
+computer. Each reply shows "(Auto)" and why. New installs start on Auto. Details:
+[QUALITY.md](QUALITY.md).
 
 ## Cloud models
 
@@ -217,7 +226,7 @@ only; nothing is sent anywhere). Each job also has *Test* (does it work, how fas
 |---|---|---|
 | **Talking** | Everyday conversation. The most important one | The model whose replies you like best |
 | **Coding** | Coding-mode conversations: files, commands, git | A model that's good with code and tools |
-| **Looking at pictures** | Photos and screenshots you send, and scanned pages in her library. When the model she's talking on can't see (Sara checks Ollama's and OpenRouter's model lists), this model reads the picture into text for her and you're told which model read it | A model that can see: `gemma4`, a "vl" or "vision" model, GPT, Claude or Grok (not a subscription app: they get text only) |
+| **Looking at pictures** | Photos and screenshots you send, and scanned pages in her library. When the model she's talking on can't see (Sara checks Ollama's and OpenRouter's model lists), this model reads the picture into text for her and you're told which model read it | A model that can see: `gemma4`, a "vl" or "vision" model, GPT, Claude or Grok (not a subscription app: they get text only). A model its provider's list marks as text only is skipped for the next one that can see, and this row says which |
 | **Planning** | Morning briefing, weekly review, plans for her team | A careful, strong model |
 | **Writing** | Her diary, her life story, character writing | A model with a nice way with words |
 | **Web research** | When you ask her to look something up | Good with tools and sources |

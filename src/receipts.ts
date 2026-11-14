@@ -4,6 +4,7 @@
 // conversation ("I wrote you a poem", "I fixed my bike") is not flagged.
 
 import { BROWSER_TOOLS } from './tools/browser.ts';
+import { verifyState } from './verify-action.ts';
 
 export interface Receipt {
   name: string;
@@ -23,8 +24,11 @@ export type ClaimKind = 'write' | 'run' | 'tests_pass' | 'types_clean' | 'commit
 export interface Claim {
   kind: ClaimKind;
   sentence: string;
-  /** "missing": no receipt; "contradicted": a receipt shows the opposite (e.g. tests failed). */
-  problem: 'missing' | 'contradicted';
+  /**
+   * "missing": no receipt; "contradicted": a receipt shows the opposite (e.g. tests failed);
+   * "unverified" (N1): the tool ran, but its read-back said "Could not verify" (src/verify-action.ts).
+   */
+  problem: 'missing' | 'contradicted' | 'unverified';
 }
 
 const ARTIFACT =
@@ -468,8 +472,45 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     if (cx.pictureMissed && SEES_CLAIM.test(s)) add('see', s, 'missing');
     // B2: "I sent you the picture" while no tool attached anything to her reply.
     if (cx.attached === false && (claimed(s, ATTACHED) || (aboutMedia && claimed(s, HERE_IT_IS)))) add('attach', s, 'missing');
+    // N1: "done / saved / sent / added / filled" needs a verified receipt: when the tools that would
+    // back it all said "Could not verify", the claim gets the same gentle correction.
+    if (!claims.some((c) => c.sentence === s)) {
+      const kind = unverifiedKind(s, receipts);
+      if (kind) add(kind, s, 'unverified');
+    }
   }
   return claims;
+}
+
+/** N1: the receipts that back each kind of "it's done" claim, when they carry a read-back line. */
+const VERIFY_BACKS: Partial<Record<ClaimKind, RegExp>> = {
+  write: /^(?:write_file|edit_file|make_document|fill_document|invoice_make)$/,
+  send: /^(?:mail_send|gmail_send|mail_draft|gmail_draft)$/,
+  schedule: /^calendar_add$/,
+  planner: /^todo$/,
+};
+const FILLED = /\b(?:I(?:'ve| have)?|I just)\s+(?:also\s+)?(?:filled(?: (?:in|out))?|completed)\b|\b(?:is|are|has been|have been) (?:now |all )?(?:filled(?: (?:in|out))?|completed)\b|\bthe (?:form|time ?sheet|document|invoice|draft|email|event|file) (?:is|has been) (?:ready|done|saved|sent|added|created|made)\b/i;
+
+/**
+ * N1: the claim kind a sentence makes when every changing receipt that would back it said "Could not
+ * verify" (and nothing else backs it: no command, no add-on tool, no verified receipt).
+ */
+function unverifiedKind(s: string, receipts: Receipt[]): ClaimKind | undefined {
+  const ok = receipts.filter((r) => r.status === 'ok');
+  if (ok.some((r) => COMMAND_TOOLS.has(r.name) || r.name.startsWith('mcp_'))) return undefined;
+  const states = (re: RegExp) => ok.filter((r) => re.test(r.name)).map((r) => verifyState(r.output));
+  const allUnverified = (xs: (string | undefined)[]) => xs.length > 0 && xs.every((x) => x === 'unverified');
+  const kinds: [ClaimKind, boolean][] = [
+    ['write', claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!, FILLED])],
+    ['send', (SEND_OBJ.test(s) && claimed(s, SEND_VERB)) || claimed(s, SEND_ALONE) || (/\b(?:draft|email)\b/i.test(s) && claimed(s, [FILLED, WRITE_VERB]))],
+    ['schedule', (CAL_OBJ.test(s) && claimed(s, SCHEDULE_VERB)) || (SCHEDULE_ALONE.test(s) && claimed(s, SCHEDULE_ALONE))],
+    ['planner', claimed(s, [PLANNER, I18N.planner, ...MORE.planner!])],
+  ];
+  for (const [kind, said] of kinds) if (said && allUnverified(states(VERIFY_BACKS[kind]!))) return kind;
+  // "Done!" / "all set" with only unverified changes this turn.
+  const changing = ok.filter((r) => Object.values(VERIFY_BACKS).some((re) => re!.test(r.name)) || /^pc_(?:run|click|type|keys|scroll|drag|open_app)$|^change_setting$/.test(r.name));
+  if (DONE_CUE.test(s) && !NEGATED.test(s) && allUnverified(changing.map((r) => verifyState(r.output)))) return 'action';
+  return undefined;
 }
 
 /** Phase 28: the claim judge's labels, as claim kinds. */
@@ -642,7 +683,7 @@ export const CLAIM_JUDGE_TIMEOUT_MS = 8_000;
 
 export function correctionNote(claims: Claim[]): string {
   const lines = claims.map((c) =>
-    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : c.kind === 'see' ? `- "${c.sentence}": the picture did not reach you, so you cannot see it; say so plainly and don't describe or guess what is in it.` : c.kind === 'attach' ? `- "${c.sentence}": nothing was attached to your reply in this turn; attach it with a tool, or say plainly that you couldn't send it.` : c.kind === 'status' ? `- "${c.sentence}": a tool failed and nothing you ran checked this; check with a read-only tool, or say only that the call failed.` : `- "${c.sentence}": no tool did this in this turn.`,
+    c.problem === 'contradicted' ? `- "${c.sentence}": your own tool output says otherwise (the last test run did not exit 0).` : c.problem === 'unverified' ? `- "${c.sentence}": the tool ran, but its check says "Could not verify"; say plainly what was not confirmed (and why), or check it again, instead of saying it is done.` : c.kind === 'see' ? `- "${c.sentence}": the picture did not reach you, so you cannot see it; say so plainly and don't describe or guess what is in it.` : c.kind === 'attach' ? `- "${c.sentence}": nothing was attached to your reply in this turn; attach it with a tool, or say plainly that you couldn't send it.` : c.kind === 'status' ? `- "${c.sentence}": a tool failed and nothing you ran checked this; check with a read-only tool, or say only that the call failed.` : `- "${c.sentence}": no tool did this in this turn.`,
   );
   return `Receipt check failed. Your last reply made claims that the tool log does not support:\n${lines.join('\n')}\nReceipts are the truth. Correct yourself now, briefly and in character: either actually do it with your tools, or say plainly that it didn't happen (or failed). Do not repeat an unsupported claim.`;
 }

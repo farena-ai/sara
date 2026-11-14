@@ -103,6 +103,8 @@ export interface Settings {
   fallbackAfterSec?: number;
   /** Phase 38: fallbacks for the default model (used for any job without its own route). */
   defaultFallbacks?: { providerId: string; model: string }[];
+  /** N1: jobs whose model Auto picks from what is connected (src/auto-route.ts); new installs get all four. */
+  autoJobs?: ('chat' | 'coding' | 'vision' | 'research')[];
   /** Phase 40: GitHub repositories watched for new issues (off by default). */
   githubWatch?: import('./issues.ts').GitHubWatch;
   /** Phase 39: helpers the owner made (Team page). */

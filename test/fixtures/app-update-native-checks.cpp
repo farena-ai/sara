@@ -2,6 +2,7 @@
 // test/app-update-native.test.ts with notices Node signed with a TEST key. Test builds only.
 //   AppUpdateNativeChecks verify <notice file> <public key b64> <asset base> <seen>  -> "ok <version> <win sha256> <security>" | "no <why>"
 //   AppUpdateNativeChecks cmp <a> <b>                                               -> -1 | 0 | 1
+//   AppUpdateNativeChecks race <notice version> <server version> <tries>            -> seconds (0: no race)
 #include <windows.h>
 
 #include <cstdio>
@@ -22,6 +23,10 @@ int wmain(int argc, wchar_t** argv) {
   if (argc >= 4 && std::wstring(argv[1]) == L"cmp") {
     int c = saraupdate::compareVersions(narrow(argv[2]), narrow(argv[3]));
     printf("%d\n", c < 0 ? -1 : c > 0 ? 1 : 0);
+    return 0;
+  }
+  if (argc >= 5 && std::wstring(argv[1]) == L"race") {
+    printf("%lld\n", saraupdate::raceRetrySeconds(narrow(argv[2]), narrow(argv[3]), _wtoi(argv[4])));
     return 0;
   }
   if (argc >= 6 && std::wstring(argv[1]) == L"verify") {

@@ -109,7 +109,9 @@ updated it, so an app could stay on an old version for months while its server m
   runs. It refuses a notice that isn't signed by the release key, one older than a notice it has
   already seen, a file that isn't on the release page, and never installs a version older than its own.
 - **When it checks.** At start (unless it checked in the last 15 minutes), then every 6 hours, and
-  soon after its server says it is newer than the app (at most once an hour). Offline, behind a proxy
+  soon after its server says it is newer than the app (at most once an hour). When the server is
+  already on a version the signed notice doesn't list yet (it is published a little later), it looks
+  again in 15 minutes, then 30, 1 h, 2 h and 4 h, before going back to every 6 hours. Offline, behind a proxy
   (it uses the system's proxy settings) or blocked: it tries again an hour later and says nothing.
 - **Update the app by itself** (Settings → This computer, on by default): a new app is downloaded in
   the background to `%LOCALAPPDATA%\Sara\updates`, checked against the notice's SHA-256 and

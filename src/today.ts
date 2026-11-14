@@ -74,6 +74,8 @@ export interface Today {
   modelItems?: unknown[];
   /** E1: live-data watches (Watching). */
   watching?: ReturnType<import('./live-watch.ts').LiveWatches['todayTile']>;
+  /** N2: automations that failed, wait for an OK or run today (none: no tile). */
+  automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
   /** E4: My teams (next game, last result, live score), only when following a team. */
   teams?: Awaited<ReturnType<import('./sports/follow.ts').Sports['todayTile']>>;
   /** TD1: the calendar's next N days (Coming up). */
@@ -89,7 +91,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'money', 'teams', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'money', 'teams', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -484,6 +486,12 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.liveWatches?.todayTile();
       if (tile) out.watching = tile;
       meta('watching');
+    },
+    automations: () => {
+      // N2: a tile only when an automation failed, waits for an OK, or runs today.
+      const tile = demo ? undefined : app.automations?.todayTile();
+      if (tile) out.automations = tile;
+      meta('automations');
     },
     teams: async () => {
       // E4: My teams (ESPN, cached 10 minutes in the data sources); nothing when no team is followed.

@@ -57,7 +57,7 @@ test('Ollama /api/tags (details.context_length) and /api/show (model_info + Mode
   assert.equal(tags['qwen3.5:9b'].context, 262_144);
   assert.equal(tags['gpt-oss:20b-cloud'].context, 131_072);
   assert.equal(tags['nomic-embed-text'].context, 2048, ':latest is also found without the tag');
-  assert.deepEqual(parseOllamaShow(fixture('ollama-show.json')), { context: 262_144, numCtx: 16_384, vision: true }, '3.4.3: capabilities has vision');
+  assert.deepEqual(parseOllamaShow(fixture('ollama-show.json')), { context: 262_144, numCtx: 16_384, vision: true, tools: true }, '3.4.3: capabilities has vision');
   assert.equal(parseOllamaShow({ model_info: { 'general.architecture': 'llama', 'llama.context_length': 131072 }, parameters: '' })?.context, 131_072);
   assert.equal(parseOllamaShow({}), undefined);
 });
@@ -281,7 +281,7 @@ test('Ollama on your computer: options.num_ctx through /api/chat, remembered for
   assert.equal(o.v1.length, 1);
   // The lookup reads /api/tags and /api/show.
   const lim = await p.modelLimits('qwen3.5:9b');
-  assert.deepEqual(lim['qwen3.5:9b'], { context: 262_144, numCtx: 16_384, vision: true });
+  assert.deepEqual(lim['qwen3.5:9b'], { context: 262_144, numCtx: 16_384, vision: true, tools: true });
 });
 
 test('a turn on a local Ollama model sends num_ctx; the history budget follows the window Sara asks for', async (t) => {

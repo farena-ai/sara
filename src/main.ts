@@ -36,7 +36,9 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, wri
 import { copyOffsite, offsiteTestDue, testOffsite } from './offsite-run.ts';
 import { formatDoctor, runDoctor } from './doctor.ts';
 import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } from './safety-check.ts';
-import { createSuggestRoutineTool } from './routines.ts';
+import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.ts';
+import { Automations } from './automations.ts';
+import { createAutomationTools } from './tools/automations.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -1454,6 +1456,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember && !isDemo) {
     tools.add(createSafetyReportTool(() => (app as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.() ?? { app, auth, dataDir, sandbox: app.sandbox, version: info.version }));
     tools.add(createSuggestRoutineTool(() => app));
+  }
+  // N2 (docs/AUTOMATIONS.md): automations, one place, each space's own (members too); never the demo.
+  if (!isDemo) {
+    app.automations = new Automations(app, store.db);
+    app.automations.useRoutines((a) => routinesFor(a, ROUTINES_DIR));
+    for (const t of createAutomationTools(() => app)) tools.add(t);
   }
   if (!isMember) for (const t of createReviewTools(() => app)) tools.add(t);
   if (!isMember) tools.add(createIssueTool(() => app));

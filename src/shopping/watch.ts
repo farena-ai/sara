@@ -168,6 +168,11 @@ export class ProductWatches {
     return this.get(r.id)!;
   }
 
+  /** N2: pause or resume from the Automations page. */
+  setPaused(id: number, paused: boolean): void {
+    this.#db.prepare('UPDATE product_watches SET state = ?, fails = CASE WHEN ? THEN fails ELSE 0 END WHERE id = ?').run(paused ? 'paused' : 'active', paused ? 1 : 0, id);
+  }
+
   remove(id: number): boolean {
     return Number(this.#db.prepare('DELETE FROM product_watches WHERE id = ?').run(id).changes) > 0;
   }
@@ -212,6 +217,8 @@ export class ProductWatches {
     const time = new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', ...(this.#app.settings.get().timeZone ? { timeZone: this.#app.settings.get().timeZone } : {}) });
     const text = `${d.alert} ${say(en('Checked {time} on {store}’s page: {url} (product watch #{id}). I won’t buy anything; say the word and I’ll open the page for you.'), { time, store: w.retailer, url: offer.url ?? w.url, id: w.id })}`;
     this.#post(w, text, 'fired');
+    // N2: automations that start when this watch fires.
+    this.#app.automations?.watchFired('product', w.id, text);
     return text;
   }
 

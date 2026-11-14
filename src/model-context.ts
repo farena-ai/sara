@@ -25,11 +25,13 @@ export interface ModelLimits {
    * capabilities, OpenRouter's input modalities). Unknown stays unset.
    */
   vision?: boolean;
+  /** N1: whether the model can use tools, when Ollama's capabilities say so. Unknown stays unset. */
+  tools?: boolean;
 }
 
 /** 3.4.3: Ollama's `capabilities` list ("vision" among them) or OpenRouter's input modalities. */
-function visionOf(m: Record<string, unknown>): { vision?: boolean } {
-  if (Array.isArray(m.capabilities)) return { vision: m.capabilities.includes('vision') };
+function visionOf(m: Record<string, unknown>): { vision?: boolean; tools?: boolean } {
+  if (Array.isArray(m.capabilities)) return { vision: m.capabilities.includes('vision'), tools: m.capabilities.includes('tools') };
   const mods = (m.architecture as { input_modalities?: unknown } | undefined)?.input_modalities;
   if (Array.isArray(mods)) return { vision: mods.includes('image') };
   return {};

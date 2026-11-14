@@ -236,3 +236,13 @@ test('MCP planner write tools follow her approval rules: ask → waits in Sara u
     app.settings.update({ otherApps: { changes: false }, toolPermissions: {} });
   }
 });
+
+test('Leftover 5: update_note / delete_note say what really happens (versions kept since 3.4.2)', () => {
+  const tools = describeTools();
+  const upd = tools.find((x) => x.name === 'update_note')!;
+  const del = tools.find((x) => x.name === 'delete_note')!;
+  assert.match(String(upd.description), /keeps the text it had before as an earlier version/);
+  assert.match(JSON.stringify(upd.inputSchema), /kept as an earlier version/);
+  assert.doesNotMatch(String(del.description), /can't be undone|for good/);
+  assert.match(String(del.description), /keeps its last version for 30 days/);
+});

@@ -28,7 +28,7 @@ test('128d.2 N37: START_HERE\'s answer count is the number of questions in web/h
   const n = Object.values(howto).reduce((sum, qs) => sum + qs.length, 0);
   const m = /All (\d+)\s+answers/.exec(read('docs', 'START_HERE.md'));
   assert.ok(m, 'START_HERE says how many answers there are');
-  assert.equal(Number(m![1]), n);
+  assert.equal(Number(m![1]), n, 'run npm run guide (scripts/gen-guide.ts) after changing web/howto.json');
   assert.match(read('docs', 'HOW_DO_I.md'), new RegExp(`${n}|How do I`), 'HOW_DO_I.md is generated from the same file');
 });
 

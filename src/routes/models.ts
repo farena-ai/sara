@@ -2,7 +2,9 @@
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { policy } from '../policy-profile.ts';
 import { APNS_VAULT } from '../apns.ts';
-import { vaultKeyFor } from '../chat.ts';
+import { resolveChain, vaultKeyFor, type AppContext } from '../chat.ts';
+import { modelSees } from '../picture-reader.ts';
+import type { Conversation } from '../store.ts';
 import { as400, HttpError, readJson, send } from '../http.ts';
 import { chatModels, CPU_TIERS, detectHardware, detectOllama, GPU_TIERS, installOllamaWithWinget, installStatus, ModelPuller, OLLAMA_DOWNLOAD, ollamaRoot, recommendModel } from '../local-models.ts';
 import { localDate } from '../memory-worker.ts';
@@ -18,6 +20,7 @@ import { HOME_VAULT } from '../tools/home.ts';
 import { cleanBudget, cleanPrices, DEFAULT_PRICES, mergeSummaries, priceTable, usageLine } from '../usage.ts';
 import { suggestModel } from '../../web/model-suggest.js';
 import { modelFitness } from '../model-fitness.ts';
+import { AUTO_JOBS, autoChain, autoOn, newInstallAuto } from '../auto-route.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { autoWebSearch } from '../web-search-auto.ts';
 
@@ -35,6 +38,30 @@ export function adoptDefaultModel(app: RouteCtx['app'], providerId: string, mode
   // Private local mode: never a model that would leave this computer (the owner picks one).
   if (!prov || !pick || (privateLocalOn() && !onThisComputer(prov, pick))) return;
   app.settings.update({ defaultModel: pick });
+}
+
+/**
+ * Leftover 6: the picture jobs (Looking at pictures, Screen) whose chosen model can't take pictures
+ * (a subscription app, or a model its provider's list says is text only), and the model that gets
+ * the pictures instead, for the notice in Settings → Models.
+ */
+export function pictureNotices(app: AppContext): Record<string, { providerId: string; model: string; usedProvider?: string; usedModel?: string }> {
+  const s = app.settings.get();
+  const out: Record<string, { providerId: string; model: string; usedProvider?: string; usedModel?: string }> = {};
+  const conv = { id: '', providerId: null, model: null, mode: 'chat', private: false, channel: 'web' } as unknown as Conversation;
+  for (const job of ['vision', 'screen'] as const) {
+    const r = s.routes?.[job];
+    const config = r && s.providers.find((p) => p.id === r.providerId);
+    if (!r || !config || modelSees(app, config, r.model) !== false) continue;
+    out[job] = { providerId: r.providerId, model: r.model };
+    try {
+      const used = resolveChain(app, conv, job, false, true)[0];
+      if (used && modelSees(app, used.provider.config, used.model) !== false) Object.assign(out[job], { usedProvider: used.provider.config.label, usedModel: used.model });
+    } catch {
+      /* nothing in reach: the notice says so without a name */
+    }
+  }
+  return out;
 }
 
 export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
@@ -87,6 +114,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       companionModel: pick,
       routes: { ...s.routes, background: { ...pick }, ...(s.routes?.private ? {} : { private: { ...pick } }) },
       ...(s.defaultProviderId ? {} : { defaultProviderId: providerId, defaultModel: model }),
+      ...newInstallAuto(s),
     });
     void app.modelCatalog?.refresh(providerId).catch(() => undefined);
   }
@@ -217,10 +245,13 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           jobs: JOBS,
           vectors: app.vectors?.status() ?? null,
           costs: Object.fromEntries(s.providers.map((p) => [p.id, { local: Boolean(p.local), hint: costHint(p, p.defaultModel ?? '') }])),
+          pictures: pictureNotices(app),
         });
       }
       // E7: is the talking model right for this computer (src/model-fitness.ts)? Read only.
-      if (b === 'fitness' && method === 'GET') return send(res, 200, { fitness: (await modelFitness(app)) ?? null });
+      if (b === 'fitness' && method === 'GET') return send(res, 200, { fitness: (await modelFitness(app)) ?? null, autoChat: autoOn(app.settings.get(), 'chat') });
+      // N1: what Auto would pick for each job here and now, with the reason (read only).
+      if (b === 'auto' && method === 'GET') return send(res, 200, { on: app.settings.get().autoJobs ?? [], jobs: AUTO_JOBS.map((job) => ({ job, picks: autoChain(app, job).map((p) => ({ providerId: p.providerId, provider: p.provider, model: p.model, why: p.why })) })) });
       if (b === 'recommend' && method === 'GET') {
         const s = app.settings.get();
         const cands = await connectedModels(app);
@@ -251,7 +282,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const s = app.settings.get();
         if (s.providers.some((p) => p.id === presetId)) return;
         const preset = PROVIDER_PRESETS.find((p) => p.id === presetId)!;
-        app.settings.update({ providers: [...s.providers, { ...preset }], ...(s.defaultProviderId ? {} : { defaultProviderId: preset.id, defaultModel: preset.defaultModel }) });
+        app.settings.update({ providers: [...s.providers, { ...preset }], ...(s.defaultProviderId ? {} : { defaultProviderId: preset.id, defaultModel: preset.defaultModel }), ...newInstallAuto(s) });
         // 3.0.3: ChatGPT and Grok have no preset model: take one from their list once it is known.
         if (app.modelCatalog && !app.settings.get().defaultModel && app.settings.get().defaultProviderId === preset.id) {
           void app.modelCatalog.refresh(preset.id).then((v) => adoptDefaultModel(app, preset.id, v.models), () => undefined);
@@ -411,7 +442,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const s = app.settings.get();
         const was = s.providers.find((p) => p.id === b);
         const providers = s.providers.filter((p) => p.id !== b).concat(config);
-        app.settings.update({ providers, defaultProviderId: body.preserveDefault === true ? s.defaultProviderId : s.defaultProviderId ?? config.id });
+        app.settings.update({ providers, defaultProviderId: body.preserveDefault === true ? s.defaultProviderId : s.defaultProviderId ?? config.id, ...(was ? {} : newInstallAuto(s)) });
         if (typeof body.apiKey === 'string') {
           if (body.apiKey) app.vault.set(vaultKeyFor(b), body.apiKey.trim());
           else app.vault.delete(vaultKeyFor(b));

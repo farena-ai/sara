@@ -19,6 +19,9 @@ import { isSshTool } from './tools/ssh.ts';
 import { appLanguage, en, fill, languageLine, talkLanguage, trOwner } from './i18n.ts';
 import { createProvider } from './providers/registry.ts';
 import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, readoutNote, readPictures, type PictureReader } from './picture-reader.ts';
+import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
+import { madeDocs } from './documents/make.ts';
+import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob } from './auto-route.ts';
 import { isToolsUnsupported, seesPictures, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
@@ -256,6 +259,8 @@ export interface AppContext {
   workers?: import('./workers.ts').Workers;
   /** C4: the owner's event triggers (src/event-triggers.ts). */
   eventTriggers?: import('./event-triggers.ts').EventTriggers;
+  /** N2: automations, one place (src/automations.ts). Driven by the reminder tick and the event/watch hooks. */
+  automations?: import('./automations.ts').Automations;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
   memoryTidy?: import('./memory-tidy.ts').MemoryTidy;
   /** C12: how he likes to work (beliefs with evidence; src/working-style.ts). Each space its own. */
@@ -523,7 +528,9 @@ export interface ModelChoice {
   provider: Provider;
   model: string;
   /** The job whose model this is (for notices), or 'default'. */
-  from: RoutePurpose | 'default' | 'conversation' | 'companion';
+  from: RoutePurpose | 'default' | 'conversation' | 'companion' | 'auto';
+  /** N1: why Auto picked this model (one line, English). */
+  why?: string;
 }
 
 /**
@@ -556,10 +563,12 @@ export function resolveChain(app: AppContext, conv: Conversation, job: Job, adul
  */
 function pictureChain(app: AppContext, conv: Conversation, job: Job, chain: ModelChoice[], adult: boolean): ModelChoice[] {
   if ((job !== 'vision' && job !== 'screen') || conv.providerId) return chain;
-  const seeing = chain.filter((c) => seesPictures(c.provider.config));
+  // Leftover 6: a model its provider's list says takes no pictures (an API Grok text model) is skipped too.
+  const sees = (c: ModelChoice) => seesPictures(c.provider.config) && modelSees(app, c.provider.config, c.model) !== false;
+  const seeing = chain.filter(sees);
   if (seeing.length) return seeing;
   try {
-    const talking = resolveChainAll(app, conv, 'turn', adult).filter((c) => seesPictures(c.provider.config));
+    const talking = resolveChainAll(app, conv, 'turn', adult).filter(sees);
     if (talking.length) return talking;
   } catch {
     /* no talking model either: keep the picture chain */
@@ -583,6 +592,21 @@ function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: b
   if (conv.private) purpose = 'private';
   // The companion's own model stands in for the talking jobs (not coding, private or adult).
   const companion = purpose === 'chat' || purpose === 'vision' && !has(routes.vision) || purpose === 'research' && !has(routes.research) ? s.companionModel : undefined;
+  // N1: Auto picks the job's models from what is connected (src/auto-route.ts); a private chat
+  // without its own Private model picks only among models on this computer.
+  const autoJob = purpose === 'private' ? (has(routes.private) ? undefined : conv.mode === 'coding' ? 'coding' : 'chat') : purpose;
+  if (autoJob && !(companion && has(companion)) && autoOn(s, autoJob) && isAutoJob(autoJob)) {
+    const picks = autoChain(app, autoJob, { private: conv.private });
+    const out: ModelChoice[] = [];
+    for (const p of picks) {
+      try {
+        out.push({ ...resolveProvider(app, p.providerId, p.model, tagFor(purpose), dry), from: 'auto', why: p.why });
+      } catch {
+        /* not usable now (a member's limit, a policy): the next */
+      }
+    }
+    if (out.length) return out;
+  }
   let primary: { providerId: string; model: string; fallbacks?: { providerId: string; model: string }[] } | undefined;
   let from: ModelChoice['from'] = 'default';
   if (companion && has(companion)) {
@@ -628,6 +652,22 @@ function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: b
 export function resolveFor(app: AppContext, conv: Conversation, purpose: Job = 'turn', adult = false): { provider: Provider; model: string } {
   const [first] = resolveChain(app, conv, purpose, adult);
   return { provider: first.provider, model: first.model };
+}
+
+/** N1: what the "did it work?" read-backs may read for this turn. */
+function verifyDeps(app: AppContext, wsDir: string): VerifyDeps {
+  return {
+    wsDir,
+    madeDoc: (id) => {
+      try {
+        return madeDocs(app).get(id);
+      } catch {
+        return undefined;
+      }
+    },
+    ...(app.planner ? { task: (id: number) => app.planner!.task(id) } : {}),
+    ownerName: () => app.settings.get().ownerName?.trim(),
+  };
 }
 
 /** Phase 38: a model that hasn't said its first word in time. */
@@ -1892,8 +1932,9 @@ function modelAuthorityOf(app: AppContext, s: ReturnType<SettingsStore['get']>, 
   const job: Job = adult && routes.adult ? 'turn' : input.photos && visionSet && !privateVisionOff ? 'vision' : c.mode !== 'coding' && routes.research && RESEARCH_RE.test(input.text) ? 'research' : input.quick ? 'quick' : 'turn';
   let selected = all(job);
   if (job === 'vision' && !c.providerId) {
-    const seeing = selected.filter(p => seesPictures(p.config));
-    const talking = seeing.length ? [] : all('turn').filter(p => seesPictures(p.config));
+    const sees = (p: Choice) => seesPictures(p.config) && modelSees(app, p.config, p.model) !== false;
+    const seeing = selected.filter(sees);
+    const talking = seeing.length ? [] : all('turn').filter(sees);
     if (seeing.length || talking.length) selected = seeing.length ? seeing : talking;
   }
   if (privateLocalOn()) {
@@ -2346,7 +2387,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 115 (BR1, §4.5): a private conversation with a picture model that isn't on this computer
     // stays on its local chain; the talking model gets a note instead of the picture (no throw).
     privateVisionOff = Boolean(conv.private && photosNow && visionSet && !visionOnThisComputer(app, jobRoutes.vision!));
-    job = adult && jobRoutes.adult ? 'turn' : photosNow && visionSet && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && jobRoutes.research && RESEARCH_RE.test(text) ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
+    job = adult && jobRoutes.adult ? 'turn' : photosNow && (visionSet || autoOn(app.settings.get(), 'vision')) && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && (jobRoutes.research || autoOn(app.settings.get(), 'research')) && RESEARCH_RE.test(text) ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
     chain = resolveChain(app, conv, job, adult);
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
@@ -3406,7 +3447,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
       const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
       const slowMs = slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
-      const stream = streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }));
+      const stream = streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }));
       for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
         if (ev.type === 'slow_mark') {
           slowSaid = true;
@@ -3466,6 +3507,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         const note = fill(key, params);
         console.warn(`fallback: ${note}`);
         store.addMessage(conv.id, 'notice', `fallback:${note}`, { key, params });
+        forgetStats(store.db);
         yield { type: 'notice', kind: 'fallback', text: note, key, params };
         step--;
         continue;
@@ -3531,6 +3573,24 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         console.warn(`turn: ${provider.config.label} (${model}) answered with no words${reasoningChars ? ` (only ${reasoningChars} characters of reasoning)` : ''}; asking once more`);
         continue;
       }
+      // N1: still nothing after the retry: the next model of the chain answers once, and says so.
+      if (ci < chain.length - 1 && !signal.aborted && step < maxSteps - 1) {
+        const was = `${provider.config.label} (${model})`;
+        ci++;
+        ({ provider, model } = chain[ci]);
+        emptyRetried = false;
+        thinkOffNext = false;
+        checkNote = undefined;
+        if (app.modelContext) await app.modelContext.prime(provider, model, 1000);
+        const key = en('{was} returned no answer, so {now} took over.');
+        const params = { was, now: `${provider.config.label} (${model})` };
+        const note = fill(key, params);
+        console.warn(`fallback: ${note}`);
+        store.addMessage(conv.id, 'notice', `fallback:${note}`, { key, params });
+        forgetStats(store.db);
+        yield { type: 'notice', kind: 'fallback', text: note, key, params };
+        continue;
+      }
       yield {
         type: 'error',
         message: reasoningChars
@@ -3540,7 +3600,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       };
       return;
     }
-    const meta: Record<string, unknown> = { model, provider: provider.config.label, ...(calls.length ? {} : takeImages()) };
+    const meta: Record<string, unknown> = { model, provider: provider.config.label, ...(chain[ci]?.from === 'auto' && chain[ci].why ? { autoWhy: chain[ci].why } : {}), ...(calls.length ? {} : takeImages()) };
     if (calls.length) meta.toolCalls = app.redactor.redactValue(calls);
     if (injection?.ids.length) {
       meta.memoryIds = injection.ids;
@@ -4095,6 +4155,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         }
       }
       writeLoads();
+      // N1: did it work? A read-back after a tool that changed something (src/verify-action.ts).
+      if (ranTool && status === 'ok' && !signal.aborted && VERIFY_TOOLS.has(call.name)) {
+        const line = await verifyAction(call.name, call.arguments, output, verifyDeps(app, wsDir));
+        if (line) output = `${output}\n${line}`;
+      }
       // Scrub before it is stored, shown or sent back to the model.
       output = app.redactor.redact(output + snapshotNote);
       // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.

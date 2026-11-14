@@ -1735,6 +1735,10 @@
       "Keep going until it’s done (goals on a chat, ended only by a check you pick) and repeats (checks on a timer in a chat): their caps, quiet hours and daily budgets.",
       "persist"
     ],
+    "you-automations": [
+      "Everything that runs on its own, in one place: make one from your own words or a starter, preview it, try it without doing anything, switch it on or off and see its history.",
+      "automations"
+    ],
     "ab-when": [
       "Reminders that wait for a person or a topic to come up in your own messages (“when Dan comes up, remind me he owes me $20”): how often, how many a day, and when they end.",
       "when"
@@ -1845,6 +1849,10 @@
     ],
     "dh-health": [
       "How you reach her (the address to open on your phone, with a QR code), and is everything working? Checks the database, every model, backups and more, and says what to do when something’s wrong.",
+      "trouble"
+    ],
+    "dh-quality": [
+      "How her replies went this week: failed, slow and empty replies, backup models that took over, refused desktop actions and changes she could not check, with links to the chats and tips.",
       "trouble"
     ],
     "dh-devices": [

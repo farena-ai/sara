@@ -671,7 +671,7 @@ export const DESCRIBE_TOOLS = [
   {
     "name": "update_note",
     "title": "Change a note",
-    "description": "Change one of the owner's notes in Sara by its id (from list_notes): its title, its text (replaced as a whole) or its project. Only the fields you give change. Read the note with read_note first if you mean to edit part of the text. Returns \"Changed note #id: title\". Only listed when the owner turns on \"Let other apps change things\" in Sara. Follows the owner's approval setting for her note tool (allowed, ask first, or off): when it asks first, it returns \"Waiting for approval in Sara\" and nothing changes until the owner presses Allow there; when it is off, it returns that it's turned off.",
+    "description": "Change one of the owner's notes in Sara by its id (from list_notes): its title, its text (replaced as a whole) or its project. Only the fields you give change. Read the note with read_note first if you mean to edit part of the text. Sara keeps the text it had before as an earlier version (the owner can bring it back from the note's Earlier versions). Returns \"Changed note #id: title\". Only listed when the owner turns on \"Let other apps change things\" in Sara. Follows the owner's approval setting for her note tool (allowed, ask first, or off): when it asks first, it returns \"Waiting for approval in Sara\" and nothing changes until the owner presses Allow there; when it is off, it returns that it's turned off.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -695,7 +695,7 @@ export const DESCRIBE_TOOLS = [
         "body": {
           "type": "string",
           "maxLength": 20000,
-          "description": "New text for the whole note; it replaces the old text. Up to 20,000 characters.",
+          "description": "New text for the whole note; it replaces the current text (kept as an earlier version). Up to 20,000 characters.",
           "examples": [
             "ssh in, git pull, npm ci, restart the service"
           ]
@@ -726,7 +726,7 @@ export const DESCRIBE_TOOLS = [
   {
     "name": "delete_note",
     "title": "Delete a note",
-    "description": "Delete one of the owner's notes from Sara's planner for good, by its id (from list_notes). This can't be undone. Returns \"Deleted note #id: title\". Only listed when the owner turns on \"Let other apps change things\" in Sara. Deleting always waits for the owner: it returns \"Waiting for approval in Sara\" and nothing changes until the owner presses Allow there (even when her note tool is set to allowed); when that tool is off, it returns that it's turned off.",
+    "description": "Delete one of the owner's notes from Sara's planner, by its id (from list_notes). Sara keeps its last version for 30 days, so the owner can bring it back in Sara until then. Returns \"Deleted note #id: title\". Only listed when the owner turns on \"Let other apps change things\" in Sara. Deleting always waits for the owner: it returns \"Waiting for approval in Sara\" and nothing changes until the owner presses Allow there (even when her note tool is set to allowed); when that tool is off, it returns that it's turned off.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -788,7 +788,7 @@ export const DESCRIBE_TOOLS = [
 const DESCRIBE_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 
 /** Sara's version, for --describe when no package.json is next to this file. Kept equal to package.json by a test. */
-export const SARA_VERSION = '3.7.0';
+export const SARA_VERSION = '3.8.0';
 
 /** Sara's real version: package.json next to the repo when this runs from a checkout, else SARA_VERSION. */
 export function describeVersion(): string {

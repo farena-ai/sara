@@ -44,6 +44,8 @@
 }
 .send-menu .pop-item:hover, .send-menu .pop-item:focus-visible { background: color-mix(in srgb, var(--surface-3) 85%, transparent); }
 .send-menu .pop-item[hidden] { display: none; }
+/* Keyboard shortcuts mean nothing on a phone or tablet: hidden on touch and narrow screens. */
+@media (pointer: coarse), (max-width: 720px) { .kbd-hint { display: none; } }
 
 /* What waits for her: one chip per message, above the composer. */
 .pending-chips {
@@ -70,7 +72,9 @@
 /* Interrupt now: the pill says what she is stopping; her cut-off reply folds under "She was saying…". */
 .pending-chip.interrupting { border-width: 2px; }
 .msg.was-saying { opacity: 0.85; border-style: dashed; }
-.msg.was-saying.collapsed { max-height: 4.6em; overflow: hidden; }
+.msg.was-saying.collapsed > :not(.saying-toggle) { display: none; }
+.msg.was-saying .saying-preview { color: var(--text-1); font-style: normal; }
+.msg.was-saying:not(.collapsed) .saying-preview { display: none; }
 .msg.was-saying .saying-toggle { display: block; min-height: 32px; margin: 0 0 4px; padding: 0; color: var(--text-2); font-style: italic; text-align: left; }
 .pending-chip.stale { border-style: dashed; }
 .pending-chip .pending-text { min-width: 0; overflow-wrap: anywhere; }

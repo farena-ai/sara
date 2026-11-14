@@ -157,6 +157,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^change_setting$/, 'settings', 'everyday settings'],
   [/^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines)$/, 'live-data', 'prices, scores and odds'],
   [/^watch_(add|list|remove)$/, 'live-watch', 'tell me when'],
+  // N2: automations ("When ___, do ___").
+  [/^automation_\w+$/, 'automations', 'automations'],
   [/^analyze_table$/, 'tables', 'spreadsheet totals'],
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
@@ -273,6 +275,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'aktie', 'aktien', 'aktienkurs', 'kurs', 'depot', 'borse', 'spielstand', 'spiel', 'tabelle', 'quoten', 'wetten',
     'acao', 'acoes', 'preco da acao', 'carteira', 'placar', 'jogo', 'classificacao', 'odds', 'apostas',
     'azione', 'azioni', 'prezzo delle azioni', 'portafoglio', 'borsa', 'punteggio', 'partita', 'classifica', 'quote', 'scommesse'],
+  // N2 (docs/AUTOMATIONS.md): "every Friday at 3…", "whenever…", "when X then Y".
+  automations: ['automate', 'automation', 'automations', 'every day', 'every week', 'every friday', 'every monday', 'every morning', 'whenever', 'when x then', 'schedule', 'recurring', 'remind me every', 'each week', 'each day', 'time sheet', 'timesheet',
+    'automatizar', 'automatizacion', 'cada dia', 'cada semana', 'cada viernes', 'siempre que', 'programar', 'recurrente', 'recuerdame cada',
+    'automatiser', 'automatisation', 'chaque jour', 'chaque semaine', 'chaque vendredi', 'a chaque fois que', 'planifier', 'recurrent', 'rappelle moi chaque',
+    'automatisieren', 'automatisierung', 'jeden tag', 'jede woche', 'jeden freitag', 'immer wenn', 'planen', 'wiederkehrend', 'erinnere mich jeden',
+    'automatizar', 'automacao', 'todo dia', 'toda semana', 'toda sexta', 'sempre que', 'agendar', 'recorrente', 'me lembre todo',
+    'automatizzare', 'automazione', 'ogni giorno', 'ogni settimana', 'ogni venerdi', 'ogni volta che', 'programmare', 'ricorrente', 'ricordami ogni'],
   'live-watch': ['tell me when', 'alert me', 'let me know when', 'watch', 'notify me when', 'avisame cuando', 'alertame', 'vigila', 'dis moi quand', 'previens moi', 'alerte moi', 'surveille', 'sag mir wann', 'benachrichtige mich', 'beobachte', 'me avise quando', 'me alerte', 'vigie', 'dimmi quando', 'avvisami', 'tieni d occhio'],
   // E3 (docs/MONEY.md): portfolio, budget, subscriptions and bills (six languages, folded).
   money: ['portfolio', 'my stocks', 'stocks', 'holdings', 'investments', 'budget', 'spending', 'spend', 'spent', 'subscriptions', 'subscription', 'bills', 'bill', 'due', 'bank statement', 'bank export', 'transactions',

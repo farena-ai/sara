@@ -246,6 +246,50 @@ const num = (v: unknown): number | null => {
 const round = (n: number, d = 2): number => Math.round(n * 10 ** d) / 10 ** d;
 
 /** Yahoo Finance spark (several symbols in one request). */
+// ---------------------------------------------------------------- Leftover 11: earnings dates and headlines
+
+export interface Headline {
+  title: string;
+  publisher: string;
+  link: string;
+  /** When it was published, ISO. */
+  at: string;
+}
+export interface StockEvents {
+  /** Per symbol: the next earnings date (YYYY-MM-DD, estimated or confirmed) and up to 3 headlines. */
+  symbols: Record<string, { earnings?: { date: string; estimate: boolean }; news: Headline[] }>;
+  source: string;
+  /** When Sara read it, ISO. */
+  at: string;
+  /** What couldn't be read (earnings dates, or a symbol's news), in words. */
+  missing: string[];
+}
+
+/** Yahoo Finance search (no key): the news list, newest first, up to `n`. */
+export function parseYahooNews(json: unknown, n = 3): Headline[] {
+  const news = (json as { news?: unknown })?.news;
+  if (!Array.isArray(news)) return [];
+  return news
+    .map((x: { title?: unknown; publisher?: unknown; link?: unknown; providerPublishTime?: unknown }) => ({ title: String(x?.title ?? '').replace(/\s+/g, ' ').trim().slice(0, 200), publisher: String(x?.publisher ?? '').slice(0, 60), link: String(x?.link ?? ''), t: Number(x?.providerPublishTime) }))
+    .filter((x) => x.title && /^https:\/\//.test(x.link) && Number.isFinite(x.t) && x.t > 0)
+    .sort((a, b) => b.t - a.t)
+    .slice(0, n)
+    .map(({ t, ...h }) => ({ ...h, at: new Date(t * 1000).toISOString() }));
+}
+
+/** Yahoo Finance quote (with its cookie and crumb, no key): each symbol's next earnings date. */
+export function parseYahooEarnings(json: unknown): Record<string, { date: string; estimate: boolean }> {
+  const out: Record<string, { date: string; estimate: boolean }> = {};
+  const rows = (json as { quoteResponse?: { result?: unknown } })?.quoteResponse?.result;
+  if (!Array.isArray(rows)) return out;
+  for (const r of rows as { symbol?: unknown; earningsTimestampStart?: unknown; earningsTimestamp?: unknown; isEarningsDateEstimate?: unknown }[]) {
+    const t = Number(r.earningsTimestampStart ?? r.earningsTimestamp);
+    if (typeof r.symbol !== 'string' || !Number.isFinite(t) || t <= 0) continue;
+    out[r.symbol] = { date: new Date(t * 1000).toISOString().slice(0, 10), estimate: r.isEarningsDateEstimate === true };
+  }
+  return out;
+}
+
 export function parseYahooSpark(json: unknown, fetchedAt: string): QuoteResult {
   const res = (json as { spark?: { result?: { symbol: string; response?: { meta?: Record<string, unknown> }[] }[] } })?.spark?.result ?? [];
   const quotes: Quote[] = [];
@@ -560,6 +604,56 @@ export class DataSources {
     const order = new Map(symbols.map((s, i) => [s, i]));
     out.sort((a, b) => (order.get(a.symbol) ?? 99) - (order.get(b.symbol) ?? 99));
     return { quotes: out, missing };
+  }
+
+  /**
+   * Leftover 11: the next earnings date and the latest 3 headlines for each symbol, from Yahoo
+   * Finance (free, no key; unofficial like its prices). News comes from its search; earnings dates
+   * need the cookie and "crumb" its own pages use, fetched once an hour. Kept 1 hour. Whatever can't
+   * be read is listed in `missing`, never guessed.
+   */
+  async stockEvents(raw: string[]): Promise<StockEvents> {
+    const symbols = [...new Set(raw.map((s) => String(s).trim().toUpperCase()).filter((s) => SYMBOL.test(s)))].slice(0, 10);
+    const p: ProviderInfo = { ...(providerInfo('yahoo') as ProviderInfo) };
+    return this.#cached<StockEvents>(`ev:${symbols.join(',')}`, () => 60 * 60_000, async () => {
+      const at = new Date(this.#now()).toISOString();
+      const out: StockEvents = { symbols: Object.fromEntries(symbols.map((s) => [s, { news: [] }])), source: 'Yahoo Finance', at, missing: [] };
+      try {
+        const crumb = await this.#yahooCrumb();
+        const { body } = await this.#get(p, `https://query2.finance.yahoo.com/v7/finance/quote?symbols=${symbols.map(encodeURIComponent).join(',')}&fields=earningsTimestamp,earningsTimestampStart,isEarningsDateEstimate&crumb=${encodeURIComponent(crumb.crumb)}`, { headers: { cookie: crumb.cookie } });
+        const e = parseYahooEarnings(this.#json(p, body));
+        for (const s of symbols) if (e[s]) out.symbols[s].earnings = e[s];
+      } catch (err) {
+        this.#crumb = undefined;
+        out.missing.push(`earnings dates (${err instanceof DataError ? err.message : 'no answer'})`);
+      }
+      for (const s of symbols) {
+        try {
+          const { body } = await this.#get(p, `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(s)}&quotesCount=0&newsCount=6`);
+          out.symbols[s].news = parseYahooNews(this.#json(p, body));
+        } catch {
+          out.missing.push(`news for ${s}`);
+        }
+      }
+      return out;
+    });
+  }
+
+  #crumb: { crumb: string; cookie: string; at: number } | undefined;
+
+  /** Yahoo's session cookie (from fc.yahoo.com, which answers 404 with it) and the crumb for it. */
+  async #yahooCrumb(): Promise<{ crumb: string; cookie: string }> {
+    if (this.#crumb && this.#now() - this.#crumb.at < 60 * 60_000) return this.#crumb;
+    const f = this.#deps.fetch ?? netFetch;
+    const ua = { 'user-agent': 'Mozilla/5.0 (Sara assistant)' };
+    const first = await f('https://fc.yahoo.com/', { headers: ua, redirect: 'manual', signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const cookie = (first.headers.getSetCookie?.() ?? [first.headers.get('set-cookie') ?? '']).map((c) => c.split(';')[0]).filter(Boolean).join('; ');
+    if (!cookie) throw new DataError('no-answer', 'yahoo', "Yahoo Finance didn't hand out its session cookie.");
+    const res = await f('https://query1.finance.yahoo.com/v1/test/getcrumb', { headers: { ...ua, cookie }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+    const crumb = (await res.text().catch(() => '')).trim();
+    if (!res.ok || !crumb || crumb.length > 40 || /[\s<{]/.test(crumb)) throw new DataError('no-answer', 'yahoo', "Yahoo Finance didn't give a crumb for its earnings dates.");
+    this.#crumb = { crumb, cookie, at: this.#now() };
+    return this.#crumb;
   }
 
   async #fetchQuotes(p: ProviderInfo, symbols: string[]): Promise<QuoteResult> {

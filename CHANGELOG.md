@@ -5,6 +5,36 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.8.0 (2026-11-14): gets it right, and runs on its own
+
+- New: **Auto (recommended)** for Talking, Coding, Looking at pictures and Web research in Settings →
+  Models. Auto picks from what is connected: tool support, can it see, on this computer or not, how
+  fast each model really answered here, recent errors and your spend limit. When the pick errors,
+  stays empty or says nothing for 45 seconds, the next-best model answers once and a small note
+  says so. Private chats only use models on this computer. Each reply shows "(Auto)" with the
+  reason. New installs start on Auto; existing setups keep their choices (the model notice offers
+  Auto, with Undo).
+- New: a "did it work?" check after every change she makes: files are read back, documents and
+  forms use their own report, Gmail drafts, sent emails and calendar events are read back by id,
+  tasks are read back from the planner, commands on your PC need exit code 0, desktop actions keep
+  their fresh look. "Done", "saved", "sent" or "added" in her reply now need a verified result,
+  otherwise she corrects herself.
+- New: **How she did** (Settings → Data & health, owner only): failed, slow and empty replies, backup
+  models that took over, refused desktop actions and changes she couldn't check, with the top
+  failure reasons, links to those chats and tips. The weekly review gets a small card with the
+  counts. Stays on this computer.
+
+- New: Automations, one place (Settings → You → Automations). "When ___, do ___": on a schedule
+  (daily, weekdays, chosen days, a day of the month, in your time zone), when an email or a webhook
+  arrives, when a price, score, product or file watch fires, or minutes before a calendar event; then
+  tell me, ask Sara to do a task, draft an email, fill one of your forms, run a recipe, or add a bill
+  or an expense. Your watches, event triggers, routines and repeating reminders are listed on the same
+  page with their own switches. Make one by asking ("every Friday at 3, fill my time sheet from my
+  calendar and send it to me"): the card shows exactly what will run, the next three times and the
+  approvals, and takes one Allow. Try it runs without doing anything. Changes still ask (a run waits
+  for your Allow), drafts are never sent unless you turn that on for one, the last 50 runs are kept,
+  and three failures in a row pause it and tell you why. A Today tile appears only when one failed,
+  waits for you, or runs today. Starter: Fill my time sheet every week. See docs/AUTOMATIONS.md.
 - New: Sara checks whether the talking model suits this computer. A model bigger than 3 billion
   parameters running on the processor (no graphics card), replies that usually take over 30 seconds,
   or a model without tool support get a plain notice in Settings → Models → Default model and in
@@ -42,6 +72,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
   final score when you want. Optional limits you set yourself (weekly loss, most per bet, cool-off)
   are said plainly when crossed; logging is never blocked. She never places bets or links to a
   sportsbook. See [docs/SPORTS.md](docs/SPORTS.md).
+- Fixed: the Windows app noticed a new version late when its server updated before the signed
+  update notice was published; it now looks again after 15 minutes (doubling up to 4 hours).
+- Fixed: a command you stopped reads "Stopped" in her step line and the run view, not "Didn't work".
+- Fixed: the Ctrl+Enter hint under Interrupt now is hidden on phones and other touch or narrow screens.
+- Improved: a reply you interrupted folds under "She was saying…" with its first words (about 80 characters) as a preview.
+- Fixed: the MCP tools update_note and delete_note now say that the old text is kept as an earlier
+  version and that a deleted note can come back for 30 days (true since 3.4.2).
+- Fixed: a text-only model in the Looking at pictures (or Screen) slot, as its provider's model list
+  says (for example a Grok text model through the xAI API), is skipped for the next model that can
+  see, and Settings → Models says which model gets the pictures instead.
+- Developers: `npm run hydrate:tools` installs the developer tools' own packages that some tests
+  import; `npm run typecheck` names the missing ones instead of failing with "Cannot find module".
+- Changed: a PDF with letters its built-in Latin fonts can't show (Greek, Cyrillic, Chinese, Arabic,
+  ...) is no longer made full of "?": she names the letters and offers a Word document instead.
+- Fixed: the card for a product search is titled "Shopping: …" instead of "Web search: …".
+- New: a table question grouped by a column (for example spending per category) shows a bar chart
+  under the answer in the chat.
+- New: "How are my stocks doing?" also lists each holding's next earnings date and latest three
+  headlines (Yahoo Finance, no key needed), with the time they were checked.
+- Developers: `npm run guide` regenerates the guide's generated parts; `npm run check` now fails
+  with that instruction when web/howto.json, the dials or the / menu changed without it.
 
 ## 3.7.0 (2026-11-13): decisions and business tools
 

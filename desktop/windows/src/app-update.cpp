@@ -300,6 +300,11 @@ bool isDate(const std::string& d) {
 
 }  // namespace
 
+long long raceRetrySeconds(const std::string& noticeVersion, const std::string& serverVersion, int tries) {
+  if (serverVersion.empty() || tries < 0 || tries >= kRaceTries || compareVersions(serverVersion, noticeVersion) <= 0) return 0;
+  return std::min<long long>(15LL * 60 << tries, 4 * 3600);
+}
+
 int compareVersions(const std::string& a, const std::string& b) {
   auto parts = [](std::string v) {
     std::vector<long> out;
@@ -400,6 +405,8 @@ struct G {
   bool want = false;     // install as soon as it's quiet
   bool wantFromServer = false;
   long long lastServerCheck = 0;
+  std::string serverAhead;  // the newer version the server reported (the notice may lag behind it)
+  int raceTries = 0;
 };
 G* g = nullptr;
 
@@ -576,7 +583,16 @@ void runCheck() {
       log(L"the update notice wasn't trusted: " + wide(why));
       setState(State::Failed, L"The update notice wasn't trusted (" + wide(why) + L"), so nothing was downloaded.");
     } else {
-      iniSet(L"nextCheck", std::to_wstring(now + 6 * 3600));
+      long long race = raceRetrySeconds(n.version, g->serverAhead, g->raceTries);
+      if (race > 0) {
+        // The server is newer than the notice: it is probably not published yet. Look again soon.
+        g->raceTries++;
+        iniSet(L"nextCheck", std::to_wstring(now + race));
+        log(L"the server is on " + V(g->serverAhead) + L" but the notice still says " + V(n.version) + L": looking again in " + std::to_wstring(race / 60) + L" min");
+      } else {
+        iniSet(L"nextCheck", std::to_wstring(now + 6 * 3600));
+        if (compareVersions(n.version, g->serverAhead) >= 0) g->raceTries = 0;
+      }
       if (iniGet(L"seen").empty() || compareVersions(n.version, u8(iniGet(L"seen"))) > 0) iniSet(L"seen", V(n.version));
       g->notice = n;
       g->haveNotice = true;
@@ -656,7 +672,13 @@ void serverVersion(const std::string& v) {
   {
     std::lock_guard<std::mutex> l(g->m);
     long long now = nowSecs();
-    if (now - g->lastServerCheck < 3600) return;
+    // A version not reported before starts a fresh check (and fresh short retries) at once.
+    bool fresh = g->serverAhead.empty() || compareVersions(v, g->serverAhead) > 0;
+    if (fresh) {
+      g->serverAhead = v;
+      g->raceTries = 0;
+    }
+    if (!fresh && now - g->lastServerCheck < 3600) return;
     g->lastServerCheck = now;
   }
   log(L"the server is on " + wide(v) + L": checking for a newer app");

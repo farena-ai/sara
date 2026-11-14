@@ -174,6 +174,24 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 
 /* C4: "When this happens" event triggers (web/event-triggers.js), on the Webhooks page. */
 .et-box { margin: 8px 0 12px; }
+/* N2: Settings → You → Automations (web/automations.js). */
+.atm-box { margin: 8px 0 12px; }
+.atm-make textarea { width: 100%; }
+.atm-make .row { flex-wrap: wrap; gap: 6px; align-items: center; }
+.atm-row { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 8px 10px; margin: 0 0 8px; display: flex; flex-direction: column; gap: 4px; }
+.atm-row.au-off { opacity: 0.75; }
+.atm-row.au-waiting { border-color: var(--warn); background: var(--warn-soft); }
+.atm-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.atm-name { flex: 1 1 auto; color: var(--text-1); }
+.atm-src { color: var(--text-2); }
+.atm-switch { gap: 4px; align-items: center; }
+.atm-acts { flex-wrap: wrap; gap: 4px; }
+.atm-history { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; display: flex; flex-direction: column; gap: 4px; }
+.atm-out { font-weight: 600; color: var(--text-1); }
+.atm-out-failed, .atm-out-declined { color: var(--danger); }
+.atm-out-waiting { color: var(--warn); }
+.atm-edit, .atm-card { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); padding: 8px 10px; margin: 6px 0; display: flex; flex-direction: column; gap: 6px; color: var(--text-1); }
+.atm-days { flex-wrap: wrap; gap: 6px; align-items: center; }
 .et-tools { flex-wrap: wrap; gap: 4px 12px; }
 .et-form .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
 .et-form .rt-field[hidden] { display: none; }

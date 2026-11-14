@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import { runTurn, type ChatEvent } from '../src/chat.ts';
 import { makeDocument, madeDocs, madeFile, madePreview, renderDocument } from '../src/documents/make.ts';
 import { parseMarkdown } from '../src/documents/markdown.ts';
-import { toAnsi } from '../src/documents/pdf.ts';
+import { lettersPdfCantShow, toAnsi } from '../src/documents/pdf.ts';
 import { cellValue, cleanSpec, DocError, fileName, guessTemplate, sheetsOf, slidesOf } from '../src/documents/spec.ts';
 import { CORE_CHAT, familyOf, leanFor, DEFAULT_LEAN, searchTools } from '../src/lean.ts';
 import { readDocument } from '../src/library/read.ts';
@@ -286,4 +286,22 @@ test('make_document: offered in private local mode, found by find_tools and by t
     const tt = leanFor(lean, [tool], { text: msg, mode: 'chat', local: true, turnId: 1, ownerTurnIds: [1] });
     assert.ok(tt.offeredNames([tool]).includes('make_document'), msg);
   }
+});
+
+test('Leftover 8: a PDF with letters the Latin fonts lack is refused by name, with Word suggested', (t) => {
+  const { dir, cleanup } = tempDir();
+  t.after(cleanup);
+  const app = makeApp(dir, { now: new Date('2026-11-14T12:00:00Z') });
+  app.library = new LibraryStore(app.store.db, dir, () => new Date('2026-11-14T12:00:00Z'));
+  assert.deepEqual(lettersPdfCantShow('Kraków łódź café ½ 2026 → 🎉'), [], 'accents, numbers, arrows and emoji are not refused');
+  assert.deepEqual(lettersPdfCantShow('Привет мир, 你好 你'), ['П', 'р', 'и', 'в', 'е', 'т', 'м', '你', '好'], 'each letter once, in order');
+  assert.throws(
+    () => makeDocument(app, { format: 'pdf', title: 'Menu', content: '# Menu\n\n寿司 and ramen' }),
+    (e: Error) => e instanceof DocError && /can't show "寿" "司": its built-in fonts are Latin only/.test(e.message) && /format "docx"/.test(e.message),
+  );
+  const many = 'αβγδεζηθικλμνξ';
+  assert.throws(() => makeDocument(app, { format: 'pdf', title: 'Greek', content: many }), /"μ" and 2 more:/);
+  // The same text as Word is fine, and a Latin PDF still works.
+  assert.equal(makeDocument(app, { format: 'docx', title: 'Menu', content: '寿司 and ramen' }).made.format, 'docx');
+  assert.equal(makeDocument(app, { format: 'pdf', title: 'Café', content: 'Crème brûlée, 3 €' }).made.format, 'pdf');
 });

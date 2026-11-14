@@ -430,7 +430,7 @@
           <button id="send-more" class="send-more" type="button" aria-label="More ways to send while she works" aria-haspopup="menu" aria-expanded="false" aria-controls="send-menu" hidden><i class="ic" data-icon="chevron-down"></i></button>
           <div id="send-menu" class="send-menu head-pop" role="menu" hidden>
             <button class="pop-item" type="button" role="menuitem" data-busy="steer" title="She reads it before her next step. It can't answer an approval card: use Allow or Deny for that."><strong>Tell her now</strong><span class="muted small">She reads it before her next step.</span></button>
-            <button class="pop-item" type="button" role="menuitem" data-busy="interrupt" title="She stops what she's writing or thinking at once and reads it (Ctrl+Enter). Something that changes things, like a command, finishes first."><strong>Interrupt now</strong><span class="muted small">She stops at once and reads it. Ctrl+Enter.</span></button>
+            <button class="pop-item" type="button" role="menuitem" data-busy="interrupt" title="She stops what she's writing or thinking at once and reads it (Ctrl+Enter). Something that changes things, like a command, finishes first."><strong>Interrupt now</strong><span class="muted small">She stops at once and reads it.<span class="kbd-hint"> Ctrl+Enter.</span></span></button>
             <button class="pop-item" type="button" role="menuitem" data-busy="queue" title="She does it when she's finished, as its own message."><strong>After this</strong><span class="muted small">She does it when she's finished.</span></button>
             <button class="pop-item" type="button" role="menuitem" data-busy="btw" title="A quick answer on the side from what's in this chat. It isn't saved and she doesn't stop working."><strong>Just asking</strong><span class="muted small">A quick answer on the side. Not added to the chat.</span></button>
           </div>
@@ -532,6 +532,7 @@
                 <section class="today-card td-tile" id="td-models" hidden tabindex="0" aria-labelledby="td-models-h"><div class="td-tile-head"><h3 id="td-models-h">Model changes</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile" id="td-hooks" hidden tabindex="0" aria-labelledby="td-hooks-h"><div class="td-tile-head"><h3 id="td-hooks-h">From your webhooks</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-watching" hidden tabindex="0" aria-labelledby="td-watching-h"><div class="td-tile-head"><h3 id="td-watching-h">Watching</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-automations" hidden tabindex="0" aria-labelledby="td-automations-h"><div class="td-tile-head"><h3 id="td-automations-h">Automations</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-teams" hidden tabindex="0" aria-labelledby="td-teams-h"><div class="td-tile-head"><h3 id="td-teams-h">My teams</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-agenda" hidden tabindex="0" aria-labelledby="td-agenda-h"><div class="td-tile-head"><h3 id="td-agenda-h">Planner</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile td-setup" id="td-setup" hidden tabindex="0" aria-labelledby="td-setup-h"><div class="td-tile-head"><h3 id="td-setup-h">Add to your day</h3></div><div class="td-body"></div></section>
@@ -3427,6 +3428,19 @@
       <p class="muted small">The list is in Planner → Reminders → When it comes up. In any of your chats you can also type /when.</p>
       </div>
         </section>
+        <!-- N2 (docs/AUTOMATIONS.md): automations, one place (web/automations.js). -->
+        <section class="settings-page" data-page="you-automations" data-group="You" data-title="Automations" hidden>
+      <p class="muted small page-lead">When ___, do ___. Everything that runs on its own is here: the ones you make here or by asking her, and the watches, triggers, routines and repeating reminders set up elsewhere. Changes keep their approvals, and drafts are never sent unless you turn that on for one. <a href="/help#automations" target="_blank" rel="noopener">How automations work</a></p>
+      <div class="atm-make" data-nodirty data-noauto>
+        <label>Describe it <button type="button" class="tip" data-tip="In your own words: when it runs and what she does. For example “every Friday at 3, fill my time sheet from my calendar and send it to me”. Preview shows exactly what will run before anything is on.">?</button>
+          <textarea id="atm-words" rows="2" maxlength="1000" placeholder="Every Friday at 3, fill my time sheet from my calendar and send it to me"></textarea></label>
+        <div class="row"><button type="button" id="atm-preview-btn" class="small">Preview</button> <span class="muted small">Or start from:</span> <span id="atm-starters" class="row"></span></div>
+        <div id="atm-preview"></div>
+      </div>
+      <p id="atm-status" class="muted small" role="status"></p>
+      <h3 id="atm-h">Your automations <button type="button" class="tip" data-tip="On/off, History (the last 50 runs with what each step did), Edit for the name and time, and Ask Sara to change it. Three failed runs in a row pause one and tell you why.">?</button></h3>
+      <div id="atm-list" class="atm-box" data-nodirty data-noauto aria-labelledby="atm-h"></div>
+        </section>
         <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
         <section class="settings-page" data-page="ab-precise" data-group="Coding" data-title="Check her edits" data-owner-only hidden>
       <div id="pc-form">
@@ -4348,6 +4362,15 @@
       <ul id="log-problems" class="log-list"></ul>
       <p class="small"><label>Log level <button type="button" class="tip" data-tip="How much she writes to her log. Info is the default; Debug adds detail when tracking down a problem (bigger log); Warnings or Errors only keep it short. Secrets stay hidden. SARA_LOG_LEVEL on the server, if set, wins.">?</button> <select id="log-level"><option value="debug">Debug (most detail)</option><option value="info">Info (default)</option><option value="warn">Warnings and errors</option><option value="error">Errors only</option></select></label> <span id="log-level-env" class="muted small" hidden></span></p>
       <p class="small"><a id="log-download" href="/api/logs/download" download>Download the log</a> <span class="muted small">Secrets are hidden in it. Useful when asking for help.</span></p>
+        </section>
+        <section class="settings-page" data-page="dh-quality" data-group="Data & health" data-title="How she did" data-owner-only hidden>
+      <p class="small">Failed and slow replies, models that handed over, refused desktop actions and changes she could not check. <button type="button" class="tip" data-tip="Counted from her own run history on this computer: replies that failed, took over a minute or came back empty, backup models that took over, desktop actions refused or acted on a changed window, and changes she could not verify. Nothing is sent anywhere.">?</button></p>
+      <p class="small"><label>Period <button type="button" class="tip" data-tip="How far back to count. Her run history is kept as set in Health → Run history (90 days by default).">?</button> <select id="q-days"><option value="7">Last 7 days</option><option value="14">Last 14 days</option><option value="30">Last 30 days</option></select></label></p>
+      <ul id="q-counts" class="health"></ul>
+      <h3>Top problems</h3>
+      <ul id="q-reasons" class="log-list"></ul>
+      <h3>Tips</h3>
+      <ul id="q-tips" class="small"></ul>
         </section>
         <section class="settings-page" data-page="dh-operations" data-group="Data & health" data-title="Operations" data-owner-only hidden>
           <div id="operations-content" aria-live="polite"></div>

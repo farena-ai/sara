@@ -39,6 +39,7 @@ import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
+import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
@@ -1711,6 +1712,7 @@ initToday({
   // Phase 103: Today's "Her plans" tile (web/agenda.js).
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
+  renderAutomations: (part, head) => renderAutomationsTile(part, head),
   renderPhotos: renderTodayPhotos,
   // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
   renderMoments: renderTodayMoments,
@@ -1943,6 +1945,11 @@ function msgActions(div, m, { last, lastUser, other = false }) {
     const who = el('span', 'msg-model', m.meta.model);
     who.dataset.raw = '';
     who.title = m.meta.provider ? `${m.meta.model} · ${m.meta.provider}` : m.meta.model;
+    // N1: Auto's pick says why (the reason line in the tooltip).
+    if (m.meta.autoWhy) {
+      who.textContent = t('{model} (Auto)', { model: m.meta.model });
+      who.title += `\n${autoWhyText(m.meta.autoWhy)}`;
+    }
     bar.append(who);
   }
   if (m.role === 'user' && lastUser) {
@@ -2295,6 +2302,8 @@ function renderMessages(messages, opts = {}) {
       if (m.role === 'assistant' && !m.meta?.toolCalls?.length) flush();
       // Phase 119: the ⏰ chip (a reminder that came up) and the card of one she set (web/recall-when.js).
       if (m.role === 'assistant') els.push(...whenFor(m));
+      // N1: the weekly review's "How she did" card (owner only).
+      if (m.role === 'assistant' && m.meta?.quality && !isMember()) els.push(qualityCard(m.meta.quality));
       // Phase 81: her security pass over the files this turn changed (when it has finished).
       // Phase 86: "Red-team this" on the after-turn card (the threat card when there is one, else this one).
       const rtWs = (state.conversations ?? []).find((c) => c.id === state.currentId)?.workspace;
@@ -4595,7 +4604,7 @@ $('#pe-reset').addEventListener('click', async () => {
 
 // ---------- model routing (Settings) ----------
 // Phase 38: which model does what. One row per job (provider, model, Test, Compare, backups).
-const jobsUi = { jobs: [], rows: new Map(), companion: null, defaults: [], classifier: null, costs: {} };
+const jobsUi = { jobs: [], rows: new Map(), companion: null, defaults: [], classifier: null, costs: {}, pictures: {} };
 function providerSelect(blank, filter = () => true) {
   const sel = document.createElement('select');
   sel.append(new Option(blank, ''), ...state.providers.providers.filter(filter).map((p) => new Option(p.label, p.id)));
@@ -4607,7 +4616,7 @@ function modelPick(blank, cur, filter) {
   sel.value = cur?.providerId ?? '';
   const chooser = modelChooser();
   void chooser.load(sel.value, cur?.model ?? '');
-  sel.addEventListener('change', () => chooser.load(sel.value));
+  sel.addEventListener('change', () => chooser.load(sel.value === '__auto' ? '' : sel.value));
   return {
     sel,
     chooser,
@@ -4616,6 +4625,42 @@ function modelPick(blank, cur, filter) {
       sel.value = pid;
       await chooser.load(pid, model);
     },
+  };
+}
+/** N1: the jobs Auto can pick for (src/auto-route.ts AUTO_JOBS). */
+const AUTO_JOB_IDS = ['chat', 'coding', 'vision', 'research'];
+/** N1: Auto's English reason line, in the app's language ("Auto for talking: fast here, can use tools."). */
+function autoWhyText(why) {
+  const m = /^Auto for ([^:]+): (.*)\.$/.exec(why ?? '');
+  if (!m) return why ?? '';
+  const parts = m[2].split(', ').map((p) => {
+    const sec = /^first word in (\d+) s here$/.exec(p);
+    if (sec) return t('first word in {n} s here', { n: Number(sec[1]) });
+    const slow = /^slow here \((\d+) s to the first word\)$/.exec(p);
+    if (slow) return t('slow here ({n} s to the first word)', { n: Number(slow[1]) });
+    const failed = /^failed (\d+)% of the time lately$/.exec(p);
+    if (failed) return t('failed {n}% of the time lately', { n: Number(failed[1]) });
+    const left = /^best left \((.*)\)$/.exec(p);
+    if (left) return t('best left ({why})', { why: autoWords()[left[1]] ?? left[1] });
+    return autoWords()[p] ?? p;
+  });
+  return t('Auto for {job}: {why}.', { job: autoWords()[m[1]] ?? m[1], why: parts.join(', ') });
+}
+/** N1: the fixed words of Auto's reason line (src/auto-route.ts), translated. */
+function autoWords() {
+  return {
+    talking: t('talking'),
+    'tools and long tasks': t('tools and long tasks'),
+    pictures: t('pictures'),
+    'web research': t('web research'),
+    'can use tools': t('can use tools'),
+    "can't use tools": t("can't use tools"),
+    'can see pictures': t('can see pictures'),
+    'strong with long tasks': t('strong with long tasks'),
+    'quick model': t('quick model'),
+    'too big for this processor': t('too big for this processor'),
+    'on this computer': t('on this computer'),
+    'the best match connected': t('the best match connected'),
   };
 }
 function jobHint(row, text, bad = false) {
@@ -4655,6 +4700,11 @@ function jobRow(job, cur, opts = {}) {
     actions.append(cmp);
   }
   const hint = el('div', 'job-hint');
+  // N1: Auto (recommended) for talking, tools and long tasks, pictures and research.
+  if (AUTO_JOB_IDS.includes(job.id) && !opts.noAuto) {
+    pick.sel.insertBefore(new Option(t('Auto (recommended)'), '__auto'), pick.sel.options[1] ?? null);
+    if (jobsUi.autoOn?.includes(job.id)) pick.sel.value = '__auto';
+  }
   row.append(name, pick.sel, pick.chooser.el, actions, hint);
   const r = { job, pick, hint, el: row, backups: [] };
   if (!opts.noBackups) {
@@ -4674,6 +4724,15 @@ function jobRow(job, cur, opts = {}) {
   }
   // Backups only once a model is picked here (else the default model's backups apply).
   const showCost = () => {
+    const auto = pick.sel.value === '__auto';
+    pick.chooser.el.hidden = auto;
+    test.hidden = auto;
+    if (auto) {
+      if (r.det) r.det.hidden = true;
+      r.el.classList.add('job-own');
+      const now = jobsUi.autoPicks?.[job.id]?.[0];
+      return jobHint(r, now ? t('Auto picks from what is connected and switches once if a model is slow or fails. Now: {model}. {why}', { model: `${now.provider} (${now.model})`, why: autoWhyText(now.why) }) : t('Auto picks from what is connected and switches once if a model is slow or fails.'));
+    }
     if (r.det) r.det.hidden = !pick.sel.value;
     // Phase 114 (PL1c, S10): the default is said once on top; a row only speaks when it overrides it.
     r.el.classList.toggle('job-own', Boolean(pick.sel.value));
@@ -4682,6 +4741,9 @@ function jobRow(job, cur, opts = {}) {
     const kind = state.providers.providers.find((x) => x.id === pick.sel.value)?.kind;
     // 2.52.1: subscription command-line agents get text only, so a photo never reaches them.
     if ((job.id === 'vision' || job.id === 'screen') && ['claude-code', 'grok-cli'].includes(kind)) return jobHint(r, t("This one can't see pictures (subscription apps get text only), so photos go to the next model that can. Pick an API, ChatGPT or local model here."), true);
+    // Leftover 6: a model its provider's list says takes no pictures is skipped the same way.
+    const blind = jobsUi.pictures?.[job.id];
+    if (blind && pick.sel.value === blind.providerId && pick.chooser.value() === blind.model) return jobHint(r, blind.usedModel ? t("This model can't take pictures, so photos go to {model}, the next one that can.", { model: `${blind.usedProvider} · ${blind.usedModel}` }) : t("This model can't take pictures, and nothing else connected can. Pick a model that can see here."), true);
     jobHint(r, pick.sel.value ? costFor(pick.sel.value, pick.chooser.value()) : '');
   };
   pick.sel.addEventListener('change', showCost);
@@ -4710,10 +4772,14 @@ function jobRow(job, cur, opts = {}) {
   return row;
 }
 async function renderRoutes() {
-  const [s, info] = await Promise.all([api('/settings'), api('/model-jobs').catch(() => null)]);
+  const [s, info, auto] = await Promise.all([api('/settings'), api('/model-jobs').catch(() => null), api('/model-jobs/auto').catch(() => null)]);
+  jobsUi.autoOn = s.autoJobs ?? [];
+  jobsUi.saved = s.routes ?? {};
+  jobsUi.autoPicks = Object.fromEntries((auto?.jobs ?? []).map((j) => [j.job, j.picks]));
   state.defaultProviderId = s.defaultProviderId;
   state.defaultModel = s.defaultModel;
   jobsUi.jobs = info?.jobs ?? [];
+  jobsUi.pictures = info?.pictures ?? {};
   jobsUi.rows.clear();
   const adultOk = !/\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent);
   // Her own model (this companion only), for talking.
@@ -4756,7 +4822,14 @@ async function renderRoutes() {
 }
 async function saveRoutes() {
   const routes = {};
+  const autoJobs = [];
   for (const [key, r] of jobsUi.rows) {
+    if (r.pick.sel.value === '__auto') {
+      autoJobs.push(key);
+      const was = jobsUi.saved?.[key];
+      if (was) routes[key] = was;
+      continue;
+    }
     const v = r.pick.value();
     if (!v) continue;
     const fallbacks = r.backups.map((b) => b.value()).filter(Boolean);
@@ -4764,6 +4837,7 @@ async function saveRoutes() {
   }
   const body = {
     routes,
+    autoJobs,
     safetyClassifier: jobsUi.classifier?.pick.value() ?? null,
     claimJudge: jobsUi.claimJudge?.pick.value() ?? null,
     companionModel: jobsUi.companion?.pick.value() ?? null,
@@ -7210,6 +7284,10 @@ function startEvents() {
   es.addEventListener('hooks', () => {
     if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadHooks();
   });
+  // N2: an automation ran, waits for an OK or changed: its page refreshes.
+  es.addEventListener('automations', () => {
+    if (document.querySelector('[data-page="you-automations"]:not([hidden])')) void loadAutomations();
+  });
   // C4: a trigger ran or skipped: the "When this happens" list refreshes.
   es.addEventListener('triggers', () => {
     if (document.querySelector('[data-page="co-hooks"]:not([hidden])')) void loadEventTriggers();
@@ -8827,6 +8905,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-devices') showOfflineSettings();
   if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
   if (pick === 'dh-safety') void loadSafetyCheck();
+  if (pick === 'dh-quality') void loadQuality();
   if (pick === 'dh-recovery') {
     void readiness.refresh();
     void recovery.refresh();
@@ -8860,6 +8939,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'models-default') void paintFitness($('#model-fitness'));
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
+  if (pick === 'you-automations') void loadAutomations();
   if (pick === 'co-pickup') void loadPickupSettings();
   if (pick === 'co-continuity') void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
@@ -11233,7 +11313,37 @@ async function paintFitness(host) {
     }
     kids.push(row);
   } else kids.push(el('p', 'muted small', t('Faster choices: an Ollama Cloud model, a smaller local model, or a computer with a graphics card.')));
+  // N1: or let Auto pick per job from what is connected (and switch when a model is slow).
+  if (r.autoChat === false) {
+    const a = el('button', 'small', t('Use Auto (recommended)'));
+    a.type = 'button';
+    a.title = t('Auto picks a model per job from what is connected and switches once if one is slow or fails.');
+    a.addEventListener('click', () => void useAuto(host));
+    const autoRow = el('div', 'fit-choices');
+    autoRow.append(a);
+    kids.push(autoRow);
+  }
   host.replaceChildren(...kids);
+}
+/** N1: "Use Auto": every job Auto can pick for; Undo puts the old choices back. */
+async function useAuto(host) {
+  const before = await api('/settings');
+  const prev = { autoJobs: before.autoJobs ?? [], companionModel: before.companionModel ?? null };
+  try {
+    await api('/settings', { method: 'PUT', body: { autoJobs: AUTO_JOB_IDS, ...(prev.companionModel ? { companionModel: null } : {}) } });
+  } catch (err) {
+    return void host.append(el('p', 'bad small', err.message));
+  }
+  const undo = el('button', 'ghost small', t('Undo'));
+  undo.type = 'button';
+  undo.addEventListener('click', async () => {
+    undo.disabled = true;
+    await api('/settings', { method: 'PUT', body: prev }).catch((err) => void host.append(el('p', 'bad small', err.message)));
+    host.replaceChildren(el('p', '', t('Back to your own choices.')));
+    refreshModelSettings();
+  });
+  host.replaceChildren(el('p', '', t('Auto is on: she picks the model per job from what is connected.')), undo);
+  refreshModelSettings();
 }
 /** "Use this": the talking model changes through the settings API; Undo puts the old choice back. */
 async function useChatModel(c, host, was) {
@@ -11266,6 +11376,56 @@ $('#td-start-hide').addEventListener('click', async () => {
   await api('/checklist', { method: 'PUT', body: { hidden: true } }).catch(() => {});
   $('#td-start').hidden = true;
 });
+
+// N1: "How she did" (Settings → Data & health) and its card on the weekly review.
+const QUALITY_KEYS = ['turns', 'failed', 'slow', 'empty', 'fallbacks', 'refused', 'stale', 'unverified'];
+function qualityLabel(k) {
+  return {
+    turns: t('Replies'),
+    failed: t('Failed replies'),
+    slow: t('Slow replies (over a minute)'),
+    empty: t('Empty replies'),
+    fallbacks: t('A backup model took over'),
+    refused: t('Desktop actions refused'),
+    stale: t('Desktop actions on a changed window'),
+    unverified: t('Changes she could not check'),
+  }[k];
+}
+function qualityCard(q) {
+  const box = el('div', 'lean-card quality-card');
+  box.append(el('strong', '', t('How she did this week')));
+  const shown = QUALITY_KEYS.filter((k) => k === 'turns' || q[k] > 0).map((k) => `${qualityLabel(k)}: ${q[k]}`);
+  box.append(el('p', 'small', shown.join(' · ')));
+  const open = el('button', 'ghost small', t('Open How she did'));
+  open.type = 'button';
+  open.addEventListener('click', () => void openSettings('dh-quality'));
+  box.append(open);
+  return box;
+}
+async function loadQuality() {
+  const r = await api(`/quality?days=${Number($('#q-days').value) || 7}`).catch(() => null);
+  if (!r) return;
+  $('#q-counts').replaceChildren(...QUALITY_KEYS.map((k) => {
+    const li = el('li', k !== 'turns' && r[k] > 0 ? 'warn' : 'ok', `${qualityLabel(k)}: `);
+    li.append(el('strong', '', String(r[k])));
+    return li;
+  }));
+  $('#q-reasons').replaceChildren(...(r.reasons.length ? r.reasons.map((x) => {
+    const li = el('li', '', `${x.errorClass} × ${x.count} `);
+    for (const c of x.chats) {
+      const a = el('button', 'linkish small', c.title || t('Open the chat'));
+      a.type = 'button';
+      a.addEventListener('click', async () => {
+        $('#settings')?.close?.();
+        await openConversation(c.id);
+      });
+      li.append(a, ' ');
+    }
+    return li;
+  }) : [el('li', 'muted', t('No failed replies.'))]));
+  $('#q-tips').replaceChildren(...r.tips.map((x) => el('li', '', t(x))));
+}
+$('#q-days').addEventListener('change', () => void loadQuality());
 
 // Weekly review (Phase 22).
 async function loadReview() {
@@ -12286,6 +12446,27 @@ initAgents({
     void openConversation(id);
   },
 });
+// N2: Settings → You → Automations ("Ask Sara to change it" opens its chat with the words ready).
+initAutomations({
+  api,
+  el,
+  openSettings: (page) => void openSettings(page),
+  openConversation: (id) => {
+    if ($('#settings').open) $('#settings').close();
+    void openConversation(id);
+  },
+  askSara: (text, id) => {
+    if ($('#settings').open) $('#settings').close();
+    void Promise.resolve(id ? openConversation(id) : undefined).then(() => {
+      const box = $('#input');
+      if (!box) return;
+      box.value = text;
+      box.focus();
+      box.dispatchEvent(new Event('input'));
+    });
+  },
+});
+wireAutomationsForm();
 // C4: Settings → Connections → Webhooks → When this happens.
 initEventTriggers({
   api,

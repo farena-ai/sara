@@ -375,6 +375,8 @@ CREATE INDEX IF NOT EXISTS event_trigger_runs_t ON event_trigger_runs (trigger_i
    */
   async observe(ev: TriggerEvent): Promise<{ id: number; verdict: Verdict }[]> {
     if (policy().pins.triggers === false) return [];
+    // N2: automations that start on an email or a webhook (their own guards: dedupe, one at a time).
+    this.#app.automations?.observeEvent(ev);
     const out: { id: number; verdict: Verdict }[] = [];
     const text = String(ev.text ?? '');
     const mine = ev.self === true || this.#own.includes(hash(norm(text)));

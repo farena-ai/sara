@@ -38,8 +38,9 @@ trades, never places bets and never calls a bet a sure thing.
 - **Tables:** "What did I spend on food in March?" on a CSV or Excel file in your Library or shared
   in the chat (`analyze_table`). A built-in query engine (filters by text, number or date range,
   group by, sum, average, count, min, max, sort, top N) computes the numbers; no code runs, so it
-  works without the sandbox. There is no chart yet (the document maker has no charts); ask her to
-  make a spreadsheet of the result.
+  works without the sandbox. A result grouped by a column (two or more groups, values of zero or
+  more) also shows as a bar chart in the chat (the first 20 groups); for a file, ask her to make a
+  spreadsheet of the result.
 
 ## Tell me when
 

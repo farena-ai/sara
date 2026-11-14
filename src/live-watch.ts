@@ -185,6 +185,11 @@ export class LiveWatches {
     return r ? this.#view(r) : undefined;
   }
 
+  /** N2: pause or resume from the Automations page (the owner's own pause; a quota pause clears too). */
+  setPaused(id: number, paused: boolean): void {
+    this.#set(id, paused ? { state: 'paused', reason: 'owner', paused_until: null } : { state: 'active', reason: null, paused_until: null });
+  }
+
   /** Today's small "Watching" card. */
   todayTile(): { items: { id: number; label: string; state: string; lastValue: string | null; lastCheckAt: string | null }[] } | undefined {
     const items = this.#rows("state != 'done'").map((r) => this.#view(r)).map((w) => ({ id: w.id, label: w.label, state: w.state, lastValue: w.lastValue, lastCheckAt: w.lastCheckAt }));
@@ -548,6 +553,8 @@ export class LiveWatches {
   #fire(r: Row, text: string, iso: string): void {
     this.#db.prepare('UPDATE live_watches SET fired = fired + 1, last_fired_at = ? WHERE id = ?').run(iso, r.id);
     this.#card(r, this.#conversation(r), text);
+    // N2: automations that start when this watch fires.
+    this.#app.automations?.watchFired('live', r.id, text);
   }
 }
 

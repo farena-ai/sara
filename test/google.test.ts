@@ -92,10 +92,11 @@ test('google tools: search and read (marked untrusted), drafts thread replies, c
   assert.match(Buffer.from(draft.message.raw, 'base64url').toString(), /In-Reply-To: <abc@mail>/);
   assert.match(await tools.calendar_events.run({}, ctx), /Dentist/);
   assert.match(tools.calendar_add.summarize!({ title: 'Lunch with Ana', start: '2026-10-30T12:00' }), /Add to calendar: “Lunch with Ana”/);
-  await tools.calendar_add.run({ title: 'Lunch with Ana', start: '2026-10-30T23:30' }, ctx);
-  const ev = JSON.parse(fake.calls.at(-1)!.body);
+  // N1: the event is read back after it is added (a GET by its id), and the result says so.
+  assert.match(await tools.calendar_add.run({ title: 'Lunch with Ana', start: '2026-10-30T23:30' }, ctx), /\n(?:Verified|Could not verify): /);
+  const ev = JSON.parse(fake.calls.filter((c) => c.body).at(-1)!.body);
   assert.deepEqual([ev.start, ev.end], [{ dateTime: '2026-10-30T23:30:00', timeZone: 'America/Chicago' }, { dateTime: '2026-10-31T00:30:00', timeZone: 'America/Chicago' }]);
-  assert.ok(!fake.calls.at(-1)!.url.includes('sendUpdates'), 'no invitations unless guests are given');
+  assert.ok(!fake.calls.filter((c) => c.body).at(-1)!.url.includes('sendUpdates'), 'no invitations unless guests are given');
 });
 
 test('email helpers: HTML made readable; encoded subject; no header injection', () => {

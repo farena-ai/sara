@@ -9,7 +9,7 @@ import type { AppContext } from '../chat.ts';
 import { makeDocx } from './docx.ts';
 import { makeHtml, previewHtml } from './html.ts';
 import { measure } from './images.ts';
-import { makePdf } from './pdf.ts';
+import { lettersPdfCantShow, makePdf } from './pdf.ts';
 import { makePptx } from './pptx.ts';
 import { cleanSpec, DocError, type DocFormat, type DocSpec, fileName, type ImageLookup, LIMITS, MIME, type Picture } from './spec.ts';
 import { makeCsv, makeXlsx } from './xlsx.ts';
@@ -144,6 +144,9 @@ export function makeDocument(app: AppContext, args: Record<string, unknown>, o: 
   if (args.basedOn !== undefined && args.basedOn !== null && args.basedOn !== '' && !base) throw new DocError(`There is no document #${String(args.basedOn)} here.`);
   if (base?.spec.filled) throw new DocError(`Document #${base.id} is the person's own form, filled in with fill_document; remaking it here would lose its layout. To change it, call fill_document again on the original form "${base.spec.filled.fromName}" with all the values (the corrected ones too).`);
   const spec = cleanSpec({ ...args, format: args.format ?? base?.format, title: args.title ?? base?.title, template: args.template ?? base?.spec.template });
+  // Leftover 8: the PDF writer has Latin fonts only; refuse rather than print "?" for whole words.
+  const unshown = spec.format === 'pdf' ? lettersPdfCantShow(`${spec.title}\n${spec.content}`) : [];
+  if (unshown.length) throw new DocError(`A PDF made here can't show ${unshown.slice(0, 12).map((c) => `"${c}"`).join(' ')}${unshown.length > 12 ? ` and ${unshown.length - 12} more` : ''}: its built-in fonts are Latin only, so those letters would print as "?". Make it as a Word document (format "docx") instead; Word shows every language, and Word or LibreOffice can save it as a PDF.`);
   const data = renderDocument(spec, imagesOf(app));
   if (data.length > LIMITS.outBytes) throw new DocError(`That document came out at ${Math.round(data.length / 1048576)} MB; documents can be up to ${LIMITS.outBytes / 1048576} MB. Use fewer or smaller pictures, or split it.`);
   const made = keepMade(app, { spec, data, family: base?.family, conversationId: o.conversationId, keep: o.keep });

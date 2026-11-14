@@ -9,6 +9,7 @@
 import { locale, t } from './naming.js';
 import { icon } from './icons.js';
 import { fmtDuration, stepWords } from './steps.js';
+import { stoppedByPerson } from './step-words.js';
 import { budgetMeter } from './budget-view.js';
 import { editWords, openBranchSheet, openDiffSheet } from './branch-view.js';
 
@@ -126,7 +127,7 @@ function stepCard(run, step, api, named, branchable, ctx, replan = false) {
   // What the step did, in words (the tools' verbs, or her answer); the model goes on the line below.
   const did = step.tools.map((x) => {
     const [, done] = stepWords(x.name, x.args, named(x.name));
-    return x.status === 'ok' ? done : x.status === 'denied' && x.approval === 'timeout' ? t('Not approved in time: {what}', { what: done }) : x.status === 'denied' ? t('Not allowed: {what}', { what: done }) : t("Didn't work: {what}", { what: done });
+    return x.status === 'ok' ? done : stoppedByPerson(x) ? t('Stopped: {what}', { what: done }) : x.status === 'denied' && x.approval === 'timeout' ? t('Not approved in time: {what}', { what: done }) : x.status === 'denied' ? t('Not allowed: {what}', { what: done }) : t("Didn't work: {what}", { what: done });
   });
   const title = el('span', 'run-step-title', labelText(step.label) || (did.length ? did.join(' · ') : step.replyMessageId ? t('Answered') : t('Step {n}', { n: step.idx + 1 })));
   const meta = el('span', 'run-step-meta muted small', [time(step.at), step.label ? '' : step.model, step.calls.length ? `${tokens(step.tokensIn)} ${t('in')} · ${tokens(step.tokensOut)} ${t('out')}` : '', costWords(step.calls), step.ms ? fmtDuration(step.ms) : ''].filter(Boolean).join(' · '));

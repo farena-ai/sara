@@ -10,7 +10,7 @@ came from and when. For the owner and every household member, each in their own 
 | Ask | Tool | What happens |
 |---|---|---|
 | "Here's my Fidelity export" / "I have AAPL 10 @ 150" | `portfolio_import` | Reads a positions CSV or Excel file (Fidelity, Schwab, Vanguard, Robinhood, E*TRADE and others: columns found by name, like Symbol/Ticker, Quantity/Shares, Cost Basis or Average Cost, Account) or a typed list. Cash and money-market lines count as cash. Importing an account again replaces that account's holdings. |
-| "How are my stocks doing?" | `portfolio_show` | Value now from the stock-price source in [Data sources](DATA.md) (one batched request), today's change, gain against the cost basis and the share of each holding, with the source and time. A symbol with no price is left out and named. |
+| "How are my stocks doing?" | `portfolio_show` | Value now from the stock-price source in [Data sources](DATA.md) (one batched request), today's change, gain against the cost basis and the share of each holding, with the source and time. A symbol with no price is left out and named. Then, for the 10 biggest holdings, the next earnings date and the latest 3 headlines from Yahoo Finance (free, no key; checked at most once an hour), with the time checked; what can't be read is named. |
 | "Here's my bank statement" | `budget_import` | A bank or card export: CSV, Excel, OFX or QFX (download it from the bank's website; PDFs aren't read). Rows loaded before are skipped (same date, amount, description and account). Each gets a category: groceries, dining, fuel, utilities, subscriptions, shopping, travel, health, income, transfers or other. |
 | "Costco is groceries" | `budget_category` | Moves that merchant's rows and remembers it for later imports. |
 | "What did I spend in October?" | `budget_summary` | Totals by category against the month before, the biggest changes, top merchants and income; transfers and card payments are left out of spending. Says when the loaded data only partly covers the period. |
@@ -23,7 +23,8 @@ came from and when. For the owner and every household member, each in their own 
   +0.8% today (Yahoo Finance, 9:31 AM)". If prices don't come, it gives the last value and its time.
 - **Today:** a **Money** tile (portfolio value and today's move with its source and time, bills due
   this week, spent this month). It appears only once you load holdings or transactions, or add a bill.
-- **Price alerts** stay E1's `watch_add` (kind `price`); news and earnings dates are not part of E3.
+- **Price alerts** stay E1's `watch_add` (kind `price`). Earnings dates and headlines come with
+  `portfolio_show` only (no alerts for them).
 - No new settings.
 
 ## Decisions and limits

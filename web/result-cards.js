@@ -2,7 +2,7 @@
 // from a tool's real result (src/cards.ts): never from her reply text. Weather, to-dos, reminders,
 // notes, calendar events, files changed, test runs and background tasks, smart-home actions,
 // pictures and web searches. Every value goes in as text (no HTML), links only to http(s).
-import { t } from './naming.js';
+import { locale, t } from './naming.js';
 import { icon } from './icons.js';
 import { kindFromSky, sparkline, weatherArt } from './viz.js';
 import { gmailResult } from './gmail-view.js';
@@ -181,8 +181,35 @@ function photo(c) {
   return card;
 }
 
+/** Leftover 10: analyze_table grouped by a column, as bars (the numbers are written beside them). */
+function chart(c) {
+  const card = shell('chart', 'library', c.title);
+  const rows = (c.rows ?? []).filter((r) => Number.isFinite(r.value) && r.value >= 0);
+  const top = Math.max(...rows.map((r) => r.value), 0);
+  const ul = el('ul', 'rc-chart');
+  ul.setAttribute('aria-label', c.title);
+  for (const r of rows) {
+    const li = el('li', 'rc-chart-row');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 100 10');
+    svg.setAttribute('preserveAspectRatio', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('class', 'rc-chart-bar');
+    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rect.setAttribute('width', String(top > 0 ? Math.max(0.5, (r.value / top) * 100) : 0));
+    rect.setAttribute('height', '10');
+    rect.setAttribute('rx', '1.5');
+    svg.append(rect);
+    li.append(el('span', 'rc-chart-label', r.label), svg, el('span', 'rc-chart-value', r.value.toLocaleString(locale())));
+    ul.append(li);
+  }
+  card.append(ul);
+  if (c.more) card.append(el('p', 'rc-meta', t('{n} more in the table', { n: c.more })));
+  return card;
+}
+
 function search(c) {
-  const card = shell('search', 'search', t('Web search: {query}', { query: c.query }));
+  const card = shell('search', 'search', c.shopping ? t('Shopping: {query}', { query: c.query }) : t('Web search: {query}', { query: c.query }));
   const ul = el('ul', 'rc-list rc-sources');
   for (const r of c.results ?? []) {
     if (!/^https?:\/\//i.test(r.url)) continue;
@@ -251,7 +278,7 @@ function handsInstall(c) {
   return card;
 }
 
-const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
+const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, chart, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {

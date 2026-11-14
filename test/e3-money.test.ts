@@ -10,7 +10,7 @@ import { test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { gatherFacts, plainBriefing } from '../src/briefing.ts';
 import { LIVE_DATA_TOOL, OFFSERVER_TOOL } from '../src/chat.ts';
-import type { QuoteResult } from '../src/data-sources.ts';
+import { DataSources, parseYahooEarnings, parseYahooNews, type QuoteResult } from '../src/data-sources.ts';
 import { LiveWatches } from '../src/live-watch.ts';
 import { DEFAULT_LEAN, eligibleFor, familyOf, leanFor } from '../src/lean.ts';
 import { LibraryStore } from '../src/library/store.ts';
@@ -435,4 +435,59 @@ test('lean picker: the money tools are one family, found for their words in six 
     const tt = leanFor(lean, tools, { text: msg, mode: 'chat', local: true, turnId: 1, ownerTurnIds: [1] });
     assert.ok(tt.offeredNames(tools).some((n) => tools.some((x) => x.spec.name === n)), msg);
   }
+});
+
+// ---------------------------------------------------------------- Leftover 11: earnings dates and headlines
+
+test('Leftover 11: earnings dates and 3 headlines per holding from Yahoo (no key), with source and time', async (t) => {
+  const NEWS = (sym: string) => ({
+    news: [1, 2, 3, 4].map((i) => ({ title: `${sym} story ${i}`, publisher: 'Wire', link: `https://finance.yahoo.com/${sym}/${i}`, providerPublishTime: 1794600000 + i * 60 })).concat([{ title: 'no link', publisher: 'X', link: 'javascript:alert(1)', providerPublishTime: 1794700000 }]),
+  });
+  const seen: string[] = [];
+  const fetch = async (url: string, init?: RequestInit) => {
+    seen.push(url);
+    if (url === 'https://fc.yahoo.com/') return new Response('', { status: 404, headers: { 'set-cookie': 'A3=abc; Domain=.yahoo.com; Path=/' } });
+    if (url.includes('/getcrumb')) {
+      assert.equal((init?.headers as Record<string, string>).cookie, 'A3=abc');
+      return new Response('Cr4mb');
+    }
+    if (url.includes('/v7/finance/quote?')) {
+      assert.match(url, /crumb=Cr4mb/);
+      return Response.json({ quoteResponse: { result: [{ symbol: 'MSFT', earningsTimestampStart: 1801170000, isEarningsDateEstimate: true }, { symbol: 'SCHD', earningsTimestamp: 1700000000 }] } });
+    }
+    const sym = /search\?q=([A-Z]+)/.exec(url)?.[1] ?? '';
+    return Response.json(NEWS(sym));
+  };
+  const ds = new DataSources({ choices: () => ({}), keys: { get: () => undefined }, fetch, now: () => Date.parse('2026-11-13T14:31:00Z') });
+  const ev = await ds.stockEvents(['msft', 'SCHD', 'MSFT']);
+  assert.deepEqual(Object.keys(ev.symbols), ['MSFT', 'SCHD']);
+  assert.deepEqual(ev.symbols.MSFT.earnings, { date: '2027-01-28', estimate: true });
+  assert.equal(ev.symbols.MSFT.news.length, 3);
+  assert.equal(ev.symbols.MSFT.news[0].title, 'MSFT story 4', 'newest first; the unsafe link is dropped');
+  assert.equal(ev.source, 'Yahoo Finance');
+  assert.deepEqual(ev.missing, []);
+  // Cached for an hour: no second round of requests.
+  const n = seen.length;
+  await ds.stockEvents(['MSFT', 'SCHD']);
+  assert.equal(seen.length, n);
+  // No crumb: news still comes, the missing earnings dates are named.
+  const noCrumb = new DataSources({ choices: () => ({}), keys: { get: () => undefined }, fetch: async (u: string) => (u.startsWith('https://fc.') ? new Response('', { status: 404 }) : Response.json(NEWS('AAPL'))) });
+  const ev2 = await noCrumb.stockEvents(['AAPL']);
+  assert.equal(ev2.symbols.AAPL.news.length, 3);
+  assert.match(ev2.missing[0], /^earnings dates/);
+  assert.deepEqual(parseYahooNews({}), []);
+  assert.deepEqual(parseYahooEarnings({ quoteResponse: { result: [{ symbol: 'X' }] } }), {});
+
+  // portfolio_show adds them under the holdings, with the time checked; an older date isn't "next".
+  const { app, run, add } = setup(t);
+  app.dataSources = { quotes: quotesOf({ MSFT: [400, 4], SCHD: [27.5, -0.1] }), stockEvents: (s: string[]) => ds.stockEvents(s) } as never;
+  add('schwab-positions.csv');
+  await run('portfolio_import', { document: 'schwab', account: 'Schwab' });
+  const out = await run('portfolio_show', {});
+  assert.match(out, /\nEarnings dates and headlines from Yahoo Finance, checked Nov 13, 8:31 AM CST:\n- MSFT: next earnings Thu, Jan 28 \(estimated\)\. News: "MSFT story 4" \(Wire, Nov \d+, [\d:]+ [AP]M CST\) https:\/\/finance\.yahoo\.com\/MSFT\/4; /);
+  assert.match(out, /\n- SCHD: no upcoming earnings date listed\. News: "SCHD story 4"/);
+  assert.ok(out.indexOf('Earnings dates') > out.indexOf('- MSFT (MICROSOFT CORP)'));
+  // A source that fails: one plain line, the rest of the answer unchanged.
+  app.dataSources = { quotes: quotesOf({ MSFT: [400, 4], SCHD: [27.5, -0.1] }), stockEvents: async () => { throw new Error('down'); } } as never;
+  assert.match(await run('portfolio_show', {}), /Earnings dates and headlines couldn't be read right now/);
 });

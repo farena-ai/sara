@@ -40,6 +40,14 @@ struct Notice {
  */
 bool verifyNotice(const std::string& raw, const std::vector<std::pair<std::string, std::string>>& keys, const std::string& assetBase, const std::string& seen, Notice& out, std::string& why);
 
+/**
+ * The server already runs a newer version than the signed notice says (the release notice is
+ * published a little after the server updates): seconds until the next look, 15 min doubling up to
+ * 4 h, for at most kRaceTries looks; 0 when there is no race (or the looks are used up).
+ */
+constexpr int kRaceTries = 6;
+long long raceRetrySeconds(const std::string& noticeVersion, const std::string& serverVersion, int tries);
+
 /** The release key(s) (src/update-notice.ts NOTICE_KEYS). */
 std::vector<std::pair<std::string, std::string>> releaseKeys();
 extern const char* kNoticeUrl;

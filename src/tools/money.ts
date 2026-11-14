@@ -5,7 +5,7 @@
 // bill reminders are ordinary Planner reminders. Information and math, never advice: nothing here
 // buys, sells, moves or pays anything.
 import type { AppContext } from '../chat.ts';
-import { DataError } from '../data-sources.ts';
+import { DataError, type StockEvents } from '../data-sources.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fmtMoney, toCents } from '../biz/money.ts';
 import { localDay } from '../biz/store.ts';
@@ -68,6 +68,31 @@ function billLine(b: Bill, day: string): string {
   return `- #${b.id} ${b.name}${b.amountCents === null ? '' : ` · ${usd(b.amountCents)}`} · ${b.repeat === 'monthly' ? `monthly on day ${b.dueDay}` : b.repeat} · ${when}${st.paid ? ' · paid' : ''}${b.autopay ? ' · autopay' : ''}${b.paidAt ? ` · last paid ${usDay(b.paidAt.slice(0, 10))}` : ''} · reminder ${b.reminderId ? `${b.leadDays} days before` : 'none'}`;
 }
 
+/**
+ * Leftover 11: each holding's next earnings date and latest 3 headlines (Yahoo Finance, no key), with
+ * the source and time. The 10 biggest holdings; empty when the source isn't there or can't be read.
+ */
+async function eventLines(app: AppContext, symbols: string[]): Promise<string> {
+  const ds = app.dataSources as { stockEvents?: (s: string[]) => Promise<StockEvents> } | undefined;
+  const list = symbols.filter((s) => s !== 'CASH').slice(0, 10);
+  if (typeof ds?.stockEvents !== 'function' || !list.length) return '';
+  let ev: StockEvents;
+  try {
+    ev = await ds.stockEvents(list);
+  } catch {
+    return 'Earnings dates and headlines couldn\'t be read right now (say so if asked).';
+  }
+  const day = today(app);
+  const lines = list.map((s) => {
+    const e = ev.symbols[s];
+    if (!e) return '';
+    const earn = e.earnings && e.earnings.date >= day ? `next earnings ${usDay(e.earnings.date)}${e.earnings.estimate ? ' (estimated)' : ''}` : 'no upcoming earnings date listed';
+    const news = e.news.map((h) => `"${h.title}" (${h.publisher}, ${whenText(h.at, tz(app))}) ${h.link}`);
+    return `- ${s}: ${earn}.${news.length ? ` News: ${news.join('; ')}` : ''}`;
+  });
+  return [`Earnings dates and headlines from ${ev.source}, checked ${whenText(ev.at, tz(app))}:`, ...lines.filter(Boolean), ev.missing.length ? `Couldn't read: ${ev.missing.join('; ')}.` : ''].filter(Boolean).join('\n');
+}
+
 export function createMoneyTools(getApp: () => AppContext): Tool[] {
   const base = { defaultPermission: 'auto' as const, isAvailable: () => true };
   return [
@@ -106,7 +131,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
       isAvailable: () => Boolean(getApp().dataSources) && !privateLocalOn(),
       spec: {
         name: 'portfolio_show',
-        description: "The person's portfolio now: total value from live prices (E1's quote source, with its name and time), today's change, total gain against the cost basis, and the allocation by holding. Use it for \"how are my stocks doing\". Information and math only, never advice.",
+        description: "The person's portfolio now: total value from live prices (E1's quote source, with its name and time), today's change, total gain against the cost basis, and the allocation by holding, then each holding's next earnings date and latest 3 headlines (Yahoo Finance, with the time checked). Use it for \"how are my stocks doing\". Information and math only, never advice.",
         parameters: obj({}),
       },
       summarize: () => 'Valuing the portfolio',
@@ -119,10 +144,12 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
           const { v } = r!;
           const rows = v.rows.map((x) => `- ${x.symbol}${x.name ? ` (${x.name})` : ''}: ${x.qty} × ${x.price === null ? 'no price' : x.price} = ${usd(x.valueCents)} · ${x.allocationPct}% · today ${signed(x.dayChangeCents)}${x.gainCents !== null ? ` · gain ${signed(x.gainCents)} on cost ${usd(x.costCents!)}` : ''}${x.accounts.length > 1 ? ` · in ${x.accounts.join(', ')}` : ''}`);
           if (v.cashCents) rows.push(`- Cash: ${usd(v.cashCents)} · ${v.valueCents ? Math.round((v.cashCents / v.valueCents) * 1000) / 10 : 0}%`);
+          const events = await eventLines(app, v.rows.map((x) => x.symbol));
           return [
             `Portfolio value: ${usd(v.valueCents)} · today ${signed(v.dayChangeCents)} (${signedPct(v.dayPct)})${v.gainCents !== null ? ` · total gain ${signed(v.gainCents)} (${signedPct(v.gainPct)}) on a cost basis of ${usd(v.costCents)}` : ''}.`,
             ...rows,
             v.missing.length ? `No price for ${v.missing.join(', ')}: left out of the total (say so).` : '',
+            events,
             `Prices from ${v.source}, as of ${whenText(v.at, tz(app))} (may be delayed up to 15 minutes). Computed by portfolio_show; use exactly these numbers with the source and time. ${NOT_ADVICE} If they ask whether to buy or sell, show these numbers (and offer the decide tool to weigh it), and say plainly it isn't financial advice.`,
           ]
             .filter(Boolean)

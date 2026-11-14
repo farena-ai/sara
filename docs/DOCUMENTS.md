@@ -50,9 +50,10 @@ Pictures from your uploads or Library can go into Word, PDF, PowerPoint and web 
 ## Good to know
 
 - **Languages:** Word, Excel, PowerPoint and web pages take any language. PDFs use the standard PDF
-  fonts, which cover English, Spanish, French, German, Portuguese and Italian; letters outside those
-  (for example Polish ł or Chinese) lose their accent or show as "?" in the PDF only. Ask for Word if
-  you need them.
+  fonts, which cover English, Spanish, French, German, Portuguese and Italian; letters with an accent
+  they lack (for example Polish ł) lose the accent. A PDF with letters they can't show at all (Greek,
+  Cyrillic, Chinese, Arabic, ...) isn't made: she names those letters and makes it as Word instead,
+  which takes every language (Word or LibreOffice can save it as a PDF).
 - **Size:** up to 200,000 characters of text, 12 sheets of 5,000 rows, 60 slides and 12 pictures per
   document; the file can be up to 25 MB.
 - **Safe files:** no macros (never .docm, .xlsm or .pptm), nothing in a document is fetched from the

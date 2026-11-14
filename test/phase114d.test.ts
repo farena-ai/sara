@@ -76,7 +76,7 @@ test('PL1d: the guide index needs no new translations (titles and questions are 
 test('PL1d: docs/HOW_DO_I.md is generated from howto.json and lists every question', () => {
   const md = read('docs/HOW_DO_I.md');
   const data = howto();
-  assert.equal(md, howtoIndexMd(data, titles()), 'run node scripts/gen-guide.ts');
+  assert.equal(md, howtoIndexMd(data, titles()), 'run npm run guide (scripts/gen-guide.ts)');
   for (const list of Object.values(data)) for (const q of list) assert.ok(md.includes(`**${q.q}**`), q.q);
 });
 

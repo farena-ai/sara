@@ -20,7 +20,9 @@ export type Card =
   | { kind: 'job'; id: number; label: string; status: string; exitCode?: number }
   | { kind: 'home'; entity: string; service: string; name?: string; state?: string }
   | { kind: 'photo'; caption: string }
-  | { kind: 'search'; query: string; results: { title: string; url: string; host: string }[] }
+  | { kind: 'search'; query: string; results: { title: string; url: string; host: string }[]; shopping?: true }
+  /** Leftover 10: an analyze_table result grouped by one column, as a bar chart (web/result-cards.js). */
+  | { kind: 'chart'; title: string; label: string; value: string; rows: { label: string; value: number }[]; more?: number }
   /** 3.1.2: a research run started from the chat (web/research-card.js draws it live from /api/research/:id). */
   | { kind: 'research'; id: number; question: string; goal?: 'report' | 'skill' }
   /** 3.1.2: many pages read in one reply: "Turn this into a research run" with the owner's question. */
@@ -166,9 +168,14 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return gmailCard(output);
     case 'web_search':
       return searchCard(arg(args, 'query'), output);
+    case 'analyze_table':
+      return chartCard(args, output);
     // E2: the finder's ranked list (numbered lines with the store's link) as the search card.
-    case 'find_product':
-      return searchCard(arg(args, 'what'), output);
+    case 'find_product': {
+      // Leftover 9: titled "Shopping: …", not "Web search: …".
+      const card = searchCard(arg(args, 'what'), output);
+      return card?.kind === 'search' ? { ...card, shopping: true } : card;
+    }
     case 'pc_checkup':
       return checkupCard(output);
     case 'pc_checkup_apply':
@@ -462,4 +469,34 @@ function searchCard(query: string, output: string): Card | undefined {
   // Only web addresses go to the page as links.
   const safe = results.filter((r) => r.host && /^https?:\/\//.test(r.url));
   return safe.length ? { kind: 'search', query: cut(query, 120), results: safe } : undefined;
+}
+
+// ---------- analyze_table: a bar chart of a grouped result ----------
+
+const CHART_ROWS = 20;
+
+/** The table's cells (analyze_table's Markdown, with \| inside cells). */
+function tableCells(line: string): string[] {
+  return line.replace(/^\|\s?|\s?\|$/g, '').split(/(?<!\\)\|/).map((c) => c.trim().replace(/\\\|/g, '|'));
+}
+
+/**
+ * Leftover 10: a grouped analyze_table result (group by one or more columns, at least one sum, count,
+ * avg, min or max) as bars: the group as the label, the last computed column as the value. Two or
+ * more groups, every value a number of zero or more; otherwise no chart (the table says it).
+ */
+export function chartCard(args: Record<string, unknown>, output: string): Card | undefined {
+  const q = (args.query && typeof args.query === 'object' ? args.query : {}) as { groupBy?: unknown; aggregates?: unknown };
+  const groups = Array.isArray(q.groupBy) ? q.groupBy.length : 0;
+  if (!groups || !Array.isArray(q.aggregates) || !q.aggregates.length) return undefined;
+  const lines = output.split('\n');
+  if (!lines[0]?.startsWith('| ') || !/^\|( --- \|)+$/.test(lines[1] ?? '')) return undefined;
+  const head = tableCells(lines[0]);
+  const body = lines.slice(2).filter((l) => l.startsWith('| ')).map(tableCells);
+  if (head.length < groups + 1 || body.length < 2 || body.some((r) => r.length !== head.length)) return undefined;
+  const vi = head.length - 1;
+  const rows = body.map((r) => ({ label: cut(r.slice(0, groups).join(' · ') || '(empty)', 60), value: Number(r[vi]) }));
+  if (rows.some((r, i) => body[i][vi] === '' || !Number.isFinite(r.value) || r.value < 0)) return undefined;
+  const shown = rows.slice(0, CHART_ROWS);
+  return { kind: 'chart', title: cut(`${head[vi]} by ${head.slice(0, groups).join(', ')}`, 120), label: cut(head.slice(0, groups).join(', '), 60), value: cut(head[vi], 60), rows: shown, ...(rows.length > shown.length ? { more: rows.length - shown.length } : {}) };
 }

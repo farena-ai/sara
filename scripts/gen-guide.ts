@@ -5,7 +5,9 @@
 //   - PL2d: the answer count in docs/START_HERE.md ("All N answers") from web/howto.json.
 //   - Phase 128 (PL2b): the app's / menu table in docs/CHATS.md (and, since PL2d, docs/FOR_CODERS.md) (between <!-- appmenu:start --> and
 //     <!-- appmenu:end -->) from APP_MENU in src/bridges/commands.ts.
-//   node scripts/gen-guide.ts
+//   node scripts/gen-guide.ts           (npm run guide) writes them
+//   node scripts/gen-guide.ts --check   only says which are out of date (exit 1); a test runs it, so
+//                                       `npm run check` catches a howto.json/traits/menu change without it
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,28 +17,32 @@ import { howtoIndexMd, pageTitles, withHowtoIndex, type HowtoData } from '../src
 import { withAppMenuTable } from '../src/guide-commands.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const file = join(ROOT, 'web', 'help.html');
-const html = readFileSync(file, 'utf8');
-const howto = JSON.parse(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')) as HowtoData;
-const titles = pageTitles(readFileSync(join(ROOT, 'web', 'index.html'), 'utf8'));
-// Keep the file's own line endings (a Windows checkout has CRLF).
-const crlf = html.includes('\r\n');
-const out = withHowtoIndex(withDialTables(html.replace(/\r\n/g, '\n')), howto, titles);
-writeFileSync(file, crlf ? out.replace(/\n/g, '\r\n') : out);
-writeFileSync(join(ROOT, 'docs', 'HOW_DO_I.md'), howtoIndexMd(howto, titles));
+const check = process.argv.includes('--check');
+/** Each generated file's new text (relative path → text). */
+const next = new Map<string, string>();
+const read = (rel: string) => readFileSync(join(ROOT, rel), 'utf8');
+// Keep each file's own line endings (a Windows checkout may have CRLF).
+const keepEol = (old: string, text: string) => (old.includes('\r\n') ? text.replace(/\n/g, '\r\n') : text);
+const howto = JSON.parse(read('web/howto.json')) as HowtoData;
+const titles = pageTitles(read('web/index.html'));
+const html = read('web/help.html');
+next.set('web/help.html', keepEol(html, withHowtoIndex(withDialTables(html.replace(/\r\n/g, '\n')), howto, titles)));
+next.set('docs/HOW_DO_I.md', howtoIndexMd(howto, titles));
 // PL2d (N37): START_HERE's "All N answers" is the number of questions in web/howto.json.
-{
-  const start = join(ROOT, 'docs', 'START_HERE.md');
-  const n = Object.values(howto).reduce((sum, qs) => sum + qs.length, 0);
-  writeFileSync(start, readFileSync(start, 'utf8').replace(/All \d+(\s+)answers/, `All ${n}$1answers`));
-}
+const count = Object.values(howto).reduce((sum, qs) => sum + qs.length, 0);
+next.set('docs/START_HERE.md', read('docs/START_HERE.md').replace(/All \d+(\s+)answers/, `All ${count}$1answers`));
 // PL2d (N36): FOR_CODERS.md carries the same generated table.
-for (const page of ['CHATS.md', 'FOR_CODERS.md']) {
-  const chats = join(ROOT, 'docs', page);
-  const md = readFileSync(chats, 'utf8');
-  const nl = md.includes('\r\n');
-  const next = withAppMenuTable(md.replace(/\r\n/g, '\n'));
-  writeFileSync(chats, nl ? next.replace(/\n/g, '\r\n') : next);
+for (const page of ['docs/CHATS.md', 'docs/FOR_CODERS.md']) {
+  const md = read(page);
+  next.set(page, keepEol(md, withAppMenuTable(md.replace(/\r\n/g, '\n'))));
 }
-const count = Object.values(howto).reduce((n, l) => n + l.length, 0);
-console.log(`Wrote ${TRAITS.length} dials and ${count} "How do I…?" answers into web/help.html, and docs/HOW_DO_I.md`);
+if (check) {
+  const stale = [...next].filter(([rel, text]) => read(rel) !== text).map(([rel]) => rel);
+  if (stale.length) {
+    console.error(`The guide's generated parts are out of date: ${stale.join(', ')}.\nRun: npm run guide   (node scripts/gen-guide.ts), then commit those files.`);
+    process.exit(1);
+  }
+} else {
+  for (const [rel, text] of next) writeFileSync(join(ROOT, rel), text);
+  console.log(`Wrote ${TRAITS.length} dials and ${count} "How do I…?" answers into web/help.html, and docs/HOW_DO_I.md`);
+}

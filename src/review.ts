@@ -3,6 +3,7 @@
 // (to-dos, reminders, calendar), and suggests a short plan. Facts are gathered in code, so nothing
 // is invented; the background model only writes them up in her voice (plain facts if it fails).
 // Also on demand ("Review my week" on the Planner page).
+import { qualityCounts, qualityReport } from './quality.ts';
 import type { AppContext } from './chat.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import { complete, targetConversation } from './life.ts';
@@ -185,7 +186,16 @@ ${factsText(facts)}]`;
       app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...n, content: disclosureText(app.persona.name, appLanguage(app.settings.get())), meta: { kind: 'disclosure' } }, reason: 'proactive' });
     }
     const today = localDate(now.toISOString(), tz);
-    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { weeklyReview: { day: today } });
+    // N1: the owner's "How she did" counts ride on the review as a small card (members' reviews don't get it).
+    let quality: ReturnType<typeof qualityCounts> | undefined;
+    if (!app.member) {
+      try {
+        quality = qualityCounts(qualityReport(app.store.db, now));
+      } catch {
+        /* no runs kept */
+      }
+    }
+    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { weeklyReview: { day: today }, ...(quality && quality.turns ? { quality } : {}) });
     app.settings.update({ weeklyReview: { ...reviewSettings(app), lastDay: today } });
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
     return { text: msg.content, conversationId: conv.id };

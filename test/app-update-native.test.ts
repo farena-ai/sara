@@ -99,6 +99,16 @@ test('the app checks a signed notice like the server does', { skip }, () => {
   }
 });
 
+test('the app looks again soon when the server is newer than the notice (publish race)', { skip }, () => {
+  const race = (n: string, s: string, t: number) => Number(execFileSync(EXE, ['race', n, s, String(t)], { encoding: 'utf8' }).trim());
+  // 15 min, doubling, capped at 4 h, six looks; then the normal 6 h.
+  assert.deepEqual([0, 1, 2, 3, 4, 5, 6].map((t) => race('3.5.0', '3.5.1', t)), [900, 1800, 3600, 7200, 14400, 14400, 0]);
+  // No race: the notice caught up, is newer, or the server reported nothing.
+  assert.equal(race('3.5.1', '3.5.1', 0), 0);
+  assert.equal(race('3.5.2', '3.5.1', 0), 0);
+  assert.equal(race('3.5.0', '', 0), 0);
+});
+
 test('the app compares versions like the server', { skip }, () => {
   for (const [a, b] of [['3.4.5', '3.4.4'], ['v3.4.5', '3.4.5'], ['3.10.0', '3.9.9'], ['3.4.5-rc1', '3.4.5'], ['0.0.0-dev', '3.4.5'], ['4', '3.99.99'], ['3.4', '3.4.0']]) {
     const want = Math.sign(compareVersions(a, b));

@@ -525,6 +525,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'projects', 'tasks', 'notes', 'reminders', 'mentions', 'planner', 'places', 'today', 'briefing', 'review', 'leave-by', 'checklist', 'setup',
   // Phase 121: their own routines (briefing, review, reminders and leave-by in their own space; the rest answers 403)
   'routines',
+  // N2: their own automations (src/routes/automations.ts; email/webhook triggers stay the owner's)
+  'automations',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
   'boards', 'columns',
   // library

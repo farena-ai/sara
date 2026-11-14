@@ -198,11 +198,11 @@ export function createMailTools(d: MailToolDeps): Tool[] {
       const draft = { to, ...(str(args, 'cc', false) ? { cc: str(args, 'cc') } : {}), subject: str(args, 'subject'), body: str(args, 'body'), ...(str(args, 'reply_to', false) ? { replyTo: str(args, 'reply_to') } : {}) };
       const p = prov(a);
       if (send) {
-        await p.send(draft, ctx.signal);
-        return `Sent from ${a.address} to ${to}.`;
+        const sent = await p.send(draft, ctx.signal);
+        return `Sent from ${a.address} to ${to}.\n${sent ? `Verified: the mail server accepted it (id ${sent}).` : 'Could not verify: the mail server gave no id for the sent email.'}`;
       }
-      await p.draft(draft, ctx.signal);
-      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}. Nothing was sent.`;
+      const saved = await p.draft(draft, ctx.signal);
+      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}. Nothing was sent.\n${saved ? `Verified: the mail server saved the draft (id ${saved}).` : 'Could not verify: the mail server gave no id for the draft.'}`;
     },
   });
 
@@ -497,7 +497,17 @@ export function routeCalendarTools(googleTools: Tool[], accounts: MailAccounts, 
   const add = route('calendar_add', async (a, args, signal) => {
     const e = eventIn(args, false) as Parameters<NonNullable<MailProvider['calendar']>['add']>[0];
     const made = await cal(a).add(e, signal);
-    return `Added “${made.title}” ${fmtWhen({ start: e.start, ...(e.end ? { end: e.end } : {}), allDay: e.allDay }, timeZone())} to ${a.address}'s calendar (event ${made.id}).${e.guests.length ? ` Invitations sent to ${e.guests.join(', ')}.` : ''}`;
+    // N1: the event read back from the calendar by its id (the day it starts).
+    let check = 'Could not verify: the event was not found when the calendar was read back.';
+    try {
+      const day = new Date(`${String(e.start).slice(0, 10)}T00:00:00Z`);
+      const back = await cal(a).events(new Date(day.getTime() - 86_400_000), new Date(day.getTime() + 2 * 86_400_000), undefined, signal);
+      if (back.some((x) => x.id === made.id)) check = `Verified: read the event back from the calendar (event ${made.id}).`;
+    } catch (err) {
+      check = `Could not verify: reading the calendar back failed (${(err as Error).message.replace(/\s+/g, ' ').slice(0, 100)}).`;
+    }
+    const said = `Added “${made.title}” ${fmtWhen({ start: e.start, ...(e.end ? { end: e.end } : {}), allDay: e.allDay }, timeZone())} to ${a.address}'s calendar (event ${made.id}).${e.guests.length ? ` Invitations sent to ${e.guests.join(', ')}.` : ''}`;
+    return `${said}\n${check}`;
   });
   const remove = route('calendar_remove', async (a, args, signal) => {
     await cal(a).remove(str(args, 'id'), signal);

@@ -36,6 +36,16 @@ export function toAnsi(s: string): string {
   }
   return out;
 }
+/**
+ * Letters and digits these built-in fonts can't show at all (they would print as "?"): Greek,
+ * Cyrillic, Arabic, Hebrew, Chinese, Japanese, Korean, Hindi, ... Each one once, in order.
+ */
+export function lettersPdfCantShow(s: string): string[] {
+  const out = new Set<string>();
+  for (const ch of s.normalize('NFC')) if (/[\p{L}\p{N}]/u.test(ch) && toAnsi(ch) === '?') out.add(ch);
+  return [...out];
+}
+
 const byteOf = (ch: string): number => {
   const c = ch.codePointAt(0)!;
   return c < 0x100 ? c : (WIN_ANSI[ch] ?? 0x3f);

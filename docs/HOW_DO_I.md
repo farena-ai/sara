@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 216 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 221 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -442,6 +442,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press Turn off adult mode.
 2. Conversations go back to normal right away.
+
+### Automations
+
+**How do I make something run on its own?**
+
+1. Describe it in your own words, like “every Friday at 3, fill my time sheet”.
+2. Press Preview: it shows when it runs, the next three times and what asks you first.
+3. Press Try it to test it (nothing is done), then Turn it on.
+
+**How do I fill my time sheet every week?**
+
+1. Add your blank time sheet to the Library.
+2. Press Fill my time sheet every week, then Preview.
+3. Tell Sara your shift rules if your calendar has no times, like “shifts are 2200-0700, no lunch”.
+
+**How do I see why one didn't run?**
+
+1. Press History on its row: each run shows what started it and what each step did.
+2. Three failed runs in a row pause it; fix the problem and switch it back on.
+3. A run waiting for your OK shows Allow and Decline at the top.
 
 ### When it comes up
 
@@ -1151,6 +1171,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick how long to Keep runs.
 2. Or press Delete run history.
+
+### How she did
+
+**How do I see how her replies went this week?**
+
+1. Open How she did.
+2. Pick the period.
+3. Press a chat under Top problems to open it.
+
+**How do I make slow replies faster?**
+
+1. Open Models → Which model does what.
+2. Pick Auto (recommended) for the job.
 
 ### Backups
 

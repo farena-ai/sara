@@ -19,7 +19,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { OwnerAuth } from './auth.ts';
 import type { AppContext } from './chat.ts';
 import { localDate } from './memory-worker.ts';
-import { formatLocal, parseWhen, type Priority } from './planner.ts';
+import { formatLocal, NOTE_TRASH_DAYS, parseWhen, type Priority } from './planner.ts';
 import { appConversation, callerOf, corsAllowed, externalTurn, type KeyLimiter, otherAppsSettings, type Caller } from './other-apps.ts';
 import { sharedWithApps } from './recall.ts';
 import { detectExplicit } from './safety.ts';
@@ -523,13 +523,13 @@ const TOOLS: ToolDef[] = [
   {
     name: 'update_note',
     title: 'Change a note',
-    description: `Change one of the owner's notes in Sara by its id (from list_notes): its title, its text (replaced as a whole) or its project. Only the fields you give change. Read the note with read_note first if you mean to edit part of the text. Returns "Changed note #id: title". ${ASKS('note')}`,
+    description: `Change one of the owner's notes in Sara by its id (from list_notes): its title, its text (replaced as a whole) or its project. Only the fields you give change. Read the note with read_note first if you mean to edit part of the text. Sara keeps the text it had before as an earlier version (the owner can bring it back from the note's Earlier versions). Returns "Changed note #id: title". ${ASKS('note')}`,
     inputSchema: {
       type: 'object',
       properties: {
         id: { type: 'integer', minimum: 1, description: ID_HINT('note', 'list_notes'), examples: [12] },
         title: { type: 'string', minLength: 1, maxLength: 200, description: 'New title. Up to 200 characters.', examples: ['Deploy steps (server 2)'] },
-        body: { type: 'string', maxLength: 20000, description: 'New text for the whole note; it replaces the old text. Up to 20,000 characters.', examples: ['ssh in, git pull, npm ci, restart the service'] },
+        body: { type: 'string', maxLength: 20000, description: 'New text for the whole note; it replaces the current text (kept as an earlier version). Up to 20,000 characters.', examples: ['ssh in, git pull, npm ci, restart the service'] },
         project: { type: 'string', maxLength: 80, description: 'Move it to this planner project (created if new); an empty string takes it out of any project.', examples: ['Sara', ''] },
       },
       required: ['id'],
@@ -566,7 +566,7 @@ const TOOLS: ToolDef[] = [
   {
     name: 'delete_note',
     title: 'Delete a note',
-    description: `Delete one of the owner's notes from Sara's planner for good, by its id (from list_notes). This can't be undone. Returns "Deleted note #id: title". ${ASKS_ALWAYS('note')}`,
+    description: `Delete one of the owner's notes from Sara's planner, by its id (from list_notes). Sara keeps its last version for ${NOTE_TRASH_DAYS} days, so the owner can bring it back in Sara until then. Returns "Deleted note #id: title". ${ASKS_ALWAYS('note')}`,
     inputSchema: {
       type: 'object',
       properties: { id: { type: 'integer', minimum: 1, description: ID_HINT('note', 'list_notes'), examples: [12] } },

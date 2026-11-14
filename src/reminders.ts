@@ -63,6 +63,8 @@ export class ReminderScheduler {
     this.#app.watches?.due(now);
     // E1: "tell me when" on live data (prices, games, odds) on the same tick; the checks run async, one pass at a time.
     this.#app.liveWatches?.due(now);
+    // N2: automations (schedules, calendar triggers) on the same tick.
+    this.#app.automations?.due(now);
     // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
     this.#app.productWatches?.due(now);
     // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.

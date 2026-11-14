@@ -545,6 +545,8 @@ export class Watches {
       return;
     }
     this.#db.prepare('INSERT INTO env_alerts (watch_id, key, pattern, line_capped, first_at, last_at, count, notified) VALUES (?, ?, ?, ?, ?, ?, 1, 0)').run(r.id, key, pattern, kept, iso, iso);
+    // N2: automations that start when this file watch sees a new line.
+    this.#app.automations?.watchFired('file', r.id, `${pattern}: ${kept}`);
   }
 
   /** Check now (≤ 1 per 10 s): a check, plus a preview of matches in the last 256 KB (never a ping). */
