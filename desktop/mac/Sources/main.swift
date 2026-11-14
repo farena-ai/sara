@@ -195,6 +195,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     quick?.ensure()
     statusItem.menu = statusMenu()
     handsSync()  // Phase 87: Sara's hands, if this Mac lets her
+    n5StartUpdates()  // N5: the app's own updates (AppUpdate.swift)
     // Computer use: connect again after sleep (the old connection is dead) and when the network comes back.
     NSWorkspace.shared.notificationCenter.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { _ in Hands.shared?.reconnectNow(dropOpen: true) }
     handsPathMonitor.pathUpdateHandler = { path in
@@ -303,6 +304,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     let appItem = NSMenuItem()
     let appMenu = NSMenu()
     appMenu.addItem(withTitle: "About Sara", action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)), keyEquivalent: "")
+    appMenu.addItem(withTitle: "Update Sara app", action: #selector(updateAppFromMenu), keyEquivalent: "").tag = AppDelegate.updateTag
     appMenu.addItem(.separator())
     appMenu.addItem(withTitle: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
     appMenu.addItem(.separator())
@@ -378,6 +380,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     liveSubmenus.append((item: keys, make: { [unowned self] in self.shortcutMenu() }))
     m.addItem(keys)
     m.addItem(withTitle: "Help", action: #selector(openHelp), keyEquivalent: "")
+    // N5: the app's own update (its title says what's there: refreshed each time the menu opens).
+    let upd = m.addItem(withTitle: "Update Sara app", action: #selector(updateAppFromMenu), keyEquivalent: "")
+    upd.tag = AppDelegate.updateTag
     m.addItem(.separator())
     m.addItem(withTitle: "Quit Sara", action: #selector(quit), keyEquivalent: "")
     m.delegate = self
@@ -417,6 +422,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
   }
   /// Phase 87: the hands connection and the Sara browser close with the app.
   func applicationWillTerminate(_ note: Notification) {
+    n5InstallOnQuit()  // N5: a checked new app ready (switch on): installed as the app closes
     let h = Hands.shared
     Hands.shared = nil
     h?.stop()
@@ -589,7 +595,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         // Phase 93: explicit keep-awake choice; it never unlocks the Mac or bypasses local approval.
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").walkAway")
         Hands.shared?.tellWalkAway(on)
-      default: return replyHandler(nil, "Unknown setting")
+      default:
+        // N5: Files and which folders, commands, "Let Sara see my tabs" (AppN5.swift).
+        switch n5SetPref(body["key"] as? String ?? "", body) {
+        case .notMine: return replyHandler(nil, "Unknown setting")
+        case .error(let e): return replyHandler(nil, e)
+        case .ok: break
+        }
       }
       replyHandler(prefsDict(), nil)
     // Phase 87: "Let Sara use this computer". The page made the hands token after the owner confirmed
@@ -694,7 +706,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         if id == Servers.activeId { updateStatusTip() }
       }
       replyHandler(Servers.json(), nil)
-    default: replyHandler(nil, "Unknown")
+    default:
+      // N5: picked folders, save to this Mac, the app's own updates (AppN5.swift).
+      if !n5Call(kind, body, replyHandler) { replyHandler(nil, "Unknown") }
     }
   }
 
@@ -730,6 +744,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["handsPerms"] = ["capture": perms.capture, "ax": perms.ax]
     // The server hears when a permission was just granted.
     if let h = Hands.shared, h.desktop, (perms.capture, perms.ax) != lastPerms { lastPerms = (perms.capture, perms.ax); h.tellOptIn() }
+    n5Prefs(&d)
     return d
   }
   /// Phase 91: the password managers here for the app's own Settings page (names and states only).
@@ -810,6 +825,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     #endif
     h.pm.configure(testRun: testLabel, on: handsPms.map { prefs.bool(forKey: "hands.\(sid).pm.\($0.id)") }, keepassDb: prefs.string(forKey: "hands.\(sid).pm.keepassDb") ?? "",
                    relockMinutes: pmRelock(sid), idleSeconds: idle)
+    n5Configure(h)  // N5: Files, commands, "Let Sara see my tabs"
     Hands.shared = h
     h.start()
   }
@@ -832,6 +848,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
   /// Phase 88: the menu bar menu's hands items, rebuilt each time it opens (no restart needed after
   /// "Let Sara use this computer" changes): "Connected to Sara at …", Stop, Resume, the log, Off.
   static let handsTag = 7600
+  static let updateTag = 7700
   func refreshHandsItems(in m: NSMenu) {
     for item in m.items where item.tag >= AppDelegate.handsTag && item.tag < AppDelegate.handsTag + 10 { m.removeItem(item) }
     guard prefs.bool(forKey: "hands.\(Servers.activeId ?? "").on") else { return }
@@ -1000,6 +1017,7 @@ extension AppDelegate: NSMenuItemValidation {
 
 extension AppDelegate: NSMenuDelegate {
   func menuNeedsUpdate(_ menu: NSMenu) {
+    if let u = menu.item(withTag: AppDelegate.updateTag) { u.title = updateMenuTitle }
     menu.item(withTitle: "Open at login")?.state = startAtLogin ? .on : .off
     for s in liveSubmenus where s.item.menu === menu { s.item.submenu = s.make() }
     // Phase 75 stage 2: her face, mood, Ask and "Now" at the top of the menu bar menu.
@@ -1024,6 +1042,8 @@ func testLog(_ s: String) {
 let argv = CommandLine.arguments
 if argv.count > 1 && argv[1] == "--run-server" { Supervisor.run() }
 if argv.count > 1 && argv[1] == "--cli" { exit(CLI.run(Array(argv.dropFirst(2)))) }
+// N5: the Mac's own checks of the new rules (no window, nothing changed on the Mac): SelfCheck.swift.
+if argv.count > 1 && argv[1] == "--self-check" { exit(SelfCheck.run(Array(argv.dropFirst(2)))) }
 
 #if DEBUG
 // Permission-negative conformance does not open a window, grant a permission or post an event.

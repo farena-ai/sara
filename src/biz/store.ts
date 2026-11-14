@@ -8,6 +8,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { zonedParts, zonedToUtc } from '../planner.ts';
 import { totals, type Line, type LineIn } from './money.ts';
+import { workOnBiz, type BizEvent } from '../work/clients.ts';
 
 export type InvoiceKind = 'invoice' | 'quote';
 export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'accepted' | 'void';
@@ -220,7 +221,9 @@ export class BizStore {
         .prepare('INSERT INTO biz_invoices (kind, year, seq, number, client_name, client_email, client_address, lines, tax_rate, subtotal, tax, total, currency, issued, due, notes, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .run(i.kind, year, seq, number, clip(i.clientName, 160), clip(i.clientEmail, 200), clip(i.clientAddress, 400), JSON.stringify(t.lines), i.taxRatePct ?? 0, t.subtotalCents, t.taxCents, t.totalCents, i.currency ?? 'USD', i.issued, due, clip(i.notes, 2000), 'draft', this.#now().toISOString());
       this.#db.exec('COMMIT');
-      return this.invoice(Number(r.lastInsertRowid))!;
+      const made = this.invoice(Number(r.lastInsertRowid))!;
+      this.#tell(made, 'made');
+      return made;
     } catch (err) {
       this.#db.exec('ROLLBACK');
       throw err;
@@ -249,7 +252,17 @@ export class BizStore {
   invoices(): Invoice[] {
     return (this.#db.prepare('SELECT * FROM biz_invoices ORDER BY id DESC').all() as Row[]).map(toInvoice);
   }
+  /** N7 (docs/WORK_AND_TEAMS.md): the client pipeline and billed hours follow invoices and quotes. */
+  #tell(inv: Invoice, what: BizEvent['what']): void {
+    try {
+      workOnBiz(this.#db, this.#now, { kind: inv.kind, what, id: inv.id, number: inv.number, clientName: inv.clientName, clientEmail: inv.clientEmail, totalCents: inv.totalCents, currency: inv.currency, issued: inv.issued });
+    } catch (err) {
+      console.warn(`client pipeline: ${(err as Error).message}`);
+    }
+  }
+
   setInvoice(id: number, patch: Partial<Pick<Invoice, 'status' | 'sentAt' | 'paidAt' | 'docIds' | 'reminderIds'>>): Invoice | undefined {
+    const before = patch.status !== undefined ? this.invoice(id)?.status : undefined;
     const cols: Record<string, unknown> = {};
     if (patch.status !== undefined) cols.status = patch.status;
     if (patch.sentAt !== undefined) cols.sent_at = patch.sentAt;
@@ -258,7 +271,9 @@ export class BizStore {
     if (patch.reminderIds !== undefined) cols.reminder_ids = JSON.stringify(patch.reminderIds);
     const keys = Object.keys(cols);
     if (keys.length) this.#db.prepare(`UPDATE biz_invoices SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`).run(...(keys.map((k) => cols[k]) as never[]), id);
-    return this.invoice(id);
+    const after = this.invoice(id);
+    if (after && patch.status !== undefined && patch.status !== before && patch.status !== 'draft') this.#tell(after, patch.status as BizEvent['what']);
+    return after;
   }
 
   /** Unpaid invoices (sent, not paid or void): their total and how many are overdue. */

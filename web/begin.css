@@ -245,6 +245,20 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .rch-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
 .rch-out { white-space: pre-wrap; font-size: 12px; max-height: 160px; overflow: auto; }
 .rch-code code, .rch-away code { word-break: break-all; }
+/* N5b: car mode (web/car-mode.js): one big Talk button, nothing to read. */
+/* :not(#_) outranks the phone's "dialogs sit above the bottom bar" rule: car mode covers everything. */
+dialog#car-mode:not(#_) { position: fixed; width: auto; max-width: none; height: auto; max-height: none; inset: 0; margin: 0; border-radius: 0; padding: max(16px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom)); border: 0; background: var(--surface-0); color: var(--text-1); }
+.car-mode[open] { display: flex; flex-direction: column; align-items: center; justify-content: space-between; gap: 20px; }
+.car-mode::backdrop { background: var(--surface-0); }
+.car-head { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.car-head h2 { margin: 0; font-size: 1.3rem; }
+.car-head .ghost { min-height: 48px; padding: 0 16px; font-size: 1rem; }
+.car-talk { width: min(72vw, 320px); height: min(72vw, 320px); border-radius: 50%; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--accent-grad); color: var(--on-accent, var(--surface-0)); font-size: 1.6rem; font-weight: 700; box-shadow: 0 0 0 6px var(--accent-soft); }
+.car-talk .ic { width: 64px; height: 64px; }
+.car-talk.car-listening { box-shadow: 0 0 0 14px var(--accent-soft); }
+.car-status { margin: 0; min-height: 1.6em; font-size: 1.25rem; text-align: center; color: var(--text-1); }
+.car-note { margin: 0; max-width: 32em; text-align: center; font-size: 0.95rem; color: var(--text-2); }
+
 /* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
 .au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
 .au-filters label { display: flex; flex-direction: column; gap: 4px; }

@@ -25,6 +25,7 @@ import { adultModeOn } from './settings.ts';
 import { gatherTrouble } from './trouble.ts';
 import { mergeSummaries, type UsageTotals } from './usage.ts';
 import { businessPart } from './biz/today.ts';
+import { workTile } from './tools/work.ts';
 import { moneyPart } from './money/core.ts';
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
@@ -437,9 +438,21 @@ function rooms(): Loader {
   };
 }
 
+/** N7: Shared with you: only when this person has a shared list or an invitation. */
+const shared: Loader = (c) => {
+  const sb = c.demo ? undefined : c.app.sharedBoards;
+  if (!sb) return undefined;
+  const w = sb.store.sharedWith(sb.person);
+  if (!w.lists.length && !w.invites.length) return undefined;
+  const name = (id: string) => (id === 'owner' ? (sb.people().find((p) => p.id === 'owner')?.name ?? '') : (sb.people().find((p) => p.id === id)?.name ?? ''));
+  return { ...w, assigned: w.assigned.slice(0, 8).map((a) => ({ ...a, byName: a.by === sb.person ? '' : name(a.by) })), invites: w.invites.map((i) => ({ ...i, fromName: name(i.from) })) };
+};
+/** N7: the running timer, this week's hours, the client pipeline (only once used). */
+const worktime: Loader = (c) => (c.demo ? undefined : workTile(c.app));
+
 /** Every loader this module adds to buildToday (src/routes/planner.ts passes the route's own). */
 export function todayLoaders(deps: PartDeps = {}): Partial<Record<TodayPartName, Loader>> {
-  return { memories, moments, work, usage: usage(deps), home: home(deps), projects: projects(deps), needs: needs(deps), away: away(), rooms: rooms(), business: businessPart, money: moneyPart };
+  return { memories, moments, work, usage: usage(deps), home: home(deps), projects: projects(deps), needs: needs(deps), away: away(), rooms: rooms(), business: businessPart, money: moneyPart, shared, worktime };
 }
 
 export { dayBounds };

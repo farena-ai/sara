@@ -1,5 +1,6 @@
 // Sara web client (no build step).
 import { Call, Mic, Speaker } from './voice.js';
+import { carCommand, carOn, initCarMode, setCar, touchCar } from './car-mode.js';
 import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
@@ -36,6 +37,7 @@ import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
+import { dateCard, initFacts, loadFacts } from './facts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
@@ -299,7 +301,12 @@ async function boot() {
   const onToday = startsOnToday({ hash: location.hash, answering: Boolean(sessionStorage.getItem('sara.answer')), wizard: sessionStorage.getItem('sara.openWizard') === '1', demo: Boolean(session.demo) });
   // Opened from a notification: /#c=<conversation id>.
   const fromLink = /#c=([\w-]+)/.exec(location.hash)?.[1];
+  // N5b: Share to Sara: the ready message and the files already in her library.
+  const shared = fromLink ? sharedDraft(location.hash) : null;
+  const talkLink = location.hash === '#talk';
   if (fromLink) history.replaceState(null, '', '/');
+  if (talkLink) history.replaceState(null, '', '/');
+  if (talkLink) setTimeout(() => !$('#mic').hidden && !voice.mic.recording && $('#mic').click(), 800);
   if (fromLink && (await openElsewhere(fromLink))) return;
   const first = state.conversations.find((c) => c.id === fromLink) ?? state.conversations.find((c) => !c.archivedAt) ?? state.conversations.find((c) => !String(c.channel ?? '').startsWith('import-'));
   if (first) await openConversation(first.id);
@@ -309,6 +316,7 @@ async function boot() {
   }
   // The last conversation stays open underneath: Chat is one tap away.
   if (onToday) void openToday();
+  if (first && shared) void applySharedDraft(shared);
   if (session.adultAsk) $('#adult-ask').showModal();
   const setup = await api('/setup').catch(() => ({ done: true }));
   state.usePath = normPath(setup.usePath);
@@ -1700,6 +1708,8 @@ async function askInChat(text) {
 }
 // Phase 101 (ST6): Memory → People (web/people.js).
 initPeople({ jumpTo: (convId, msgId) => openAtMessage(convId, msgId), openMemory: () => openMemory({ tab: 'people' }) });
+// N6: Settings → You → What Sara knows (web/facts.js).
+initFacts({ jumpTo: (convId, msgId) => openAtMessage(convId, msgId) });
 // Phase 110 (CH4): the room window opens the room's archive in the Library and the People cards it proposed.
 initRooms({ openArchive: (roomId) => void openArchives(roomId), openPerson: (id) => void showPerson(id) });
 initToday({
@@ -1715,7 +1725,7 @@ initToday({
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
-  renderInbox: (part, head) => renderInboxTile(part, head),
+  renderInbox: (part, head) => renderInboxTile(part, head, dateCard),
   renderPhotos: renderTodayPhotos,
   // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
   renderMoments: renderTodayMoments,
@@ -2570,6 +2580,13 @@ async function send(text) {
     text = typed.text;
     if (!text) return;
   }
+  // N5b: "car mode" / "car mode off" (typed or said) switch car mode; never a message.
+  const carCmd = state.editing ? null : carCommand(text);
+  if (carCmd) {
+    $('#input').value = '';
+    autosize();
+    return setCar(carCmd === 'on');
+  }
   // Phase 128 (PL2b, N19): /goal and /loop from the / menu open their cards (the same as + → Keep
   // going… / Repeat this…), with what was typed after the command.
   const persistCmd = state.editing ? null : /^\/(goal|loop)(?:\s+([\s\S]*))?$/i.exec(text.trim());
@@ -2616,7 +2633,8 @@ async function send(text) {
       for (const p of pending) {
         setActivity('thinking', `${t('Sending')} ${p.file.name}…`);
         try {
-          const d = await uploadDoc(p.file, { keep: p.keep, conversationId: state.currentId });
+          // N5b: a shared file is already in her library (Share to Sara).
+          const d = p.uploaded ?? (await uploadDoc(p.file, { keep: p.keep, conversationId: state.currentId }));
           docs.push({ id: d.id, name: d.name, keep: d.keep });
         } catch (err) {
           append(bubble('error', `${p.file.name}: ${err.message}`));
@@ -2635,7 +2653,9 @@ async function send(text) {
   const onVideo = videoView.active && voice.call?.active && !voice.liveCall;
   const frame = onVideo ? { videoCall: true, ...(videoView.sendsFrames ? { liveFrame: true, ...(videoView.lookAsk ? { liveFrameAsk: true } : {}) } : {}) } : {};
   videoView.lookAsk = false;
-  const body = { content: text, ...(photos.length ? { images: photos } : {}), ...(docs.length ? { docs: docs.map((d) => d.id) } : {}), ...frame };
+  // N5b: in car mode she answers short and spoken, without computer use or long tasks.
+  const car = carOn() ? (touchCar(), { car: true }) : {};
+  const body = { content: text, ...(photos.length ? { images: photos } : {}), ...(docs.length ? { docs: docs.map((d) => d.id) } : {}), ...frame, ...car };
   if (videoView.active && voice.call?.active) videoView.you(text, true);
   return runStream(`/conversations/${state.currentId}/messages`, body, userBubble);
 }
@@ -2710,6 +2730,7 @@ function renderAttachments() {
     keep.title = t('Keep in her library: she remembers the key points and can look it up any time. Just read this once: only for this chat.');
     for (const [v, label] of [['1', t('Keep in her library')], ['0', t('Just read this once')]]) keep.append(new Option(label, v, false, (v === '1') === d.keep));
     keep.addEventListener('change', () => (d.keep = keep.value === '1'));
+    keep.hidden = Boolean(d.uploaded);
     const x = el('button', 'ghost small', '×');
     x.type = 'button';
     x.title = t('Remove');
@@ -9104,9 +9125,9 @@ async function loadSettingsPages(onCore = () => {}) {
   savedDefaultModelRevision = defaultModelRevision;
   onCore();
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
-  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
+  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
   await tools;
-  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -13801,6 +13822,10 @@ async function loadComputer() {
     $('#cu-desktop').disabled = p.handsOptIn !== true || p.handsDesktopSupported !== true;
     $('#cu-desktop').closest('label').hidden = p.handsDesktopSupported !== true;
     $('#cu-block-extra').closest('label').hidden = p.handsDesktopSupported !== true;
+    // N5: the Mac app's own switch for reading the browsers' tabs (AppleScript; needs The whole screen).
+    $('#cu-tabs').checked = p.handsTabs === true;
+    $('#cu-tabs').disabled = p.handsOptIn !== true || p.handsDesktop !== true;
+    $('#cu-tabs').closest('label').hidden = p.handsTabsSupported !== true;
     // 3.4.x: "Files" (read only; apps from 3.4 on).
     $('#cu-files').checked = p.handsFiles === true;
     $('#cu-files').disabled = p.handsOptIn !== true || p.handsFilesSupported !== true;
@@ -14210,6 +14235,15 @@ $('#cu-desktop').addEventListener('change', async () => {
   if (r && !r.error) renderCuPerms(r);
 });
 initPcRunSettings(() => handsBridge());
+$('#cu-tabs').addEventListener('change', async () => {
+  const box = $('#cu-tabs');
+  const d = handsBridge();
+  if (!d) return;
+  const on = box.checked;
+  const r = await d.call('setPref', { key: 'handsTabs', value: on }).catch((err) => ({ error: String(err) }));
+  if (r?.error) box.checked = !on;
+  $('#cu-this-status').textContent = r?.error ? r.error : on ? t('Sara may list your browser tabs here now. Allow it when macOS asks.') : t('Sara can\u2019t see your browser tabs here now.');
+});
 initPcFilesSettings(() => handsBridge());
 $('#cu-files').addEventListener('change', async () => {
   const box = $('#cu-files');
@@ -14695,6 +14729,12 @@ function renderTogetherBar() {
   if (a) $('#together-now').textContent = `${act?.emoji ?? '🎲'} ${act ? t(act.label) : t('Doing something together')}${a.topic ? `: ${a.topic}` : ''}`;
 }
 $('#together').addEventListener('click', () => void openTogether());
+// N5b: car mode (web/car-mode.js).
+$('#car-mode-open').addEventListener('click', () => {
+  $('#composer-menu').hidden = true;
+  setCar(true);
+});
+initCarMode({ talk: () => $('#mic').click(), recording: () => Boolean(voice.mic.recording), voiceReady: () => !$('#mic').hidden && voice.canHear !== false });
 $('#together-end').addEventListener('click', async () => {
   if (!state.currentId) return;
   await api(`/conversations/${state.currentId}/together`, { method: 'DELETE' }).catch(() => {});
@@ -15148,3 +15188,22 @@ $('#skip-main').addEventListener('click', (e) => {
   if (target.inert || target.hidden) return;
   target.focus();
 });
+
+// N5b: Share to Sara opens /#c=<new chat>&draft=<ready message>&docs=<library ids>.
+function sharedDraft(hash) {
+  const q = new URLSearchParams(hash.replace(/^#/, ''));
+  const draft = q.get('draft') ?? '';
+  const docs = (q.get('docs') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0).slice(0, 10);
+  return draft || docs.length ? { draft, docs } : null;
+}
+async function applySharedDraft({ draft, docs }) {
+  const kept = docs.length ? ((await api('/library').catch(() => null))?.docs ?? []) : [];
+  for (const id of docs) {
+    const name = kept.find((d) => d.id === id)?.name ?? `#${id}`;
+    state.docs.push({ file: { name }, keep: true, uploaded: { id, name, keep: true } });
+  }
+  renderAttachments();
+  $('#input').value = draft;
+  autosize();
+  $('#input').focus();
+}

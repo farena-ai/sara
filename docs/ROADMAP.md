@@ -102,6 +102,17 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Everywhere you are, knows your world, works with your team, in 3.10.0
+
+The Mac app catches up with Windows: your browser tabs, your files (read only), approved commands, saving
+to your Mac and self-update. On your phone, share anything to Sara from any app, answer notifications
+with Approve, Snooze, Reply or Accept (computer use is still approved on the computer), add a home-screen
+widget, and use Car mode: one big Talk button and short spoken answers. "What Sara knows" lists what she
+has learned with its source; you edit it or mark it "not true". Ask your documents anything and get exact
+quotes with page numbers, or "not found". Renewal and expiry dates in your files become reminders.
+Shared lists with assigned tasks, a client pipeline that moves with your quotes and invoices, and time
+tracking that turns hours into an invoice without billing twice.
+
 ## From your inbox, and forms filled for you, in 3.9.0
 
 New email becomes suggestion cards on Today: a bill, a receipt, a package with delivery alerts, a trip

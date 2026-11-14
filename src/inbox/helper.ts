@@ -56,7 +56,7 @@ export interface InboxOptions {
   accounts?: () => string[];
   /** Tests: travel minutes from home to a place (default: OpenStreetMap through leaveby.ts). */
   travel?: (to: string) => Promise<number | undefined>;
-  notify?: (title: string, body: string, conversationId: string, tag: string) => Promise<void>;
+  notify?: (title: string, body: string, conversationId: string, tag: string, act?: import('../phone-actions.ts').ActItem) => Promise<void>;
   quiet?: () => boolean;
 }
 
@@ -755,13 +755,13 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
   #quiet(): boolean {
     return this.#o.quiet ? this.#o.quiet() : quietNow(this.#app);
   }
-  #say(text: string, meta: Record<string, unknown>, push = false): void {
+  #say(text: string, meta: Record<string, unknown>, push = false, act?: import('../phone-actions.ts').ActItem): void {
     const conversationId = this.#conversation();
     const msg = this.#app.store.addMessage(conversationId, 'assistant', text, meta);
     this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
     if (push && !this.#quiet() && !privateLocalOn()) {
-      const n = this.#o.notify ?? ((a: string, b: string, c: string, d: string) => this.#app.push?.notifyOwner(a, b, c, d) ?? Promise.resolve());
-      void n(this.#T(en('From your inbox')), clip(text, 200), conversationId, 'inbox').catch(() => undefined);
+      const n = this.#o.notify ?? ((a: string, b: string, c: string, d: string, e?: import('../phone-actions.ts').ActItem) => this.#app.push?.notifyOwner(a, b, c, d, e) ?? Promise.resolve());
+      void n(this.#T(en('From your inbox')), clip(text, 200), conversationId, 'inbox', act ? { ...act, conv: conversationId } : undefined).catch(() => undefined);
     }
   }
   /** What one item is, in a short line (chat; the cards build their own). */
@@ -790,7 +790,9 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
     const parts: string[] = [];
     if (cards.length) parts.push(`${this.#T(en('From your inbox: {n} to look at. Accept or dismiss each on Today.'), { n: cards.length })}\n${cards.slice(0, 8).map((c) => `- ${this.line(c)}`).join('\n')}`);
     if (done.length) parts.push(`${this.#T(en('Done from your inbox (Undo on Today):'))}\n${done.slice(0, 8).map((c) => `- ${this.line(c)}`).join('\n')}`);
-    this.#say(parts.join('\n\n'), { inbox: { items: [...cards, ...done].map((c) => c.id) } }, true);
+    // N5b: one new card: Accept right on the notification.
+    const act = cards.length === 1 ? { kind: 'inbox' as const, id: String(cards[0]!.id), companion: this.#app.companionId ?? 'main', acts: ['accept' as const] } : undefined;
+    this.#say(parts.join('\n\n'), { inbox: { items: [...cards, ...done].map((c) => c.id) } }, true, act);
   }
 
   #prune(): void {

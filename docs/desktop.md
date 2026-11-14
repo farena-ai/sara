@@ -19,6 +19,8 @@ What they add over a browser tab:
 | Camera on video calls, if you turn it on (Phase 69; [VIDEO_CALLS.md](VIDEO_CALLS.md)) | ✓ (asks once) | ✓ |
 | Settings → Connections → This computer | ✓ | ✓ |
 | Several Sara servers, each signed in, switched from a menu (Phase 68) | ✓ (macOS 14+) | ✓ |
+| The app updates itself from the signed release notice (N5 on a Mac) | ✓ | ✓ |
+| Your own tabs, files (read only), approved commands, save to this computer (N5 on a Mac) | ✓ | ✓ |
 
 ## The menus
 
@@ -137,10 +139,20 @@ updated it, so an app could stay on an old version for months while its server m
 - **With Sara's server on the same PC** (*Run Sara on this computer*), the server's own update
   installs the app with her (Settings → Updates; the service install uses the Sara Update task). The
   app then only points there.
-- **The Mac app doesn't update itself yet.** The signed notice already lists the Mac download, and
-  macOS can check Ed25519 itself (CryptoKit), but replacing a signed `Sara.app` safely needs the Mac
-  build and a Mac to test on. Until then: download the new `Sara.dmg` and drag Sara into
-  Applications (a Mac running Sara's server updates the whole app from Settings → Updates).
+- **The Mac app (N5)** does the same with the notice's `darwin` file (`Sara-<version>.dmg`):
+  `desktop/mac/Sources/AppUpdate.swift` checks the Ed25519 signature with CryptoKit (the same release key),
+  the same rules, times and publish-race retries, downloads to `~/Library/Application Support/<bundle
+  id>/updates`, checks the SHA-256 and, when the app quits (or at a quiet moment: window closed, the Mac
+  idle 20 minutes, Sara not busy), hands it to a small helper (`updates/apply-update.sh`, written by the
+  app): it waits for the app to close, checks the SHA-256 again, mounts the image read-only, checks the
+  new `Sara.app`'s signature (and that its Team ID is this app's when this one has one), copies it next to
+  the old one, swaps it in, checks its version and starts it again. A failure puts the old app back and
+  says so at the next start, with the download page. The menu bar and the Sara menu have **Update Sara
+  app** (its title says when a new app is ready). A Mac that runs Sara's server (*Sara on this Mac*) keeps
+  updating the whole app from Settings → Updates; a copy that can't replace itself (in a disk image, App
+  Translocation, a read-only folder) only says where to download it. Test copies (a DEBUG build with
+  another bundle id) take `SARA_UPDATE_NOTICE_URL`, `SARA_UPDATE_ASSET_BASE` (`http://127.0.0.1:<port>/`
+  allowed) and `SARA_UPDATE_KEY`; release builds ignore them.
 - **Testing it** (never with the real key or a real install): `SARA_TEST_INSTALL=1
   SARA_APP_VERSION=3.4.4 bash desktop/windows/build-installer.sh` builds a test-hooks app in an
   installer of its own (`outputs/windows-updtest`: another AppId, `%LOCALAPPDATA%\Programs\SaraUpdTest`,
@@ -403,8 +415,9 @@ profile, opened by her: `pc_browser_*`) and, separately, can look at **yours**:
   Edge, Chrome, Firefox or Brave window you have open (title, and the address bar's text for the tab in
   front), read only. Windows: UI Automation over each browser window's tab strip (TabItems; web pages are
   never entered), in `desktop/windows/src/hands-screen.cpp` (`tabs()`); Sara's own browser window is left
-  out. Banking and password-manager tabs and windows show only as hidden. Older apps (no `d.tabs`) and the
-  Mac app for now: the title of each browser window (its front tab), and Sara says to update the app.
+  out. Banking and password-manager tabs and windows show only as hidden. Older apps (no `d.tabs`): the
+  title of each browser window (its front tab), and Sara says to update the app. Mac: see *The Mac app's
+  PC tools* below.
 - **Your files** (`pc_files`, ops `f.list` / `f.read`, needs **Files** under Computer use, off by
   default; `handsFiles` in `desktop.ini`): list Desktop, Documents and Downloads and folders inside them,
   and read text files there (.txt, .md, .csv, .json, .log…, up to 1 MB, 32,000 characters back). Nothing
@@ -413,7 +426,7 @@ profile, opened by her: `pc_browser_*`) and, separately, can look at **yours**:
   secret-looking names (keys, certificates, `.env`, password databases, wallets) are left out and never
   read; key-shaped text is masked. Windows: `desktop/windows/src/hands-files.cpp`; the shared rules and
   the reference device: `src/hands-files.ts`. Test builds read `SARA_FILES_TEST_ROOT` (its `Desktop`,
-  `Documents`, `Downloads` folders) instead of the person's real folders. Not in the Mac app yet.
+  `Documents`, `Downloads` folders) instead of the person's real folders. Mac: see below.
 - An app that is too old for these says so in `pc_devices` (update the Sara app to the server's version
   from the releases page), and a switch that is off is named exactly.
 - The companion's name: every computer-use text from the server uses it ("Fred’s browser"); the app's
@@ -451,7 +464,7 @@ stopped, said no), and the server's audit trail has a `pc.run` line for each.
 
 Household members' companions never get these tools; private chats can use them (the command runs
 here and its output goes to the model that chat uses). An app older than 3.5 doesn't offer commands:
-she says to update it. The Mac app can't run commands yet.
+she says to update it. On a Mac the commands are zsh (see below).
 
 To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it as a model provider
 (*Ollama on my computer*, over Tailscale or your home network): see
@@ -475,6 +488,51 @@ To use this computer's Ollama or LM Studio from a Sara server elsewhere, add it 
   with the same role and name, enabled, not secure, in the same window; she acts at its current place (see Busy web
   apps below). Drags and picture points also need every other control unchanged.
 - **The approval card never takes focus** (shown without activation, mouse only, topmost re-asserted, Sara's own tagged input ignored), and a window's own popup in front (a confirm bubble, menu or dropdown) counts as that window in front, so the popup Sara asks about stays open.
+
+### The Mac app's PC tools (N5)
+
+The Mac app has the same abilities as the Windows app for the person's own things, with the same server ops
+(`d.tabs`, `d.tabswitch`, `f.list`, `f.read`, `c.run`, `c.open`) and the same rules (src/hands-run.ts,
+src/hands-files.ts, src/computer-policy.ts), so the server only had to learn zsh and one extra switch:
+
+- **Your tabs** (`desktop/mac/Sources/HandsTabs.swift`): with *The whole screen* on and **Let Sara see my
+  tabs** on (off by default; `hands.<server>.tabs`), the app asks Safari and the Chrome-family browsers
+  (Chrome, Edge, Brave, Arc, Chromium, Vivaldi) for their windows and tabs with AppleScript, only browsers
+  already running (asking never opens one). Titles and addresses only, banking and password-manager tabs
+  hidden, key-shaped text masked. Turning the switch on explains, then lets macOS ask its Automation
+  question for each open browser while the person is there (System Settings → Privacy & Security →
+  Automation; the app has `NSAppleEventsUsageDescription` and the `automation.apple-events` entitlement).
+  Without the permission the op answers `perm_missing` with those steps. While Sara's own browser is the
+  same browser (Chrome with her profile), AppleScript can't tell the two apart, so that browser is left out
+  with a note. `d.tabswitch` checks the tab again (the title's shape, the blocklist, browser password pages
+  refused; settings, payment and sign-in pages always ask), shows the desktop approval card, checks again,
+  then brings that tab and window to the front. The hello sends `optIn.tabs`; the server names the switch
+  when it is off.
+- **Files** (`HandsFiles.swift`): Desktop, Documents and Downloads, those and folders picked with the
+  folder picker, the home folder, or all local disks (never network volumes); read only. Besides the shared
+  list, the Mac's system folders (System, private, usr, bin, Applications, Volumes…), `Library` and other
+  people's home folders (except Shared) stay out at any depth; the Finder's hidden flag counts as hidden; a
+  file is opened with `O_NOFOLLOW` and its real path (`F_GETPATH`) checked again.
+- **Commands** (`HandsRun.swift`): `zsh -f -c` as the person, never as root (sudo, su, doas and *with
+  administrator privileges* refused; the app refuses everything if it runs as root), in its own process
+  group with every process it started tracked: Stop, ⌃⌥Esc, the deadline and the end of the command kill
+  the group and the tracked tree. PATH gets Homebrew's folders. The card is a non-activating panel (the
+  window in front keeps the keyboard), never in her pictures, with **Allow once / Allow for this task /
+  Don't**; closing it is Don't. `c.open` opens a web or mail address, a file or folder (never an app bundle,
+  script, installer or executable file) or an app from Applications by name (never Terminal, Script Editor,
+  Automator, Shortcuts, System Settings, Keychain Access or Disk Utility). The same Mac-specific words as
+  `src/hands-run.ts` always ask (chmod, launchctl, defaults write, diskutil, osascript, killall, brew…).
+- **Save to this Mac** (`SaveFiles.swift`): the page's *Save to…* (the Mac's Save panel, starting in the
+  last folder), *Save to Downloads*, Open / Show in Finder and *Put her documents in a folder
+  automatically* (Documents/Sara by default), through `WKWebView.startDownload` with the page's own sign-in.
+- **Checks**: `Sara --self-check [--notice <file> --key <base64> --expect <version>] [--live-tabs]` runs the
+  Mac's own checks without a window (the notice with a test key and a notice signed by Node, versions, the
+  publish-race retries, the command lists, a real zsh run with the deadline and Stop ending the tree, the
+  Files scope on a temporary folder, the save rules, the tab parser) and prints JSON. `test/n5-mac.test.ts`
+  checks the server side with a device that says hello like the Mac app (its ops read from Hands.swift).
+- Test copies (DEBUG, another bundle id) also take `SARA_FILES_TEST_ROOT`, `SARA_TEST_HANDS_FILES=1`,
+  `SARA_TEST_HANDS_RUN=1`, `SARA_TEST_HANDS_TABS=1`, and the `handsTest` notification `run:allow|task|deny`
+  answers the command card.
 
 ### Desktop actions (Phase 93, released in 2.26.0)
 

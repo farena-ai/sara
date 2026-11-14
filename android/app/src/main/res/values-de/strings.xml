@@ -124,4 +124,7 @@
     <string name="hey_paused_mic">Eine andere App nutzt das Mikrofon.</string>
     <string name="hey_heard_you">Gehört</string>
     <string name="hey_pack">Holt das Sprachmodell von deinem Server…</string>
+    <string name="widget_talk">Sprechen</string>
+    <string name="widget_next">Als Nächstes: %1$s</string>
+    <string name="widget_watches">%1$d beobachtet</string>
 </resources>

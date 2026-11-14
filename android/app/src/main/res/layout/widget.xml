@@ -48,5 +48,30 @@
             android:text="Tap to open"
             android:textColor="#AEA6BD"
             android:textSize="13sp" />
+
+        <!-- N5b: the next reminder and how many watches are on -->
+        <TextView
+            android:id="@+id/next"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textColor="#F1EDF7"
+            android:textSize="12sp" />
     </LinearLayout>
+
+    <!-- N5b: Talk to Sara (opens the app listening, like the Quick Settings tile) -->
+    <TextView
+        android:id="@+id/talk"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/widget_bg"
+        android:gravity="center"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:text="@string/widget_talk"
+        android:textColor="#F08AA5"
+        android:textSize="14sp"
+        android:textStyle="bold" />
 </LinearLayout>

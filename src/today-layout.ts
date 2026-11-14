@@ -33,6 +33,8 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-business', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   // E3: Money (portfolio, bills this week, spent this month), shown only once used.
   { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
+  // N7: Shared with you (items given to you, invitations) and Clients and hours (timer, pipeline); shown only once used.
+  { id: 'td-shared', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },
@@ -40,6 +42,7 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-rooms', section: 'her', sizes: ['S', 'M', 'L'], size: 'M', hidden: true, ownerOnly: true },
   { id: 'td-jobs', section: 'work', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-board', section: 'work', sizes: ['S', 'M'], size: 'S' },
+  { id: 'td-worktime', section: 'work', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-projects', section: 'work', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
   { id: 'td-usage', section: 'work', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
   { id: 'td-home', section: 'more', sizes: ['M', 'L'], size: 'L', ownerOnly: true },

@@ -416,6 +416,7 @@
             <button id="attach-photo" class="pop-item" type="button" role="menuitem" title="Send a photo from this device"><i class="ic" data-icon="image"></i> Photo</button>
             <button id="show-screen" class="pop-item" type="button" role="menuitem" title="Pick a window or your screen in your browser's own prompt: one picture of it is added to your message" hidden><i class="ic" data-icon="monitor"></i> Show Sara my screen</button>
             <button id="together" class="pop-item" type="button" role="menuitem" title="Do something together: games, journaling, watching along, your shared lists"><i class="ic" data-icon="dice"></i> Something together</button>
+            <button id="car-mode-open" class="pop-item" type="button" role="menuitem" title="Hands-free while driving: one big Talk button, short spoken answers, no screens of text. Say “car mode off” to leave."><i class="ic" data-icon="mic"></i> Car mode</button>
             <button id="persist-goal" class="pop-item" type="button" role="menuitem" title="She works in rounds until a check you pick passes" hidden><i class="ic" data-icon="target"></i> Keep going until it’s done…</button>
             <button id="persist-loop" class="pop-item" type="button" role="menuitem" title="She checks again on a timer and tells you when something changes" hidden><i class="ic" data-icon="update"></i> Repeat this…</button>
           </div>
@@ -506,6 +507,7 @@
                 <section class="today-card td-tile" id="td-business" hidden tabindex="0" aria-labelledby="td-business-h"><div class="td-tile-head"><h3 id="td-business-h">Money and replies</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-money" hidden tabindex="0" aria-labelledby="td-money-h"><div class="td-tile-head"><h3 id="td-money-h">Money</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-inbox" hidden tabindex="0" aria-labelledby="td-inbox-h"><div class="td-tile-head"><h3 id="td-inbox-h">From your inbox</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-shared" hidden tabindex="0" aria-labelledby="td-shared-h"><div class="td-tile-head"><h3 id="td-shared-h">Shared with you</h3></div><div class="td-body"></div></section>
               </div>
             </section>
             <section class="td-sec" id="td-sec-her" data-sec="her" aria-labelledby="td-sec-her-h">
@@ -522,6 +524,7 @@
               <div class="td-grid">
                 <section class="today-card td-tile td-code" id="td-jobs" hidden tabindex="0" aria-labelledby="td-jobs-h"><div class="td-tile-head"><h3 id="td-jobs-h">Running now</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile" id="td-board" hidden tabindex="0" aria-labelledby="td-board-h"><div class="td-tile-head"><h3 id="td-board-h">On the board</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-worktime" hidden tabindex="0" aria-labelledby="td-worktime-h"><div class="td-tile-head"><h3 id="td-worktime-h">Clients and hours</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile td-code" id="td-projects" hidden tabindex="0" aria-labelledby="td-projects-h"><div class="td-tile-head"><h3 id="td-projects-h">Coding projects</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-usage" hidden tabindex="0" aria-labelledby="td-usage-h"><div class="td-tile-head"><h3 id="td-usage-h">Usage today</h3></div><div class="td-body"></div></section>
               </div>
@@ -869,6 +872,16 @@
     <p class="muted small">Your other signed-in devices (your phone, a browser) now show “Approve a device?” and Today lists it under Needs you: type this code there. Or send it to her in Telegram or Discord: approve and the code. 10 minutes without an answer is a no.</p>
     <p id="dap-ask-status" class="small" role="status"></p>
     <p class="actions-left"><button id="dap-ask-cancel" type="button" class="ghost">Cancel</button></p>
+  </dialog>
+  <!-- N5b: car mode (web/car-mode.js): one Talk button, spoken short answers, no text on screen. -->
+  <dialog id="car-mode" class="car-mode" aria-labelledby="car-title" data-nox>
+    <div class="car-head">
+      <h2 id="car-title">Car mode</h2>
+      <button id="car-exit" type="button" class="ghost">Exit car mode</button>
+    </div>
+    <button id="car-talk" class="car-talk" type="button" aria-pressed="false" autofocus><i class="ic" data-icon="mic"></i><span id="car-talk-label">Talk</span></button>
+    <p id="car-status" class="car-status" aria-live="polite"></p>
+    <p class="car-note">Short spoken answers only. Ask “read my messages” to hear what’s new. It turns off after 2 hours without use.</p>
   </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
     <div class="settings-body">
@@ -2369,6 +2382,8 @@
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
         <label class="row"><input id="cu-localonly" type="checkbox" data-noauto> Screenshots only to models on this computer <button type="button" class="tip" data-tip="Pictures of this screen then go only to a model on your own hardware (like Ollama). With a cloud model she works from the page's text instead. Private local mode always does this.">?</button></label>
         <label class="row"><input id="cu-desktop" type="checkbox" data-noauto> The whole screen: apps, mouse and keyboard <button type="button" class="tip" data-tip="Off by default. On: Sara can look and act in apps when asked, with local approvals. Password fields and protected windows stay refused. Stop always works.">?</button></label>
+        <!-- N5: the Mac app asks the browsers for their tabs (AppleScript): its own switch, under The whole screen. -->
+        <label class="row" hidden><input id="cu-tabs" type="checkbox" data-noauto> Let Sara see my tabs <button type="button" class="tip" data-tip="Off by default. On: Sara can list the tabs open in your own Safari, Chrome, Edge, Brave or Arc windows (titles and addresses, never the pages) and bring one to the front when you allow it here. macOS asks once for each browser.">?</button></label>
         <!-- 3.5 (PC tools): commands on this computer (web/pc-run-settings.js; apps from 3.5 on). -->
         <label class="row" hidden><input id="cu-run" type="checkbox" data-noauto> Let her run commands on this computer <button type="button" class="tip" data-tip="Off by default. On: she can run PowerShell or cmd commands and open pages, files and apps here, as you, never as administrator. Every command is shown on this computer first and runs only if you allow it here. Stop (Ctrl+Alt+Esc) ends it and everything it started.">?</button></label>
         <label class="row" hidden>Approvals for commands <select id="cu-run-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Commands that delete, change settings or download and run things always ask, whatever you pick here.">?</button></label>
@@ -3287,6 +3302,22 @@
       <h3>Store checks in your browser <button type="button" class="tip" data-tip="When a store blocks Sara, she can check its price and stock in your own browser (you approve each step on your computer). Afterwards she closes that tab, unless you tick this.">?</button></h3>
       <label class="row"><input id="md-leave-tab" type="checkbox"> Leave the store’s tab open after a check</label>
       <p id="md-status" class="muted small" role="status"></p>
+        </section>
+        <section class="settings-page" data-page="you-knows" data-group="You" data-title="What Sara knows" hidden>
+      <p class="muted small page-lead">What Sara keeps about your world: things you told her and things she read in your Library documents, each with where it came from. Fix anything here; <em>Not true</em> makes her forget it for good. Account and policy numbers keep only their last 4 digits, and card or Social Security numbers are never kept. <a href="/help#what-sara-knows" target="_blank" rel="noopener">How this works</a></p>
+      <div id="wsk-suggest" hidden>
+        <h3>From your documents <button type="button" class="tip" data-tip="Renewal, expiry and due dates she found in your documents. Accept adds a reminder before the date (30 days for renewals and expiry, 3 for due dates). Nothing is added unless you accept.">?</button></h3>
+        <div id="wsk-suggest-list" data-nodirty data-noauto></div>
+      </div>
+      <h3>Ask your documents <button type="button" class="tip" data-tip="Ask about your own papers, like “what’s my deductible?” or “when does my lease end?”. She searches every Library file and answers with the exact words, the file and the page, or says it isn’t there.">?</button></h3>
+      <div class="wsk-askrow" data-nodirty data-noauto>
+        <input id="wsk-ask" type="search" maxlength="300" autocomplete="off" placeholder="What’s my deductible?" aria-label="Ask your documents">
+        <button id="wsk-ask-go" type="button" class="small">Ask</button>
+      </div>
+      <div id="wsk-answer" role="status"></div>
+      <h3>What she knows <button type="button" class="tip" data-tip="Health facts, a passport and anything from a private chat are marked Private. Edit changes her memory too; Delete removes it; Not true forgets it for good.">?</button></h3>
+      <div id="wsk-list" data-nodirty data-noauto></div>
+      <p id="wsk-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="you-adult" data-group="You" data-title="Adult mode" hidden>
       <p id="adult-state" class="small" role="status"></p>

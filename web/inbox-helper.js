@@ -112,12 +112,13 @@ async function fileIt(it) {
 }
 
 /** Today: the "From your inbox" tile. */
-export function renderInboxTile(p, tileHead) {
+export function renderInboxTile(p, tileHead, dateCard) {
   const tile = $('#td-inbox');
   if (!tile) return;
   tile.hidden = !p;
   if (!p || !ctx) return;
-  tileHead?.(tile, t('From your inbox'));
+  const fromMail = p.pending.length || p.done.length || p.packages.length || p.trips.length || p.rules.length;
+  tileHead?.(tile, fromMail ? t('From your inbox') : t('From your documents'));
   const parts = [];
   if (p.pending.length) {
     const list = el('ul', 'ih-cards');
@@ -148,6 +149,12 @@ export function renderInboxTile(p, tileHead) {
     const box = el('div', 'ih-rule small');
     box.append(el('span', '', t('File {ext} attachments from {from} into Library/{folder}?', { ext: r.ext.toUpperCase(), from: r.from, folder: r.folder })), btn(t('Turn on'), 'ghost small', () => void act(`/inbox/rules/${r.id}/on`)), btn(t('No thanks'), 'ghost small', () => void act(`/inbox/rules/${r.id}/off`)));
     parts.push(box);
+  }
+  // N6: dates found in their documents (web/facts.js dateCard; Accept adds a reminder).
+  if (p.docs?.length && dateCard) {
+    const list = el('ul', 'ih-cards');
+    list.append(...p.docs.map((s) => dateCard(s, () => ctx.refreshToday?.())));
+    parts.push(list);
   }
   tile.querySelector('.td-body').replaceChildren(...parts);
 }

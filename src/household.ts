@@ -529,8 +529,12 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'automations',
   // N4: their own My details (src/routes/my-details.ts; their space's own store)
   'my-details',
+  // N6: their own What Sara knows (src/routes/facts.ts; their space's own store)
+  'facts',
   // N3: their own inbox helper (suggestions from their own mailboxes; src/routes/inbox.ts)
   'inbox',
+  // N7: their own timer and work tiles (src/routes/work.ts; their space's own store.db)
+  'work',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
   'boards', 'columns',
   // library

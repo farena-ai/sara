@@ -120,7 +120,8 @@ export interface HandsHello {
   browser?: { found: boolean; kind?: string; name?: string };
   perms?: { capture?: boolean; input?: boolean; ax?: boolean };
   /** 3.4.x: files = "Files" on that computer (read Desktop, Documents and Downloads; off by default; older apps never send it). */
-  optIn: { browser: boolean; desktop: boolean; files?: boolean; run?: boolean };
+  /** N5: `tabs` only from the Mac app ("Let Sara see my tabs": AppleScript reads the browsers' tabs); absent means no separate switch. */
+  optIn: { browser: boolean; desktop: boolean; files?: boolean; run?: boolean; tabs?: boolean };
   /** 3.5 (PC tools): simple read-only commands run there without asking (the owner's choice there). */
   runReadOnly?: boolean;
   /** 3.5.x: the NAMES of the places "Files" may read there ("desktop", "Projects", "home", "drive C"; never paths) and the owner's choice. Older apps: the three folders. */
@@ -432,7 +433,7 @@ export class HandsHub {
         ...(Array.isArray(m.screens) ? { screens: (m.screens as HandsHello['screens'])!.slice(0, 8) } : {}),
         ...(m.browser && typeof m.browser === 'object' ? { browser: { found: Boolean((m.browser as Record<string, unknown>).found), ...((m.browser as Record<string, unknown>).kind ? { kind: plain((m.browser as Record<string, unknown>).kind, 20) } : {}), ...((m.browser as Record<string, unknown>).name ? { name: plain((m.browser as Record<string, unknown>).name, 60) } : {}) } } : {}),
         ...(m.perms && typeof m.perms === 'object' ? { perms: { capture: (m.perms as Record<string, unknown>).capture === true, input: (m.perms as Record<string, unknown>).input === true, ax: (m.perms as Record<string, unknown>).ax === true } } : {}),
-        optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true, ...(optIn.files === true ? { files: true } : {}), ...(optIn.run === true ? { run: true } : {}) },
+        optIn: { browser: optIn.browser === true, desktop: optIn.desktop === true, ...(optIn.files === true ? { files: true } : {}), ...(optIn.run === true ? { run: true } : {}), ...(typeof optIn.tabs === 'boolean' ? { tabs: optIn.tabs } : {}) },
         ...(m.runReadOnly === true ? { runReadOnly: true } : {}),
         fileRoots: fileRootsOf(m.fileRoots),
         ...(FILE_SCOPES.includes(m.fileScope as FileScope) ? { fileScope: m.fileScope as FileScope } : {}),
@@ -520,7 +521,7 @@ export class HandsHub {
       }
       if (kind === 'optin' && d.hello) {
         const o = (m.optIn ?? {}) as Record<string, unknown>;
-        d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true, ...(o.files === true ? { files: true } : {}), ...(o.run === true ? { run: true } : {}) };
+        d.hello.optIn = { browser: o.browser === true, desktop: o.desktop === true, ...(o.files === true ? { files: true } : {}), ...(o.run === true ? { run: true } : {}), ...(typeof o.tabs === 'boolean' ? { tabs: o.tabs } : {}) };
         if (typeof m.runReadOnly === 'boolean') d.hello.runReadOnly = m.runReadOnly;
         if (Array.isArray(m.fileRoots)) d.hello.fileRoots = fileRootsOf(m.fileRoots);
         if (FILE_SCOPES.includes(m.fileScope as FileScope)) d.hello.fileScope = m.fileScope as FileScope;

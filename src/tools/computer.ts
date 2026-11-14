@@ -234,12 +234,12 @@ export function createComputerTools(app: AppContext): Tool[] {
           else bits.push(`"The whole screen" is off there, so the owner's own browser tabs, windows and screen are not visible to you (only ${BR()}); the owner can switch it on in the Sara app there (Settings \u2192 Computer use)`);
         }
         // 3.5 (PC tools): commands there (src/tools/pc-run.ts).
-        if (d.ops?.includes('c.run')) bits.push(d.optIn?.run ? `you may run PowerShell or cmd commands there and open things (pc_run, pc_open; the owner approves each on that computer${d.runReadOnly ? ', except simple read-only commands' : ''})` : `"Let ${NAME()} run commands on this computer" is off there (they can switch it on in the Sara app there: Settings \u2192 Computer use)`);
+        if (d.ops?.includes('c.run')) bits.push(d.optIn?.run ? `you may run ${isMac(d) ? 'zsh' : 'PowerShell or cmd'} commands there and open things (pc_run, pc_open; the owner approves each on that computer${d.runReadOnly ? ', except simple read-only commands' : ''})` : `"Let ${NAME()} run commands on this computer" is off there (they can switch it on in the Sara app there: Settings \u2192 Computer use)`);
         const roots = fileRootsOf(d.fileRoots);
         if (d.ops?.includes('f.list')) bits.push(d.optIn?.files ? `the owner's own files: you may list and read (never change) ${rootsText(roots)} (pc_files)` : `"Files" is off there (the owner's own files; they can switch it on in the Sara app there: Settings \u2192 Computer use \u2192 Files)`);
         const missing = [d.ops?.includes('d.shot') && !d.ops?.includes('d.tabs') ? 'see every open tab of their own browsers' : '', !d.ops?.includes('f.list') ? 'read their files' : ''].filter(Boolean);
-        if (missing.length && /windows/i.test(d.app ?? '')) bits.push(`this Sara app is older (${d.app}): to let you ${missing.join(' and ')}, the owner needs to ${updateHow(d)}. Tell them that in plain words when they ask for it`);
-        else if (missing.length && isMac(d)) bits.push(`the Sara app for Mac can't ${missing.join(' or ')} yet (pc_my_tabs shows the front tab of each browser window there)`);
+        if (d.optIn?.tabs === false && d.ops?.includes('d.tabs')) bits.push(`"Let ${NAME()} see my tabs" is off there, so their own browser tabs are not listed (they can switch it on in the Sara app there: Settings \u2192 Computer use)`);
+        if (missing.length && (/windows/i.test(d.app ?? '') || isMac(d))) bits.push(`this Sara app is older (${d.app}): to let you ${missing.join(' and ')}, the owner needs to ${updateHow(d)}. Tell them that in plain words when they ask for it`);
         if (d.busy) bits.push('busy with a task now');
         // 3.5.x (reach): first a short plain list of everything she can do there now and what each needs.
         const can: string[] = [];
@@ -247,7 +247,8 @@ export function createComputerTools(app: AppContext): Tool[] {
         const desk = Boolean(d.optIn?.desktop && d.ops?.includes('d.shot'));
         if (desk) {
           can.push('see the whole screen and every open window, and read what is in them (pc_look, pc_windows): no approval needed');
-          if (d.ops?.includes('d.tabs')) can.push(`read the owner's own browser tabs (pc_my_tabs)${d.ops.includes('d.tabswitch') ? ' and bring one to the front (pc_my_tabs with action "switch"; they approve on that computer)' : ''}`);
+          if (d.ops?.includes('d.tabs') && d.optIn?.tabs === false) cannot.push(`read their own browser tabs: "Let ${NAME()} see my tabs" is off`);
+          else if (d.ops?.includes('d.tabs')) can.push(`read the owner's own browser tabs (pc_my_tabs)${d.ops.includes('d.tabswitch') ? ' and bring one to the front (pc_my_tabs with action "switch"; they approve on that computer)' : ''}`);
           if (d.ops?.includes('d.click')) can.push(`click, type, press keys, scroll and drag in their apps${d.ops.includes('d.tabswitch') ? ' and their own browser windows' : ''} (pc_click, pc_type, pc_keys, pc_scroll, pc_drag after a pc_look) and open an installed app (pc_open_app): they approve on that computer${d.approvalsHere === false ? ' (but this app can\u2019t show approval cards, so actions are refused)' : ''}`);
         } else if (d.ops?.includes('d.shot')) cannot.push('see their screen, windows and tabs or act in their apps: "The whole screen" is off');
         if (d.ops?.includes('c.run')) (d.optIn?.run ? can : cannot).push(d.optIn?.run ? 'run commands they approve (pc_run) and open pages, files or apps (pc_open)' : `run commands or open things: "Let ${NAME()} run commands on this computer" is off`);
@@ -1164,7 +1165,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     return '';
   };
   const runMissing = (d: HandsDeviceView): string => {
-    if (!d.ops?.includes('c.run')) return isMac(d) ? 'the Sara app for Mac can\u2019t run commands yet' : `the Sara app on ${nameOf(d)} is older and can't run commands yet: ${updateHow(d)}`;
+    if (!d.ops?.includes('c.run')) return `the Sara app on ${nameOf(d)} is older and can't run commands yet: ${updateHow(d)}`;
     if (!d.optIn?.run) return `"Let ${NAME()} run commands on this computer" is off on ${nameOf(d)}: the owner switches it on in the Sara app there (Settings \u2192 Computer use)`;
     if (d.approvalsHere !== true) return `the Sara app on ${nameOf(d)} can't show its approval cards, so nothing runs there: ${updateHow(d)}`;
     return '';
@@ -1332,7 +1333,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       if (!d.ops?.includes('d.shot')) return `The Sara app on ${nameOf(d)} can't see the owner's own browser yet. Tell the owner to ${updateHow(d)}.`;
       if (!d.optIn?.desktop) return SCREEN_SWITCH(d);
       if (args.action === 'switch') {
-        if (!d.ops.includes('d.tabswitch')) return `The Sara app on ${nameOf(d)} can't switch the owner's tabs${isMac(d) ? ' yet (the Mac app reads them only)' : `: tell the owner to ${updateHow(d)}`}. Meanwhile ask the owner to click the tab, then pc_look at that window.`;
+        if (!d.ops.includes('d.tabswitch')) return `The Sara app on ${nameOf(d)} can't switch the owner's tabs: tell the owner to ${updateHow(d)}. Meanwhile ask the owner to click the tab, then pc_look at that window.`;
         if (!d.ops.includes('d.tabs')) return 'This computer can\u2019t list the tabs yet.';
         const conv = convOf(ctx);
         const list = browserTabs((await deskOp(ctx, d, 'd.tabs', {}, 'reading your browser tabs')).result.browsers);
@@ -1367,7 +1368,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       // An older app: each browser window's title is the tab in front.
       const r = await deskOp(ctx, d, 'd.windows', {}, 'listing the windows');
       const list = desktopWindows(r.result.windows).filter((w) => !w.hidden && BROWSER_APP.test(w.app ?? ''));
-      const old = /windows/i.test(d.app ?? '') ? ` The Sara app there is older (${d.app}): it shows only the tab in front of each window. To see every tab, ${updateHow(d)}; tell the owner that.` : isMac(d) ? ' On a Mac the Sara app shows only the tab in front of each window for now.' : '';
+      const old = /windows|mac/i.test(`${d.app ?? ''} ${d.os ?? ''}`) ? ` The Sara app there is older (${d.app}): it shows only the tab in front of each window. To see every tab, ${updateHow(d)}; tell the owner that.` : '';
       if (!list.length) return `None of the owner's own browser windows are open on ${nameOf(d)} (Edge, Chrome, Firefox, Brave…).${old}`;
       return `${UNTRUSTED_SCREEN}\nThe owner's own browser windows on ${nameOf(d)} (the tab in front of each; read only):\n${list.map((w) => `- ${browserLabel(w.app ?? '')} window ${w.id}: ${w.title || '(no title)'}${w.minimized ? ' [minimized]' : ''}`).join('\n')}\n${old.trim()}${flagged(list.map((w) => w.title ?? '').join(' '))}`;
     },
@@ -1392,7 +1393,7 @@ export function createComputerTools(app: AppContext): Tool[] {
         throw new ToolError((err as FileRuleError).message);
       }
       const d = pickAny(args, filesOn);
-      if (!d.ops?.includes('f.list')) return isMac(d) ? `The Sara app for Mac can't read the owner's files yet. Ask them to send the file in the chat.` : `The Sara app on ${nameOf(d)} can't read the owner's files yet. Tell the owner to ${updateHow(d)}; then switch on "Files" there (Settings \u2192 Computer use). Meanwhile they can send the file in the chat.`;
+      if (!d.ops?.includes('f.list')) return `The Sara app on ${nameOf(d)} can't read the owner's files yet. Tell the owner to ${updateHow(d)}; then switch on "Files" there (Settings \u2192 Computer use). Meanwhile they can send the file in the chat.`;
       const roots = fileRootsOf(d.fileRoots);
       if (!d.optIn?.files) return `"Files" is off on ${nameOf(d)}, so the owner's own files are not visible to you. Tell the owner: to let you see them, open the Sara app on ${nameOf(d)} \u2192 Settings \u2192 Computer use \u2192 switch on "Files" (you can then list and read files in ${rootsText(roots)}, never change them; under "Which folders" they can allow more). Or they can send the file in the chat.`;
       // 3.5.x: the folder by its name, or the path's first part when that names an allowed folder.

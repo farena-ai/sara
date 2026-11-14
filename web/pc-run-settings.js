@@ -10,6 +10,11 @@ export function renderPcRunPrefs(p) {
   const supported = p?.handsRunSupported === true;
   for (const id of ['#cu-run', '#cu-run-level', '#cu-run-readonly']) $(id).closest('label').hidden = !supported;
   if (!supported) return;
+  // N5: the Mac app runs zsh (no PowerShell there) and its Stop shortcut is Control-Option-Esc.
+  if (p.handsRunShell === 'zsh') {
+    $('#cu-run').closest('label').querySelector('.tip').dataset.tip = t('Off by default. On: she can run zsh commands and open pages, files and apps on this Mac, as you, never as administrator. Every command is shown on this Mac first and runs only if you allow it here. Stop (Control-Option-Esc) ends it and everything it started.');
+    $('#cu-run-readonly').closest('label').querySelector('.tip').dataset.tip = t('Off by default. On: a short list of commands that only look (like ls, cat, df or git status) runs without the approval card. Everything else still asks.');
+  }
   $('#cu-run').checked = p.handsRun === true;
   $('#cu-run').disabled = p.handsOptIn !== true;
   $('#cu-run-level').value = p.handsRunLevel || 'task';

@@ -116,6 +116,32 @@ reply. It uses the server the app is on now. It comes with the next iPhone app u
 
 More: [INSTALL.md](INSTALL.md), [FAQ.md](FAQ.md).
 
+## Share, quick actions, widget and car mode (N5b)
+
+- **Share to Sara:** in any app, *Share → Sara*. Photos, PDFs, Office files, tables and links go to her
+  Library, and a new chat opens with a ready message such as "Here's a photo of a receipt. Please
+  add it as an expense." Check it and press Send. On Android this works from the Sara app and from
+  the installed web app (Chrome: *Install app* first). On iPhone the web app can't receive shares
+  (Apple doesn't support share targets); use the Sara iPhone app when it is out. Files she can't read
+  are left out. Up to 10 files at a time.
+- **Buttons on notifications:** *Approve* / *Decline* on a plain approval, *Snooze 1 h* on a reminder,
+  *Reply* on her messages (you type in the notification where the phone supports it; otherwise it
+  opens the chat), *Accept* on an inbox card, and *Approve* / *Decline* on an automation that waits
+  for your OK. Each notification carries its own one-time key: it works once, only for that item and
+  only for that person, and runs out after 15 minutes (approvals) or 2 hours (the rest). The
+  notification itself needs no sign-in cookie.
+  **Approvals for computer use happen on the computer itself, never from the phone.** Cards for her
+  hands on a PC or her browser, and cards with a choice to make (goes against a decision, sandbox,
+  install check, spending), show no Approve button; open Sara for those.
+- **Home-screen widget (Android app):** her face and mood, her last message, the next reminder, how
+  many watches are on, and **Talk** (opens the app listening). It refreshes every 30 minutes and when
+  the app checks for messages.
+- **Car mode:** + → **Car mode**, or say or type "car mode" ("car mode off" to leave). One big
+  **Talk** button; her answers are spoken and kept to two short sentences; no screens of text; she
+  doesn't offer computer use or long tasks while you drive. Ask "read my messages" to hear her newest
+  reminders and notes. It turns off by itself after 2 hours without use, and her voice setting goes
+  back to what it was. Her voice must be set up (Settings → Her → Voice).
+
 ## Lend Sara your phone
 
 Sara can ask your phone for one picture, your location or a screen picture, approved on the phone

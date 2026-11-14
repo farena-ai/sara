@@ -141,6 +141,57 @@ final class Net {
         return new Response(status, out.toByteArray());
     }
 
+    /** N5b: one part of a form upload (a file, or a text field when filename is null). */
+    static final class Part {
+        final String name;
+        final String filename;
+        final String type;
+        final byte[] data;
+
+        Part(String name, String filename, String type, byte[] data) {
+            this.name = name;
+            this.filename = filename;
+            this.type = type;
+            this.data = data;
+        }
+    }
+
+    /** N5b: POST multipart/form-data with the app's sign-in (Share to Sara: files into her Library). */
+    static Response postMultipart(Context c, String url, java.util.List<Part> parts) throws IOException {
+        String boundary = "----sara" + Long.toHexString(System.nanoTime());
+        ByteArrayOutputStream body = new ByteArrayOutputStream();
+        for (Part p : parts) {
+            String safe = p.filename == null ? null : p.filename.replace("\"", "_").replace("\r", "").replace("\n", "");
+            String head = "--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + p.name + "\"" + (safe != null ? "; filename=\"" + safe + "\"" : "") + "\r\nContent-Type: " + p.type + "\r\n\r\n";
+            body.write(head.getBytes(StandardCharsets.UTF_8));
+            body.write(p.data);
+            body.write("\r\n".getBytes(StandardCharsets.UTF_8));
+        }
+        body.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+        HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();
+        con.setConnectTimeout(15000);
+        con.setReadTimeout(60000);
+        con.setRequestMethod("POST");
+        con.setDoOutput(true);
+        signIn(c, con, url);
+        con.setRequestProperty("User-Agent", "SaraPhone/1");
+        con.setRequestProperty("Accept", "application/json");
+        con.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        byte[] bytes = body.toByteArray();
+        con.setFixedLengthStreamingMode(bytes.length);
+        con.getOutputStream().write(bytes);
+        int status = con.getResponseCode();
+        InputStream in = status >= 400 ? con.getErrorStream() : con.getInputStream();
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        if (in != null) {
+            byte[] b = new byte[4096];
+            for (int n; (n = in.read(b)) > 0; ) out.write(b, 0, n);
+            in.close();
+        }
+        con.disconnect();
+        return new Response(status, out.toByteArray());
+    }
+
     /** GET with the sign-in cookie the app's web view holds for this server. */
     static Response get(Context c, String url) throws IOException {
         HttpURLConnection con = (HttpURLConnection) new URL(url).openConnection();

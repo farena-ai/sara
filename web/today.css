@@ -474,6 +474,11 @@ html.sara-busy .td-face { animation: her-breathe var(--breathe) ease-in-out infi
 .td-teams-row { display: grid; gap: 2px; }
 .td-teams-row .td-biz-k { font-weight: 650; color: var(--text-1); }
 .td-teams-live { color: var(--accent-solid); font-weight: 600; font-variant-numeric: tabular-nums; }
+/* N7: Shared with you and Clients and hours */
+.td-sh-invite { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.td-wt-timer { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding-bottom: 6px; }
+.td-wt-what { font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.td-wt-timer.long .td-biz-v { color: var(--danger); }
 .td-usage-nums { display: grid; gap: 2px; }
 .td-usage-tok { font-size: 20px; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--text-1); }
 .td-usage-split { display: grid; gap: 4px; margin: 0; padding: 0; list-style: none; }

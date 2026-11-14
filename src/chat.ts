@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { CAR_BLOCKED_TOOL, carNote } from './phone-actions.ts';
 import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
@@ -922,7 +923,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 /** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -1254,6 +1255,8 @@ export interface TurnOptions {
   editor?: EditorLink;
   /** Phase 72: answer with the quick model (Alexa allows about 8 seconds for a reply). */
   quickModel?: boolean;
+  /** N5b: car mode (the page's switch): short spoken answers, no computer use or long tasks. */
+  car?: boolean;
   /**
    * Phase 126 (WAKE.md §5.6): a Hey Sara turn from a device whose speakers are a room (desktops by
    * default): the voice-room rule applies as for Alexa (never explicit, private matters only if he
@@ -1965,6 +1968,8 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   let tools = x.noModel || conv.partner || opts.noTools ? [] : app.tools.enabled(app.settings.get().toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
   // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
   if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
+  // N5b: while driving, no computer use and no long or background tasks.
+  if (opts.car) tools = tools.filter((t) => !CAR_BLOCKED_TOOL(t.spec.name));
   // E6: while an item of a public feed is shared in this chat, nothing that reaches outside (strangers' text may ask for it).
   if (app.readTogether?.get(conv.id)?.source === 'feed') tools = tools.filter((t) => !OFFSERVER_TOOL(t.spec.name));
   // Phase 100: an outside request gets only the tools its policy lists (default none).
@@ -2035,6 +2040,8 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
     if (!adultOn && !work) safetyNotes.push(ADULT_OFF_NOTE);
   }
   if (opts.group) safetyNotes.push(opts.group.note);
+  // N5b: car mode: two spoken sentences, nothing to read, her newest messages ready to read aloud.
+  if (opts.car && !conv.partner) safetyNotes.push(carNote(app.settings.get().ownerName?.trim() || 'the owner', carUnread(app)));
   // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
   if (opts.outside) safetyNotes.push(outsideNote(opts.outside, app.persona.name));
   return safetyNotes;
@@ -4329,4 +4336,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     signal.removeEventListener('abort', abortGate);
     releaseSessionStep();
   }
+}
+
+/** N5b: her newest messages of the last 12 hours that she sent on her own (reminders, inbox, jobs), for car mode's read-back. */
+export function carUnread(app: AppContext, max = 3): string[] {
+  const since = new Date(app.now().getTime() - 12 * 3600_000).toISOString();
+  const rows = app.store.db
+    .prepare("SELECT m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.created_at >= ? AND (m.meta LIKE '%\"proactive\"%' OR m.meta LIKE '%\"reminder\"%' OR m.meta LIKE '%\"job\"%' OR m.meta LIKE '%\"inbox\"%' OR m.meta LIKE '%\"automation\"%') ORDER BY m.id DESC LIMIT ?")
+    .all(since, max) as { content: string }[];
+  return rows.map((r) => r.content.replace(/\s+/g, ' ').trim().slice(0, 240)).filter(Boolean);
 }

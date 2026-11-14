@@ -7,6 +7,7 @@ import type { Conversation } from '../store.ts';
 import type { Tool } from '../tools/types.ts';
 import { ToolError } from '../tools/types.ts';
 import { isWorkChannel } from '../safety.ts';
+import { answerText, askDocuments } from '../facts.ts';
 import { type LibraryDoc, type LibraryStore, type PassageHit, sourceLabel } from './store.ts';
 
 /** Shared-in-this-chat documents up to this size go into her instructions whole. */
@@ -16,7 +17,7 @@ const FOUND_CHARS = 3200;
 const LIST_DOCS = 12;
 
 /** Words that point at documents ("what does my lease say", "according to the manual"). */
-const DOC_CUE = /\b(document|doc|file|pdf|attachment|upload(ed)?|lease|contract|manual|policy|invoice|receipt|statement|report|spreadsheet|slides?|deck|book|chapter|page \d+|section|clause|says?|according to|in (the|my) (notes|library))\b/i;
+const DOC_CUE = /\b(document|doc|file|pdf|attachment|upload(ed)?|lease|contract|manual|policy|invoice|receipt|statement|report|spreadsheet|slides?|deck|book|chapter|page \d+|section|clause|says?|according to|in (the|my) (notes|library)|deductible|premium|warranty|renewal|expir\w*|coverage|passport|licen[cs]e)\b/i;
 
 /** Her library for this companion (a shared one lives with the first companion). */
 export const libraryOf = (app: AppContext): LibraryStore | undefined => app.library;
@@ -94,12 +95,12 @@ export function createLibraryTool(app: () => AppContext): Tool {
     spec: {
       name: 'library',
       description:
-        "Your library: documents the owner gave you (PDFs, Word, spreadsheets, slides, books and manuals of up to thousands of pages, web pages, notes). Use it to answer from them instead of guessing, and say where the answer came from: for pages, the page and its link as given with the passage (e.g. '[p. 412](/#view=library:3:412)'). action 'search' finds passages by words and meaning; 'read' reads a document from a place onward (e.g. place 'page 412'); 'contents' shows a long document's chapters and sections with their pages and summaries; 'list' shows what's there.",
+        "Your library: documents the owner gave you (PDFs, Word, spreadsheets, slides, books and manuals of up to thousands of pages, web pages, notes). Use it to answer from them instead of guessing, and say where the answer came from: for pages, the page and its link as given with the passage (e.g. '[p. 412](/#view=library:3:412)'). action 'ask' answers a question about their own papers (\"what's my deductible?\", \"when does my lease end?\") across ALL their documents with exact quotes checked against the file, the file and the page; when it says not found, say it isn't in their documents instead of guessing. action 'search' finds passages by words and meaning; 'read' reads a document from a place onward (e.g. place 'page 412'); 'contents' shows a long document's chapters and sections with their pages and summaries; 'list' shows what's there.",
       parameters: {
         type: 'object',
         properties: {
-          action: { type: 'string', enum: ['search', 'read', 'contents', 'list'] },
-          query: { type: 'string', description: "For search: what to look for, e.g. 'when does the lease end' or 'filter cleaning'." },
+          action: { type: 'string', enum: ['ask', 'search', 'read', 'contents', 'list'] },
+          query: { type: 'string', description: "For ask: their question. For search: what to look for, e.g. 'when does the lease end' or 'filter cleaning'." },
           document: { type: 'string', description: 'Optional: the document name (or part of it) to search or read.' },
           place: { type: 'string', description: "For read: where to start, e.g. 'page 4', 'sheet Budget', 'slide 3'. Default: the start." },
           in: { type: 'string', enum: ['library', 'archives', 'all'], description: "For search: 'library' (default) = his documents; 'archives' = the weekly transcripts of the chat rooms you keep up with. Use 'archives' only when he asks about the past of a room (\"what did Scott say about the build last month?\")." },
@@ -109,7 +110,7 @@ export function createLibraryTool(app: () => AppContext): Tool {
       },
     },
     defaultPermission: 'auto',
-    summarize: (a) => (a.action === 'list' ? 'Looking at her library' : a.action === 'contents' ? `Looking at the contents of ${String(a.document ?? 'a document').slice(0, 60)}` : a.action === 'read' ? `Reading ${String(a.document ?? 'a document').slice(0, 60)}${a.place ? `, ${String(a.place).slice(0, 30)}` : ''}` : `Looking in her library for “${String(a.query ?? '').slice(0, 60)}”`),
+    summarize: (a) => (a.action === 'ask' ? `Looking in your documents for “${String(a.query ?? '').slice(0, 60)}”` : a.action === 'list' ? 'Looking at her library' : a.action === 'contents' ? `Looking at the contents of ${String(a.document ?? 'a document').slice(0, 60)}` : a.action === 'read' ? `Reading ${String(a.document ?? 'a document').slice(0, 60)}${a.place ? `, ${String(a.place).slice(0, 30)}` : ''}` : `Looking in her library for “${String(a.query ?? '').slice(0, 60)}”`),
     async run(args, ctx) {
       const a = app();
       const lib = libraryOf(a);
@@ -173,6 +174,8 @@ export function createLibraryTool(app: () => AppContext): Tool {
       }
       const query = typeof args.query === 'string' ? args.query.trim() : '';
       if (!query) throw new ToolError('Say what to look for.');
+      // N6: a question about their own papers, across every Library file, quotes checked word for word.
+      if (action === 'ask') return answerText(query, await askDocuments(a, query, { conversationId: conv?.id }));
       const roomName = typeof args.room === 'string' ? args.room.trim().replace(/^#/, '').toLowerCase() : '';
       const roomDocs = roomName && where !== 'library' ? archives.filter((d) => (d.collection ?? '').toLowerCase().includes(roomName)).map((d) => d.id) : [];
       if (roomName && where !== 'library' && !roomDocs.length) return `No archive for a room called “${args.room}”. The archived rooms: ${[...new Set(archives.map((d) => d.collection))].join(', ') || 'none yet'}.`;

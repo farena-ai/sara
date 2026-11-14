@@ -33,6 +33,7 @@ import { zonedParts, zonedToUtc } from './planner.ts';
 import { spendSettings, spentNow } from './spend.ts';
 import { calendarEvents, hasCalendar, type TodayEvent } from './today.ts';
 import { createFillDocumentTool, findForm } from './tools/fill-document.ts';
+import { timeOf } from './tools/work.ts';
 import type { Permission, Tool, ToolContext } from './tools/types.ts';
 
 export const AUTOMATION = { max: 50, keepRuns: 50, failPause: 3, lateMs: 12 * 3600_000, calendarEveryMs: 5 * 60_000, taskTokens: 40_000, taskMinutes: 15, seenRing: 100 } as const;
@@ -93,6 +94,8 @@ export interface TimesheetRules {
   days?: number[];
   /** Also write TOTAL HOURS (leave off when the template totals with formulas). */
   total?: boolean;
+  /** N7: where the hours come from: the calendar (default), time tracked with Sara, or both. */
+  source?: 'calendar' | 'tracked' | 'both';
 }
 export interface Action {
   kind: ActionKind;
@@ -369,7 +372,7 @@ export interface AutomationOptions {
   /** Tests: a fake task turn (default: app.runTracked in the automation's chat). */
   runTask?: (r: { automation: Automation; conversationId: string; content: string }) => Promise<{ reply: string; error?: string; declined?: boolean; asked?: boolean }>;
   /** Tests: catch notifications (default: app.push.notifyOwner). */
-  notify?: (title: string, body: string, conversationId: string, tag: string) => Promise<void>;
+  notify?: (title: string, body: string, conversationId: string, tag: string, act?: import('./phone-actions.ts').ActItem) => Promise<void>;
   /** Tests: the calendar (default: the connected calendar through today.ts). */
   calendar?: (from: Date, to: Date) => Promise<Pick<TodayEvent, 'id' | 'title' | 'start' | 'end' | 'allDay'>[]>;
   quiet?: () => boolean;
@@ -562,6 +565,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
               ...(line(ts.words, 80) ? { words: line(ts.words, 80) } : {}),
               ...(Array.isArray(ts.days) ? { days: ts.days.map(Number).filter((d) => d >= 0 && d <= 6) } : {}),
               ...(ts.total === true ? { total: true } : {}),
+              ...(ts.source === 'tracked' || ts.source === 'both' ? { source: ts.source } : {}),
             }
           : undefined;
         let docId = Number.isInteger(a.docId) && this.#app.library?.get(Number(a.docId)) ? Number(a.docId) : undefined;
@@ -776,10 +780,10 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
   #quiet(): boolean {
     return this.#o.quiet ? this.#o.quiet() : quietNow(this.#app);
   }
-  async #push(title: string, body: string, conversationId: string, tag: string): Promise<boolean> {
+  async #push(title: string, body: string, conversationId: string, tag: string, act?: import('./phone-actions.ts').ActItem): Promise<boolean> {
     if (this.#quiet() || privateLocalOn()) return false;
-    const n = this.#o.notify ?? ((a: string, b: string, c: string, d: string) => this.#app.push?.notifyOwner(a, b, c, d) ?? Promise.resolve());
-    return n(title, body, conversationId, tag).then(
+    const n = this.#o.notify ?? ((a: string, b: string, c: string, d: string, e?: import('./phone-actions.ts').ActItem) => this.#app.push?.notifyOwner(a, b, c, d, e) ?? Promise.resolve());
+    return n(title, body, conversationId, tag, act).then(
       () => true,
       () => false,
     );
@@ -852,7 +856,8 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
         this.#db.prepare('UPDATE automation_runs SET held_json = ? WHERE id = ?').run(JSON.stringify({ index: i, ctx: { files: ctx.files, week: ctx.week, detail: ctx.detail } }), runId);
         const title = this.#T(en('Automation needs your OK: {name}'), { name: clip(a.name, 60) });
         this.#say(conversationId, `${title}\n${r.text}`, { automation: { id: a.id, runId, waiting: true } });
-        await this.#push(title, r.text, conversationId, `automation-${a.id}`);
+        // N5b: Approve/Decline right on the notification (the run's own answer route).
+        await this.#push(title, r.text, conversationId, `automation-${a.id}`, { kind: 'automation', id: String(runId), conv: conversationId, companion: this.#app.companionId ?? 'main', acts: ['approve', 'decline'] });
         break;
       }
       if (r.status === 'failed' || r.status === 'declined') {
@@ -950,7 +955,10 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
       const week = weekOf(this.#now(), tz, act.timesheet);
       const from = zonedToUtc(...(week[0]!.split('-').map(Number) as [number, number, number]), 0, 0, tz);
       const to = new Date(zonedToUtc(...(week[6]!.split('-').map(Number) as [number, number, number]), 0, 0, tz).getTime() + 86_400_000);
-      const events = await this.#events(from, to);
+      // N7: tracked time (time_start / time_add) as a source besides the calendar.
+      const source = act.timesheet.source ?? 'calendar';
+      const tracked = source === 'calendar' ? [] : timeOf(this.#app).asEvents(week, tz, (act.timesheet.words ?? '').split(/[,\s]+/).find(Boolean) ?? 'work');
+      const events = [...(source === 'tracked' ? [] : await this.#events(from, to)), ...tracked];
       const days = timesheetDays(events, week, tz, act.timesheet);
       const f = timesheetFill(days, week, act.timesheet, act.values);
       ctx.week = String(f.values['WEEK OF']);

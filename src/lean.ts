@@ -141,6 +141,9 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^phone_(camera|location|screen)$/, 'phone', 'your phone'],
   // E4: teams, odds comparison, the bet log and the odds calculator.
   [/^(team_follow|team_unfollow|teams_followed|schedule_to_calendar|team_news|odds_compare|odds_math|bet_add|bet_settle|bet_list|bet_stats|bet_limits)$/, 'sports', 'sports and bets'],
+  // N7: shared household lists (before /^team/), clients and time tracking.
+  [/^(household_lists|list_share|task_assign)$/, 'teamwork', 'shared lists and assignees'],
+  [/^(client_add|client_stage|clients_pipeline|time_start|time_stop|time_add|time_report|time_invoice)$/, 'clients', 'clients and hours'],
   [/^team/, 'team', 'team'],
   [/^(board_|card_)/, 'board', 'board'],
   [/^(gmail_|mail_|calendar_|calendar$)/, 'google', 'Email and calendar'],
@@ -161,6 +164,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^automation_\w+$/, 'automations', 'automations'],
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
   [/^my_details_get$/, 'details', 'my details'],
+  // N6: what she knows about their world (facts with sources; forget one).
+  [/^(facts_list|fact_forget)$/, 'facts', 'what she knows'],
   // N3: from your inbox (packages, trips, suggestions, filing rules).
   [/^(packages_list|trips_list|inbox_suggestions|inbox_file_rule)$/, 'inbox', 'from your inbox'],
   [/^analyze_table$/, 'tables', 'spreadsheet totals'],
@@ -293,6 +298,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'meine daten', 'meine adresse', 'meine grosse', 'policennummer', 'fulle das formular aus',
     'meus dados', 'meu endereco', 'meu tamanho', 'numero da apolice', 'preencha o formulario',
     'i miei dati', 'il mio indirizzo', 'la mia taglia', 'numero di polizza', 'compila il modulo'],
+  // N6 (docs/WHAT_SARA_KNOWS.md): what she knows about them, their policies, lease and dates (six languages, folded).
+  facts: ['what do you know about me', 'what you know about me', 'about me', 'my deductible', 'my policy', 'my policies', 'my lease', 'my insurance', 'when does', 'expire', 'expires', 'expiry', 'expiration', 'renewal', 'renew', 'warranty', 'remember that', 'forget that', 'not true', 'my documents',
+    'que sabes de mi', 'mi deducible', 'mi poliza', 'mi contrato de alquiler', 'cuando vence', 'caduca', 'renovacion', 'garantia', 'recuerda que', 'olvida que',
+    'que sais tu de moi', 'ma franchise', 'ma police', 'mon bail', 'quand expire', 'renouvellement', 'garantie', 'souviens toi que', 'oublie que',
+    'was weisst du uber mich', 'meine selbstbeteiligung', 'meine police', 'mein mietvertrag', 'wann lauft', 'lauft ab', 'verlangerung', 'garantiezeit', 'merk dir', 'vergiss dass',
+    'o que voce sabe sobre mim', 'minha franquia', 'minha apolice', 'meu contrato de aluguel', 'quando vence', 'expira', 'renovacao', 'lembre se de que', 'esqueca que',
+    'cosa sai di me', 'la mia franchigia', 'la mia polizza', 'il mio contratto d affitto', 'quando scade', 'scade', 'rinnovo', 'garanzia', 'ricorda che', 'dimentica che'],
   // N3 (docs/INBOX_HELPER.md): packages, trips, what came in by email (six languages, folded).
   inbox: ['package', 'packages', 'tracking', 'tracking number', 'delivery', 'delivered', 'shipped', 'flight', 'trip', 'itinerary', 'hotel', 'reservation', 'appointment', 'receipt', 'bill', 'inbox', 'email me', 'from my email', 'file pdfs', 'file attachments',
     'paquete', 'paquetes', 'seguimiento', 'entrega', 'vuelo', 'viaje', 'itinerario', 'hotel', 'reserva', 'cita', 'recibo', 'factura', 'bandeja de entrada', 'enviame un correo',
@@ -325,6 +337,20 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'wo kaufen', 'wo kann ich', 'auf lager', 'vorratig', 'in meiner nahe', 'preis von', 'am billigsten', 'gunstigste', 'laden', 'geschaft', 'kaufen', 'finde',
     'onde comprar', 'onde posso comprar', 'em estoque', 'perto de mim', 'preco de', 'mais barato', 'loja', 'lojas', 'comprar', 'encontre',
     'dove comprare', 'dove posso comprare', 'disponibile', 'vicino a me', 'prezzo di', 'piu economico', 'negozio', 'negozi', 'comprare', 'trova'],
+  // N7 (docs/WORK_AND_TEAMS.md): shared household lists and assignees; six languages, folded.
+  teamwork: ['share the list', 'share my list', 'shared lists', 'household list', 'grocery list', 'groceries', 'chores', 'assign', 'assigned', 'assign to', 'give it to', 'who is doing', 'whose turn', 'shared with me', 'shared with you',
+    'compartir la lista', 'lista de la compra', 'tareas de casa', 'asignar', 'asignado', 'compartido conmigo',
+    'partager la liste', 'liste de courses', 'taches menageres', 'assigner', 'attribuer', 'partage avec moi',
+    'liste teilen', 'einkaufsliste', 'hausarbeit', 'zuweisen', 'zugewiesen', 'mit mir geteilt',
+    'compartilhar a lista', 'lista de compras', 'tarefas de casa', 'atribuir', 'atribuido', 'compartilhado comigo',
+    'condividi la lista', 'lista della spesa', 'faccende', 'assegna', 'assegnato', 'condiviso con me'],
+  // N7: clients (pipeline) and time tracking; six languages, folded.
+  clients: ['client', 'clients', 'customer', 'customers', 'lead', 'leads', 'pipeline', 'deal', 'deals', 'next step', 'timer', 'start a timer', 'stop the timer', 'stop my timer', 'track time', 'log time', 'hours', 'my hours', 'time report', 'billable', 'invoice my hours', 'rate', 'hourly',
+    'cliente', 'clientes', 'embudo', 'oportunidad', 'temporizador', 'cronometro', 'horas', 'mis horas', 'registrar horas', 'facturar mis horas', 'tarifa',
+    'clients', 'prospect', 'minuteur', 'chronometre', 'heures', 'mes heures', 'saisir des heures', 'facturer mes heures', 'tarif horaire',
+    'kunde', 'kunden', 'auftrag', 'zeiterfassung', 'stoppuhr', 'stunden', 'meine stunden', 'stunden abrechnen', 'stundensatz',
+    'clientes', 'funil', 'cronometro', 'horas', 'minhas horas', 'lancar horas', 'faturar minhas horas', 'valor da hora',
+    'clienti', 'trattativa', 'cronometro', 'ore', 'le mie ore', 'registra ore', 'fattura le mie ore', 'tariffa oraria'],
   shared: ['shared list', 'shopping list', 'lista compartida', 'liste partagee', 'einkaufsliste', 'lista compartilhada', 'lista condivisa'],
   'mcp:playwright': ['playwright', 'browser', 'click', 'screenshot', 'navegador', 'navigateur', 'klicken', 'clicca'],
   'mcp:filesystem': ['files server', 'filesystem'],
@@ -753,7 +779,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 225 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 228 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -430,6 +430,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Set Tax rate (%) (0 if you don't charge tax).
 2. Set Due in (days); she reminds you the day before and 3 days after if unpaid.
+
+### What Sara knows
+
+**How do I fix something Sara knows about me?**
+
+1. Find the fact in its group; its source says where she learned it.
+2. Press Edit to change the words, or Delete to remove it.
+3. Press Not true if it is wrong: she forgets it and won’t learn it again.
+
+**How do I ask my documents a question?**
+
+1. Add your lease, policies or warranties to the Library.
+2. Type a question like “what’s my deductible?” here and press Ask.
+3. She shows the exact words with the file and page, or says it isn’t in your documents.
+
+**How do I get a reminder before a renewal or expiry date?**
+
+1. Add the document to the Library.
+2. Look under From your documents here or on Today.
+3. Press Remind me to add a reminder before the date.
 
 ### My details
 

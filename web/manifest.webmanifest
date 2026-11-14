@@ -8,6 +8,22 @@
   "orientation": "portrait-primary",
   "background_color": "#121016",
   "theme_color": "#121016",
+  "share_target": {
+    "action": "/api/phone/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url",
+      "files": [
+        {
+          "name": "files",
+          "accept": ["image/*", "application/pdf", "text/plain", "text/csv", ".docx", ".xlsx", ".pptx", ".md", ".epub"]
+        }
+      ]
+    }
+  },
   "icons": [
     {
       "src": "/icon-192.png",

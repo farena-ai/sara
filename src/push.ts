@@ -10,6 +10,7 @@ import type { SettingsStore } from './settings.ts';
 import { appLanguage, trOwner } from './i18n.ts';
 import { type Identity, personalize, swapName } from './identity.ts';
 import type { Vault } from './vault.ts';
+import { ACT_TITLES, PhoneActions, type ActItem } from './phone-actions.ts';
 
 export const PUSH_VAULT = 'push:vapid';
 
@@ -30,6 +31,11 @@ export interface PushPayload {
   /** Page to open on click, e.g. "/#c=<conversation id>". */
   url: string;
   tag?: string;
+  /** N5b: notification buttons (action id + title) and the one-time token they use. */
+  actions?: { action: string; title: string; type?: 'text'; placeholder?: string }[];
+  act?: string;
+  /** N5b: the companion the token belongs to (sent as x-sara-companion with the action). */
+  companion?: string;
 }
 
 const SCHEMA = `
@@ -84,6 +90,8 @@ export class PushService {
   #keys: VapidKeys | undefined;
   /** iPhone app notifications (Phase 17); sendAll reaches them too. */
   apns: ApnsSender | undefined;
+  /** N5b: one-time action tokens for notification buttons (this space's key and used list). */
+  readonly actions: PhoneActions;
 
   constructor(db: DatabaseSync, vault: Vault, settings: SettingsStore, opts: { now?: () => Date; allowInsecure?: boolean } = {}) {
     this.#db = db;
@@ -92,6 +100,7 @@ export class PushService {
     this.#now = opts.now ?? (() => new Date());
     this.#allowInsecure = opts.allowInsecure ?? false;
     db.exec(SCHEMA);
+    this.actions = new PhoneActions(db, vault, { now: () => this.#now().getTime() });
     // Which signed-in device subscribed, so signing that device out stops its notifications.
     if (!(db.prepare("SELECT name FROM pragma_table_info('push_subscriptions')").all() as { name: string }[]).some((c) => c.name === 'session')) db.exec('ALTER TABLE push_subscriptions ADD COLUMN session TEXT');
   }
@@ -225,13 +234,24 @@ export class PushService {
   who?: () => Identity;
 
   /** A note for the owner (approval needed, long job done); text only if previews are on. */
-  async notifyOwner(title: string, text: string, conversationId: string, tag: string): Promise<void> {
+  async notifyOwner(title: string, text: string, conversationId: string, tag: string, act?: ActItem): Promise<void> {
     const t = text.replace(/\s+/g, ' ').trim();
     const body = this.settings.preview ? (t.length > 180 ? `${t.slice(0, 177)}…` : t) : this.#tr('Open the app to see it.');
     // A title written for Sara ("She learned something new") names a renamed companion; the body may
     // quote the owner or her, so it is left as it is.
     const who = this.who?.();
-    await this.sendAll({ title: who ? (appLanguage(this.#settings.get()) === 'en' ? personalize(title, who) : swapName(title, who.name)) : title, body, url: `/#c=${conversationId}`, tag });
+    await this.sendAll({ title: who ? (appLanguage(this.#settings.get()) === 'en' ? personalize(title, who) : swapName(title, who.name)) : title, body, url: `/#c=${conversationId}`, tag, ...this.actFields(act) });
+  }
+
+  /** N5b: the buttons and token for one notification (nothing when there's nothing to do from it). */
+  actFields(act?: ActItem): Pick<PushPayload, 'actions' | 'act' | 'companion'> {
+    if (!act?.acts.length) return {};
+    return {
+      act: this.actions.mint(act),
+      companion: act.companion ?? 'main',
+      // Reply is an inline text box where the phone supports one (else it opens the chat).
+      actions: act.acts.slice(0, 2).map((a) => ({ action: a, title: this.#tr(ACT_TITLES[a]), ...(a === 'reply' ? { type: 'text' as const, placeholder: this.#tr('Reply…') } : {}) })),
+    };
   }
 
   /** Reminders and messages Sara starts herself become notifications (the page decides whether to show). */
@@ -246,6 +266,9 @@ export class PushService {
     if (ev.type !== 'message' || ev.message.role === 'notice' || isPartner(ev.conversationId)) return;
     const text = redact(ev.message.content).replace(/\s+/g, ' ').trim();
     const body = this.settings.preview ? (text.length > 180 ? `${text.slice(0, 177)}…` : text) : ev.reason === 'reminder' ? this.#tr('You have a reminder.') : this.#tr('{name} sent you a message.', { name: persona });
-    await this.sendAll({ title: ev.reason === 'reminder' ? `⏰ ${persona}` : persona, body, url: `/#c=${ev.conversationId}`, tag: `c${ev.message.id}` });
+    // N5b: a reminder can be snoozed for an hour; her messages can be answered from the notification.
+    const rid = (ev.message.meta?.reminder as { id?: number } | undefined)?.id;
+    const act: ActItem | undefined = ev.message.role !== 'assistant' ? undefined : ev.reason === 'reminder' && typeof rid === 'number' ? { kind: 'reminder', id: String(rid), conv: ev.conversationId, companion: ev.companion ?? 'main', acts: ['snooze', 'reply'] } : { kind: 'reply', id: String(ev.message.id), conv: ev.conversationId, companion: ev.companion ?? 'main', acts: ['reply'] };
+    await this.sendAll({ title: ev.reason === 'reminder' ? `⏰ ${persona}` : persona, body, url: `/#c=${ev.conversationId}`, tag: `c${ev.message.id}`, ...this.actFields(act) });
   }
 }

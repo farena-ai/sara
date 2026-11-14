@@ -52,16 +52,21 @@ gating, How she did. See docs/QUALITY.md. The hub send of the counts was skipped
 - **Phone:** share-to-Sara from any app (photo of a receipt, a PDF, a link), quick actions on lock-screen
   notifications (Approve, Snooze, Reply), and a home-screen widget (next thing, watches).
 - **Car / hands-free mode:** voice-only replies, short answers, read-back of messages, no screens needed.
+- **Status (N5b, branch hermes/n5phone):** share-to-Sara (PWA share target + Android share sheet),
+  notification buttons with one-time action tokens (computer-use approvals stay PC-only), widget
+  next/watches/Talk, car mode. See docs/PHONE.md.
 
 ## N6 Knows your world (memory that pays off)
 - **Personal facts page** she keeps from conversations and documents (with sources, editable): family,
   vehicles, policies, account numbers' last 4, renewals; used for forms and reminders.
 - **Ask your documents:** answers across all Library files with citations ("what's my deductible?",
   "when does the lease end?"), plus renewal dates found in documents become reminders.
+- Built on hermes/n6world: docs/WHAT_SARA_KNOWS.md.
 
 ## N7 Work and teams
 - Shared household/team tasks and lists with assignees; client list with a light pipeline (lead, quote,
   won, invoiced) tied to invoices and follow-ups; time tracking that feeds invoices and time sheets.
+- Status: built on hermes/n7teams (docs/WORK_AND_TEAMS.md, handoff 2026-11-14-n7-teams); not released.
 
 ## Recommended order
 N1 (small, protects everything) -> N2 (turns features into an assistant) -> N3 -> N4 -> N5 (Mac parity

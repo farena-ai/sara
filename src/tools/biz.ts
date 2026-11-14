@@ -19,6 +19,7 @@ import { dueReminders, invoiceMarkdown, KIND_WORD, templateItems, usDate } from 
 import { fmtMoney, toCents, toQty, type LineIn } from '../biz/money.ts';
 import { bizStore, daysBetween, localDay, shownStatus, type Invoice, type InvoiceStatus } from '../biz/store.ts';
 import { shareMade } from './make-document.ts';
+import { clientStoreOf } from '../work/clients.ts';
 import { humanSize } from './send-file.ts';
 import { ToolError, type Tool, type ToolContext } from './types.ts';
 
@@ -27,6 +28,14 @@ const obj = (properties: Record<string, unknown>, required: string[] = []) => ({
 const NOT_ADVICE = 'This is a reading aid, not legal advice: for a big decision (a lease, a large contract, anything you are unsure about), have a lawyer look at it.';
 
 const tz = (app: AppContext) => app.settings.get().timeZone;
+/** The person's own database (their first companion's), where invoices, clients and hours live. */
+const bizDb = (app: AppContext) => {
+  try {
+    return app.companions?.main.app.store.db ?? app.store.db;
+  } catch {
+    return app.store.db;
+  }
+};
 const today = (app: AppContext) => localDay(app.now(), tz(app));
 
 function chatOf(app: AppContext, ctx: ToolContext) {
@@ -287,6 +296,10 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
       const now = app.now();
       const tasks = (app.planner?.tasks({ status: 'open' }) ?? []).filter((t) => t.dueAt && Date.parse(t.dueAt) <= now.getTime() + 86_400_000).slice(0, 10);
       const taskLines = tasks.map((t) => `- to-do #${t.id}: ${t.title} (due ${usDate(localDay(new Date(t.dueAt!), tz(app)))}${Date.parse(t.dueAt!) < now.getTime() ? ', past due' : ''})`);
+      // N7: clients' next steps that are due (src/work/clients.ts; the same database as the invoices).
+      const day = today(app);
+      const steps = clientStoreOf(bizDb(app), app.now).pipeline(day);
+      for (const c of [...steps.overdue, ...steps.due]) taskLines.push(`- client ${c.name} (${c.stage}): ${c.nextStep} (${c.nextDate! < day ? `was due ${usDate(c.nextDate!)}` : 'due today'})`);
       const accounts = app.mailAccounts?.list() ?? [];
       if (!accounts.length) {
         const where = app.member ? 'Settings → Email and calendar (Outlook, or any mailbox with an app password)' : 'Settings → Email and calendar (Gmail, Outlook / Microsoft 365, Yahoo, iCloud or any IMAP mailbox)';

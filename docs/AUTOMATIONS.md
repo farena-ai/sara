@@ -70,3 +70,5 @@ changed.
 `automation_delete` (asks). Code: `src/automations.ts`, `src/tools/automations.ts`,
 `src/routes/automations.ts`, `web/automations.js`. Tables: `automations`, `automation_runs` in each
 space's own store.
+
+N7: the time-sheet fill also takes `source: calendar | tracked | both` (hours tracked with `time_start` / `time_add`; docs/WORK_AND_TEAMS.md).

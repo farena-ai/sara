@@ -75,6 +75,18 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="image/*" />
             </intent-filter>
+            <!-- N5b: documents too (PDFs, Office files, tables): they go to her Library and a new chat
+                 opens with a ready message (POST /api/phone/share, the same route as the web app's share target). -->
+            <intent-filter android:label="@string/share_label">
+                <action android:name="android.intent.action.SEND" />
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="text/csv" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" />
+                <data android:mimeType="application/vnd.openxmlformats-officedocument.presentationml.presentation" />
+            </intent-filter>
             <!-- "Call Sara" from the home screen (long-press the icon, or pin it) -->
             <intent-filter>
                 <action android:name="com.backstagecoding.sara.CALL" />

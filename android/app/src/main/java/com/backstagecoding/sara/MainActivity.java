@@ -964,6 +964,36 @@ public class MainActivity extends Activity {
             if (one != null) uris.add(one);
         }
         final String shareText = text;
+        // N5b: documents (anything that isn't a photo) go to her Library through the server's share
+        // route, which opens a new chat with a ready message; photos keep going into the message box.
+        boolean docs = false;
+        for (Uri u : uris) {
+            String type = getContentResolver().getType(u);
+            if (type == null || !type.startsWith("image/")) docs = true;
+        }
+        if (docs) {
+            final String server = Net.server(this);
+            if (server == null) return false;
+            new Thread(() -> {
+                try {
+                    List<Net.Part> parts = new ArrayList<>();
+                    for (Uri u : uris) {
+                        if (parts.size() >= 10) break;
+                        byte[] bytes = readShared(u, 40_000_000);
+                        if (bytes == null) continue;
+                        String type = getContentResolver().getType(u);
+                        parts.add(new Net.Part("files", sharedName(u), type == null ? "application/octet-stream" : type, bytes));
+                    }
+                    parts.add(new Net.Part("text", null, "text/plain", shareText.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+                    Net.Response r = Net.postMultipart(this, server + "/api/phone/share", parts);
+                    String to = r.status == 201 ? new JSONObject(r.text()).optString("url", "/") : "/";
+                    runOnUiThread(() -> { if (web != null) web.loadUrl(server + to); });
+                } catch (Exception ignored) {
+                    // offline or too large: nothing is lost on the phone
+                }
+            }).start();
+            return true;
+        }
         new Thread(() -> {
             try {
                 JSONArray images = new JSONArray();
@@ -979,6 +1009,36 @@ public class MainActivity extends Activity {
             }
         }).start();
         return true;
+    }
+
+    /** N5b: a shared file's bytes (null when unreadable or over the cap). */
+    private byte[] readShared(Uri uri, int max) {
+        try (InputStream in = getContentResolver().openInputStream(uri)) {
+            if (in == null) return null;
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] b = new byte[16384];
+            for (int n; (n = in.read(b)) > 0; ) {
+                out.write(b, 0, n);
+                if (out.size() > max) return null;
+            }
+            return out.toByteArray();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** N5b: the shared file's own name (from the app that shared it), or a plain one. */
+    private String sharedName(Uri uri) {
+        try (android.database.Cursor c = getContentResolver().query(uri, new String[] {android.provider.OpenableColumns.DISPLAY_NAME}, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                String n = c.getString(0);
+                if (n != null && !n.isEmpty()) return n;
+            }
+        } catch (Exception ignored) {
+            // fall through
+        }
+        String last = uri.getLastPathSegment();
+        return last == null || last.isEmpty() ? "shared" : last;
     }
 
     @SuppressWarnings("deprecation")

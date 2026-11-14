@@ -89,6 +89,8 @@ import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createBizRoutes } from './routes/biz.ts';
 import { createMyDetailsRoutes } from './routes/my-details.ts';
+import { createFactsRoutes } from './routes/facts.ts';
+import { createWorkRoutes } from './routes/work.ts';
 import { createCrewRoutes } from './routes/crews.ts';
 import { createWorkerRoutes } from './routes/workers.ts';
 import { createTriggerRoutes } from './routes/triggers.ts';
@@ -120,6 +122,8 @@ import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
 import { createTrustReportRoutes } from './routes/trust-report.ts';
 import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
+import { createPhoneRoutes } from './routes/phone.ts';
+import { phoneMayApprove } from './phone-actions.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
 import { createHerRoutes } from './routes/her.ts';
@@ -418,7 +422,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'my-details', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
+  const AUDITED = new Set(['work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'my-details', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -594,7 +598,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (ev.type === 'tool_call' || ev.type === 'tool_result') lastText = '';
         if (ev.type === 'error') failed = true;
         // She needs the owner's OK: a notification (shown only when the app isn't in front).
-        if (ev.type === 'approval' && !partner) void app.push?.notifyOwner(trOwner('Sara needs your OK', app.settings.get(), undefined, identityOf(app.persona)), ev.summary, conversationId, `ok-${ev.id}`).catch(() => {});
+        // N5b: plain cards get Approve/Decline on the notification; computer use and choice cards stay in the app.
+        if (ev.type === 'approval' && !partner) void app.push?.notifyOwner(trOwner('Sara needs your OK', app.settings.get(), undefined, identityOf(app.persona)), ev.summary, conversationId, `ok-${ev.id}`, phoneMayApprove(ev) ? { kind: 'approval', id: ev.approvalId, conv: conversationId, companion: app.companionId ?? 'main', acts: ['approve', 'decline'] } : undefined).catch(() => {});
       }
       // A long job finished while the owner may be away.
       const secs = (app.now().getTime() - Date.parse(turn.startedAt)) / 1000;
@@ -655,7 +660,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     t.status = 'waiting';
     t.detail = summary;
     externalTurns.set(conversationId, (externalTurns.get(conversationId) ?? 0) + 1);
-    void app.push?.notifyOwner(trOwner('Sara needs your OK', app.settings.get(), undefined, identityOf(app.persona)), summary, conversationId, `ok-${id}`).catch(() => {});
+    void app.push?.notifyOwner(trOwner('Sara needs your OK', app.settings.get(), undefined, identityOf(app.persona)), summary, conversationId, `ok-${id}`, phoneMayApprove({ name }) ? { kind: 'approval', id, conv: conversationId, companion: app.companionId ?? 'main', acts: ['approve', 'decline'] } : undefined).catch(() => {});
     void decision
       .then(async (ok) => {
         let text: string;
@@ -1000,6 +1005,10 @@ export function createSaraServer(opts: ServerOptions): Server {
   const bizRoutes = createBizRoutes(ctx);
   // N4: Settings → You → My details, each person's own (src/routes/my-details.ts).
   const myDetailsRoutes = createMyDetailsRoutes(ctx);
+  // N6: Settings → You → What Sara knows, each person's own (src/routes/facts.ts).
+  const factsRoutes = createFactsRoutes(ctx);
+  // N7: Today's timer Stop and the work tiles' data, each person's own (src/routes/work.ts).
+  const workRoutes = createWorkRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
   // C10: workers that stay, the owner's only (src/routes/workers.ts).
@@ -1047,6 +1056,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const trustReportRoutes = createTrustReportRoutes(ctx);
   // EC24: phone as a helper device (src/routes/phone-helper.ts).
   const phoneHelperRoutes = createPhoneHelperRoutes(ctx);
+  // N5b: notification quick actions and Share to Sara (src/routes/phone.ts).
+  const phoneRoutes = createPhoneRoutes(ctx);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
@@ -1407,6 +1418,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         throw new HttpError(426, PROXY_BLOCKED_MESSAGE, { code: 'proxy_no_websocket' });
       }
     }
+    // N5b: a notification's one-time action token is its own credential (no cookie in the service worker).
+    if (a === 'phone' && (await phoneRoutes.publicRoutes(req, res, method, parts)) !== NEXT) return;
     // C15: the asking device checks its own request before (and after) it is signed in.
     if (await gate.publicRoutes(req, res, method, parts)) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
@@ -1448,7 +1461,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (opts.demo && method === 'GET' && !DEMO_READS.has(a)) throw new HttpError(403, 'Not available in the demo.');
 
     // Cross-site request guard (in addition to SameSite=Strict cookies).
-    if (method !== 'GET' && !isSameOrigin(req)) throw new HttpError(403, 'Cross-origin request refused.');
+    // N5b: a share-target navigation arrives with `Origin: null` (no referrer is sent); the session
+    // cookie is SameSite=Strict, so another site's form can't sign in here anyway.
+    if (method !== 'GET' && !isSameOrigin(req) && !(a === 'phone' && b === 'share' && req.headers.origin === 'null')) throw new HttpError(403, 'Cross-origin request refused.');
 
     // Demo (app review): the reviewer code unlocks live calls for this demo session.
     if (a === 'demo' && b === 'call-code' && method === 'POST' && opts.demo) {
@@ -1479,6 +1494,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await spendRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await phoneRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1519,6 +1535,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await myDetailsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await factsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await workRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2422,10 +2440,10 @@ export function createSaraServer(opts: ServerOptions): Server {
               if (active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
               handedOff = true;
               const release = keyHeld;
-              void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...keyOpts }).finally(() => release?.());
+              void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...keyOpts, ...(body.car === true ? { car: true } : {}) }).finally(() => release?.());
               return send(res, 202, { ok: true });
             }
-            return await streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts, ...keyOpts });
+            return await streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts, ...keyOpts, ...(body.car === true ? { car: true } : {}) });
           } finally {
             if (!handedOff) keyHeld?.();
           }

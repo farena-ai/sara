@@ -13,6 +13,7 @@ import { DEFAULT_IDENTITY, type Identity, personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
 import { fold } from './people.ts';
+import { maskCardsAndSsn } from './facts.ts';
 
 export interface MemorySettings {
   enabled: boolean;
@@ -348,7 +349,8 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
       dropped++;
       continue;
     }
-    const added = mem.add({ kind: 'fact', content: app.redactor.redact(f.fact), conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: app.redactor.redact(f.quote) });
+    // N6: a card number or SSN said in passing is never kept whole (last 4 only).
+    const added = mem.add({ kind: 'fact', content: maskCardsAndSsn(app.redactor.redact(f.fact)), conversationId, sourceMessageId: src.id, happenedOn: localDate(src.createdAt, s.timeZone), evidence: maskCardsAndSsn(app.redactor.redact(f.quote)) });
     factIds.push(added.id);
     linkPeople(app, added, f.about, src.content, f.category ?? null, Boolean(conv.private));
   }

@@ -46,6 +46,8 @@ export interface SharedCard {
   position: number;
   labels: string[];
   assignee: string | null;
+  /** N7: who ticked it off (a household person id), while done. */
+  doneBy: string | null;
   work: Partial<CardWork> | null;
   limits: TeamLimits | null;
   checklist: { done: number; total: number };
@@ -104,7 +106,16 @@ export class SharedBoardStore {
     this.db = new DatabaseSync(file);
     this.db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL;');
     this.db.exec(SCHEMA);
+    // N7 (docs/WORK_AND_TEAMS.md): who ticked a card off.
+    try {
+      this.db.exec('ALTER TABLE shared_tasks ADD COLUMN done_by TEXT');
+    } catch {
+      /* already there */
+    }
   }
+
+  /** N7: told when a card is given to someone (a person id), so their space can tell them. */
+  readonly assignedListeners = new Set<(ev: { boardId: string; board: string; ref: string; title: string; to: string; by: string; dueAt: string | null }) => void>();
 
   close(): void {
     this.db.close();
@@ -321,6 +332,7 @@ export class SharedBoardStore {
       position: r.position === null ? STEP * 1e6 + id : Number(r.position),
       labels: json<string[]>(r.labels, []),
       assignee: r.assignee === null ? null : String(r.assignee),
+      doneBy: r.status === 'done' && r.done_by ? String(r.done_by) : null,
       work: shown,
       limits: r.limits ? cleanLimits(json(r.limits, {})) : null,
       checklist: checklistOf(String(r.notes)),
@@ -386,7 +398,7 @@ export class SharedBoardStore {
     if (!title || title.length > 300) throw new Error('Task title must be 1-300 characters');
     const status = patch.status ?? String(r.status);
     const ts = this.#now();
-    this.db.prepare('UPDATE shared_tasks SET title = ?, notes = ?, due_at = ?, status = ?, done_at = ?, priority = ?, updated_at = ? WHERE id = ?').run(title, patch.notes === undefined ? String(r.notes) : patch.notes.slice(0, 20_000), patch.dueAt === undefined ? r.due_at : patch.dueAt, status, status === 'done' ? (r.done_at ?? ts) : null, ['low', 'normal', 'high'].includes(String(patch.priority)) ? String(patch.priority) : String(r.priority), ts, Number(r.id));
+    this.db.prepare('UPDATE shared_tasks SET title = ?, notes = ?, due_at = ?, status = ?, done_at = ?, priority = ?, updated_at = ?, done_by = ? WHERE id = ?').run(title, patch.notes === undefined ? String(r.notes) : patch.notes.slice(0, 20_000), patch.dueAt === undefined ? r.due_at : patch.dueAt, status, status === 'done' ? (r.done_at ?? ts) : null, ['low', 'normal', 'high'].includes(String(patch.priority)) ? String(patch.priority) : String(r.priority), ts, status === 'done' ? (r.status === 'done' ? (r.done_by ?? person) : person) : null, Number(r.id));
     this.log(Number(r.id), `member:${person}`, status !== r.status ? (status === 'done' ? 'done' : 'moved') : 'edited', {});
     this.#emit(m.board, 'card');
     return this.card(person, ref);
@@ -423,7 +435,7 @@ export class SharedBoardStore {
     }
     const ts = this.#now();
     const status = col.role === 'done' ? 'done' : 'open';
-    this.db.prepare('UPDATE shared_tasks SET column_id = ?, position = ?, status = ?, done_at = ?, updated_at = ? WHERE id = ?').run(col.id, pos, status, status === 'done' ? (m.r.done_at ?? ts) : null, ts, tid);
+    this.db.prepare('UPDATE shared_tasks SET column_id = ?, position = ?, status = ?, done_at = ?, updated_at = ?, done_by = ? WHERE id = ?').run(col.id, pos, status, status === 'done' ? (m.r.done_at ?? ts) : null, ts, status === 'done' ? (m.r.status === 'done' ? (m.r.done_by ?? person) : person) : null, tid);
     if (before.columnId !== col.id) this.log(tid, opts.who ?? `member:${person}`, col.role === 'done' ? 'done' : 'moved', { to: col.name, role: col.role });
     this.#emit(m.board, 'moved');
     return this.card(person, ref);
@@ -458,6 +470,45 @@ export class SharedBoardStore {
     return this.update(person, ref, { notes });
   }
 
+  // ---------------- N7: shared lists for chat and Today ----------------
+
+  /** A shared list (board) of this person's by name (case and spacing folded), or by its id. */
+  findBoard(person: string, name: string): SharedBoard | undefined {
+    const want = name.replace(/\s+/g, ' ').trim().toLowerCase();
+    if (!want) return undefined;
+    const all = this.boardsFor(person);
+    return all.find((b) => b.id === want) ?? all.find((b) => b.name.toLowerCase() === want) ?? all.find((b) => b.name.toLowerCase().replace(/\s+list$/, '') === want.replace(/\s+list$/, ''));
+  }
+  /** A card on a list by ref (s12 / 12) or by its title (exact, then the only one that contains it). */
+  findCard(person: string, boardId: string, q: string): SharedCard | undefined {
+    const v = this.view(person, boardId);
+    if (!v) return undefined;
+    const s = q.trim().toLowerCase().replace(/^#/, '');
+    const byRef = v.cards.find((c) => c.ref === s || c.ref === `s${s}`);
+    if (byRef) return byRef;
+    const open = v.cards.filter((c) => c.status === 'open');
+    const exact = open.find((c) => c.title.toLowerCase() === s) ?? v.cards.find((c) => c.title.toLowerCase() === s);
+    if (exact) return exact;
+    const part = open.filter((c) => c.title.toLowerCase().includes(s));
+    return part.length === 1 ? part[0] : undefined;
+  }
+  /** Today's "Shared with you": open cards given to this person, invitations, and their shared lists with open counts. */
+  sharedWith(person: string): { assigned: { ref: string; title: string; boardId: string; board: string; dueAt: string | null; by: string }[]; invites: { boardId: string; name: string; from: string }[]; lists: { id: string; name: string; open: number; members: number }[] } {
+    const lists = this.boardsFor(person).map((b) => {
+      const n = bid(b.id)!;
+      const open = Number((this.db.prepare("SELECT COUNT(*) AS n FROM shared_tasks WHERE board_id = ? AND status = 'open'").get(n) as Row).n);
+      return { id: b.id, name: b.name, open, members: b.members.filter((m) => m.status === 'member').length };
+    });
+    const ids = lists.map((l) => bid(l.id)!);
+    const assigned = ids.length
+      ? (this.db.prepare(`SELECT t.*, b.name AS board_name FROM shared_tasks t JOIN boards b ON b.id = t.board_id WHERE t.status = 'open' AND t.assignee = ? AND t.board_id IN (${ids.map(() => '?').join(',')}) ORDER BY t.due_at IS NULL, t.due_at, t.id`).all(`member:${person}`, ...ids) as Row[]).map((r) => {
+          const by = this.db.prepare("SELECT who FROM card_activity WHERE task_id = ? AND what = 'assigned' ORDER BY id DESC LIMIT 1").get(Number(r.id)) as Row | undefined;
+          return { ref: `s${Number(r.id)}`, title: String(r.title), boardId: `s${Number(r.board_id)}`, board: String(r.board_name), dueAt: r.due_at === null ? null : String(r.due_at), by: String(by?.who ?? '').replace(/^member:/, '') };
+        })
+      : [];
+    return { assigned, invites: this.invitesFor(person), lists };
+  }
+
   /** The card worker's view of this person's shared cards (only work they assigned runs in their space). */
   source(person: string): CardSource {
     const wc = (id: number): WorkCard | undefined => {
@@ -482,6 +533,18 @@ export class SharedBoardStore {
         this.db.prepare('UPDATE shared_tasks SET assignee = ? WHERE id = ?').run(a, id);
         this.log(id, who === 'me' ? `member:${person}` : who, 'assigned', { to: a });
         this.#emit(Number(r.board_id), 'assigned');
+        // N7: the person it was given to hears about it (not when they took it themselves).
+        const to = a?.startsWith('member:') ? a.slice(7) : a === 'me' ? person : '';
+        if (to && to !== person && this.role(to, Number(r.board_id))) {
+          const bn = this.db.prepare('SELECT name FROM boards WHERE id = ?').get(Number(r.board_id)) as Row | undefined;
+          for (const fn of this.assignedListeners) {
+            try {
+              fn({ boardId: `s${Number(r.board_id)}`, board: String(bn?.name ?? ''), ref: `s${id}`, title: String(r.title), to, by: person, dueAt: r.due_at === null ? null : String(r.due_at) });
+            } catch {
+              /* a listener's problem */
+            }
+          }
+        }
       },
       toRole: (id, role, who) => {
         const r = this.#raw(id);

@@ -46,6 +46,9 @@
     <!-- Widget -->
     <string name="widget_connect">Open the app to connect.</string>
     <string name="widget_sign_in">Open the app to sign in.</string>
+    <string name="widget_talk">Talk</string>
+    <string name="widget_next">Next: %1$s</string>
+    <string name="widget_watches">%1$d watching</string>
     <!-- First screen: connect to a Sara (or add another one) -->
     <string name="ai_companion">AI companion</string>
     <string name="setup_title">Connect to your Sara</string>

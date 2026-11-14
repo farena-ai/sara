@@ -211,16 +211,37 @@ self.addEventListener('push', (event) => {
       // If Sara is open and in front, the page shows the message itself.
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       if (wins.some((w) => w.focused && w.visibilityState === 'visible')) return;
-      await self.registration.showNotification(data.title, { body: data.body, icon: '/icon-192.png', badge: '/icon-192.png', tag: data.tag, data: { url: data.url } });
+      // N5b: buttons (Approve/Decline, Snooze 1 h, Reply, Accept) with the notification's one-time token.
+      const actions = Array.isArray(data.actions) && data.act ? data.actions.slice(0, 2) : [];
+      await self.registration.showNotification(data.title, { body: data.body, icon: '/icon-192.png', badge: '/icon-192.png', tag: data.tag, ...(actions.length ? { actions: data.actions } : {}), data: { url: data.url, act: actions.length ? data.act : undefined, companion: data.companion } });
     })(),
   );
 });
+
+// N5b: a button on the notification. The token is the credential (no cookie); a Reply without
+// inline text (most phones) or any failure opens the chat instead.
+async function quickAction(action, data, reply) {
+  const act = data?.act;
+  if (!act || (action === 'reply' && !String(reply ?? '').trim())) return false;
+  try {
+    const res = await fetch('/api/phone/act', {
+      method: 'POST',
+      credentials: 'omit',
+      headers: { authorization: `Bearer ${act}`, 'content-type': 'application/json', 'x-sara-companion': data.companion || 'main' },
+      body: JSON.stringify({ action, ...(reply ? { reply: String(reply) } : {}) }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url ?? '/';
   event.waitUntil(
     (async () => {
+      if (event.action && (await quickAction(event.action, event.notification.data, event.reply))) return;
       const wins = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
       const win = wins[0];
       if (win) {

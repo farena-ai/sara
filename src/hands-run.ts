@@ -5,7 +5,8 @@
 // administrator; Stop kills the whole process tree; output is masked before it leaves.
 //
 // The rules live here so the server, the reference device (src/hands-ref.ts) and the tests agree;
-// the Windows app does the same in desktop/windows/src/hands-run.cpp.
+// the Windows app does the same in desktop/windows/src/hands-run.cpp, the Mac app in
+// desktop/mac/Sources/HandsRun.swift (zsh instead of PowerShell / cmd; the same lists plus the Mac's own).
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -14,7 +15,7 @@ import { maskDesktopText } from './hands-desktop.ts';
 
 export const RUN_OPS = ['c.run', 'c.open'] as const;
 export const RUN_OPS_SET: ReadonlySet<string> = new Set(RUN_OPS);
-export const RUN_SHELLS = ['powershell', 'cmd'] as const;
+export const RUN_SHELLS = ['powershell', 'cmd', 'zsh'] as const;
 export type RunShell = (typeof RUN_SHELLS)[number];
 export const RUN_LIMITS = {
   commandChars: 4000,
@@ -40,12 +41,12 @@ export class RunRuleError extends Error {
 }
 
 /** Never as administrator: these are refused outright (the app never elevates). */
-const ELEVATE = [/-verb\s+['"]?runas\b/i, /\brunas(\.exe)?\b/i, /\bg?sudo\b/i, /\bStart-Process\b[^\n]*-Verb\b/i];
+const ELEVATE = [/-verb\s+['"]?runas\b/i, /\brunas(\.exe)?\b/i, /\bg?sudo\b/i, /\bStart-Process\b[^\n]*-Verb\b/i, /(^|[;&|(]\s*)(su|doas|pkexec)(\s|$)/i, /with\s+administrator\s+privileges/i, /\bauthopen\b/i];
 /** These always ask on the computer, whatever the policy (deletes, disks, registry, shutdown, downloads run as code…). */
-const DESTRUCTIVE = /\b(remove-item|ri|rm|rmdir|rd|del|erase|format(-volume)?|clear-disk|initialize-disk|diskpart|clear-content|set-content|out-file|reg(\.exe)?\s+(add|delete|import|restore)|set-itemproperty|remove-itemproperty|new-itemproperty|stop-computer|restart-computer|shutdown(\.exe)?|logoff|set-executionpolicy|stop-process|spps|taskkill|kill|move-item|mv|move|ren(ame)?(-item)?|copy-item|xcopy|robocopy|cipher|bcdedit|vssadmin|wmic|icacls|takeown|attrib|uninstall(-package)?|msiexec|winget|choco|invoke-webrequest|iwr|curl|wget|invoke-restmethod|irm|invoke-expression|iex|start-bitstransfer|downloadstring|downloadfile|net(\.exe)?\s+(user|localgroup|share)|schtasks|sc(\.exe)?\s+(delete|config|create|stop)|new-service|set-service|disable-|enable-|git\s+(push|reset|clean|checkout|rebase|commit|merge))\b/i;
+const DESTRUCTIVE = /\b(remove-item|ri|rm|rmdir|rd|del|erase|format(-volume)?|clear-disk|initialize-disk|diskpart|clear-content|set-content|out-file|reg(\.exe)?\s+(add|delete|import|restore)|set-itemproperty|remove-itemproperty|new-itemproperty|stop-computer|restart-computer|shutdown(\.exe)?|logoff|set-executionpolicy|stop-process|spps|taskkill|kill|move-item|mv|move|ren(ame)?(-item)?|copy-item|xcopy|robocopy|cipher|bcdedit|vssadmin|wmic|icacls|takeown|attrib|uninstall(-package)?|msiexec|winget|choco|invoke-webrequest|iwr|curl|wget|invoke-restmethod|irm|invoke-expression|iex|start-bitstransfer|downloadstring|downloadfile|net(\.exe)?\s+(user|localgroup|share)|schtasks|sc(\.exe)?\s+(delete|config|create|stop)|new-service|set-service|disable-|enable-|git\s+(push|reset|clean|checkout|rebase|commit|merge)|chmod|chown|chflags|chgrp|launchctl|defaults\s+(write|delete|import)|diskutil|dd|osascript|killall|pkill|brew|softwareupdate|pmset|networksetup|systemsetup|scutil|csrutil|spctl|xattr|srm|shred|truncate|tmutil|installer|hdiutil|security|dscl|crontab|sed\s+-i|tee|ln|cp|unlink|trash|open\s+-a)\b/i;
 /** The opt-in read-only list: one simple command, its pipes only to shaping cmdlets. */
-const READ_HEAD = /^(get-childitem|gci|dir|ls|get-content|gc|type|cat|get-location|gl|pwd|get-date|date\s*\/t|whoami|hostname|get-process|gps|ps|get-item|gi|test-path|get-volume|get-psdrive|git\s+(status|log|diff|branch|show|remote\s+-v))(\s|$)/i;
-const READ_PIPE = /^(select-object|select|format-table|ft|format-list|fl|sort-object|sort|measure-object|measure|out-string)(\s|$)/i;
+const READ_HEAD = /^(get-childitem|gci|dir|ls|get-content|gc|type|cat|get-location|gl|pwd|get-date|date\s*\/t|whoami|hostname|get-process|gps|ps|get-item|gi|test-path|get-volume|get-psdrive|git\s+(status|log|diff|branch|show|remote\s+-v)|df|du|sw_vers|uname|uptime|head|tail|wc)(\s|$)/i;
+const READ_PIPE = /^(select-object|select|format-table|ft|format-list|fl|sort-object|sort|measure-object|measure|out-string|head|tail|wc|uniq|cut)(\s|$)/i;
 
 export interface RunPlan {
   command: string;
@@ -58,7 +59,12 @@ export interface RunPlan {
   destructive: boolean;
 }
 
-export const runShell = (raw: unknown): RunShell => (String(raw ?? '').toLowerCase().trim() === 'cmd' ? 'cmd' : 'powershell');
+export const runShell = (raw: unknown): RunShell => {
+  const s = String(raw ?? '').toLowerCase().trim();
+  return s === 'cmd' ? 'cmd' : s === 'zsh' || s === 'sh' || s === 'bash' || s === 'terminal' ? 'zsh' : 'powershell';
+};
+/** What the computer's card calls the shell. */
+export const shellLabel = (shell: RunShell): string => (shell === 'cmd' ? 'Command Prompt' : shell === 'zsh' ? 'zsh' : 'PowerShell');
 
 /** Is this one simple read-only command (no `;`, `&`, redirects, subexpressions, script blocks)? */
 export function readOnlyCommand(command: string): boolean {
@@ -120,7 +126,7 @@ export function runResult(raw: Record<string, unknown>): RunResult {
 }
 
 /** File types never "opened" by c.open (opening a path never runs a program). */
-const RUNNABLE = /\.(exe|com|bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|msi|msp|scr|pif|lnk|url|reg|hta|cpl|jar|appref-ms|application|gadget|inf|scf|ms-settings)$/i;
+const RUNNABLE = /\.(exe|com|bat|cmd|ps1|psm1|vbs|vbe|js|jse|wsf|wsh|msi|msp|scr|pif|lnk|url|reg|hta|cpl|jar|appref-ms|application|gadget|inf|scf|ms-settings|app|command|tool|sh|zsh|bash|csh|pkg|mpkg|scpt|scptd|applescript|workflow|terminal|webloc|inetloc|dmg|prefpane|kext)\/?$/i;
 export interface OpenPlan {
   kind: 'url' | 'path' | 'app';
   target: string;
@@ -203,7 +209,7 @@ export const spawnRun: RunExecutor = (x) =>
       return resolve({ exitCode: null, timedOut: false, stopped: false });
     }
     const win = process.platform === 'win32';
-    const [file, argv] = x.shell === 'cmd' ? (win ? ['cmd.exe', ['/d', '/s', '/c', `chcp 65001>nul & ${x.command}`]] : ['/bin/sh', ['-c', x.command]]) : win ? ['powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding=[Text.Encoding]::UTF8; $ProgressPreference='SilentlyContinue'; ${x.command}`]] : ['/bin/sh', ['-c', x.command]];
+    const [file, argv] = x.shell === 'zsh' ? (existsSync('/bin/zsh') ? ['/bin/zsh', ['-f', '-c', x.command]] : ['/bin/sh', ['-c', x.command]]) : x.shell === 'cmd' ? (win ? ['cmd.exe', ['/d', '/s', '/c', `chcp 65001>nul & ${x.command}`]] : ['/bin/sh', ['-c', x.command]]) : win ? ['powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `[Console]::OutputEncoding=[Text.Encoding]::UTF8; $ProgressPreference='SilentlyContinue'; ${x.command}`]] : ['/bin/sh', ['-c', x.command]];
     const child = spawn(file as string, argv as string[], { cwd, windowsHide: true, detached: !win, stdio: ['ignore', 'pipe', 'pipe'], windowsVerbatimArguments: win && x.shell === 'cmd' });
     let timedOut = false;
     let stopped = false;
@@ -304,7 +310,7 @@ export class RunDevice {
     if (this.opts.elevated?.()) throw new RunRuleError('denied_local', 'The Sara app is running as administrator here, so commands are refused (they never run elevated). Start the app normally.');
     const where = plan.cwd || '~ (home)';
     try {
-      await this.#approve('run', `${plan.shell === 'cmd' ? 'Command Prompt' : 'PowerShell'} in ${where}${plan.destructive ? ' (this may change or delete things)' : ''}:\n${plan.command}`, args, { readOnly: plan.readOnly, destructive: plan.destructive, computer: ctx.computer, send: ctx.send });
+      await this.#approve('run', `${shellLabel(plan.shell)} in ${where}${plan.destructive ? ' (this may change or delete things)' : ''}:\n${plan.command}`, args, { readOnly: plan.readOnly, destructive: plan.destructive, computer: ctx.computer, send: ctx.send });
     } catch (err) {
       ctx.log(`didn't run a command (${(err as Error).message.slice(0, 60)})`, plan.command);
       throw err;

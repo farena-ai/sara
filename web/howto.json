@@ -357,6 +357,38 @@
    "show": "#biz-tax"
   }
  ],
+ "you-knows": [
+  {
+   "id": "fix",
+   "q": "How do I fix something Sara knows about me?",
+   "steps": [
+    "Find the fact in its group; its source says where she learned it.",
+    "Press Edit to change the words, or Delete to remove it.",
+    "Press Not true if it is wrong: she forgets it and won’t learn it again."
+   ],
+   "show": "#wsk-list"
+  },
+  {
+   "id": "ask",
+   "q": "How do I ask my documents a question?",
+   "steps": [
+    "Add your lease, policies or warranties to the Library.",
+    "Type a question like “what’s my deductible?” here and press Ask.",
+    "She shows the exact words with the file and page, or says it isn’t in your documents."
+   ],
+   "show": "#wsk-ask"
+  },
+  {
+   "id": "remind",
+   "q": "How do I get a reminder before a renewal or expiry date?",
+   "steps": [
+    "Add the document to the Library.",
+    "Look under From your documents here or on Today.",
+    "Press Remind me to add a reminder before the date."
+   ],
+   "show": "#wsk-list"
+  }
+ ],
  "you-details": [
   {
    "id": "fill",

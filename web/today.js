@@ -53,12 +53,14 @@ export const TILES = [
   { id: 'td-business', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-inbox', section: 'needs', sizes: ['M', 'L'], size: 'M' },
+  { id: 'td-shared', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-rooms', section: 'her', sizes: ['S', 'M', 'L'], size: 'M', hidden: true, ownerOnly: true },
   { id: 'td-jobs', section: 'work', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-board', section: 'work', sizes: ['S', 'M'], size: 'S' },
+  { id: 'td-worktime', section: 'work', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-projects', section: 'work', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
   { id: 'td-usage', section: 'work', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
   { id: 'td-home', section: 'more', sizes: ['M', 'L'], size: 'L', ownerOnly: true },
@@ -577,7 +579,7 @@ const num = (n) => Number(n ?? 0).toLocaleString(locale());
 const kTok = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag' };
+const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag', 'td-shared': 'group', 'td-worktime': 'gauge' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -1268,6 +1270,83 @@ export function renderBusiness(b) {
     list.append(li);
   }
   body.append(list);
+}
+
+/** N7: Shared with you: items on shared lists given to this person, invitations to accept, their shared lists. */
+export function renderShared(s) {
+  const tile = $('#td-shared');
+  if (!tile) return;
+  tile.hidden = !s;
+  if (!s) return;
+  tileHead(tile, t('Shared with you'), s.assigned.length ? el('span', 'td-count', String(s.assigned.length)) : null);
+  const rows = [];
+  for (const i of s.invites) {
+    const row = el('div', 'td-sh-invite');
+    row.append(raw(el('span', 'td-bd-title', t('{from} shared “{name}”', { from: i.fromName || t('Someone'), name: i.name }))), btn('small', t('Accept'), async () => {
+      try {
+        await ctx.api(`/boards/invites/${encodeURIComponent(i.boardId)}/accept`, { method: 'POST', body: {} });
+      } finally {
+        void reloadParts(['shared']);
+      }
+    }));
+    rows.push(row);
+  }
+  for (const a of s.assigned.slice(0, ROWS[sizeOf('td-shared')])) {
+    const b2 = btn('today-item td-bd-item', '', () => ctx.openCard?.(a.boardId, a.ref));
+    const due = a.dueAt ? new Date(a.dueAt).toLocaleString(locale(), { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+    b2.append(raw(el('span', 'td-bd-title', a.title)), raw(el('span', 'muted small td-bd-sub', [a.board, a.byName ? t('from {name}', { name: a.byName }) : '', due ? t('due {when}', { when: due }) : ''].filter(Boolean).join(' · '))));
+    rows.push(b2);
+  }
+  if (!s.assigned.length) {
+    const list = el('ul', 'td-biz');
+    for (const l of s.lists.slice(0, 4)) {
+      const li = el('li', 'td-biz-row');
+      li.append(el('span', 'td-biz-k small muted', l.name), el('span', 'td-biz-v', String(l.open)), el('span', 'small muted', t('open')));
+      list.append(li);
+    }
+    if (s.lists.length) rows.push(list);
+  }
+  tile.querySelector('.td-body').replaceChildren(...rows);
+}
+
+/** N7: Clients and hours: the running timer (with Stop), this week's hours, the client pipeline by stage. */
+export function renderWorktime(w) {
+  const tile = $('#td-worktime');
+  if (!tile) return;
+  tile.hidden = !w;
+  if (!w) return;
+  tileHead(tile, t('Clients and hours'));
+  const out = [];
+  const hrs = (h) => t('{h} hours', { h: new Intl.NumberFormat(locale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(h) });
+  if (w.timer) {
+    const row = el('div', `td-wt-timer${w.timer.long ? ' long' : ''}`);
+    const what = [w.timer.client, w.timer.project].filter(Boolean).join(' · ') || t('Work');
+    row.append(el('span', 'td-wt-what', what), el('span', 'td-biz-v', hrs(w.timer.hours)), btn('small', t('Stop'), async () => {
+      try {
+        await ctx.api('/work/timer/stop', { method: 'POST', body: {} });
+      } finally {
+        void reloadParts(['worktime']);
+      }
+    }));
+    out.push(row);
+    if (w.timer.long) out.push(el('p', 'small td-biz-late', t('This timer has run over 10 hours. Stop it if you are done.')));
+  }
+  const list = el('ul', 'td-biz');
+  const row = (k, v, note, late) => {
+    const li = el('li', 'td-biz-row');
+    li.append(el('span', 'td-biz-k small muted', k), el('span', 'td-biz-v', v), el('span', `small ${late ? 'td-biz-late' : 'muted'}`, note));
+    list.append(li);
+  };
+  if (w.week) row(t('This week'), hrs(w.week), '');
+  if (w.pipeline) {
+    const words = { lead: t('Leads'), quoted: t('Quoted'), won: t('Won'), invoiced: t('Invoiced'), paid: t('Paid'), lost: t('Lost') };
+    const cur = (cents) => new Intl.NumberFormat(locale(), { style: 'currency', currency: w.pipeline.currency || 'USD', maximumFractionDigits: cents >= 100_000 ? 0 : 2 }).format(cents / 100);
+    for (const s of w.pipeline.stages.filter((x) => x.stage !== 'lost')) row(words[s.stage], String(s.count), s.valueCents ? cur(s.valueCents) : '');
+    if (w.pipeline.overdue) row(t('Next steps'), String(w.pipeline.overdue), t('overdue'), true);
+    else if (w.pipeline.due) row(t('Next steps'), String(w.pipeline.due), t('today'));
+  }
+  if (list.childElementCount) out.push(list);
+  tile.querySelector('.td-body').replaceChildren(...out);
 }
 
 /** E3: Money: portfolio value and today's move (with its source and time), bills due this week, spent this month. */
@@ -1993,6 +2072,8 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   if (has('automations')) draw('td-automations', () => ctx.renderAutomations?.(d.automations, tileHead));
   if (has('inbox')) draw('td-inbox', () => ctx.renderInbox?.(d.inbox, tileHead));
   if (has('teams')) draw('td-teams', () => renderTeams(d.teams));
+  if (has('shared')) draw('td-shared', () => renderShared(d.shared));
+  if (has('worktime')) draw('td-worktime', () => renderWorktime(d.worktime));
   draw('td-setup', () => renderSetup(setupItems({ weather: d.weather ?? (has('weather') ? { setUp: false } : undefined), calendar: d.calendar, mail: d.mail === undefined && has('mail') && !ctx.member() ? null : d.mail, home: d.home?.connected === false ? 'not-connected' : home, projects: d.projects, member: ctx.member(), demo: ctx.demo(), hidden: prefs?.setupHidden ?? [] }), prefs));
   if (has('away')) renderAway(d.away);
   Object.assign(lastEmpty, empty);

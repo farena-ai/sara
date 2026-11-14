@@ -97,7 +97,12 @@ test('push service: VAPID keys persist in the vault, delivery, expired subscript
   got.length = 0;
   const msg = { id: 9, role: 'assistant', content: 'Reminder: call Mom  \n now  sk-abcdefghijklmnopqrstuvwxyz123', createdAt: '' };
   await push.onEvent({ type: 'message', conversationId: 'c1', message: msg, reason: 'reminder' }, 'Sara', () => false, (s) => s.replace(/sk-\w+/, '[secret]'));
-  assert.deepEqual(JSON.parse(phone.decrypt(got[0].body)), { title: '⏰ Sara', body: 'Reminder: call Mom now [secret]', url: '/#c=c1', tag: 'c9' });
+  // N5b: her message carries a Reply button and its one-time action token (test/n5-phone.test.ts).
+  const { act, actions, companion, ...plain } = JSON.parse(phone.decrypt(got[0].body));
+  assert.deepEqual(plain, { title: '⏰ Sara', body: 'Reminder: call Mom now [secret]', url: '/#c=c1', tag: 'c9' });
+  assert.match(act, /^sara_act\.owner\./);
+  assert.equal(companion, 'main');
+  assert.deepEqual(actions.map((a: { action: string }) => a.action), ['reply']);
   await push.onEvent({ type: 'message', conversationId: 'c1', message: { ...msg, role: 'notice' }, reason: 'proactive' }, 'Sara', () => false);
   await push.onEvent({ type: 'message', conversationId: 'p', message: msg, reason: 'proactive' }, 'Sara', () => true);
   assert.equal(got.length, 1);

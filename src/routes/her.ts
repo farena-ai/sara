@@ -509,6 +509,8 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         ...(st ? { mood: moodLabel(st, now, s.timeZone).mood } : {}),
         face: expression === 'default' ? '/sara-portrait.jpg' : `/sara/portrait-${expression}.jpg`,
         ...(last ? { last: { id: last.id, conversationId: last.conversation_id, text: last.content.replace(/\s+/g, ' ').slice(0, 200), at: last.created_at } } : {}),
+        // N5b: the next reminder and how many watches are on (each person's own space).
+        ...phoneWidgetExtras(app),
       });
     }
     if (a === 'phone' && b === 'inbox' && method === 'GET') {
@@ -848,4 +850,15 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
     }
     return NEXT;
   };
+}
+
+/** N5b: the widget's next thing (the soonest timed reminder) and the count of active watches. */
+export function phoneWidgetExtras(app: import('../chat.ts').AppContext): { next?: { kind: 'reminder'; text: string; at: string }; watches: number; talk: string } {
+  const now = app.now().toISOString();
+  const next = (app.planner?.reminders({ status: 'pending', kind: 'timed', limit: 200 }) ?? [])
+    .filter((r) => !r.placeId && r.dueAt >= now)
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0];
+  const count = (list: { state: string }[] | undefined) => (list ?? []).filter((w) => w.state === 'active').length;
+  const watches = count(app.watches?.list()) + count(app.liveWatches?.list()) + count(app.productWatches?.list());
+  return { ...(next ? { next: { kind: 'reminder' as const, text: next.text.replace(/\s+/g, ' ').slice(0, 120), at: next.dueAt } } : {}), watches, talk: '/#talk' };
 }

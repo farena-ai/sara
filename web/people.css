@@ -171,3 +171,24 @@
   .ppl-card-chips { justify-content: center; }
   .ppl-card-actions button { flex: 1 1 calc(50% - var(--s-2)); }
 }
+
+/* N6 (docs/WHAT_SARA_KNOWS.md): Settings → You → What Sara knows (web/facts.js). */
+#settings .wsk-group { margin: var(--s-3) 0; }
+#settings .wsk-group h4 { margin: 0 0 var(--s-2); font-size: var(--fs-13); color: var(--text-2); }
+#settings .wsk-facts, #settings .wsk-answers { display: grid; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+#settings .wsk-fact { display: grid; gap: 4px; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); min-width: 0; }
+#settings .wsk-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); overflow-wrap: anywhere; }
+#settings .wsk-private { padding: 0 6px; border-radius: var(--r-pill); background: var(--warn-soft); color: var(--text-1); }
+#settings .wsk-src { overflow-wrap: anywhere; }
+#settings .wsk-how.read { color: var(--info); }
+#settings .wsk-how.said { color: var(--success); }
+.wsk-quote { display: block; margin-top: 2px; padding-left: var(--s-2); border-left: 2px solid var(--accent-line); color: var(--text-2); font-style: italic; overflow-wrap: anywhere; }
+#settings .wsk-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+#settings .wsk-edit { flex: 1 1 260px; min-width: 0; }
+#settings .wsk-askrow { display: flex; gap: var(--s-2); align-items: center; }
+#settings .wsk-askrow input { flex: 1 1 auto; min-width: 0; }
+#settings #wsk-answer { margin: var(--s-2) 0; }
+#settings .wsk-answers li { padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); }
+#settings #wsk-suggest-list .ih-cards { margin-bottom: var(--s-2); }
+.wsk-card .ih-head { flex-wrap: wrap; }
+.wsk-card .ih-main { white-space: normal; overflow: visible; text-overflow: clip; }

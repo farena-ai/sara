@@ -36,3 +36,5 @@ and reads no mail by itself.
 - Tests: `test/e6-business.test.ts` (money and rounding, numbering per space, overdue and reminders,
   default and template invoices, follow-up filtering on fixture threads, a fixture contract, receipts,
   duplicates, report totals, action items, the lean picker in six languages).
+
+N7: making a quote or invoice and marking it accepted, paid or void moves the client pipeline and frees billed hours on void; `follow_ups` also lists clients' due next steps (docs/WORK_AND_TEAMS.md).

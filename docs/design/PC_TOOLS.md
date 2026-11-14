@@ -1,6 +1,7 @@
 # PC tools: running things on the owner's own computer (one page)
 
-Status: built for the Windows app and the server (3.5, unreleased); the Mac app has no `c.run` yet.
+Status: built for the Windows app and the server (3.5); the Mac app has `c.run` / `c.open` since N5 (zsh;
+`desktop/mac/Sources/HandsRun.swift`, docs/desktop.md → The Mac app's PC tools).
 Tests: `test/pc-run.test.ts`. A real run on Windows (a throwaway server, a scripted model, the test
 build of the app with its own data and WebView2 folder) ran `Get-ChildItem $env:TEMP | Select -First 3`
 after *Allow once* on the PC's card (exit 0, 0.8 s), then `Start-Sleep 30`, stopped after 3 s from the
@@ -19,9 +20,9 @@ yes there.
 | `pc_open` | Open one thing with its default app: a URL (`http`/`https`/`mailto`), a file or folder by full path, or an installed app by name (Start-menu shortcuts, the same list as `pc_open_app`). No arguments, no command lines. | `c.open` |
 
 Later (not in this build): Office/Outlook through their own automation (COM) — useful but each app is
-its own surface; for now `pc_run` with PowerShell covers simple cases the owner approves. Mac: the
-app has no `c.run`/`c.open` yet (`Process` / `NSWorkspace` is cheap, but the approval panel and the
-kill-tree story need their own pass); the tools say so plainly.
+its own surface; for now `pc_run` with PowerShell covers simple cases the owner approves. Mac (N5): zsh
+instead of PowerShell / cmd (the server picks it for a Mac), the card is a non-activating panel, and the
+command runs in its own process group with every process it started tracked, so Stop ends the tree.
 
 **This PC's Ollama / LM Studio for a remote server.** Already covered: Settings → Models → Model
 providers → *Ollama on my computer* pointed at the PC over Tailscale (or the home network); see

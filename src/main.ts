@@ -40,6 +40,7 @@ import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.
 import { Automations } from './automations.ts';
 import { createAutomationTools } from './tools/automations.ts';
 import { createMyDetailsTool } from './tools/my-details.ts';
+import { createFactsTools } from './tools/facts.ts';
 import { resolveAttachments } from './mail/attachments.ts';
 import { myDetailsFor } from './my-details.ts';
 import { InboxHelper } from './inbox/helper.ts';
@@ -176,6 +177,7 @@ import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
 import { createFillDocumentTool } from './tools/fill-document.ts';
 import { createBizTools } from './tools/biz.ts';
+import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
 import { createDecisionTools } from './decisions.ts';
@@ -200,6 +202,7 @@ import { RoomKeeper } from './bridges/keepup.ts';
 import { paceFactor, tensionHalfLife } from './bond.ts';
 import { CompanionManager, CompanionSettings, companionDirs, LinkedToolRegistry, MAIN_ID, type Companion } from './companions.ts';
 import { pickCompanion, type HouseholdHooks, type MemberHooks } from './server.ts';
+import { actTokenSpace } from './phone-actions.ts';
 import { createServer, type IncomingMessage } from 'node:http';
 import { DeviceFlow } from './device-flow.ts';
 import { SESSION_COOKIE } from './auth.ts';
@@ -215,7 +218,7 @@ import { PackInstaller, PackInstalls } from './packs/install.ts';
 import { fetchHeld } from './store/submit.ts';
 import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
-import { appLanguage } from './i18n.ts';
+import { appLanguage, trOwner } from './i18n.ts';
 import { homedir } from 'node:os';
 import { assertPersonalProfile, runtimeProfile } from './business/profile.ts';
 
@@ -784,6 +787,15 @@ setDataRights(
 const spaceOf = (person: string): Space | undefined => (person === 'owner' ? ownerSpace : memberSpaces.get(person));
 sharedBoards?.listeners.add((ev) => {
   for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'board', boardId: ev.boardId, what: ev.what });
+  // N7: "Shared with you" on Today follows the shared lists.
+  for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'today', part: 'shared' });
+});
+// N7 (docs/WORK_AND_TEAMS.md): the person a shared item is given to gets a notification in their own space.
+sharedBoards?.assignedListeners.add((ev) => {
+  const app = spaceOf(ev.to)?.companions.main.app;
+  if (!app) return;
+  const by = ev.by === 'owner' ? settings.get().ownerName?.trim() || 'The owner' : (household.get(ev.by)?.name ?? 'Someone');
+  void app.push?.notifyOwner(trOwner('{name} gave you a task', app.settings.get(), { name: by }), `${ev.title} (${ev.board})`, '', `assign-${ev.ref}`).catch(() => undefined);
 });
 function sharedAccess(space: Space): SharedBoardsAccess | undefined {
   if (!sharedBoards) return undefined;
@@ -1040,8 +1052,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createFillDocumentTool(() => app));
   // N4 (docs/MY_DETAILS.md): my_details_get, the person's own saved details (each space's own; never the demo).
   if (!isDemo) tools.add(createMyDetailsTool(() => app));
+  // N6 (docs/WHAT_SARA_KNOWS.md): facts_list and fact_forget, the person's own world (never the demo).
+  if (!isDemo) for (const t of createFactsTools(() => app)) tools.add(t);
   // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
   if (!isDemo) for (const t of createBizTools(() => app)) tools.add(t);
+  // N7 (docs/WORK_AND_TEAMS.md): shared lists, clients and time tracking (each person's own space; never the demo).
+  if (!isDemo) for (const t of createWorkTools(() => app)) tools.add(t);
   // E3 (docs/MONEY.md): portfolio, budget and bills (each person's own space; never the demo).
   if (!isDemo) for (const t of createMoneyTools(() => app)) tools.add(t);
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
@@ -1209,6 +1225,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     space.push = new PushService(store.db, vault, space.settings);
     space.push.who = () => identityOf(app.persona);
     space.push.apns = new ApnsSender(store.db, vault);
+    // N5b: notification action tokens name the space they were made for (main routes them back there).
+    space.push.actions.space = space.id;
   }
   app.push = space.push;
   // E1 (docs/DATA.md): live data and "tell me when", each person's own (their space's choices,
@@ -1817,6 +1835,9 @@ function spaceByCredential(req: IncomingMessage): Space | undefined {
     const tok = h.slice(7).trim();
     const m = memberOfToken(tok);
     if (m) return memberSpaces.get(m);
+    // N5b: a notification's action token names its space (the space's server checks its signature).
+    const actSpace = actTokenSpace(tok);
+    if (actSpace) return actSpace === 'owner' ? undefined : memberSpaces.get(actSpace);
     if (tok.startsWith('sara_dev.') || tok.startsWith('sara_hands.')) {
       const id = tok.slice(tok.indexOf('.') + 1).split('.')[0];
       for (const sp of memberSpaces.values()) if (sp.auth.hasDevice(id)) return sp;

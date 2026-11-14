@@ -53,7 +53,11 @@ release steps: [docs/ops/C18_PLAY_RELEASE.md](../docs/ops/C18_PLAY_RELEASE.md).
 ## What it does besides the web app
 
 - **Reply from a notification**: type into her notification; her answer comes back as one.
-- **Send to Sara**: share text, links or photos from any app; they land in the message box.
+- **Send to Sara**: share text, links or photos from any app; they land in the message box. PDFs,
+  Office files and tables (N5b) go to her Library through `POST /api/phone/share`, and a new chat
+  opens with a ready message.
+- **Widget (N5b)**: also the next reminder, active watches and a **Talk** button (data from
+  `GET /api/phone/widget`, the app's own sign-in; every 30 minutes and on each message check).
 - **Live calls keep going with the screen off**: the call runs in the app itself (with a call
   notification and a Hang Up button), not in the web page.
 - **Instant notifications** (Settings → Phone and notifications, optional): the app keeps one quiet

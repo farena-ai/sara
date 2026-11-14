@@ -141,6 +141,8 @@ final class HandsBrowser {
   }
 
   var running: Bool { cond.lock(); defer { cond.unlock() }; return alive }
+  /// N5: its process (the person's own copy of the same browser is told apart by it).
+  var processId: pid_t { cond.lock(); defer { cond.unlock() }; return alive ? pid : 0 }
 
   func start() throws {
     if running { return }
@@ -1182,11 +1184,13 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
                                    "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "c.endTask",
                                    // Phase 94 (CU7): the read-only check-up (HandsCheckup.swift). No s.apply in this build:
                                    // check-up changes are made by the person (Sara says where).
-                                   "s.check"]
+                                   "s.check",
+                                   // N5 (Mac parity): the person's own tabs (AppleScript), files (read only), approved commands.
+                                   "d.tabs", "d.tabswitch", "f.list", "f.read", "c.run", "c.open"]
   /// Ops that act: they count against the input rate limit and stop when the person takes over.
-  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"]
+  static let inputOps: Set<String> = ["b.click", "b.type", "b.select", "b.keys", "b.scroll", "b.upload", "b.login", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "d.tabswitch"]
   /// Phase 90: ops that wait for the person (the consent panel, "Your turn"): up to 10 minutes.
-  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch"]
+  static let waitingOps: Set<String> = ["b.saveLogin", "b.yourTurn", "b.unlock", "d.click", "d.type", "d.keys", "d.scroll", "d.drag", "d.launch", "d.tabswitch", "c.run", "c.open"]
   /// Phase 91: the owner's password managers on this Mac.
   let pm = HandsManagers()
   /// Phase 90: Touch ID before a saved login is used (off by default).
@@ -1203,6 +1207,10 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   var desktop = false
   /// Phase 93: keep-awake is an explicit owner preference; it never unlocks or bypasses approvals.
   var walkAway = false
+  /// N5: "Files" (read only, HandsFiles.swift), "Let Sara see my tabs" (HandsTabs.swift) and commands (HandsRun.swift).
+  var files = false
+  var tabsOn = false
+  let runner = HandsRun()
   var desktopLevel = "task"
   private var desktopGrants: [String: Date] = [:]
   private var desktopUntil = Date.distantPast
@@ -1305,7 +1313,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   func stop() {
     lock.lock()
     stopping = true
-    desktopUntil = .distantPast; desktopGrants.removeAll()
+    desktopUntil = .distantPast; desktopGrants.removeAll(); runner.clearGrants()
     for c in cancels.values { c.set() }
     lock.unlock()
     tunnels.closeAll()
@@ -1443,7 +1451,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     var browserInfo: [String: Any] = ["found": browser.found != nil]
     if let f = browser.found { browserInfo["kind"] = f.kind; browserInfo["name"] = f.name }
     return jsonText(["t": "hello", "v": 1, "app": version, "os": "macOS \(os.majorVersion).\(os.minorVersion).\(os.patchVersion)", "computer": computer, "screens": HandsScreen.screensList(),
-                     "browser": browserInfo, "perms": ["capture": HandsScreen.perms.capture, "input": HandsScreen.perms.ax, "ax": HandsScreen.perms.ax], "optIn": ["browser": true, "desktop": desktop], "approvalsHere": true, "walkAway": walkAway,
+                     "browser": browserInfo, "perms": ["capture": HandsScreen.perms.capture, "input": HandsScreen.perms.ax, "ax": HandsScreen.perms.ax], "optIn": optInView(), "runReadOnly": runner.readOnlyAuto, "fileRoots": HandsFiles.rootNames(), "fileScope": HandsFiles.scopeName, "approvalsHere": true, "walkAway": walkAway,
                      "logins": HandsLogins.views(server: browser.serverOrigin), "vault": ["kind": "keychain", "verify": verify], "busy": false, "localOnly": localOnly, "ops": Array(Hands.ops).sorted(),
                      "takeover": keep ? "keep" : "pause", "hotkey": hotkeyOk ? "⌃⌥Esc" : "", "paused": paused, "renew": true,
                      "managers": pm.views(), "relockMinutes": pm.relockMinutes] as [String: Any])
@@ -1466,7 +1474,7 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     lock.lock()
     for c in cancels.values { c.set() }
     // Stop ends the task: the badge goes, and a pause ends with it.
-    desktopUntil = .distantPast; desktopGrants.removeAll()
+    desktopUntil = .distantPast; desktopGrants.removeAll(); runner.clearGrants()
     let wasPaused = paused
     paused = false
     lastOpAt = .distantPast
@@ -1490,9 +1498,14 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   /// The switches and permissions as the server should know them (Phase 92: the whole screen, the Mac's two permissions).
   func tellOptIn() {
     let p = HandsScreen.perms
-    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": ["browser": true, "desktop": desktop], "localOnly": localOnly, "takeover": keep ? "keep" : "pause", "walkAway": walkAway, "perms": ["capture": p.capture, "input": p.ax, "ax": p.ax]] as [String: Any]))
+    sendText(jsonText(["t": "ev", "kind": "optin", "optIn": optInView(), "runReadOnly": runner.readOnlyAuto, "fileRoots": HandsFiles.rootNames(), "fileScope": HandsFiles.scopeName, "localOnly": localOnly, "takeover": keep ? "keep" : "pause", "walkAway": walkAway, "perms": ["capture": p.capture, "input": p.ax, "ax": p.ax]] as [String: Any]))
   }
   func tellWalkAway(_ on: Bool) { walkAway = on; tellOptIn() }
+  /// N5: the switches as the server should know them (tabs is the Mac's own extra switch).
+  func optInView() -> [String: Any] { ["browser": true, "desktop": desktop, "files": files, "run": runner.on, "tabs": tabsOn] }
+  func tellFiles(_ on: Bool) { files = on; tellOptIn() }
+  func tellTabs(_ on: Bool) { tabsOn = on; tellOptIn() }
+  func tellRun(on: Bool, level: String, readOnly: Bool) { runner.configure(on: on, level: level, readOnly: readOnly); tellOptIn() }
   func tellDesktopLevel(_ level: String) { lock.lock(); desktopLevel = level; desktopGrants.removeAll(); lock.unlock() }
   func tellDesktop(_ on: Bool) {
     if !on { endDesktopTask() }
@@ -1533,6 +1546,8 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     sendText(jsonText(["t": "ev", "kind": "resumed"]))
     updateBadge()
   }
+  /// N5: she is doing something on this Mac right now (an update waits for a quiet moment).
+  var busy: Bool { lock.lock(); defer { lock.unlock() }; return opRunning || !cancels.isEmpty }
   var statusLine: String {
     if connected { return "Connected to Sara at \(URL(string: server)?.host ?? server)\(URL(string: server)?.port.map { ":\($0)" } ?? "")" }
     return lastError.isEmpty ? "Connecting to Sara…" : lastError
@@ -1657,6 +1672,41 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     }
   }
 
+  /// N5: d.tabs (read only) and d.tabswitch (approved here like a desktop action).
+  private func tabsOp(_ op: String, _ a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
+    lock.lock(); let desk = desktop, on = tabsOn; lock.unlock()
+    guard desk else { throw HandsOpError(code: "denied_local", message: "\"The whole screen\" is off on this Mac: only the person here can switch it on, in the Sara app.") }
+    guard on else { throw HandsOpError(code: "denied_local", message: "\"Let Sara see my tabs\" is off on this Mac: only the person here can switch it on, in the Sara app (Settings, Computer use).") }
+    if op == "d.tabs" {
+      let r = try HandsTabs.tabs()
+      localLog("d.tabs", "read your browser tabs", "")
+      return r
+    }
+    guard HandsScreen.unlocked() else { throw HandsScreen.denied("The screen is locked; Sara cannot switch tabs now.") }
+    let t = try HandsTabs.inspectSwitch(a)
+    let summary = "Bring your \(t.win.browser.name) tab to the front:\n\(HandsScreen.clip(handsMask(t.title), 160))\(t.url.isEmpty ? "" : "\n" + HandsScreen.clip(handsMask(t.url), 200))"
+    lock.lock()
+    desktopGrants = desktopGrants.filter { Date().timeIntervalSince($0.value) < 15 * 60 }
+    let taskName = String((a["task"] as? String ?? "").prefix(160))
+    let level = a["approvalLevel"] as? String == "ask" ? "ask" : desktopLevel
+    let once = t.once || a["forceOnce"] as? Bool == true
+    let granted = level == "always" || (level == "task" && !taskName.isEmpty && desktopGrants[taskName] != nil)
+    lock.unlock()
+    if once || !granted {
+      lock.lock(); desktopApproving = true; lock.unlock()
+      let answer = HandsDesktopApproval.ask(summary, taskChoice: !once && level == "task" && !taskName.isEmpty, test: testLabel, cancel: cancel)
+      lock.lock(); desktopApproving = false; lock.unlock()
+      sendText(jsonText(["t": "ev", "kind": "local_approval", "allowed": answer > 0]))
+      guard answer > 0, !cancel.isSet else { throw HandsScreen.denied("The person at this computer did not approve that action.") }
+      if answer == 2 { lock.lock(); desktopGrants[taskName] = Date(); lock.unlock() }
+      // The same tab, checked again after the card (the person may have changed the tabs meanwhile).
+      _ = try HandsTabs.inspectSwitch(a)
+    }
+    try HandsTabs.switchTo(t.win, t.index)
+    localLog("d.tabswitch", "brought your tab to the front", t.title)
+    return ["switched": true, "window": t.win.id, "title": handsMask(HandsScreen.clip(t.title, 160)), "url": handsMask(HandsScreen.clip(t.url, 300))]
+  }
+
   /// Phase 92: d.screens / d.windows / d.shot / d.elements, with HandsScreen's rules.
   private func desktopOp(id: String, op: String, _ a: [String: Any], cancel: HandsCancel) throws -> [String: Any] {
     guard desktop else { throw HandsOpError(code: "denied_local", message: "\"The whole screen\" is off on this Mac: only the person here can switch it on, in the Sara app.") }
@@ -1773,6 +1823,23 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     // Phase 91: after the task (and Lock now) every manager locks again; b.unlock is the person's.
     if op == "b.relock" { return ["locked": pm.lockAll("the task ended").map { handsPms[$0].id }] }
     if op == "b.unlock" { return try unlockOp(a, cancel) }
+    // N5: files, commands and the person's own tabs.
+    if op == "f.list" || op == "f.read" {
+      lock.lock(); let on = files; lock.unlock()
+      guard on else { throw HandsOpError(code: "denied_local", message: "\"Files\" is off on this computer: only the person here can switch it on, in the Sara app (Settings, Computer use).") }
+      let folder = a["folder"] as? String ?? "", path = a["path"] as? String ?? ""
+      let r = op == "f.list" ? try HandsFiles.list(folder, path) : try HandsFiles.read(folder, path, maxChars: (a["maxChars"] as? NSNumber)?.intValue ?? 0)
+      localLog(op, op == "f.list" ? "listed a folder" : "read a file", "\(folder)/\(path)")
+      return r
+    }
+    if op == "c.run" || op == "c.open" {
+      let ctx = HandsRun.Ctx(cancel: cancel, paused: { [weak self] in self?.paused ?? true },
+                             ev: { [weak self] e in var m = e; m["t"] = "ev"; m["kind"] = "run"; m["id"] = id; self?.sendText(jsonText(m)) },
+                             log: { [weak self] what, target in self?.localLog(op, what, target) },
+                             approving: { [weak self] on in self?.lock.lock(); self?.desktopApproving = on; self?.lock.unlock() })
+      return try runner.handle(op: op, a, ctx)
+    }
+    if op == "d.tabs" || op == "d.tabswitch" { return try tabsOp(op, a, cancel: cancel) }
     // Phase 92 (CU5): desktop look, never the Sara browser.
     if op.hasPrefix("d.") { return try desktopOp(id: id, op: op, a, cancel: cancel) }
     // Phase 94 (CU7): the read-only check-up, only with "The whole screen" on here.
@@ -2285,6 +2352,7 @@ extension Hands {
     else if cmd == "pm:wrong" { pm.testType("not-" + "the-master") }
     else if cmd == "pm:close" { pm.testType(nil) }
     else if cmd.hasPrefix("login:") { let c = String(cmd.dropFirst(6)); DispatchQueue.main.async { HandsLoginPanel.current?.testDrive(c) } }
+    else if cmd.hasPrefix("run:") { let c = String(cmd.dropFirst(4)); DispatchQueue.main.async { HandsRunPanel.current?.finish(c == "allow" ? 1 : c == "task" ? 2 : 0) } }
     else if cmd == "off" { DispatchQueue.main.async { (NSApp.delegate as? AppDelegate)?.handsOff(); testLog("hands: off (test item removed)") } }
     else if cmd.hasPrefix("shot:"), let v = badge?.contentView, let rep = v.bitmapImageRepForCachingDisplay(in: v.bounds) {
       v.cacheDisplay(in: v.bounds, to: rep)

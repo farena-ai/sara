@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { audit } from '../audit-trail.ts';
 import { APPS_PAGE } from '../cards.ts';
 import { HandsError, type HandsDeviceView } from '../hands.ts';
-import { capOutput, maskRunText, openPlan, runPlan, runResult, RunRuleError, RUN_LIMITS, RUN_SHELLS } from '../hands-run.ts';
+import { capOutput, maskRunText, openPlan, runPlan, runResult, RunRuleError, RUN_LIMITS, RUN_SHELLS, type RunShell } from '../hands-run.ts';
 import { toIdentity } from '../identity.ts';
 import type { AppContext } from '../chat.ts';
 import { SERVER_VERSION } from './computer.ts';
@@ -41,7 +41,7 @@ export function createPcRunTools(app: AppContext): Tool[] {
   };
   /** Why that computer can't run it now (undefined: it can). */
   const notReady = (d: HandsDeviceView, op: 'c.run' | 'c.open'): string | undefined => {
-    if (!d.ops?.includes(op)) return isMac(d) ? `The Sara app for Mac can't run commands or open things for ${NAME()} yet. Tell the owner that in plain words.` : `The Sara app on ${nameOf(d)} is older and can't run commands yet. Tell the owner to ${updateHow(d)}; then switch on "Let ${NAME()} run commands on this computer" there (Settings \u2192 Computer use). Nothing was run.`;
+    if (!d.ops?.includes(op)) return `The Sara app on ${nameOf(d)} is older and can't run commands yet. Tell the owner to ${updateHow(d)}; then switch on "Let ${NAME()} run commands on this computer" there (Settings \u2192 Computer use). Nothing was run.`;
     if (!d.optIn?.run) return `"Let ${NAME()} run commands on this computer" is off on ${nameOf(d)}. Tell the owner: to let you, open the Sara app on ${nameOf(d)} \u2192 Settings \u2192 Computer use \u2192 switch it on. Every command is still shown there first, and they decide there. Nothing was run.`;
     if (d.approvalsHere !== true) return `${nameOf(d)} has no approval card of its own, so nothing runs there. Nothing was run.`;
     return undefined;
@@ -87,13 +87,13 @@ export function createPcRunTools(app: AppContext): Tool[] {
     spec: {
       name: 'pc_run',
       description:
-        "Run ONE PowerShell (default) or cmd command on the OWNER'S OWN computer, as them (never as administrator), through the Sara app there. Only when \"Let Sara run commands on this computer\" is on there; the computer shows the owner the whole command and they choose Allow once / Allow for this task / Don't there (a phone can't approve). Output streams to the chat; you get the exit code and up to 16,000 characters. Use it for things on their PC (\"what's in my Temp folder\", \"git status in my project\", \"how much disk space\"). Say what a command will do before running anything that changes things; prefer read-only commands; one step at a time. If they say no, don't try another way to do the same thing.",
-      parameters: obj({ command: { type: 'string', description: 'The command, e.g. "Get-ChildItem $env:TEMP | Select -First 3"' }, shell: { type: 'string', enum: [...RUN_SHELLS], description: 'powershell (default) or cmd' }, cwd: { type: 'string', description: 'A full folder path on that computer (default: the home folder)' }, timeout: { type: 'number', description: `Seconds before it is stopped (${RUN_LIMITS.timeoutS.min}\u2013${RUN_LIMITS.timeoutS.max}, default ${RUN_LIMITS.timeoutS.def})` }, ...COMPUTER_ARG }, ['command']),
+        "Run ONE PowerShell (default) or cmd command on the OWNER'S OWN Windows computer (zsh on a Mac: the shell is chosen for you there), as them (never as administrator), through the Sara app there. Only when \"Let Sara run commands on this computer\" is on there; the computer shows the owner the whole command and they choose Allow once / Allow for this task / Don't there (a phone can't approve). Output streams to the chat; you get the exit code and up to 16,000 characters. Use it for things on their PC (\"what's in my Temp folder\", \"git status in my project\", \"how much disk space\"). Say what a command will do before running anything that changes things; prefer read-only commands; one step at a time. If they say no, don't try another way to do the same thing.",
+      parameters: obj({ command: { type: 'string', description: 'The command, e.g. "Get-ChildItem $env:TEMP | Select -First 3"' }, shell: { type: 'string', enum: [...RUN_SHELLS], description: 'powershell (default) or cmd on Windows; a Mac always uses zsh' }, cwd: { type: 'string', description: 'A full folder path on that computer (default: the home folder)' }, timeout: { type: 'number', description: `Seconds before it is stopped (${RUN_LIMITS.timeoutS.min}\u2013${RUN_LIMITS.timeoutS.max}, default ${RUN_LIMITS.timeoutS.def})` }, ...COMPUTER_ARG }, ['command']),
     },
     isAvailable: on,
     summarize: (a) => `run on your computer: ${String(a.command ?? '').slice(0, 120)}`,
     async run(args, ctx) {
-      let plan;
+      let plan: ReturnType<typeof runPlan>;
       try {
         plan = runPlan(args);
       } catch (err) {
@@ -102,6 +102,10 @@ export function createPcRunTools(app: AppContext): Tool[] {
       const d = pick(args);
       const why = notReady(d, 'c.run');
       if (why) return why;
+      // N5: a Mac runs zsh (no PowerShell or cmd there); zsh is only for a Mac.
+      const mac = isMac(d);
+      if (!mac && plan.shell === 'zsh') throw new ToolError(`${nameOf(d)} is a Windows computer: use shell "powershell" (default) or "cmd".`);
+      plan = { ...plan, shell: (mac ? 'zsh' : plan.shell) as RunShell };
       const conv = convOf(ctx);
       const { id, reply, error } = await send(ctx, d, 'c.run', { command: plan.command, shell: plan.shell, cwd: plan.cwd, timeoutMs: plan.timeoutS * 1000 }, `running a command (${plan.shell})`, { command: plan.command, shell: plan.shell });
       const card = (outcome: string, extra: Record<string, unknown> = {}) => `[pc-run ${JSON.stringify({ id, computer: nameOf(d).slice(0, 60), shell: plan.shell, command: plan.command.slice(0, 400), ...(plan.cwd ? { cwd: plan.cwd.slice(0, 120) } : {}), outcome, ...extra })}]`;
@@ -137,7 +141,7 @@ export function createPcRunTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_open',
-      description: "Open ONE thing on the OWNER'S OWN computer with its default app, through the Sara app there: a web address (https, mailto), a file or folder by its full path, or an installed app by its Start-menu name (\"Notepad\"). Never a program file or a command line (that is pc_run). Needs \"Let Sara run commands on this computer\" on there; the owner allows it there first.",
+      description: "Open ONE thing on the OWNER'S OWN computer with its default app, through the Sara app there: a web address (https, mailto), a file or folder by its full path, or an installed app by its Start-menu name (\"Notepad\") or, on a Mac, its name in Applications (\"TextEdit\"). Never a program file or a command line (that is pc_run). Needs \"Let Sara run commands on this computer\" on there; the owner allows it there first.",
       parameters: obj({ target: { type: 'string', description: 'https://…, mailto:…, C:\\Users\\…\\file.pdf, or an app name' }, ...COMPUTER_ARG }, ['target']),
     },
     isAvailable: on,

@@ -5,7 +5,28 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.10.0 (2026-11-14): everywhere you are, knows your world, works with your team
+
+- New: **What Sara knows** (Settings → You). See what Sara keeps about your world, grouped: people and family, home, vehicles, health, work, money and dates. Each fact says where it came from: something you said (with a link to the chat) or a Library document (with the page). Edit, delete, or mark a fact "not true" so she forgets it. Account and policy numbers keep only their last 4 digits. Card and Social Security numbers are never kept. Health facts are marked private.
+- New: **Ask your documents.** Ask "what's my deductible?" or "when does my lease end?" in a chat or on that page. Sara searches every Library file and answers with the exact words, the file and the page. When nothing answers, she says it isn't in your documents.
+- New: Renewal, expiry and due dates in your documents become cards ("From your documents") on Today and on that page. Accept adds a reminder 30 days before (3 days before a due date). Nothing is added unless you accept.
+
 ## 3.9.0 (2026-11-14): from your inbox, and forms filled for you
+- New: **The Sara app for Mac catches up with Windows.** On a Mac she can now list your own browser tabs
+  (Safari, Chrome, Edge, Brave, Arc) and bring one to the front when you allow it, behind a new switch, "Let
+  Sara see my tabs"; macOS asks once for each browser. She can read your files (read only) with the same
+  choice of folders as on Windows, run zsh commands that you approve on the Mac in a card that never takes
+  the keyboard (never as administrator; Stop ends everything the command started), and save the files she
+  made to Downloads or a folder you pick. The Mac app also updates itself: it checks the same signed update
+  notice as Windows, downloads the new Sara.dmg, checks it and swaps Sara in Applications after you quit (or
+  from "Update Sara app" in the menu bar). It reports its version and macOS version in Settings → Devices.
+- New: **Work and teams.** Share a household list (groceries, chores) with people by name, give items to someone with a due time (they get a notification), and see who ticked what off. Only lists you share are visible to others. Today shows "Shared with you".
+- New: a light **client pipeline**: lead, quoted, won, invoiced, paid or lost, with value, next step and hourly rate. Making a quote or invoice and marking it accepted or paid moves the client on by itself. Follow-ups list due next steps.
+- New: **time tracking**: start and stop a timer or log hours, reports by client, project or day (also as a spreadsheet), and "invoice my hours for Acme" (hours times the client's rate; billed hours are never billed twice). The weekly time sheet can use tracked time instead of, or with, the calendar. Today shows the running timer, this week's hours and the pipeline. See docs/WORK_AND_TEAMS.md.
+- New: **Share to Sara** from any app on your phone. Photos, PDFs, Office files and links go to her Library, and a new chat opens with a ready message (a photo of a receipt suggests adding it as an expense). Works from the installed web app (share target) and from the Android app's share sheet.
+- New: **Buttons on notifications.** Approve or Decline a plain approval, Snooze a reminder for 1 hour, Reply to her messages (typed right in the notification where the phone allows it), Accept an inbox card, and answer an automation that waits for your OK. Each button carries a one-time key that only works for that item, for a short time. Approvals for computer use still happen on the computer itself, never from the phone.
+- New: **Car mode** (+ → Car mode, or say "car mode"). One big Talk button, her answers spoken and at most two sentences, no screens of text, no computer use or long tasks, and "read my messages" reads her newest ones aloud. It turns off by itself after 2 hours without use.
+- New: the Android home-screen widget also shows the next reminder, how many watches are on, and a Talk button.
 
 ## 3.8.0 (2026-11-14): gets it right, and runs on its own
 - New: **My details** (Settings → You). Keep the name, addresses, phones, sizes, vehicle, insurance and loyalty numbers that you type into forms again and again. Sara refuses to keep passwords, card numbers or SSNs. With the desktop app, Sara can fill a web form in your own browser from these details. One card on your PC lists every field and value first. She skips password and card fields, reads the values back, and stops before Submit.

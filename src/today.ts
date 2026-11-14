@@ -13,6 +13,7 @@ import type { AppContext } from './chat.ts';
 import { header, type GmailPart } from './google.ts';
 import { expressionFor, leansPlayful, moodLabel } from './inner.ts';
 import { localDate } from './memory-worker.ts';
+import { factsFor } from './facts.ts';
 import { dayStartUtc } from './planner.ts';
 import { en } from './i18n.ts';
 import { getLayout, recordMail, type TodayPrefs } from './today-layout.ts';
@@ -77,13 +78,17 @@ export interface Today {
   /** N2: automations that failed, wait for an OK or run today (none: no tile). */
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
   /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
-  inbox?: ReturnType<import('./inbox/helper.ts').InboxHelper['todayTile']>;
+  inbox?: NonNullable<ReturnType<import('./inbox/helper.ts').InboxHelper['todayTile']>> & { docs?: import('./facts.ts').DateSuggestion[] };
   /** E4: My teams (next game, last result, live score), only when following a team. */
   teams?: Awaited<ReturnType<import('./sports/follow.ts').Sports['todayTile']>>;
   /** TD1: the calendar's next N days (Coming up). */
   coming?: { events: TodayEvent[]; days: number };
   /** E6: Money in (unpaid invoices) and Owe a reply (the last follow-ups check); only once used. */
   business?: import('./biz/today.ts').BusinessTile;
+  /** N7: Shared with you (items given to this person, invitations, their shared lists); only once used. */
+  shared?: ReturnType<import('./shared-boards.ts').SharedBoardStore['sharedWith']>;
+  /** N7: the running timer, this week's hours and the client pipeline; only once used. */
+  worktime?: NonNullable<ReturnType<typeof import('./tools/work.ts').workTile>>;
   /** E3: portfolio value and today's move, bills due this week, spending this month; only once used. */
   money?: import('./money/core.ts').MoneyTile;
   /** TD1: this companion's layout preferences. */
@@ -93,7 +98,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -498,7 +503,9 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
     inbox: () => {
       // N3: a tile only when there is something from the inbox (a card, a done line, a package, a trip, a rule idea).
       const tile = demo ? undefined : app.inbox?.todayTile();
-      if (tile) out.inbox = tile;
+      // N6: dates found in their documents ride the same tile ("From your documents", Accept → a reminder).
+      const docs = demo ? [] : factsFor(app).suggestions({ limit: 4 });
+      if (tile || docs.length) out.inbox = { ...(tile ?? { pending: [], done: [], packages: [], trips: [], rules: [], auto: {} }), docs };
       meta('inbox');
     },
     teams: async () => {
