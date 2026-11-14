@@ -102,6 +102,15 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## From your inbox, and forms filled for you, in 3.9.0
+
+New email becomes suggestion cards on Today: a bill, a receipt, a package with delivery alerts, a trip
+with check-in and leave-by reminders, an appointment, a paid invoice. One tap adds it; nothing happens on
+its own until you turn on "do it for me" for that kind, and nothing from email ever sends or pays. My
+details (addresses, sizes, vehicle, policy and loyalty numbers, never passwords or card numbers) fill web
+forms in your own browser after one review card, stopping before Submit. Emails carry attachments, and
+stores that block her can be checked in your own browser.
+
 ## Gets it right, and runs on its own, in 3.8.0
 
 Auto picks the right model for each job from what you have connected and hands a turn to a backup when a

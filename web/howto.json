@@ -357,6 +357,39 @@
    "show": "#biz-tax"
   }
  ],
+ "you-details": [
+  {
+   "id": "fill",
+   "q": "How do I have Sara fill in a web form with my details?",
+   "steps": [
+    "Type your name, emails, phones and home address here.",
+    "Open the form in your own browser (the Sara app on your computer, with The whole screen on).",
+    "Ask her to fill in this form with my details.",
+    "Check the card on your computer, which lists every field, then allow it.",
+    "She stops before Submit: you press it."
+   ],
+   "show": "#md-first"
+  },
+  {
+   "id": "never",
+   "q": "How do I keep passwords and card numbers out of it?",
+   "steps": [
+    "Leave them out: Sara refuses to keep passwords, card numbers, security codes or SSNs.",
+    "She never types into password or card fields; you type those yourself."
+   ],
+   "show": "#md-l1-number"
+  },
+  {
+   "id": "store",
+   "q": "How do I check a store that blocks Sara in my own browser?",
+   "steps": [
+    "When a search says she couldn't check a store, say check in my browser.",
+    "Allow each step on your computer: she opens a tab, reads the price and stock, and closes it.",
+    "To keep the tab open afterwards, check Leave the store tab open here."
+   ],
+   "show": "#md-leave-tab"
+  }
+ ],
  "you-adult": [
   {
    "id": "on",
@@ -708,6 +741,16 @@
     "In the list of mailboxes, press Make default on the one you want."
    ],
    "show": "#ma-page"
+  },
+  {
+   "id": "inbox-helper",
+   "q": "How do I let her do things from my email on her own?",
+   "steps": [
+    "Under Inbox helper, keep Read new email and suggest what to do with it on.",
+    "Under Do it for me, tick the kinds she may do without asking, like packages.",
+    "Everything else stays a card on Today with Accept."
+   ],
+   "show": "#ih-page"
   }
  ],
  "ab-home": [

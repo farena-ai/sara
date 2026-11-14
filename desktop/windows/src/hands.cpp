@@ -2895,7 +2895,7 @@ class Hands {
     }
     return "{\"t\":\"hello\",\"v\":1,\"app\":" + q(u8(host.appVersion)) + ",\"os\":" + q("Windows (build " + std::to_string(build) + ")") + ",\"computer\":" + q(u8(host.computer)) +
            ",\"screens\":" + sarascreen::screensJson() + ",\"browser\":{\"found\":" + (browser.found.path.empty() ? "false" : "true") + (browser.found.kind.empty() ? "" : ",\"kind\":" + q(browser.found.kind) + ",\"name\":" + q(browser.found.name)) +
-           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + sarafiles::rootsJson() + ",\"approvalsHere\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
+           "},\"perms\":{\"capture\":true,\"input\":true,\"ax\":true},\"optIn\":{\"browser\":true,\"desktop\":" + (desktop ? "true" : "false") + ",\"files\":" + (files ? "true" : "false") + runOptIn() + "}" + runReadOnlyJson() + sarafiles::rootsJson() + ",\"approvalsHere\":true,\"reviewCards\":true,\"logins\":" + loginViews() + ",\"vault\":" + vaultJson() + ",\"busy\":false,\"localOnly\":" + (localOnly ? "true" : "false") +
            ",\"ops\":[" + ops + "],\"takeover\":" + (keep ? "\"keep\"" : "\"pause\"") + ",\"hotkey\":" + (hotkeyOk ? "\"Ctrl+Alt+Esc\"" : "\"\"") + ",\"paused\":" + (isPaused ? "true" : "false") + ",\"renew\":true" +
            (pm.detected() ? ",\"managers\":" + pm.viewsJson() + ",\"relockMinutes\":" + std::to_string(pm.relockMinutes()) : std::string()) + "}";
   }
@@ -4075,7 +4075,7 @@ class Hands {
       action.text = a["text"].str(); action.combo = a["combo"].str(); action.app = a["app"].str();
       action.x = a["x"].num(-1); action.y = a["y"].num(-1); action.toX = a["toX"].num(-1); action.toY = a["toY"].num(-1);
       action.dx = a["dx"].num(0); action.dy = a["dy"].num(0); action.right = a["button"].str() == "right"; action.twice = a["double"].truthy();
-      action.tab = (int)a["tab"].num(0); action.title = a["title"].str(); action.ownBrowserPid = browser.pid(); action.onlyPid = (DWORD)host.tabsTestPid;
+      action.tab = (int)a["tab"].num(0); action.title = a["title"].str(); action.review = r.op == "d.type" ? a["review"].str() : std::string(); action.ownBrowserPid = browser.pid(); action.onlyPid = (DWORD)host.tabsTestPid;
       sarascreen::ActionInfo info; auto checked = sarascreen::inspect(action, info);
       if (!checked.code.empty()) { e = {checked.code, checked.message}; return {}; }
       if (clearDeskGrants_.exchange(false)) deskGrants_.clear();
@@ -4084,11 +4084,13 @@ class Hands {
       int level = desktopLevel.load();
       if (a["approvalLevel"].str() == "ask") level = 0; // the server can strengthen, never relax, the local choice
       bool once = info.once || a["forceOnce"].truthy();
-      bool granted = level == 2 || (level == 1 && !task.empty() && deskGrants_.count(task));
+      // N4: a form fill's review card is always shown (even with "Always allowed"); "Allow for this task" then covers its fields.
+      bool reviewCard = !action.review.empty();
+      bool granted = !reviewCard && (level == 2 || (level == 1 && !task.empty() && deskGrants_.count(task)));
       deskUntil_ = now + 15 * 60000;
       if (once || !granted) {
         approving_ = true;
-        int answer = desktopApproval(wide(info.target), !once && level == 1 && !task.empty(), host.testLabel, r.cancel.get());
+        int answer = desktopApproval(wide(info.target), !once && (level == 1 || (reviewCard && level == 2)) && !task.empty(), host.testLabel, r.cancel.get());
         approving_ = false;
         sendText(std::string("{\"t\":\"ev\",\"kind\":\"local_approval\",\"allowed\":") + (answer ? "true" : "false") + "}");
         if (!answer || r.cancel->load()) { e = {"denied_local", "The person at this computer did not approve that action."}; return {}; }

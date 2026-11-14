@@ -18,6 +18,7 @@ import { ReminderScheduler } from '../src/reminders.ts';
 import { routinesFor, ROUTINES_DIR } from '../src/routines.ts';
 import { ProductWatches } from '../src/shopping/watch.ts';
 import { createAutomationTools } from '../src/tools/automations.ts';
+import { resolveAttachments } from '../src/mail/attachments.ts';
 import type { Tool, ToolContext } from '../src/tools/types.ts';
 import { timeSheet } from './fill-fixtures.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
@@ -404,4 +405,30 @@ test('N2 page, tile, lean words and i18n: Settings → You → Automations, a To
     const tr = JSON.parse(web(`i18n/${lang}.json`)) as Record<string, string>;
     for (const k of ['Automations', 'Ask Sara to change it', 'Fill my time sheet every week', 'Every {days} at {time}', 'Automation paused: {name}']) assert.ok(tr[k], `${lang}: ${k}`);
   }
+});
+
+test('N4 the time sheet draft carries the filled file as an attachment (words with an address make the draft)', async (t) => {
+  const d = draftFromWords('every Friday at 3, fill my time sheet from my calendar and email it to boss@work.example');
+  assert.deepEqual(d.actions.map((a) => a.kind), ['fill', 'notify', 'draft_email']);
+  assert.equal(d.actions[2]!.to, 'boss@work.example');
+  assert.equal(draftFromWords('every Friday at 3, fill my time sheet and send me the draft').actions.length, 2, 'no address: the file comes in the chat');
+  const r = rig(t, { calendar: async () => shifts });
+  withLibrary(r);
+  const got: Record<string, unknown>[] = [];
+  r.app.tools.add({ spec: { name: 'mail_draft', description: '', parameters: { type: 'object', properties: {} } }, defaultPermission: 'auto', summarize: () => '', run: async (args) => (got.push(args), 'Saved as a draft.') });
+  const a = r.auto.create(d);
+  const dry = await r.auto.fire(a.id, 'Test run', { dry: true });
+  assert.match(dry.steps[2]!.text, /The filled file goes with it as an attachment/);
+  assert.equal(got.length, 0);
+  const run = await r.auto.fire(a.id, 'Run now', { force: true });
+  assert.equal(run.outcome, 'done', JSON.stringify(run.steps));
+  assert.equal(got.length, 1);
+  assert.equal(got[0]!.to, 'boss@work.example');
+  assert.match(String(got[0]!.subject), /Time sheet – week of 11\/08\/2026/);
+  const ids = got[0]!.attachments as string[];
+  assert.equal(ids.length, 1);
+  const files = resolveAttachments(r.app, ids, 'imap');
+  assert.match(files[0]!.name, /^Time Sheet Blank - week of 11-08-2026\.xlsx$/);
+  assert.equal(files[0]!.data.subarray(0, 2).toString(), 'PK', 'the real filled workbook');
+  assert.doesNotMatch(String(got[0]!.body), /in Sara’s chat/);
 });

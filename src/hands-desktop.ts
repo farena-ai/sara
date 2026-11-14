@@ -80,6 +80,11 @@ export interface DesktopItem {
   secret?: boolean;
   disabled?: boolean;
   focused?: boolean;
+  /** N4: a form field's own id (the page's id attribute, from UI Automation) and hint (a placeholder). */
+  aid?: string;
+  hint?: string;
+  /** N4: its autocomplete purpose, where the computer reports it (email, postal-code, cc-number). */
+  auto?: string;
   /** [x, y, w, h] in picture pixels of the viewId (or screen points without one). */
   box?: [number, number, number, number];
 }
@@ -100,6 +105,12 @@ export function desktopItems(raw: unknown): DesktopItem[] {
     else if (o.value !== undefined && o.value !== null && String(o.value) !== '') it.value = plain(o.value, 200);
     if (o.disabled === true) it.disabled = true;
     if (o.focused === true) it.focused = true;
+    const aid = plain(o.aid, 80).trim();
+    if (aid) it.aid = aid;
+    const hint = plain(o.hint, 120).trim();
+    if (hint) it.hint = hint;
+    const auto = plain(o.auto, 40).trim().toLowerCase();
+    if (/^[a-z0-9 -]+$/.test(auto)) it.auto = auto;
     if (Array.isArray(o.box) && o.box.length === 4 && o.box.every((n) => Number.isFinite(Number(n)))) it.box = (o.box as unknown[]).map((n) => Math.round(Number(n))) as DesktopItem['box'];
     out.push(it);
   }
@@ -235,6 +246,9 @@ export interface FixtureElement {
   role: string;
   name?: string;
   value?: string;
+  /** N4: the field's own id and placeholder (UI Automation AutomationId / HelpText). */
+  aid?: string;
+  hint?: string;
   secure?: boolean;
   disabled?: boolean;
   /** [x, y, w, h] inside the window. */
@@ -416,6 +430,8 @@ export class TestDesktop {
       if (e.secure) it.secret = true;
       else if (e.value !== undefined) it.value = maskDesktopText(e.value);
       if (e.disabled) it.disabled = true;
+      if (e.aid) it.aid = e.aid;
+      if (e.hint) it.hint = e.hint;
       return it;
     });
     return { items: all.slice(0, limit), total: all.length };
@@ -557,7 +573,7 @@ export class TestDesktop {
     const ref = `e${w!.elements.indexOf(e!) + 1}`;
     this.focused = ref;
     if (op === 'd.type') {
-      if (e!.role !== 'edit') throw Object.assign(new Error('That control is not editable.'), { code: 'denied_local' });
+      if (e!.role !== 'edit' && e!.role !== 'combobox') throw Object.assign(new Error('That control is not editable.'), { code: 'denied_local' });
       e!.value = String(a.text ?? '');
       this.selection = [e!.value.length, e!.value.length];
     } else if (op === 'd.keys') {

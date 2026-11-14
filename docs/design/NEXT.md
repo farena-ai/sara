@@ -35,6 +35,7 @@ gating, How she did. See docs/QUALITY.md. The hub send of the counts was skipped
   leave-by reminders, appointment -> calendar, invoice paid -> mark paid.
 - Attachments filed to the Library automatically (by sender/type rules she suggests).
 - Everything is a suggestion card until the person turns on "do it for me" per kind.
+- Status: built on hermes/n3inbox (docs/INBOX_HELPER.md, handoff 2026-11-14-n3-inbox); not released.
 
 ## N4 Hands that finish the job
 - **Web forms:** fill forms on websites in the person's own browser from their saved details (a "My

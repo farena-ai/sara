@@ -79,6 +79,7 @@ import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createReadinessRoutes } from './routes/readiness.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
+import { createInboxRoutes } from './routes/inbox.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
@@ -87,6 +88,7 @@ import { learnAskCommand } from './learn.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createBizRoutes } from './routes/biz.ts';
+import { createMyDetailsRoutes } from './routes/my-details.ts';
 import { createCrewRoutes } from './routes/crews.ts';
 import { createWorkerRoutes } from './routes/workers.ts';
 import { createTriggerRoutes } from './routes/triggers.ts';
@@ -416,7 +418,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
+  const AUDITED = new Set(['inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'my-details', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -982,6 +984,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // N2: automations, one place, each person's own (src/routes/automations.ts).
   const automationRoutes = createAutomationRoutes(ctx);
+  // N3: from your inbox, each person's own (src/routes/inbox.ts).
+  const inboxRoutes = createInboxRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
   const watchRoutes = createWatchRoutes(ctx);
   // E1: Settings → Data sources and the live-data watches, each person's own (src/routes/data-sources.ts).
@@ -994,6 +998,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const meetingRoutes = createMeetingRoutes(ctx);
   // E6: Settings → Business details, each person's own (src/routes/biz.ts).
   const bizRoutes = createBizRoutes(ctx);
+  // N4: Settings → You → My details, each person's own (src/routes/my-details.ts).
+  const myDetailsRoutes = createMyDetailsRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
   // C10: workers that stay, the owner's only (src/routes/workers.ts).
@@ -1505,12 +1511,14 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await inboxRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await myDetailsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;

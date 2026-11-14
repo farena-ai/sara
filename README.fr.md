@@ -24,7 +24,7 @@
 
 **Mettre à jour :** sur un serveur Linux, `sudo sara update` (sauvegarde d’abord, revient en arrière si elle ne répond pas) · Docker : `sudo git pull && sudo docker compose up -d --build` · apps Windows et Mac : Réglages → Données et santé → Mises à jour · Android : Google Play. [Mettre à niveau](docs/INSTALL.md#upgrading).
 
-> **État :** 3.8.0, [Elle fait juste, et toute seule](https://github.com/farena-ai/sara/releases/tag/v3.8.0). Choix automatique du modèle avec relais, chaque changement vérifié, et des Automatisations : « Quand ___, fais ___ » en le lui demandant. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 3.9.0, [Depuis vos e-mails, et formulaires remplis](https://github.com/farena-ai/sara/releases/tag/v3.9.0). Les e-mails deviennent des cartes en un geste (factures, reçus, colis, voyages, rendez-vous) ; Mes coordonnées remplissent les formulaires web dans votre navigateur. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versions récentes · 6 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Depuis vos e-mails, et formulaires remplis](docs/INBOX_HELPER.md)** — Rien ne se fait seul sans votre accord, et rien venant d’un e-mail n’envoie ni ne paie. Les formulaires s’arrêtent avant Envoyer après une carte de vérification ; les e-mails ont des pièces jointes ; les magasins qui la bloquent sont vérifiés dans votre navigateur. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Elle fait juste, et toute seule](docs/AUTOMATIONS.md)** — Elle choisit le bon modèle pour chaque tâche et passe à un autre s’il est lent, vérifie ce qu’elle a changé, fait le point chaque semaine et lance vos automatisations avec aperçu, essai et historique. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Une assistante du quotidien : argent, sport, achats, décisions, pro](docs/BUSINESS_TOOLS.md)** — Pesez les options selon ce qui compte pour vous, avec les choix serrés signalés et un suivi plus tard. Factures et devis numérotés avec suivi des paiements et retards, à qui vous devez une réponse, contrats lus en citant chaque point, reçus transformés en notes de frais. |
 | **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Les formulaires PDF aussi](docs/DOCUMENTS.md)** — Zones de texte, cases à cocher, boutons radio et listes, repérés par les mots imprimés à côté de chaque case. Les PDF protégés ou scannés reçoivent une réponse claire et l’étape suivante. |
 | **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Les applis web animées fonctionnent](docs/desktop.md)** — Elle vérifie seulement le bouton ou le champ qu’elle va utiliser, tape dans les éditeurs riches et, si elle s’arrête, dit que c’est sa propre vérification et réessaie. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Elle remplit vos propres formulaires](docs/DOCUMENTS.md)** — Les valeurs vont dans les bonnes cellules selon l’étiquette et la colonne, mise en page et format conservés, original intact. Elle relit la copie et indique combien de champs sont remplis. |
-| **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Elle le fait pour vous](docs/desktop.md)** — Retirer une extension du navigateur, désactiver une app au démarrage ou faire le ménage dans les fichiers : elle fait chaque étape et vous approuvez les changements sur votre ordinateur. Si elle ne peut pas, elle dit ce qui manque. Les réponses ratées proposent Réessayer et Signaler, et les signalements arrivent au support. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versions 2.6x précédentes</b>: de la 3.6.1 à la 2.61.5</summary>
+<summary><b>Versions 2.6x précédentes</b>: de la 3.6.2 à la 2.61.5</summary>
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Elle le fait pour vous](docs/desktop.md)** — Retirer une extension du navigateur, désactiver une app au démarrage ou faire le ménage dans les fichiers : elle fait chaque étape et vous approuvez les changements sur votre ordinateur. Si elle ne peut pas, elle dit ce qui manque. Les réponses ratées proposent Réessayer et Signaler, et les signalements arrivent au support. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Utiliser vos apps est rapide](docs/desktop.md)** — Une liste de fenêtres qui attendait le fil occupé de l’app faisait durer les actions approuvées des minutes ; elles prennent maintenant quelques secondes. Elle passe à l’un de vos onglets quand vous l’autorisez, agit sur des fenêtres derrière d’autres après votre accord et voit les liens de vos pages. |
 | **[3.6.0](https://github.com/farena-ai/sara/releases/tag/v3.6.0)** | **[Son propre visage, tout l’ordinateur](docs/desktop.md)** — Le visage de Fred (ou toute apparence personnalisée) sur la fenêtre, la barre des tâches, la zone de notification et les raccourcis ; le haut de la fenêtre suit le thème. Elle liste et utilise tout ce qu’elle peut faire sur votre PC, et Fichiers lit les dossiers choisis sans les modifier. |
 | **[3.5.1](https://github.com/farena-ai/sara/releases/tag/v3.5.1)** | **[Ce que vous tapez lui parvient toujours](docs/desktop.md)** — Chaque fois que sa fenêtre devient active, après ses cartes et l’utilisation de l’ordinateur et au démarrage, l’app donne le clavier à la page. La question rapide prend le texte sélectionné dans le chat de Sara et indique quand rien n’était sélectionné. |

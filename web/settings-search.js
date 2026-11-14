@@ -27,6 +27,7 @@ export const SETTINGS_KEYWORDS = {
   'dh-movein': ['move in', 'import hermes', 'import openclaw', 'hermes agent', 'openclaw', 'migrate', 'old assistant'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
   'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel'],
+  'you-details': ['my details', 'details', 'address', 'shipping address', 'phone number', 'sizes', 'shoe size', 'vehicle', 'vin', 'license plate', 'insurance', 'policy number', 'loyalty', 'rewards number', 'emergency contact', 'employer', 'fill forms', 'web forms', 'store checks', 'my browser'],
   'you-automations': ['automations', 'automation', 'automate', 'when do', 'every friday', 'every day', 'schedule', 'recurring', 'time sheet', 'timesheet', 'routines', 'watches', 'triggers'],
   'ab-when': ['when it comes up', 'mention', 'mentions', 'person comes up', 'remind me when'],
   'models-default': ['connect model', 'connect an ai model', 'compact', 'tidy long chats', 'long conversations', 'summary', 'context'],

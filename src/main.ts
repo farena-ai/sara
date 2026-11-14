@@ -39,6 +39,11 @@ import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } 
 import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.ts';
 import { Automations } from './automations.ts';
 import { createAutomationTools } from './tools/automations.ts';
+import { createMyDetailsTool } from './tools/my-details.ts';
+import { resolveAttachments } from './mail/attachments.ts';
+import { myDetailsFor } from './my-details.ts';
+import { InboxHelper } from './inbox/helper.ts';
+import { createInboxTools } from './tools/inbox.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -1033,6 +1038,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   for (const t of createDecisionTools(() => app)) tools.add(t);
   // fill_document (docs/DOCUMENTS.md): she fills in the person's own Excel or Word form (a checked copy).
   tools.add(createFillDocumentTool(() => app));
+  // N4 (docs/MY_DETAILS.md): my_details_get, the person's own saved details (each space's own; never the demo).
+  if (!isDemo) tools.add(createMyDetailsTool(() => app));
   // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
   if (!isDemo) for (const t of createBizTools(() => app)) tools.add(t);
   // E3 (docs/MONEY.md): portfolio, budget and bills (each person's own space; never the demo).
@@ -1149,6 +1156,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     ...(isMember || !sshManager ? {} : { ssh: sshManager }),
   };
   if (space.member) app.member = space.member;
+  // N4: My details are the person's, not one companion's: every companion in a space reads the first one's.
+  app.myDetails = main ? myDetailsFor(store.db) : (space.companions.main.app.myDetails ?? myDetailsFor(store.db));
   // Phase 101 (ST6): people cards from her memory (this companion's database; each person's own space; never the demo).
   if (!isDemo) {
     app.people = new PeopleStore(store.db, { photoDir: join(dir, 'people'), ownWords: () => [settingsC.get().ownerName ?? '', app.persona.name] });
@@ -1340,7 +1349,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createHomeTools(app)) tools.add(t);
     // Phase 14: Gmail and Google Calendar (the owner's own Google app; off until they sign in).
     // M1: the calendar tools take `account` (Google as before, Outlook through Graph).
-    const googleTools = createGoogleTools(google, () => settingsC.get().timeZone);
+    const googleTools = createGoogleTools(google, () => settingsC.get().timeZone, (ids) => resolveAttachments(app, ids, 'google'));
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     for (const t of googleTools) if (isDemo || !calendarNames.has(t.spec.name)) tools.add(t);
     if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone)) tools.add(t);
@@ -1353,7 +1362,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       for (const t of gmailOrganize) tools.add(t);
       // M1: mail_* for every mailbox (a Gmail account is handed to the gmail_* tools above).
       app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-      for (const t of createMailTools({ accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), timeZone: () => settingsC.get().timeZone })) tools.add(t);
+      for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), timeZone: () => settingsC.get().timeZone })) tools.add(t);
     }
   } else if (space.mail && space.mailVault && !isDemo) {
     // M1: a member's own mailboxes (Outlook / Microsoft 365 and IMAP; Gmail through an app password).
@@ -1363,7 +1372,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     const shapes = createGoogleTools(new GoogleAccount(space.mailVault), () => settingsC.get().timeZone).filter((x) => calendarNames.has(x.spec.name));
     for (const t of routeCalendarTools(shapes, space.mail, () => settingsC.get().timeZone)) tools.add(t);
     app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-    for (const t of createMailTools({ accounts: space.mail, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
+    for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: space.mail, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
   }
 
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
@@ -1462,6 +1471,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.automations = new Automations(app, store.db);
     app.automations.useRoutines((a) => routinesFor(a, ROUTINES_DIR));
     for (const t of createAutomationTools(() => app)) tools.add(t);
+    // N3 (docs/INBOX_HELPER.md): from your inbox, each space's own mailboxes (members' mail stays theirs).
+    app.inbox = new InboxHelper(app, store.db);
+    for (const t of createInboxTools(() => app)) tools.add(t);
   }
   if (!isMember) for (const t of createReviewTools(() => app)) tools.add(t);
   if (!isMember) tools.add(createIssueTool(() => app));

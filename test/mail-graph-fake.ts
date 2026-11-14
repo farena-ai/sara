@@ -181,7 +181,23 @@ export class FakeGraph {
       }
       return json(405, { error: { message: 'Sara never deletes messages: this fake refuses DELETE' } });
     }
-    if ((mm = /^\/me\/messages\/([^/]+)\/attachments$/.exec(p))) return json(200, { value: [] });
+    if ((mm = /^\/me\/messages\/([^/]+)\/attachments$/.exec(p))) {
+      // N4: file attachments on a draft (POST one at a time), read back by name.
+      const msg = this.msgs.find((x) => x.id === decodeURIComponent(mm![1])) as (FakeMsg & { files?: { name: string; contentType: string; bytes: number }[] }) | undefined;
+      if (m === 'POST') {
+        if (!msg) return json(404, { error: { message: 'not found' } });
+        if (b['@odata.type'] !== '#microsoft.graph.fileAttachment' || typeof b.contentBytes !== 'string') return json(400, { error: { message: 'bad attachment' } });
+        (msg.files ??= []).push({ name: String(b.name), contentType: String(b.contentType), bytes: Buffer.from(String(b.contentBytes), 'base64').length });
+        return json(201, { id: `att${msg.files.length}`, name: b.name });
+      }
+      return json(200, { value: (msg?.files ?? []).map((f) => ({ name: f.name })) });
+    }
+    if ((mm = /^\/me\/messages\/([^/]+)\/send$/.exec(p)) && m === 'POST') {
+      const msg = this.msgs.find((x) => x.id === decodeURIComponent(mm![1])) as (FakeMsg & { files?: unknown[] }) | undefined;
+      if (!msg) return json(404, { error: { message: 'not found' } });
+      this.sent.push({ sentDraft: msg.id, subject: msg.subject, files: msg.files ?? [] });
+      return json(202, {});
+    }
     if ((mm = /^\/me\/messages\/([^/]+)\/move$/.exec(p)) && m === 'POST') {
       const msg = this.msgs.find((x) => x.id === decodeURIComponent(mm![1]));
       if (!msg) return json(404, { error: { message: 'not found' } });

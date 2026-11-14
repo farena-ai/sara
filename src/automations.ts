@@ -335,6 +335,9 @@ export function draftFromWords(words: string): Draft {
     const lunch = /no lunch/.test(s) ? 0 : Number(/(\d{2})\s*min(?:ute)?s?\s+lunch|lunch\s+(?:is\s+)?(\d{2})/.exec(s)?.slice(1).find(Boolean) ?? 0);
     actions.push({ kind: 'fill', document: 'time sheet', timesheet: { week: /last week/.test(s) ? 'last' : 'this', ...(shift ? { start: shift[1]!.replace(':', ''), end: shift[2]!.replace(':', '') } : {}), lunchMinutes: lunch } });
     actions.push({ kind: 'notify', text: 'Your time sheet for the week of {week} is filled: {files}. Check it, then send it on.', how: 'phone' });
+    // N4: “…and email it to boss@work.com”: a draft to them with the filled copy attached (never sent unless turned on).
+    const mailTo = /\b(?:send|email|e-mail|mail)\b[^@]{0,60}?\b([^\s@,;<>]+@[^\s@,;<>]+\.[a-z]{2,})/i.exec(words)?.[1];
+    if (mailTo) actions.push({ kind: 'draft_email', to: mailTo, subject: 'Time sheet – week of {week}', body: 'Hi,\n\nHere is my time sheet for the week of {week} (attached).\n\nThanks' });
   } else if (/^\s*(?:.*\b)?remind me\b/.test(s)) {
     actions.push({ kind: 'notify', text: withoutWhen(words.replace(/^.*?\bremind me\b/i, '')) || words.trim(), how: 'phone' });
   } else actions.push({ kind: 'task', prompt: instruction });
@@ -908,14 +911,16 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
       case 'draft_email': {
         const send = act.sendWithoutAsking === true && this.#permission('mail_send') === 'auto';
         const name = send ? 'mail_send' : 'mail_draft';
-        const body = fillIn(act.body || '') + (ctx.files.length ? `\n\n${T(en('The filled file is in Sara’s chat: {files}'))}`.replace('{files}', ctx.files.map((f) => f.name).join(', ')) : '');
-        if (dry) return { kind: act.kind, status: 'test', text: send ? T(en('Would send an email to {to}: “{subject}”'), { to: act.to, subject: act.subject }) : T(en('Would save a draft to {to}: “{subject}” (not saved in the test)'), { to: act.to, subject: act.subject }) };
+        // N4: the files made earlier in this run (the filled time sheet) go along as attachments.
+        const body = fillIn(act.body || '');
+        const attach = ctx.files.map((f) => f.id).filter(Boolean);
+        if (dry) return { kind: act.kind, status: 'test', text: (send ? T(en('Would send an email to {to}: “{subject}”'), { to: act.to, subject: act.subject }) : T(en('Would save a draft to {to}: “{subject}” (not saved in the test)'), { to: act.to, subject: act.subject })) + (a.actions.slice(0, index).some((x) => x.kind === 'fill') ? ` ${T(en('The filled file goes with it as an attachment.'))}` : '') };
         const tool = this.#app.tools.get(name);
         if (!tool || tool.isAvailable?.() === false) return { kind: act.kind, status: 'failed', text: T(en('No mailbox is connected for drafts.')) };
         const perm = this.#permission(name);
         if (perm === 'never') return { kind: act.kind, status: 'failed', text: T(en('Email drafts are turned off, so this step will fail.')) };
         if (perm !== 'auto' && ctx.allowed !== index) return { kind: act.kind, status: 'waiting', text: T(en('Save a draft to {to}: “{subject}”. Allow it in Settings → Automations.'), { to: act.to, subject: act.subject }) };
-        const out = await tool.run({ to: act.to, subject: fillIn(act.subject ?? ''), body }, this.#toolCtx(conversationId, ctx));
+        const out = await tool.run({ to: act.to, subject: fillIn(act.subject ?? ''), body, ...(attach.length ? { attachments: attach } : {}) }, this.#toolCtx(conversationId, ctx));
         return { kind: act.kind, status: 'done', text: clip(out, 200) };
       }
     }

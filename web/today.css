@@ -446,6 +446,26 @@ html.sara-busy .td-face { animation: her-breathe var(--breathe) ease-in-out infi
 .td-proj-facts.bad { color: var(--danger); }
 .td-proj-subj { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .td-usage-main { display: flex; align-items: center; gap: 14px; }
+/* N3: From your inbox (web/inbox-helper.js). */
+.ih-cards, .ih-done, .ih-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ih-done, .ih-list { margin-top: 10px; gap: 4px; }
+.ih-card { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--surface-2) 60%, transparent); }
+.ih-head { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.ih-kind { flex: none; font-size: 11.5px; font-weight: 650; letter-spacing: .02em; text-transform: uppercase; color: var(--accent-solid); }
+.ih-main { min-width: 0; font-weight: 600; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ih-sub, .ih-from { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ih-from { color: var(--text-3); }
+.ih-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.ih-done li { display: flex; align-items: center; justify-content: space-between; gap: 8px; color: var(--text-2); }
+.ih-done-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ih-list li { color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ih-rule { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; color: var(--text-2); }
+#ih-page { display: grid; gap: 10px; justify-items: start; }
+#ih-page .ih-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
+#ih-page .ih-label { flex-basis: 100%; margin: 0; font-weight: 600; }
+#ih-page label.ih-check, #ih-page label.ih-field { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; width: auto; margin: 0; white-space: nowrap; }
+#ih-page .ih-label .tip { margin-left: 4px; }
+#ih-page .ih-rule-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex-basis: 100%; }
 /* E6: Money and replies. */
 .td-biz { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
 .td-biz-row { display: grid; grid-template-columns: 7em auto 1fr; align-items: baseline; column-gap: 8px; }

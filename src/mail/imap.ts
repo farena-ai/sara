@@ -354,9 +354,24 @@ export class ImapMail implements MailProvider {
     const html = leaves.find((l) => l.type === 'text/html' && !/attachment/i.test(l.disposition));
     m.text = String(plain ? s.lib.partText(plain).text : html ? s.lib.htmlToText(s.lib.partText(html).text) : '').replace(/\r\n/g, '\n').trim();
     m.snippet = m.text.replace(/\s+/g, ' ').slice(0, 200);
+    if (html) m.html = String(s.lib.partText(html).text).slice(0, 300_000);
     const files = leaves.map((l) => l.filename).filter(Boolean);
     if (files.length) m.attachments = files;
     return m;
+  }
+
+  /** N3: one attachment's bytes by file name (inbox filing). */
+  attachment(id: string, name: string): Promise<{ name: string; mime: string; data: Buffer } | undefined> {
+    return this.#with(async (s) => {
+      const p = parseImapId(id);
+      if (!p) return undefined;
+      if ((await s.select(p.folder, false)) !== p.validity) return undefined;
+      const got = (await s.fetchUids([p.uid], 'UID BODY.PEEK[]')).get(p.uid);
+      if (!got) return undefined;
+      const raw = Buffer.isBuffer(got.BODY) ? got.BODY : Buffer.from(String(got.BODY ?? ''), 'latin1');
+      const leaf = s.lib.leaves(s.lib.parseMime(raw)).find((l) => l.filename === name);
+      return leaf ? { name: leaf.filename, mime: leaf.type, data: leaf.body } : undefined;
+    });
   }
 
   get(id: string): Promise<MailMessage> {
@@ -423,7 +438,7 @@ export class ImapMail implements MailProvider {
     });
   }
 
-  async #compose(d: Draft, s?: Session): Promise<{ raw: Buffer; to: string[] }> {
+  async #compose(d: Draft, s?: Session): Promise<{ raw: Buffer; to: string[]; messageId: string }> {
     let inReplyTo: string | undefined;
     let references: string | undefined;
     if (d.replyTo && s) {
@@ -432,24 +447,46 @@ export class ImapMail implements MailProvider {
       references = [o.headers.references, inReplyTo].filter(Boolean).join(' ') || undefined;
     }
     const lib = await mailLib();
-    const body = Buffer.from(rawEmail({ to: d.to, ...(d.cc ? { cc: d.cc } : {}), subject: d.subject, body: d.body, ...(inReplyTo ? { inReplyTo, ...(references ? { references } : {}) } : {}) }), 'base64url');
+    const body = Buffer.from(rawEmail({ to: d.to, ...(d.cc ? { cc: d.cc } : {}), subject: d.subject, body: d.body, ...(inReplyTo ? { inReplyTo, ...(references ? { references } : {}) } : {}), ...(d.attachments?.length ? { attachments: d.attachments } : {}) }), 'base64url');
     const domain = this.#cfg.address.split('@')[1] ?? 'sara.localdomain';
-    const head = [`From: <${this.#cfg.address}>`, `Date: ${lib.rfcDate(new Date())}`, `Message-ID: <${randomBytes(12).toString('hex')}@${domain}>`].join('\r\n');
+    const messageId = `<${randomBytes(12).toString('hex')}@${domain}>`;
+    const head = [`From: <${this.#cfg.address}>`, `Date: ${lib.rfcDate(new Date())}`, `Message-ID: ${messageId}`].join('\r\n');
     const to = `${d.to},${d.cc ?? ''}`.split(/[,;]/).map((x) => (/<([^>]+)>/.exec(x)?.[1] ?? x).trim()).filter((x) => /^[^\s@<>]+@[^\s@<>]+$/.test(x));
-    return { raw: Buffer.concat([Buffer.from(`${head}\r\n`), body]), to };
+    return { raw: Buffer.concat([Buffer.from(`${head}\r\n`), body]), to, messageId };
+  }
+
+  /** N4: the attachment names of the message with this Message-ID in a folder, read back from the server. */
+  async #namesIn(s: Session, folder: string, messageId: string): Promise<string[] | undefined> {
+    try {
+      await s.select(folder, false);
+      const uids = await s.search(`HEADER Message-ID ${imapString(messageId)}`, false);
+      const uid = uids.at(-1);
+      if (!uid) return undefined;
+      const got = (await s.fetchUids([uid], 'UID BODY.PEEK[]')).get(uid);
+      if (!got) return undefined;
+      const raw = Buffer.isBuffer(got.BODY) ? got.BODY : Buffer.from(String(got.BODY ?? ''), 'latin1');
+      return s.lib.leaves(s.lib.parseMime(raw)).map((l) => l.filename).filter(Boolean) as string[];
+    } catch {
+      return undefined;
+    }
   }
 
   draft(d: Draft): Promise<string> {
     return this.#with(async (s) => {
-      const { raw } = await this.#compose(d, s);
-      await s.append(await this.#folderFor(s, 'drafts'), '\\Draft \\Seen', raw);
+      const { raw, messageId } = await this.#compose(d, s);
+      const folder = await this.#folderFor(s, 'drafts');
+      await s.append(folder, '\\Draft \\Seen', raw);
+      if (d.attachments?.length) {
+        const names = await this.#namesIn(s, folder, messageId);
+        if (names) d.readBack = names;
+      }
       return 'Drafts';
     });
   }
 
   send(d: Draft): Promise<string> {
     return this.#with(async (s) => {
-      const { raw, to } = await this.#compose(d, s);
+      const { raw, to, messageId } = await this.#compose(d, s);
       if (!to.length) throw new Error('Who is it to? (an email address)');
       const lib = await mailLib();
       const o = await openMailSocket(this.#cfg.smtp.host, this.#cfg.smtp.port, { ...(this.#cfg.loopback ? { loopback: true } : {}), ...(this.#o.ca ? { ca: this.#o.ca } : {}), ...(this.#o.lookup ? { lookup: this.#o.lookup } : {}), ...(this.#o.testLoopback ? { testLoopback: true } : {}) });
@@ -464,6 +501,10 @@ export class ImapMail implements MailProvider {
       if (this.#cfg.copySent) {
         const sent = (await this.#folderRoles(s)).get('sent');
         if (sent) await s.append(sent, '\\Seen', raw).catch(() => undefined);
+        if (sent && d.attachments?.length) {
+          const names = await this.#namesIn(s, sent, messageId);
+          if (names) d.readBack = names;
+        }
       }
       return to.join(', ');
     });

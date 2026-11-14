@@ -113,6 +113,9 @@ the link → type your address and the app password → **Add and check**. Sara 
 The `gmail_*` tools keep working exactly as before; for a Gmail mailbox the `mail_*` tools hand the
 request to them.
 
+New mail can also become one-tap cards on Today (bills, receipts, packages, trips, appointments, paid
+invoices, attachments to file): [From your inbox](INBOX_HELPER.md).
+
 ### How organizing maps to each provider
 
 | You say | Gmail | Outlook (Graph) | IMAP providers |

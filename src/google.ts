@@ -267,18 +267,39 @@ export function attachments(p: GmailPart): string[] {
 const encWord = (s: string) => (/^[\x20-\x7e]*$/.test(s) ? s : `=?UTF-8?B?${Buffer.from(s).toString('base64')}?=`);
 const oneLine = (s: string) => s.replace(/[\r\n]+/g, ' ').trim();
 
-/** A plain-text email in the format Gmail's API takes (base64url of the RFC 5322 text). */
-export function rawEmail(m: { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; references?: string }): string {
-  const lines = [
+const b64lines = (b: Buffer) => b.toString('base64').replace(/.{76}/g, '$&\r\n');
+/** RFC 2231 filename (UTF-8 names), plus a plain one for old readers. */
+const fileParams = (name: string) => (/^[\x20-\x7e]*$/.test(name) ? `filename="${name.replace(/["\\]/g, '_')}"` : `filename="${encWord(name)}"; filename*=UTF-8''${encodeURIComponent(name)}`);
+
+/**
+ * An email in the format Gmail's API takes (base64url of the RFC 5322 text): plain text, or (N4) with
+ * attachments a multipart/mixed message (the text first, then each file base64-encoded).
+ */
+export function rawEmail(m: { to: string; cc?: string; subject: string; body: string; inReplyTo?: string; references?: string; attachments?: { name: string; mime: string; data: Buffer }[] }): string {
+  const head = [
     `To: ${oneLine(m.to)}`,
     ...(m.cc ? [`Cc: ${oneLine(m.cc)}`] : []),
     `Subject: ${encWord(oneLine(m.subject))}`,
     ...(m.inReplyTo ? [`In-Reply-To: ${oneLine(m.inReplyTo)}`, `References: ${oneLine(m.references ?? m.inReplyTo)}`] : []),
     'MIME-Version: 1.0',
+  ];
+  const text = b64lines(Buffer.from(m.body.replace(/\r?\n/g, '\r\n')));
+  if (!m.attachments?.length) return Buffer.from([...head, 'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', text].join('\r\n')).toString('base64url');
+  const boundary = `sara-${randomBytes(12).toString('hex')}`;
+  const parts = [
+    ...head,
+    `Content-Type: multipart/mixed; boundary="${boundary}"`,
+    '',
+    `--${boundary}`,
     'Content-Type: text/plain; charset=UTF-8',
     'Content-Transfer-Encoding: base64',
     '',
-    Buffer.from(m.body.replace(/\r?\n/g, '\r\n')).toString('base64').replace(/.{76}/g, '$&\r\n'),
+    text,
   ];
-  return Buffer.from(lines.join('\r\n')).toString('base64url');
+  for (const a of m.attachments) {
+    const mime = /^[\w.+-]+\/[\w.+-]+$/.test(a.mime) ? a.mime : 'application/octet-stream';
+    parts.push(`--${boundary}`, `Content-Type: ${mime}; name="${encWord(a.name).replace(/"/g, '_')}"`, `Content-Disposition: attachment; ${fileParams(a.name)}`, 'Content-Transfer-Encoding: base64', '', b64lines(a.data));
+  }
+  parts.push(`--${boundary}--`, '');
+  return Buffer.from(parts.join('\r\n')).toString('base64url');
 }

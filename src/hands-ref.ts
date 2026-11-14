@@ -537,6 +537,8 @@ export interface HandsRefOptions {
   approvalsHere?: boolean;
   desktopLevel?: 'ask' | 'task' | 'always';
   desktopConsent?: (p: DesktopPrompt) => Promise<'once' | 'task' | 'deny'>;
+  /** N4: false = an older app without form review cards. */
+  reviewCards?: boolean;
   /** Phase 93: keep the computer awake while a task is active. */
   walkAway?: boolean;
   /** Phase 94: a fixture computer for check-ups (s.check / s.apply; needs the desktop switch too). */
@@ -709,6 +711,8 @@ export class HandsRef {
       runReadOnly: this.opts.run?.readOnlyAuto === true,
       ...(this.opts.files ? { fileRoots: Object.keys(this.opts.files).filter((k) => this.opts.files![k]), fileScope: this.opts.fileScope ?? 'three' } : {}),
       approvalsHere: Boolean(this.opts.desktopConsent || this.opts.run?.consent) && this.opts.approvalsHere !== false,
+      // N4: its card shows a form fill's review list (the reference device mirrors the Windows app).
+      ...(this.opts.desktop && this.opts.reviewCards !== false ? { reviewCards: true } : {}),
       logins: this.vault.list(this.serverOrigin),
       vault: { kind: 'test', verify: this.opts.verify?.on === true },
       busy: false,
@@ -1298,7 +1302,7 @@ export class HandsRef {
           if (signal.aborted) throw new OpError('stopped', 'The queued desktop request was cancelled.');
           const target = dt.inspect(op, a);
           dt.beginTask(this.opts.walkAway === true);
-          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask' || target.once === true, task: String(a.task ?? ''), target: { role: target.element?.role ?? (op === 'd.tabswitch' ? 'tab' : undefined), name: target.element?.name ?? (op === 'd.tabswitch' ? String(a.title ?? '') : String(a.app ?? '')), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}) };
+          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask' || target.once === true, task: String(a.task ?? ''), target: { role: target.element?.role ?? (op === 'd.tabswitch' ? 'tab' : undefined), name: target.element?.name ?? (op === 'd.tabswitch' ? String(a.title ?? '') : String(a.app ?? '')), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}), ...(op === 'd.type' && typeof a.review === 'string' && a.review ? { review: a.review } : {}) };
           const ok = await this.desktopConsent.allow(prompt, this.opts.desktopConsent, signal);
           if (signal?.aborted) throw new OpError('stopped', 'Stopped.');
           this.ws?.send(JSON.stringify({ t: 'ev', kind: 'local_approval', op, allowed: ok }));

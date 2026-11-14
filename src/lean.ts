@@ -159,6 +159,10 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^watch_(add|list|remove)$/, 'live-watch', 'tell me when'],
   // N2: automations ("When ___, do ___").
   [/^automation_\w+$/, 'automations', 'automations'],
+  // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
+  [/^my_details_get$/, 'details', 'my details'],
+  // N3: from your inbox (packages, trips, suggestions, filing rules).
+  [/^(packages_list|trips_list|inbox_suggestions|inbox_file_rule)$/, 'inbox', 'from your inbox'],
   [/^analyze_table$/, 'tables', 'spreadsheet totals'],
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
@@ -242,7 +246,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   google: ['email', 'emails', 'gmail', 'calendar', 'inbox', 'correo', 'calendario', 'courriel', 'calendrier', 'agenda google', 'outlook', 'hotmail', 'yahoo', 'icloud', 'e mail', 'kalender', 'posteingang', 'caixa de entrada', 'posta'],
   home: ['home assistant', 'lights', 'light', 'thermostat', 'luces', 'lumiere', 'lumieres', 'licht', 'lichter', 'luzes', 'luci', 'termostato'],
   // "look at my browser tabs" means the owner's own computer (computer use), not her testing browser on the server.
-  computer: ['my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer', 'computer use', 'my laptop', 'my mac', 'my screen', 'my browser', 'my tabs', 'browser tabs', 'open tabs', 'my windows', 'mi navegador', 'mis pestanas', 'mi pantalla', 'mon navigateur', 'mes onglets', 'mon ecran', 'mein browser', 'meine tabs', 'mein bildschirm', 'meu navegador', 'minhas abas', 'minha tela', 'il mio browser', 'le mie schede', 'il mio schermo',
+  computer: ['web form', 'this form', 'form on this page', 'form in my browser', 'sign up form', 'signup form', 'check in my browser', 'in my browser', 'my details', 'my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer', 'computer use', 'my laptop', 'my mac', 'my screen', 'my browser', 'my tabs', 'browser tabs', 'open tabs', 'my windows', 'mi navegador', 'mis pestanas', 'mi pantalla', 'mon navigateur', 'mes onglets', 'mon ecran', 'mein browser', 'meine tabs', 'mein bildschirm', 'meu navegador', 'minhas abas', 'minha tela', 'il mio browser', 'le mie schede', 'il mio schermo',
     // 3.4.x: the owner's own open things and files on that computer (pc_my_tabs, pc_files).
     'what i have open', 'what do i have open', 'whats open', 'what s open', 'what is open', 'my open',
     // 3.5.x (reach): the screen, its apps, programs, windows and browsers, in six languages.
@@ -282,6 +286,20 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'automatisieren', 'automatisierung', 'jeden tag', 'jede woche', 'jeden freitag', 'immer wenn', 'planen', 'wiederkehrend', 'erinnere mich jeden',
     'automatizar', 'automacao', 'todo dia', 'toda semana', 'toda sexta', 'sempre que', 'agendar', 'recorrente', 'me lembre todo',
     'automatizzare', 'automazione', 'ogni giorno', 'ogni settimana', 'ogni venerdi', 'ogni volta che', 'programmare', 'ricorrente', 'ricordami ogni'],
+  // N4 (docs/MY_DETAILS.md): my saved details, and filling a web form with them (pc_fill_form is in 'computer').
+  details: ['my details', 'my address', 'my addresses', 'my shipping address', 'my phone number', 'my email address', 'my size', 'my sizes', 'shoe size', 'shirt size', 'my vin', 'license plate', 'policy number', 'insurance number', 'loyalty number', 'rewards number', 'emergency contact', 'fill out the form', 'fill in the form', 'fill this form', 'web form', 'sign up form', 'signup form',
+    'mis datos', 'mi direccion', 'mi talla', 'numero de poliza', 'rellena el formulario', 'llena el formulario',
+    'mes coordonnees', 'mon adresse', 'ma taille', 'numero de police', 'remplis le formulaire',
+    'meine daten', 'meine adresse', 'meine grosse', 'policennummer', 'fulle das formular aus',
+    'meus dados', 'meu endereco', 'meu tamanho', 'numero da apolice', 'preencha o formulario',
+    'i miei dati', 'il mio indirizzo', 'la mia taglia', 'numero di polizza', 'compila il modulo'],
+  // N3 (docs/INBOX_HELPER.md): packages, trips, what came in by email (six languages, folded).
+  inbox: ['package', 'packages', 'tracking', 'tracking number', 'delivery', 'delivered', 'shipped', 'flight', 'trip', 'itinerary', 'hotel', 'reservation', 'appointment', 'receipt', 'bill', 'inbox', 'email me', 'from my email', 'file pdfs', 'file attachments',
+    'paquete', 'paquetes', 'seguimiento', 'entrega', 'vuelo', 'viaje', 'itinerario', 'hotel', 'reserva', 'cita', 'recibo', 'factura', 'bandeja de entrada', 'enviame un correo',
+    'colis', 'suivi', 'livraison', 'vol', 'voyage', 'itineraire', 'hotel', 'reservation', 'rendez vous', 'recu', 'facture', 'boite de reception', 'envoie moi un mail',
+    'paket', 'pakete', 'sendungsverfolgung', 'lieferung', 'flug', 'reise', 'reiseplan', 'hotel', 'reservierung', 'termin', 'quittung', 'rechnung', 'posteingang', 'schick mir eine mail',
+    'pacote', 'pacotes', 'rastreio', 'entrega', 'voo', 'viagem', 'itinerario', 'hotel', 'reserva', 'consulta', 'recibo', 'boleto', 'caixa de entrada', 'me mande um email',
+    'pacco', 'pacchi', 'tracciamento', 'consegna', 'volo', 'viaggio', 'itinerario', 'albergo', 'prenotazione', 'appuntamento', 'ricevuta', 'bolletta', 'posta in arrivo', 'mandami una mail'],
   'live-watch': ['tell me when', 'alert me', 'let me know when', 'watch', 'notify me when', 'avisame cuando', 'alertame', 'vigila', 'dis moi quand', 'previens moi', 'alerte moi', 'surveille', 'sag mir wann', 'benachrichtige mich', 'beobachte', 'me avise quando', 'me alerte', 'vigie', 'dimmi quando', 'avvisami', 'tieni d occhio'],
   // E3 (docs/MONEY.md): portfolio, budget, subscriptions and bills (six languages, folded).
   money: ['portfolio', 'my stocks', 'stocks', 'holdings', 'investments', 'budget', 'spending', 'spend', 'spent', 'subscriptions', 'subscription', 'bills', 'bill', 'due', 'bank statement', 'bank export', 'transactions',
@@ -301,7 +319,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],
   skills: ['skill', 'skills', 'recipe', 'habilidad', 'receta', 'competence', 'recette', 'fahigkeit', 'rezept', 'habilidade', 'receita', 'abilita', 'ricetta'],
   // E2: the shopping assistant (find_product, stores_near, product watches), six languages, folded.
-  shopping: ['where can i buy', 'where to buy', 'in stock', 'near me', 'price of', 'cheapest', 'store', 'stores', 'amazon', 'walmart', 'target', 'home depot', 'best buy', 'lowes', 'buy', 'find me', 'back in stock', 'price drop',
+  shopping: ['check in my browser', 'check it in my browser', 'check them in my browser', 'check the store in my browser', 'where can i buy', 'where to buy', 'in stock', 'near me', 'price of', 'cheapest', 'store', 'stores', 'amazon', 'walmart', 'target', 'home depot', 'best buy', 'lowes', 'buy', 'find me', 'back in stock', 'price drop',
     'donde comprar', 'donde puedo comprar', 'en stock', 'en existencia', 'cerca de mi', 'precio de', 'mas barato', 'tienda', 'tiendas', 'comprar', 'busca',
     'ou acheter', 'ou puis je acheter', 'en stock', 'pres de chez moi', 'prix de', 'moins cher', 'magasin', 'magasins', 'acheter', 'trouve',
     'wo kaufen', 'wo kann ich', 'auf lager', 'vorratig', 'in meiner nahe', 'preis von', 'am billigsten', 'gunstigste', 'laden', 'geschaft', 'kaufen', 'finde',

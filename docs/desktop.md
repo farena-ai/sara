@@ -993,3 +993,13 @@ Before considering Linux release acceptance, try a real Ubuntu desktop on **both
 code pairing, keyring and fallback permissions, visible profile, approvals, masked pictures, manual
 sign-in/save/fill/removal, local pause/continue/Stop and each installed manager's own unlock prompt.
 The headless AlmaLinux conformance run does not establish those desktop results.
+
+## Forms and store checks in your browser (N4)
+
+- `pc_fill_form` fills a web form in the person's own browser from Settings → You → My details. It shows one review
+  card listing every field, never touches password, card or ID-number fields, reads the values back and stops before
+  Submit. The Windows app exports each field's AutomationId and HelpText for matching, chooses `<select>` options
+  through UI Automation, and always shows the review card (`reviewCards` in hello).
+- "Check in my browser" reads a blocking store's page in a new tab of the person's browser and closes it again,
+  approving each step. An empty new-tab address bar takes only one checked address.
+- See `docs/MY_DETAILS.md`.

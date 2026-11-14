@@ -64,6 +64,8 @@ struct Action {
   // 3.5.x d.tabswitch: the tab's place on the strip (1…) and its title as listed; Sara's own browser and (test runs) only the test browser.
   int tab = 0;
   std::string title;
+  // N4: d.type's review list (every field -> value of a web form fill), shown on the first card.
+  std::string review;
   DWORD ownBrowserPid = 0, onlyPid = 0;
 };
 struct ActionInfo { std::string target; bool once = false; };

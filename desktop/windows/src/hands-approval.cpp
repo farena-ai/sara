@@ -1,5 +1,6 @@
 #define NOMINMAX
 #include <windows.h>
+#include <algorithm>
 #include <thread>
 #include "hands-approval.h"
 #include "hands-screen.h"  // kInputTag: Sara's own synthetic input is never an answer
@@ -54,6 +55,9 @@ void show(Panel& p) {
   HWND h = CreateWindowExW(WS_EX_TOPMOST | WS_EX_NOACTIVATE | WS_EX_DLGMODALFRAME | WS_EX_APPWINDOW, wc.lpszClassName,
     p.test ? L"TEST Sara: desktop action" : L"Sara: desktop action", WS_CAPTION | WS_SYSMENU | WS_POPUP,
     CW_USEDEFAULT, CW_USEDEFAULT, 620, 340, nullptr, nullptr, inst, nullptr);
+  // N4: a form fill's review list (one line per field) gets a taller card so every line shows.
+  int lines = 1; for (wchar_t ch : p.summary) if (ch == L'\n') ++lines;
+  const int extra = std::min(320, std::max(0, (lines - 6) * 21));
   if (!h) { p.done = true; return; }
   p.window = h; SetWindowLongPtrW(h, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(&p));
   SetWindowDisplayAffinity(h, 0x11);
@@ -66,13 +70,13 @@ void show(Panel& p) {
     return c;
   };
   control(L"STATIC", L"Sara wants to act on this computer", 0, 20, 18, 570, 28, SS_NOPREFIX);
-  control(L"STATIC", p.summary.substr(0, 900), 0, 20, 56, 570, 140, SS_NOPREFIX);
-  control(L"STATIC", L"Decide here with the mouse; the window you were using keeps its place. Stop (Ctrl+Alt+Esc) still works. Closing this window means Don't.", 0, 20, 198, 570, 42, SS_NOPREFIX);
-  control(L"BUTTON", L"Allow once", 101, 20, 248, 130, 44, BS_PUSHBUTTON);
-  if (p.task) control(L"BUTTON", L"Allow for this task", 102, 160, 248, 225, 44, BS_PUSHBUTTON);
-  control(L"BUTTON", L"Don't", IDCANCEL, 440, 248, 140, 44, BS_DEFPUSHBUTTON);
+  control(L"STATIC", p.summary.substr(0, extra ? 2600 : 900), 0, 20, 56, 570, 140 + extra, SS_NOPREFIX);
+  control(L"STATIC", L"Decide here with the mouse; the window you were using keeps its place. Stop (Ctrl+Alt+Esc) still works. Closing this window means Don't.", 0, 20, 198 + extra, 570, 42, SS_NOPREFIX);
+  control(L"BUTTON", L"Allow once", 101, 20, 248 + extra, 130, 44, BS_PUSHBUTTON);
+  if (p.task) control(L"BUTTON", L"Allow for this task", 102, 160, 248 + extra, 225, 44, BS_PUSHBUTTON);
+  control(L"BUTTON", L"Don't", IDCANCEL, 440, 248 + extra, 140, 44, BS_DEFPUSHBUTTON);
   // Shown without activation: no SetForegroundWindow, no SetFocus.
-  SetWindowPos(h, HWND_TOPMOST, 140, 100, s(620), s(340), SWP_SHOWWINDOW | SWP_NOACTIVATE);
+  SetWindowPos(h, HWND_TOPMOST, 140, 100, s(620), s(340 + extra), SWP_SHOWWINDOW | SWP_NOACTIVATE);
   SetTimer(h, kTopTimer, 400, nullptr);
   MSG m;
   while (GetMessageW(&m, nullptr, 0, 0) > 0) { TranslateMessage(&m); DispatchMessageW(&m); }

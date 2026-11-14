@@ -16,7 +16,7 @@ import { matchScore, readProductPage, type Availability, type Offer } from './ex
 import type { PageLoad } from './find.ts';
 import { retailerForUrl } from './retailers.ts';
 
-export const PRODUCT_WATCH = { everyMs: 6 * 3600_000, maxActive: 20, maxFails: 4, pageTimeoutMs: 30_000 };
+export const PRODUCT_WATCH = { everyMs: 6 * 3600_000, maxActive: 20, maxFails: 4, pageTimeoutMs: 30_000, notNowRetryMs: 30 * 60_000 };
 export type WatchCondition = 'back_in_stock' | 'price_below' | 'any_change';
 export const WATCH_CONDITIONS: readonly WatchCondition[] = ['back_in_stock', 'price_below', 'any_change'];
 
@@ -36,6 +36,8 @@ export interface ProductWatch {
   lastError: string | null;
   fails: number;
   firedKey: string | null;
+  /** N4: checked in the person's own browser on their computer (“check in my browser”). */
+  inMyBrowser: boolean;
 }
 
 interface Row {
@@ -54,6 +56,7 @@ interface Row {
   last_error: string | null;
   fails: number;
   fired_key: string | null;
+  via?: string | null;
 }
 
 const toWatch = (r: Row): ProductWatch => ({
@@ -72,6 +75,7 @@ const toWatch = (r: Row): ProductWatch => ({
   lastError: r.last_error,
   fails: r.fails,
   firedKey: r.fired_key,
+  inMyBrowser: r.via === 'my_browser',
 });
 
 export class ProductWatchError extends Error {}
@@ -119,20 +123,33 @@ export function watchedOffer(label: string, offers: Offer[]): Offer | undefined 
   return [...offers].map((o) => ({ o, s: matchScore(label, o.title) })).sort((a, b) => b.s - a.s || Number(a.o.price === undefined) - Number(b.o.price === undefined))[0]?.o;
 }
 
+/** N4: a watch checked in the person's own browser: the offer read there, a failure, or “not now” (the computer is busy, off or in use). */
+export type MyBrowserLoad = (w: ProductWatch) => Promise<{ ok: true; offer: Offer } | { ok: false; reason: string; notNow?: boolean }>;
+
 export class ProductWatches {
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
   readonly #load: (url: string, signal: AbortSignal) => Promise<PageLoad>;
+  readonly #mine?: MyBrowserLoad;
   #running = false;
 
-  constructor(app: AppContext, db: DatabaseSync, load: (url: string, signal: AbortSignal) => Promise<PageLoad>) {
+  constructor(app: AppContext, db: DatabaseSync, load: (url: string, signal: AbortSignal) => Promise<PageLoad>, mine?: MyBrowserLoad) {
     this.#app = app;
     this.#db = db;
     this.#load = load;
+    if (mine) this.#mine = mine;
     db.exec(`CREATE TABLE IF NOT EXISTS product_watches (
       id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, conversation_id TEXT, label TEXT NOT NULL, url TEXT NOT NULL,
       retailer TEXT NOT NULL, condition TEXT NOT NULL, threshold REAL, state TEXT NOT NULL DEFAULT 'active',
       last_price REAL, last_availability TEXT, last_checked_at TEXT, last_error TEXT, fails INTEGER NOT NULL DEFAULT 0, fired_key TEXT)`);
+    // N4: 'my_browser' = checked in the person's own browser on their computer.
+    const cols = db.prepare('PRAGMA table_info(product_watches)').all() as { name: string }[];
+    if (!cols.some((c) => c.name === 'via')) db.exec('ALTER TABLE product_watches ADD COLUMN via TEXT');
+  }
+
+  /** N4: check this watch in the person's own browser (true) or with her own reader again (false). */
+  setInMyBrowser(id: number, on: boolean): void {
+    this.#db.prepare('UPDATE product_watches SET via = ?, fails = 0, state = ? WHERE id = ?').run(on ? 'my_browser' : null, 'active', id);
   }
 
   list(): ProductWatch[] {
@@ -144,7 +161,7 @@ export class ProductWatches {
     return r ? toWatch(r) : undefined;
   }
 
-  add(w: { url: string; label: string; condition: WatchCondition; threshold?: number; conversationId?: string; price?: number; availability?: Availability }): ProductWatch {
+  add(w: { url: string; label: string; condition: WatchCondition; threshold?: number; conversationId?: string; price?: number; availability?: Availability; inMyBrowser?: boolean }): ProductWatch {
     let u: URL;
     try {
       u = new URL(w.url);
@@ -165,6 +182,7 @@ export class ProductWatches {
     const r = this.#db
       .prepare('INSERT INTO product_watches (created_at, conversation_id, label, url, retailer, condition, threshold, last_price, last_availability, last_checked_at, fired_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
       .get(now, w.conversationId ?? null, w.label.replace(/\s+/g, ' ').trim().slice(0, 160) || retailer, u.href, retailer, w.condition, w.threshold ?? null, w.price ?? null, w.availability ?? null, known && w.condition === 'any_change' ? now : null, fired) as { id: number };
+    if (w.inMyBrowser) this.setInMyBrowser(r.id, true);
     return this.get(r.id)!;
   }
 
@@ -194,16 +212,30 @@ export class ProductWatches {
     const w = this.get(id);
     if (!w) return undefined;
     const at = this.#app.now().toISOString();
-    let page: PageLoad;
-    try {
-      page = await this.#load(w.url, AbortSignal.timeout(PRODUCT_WATCH.pageTimeoutMs));
-    } catch (err) {
-      page = { ok: false, reason: (err as Error).message.slice(0, 160), via: 'reader' };
+    let offer: Offer | undefined;
+    let why = '';
+    if (w.inMyBrowser) {
+      // N4: in the person's own browser, only when the computer is free and they aren't using it; “not now” is no failure.
+      const got = this.#mine ? await this.#mine(w).catch((err: Error) => ({ ok: false as const, reason: err.message.slice(0, 160) })) : { ok: false as const, reason: 'computer use is not on here', notNow: true };
+      if (!got.ok && 'notNow' in got && got.notNow) {
+        const retry = new Date(this.#app.now().getTime() - PRODUCT_WATCH.everyMs + PRODUCT_WATCH.notNowRetryMs).toISOString();
+        this.#db.prepare('UPDATE product_watches SET last_checked_at = ?, last_error = ? WHERE id = ?').run(retry, `not checked: ${got.reason}`, id);
+        return undefined;
+      }
+      if (got.ok) offer = got.offer;
+      else why = `in your browser: ${got.reason}`;
+    } else {
+      let page: PageLoad;
+      try {
+        page = await this.#load(w.url, AbortSignal.timeout(PRODUCT_WATCH.pageTimeoutMs));
+      } catch (err) {
+        page = { ok: false, reason: (err as Error).message.slice(0, 160), via: 'reader' };
+      }
+      const read = page.ok ? readProductPage({ url: page.url, status: page.status, title: page.title, html: page.html }) : undefined;
+      offer = read && !read.blocked ? watchedOffer(w.label, read.offers) : undefined;
+      if (!offer) why = !page.ok ? page.reason : read?.blocked ?? 'the page didn’t show the product’s price or stock';
     }
-    const read = page.ok ? readProductPage({ url: page.url, status: page.status, title: page.title, html: page.html }) : undefined;
-    const offer = read && !read.blocked ? watchedOffer(w.label, read.offers) : undefined;
     if (!offer) {
-      const why = !page.ok ? page.reason : read?.blocked ?? 'the page didn’t show the product’s price or stock';
       const fails = w.fails + 1;
       const pause = fails >= PRODUCT_WATCH.maxFails;
       this.#db.prepare('UPDATE product_watches SET last_checked_at = ?, last_error = ?, fails = ?, state = ? WHERE id = ?').run(at, why, fails, pause ? 'paused' : 'active', id);
@@ -215,7 +247,7 @@ export class ProductWatches {
     this.#db.prepare('UPDATE product_watches SET last_checked_at = ?, last_error = NULL, fails = 0, last_price = ?, last_availability = ?, fired_key = ? WHERE id = ?').run(at, offer.price ?? null, offer.availability, d.firedKey, id);
     if (!d.alert) return undefined;
     const time = new Date(at).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', ...(this.#app.settings.get().timeZone ? { timeZone: this.#app.settings.get().timeZone } : {}) });
-    const text = `${d.alert} ${say(en('Checked {time} on {store}’s page: {url} (product watch #{id}). I won’t buy anything; say the word and I’ll open the page for you.'), { time, store: w.retailer, url: offer.url ?? w.url, id: w.id })}`;
+    const text = `${d.alert} ${w.inMyBrowser ? say(en('Checked {time} in your own browser on {store}’s page: {url} (product watch #{id}). I won’t buy anything.'), { time, store: w.retailer, url: offer.url ?? w.url, id: w.id }) : say(en('Checked {time} on {store}’s page: {url} (product watch #{id}). I won’t buy anything; say the word and I’ll open the page for you.'), { time, store: w.retailer, url: offer.url ?? w.url, id: w.id })}`;
     this.#post(w, text, 'fired');
     // N2: automations that start when this watch fires.
     this.#app.automations?.watchFired('product', w.id, text);

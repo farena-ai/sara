@@ -57,6 +57,10 @@ export interface FindRow {
   /** Where the facts came from, in words ("walmart.com page data", "search result snippet"). */
   source: string;
   fromSearch?: boolean;
+  /** N4: read in the person's own browser on their computer (their session and store). */
+  fromBrowser?: boolean;
+  /** N4: the pickup line the page showed there (“Pickup today at Round Rock”). */
+  pickup?: string;
   store?: StoreRef;
   sponsored?: boolean;
 }
@@ -66,6 +70,8 @@ export interface CouldNot {
   reason: string;
   url?: string;
   store?: StoreRef;
+  /** N4: already tried in the person's own browser. */
+  triedBrowser?: boolean;
 }
 
 export interface FindResult {
@@ -276,6 +282,8 @@ export function formatFind(r: FindResult, o: { id?: number; time: (iso: string) 
     if (row.shipping !== undefined) bits.push(row.shipping === 0 ? 'free shipping' : `shipping ${money(row.shipping, row.currency)} (total ${money((row.price ?? 0) + row.shipping, row.currency)})`);
     if (row.fulfillment?.length && !(row.delivery && row.fulfillment.join() === 'delivery')) bits.push(row.fulfillment.join(' / '));
     if (row.delivery) bits.push(row.delivery);
+    if (row.pickup) bits.push(row.pickup);
+    if (row.fromBrowser) bits.push('from your browser');
     if (row.store) bits.push(`nearest store ${row.store.miles} mi${row.store.address ? ` (${row.store.address})` : ''}`);
     if (row.sponsored) bits.push('sponsored listing');
     lines.push(`${i + 1}. ${bits.join(' \u2014 ')}`);
@@ -286,7 +294,8 @@ export function formatFind(r: FindResult, o: { id?: number; time: (iso: string) 
   if (r.couldNot.length) {
     lines.push('', 'Couldn\u2019t check:');
     for (const c of r.couldNot) lines.push(`- ${c.retailer}: ${c.reason}${c.store?.phone ? `. Call the store (${c.store.name}, ${c.store.miles} mi): ${c.store.phone}` : c.store ? `. Nearest store: ${c.store.name}, ${c.store.miles} mi${c.store.address ? `, ${c.store.address}` : ''}` : ''}${c.url ? ` \u00b7 ${c.url}` : ''}`);
-    lines.push(o.canUsePc ? 'Offer: I can check these in your own browser on your computer (pc_browser_open; you approve it there).' : 'Offer: check these sites yourself, or call the store; with the Sara desktop app connected I can check them in your own browser.');
+    const left = r.couldNot.filter((c) => c.url && !c.triedBrowser).length;
+    lines.push(!left ? 'Offer: check these sites yourself, or call the store.' : o.canUsePc ? `Offer: “check in my browser”: I can check ${left === 1 ? 'it' : 'these'} in your own browser on your computer, where your store and sign-in apply (find_product with result_id${o.id ? ` ${o.id}` : ''} and in_my_browser: true; you approve each step there).` : 'Offer: check these sites yourself, or call the store; with the Sara desktop app connected (“The whole screen” on) I can check them in your own browser.');
   }
   const near = r.stores.slice(0, 6);
   if (near.length) {

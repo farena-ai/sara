@@ -76,6 +76,8 @@ export interface Today {
   watching?: ReturnType<import('./live-watch.ts').LiveWatches['todayTile']>;
   /** N2: automations that failed, wait for an OK or run today (none: no tile). */
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
+  /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
+  inbox?: ReturnType<import('./inbox/helper.ts').InboxHelper['todayTile']>;
   /** E4: My teams (next game, last result, live score), only when following a team. */
   teams?: Awaited<ReturnType<import('./sports/follow.ts').Sports['todayTile']>>;
   /** TD1: the calendar's next N days (Coming up). */
@@ -91,7 +93,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'money', 'teams', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -492,6 +494,12 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.automations?.todayTile();
       if (tile) out.automations = tile;
       meta('automations');
+    },
+    inbox: () => {
+      // N3: a tile only when there is something from the inbox (a card, a done line, a package, a trip, a rule idea).
+      const tile = demo ? undefined : app.inbox?.todayTile();
+      if (tile) out.inbox = tile;
+      meta('inbox');
     },
     teams: async () => {
       // E4: My teams (ESPN, cached 10 minutes in the data sources); nothing when no team is followed.

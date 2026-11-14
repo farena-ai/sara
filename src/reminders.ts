@@ -65,6 +65,8 @@ export class ReminderScheduler {
     this.#app.liveWatches?.due(now);
     // N2: automations (schedules, calendar triggers) on the same tick.
     this.#app.automations?.due(now);
+    // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
+    this.#app.inbox?.due(now);
     // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
     this.#app.productWatches?.due(now);
     // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.

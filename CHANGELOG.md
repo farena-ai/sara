@@ -5,8 +5,22 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
-## 3.8.0 (2026-11-14): gets it right, and runs on its own
+## 3.9.0 (2026-11-14): from your inbox, and forms filled for you
 
+## 3.8.0 (2026-11-14): gets it right, and runs on its own
+- New: **My details** (Settings → You). Keep the name, addresses, phones, sizes, vehicle, insurance and loyalty numbers that you type into forms again and again. Sara refuses to keep passwords, card numbers or SSNs. With the desktop app, Sara can fill a web form in your own browser from these details. One card on your PC lists every field and value first. She skips password and card fields, reads the values back, and stops before Submit.
+- New: Emails and drafts can carry files from your Library: Gmail and IMAP up to 20 MB, Outlook up to 3 MB. The check after saving a draft lists the attached files. An invoice's "email it" and the time-sheet automation's draft now attach the file.
+- New: **Check in my browser.** When a store blocks Sara's product search, she can check its price, stock and pickup in your own browser on your PC, with your store and sign-in, if you approve each step. She closes the tab afterwards. Product watches can do the same while your PC is on and idle.
+
+- New: **From your inbox.** New email in your connected mailboxes becomes one-tap cards on Today: a
+  bill goes to Bills, a receipt to Expenses, a shipping email to package tracking (status updated from
+  later emails, alerts on the delivery day, out for delivery and delivered), a flight or hotel to a
+  trip with calendar entries, a check-in reminder and a leave-by reminder, an appointment to your
+  calendar, a "paid" email to your invoice, and attachments to a Library folder. Suggestions only
+  until you turn on "do it for me" for a kind (Settings → Email and calendar → Inbox helper); then
+  Today shows what was done with Undo. Rules and the booking data in airline, hotel and shop emails
+  do the reading; a small model only for unclear mail, never in private local mode. She never sends
+  email or pays anything from here. See docs/INBOX_HELPER.md.
 - New: **Auto (recommended)** for Talking, Coding, Looking at pictures and Web research in Settings →
   Models. Auto picks from what is connected: tool support, can it see, on this computer or not, how
   fast each model really answered here, recent errors and your spend limit. When the pick errors,

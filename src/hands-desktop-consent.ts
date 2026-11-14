@@ -7,6 +7,8 @@ export interface DesktopPrompt {
   target: DesktopTarget;
   text?: string;
   forceOnce?: boolean;
+  /** N4: a form fill's review list (every field -> value): this card is always shown. */
+  review?: string;
   choices: ('once' | 'task')[];
 }
 export class DesktopConsent {
@@ -21,9 +23,10 @@ export class DesktopConsent {
     for (const [t, at] of this.#grants) if (this.now() - at > 15 * 60_000) this.#grants.delete(t);
     const v = desktopActionVerdict({ site: 'desktop', target: p.target, text: p.text, level: this.level, taskGranted: Boolean(p.task && this.#grants.has(p.task)) });
     if (v.act === 'block') throw Object.assign(new Error(v.why), { code: 'denied_local' });
-    if (v.act === 'allow' && !p.forceOnce) return true;
+    // N4: a review card is always shown (also with "Always allowed"); its "Allow for this task" covers the fields.
+    if (v.act === 'allow' && !p.forceOnce && !p.review) return true;
     if (!prompt) return false;
-    const choices: ('once' | 'task')[] = v.act === 'ask' && v.choices.includes('task') && p.task && !p.forceOnce ? ['once', 'task'] : ['once'];
+    const choices: ('once' | 'task')[] = (v.act === 'ask' ? v.choices.includes('task') : Boolean(p.review)) && p.task && !p.forceOnce ? ['once', 'task'] : ['once'];
     const answer = await prompt({ ...p, choices });
     if (signal?.aborted || epoch !== this.#epoch || !choices.includes(answer as 'once' | 'task')) return false;
     if (answer === 'task') this.#grants.set(p.task, this.now());

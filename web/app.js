@@ -35,11 +35,13 @@ import { loadSignalPage } from './signal.js';
 import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
+import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
+import { initInboxHelper, loadInboxHelper, renderInboxTile } from './inbox-helper.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
@@ -1713,6 +1715,7 @@ initToday({
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
+  renderInbox: (part, head) => renderInboxTile(part, head),
   renderPhotos: renderTodayPhotos,
   // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
   renderMoments: renderTodayMoments,
@@ -8926,7 +8929,10 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'her-hey') void loadWakePage();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
-  if (pick === 'ab-mail') void loadMailAccounts();
+  if (pick === 'ab-mail') {
+    void loadMailAccounts();
+    void loadInboxHelper();
+  }
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
@@ -9098,9 +9104,9 @@ async function loadSettingsPages(onCore = () => {}) {
   savedDefaultModelRevision = defaultModelRevision;
   onCore();
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
-  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
+  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
   await tools;
-  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -9210,6 +9216,7 @@ const SETTINGS_SAVERS = {
   'models-default': [saveCoreSettings],
   'you-leave-by': [saveLeaveBy],
   'you-business': [saveBusinessDetails],
+  'you-details': [saveMyDetails],
   'dh-backups': [saveOffsite, saveBackups],
   'her-pictures': [savePhotos],
   'ab-search': [saveSearch],
@@ -12467,6 +12474,17 @@ initAutomations({
   },
 });
 wireAutomationsForm();
+// N3: From your inbox (the Today tile and Settings → Email and calendar → Inbox helper).
+initInboxHelper({
+  api,
+  el,
+  openSettings: (page) => void openSettings(page),
+  refreshToday: () => void loadToday(true),
+  toast: (msg) => {
+    const s = $('#td-status');
+    if (s) s.textContent = msg;
+  },
+});
 // C4: Settings → Connections → Webhooks → When this happens.
 initEventTriggers({
   api,

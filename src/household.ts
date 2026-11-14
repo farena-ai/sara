@@ -527,6 +527,10 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'routines',
   // N2: their own automations (src/routes/automations.ts; email/webhook triggers stay the owner's)
   'automations',
+  // N4: their own My details (src/routes/my-details.ts; their space's own store)
+  'my-details',
+  // N3: their own inbox helper (suggestions from their own mailboxes; src/routes/inbox.ts)
+  'inbox',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
   'boards', 'columns',
   // library

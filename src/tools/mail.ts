@@ -12,6 +12,8 @@ import { providerName, WORDS, type MailOrganizer } from '../mail/organize.ts';
 import { SearchWordsError } from '../mail/search.ts';
 import { addressOf, MAIL_ACTIONS, UNTRUSTED, type MailAccountInfo, type MailAction, type MailMessage, type MailProvider } from '../mail/types.ts';
 import { clip, num, str, ToolError, type Tool } from './types.ts';
+import { AttachmentError, attachmentCheck, type MailAttachment } from '../mail/attachments.ts';
+import { ATTACH_ARG, attachList } from './google.ts';
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const ACCOUNT = { type: 'string', description: 'Which mailbox: its address, or "gmail" / "outlook" / a provider name. Default: the owner\'s default mailbox (mail_accounts lists them).' };
@@ -23,6 +25,8 @@ const strip = (args: Record<string, unknown>) => {
 };
 
 export interface MailToolDeps {
+  /** N4: Library / chat files by id, checked against the provider's size cap (src/mail/attachments.ts). */
+  files?: (ids: unknown, kind: 'google' | 'graph' | 'imap') => MailAttachment[];
   accounts: MailAccounts;
   organizer: MailOrganizer;
   /** The gmail_* and calendar_* tools (Google), by name: a Google account is handed to them. */
@@ -186,23 +190,34 @@ export function createMailTools(d: MailToolDeps): Tool[] {
       description: send
         ? "Send an email from one of the owner's mailboxes. Only when the owner clearly asked for this exact email to be sent. To reply, give reply_to (the email id) so it stays in the thread."
         : "Save an email as a draft in one of the owner's mailboxes (they review and send it). To reply, give reply_to (the email id).",
-      parameters: obj({ to: { type: 'string' }, cc: { type: 'string' }, subject: { type: 'string' }, body: { type: 'string' }, reply_to: { type: 'string', description: 'Id of the email being answered' }, account: ACCOUNT }, ['to', 'subject', 'body']),
+      parameters: obj({ to: { type: 'string' }, cc: { type: 'string' }, subject: { type: 'string' }, body: { type: 'string' }, reply_to: { type: 'string', description: 'Id of the email being answered' }, attachments: ATTACH_ARG, account: ACCOUNT }, ['to', 'subject', 'body']),
     },
     isAvailable: on,
-    summarize: (a) => `${send ? 'SEND email' : 'Draft email'}${a.account ? ` from ${String(a.account)}` : ''} to ${String(a.to ?? '')}: “${String(a.subject ?? '')}”\n\n${String(a.body ?? '').slice(0, 600)}`,
+    summarize: (a) => `${send ? 'SEND email' : 'Draft email'}${a.account ? ` from ${String(a.account)}` : ''} to ${String(a.to ?? '')}: “${String(a.subject ?? '')}”${attachList(a)}\n\n${String(a.body ?? '').slice(0, 600)}`,
     async run(args, ctx) {
       const a = pick(args);
       if (a.kind === 'google') return gtool(send ? 'gmail_send' : 'gmail_draft').run(strip(args), ctx);
       const to = str(args, 'to');
       if (!/@/.test(to)) throw new ToolError('Who is it to? (an email address)');
-      const draft = { to, ...(str(args, 'cc', false) ? { cc: str(args, 'cc') } : {}), subject: str(args, 'subject'), body: str(args, 'body'), ...(str(args, 'reply_to', false) ? { replyTo: str(args, 'reply_to') } : {}) };
+      let files: MailAttachment[] = [];
+      if (args.attachments !== undefined) {
+        if (!d.files) throw new ToolError('Attachments are not available here.');
+        try {
+          files = d.files(args.attachments, a.kind === 'microsoft' ? 'graph' : 'imap');
+        } catch (err) {
+          if (err instanceof AttachmentError) throw new ToolError(err.message);
+          throw err;
+        }
+      }
+      const draft: import('../mail/types.ts').Draft = { to, ...(str(args, 'cc', false) ? { cc: str(args, 'cc') } : {}), subject: str(args, 'subject'), body: str(args, 'body'), ...(str(args, 'reply_to', false) ? { replyTo: str(args, 'reply_to') } : {}), ...(files.length ? { attachments: files } : {}) };
       const p = prov(a);
+      const with_ = files.length ? ` with ${files.map((f) => f.name).join(', ')}` : '';
       if (send) {
         const sent = await p.send(draft, ctx.signal);
-        return `Sent from ${a.address} to ${to}.\n${sent ? `Verified: the mail server accepted it (id ${sent}).` : 'Could not verify: the mail server gave no id for the sent email.'}`;
+        return `Sent from ${a.address} to ${to}${with_}.\n${sent ? `Verified: the mail server accepted it (id ${sent}).` : 'Could not verify: the mail server gave no id for the sent email.'}${attachmentCheck(files, draft.readBack, 'the sent email')}`;
       }
       const saved = await p.draft(draft, ctx.signal);
-      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}. Nothing was sent.\n${saved ? `Verified: the mail server saved the draft (id ${saved}).` : 'Could not verify: the mail server gave no id for the draft.'}`;
+      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}${with_}. Nothing was sent.\n${saved ? `Verified: the mail server saved the draft (id ${saved}).` : 'Could not verify: the mail server gave no id for the draft.'}${attachmentCheck(files, draft.readBack, 'the draft')}`;
     },
   });
 

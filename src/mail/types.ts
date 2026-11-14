@@ -38,6 +38,8 @@ export interface MailMessage {
   /** Message-ID, References, List-Unsubscribe, Precedence, Auto-Submitted (when read). */
   headers: Record<string, string>;
   text?: string;
+  /** N3: the HTML body when there is one (capped; for schema.org JSON-LD), from `withHtml`/IMAP `get`. */
+  html?: string;
   attachments?: string[];
   /** Graph: the categories on it. */
   categories?: string[];
@@ -80,6 +82,10 @@ export interface Draft {
   subject: string;
   body: string;
   replyTo?: string;
+  /** N4: files to attach (src/mail/attachments.ts checks the size caps first). */
+  attachments?: { name: string; mime: string; data: Buffer }[];
+  /** N4: filled in by the provider after saving: the attachment names read back from the server (undefined: couldn't read). */
+  readBack?: string[];
 }
 
 export interface CalendarEventIn {
@@ -134,6 +140,10 @@ export interface MailProvider {
     update(id: string, e: Partial<CalendarEventIn>, signal?: AbortSignal): Promise<CalendarEventOut>;
     remove(id: string, signal?: AbortSignal): Promise<void>;
   };
+  /** N3: one message with its HTML body too (providers whose `get` returns only text). */
+  withHtml?(id: string, signal?: AbortSignal): Promise<MailMessage>;
+  /** N3: one attachment's bytes by its file name (inbox filing). */
+  attachment?(id: string, name: string, signal?: AbortSignal): Promise<{ name: string; mime: string; data: Buffer } | undefined>;
   /** Signs in and reads the inbox count: the Test button. */
   test(signal?: AbortSignal): Promise<string>;
   close?(): Promise<void>;

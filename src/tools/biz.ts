@@ -127,7 +127,7 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
     spec: {
       name: 'invoice_make',
       description:
-        "Make an invoice or a quote (estimate) as a real file, numbered (INV-2026-0001 / Q-2026-0001) and kept for paid/unpaid tracking. Totals are worked out by code: give items with qty and unit_price, never totals. Uses the person's business details (Settings → Business details) and, when template is given, fills THEIR own Word/Excel invoice template from the Library instead of the default layout. It starts as a draft: after they send it, call invoice_mark with sent (that sets the due reminders). To email it, offer a mail_draft for them to review; never send it yourself.",
+        "Make an invoice or a quote (estimate) as a real file, numbered (INV-2026-0001 / Q-2026-0001) and kept for paid/unpaid tracking. Totals are worked out by code: give items with qty and unit_price, never totals. Uses the person's business details (Settings → Business details) and, when template is given, fills THEIR own Word/Excel invoice template from the Library instead of the default layout. It starts as a draft: after they send it, call invoice_mark with sent (that sets the due reminders). To email it, offer a mail_draft with the file attached (attachments: its Library number) for them to review; never send it yourself.",
       parameters: obj(
         {
           kind: { type: 'string', enum: ['invoice', 'quote'], description: 'invoice (default) or quote (estimate)' },
@@ -202,7 +202,7 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
         `Made ${word} ${inv.number} for ${client.name}${client.note}${client.email ? ` <${client.email}>` : ''}: ${inv.lines.map((l) => `${l.desc} ${l.qty} × ${fmtMoney(l.unitCents, inv.currency)} = ${fmtMoney(l.amountCents, inv.currency)}`).join('; ')}. Subtotal ${fmtMoney(inv.subtotalCents, inv.currency)}${inv.taxRatePct ? `, tax ${inv.taxRatePct}% ${fmtMoney(inv.taxCents, inv.currency)}` : ''}, total ${fmtMoney(inv.totalCents, inv.currency)}${inv.due ? `, ${kind === 'quote' ? 'valid until' : 'due'} ${usDate(inv.due)}` : ''}. Status: draft.`,
         `File: ${files.join(' and ')}.${fillNote}`,
         missing.length ? `Their ${missing.join(' and ')} ${missing.length > 1 ? 'are' : 'is'} not set yet (Settings → Business details); mention it once.` : '',
-        kind === 'invoice' ? 'Say the total and number in a sentence. Offer to draft the email to the client (mail_draft: a draft they review and send, with the file attached by them); when they say it was sent, call invoice_mark with sent so you remind them before it is due.' : 'Say the total and number in a sentence. When the client accepts, call invoice_mark with accepted.',
+        kind === 'invoice' ? 'Say the total and number in a sentence. Offer to draft the email to the client with the invoice attached (mail_draft with attachments: the Library number above, or the chat file id; a draft they review and send); when they say it was sent, call invoice_mark with sent so you remind them before it is due.' : 'Say the total and number in a sentence. When the client accepts, call invoice_mark with accepted.',
       ]
         .filter(Boolean)
         .join('\n');

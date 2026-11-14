@@ -196,6 +196,8 @@ export interface AppContext {
   projects?: import('./projectknow.ts').ProjectKnowledgeStore;
   /** Phase 44: her library (documents she keeps; a shared one belongs to the first companion). */
   library?: import('./library/store.ts').LibraryStore;
+  /** N4: the person's My details (their space's first companion's store; src/my-details.ts). */
+  myDetails?: import('./my-details.ts').MyDetailsStore;
   /** Phase 50: the code maps of the workspaces (shared by every companion). */
   codemap?: import('./codemap/index.ts').CodeMaps;
   /** Phase 51: imported ChatGPT / Claude history (per companion). */
@@ -261,6 +263,8 @@ export interface AppContext {
   eventTriggers?: import('./event-triggers.ts').EventTriggers;
   /** N2: automations, one place (src/automations.ts). Driven by the reminder tick and the event/watch hooks. */
   automations?: import('./automations.ts').Automations;
+  /** N3: from your inbox (src/inbox/helper.ts): suggestion cards from new mail, packages, trips, filing. */
+  inbox?: import('./inbox/helper.ts').InboxHelper;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
   memoryTidy?: import('./memory-tidy.ts').MemoryTidy;
   /** C12: how he likes to work (beliefs with evidence; src/working-style.ts). Each space its own. */

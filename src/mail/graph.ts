@@ -388,6 +388,21 @@ export class GraphMail implements MailProvider {
     return out;
   }
 
+  /** N3: the message with its HTML body (Graph returns text by default here). */
+  async withHtml(id: string, signal?: AbortSignal): Promise<MailMessage> {
+    const m = await this.get(id, signal);
+    const h = (await this.call(`/me/messages/${encodeURIComponent(id)}?$select=body`, { ...(signal ? { signal } : {}), headers: { prefer: 'IdType="ImmutableId", outlook.body-content-type="html"' } }).catch(() => undefined)) as GMsg | undefined;
+    if (h?.body?.contentType?.toLowerCase() === 'html' && h.body.content) m.html = h.body.content.slice(0, 300_000);
+    return m;
+  }
+
+  /** N3: one attachment's bytes by file name (inbox filing; file attachments only). */
+  async attachment(id: string, name: string, signal?: AbortSignal): Promise<{ name: string; mime: string; data: Buffer } | undefined> {
+    const a = (await this.call(`/me/messages/${encodeURIComponent(id)}/attachments`, { ...(signal ? { signal } : {}) })) as { value?: { name?: string; contentType?: string; contentBytes?: string }[] };
+    const f = (a.value ?? []).find((x) => x.name === name && x.contentBytes);
+    return f ? { name, mime: f.contentType ?? 'application/octet-stream', data: Buffer.from(f.contentBytes!, 'base64') } : undefined;
+  }
+
   async thread(id: string, signal?: AbortSignal): Promise<MailMessage[]> {
     let conv = id;
     // A message id was given: its conversation.
@@ -424,18 +439,42 @@ export class GraphMail implements MailProvider {
     return { subject: d.subject, body: { contentType: 'Text', content: d.body }, toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) };
   }
 
+  /** N4: each file as a Graph file attachment (one request each; the caps keep it under Graph's 4 MB request limit). */
+  async #attach(id: string, d: Draft, signal?: AbortSignal): Promise<void> {
+    for (const a of d.attachments ?? []) await this.call(`/me/messages/${encodeURIComponent(id)}/attachments`, { method: 'POST', body: { '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.mime, contentBytes: a.data.toString('base64') }, ...(signal ? { signal } : {}) });
+  }
+  /** N4: the attachment names read back from the saved message. */
+  async #names(id: string, d: Draft, signal?: AbortSignal): Promise<void> {
+    if (!d.attachments?.length) return;
+    const a = (await this.call(`/me/messages/${encodeURIComponent(id)}/attachments?$select=name`, { ...(signal ? { signal } : {}) }).catch(() => undefined)) as { value?: { name?: string }[] } | undefined;
+    if (a) d.readBack = (a.value ?? []).map((x) => x.name ?? '').filter(Boolean);
+  }
+
   async draft(d: Draft, signal?: AbortSignal): Promise<string> {
     const sig = signal ? { signal } : {};
     if (d.replyTo) {
       const r = (await this.call(`/me/messages/${encodeURIComponent(d.replyTo)}/createReply`, { method: 'POST', body: { message: { toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) }, comment: d.body }, ...sig })) as { id?: string };
-      return String(r.id ?? '');
+      const id = String(r.id ?? '');
+      if (id) await this.#attach(id, d, signal);
+      if (id) await this.#names(id, d, signal);
+      return id;
     }
     const r = (await this.call('/me/messages', { method: 'POST', body: this.#draftBody(d), ...sig })) as { id?: string };
-    return String(r.id ?? '');
+    const id = String(r.id ?? '');
+    if (id) await this.#attach(id, d, signal);
+    if (id) await this.#names(id, d, signal);
+    return id;
   }
 
   async send(d: Draft, signal?: AbortSignal): Promise<string> {
     const sig = signal ? { signal } : {};
+    // N4: with files, the message is made as a draft with its attachments, checked, then sent.
+    if (d.attachments?.length) {
+      const id = await this.draft(d, signal);
+      if (!id) throw new Error('Outlook gave no id for the message, so it was not sent.');
+      await this.call(`/me/messages/${encodeURIComponent(id)}/send`, { method: 'POST', ...sig });
+      return 'sent';
+    }
     if (d.replyTo) {
       await this.call(`/me/messages/${encodeURIComponent(d.replyTo)}/reply`, { method: 'POST', body: { message: { toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) }, comment: d.body }, ...sig });
       return 'reply';

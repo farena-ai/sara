@@ -440,6 +440,9 @@ bool vbool(VARIANT& v) {
 
 struct Item {
   std::string role, name, value;
+  // N4 (My details, form filling): a form field's own id (UI Automation's AutomationId: the page's id attribute) and
+  // its hint (HelpText: a placeholder), so a field can be matched to a detail when its label is unclear. Masked.
+  std::string aid, hint;
   bool secret = false, disabled = false, focused = false;
   RECT r{};
   ComPtr<IUIAutomationElement> element;
@@ -452,7 +455,7 @@ Mark markOf(const Item& it) {
 ComPtr<IUIAutomationCacheRequest> cacheReq(IUIAutomation* a) {
   ComPtr<IUIAutomationCacheRequest> cr;
   a->CreateCacheRequest(&cr);
-  for (PROPERTYID p : {UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId, UIA_BoundingRectanglePropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsOffscreenPropertyId, UIA_ValueValuePropertyId}) cr->AddProperty(p);
+  for (PROPERTYID p : {UIA_NamePropertyId, UIA_ControlTypePropertyId, UIA_IsPasswordPropertyId, UIA_IsEnabledPropertyId, UIA_BoundingRectanglePropertyId, UIA_HasKeyboardFocusPropertyId, UIA_IsOffscreenPropertyId, UIA_ValueValuePropertyId, UIA_AutomationIdPropertyId, UIA_HelpTextPropertyId}) cr->AddProperty(p);
   return cr;
 }
 bool browserApp(const std::string& app);
@@ -514,6 +517,12 @@ void collect(HWND h, int limit, std::vector<Item>& out, int& total) {
               c->GetCachedPropertyValue(UIA_ValueValuePropertyId, &v);
               it.value = maskText(clip(bstr(v), 200));
             }
+            if (t == UIA_EditControlTypeId || t == UIA_ComboBoxControlTypeId) {
+              c->GetCachedPropertyValue(UIA_AutomationIdPropertyId, &v);
+              it.aid = maskText(clip(bstr(v), 80));
+              c->GetCachedPropertyValue(UIA_HelpTextPropertyId, &v);
+              it.hint = maskText(clip(bstr(v), 120));
+            }
             it.identity += "|" + it.role + "|" + it.name + "|" + std::to_string(r.left) + "," + std::to_string(r.top) + "," + std::to_string(r.right) + "," + std::to_string(r.bottom) + (it.secret ? "|secret" : "") + (it.disabled ? "|disabled" : "");
             out.push_back(it);
           }
@@ -567,6 +576,7 @@ std::string itemsJson(const std::vector<Item>& items, const View* v) {
     }
     o += (i ? "," : "") + std::string("{\"ref\":\"e") + std::to_string(i + 1) + "\",\"role\":" + jq(it.role) + (it.name.empty() ? "" : ",\"name\":" + jq(it.name)) +
          (it.secret ? ",\"secret\":true" : it.value.empty() ? "" : ",\"value\":" + jq(it.value)) + (it.disabled ? ",\"disabled\":true" : "") + (it.focused ? ",\"focused\":true" : "") +
+         (it.aid.empty() ? "" : ",\"aid\":" + jq(it.aid)) + (it.hint.empty() ? "" : ",\"hint\":" + jq(it.hint)) +
          ",\"box\":[" + std::to_string(x) + "," + std::to_string(y) + "," + std::to_string(w) + "," + std::to_string(h) + "]}";
   }
   return o + "]";
@@ -1224,6 +1234,9 @@ bool browserAllowed(HWND hwnd, const std::string& app, const Action* act = nullp
   };
   scan(root.Get(), 0);
   if (!webSurface && !found) return true;
+  // N4: a new tab's empty address bar, being edited: only one address may be typed there (never Sara's own server or a
+  // blocked page). Then it shows that address, and Enter is checked against it below.
+  if (!found && editingAddress && act && act->op == "d.type") return addressOk(act->text, own);
   // 3.6.x: a browser's own dialog (\"Remove this extension?\") has no address bar: the window it belongs to decides.
   if (!found && !viaOwner) {
     HWND owner = GetWindow(hwnd, GW_OWNER);
@@ -1517,6 +1530,11 @@ Result inspect(const Action& a, ActionInfo& info) {
   if (a.text.size() > 8000 || maskText(a.text) != a.text) return refusal("denied_local", "That text is too long or looks like a secret.");
   info.target = a.op + " in " + b.win.title + " / " + b.item.role + " " + b.item.name;
   if (a.op == "d.type") info.target += "\nText: " + a.text;
+  // N4: filling a web form shows every field she will fill on this one card (the server sends the list with the first field).
+  if (a.op == "d.type" && !a.review.empty()) {
+    if (a.review.size() > 2400 || maskText(a.review) != a.review) return refusal("denied_local", "The review list is too long or looks like it holds a secret.");
+    info.target = "Fill the form in " + b.win.title + ", then stop before Submit (you press it). Every field and value:\n" + a.review;
+  }
   if (a.op == "d.keys") info.target += "\nKeys: " + a.combo;
   info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text) || b.sensitive;
   if (a.op == "d.drag") {
@@ -1593,12 +1611,38 @@ Result input(const Action& a, const std::function<bool()>& cancelled) {
     int n = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), nullptr, 0);
     if ((!a.text.empty() && n == 0) || n > 2000 || maskText(a.text) != a.text) return refusal("denied_local", "Text must be valid, non-secret and at most 2,000 characters.");
     std::wstring text(n, 0); MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, a.text.data(), (int)a.text.size(), text.data(), n);
+    // N4: a pick-list (a web page's <select>) takes its option by name: the option is selected through UI Automation
+    // (no typing), so the page sees a real change. When no option has that name the text is typed (type-ahead).
+    if (b.item.role == "combobox") {
+      auto u = uia(); ComPtr<IUIAutomationCondition> isItem; ComPtr<IUIAutomationElementArray> options; VARIANT v; v.vt = VT_I4; v.lVal = UIA_ListItemControlTypeId;
+      if (u && SUCCEEDED(u->CreatePropertyCondition(UIA_ControlTypePropertyId, v, &isItem)) && SUCCEEDED(b.item.element->FindAll(TreeScope_Descendants, isItem.Get(), &options)) && options) {
+        int count = 0; options->get_Length(&count);
+        for (int i = 0; i < count && i < 500 && !done; ++i) {
+          ComPtr<IUIAutomationElement> option; options->GetElement(i, &option); if (!option) continue;
+          BSTR name = nullptr; option->get_CurrentName(&name); std::wstring label = name ? std::wstring(name) : std::wstring(); if (name) SysFreeString(name);
+          if (lower(u8(label)) != lower(a.text)) continue;
+          ComPtr<IUIAutomationSelectionItemPattern> pick;
+          if (FAILED(option->GetCurrentPatternAs(UIA_SelectionItemPatternId, IID_PPV_ARGS(&pick))) || !pick) break;
+          if (!guard()) return halted("Stopped before choosing.");
+          if (FAILED(pick->Select())) return refusal("denied_local", "The list refused its accessibility choice.");
+          done = true;
+        }
+      }
+      if (!done) {
+        if (FAILED(b.item.element->SetFocus())) return refusal("denied_local", "The target could not receive keyboard focus.");
+        std::vector<INPUT> chunk;
+        for (wchar_t ch : text.substr(0, 40)) { INPUT down{}; down.type = INPUT_KEYBOARD; down.ki.wScan = ch; down.ki.dwFlags = KEYEVENTF_UNICODE; INPUT up = down; up.ki.dwFlags |= KEYEVENTF_KEYUP; chunk.push_back(down); chunk.push_back(up); }
+        if (!send(chunk)) return halted("Stopped before typing.");
+        done = true;
+      }
+    }
     ComPtr<IUIAutomationValuePattern> pattern;
     // 3.6.x: a web page's rich editor (contenteditable: mail and event bodies) takes SetValue without telling the page
     // (no input events), so the app never sees the text: there the text is typed. Plain fields keep SetValue.
     bool rich = richWebEditor(b.item.element.Get(), b.win.app);
     TDBG(std::string("type rich=") + (rich ? "1" : "0"));
-    if (!rich && SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
+    if (done) {
+    } else if (!rich && SUCCEEDED(b.item.element->GetCurrentPatternAs(UIA_ValuePatternId, IID_PPV_ARGS(&pattern))) && pattern) {
       TDBG("guard before SetValue"); if (!guard()) return halted("Stopped before SetValue.");
       TDBG("SetValue start"); BSTR value = SysAllocStringLen(text.data(), (UINT)text.size()); HRESULT set = pattern->SetValue(value); SysFreeString(value);
       TDBG("SetValue end hr=" + std::to_string((long)set)); if (FAILED(set)) return refusal("denied_local", "The field refused its accessibility value action.");

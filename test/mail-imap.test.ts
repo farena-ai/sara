@@ -151,6 +151,24 @@ test('drafts go to \\Drafts by APPEND; send goes by SMTP and a copy into Sent; r
   assert.equal(imap.boxes.get('Sent')!.mails.length, sentBox + 1);
 });
 
+// N4: an attachment makes the message multipart/mixed; the draft's file names are read back from \Drafts by Message-ID.
+test('N4: IMAP drafts and SMTP sends carry attachments (multipart), names read back', async () => {
+  const withFiles = new Map<string, Tool>();
+  const files = (ids: unknown) => (ids as string[]).map((id) => ({ name: `Time Sheet ${id}.xlsx`, mime: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', data: Buffer.from(`PK fake ${id}`) }));
+  for (const t of createMailTools({ files, accounts, organizer, google: new Map(), timeZone: () => tz })) withFiles.set(t.spec.name, t);
+  const out = await withFiles.get('mail_draft')!.run({ to: 'boss@work.com', subject: 'Time sheet', body: 'Attached.', attachments: ['3'] }, ctx());
+  const draft = imap.boxes.get('Drafts')!.mails.at(-1)!;
+  const raw = draft.raw.toString();
+  assert.match(raw, /Content-Type: multipart\/mixed; boundary="sara-/);
+  assert.match(raw, /Content-Disposition: attachment; filename="Time Sheet 3\.xlsx"/);
+  assert.ok(raw.includes(Buffer.from('PK fake 3').toString('base64')));
+  assert.match(out, /Verified: the draft has the attachment Time Sheet 3\.xlsx \(read back\)/);
+  const before = smtp.sent.length;
+  await withFiles.get('mail_send')!.run({ to: 'boss@work.com', subject: 'Sheet', body: 'Here.', attachments: ['4'] }, ctx());
+  assert.equal(smtp.sent.length, before + 1);
+  assert.match(smtp.sent.at(-1)!.data, /filename="Time Sheet 4\.xlsx"/);
+});
+
 test('Proton Mail Bridge: only this computer; a remote host is refused for it', async () => {
   const p = accounts.imapDraft({ preset: 'proton', address: 'me@proton.me', password: 'bridge-pass-1' });
   assert.equal(p.info.imap!.loopback, true);

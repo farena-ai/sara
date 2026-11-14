@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 221 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 225 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -431,6 +431,27 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Set Tax rate (%) (0 if you don't charge tax).
 2. Set Due in (days); she reminds you the day before and 3 days after if unpaid.
 
+### My details
+
+**How do I have Sara fill in a web form with my details?**
+
+1. Type your name, emails, phones and home address here.
+2. Open the form in your own browser (the Sara app on your computer, with The whole screen on).
+3. Ask her to fill in this form with my details.
+4. Check the card on your computer, which lists every field, then allow it.
+5. She stops before Submit: you press it.
+
+**How do I keep passwords and card numbers out of it?**
+
+1. Leave them out: Sara refuses to keep passwords, card numbers, security codes or SSNs.
+2. She never types into password or card fields; you type those yourself.
+
+**How do I check a store that blocks Sara in my own browser?**
+
+1. When a search says she couldn't check a store, say check in my browser.
+2. Allow each step on your computer: she opens a tab, reads the price and stock, and closes it.
+3. To keep the tab open afterwards, check Leave the store tab open here.
+
 ### Adult mode
 
 **How do I turn on adult mode?**
@@ -852,6 +873,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I choose which mailbox she uses first?**
 
 1. In the list of mailboxes, press Make default on the one you want.
+
+**How do I let her do things from my email on her own?**
+
+1. Under Inbox helper, keep Read new email and suggest what to do with it on.
+2. Under Do it for me, tick the kinds she may do without asking, like packages.
+3. Everything else stays a card on Today with Accept.
 
 ### Home Assistant
 

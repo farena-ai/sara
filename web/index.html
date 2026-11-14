@@ -505,6 +505,7 @@
                 <section class="today-card td-tile" id="td-mail" hidden tabindex="0" aria-labelledby="td-mail-h"><div class="td-tile-head"><h3 id="td-mail-h">Mail</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-business" hidden tabindex="0" aria-labelledby="td-business-h"><div class="td-tile-head"><h3 id="td-business-h">Money and replies</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-money" hidden tabindex="0" aria-labelledby="td-money-h"><div class="td-tile-head"><h3 id="td-money-h">Money</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-inbox" hidden tabindex="0" aria-labelledby="td-inbox-h"><div class="td-tile-head"><h3 id="td-inbox-h">From your inbox</h3></div><div class="td-body"></div></section>
               </div>
             </section>
             <section class="td-sec" id="td-sec-her" data-sec="her" aria-labelledby="td-sec-her-h">
@@ -3187,6 +3188,106 @@
       </div>
       <p id="biz-status" class="muted small" role="status"></p>
         </section>
+        <!-- N4 (docs/MY_DETAILS.md): My details, for filling forms in your own browser (web/my-details.js). -->
+        <section class="settings-page" data-page="you-details" data-group="You" data-title="My details" hidden>
+      <p class="muted small page-lead">What you type into forms again and again, so Sara can fill a web form in your own browser for you (you review every field on your computer, and you press Submit). Only you see these; leave out anything you don't want to use. Never passwords, card numbers or Social Security numbers: Sara refuses to keep them. <a href="/help#my-details" target="_blank" rel="noopener">How My details work</a></p>
+      <h3>Name and contact <button type="button" class="tip" data-tip="Your name as forms want it, your emails and phone numbers. The first email and the mobile phone are used unless a form asks for the other one.">?</button></h3>
+      <div class="row-grid">
+        <label>First name <input id="md-first" maxlength="120" autocomplete="off"></label>
+        <label>Last name <input id="md-last" maxlength="120" autocomplete="off"></label>
+        <label>Email <input id="md-email" type="email" maxlength="120" autocomplete="off"></label>
+        <label>Work email <input id="md-work-email" type="email" maxlength="120" autocomplete="off"></label>
+        <label>Mobile phone <input id="md-mobile" type="tel" maxlength="40" autocomplete="off"></label>
+        <label>Home phone <input id="md-home-phone" type="tel" maxlength="40" autocomplete="off"></label>
+        <label>Work phone <input id="md-work-phone" type="tel" maxlength="40" autocomplete="off"></label>
+      </div>
+      <h3>Home address <button type="button" class="tip" data-tip="Used for forms unless you ask for another address (“use my work address”).">?</button></h3>
+      <div class="row-grid">
+        <label>Street address <input id="md-home-line1" maxlength="120" autocomplete="off"></label>
+        <label>Apt, suite, unit <input id="md-home-line2" maxlength="120" autocomplete="off"></label>
+        <label>City <input id="md-home-city" maxlength="120" autocomplete="off"></label>
+        <label>State <input id="md-home-state" maxlength="120" autocomplete="off"></label>
+        <label>ZIP code <input id="md-home-zip" maxlength="10" autocomplete="off"></label>
+        <label>Country <input id="md-home-country" maxlength="120" autocomplete="off"></label>
+      </div>
+      <h3>Work address <button type="button" class="tip" data-tip="For forms about your job: an employer, a delivery to the office.">?</button></h3>
+      <div class="row-grid">
+        <label>Street address <input id="md-work-line1" maxlength="120" autocomplete="off"></label>
+        <label>Apt, suite, unit <input id="md-work-line2" maxlength="120" autocomplete="off"></label>
+        <label>City <input id="md-work-city" maxlength="120" autocomplete="off"></label>
+        <label>State <input id="md-work-state" maxlength="120" autocomplete="off"></label>
+        <label>ZIP code <input id="md-work-zip" maxlength="10" autocomplete="off"></label>
+        <label>Country <input id="md-work-country" maxlength="120" autocomplete="off"></label>
+      </div>
+      <h3>Shipping address <button type="button" class="tip" data-tip="Where packages should go, when it isn’t your home.">?</button></h3>
+      <div class="row-grid">
+        <label>Street address <input id="md-ship-line1" maxlength="120" autocomplete="off"></label>
+        <label>Apt, suite, unit <input id="md-ship-line2" maxlength="120" autocomplete="off"></label>
+        <label>City <input id="md-ship-city" maxlength="120" autocomplete="off"></label>
+        <label>State <input id="md-ship-state" maxlength="120" autocomplete="off"></label>
+        <label>ZIP code <input id="md-ship-zip" maxlength="10" autocomplete="off"></label>
+        <label>Country <input id="md-ship-country" maxlength="120" autocomplete="off"></label>
+      </div>
+      <h3>Date of birth and sizes <button type="button" class="tip" data-tip="Optional. Date of birth as 1985-04-23. Sizes as you buy them (M, 32x30, 10.5) for order forms and finding things in your size.">?</button></h3>
+      <div class="row-grid">
+        <label>Date of birth <input id="md-birth" type="date" autocomplete="off"></label>
+        <label>Shirt size <input id="md-shirt" maxlength="20" autocomplete="off"></label>
+        <label>Pants size <input id="md-pants" maxlength="20" autocomplete="off"></label>
+        <label>Dress size <input id="md-dress" maxlength="20" autocomplete="off"></label>
+        <label>Shoe size <input id="md-shoe" maxlength="20" autocomplete="off"></label>
+      </div>
+      <h3>Vehicles <button type="button" class="tip" data-tip="Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.">?</button></h3>
+      <div class="row-grid">
+        <label>Make <input id="md-v1-make" maxlength="40" autocomplete="off"></label>
+        <label>Model <input id="md-v1-model" maxlength="40" autocomplete="off"></label>
+        <label>Year <input id="md-v1-year" maxlength="4" inputmode="numeric" autocomplete="off"></label>
+        <label>License plate <input id="md-v1-plate" maxlength="40" autocomplete="off"></label>
+        <label>VIN <input id="md-v1-vin" maxlength="17" autocomplete="off"></label>
+      </div>
+      <div class="row-grid">
+        <label>Make <input id="md-v2-make" maxlength="40" autocomplete="off"></label>
+        <label>Model <input id="md-v2-model" maxlength="40" autocomplete="off"></label>
+        <label>Year <input id="md-v2-year" maxlength="4" inputmode="numeric" autocomplete="off"></label>
+        <label>License plate <input id="md-v2-plate" maxlength="40" autocomplete="off"></label>
+        <label>VIN <input id="md-v2-vin" maxlength="17" autocomplete="off"></label>
+      </div>
+      <h3>Insurance <button type="button" class="tip" data-tip="The insurer and policy number (car, health, home…) for claims and appointment forms. Never your member password or card.">?</button></h3>
+      <datalist id="md-ins-kinds"><option value="Car"><option value="Health"><option value="Home"><option value="Other"></datalist>
+      <div class="row-grid">
+        <label>Kind <input id="md-i1-kind" maxlength="60" autocomplete="off" list="md-ins-kinds"></label>
+        <label>Company <input id="md-i1-company" maxlength="60" autocomplete="off"></label>
+        <label>Policy number <input id="md-i1-policy" maxlength="60" autocomplete="off"></label>
+      </div>
+      <div class="row-grid">
+        <label>Kind <input id="md-i2-kind" maxlength="60" autocomplete="off" list="md-ins-kinds"></label>
+        <label>Company <input id="md-i2-company" maxlength="60" autocomplete="off"></label>
+        <label>Policy number <input id="md-i2-policy" maxlength="60" autocomplete="off"></label>
+      </div>
+      <h3>Loyalty numbers <button type="button" class="tip" data-tip="Store rewards and membership numbers. A form for that store gets its own number. A payment card number is refused here.">?</button></h3>
+      <div class="row-grid">
+        <label>Store <input id="md-l1-store" maxlength="60" autocomplete="off"></label>
+        <label>Number <input id="md-l1-number" maxlength="60" autocomplete="off"></label>
+        <label>Store <input id="md-l2-store" maxlength="60" autocomplete="off"></label>
+        <label>Number <input id="md-l2-number" maxlength="60" autocomplete="off"></label>
+      </div>
+      <div class="row-grid">
+        <label>Store <input id="md-l3-store" maxlength="60" autocomplete="off"></label>
+        <label>Number <input id="md-l3-number" maxlength="60" autocomplete="off"></label>
+        <label>Store <input id="md-l4-store" maxlength="60" autocomplete="off"></label>
+        <label>Number <input id="md-l4-number" maxlength="60" autocomplete="off"></label>
+      </div>
+      <h3>Work and emergency contact <button type="button" class="tip" data-tip="Your employer and job title, and who to call in an emergency (name, how they're related, phone), for job, school and medical forms.">?</button></h3>
+      <div class="row-grid">
+        <label>Employer <input id="md-employer" maxlength="120" autocomplete="off"></label>
+        <label>Job title <input id="md-job" maxlength="120" autocomplete="off"></label>
+        <label>Emergency contact <input id="md-em-name" maxlength="120" autocomplete="off"></label>
+        <label>Relationship <input id="md-em-relation" maxlength="120" autocomplete="off"></label>
+        <label>Emergency phone <input id="md-em-phone" type="tel" maxlength="40" autocomplete="off"></label>
+      </div>
+      <h3>Store checks in your browser <button type="button" class="tip" data-tip="When a store blocks Sara, she can check its price and stock in your own browser (you approve each step on your computer). Afterwards she closes that tab, unless you tick this.">?</button></h3>
+      <label class="row"><input id="md-leave-tab" type="checkbox"> Leave the store’s tab open after a check</label>
+      <p id="md-status" class="muted small" role="status"></p>
+        </section>
         <section class="settings-page" data-page="you-adult" data-group="You" data-title="Adult mode" hidden>
       <p id="adult-state" class="small" role="status"></p>
       <div id="adult-off-box" data-nodirty>
@@ -3279,6 +3380,9 @@
       <p class="muted small page-lead">Your own mailboxes: Gmail, Outlook.com and Microsoft 365, Yahoo, iCloud, Fastmail and more. She reads and searches them; drafting, sending, organizing and calendar changes always ask you first, and nothing is ever deleted for good.</p>
       <p id="ma-status" class="muted small" role="status"></p>
       <div id="ma-page"></div>
+      <h3>Inbox helper <button type="button" class="tip" data-tip="She turns new email into one-tap cards on Today: bills, receipts, packages, trips, appointments and paid invoices. Suggestions only until you turn on “do it for me” for a kind. Read only: she never sends, pays or deletes anything here.">?</button></h3>
+      <p id="ih-status" class="muted small" role="status"></p>
+      <div id="ih-page" data-nodirty data-noauto></div>
         </section>
         <section class="settings-page" data-page="ab-google" data-group="Add-ons" data-title="Gmail and Calendar" data-owner-only hidden>
       <p id="g-status" class="muted small" role="status"></p>

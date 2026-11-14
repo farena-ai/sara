@@ -493,6 +493,58 @@
       "The time the weekly review arrives.",
       "planner"
     ],
+    "md-home-phone": [
+      "Your name as forms want it, your emails and phone numbers. The first email and the mobile phone are used unless a form asks for the other one.",
+      "my-details"
+    ],
+    "md-work-phone": [
+      "Your name as forms want it, your emails and phone numbers. The first email and the mobile phone are used unless a form asks for the other one.",
+      "my-details"
+    ],
+    "md-v2-make": [
+      "Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.",
+      "my-details"
+    ],
+    "md-v2-model": [
+      "Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.",
+      "my-details"
+    ],
+    "md-v2-year": [
+      "Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.",
+      "my-details"
+    ],
+    "md-v2-plate": [
+      "Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.",
+      "my-details"
+    ],
+    "md-v2-vin": [
+      "Make, model, year, plate and the 17-character VIN, for insurance, parking and service forms. Up to two here.",
+      "my-details"
+    ],
+    "md-i2-kind": [
+      "The insurer and policy number (car, health, home…) for claims and appointment forms. Never your member password or card.",
+      "my-details"
+    ],
+    "md-i2-company": [
+      "The insurer and policy number (car, health, home…) for claims and appointment forms. Never your member password or card.",
+      "my-details"
+    ],
+    "md-i2-policy": [
+      "The insurer and policy number (car, health, home…) for claims and appointment forms. Never your member password or card.",
+      "my-details"
+    ],
+    "md-l3-number": [
+      "Store rewards and membership numbers. A form for that store gets its own number. A payment card number is refused here.",
+      "my-details"
+    ],
+    "md-l4-store": [
+      "Store rewards and membership numbers. A form for that store gets its own number. A payment card number is refused here.",
+      "my-details"
+    ],
+    "md-l4-number": [
+      "Store rewards and membership numbers. A form for that store gets its own number. A payment card number is refused here.",
+      "my-details"
+    ],
     "biz-name": [
       "The name at the top of your invoices and quotes. Example: Alex Design LLC, or just your own name.",
       "business"
@@ -1674,6 +1726,10 @@
     "you-leave-by": [
       "A heads-up when it’s time to leave for calendar events that have an address.",
       "planner"
+    ],
+    "you-details": [
+      "What you type into forms again and again (name, addresses, sizes, vehicle, insurance and loyalty numbers), so Sara can fill web forms in your own browser. Never passwords or card numbers.",
+      "my-details"
     ],
     "you-business": [
       "Your business name, address, logo and how to get paid, for the invoices and quotes Sara makes. Plus the currency, tax rate and payment terms she uses by default.",

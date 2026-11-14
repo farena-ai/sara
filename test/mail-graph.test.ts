@@ -119,6 +119,25 @@ test('draft and send ask first; replies stay in the thread', async () => {
   assert.equal(fake.sent.length, 1);
 });
 
+// N4: Library files ride along as Graph file attachments; the names are read back from the saved message.
+test('N4: Outlook drafts and sends carry attachments, read back by name', async () => {
+  const withFiles = new Map<string, Tool>();
+  const files = (ids: unknown) => (ids as string[]).map((id) => ({ name: `Invoice ${id}.pdf`, mime: 'application/pdf', data: Buffer.from(`%PDF-1.4 ${id}`) }));
+  for (const t of createMailTools({ files, accounts, organizer, google: new Map(), timeZone: () => 'America/Chicago' })) withFiles.set(t.spec.name, t);
+  assert.ok(JSON.stringify(withFiles.get('mail_draft')!.spec.parameters).includes('attachments'));
+  assert.match(withFiles.get('mail_draft')!.summarize!({ to: 'bob@work.com', subject: 'Invoice', attachments: ['12'] }), /attached: #12/);
+  const out = await withFiles.get('mail_draft')!.run({ to: 'bob@work.com', subject: 'Invoice INV-1', body: 'Attached.', attachments: ['12'] }, ctx());
+  assert.match(out, /with Invoice 12\.pdf\. Nothing was sent/);
+  assert.match(out, /Verified: the draft has the attachment Invoice 12\.pdf \(read back\)/);
+  const before = fake.sent.length;
+  const sent = await withFiles.get('mail_send')!.run({ to: 'bob@work.com', subject: 'Two files', body: 'Both.', attachments: ['7', '8'] }, ctx());
+  assert.equal(fake.sent.length, before + 1);
+  assert.deepEqual((fake.sent.at(-1) as { files: { name: string }[] }).files.map((f) => f.name), ['Invoice 7.pdf', 'Invoice 8.pdf']);
+  assert.match(sent, /Verified: the sent email has the attachments Invoice 7\.pdf, Invoice 8\.pdf/);
+  // A tool set without a file reader refuses attachments instead of sending without them.
+  await assert.rejects(tool('mail_draft').run({ to: 'bob@work.com', subject: 'x', body: 'y', attachments: ['1'] }, ctx()), /not available/);
+});
+
 test('organize: count first, the card says Outlook, archive keeps immutable ids, undo puts it back', async () => {
   const org = tool('mail_organize');
   assert.equal(org.defaultPermission, 'ask');

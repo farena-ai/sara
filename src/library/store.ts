@@ -832,6 +832,11 @@ export class LibraryStore {
     return { docs: Number(r.docs), passages: Number(r.passages), bytes: Number(r.bytes) };
   }
 
+  /** N3: puts a kept document in a collection (the Library folder the inbox helper files it into). */
+  setCollection(id: number, collection: string | null): void {
+    this.db.prepare('UPDATE library_docs SET collection = ? WHERE id = ?').run(collection ? collection.trim().slice(0, 200) : null, id);
+  }
+
   /** Phase 110: renames a collection (the documents in it keep their read-only names). */
   renameCollection(from: string, to: string): number {
     return Number(this.db.prepare('UPDATE library_docs SET collection = ? WHERE collection = ?').run(to.trim().slice(0, 200), from).changes);

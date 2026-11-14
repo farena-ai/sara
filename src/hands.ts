@@ -128,6 +128,8 @@ export interface HandsHello {
   fileScope?: FileScope;
   /** Desktop approval cards are answered on the computer, never in the phone/web chat. */
   approvalsHere?: boolean;
+  /** N4: its desktop card shows a form fill's whole review list (d.type with its review list), always asked. */
+  reviewCards?: boolean;
   /** Phase 93: the person's separate walk-away choice on this computer. */
   walkAway?: boolean;
   /** Phase 90: the saved logins there, names and sites only. */
@@ -233,6 +235,8 @@ export interface HandsDeviceView {
   /** Phase 92: what the computer may do for desktop look (Mac: Screen Recording, Accessibility). */
   perms?: HandsHello['perms'];
   approvalsHere?: boolean;
+  /** N4: the app shows a form fill's review list on its card. */
+  reviewCards?: boolean;
   walkAway?: boolean;
   screens?: number;
   /** Not connected because the web server in front of Sara blocks the connection (the last attempt). */
@@ -433,6 +437,7 @@ export class HandsHub {
         fileRoots: fileRootsOf(m.fileRoots),
         ...(FILE_SCOPES.includes(m.fileScope as FileScope) ? { fileScope: m.fileScope as FileScope } : {}),
         approvalsHere: m.approvalsHere === true,
+        ...(m.reviewCards === true ? { reviewCards: true } : {}),
         walkAway: m.walkAway === true,
         logins: loginViews(m.logins),
         ...(m.vault && typeof m.vault === 'object' ? { vault: { kind: plain((m.vault as Record<string, unknown>).kind, 20), verify: (m.vault as Record<string, unknown>).verify === true } } : {}),
@@ -727,6 +732,7 @@ export class HandsHub {
         ...(h?.relockMinutes ? { relockMinutes: h.relockMinutes } : {}),
         ...(h?.perms ? { perms: h.perms } : {}),
         ...(h ? { approvalsHere: h.approvalsHere === true, walkAway: h.walkAway === true } : {}),
+        ...(h?.reviewCards ? { reviewCards: true } : {}),
         ...(h?.screens ? { screens: h.screens.length } : {}),
         ...(blocked ? { blocked } : {}),
       });
