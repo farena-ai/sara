@@ -50,11 +50,14 @@
   <link rel="stylesheet" href="/v4-living.css">
   <link rel="stylesheet" href="/v4-pages.css">
   <link rel="stylesheet" href="/offline-view.css">
+  <link rel="stylesheet" href="/get-started.css">
   <script type="module" src="/app.js"></script>
 </head>
 <body>
   <!-- 2.8: the slow aurora behind the glass (web/polish.css; still with reduced motion) -->
   <div id="aurora" class="aurora" aria-hidden="true"><i class="au-1"></i><i class="au-2"></i><i class="au-3"></i><i class="au-grain"></i></div>
+  <!-- R9: the first Tab stop (before the new-look notice and the sidebar). -->
+  <a id="skip-main" class="skip-main" href="#chat">Skip to main content</a>
   <!-- V4a (docs/ops/V4_DESIGN.md): the ambient field, very faint; faster while she works (web/v4.js). -->
   <canvas id="v4-field" class="v4-field" aria-hidden="true"></canvas>
   <div id="shell-drag" class="shell-drag" aria-hidden="true"></div>
@@ -179,7 +182,6 @@
 
   <!-- App -->
   <section id="main" class="screen" hidden>
-    <a id="skip-main" class="skip-main" href="#chat">Skip to main content</a>
     <!-- V4a: the live status strip. Every chip is something real she is doing; a chip with nothing to
          show is hidden (web/v4.js). The .v4-orb spans are V4b's mount points for her presence orb. -->
     <header id="v4-strip" class="v4-strip" aria-label="What she is doing now">
@@ -217,6 +219,8 @@
           <div id="side-more-list" class="side-more-list">
           <div class="side-dest" data-dest="today"><button class="side-go" id="open-today" type="button" title="Today (Alt+T)"><i class="ic" data-icon="today"></i><span>Today</span></button></div>
           <div class="side-dest" data-dest="planner"><button class="side-go" id="open-planner" type="button" title="Planner: to-dos, reminders, notes (Alt+P)"><i class="ic" data-icon="planner"></i><span>Planner</span></button></div>
+          <div class="side-dest" data-dest="errands"><button class="side-go" id="open-errands" type="button" title="Errands: goals she takes care of from start to finish, and what she needs from you"><i class="ic" data-icon="todo"></i><span>Errands</span></button></div>
+          <div class="side-dest" data-dest="family"><button class="side-go" id="open-family" type="button" title="Family: chores and allowance, grocery lists, kid-safe mode"><i class="ic" data-icon="group"></i><span>Family</span></button></div>
           <div class="side-dest" data-dest="memory"><button class="side-go" id="open-memory" type="button" title="What she remembers (Alt+M)"><i class="ic" data-icon="memory"></i><span>Memory</span></button></div>
           <div class="side-dest" data-dest="library"><button class="side-go" id="open-library" type="button" title="Library: documents she keeps and knows (Alt+L)"><i class="ic" data-icon="library"></i><span>Library</span></button></div>
           <div class="side-dest" data-dest="scrapbook"><button class="side-go" id="open-scrapbook" type="button" title="Scrapbook (Alt+B)"><i class="ic" data-icon="scrapbook"></i><span>Scrapbook</span></button></div>
@@ -484,6 +488,9 @@
             <div id="td-start-list" class="today-start-list"></div>
             <details id="td-start-optional"><summary>Optional setup</summary><div id="td-start-optional-list" class="today-start-list"></div></details>
           </section>
+          <!-- R2: Finish setting up (the guided setup's progress) and the sample space's example cards (web/get-started.js). -->
+          <div id="td-gs" class="gs-today" hidden></div>
+          <section id="td-examples" class="today-start gs-examples-sec" hidden></section>
           <!-- Phase 121 (BEGIN §4.9, §5.9): a red safety line and, while nothing runs, three routine cards. -->
           <div id="td-begin" class="td-begin" hidden></div>
           <div id="td-away" class="td-away" hidden>
@@ -508,6 +515,8 @@
                 <section class="today-card td-tile" id="td-money" hidden tabindex="0" aria-labelledby="td-money-h"><div class="td-tile-head"><h3 id="td-money-h">Money</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-inbox" hidden tabindex="0" aria-labelledby="td-inbox-h"><div class="td-tile-head"><h3 id="td-inbox-h">From your inbox</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-shared" hidden tabindex="0" aria-labelledby="td-shared-h"><div class="td-tile-head"><h3 id="td-shared-h">Shared with you</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-errands" hidden tabindex="0" aria-labelledby="td-errands-h"><div class="td-tile-head"><h3 id="td-errands-h">Errands</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-family" hidden tabindex="0" aria-labelledby="td-family-h"><div class="td-tile-head"><h3 id="td-family-h">Family</h3></div><div class="td-body"></div></section>
               </div>
             </section>
             <section class="td-sec" id="td-sec-her" data-sec="her" aria-labelledby="td-sec-her-h">
@@ -688,7 +697,7 @@
       <h2>Team <button type="button" class="tip" data-tip="For bigger jobs she leads a small team: she plans the work, helpers (researcher, coder, tester, reviewer, writer, designer, Claude Code / Grok Build) each do one part with their own model and tools, failures go back for a fix, and she reports only what really happened. Risky steps still wait for your OK.">?</button></h2>
       <p class="muted small">Ask her in any chat ("get the team to add a dark mode with tests"), or start one here. Progress shows live; you can stop a helper, send one a message, or stop the whole task.</p>
       <div class="team-new">
-        <textarea id="team-goal" rows="2" maxlength="6000" placeholder="e.g. Add a dark mode to my website in the main workspace, with tests, and get it reviewed"></textarea>
+        <textarea id="team-goal" aria-label="What the team should do" rows="2" maxlength="6000" placeholder="e.g. Add a dark mode to my website in the main workspace, with tests, and get it reviewed"></textarea>
         <button id="team-start" type="button">Start</button>
       </div>
       <div class="add-row team-budget-row">
@@ -1120,7 +1129,7 @@
 
       <h3>What she's into lately</h3>
       <ul id="sd-threads" class="threads"></ul>
-      <div class="add-row"><input id="sd-thread-new" placeholder="Give her something to be into, e.g. learning the guitar"><button id="sd-thread-add" type="button">Add</button></div>
+      <div class="add-row"><input id="sd-thread-new" aria-label="Give her something to be into" placeholder="Give her something to be into, e.g. learning the guitar"><button id="sd-thread-add" type="button">Add</button></div>
       <p class="muted small">Her own ongoing things (a book, a hobby, a little project). They move on a little each week. Some get finished and new ones begin; ones you add are kept.</p>
 
       <h3>Inner life</h3>
@@ -1165,7 +1174,7 @@
       <h2>Tags</h2>
       <p class="muted small">Tags help you find conversations: tap one in the sidebar to see only those. Up to 8.</p>
       <div id="tags-chips" class="chips"></div>
-      <div class="add-row"><input id="tags-new" maxlength="24" placeholder="New tag, e.g. health"><button id="tags-add" type="button" class="ghost">Add</button></div>
+      <div class="add-row"><input id="tags-new" aria-label="New tag" maxlength="24" placeholder="New tag, e.g. health"><button id="tags-add" type="button" class="ghost">Add</button></div>
       <p class="actions-left"><button id="tags-save" type="button">Save</button> <span id="tags-status" class="muted small" role="status"></span></p>
     </form>
   </dialog>
@@ -1203,8 +1212,8 @@
 
       <div class="tab-panel" data-panel="tasks">
         <div class="add-row">
-          <input id="task-title" placeholder="Add a task">
-          <input id="task-project" placeholder="Project (optional)" list="project-names">
+          <input id="task-title" aria-label="Add a task" placeholder="Add a task">
+          <input id="task-project" aria-label="Project (optional)" placeholder="Project (optional)" list="project-names">
           <input id="task-due" type="date" title="Due date (optional)">
           <select id="task-priority" title="Priority"><option value="normal">Normal</option><option value="high">High</option><option value="low">Low</option></select>
           <button id="task-add" type="button">Add</button>
@@ -1465,11 +1474,40 @@
         </details>
       </div>
       <p class="small"><button id="sb-to-moments" type="button" class="ghost small">Open our moments (the album with her captions)</button></p>
-      <div class="add-row"><input id="sb-joke" placeholder="Add an inside joke…"><button id="sb-joke-add" type="button">Add</button></div>
+      <div class="add-row"><input id="sb-joke" aria-label="Add an inside joke…" placeholder="Add an inside joke…"><button id="sb-joke-add" type="button">Add</button></div>
     </form>
   </dialog>
 
   <!-- Phase 70: Our moments (the photo album with her captions) -->
+  <dialog id="errands" aria-label="Errands">
+    <form method="dialog" class="settings-body errands">
+      <h2>Errands <span id="er-needs-count" class="er-chip er-waiting_you" hidden></span></h2>
+      <p class="muted small">Give her a goal and she plans it, does it step by step through your mail, forms and browser, follows up, and shows her progress here. She asks before every email, form and choice; payments are always yours to make.</p>
+      <div class="add-row er-new" data-nodirty>
+        <span class="er-tipwrap"><button type="button" class="tip" data-tip="She drafts the steps first (nothing runs until you press Start). Ready plans: refund a charge, book a service, cancel a subscription, a complaint letter, quotes from 3 contractors.">?</button></span>
+        <input id="er-goal" maxlength="300" placeholder="What should she take care of? (get this charge refunded, book an oil change…)" aria-label="What should she take care of?">
+        <select id="er-template" aria-label="Ready plan"><option value="">Pick the plan from my words</option></select>
+        <button id="er-plan" type="button" class="small">Plan it</button>
+      </div>
+      <p id="er-status" class="muted small" role="status"></p>
+      <div id="er-list" class="er-list"></div>
+    </form>
+  </dialog>
+  <!-- R8 (docs/FAMILY.md): Family (chores and allowance, grocery lists, kid-safe mode) -->
+  <dialog id="family" aria-label="Family">
+    <form method="dialog" class="settings-body family">
+      <h2>Family</h2>
+      <p class="muted small">Chores and allowance, grocery lists everyone at home can tick off, and kid-safe mode for your kids. Sara never moves money: payouts are a record.</p>
+      <div class="fam-tabs" role="group" aria-label="Family">
+        <button type="button" class="ghost small" data-tab="chores">Chores</button>
+        <button type="button" class="ghost small" data-tab="money">Allowance</button>
+        <button type="button" class="ghost small" data-tab="grocery">Groceries</button>
+        <button type="button" class="ghost small" data-tab="kids">Kids</button>
+      </div>
+      <p id="fam-status" class="muted small" role="status"></p>
+      <div id="fam-body" class="fam-body" data-nodirty data-noauto></div>
+    </form>
+  </dialog>
   <dialog id="moments" aria-label="Our moments">
     <form method="dialog" class="settings-body moments">
       <h2>Our moments</h2>
@@ -1706,7 +1744,7 @@
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
         <div class="lib-tools" data-nodirty>
-          <input id="lib-q" type="search" placeholder="Search her library">
+          <input id="lib-q" aria-label="Search her library" type="search" placeholder="Search her library">
         </div>
         <div id="lib-hits" class="lib-hits" hidden></div>
         <p id="lib-summary" class="muted small"></p>
@@ -1803,7 +1841,7 @@
       <div class="mem-tools">
         <button id="mem-timeline" type="button" class="ghost small" title="Your story: your time together, in order">🕰 Your story</button>
         <button id="mem-map" type="button" class="ghost small" title="Memory map: what she remembers and how it connects">Memory map</button>
-        <select id="mem-kind">
+        <select id="mem-kind" aria-label="Kind of memory">
           <option value="">Everything</option>
           <option value="fact">About you</option>
           <option value="date">Dates that matter</option>
@@ -1816,7 +1854,7 @@
           <option value="lesson">Lessons from her runs</option>
           <option value="pinned">Pinned (never fade)</option>
         </select>
-        <input id="mem-q" placeholder="Search memories">
+        <input id="mem-q" aria-label="Search memories" placeholder="Search memories">
       </div>
       <div id="mem-upcoming" class="mem-upcoming" hidden></div>
       <div class="add-row mem-add">
@@ -1960,12 +1998,12 @@
         </section>
         <section>
           <h3>To-dos</h3>
-          <div class="add-row"><input id="pp-task" placeholder="Add a to-do for this project"><button id="pp-task-add" type="button">Add</button></div>
+          <div class="add-row"><input id="pp-task" aria-label="Add a to-do for this project" placeholder="Add a to-do for this project"><button id="pp-task-add" type="button">Add</button></div>
           <div id="pp-tasks" class="pp-list"></div>
         </section>
         <section>
           <h3>Notes</h3>
-          <div class="add-row"><input id="pp-note" placeholder="Write a quick note"><button id="pp-note-add" type="button">Add</button></div>
+          <div class="add-row"><input id="pp-note" aria-label="Write a quick note" placeholder="Write a quick note"><button id="pp-note-add" type="button">Add</button></div>
           <div id="pp-notes" class="pp-list"></div>
         </section>
         <section>
@@ -2174,7 +2212,7 @@
       <button type="button" class="pick-card" role="radio" data-kind="git" aria-checked="false"><strong>A git address</strong><span class="muted small">An https address of a repository with one or more skills.</span></button>
       <button id="ski-path-row" type="button" class="pick-card" role="radio" data-kind="folder" aria-checked="false"><strong>A folder on this server</strong><span class="muted small">The full path of a skill folder on the server.</span></button>
     </div>
-    <div id="ski-zip-row" class="add-row"><input id="ski-file" type="file" accept=".zip,application/zip"></div>
+    <div id="ski-zip-row" class="add-row"><input id="ski-file" aria-label="Skill file (.zip)" type="file" accept=".zip,application/zip"></div>
     <div id="ski-url-row" class="skl-form" hidden><label>Git address <input id="ski-url" maxlength="500" placeholder="https://github.com/owner/skills" autocomplete="off" data-nodirty></label></div>
     <div id="ski-folder-row" class="skl-form" hidden><label>Folder on the server <input id="ski-path" maxlength="1000" placeholder="/home/alex/skills/my-skill" autocomplete="off" data-nodirty></label></div>
     <div class="add-row"><button id="ski-look" type="button">Look at it</button></div>
@@ -2201,7 +2239,7 @@
       <button type="button" class="pick-card" role="radio" data-kind="git" aria-checked="false"><strong>A git address</strong><span class="muted small">An https address of the plugin's repository.</span></button>
       <button type="button" class="pick-card" role="radio" data-kind="folder" aria-checked="false"><strong>A folder on this server</strong><span class="muted small">The full path of a plugin folder on the server.</span></button>
     </div>
-    <div id="pla-zip-row" class="add-row"><input id="pla-file" type="file" accept=".zip,application/zip"></div>
+    <div id="pla-zip-row" class="add-row"><input id="pla-file" aria-label="Add-on file (.zip)" type="file" accept=".zip,application/zip"></div>
     <div id="pla-url-row" class="skl-form" hidden><label>Git address <button type="button" class="tip" data-tip="An https address of a git repository with sara-plugin.json at its top. Only the latest commit is fetched, without hooks or submodules. Updates come only when you press Check for updates.">?</button> <input id="pla-url" maxlength="500" placeholder="https://github.com/owner/my-plugin" autocomplete="off" data-nodirty></label></div>
     <div id="pla-folder-row" class="skl-form" hidden><label>Folder on the server <button type="button" class="tip" data-tip="The full path of a folder on this server that holds sara-plugin.json, for example one of the examples in examples/plugins. It is copied; later changes there need Check for updates.">?</button> <input id="pla-path" maxlength="1000" placeholder="/home/alex/plugins/weather-alerts" autocomplete="off" data-nodirty></label></div>
     <div id="pla-look-row" class="add-row"><button id="pla-look" type="button">Look at it</button></div>
@@ -3022,6 +3060,8 @@
       <label>What you mostly do with her
         <select id="use-path"><option value="company">Company: talk, plan my day, remember things</option><option value="coding">Coding: my projects, tests, reviews</option><option value="both">Both</option></select>
       </label>
+      <!-- R2: Guided setup and the starter packs (web/get-started.js). -->
+      <div id="gs-card" class="tidy-card tidy-stack gs-card" hidden></div>
       <h3>Language</h3>
       <div class="row-grid">
         <label>Language
@@ -3202,6 +3242,12 @@
         <label>Due in (days) <input id="biz-due" type="number" min="0" max="365" step="1" value="30"></label>
       </div>
       <p id="biz-status" class="muted small" role="status"></p>
+      <!-- R6 (docs/WORK_APPS.md): the booking page and the accounting export (web/workapps.js). -->
+      <h3>Booking page <button type="button" class="tip" data-tip="A public link where people book a free time with you. Off until you turn it on; free times come from your calendars and planner.">?</button></h3>
+      <p id="wa-book-status" class="muted small" role="status"></p>
+      <div id="wa-book" data-nodirty data-noauto></div>
+      <h3>Accounting export <button type="button" class="tip" data-tip="CSV files of your invoices, expenses and time for QuickBooks Online, Xero or any spreadsheet. Files only: nothing is sent to an accounting service.">?</button></h3>
+      <div id="wa-acct" data-nodirty data-noauto></div>
         </section>
         <!-- N4 (docs/MY_DETAILS.md): My details, for filling forms in your own browser (web/my-details.js). -->
         <section class="settings-page" data-page="you-details" data-group="You" data-title="My details" hidden>
@@ -3414,6 +3460,8 @@
       <h3>Inbox helper <button type="button" class="tip" data-tip="She turns new email into one-tap cards on Today: bills, receipts, packages, trips, appointments and paid invoices. Suggestions only until you turn on “do it for me” for a kind. Read only: she never sends, pays or deletes anything here.">?</button></h3>
       <p id="ih-status" class="muted small" role="status"></p>
       <div id="ih-page" data-nodirty data-noauto></div>
+      <h3>Word and Excel files <button type="button" class="tip" data-tip="Optional, per Microsoft account: lets her read and edit Word and Excel files in OneDrive or SharePoint. Changes ask you first; OneDrive keeps the old version.">?</button></h3>
+      <div id="wa-ms" data-nodirty data-noauto></div>
         </section>
         <section class="settings-page" data-page="ab-google" data-group="Add-ons" data-title="Gmail and Calendar" data-owner-only hidden>
       <p id="g-status" class="muted small" role="status"></p>
@@ -3435,6 +3483,8 @@
         <div class="add-row"><label>Client ID <input id="g-client-id" autocomplete="off" placeholder="…apps.googleusercontent.com"></label><label>Client secret <input id="g-client-secret" type="password" autocomplete="off" placeholder="GOCSPX-…"></label><button id="g-save" type="button">Save</button></div>
         <div class="add-row"><button id="g-connect" type="button" disabled>Sign in with Google</button><button id="g-forget" type="button" class="ghost small" hidden>Remove the Google app</button></div>
       </details>
+      <h3>Docs and Sheets <button type="button" class="tip" data-tip="Optional: lets her read and edit your Google Docs and Sheets by link. Every change shows old and new and waits for your OK.">?</button></h3>
+      <div id="wa-google" data-nodirty data-noauto></div>
       <p class="muted small">Using Outlook, Yahoo, iCloud or another provider? Add it under Settings → Add-ons → Email and calendar.</p>
         </section>
         <section class="settings-page" data-page="ab-github" data-group="Coding" data-title="GitHub" data-owner-only hidden>
@@ -3571,6 +3621,15 @@
           <textarea id="atm-words" rows="2" maxlength="1000" placeholder="Every Friday at 3, fill my time sheet from my calendar and send it to me"></textarea></label>
         <div class="row"><button type="button" id="atm-preview-btn" class="small">Preview</button> <span class="muted small">Or start from:</span> <span id="atm-starters" class="row"></span></div>
         <div id="atm-preview"></div>
+      </div>
+      <!-- R9: shareable templates (src/automation-templates.ts, web/automations.js). -->
+      <h3 id="atm-tpl-h">Templates <button type="button" class="tip" data-tip="Ready-made automations to start from, or one someone shared with you. A template never holds personal data: addresses, ids, keys and files are blanks you fill in. You always see the preview first, and nothing is made until you tap Allow.">?</button></h3>
+      <div class="atm-tpl" data-nodirty data-noauto>
+        <div id="atm-gallery" class="atm-gallery" role="list" aria-labelledby="atm-tpl-h"></div>
+        <label for="atm-tpl-text">Import a template <button type="button" class="tip" data-tip="Paste a template someone shared, or open its .json file. It is checked and cleaned again here before you see the preview.">?</button></label>
+        <textarea id="atm-tpl-text" rows="3" maxlength="40000" placeholder="Paste a shared template here"></textarea>
+        <div class="row"><button type="button" id="atm-tpl-read" class="small ghost">Read it</button> <button type="button" id="atm-tpl-open" class="small ghost">Open a file…</button><input id="atm-tpl-file" type="file" accept=".json,application/json" hidden aria-label="Template file"></div>
+        <div id="atm-tpl-preview"></div>
       </div>
       <p id="atm-status" class="muted small" role="status"></p>
       <h3 id="atm-h">Your automations <button type="button" class="tip" data-tip="On/off, History (the last 50 runs with what each step did), Edit for the name and time, and Ask Sara to change it. Three failed runs in a row pause one and tell you why.">?</button></h3>
@@ -3964,6 +4023,7 @@
           <p class="muted small">These are saved on this phone. Reply right from a notification, or share text, links and photos to her from any app with the Share button.</p>
         </div>
       </div>
+      <div id="ph-install" class="kit-card ios-install" hidden></div>
       <div id="push-web">
       <h3>Notifications</h3>
       <p class="muted small">Get her reminders and messages on this device even when Sara isn't open. On iPhone, first add Sara to your Home Screen (Share → Add to Home Screen) and open her from there.</p>
@@ -3988,6 +4048,81 @@
         <p class="small"><button id="apns-save" type="button">Save key</button> <button id="apns-remove" type="button" class="ghost" hidden>Remove</button></p>
       </details>
       <p id="install-row" class="small" hidden><button id="install-app" type="button" class="ghost">Install Sara as an app</button></p>
+      <!-- R5 (docs/PHONE_CALLS.md): phone calls in and out, ready but switched off (web/phone-calls.js). -->
+      <div class="kit-card tel-card" id="tel-card" data-owner-only>
+        <div class="card-head"><h3>Phone calls <button type="button" class="tip" data-tip="She answers and places real phone calls in her own voice through your own phone provider account. Nothing is bought for you; it stays off until you set it up.">?</button></h3><span id="tel-chip" class="status-chip" role="status">Switched off</span></div>
+        <p class="muted small">Bring your own provider account and number (Twilio or one with the same API). Strangers are screened: she takes a message. Every call she places asks you first.</p>
+        <div id="tel-host" class="tel-form" data-nodirty data-noauto>
+          <label class="row"><input id="tel-on" type="checkbox"> Switched on</label>
+          <label>Provider <select id="tel-provider"><option value="twilio">Twilio (or a Twilio-compatible provider)</option><option value="sip">SIP or WebRTC (not built in yet)</option></select></label>
+          <div class="row-2">
+            <label>Account SID <input id="tel-sid" autocomplete="off" spellcheck="false" placeholder="not set"></label>
+            <label>Auth token <input id="tel-token" type="password" autocomplete="off" placeholder="not set"></label>
+          </div>
+          <p class="small"><button id="tel-creds-save" type="button" class="ghost">Save to the vault</button> <button id="tel-creds-remove" type="button" class="ghost" hidden>Remove</button> <span id="tel-creds-state" class="muted small" role="status"></span></p>
+          <div class="row-2">
+            <label>Her phone number <input id="tel-number" inputmode="tel" autocomplete="off" placeholder="+15125550100"></label>
+            <label>Your number <input id="tel-owner" inputmode="tel" autocomplete="off" placeholder="+15125550199"></label>
+          </div>
+          <label>Public address of this server <input id="tel-url" inputmode="url" spellcheck="false" placeholder="https://sara.example.com"></label>
+          <label>People who get through (one per line: name, number) <textarea id="tel-allow" rows="3" spellcheck="false" placeholder="Mom, +15125550142"></textarea></label>
+          <label class="row"><input id="tel-record" type="checkbox"> Record calls she places (she tells them first)</label>
+          <div class="row-2">
+            <label>Longest call, in minutes <input id="tel-max" type="number" min="1" max="60" step="1"></label>
+            <label>Your price per minute, US dollars <input id="tel-price" type="number" min="0" step="0.001" placeholder="from your provider"></label>
+          </div>
+          <p class="muted small" id="tel-estimate"></p>
+          <ul id="tel-missing" class="small tel-missing"></ul>
+          <p class="muted small" id="tel-urls"></p>
+          <p class="small"><button id="tel-test" type="button" disabled>Test call to my number</button> <span id="tel-test-state" class="muted small" role="status"></span></p>
+          <div id="tel-calls" class="list tel-calls"></div>
+        </div>
+      </div>
+        </section>
+        <section class="settings-page" data-page="co-shortcuts" data-group="Connections" data-title="iPhone Shortcuts" hidden>
+      <p class="muted small page-lead">Share to Sara from any app's Share button and ask her with Siri, on an iPhone, without an app from the App Store. Apple Shortcuts does it with a token for each iPhone. <button type="button" class="tip" data-tip="A token works only for these shortcuts: sharing into your Library and a chat, asking her, and the widget lines. It can't open your chats, settings or files. Remove it here and its shortcuts stop at once.">?</button></p>
+      <div id="ish-install" class="kit-card ios-install" hidden></div>
+      <p id="ish-private" class="skl-note" hidden>Private local mode is on: the shortcuts get no answer until it is off.</p>
+      <div class="kit-card">
+      <h3>Tokens <button type="button" class="tip" data-tip="One token for each iPhone. It is shown once and only a fingerprint of it is kept here. Household members make their own, for their own space.">?</button></h3>
+      <div id="ish-tokens" class="list"></div>
+      <div class="ish-form" data-nodirty data-noauto>
+        <label><span>Name of the iPhone <button type="button" class="tip" data-tip="So you can tell your tokens apart here and under Devices and sign-in, like &quot;Alex's iPhone&quot;.">?</button></span> <input id="ish-label" maxlength="60" placeholder="e.g. Alex's iPhone" autocomplete="off"></label>
+        <label class="row"><input id="ish-share" type="checkbox" checked> <span>Share to Sara <button type="button" class="tip" data-tip="Photos, files, links and text from the Share button go to your Library and a new chat, ready for you to send.">?</button></span></label>
+        <label class="row"><input id="ish-ask" type="checkbox" checked> <span>Ask Sara and the widget <button type="button" class="tip" data-tip="Siri or a shortcut asks her something and gets a short answer back. The widget shortcut shows her next reminder, your watches and what waits for you.">?</button></span></label>
+        <p class="small"><button id="ish-make" type="button">Make a token</button> <span id="ish-status" class="muted small" role="status"></span></p>
+      </div>
+      <div id="ish-new" class="ish-new" hidden>
+        <p class="small"><strong>Your new token</strong> (shown only once):</p>
+        <p class="small ish-copy"><code id="ish-new-token" data-raw></code></p>
+        <img id="ish-new-qr" class="ish-qr" alt="QR code of the token" width="180" height="180">
+        <p class="muted small">Copy it into the shortcut on the iPhone, or scan the QR code with the iPhone's camera and copy the text. The steps below already have it filled in.</p>
+      </div>
+      </div>
+      <div id="ish-ready" class="kit-card" hidden>
+        <h3>Get the ready-made shortcuts</h3>
+        <p class="muted small">Open a link on the iPhone and tap Set Up Shortcut. It asks for your server's address (<code id="ish-ready-server" data-raw></code>) and your token.</p>
+        <p class="small"><a id="ish-get-share" class="btn-link" target="_blank" rel="noopener" hidden>Get Share to Sara</a> <a id="ish-get-ask" class="btn-link" target="_blank" rel="noopener" hidden>Get Ask Sara</a></p>
+      </div>
+      <div class="kit-card">
+        <h3>Make “Share to Sara”</h3>
+        <ol id="ish-steps-share" class="small ish-steps"></ol>
+      </div>
+      <div class="kit-card">
+        <h3>Make “Ask Sara” for Siri</h3>
+        <ol id="ish-steps-ask" class="small ish-steps"></ol>
+      </div>
+      <div class="kit-card">
+        <h3>A widget with Shortcuts</h3>
+        <ol id="ish-steps-widget" class="small ish-steps"></ol>
+      </div>
+      <details id="ish-admin" class="kit-card" data-owner-only data-nodirty data-noauto hidden>
+        <summary><strong>Ready-made links for everyone</strong></summary>
+        <p class="muted small">Build both shortcuts once on your iPhone, add the import questions, share them as iCloud links and paste the links here. Everyone on this server then sees Get buttons. The steps are in docs/IPHONE.md.</p>
+        <label><span>Share to Sara link <button type="button" class="tip" data-tip="The iCloud link of your Share to Sara shortcut (https://www.icloud.com/shortcuts/…), with import questions for the address and the token. Leave empty to show only the steps.">?</button></span> <input id="ish-link-share" placeholder="https://www.icloud.com/shortcuts/…" spellcheck="false" autocomplete="off"></label>
+        <label><span>Ask Sara link <button type="button" class="tip" data-tip="The iCloud link of your Ask Sara shortcut, with the same two import questions. Links hold no token: each person types their own when they set it up.">?</button></span> <input id="ish-link-ask" placeholder="https://www.icloud.com/shortcuts/…" spellcheck="false" autocomplete="off"></label>
+        <p class="small"><button id="ish-links-save" type="button" class="ghost">Save links</button></p>
+      </details>
         </section>
         <section class="settings-page" data-page="co-telegram" data-group="Chat apps" data-title="Telegram" data-owner-only hidden>
       <p class="muted small page-lead">Text Sara from your phone: you make her a bot in Telegram, and the steps below check each part with you.</p>
@@ -4107,6 +4242,19 @@
       <h3>Rooms <button type="button" class="tip" data-tip="The server channels she has talked in. Open one to let her keep up with it: she reads every message there, keeps a short summary and joins the current topic when she's called.">?</button></h3>
       <p class="muted small">Reading every message uses Discord's Message Content Intent, which Sara already needs. It's a switch in the Developer Portal for bots in fewer than 100 servers; bigger, verified bots need Discord's approval.</p>
       <div id="dc-rooms" class="room-list" data-nodirty></div>
+      </div>
+      <!-- R5 (docs/PHONE_CALLS.md "Discord voice"): ready as an interface, switched off (web/phone-calls.js). -->
+      <div class="kit-card" id="dcv-card">
+      <div class="card-head"><h3>Voice channel <button type="button" class="tip" data-tip="Her voice in a Discord voice channel you pick. It needs a voice library Sara doesn't include yet, so it stays off; pick the channel now and it's ready later.">?</button></h3><span id="dcv-chip" class="status-chip" role="status">Off</span></div>
+      <div class="tel-form" data-nodirty data-noauto>
+      <div class="row-2">
+      <label>Server ID <input id="dcv-guild" inputmode="numeric" spellcheck="false" placeholder="e.g. 123456789012345678"></label>
+      <label>Voice channel ID <input id="dcv-channel" inputmode="numeric" spellcheck="false" placeholder="e.g. 123456789012345678"></label>
+      </div>
+      <label class="row"><input id="dcv-on" type="checkbox" disabled> Join and talk in this channel</label>
+      <p class="small"><button id="dcv-join" type="button" class="ghost">Join now</button></p>
+      <p id="dcv-state" class="muted small" role="status"></p>
+      </div>
       </div>
         </section>
         <section class="settings-page" data-page="co-signal" data-group="Chat apps" data-title="Signal" data-owner-only hidden>
@@ -4398,9 +4546,9 @@
         </div>
         <div class="add-row"><button id="au-verify" type="button" class="ghost">Check the chain</button> <button type="button" class="tip" data-tip="Recomputes every row's SHA-256 link. If a row was edited, removed or the newest ones cut off, it says which row. Nothing is changed.">?</button> <span id="au-status" class="muted small" role="status"></span></div>
         <div id="au-list" class="au-list"></div>
-        <h3>Export <button type="button" class="tip" data-tip="A ZIP with the rows that match the filters (JSONL or CSV) and a manifest with their SHA-256, the chain head and a signature made with this server's key.">?</button></h3>
+        <h3>Export <button type="button" class="tip" data-tip="A ZIP with the rows that match the filters (JSONL, CSV or JSON) and a manifest with their SHA-256, the chain head and a signature made with this server's key.">?</button></h3>
         <label class="row"><input id="au-content" type="checkbox"> Include message content <button type="button" class="tip" data-tip="Off: no message text at all. On: an approval card's short summary is added, with keys and passwords hidden. Only switch this on when a reviewer needs it.">?</button></label>
-        <div class="add-row"><button id="au-jsonl" type="button">Export JSONL</button> <button id="au-csv" type="button" class="ghost">Export CSV</button></div>
+        <div class="add-row"><button id="au-jsonl" type="button">Export JSONL</button> <button id="au-csv" type="button" class="ghost">Export CSV</button> <button id="au-json" type="button" class="ghost">Export JSON</button></div>
         <h3>Keep</h3>
         <label class="row">Keep the audit trail <select id="au-keep"><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="0">until I change this</option></select> <button type="button" class="tip" data-tip="Older rows are deleted after this. A row still waiting (a delivery not settled yet) and everything after it is always kept. Your admin's policy can pin this.">?</button></label>
       </div>
@@ -4408,12 +4556,15 @@
         <!-- EC17 (docs/ops/EC1617_DESIGN.md): retention, legal hold, one person's export and delete (web/data-rights.js). -->
         <section class="settings-page" data-page="dh-retention" data-group="Household" data-title="Retention and legal hold" data-owner-only hidden>
       <div class="dr-page" data-noauto data-nodirty>
-        <p class="muted small page-lead">How long chats, memories and files are kept, a legal hold that stops every deletion, and a copy or deletion of one person's data. <button type="button" class="tip" data-tip="Nothing is deleted by default: every kind is kept until you change it. A hold beats everything here, including retention, the memory tidy and people deleting their own chats.">?</button></p>
+        <p class="muted small page-lead">How long chats, memories, files, run history, logs and inbox scans are kept, a legal hold that stops every deletion, and a copy or deletion of one person's data. <button type="button" class="tip" data-tip="Nothing is deleted by default: every kind is kept until you change it. A hold beats everything here, including retention, the memory tidy and people deleting their own chats.">?</button></p>
         <p id="dr-pinned" class="muted small" hidden>Your admin's policy keeps the whole server on hold.</p>
         <h3>Keep</h3>
         <label class="row">Keep chats <select id="dr-chats"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Conversations nobody has written in for this long are deleted on the hourly check, with their messages. Everyone on this server gets the same rule.">?</button></label>
         <label class="row">Keep memories <select id="dr-memories"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Notes she has not changed or used for this long are deleted. Pinned memories are always kept.">?</button></label>
         <label class="row">Keep files and photos <select id="dr-files"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Library files and chat photos added longer ago than this are deleted. Room archives stay.">?</button></label>
+        <label class="row">Keep run history <select id="dr-runs"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="The step-by-step record of her turns (Show the run) older than this is deleted. It only shortens how long runs are kept: their own setting under Data and health still applies.">?</button></label>
+        <label class="row">Keep older log files <select id="dr-logs"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="Older server log files (sara.log.1 and on) last written longer ago than this are deleted. The current log is never cut. Kept whole while any legal hold is on.">?</button></label>
+        <label class="row">Keep inbox scans <select id="dr-inbox"><option value="0">until I change this</option><option value="30">for 30 days</option><option value="90">for 90 days</option><option value="365">for a year</option><option value="730">for two years</option></select> <button type="button" class="tip" data-tip="What the inbox helper found in mail (finished suggestions, packages, trips) older than this is deleted. Cards still waiting for an answer stay. Your mail itself is not touched.">?</button></label>
         <p class="muted small">The audit trail has its own setting. <button id="dr-audit" type="button" class="ghost">Open the audit trail</button></p>
         <h3>Legal hold <button type="button" class="tip" data-tip="While a hold is on, nothing of that person can be deleted: not by them, not by you, not by retention or the memory tidy. The audit trail is kept whole while any hold is on.">?</button></h3>
         <label class="row"><input id="dr-instance" type="checkbox"> Hold everything on this server <button type="button" class="tip" data-tip="Every person's chats, memories and files, and the audit trail, are kept until you switch this off. Use it when you must preserve everything.">?</button></label>
@@ -4482,6 +4633,10 @@
         <img id="access-qr" class="pair-qr" alt="QR code with the address to open on your phone" hidden>
         <p id="access-qr-how" class="muted small qr-how" hidden>Scan with your phone's camera, then tap Open in the Sara app.</p>
       </div>
+      <h3>Check everything <button type="button" class="tip" data-tip="One click checks what real use needs: mail, calendar, phone notifications, the desktop app, Mac tabs, the inbox helper, automations and Auto. Ticked tests write something and remove it again.">?</button></h3>
+      <p class="small selftest-consent"><label><input type="checkbox" id="selftest-draft" data-nodirty data-noauto> Make and remove a test draft</label> <label><input type="checkbox" id="selftest-event" data-nodirty data-noauto> Add and remove a test event</label> <label><input type="checkbox" id="selftest-push" data-nodirty data-noauto> Send a test notification</label></p>
+      <p class="small"><button id="selftest-run" type="button">Check everything</button> <button id="selftest-copy" type="button" class="ghost small" hidden>Copy the results</button> <button id="selftest-report" type="button" class="ghost small" hidden>Send in a problem report</button> <span id="selftest-status" class="muted small" role="status"></span></p>
+      <ul id="selftest-list" class="health" hidden></ul>
       <ul id="health-checks" class="health"></ul>
       <p id="health-info" class="muted small"></p>
       <p class="small"><button id="doctor-run" type="button" class="ghost">Run full check</button> <span class="muted small">Also checks the database, asks every model provider for its models and checks the off-server copy (same as <code data-admin="doctor">sudo sara doctor</code>).</span></p>
@@ -4939,6 +5094,9 @@
         <label class="row"><input id="hh-voice" type="checkbox" checked> <span>Voice <button type="button" class="tip" data-tip="Voice notes, reading replies aloud and live calls. They use your voice service, which may cost money.">?</button></span></label>
         <label class="row"><input id="hh-pictures" type="checkbox" checked> <span>Pictures from her <button type="button" class="tip" data-tip="Her photos and new looks, made with your picture service (which may cost money).">?</button></span></label>
         <label class="row"><input id="hh-18" type="checkbox"> <span>This person is 18 or older <button type="button" class="tip" data-tip="This app is for adults. There is no ID check: you confirm it here and they confirm it again when they join.">?</button></span></label>
+        <label class="row"><input id="hh-child" type="checkbox"> <span>This is a child (kid-safe mode) <button type="button" class="tip" data-tip="Adult content always off, kid-friendly words, no computer use, shopping, mail or outside apps. Set bedtime and daily time on the Family page.">?</button></span></label>
+        <label class="hh-child-only" hidden>Age band <button type="button" class="tip" data-tip="Picks her words and tone: simpler for younger kids.">?</button> <select id="hh-band"><option value="6-9">Age 6-9</option><option value="10-12" selected>Age 10-12</option><option value="13-17">Age 13-17</option></select></label>
+        <label class="row hh-child-only" hidden><input id="hh-guardian" type="checkbox"> <span>I am this child’s parent or guardian <button type="button" class="tip" data-tip="A child's invite needs your word instead of 18+. They join without confirming an age.">?</button></span></label>
         <p><button id="hh-invite" type="button">Make invite</button></p>
       </div>
       <div id="hh-new" class="tok-new" hidden>
@@ -4953,6 +5111,21 @@
       <h3>People</h3>
       <p id="hh-none" class="muted small">Nobody else uses this server yet.</p>
       <div id="hh-members" class="hh-members" data-noauto data-nodirty></div>
+      <!-- R7: tool rules for household members (web/member-tools.js, src/member-tools.ts). -->
+      <h3>Tools for household members <button type="button" class="tip" data-tip="What their companions may do with tools. Sara checks these rules on the server before every step, so a member cannot get around them from an app or a hand-made request.">?</button></h3>
+      <div id="hmt-box" class="mt-box" data-noauto data-nodirty>
+        <label class="row">Rules for <select id="hmt-who"><option value="">Everyone</option></select> <button type="button" class="tip" data-tip="Everyone sets the rules for all members. Pick one person to give them their own rules; what you leave on Same as everyone follows Everyone.">?</button></label>
+        <label class="row" for="hmt-computer">Computer use <select id="hmt-computer"><option value="">Same as everyone</option><option value="allow">Allowed as usual</option><option value="ask">Always ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Sara using their own computers and browser, when you let members use computer use. Always ask first: every look and action shows them a card.">?</button></label>
+        <label class="row" for="hmt-mail-send">Sending email <select id="hmt-mail-send"><option value="">Same as everyone</option><option value="allow">Allowed as usual</option><option value="ask">Always ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Sending and replying from their own mailboxes. Reading and searching their mail is not affected.">?</button></label>
+        <label class="row" for="hmt-web">Web search and reading <select id="hmt-web"><option value="">Same as everyone</option><option value="allow">Allowed as usual</option><option value="ask">Always ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Searching the web, reading web pages and research reports.">?</button></label>
+        <label class="row" for="hmt-errands">Errands <select id="hmt-errands"><option value="">Same as everyone</option><option value="allow">Allowed as usual</option><option value="ask">Always ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Errands she takes care of over days. Each email, form and choice in an errand still asks them on the way.">?</button></label>
+        <label class="row" for="hmt-automations">Automations <select id="hmt-automations"><option value="">Same as everyone</option><option value="allow">Allowed as usual</option><option value="ask">Always ask first</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Making and running When this happens, do that rules in their own space.">?</button></label>
+        <label class="row"><input id="hmt-ask" type="checkbox"> Every tool asks first <button type="button" class="tip" data-tip="Every tool step shows them a card before it runs, even tools that normally run on their own, such as reading their notes.">?</button></label>
+        <label class="row">Paid tools, at most <select id="hmt-spend"></select> <button type="button" class="tip" data-tip="A hard daily limit for tools that cost money, such as paid searches. Past it those tools stop until midnight; nobody can allow one more call. Their daily spending limit for models still applies.">?</button></label>
+        <p class="muted small">Never for household members: purchases and payments (Sara hands them the page to pay themselves), commands and coding tools.</p>
+        <p id="hmt-now" class="muted small"></p>
+        <p id="hmt-status" class="small" role="status"></p>
+      </div>
       <p class="muted small">Whoever runs a server can technically read its disk, and your server backups contain every space (encrypted when they leave the server). The app itself never shows you their data.</p>
     </section>
         <section class="settings-page" data-page="account" data-group="Household" data-title="Your account" data-member-only hidden>

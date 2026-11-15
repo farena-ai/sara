@@ -8,11 +8,11 @@ import { icon } from './icons.js';
 /** Every place, in the order they are listed. */
 // V3 (docs/ops/V3_DESIGN.md §2): Add-ons is a place too (it opens Settings → Add-ons → Get more). New
 // devices pin it; a device that saved its own pins finds it under More.
-export const DESTS = ['today', 'planner', 'memory', 'library', 'scrapbook', 'moments', 'story', 'team', 'findings', 'evals', 'addons'];
+export const DESTS = ['today', 'planner', 'errands', 'family', 'memory', 'library', 'scrapbook', 'moments', 'story', 'team', 'findings', 'evals', 'addons'];
 export const DEFAULT_PINS = ['today', 'planner', 'library', 'addons', 'moments'];
 const KEY = 'sara.navPins';
 /** The window each place opens (to show which one is open). */
-const DIALOG = { today: 'today', planner: 'planner', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', findings: 'findings', evals: 'evals' };
+const DIALOG = { today: 'today', planner: 'planner', errands: 'errands', family: 'family', memory: 'memory', library: 'library', scrapbook: 'scrapbook', moments: 'moments', story: 'story', team: 'team', findings: 'findings', evals: 'evals' };
 
 const $ = (s) => document.querySelector(s);
 const PIN_PATH = 'M9 3h6l-1 6 4 4H6l4-4-1-6zM12 13v8';

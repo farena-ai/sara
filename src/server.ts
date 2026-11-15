@@ -72,13 +72,19 @@ import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
 import { createPreciseRoutes } from './routes/precise.ts';
 import { createLeanRoutes } from './routes/lean.ts';
+import { createGetStartedRoutes } from './routes/get-started.ts';
+import { sharedReleases } from './download.ts';
 import { createWorkProfileRoutes } from './routes/work-profile.ts';
 import { compactNow, foldView, listFolds } from './compact.ts';
 import { ensureLeanTables, setChatPin, setLeanOff, toolsView } from './lean.ts';
 import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createReadinessRoutes } from './routes/readiness.ts';
+import { createSelfTestRoutes } from './routes/self-test.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
+import { createErrandRoutes } from './routes/errands.ts';
+import { createPhoneCallRoutes, phoneUpgrade, phoneWebhook } from './routes/phone-calls.ts';
+import { createFamilyRoutes } from './routes/family.ts';
 import { createInboxRoutes } from './routes/inbox.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
@@ -113,6 +119,7 @@ import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connec
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createBookingPublic, createBookingRoutes } from './routes/booking.ts';
 import { createMcpAppRoutes } from './routes/mcp-apps.ts';
 import { createEditorRoutes } from './routes/editor.ts';
 import { createWorktreeRoutes } from './routes/worktrees.ts';
@@ -121,8 +128,11 @@ import { policy } from './policy-profile.ts';
 import { shares } from './share.ts';
 import { createUsageReportRoutes } from './routes/usage-report.ts';
 import { createTrustReportRoutes } from './routes/trust-report.ts';
+import { createMemberToolsRoutes } from './routes/member-tools.ts';
 import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
 import { createPhoneRoutes } from './routes/phone.ts';
+import { createShortcutRoutes } from './routes/shortcuts.ts';
+import { waitingCount } from './shortcuts.ts';
 import { phoneMayApprove } from './phone-actions.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
@@ -158,6 +168,8 @@ function tagsOrThrow(v: unknown): string[] {
 }
 
 export interface ServerOptions extends UsageReportOptions {
+  /** R2: the download page's release lookup (tests pass a fixture; default: one shared cache per process). */
+  releases?: { get(): Promise<import('./download.ts').ReleaseInfo> };
   app: AppContext;
   auth: OwnerAuth;
   webDir: string;
@@ -165,6 +177,10 @@ export interface ServerOptions extends UsageReportOptions {
   info?: AppInfo;
   /** Send the Secure flag on cookies (set when served over HTTPS / behind a TLS proxy). */
   secureCookies?: boolean;
+  /** R4: how long Ask Sara waits before "I'm on it" (tests use a short one). */
+  shortcutAskBudgetMs?: number;
+  /** R4: where the owner's iCloud links for the ready-made shortcuts are kept (the owner's data folder; every space reads the same). */
+  shortcutLinksDir?: string;
   /**
    * Trust X-Forwarded-For from a local reverse proxy (SARA_TRUST_PROXY=1). Security review (L7):
    * `{ secret }` trusts it only on requests carrying the X-Sara-Proxy header with that per-install
@@ -301,6 +317,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Device-code start/poll get their own budget: an app (or a flood of them) can't lock the owner
   // out of signing in, and sign-in failures don't block apps.
   const deviceLimiter = new LoginLimiter(20);
+  const releaseCache = opts.releases ?? sharedReleases();
   const active = new Map<string, ActiveTurn>();
   app.isBusy = (id) => active.has(id);
   // 3.0.3: a waiting approval starting or ending tells the sidebar (the needs-you dot).
@@ -417,12 +434,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'my-details', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
+  const AUDITED = new Set(['family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'phone-calls', 'my-details', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -474,7 +491,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       res.writeHead(200, { 'content-type': 'application/manifest+json', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : JSON.stringify(m));
     }
-    const rel = pathname === '/' ? 'index.html' : pathname === '/pair' ? 'pair.html' : pathname === '/device' ? 'device.html' : pathname === '/privacy' ? 'privacy.html' : pathname === '/support' ? 'support.html' : pathname === '/help' ? 'help.html' : safeDecode(pathname).replace(/^\/+/, '');
+    const rel = pathname === '/' ? 'index.html' : pathname === '/pair' ? 'pair.html' : pathname === '/device' ? 'device.html' : pathname === '/privacy' ? 'privacy.html' : pathname === '/support' ? 'support.html' : pathname === '/help' ? 'help.html' : pathname === '/download' ? 'download.html' : safeDecode(pathname).replace(/^\/+/, '');
     // Phase 31: a companion without a look of her own yet shows her initial, not Sara's face.
     if (app.companionId && app.companionId !== 'main' && isAuthed(req) && !app.look?.custom && /^(sara-portrait|sara-avatar)\.jpg$|^sara\/[\w-]+\.jpg$/.test(rel)) {
       const svg = initialPicture(app.persona.name);
@@ -983,12 +1000,17 @@ export function createSaraServer(opts: ServerOptions): Server {
   const preciseRoutes = createPreciseRoutes(ctx);
   // Phase 123: the lean tool list and /compact (src/routes/lean.ts).
   const leanRoutes = createLeanRoutes(ctx);
+  // R2: the guided setup, the sample space and the starter packs (src/routes/get-started.ts).
+  const getStartedRoutes = createGetStartedRoutes(ctx);
   const workProfileRoutes = createWorkProfileRoutes(ctx);
   // Phase 121: the safety check-up and the routines gallery (src/routes/safety-check.ts, src/routes/routines.ts).
   const safetyCheckRoutes = createSafetyCheckRoutes(ctx);
   const routineRoutes = createRoutineRoutes(ctx);
   // N2: automations, one place, each person's own (src/routes/automations.ts).
   const automationRoutes = createAutomationRoutes(ctx);
+  const errandRoutes = createErrandRoutes(ctx);
+  const phoneCallRoutes = createPhoneCallRoutes(ctx);
+  const familyRoutes = createFamilyRoutes(ctx);
   // N3: from your inbox, each person's own (src/routes/inbox.ts).
   const inboxRoutes = createInboxRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
@@ -1054,15 +1076,25 @@ export function createSaraServer(opts: ServerOptions): Server {
   const spendRoutes = createSpendRoutes(ctx);
   // EC25: the trust report (src/routes/trust-report.ts).
   const trustReportRoutes = createTrustReportRoutes(ctx);
+  // R7: tool rules for household members (src/routes/member-tools.ts).
+  const memberToolsRoutes = createMemberToolsRoutes(ctx);
   // EC24: phone as a helper device (src/routes/phone-helper.ts).
   const phoneHelperRoutes = createPhoneHelperRoutes(ctx);
   // N5b: notification quick actions and Share to Sara (src/routes/phone.ts).
   const phoneRoutes = createPhoneRoutes(ctx);
+  // R4: Apple Shortcuts on an iPhone (Share to Sara, Ask Sara, the widget) with a per-device token.
+  const shortcutRoutes = createShortcutRoutes({ ...ctx, ...(opts.shortcutAskBudgetMs ? { askBudgetMs: opts.shortcutAskBudgetMs } : {}), ...(opts.shortcutLinksDir ? { linksDir: opts.shortcutLinksDir } : {}) });
+  // R4: the installed web app's badge (iPhone and Android): approvals and inbox cards waiting.
+  if (app.push && !app.push.badge) app.push.badge = () => waitingCount(active, app);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
+  // R6 (docs/WORK_APPS.md): booking pages and accounting exports (src/routes/booking.ts).
+  const bookingPublic = createBookingPublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
+  const bookingRoutes = createBookingRoutes(ctx);
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
   // EC28: the readiness and recovery center (src/routes/readiness.ts).
   const readinessRoutes = createReadinessRoutes(ctx, operations);
+  const selfTestRoutes = createSelfTestRoutes(ctx);
   const telemetryRoutes = createTelemetryRoutes(ctx, telemetry);
   const modelsRoutes = createModelsRoutes(ctx);
   const herRoutes = createHerRoutes(ctx);
@@ -1111,6 +1143,11 @@ export function createSaraServer(opts: ServerOptions): Server {
       const r = opts.demo || opts.member ? { ok: true } : readiness(app, operations);
       res.setHeader('cache-control', 'no-store');
       return send(res, r.ok ? 200 : 503, r);
+    }
+    // R2: the public download page's installers (the latest public release, cached; no sign-in).
+    if (a === 'public' && b === 'release' && !c && method === 'GET') {
+      res.setHeader('cache-control', 'public, max-age=300');
+      return send(res, 200, await releaseCache.get());
     }
     // The developer's report inbox: open to every Sara server and app, but small and rate-limited.
     if (a === 'public' && b === 'report' && method === 'POST' && opts.reportInbox && app.reports) {
@@ -1420,6 +1457,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
     // N5b: a notification's one-time action token is its own credential (no cookie in the service worker).
     if (a === 'phone' && (await phoneRoutes.publicRoutes(req, res, method, parts)) !== NEXT) return;
+    // R4: a Shortcuts token is its own credential, for /api/shortcuts/{share,ask,widget} only.
+    if (a === 'shortcuts' && (await shortcutRoutes.publicRoutes(req, res, method, parts)) !== NEXT) return;
     // C15: the asking device checks its own request before (and after) it is signed in.
     if (await gate.publicRoutes(req, res, method, parts)) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
@@ -1495,10 +1534,12 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await trustReportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneHelperRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneRoutes.routes(req, res, method, parts)) !== NEXT) return;
+    if ((await shortcutRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await memberToolsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await shareRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await mcpAppRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await editorRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1506,6 +1547,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await deliveryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await operationsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await readinessRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await selfTestRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await telemetryRoutes(req, res, method, parts)) !== NEXT) return;
 
     // Coding: workspaces, approvals, jobs, starters, GitHub, code projects, code map, recipes, team, previews, SSH: src/routes/coding.ts.
@@ -1523,10 +1565,15 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await leanRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await getStartedRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workProfileRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await phoneCallRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await bookingRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await familyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await inboxRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1689,7 +1736,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       const H = opts.household;
       if (!H) throw new HttpError(404, 'Not found');
-      const memberView = (m: MemberRecord) => ({ id: m.id, name: m.name, status: m.status, createdAt: m.createdAt, deleteAfter: m.deleteAfter ?? null, limits: m.limits, usage: H.usage(m.id) });
+      const memberView = (m: MemberRecord) => ({ id: m.id, name: m.name, status: m.status, createdAt: m.createdAt, deleteAfter: m.deleteAfter ?? null, limits: m.limits, child: m.child ?? null, usage: H.usage(m.id) });
       const view = () => ({
         members: H.store.members().map(memberView),
         invites: H.store.invites(),
@@ -1701,7 +1748,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         const body = await readJson(req);
         try {
           const limits = cleanMemberLimits(body.limits, H.models());
-          const { code, invite } = H.store.invite({ name: body.name, hours: body.hours, confirm18: body.confirm18, limits });
+          const { code, invite } = H.store.invite({ name: body.name, hours: body.hours, confirm18: body.confirm18, limits, ...(body.child ? { child: body.child, confirmGuardian: body.confirmGuardian } : {}) });
           const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
           const url = `${origin}/#join=${code}`;
           return send(res, 200, { code, url, invite, qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(url)).toString('base64')}`, ...view() });
@@ -1722,6 +1769,8 @@ export function createSaraServer(opts: ServerOptions): Server {
             const body = await readJson(req);
             if (body.limits !== undefined) H.store.setLimits(c, cleanMemberLimits(body.limits, H.models(), cur.limits));
             if (body.name !== undefined) H.store.rename(c, body.name);
+            // R8 (docs/FAMILY.md): kid-safe member mode on, changed or off.
+            if (body.child !== undefined) H.store.setChild(c, body.child);
             return send(res, 200, view());
           }
           if ((d === 'suspend' || d === 'resume') && !parts[4] && method === 'POST') {
@@ -2536,6 +2585,12 @@ export function createSaraServer(opts: ServerOptions): Server {
         await readRaw(req, 256 * 1024).catch(() => undefined);
         return send(res, 404, { error: 'Not found' });
       }
+      // R5 (docs/PHONE_CALLS.md): the phone provider's webhooks; its signature is the key. Never on the demo or in a member's space.
+      if (url.pathname.startsWith('/tel/')) {
+        if (!opts.member && !opts.demo) return await phoneWebhook(app, req, res, url.pathname, url.search);
+        await readRaw(req, 64 * 1024).catch(() => undefined);
+        return send(res, 404, { error: 'Not found' });
+      }
       // EC3: Prometheus scrape endpoint (404 unless switched on; token or allowlisted address).
       if (url.pathname === '/metrics') return serveMetrics(req, res, { app, metrics: telemetry.metrics, operations, info, closed: Boolean(opts.demo || opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
       if (url.pathname === '/mcp' || url.pathname === '/mcp/') {
@@ -2546,6 +2601,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/movein/') && method === 'GET' && !opts.demo && !opts.member && serveMoveInFile(req, res, url.pathname)) return;
       // EC11: a shared conversation (read-only, no sign-in, never indexed).
       if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
+      // R6: a public booking page (no sign-in; off unless its owner turned it on).
+      if (url.pathname.startsWith('/book/') && (await bookingPublic(req, res, url.pathname))) return;
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
         // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).
@@ -2581,7 +2638,10 @@ export function createSaraServer(opts: ServerOptions): Server {
   server.on('upgrade', (req, socket, head) => {
     if (!gate.hostOk(req)) return void socket.destroy();
     socket.once('close', gate.track(req, () => socket.destroy()));
-    ((req.url ?? '').split('?')[0] === '/api/hands' ? handsUpgrade : liveUpgrade)(req, socket, head);
+    const path = (req.url ?? '').split('?')[0];
+    // R5: the phone provider's media stream (only while phone calls are set up and on).
+    if (path === '/tel/twilio/stream') return phoneUpgrade(app, req, socket, head, Boolean(opts.member || opts.demo));
+    (path === '/api/hands' ? handsUpgrade : liveUpgrade)(req, socket, head);
   });
   return server;
 }

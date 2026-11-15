@@ -34,7 +34,9 @@ const list = (value: unknown, max: number, each: (item: string) => boolean): str
   return [...new Set(value as string[])];
 };
 
-interface Pending { nonce: string; verifier: string; binding: string; until: number; key: string; code?: string; confirm18: boolean; link?: { identityId: string; authEpoch: number; sessionId: string } }
+interface Pending { nonce: string; verifier: string; binding: string; until: number; key: string; code?: string; confirm18: boolean; link?: { identityId: string; authEpoch: number; sessionId: string }; test?: string }
+/** R7: what a Test sign-in found (shown to the administrator who ran it; nobody is signed in or linked). */
+export interface SsoTestResult { at: string; ok: boolean; reason?: SsoReason; role?: 'orgadmin' | 'user'; name?: string; emailDomain?: string; emailVerified?: boolean; groups: string[]; linked: boolean }
 interface Evaluated { ok: true; role?: 'orgadmin' | 'user'; name: string }
 
 export class BusinessSso {
@@ -45,6 +47,7 @@ export class BusinessSso {
   readonly #privateLocal: boolean;
   readonly #fetch?: typeof fetch;
   readonly #pending = new Map<string, Pending>();
+  readonly #tests = new Map<string, SsoTestResult>();
   #client?: { key: string; client: OidcClient };
   #timer?: ReturnType<typeof setInterval>;
   #closed = false;
@@ -152,9 +155,15 @@ export class BusinessSso {
   }
 
   async start(input: unknown, principal?: BusinessPrincipal): Promise<{ url: string; binding: string }> {
-    exactFields(input, ['code', 'confirm18', 'link']);
+    exactFields(input, ['code', 'confirm18', 'link', 'test']);
     const config = this.config();
-    if (!config.enabled) throw new BusinessAccessError(404);
+    // R7: a Test sign-in runs the whole round trip before company sign-in is turned on; it signs nobody in.
+    if (input.test !== undefined) {
+      if (input.test !== true || input.code !== undefined || input.link !== undefined || input.confirm18 !== undefined) throw new BusinessAccessError(400);
+      if (!principal || !this.#auth.isPrincipalActive(principal)) throw new BusinessAccessError(401);
+      this.#control.policy.requireOrganizationAdmin(principal);
+      if (!config.issuer || !config.clientId || !this.#secret()) throw new BusinessAccessError(409, 'Save the issuer URL, client ID and client secret first.');
+    } else if (!config.enabled) throw new BusinessAccessError(404);
     if (input.code !== undefined && (typeof input.code !== 'string' || !/^[0-9a-f-]{36}\.[A-Za-z0-9_-]{43}$/.test(input.code))) throw new BusinessAccessError(400);
     if ((input.confirm18 !== undefined && typeof input.confirm18 !== 'boolean') || (input.link !== undefined && input.link !== true)) throw new BusinessAccessError(400);
     if (input.link && (!principal || !this.#auth.isPrincipalActive(principal))) throw new BusinessAccessError(401);
@@ -164,7 +173,7 @@ export class BusinessSso {
     const request = await this.#oidc(config).authorizationRequest();
     const binding = randomBytes(32).toString('base64url');
     this.#pending.set(request.state, { nonce: request.nonce, verifier: request.verifier, binding: sha(binding), until: now + PENDING_MS, key: this.#client!.key, confirm18: input.confirm18 === true,
-      ...(typeof input.code === 'string' ? { code: input.code } : {}), ...(input.link && principal ? { link: { identityId: principal.identityId, authEpoch: principal.authEpoch, sessionId: principal.sessionId } } : {}) });
+      ...(typeof input.code === 'string' ? { code: input.code } : {}), ...(input.link && principal ? { link: { identityId: principal.identityId, authEpoch: principal.authEpoch, sessionId: principal.sessionId } } : {}), ...(input.test && principal ? { test: principal.identityId } : {}) });
     return { url: request.url, binding };
   }
 
@@ -205,11 +214,12 @@ export class BusinessSso {
   }
   #session(identity: BusinessIdentity, config: SsoConfig): BusinessSession { return this.#auth.ssoSession(identity, config.sessionHours * 3600); }
 
-  async callback(params: URLSearchParams, binding: string | undefined): Promise<{ session: BusinessSession } | { reason: SsoReason }> {
+  async callback(params: URLSearchParams, binding: string | undefined): Promise<{ session: BusinessSession } | { reason: SsoReason } | { test: true }> {
     const state = params.get('state') ?? '';
     const pending = this.#pending.get(state); this.#pending.delete(state);
     if (!pending || pending.until <= Date.now() || !binding || sha(binding) !== pending.binding) return this.#refuse('state');
     const config = this.config();
+    if (pending.test) return this.#testCallback(config, pending, params);
     if (!config.enabled) return this.#refuse('unavailable');
     const client = this.#oidc(config);
     if (this.#client!.key !== pending.key) return this.#refuse('state');
@@ -260,6 +270,34 @@ export class BusinessSso {
     if (refreshToken) this.#tokens().set(`refresh:${principal.identityId}:${principal.sessionId}`, refreshToken);
     appendAudit(this.#control.database, { action: 'sso.signin', actorId: principal.identityId, revision: principal.authEpoch });
     return { session };
+  }
+
+  /** R7: a Test sign-in's callback: the same checks as a real sign-in (state, PKCE, signature, nonce, rules), then nothing else. */
+  async #testCallback(config: SsoConfig, pending: Pending, params: URLSearchParams): Promise<{ test: true }> {
+    const admin = pending.test!;
+    const done = (r: Omit<SsoTestResult, 'at' | 'groups' | 'linked'> & Partial<Pick<SsoTestResult, 'groups' | 'linked'>>) => {
+      this.#tests.set(admin, { at: new Date().toISOString(), groups: [], linked: false, ...r });
+      try { appendAudit(this.#control.database, { action: 'sso.test', actorId: admin }); } catch { /* the result stands without its row */ }
+      return { test: true as const };
+    };
+    const client = this.#oidc(config);
+    if (this.#client!.key !== pending.key) return done({ ok: false, reason: 'state' });
+    if (params.has('error') || !params.get('code')) return done({ ok: false, reason: 'denied' });
+    let claims: OidcClaims;
+    try { ({ claims } = await client.exchange(params.get('code')!, pending.verifier, pending.nonce)); }
+    catch (error) { return done({ ok: false, reason: error instanceof OidcError && error.code === 'network' ? 'unavailable' : 'failed' }); }
+    const email = typeof claims.email === 'string' ? claims.email : config.preset === 'entra' && typeof claims.preferred_username === 'string' && claims.preferred_username.includes('@') ? claims.preferred_username : undefined;
+    const raw = claims[config.groupClaim];
+    const groups = (Array.isArray(raw) ? raw : typeof raw === 'string' ? [raw] : []).filter((g): g is string => typeof g === 'string' && plain(g, 256)).slice(0, 50);
+    const verdict = this.#evaluate(config, claims);
+    const domain = email ? /^[^@\s]+@([^@\s]+)$/.exec(email)?.[1]?.toLowerCase() : undefined;
+    const base = { groups, linked: this.#link(claims.iss, claims.sub) !== undefined, ...(domain ? { emailDomain: domain } : {}), ...(typeof claims.email_verified === 'boolean' ? { emailVerified: claims.email_verified } : {}) };
+    return verdict.ok ? done({ ok: true, ...(verdict.role ? { role: verdict.role } : {}), name: verdict.name, ...base }) : done({ ok: false, reason: verdict.reason, ...base });
+  }
+  /** The administrator's own last Test sign-in (kept in memory only). */
+  testResult(principal: BusinessPrincipal): SsoTestResult | null {
+    this.#control.policy.requireOrganizationAdmin(principal);
+    return this.#tests.get(principal.identityId) ?? null;
   }
 
   #gate(identityId: string, sessionId: string): number | false | undefined {

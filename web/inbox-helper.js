@@ -35,8 +35,10 @@ const when = (s) => {
 };
 
 /** The kind's name, for "Always do this for …". */
-export const KIND_WORDS = () => ({ bill: t('bills'), receipt: t('receipts'), shipping: t('packages'), trip: t('trips'), appointment: t('appointments'), invoice_paid: t('paid invoices'), file: t('attachments') });
-const KIND_LABEL = () => ({ bill: t('Bill'), receipt: t('Receipt'), shipping: t('Package'), trip: t('Trip'), appointment: t('Appointment'), invoice_paid: t('Invoice paid'), file: t('Attachment') });
+export const KIND_WORDS = () => ({ bill: t('bills'), receipt: t('receipts'), shipping: t('packages'), trip: t('trips'), appointment: t('appointments'), invoice_paid: t('paid invoices'), file: t('attachments'), school: t('school dates') });
+const KIND_LABEL = () => ({ bill: t('Bill'), receipt: t('Receipt'), shipping: t('Package'), trip: t('Trip'), appointment: t('Appointment'), invoice_paid: t('Invoice paid'), file: t('Attachment'), school: t('School') });
+// R8 (docs/FAMILY.md): what kind of school date.
+const SCHOOL = () => ({ early_release: t('Early release'), no_school: t('No school'), picture_day: t('Picture day'), field_trip: t('Field trip'), permission_slip: t('Permission slip'), event: t('School event') });
 const STATUS = () => ({ ordered: t('ordered'), shipped: t('shipped'), in_transit: t('on the way'), out_for_delivery: t('out for delivery'), delivered: t('delivered'), problem: t('delivery problem') });
 
 /** The card's main line and its small line, from the item's data. */
@@ -59,6 +61,8 @@ export function itemLines(it) {
       return [f.title ?? it.subject, [when(f.start), f.place ?? ''].filter(Boolean).join(' · ')];
     case 'invoice_paid':
       return [t('{n} was paid', { n: f.invoice ?? '' }), [it.sender, money(f.amount)].filter(Boolean).join(' · ')];
+    case 'school':
+      return [f.title ?? it.subject, [SCHOOL()[f.school] ?? '', f.school === 'permission_slip' && f.due ? t('Due {when}', { when: day(f.due) }) : when(f.start), t('Adds it to your School list with a reminder')].filter(Boolean).join(' · ')];
     default:
       return [it.attachments?.join(', ') || it.subject, ''];
   }
@@ -95,7 +99,8 @@ function card(it) {
     always.title = t('From now on she does this on her own for every new one, and tells you with an Undo. You can turn it off in Settings → Email and calendar.');
     acts.append(always);
   }
-  if (it.kind !== 'file' && it.attachments?.length) acts.append(btn(t('File the attachment'), 'ghost small', () => void fileIt(it)));
+  // R8: a school card keeps a permission slip's form itself (Accept), so no separate filing button.
+  if (it.kind !== 'file' && it.kind !== 'school' && it.attachments?.length) acts.append(btn(t('File the attachment'), 'ghost small', () => void fileIt(it)));
   row.append(acts);
   return row;
 }

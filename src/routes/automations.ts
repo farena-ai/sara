@@ -11,6 +11,12 @@
 //   DELETE /api/automations/:key
 //   GET    /api/automations/:key/history
 //   POST   /api/automations/runs/:runId/allow · /decline
+// R9 templates (src/automation-templates.ts):
+//   GET    /api/automations/templates             {gallery}
+//   POST   /api/automations/templates/read        {text} → {template, placeholders} (checked, scrubbed)
+//   GET    /api/automations/:key/template         {template} (automations only; no personal data)
+//   preview / dry-run / create also take {template, values} or {gallery, values}; create needs allow: true.
+import { exportTemplate, fillTemplate, GALLERY, parseTemplate, TemplateError } from '../automation-templates.ts';
 import { AutomationError, automationsFor, draftFromWords, STARTERS, type Draft } from '../automations.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
@@ -23,7 +29,7 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
     try {
       return await f();
     } catch (err) {
-      if (err instanceof AutomationError) throw new HttpError(err.status, T(err.message));
+      if (err instanceof AutomationError || err instanceof TemplateError) throw new HttpError(err.status, T(err.message));
       if (err instanceof HttpError) throw err;
       const status = (err as { status?: number }).status;
       if (typeof status === 'number' && status >= 400 && status < 500) throw new HttpError(status, (err as Error).message);
@@ -31,6 +37,13 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
     }
   };
   const draftOf = (body: Record<string, unknown>): Draft | Record<string, unknown> => {
+    const values = body.values && typeof body.values === 'object' ? (body.values as Record<string, unknown>) : {};
+    if (typeof body.gallery === 'string') {
+      const g = GALLERY.find((x) => x.id === body.gallery);
+      if (!g) throw new HttpError(404, T('Template not found.'));
+      return { ...fillTemplate(g.template, values), name: T(g.name) };
+    }
+    if (body.template !== undefined) return fillTemplate(parseTemplate(body.template), values);
     const starter = STARTERS.find((s) => s.id === body.starter);
     if (starter) return { ...starter.draft, name: T(starter.name), ...(body.draft && typeof body.draft === 'object' ? (body.draft as object) : {}) };
     if (body.draft && typeof body.draft === 'object') return body.draft as Record<string, unknown>;
@@ -50,12 +63,22 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (!b && method === 'POST') {
       const body = await readJson(req);
+      // A template (a file, pasted text or the gallery) is made only after its preview and Allow.
+      if ((body.template !== undefined || body.gallery !== undefined) && body.allow !== true) throw new HttpError(400, T('Look at the preview, then tap Allow.'));
       return send(res, 200, { automation: await wrap(() => s.create(draftOf(body), { by: 'settings' })) });
     }
     if ((b === 'preview' || b === 'dry-run') && !c && method === 'POST') {
       const body = await readJson(req);
       if (b === 'preview') return send(res, 200, await wrap(() => s.preview(draftOf(body))));
       return send(res, 200, { steps: await wrap(() => s.dryDraft(draftOf(body))) });
+    }
+    if (b === 'templates' && !c && method === 'GET') {
+      return send(res, 200, { gallery: GALLERY.map((g) => ({ id: g.id, name: T(g.name), pitch: T(g.pitch), placeholders: g.template.placeholders.map((p) => ({ ...p, label: T(p.label) })) })) });
+    }
+    if (b === 'templates' && c === 'read' && method === 'POST') {
+      const body = await readJson(req);
+      const template = await wrap(() => parseTemplate(typeof body.text === 'string' ? body.text : body.template));
+      return send(res, 200, { template, placeholders: template.placeholders.map((p) => ({ ...p, label: T(p.label) })) });
     }
     if (b === 'runs' && c && (d === 'allow' || d === 'decline') && method === 'POST') {
       await readJson(req).catch(() => ({}));
@@ -72,6 +95,12 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
       if (!auto) throw new HttpError(400, T('This one is turned on where it was set up.'));
       const body = await readJson(req);
       return send(res, 200, { automation: await wrap(() => s.patch(Number(auto[1]), { ...(body.name !== undefined ? { name: body.name } : {}), ...(body.trigger ? { trigger: body.trigger } : {}) })) });
+    }
+    if (c === 'template' && method === 'GET') {
+      if (!auto) throw new HttpError(400, T('This one is turned on where it was set up.'));
+      const a = s.get(Number(auto[1]));
+      if (!a) throw new HttpError(404, T('Automation not found.'));
+      return send(res, 200, { template: exportTemplate(a) });
     }
     if (c === 'history' && method === 'GET') return send(res, 200, { runs: await wrap(() => s.historyKey(key)) });
     if (c && method === 'POST') {

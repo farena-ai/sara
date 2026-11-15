@@ -2,6 +2,7 @@ import { t, attachTips } from './business-i18n.js';
 import { renderSsoSettings } from './business-sso.js';
 import { renderScimSettings } from './business-scim.js';
 import { renderUsageReport } from './business-usage.js';
+import { renderAuditExport } from './business-audit-export.js';
 import { renderPagesAdmin } from './business-pages.js';
 const element = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
 const roles = { manager: () => t('Manager'), contributor: () => t('Contributor'), viewer: () => t('View only'), orgadmin: () => t('Organization administrator'), user: () => t('User') };
@@ -74,6 +75,7 @@ export async function renderManagement({ kind, api, workspace, workspaceName, or
     await renderSsoSettings({ api, host, run, current }); if (!current()) return;
     await renderScimSettings({ api, host, run, current }); if (!current()) return;
     await renderUsageReport({ api, host, run, current }); if (!current()) return;
+    await renderAuditExport({ host }); if (!current()) return;
     await renderPagesAdmin({ api, host, run, current, users: rows.map(row => ({ id: row.id, name: row.name })) }); if (!current()) return;
   } else {
     const guidance = element('section'); guidance.className = 'step-guidance'; guidance.append(element('h3', t('Next steps for workspace managers')), element('p', t('First ask an organization administrator to invite new accounts. Then choose an active colleague below and send a private invitation for this workspace and role. The colleague accepts while signed in.')), element('p', t('Review the listed audience before sharing. Model configuration and backup recovery belong to the host operator; workspace management does not grant operator access.'))); host.append(guidance);

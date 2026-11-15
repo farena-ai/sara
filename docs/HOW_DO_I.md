@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 228 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 230 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -1072,6 +1072,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Tick Let her control playback.
 2. Press Connect again.
 3. Ask her to play, pause or queue a song.
+
+### iPhone Shortcuts
+
+**How do I share to Sara from my iPhone?**
+
+1. Press Make a token and copy it.
+2. In the Shortcuts app, build Share to Sara with the steps shown here.
+3. Turn on Show in Share Sheet.
+
+**How do I ask Sara with Siri?**
+
+1. Make a token with Ask Sara on.
+2. Build the Ask Sara shortcut with the steps shown here.
+3. Say "Hey Siri, Ask Sara".
 
 ### Phone and notifications
 

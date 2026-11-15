@@ -55,6 +55,14 @@ export class FakeGraph {
   writes: { method: string; path: string; body: unknown; prefer: string }[] = [];
   /** Answer the next N Graph calls with 429 (Retry-After: 0). */
   throttle = 0;
+  /** R1: upload sessions for files over 3 MB (createUploadSession + PUT byte ranges to a pre-signed URL). */
+  sessions = new Map<string, { msgId: string; name: string; contentType: string; size: number; got: Buffer[]; next: number }>();
+  /** Every PUT to an upload URL: its Content-Range, length and whether an Authorization header came along. */
+  puts: { range: string; length: number; auth: boolean }[] = [];
+  /** Answer the next N upload PUTs with 503 (nothing stored). */
+  uploadFail = 0;
+  /** Store the next N upload chunks, then answer 500 anyway (Sara must ask where to resume). */
+  uploadLost = 0;
   #n = 0;
 
   async start(): Promise<this> {
@@ -105,8 +113,10 @@ export class FakeGraph {
   }
 
   async #handle(req: IncomingMessage, res: import('node:http').ServerResponse): Promise<void> {
-    let body = '';
-    for await (const c of req) body += c;
+    const chunks: Buffer[] = [];
+    for await (const c of req) chunks.push(c as Buffer);
+    const bytes = Buffer.concat(chunks);
+    const body = bytes.toString('utf8');
     const url = new URL(req.url ?? '/', this.base);
     const json = (code: number, v: unknown, h: Record<string, string> = {}) => {
       res.writeHead(code, { 'content-type': 'application/json', ...h });
@@ -131,6 +141,44 @@ export class FakeGraph {
         return json(200, this.#tokens(f.get('scope') ?? ''));
       }
       return json(400, { error: 'unsupported_grant_type' });
+    }
+    // ---- R1: the pre-signed upload URL (no Authorization header: Graph rejects one) ----
+    let um: RegExpExecArray | null;
+    if ((um = /^\/upload\/([^/]+)$/.exec(url.pathname))) {
+      const ses = this.sessions.get(um[1]);
+      if (!ses) return json(404, { error: { code: 'ItemNotFound', message: 'upload session not found' } });
+      if (req.method === 'GET') return json(200, { expirationDateTime: '2030-01-01T00:00:00Z', nextExpectedRanges: [`${ses.next}-`] });
+      if (req.method === 'DELETE') {
+        this.sessions.delete(um[1]);
+        res.writeHead(204).end();
+        return;
+      }
+      const raw = bytes;
+      const range = String(req.headers['content-range'] ?? '');
+      this.puts.push({ range, length: raw.length, auth: Boolean(req.headers.authorization) });
+      if (req.headers.authorization) return json(401, { error: { code: 'InvalidAuthenticationToken', message: 'upload URLs take no Authorization header' } });
+      if (this.uploadFail > 0) {
+        this.uploadFail--;
+        return json(503, { error: { code: 'serviceNotAvailable', message: 'try again' } });
+      }
+      const r = /^bytes (\d+)-(\d+)\/(\d+)$/.exec(range);
+      if (!r || Number(r[3]) !== ses.size || Number(r[1]) !== ses.next || Number(r[2]) - Number(r[1]) + 1 !== raw.length) return json(416, { error: { code: 'InvalidRange', message: `expected ${ses.next}-` } });
+      const end = Number(r[2]) + 1;
+      if (end < ses.size && raw.length % (320 * 1024) !== 0) return json(400, { error: { code: 'InvalidChunk', message: 'chunks must be multiples of 320 KiB' } });
+      ses.got.push(raw);
+      ses.next = end;
+      const lost = this.uploadLost > 0;
+      if (lost) this.uploadLost--;
+      if (ses.next >= ses.size) {
+        const msg = this.msgs.find((x) => x.id === ses.msgId) as (FakeMsg & { files?: { name: string; contentType: string; bytes: number; sha?: string }[] }) | undefined;
+        const all = Buffer.concat(ses.got);
+        (msg!.files ??= []).push({ name: ses.name, contentType: ses.contentType, bytes: all.length, sha: createHash('sha256').update(all).digest('hex') });
+        this.sessions.delete(um[1]);
+        if (lost) return json(500, { error: { code: 'generalException', message: 'lost' } });
+        return json(201, {});
+      }
+      if (lost) return json(500, { error: { code: 'generalException', message: 'lost' } });
+      return json(200, { expirationDateTime: '2030-01-01T00:00:00Z', nextExpectedRanges: [`${ses.next}-`] });
     }
     // ---- Graph ----
     const auth = String(req.headers.authorization ?? '');
@@ -179,7 +227,23 @@ export class FakeGraph {
         Object.assign(msg, b);
         return json(200, msg);
       }
+      // R1: only a draft may be deleted (Check everything removes its test draft).
+      if (m === 'DELETE' && msg.isDraft) {
+        this.msgs = this.msgs.filter((x) => x !== msg);
+        res.writeHead(204).end();
+        return;
+      }
       return json(405, { error: { message: 'Sara never deletes messages: this fake refuses DELETE' } });
+    }
+    if ((mm = /^\/me\/messages\/([^/]+)\/attachments\/createUploadSession$/.exec(p)) && m === 'POST') {
+      const msg = this.msgs.find((x) => x.id === decodeURIComponent(mm![1]));
+      const it = (b.AttachmentItem ?? {}) as { attachmentType?: string; name?: string; size?: number; contentType?: string };
+      if (!msg) return json(404, { error: { message: 'not found' } });
+      if (it.attachmentType !== 'file' || !it.name || !Number.isInteger(it.size)) return json(400, { error: { message: 'bad AttachmentItem' } });
+      if (it.size! > 150 * 1024 * 1024) return json(413, { error: { message: 'over 150 MB' } });
+      const sid = `S${++this.#n}`;
+      this.sessions.set(sid, { msgId: msg.id, name: it.name, contentType: String(it.contentType ?? ''), size: it.size!, got: [], next: 0 });
+      return json(201, { uploadUrl: `${this.base}/upload/${sid}`, expirationDateTime: '2030-01-01T00:00:00Z', nextExpectedRanges: ['0-'] });
     }
     if ((mm = /^\/me\/messages\/([^/]+)\/attachments$/.exec(p))) {
       // N4: file attachments on a draft (POST one at a time), read back by name.

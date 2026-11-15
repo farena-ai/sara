@@ -4,13 +4,15 @@
 import { t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
+// R7: run history, older log files and inbox scans too (src/data-rights.ts RETENTION_KINDS).
+const KINDS = ['chats', 'memories', 'files', 'runs', 'logs', 'inbox'];
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openSettings: (page: string) => void } | null} */
 let ctx = null;
 let view = null;
 
 export function initDataRights(c) {
   ctx = c;
-  for (const kind of ['chats', 'memories', 'files']) $(`#dr-${kind}`)?.addEventListener('change', () => void saveRetention());
+  for (const kind of KINDS) $(`#dr-${kind}`)?.addEventListener('change', () => void saveRetention());
   $('#dr-instance')?.addEventListener('change', () => void saveHolds({ instance: $('#dr-instance').checked }));
   $('#dr-audit')?.addEventListener('click', () => ctx.openSettings('dh-audit'));
   const page = document.querySelector('.settings-page[data-page="dh-retention"]');
@@ -30,7 +32,7 @@ async function load() {
     status(e.message);
     return;
   }
-  for (const kind of ['chats', 'memories', 'files']) $(`#dr-${kind}`).value = String(view.retention[kind]);
+  for (const kind of KINDS) if ($(`#dr-${kind}`)) $(`#dr-${kind}`).value = String(view.retention[kind] ?? 0);
   $('#dr-instance').checked = view.holds.instance;
   $('#dr-instance').disabled = view.pinned.legalHold;
   $('#dr-pinned').hidden = !view.pinned.legalHold;
@@ -112,7 +114,7 @@ async function showHistory(p) {
 
 async function saveRetention() {
   const body = {};
-  for (const kind of ['chats', 'memories', 'files']) body[kind] = Number($(`#dr-${kind}`).value);
+  for (const kind of KINDS) if ($(`#dr-${kind}`)) body[kind] = Number($(`#dr-${kind}`).value);
   try {
     await ctx.api('/data-rights/retention', { method: 'PUT', body });
     status(t('Saved. Retention runs on the hourly check.'));

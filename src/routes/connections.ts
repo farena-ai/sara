@@ -485,7 +485,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         guardOn();
         const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
         try {
-          return send(res, 200, { url: accts.ms.authUrl(msRedirect, typeof body.address === 'string' && /@/.test(body.address) ? body.address : undefined) });
+          // R6: {files: true} adds Word and Excel files (Files.ReadWrite) on Microsoft's consent page.
+          return send(res, 200, { url: accts.ms.authUrl(msRedirect, typeof body.address === 'string' && /@/.test(body.address) ? body.address : undefined, { files: body.files === true }) });
         } catch (err) {
           throw as400(err);
         }
@@ -568,8 +569,10 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         }
       }
       if (b === 'connect' && method === 'POST') {
+        // R6: {docs: true} adds Docs and Sheets editing (a new Google consent page; never silently).
+        const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
         try {
-          return send(res, 200, { url: g.authUrl(redirect) });
+          return send(res, 200, { url: g.authUrl(redirect, { docs: body.docs === true }) });
         } catch (err) {
           throw as400(err);
         }

@@ -31,6 +31,21 @@ Nothing is stored twice.
 My details (`docs/MY_DETAILS.md`) stays the person's typed form data. A policy number or VIN fact offers
 **Add to My details**, which opens that page; the person types the full number there.
 
+## Documents in other languages
+
+The document rules also read Spanish, French, German, Brazilian Portuguese and Italian papers. Sara
+picks the document's language from its common short words (English when unsure), then:
+
+- reads its own labels for renewal, expiry, due dates, lease end and warranty end (*fecha de
+  renovación*, *date d'échéance*, *Mietverhältnis endet am*, *vencimento*, *scadenza*…), deductibles,
+  premiums, rent and deposits (*franquicia*, *cotisation*, *Kaution*, *franquia*, *canone*…), policy,
+  account and serial numbers (last 4 only, as always) and the names on a lease or a policy;
+- reads dates in that language's order: **03/04/2027 is 3 April** in those documents (and still
+  March 4 in an English one), plus month names (*31 de mayo de 2027*, *1er mars 2027*, *1. März 2027*);
+- keeps money as the document writes it (**1.234,56 €**, **R$ 2.450,00**, **1 024,50 €**).
+
+The labels shown are the same as for English papers (in your app's language). Code: `src/facts-lang.ts`.
+
 ## Ask your documents
 
 `library` tool action `ask` (and the box on the page, `POST /api/facts/ask`) answers questions about the

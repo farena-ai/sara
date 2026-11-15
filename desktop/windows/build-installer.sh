@@ -6,7 +6,9 @@
 # Downloads once into desktop/windows/third_party/ (not committed), each pinned and SHA-256 checked:
 #   - Node.js (the same version deploy/install.sh pins), node.exe only
 #   - Inno Setup 6 (build time only; unpacked in portable mode, nothing is installed on this PC)
-# The installer is not code-signed yet: Windows SmartScreen says "More info → Run anyway".
+# R1: Sara.exe, SaraService.exe and the installer are signed with Azure Artifact Signing (sign.sh) when
+# .secrets/azure-signing/metadata.json exists (or SARA_SIGN_DIR points at one); otherwise the build says
+# "unsigned (no Azure signing set up)" and SmartScreen says "More info → Run anyway". docs/ops/WINDOWS_SIGNING.md
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
@@ -87,10 +89,13 @@ if [[ -d "$ROOT/.git" || -f "$ROOT/.git" ]]; then
   REV="$(git -C "$(winpath "$ROOT")" rev-parse --short HEAD)"
   printf '%s\n' "$REV" > "$STAGE/server/REVISION"
 fi
+# R1: sign the app and the service host before Inno Setup packs them (node.exe is already signed by OpenJS).
+bash "$HERE/sign.sh" "$STAGE/Sara.exe" "$STAGE/SaraService.exe"
 # Batch files want Windows line endings.
 sed 's/\r$//; s/$/\r/' "$HERE/installer/sara.cmd" > "$STAGE/bin/sara.cmd"
 
 # 5. The installer
 "$ISCC" /Q "/DAppVersion=$VERSION" "/DStage=$(winpath "$STAGE")" "${ISS_EXTRA[@]}" "/O$(winpath "$OUT")" "$(winpath "$HERE/installer/sara.iss")"
+bash "$HERE/sign.sh" "$OUT/Sara-Setup-$VERSION.exe"
 ls -la "$OUT/Sara-Setup-$VERSION.exe"
 sha256sum "$OUT/Sara-Setup-$VERSION.exe"

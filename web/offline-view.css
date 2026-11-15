@@ -106,3 +106,17 @@ html.shell .offv { top: var(--titlebar, 0px); }
 /* Phones: above the message box and the bottom bar. */
 @media (max-width: 799px) { .offv-note-pop { bottom: calc(140px + env(safe-area-inset-bottom)); } }
 .offv-note-pop .offv-small { margin-left: 10px; }
+
+/* R9: Today's snapshot and shopping mode (web/offline-view.js). */
+.offv-greet { font-size: 1.15em; font-weight: 600; color: var(--text-1); margin: 4px 0 8px; }
+.offv-tile { border: 1px solid var(--line); border-radius: var(--r-card, 12px); background: var(--surface-1); padding: 8px 12px; margin: 0 0 8px; }
+.offv-tile-h { margin: 0 0 4px; font-size: 1em; color: var(--text-1); }
+.offv-tile-list { margin: 0; padding-left: 18px; color: var(--text-1); }
+.offv-tile-list li { overflow-wrap: anywhere; }
+.offv-shop-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.offv-shop-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-height: 48px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-card, 12px); background: var(--surface-1); }
+.offv-shop-item input { width: 24px; height: 24px; flex: 0 0 auto; accent-color: var(--accent); }
+.offv-shop-label { flex: 1 1 0; min-width: 0; font-size: 1.05em; color: var(--text-1); overflow-wrap: anywhere; cursor: pointer; }
+.offv-shop-item.done .offv-shop-label { text-decoration: line-through; color: var(--text-2); }
+.offv-shop-item.pending { border-style: dashed; }
+.offv-shop-item .offv-wait { margin-top: 0; flex-basis: 100%; padding-left: 34px; }

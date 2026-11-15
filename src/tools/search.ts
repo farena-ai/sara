@@ -10,7 +10,12 @@ export interface SearchConfig {
   /** SearXNG base URL (e.g. http://127.0.0.1:8888). */
   url?: string;
   apiKey?: string;
+  /** R8 (docs/FAMILY.md): strict safe search (kid-safe member mode). Providers without a switch refuse. */
+  safe?: boolean;
 }
+
+/** R8: the providers with a strict safe-search switch (Brave `safesearch=strict`, SearXNG `safesearch=2`). */
+export const SAFE_SEARCH_PROVIDERS: readonly SearchProvider[] = ['brave', 'searxng'];
 
 export interface SearchResult {
   title: string;
@@ -25,11 +30,13 @@ export async function runSearch(cfg: SearchConfig, query: string, count: number,
   const fail = async (res: Response): Promise<never> => {
     throw new ToolError(`Search failed (HTTP ${res.status}): ${(await res.text().catch(() => '')).slice(0, 200)}`);
   };
+  if (cfg.safe && !SAFE_SEARCH_PROVIDERS.includes(cfg.provider)) throw new ToolError('Safe search needs Brave Search or SearXNG (this search provider has no safe-search switch).');
   switch (cfg.provider) {
     case 'brave': {
       const u = new URL('https://api.search.brave.com/res/v1/web/search');
       u.searchParams.set('q', query);
       u.searchParams.set('count', String(count));
+      if (cfg.safe) u.searchParams.set('safesearch', 'strict');
       const res = await netFetch(u, { headers: { accept: 'application/json', 'x-subscription-token': cfg.apiKey ?? '' }, signal: sig });
       if (!res.ok) await fail(res);
       const body = (await res.json()) as { web?: { results?: { title: string; url: string; description?: string }[] } };
@@ -62,6 +69,7 @@ export async function runSearch(cfg: SearchConfig, query: string, count: number,
       const u = new URL('search', cfg.url.endsWith('/') ? cfg.url : `${cfg.url}/`);
       u.searchParams.set('q', query);
       u.searchParams.set('format', 'json');
+      if (cfg.safe) u.searchParams.set('safesearch', '2');
       const res = await netFetch(u, { headers: { accept: 'application/json' }, signal: sig });
       if (!res.ok) await fail(res);
       const body = (await res.json()) as { results?: { title: string; url: string; content?: string }[] };

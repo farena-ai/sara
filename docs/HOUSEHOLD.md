@@ -28,6 +28,11 @@ space.
 | Chat, voice notes, live calls, pictures, library, planner, moments, scrapbook, group chats with their own companions, personality and look studios | Yes | Yes (voice and pictures can be switched off per member, since they cost the owner money) |
 | Reads another person's conversations, memories, companions or moments | No | No |
 
+**Tools for household members** (R7, Settings → Household → People on this server): per family
+(computer use, sending email, web, errands, automations) allowed, always ask first or off, for
+everyone or one person; every tool asks first; a daily cap for paid tools. Purchases, commands and
+coding are never for members. Checked on the server; see [ADMIN.md](ADMIN.md).
+
 ### Inviting someone (owner)
 
 1. **Settings → Household → Invite someone.**

@@ -11,6 +11,7 @@ import { WebSocketClient } from './ws.mjs';
 import { fromSlack, split, toMrkdwn } from './mrkdwn.mjs';
 import { codeOf, diagnose } from './diagnose.mjs';
 import { pacing } from './pace.mjs';
+import { runAction } from './actions.mjs';
 const { Pacer, CapError } = pacing('slack');
 
 const BRIDGE = 'slack';
@@ -426,6 +427,8 @@ async function onCheck(m) {
       return g(err);
     }
   }
+  // R6 (docs/WORK_APPS.md): an action the person approved in a chat with Sara (post, react, status, reminder, search).
+  if (step === 'action') return runAction(api, m);
   if (step === 'logout') {
     running = false;
     await ws?.close();

@@ -162,6 +162,14 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^watch_(add|list|remove)$/, 'live-watch', 'tell me when'],
   // N2: automations ("When ___, do ___").
   [/^automation_\w+$/, 'automations', 'automations'],
+  // R3: errands, start to finish (docs/ERRANDS.md).
+  [/^errand_\w+$/, 'errands', 'errands'],
+  // R5: phone calls in her own voice (docs/PHONE_CALLS.md).
+  [/^phone_call$/, 'calls', 'phone calls'],
+  // R6: Google Docs/Sheets, Word/Excel online, Slack/Teams actions, accounting exports (docs/WORK_APPS.md).
+  [/^(gdoc_|gsheet_|excel_|word_|slack_|teams_post$|accounting_export$)/, 'workapps', 'work apps'],
+  // R8: chores and allowance; a child's safe search (docs/FAMILY.md).
+  [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search)$/, 'family', 'chores and allowance'],
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
   [/^my_details_get$/, 'details', 'my details'],
   // N6: what she knows about their world (facts with sources; forget one).
@@ -291,6 +299,30 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'automatisieren', 'automatisierung', 'jeden tag', 'jede woche', 'jeden freitag', 'immer wenn', 'planen', 'wiederkehrend', 'erinnere mich jeden',
     'automatizar', 'automacao', 'todo dia', 'toda semana', 'toda sexta', 'sempre que', 'agendar', 'recorrente', 'me lembre todo',
     'automatizzare', 'automazione', 'ogni giorno', 'ogni settimana', 'ogni venerdi', 'ogni volta che', 'programmare', 'ricorrente', 'ricordami ogni'],
+  // R6 (docs/WORK_APPS.md): documents and spreadsheets online, Slack/Teams, accounting files.
+  workapps: ['google doc', 'google docs', 'google sheet', 'google sheets', 'spreadsheet', 'sheet', 'docs.google.com', 'onedrive', 'sharepoint', 'excel', 'word document', 'workbook', 'slack', 'teams', 'channel', 'post in', 'set my status', 'quickbooks', 'xero', 'accounting', 'bookkeeper', 'export my invoices', 'csv',
+    'documento de google', 'hoja de calculo', 'hoja de google', 'canal', 'publica en', 'mi estado', 'contabilidad', 'contador', 'exportar facturas',
+    'document google', 'feuille de calcul', 'tableur', 'canal', 'publie dans', 'mon statut', 'comptabilite', 'comptable', 'exporter les factures',
+    'google dokument', 'tabelle', 'tabellenblatt', 'kanal', 'poste in', 'meinen status', 'buchhaltung', 'steuerberater', 'rechnungen exportieren',
+    'documento do google', 'planilha', 'canal', 'publique no', 'meu status', 'contabilidade', 'contador', 'exportar faturas',
+    'documento google', 'foglio di calcolo', 'foglio google', 'canale', 'pubblica in', 'il mio stato', 'contabilita', 'commercialista', 'esportare fatture'],
+  // R8 (docs/FAMILY.md): chores, allowance, and a child's safe search.
+  family: ['chore', 'my chores', 'add a chore', 'allowance', 'pocket money', 'points', 'paid out', 'pay out', 'i did the', 'i finished', 'mark it done', 'how much money do i have', 'my balance', 'homework', 'search for', 'look up',
+    'tarea de casa', 'quehaceres', 'mesada', 'paga semanal', 'puntos', 'ya termine', 'cuanto dinero tengo', 'deberes', 'buscar',
+    'corvee', 'corvees', 'argent de poche', 'points', 'j ai fini', 'combien j ai', 'devoirs', 'chercher',
+    'hausarbeit', 'hausarbeiten', 'taschengeld', 'punkte', 'ich bin fertig', 'wie viel geld habe ich', 'hausaufgaben', 'suchen',
+    'tarefa domestica', 'tarefas de casa', 'mesada', 'pontos', 'terminei', 'quanto dinheiro eu tenho', 'licao de casa', 'pesquisar',
+    'faccenda', 'faccende', 'paghetta', 'punti', 'ho finito', 'quanti soldi ho', 'compiti', 'cercare'],
+  // R3 (docs/ERRANDS.md): errands she takes care of from start to finish.
+  errands: ['errand', 'errands', 'take care of', 'handle this', 'handle it', 'get a refund', 'refund', 'refunded', 'money back', 'book', 'book an', 'schedule an appointment', 'make an appointment', 'cancel my subscription', 'cancel my membership', 'find someone to', 'find me a', 'get quotes', 'quotes', 'complaint letter', 'dispute', 'oil change', 'plumber',
+    'recado', 'encargate', 'ocupate de', 'reembolso', 'devolucion', 'reservar', 'pedir cita', 'cancelar mi suscripcion', 'busca a alguien', 'presupuestos', 'carta de queja',
+    'course', 'occupe toi de', 'remboursement', 'rembourser', 'reserver', 'prendre rendez vous', 'resilier mon abonnement', 'trouve quelqu un', 'devis', 'lettre de reclamation',
+    'besorgung', 'kummere dich um', 'erstattung', 'geld zuruck', 'buchen', 'termin vereinbaren', 'abo kundigen', 'kundige mein abo', 'finde jemanden', 'angebote einholen', 'beschwerdebrief',
+    'tarefa', 'cuide disso', 'reembolso', 'estorno', 'agendar', 'marcar consulta', 'cancelar minha assinatura', 'encontre alguem', 'orcamentos', 'carta de reclamacao',
+    'commissione', 'occupati di', 'rimborso', 'prenotare', 'fissare un appuntamento', 'disdire l abbonamento', 'trova qualcuno', 'preventivi', 'lettera di reclamo'],
+  // R5 (docs/PHONE_CALLS.md): she places a phone call (asks first on a card).
+  calls: ['call', 'phone call', 'give them a call', 'ring', 'call me', 'call them', 'call the',
+    'llama a', 'llamar', 'llamada', 'llamame', 'appelle', 'appeler', 'appel telephonique', 'appelle moi', 'ruf an', 'anrufen', 'ruf mich an', 'telefonat', 'ligue', 'ligar', 'ligacao', 'liga para', 'me liga', 'chiama', 'chiamare', 'telefonata', 'chiamami'],
   // N4 (docs/MY_DETAILS.md): my saved details, and filling a web form with them (pc_fill_form is in 'computer').
   details: ['my details', 'my address', 'my addresses', 'my shipping address', 'my phone number', 'my email address', 'my size', 'my sizes', 'shoe size', 'shirt size', 'my vin', 'license plate', 'policy number', 'insurance number', 'loyalty number', 'rewards number', 'emergency contact', 'fill out the form', 'fill in the form', 'fill this form', 'web form', 'sign up form', 'signup form',
     'mis datos', 'mi direccion', 'mi talla', 'numero de poliza', 'rellena el formulario', 'llena el formulario',
@@ -779,7 +811,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n.startsWith('errand_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

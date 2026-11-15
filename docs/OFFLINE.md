@@ -24,6 +24,23 @@ phone apps all get it.
   browser, or another server answers at the same address, the earlier copy and its outbox are deleted
   first. **Signing out** deletes the copy, the outbox and the key.
 
+## Today, lists and shopping mode (R9)
+
+- **Today** as it was last shown is kept too (the tiles and their lines, as text), and opens from the
+  offline view: *Today, as it was at 9:12*.
+- **Lists**: your boards and the household lists shared with you (the 12 newest, up to 300 items each)
+  are kept and open in **shopping mode**: big rows to tick off, and *Add an item*. Each change waits
+  in the outbox (*Will sync when online*) and is sent when the connection is back.
+- **Last writer wins, per item.** When it syncs, Sara reads the list first. If that item was changed on
+  another device after your change (ticked, unticked, renamed), the newer change stays and the
+  back-online note says so: *Changed on another device after you: Bread (the newer change was kept)*.
+  An item you added that is already on the list (same words, not done) is not added twice; an item
+  deleted meanwhile is skipped.
+- Messages written offline show *Waiting to send · Will send when online* until they go.
+- Code: `web/offline-lists.js` (slim lists, the last-writer-wins plan, sending one change), kept in
+  `web/offline-store.js` (`saveToday`, `saveLists`), drawn by `web/offline-view.js`. Tests:
+  `test/r9-offline-lists.test.ts`.
+
 ## The setting
 
 Settings → Connections → Devices and sign-in → **Offline on this device**:

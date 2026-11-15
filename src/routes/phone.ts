@@ -11,6 +11,7 @@ import { HttpError, readJson, readRaw, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
 import { SUPPORTED } from '../library/read.ts';
 import { ACT_LINES, ACT_PREFIX, ActError, parseMultipart, phoneMayApprove, sharePrefill, SNOOZE_MS, type ActClaims } from '../phone-actions.ts';
+import { waitingCount } from '../shortcuts.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export const SHARE_MAX_BYTES = 40 * 1024 * 1024;
@@ -110,63 +111,16 @@ export function createPhoneRoutes(ctx: RouteCtx): { publicRoutes: RouteHandler; 
   };
 
   async function share(req: IncomingMessage, res: ServerResponse): Promise<unknown> {
-    const type = String(req.headers['content-type'] ?? '');
-    const raw = await readRaw(req, SHARE_MAX_BYTES);
-    let fields: { title?: string; text?: string; url?: string } = {};
-    let files: { name: string; type: string; data: Buffer }[] = [];
-    if (type.startsWith('multipart/form-data')) {
-      let parts;
-      try {
-        parts = parseMultipart(raw, type);
-      } catch (err) {
-        throw new HttpError(400, (err as Error).message);
-      }
-      for (const p of parts) {
-        if (p.filename !== undefined) {
-          if (p.data.length) files.push({ name: p.filename || 'shared', type: p.type, data: p.data });
-        } else if (p.name === 'title' || p.name === 'text' || p.name === 'url') fields[p.name] = p.data.toString('utf8').slice(0, 4000).trim();
-      }
-    } else if (type.startsWith('application/json')) {
-      const j = JSON.parse(raw.toString('utf8') || '{}') as Record<string, unknown>;
-      fields = { title: String(j.title ?? '').slice(0, 4000), text: String(j.text ?? '').slice(0, 4000), url: String(j.url ?? '').slice(0, 4000) };
-    } else throw new HttpError(415, 'Send a form or JSON.');
-    if (files.length > SHARE_MAX_FILES) throw new HttpError(400, 'Share up to {n} files at a time.', { params: { n: SHARE_MAX_FILES } });
-    if (!files.length && !fields.title && !fields.text && !fields.url) throw new HttpError(400, 'Nothing was shared.');
-    const lib = app.library;
-    const docs: { id: number; name: string }[] = [];
-    const skipped: string[] = [];
-    for (const f of files) {
-      let name = f.name.replace(/[\\/]/g, '_').slice(0, 120);
-      if (!extOk(name) && EXT_OF_TYPE[f.type]) name += EXT_OF_TYPE[f.type];
-      if (!lib || !extOk(name)) {
-        skipped.push(name);
-        continue;
-      }
-      try {
-        const doc = lib.findKept(f.data) ?? lib.add({ name, bytes: f.data, keep: true, origin: 'library' });
-        docs.push({ id: doc.id, name: doc.name });
-      } catch {
-        skipped.push(name);
-      }
-    }
-    if (docs.length) {
-      app.libraryNudge?.();
-      for (const d of docs) app.events?.publish({ type: 'library', id: d.id });
-    }
-    const s = app.settings.get();
-    const p = sharePrefill({ ...fields, files: files.filter((f) => !skipped.includes(f.name)).map((f) => ({ name: f.name, type: f.type })) });
-    const prefill = trOwner(p.key, s, p.params);
-    const title = trOwner('Shared with Sara', s);
-    const conv = app.store.createConversation({ title });
-    const url = `/#c=${conv.id}&draft=${encodeURIComponent(prefill)}${docs.length ? `&docs=${docs.map((d) => d.id).join(',')}` : ''}`;
-    audit({ action: 'phone.share', who: who(), role: ctx.opts.member ? 'member' : 'owner', channel: 'phone', outcome: 'ok', keys: [String(files.length)] });
-    if (wantsJson(req)) return send(res, 201, { conversationId: conv.id, url, prefill, docs, skipped });
-    res.writeHead(303, { location: url, 'cache-control': 'no-store' });
+    const out = shareInto(app, await readShare(req), who(), ctx.opts.member ? 'member' : 'owner', 'phone');
+    if (wantsJson(req)) return send(res, 201, out);
+    res.writeHead(303, { location: out.url, 'cache-control': 'no-store' });
     return void res.end();
   }
 
   const routes: RouteHandler = async (req, res, method, parts) => {
     const [a, b] = parts;
+    // R4: the installed web app's badge (navigator.setAppBadge): approvals and inbox cards waiting.
+    if (a === 'phone' && b === 'badge' && method === 'GET') return send(res, 200, { count: ctx.opts.demo ? 0 : waitingCount(active, app) });
     if (a !== 'phone' || b !== 'share' || method !== 'POST') return NEXT;
     if (ctx.opts.demo) throw new HttpError(403, 'Not on the demo.');
     return share(req, res);
@@ -181,4 +135,93 @@ export function createPhoneRoutes(ctx: RouteCtx): { publicRoutes: RouteHandler; 
     return publicRoutes(req, res, method, parts);
   };
   return { publicRoutes: sharePublic, routes };
+}
+
+export interface SharedInput {
+  fields: { title?: string; text?: string; url?: string };
+  files: { name: string; type: string; data: Buffer }[];
+}
+export interface ShareResult {
+  conversationId: string;
+  url: string;
+  prefill: string;
+  docs: { id: number; name: string }[];
+  skipped: string[];
+}
+
+/**
+ * Reads a share: a form (title, text, url, files) or JSON ({title, text, url, files: [{name, type,
+ * data (base64)}]}; R4: Apple Shortcuts can send either).
+ */
+export async function readShare(req: IncomingMessage): Promise<SharedInput> {
+  const type = String(req.headers['content-type'] ?? '');
+  const raw = await readRaw(req, SHARE_MAX_BYTES);
+  const fields: SharedInput['fields'] = {};
+  const files: SharedInput['files'] = [];
+  const keep = (name: string, v: string) => {
+    if (name === 'title' || name === 'text' || name === 'url') fields[name] = v.slice(0, 4000).trim();
+  };
+  if (type.startsWith('multipart/form-data')) {
+    let parts;
+    try {
+      parts = parseMultipart(raw, type);
+    } catch (err) {
+      throw new HttpError(400, (err as Error).message);
+    }
+    for (const p of parts) {
+      if (p.filename !== undefined) {
+        if (p.data.length) files.push({ name: p.filename || 'shared', type: p.type, data: p.data });
+      } else keep(p.name, p.data.toString('utf8'));
+    }
+  } else if (type.startsWith('application/json')) {
+    let j: Record<string, unknown>;
+    try {
+      j = JSON.parse(raw.toString('utf8') || '{}') as Record<string, unknown>;
+    } catch {
+      throw new HttpError(400, 'Send a form or JSON.');
+    }
+    for (const k of ['title', 'text', 'url'] as const) if (j[k] !== undefined && j[k] !== null) keep(k, String(j[k]));
+    const list = Array.isArray(j.files) ? j.files : j.file ? [j.file] : [];
+    for (const f of list as Record<string, unknown>[]) {
+      const data = Buffer.from(String((f && typeof f === 'object' ? f.data : f) ?? '').replace(/^data:[^,]*,/, ''), 'base64');
+      if (data.length) files.push({ name: String((f as { name?: unknown })?.name ?? 'shared'), type: String((f as { type?: unknown })?.type ?? ''), data });
+    }
+  } else throw new HttpError(415, 'Send a form or JSON.');
+  if (files.length > SHARE_MAX_FILES) throw new HttpError(400, 'Share up to {n} files at a time.', { params: { n: SHARE_MAX_FILES } });
+  if (!files.length && !fields.title && !fields.text && !fields.url) throw new HttpError(400, 'Nothing was shared.');
+  return { fields, files };
+}
+
+/** Files into the Library (kept), a new chat "Shared with Sara" and the ready message for it. */
+export function shareInto(app: RouteCtx['app'], input: SharedInput, who: string, role: 'owner' | 'member', channel: 'phone' | 'shortcuts'): ShareResult {
+  const { fields, files } = input;
+  const lib = app.library;
+  const docs: { id: number; name: string }[] = [];
+  const skipped: string[] = [];
+  for (const f of files) {
+    let name = f.name.replace(/[\\/]/g, '_').slice(0, 120);
+    if (!extOk(name) && EXT_OF_TYPE[f.type]) name += EXT_OF_TYPE[f.type];
+    if (!lib || !extOk(name)) {
+      skipped.push(name);
+      continue;
+    }
+    try {
+      const doc = lib.findKept(f.data) ?? lib.add({ name, bytes: f.data, keep: true, origin: 'library' });
+      docs.push({ id: doc.id, name: doc.name });
+    } catch {
+      skipped.push(name);
+    }
+  }
+  if (docs.length) {
+    app.libraryNudge?.();
+    for (const d of docs) app.events?.publish({ type: 'library', id: d.id });
+  }
+  const s = app.settings.get();
+  const p = sharePrefill({ ...fields, files: files.filter((f) => !skipped.includes(f.name)).map((f) => ({ name: f.name, type: f.type })) });
+  const prefill = trOwner(p.key, s, p.params);
+  const title = trOwner('Shared with Sara', s);
+  const conv = app.store.createConversation({ title });
+  const url = `/#c=${conv.id}&draft=${encodeURIComponent(prefill)}${docs.length ? `&docs=${docs.map((d) => d.id).join(',')}` : ''}`;
+  audit({ action: `${channel}.share`, who, role, channel, outcome: 'ok', keys: [String(files.length)] });
+  return { conversationId: conv.id, url, prefill, docs, skipped };
 }

@@ -35,6 +35,10 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   // N7: Shared with you (items given to you, invitations) and Clients and hours (timer, pipeline); shown only once used.
   { id: 'td-shared', section: 'needs', sizes: ['S', 'M'], size: 'S' },
+  // R3: Errands (open errands, waiting on you first); shown only while one is open.
+  { id: 'td-errands', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  // R8: Family (chores to approve, kids' balances; a kid's own chores); shown once chores exist.
+  { id: 'td-family', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },

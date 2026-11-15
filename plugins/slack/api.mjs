@@ -45,6 +45,12 @@ export class Api {
     return String(this.sara.secrets.appToken ?? '').trim();
   }
 
+  /** R6: the person's own optional user token (xoxp-): status, reminders and search need it. */
+  get user() {
+    const t = String(this.sara.secrets.userToken ?? '').trim();
+    return /^xoxp-[A-Za-z0-9-]{10,250}$/.test(t) ? t : '';
+  }
+
   #conn(host) {
     let c = this.conns.get(host);
     if (!c) this.conns.set(host, (c = new Http1(this.sara, `${ENDPOINT}@${host}`, host, { ua: 'Sara-Slack/1.0' })));
@@ -53,7 +59,7 @@ export class Api {
 
   /** `call('chat.postMessage', { channel, text })` → Slack's answer (ok: true), or a SlackError. */
   async call(method, args = {}, o = {}) {
-    const token = o.app ? this.app : this.bot;
+    const token = o.app ? this.app : o.user ? this.user : this.bot;
     const r = await this.#conn(API_HOST).request('POST', `/api/${method}`, { authorization: `Bearer ${token}`, 'content-type': 'application/x-www-form-urlencoded; charset=utf-8' }, form(args));
     let body = {};
     try {

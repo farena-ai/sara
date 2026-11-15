@@ -1,0 +1,18 @@
+/* R6 (src/routes/booking.ts): the public booking page /book/<slug>. Theme variables only. */
+body { margin: 0; background: var(--surface-0); color: var(--text-1); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.bk-page { max-width: 640px; margin: 0 auto; padding: 32px 18px 48px; }
+.bk-head h1, .bk-page > h1 { margin: 0 0 4px; font-size: 24px; }
+.bk-meta, .bk-fine { color: var(--text-2); font-size: 13px; }
+.bk-note { margin: 8px 0 0; }
+.bk-msg { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.bk-form h2 { font-size: 16px; margin: 22px 0 8px; }
+.bk-day { border: 1px solid var(--line); border-radius: 12px; margin: 0 0 10px; padding: 8px 10px 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.bk-day legend { padding: 0 4px; font-weight: 600; font-size: 14px; }
+.bk-slot { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-1); cursor: pointer; font-size: 14px; }
+.bk-slot:has(input:checked) { border-color: var(--accent-solid); background: color-mix(in srgb, var(--accent-solid) 14%, var(--surface-1)); }
+.bk-slot input { margin: 0; accent-color: var(--accent-solid); }
+.bk-form > label { display: grid; gap: 4px; margin: 0 0 10px; font-size: 14px; }
+.bk-form :is(input:not([type=radio]), textarea) { font: inherit; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-1); color: var(--text-1); }
+.bk-form button { font: inherit; font-weight: 600; padding: 10px 18px; border: 0; border-radius: 10px; background: var(--accent-solid); color: var(--on-accent); cursor: pointer; }
+.bk-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.bk-empty { color: var(--text-2); }

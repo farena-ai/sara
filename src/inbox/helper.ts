@@ -277,6 +277,8 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
         seen.add(m.id);
         out.read++;
         newest = Math.max(newest, Date.parse(m.date) || 0);
+        // R3: a reply to an errand's email advances the errand that waits for it (src/errands.ts).
+        this.#app.errands?.observeMail({ ...m, account });
         try {
           const r = await this.#take({ ...m, account });
           out.created += r.created.length;
@@ -469,6 +471,7 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
     if (typeof u.package === 'number') this.#db.prepare('DELETE FROM inbox_packages WHERE id = ?').run(u.package);
     if (typeof u.trip === 'number') this.#db.prepare('DELETE FROM inbox_trips WHERE id = ?').run(u.trip);
     for (const rid of (u.reminders as number[] | undefined) ?? []) planner?.cancelReminder(rid);
+    for (const tid of (u.tasks as number[] | undefined) ?? []) planner?.deleteTask(tid);
     for (const ev of (u.events as string[] | undefined) ?? []) await this.#run('calendar_remove', { id: ev }).catch(() => undefined);
     if (u.invoice && typeof u.invoice === 'object') {
       const x = u.invoice as { id: number; status: string; paidAt: string | null };
@@ -523,6 +526,8 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
       }
       case 'trip':
         return this.#trip(it);
+      case 'school':
+        return this.#school(it);
       case 'appointment': {
         const start = (f.start ?? '').slice(0, 16);
         if (this.#hasTool('calendar_add')) {
@@ -553,6 +558,34 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
         return { ok: docs.length > 0, text: docs.length ? `Saved ${docs.map((d) => `“${d.name}”`).join(', ')} to the Library (${docs[0]!.folder}).\nVerified: ${docs.map((d) => `#${d.id}`).join(', ')} read back from the Library.` : 'No attachment could be saved.', undo: { docs: docs.filter((d) => d.isNew).map((d) => d.id) } };
       }
     }
+  }
+
+  /**
+   * R8 (docs/FAMILY.md): a school date goes on the person's "School" list (a planner project) with a
+   * reminder the evening before; a permission slip becomes a "Sign and return" task with the attached
+   * form kept in the Library (School folder).
+   */
+  async #school(it: InboxItem): Promise<{ ok: boolean; text: string; undo: Record<string, unknown> }> {
+    const f = it.finding;
+    const planner = this.#app.planner;
+    if (!planner) return { ok: false, text: this.#T(en('No planner here.')), undo: {} };
+    const at = this.#instant(f.start?.includes('T') ? f.start : `${(f.start ?? '').slice(0, 10)}T08:00`);
+    if (!at) return { ok: false, text: this.#T(en('The email has no date I could read.')), undo: {} };
+    const slip = f.school === 'permission_slip';
+    const docs = slip && it.attachments.length ? await this.#saveFiles(it, it.attachments, 'School') : [];
+    const title = slip ? `Sign and return: ${f.title ?? it.subject}` : (f.title ?? it.subject);
+    const notes = `From your inbox: ${it.subject} (${it.sender})${docs.length ? `\nThe form: ${docs.map((d) => `“${d.name}” (Library #${d.id})`).join(', ')}` : ''}`;
+    const task = planner.addTask({ title: title.slice(0, 200), project: 'School', notes, dueAt: at.toISOString() });
+    const z = zonedParts(at, this.#tz());
+    const eve = zonedToUtc(z.y, z.mo, z.d - 1, 19, 0, this.#tz());
+    const rem = eve.getTime() > this.#now().getTime() ? planner.addReminder({ text: `Tomorrow: ${title}`, dueAt: eve.toISOString(), conversationId: this.#conversation() }) : undefined;
+    const back = planner.task(task.id);
+    if (!back) return { ok: false, text: 'Could not verify: the task was not saved.', undo: {} };
+    return {
+      ok: true,
+      text: `Added “${title}” to School for ${(f.start ?? '').slice(0, 10)}${rem ? ', with a reminder the evening before' : ''}.\nVerified: task #${back.id} is in the School list${rem ? ` and reminder #${rem.id} is set` : ''}${docs.length ? `; the form is in the Library (${docs.map((d) => `#${d.id}`).join(', ')})` : slip && it.attachments.length ? '; the attached form could not be saved' : ''}.`,
+      undo: { tasks: [back.id], reminders: rem ? [rem.id] : [], docs: docs.filter((d) => d.isNew).map((d) => d.id) },
+    };
   }
 
   /** "2026-11-20T08:05:00-06:00" is an instant; "2026-11-20T08:05" is wall time in the person's zone. */
@@ -782,6 +815,8 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
         return this.#T(en('Invoice {n} was paid'), { n: f.invoice ?? '' });
       case 'file':
         return this.#T(en('Attachment from {who}: {files}'), { who: it.sender, files: it.attachments.join(', ') });
+      case 'school':
+        return this.#T(en('School: {what}, {when}'), { what: f.title ?? it.subject, when: (f.due ?? f.start ?? '').slice(0, 10) });
     }
   }
   /** One chat line per scan: what's new to accept, and what was done on its own (with Undo on Today). */
@@ -793,6 +828,14 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
     // N5b: one new card: Accept right on the notification.
     const act = cards.length === 1 ? { kind: 'inbox' as const, id: String(cards[0]!.id), companion: this.#app.companionId ?? 'main', acts: ['accept' as const] } : undefined;
     this.#say(parts.join('\n\n'), { inbox: { items: [...cards, ...done].map((c) => c.id) } }, true, act);
+  }
+
+  /** R7 (Retention and legal hold → Keep inbox scans): finished suggestions and delivered packages older than `iso` go (waiting cards stay). */
+  forgetBefore(iso: string): number {
+    const a = Number(this.#db.prepare("DELETE FROM inbox_items WHERE status != 'pending' AND created_at < ?").run(iso).changes);
+    const b = Number(this.#db.prepare('DELETE FROM inbox_packages WHERE updated_at < ?').run(iso).changes);
+    const c = Number(this.#db.prepare('DELETE FROM inbox_trips WHERE created_at < ? AND (starts_at IS NULL OR starts_at < ?)').run(iso, iso).changes);
+    return a + b + c;
   }
 
   #prune(): void {

@@ -12,6 +12,9 @@ For the development candidate's owner controls and saved-context retention, see
 [Session continuity](SESSION_CONTINUITY.md). Check its release status before expecting it on
 an older installation.
 
+> New in R2: after the first sign-in a five-screen **guided setup** walks you through mail, calendar,
+> phone and computer, with examples and starter packs: [Getting started](GETTING_STARTED.md).
+
 > Not installed yet? [Install Sara](INSTALL.md) first (Linux, Docker, Windows, macOS or a NAS), and
 > check [what computer you need](REQUIREMENTS.md).
 
@@ -121,7 +124,7 @@ replies fail. In Company mode the technical checks fold away behind *Show techni
 
 - Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 218
 - Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 224
-- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 228
+- Every page has a **How do I…?** box at the top, with numbered steps and a **Show me** button. All 230
   answers in one list: [How do I…?](HOW_DO_I.md).
 - Every setting has a **?** with an example; or simply ask her how something works.
 - [Questions and answers](FAQ.md), the [how-to videos](VIDEOS.md), and

@@ -99,3 +99,31 @@ export function initCarMode({ talk, recording, voiceReady }) {
   sync();
 }
 export const carModeSync = () => view?.sync();
+
+// R5 (docs/PHONE_CALLS.md "Car mode errands"): "approve" / "no" said in car mode answer the card that
+// waits in this chat, when a phone may answer it (the server checks: computer use stays on the
+// computer). The same words as approvalWord in src/phone-calls.ts.
+const YES_RE = /^\s*(?:approve|approved|yes(?:,? do it)?|ok(?:ay)?,? do it|go ahead|allow( it)?|aprueba|apruebo|s[ií],? hazlo|adelante|approuve|j'approuve|oui,? vas-y|genehmigen|genehmigt|ja,? mach(?: es)?|aprovar|aprovo|sim,? pode|approva|approvo|s[iì],? fallo|vai)\s*[.!]*\s*$/i;
+const NO_RE = /^\s*(?:decline|deny|no|don'?t|cancel|rechaza|no lo hagas|refuse|non|ablehnen|nein|recusar|n[aã]o|rifiuta|annulla)\s*[.!]*\s*$/i;
+/** 'approve', 'decline' or null. */
+export function approvalCommand(text) {
+  const s = String(text ?? '');
+  if (YES_RE.test(s)) return 'approve';
+  if (NO_RE.test(s)) return 'decline';
+  return null;
+}
+/**
+ * In car mode with a card waiting in this chat: answers it by voice and says the outcome. Returns
+ * true when the words were an answer (they are never sent to her as a message).
+ */
+export async function carAnswer(text, { api, conversationId, waiting, say }) {
+  const word = approvalCommand(text);
+  if (!word || !conversationId || !waiting) return false;
+  try {
+    const r = await api('/car/answer', { method: 'POST', body: { conversationId, approved: word === 'approve' } });
+    say?.(r.line);
+  } catch (err) {
+    say?.(err.message);
+  }
+  return true;
+}

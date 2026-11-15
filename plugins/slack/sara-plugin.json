@@ -2,7 +2,7 @@
   "manifest": 1,
   "id": "slack",
   "name": "Slack",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.",
   "author": "The Sara team",
   "license": "MIT",
@@ -49,6 +49,12 @@
       "tip": "Starts with xapp-. In your Slack app: Basic Information → App-Level Tokens, with the connections:write scope. It lets Sara connect out to Slack (Socket Mode); kept encrypted in Sara's vault."
     },
     {
+      "key": "userToken",
+      "type": "secret",
+      "label": "Your user token (optional)",
+      "tip": "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted."
+    },
+    {
       "key": "mirror",
       "type": "switch",
       "label": "Send reminders and messages she starts to my Slack DM too",
@@ -58,6 +64,8 @@
   ],
   "i18n": {
     "es": {
+      "Your user token (optional)": "Tu token de usuario (opcional)",
+      "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted.": "Empieza por xoxp-. Solo para poner tu estado, recordatorios y buscar mensajes desde un chat con ella: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Se guarda cifrado.",
       "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Habla con ella en Slack: sus mensajes directos y, cuando alguien la menciona, los canales que elijas.",
       "Bot token": "Token del bot",
       "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Empieza por xoxb-. En tu app de Slack: Install App → Bot User OAuth Token. Se guarda cifrado en la bóveda de Sara y no se vuelve a mostrar.",
@@ -67,6 +75,8 @@
       "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Sus recordatorios también llegan a tu mensaje directo con ella en Slack. Nunca a canales ni a otras personas."
     },
     "fr": {
+      "Your user token (optional)": "Votre jeton utilisateur (facultatif)",
+      "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted.": "Commence par xoxp-. Seulement pour régler votre statut, des rappels et chercher des messages depuis un chat avec elle : OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Gardé chiffré.",
       "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Parlez-lui dans Slack : ses messages directs et, quand quelqu'un la mentionne, les canaux que vous choisissez.",
       "Bot token": "Jeton du bot",
       "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Commence par xoxb-. Dans votre app Slack : Install App → Bot User OAuth Token. Gardé chiffré dans le coffre de Sara et plus jamais affiché.",
@@ -76,6 +86,8 @@
       "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Ses rappels arrivent aussi dans votre message direct avec elle dans Slack. Jamais dans des canaux ni à d'autres personnes."
     },
     "de": {
+      "Your user token (optional)": "Dein Benutzer-Token (optional)",
+      "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted.": "Beginnt mit xoxp-. Nur für deinen Status, Erinnerungen und die Nachrichtensuche aus einem Chat mit ihr: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Verschlüsselt gespeichert.",
       "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Sprich mit ihr in Slack: ihre Direktnachrichten und, wenn jemand sie erwähnt, die Kanäle, die du wählst.",
       "Bot token": "Bot-Token",
       "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Beginnt mit xoxb-. In deiner Slack-App: Install App → Bot User OAuth Token. Verschlüsselt in Saras Tresor gespeichert und nie wieder angezeigt.",
@@ -85,6 +97,8 @@
       "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Ihre Erinnerungen kommen auch in deine Direktnachricht mit ihr in Slack. Nie in Kanäle oder an andere."
     },
     "pt-BR": {
+      "Your user token (optional)": "Seu token de usuário (opcional)",
+      "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted.": "Começa com xoxp-. Só para definir seu status, lembretes e buscar mensagens a partir de um chat com ela: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Fica criptografado.",
       "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Converse com ela no Slack: as mensagens diretas dela e, quando alguém a menciona, os canais que você escolher.",
       "Bot token": "Token do bot",
       "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Começa com xoxb-. No seu app do Slack: Install App → Bot User OAuth Token. Fica criptografado no cofre da Sara e nunca é mostrado de novo.",
@@ -94,6 +108,8 @@
       "Her reminders also come to your DM with her in Slack. Never to channels or other people.": "Os lembretes dela também chegam à sua mensagem direta com ela no Slack. Nunca a canais nem a outras pessoas."
     },
     "it": {
+      "Your user token (optional)": "Il tuo token utente (facoltativo)",
+      "Starts with xoxp-. Only for setting your status, reminders and searching messages from a chat with her: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Kept encrypted.": "Inizia con xoxp-. Solo per impostare il tuo stato, i promemoria e cercare messaggi da una chat con lei: OAuth & Permissions → User Token Scopes (users.profile:write, reminders:write, search:read). Custodito cifrato.",
       "Talk to her in Slack: her DMs, and the channels you choose when someone mentions her.": "Parla con lei in Slack: i suoi messaggi diretti e, quando qualcuno la menziona, i canali che scegli.",
       "Bot token": "Token del bot",
       "Starts with xoxb-. In your Slack app: Install App → Bot User OAuth Token. Kept encrypted in Sara's vault and never shown again.": "Inizia con xoxb-. Nella tua app Slack: Install App → Bot User OAuth Token. Custodito cifrato nella cassaforte di Sara e mai più mostrato.",

@@ -1,6 +1,6 @@
 // Sara web client (no build step).
 import { Call, Mic, Speaker } from './voice.js';
-import { carCommand, carOn, initCarMode, setCar, touchCar } from './car-mode.js';
+import { carAnswer, carCommand, carOn, initCarMode, setCar, touchCar } from './car-mode.js';
 import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
@@ -43,7 +43,11 @@ import { initAgents, loadAgents } from './agents.js';
 import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
+import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
+import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
+import { initFamily, loadFamily, openFamily, renderFamilyTile } from './family.js';
 import { initInboxHelper, loadInboxHelper, renderInboxTile } from './inbox-helper.js';
+import { initWorkApps, loadWorkApps } from './workapps.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
@@ -93,6 +97,9 @@ import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
 import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
 import { initDataRights } from './data-rights.js';
+import { initMemberTools } from './member-tools.js';
+import { initShortcutsPage, renderInstallGuide } from './shortcuts-page.js';
+import { applyBadge, isStandalone, pushPossible } from './ios-web.js';
 import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
 import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
@@ -144,6 +151,7 @@ import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
+import { initGetStarted, paintToday as paintGetStarted, paintSettingsCard as paintGuideCard } from './get-started.js';
 import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
@@ -155,6 +163,7 @@ import { initOrbs, orbMount, orbSignal } from './orb.js';
 import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './run-timeline.js';
 import { initMemoryMap } from './memory-map.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
+let getStartedReady = false;
 let hubReady = false;
 // Phase 114 (PL1b, F2): one first-run queue: the check-in notice, the hub's notice and the tour offer
 // each wait until nothing else covers the page (web/first-run.js).
@@ -333,6 +342,11 @@ async function boot() {
     // the short tour for their use choice after her first reply (Phase 114, F2).
     if (session.demo) setTimeout(offerFirstTour, 4000);
     else queueTourOffer();
+  }
+  // R2: the guided setup (web/get-started.js), offered once after the first sign-in through the queue.
+  if (!session.demo && !getStartedReady) {
+    getStartedReady = true;
+    initGetStarted({ api, el, firstRun, isMember, openSettings, openToday, paintFitness, paintTryCards, state });
   }
   refreshSaraStatus();
   setInterval(refreshSaraStatus, 5 * 60_000);
@@ -1725,6 +1739,8 @@ initToday({
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
+  renderErrands: (part, head) => renderErrandsTile(part, head),
+  renderFamily: (part, head) => renderFamilyTile(part, head),
   renderInbox: (part, head) => renderInboxTile(part, head, dateCard),
   renderPhotos: renderTodayPhotos,
   // Phase 111 (TD1): the tiles that moved here from loadToday, and the layout (web/today-layout.js).
@@ -1858,6 +1874,11 @@ function bubble(role, text, kind, id, images = [], docs = []) {
   const div = document.createElement('div');
   if (id) div.dataset.id = id;
   div.className = `msg ${role}${kind ? ` ${kind}` : ''}`;
+  // R9 (docs/ACCESSIBILITY.md): a screen reader says who wrote each message (#messages is aria-live polite).
+  if (role === 'user' || role === 'assistant') {
+    div.setAttribute('role', 'article');
+    div.setAttribute('aria-label', role === 'user' ? t('You said') : t('{name} said', { name: currentIdentity().name || t('Sara') }));
+  }
   if (role === 'assistant') setReply(div, text);
   else div.textContent = (text === '(photo)' && images.length) || (text === '(document)' && docs.length) ? '' : text;
   // Phase 113: "Report this" on an error notice opens Report a problem with the error filled in.
@@ -2586,6 +2607,12 @@ async function send(text) {
     $('#input').value = '';
     autosize();
     return setCar(carCmd === 'on');
+  }
+  // R5: in car mode, "approve" / "no" answer the card waiting in this chat (said aloud, never sent as a message).
+  if (!state.editing && carOn() && (await carAnswer(text, { api, conversationId: state.currentId, waiting: Boolean($('#messages .approval button:not(:disabled)')), say: (l) => speaker.say(l) }))) {
+    $('#input').value = '';
+    autosize();
+    return;
   }
   // Phase 128 (PL2b, N19): /goal and /loop from the / menu open their cards (the same as + → Keep
   // going… / Repeat this…), with what was typed after the command.
@@ -3580,6 +3607,9 @@ addEventListener('resize', () => waitingCards().length && syncActivityAnswers())
 function approvalCard(ev, block) {
   const card = document.createElement('div');
   card.className = 'approval';
+  // R9: a named group, so a screen reader announces the card and its Allow / Deny as one thing.
+  card.setAttribute('role', 'group');
+  card.setAttribute('aria-label', t('Approval needed'));
   card.dataset.call = ev.id;
   const title = document.createElement('p');
   const what = document.createElement('pre');
@@ -3600,7 +3630,7 @@ function approvalCard(ev, block) {
     );
     title.dataset.raw = '';
     // Phase 99: a board step reads as one plain line ("Move “Fix login” (Website) from To do to Doing").
-    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : /^card_/.test(ev.name) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
+    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^card_/.test(ev.name) || WORKAPP_CARD.test(ev.name)) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
   } else {
     title.textContent = t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: ev.name });
     title.dataset.raw = '';
@@ -3956,6 +3986,8 @@ const TOOL_WORDS = {
 };
 // UI cleanup: each tool with a plain name, an icon, a sentence on what it lets her do and its raw
 // name in small print; grouped by topic, each group with a summary and "Set all to".
+/** R6: work-app changes whose card text is her diff (old → new, + added lines). */
+const WORKAPP_CARD = /^(gdoc_(append|replace_text)|gsheet_(update_range|append_rows)|excel_update_range|word_fill|slack_(post|react|status|remind)|teams_post)$/;
 const TOOL_NAME = {
   list_dir: 'See her files', read_file: 'Read files', write_file: 'Write files', edit_file: 'Edit files', search: 'Search her files',
   code_map: 'Code overview', code_find: 'Find code', code_refs: 'Where code is used', code_deps: 'How files connect',
@@ -3972,6 +4004,8 @@ const TOOL_NAME = {
   scrapbook: 'Scrapbook', moments: 'Our moments', share_photo: 'Send her pictures', take_photo: 'Make a new picture', change_outfit: 'Change her outfit',
   gmail_search: 'Search Gmail', gmail_read: 'Read an email', gmail_thread: 'Read an email conversation', gmail_needs_answer: 'Find emails to answer', gmail_draft: 'Draft an email', gmail_send: 'Send an email',
   gmail_organize: 'Organize your Gmail', gmail_undo: 'Undo a Gmail change', gmail_labels: 'See Gmail labels', gmail_senders: 'Gmail clean-up summary', gmail_unsubscribe_info: 'Find unsubscribe links',
+  // R6 (docs/WORK_APPS.md): the card shows her own old → new lines (the summary), not the arguments.
+  gdoc_append: 'Add to a Google doc', gdoc_replace_text: 'Change a Google doc', gsheet_update_range: 'Change cells in a Google sheet', gsheet_append_rows: 'Add rows to a Google sheet', excel_update_range: 'Change cells in an Excel workbook', word_fill: 'Fill in a Word file', slack_post: 'Post in Slack', slack_react: 'React in Slack', slack_status: 'Set your Slack status', slack_remind: 'Make a Slack reminder', teams_post: 'Post in Teams',
   calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event', calendar_update: 'Change a calendar event',
   mail_accounts: 'See your mailboxes', mail_search: 'Search your mail', mail_read: 'Read an email', mail_thread: 'Read an email conversation', mail_needs_answer: 'Find emails to answer', mail_draft: 'Draft an email', mail_send: 'Send an email',
   mail_organize: 'Organize your mail', mail_undo: 'Undo a mail change', mail_folders: 'See mail folders', mail_senders: 'Mail clean-up summary', mail_unsubscribe_info: 'Find unsubscribe links',
@@ -6123,6 +6157,8 @@ function deviceLabel() {
   return `${br} on ${os}`;
 }
 async function loadPush() {
+  // R4: on an iPhone, notifications need Sara opened from the Home Screen (the guide shows how).
+  renderInstallGuide($('#ph-install'));
   const reg = await swReady;
   let info;
   try {
@@ -6131,7 +6167,7 @@ async function loadPush() {
     return;
   }
   $('#push-preview').checked = info.preview;
-  const supported = Boolean(reg?.pushManager) && 'Notification' in window;
+  const supported = pushPossible({ ua: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, standalone: isStandalone(window), hasPush: Boolean(reg?.pushManager) && 'Notification' in window });
   const sub = supported ? await reg.pushManager.getSubscription() : null;
   $('#push-on').hidden = !supported || Boolean(sub);
   $('#push-off').hidden = !sub;
@@ -7254,8 +7290,19 @@ function needsReload() {
     void loadConversations().catch(() => {});
   }, 1500);
 }
+// R4: the installed app's badge (iPhone Home Screen web app, Android, desktop): approvals and inbox
+// cards waiting. The service worker sets it from each notification too.
+async function refreshBadge() {
+  if (typeof navigator.setAppBadge !== 'function') return;
+  const r = await api('/phone/badge').catch(() => null);
+  if (r) await applyBadge(navigator, r.count);
+}
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && state.events) void refreshBadge();
+});
 function startEvents() {
   if (state.events) return;
+  void refreshBadge();
   // B1 follow-up: one stream for all tabs (browsers allow six connections per server).
   const es = sharedEvents('/api/events');
   state.events = es;
@@ -7330,7 +7377,14 @@ function startEvents() {
   // Phase 104: a move-in's upload, check, read or import moved on.
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
   // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
-  es.addEventListener('today', (e) => todayPartChanged(JSON.parse(e.data).part));
+  es.addEventListener('today', (e) => {
+    const part = JSON.parse(e.data).part;
+    todayPartChanged(part);
+    if (part === 'needs' || part === 'errands') void refreshBadge();
+    // R3: an errand moved: its page refreshes while it is open.
+    if (part === 'errands' && $('#errands')?.open) void loadErrands();
+    if (part === 'family' && $('#family')?.open) void loadFamily();
+  });
   es.addEventListener('job', () => todayPartChanged('work'));
   es.addEventListener('planner', () => {
     todayPartChanged('day');
@@ -8928,6 +8982,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-devices') void renderAway($('#reach-away'));
   if (pick === 'dh-devices') showOfflineSettings();
   if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
+  // R5: Phone calls (co-phone) and Discord's voice channel (co-discord), owner only (web/phone-calls.js).
+  if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (pick === 'dh-quality') void loadQuality();
   if (pick === 'dh-recovery') {
@@ -8954,6 +9010,8 @@ function showSettingsTab(page, opts = {}) {
     void loadMailAccounts();
     void loadInboxHelper();
   }
+  // R6 (docs/WORK_APPS.md): booking page, accounting export, Docs/Sheets and Word/Excel permissions.
+  if (pick === 'you-business' || pick === 'ab-google' || pick === 'ab-mail') void loadWorkApps(pick);
   if (pick === 'co-whatsapp') void loadWhatsAppPage();
   if (pick === 'co-matrix') void loadMatrixPage();
   if (pick === 'co-imessage') void loadIMessagePage();
@@ -8964,6 +9022,7 @@ function showSettingsTab(page, opts = {}) {
   // Phase 123: the Short tool list and Tidy long chats cards.
   if (pick === 'ab-tools' || pick === 'models-default') void loadLean();
   if (pick === 'models-default') void paintFitness($('#model-fitness'));
+  if (pick === 'you-about') void paintGuideCard();
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (pick === 'ab-when') void loadWhenSettings();
   if (pick === 'you-automations') void loadAutomations();
@@ -8974,6 +9033,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-library') void loadLibrarySettings();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
   if (pick === 'co-agents') void loadAgents();
+  // R4: the Home Screen guide on an iPhone in a Safari tab (also when the push read fails).
+  if (pick === 'co-phone') renderInstallGuide($('#ph-install'));
   if (pick === 'co-hooks') void Promise.all([loadHooks(), loadEventTriggers()]);
   if (pick === 'co-computer') void loadComputer();
   if (pick === 'her-import') void loadImport();
@@ -9723,7 +9784,7 @@ const TODAY_FMT = { fmtDue: (iso) => fmtDue(iso), inDaysWords: (n) => inDaysWord
 async function openToday() {
   const first = !todayOpen();
   if (first) showToday();
-  await Promise.all([loadToday(), loadChecklist(), paintTryCards()]);
+  await Promise.all([loadToday(), loadChecklist(), paintTryCards(), paintGetStarted()]);
 }
 $('#open-today').addEventListener('click', openToday);
 // Phase 111: back from Today, the conversation underneath catches up with what happened meanwhile.
@@ -9776,7 +9837,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), family: () => $('#open-family').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10577,6 +10638,10 @@ initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 initSharing({ api, el });
 // EC17: Retention and legal hold (web/data-rights.js).
 initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
+// R7: Settings → Household → People on this server → Tools for household members (web/member-tools.js).
+initMemberTools({ api });
+// R4: Settings → Connections → iPhone Shortcuts (web/shortcuts-page.js).
+initShortcutsPage({ api, el, copyText });
 // EC26: Settings → Her → At work (web/work-profile.js).
 initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });
@@ -11279,7 +11344,7 @@ function loadToolNames() {
   toolNamesP ??= api('/tools').then((r) => (state.toolNames = (r.tools ?? []).filter((x) => x.available !== false).map((x) => x.name)), () => ((toolNamesP = null), []));
   return toolNamesP;
 }
-const tryNow = () => tryCards({ tools: state.toolNames ?? [], path: state.usePath, done: triedSet(), t });
+const tryNow = () => tryCards({ tools: state.toolNames ?? [], path: state.usePath, done: triedSet(), t, pick: state.packTry });
 /** E7: starter cards on Today, one per everyday area, until used once or dismissed (web/try-cards.js). */
 async function paintTryCards() {
   await loadToolNames();
@@ -11629,6 +11694,56 @@ $('#doctor-run').addEventListener('click', async () => {
     $('#doctor-run').disabled = false;
   }
 });
+
+// R1: Check everything (src/self-test.ts). Ticked tests write something and remove it again.
+let selfTestReport = '';
+$('#selftest-run').addEventListener('click', async () => {
+  const list = $('#selftest-list');
+  list.hidden = false;
+  list.replaceChildren(el('li', 'muted', t('Checking… (mail and the desktop app can take a few seconds)')));
+  $('#selftest-run').disabled = true;
+  $('#selftest-status').textContent = '';
+  try {
+    const r = await api('/self-test', { method: 'POST', body: { draft: $('#selftest-draft').checked, event: $('#selftest-event').checked, push: $('#selftest-push').checked } });
+    selfTestReport = r.report ?? '';
+    const need = r.lines.filter((l) => l.status === 'attention').length;
+    $('#selftest-status').textContent = need ? t('{n} need attention.', { n: need }) : t('Everything checked is OK.');
+    list.replaceChildren(
+      ...r.lines.map((l) => {
+        const li = el('li', l.status === 'ok' ? 'ok' : l.status === 'attention' ? 'warn' : 'muted');
+        li.append(el('strong', '', `${l.status === 'ok' ? '✓' : l.status === 'attention' ? '!' : '–'} ${t(l.area)}`), el('span', '', ` ${t(l.text, l.params)}`));
+        if (l.fix) {
+          li.append(el('span', 'muted', ` ${t(l.fix)}`));
+          if (l.page) {
+            const a = el('a', 'small', ` ${t('Open')}`);
+            a.href = '#';
+            a.addEventListener('click', (e) => {
+              e.preventDefault();
+              void openSettings(l.page);
+            });
+            li.append(a);
+          }
+        }
+        return li;
+      }),
+    );
+    $('#selftest-copy').hidden = !selfTestReport;
+    $('#selftest-report').hidden = !selfTestReport || document.body.classList.contains('demo');
+  } catch (err) {
+    list.replaceChildren(el('li', 'bad', err.message));
+  } finally {
+    $('#selftest-run').disabled = false;
+  }
+});
+$('#selftest-copy').addEventListener('click', async () => {
+  try {
+    await navigator.clipboard.writeText(selfTestReport);
+    $('#selftest-status').textContent = t('Copied.');
+  } catch {
+    $('#selftest-status').textContent = t('Could not copy here.');
+  }
+});
+$('#selftest-report').addEventListener('click', () => openHubReport({ kind: 'bug', text: `${t('Check everything found problems')}\n${selfTestReport}` }));
 
 // ---------- pictures from Sara ----------
 function renderPhotos(p) {
@@ -12038,6 +12153,35 @@ $('#open-findings').addEventListener('click', () => void openFindings());
 initEvals();
 $('#open-evals').addEventListener('click', () => void openEvals());
 initMoments({ openAtMessage });
+// R3 (docs/ERRANDS.md): the Errands page.
+initPhoneCalls({ api });
+initWorkApps({ api, el });
+initErrands({
+  api,
+  el,
+  openConversation: (id) => {
+    if ($('#errands').open) $('#errands').close();
+    void openConversation(id);
+  },
+});
+// R8 (docs/FAMILY.md): the Family page.
+initFamily({
+  api,
+  el,
+  refreshToday: () => void loadToday(true),
+  toast: (msg) => {
+    const s = $('#td-status');
+    if (s) s.textContent = msg;
+  },
+});
+$('#open-family').addEventListener('click', () => {
+  closeSidebar();
+  void openFamily();
+});
+$('#open-errands').addEventListener('click', () => {
+  closeSidebar();
+  void openErrands();
+});
 initHousehold({ show, boot, copyText, showSettingsTab });
 for (const b of document.querySelectorAll('[data-story]')) {
   b.addEventListener('click', () => {
@@ -13402,7 +13546,7 @@ async function loadDevices() {
       const when = key
         ? `${t('made {date}', { date: new Date(d.createdAt).toLocaleDateString() })} · ${keyUse(d)}`
         : `${t('signed in {date}', { date: new Date(d.createdAt).toLocaleDateString() })} · ${t('last used {date}', { date: new Date(d.lastSeen).toLocaleString() })}`;
-      li.append(el('strong', '', d.label), el('span', 'muted small', `${d.kind === 'app' ? ` · ${t('app (device code)')}` : key ? ` · ${t('API key for another app')}` : ''} · ${when}${d.current ? ` · ${t('this device')}` : ''}`));
+      li.append(el('strong', '', d.label), el('span', 'muted small', `${d.kind === 'app' ? ` · ${t('app (device code)')}` : d.kind === 'shortcut' ? ` · ${t('iPhone Shortcuts')}` : key ? ` · ${t('API key for another app')}` : ''} · ${when}${d.current ? ` · ${t('this device')}` : ''}`));
       if (!d.current) {
         const out = el('button', 'ghost small', key ? t('Remove') : t('Sign out'));
         out.type = 'button';

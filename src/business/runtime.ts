@@ -115,6 +115,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           const binding = (req.headers.cookie ?? '').split(';').map(c => c.trim()).find(c => c.startsWith(`${SSO_BINDING_COOKIE}=`))?.slice(SSO_BINDING_COOKIE.length + 1);
           const result = await sso.callback(new URL(req.url ?? '/', origin).searchParams, binding);
           if ('reason' in result) { ssoLimiter.fail(ip); return back(`/?sso=${result.reason}`); }
+          if ('test' in result) return back('/?sso-test=done');
           return back('/', [`${BUSINESS_COOKIE}=${result.session.value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${result.session.maxAgeSeconds}${origin.startsWith('https:') ? '; Secure' : ''}`]);
         }
         // EC16: SCIM is server to server (no Origin, no cookie); the bearer token authenticates it.
@@ -127,9 +128,9 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (recoveryMode(control.database) && !['/api/business/reenroll', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish'].includes(path)) return json(res, 503, { error: 'Business recovery requires reconciliation.' });
         if (path === '/api/business/claim' && req.method === 'GET') return json(res, 200, auth.claimStatus());
         const allowed = new Set(['/api/business/reenroll', '/api/business/claim', '/api/business/me', '/api/business/logout', '/api/business/passkeys/register/options', '/api/business/passkeys/register/finish', '/api/business/passkeys/login/options', '/api/business/passkeys/login/finish']);
-        if (path === '/api/business/org/audit' || BUSINESS_USAGE_PATHS.includes(path)) allowed.add(path);
+        if (path === '/api/business/org/audit' || path === '/api/business/org/audit.csv' || path === '/api/business/org/audit.json' || BUSINESS_USAGE_PATHS.includes(path)) allowed.add(path);
         if (path === '/api/business/scim/config' || path === '/api/business/scim/token') allowed.add(path);
-        if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test'].includes(path)) allowed.add(path);
+        if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test', '/api/business/sso/test-result'].includes(path)) allowed.add(path);
         if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path) && !pageRoutes.matches(path)) return json(res, 404, { error: 'Not found.' });
         if (req.method !== 'GET' && (req.method !== 'POST' || req.headers.origin !== origin)) return json(res, 403, { error: 'Origin denied.' });
         const cookies = (req.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith(`${BUSINESS_COOKIE}=`));
@@ -144,6 +145,16 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (path === '/api/business/org/audit' && req.method === 'GET') {
           try { if (!principal) return json(res, 401, { error: 'Sign-in required.' }); return json(res, 200, audit.organization(principal)); }
           catch { return json(res, 403, { error: 'Request denied.' }); }
+        }
+        // R7: the audit export (CSV or JSON for a date range), organization administrators only.
+        if ((path === '/api/business/org/audit.csv' || path === '/api/business/org/audit.json') && req.method === 'GET') {
+          if (!principal || !auth.isPrincipalActive(principal)) return json(res, 401, { error: 'Sign-in required.' });
+          const q = new URL(req.url ?? '/', origin).searchParams;
+          let out: { body: string; contentType: string; filename: string };
+          try { out = audit.organizationExport(principal, { from: q.get('from'), to: q.get('to'), format: path.endsWith('.csv') ? 'csv' : 'json' }); }
+          catch (error) { return error instanceof BusinessAccessError ? json(res, 403, { error: 'Request denied.' }) : json(res, 400, { error: error instanceof Error && error.message.startsWith('Use dates') ? error.message : 'Request denied.' }); }
+          res.writeHead(200, { 'content-type': out.contentType, 'content-disposition': `attachment; filename="${out.filename}"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+          return void res.end(out.body);
         }
         if (BUSINESS_USAGE_PATHS.includes(path)) return handleBusinessUsage({ control, req, res, path, principal: principal && auth.isPrincipalActive(principal) ? principal : undefined, json });
         if (path.startsWith('/api/business/scim/')) {

@@ -6,6 +6,9 @@
 import { BROWSER_TOOLS } from './tools/browser.ts';
 import { verifyState } from './verify-action.ts';
 
+/** R3 (src/errands.ts): errand_status marks an errand email that was sent and verified with this. */
+export const ERRAND_SENT = 'Evidence (sent): ';
+
 export interface Receipt {
   name: string;
   status: 'ok' | 'error' | 'denied';
@@ -396,7 +399,8 @@ function backing(receipts: Receipt[]) {
       return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => WRITE_TOOLS.has(r.name));
     },
     // Phase 62: sending (mail, a GitHub comment / issue / pull request, an MCP tool, a mail command).
-    hasSend: mcp || ok.some((r) => r.name === 'gmail_send' || r.name === 'mail_send' || r.name === 'github_comment' || r.name === 'github_create_issue' || r.name === 'github_open_pr') || shells.some((r) => /\b(?:mail|sendmail|msmtp|mutt|curl|gh)\b/.test(cmd(r))),
+    // R3: an errand's email, sent through mail_send and verified, shows in errand_status / errand_list.
+    hasSend: mcp || ok.some((r) => r.name === 'gmail_send' || r.name === 'mail_send' || r.name === 'github_comment' || r.name === 'github_create_issue' || r.name === 'github_open_pr' || (/^errand_(?:status|list)$/.test(r.name) && r.output.includes(`${ERRAND_SENT}Verified:`))) || shells.some((r) => /\b(?:mail|sendmail|msmtp|mutt|curl|gh)\b/.test(cmd(r))),
     // Phase 62: a calendar entry (or a reminder set for it).
     hasSchedule: mcp || ok.some((r) => r.name === 'calendar_add' || (r.name === 'remind' && String(r.args.action) === 'set')),
     // Anything that did something (not just reading) backs the judge's generic "action".

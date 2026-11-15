@@ -392,7 +392,8 @@ test('N4 attachments: Library files by number, caps per provider, the read-back 
     assert.equal(one[0]!.name, 'Invoice INV-1.pdf');
     assert.equal(one[0]!.mime, 'application/pdf');
     assert.equal(resolveAttachments(app, 'library:1', 'imap').length, 1);
-    assert.throws(() => resolveAttachments(app, [2], 'graph'), (e: Error) => e instanceof AttachmentError && /Outlook takes attachments up to 3\.0 MB/.test(e.message));
+    assert.equal(resolveAttachments(app, [2], 'graph').length, 1, 'R1: Outlook takes 150 MB through an upload session');
+    assert.equal(ATTACH_CAP.graph, 150 * 1024 * 1024);
     assert.equal(resolveAttachments(app, [2], 'google').length, 1, 'Gmail takes 20 MB');
     assert.throws(() => resolveAttachments(app, [9], 'google'), /Library document 9 has no file/);
     assert.equal(ATTACH_CAP.imap, 20 * 1024 * 1024);

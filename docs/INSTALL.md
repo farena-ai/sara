@@ -9,6 +9,10 @@ New to this? These pages help too: [what it costs](COSTS.md), [what leaves your 
 [your phone](PHONE.md), [moving to a new computer](MOVING.md), the
 [security checklist](SECURITY_CHECKLIST.md) for after installing, and the [FAQ and glossary](FAQ.md).
 
+**Already running Sara and adding another device?** Open `/download` on her address (for example
+`https://sara.example.com/download`): it needs no sign-in, sees the device and offers the right
+installer with plain steps ([Getting started](GETTING_STARTED.md#the-download-page)).
+
 **What you may need to do yourself** (the few things an installer can't do for you, per system):
 [YOUR_STEPS.md](YOUR_STEPS.md).
 

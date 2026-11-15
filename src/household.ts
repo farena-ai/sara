@@ -14,6 +14,7 @@ import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
 import { en } from './i18n.ts';
+import { childRouteCheck, childSettings, cleanChild as cleanChildRaw, FamilyError, kidPause, type ChildProfile } from './family.ts';
 import { SettingsStore, type Settings } from './settings.ts';
 import type { Vault } from './vault.ts';
 
@@ -64,6 +65,8 @@ export interface MemberRecord {
   ownerConfirmed18At: string;
   memberConfirmed18At: string;
   limits: MemberLimits;
+  /** R8 (docs/FAMILY.md): kid-safe member mode. Set by the owner (a parent); enforced server-side. */
+  child?: ChildProfile;
 }
 
 interface InviteRecord {
@@ -74,6 +77,9 @@ interface InviteRecord {
   expiresAt: string;
   ownerConfirmed18At: string;
   limits: MemberLimits;
+  /** R8: an invite for a child (the owner confirmed being their parent or guardian instead of 18+). */
+  child?: ChildProfile;
+  guardianConfirmedAt?: string;
 }
 
 interface HouseholdFile {
@@ -98,6 +104,16 @@ function newInviteCode(): string {
   let s = '';
   while (s.length < INVITE_LEN) for (const b of randomBytes(INVITE_LEN)) if (b < 248 && s.length < INVITE_LEN) s += INVITE_ALPHABET[b % 31];
   return s.match(/.{4}/g)!.join('-');
+}
+
+/** R8: a kid-safe profile from a request, checked (its errors are household errors). */
+function cleanChild(v: unknown, now: Date, base?: ChildProfile): ChildProfile {
+  try {
+    return cleanChildRaw(v, now, base);
+  } catch (err) {
+    if (err instanceof FamilyError) throw new HouseholdError(err.status, err.message);
+    throw err;
+  }
 }
 
 /** Limits from a request, checked (models must be among `available`). */
@@ -179,8 +195,11 @@ export class HouseholdStore {
   }
 
   /** A new invite (the code is returned once and only its hash kept). The owner confirms 18+. */
-  invite(input: { name: unknown; hours: unknown; confirm18: unknown; limits: MemberLimits }): { code: string; invite: InviteView } {
-    if (input.confirm18 !== true) throw new HouseholdError(400, en('Confirm that this person is 18 or older.'));
+  invite(input: { name: unknown; hours: unknown; confirm18: unknown; limits: MemberLimits; child?: unknown; confirmGuardian?: unknown }): { code: string; invite: InviteView } {
+    // R8: a child's invite needs the owner's word that they are the child's parent or guardian (not 18+).
+    const child = input.child ? cleanChild(input.child, this.#now()) : undefined;
+    if (child && input.confirmGuardian !== true) throw new HouseholdError(400, en('Confirm that you are this child’s parent or guardian.'));
+    if (!child && input.confirm18 !== true) throw new HouseholdError(400, en('Confirm that this person is 18 or older.'));
     const name = String(input.name ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!name) throw new HouseholdError(400, en('Type their name (only you see it).'));
     const hours = Number(input.hours ?? 24);
@@ -190,7 +209,7 @@ export class HouseholdStore {
     if (this.#file.members.length + this.#file.invites.length >= MAX_MEMBERS) throw new HouseholdError(400, en('Up to {n} people besides you on one server.'));
     const code = newInviteCode();
     const now = this.#now();
-    const rec: InviteRecord = { id: randomBytes(6).toString('hex'), hash: sha256(normalizeInviteCode(code)), name, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + hours * 3600_000).toISOString(), ownerConfirmed18At: now.toISOString(), limits: input.limits };
+    const rec: InviteRecord = { id: randomBytes(6).toString('hex'), hash: sha256(normalizeInviteCode(code)), name, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + hours * 3600_000).toISOString(), ownerConfirmed18At: child ? '' : now.toISOString(), limits: child ? { ...input.limits, voice: false, pictures: false } : input.limits, ...(child ? { child, guardianConfirmedAt: now.toISOString() } : {}) };
     this.#file.invites.push(rec);
     this.#save();
     const { hash: _h, ...invite } = rec;
@@ -215,9 +234,9 @@ export class HouseholdStore {
   }
 
   /** What the join page shows for a code (or undefined: wrong, used or expired). */
-  checkInvite(code: string): { name: string; expiresAt: string } | undefined {
+  checkInvite(code: string): { name: string; expiresAt: string; child?: boolean } | undefined {
     const i = this.#findInvite(code);
-    return i ? { name: i.name, expiresAt: i.expiresAt } : undefined;
+    return i ? { name: i.name, expiresAt: i.expiresAt, ...(i.child ? { child: true } : {}) } : undefined;
   }
 
   /**
@@ -225,13 +244,14 @@ export class HouseholdStore {
    * The caller creates the member's sign-in in that folder and builds the space.
    */
   redeem(code: string, confirm18: unknown): { member: MemberRecord; dir: string } {
-    if (confirm18 !== true) throw new HouseholdError(400, en('Confirm that you are 18 or older to join.'));
     const inv = this.#findInvite(code);
     if (!inv) throw new HouseholdError(404, en('That invite is wrong, was already used, or has expired. Ask for a new one.'));
+    // R8: a child's invite was vouched for by their parent; everyone else confirms 18+ themselves.
+    if (!inv.child && confirm18 !== true) throw new HouseholdError(400, en('Confirm that you are 18 or older to join.'));
     let id = randomBytes(5).toString('hex');
     while (this.#file.members.some((m) => m.id === id)) id = randomBytes(5).toString('hex');
     const now = this.#now().toISOString();
-    const member: MemberRecord = { id, name: inv.name, createdAt: now, status: 'active', ownerConfirmed18At: inv.ownerConfirmed18At, memberConfirmed18At: now, limits: inv.limits };
+    const member: MemberRecord = { id, name: inv.name, createdAt: now, status: 'active', ownerConfirmed18At: inv.ownerConfirmed18At, memberConfirmed18At: inv.child ? '' : now, limits: inv.limits, ...(inv.child ? { child: inv.child } : {}) };
     const dir = this.dirOf(id);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     this.#file.invites = this.#file.invites.filter((i) => i !== inv);
@@ -251,6 +271,14 @@ export class HouseholdStore {
   setLimits(id: string, limits: MemberLimits): MemberRecord {
     return this.#mutate(id, (m) => {
       m.limits = limits;
+    });
+  }
+
+  /** R8: kid-safe member mode on (a checked profile) or off (null). Only the owner calls this. */
+  setChild(id: string, child: unknown): MemberRecord {
+    return this.#mutate(id, (m) => {
+      if (child === null || child === false) delete m.child;
+      else m.child = cleanChild(child, this.#now(), m.child);
     });
   }
 
@@ -321,11 +349,13 @@ export const OWNER_SETTINGS: readonly (keyof Settings)[] = ['providers', 'prices
 export class MemberSettings extends SettingsStore {
   readonly #owner: SettingsStore;
   readonly #limits: () => MemberLimits;
+  readonly #child: () => ChildProfile | undefined;
 
-  constructor(dir: string, owner: SettingsStore, limits: () => MemberLimits) {
+  constructor(dir: string, owner: SettingsStore, limits: () => MemberLimits, child: () => ChildProfile | undefined = () => undefined) {
     super(dir);
     this.#owner = owner;
     this.#limits = limits;
+    this.#child = child;
   }
 
   override get(): Settings {
@@ -343,7 +373,8 @@ export class MemberSettings extends SettingsStore {
     if (out.companionModel && !ok(out.companionModel)) delete out.companionModel;
     if (out.routes) for (const [k, r] of Object.entries(out.routes)) if (!ok(r ?? undefined)) delete (out.routes as Record<string, unknown>)[k];
     if (out.defaultFallbacks) out.defaultFallbacks = out.defaultFallbacks.filter(ok);
-    return out;
+    // R8: a child never has adult mode or other apps' tools, whatever their file says.
+    return this.#child() ? (childSettings(out as unknown as Record<string, unknown>) as unknown as Settings) : out;
   }
 
   override update(patch: Partial<Settings>): Settings {
@@ -416,6 +447,11 @@ export class MemberPolicy {
     return this.record()?.limits ?? { models: [], messagesPerDay: 0, costPerDay: 0, voice: false, pictures: false };
   }
 
+  /** R8: the kid-safe profile while this member is a child (else undefined). */
+  child(): ChildProfile | undefined {
+    return this.record()?.child;
+  }
+
   /** Throws when this model isn't one the owner allowed for this member. */
   checkModel(providerId: string, model: string): void {
     if (!this.limits().models.some((m) => m.providerId === providerId && m.model === model)) throw new Error(`The owner of this server hasn't made ${model} available to you. Pick one of your models in Settings → Models.`);
@@ -440,6 +476,11 @@ export class MemberPolicy {
   checkBudget(): void {
     const r = this.record();
     if (!r || r.status !== 'active') throw new Error('Your account on this server is paused. Ask the owner.');
+    // R8: bedtime and a child's daily time stop every model call (chat, bridges, background work).
+    if (r.child) {
+      const why = kidPause(r.id, r.child, this.#now());
+      if (why) throw new Error(why);
+    }
     const l = r.limits;
     if (!l.messagesPerDay && !l.costPerDay) return;
     const t = this.today();
@@ -501,7 +542,13 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'security', 'passkey', 'two-step', 'owner-token', 'devices', 'device', 'pair',
   // their own Sara apps' versions and Update it (src/routes/app-updates.ts; a member's app list is their own)
   'app-updates',
+  // R5: car mode's spoken "approve" for their own cards (src/routes/phone-calls.ts)
+  'car',
+  // R2: their own guided setup, sample space and starter pack (src/routes/get-started.ts)
+  'get-started',
   // talking
+  // R4: their own iPhone Shortcuts tokens (src/routes/shortcuts.ts; the iCloud links are the owner's)
+  'shortcuts',
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
   // EC11: share links of their own chats (the share routes refuse when the owner turned it off)
   'shares',
@@ -527,6 +574,11 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'routines',
   // N2: their own automations (src/routes/automations.ts; email/webhook triggers stay the owner's)
   'automations',
+  // R3: their own errands (src/routes/errands.ts)
+  'errands',
+  // R6: their own booking page and accounting export files (src/routes/booking.ts)
+  'booking',
+  'accounting',
   // N4: their own My details (src/routes/my-details.ts; their space's own store)
   'my-details',
   // N6: their own What Sara knows (src/routes/facts.ts; their space's own store)
@@ -552,6 +604,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'hub',
   // EC5: what the owner's policy pins (read-only: Settings shows "Set by your admin")
   'policy',
+  // R8: Family (chores, allowance, grocery lists; src/routes/family.ts checks who is a parent)
+  'family',
   // M1: their own mailboxes (Outlook, IMAP) in their own vault; the Microsoft app stays the owner's
   // (src/routes/connections.ts answers its setup 403 ownerOnly), and the admin can pin it off.
   'mail',
@@ -581,6 +635,11 @@ export function memberRouteCheck(rec: MemberRecord | undefined, method: string, 
   if (a === 'runs' && ((parts[2] && BRANCH_ACTIONS.has(parts[2])) || parts[4] === 'branch')) return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   // Phase 96: trusting project skills is the owner's (members have no workspaces of their own).
   if (a === 'skills' && b === 'trust-project') return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
+  // R8: kid-safe member mode (src/family.ts): what a child may not reach, bedtime and the daily limit.
+  if (rec.child) {
+    const k = childRouteCheck(rec.id, rec.child, method, parts);
+    if (k) return k;
+  }
   const l = rec.limits;
   if (!l.voice && (a === 'live' || a === 'calls' || (a === 'voice' && method !== 'GET') || a === 'video' || (a === 'wake' && (method !== 'GET' || b !== undefined)))) return { status: 403, message: en('Voice is switched off for you on this server. Ask the owner.') };
   if (!l.pictures && ((a === 'look' && method !== 'GET') || a === 'photos')) return { status: 403, message: en('Pictures from her are switched off for you on this server. Ask the owner.') };

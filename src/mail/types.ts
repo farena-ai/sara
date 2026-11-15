@@ -16,6 +16,8 @@ export interface MailAccountInfo {
   addedAt: string;
   /** Mail + calendar (Microsoft), mail only (IMAP). */
   calendar: boolean;
+  /** R6: Microsoft only: OneDrive/SharePoint files (Files.ReadWrite) were allowed, the optional extra permission. */
+  files?: boolean;
   /** Set when the account can't sign in any more (token revoked, password refused). */
   problem?: string;
 }
@@ -121,6 +123,8 @@ export interface MailProvider {
   /** Recent inbox conversations: the latest message of each (for "what needs an answer"). */
   recentInbox(days: number, max: number, signal?: AbortSignal): Promise<{ latest: MailMessage; count: number }[]>;
   draft(d: Draft, signal?: AbortSignal): Promise<string>;
+  /** R1: removes a draft she just made (Check everything's draft test); only ever a draft. */
+  discardDraft?(id: string, signal?: AbortSignal): Promise<void>;
   send(d: Draft, signal?: AbortSignal): Promise<string>;
   folders(signal?: AbortSignal): Promise<Folder[]>;
   /** Categories (Graph) or keywords (IMAP) the owner can use as labels. */

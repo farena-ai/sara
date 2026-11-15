@@ -17,6 +17,9 @@ import type { ApplyResult, Before, CalendarEventIn, CalendarEventOut, Draft, Fol
 export const MS_CLIENT_VAULT = 'mail:ms:client';
 export const msTokenVault = (id: string): string => `mail:ms:${id}:token`;
 export const MS_SCOPES = ['offline_access', 'User.Read', 'Mail.ReadWrite', 'Mail.Send', 'Calendars.ReadWrite'];
+/** R6 (docs/WORK_APPS.md): Word and Excel files in OneDrive/SharePoint, an extra permission the person adds on purpose. */
+export const FILES_SCOPE = 'Files.ReadWrite';
+const scopesFor = (files?: boolean) => [...MS_SCOPES, ...(files ? [FILES_SCOPE] : [])].join(' ');
 const LOGIN = 'https://login.microsoftonline.com/common/oauth2/v2.0';
 const GRAPH = 'https://graph.microsoft.com/v1.0';
 
@@ -50,6 +53,8 @@ export interface MsTokens {
   expiresAt: number;
   scopes: string;
   address: string;
+  /** R6: Files.ReadWrite was granted (kept so a refresh asks for it again). */
+  files?: boolean;
 }
 
 /**
@@ -57,7 +62,7 @@ export interface MsTokens {
  * everywhere (redact.ts), so the address there turned the mailbox into [REDACTED] on approval cards.
  * The address and the calendar flag live in the account list.
  */
-const vaultTokens = (t: Pick<MsTokens, 'access' | 'refresh' | 'expiresAt'>): string => JSON.stringify({ access: t.access, refresh: t.refresh, expiresAt: t.expiresAt });
+const vaultTokens = (t: Pick<MsTokens, 'access' | 'refresh' | 'expiresAt' | 'files'>): string => JSON.stringify({ access: t.access, refresh: t.refresh, expiresAt: t.expiresAt, ...(t.files ? { files: true } : {}) });
 
 type Fetch = typeof fetch;
 export interface MsOpts {
@@ -85,7 +90,7 @@ export class MicrosoftAuth {
   readonly #now: () => number;
   readonly #login: string;
   readonly graph: string;
-  readonly #pending = new Map<string, { verifier: string; redirect: string; at: number }>();
+  readonly #pending = new Map<string, { verifier: string; redirect: string; at: number; files?: boolean }>();
   readonly #clientVault: Vault;
   /** A member's sign-ins use the owner's app and can't change it. */
   readonly member: boolean;
@@ -121,7 +126,8 @@ export class MicrosoftAuth {
     this.#vault.delete(MS_CLIENT_VAULT);
   }
 
-  authUrl(redirect: string, loginHint?: string): string {
+  /** R6: `files` adds Files.ReadWrite (Word and Excel in OneDrive/SharePoint) on its own consent page. */
+  authUrl(redirect: string, loginHint?: string, opts: { files?: boolean } = {}): string {
     const c = this.#client();
     if (!c) throw new Error('Add your Microsoft app (Application ID and secret) first.');
     for (const [k, v] of this.#pending) {
@@ -131,14 +137,14 @@ export class MicrosoftAuth {
     }
     const state = randomBytes(16).toString('base64url');
     const verifier = randomBytes(32).toString('base64url');
-    this.#pending.set(state, { verifier, redirect, at: this.#now() });
+    this.#pending.set(state, { verifier, redirect, at: this.#now(), ...(opts.files ? { files: true } : {}) });
     WAITING.set(state, this);
     const q = new URLSearchParams({
       client_id: c.clientId,
       response_type: 'code',
       redirect_uri: redirect,
       response_mode: 'query',
-      scope: MS_SCOPES.join(' '),
+      scope: scopesFor(opts.files),
       state,
       prompt: 'select_account',
       code_challenge: createHash('sha256').update(verifier).digest('base64url'),
@@ -156,9 +162,10 @@ export class MicrosoftAuth {
     if (!p || this.#now() - p.at > 10 * 60_000) throw new Error('That sign-in link expired. Start again from Settings.');
     const c = this.#client();
     if (!c) throw new Error('The Microsoft app was removed.');
-    const j = await this.#token({ grant_type: 'authorization_code', code, redirect_uri: p.redirect, code_verifier: p.verifier, client_id: c.clientId, scope: MS_SCOPES.join(' '), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
+    const j = await this.#token({ grant_type: 'authorization_code', code, redirect_uri: p.redirect, code_verifier: p.verifier, client_id: c.clientId, scope: scopesFor(p.files), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
     if (!j.refresh_token) throw new Error('Microsoft did not give a long-lived sign-in (offline_access). Add it under API permissions and try again.');
-    const t: MsTokens = { access: j.access_token, refresh: j.refresh_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, scopes: j.scope ?? '', address: '' };
+    const scopes = j.scope ?? '';
+    const t: MsTokens = { access: j.access_token, refresh: j.refresh_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, scopes, address: '', ...(p.files && (!scopes || /Files\.ReadWrite/i.test(scopes)) ? { files: true } : {}) };
     const me = (await this.#get(`${this.graph}/me?$select=mail,userPrincipalName`, t.access)) as { mail?: string; userPrincipalName?: string };
     t.address = String(me.mail || me.userPrincipalName || '').toLowerCase();
     if (!t.address) throw new Error('Microsoft did not say which address this is.');
@@ -193,7 +200,7 @@ export class MicrosoftAuth {
     const c = this.#client();
     if (!c) throw new Error('The Microsoft app was removed (Settings → Email and calendar).');
     try {
-      const j = await this.#token({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: c.clientId, scope: MS_SCOPES.join(' '), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
+      const j = await this.#token({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: c.clientId, scope: scopesFor(t.files), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
       const next: MsTokens = { ...t, access: j.access_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, ...(j.refresh_token ? { refresh: j.refresh_token } : {}), ...(j.scope ? { scopes: j.scope } : {}) };
       this.#vault.set(msTokenVault(accountId), vaultTokens(next));
       return next.access;
@@ -253,6 +260,12 @@ const recips = (s: string) =>
     .map((x) => x.trim())
     .filter((x) => /@/.test(x))
     .map((x) => ({ emailAddress: { address: (/<([^>]+)>/.exec(x)?.[1] ?? x).trim() } }));
+
+/** R1: files from this size go through an upload session; Graph takes smaller ones in one request. */
+export const SMALL_ATTACH = 3 * 1024 * 1024;
+/** R1: upload-session chunk: 10 × 320 KiB (Graph wants multiples of 320 KiB, under 4 MB per request). */
+export const UPLOAD_CHUNK = 10 * 320 * 1024;
+const UPLOAD_TRIES = 5;
 
 /** One Outlook / Microsoft 365 mailbox (and its calendar). */
 export class GraphMail implements MailProvider {
@@ -439,9 +452,74 @@ export class GraphMail implements MailProvider {
     return { subject: d.subject, body: { contentType: 'Text', content: d.body }, toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) };
   }
 
-  /** N4: each file as a Graph file attachment (one request each; the caps keep it under Graph's 4 MB request limit). */
+  /**
+   * N4 + R1: each file on the draft. Under 3 MB: one fileAttachment POST. Larger (up to Graph's 150 MB):
+   * an upload session on the draft, then byte ranges to its pre-signed URL (no Authorization header).
+   */
   async #attach(id: string, d: Draft, signal?: AbortSignal): Promise<void> {
-    for (const a of d.attachments ?? []) await this.call(`/me/messages/${encodeURIComponent(id)}/attachments`, { method: 'POST', body: { '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.mime, contentBytes: a.data.toString('base64') }, ...(signal ? { signal } : {}) });
+    for (const a of d.attachments ?? []) {
+      if (a.data.length < SMALL_ATTACH) await this.call(`/me/messages/${encodeURIComponent(id)}/attachments`, { method: 'POST', body: { '@odata.type': '#microsoft.graph.fileAttachment', name: a.name, contentType: a.mime, contentBytes: a.data.toString('base64') }, ...(signal ? { signal } : {}) });
+      else await this.#upload(id, a, signal);
+    }
+  }
+
+  /** R1: one large file through createUploadSession; retries 5xx/network errors and resumes from nextExpectedRanges. */
+  async #upload(id: string, a: { name: string; mime: string; data: Buffer }, signal?: AbortSignal): Promise<void> {
+    const s = (await this.call(`/me/messages/${encodeURIComponent(id)}/attachments/createUploadSession`, { method: 'POST', body: { AttachmentItem: { attachmentType: 'file', name: a.name, size: a.data.length, contentType: a.mime } }, ...(signal ? { signal } : {}) })) as { uploadUrl?: string };
+    const url = String(s.uploadUrl ?? '');
+    if (!/^https?:\/\//.test(url)) throw new GraphError(`Outlook gave no upload address for ${a.name}.`, 502);
+    const total = a.data.length;
+    const fail = async (why: string): Promise<never> => {
+      // Cancel the half-done session so no partial file stays on the draft.
+      await this.#fetch(url, { method: 'DELETE', signal: AbortSignal.timeout(15_000) }).catch(() => undefined);
+      throw new GraphError(`Outlook didn't take ${a.name} (${why}). Try again in a few minutes.`, 502);
+    };
+    let at = 0;
+    let tries = 0;
+    while (at < total) {
+      if (signal?.aborted) return fail('stopped');
+      const end = Math.min(total, at + UPLOAD_CHUNK);
+      let r: Response | undefined;
+      try {
+        r = await this.#fetch(url, { method: 'PUT', headers: { 'content-type': 'application/octet-stream', 'content-range': `bytes ${at}-${end - 1}/${total}` }, body: new Uint8Array(a.data.subarray(at, end)), signal: signal ?? AbortSignal.timeout(120_000) });
+      } catch {
+        r = undefined;
+      }
+      if (r && (r.status === 200 || r.status === 201 || r.status === 202)) {
+        await r.arrayBuffer().catch(() => undefined);
+        if (r.status === 201 || end >= total) return;
+        at = end;
+        tries = 0;
+        continue;
+      }
+      const status = r?.status ?? 0;
+      if (r) await r.arrayBuffer().catch(() => undefined);
+      // 4xx other than 408/416/429 is final; 416 and lost answers ask the session where to go on.
+      if (status >= 400 && status < 500 && ![408, 416, 429].includes(status)) return fail(`Microsoft answered ${status}`);
+      if (++tries > UPLOAD_TRIES) return fail(status ? `Microsoft answered ${status}` : 'no answer');
+      const after = Number(r?.headers.get('retry-after'));
+      await this.#sleep(Math.min(60, Number.isFinite(after) && after > 0 ? after : 2 ** (tries - 1)) * 1000);
+      const next = await this.#nextRange(url);
+      if (next === 'done') return;
+      if (typeof next === 'number') at = next;
+    }
+  }
+
+  /** R1: where an upload session wants the next bytes ('done' once the file is complete). */
+  async #nextRange(url: string): Promise<number | 'done' | undefined> {
+    try {
+      const r = await this.#fetch(url, { signal: AbortSignal.timeout(15_000) });
+      if (r.status === 404) {
+        // A finished session is gone; Graph removes it on the last range.
+        await r.arrayBuffer().catch(() => undefined);
+        return 'done';
+      }
+      const j = (await r.json().catch(() => ({}))) as { nextExpectedRanges?: string[] };
+      const n = Number(/^(\d+)-/.exec(j.nextExpectedRanges?.[0] ?? '')?.[1]);
+      return Number.isFinite(n) ? n : undefined;
+    } catch {
+      return undefined;
+    }
   }
   /** N4: the attachment names read back from the saved message. */
   async #names(id: string, d: Draft, signal?: AbortSignal): Promise<void> {
@@ -464,6 +542,14 @@ export class GraphMail implements MailProvider {
     if (id) await this.#attach(id, d, signal);
     if (id) await this.#names(id, d, signal);
     return id;
+  }
+
+  /** R1: removes one of her drafts (Check everything); refuses anything that is not a draft. */
+  async discardDraft(id: string, signal?: AbortSignal): Promise<void> {
+    const sig = signal ? { signal } : {};
+    const m = (await this.call(`/me/messages/${encodeURIComponent(id)}?$select=isDraft`, sig)) as { isDraft?: boolean };
+    if (m.isDraft !== true) throw new GraphError('That message is not a draft, so it was left alone.', 409);
+    await this.call(`/me/messages/${encodeURIComponent(id)}`, { method: 'DELETE', ...sig });
   }
 
   async send(d: Draft, signal?: AbortSignal): Promise<string> {

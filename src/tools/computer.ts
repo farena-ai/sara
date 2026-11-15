@@ -46,6 +46,7 @@ import { privateLocalOn } from '../net-guard.ts';
 import { FormFillError, planFill, reportText as fillReport, reviewText, runFill, type DeskPort, type DeskView, type FillPlan } from '../form-fill.ts';
 import { myDetailsFor } from '../my-details.ts';
 import { str, ToolError, type ComputerApproval, type Prepared, type Tool, type ToolContext } from './types.ts';
+import { PURCHASE_REFUSAL } from '../member-tools.ts';
 
 const obj = (properties: Record<string, unknown>, required: string[] = []) => ({ type: 'object', properties, required, additionalProperties: false });
 const COMPUTER_ARG = { computer: { type: 'string', description: 'Which computer (its name), when more than one is connected' } };
@@ -569,6 +570,8 @@ export function createComputerTools(app: AppContext): Tool[] {
     const target = describe(found);
     preparedActs.set(args, { ...(typeof found.fp === 'string' && !tgt.expect && tgt.ref ? { expect: found.fp } : {}), site, target });
     if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
+    // R7: a household member's companion never presses Pay, Buy or Place order (src/member-tools.ts).
+    if (app.member && verdict.risk === 'payment') return { refuse: `Error: ${PURCHASE_REFUSAL}` };
     if (verdict.act === 'allow') return {};
     const conversationId = ctx.conversationId;
     const detail: ComputerApproval = { kind: 'computer', action: kind, site, computer: nameOf(d), target, ...(found.role ? { role: String(found.role) } : {}), ...(found.name ? { name: String(found.name) } : {}), ...(extra.text ? { text: extra.text.slice(0, 200) } : extra.file ? { text: extra.file } : {}), risk: verdict.risk, why: verdict.why, choices: verdict.choices };
@@ -1057,6 +1060,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     const view = deskViews.get(d.id);
     const verdict = desktopActionVerdict({ site: `desktop:${d.id}`, kind: action, target: item ?? { name: String(args.app ?? '') }, text: typeof args.text === 'string' ? args.text : undefined, level: 'task', ...(view?.app || view?.title ? { window: { app: view.app, title: view.title } } : {}) });
     if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
+    if (app.member && verdict.risk === 'payment') return { refuse: `Error: ${PURCHASE_REFUSAL}` };
     // Native code independently inspects and asks. No broker card is created, so a phone can't answer.
     return {};
   };

@@ -2,7 +2,7 @@
   "manifest": 1,
   "id": "teams",
   "name": "Microsoft Teams",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Talk to her in Microsoft Teams: her personal chat, and the channels and group chats you choose when someone mentions her.",
   "author": "The Sara team",
   "license": "MIT",

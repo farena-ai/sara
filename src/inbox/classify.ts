@@ -6,10 +6,12 @@
 // helper may ask a small model when the person allows it (never in private local mode).
 // Email text is other people's words: it is read as data and never followed.
 
-export const INBOX_KINDS = ['bill', 'receipt', 'shipping', 'trip', 'appointment', 'invoice_paid', 'file'] as const;
+import { schoolFindings } from './school.ts';
+
+export const INBOX_KINDS = ['bill', 'receipt', 'shipping', 'trip', 'appointment', 'invoice_paid', 'file', 'school'] as const;
 export type InboxKind = (typeof INBOX_KINDS)[number];
 /** Kinds that may run on their own once the person turns on "do it for me" (filing has its rules). */
-export const AUTO_KINDS = ['bill', 'receipt', 'shipping', 'trip', 'appointment', 'invoice_paid'] as const;
+export const AUTO_KINDS = ['bill', 'receipt', 'shipping', 'trip', 'appointment', 'invoice_paid', 'school'] as const;
 
 /** One new email, the same for every mailbox. */
 export interface InboxMail {
@@ -69,6 +71,8 @@ export interface Finding {
   start?: string;
   end?: string;
   place?: string;
+  /** R8: school mail (src/inbox/school.ts): what kind of school date (title, start = the day, due for slips). */
+  school?: import('./school.ts').SchoolType;
 }
 
 export type PackageStatus = 'ordered' | 'shipped' | 'in_transit' | 'out_for_delivery' | 'delivered' | 'problem';
@@ -408,7 +412,9 @@ export function looksUnclear(m: InboxMail, text: string): boolean {
 export function classify(m: InboxMail, now: Date): { findings: Finding[]; unclear: boolean } {
   const text = m.text?.trim() ? m.text : htmlText(m.html ?? '');
   const ld = fromJsonLd(jsonLd(m.html));
-  const findings = ld.length ? ld : fromRules(m, text.slice(0, 40_000), now);
+  // R8: school mail (newsletters too) is read for its dates before the other rules skip newsletters.
+  const school = ld.length ? [] : schoolFindings(m, now);
+  const findings = ld.length ? ld : school.length ? school : fromRules(m, text.slice(0, 40_000), now);
   return { findings, unclear: !findings.length && looksUnclear(m, text) };
 }
 

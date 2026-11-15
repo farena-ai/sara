@@ -190,10 +190,17 @@ export const CAR_BLOCKED_TOOL = (name: string): boolean =>
   /^(goal_|loop_|research_|team_|crew_|worker_|job_|agent_|code_|shell|run_command|write_file|edit_file|apply_patch|make_document|fill_document|learn_|skill_run|delegate|spawn)/.test(name);
 
 /** Her instruction while the person drives: voice only, short, nothing to read on a screen. */
-export function carNote(owner: string, unread: string[] = []): string {
-  const base = `${owner} is driving and using car mode: everything you say is read aloud and ${owner} can't look at a screen. Answer in at most two short spoken sentences unless ${owner} asks for more, with no lists, tables, markdown, links, emoji or code. Don't offer computer use, long tasks, documents or anything to read; if ${owner} asks for one, say it can wait until they've parked. Keep safety first: never encourage looking at the phone.`;
+export function carNote(owner: string, unread: string[] = [], errands: string[] = []): string {
+  // R5: errands by voice: started with errand_start (its card is answered by saying "approve"), and where each open one stands.
+  const errandPart = ` ${owner} can start an errand by voice (errand_start; ${owner} answers its card by saying approve or no; cards for computer use wait for the computer).${errands.length ? ` If asked how the errands are going, say where they stand in one short sentence each:\n${errands.map((e) => `- ${e}`).join('\n')}\n` : ''}`;
+  const base = `${owner} is driving and using car mode: everything you say is read aloud and ${owner} can't look at a screen. Answer in at most two short spoken sentences unless ${owner} asks for more, with no lists, tables, markdown, links, emoji or code. Don't offer computer use, long tasks, documents or anything to read; if ${owner} asks for one, say it can wait until they've parked. Keep safety first: never encourage looking at the phone.${errandPart}`;
   if (!unread.length) return `${base} If asked to read messages or notifications, say there are none new.`;
   return `${base} If ${owner} asks you to read messages or notifications, read these newest ones aloud briefly, newest first:\n${unread.map((u) => `- ${u}`).join('\n')}`;
+}
+
+/** R4: her instruction for "Ask Sara" from Siri or an Apple Shortcut (spoken or shown in a small box). */
+export function siriNote(owner: string): string {
+  return `${owner} is asking through Siri or an Apple Shortcut on their iPhone: your answer is read aloud or shown in a small box. Answer in at most two short sentences, with no lists, tables, markdown, links, emoji or code. If the request needs a long task, start it and say in one sentence that you'll let ${owner} know when it's done.`;
 }
 
 /** Spoken commands that switch car mode (the page checks them before sending; 6 languages). */

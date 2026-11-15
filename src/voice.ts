@@ -276,30 +276,31 @@ export async function openaiTranscribe(cfg: VoiceSettings['openai'], key: string
   return String(j.text ?? '').trim();
 }
 
-export async function openaiSpeak(cfg: VoiceSettings['openai'], key: string | undefined, text: string, speed: number, instructions?: string): Promise<Audio> {
+/** R5: `format: 'wav'` for phone calls (the phone line needs PCM; MP3 can't be decoded without a dependency). */
+export async function openaiSpeak(cfg: VoiceSettings['openai'], key: string | undefined, text: string, speed: number, instructions?: string, format: 'mp3' | 'wav' = 'mp3'): Promise<Audio> {
   if (!key) throw new VoiceError('Add the speech API key in Settings → Voice.');
   const res = await netFetch(`${cfg.baseUrl.replace(/\/+$/, '')}/audio/speech`, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     // gpt-4o-mini-tts takes delivery instructions (Phase 37: tone and mood); older models don't.
-    body: JSON.stringify({ model: cfg.ttsModel, voice: cfg.ttsVoice, input: text, response_format: 'mp3', speed, ...(instructions && /gpt-4o/.test(cfg.ttsModel) ? { instructions } : {}) }),
+    body: JSON.stringify({ model: cfg.ttsModel, voice: cfg.ttsVoice, input: text, response_format: format, speed, ...(instructions && /gpt-4o/.test(cfg.ttsModel) ? { instructions } : {}) }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new VoiceError(`Text-to-speech API error ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return { data: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' };
+  return { data: Buffer.from(await res.arrayBuffer()), type: format === 'wav' ? 'audio/wav' : 'audio/mpeg' };
 }
 
-export async function elevenlabsSpeak(cfg: VoiceSettings['elevenlabs'], key: string | undefined, text: string): Promise<Audio> {
+export async function elevenlabsSpeak(cfg: VoiceSettings['elevenlabs'], key: string | undefined, text: string, format: 'mp3' | 'pcm' = 'mp3'): Promise<Audio> {
   if (!key) throw new VoiceError('Add the ElevenLabs key in Settings → Voice.');
   if (!cfg.voiceId) throw new VoiceError('Choose an ElevenLabs voice id in Settings → Voice.');
-  const res = await netFetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(cfg.voiceId)}?output_format=mp3_44100_128`, {
+  const res = await netFetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(cfg.voiceId)}?output_format=${format === 'pcm' ? 'pcm_16000' : 'mp3_44100_128'}`, {
     method: 'POST',
     headers: { 'xi-api-key': key, 'content-type': 'application/json' },
     body: JSON.stringify({ text, model_id: cfg.model }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) throw new VoiceError(`ElevenLabs error ${res.status}: ${(await res.text()).slice(0, 200)}`);
-  return { data: Buffer.from(await res.arrayBuffer()), type: 'audio/mpeg' };
+  return { data: Buffer.from(await res.arrayBuffer()), type: format === 'pcm' ? 'audio/L16;rate=16000' : 'audio/mpeg' };
 }
 
 const XAI = 'https://api.x.ai/v1';

@@ -13,6 +13,12 @@ export const GOOGLE_TOKEN_VAULT = 'google:token';
 // published unverified for personal use). Sign-ins from before it was added lack it (`canOrganize`).
 export const GOOGLE_SCOPES = ['https://www.googleapis.com/auth/gmail.readonly', 'https://www.googleapis.com/auth/gmail.compose', 'https://www.googleapis.com/auth/gmail.modify', 'https://www.googleapis.com/auth/calendar.events'];
 /**
+ * R6 (docs/WORK_APPS.md): editing Google Docs and Sheets is an extra permission the person adds on
+ * purpose (Settings → Gmail and Calendar → Allow Docs and Sheets, a new Google consent page). A normal
+ * sign-in never asks for it; once allowed, later sign-ins keep asking for it so it isn't dropped.
+ */
+export const GOOGLE_DOCS_SCOPES = ['https://www.googleapis.com/auth/documents', 'https://www.googleapis.com/auth/spreadsheets'];
+/**
  * Test-only: send Gmail/Calendar API calls to a local fake Google instead (SARA_GOOGLE_API_BASE,
  * e.g. http://127.0.0.1:7899). Only loopback addresses are accepted, so it can never point Sara's
  * Google sign-in at someone else's server.
@@ -57,6 +63,8 @@ export interface GoogleStatus {
   calendar: boolean;
   /** Organizing mail (archive, labels, read, trash, spam) needs gmail.modify: older sign-ins lack it. */
   canOrganize: boolean;
+  /** R6: Google Docs and Sheets editing was allowed (the optional extra permission). */
+  docs: boolean;
   /** 3.3.0: Google signed Sara out since this server started (her trouble notice: Sign in again). */
   signedOut?: boolean;
 }
@@ -101,6 +109,7 @@ export class GoogleAccount {
       gmail: Boolean(t) && (scopes.includes('gmail.readonly') || scopes.includes('gmail.modify')),
       calendar: Boolean(t) && scopes.includes('calendar.events'),
       canOrganize: Boolean(t) && scopes.includes('gmail.modify'),
+      docs: Boolean(t) && scopes.includes('auth/documents') && scopes.includes('auth/spreadsheets'),
       ...(this.#signedOut && !t ? { signedOut: true } : {}),
     };
   }
@@ -115,8 +124,8 @@ export class GoogleAccount {
     this.#vault.delete(GOOGLE_TOKEN_VAULT);
   }
 
-  /** The address to send the owner to. `redirect` must be registered in the Google app. */
-  authUrl(redirect: string): string {
+  /** The address to send the owner to. `redirect` must be registered in the Google app. R6: `docs` adds Docs and Sheets. */
+  authUrl(redirect: string, opts: { docs?: boolean } = {}): string {
     const c = this.#client();
     if (!c) throw new Error('Add your Google app (Client ID and secret) first.');
     for (const [k, v] of this.#pending) if (this.#now() - v.at > 10 * 60_000) this.#pending.delete(k);
@@ -127,7 +136,7 @@ export class GoogleAccount {
       client_id: c.clientId,
       redirect_uri: redirect,
       response_type: 'code',
-      scope: GOOGLE_SCOPES.join(' '),
+      scope: [...GOOGLE_SCOPES, ...(opts.docs || this.status().docs ? GOOGLE_DOCS_SCOPES : [])].join(' '),
       access_type: 'offline',
       prompt: 'consent',
       include_granted_scopes: 'true',
@@ -187,7 +196,7 @@ export class GoogleAccount {
   /** One call to a Google API (JSON in, JSON out). */
   async api(url: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<unknown> {
     const access = await this.#access();
-    if (this.#base) url = url.replace(/^https:\/\/(gmail|www)\.googleapis\.com/, this.#base);
+    if (this.#base) url = url.replace(/^https:\/\/(gmail|www|docs|sheets)\.googleapis\.com/, this.#base);
     const r = await this.#fetch(url, {
       method: init.method ?? 'GET',
       headers: { authorization: `Bearer ${access}`, ...(init.body !== undefined ? { 'content-type': 'application/json' } : {}) },

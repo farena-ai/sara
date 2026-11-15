@@ -709,6 +709,62 @@
       "Reminders for when you arrive somewhere (\"when I get to the store\"). Your location stays on the phone.",
       "home"
     ],
+    "tel-on": [
+      "Off by default. On: she answers your number and may place calls, but only once the provider account, numbers and public address are set.",
+      "phone"
+    ],
+    "tel-provider": [
+      "Twilio, or a provider with the same API. SIP and WebRTC are not built in yet.",
+      "phone"
+    ],
+    "tel-sid": [
+      "Your provider account's SID (starts with AC on Twilio). Saved in the vault, never shown again.",
+      "phone"
+    ],
+    "tel-token": [
+      "Your provider account's auth token. Saved in the vault; it also checks that calls really come from the provider.",
+      "phone"
+    ],
+    "tel-number": [
+      "The phone number you got from your provider, like +15125550100. Sara never buys one.",
+      "phone"
+    ],
+    "tel-owner": [
+      "Your own phone. It always gets through to her, and \"call me\" calls it.",
+      "phone"
+    ],
+    "tel-url": [
+      "The https address where the provider reaches this server (a tunnel or reverse proxy), like https://sara.example.com.",
+      "phone"
+    ],
+    "tel-allow": [
+      "People who get through to talk with her, one per line: name, number. Everyone else leaves a message.",
+      "phone"
+    ],
+    "tel-record": [
+      "Off by default. On: calls she places are recorded, only after she tells them the call is recorded.",
+      "phone"
+    ],
+    "tel-max": [
+      "She hangs up when a call reaches this length (the provider is told too). 1 to 60 minutes.",
+      "phone"
+    ],
+    "tel-price": [
+      "Your provider's price per minute, from your price list. Used only for the estimate on each call's card.",
+      "phone"
+    ],
+    "dcv-guild": [
+      "The Discord server's ID (right-click the server with Developer Mode on → Copy Server ID).",
+      "chatapps"
+    ],
+    "dcv-channel": [
+      "The voice channel's ID (right-click the channel → Copy Channel ID).",
+      "chatapps"
+    ],
+    "dcv-on": [
+      "Stays off: Discord voice needs a voice library Sara doesn't include yet.",
+      "chatapps"
+    ],
     "push-preview": [
       "Show the message text in notifications. Turn off if others see your screen.",
       "phone"
@@ -1829,6 +1885,10 @@
     ],
     "co-phone": [
       "Notifications on your phone and computers, the phone apps, and adding her to your home screen.",
+      "phone"
+    ],
+    "co-shortcuts": [
+      "Share to Sara and Ask Sara with Siri on an iPhone through Apple Shortcuts: a token for each iPhone and the steps to build them.",
       "phone"
     ],
     "co-telegram": [

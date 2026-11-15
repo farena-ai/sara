@@ -55,6 +55,7 @@ export async function loadAutomations() {
       return b;
     }));
   }
+  void loadGallery();
   const rows = [];
   for (const w of data.waiting) rows.push(waitingRow(w));
   if (!data.items.length) rows.push(el('p', 'muted small', t('Nothing runs on its own yet. Describe one above, or start from a ready-made one.')));
@@ -114,6 +115,7 @@ function itemRow(x) {
     acts.append(btn(t('Run now'), 'ghost small', () => void runNow(x)));
     acts.append(btn(t('Try it'), 'ghost small', () => void dryRun(x)));
     acts.append(btn(t('Edit'), 'ghost small', () => editForm(x, row)));
+    acts.append(btn(t('Share as a template'), 'ghost small', () => void shareTemplate(x)));
   } else if (x.where) acts.append(btn(t('Where it is set up'), 'ghost small', () => ctx.openSettings?.(x.where)));
   acts.append(btn(t('Ask Sara to change it'), 'ghost small', () => ctx.askSara?.(`${t('Change my automation “{name}”:', { name: x.name })} `, x.conversationId)));
   if (x.conversationId) acts.append(btn(t('Open the chat'), 'ghost small', () => ctx.openConversation?.(x.conversationId)));
@@ -270,7 +272,139 @@ async function previewDraft(body) {
   }
 }
 
+// ------------------------------------------------ R9 templates (share, import, gallery)
+
+let gallery = null;
+async function loadGallery() {
+  const host = $('#atm-gallery');
+  if (!ctx || !host) return;
+  try {
+    gallery ??= (await ctx.api('/automations/templates')).gallery;
+  } catch (e) {
+    host.replaceChildren(el('p', 'muted small', e.message));
+    return;
+  }
+  host.replaceChildren(...gallery.map((g) => {
+    const item = el('div', 'atm-gal-item');
+    item.setAttribute('role', 'listitem');
+    const b = btn(g.name, 'ghost small', () => showTemplate({ gallery: g.id }, g.name, g.placeholders, g.pitch));
+    b.setAttribute('aria-describedby', `atm-gal-${g.id}`);
+    const pitch = el('span', 'muted small', g.pitch);
+    pitch.id = `atm-gal-${g.id}`;
+    item.append(b, pitch);
+    return item;
+  }));
+}
+
+/** Share: the template (no personal data) as a .json download and on the clipboard. */
+async function shareTemplate(x) {
+  try {
+    const { template } = await ctx.api(`/automations/${encodeURIComponent(x.key)}/template`);
+    const text = JSON.stringify(template, null, 2);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+    a.download = `${(template.name || 'automation').replace(/[^\p{L}\p{N} _-]+/gu, '').trim().slice(0, 60) || 'automation'}.sara-template.json`;
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    await navigator.clipboard?.writeText(text).catch(() => undefined);
+    say(t('Template saved and copied. It has no addresses, ids or keys; whoever imports it fills those in.'));
+  } catch (e) {
+    say(e.message);
+  }
+}
+
+async function readTemplate(text) {
+  if (!text.trim()) return say(t('Paste a template first, or open its file.'));
+  try {
+    const r = await ctx.api('/automations/templates/read', { method: 'POST', body: { text } });
+    showTemplate({ template: r.template }, r.template.name, r.placeholders, r.template.description);
+  } catch (e) {
+    say(e.message);
+  }
+}
+
+/** The template card: its blanks, then the normal preview, then Allow. Nothing is made before Allow. */
+function showTemplate(base, name, placeholders, pitch) {
+  const box = $('#atm-tpl-preview');
+  if (!box) return;
+  const card = el('div', 'atm-card');
+  card.setAttribute('role', 'region');
+  card.setAttribute('aria-label', t('Template: {name}', { name }));
+  card.append(el('strong', '', name));
+  if (pitch) card.append(el('p', 'small', pitch));
+  const inputs = [];
+  for (const p of placeholders) {
+    const id = `atm-ph-${p.key}`;
+    const l = el('label', 'atm-ph', p.label);
+    l.htmlFor = id;
+    const i = Object.assign(document.createElement('input'), { id, type: p.kind === 'email' ? 'email' : 'text', maxLength: 200, autocomplete: 'off' });
+    i.dataset.key = p.key;
+    i.addEventListener('input', () => out.replaceChildren());
+    inputs.push(i);
+    card.append(l, i);
+  }
+  if (!placeholders.length) card.append(el('p', 'muted small', t('Nothing to fill in.')));
+  const out = el('div', 'atm-tpl-out');
+  out.setAttribute('aria-live', 'polite');
+  const values = () => Object.fromEntries(inputs.map((i) => [i.dataset.key, i.value]));
+  const acts = el('div', 'row');
+  acts.append(
+    btn(t('Show the preview'), 'small', async () => {
+      try {
+        const body = { ...base, values: values() };
+        const p = await ctx.api('/automations/preview', { method: 'POST', body });
+        const pv = el('div', 'atm-card');
+        pv.append(el('p', 'small', `${t('When')}: ${p.when}`));
+        if (p.next.length) pv.append(el('p', 'small', `${t('Next runs')}: ${p.next.map((n) => n.local).join(' · ')}`));
+        const ol = el('ol', 'small');
+        for (const d of p.does) ol.append(el('li', '', d));
+        pv.append(el('p', 'small', t('Then')), ol);
+        pv.append(el('p', 'small', `${t('Approvals')}: ${p.approvals.length ? p.approvals.join(' ') : t('none needed (it only tells you).')}`));
+        for (const n of p.notes) pv.append(el('p', 'small skl-note', n));
+        const row = el('div', 'row');
+        row.append(
+          btn(t('Allow'), 'small', async () => {
+            try {
+              await ctx.api('/automations', { method: 'POST', body: { ...body, allow: true } });
+              box.replaceChildren();
+              const ta = $('#atm-tpl-text');
+              if (ta) ta.value = '';
+              say(t('It’s on.'));
+            } catch (e) {
+              say(e.message);
+            }
+            void loadAutomations();
+          }),
+          btn(t('Decline'), 'ghost small', () => box.replaceChildren()),
+        );
+        pv.append(row);
+        out.replaceChildren(pv);
+      } catch (e) {
+        out.replaceChildren(el('p', 'small', e.message));
+      }
+    }),
+    btn(t('Cancel'), 'ghost small', () => box.replaceChildren()),
+  );
+  card.append(acts, out);
+  box.replaceChildren(card);
+  (inputs[0] ?? card.querySelector('button'))?.focus();
+}
+
 export function wireAutomationsForm() {
+  $('#atm-tpl-read')?.addEventListener('click', () => void readTemplate($('#atm-tpl-text')?.value ?? ''));
+  $('#atm-tpl-open')?.addEventListener('click', () => $('#atm-tpl-file')?.click());
+  $('#atm-tpl-file')?.addEventListener('change', async (e) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    if (f.size > 40000) return say(t('This template is too big.'));
+    const text = await f.text();
+    const ta = $('#atm-tpl-text');
+    if (ta) ta.value = text;
+    void readTemplate(text);
+  });
   $('#atm-preview-btn')?.addEventListener('click', () => {
     const words = $('#atm-words')?.value.trim();
     if (!words) return say(t('Describe it first, like “every Friday at 3, fill my time sheet”.'));

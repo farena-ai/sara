@@ -86,6 +86,24 @@ export async function renderSsoSettings({ api, host, run, current }) {
   const status = element('p'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
   const save = element('button', t('Save company sign-in')); save.type = 'submit'; save.className = 'primary';
   const test = element('button', t('Test connection')); test.type = 'button';
+  // R7: the whole sign-in round trip in a new tab, before or after turning it on; nobody is signed in.
+  const trial = element('button', t('Test sign-in')); trial.type = 'button';
+  const trialResult = element('button', t('Show the test result')); trialResult.type = 'button'; trialResult.hidden = true;
+  const testLine = element('p'); testLine.className = 'muted'; testLine.id = 'sso-test-result';
+  const reasonText = reason => ({ domain: t('Your email domain is not in the allowed list.'), group: t('You are in none of the listed groups.'), denied: t('The provider did not finish the sign-in.'), failed: t('The provider’s answer did not pass the checks (signature, issuer, audience, expiry or nonce).'), unavailable: t('Sara could not reach the provider.') })[reason] ?? t('The test did not finish. Start it again.');
+  const showTrial = result => {
+    if (!result) { testLine.textContent = t('No test sign-in yet. Finish signing in in the new tab, then choose Show the test result.'); return; }
+    const groups = result.groups.length ? result.groups.join(', ') : t('none');
+    testLine.textContent = result.ok
+      ? t('Test sign-in worked: {name} would sign in as {role}. Email domain: {domain}. Groups sent: {groups}.', { name: result.name ?? '', role: result.role === 'orgadmin' ? t('an organization administrator') : t('a member'), domain: result.emailDomain ?? t('none'), groups })
+      : t('Test sign-in refused: {reason} Groups sent: {groups}.', { reason: reasonText(result.reason), groups });
+  };
+  trial.onclick = () => run(async () => {
+    const { url } = await api('/sso/start', { test: true }); if (!current()) return;
+    window.open(url, '_blank', 'noopener');
+    trialResult.hidden = false; testLine.textContent = t('Sign in at your provider in the new tab. Nobody is signed in to Sara by a test.');
+  }, trial);
+  trialResult.onclick = () => run(async () => { const { result } = await api('/sso/test-result'); if (current()) showTrial(result); }, trialResult);
   form.onsubmit = event => { event.preventDefault(); void run(async () => {
     const sessionHours = Number(hours.input.value); const checkMinutes = Number(minutes.input.value);
     if (!Number.isInteger(sessionHours) || sessionHours < 1 || sessionHours > 168 || !Number.isInteger(checkMinutes) || checkMinutes < 5 || checkMinutes > 60) { status.textContent = t('Use a session length from 1 to 168 hours and a session check from 5 to 60 minutes.'); return; }
@@ -98,8 +116,10 @@ export async function renderSsoSettings({ api, host, run, current }) {
     status.textContent = result.ok ? t('Connection works: {keys} signing keys found.', { keys: result.keys }) + (result.endSession ? '' : ' ' + t('This provider has no sign-out address, so signing out ends only the Sara session.'))
       : result.reason === 'incomplete' ? t('Save an issuer URL and client ID first.') : result.reason === 'issuer' ? t('The issuer URL does not match what the provider reports. Copy it exactly from the provider.') : t('Sara could not reach the provider’s discovery document or keys. Check the issuer URL and the network.');
   }, test);
-  const actions = element('div'); actions.className = 'actions'; actions.append(save, test);
-  form.append(enabled.wrapper, preset.wrapper, steps, issuer.wrapper, clientId.wrapper, secret.wrapper, secretState, domains.wrapper, claim.wrapper, admins.wrapper, members.wrapper, jit.wrapper, enforce.wrapper, hours.wrapper, minutes.wrapper, actions, status);
+  const actions = element('div'); actions.className = 'actions'; actions.append(save, test, trial, trialResult);
+  form.append(enabled.wrapper, preset.wrapper, steps, issuer.wrapper, clientId.wrapper, secret.wrapper, secretState, domains.wrapper, claim.wrapper, admins.wrapper, members.wrapper, jit.wrapper, enforce.wrapper, hours.wrapper, minutes.wrapper, actions, status, testLine);
   section.append(form, element('p', t('Without refresh tokens from your provider, only the session length applies: a person removed at the provider keeps access until their session ends.')));
   fill(config); showSteps(); host.append(section); attachTips(section);
+  // Back from the provider in this tab (/?sso-test=done): show what the test found.
+  if (new URLSearchParams(location.search).get('sso-test') === 'done') { trialResult.hidden = false; const { result } = await api('/sso/test-result'); if (current()) showTrial(result); }
 }

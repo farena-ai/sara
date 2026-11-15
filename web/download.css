@@ -1,0 +1,18 @@
+/* R2: /download (web/download.js). Theme tokens only. */
+.dl-card { max-width: 560px; }
+.dl-main { margin: var(--s-4) 0; }
+.dl-main:empty { display: none; }
+.dl-go { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 var(--s-5); border-radius: var(--r-control); background: var(--accent-grad); color: var(--on-accent); font-weight: 600; text-decoration: none; }
+.dl-go:hover, .dl-go:focus-visible { box-shadow: 0 0 0 3px var(--focus); }
+.dl-steps { margin: 0 0 var(--s-3); padding-left: 1.4em; line-height: var(--lh-read); }
+.dl-steps li { margin-bottom: var(--s-2); }
+.dl-cmd { display: block; margin-top: var(--s-2); padding: var(--s-2) var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-2); background: var(--surface-0); font-family: var(--font-mono); font-size: var(--fs-12); overflow-wrap: anywhere; user-select: all; }
+.dl-note { padding: var(--s-2) var(--s-3); border-left: 3px solid var(--info); border-radius: var(--r-1); background: var(--info-soft); }
+.dl-other-h { margin: var(--s-5) 0 var(--s-2); font-size: var(--fs-16); }
+.dl-other { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.dl-other button { min-height: 44px; }
+.dl-all { margin-left: auto; }
+@media (max-width: 480px) {
+  .dl-go { width: 100%; }
+  .dl-all { margin-left: 0; flex-basis: 100%; }
+}

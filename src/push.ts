@@ -36,6 +36,8 @@ export interface PushPayload {
   act?: string;
   /** N5b: the companion the token belongs to (sent as x-sara-companion with the action). */
   companion?: string;
+  /** R4: the installed web app's badge number (approvals and inbox cards waiting; 0 clears it). */
+  badge?: number;
 }
 
 const SCHEMA = `
@@ -192,7 +194,13 @@ export class PushService {
   async #sendWeb(payload: PushPayload): Promise<{ sent: number; failed: number; removed: number }> {
     const rows = this.#db.prepare('SELECT endpoint, p256dh, auth, origin FROM push_subscriptions').all() as Record<string, string>[];
     const out = { sent: 0, failed: 0, removed: 0 };
-    const body = Buffer.from(JSON.stringify(payload));
+    let badge = payload.badge;
+    try {
+      badge ??= this.badge?.();
+    } catch {
+      /* no count */
+    }
+    const body = Buffer.from(JSON.stringify(badge === undefined ? payload : { ...payload, badge }));
     await Promise.all(
       rows.map(async (r) => {
         try {
@@ -229,6 +237,9 @@ export class PushService {
   #tr(text: string, params?: Record<string, unknown>): string {
     return trOwner(text, this.#settings.get(), params);
   }
+
+  /** R4: what the installed web app's badge shows (set by the server: approvals and inbox cards waiting). */
+  badge?: () => number;
 
   /** The companion's name and pronouns (set by main.ts): notification titles are built-in words about her. */
   who?: () => Identity;

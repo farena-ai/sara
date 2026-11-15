@@ -102,6 +102,34 @@ and Repository Onboarding run documented commands as jobs you approve in a dispo
 steps need a Linux host with bubblewrap). See [Appearance](APPEARANCE.md) and
 [developer add-ons](DEVELOPER_ADDONS.md).
 
+## Next: errands, start to finish (in development)
+
+Give Sara a goal like "get this charge refunded" or "book an oil change this week" and she plans it,
+works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
+She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
+
+## Work apps, family, trust and voice ready, in 3.12.0
+
+Edit Google Docs and Sheets and Word and Excel files online, post and search in Slack and Teams, share a
+booking page, and export invoices, expenses and hours for QuickBooks or Xero, each change shown first and
+read back. Family: chores and allowance (a record only), the school calendar from school emails, a
+kid-safe mode with bedtime and time limits, and grocery lists by aisle with a shopping mode. The owner
+sets which tools each household member may use, enforced on the server; audit export, more retention
+choices, a stronger restore check and a security overview. Phone calls in her voice are built and stay
+off until you connect a provider. Document facts in six languages, an accessibility pass, more offline,
+and shareable automation templates with a gallery.
+
+## Errands, an easy start and iPhone Shortcuts, in 3.11.0
+
+Give her an errand (get a charge refunded, book a service, cancel a subscription, get three quotes) and
+she plans it, works through it step by step with your OK for every email, form and choice, follows up,
+and shows her progress on the Errands page; payments always stay with you. New people get a guided
+five-step setup, examples on Today with a short tour, and starter packs for a household, a small
+business, sales or school. A download page picks the right installer. On iPhone, Apple Shortcuts add
+"Share to Sara" to the share sheet, "Ask Sara" to Siri and a "Sara today" widget, with no App Store app.
+Plus: Outlook attachments up to 150 MB, a "Check everything" self-test, and a backup model when a
+server's only model keeps answering with nothing.
+
 ## Everywhere you are, knows your world, works with your team, in 3.10.0
 
 The Mac app catches up with Windows: your browser tabs, your files (read only), approved commands, saving
@@ -655,6 +683,7 @@ In build order; one release per phase. The computer use track is complete (2.20â
 
 | Phase | Plan | Version |
 |---|---|---|
+| R2 | Easy for anyone to start: a five-minute guided setup, examples to look at, starter packs and a download page that picks the right installer | next |
 | 60 | Phones: locked-screen calls on iPhone (CallKit), one-tap pairing on iPhone, the iPhone app in the App Store (when Apple approves it) | after Apple's approval |
 | 64 | Be found: app stores, NAS catalogs, Home Assistant's store and directories | ongoing |
 | 122 | WhatsApp (official API), iMessage via BlueBubbles, SMS via AgentText, Matrix | 2.55 |

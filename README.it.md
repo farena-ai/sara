@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 3.10.0, [Ovunque tu sia, conosce il tuo mondo, lavora con il tuo team](https://github.com/farena-ai/sara/releases/tag/v3.10.0). Parità su Mac, condividi con Sara e modalità auto sul telefono, una pagina di fatti con fonti, risposte citate dai tuoi documenti, liste condivise, clienti e registro ore. [Scopri le novità](#novità)
+> **Stato:** 3.12.0, [App di lavoro, famiglia, fiducia e voce pronta](https://github.com/farena-ai/sara/releases/tag/v3.12.0). Modifica in Google Docs/Sheets e Microsoft 365, Slack e Teams, pagine di prenotazione ed esportazioni contabili; faccende, calendario scolastico e modalità bambini sicura. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -167,20 +167,22 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[App di lavoro, famiglia, fiducia e voce pronta](docs/WORK_APPS.md)** — Regole degli strumenti per membro applicate sul server, esportazione audit e conservazione; chiamate pronte e spente finché non colleghi un fornitore; fatti in sei lingue, accessibilità e modelli. |
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Commissioni, un avvio facile e Comandi su iPhone](docs/ERRANDS.md)** — Rimborsi, prenotazioni, disdette e preventivi pianificati e seguiti passo passo; i pagamenti restano a te. Una pagina di download, un autotest e allegati Outlook fino a 150 MB. |
 | **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Ovunque tu sia, conosce il tuo mondo, lavora con il tuo team](docs/WHAT_SARA_KNOWS.md)** — L’app Mac fa ciò che fa Windows; le notifiche hanno Approva, Posticipa, Rispondi e Accetta; risponde dai tuoi file con citazioni esatte e pagine; le ore diventano fatture senza doppia fatturazione. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Dalla tua posta, e moduli compilati](docs/INBOX_HELPER.md)** — Niente parte da solo finché non lo dici, e niente dalle email invia o paga. I moduli si fermano prima di Invia dopo una scheda di controllo; le email hanno allegati; i negozi che la bloccano si controllano nel tuo browser. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Fa le cose giuste, e da sola](docs/AUTOMATIONS.md)** — Sceglie il modello giusto per ogni compito e passa a un altro se è lento, verifica ciò che ha cambiato, riferisce ogni settimana e avvia le tue automazioni con anteprima, prova e cronologia. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Un’assistente di tutti i giorni: soldi, sport, acquisti, decisioni, lavoro](docs/BUSINESS_TOOLS.md)** — Valuta le opzioni in base a ciò che conta per te, segnala le scelte al fotofinish e ricontrolla dopo. Fatture e preventivi numerati con stato pagato/scaduto, a chi devi una risposta, contratti letti citando ogni punto, ricevute trasformate in note spese. |
-| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Anche i moduli PDF](docs/DOCUMENTS.md)** — Caselle di testo, caselle di spunta, pulsanti di opzione ed elenchi, trovati dalle parole stampate accanto a ogni casella. I PDF protetti o scansionati ricevono una risposta chiara e il passo successivo. |
-| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Le app web movimentate funzionano](docs/desktop.md)** — Controlla solo il pulsante o il campo che sta per usare, scrive negli editor ricchi e, se si ferma, dice che è un suo controllo e riprova. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 3.6.3 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 3.6.5 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Anche i moduli PDF](docs/DOCUMENTS.md)** — Caselle di testo, caselle di spunta, pulsanti di opzione ed elenchi, trovati dalle parole stampate accanto a ogni casella. I PDF protetti o scansionati ricevono una risposta chiara e il passo successivo. |
+| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Le app web movimentate funzionano](docs/desktop.md)** — Controlla solo il pulsante o il campo che sta per usare, scrive negli editor ricchi e, se si ferma, dice che è un suo controllo e riprova. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Compila i tuoi moduli](docs/DOCUMENTS.md)** — I valori vanno nelle celle giuste per etichetta e colonna, layout e formattazione restano, l’originale intatto. Rilegge la copia e dice quanti campi sono stati compilati. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Lo fa lei per te](docs/desktop.md)** — Rimuovere un’estensione del browser, disattivare un’app all’avvio o fare pulizia di file: fa ogni passo e tu approvi le modifiche sul computer. Quando non può, dice cosa manca. Le risposte fallite mostrano Riprova e Segnala, e le segnalazioni arrivano al supporto. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Usare le tue app è veloce](docs/desktop.md)** — Un elenco di finestre che aspettava il thread occupato dell’app faceva durare minuti le azioni approvate; ora bastano secondi. Passa a una delle tue schede quando lo permetti, agisce su finestre dietro altre dopo il tuo ok e vede i link delle tue pagine. |

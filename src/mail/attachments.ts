@@ -1,7 +1,7 @@
 // N4 (docs/MAIL.md "Attachments"): files from the Library (or a file she just made in the chat) attached to
 // a draft or an email. Ids: a Library document number (12, "12", "library:12") or a chat file id (the file
 // card's id, e.g. from fill_document, invoice_make or an automation). Each provider has a size cap for the
-// whole email (Gmail and IMAP/SMTP 20 MB; Outlook 3 MB, the size Microsoft Graph takes in one request).
+// whole email (Gmail and IMAP/SMTP 20 MB; Outlook 150 MB, Microsoft Graph's cap: files over 3 MB go up through an upload session, R1).
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import type { AppContext } from '../chat.ts';
 import { sharedFile } from '../bridges/media.ts';
@@ -13,7 +13,7 @@ export interface MailAttachment {
   data: Buffer;
 }
 
-export const ATTACH_CAP: Record<'google' | 'graph' | 'imap', number> = { google: 20 * 1024 * 1024, graph: 3 * 1024 * 1024, imap: 20 * 1024 * 1024 };
+export const ATTACH_CAP: Record<'google' | 'graph' | 'imap', number> = { google: 20 * 1024 * 1024, graph: 150 * 1024 * 1024, imap: 20 * 1024 * 1024 };
 export const MAX_ATTACHMENTS = 10;
 
 export class AttachmentError extends Error {}

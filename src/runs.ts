@@ -674,6 +674,19 @@ export class RunStore {
     return removed;
   }
 
+  /** R7 (Retention and legal hold → Keep run history): runs started before `iso` go (never a running one or a branch parent). */
+  deleteBefore(iso: string): number {
+    try {
+      const n = Number(this.#db.prepare(`DELETE FROM runs WHERE started_at < ? AND status <> 'running' AND ${this.#pinned}`).run(iso).changes);
+      if (n) this.#dropOrphans();
+      this.#db.prepare('DELETE FROM run_thumbs WHERE created_at < ?').run(iso);
+      return n;
+    } catch (err) {
+      console.warn(`runs: retention failed: ${(err as Error).message}`);
+      return 0;
+    }
+  }
+
   #dropOrphans(): void {
     this.#db.prepare('DELETE FROM run_blobs WHERE sha NOT IN (SELECT system_sha FROM run_steps WHERE system_sha IS NOT NULL)').run();
   }

@@ -3,6 +3,7 @@
 // shows the kept chats and notes over the app, and sends the outbox when it is back.
 // web/app.js calls these few hooks; the copy is web/offline-store.js, the view web/offline-view.js.
 import { idbKV, openOfflineCopy } from './offline-store.js';
+import { LIST_LIMITS, slimBoard } from './offline-lists.js';
 import { flushOutbox, keepChoice, privateChoice, watchConnection } from './offline-sync.js';
 import { mountOfflineView, offlineWords } from './offline-view.js';
 
@@ -150,9 +151,33 @@ async function refreshCopy() {
     }
     const n = await fetch('/api/notes', { cache: 'no-store' });
     if (n.ok) await st.copy.saveNotes(await n.json());
+    // R9: Today as it was last shown, and the lists for shopping mode (shared ones first).
+    const snap = todaySnapshot();
+    if (snap?.tiles.length) await st.copy.saveToday(snap);
+    const b = await fetch('/api/boards', { cache: 'no-store' });
+    if (b.ok) {
+      const boards = ((await b.json()).boards ?? []).sort((x, y) => Number(Boolean(y.members)) - Number(Boolean(x.members))).slice(0, LIST_LIMITS.lists);
+      const lists = [];
+      for (const x of boards) {
+        const v = await fetch(`/api/boards/${encodeURIComponent(String(x.id))}`, { cache: 'no-store' });
+        if (v.ok) lists.push(slimBoard(await v.json()));
+      }
+      await st.copy.saveLists(lists.filter((l) => l.id && l.items.length));
+    }
   } catch {
     /* gone offline meanwhile: the watch notices */
   }
+}
+
+/** Today's tiles as text (what the person last saw there), for reading offline. */
+export function todaySnapshot(root = document) {
+  const tiles = [...(root.getElementById?.('td-tiles')?.querySelectorAll('.td-tile:not([hidden])') ?? [])]
+    .map((tile) => ({
+      title: tile.querySelector('.td-tile-head h3')?.textContent?.trim() ?? '',
+      lines: [...tile.querySelectorAll('li, .td-body > p, .today-list > p')].map((x) => x.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean).slice(0, 8),
+    }))
+    .filter((x) => x.title && x.lines.length);
+  return { greeting: root.getElementById?.('td-greeting')?.textContent?.trim() ?? '', tiles };
 }
 
 function goneOffline() {
@@ -176,8 +201,9 @@ async function backOnline() {
 function tellSent(r) {
   const t = st.t;
   const notes = r?.notes ?? 0;
-  const sent = (r?.sent ?? 0) - notes;
-  const text = notes
+  const lists = r?.lists ?? 0;
+  const sent = (r?.sent ?? 0) - notes - lists;
+  let text = notes
     ? sent === 1
       ? t('Back online — sent 1 message and added your note changes')
       : sent > 1
@@ -187,7 +213,12 @@ function tellSent(r) {
       ? t('Back online — sent 1 message')
       : sent > 1
         ? t('Back online — sent {n} messages', { n: sent })
+        : lists
+        ? t('Back online — your list changes were synced')
         : t('Back online');
+  // Last writer wins per item: a newer change made elsewhere stays, and the note says which.
+  const kept = (r?.kept ?? []).filter((k) => k.why === 'newer').map((k) => k.title).filter(Boolean);
+  if (kept.length) text = `${text}. ${t('Changed on another device after you: {items} (the newer change was kept).', { items: kept.slice(0, 5).join(', ') })}`;
   popNote(r?.refused ? `${text}. ${t("{n} couldn't be sent; they are kept on this device.", { n: r.refused })}` : text, r?.refused ? () => showOutbox() : null);
 }
 
@@ -196,7 +227,7 @@ async function sendOutbox() {
   st.flushing = true;
   try {
     if (!(await st.copy.outbox()).length) return { sent: 0, refused: 0 };
-    return await flushOutbox(st.copy, { post: postJson, onSent: () => st.onBack() });
+    return await flushOutbox(st.copy, { post: postJson, get: (path) => fetch(path, { cache: 'no-store' }), onSent: () => st.onBack() });
   } catch {
     return null;
   } finally {

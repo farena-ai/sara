@@ -206,9 +206,10 @@ export class AuditTrail {
   }
 
   /** A ZIP with the rows (JSONL or CSV) and a manifest hashed and signed with this server's key. */
-  exportZip(format: 'jsonl' | 'csv', f: AuditFilter = {}, o: { content?: boolean } = {}): { zip: Buffer; manifest: Record<string, unknown> } {
+  exportZip(format: 'jsonl' | 'csv' | 'json', f: AuditFilter = {}, o: { content?: boolean } = {}): { zip: Buffer; manifest: Record<string, unknown> } {
     const rows = this.list({ ...f, limit: 5000 }, o).reverse();
-    const data = Buffer.from(format === 'csv' ? toCsv(rows, Boolean(o.content)) : rows.map((r) => JSON.stringify(r) + '\n').join(''), 'utf8');
+    // R7: json = one array (for tools that don't read JSON Lines).
+    const data = Buffer.from(format === 'csv' ? toCsv(rows, Boolean(o.content)) : format === 'json' ? JSON.stringify(rows, null, 2) + '\n' : rows.map((r) => JSON.stringify(r) + '\n').join(''), 'utf8');
     const head = this.#readHead();
     const manifest: Record<string, unknown> = {
       kind: 'sara-audit-export',

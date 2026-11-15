@@ -43,3 +43,11 @@
 .dr-history { display: grid; gap: 8px; min-width: 0; }
 .dr-edit { border-left: 2px solid var(--hairline-strong, currentColor); padding: 4px 10px; min-width: 0; }
 .dr-edit-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+
+/* R7: Tools for household members (web/member-tools.js): one column of labels, one of pick-lists. */
+.mt-box label.row:has(select) { display: grid; grid-template-columns: minmax(9rem, 13rem) minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; }
+.mt-box label.row:has(select) select { width: 100%; }
+@media (max-width: 600px) {
+  .mt-box label.row:has(select) { grid-template-columns: minmax(0, 1fr) auto; row-gap: 0.25rem; }
+  .mt-box label.row:has(select) select { grid-column: 1 / -1; grid-row: 2; }
+}

@@ -26,7 +26,8 @@ one outside call is listing the default model provider's models (free, cached fo
 **Run a restore drill** proves that the newest backup on this computer really restores. Sara:
 
 1. restores it into a throwaway folder inside her own data folder (`tmp/restore-drill-…`), never
-   over the live data and never in the system temp folder (the copy holds her keys);
+   over the live data and never in the system temp folder (the copy holds her keys), and checks that
+   every file the backup's manifest lists came back;
 2. checks every database in it (`PRAGMA integrity_check`) and counts chats, messages and memories;
 3. opens the vault with the copy's own key (or `SARA_MASTER_KEY`), keeping only the number of entries;
 4. starts the copy on this computer only (`127.0.0.1`, a free port) in drill mode: private local mode

@@ -99,6 +99,12 @@ Sara**. Then a long press on the home button (or the assistant gesture or key) o
 listen (with voice set up) or with the cursor in the message box. "Hey Google" can't be replaced by
 another app, so it opens by press or gesture, not by voice. [VOICE_ASSISTANTS.md](VOICE_ASSISTANTS.md)
 
+## iPhone without the App Store (R4)
+
+The iPhone app isn't in the App Store. Add Sara to the Home Screen from Safari for notifications and
+the badge, and use Apple Shortcuts for the share sheet, Siri and a widget: Settings → Connections →
+**iPhone Shortcuts**. [IPHONE.md](IPHONE.md)
+
 ## Siri on iPhone (2.1)
 
 Say **"Ask Sara"** (or use the *Ask Sara* action in Shortcuts), say your message, and Siri speaks her
@@ -141,6 +147,8 @@ More: [INSTALL.md](INSTALL.md), [FAQ.md](FAQ.md).
   doesn't offer computer use or long tasks while you drive. Ask "read my messages" to hear her newest
   reminders and notes. It turns off by itself after 2 hours without use, and her voice setting goes
   back to what it was. Her voice must be set up (Settings → Her → Voice).
+  Errands work hands-free too: start one by voice, say "approve" or "no" to her card (computer-use
+  cards wait for the computer), and ask how your errands are going ([PHONE_CALLS.md](PHONE_CALLS.md)).
 
 ## Lend Sara your phone
 

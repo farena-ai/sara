@@ -33,7 +33,9 @@ interface DeviceSession {
    * Phase 87: 'hands' = Sara's hands on a computer (the desktop app's computer-use channel): it only
    * opens the /api/hands WebSocket, never the app's own API (docs/design/COMPUTER_USE.md §3.2).
    */
-  kind?: 'api' | 'home-assistant' | 'hands' | 'a2a';
+  kind?: 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut';
+  /** R4: what an iPhone Shortcuts token (kind 'shortcut') may do. */
+  scopes?: ShortcutScope[];
   /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
   expiresAt?: string;
   /** C15: a remote sign-in waiting for the owner's approval (its cookie opens nothing yet). */
@@ -70,7 +72,9 @@ export interface DeviceView {
   createdAt: string;
   lastSeen: string;
   /** Phase 52: 'app' = signed in with a device code and a token (terminal, VS Code). Phase 57: 'api' = an API key for another app. M4: 'home-assistant'. Phase 87: 'hands'. */
-  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a';
+  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut';
+  /** R4: an iPhone Shortcuts token's scopes. */
+  scopes?: ShortcutScope[];
   /** Phase 100: when an agent's key stops working. */
   expiresAt?: string;
   /** C15: waiting for approval; where it signed in from. */
@@ -83,7 +87,7 @@ export interface DeviceView {
 export const MAX_SESSIONS = 50;
 /** Keeps every API key and the newest MAX_SESSIONS other sign-ins (a pile of old sign-ins never drops a key). */
 function capSessions(list: DeviceSession[], maxDevices = 0): DeviceSession[] {
-  const others = list.filter((d) => d.kind !== 'api' && d.kind !== 'a2a');
+  const others = list.filter((d) => !lasting(d));
   const drop = new Set(others.slice(0, Math.max(0, others.length - MAX_SESSIONS)));
   // C15: the owner's "at most N devices": the least recently used browser and app sign-ins go
   // (waiting sign-ins, API keys, hands and Home Assistant are not counted).
@@ -93,6 +97,16 @@ function capSessions(list: DeviceSession[], maxDevices = 0): DeviceSession[] {
   }
   return list.filter((d) => !drop.has(d));
 }
+
+/** Keys that last until removed or until their own expiry (never signed out for being unused). */
+const lasting = (d: DeviceSession): boolean => d.kind === 'api' || d.kind === 'a2a' || d.kind === 'shortcut';
+
+/** R4: an iPhone Shortcuts token: `sara_sc.<device id>.<secret>`; only /api/shortcuts/* takes it. */
+export const SHORTCUT_TOKEN_PREFIX = 'sara_sc.';
+export type ShortcutScope = 'share' | 'ask';
+export const SHORTCUT_SCOPES: readonly ShortcutScope[] = ['share', 'ask'];
+/** At most this many iPhone Shortcuts tokens per person. */
+export const MAX_SHORTCUT_TOKENS = 10;
 
 /** Phase 52: device tokens look like `sara_dev.<device id>.<secret>`. */
 export const DEVICE_TOKEN_PREFIX = 'sara_dev.';
@@ -329,7 +343,7 @@ export class OwnerAuth {
     const expires = now.getTime() + SESSION_TTL_MS;
     const id = randomBytes(9).toString('base64url');
     const payload = `${expires}.${id}`;
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => lasting(d) || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     sessions.push({ id, label: label.slice(0, 60), createdAt: now.toISOString(), lastSeen: now.toISOString(), ...(o.pending ? { pending: true as const } : {}), ...(o.ip ? { ip: o.ip.slice(0, 64) } : {}), ...(o.remote ? { remote: true } : {}) });
     this.#owner.sessions = capSessions(sessions, o.maxDevices);
     this.#save();
@@ -426,7 +440,7 @@ export class OwnerAuth {
   }
 
   devices(): DeviceView[] {
-    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' || kind === 'a2a' ? kind : tokenHash ? 'app' : 'browser' }));
+    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' || kind === 'a2a' || kind === 'shortcut' ? kind : tokenHash ? 'app' : 'browser' }));
   }
 
   /**
@@ -437,7 +451,7 @@ export class OwnerAuth {
     const now = this.#now();
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => lasting(d) || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     if (kind === 'api' && sessions.filter((d) => d.kind === 'api').length >= 20) throw new Error('Up to 20 API keys: remove one you no longer use first (Devices and sign-in).');
     sessions.push({ id, label: label.slice(0, 60) || (kind === 'api' ? 'Another app' : 'App'), createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), ...(kind ? { kind } : {}) });
     this.#owner.sessions = capSessions(sessions);
@@ -481,7 +495,7 @@ export class OwnerAuth {
   /** Phase 57: 'api' for an API key, 'app' for a device-code app, 'home-assistant' (M4), 'hands' (Phase 87), undefined for anything else. */
   deviceKind(id: string): 'api' | 'app' | 'home-assistant' | 'hands' | 'a2a' | undefined {
     const d = this.#owner.sessions?.find((x) => x.id === id);
-    return !d?.tokenHash ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' || d.kind === 'a2a' ? d.kind : 'app';
+    return !d?.tokenHash || d.kind === 'shortcut' ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' || d.kind === 'a2a' ? d.kind : 'app';
   }
 
   /**
@@ -493,7 +507,7 @@ export class OwnerAuth {
     const now = this.#now();
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
-    const sessions = (this.#owner.sessions ?? []).filter((d) => d.kind === 'api' || d.kind === 'a2a' || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
+    const sessions = (this.#owner.sessions ?? []).filter((d) => lasting(d) || Date.parse(d.lastSeen) > now.getTime() - SESSION_TTL_MS);
     // One computer, one set of hands: a new pairing with the same name replaces the old one.
     const same = sessions.filter((d) => d.kind === 'hands' && d.label === label.slice(0, 60)).map((d) => d.id);
     const kept = sessions.filter((d) => !same.includes(d.id));
@@ -548,6 +562,45 @@ export class OwnerAuth {
     return { token: `${HANDS_TOKEN_PREFIX}${id}.${secret}`, id, expiresAt: new Date(now.getTime() + DEVICE_TOKEN_MAX_MS).toISOString() };
   }
 
+  /**
+   * R4 (docs/IPHONE.md): a token for Apple Shortcuts on one iPhone ("Share to Sara", "Ask Sara",
+   * the widget). Shown once, only its hash kept, listed under Devices too; it works only on
+   * /api/shortcuts/* with its scopes, never on the app's own API, until it is removed.
+   */
+  createShortcutToken(label: string, scopes: readonly ShortcutScope[] = SHORTCUT_SCOPES): { token: string; id: string; scopes: ShortcutScope[] } {
+    const now = this.#now();
+    const want = SHORTCUT_SCOPES.filter((x) => scopes.includes(x));
+    if (!want.length) throw new Error('Pick at least one: Share or Ask.');
+    const sessions = this.#owner.sessions ?? [];
+    if (sessions.filter((d) => d.kind === 'shortcut').length >= MAX_SHORTCUT_TOKENS) throw new Error('Up to 10 iPhone Shortcuts tokens: remove one you no longer use first.');
+    const id = randomBytes(9).toString('base64url');
+    const secret = randomBytes(32).toString('base64url');
+    sessions.push({ id, label: label.trim().slice(0, 60) || 'iPhone Shortcuts', createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), kind: 'shortcut', scopes: want });
+    this.#owner.sessions = capSessions(sessions);
+    this.#save();
+    return { token: `${SHORTCUT_TOKEN_PREFIX}${id}.${secret}`, id, scopes: want };
+  }
+
+  /** R4: the id, name and scopes of a valid Shortcuts token (any other token or a cookie: undefined). */
+  shortcutToken(token: string | undefined): { id: string; label: string; scopes: ShortcutScope[] } | undefined {
+    if (!token?.startsWith(SHORTCUT_TOKEN_PREFIX)) return undefined;
+    const [id, secret, extra] = token.slice(SHORTCUT_TOKEN_PREFIX.length).split('.');
+    if (!id || !secret || extra !== undefined) return undefined;
+    const d = this.#owner.sessions?.find((x) => x.id === id);
+    if (!d?.tokenHash || d.kind !== 'shortcut' || !safeEqual(sha256(secret), d.tokenHash)) return undefined;
+    const now = this.#now().getTime();
+    if (now - Date.parse(d.lastSeen) > 60 * 60 * 1000) {
+      d.lastSeen = new Date(now).toISOString();
+      this.#save();
+    }
+    return { id, label: d.label, scopes: [...(d.scopes ?? [])] };
+  }
+
+  /** R4: this person's Shortcuts tokens (never the hash). */
+  shortcutTokens(): { id: string; label: string; scopes: ShortcutScope[]; createdAt: string; lastSeen: string }[] {
+    return (this.#owner.sessions ?? []).filter((d) => d.kind === 'shortcut').map((d) => ({ id: d.id, label: d.label, scopes: [...(d.scopes ?? [])], createdAt: d.createdAt, lastSeen: d.lastSeen }));
+  }
+
   /** Phase 71: whether a device or app sign-in with this id is listed here (routing only; tokens are still checked). */
   hasDevice(id: string): boolean {
     return Boolean(this.#owner.sessions?.some((x) => x.id === id));
@@ -569,7 +622,7 @@ export class OwnerAuth {
     const d = this.#owner.sessions?.find((x) => x.id === id);
     if (!d?.tokenHash || !safeEqual(sha256(secret), d.tokenHash)) return undefined;
     // Phase 87: a hands token written with the other prefix is still only a hands token.
-    if (d.kind === 'hands') return undefined;
+    if (d.kind === 'hands' || d.kind === 'shortcut') return undefined;
     const now = this.#now().getTime();
     // Phase 100: an agent's key works until its expiry (or until the owner removes it).
     if (d.kind === 'a2a' && !(Date.parse(d.expiresAt ?? '') > now)) return undefined;

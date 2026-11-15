@@ -63,6 +63,24 @@ sends it to you to check. Tell her your rules: "shifts are 2200-0700, no lunch",
 "only events called Shift", or fixed work days when there's no calendar. The original is never
 changed.
 
+## Templates: share one, start from one
+
+- **Share as a template** (on each automation you made) saves a `.json` file and copies the same text.
+  A template never holds personal data: ids (the automation's, a document's, a watch's, a webhook's, a
+  chat's), email addresses, keys and tokens, file ids and phone numbers become blanks like
+  `{{email_1}}`. The rules stay: when it runs, the words it looks for, what it does, time sheet rules.
+- **Import a template**: paste the text or open the file. Sara checks it (format, kinds, size up to
+  40 KB) and cleans it again, so a template made by hand can't bring addresses or keys along either.
+- **The gallery** has 10 ready-made ones: weekly time sheet, bill reminders, package alerts, morning
+  portfolio, team game alerts, Friday invoice hours, school newsletters to calendar, grocery reorder
+  reminder, birthday reminders and weekly review.
+- Every import, from a file, pasted text or the gallery, shows its blanks, then the normal preview
+  (when it runs, the next three times, what it does, the approvals), and is made only when you tap
+  **Allow**. The server refuses a template without that Allow.
+- Routes: `GET /api/automations/templates` (gallery), `POST /api/automations/templates/read {text}`,
+  `GET /api/automations/:key/template`; preview, dry run and create take `{template, values}` or
+  `{gallery, values}`, and create needs `allow: true`. Code: `src/automation-templates.ts`.
+
 ## For Sara (chat tools)
 
 `automation_create` (asks once; its card is the preview), `automation_preview`, `automation_dry_run`,

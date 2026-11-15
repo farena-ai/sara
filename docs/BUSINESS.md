@@ -140,6 +140,10 @@ why (wrong email domain, no allowed group, no invitation, expired attempt) and n
      `https://<host>/realms/<realm>`; allow offline access for session checks.
 3. Enter the issuer URL, client ID and client secret, pick the rules, **Save**, then **Test
    connection** (it reads the discovery document and the signing keys).
+4. **Test sign-in** (works before company sign-in is on): sign in at your provider in the new tab,
+   then **Show the test result**. It runs every check of a real sign-in and says whether you would
+   be let in, with which role, your email domain and the groups the provider sent (handy for Entra
+   group IDs). Nobody is signed in or linked; it is one *sso.test* audit row.
 
 Rules: **Allowed email domains** (the verified email must end in one of them); **Administrator
 groups** and **Member groups** (the group claim maps people to organization administrator or member
@@ -160,6 +164,14 @@ part of backups. The audit shows *Company sign-in settings changed*, *Signed in 
 account*, *Company sign-in refused*, *Company sign-in ended by the session check* and *Company account
 linked*, with account ids only: no emails, tokens or secrets. In private-local mode the provider must
 be on this computer or the local network.
+
+## Audit export
+
+*Organization administration → Audit export* (organization administrators only): the control audit
+(sign-ins, invitations, roles, workspace membership, settings, SSO and SCIM events, exports) for a
+date range (UTC days; empty = everything) as **CSV** or **JSON**. Rows hold ids, names of accounts
+and action names, never message or document content. The JSON has a SHA-256 of its rows. Each
+download is one *audit.export* row. Routes: `GET /api/business/org/audit.csv|.json?from=&to=`.
 
 ## Separate-instance startup and identity
 

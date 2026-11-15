@@ -77,6 +77,10 @@ export interface Today {
   watching?: ReturnType<import('./live-watch.ts').LiveWatches['todayTile']>;
   /** N2: automations that failed, wait for an OK or run today (none: no tile). */
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
+  /** R3: open errands, the ones waiting on you first (none open: no tile). */
+  errands?: ReturnType<import('./errands.ts').Errands['todayTile']>;
+  /** R8: Family: a parent's approvals and kids' balances, or a kid's own chores and balance. */
+  family?: NonNullable<ReturnType<import('./family.ts').FamilyStore['todayTile']>> & { names: Record<string, string> };
   /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
   inbox?: NonNullable<ReturnType<import('./inbox/helper.ts').InboxHelper['todayTile']>> & { docs?: import('./facts.ts').DateSuggestion[] };
   /** E4: My teams (next game, last result, live score), only when following a team. */
@@ -98,7 +102,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'family', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -499,6 +503,19 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.automations?.todayTile();
       if (tile) out.automations = tile;
       meta('automations');
+    },
+    errands: () => {
+      // R3: a tile only when an errand is open (waiting on you first).
+      const tile = demo ? undefined : app.errands?.todayTile();
+      if (tile) out.errands = tile;
+      meta('errands');
+    },
+    family: () => {
+      // R8: chores and allowance (none set up: no tile).
+      const f = demo ? undefined : app.family;
+      const tile = f?.store.todayTile(f.person, f.people().filter((p) => p.child), app.now(), f.tz());
+      if (f && tile) out.family = { ...tile, names: Object.fromEntries(f.people().map((p) => [p.id, p.name])) };
+      meta('family');
     },
     inbox: () => {
       // N3: a tile only when there is something from the inbox (a card, a done line, a package, a trip, a rule idea).

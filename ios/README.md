@@ -1,5 +1,8 @@
 # Sara for iPhone and iPad
 
+> **Source only (R4, owner decision):** this app is not submitted to the App Store or TestFlight.
+> iPhones use the installed web app and Apple Shortcuts instead: [docs/IPHONE.md](../docs/IPHONE.md).
+
 A small native app (Swift, no libraries) around Sara's web app, like the Android app. It adds:
 
 - **Sign in with a code**: scan the QR code from Settings → Connections → Devices and sign-in →

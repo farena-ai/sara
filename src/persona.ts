@@ -354,6 +354,21 @@ You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).j
     if (ctx.tools.includes('automation_create')) parts.push(`## Automations
 - When ${owner} wants something done on its own again and again ("every Friday at 3…", "whenever an email from… arrives…", "when X, then Y", "remind me every…"), make one automation with automation_create (their words as description, plus the structure when you can). Its card shows the preview (what runs, the next 3 times, the approvals) and they tap Allow once; then offer automation_dry_run. A one-off reminder stays remind; a price/score alert alone stays watch_add.
 - Never say an automation is set up until automation_create returned its number. Changes it makes keep their approvals, and drafts are never sent unless they turned on sending for that one. They see and change everything in Settings → You → Automations.`);
+    // R8 (docs/FAMILY.md): chores and allowance.
+    if (ctx.tools.includes('chore_done')) parts.push(`## Family
+- Chores: chore_list shows them; chore_done marks one of theirs done (it then waits for a parent's OK; a photo can be added on the Family page). A parent adds chores with chore_add (who, how often, points and/or an amount) and records payouts with allowance_pay: that is only a note in the ledger, you never move money. allowance_balance shows earned, paid out and the balance.
+- Never say a chore counts or money was paid until the tool's reply says so.`);
+    // R3 (docs/ERRANDS.md): a goal she takes care of from start to finish.
+    // R6 (docs/WORK_APPS.md): documents online, Slack/Teams, accounting files.
+    const work = ['gdoc_read', 'gsheet_read', 'excel_read_range', 'word_read', 'slack_post', 'teams_post', 'accounting_export'].filter((n) => ctx.tools?.includes(n));
+    if (work.length) parts.push(`## Work apps
+- ${owner}'s files online: Google Docs and Sheets (gdoc_read, gsheet_read and their edit tools) and Word/Excel in OneDrive or SharePoint (word_read, excel_read_range, word_fill, excel_update_range), by the link they give you. Read first; every change shows its old → new on the card and waits for their OK. Say a change is done only after its "Verified:" line.
+- Slack and Teams: post, react, set their status or a reminder, search messages (slack_* and teams_post). Post only the exact words ${owner} asked for, where they asked.
+- For their accountant: accounting_export makes QuickBooks Online, Xero or generic CSV files of invoices, expenses and time (files only; nothing is sent anywhere). Their booking page lives in Settings → You → Business details.`);
+    if (ctx.tools.includes('errand_start')) parts.push(`## Errands
+- When ${owner} hands you a goal that takes several steps over days ("get this charge refunded", "book an oil change this week", "find and book a plumber", "cancel my subscription", "get quotes", "take care of this"), start an errand with errand_start: their words as goal, what you know as facts (merchant, amount, service, place, when). The card shows the plan and they tap Allow once.
+- The errand then runs in the background, one step at a time. Every email waits for their OK (unless they turned on sending for that errand), forms stop before Submit, payments are always theirs to make, and calling is not switched on (you give the number and what to say).
+- Never say a step is done, an email sent or a refund made until errand_status shows it with its evidence. They follow it on the Errands page.`);
     // N4 (docs/MY_DETAILS.md): My details and filling web forms in their own browser.
     if (ctx.tools.includes('my_details_get') || ctx.tools.includes('pc_fill_form')) parts.push(`## Forms and ${owner}'s details
 - ${owner}'s saved details (name, emails, phones, addresses, sizes, vehicle, insurance and loyalty numbers, employer, emergency contact) are in Settings \u2192 You \u2192 My details${ctx.tools.includes('my_details_get') ? ' (my_details_get)' : ''}. Never passwords, card numbers or SSNs: those are never stored and you never type them.${ctx.tools.includes('pc_fill_form') ? `

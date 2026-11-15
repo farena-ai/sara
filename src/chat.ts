@@ -1,10 +1,13 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
-import { CAR_BLOCKED_TOOL, carNote } from './phone-actions.ts';
+import { kidNote, kidTurn } from './family.ts';
+import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
+import { carErrandLines, phoneCallNote } from './car-errands.ts';
 import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
 import { policy } from './policy-profile.ts';
+import { toolSpendCap } from './member-tools.ts';
 import { autoHistory, charsPerToken, CHARS_PER_TOKEN, cloudThroughDaemon, daemonHardware, isOllamaDaemon, localNumCtx, lookupTable, refreshPs, type DaemonHardware, type HistoryBudget, type HistoryMode } from './model-context.ts';
 import { priceTagFor, SAVER, saverNow, spendCheck, spendSettings, spentNow, stoppedOutput, type PriceTag } from './spend.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError } from './tool-admission.ts';
@@ -22,7 +25,7 @@ import { createProvider } from './providers/registry.ts';
 import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, readoutNote, readPictures, type PictureReader } from './picture-reader.ts';
 import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
 import { madeDocs } from './documents/make.ts';
-import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob } from './auto-route.ts';
+import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob, modelStats } from './auto-route.ts';
 import { isToolsUnsupported, seesPictures, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
@@ -89,6 +92,7 @@ import { ownerCueNote } from './owner-cues.ts';
 import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
+import { packNote } from './pack-hint.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
 import { checkReply, driftMode, shouldCheck } from './drift.ts';
@@ -264,6 +268,10 @@ export interface AppContext {
   eventTriggers?: import('./event-triggers.ts').EventTriggers;
   /** N2: automations, one place (src/automations.ts). Driven by the reminder tick and the event/watch hooks. */
   automations?: import('./automations.ts').Automations;
+  /** R3: errands, start to finish (src/errands.ts). Driven by the reminder tick and the inbox helper's new mail. */
+  errands?: import('./errands.ts').Errands;
+  /** R5: phone calls in and out (docs/PHONE_CALLS.md), switched off until the owner sets them up. */
+  phoneCalls?: import('./phone-calls.ts').PhoneCalls;
   /** N3: from your inbox (src/inbox/helper.ts): suggestion cards from new mail, packages, trips, filing. */
   inbox?: import('./inbox/helper.ts').InboxHelper;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
@@ -272,6 +280,8 @@ export interface AppContext {
   workingStyle?: import('./working-style.ts').WorkingStyle;
   /** Phase 99: shared household boards (src/shared-boards.ts) and who this space is. Never on the demo. */
   sharedBoards?: import('./shared-boards.ts').SharedBoardsAccess;
+  /** R8 (docs/FAMILY.md): chores, allowance, grocery lists and kid-safe member mode (src/family.ts). */
+  family?: import('./family.ts').FamilyAccess;
   /** Set by the server: stops the turn running in a conversation (a card's Stop). */
   stopTurn?: (conversationId: string) => boolean;
   /** Phase 38: meaning search over memory notes (when the embeddings job is set). */
@@ -650,6 +660,39 @@ function resolveChainAll(app: AppContext, conv: Conversation, job: Job, adult: b
 }
 
 /**
+ * R1 (live logs: a server whose only chat model answered with no words in 34 of 78 turns while the
+ * owner's other model answered all of its turns): when a turn's chain has no model left, one the owner
+ * already picked somewhere (default, a job, a fallback, her own model) that has answered here lately
+ * (3+ calls, at most 1 in 10 failed) takes over once. A private chat takes only models on this computer.
+ */
+export function rescueChoice(app: AppContext, conv: Conversation, tried: { providerId: string; model: string }[]): ModelChoice | undefined {
+  const s = app.settings.get();
+  const picked = [
+    ...(s.defaultProviderId && s.defaultModel ? [{ providerId: s.defaultProviderId, model: s.defaultModel }] : []),
+    ...Object.values(s.routes ?? {}).flatMap((r) => (r ? [r, ...(r.fallbacks ?? [])] : [])),
+    ...(s.companionModel ? [s.companionModel] : []),
+    ...(s.defaultFallbacks ?? []),
+  ].filter((r): r is { providerId: string; model: string } => Boolean(r?.providerId && r.model) && s.providers.some((p) => p.id === r!.providerId));
+  const stats = modelStats(app.store.db, app.now());
+  const seen = new Set(tried.map((t) => `${t.providerId}/${t.model}`));
+  const good = [...new Map(picked.map((r) => [`${r.providerId}/${r.model}`, r])).entries()]
+    .filter(([k]) => !seen.has(k))
+    .map(([k, r]) => ({ r, st: stats.get(k) }))
+    .filter((x) => x.st && x.st.calls >= 3 && x.st.errors / x.st.calls <= 0.1)
+    .sort((a, b) => a.st!.errors / a.st!.calls - b.st!.errors / b.st!.calls || b.st!.calls - a.st!.calls);
+  for (const { r } of good) {
+    try {
+      const c = resolveProvider(app, r.providerId, r.model, { purpose: conv.mode === 'coding' ? 'coding' : 'chat', ...(conv.id ? { conversationId: conv.id } : {}) });
+      if (conv.private && (!c.provider.config.local || isCloudModelName(c.model))) continue;
+      return { ...c, from: 'default' };
+    } catch {
+      /* not usable now (a member's limit, a missing key): the next */
+    }
+  }
+  return undefined;
+}
+
+/**
  * Picks provider + model for a conversation and job (the first of its chain). Order: the
  * conversation's own choice, then the owner's model for the job, then the default.
  * Private conversations must end up on a local provider.
@@ -923,7 +966,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 /** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -1257,6 +1300,10 @@ export interface TurnOptions {
   quickModel?: boolean;
   /** N5b: car mode (the page's switch): short spoken answers, no computer use or long tasks. */
   car?: boolean;
+  /** R5: the owner is talking with her on a phone call: short spoken answers, the car-mode tool limits. */
+  phoneCall?: boolean;
+  /** R4: "Ask Sara" from Siri or an Apple Shortcut: at most two short sentences, read aloud or shown in a small box. */
+  siri?: boolean;
   /**
    * Phase 126 (WAKE.md §5.6): a Hey Sara turn from a device whose speakers are a room (desktops by
    * default): the voice-room rule applies as for Alexa (never explicit, private matters only if he
@@ -1969,7 +2016,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
   if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
   // N5b: while driving, no computer use and no long or background tasks.
-  if (opts.car) tools = tools.filter((t) => !CAR_BLOCKED_TOOL(t.spec.name));
+  if (opts.car || opts.phoneCall) tools = tools.filter((t) => !CAR_BLOCKED_TOOL(t.spec.name));
   // E6: while an item of a public feed is shared in this chat, nothing that reaches outside (strangers' text may ask for it).
   if (app.readTogether?.get(conv.id)?.source === 'feed') tools = tools.filter((t) => !OFFSERVER_TOOL(t.spec.name));
   // Phase 100: an outside request gets only the tools its policy lists (default none).
@@ -2038,10 +2085,16 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
     if (isWorkChannel(conv.channel)) safetyNotes.push(workNote(app.settings.get().ownerName?.trim() || 'the owner', conv.channel, adultOn));
     if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
     if (!adultOn && !work) safetyNotes.push(ADULT_OFF_NOTE);
+    // R8: kid-safe member mode: her tone and rules for a child (src/family.ts).
+    const kid = app.member?.child?.();
+    if (kid) safetyNotes.push(kidNote(kid, app.member?.record()?.name ?? 'them'));
   }
   if (opts.group) safetyNotes.push(opts.group.note);
   // N5b: car mode: two spoken sentences, nothing to read, her newest messages ready to read aloud.
-  if (opts.car && !conv.partner) safetyNotes.push(carNote(app.settings.get().ownerName?.trim() || 'the owner', carUnread(app)));
+  if (opts.car && !conv.partner) safetyNotes.push(carNote(app.settings.get().ownerName?.trim() || 'the owner', carUnread(app), carErrandLines(app)));
+  if (opts.phoneCall && !opts.car && !conv.partner) safetyNotes.push(phoneCallNote(app.settings.get().ownerName?.trim() || 'the owner'));
+  // R4: Ask Sara (Siri, Shortcuts): a short answer that fits a spoken reply.
+  if (opts.siri && !opts.car && !conv.partner) safetyNotes.push(siriNote(app.settings.get().ownerName?.trim() || 'the owner'));
   // Phase 100: who is asking, and that its words are data (the first safety note she reads after hers).
   if (opts.outside) safetyNotes.push(outsideNote(opts.outside, app.persona.name));
   return safetyNotes;
@@ -2308,6 +2361,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     store.recordSafetyEvent('minor_sexual_block', conv.id);
     const msg = addAssistantMessage(MINOR_BLOCK_REPLY, { blocked: 'minor_sexual_message', blockedBy: youMatch ? `words: ${youMatch.minor} + ${youMatch.sexual}` : 'classifier' });
     yield { type: 'token', text: MINOR_BLOCK_REPLY };
+    yield { type: 'done', messageId: msg.id };
+    return;
+  }
+  // R8 (docs/FAMILY.md): a child's ask: its topic is noted for the parent (never the words); an off-limits one gets a kind no.
+  const kidStop = !opts.resume && !opts.replay ? kidTurn(app, text) : undefined;
+  if (kidStop) {
+    store.recordSafetyEvent('kid_safe_block', conv.id);
+    const msg = addAssistantMessage(kidStop, { blocked: 'kid_safe' });
+    yield { type: 'token', text: kidStop };
     yield { type: 'done', messageId: msg.id };
     return;
   }
@@ -2976,6 +3038,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let checkNote: string | undefined;
   /** Fred fix B: an answer with no words (reasoning only, think tags only) gets one more go, without thinking. */
   let emptyRetried = false;
+  let rescued = false;
   let thinkOffNext = false;
   /** Tools as they were before the guard paused them (an owner steer brings them back). */
   let toolsBeforePause: typeof tools | undefined;
@@ -3422,6 +3485,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // C12: "How to work with <name>" (held/confirmed working traits, capped; a new one is announced once).
     const style = directOwnerInput || app.member ? workingStyleNote(app, store.getConversation(conv.id) ?? conv, opts) : undefined;
     if (style) messages.push({ role: 'system', content: style });
+    // R2: the starter pack's one line about what they use her for (src/get-started.ts).
+    const pack = directOwnerInput || app.member ? packNote(app) : undefined;
+    if (pack) messages.push({ role: 'system', content: pack });
     // The recorder opened its existing step before the caller's hook. Refresh that step,
     // including late hook notes, without rerunning hooks or creating another step.
     const finalLean = turnTools.lean ? turnTools.stepRecord(tools) : undefined;
@@ -3583,6 +3649,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         checkNote = EMPTY_REPLY_NOTE;
         console.warn(`turn: ${provider.config.label} (${model}) answered with no words${reasoningChars ? ` (only ${reasoningChars} characters of reasoning)` : ''}; asking once more`);
         continue;
+      }
+      // R1: no model left in the chain: one the owner picked elsewhere that answers well here, once.
+      if (ci >= chain.length - 1 && !rescued && !signal.aborted && step < maxSteps - 1) {
+        rescued = true;
+        const r = rescueChoice(app, conv, chain.map((c) => ({ providerId: c.provider.config.id, model: c.model })));
+        if (r) chain = [...chain, rec.on ? { ...r, provider: rec.wrap(r.provider) } : r];
       }
       // N1: still nothing after the retry: the next model of the chain answers once, and says so.
       if (ci < chain.length - 1 && !signal.aborted && step < maxSteps - 1) {
@@ -3852,7 +3924,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           // C8: a paid call past a spend limit stops; the owner may allow this one call on its card
           // (never past the admin's hard cap, and never where nobody can answer a card).
-          const spendStop = price && !pluginDeny ? spendCheck(spendSettings(app.settings.get()), spentNow(app.usage, app.now(), app.settings.get().timeZone, call.name), price, call.name, policy().get().pins.spendCap) : undefined;
+          const spendStop = price && !pluginDeny ? spendCheck(spendSettings(app.settings.get()), spentNow(app.usage, app.now(), app.settings.get().timeZone, call.name), price, call.name, toolSpendCap(policy().get().pins.spendCap, app.member?.id)) : undefined;
           if (spendStop && (spendStop.hard || opts.persist?.unattended || opts.outside || opts.externalApp || external)) {
             allowed = false;
             approval = 'refused';

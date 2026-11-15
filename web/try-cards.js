@@ -38,12 +38,15 @@ const hasTool = (names, card) => names.some((n) => card.tools.includes(n) || car
 
 /**
  * The cards to show now. `tools`: tool names on this server; `path`: the use choice ('coding' gets
- * none); `done`: the ids used or dismissed on this device; `t`: the app's t().
+ * none); `done`: the ids used or dismissed on this device; `t`: the app's t(); `pick`: a starter pack's card ids
+ * (only those, in that order).
  */
-export function tryCards({ tools = [], path = 'both', done = new Set(), t = (x) => x }) {
-  if (path === 'coding') return [];
+export function tryCards({ tools = [], path = 'both', done = new Set(), t = (x) => x, pick = null }) {
+  // R2: a starter pack (src/get-started.ts) picks its cards and their order, whatever the use choice.
+  if (path === 'coding' && !pick?.length) return [];
   const w = words(t);
-  return DEFS.filter((c) => hasTool(tools, c) && !done.has(c.id)).map((c) => ({ id: c.id, icon: c.icon, title: w[c.id][0], text: w[c.id][1], message: `${w[c.id][2]} ` }));
+  const defs = pick?.length ? pick.map((id) => DEFS.find((c) => c.id === id)).filter(Boolean) : DEFS;
+  return defs.filter((c) => hasTool(tools, c) && !done.has(c.id)).map((c) => ({ id: c.id, icon: c.icon, title: w[c.id][0], text: w[c.id][1], message: `${w[c.id][2]} ` }));
 }
 
 /** The ids used or dismissed on this device. */

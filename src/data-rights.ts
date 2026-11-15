@@ -3,7 +3,7 @@
 // `<data>/data-rights.json`. The hold itself is enforced at the bottom layer (src/legal-hold.ts);
 // this module decides who is held, runs retention on the hourly household tick and builds exports.
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { audit } from './audit-trail.ts';
 import type { AppContext } from './chat.ts';
@@ -11,11 +11,13 @@ import { exportAll } from './export.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { HttpError } from './http.ts';
 import { editHistory, editHistoryCount, LegalHoldError, setDbHold, setHoldResolver } from './legal-hold.ts';
+import { LOG_DIR } from './log.ts';
 import { policy } from './policy-profile.ts';
 import { zipStored, type ZipFileIn } from './zip-write.ts';
 
 export const DATA_RIGHTS_FILE = 'data-rights.json';
-export const RETENTION_KINDS = ['chats', 'memories', 'files'] as const;
+/** R7: runs (run history), logs (older log files of the server) and inbox (inbox helper scans) too. */
+export const RETENTION_KINDS = ['chats', 'memories', 'files', 'runs', 'logs', 'inbox'] as const;
 export type RetentionKind = (typeof RETENTION_KINDS)[number];
 /** Days a kind is kept (0 = keep everything, the default: today's behaviour). */
 export const KEEP_DAYS = [0, 30, 90, 365, 730] as const;
@@ -42,7 +44,7 @@ export const DELETE_PATHS = [
   { id: 'audit.prune', kind: 'audit', where: 'AuditTrail.prune (retention, settings change)', guard: 'anyHold' },
 ] as const;
 
-export interface Retention { chats: number; memories: number; files: number }
+export interface Retention { chats: number; memories: number; files: number; runs: number; logs: number; inbox: number }
 export interface Holds { instance: boolean; people: string[] }
 interface DataRightsFile { version: 1; retention: Retention; holds: Holds; updatedAt: string | null }
 /** One person's space: the owner (the data folder) or a household member (members/<id>). */
@@ -51,7 +53,7 @@ export interface DataRightsHost { spaces: () => PersonSpace[]; deleteMember: (id
 export interface DeletionReceipt { person: string; deletedAt: string; before: Counts; folderGone: boolean; recordGone: boolean }
 interface Counts { conversations: number; messages: number; memories: number; files: number }
 
-const DEFAULTS: DataRightsFile = { version: 1, retention: { chats: 0, memories: 0, files: 0 }, holds: { instance: false, people: [] }, updatedAt: null };
+const DEFAULTS: DataRightsFile = { version: 1, retention: { chats: 0, memories: 0, files: 0, runs: 0, logs: 0, inbox: 0 }, holds: { instance: false, people: [] }, updatedAt: null };
 const PERSON_RE = /^(owner|[a-f0-9]{10})$/;
 const count = (app: AppContext, sql: string): number => {
   try {
@@ -165,10 +167,10 @@ export class DataRights {
 
   // ---- retention ----
   /** Deletes what is past each kind's window in every space that is not held. Returns the counts. */
-  runRetention(spaces: PersonSpace[] = this.#host?.spaces() ?? []): { chats: number; memories: number; files: number; heldSpaces: number } {
+  runRetention(spaces: PersonSpace[] = this.#host?.spaces() ?? []): { chats: number; memories: number; files: number; runs: number; logs: number; inbox: number; heldSpaces: number } {
     const r = this.#cur.retention;
-    const out = { chats: 0, memories: 0, files: 0, heldSpaces: 0 };
-    if (!r.chats && !r.memories && !r.files) return out;
+    const out = { chats: 0, memories: 0, files: 0, runs: 0, logs: 0, inbox: 0, heldSpaces: 0 };
+    if (!RETENTION_KINDS.some((k) => r[k])) return out;
     const now = this.#now().getTime();
     const cutoff = (days: number) => new Date(now - days * 86_400_000).toISOString();
     for (const space of spaces) {
@@ -198,9 +200,23 @@ export class DataRights {
           const dir = app.uploads?.dir;
           if (dir && existsSync(dir)) for (const name of readdirSync(dir)) if (statSync(join(dir, name)).mtimeMs < now - r.files * 86_400_000 && app.uploads!.remove(name)) out.files++;
         }
+        if (r.runs && app.runs) out.runs += app.runs.deleteBefore(cutoff(r.runs));
+        if (r.inbox && app.inbox) out.inbox += app.inbox.forgetBefore(cutoff(r.inbox));
       }
     }
-    if (out.chats || out.memories || out.files || out.heldSpaces) audit({ action: 'retention.run', role: 'system', who: 'system', channel: 'system', keys: [`chats_${out.chats}`, `memories_${out.memories}`, `files_${out.files}`, `held_${out.heldSpaces}`] });
+    // Older log files of the server (the current one is never cut). Kept whole while any hold is on.
+    if (r.logs && !this.anyHeld()) {
+      const dir = join(this.root, LOG_DIR);
+      if (existsSync(dir)) for (const name of readdirSync(dir)) {
+        if (!/\.log\.\d+$/.test(name)) continue;
+        try {
+          if (statSync(join(dir, name)).mtimeMs < now - r.logs * 86_400_000) (rmSync(join(dir, name), { force: true }), out.logs++);
+        } catch {
+          /* gone meanwhile */
+        }
+      }
+    }
+    if (RETENTION_KINDS.some((k) => out[k]) || out.heldSpaces) audit({ action: 'retention.run', role: 'system', who: 'system', channel: 'system', keys: [...RETENTION_KINDS.map((k) => `${k}_${out[k]}`), `held_${out.heldSpaces}`] });
     return out;
   }
 

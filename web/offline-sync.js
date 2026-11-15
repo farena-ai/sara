@@ -1,5 +1,6 @@
 // Feature 4 (works offline): noticing the connection is gone or back, and sending the outbox.
 // No DOM here (web/offline-view.js draws); fetch and timers are passed in so the tests run in Node.
+import { sendListChange } from './offline-lists.js';
 
 /**
  * Whether this device keeps a copy when nobody chose: yes in Sara's own apps (the Windows and Mac
@@ -37,9 +38,12 @@ export function privateChoice(storage) {
  * `post(path, body)` → a fetch Response (or throws when there is no connection).
  * Returns { sent, notes (of sent), waiting, refused, stopped }.
  */
-export async function flushOutbox(copy, { post, onSent = () => {} } = {}) {
+export async function flushOutbox(copy, { post, get, onSent = () => {} } = {}) {
+  // R9: list changes (shopping mode) sync item by item, last writer wins (web/offline-lists.js);
+  // `kept` lists the ones where a newer change from another device stayed.
   const out = { sent: 0, notes: 0, refused: 0, waiting: 0, stopped: false };
   const items = await copy.outbox();
+  if (items.some((x) => x.kind === 'list')) Object.assign(out, { lists: 0, kept: [] });
   for (const [i, item] of items.entries()) {
     if (item.state === 'refused') {
       out.refused++;
@@ -49,7 +53,9 @@ export async function flushOutbox(copy, { post, onSent = () => {} } = {}) {
     let res;
     try {
       res =
-        item.kind === 'note'
+        item.kind === 'list'
+          ? await sendListChange(item, { get: get ?? ((path) => fetch(path, { cache: 'no-store' })), post })
+          : item.kind === 'note'
           ? await post('/api/notes/add', { ...(item.noteId ? { id: item.noteId } : {}), title: item.title ?? '', text: item.text, clientKey: item.key, writtenAt: item.writtenAt })
           : await post(`/api/conversations/${encodeURIComponent(item.conversationId)}/messages`, { content: item.text, clientKey: item.key });
     } catch {
@@ -65,6 +71,10 @@ export async function flushOutbox(copy, { post, onSent = () => {} } = {}) {
       await copy.remove(item.id);
       out.sent++;
       if (item.kind === 'note') out.notes++;
+      if (item.kind === 'list') {
+        out.lists++;
+        if (res.note) out.kept.push(res.note);
+      }
       onSent(item);
       try {
         await res.text();

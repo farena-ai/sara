@@ -31,7 +31,10 @@ export interface DrillRecord {
   counts?: Record<string, number>;
   databases?: number;
   vaultEntries?: number;
-  /** Where a failed drill stopped: find | space | restore | databases | vault | boot | drill. */
+  /** R7: files written by the restore, and how many the backup's manifest lists. */
+  files?: number;
+  filesExpected?: number;
+  /** Where a failed drill stopped: find | space | restore | files | databases | vault | boot | drill. */
   step?: string;
   error?: string;
 }
@@ -76,6 +79,21 @@ function databasesIn(dir: string): string[] {
   };
   walk(dir, 0);
   return out;
+}
+
+/** Every regular file in the copy (the restore's own before-restore-* folder left out). */
+export function filesIn(dir: string): number {
+  let n = 0;
+  const walk = (d: string) => {
+    for (const name of readdirSync(d)) {
+      if (d === dir && name.startsWith('before-restore-')) continue;
+      const st = statSync(join(d, name));
+      if (st.isDirectory()) walk(join(d, name));
+      else if (st.isFile()) n++;
+    }
+  };
+  walk(dir);
+  return n;
 }
 
 const hasTable = (db: DatabaseSync, t: string) => Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t));
@@ -129,12 +147,19 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
     if (free < size * 2 + 100e6) throw new Step('space', `Not enough free space for a throwaway copy (${(free / 1e9).toFixed(1)} GB free, about ${((size * 2) / 1e9).toFixed(1)} GB needed).`);
     const data = join(work, 'data');
     let madeAt: string;
+    let listed: number;
     try {
-      madeAt = restoreBackup(backup, data, now).manifest.createdAt;
+      const m = restoreBackup(backup, data, now).manifest;
+      madeAt = m.createdAt;
+      listed = m.files;
     } catch (err) {
       throw new Step('restore', (err as Error).message.slice(0, 300));
     }
     r.madeAt = madeAt;
+    // R7: every file the backup lists came back (counted before the copy boots and writes its own).
+    r.files = filesIn(data);
+    r.filesExpected = listed;
+    if (r.files !== listed) throw new Step('files', `The copy has ${r.files} files, but the backup lists ${listed}.`);
     r.dataLossHours = Math.max(0, Math.round(((now.getTime() - Date.parse(madeAt)) / 3600_000) * 10) / 10);
     r.restoreMs = Math.round(performance.now() - t0);
     const main = join(data, 'sara.db');

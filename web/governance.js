@@ -19,6 +19,7 @@ export function initGovernance(c) {
   $('#au-verify')?.addEventListener('click', () => void verify());
   $('#au-jsonl')?.addEventListener('click', () => download('jsonl'));
   $('#au-csv')?.addEventListener('click', () => download('csv'));
+  $('#au-json')?.addEventListener('click', () => download('json'));
   $('#au-keep')?.addEventListener('change', () => void keep());
   $('#po-save')?.addEventListener('click', () => void save());
   $('#po-export')?.addEventListener('click', () => {

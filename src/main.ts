@@ -39,6 +39,18 @@ import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } 
 import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.ts';
 import { Automations } from './automations.ts';
 import { createAutomationTools } from './tools/automations.ts';
+import { Errands } from './errands.ts';
+import { createErrandTools } from './tools/errands.ts';
+import { PhoneCalls } from './phone-calls.ts';
+import { createPhoneCallTools } from './tools/phone-calls.ts';
+import { createGoogleWorkTools } from './workapps/gdocs.ts';
+import { createM365Tools } from './workapps/m365.ts';
+import { createChatAppTools } from './workapps/chatapps.ts';
+import { createAccountingTool } from './workapps/accounting.ts';
+import { bookingFor } from './workapps/booking.ts';
+import { FamilyStore, gateKidTools, setFamilyRuntime, type FamilyAccess } from './family.ts';
+import { createFamilyTools, createKidSearchTool } from './tools/family.ts';
+import { SAFE_SEARCH_PROVIDERS } from './tools/search.ts';
 import { createMyDetailsTool } from './tools/my-details.ts';
 import { createFactsTools } from './tools/facts.ts';
 import { resolveAttachments } from './mail/attachments.ts';
@@ -159,6 +171,7 @@ import { migrateProviderLabels, migrateSkillSaveDefault, type Settings, Settings
 import { AuditTrail, setAuditTrail } from './audit-trail.ts';
 import { PolicyStore, setPolicy } from './policy-profile.ts';
 import { DataRights, dataRights, setDataRights } from './data-rights.ts';
+import { MemberTools, memberClampFor, setMemberTools } from './member-tools.ts';
 import { assertDirNotHeld } from './legal-hold.ts';
 import { setShares, shares, ShareStore } from './share.ts';
 import { budgetAlerter, UsageBudgets, type ReportSource } from './usage-report.ts';
@@ -523,6 +536,8 @@ const auditTrailMain = isDemo
       policyRev: () => policyStore.get().rev,
     });
 setAuditTrail(auditTrailMain);
+// R7: tool rules for household members (Settings → Household → People on this server).
+setMemberTools(new MemberTools(dataDir));
 // EC8 + EC9 (docs/ops/EC89_DESIGN.md): a container (Podman/Docker) where the owner chooses it, the
 // admin requires it or nothing else isolates; `sandbox` is updated in place, so every holder sees it.
 const sandboxListeners: ((s: SandboxInfo) => void)[] = [];
@@ -812,6 +827,26 @@ function sharedAccess(space: Space): SharedBoardsAccess | undefined {
     },
   };
 }
+// R8 (docs/FAMILY.md): Family, one household store next to the shared boards (never on the demo).
+const familyStore = isDemo ? undefined : new FamilyStore(join(dataDir, 'shared', 'family.db'));
+setFamilyRuntime({ ...(familyStore ? { store: familyStore } : {}), tz: () => settings.get().timeZone || undefined });
+familyStore?.listeners.add((ev) => {
+  for (const p of ev.people) spaceOf(p)?.events.publish({ type: 'today', part: 'family' });
+});
+function familyAccess(space: Space): FamilyAccess | undefined {
+  if (!familyStore) return undefined;
+  return {
+    store: familyStore,
+    person: space.id,
+    people: () => [{ id: 'owner', name: settings.get().ownerName?.trim() || 'Owner' }, ...household.members().filter((m) => m.status === 'active').map((m) => ({ id: m.id, name: m.name, ...(m.child ? { child: m.child } : {}) }))],
+    ...(sharedBoards ? { boards: sharedBoards } : {}),
+    tz: () => settings.get().timeZone || undefined,
+    ...(space.id === 'owner' ? { setChild: (id: string, child: unknown) => void household.setChild(id, child) } : {}),
+    notifyParents: (title, body) => {
+      for (const p of familyStore.parents()) void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', 'family-weekly').catch(() => undefined);
+    },
+  };
+}
 // Sign-in registries shared by every space (codes are made or approved by a signed-in person).
 const deviceFlow = new DeviceFlow();
 const pairs = new PairRegistry();
@@ -897,6 +932,8 @@ const serverOpts = {
   webDir,
   secureCookies: process.env.SARA_SECURE_COOKIES === '1',
   trustProxy: proxyTrust(process.env, dataDir),
+  // R4: one set of iCloud links for the ready-made shortcuts, for everyone on this server.
+  shortcutLinksDir: dataDir,
   // Demo server for app review and trying Sara out (Phase 16).
   demo: isDemo,
   // This server is the app developer's report inbox (Phase 19).
@@ -1018,6 +1055,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) tools.add(createWebSearchTool(() => searchConfig(settingsC, vault)));
   // E7 (A2): a tool server's remembered choice covers its tools that have no setting of their own.
   if (!isMember) tools.policyFor = policyResolver(() => settingsC.get(), mcp);
+  // R7: the owner's tool rules for household members (src/member-tools.ts), checked on every permission.
+  if (isMember) tools.memberClamp = memberClampFor(() => space.member?.id);
   const store = new Store(join(dir, 'sara.db'));
   // Phase 116 (BR2 §5.3): messages that waited when Sara stopped become 'stale': shown, never run by themselves.
   const pending = new PendingInputs(store.db);
@@ -1056,6 +1095,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isDemo) for (const t of createFactsTools(() => app)) tools.add(t);
   // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
   if (!isDemo) for (const t of createBizTools(() => app)) tools.add(t);
+  // R6 (docs/WORK_APPS.md): QuickBooks / Xero / generic CSV files (files only, no accounting API).
+  if (!isDemo) tools.add(createAccountingTool(() => app));
   // N7 (docs/WORK_AND_TEAMS.md): shared lists, clients and time tracking (each person's own space; never the demo).
   if (!isDemo) for (const t of createWorkTools(() => app)) tools.add(t);
   // E3 (docs/MONEY.md): portfolio, budget and bills (each person's own space; never the demo).
@@ -1371,6 +1412,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     for (const t of googleTools) if (isDemo || !calendarNames.has(t.spec.name)) tools.add(t);
     if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone)) tools.add(t);
+    // R6 (docs/WORK_APPS.md): Google Docs/Sheets (once allowed), Word/Excel online (once allowed), Slack/Teams actions.
+    if (!isDemo) {
+      for (const t of createGoogleWorkTools(google)) tools.add(t);
+      for (const t of createM365Tools(() => mailAccounts)) tools.add(t);
+      for (const t of createChatAppTools(() => app.pluginManager, () => app.companionId ?? 'main')) tools.add(t);
+    }
     // C14: Spotify (search, what's playing, playlists; playback only when the owner allowed it). Never the demo.
     if (!isDemo) for (const t of createSpotifyTools(spotify)) tools.add(t);
     // Gmail organizing (archive, labels, trash…, with Undo): the owner's own Gmail only; never the demo.
@@ -1389,6 +1436,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     const shapes = createGoogleTools(new GoogleAccount(space.mailVault), () => settingsC.get().timeZone).filter((x) => calendarNames.has(x.spec.name));
     for (const t of routeCalendarTools(shapes, space.mail, () => settingsC.get().timeZone)) tools.add(t);
+    // R6: a member's own Word/Excel online (their own Microsoft sign-in, once they allowed files).
+    const memberMail = space.mail;
+    for (const t of createM365Tools(() => memberMail)) tools.add(t);
     app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
     for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: space.mail, organizer: app.mailOrganizer, google: new Map(), timeZone: () => settingsC.get().timeZone })) tools.add(t);
   }
@@ -1489,6 +1539,27 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.automations = new Automations(app, store.db);
     app.automations.useRoutines((a) => routinesFor(a, ROUTINES_DIR));
     for (const t of createAutomationTools(() => app)) tools.add(t);
+    // R3 (docs/ERRANDS.md): errands, start to finish, each space's own (members too).
+    app.errands = new Errands(app, store.db);
+    for (const t of createErrandTools(() => app)) tools.add(t);
+    // R5 (docs/PHONE_CALLS.md): phone calls, the owner's only; ready but switched off until set up.
+    if (!isMember) {
+      app.phoneCalls = new PhoneCalls(app, store.db);
+      for (const t of createPhoneCallTools(() => app)) tools.add(t);
+    }
+    // R6: this space's booking page (off until the person turns it on), known to /book/<slug>.
+    bookingFor(app);
+    // R8 (docs/FAMILY.md): chores and allowance (one household store; parents and kids see their part).
+    const family = familyAccess(space);
+    if (family) {
+      app.family = family;
+      for (const t of createFamilyTools(() => app)) tools.add(t);
+    }
+    // R8: a child's safe search (strict safe-search through the owner's provider, when a parent allowed it).
+    if (isMember) tools.add(createKidSearchTool(() => app, () => {
+      const c = searchConfig(settings, vault);
+      return c && SAFE_SEARCH_PROVIDERS.includes(c.provider) ? c : undefined;
+    }));
     // N3 (docs/INBOX_HELPER.md): from your inbox, each space's own mailboxes (members' mail stays theirs).
     app.inbox = new InboxHelper(app, store.db);
     for (const t of createInboxTools(() => app)) tools.add(t);
@@ -1546,6 +1617,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.hooks = hookManager;
     hookManager.attach(id, app);
   }
+  // R8: kid-safe member mode: a child's companion offers only the kid tools (an allowlist, also for tools added later).
+  if (isMember) gateKidTools(tools, () => Boolean(space.member?.child()));
   deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
   dataRights()?.apply([{ dir, app }]); // EC17: a held space's database refuses deletes from the start.
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks, usageSources, usageBudgets }) });
@@ -1600,6 +1673,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.momentsWorker?.stop();
       app.presence?.stop();
       reminders.stop();
+      app.phoneCalls?.stop();
       lifeWorker.stop();
       app.agenda?.halt();
       weeklyWorker.stop();
@@ -1643,7 +1717,7 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
     id: member.id,
     dir,
     auth: givenAuth ?? new OwnerAuth(dir, undefined, { tokenPrefix: `${MEMBER_TOKEN_PREFIX}${member.id}.` }),
-    settings: new MemberSettings(dir, settings, limits),
+    settings: new MemberSettings(dir, settings, limits, () => household.get(member.id)?.child),
     vault: memberVault(vault, limits),
     events: new EventHub(),
     companions: new CompanionManager(dir),
@@ -1772,7 +1846,7 @@ function householdSweep(): void {
   // EC17: retention per data kind runs on the same hourly tick (held spaces are skipped).
   try {
     const r = dataRights()?.runRetention();
-    if (r && (r.chats || r.memories || r.files)) console.log(`Retention: deleted ${r.chats} chats, ${r.memories} memories, ${r.files} files.`);
+    if (r && (r.chats || r.memories || r.files || r.runs || r.logs || r.inbox)) console.log(`Retention: deleted ${r.chats} chats, ${r.memories} memories, ${r.files} files, ${r.runs} runs, ${r.logs} log files, ${r.inbox} inbox scans.`);
   } catch (err) {
     console.warn(`Retention: ${(err as Error).message}`);
   }
@@ -1838,7 +1912,7 @@ function spaceByCredential(req: IncomingMessage): Space | undefined {
     // N5b: a notification's action token names its space (the space's server checks its signature).
     const actSpace = actTokenSpace(tok);
     if (actSpace) return actSpace === 'owner' ? undefined : memberSpaces.get(actSpace);
-    if (tok.startsWith('sara_dev.') || tok.startsWith('sara_hands.')) {
+    if (tok.startsWith('sara_dev.') || tok.startsWith('sara_hands.') || tok.startsWith('sara_sc.')) {
       const id = tok.slice(tok.indexOf('.') + 1).split('.')[0];
       for (const sp of memberSpaces.values()) if (sp.auth.hasDevice(id)) return sp;
     }

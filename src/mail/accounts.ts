@@ -153,7 +153,7 @@ export class MailAccounts {
     const id = old?.id ?? `ms_${randomBytes(5).toString('hex')}`;
     this.ms.saveTokens(id, t);
     this.#providers.delete(id);
-    const info: Stored = { id, kind: 'microsoft', provider: 'microsoft', address: t.address, addedAt: old?.addedAt ?? new Date().toISOString(), calendar: /Calendars\.ReadWrite/i.test(t.scopes) };
+    const info: Stored = { id, kind: 'microsoft', provider: 'microsoft', address: t.address, addedAt: old?.addedAt ?? new Date().toISOString(), calendar: /Calendars\.ReadWrite/i.test(t.scopes), ...(t.files ? { files: true } : {}) };
     this.#save([...list.filter((x) => x.id !== id), info]);
     this.#changed();
     return info;

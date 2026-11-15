@@ -93,7 +93,7 @@ export function drillLine(d) {
   return t('Last drill {when}: {backup} restored in {restore} s and started in {boot} s ({total} s in all). {conversations} chats, {messages} messages, {memories} memories, {databases} database(s), {vault} vault entries. Restoring it now would lose {loss} h.', {
     when, backup: d.backup ?? '', restore: ((d.restoreMs ?? 0) / 1000).toFixed(1), boot: ((d.bootMs ?? 0) / 1000).toFixed(1), total: ((d.totalMs ?? 0) / 1000).toFixed(1),
     conversations: c.conversations ?? 0, messages: c.messages ?? 0, memories: c.memories ?? 0, databases: d.databases ?? 0, vault: d.vaultEntries ?? 0, loss: d.dataLossHours ?? 0,
-  });
+  }) + (d.files !== undefined ? ` ${t('All {files} files in the backup came back.', { files: d.files })}` : '');
 }
 
 export function createReadiness({ api, el, isOwner, openSettings, copyText }) {

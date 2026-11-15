@@ -357,6 +357,22 @@ async function onCheck(m) {
     const list = [...convs.entries()].filter(([, v]) => v.kind === 'group').map(([id, v]) => ({ id, name: v.title || '', private: false }));
     return { ok: true, channels: list.slice(0, 200) };
   }
+  // R6 (docs/WORK_APPS.md): a message the person approved in a chat with Sara, to a Teams chat or channel the bot is in.
+  if (step === 'action') {
+    if (String(m.op ?? '') !== 'post') return { ok: false, error: 'unknown_action' };
+    const want = String(m.to ?? '').trim();
+    const text = String(m.text ?? '').slice(0, TEXT_MAX).trim();
+    if (!want || !text) return { ok: false, error: 'to_and_text_needed' };
+    const hit = convs.get(want) ? [want, convs.get(want)] : [...convs.entries()].find(([, v]) => String(v.title ?? '').toLowerCase() === want.toLowerCase().replace(/^#/, ''));
+    if (!hit) return { ok: false, error: 'chat_not_found', known: [...convs.values()].map((v) => String(v.title ?? '')).filter(Boolean).slice(0, 30) };
+    try {
+      const r = await api.send(hit[1].serviceUrl, hit[0], { type: 'message', text, textFormat: 'markdown' });
+      lastCallAt = Date.now();
+      return { ok: true, chat: hit[0], title: String(hit[1].title ?? ''), id: String(r?.id ?? '') };
+    } catch (err) {
+      return { ok: false, error: codeOf(err) };
+    }
+  }
   if (step === 'logout') {
     running = false;
     tokenOk = false;

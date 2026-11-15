@@ -57,7 +57,7 @@ Limits per email:
 | --- | --- |
 | Gmail | 20 MB |
 | IMAP/SMTP | 20 MB |
-| Outlook | 3 MB (each Graph request stays under its 4 MB limit) |
+| Outlook | 150 MB (files over 3 MB go up in parts through a Graph upload session) |
 
 At most 10 files go with one email.
 

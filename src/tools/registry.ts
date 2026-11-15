@@ -49,9 +49,13 @@ export class ToolRegistry {
   /** E7 (A2): a tool server's remembered choice for its tools that have no setting of their own. */
   policyFor?: (name: string) => Permission | undefined;
 
+  /** R7: a household member's tool rules (src/member-tools.ts); only ever tighten. Set on member registries. */
+  memberClamp?: (name: string, p: Permission) => Permission;
+
   /** EC5: the admin's ceiling (src/policy-profile.ts) beats the owner's setting, the server choice and Always allow. */
   permission(name: string, overrides: Record<string, Permission> | undefined): Permission {
-    return policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
+    const p = policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
+    return this.memberClamp ? this.memberClamp(name, p) : p;
   }
 
   /** Tools the model may see (anything not set to "never"). */

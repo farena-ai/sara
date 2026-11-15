@@ -72,10 +72,10 @@ const rows = (app: TestApp) => ({
 test('data rights: defaults keep today’s behaviour (keep everything, no hold) and the file is exact', () => {
   const w = world();
   try {
-    assert.deepEqual(w.rights.retention, { chats: 0, memories: 0, files: 0 });
+    assert.deepEqual(w.rights.retention, { chats: 0, memories: 0, files: 0, runs: 0, logs: 0, inbox: 0 });
     assert.deepEqual(w.rights.holds, { instance: false, people: [] });
     seed(w.owner, 'a');
-    assert.deepEqual(w.rights.runRetention(), { chats: 0, memories: 0, files: 0, heldSpaces: 0 });
+    assert.deepEqual(w.rights.runRetention(), { chats: 0, memories: 0, files: 0, runs: 0, logs: 0, inbox: 0, heldSpaces: 0 });
     assert.throws(() => w.rights.setRetention({ chats: 7 }), /Pick 30/);
     assert.throws(() => w.rights.setRetention({ audit: 30 }), /Unknown field/);
     assert.throws(() => w.rights.setHolds({ people: ['abcdef1234'] }), /No such person/);

@@ -14,6 +14,9 @@ days. The rule is the same for everyone on the server.
 | Chats | Conversations nobody wrote in for that long, with their messages and read-once files. |
 | Memories | Notes not changed or used for that long. Pinned memories always stay. |
 | Files | Library files and chat photos added longer ago. Room archives stay. |
+| Run history | Runs (Show the run) started longer ago, with their screen thumbnails. Running runs and branch parents stay. Only shortens the runs' own setting. |
+| Older log files | Rotated server logs (`logs/sara.log.1` and on) last written longer ago. The current log stays. Kept whole while any hold is on. |
+| Inbox scans | Finished inbox-helper suggestions, packages and past trips found longer ago. Cards still waiting stay; mail itself is untouched. |
 | Audit trail | Its own setting under Household → Audit trail (default one year). |
 
 Retention runs on the hourly household check. Each run that deletes anything writes one

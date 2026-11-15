@@ -4,6 +4,7 @@
 // now wait as "Waiting to send" bubbles (edit or delete them) and go when the connection is back.
 // Note changes are added to the end of the note (never overwriting what changed meanwhile).
 import { asOfText } from './offline-sync.js';
+import { withPending } from './offline-lists.js';
 
 /**
  * Every word this view shows, through `t` (the app's translations). The app saves them with the
@@ -39,6 +40,15 @@ export function offlineWords(t) {
     noteWaiting: t('Waiting to be added'),
     older: t('Only the last {n} messages are kept on this device.'),
     maybeSent: t('This one may already have reached her; it can only be deleted.'),
+    // R9: Today's snapshot and lists (shopping mode).
+    today: t('Today'),
+    todayAsOf: t('Today, as it was at {time}'),
+    lists: t('Lists'),
+    shopping: t('Shopping mode: tick things off; changes sync when you are back online.'),
+    addItem: t('Add an item'),
+    add: t('Add'),
+    willSync: t('Will sync when online'),
+    willSend: t('Will send when online'),
   };
 }
 const fill = (s, vars = {}) => Object.entries(vars).reduce((out, [k, v]) => out.split(`{${k}}`).join(String(v)), String(s));
@@ -95,9 +105,26 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
   }
 
   async function drawSide() {
-    const [list, notes] = await Promise.all([copy.list(), copy.notes()]);
+    const [list, notes, today, lists] = await Promise.all([copy.list(), copy.notes(), copy.today?.(), copy.lists?.() ?? []]);
     const items = [];
-    if (!list.length && !notes.length) items.push(el('p', 'offv-muted', W.empty));
+    if (!list.length && !notes.length && !today && !lists?.length) items.push(el('p', 'offv-muted', W.empty));
+    if (today?.tiles?.length) {
+      const b = button(W.today, `offv-item${picked?.kind === 'today' ? ' on' : ''}`, () => openToday());
+      b.dataset.today = '1';
+      items.push(b);
+    }
+    if (lists?.length) {
+      items.push(el('h2', 'offv-h', W.lists));
+      const ul = el('ul', 'offv-list');
+      for (const l of lists) {
+        const li = el('li');
+        const b = button(l.name || '…', `offv-item${picked?.kind === 'list' && picked.id === l.id ? ' on' : ''}`, () => openList(l.id));
+        b.dataset.list = l.id;
+        li.append(b);
+        ul.append(li);
+      }
+      items.push(ul);
+    }
     if (list.length) {
       items.push(el('h2', 'offv-h', W.chats));
       const ul = el('ul', 'offv-list');
@@ -179,7 +206,7 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
       b.append(el('div', 'offv-who', m.role === 'user' ? W.you : W.her), el('div', 'offv-text', m.content));
       msgs.append(b);
     }
-    for (const item of outbox.filter((x) => x.kind === 'chat' && x.conversationId === id)) msgs.append(waitingBubble(item, W.waiting));
+    for (const item of outbox.filter((x) => x.kind === 'chat' && x.conversationId === id)) msgs.append(waitingBubble(item, `${W.waiting} · ${W.willSend}`));
     const form = el('form', 'offv-compose');
     const box = el('textarea', 'offv-input');
     box.id = 'offv-input';
@@ -266,11 +293,83 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
     await drawSide();
   }
 
+  async function openToday() {
+    picked = { kind: 'today' };
+    const snap = await copy.today();
+    const wrap = el('div', 'offv-msgs offv-today');
+    if (snap?.savedAt) wrap.append(el('p', 'offv-muted', fill(W.todayAsOf, { time: asOfText(snap.savedAt, { locale }) })));
+    if (snap?.greeting) wrap.append(el('p', 'offv-greet', snap.greeting));
+    for (const tile of snap?.tiles ?? []) {
+      const sec = el('section', 'offv-tile');
+      const h = el('h3', 'offv-tile-h', tile.title);
+      sec.append(h);
+      const ul = el('ul', 'offv-tile-list');
+      for (const line of tile.lines) ul.append(el('li', '', line));
+      sec.append(ul);
+      wrap.append(sec);
+    }
+    pane.replaceChildren(backRow(W.today), wrap);
+    showPane(true);
+    await drawSide();
+  }
+
+  /** Shopping mode: big rows to tick off; each change waits in the outbox and syncs when back. */
+  async function openList(id) {
+    picked = { kind: 'list', id };
+    const [lists, outbox] = await Promise.all([copy.lists(), copy.outbox()]);
+    const kept = lists.find((l) => l.id === id);
+    if (!kept) return;
+    const l = withPending(kept, outbox);
+    const wrap = el('div', 'offv-msgs offv-shop');
+    wrap.append(el('p', 'offv-muted', W.shopping));
+    const ul = el('ul', 'offv-shop-list');
+    const sorted = [...l.items].sort((a, b) => Number(a.done) - Number(b.done));
+    for (const [i, item] of sorted.entries()) {
+      const li = el('li', `offv-shop-item${item.done ? ' done' : ''}${item.pending ? ' pending' : ''}`);
+      const box = el('input');
+      box.type = 'checkbox';
+      box.id = `offv-shop-${i}`;
+      box.checked = item.done;
+      box.disabled = !item.ref;
+      const lab = el('label', 'offv-shop-label', item.title);
+      lab.htmlFor = box.id;
+      li.append(box, lab);
+      if (item.pending) li.append(el('span', 'offv-wait', W.willSync));
+      box.addEventListener('change', async () => {
+        await copy.queue({ kind: 'list', op: 'tick', boardId: l.id, ref: item.ref, done: box.checked, title: item.title, text: item.title });
+        await openList(id);
+        document.getElementById(box.id)?.focus();
+      });
+      ul.append(li);
+    }
+    wrap.append(ul);
+    const form = el('form', 'offv-compose');
+    const input = el('input', 'offv-input');
+    input.placeholder = W.addItem;
+    input.setAttribute('aria-label', W.addItem);
+    input.maxLength = 300;
+    const go = el('button', 'primary', W.add);
+    go.type = 'submit';
+    form.append(input, go);
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!input.value.trim()) return;
+      await copy.queue({ kind: 'list', op: 'add', boardId: l.id, ref: null, title: input.value.trim(), text: input.value.trim() });
+      await openList(id);
+      pane.querySelector('.offv-compose .offv-input')?.focus();
+    });
+    pane.replaceChildren(backRow(l.name), wrap, form);
+    showPane(true);
+    await drawSide();
+  }
+
   async function redraw() {
     await drawBar();
     if (picked?.kind === 'chat') return openChat(picked.id);
     if (picked?.kind === 'note') return openNote(picked.id);
     if (picked?.kind === 'new-note') return openNewNote();
+    if (picked?.kind === 'today') return openToday();
+    if (picked?.kind === 'list') return openList(picked.id);
     await drawSide();
     pane.replaceChildren(el('p', 'offv-muted offv-center', W.pick));
   }

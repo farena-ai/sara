@@ -192,6 +192,15 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .atm-out-waiting { color: var(--warn); }
 .atm-edit, .atm-card { border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-2); padding: 8px 10px; margin: 6px 0; display: flex; flex-direction: column; gap: 6px; color: var(--text-1); }
 .atm-days { flex-wrap: wrap; gap: 6px; align-items: center; }
+.atm-tpl { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 12px; }
+.atm-tpl textarea { width: 100%; }
+.atm-tpl .row { flex-wrap: wrap; gap: 6px; align-items: center; }
+.atm-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); gap: 6px; }
+.atm-gal-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 6px 8px; }
+.atm-gal-item > button { align-self: flex-start; text-align: left; white-space: normal; }
+.atm-gal-item > span { color: var(--text-2); overflow-wrap: anywhere; }
+.atm-ph { font-size: 0.9em; color: var(--text-1); }
+.atm-card input { width: 100%; max-width: 420px; }
 .et-tools { flex-wrap: wrap; gap: 4px 12px; }
 .et-form .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
 .et-form .rt-field[hidden] { display: none; }

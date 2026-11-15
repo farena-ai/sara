@@ -212,6 +212,22 @@ export async function openOfflineCopy(kv, { crypto = globalThis.crypto, now = ()
     async notes() {
       return (await read('copy', 'notes')) ?? [];
     },
+    // ---------- R9: Today's snapshot and lists (shopping mode) ----------
+    /** What Today showed last (tile titles and their lines, as text). */
+    async saveToday(snap) {
+      const tiles = (snap?.tiles ?? []).slice(0, 24).map((x) => ({ title: String(x.title ?? '').slice(0, 120), lines: (x.lines ?? []).slice(0, 12).map((l) => String(l).slice(0, 300)) }));
+      await write('copy', 'today', { greeting: String(snap?.greeting ?? '').slice(0, 200), tiles, savedAt: now().toISOString() });
+      await stamp();
+    },
+    today: () => read('copy', 'today'),
+    /** The newest lists (web/offline-lists.js slimBoard), at most 12. */
+    async saveLists(lists) {
+      await write('copy', 'lists', (lists ?? []).slice(0, 12));
+      await stamp();
+    },
+    async lists() {
+      return (await read('copy', 'lists')) ?? [];
+    },
     /** The page's words in this person's language (the offline page has no translations of its own). */
     saveWords: (words) => write('copy', 'words', words),
     async words() {

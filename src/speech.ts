@@ -116,7 +116,7 @@ export class Speech {
   }
 
   /** Her voice with the chosen engine. */
-  async speak(text: string, voiceId?: string, opts: { expressive?: Expressive; tone?: VoiceTone } = {}): Promise<Audio> {
+  async speak(text: string, voiceId?: string, opts: { expressive?: Expressive; tone?: VoiceTone; phone?: boolean } = {}): Promise<Audio> {
     const v = this.settings();
     const plain = speechText(plainSpeech(text)).slice(0, 1200);
     if (!plain) throw new VoiceError('Nothing to say');
@@ -126,9 +126,11 @@ export class Speech {
     const tone = opts.tone ?? v.tone ?? 'natural';
     const level = opts.expressive ?? v.expressive ?? 'subtle';
     const speed = moodSpeed(v.speed, mood, tone);
-    if (v.tts === 'openai') return openaiSpeak(v.openai, this.#app.vault.get(VOICE_VAULT.openai), plain, speed, toneInstructions(mood, tone, level));
+    // R5: phone calls need PCM (WAV or raw), never MP3.
+    if (v.tts === 'openai') return openaiSpeak(v.openai, this.#app.vault.get(VOICE_VAULT.openai), plain, speed, toneInstructions(mood, tone, level), opts.phone ? 'wav' : 'mp3');
     // R2d: an engine gets only the tags its provider documents (expressive.ts engineTags), else plain words.
-    if (v.tts === 'elevenlabs') return elevenlabsSpeak(v.elevenlabs, this.#app.vault.get(VOICE_VAULT.elevenlabs), engineTags('elevenlabs', v.elevenlabs.model) ? forEngine(tagged(text, level, mood, tone), 'elevenlabs', v.elevenlabs.model).slice(0, 1400) : plain);
+    if (v.tts === 'elevenlabs') return elevenlabsSpeak(v.elevenlabs, this.#app.vault.get(VOICE_VAULT.elevenlabs), engineTags('elevenlabs', v.elevenlabs.model) ? forEngine(tagged(text, level, mood, tone), 'elevenlabs', v.elevenlabs.model).slice(0, 1400) : plain, opts.phone ? 'pcm' : 'mp3');
+    if (v.tts === 'xai' && opts.phone) throw new VoiceError('Grok voice makes MP3 only, which a phone line can’t play here.');
     if (v.tts === 'xai') return xaiSpeak(v.xai, await this.xaiKey().catch((e: Error) => { throw new VoiceError(e.message); }), forEngine(tagged(text, level, mood, tone), 'xai').slice(0, 1400), speed);
     if (!this.#app.voice) throw new VoiceError(localVoiceSupported() ? 'The voice on this server is not installed (deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
     return this.#app.voice.speak(plain, voiceId ?? v.localVoice, speed);

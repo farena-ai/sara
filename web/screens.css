@@ -543,3 +543,15 @@ button.ghost:disabled, button.ghost:disabled:hover { color: var(--btn-off-text);
 /* ---------- V2 · notes on the add-on pages (V1 §5): a quiet info row, not an accent box ---------- */
 :where(:root:not([data-palette="classic"])) .skl-note { border-color: var(--line); border-radius: var(--r-3); background: var(--surface-1); color: var(--text-1); }
 :where(:root:not([data-palette="classic"])) .skl-note::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--info); }
+
+/* R4: Settings → Connections → iPhone Shortcuts (web/shortcuts-page.js) and the Home Screen guide. */
+.ish-steps li { margin: 6px 0; overflow-wrap: anywhere; }
+.ish-copy { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; max-width: 100%; }
+.ish-copy code { overflow-wrap: anywhere; min-width: 0; padding: 2px 6px; border-radius: 6px; background: var(--panel-2); color: var(--text); }
+.ish-new { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--accent); border-radius: var(--r-card, 12px); background: var(--panel-2); }
+.ish-qr { display: block; width: 180px; height: 180px; margin: 8px 0; border-radius: 8px; }
+.ish-token { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ish-token > span:first-child { font-weight: 600; }
+.ish-token button { margin-left: auto; }
+.ios-install { border-color: var(--accent); }
+.ios-install ol { padding-left: 20px; }

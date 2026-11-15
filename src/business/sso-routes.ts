@@ -20,8 +20,10 @@ export async function ssoRoutes(c: SsoRouteContext): Promise<void> {
   const send = (status: number, value: unknown) => c.json(c.res, status, value);
   try {
     if (c.path === '/api/business/sso/status' && c.req.method === 'GET') return send(200, c.sso.status());
-    const admin = c.path === '/api/business/sso/config' || c.path === '/api/business/sso/test';
+    const admin = c.path === '/api/business/sso/config' || c.path === '/api/business/sso/test' || c.path === '/api/business/sso/test-result';
     if (admin && !c.principal) throw new BusinessAccessError(401);
+    // R7: the administrator's own last Test sign-in.
+    if (c.path === '/api/business/sso/test-result' && c.req.method === 'GET') { if (!c.auth.isPrincipalActive(c.principal!)) throw new BusinessAccessError(401); return send(200, { result: c.sso.testResult(c.principal!) }); }
     if (c.path === '/api/business/sso/config' && c.req.method === 'GET') return send(200, c.sso.view(c.principal!));
     if (c.req.method !== 'POST') throw new BusinessAccessError(404);
     if (c.path === '/api/business/sso/start') {

@@ -287,6 +287,8 @@ async function makeInvite() {
         name: $('#hh-name').value.trim(),
         hours: Number($('#hh-hours').value),
         confirm18: $('#hh-18').checked,
+        // R8: a child's invite (kid-safe mode), vouched for by their parent or guardian.
+        ...($('#hh-child')?.checked ? { child: { band: $('#hh-band').value }, confirmGuardian: $('#hh-guardian').checked } : {}),
         limits: { models: pickedModels($('#hh-models')), messagesPerDay: Number($('#hh-msgs').value), costPerDay: Number($('#hh-cost').value), voice: $('#hh-voice').checked, pictures: $('#hh-pictures').checked },
       },
     });
@@ -296,6 +298,8 @@ async function makeInvite() {
     $('#hh-new-qr').src = r.qr;
     $('#hh-name').value = '';
     $('#hh-18').checked = false;
+    if ($('#hh-child')) $('#hh-child').checked = false;
+    for (const n of document.querySelectorAll('.hh-child-only')) n.hidden = true;
     renderInvites(r.invites);
     status.textContent = t('Invite made. It works once.');
   } catch (err) {
@@ -353,7 +357,12 @@ function showJoin(code = '') {
   if (code) $('#join-code').value = code;
   if (!code) return;
   api(`/household/join?code=${encodeURIComponent(code)}`).then(
-    (r) => ($('#join-who').textContent = t('The owner of this server invited you as {name}. With it you get your own space here: your own companion, conversations and memories, which the owner can’t read.', { name: r.invite.name })),
+    (r) => {
+      $('#join-who').textContent = r.invite.child ? t('A parent set up a kid-safe space for {name} here: your own chats and chores, with grown-up things turned off.', { name: r.invite.name }) : t('The owner of this server invited you as {name}. With it you get your own space here: your own companion, conversations and memories, which the owner can’t read.', { name: r.invite.name });
+      // R8: a child's invite was vouched for by their parent: no 18+ box.
+      const box = $('#join-18')?.closest('label');
+      if (box) box.hidden = Boolean(r.invite.child);
+    },
     (err) => ($('#login-error').textContent = err.message),
   );
 }
@@ -386,6 +395,9 @@ export function showPaused(member) {
 export function initHousehold(deps) {
   st.deps = deps;
   $('#hh-invite').addEventListener('click', () => void makeInvite());
+  $('#hh-child')?.addEventListener('change', () => {
+    for (const n of document.querySelectorAll('.hh-child-only')) n.hidden = !$('#hh-child').checked;
+  });
   $('#hh-new-copy').addEventListener('click', () => deps.copyText($('#hh-new-url').textContent, $('#hh-new-copy')));
   $('#acc-delete').addEventListener('click', () => void deleteAccount());
   $('#acc-devices').addEventListener('click', () => deps.showSettingsTab('dh-devices'));

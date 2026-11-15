@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Data & health → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.10.0, [Everywhere you are, knows your world, works with your team](https://github.com/farena-ai/sara/releases/tag/v3.10.0). Mac parity, share to Sara and car mode on phones, a facts page with sources, cited answers from your documents, shared lists, clients and time tracking. [See what changed](#whats-new)
+> **Status:** 3.12.0, [Work apps, family, trust and voice ready](https://github.com/farena-ai/sara/releases/tag/v3.12.0). Google Docs/Sheets and Microsoft 365 editing, Slack and Teams, booking pages and accounting exports; chores, school calendar and kid-safe mode. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,22 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Work apps, family, trust and voice ready](docs/WORK_APPS.md)** — Member tool rules enforced on the server, audit export and retention; phone calls built and off until you connect a provider; facts in six languages, accessibility and automation templates. |
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Errands, an easy start and iPhone Shortcuts](docs/ERRANDS.md)** — Refunds, bookings, cancellations and quotes planned and followed up step by step; payments stay with you. A download page, a self-test, and Outlook attachments up to 150 MB. |
 | **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Everywhere you are, knows your world, works with your team](docs/WHAT_SARA_KNOWS.md)** — The Mac app does what Windows does; notifications have Approve, Snooze, Reply and Accept; she answers from your files with exact quotes and page numbers; hours become invoices without double billing. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[From your inbox, and forms filled for you](docs/INBOX_HELPER.md)** — Nothing runs on its own until you say so, and nothing from email sends or pays. Forms stop before Submit after one review card; emails carry attachments; blocked stores are checked in your own browser. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Gets it right, and runs on its own](docs/AUTOMATIONS.md)** — She picks the right model per job and falls back when one is slow, verifies what she changed, reports how she did each week, and runs your automations with a preview, dry run and history. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[An everyday assistant: money, sports, shopping, decisions, business](docs/BUSINESS_TOOLS.md)** — Weigh options against what matters to you, with close calls flagged and a check-back later. Numbered invoices and quotes with paid/overdue tracking, who you owe a reply, contracts read with every point quoted, receipts to expense reports. |
-| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[PDF forms too](docs/DOCUMENTS.md)** — Text boxes, check boxes, radio buttons and drop-downs, matched by the words printed next to each box. Protected or scanned PDFs get a plain answer and the next best step. |
-| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Busy web apps work](docs/desktop.md)** — She checks only the button or field she is about to use, types into rich editors, and when she does stop she says it's her own check and tries again. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.6.3 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.6.5 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[PDF forms too](docs/DOCUMENTS.md)** — Text boxes, check boxes, radio buttons and drop-downs, matched by the words printed next to each box. Protected or scanned PDFs get a plain answer and the next best step. |
+| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Busy web apps work](docs/desktop.md)** — She checks only the button or field she is about to use, types into rich editors, and when she does stop she says it's her own check and tries again. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[She fills in your own forms](docs/DOCUMENTS.md)** — Values go into the right cells by label and table column, layout and formatting kept, original untouched. She reads the copy back and reports exactly how many fields were filled. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[She does it for you](docs/desktop.md)** — Removing a browser extension, switching off a startup app or cleaning up files: she does each step and you approve changes on your computer. When she can't, she names what's missing. Failed replies show Try again and Report it, and reports reach the support desk. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Using your apps is fast](docs/desktop.md)** — A window listing that waited on the app's own busy thread made approved actions take minutes; now they take seconds. She switches to one of your tabs when you allow it, acts on windows behind others after your Allow, and sees links on your pages. |

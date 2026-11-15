@@ -24,7 +24,7 @@
 
 **Atualizar:** num servidor Linux, `sudo sara update` (faz backup antes e volta atrás se ela não responder) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows e Mac: Configurações → Dados e saúde → Atualizações · Android: Google Play. [Como atualizar](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.10.0, [Onde você estiver, conhece seu mundo, trabalha com sua equipe](https://github.com/farena-ai/sara/releases/tag/v3.10.0). Paridade no Mac, compartilhar com a Sara e modo carro no celular, uma página de fatos com fontes, respostas citadas dos seus documentos, listas compartilhadas, clientes e controle de horas. [Veja as novidades](#novidades)
+> **Status:** 3.12.0, [Apps de trabalho, família, confiança e voz pronta](https://github.com/farena-ai/sara/releases/tag/v3.12.0). Edição no Google Docs/Sheets e Microsoft 365, Slack e Teams, páginas de agendamento e exportação contábil; tarefas, calendário escolar e modo infantil seguro. [Veja as novidades](#novidades)
 >
 > Instalador Windows: sem assinatura ([guia do SmartScreen](docs/INSTALL.md)). O processo de publicação do macOS exige downloads assinados e notarizados; cada compilação é verificada separadamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web na tela inicial](docs/PHONE.md).
 
@@ -167,20 +167,22 @@ Versões recentes · 6 de novembro de 2026. [Histórico completo](CHANGELOG.md) 
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Apps de trabalho, família, confiança e voz pronta](docs/WORK_APPS.md)** — Regras de ferramentas por membro aplicadas no servidor, exportação de auditoria e retenção; chamadas prontas e desligadas até conectar um provedor; fatos em seis idiomas, acessibilidade e modelos. |
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Tarefas, um começo fácil e Atalhos no iPhone](docs/ERRANDS.md)** — Reembolsos, agendamentos, cancelamentos e orçamentos planejados e acompanhados passo a passo; pagamentos ficam com você. Uma página de download, um autoteste e anexos do Outlook de até 150 MB. |
 | **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Onde você estiver, conhece seu mundo, trabalha com sua equipe](docs/WHAT_SARA_KNOWS.md)** — O app de Mac faz o que o de Windows faz; notificações têm Aprovar, Adiar, Responder e Aceitar; ela responde a partir dos seus arquivos com citações exatas e páginas; horas viram faturas sem cobrar duas vezes. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Do seu e-mail, e formulários preenchidos](docs/INBOX_HELPER.md)** — Nada roda sozinho até você permitir, e nada do e-mail envia ou paga. Formulários param antes de Enviar após um cartão de revisão; e-mails levam anexos; lojas que a bloqueiam são consultadas no seu navegador. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Acerta e trabalha sozinha](docs/AUTOMATIONS.md)** — Ela escolhe o modelo certo para cada tarefa e troca quando um está lento, confere o que mudou, conta toda semana como foi e roda suas automações com prévia, teste e histórico. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Uma assistente do dia a dia: dinheiro, esportes, compras, decisões, negócios](docs/BUSINESS_TOOLS.md)** — Pese opções pelo que importa para você, com decisões apertadas sinalizadas e um retorno depois. Faturas e orçamentos numerados com controle de pagos e atrasados, a quem você deve resposta, contratos lidos citando cada ponto, recibos em relatórios de despesas. |
-| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Formulários PDF também](docs/DOCUMENTS.md)** — Caixas de texto, caixas de seleção, botões de opção e listas, encontrados pelas palavras impressas ao lado de cada caixa. PDFs protegidos ou digitalizados recebem uma resposta clara e o próximo passo. |
-| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Apps web movimentados funcionam](docs/desktop.md)** — Ela confere só o botão ou campo que vai usar, digita em editores ricos e, quando para, diz que é a própria verificação dela e tenta de novo. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versões 2.6x anteriores</b>: da 3.6.3 até a 2.61.5</summary>
+<summary><b>Versões 2.6x anteriores</b>: da 3.6.5 até a 2.61.5</summary>
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Formulários PDF também](docs/DOCUMENTS.md)** — Caixas de texto, caixas de seleção, botões de opção e listas, encontrados pelas palavras impressas ao lado de cada caixa. PDFs protegidos ou digitalizados recebem uma resposta clara e o próximo passo. |
+| **[3.6.4](https://github.com/farena-ai/sara/releases/tag/v3.6.4)** | **[Apps web movimentados funcionam](docs/desktop.md)** — Ela confere só o botão ou campo que vai usar, digita em editores ricos e, quando para, diz que é a própria verificação dela e tenta de novo. |
 | **[3.6.3](https://github.com/farena-ai/sara/releases/tag/v3.6.3)** | **[Ela preenche seus próprios formulários](docs/DOCUMENTS.md)** — Os valores vão para as células certas pelo rótulo e pela coluna, com layout e formatação mantidos e o original intacto. Ela relê a cópia e informa quantos campos foram preenchidos. |
 | **[3.6.2](https://github.com/farena-ai/sara/releases/tag/v3.6.2)** | **[Ela faz por você](docs/desktop.md)** — Remover uma extensão do navegador, desligar um app de inicialização ou limpar arquivos: ela faz cada passo e você aprova as mudanças no computador. Quando não consegue, diz o que falta. Respostas com falha mostram Tentar de novo e Relatar, e os relatos chegam ao suporte. |
 | **[3.6.1](https://github.com/farena-ai/sara/releases/tag/v3.6.1)** | **[Usar seus apps é rápido](docs/desktop.md)** — Uma lista de janelas que esperava o thread ocupado do app fazia as ações aprovadas levarem minutos; agora levam segundos. Ela troca para uma das suas abas quando você permite, age em janelas atrás de outras após sua permissão e vê os links das suas páginas. |

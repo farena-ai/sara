@@ -1,6 +1,7 @@
 // Delivers due reminders into chat. Runs every 15 s; late reminders (server was down) are still
 // delivered, marked late. A conversation in the middle of a turn is skipped until the turn ends, so
 // a reminder never lands between a tool call and its result.
+import { familyTick } from './family.ts';
 import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
@@ -65,6 +66,10 @@ export class ReminderScheduler {
     this.#app.liveWatches?.due(now);
     // N2: automations (schedules, calendar triggers) on the same tick.
     this.#app.automations?.due(now);
+    // R3: errands take their next step, check follow-ups and deadlines on the same tick.
+    this.#app.errands?.due(now);
+    // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).
+    familyTick(this.#app, now);
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
     this.#app.inbox?.due(now);
     // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).

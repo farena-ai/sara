@@ -21,6 +21,7 @@ import { queryWords, stem } from './memory-rank.ts';
 import { looksLikeCard, looksLikeSsn, luhn } from './my-details.ts';
 import { zonedToUtc } from './planner.ts';
 import { embedTarget } from './embeddings.ts';
+import { AMOUNT_LABELS_IN, DATE_LABELS_IN, dateReIn, detectDocLang, docTypeIn, isoDateIn, moneyAt, moneyIn, NAME_LABELS_IN, NUMBER_LABELS_IN } from './facts-lang.ts';
 
 export const FACT_GROUPS = ['people', 'home', 'vehicles', 'health', 'work', 'money', 'dates', 'other'] as const;
 export type FactGroup = (typeof FACT_GROUPS)[number];
@@ -247,7 +248,17 @@ function linesOf(text: string): string[] {
  * read from (long numbers masked) and its page. Card numbers and SSNs are never extracted.
  */
 export function extractFacts(doc: { name: string }, passages: { text: string; page: number | null; place: string }[]): Extracted[] {
-  const type = docTypeOf(doc.name, passages.map((p) => p.text).join('\n'));
+  const all = passages.map((p) => p.text).join('\n');
+  // R9: the document's language (stopwords); other languages add their own labels, day-month dates
+  // and money as written (src/facts-lang.ts). English reads exactly as before.
+  const lang = detectDocLang(all);
+  const other = lang !== 'en' ? lang : null;
+  let type = docTypeOf(doc.name, all);
+  if (type === 'other' && other) type = docTypeIn(`${doc.name}\n${all}`);
+  const dateLabels = other ? [...DATE_LABELS_IN[other], ...DATE_LABELS] : DATE_LABELS;
+  const numberLabels = other ? [...NUMBER_LABELS_IN, ...NUMBER_LABELS] : NUMBER_LABELS;
+  const amountLabels = other ? [...AMOUNT_LABELS_IN[other], ...AMOUNT_LABELS] : AMOUNT_LABELS;
+  const toIso = (d: string) => (other ? isoDateIn(d, other) : isoDate(d));
   const base = groupFor(type);
   const priv = type === 'health' || type === 'passport';
   const out: Extracted[] = [];
@@ -263,22 +274,22 @@ export function extractFacts(doc: { name: string }, passages: { text: string; pa
     for (const line of linesOf(p.text)) {
       const quote = maskSensitive(line).slice(0, 240);
       // Dates: a label, then the first date after it (a period "A to B": the end).
-      for (const [re, k] of DATE_LABELS) {
+      for (const [re, k] of dateLabels) {
         const lm = re.exec(line);
         if (!lm) continue;
         const after = line.slice(lm.index);
-        const dates = [...after.matchAll(DATE_RE)].map((m) => ({ s: m[0], at: m.index ?? 0 }));
+        const dates = [...after.matchAll(other ? dateReIn(other) : DATE_RE)].map((m) => ({ s: m[0], at: m.index ?? 0 }));
         if (!dates.length) continue;
         const pick = /\bpolicy (?:period|term)\b/i.test(lm[0]) || /\bbegins?\b.*\bends?\b/i.test(after) ? dates[dates.length - 1] : dates[0];
         if (pick.at > 90) continue;
-        const iso = isoDate(pick.s);
+        const iso = toIso(pick.s);
         if (!iso) continue;
         const kind = byType(k, type);
         push({ group: 'dates', label: DATE_LABEL_TEXT[kind], value: iso, quote, page, place: p.place, date: iso, dateKind: kind });
         break;
       }
       // Numbers: last 4 only, never a card number or an SSN.
-      for (const [re, label] of NUMBER_LABELS) {
+      for (const [re, label] of numberLabels) {
         const lm = re.exec(line);
         if (!lm) continue;
         const rest = line.slice(lm.index + lm[0].length).replace(/^\s*[:#.]?\s*/, '');
@@ -291,9 +302,17 @@ export function extractFacts(doc: { name: string }, passages: { text: string; pa
         push({ group, label, value: maskNumber(v), quote, page, place: p.place, date: null, dateKind: null, detail: label === 'Policy number' ? 'insurance' : label === 'VIN' ? 'vehicle' : null });
       }
       // Money amounts (deductible, premium, rent, deposit).
-      for (const [re, label] of AMOUNT_LABELS) {
+      for (const [re, label] of amountLabels) {
         const lm = re.exec(line);
         if (!lm) continue;
+        if (other) {
+          // As written in the document (1.234,56 €), next to its label.
+          const at = moneyAt(line.slice(lm.index));
+          const money = at >= 0 && at <= 60 ? moneyIn(line.slice(lm.index)) : null;
+          if (!money) continue;
+          push({ group: type === 'health' ? 'health' : 'money', label, value: money, quote, page, place: p.place, date: null, dateKind: null });
+          break;
+        }
         const am = /[$€£]\s?\d[\d,]*(?:\.\d{2})?/.exec(line.slice(lm.index));
         if (!am || (am.index ?? 0) > 60) continue;
         const what = lm[0].trim().replace(/\s+/g, ' ');
@@ -310,6 +329,17 @@ export function extractFacts(doc: { name: string }, passages: { text: string; pa
         const name = nm[1].replace(/\s+(?:and|&|of)$/, '').trim();
         if (name.length < 3 || /\d{3}/.test(name)) continue;
         push({ group: type === 'health' ? 'health' : group, label, value: name, quote, page, place: p.place, date: null, dateKind: null });
+      }
+      if (other) {
+        for (const [re, label, group] of NAME_LABELS_IN) {
+          const lm = re.exec(line);
+          if (!lm) continue;
+          const nm = /^\s*(\p{Lu}[\p{L}'.&-]*(?:\s+(?:\p{Lu}[\p{L}'.&-]*|&|y|et|und|e|de|da|di)){0,5})/u.exec(line.slice(lm.index + lm[0].length));
+          if (!nm) continue;
+          const name = nm[1].replace(/\s+(?:&|y|et|und|e|de|da|di)$/, '').trim();
+          if (name.length < 3 || /\d{3}/.test(name)) continue;
+          push({ group: type === 'health' ? 'health' : group, label, value: name, quote, page, place: p.place, date: null, dateKind: null });
+        }
       }
     }
   }

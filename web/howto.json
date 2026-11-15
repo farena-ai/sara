@@ -1141,6 +1141,7 @@
    ]
   }
  ],
+ "co-shortcuts": [{"id":"share","q":"How do I share to Sara from my iPhone?","steps":["Press Make a token and copy it.","In the Shortcuts app, build Share to Sara with the steps shown here.","Turn on Show in Share Sheet."],"show":"#ish-make"},{"id":"siri","q":"How do I ask Sara with Siri?","steps":["Make a token with Ask Sara on.","Build the Ask Sara shortcut with the steps shown here.","Say \"Hey Siri, Ask Sara\"."],"show":"#ish-make"}],
  "co-phone": [
   {
    "id": "install",

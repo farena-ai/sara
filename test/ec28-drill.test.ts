@@ -8,7 +8,7 @@ import test from 'node:test';
 import { OwnerAuth } from '../src/auth.ts';
 import { createBackup } from '../src/backup.ts';
 import { MemoryStore } from '../src/memory.ts';
-import { DRILL_DIR_PREFIX, runRestoreDrill } from '../src/restore-drill.ts';
+import { DRILL_DIR_PREFIX, filesIn, runRestoreDrill } from '../src/restore-drill.ts';
 import { Store } from '../src/store.ts';
 import { Vault } from '../src/vault.ts';
 import { tempDir } from './helpers.ts';
@@ -43,6 +43,8 @@ test('EC28 drill: restores the newest backup into a throwaway copy, checks it, b
     assert.equal(r.counts?.memories, 1);
     assert.ok((r.databases ?? 0) >= 1);
     assert.equal(r.vaultEntries, 1, 'the vault opened with the copy\'s own key');
+    // R7: every file the backup lists came back.
+    assert.ok((r.files ?? 0) > 0 && r.files === r.filesExpected, JSON.stringify(r));
     assert.ok((r.bootMs ?? 0) > 0 && (r.totalMs ?? 0) >= (r.bootMs ?? 0), JSON.stringify(r));
     assert.equal(typeof r.dataLossHours, 'number');
     assert.ok(!JSON.stringify(r).includes('sk-drill-secret'), 'never a vault value in the record');
@@ -70,6 +72,20 @@ test('EC28 drill: no backup or a damaged one gives a failed record with the step
     assert.ok(bad.error && bad.error.length > 0);
     const tmp = join(dir, 'tmp');
     assert.deepEqual(existsSync(tmp) ? readdirSync(tmp).filter((n) => n.startsWith(DRILL_DIR_PREFIX)) : [], []);
+  } finally {
+    cleanup();
+  }
+});
+
+test('R7 restore check: the file count leaves out the restore\'s own before-restore folder', () => {
+  const { dir, cleanup } = tempDir();
+  try {
+    mkdirSync(join(dir, 'a', 'b'), { recursive: true });
+    mkdirSync(join(dir, 'before-restore-x'));
+    writeFileSync(join(dir, 'one'), '1');
+    writeFileSync(join(dir, 'a', 'b', 'two'), '2');
+    writeFileSync(join(dir, 'before-restore-x', 'old'), '0');
+    assert.equal(filesIn(dir), 2);
   } finally {
     cleanup();
   }

@@ -80,7 +80,8 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (b === 'export' && method === 'GET') {
         const { content, ...f } = filters(req);
-        const format = new URL(req.url ?? '/', 'http://x').searchParams.get('format') === 'csv' ? 'csv' : 'jsonl';
+        const asked = new URL(req.url ?? '/', 'http://x').searchParams.get('format');
+        const format = asked === 'csv' ? 'csv' : asked === 'json' ? 'json' : 'jsonl';
         // The export itself is on the record (what was asked for, never what it held).
         audit({ action: 'audit.export', target: format, keys: [...Object.keys(f).filter((k) => f[k as keyof AuditFilter] !== undefined), ...(content ? ['content'] : [])] });
         const { zip } = trail.exportZip(format, f, { content });

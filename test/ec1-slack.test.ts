@@ -129,8 +129,9 @@ test('the manifest, the review card, tips in six languages, the shared copies an
   assert.deepEqual(m.permissions.connect.map((c) => `${c.id}:${c.host}:${c.where}:${c.tls}:${(c.ports as number[]).join(',')}`), ['slack:domain:slack.com:public:required:443']);
   assert.equal(m.permissions.bridgeApprovals, true);
   assert.equal(m.permissions.bridgeFiles, true);
-  assert.deepEqual(m.settings.map((s) => s.key), ['botToken', 'appToken', 'mirror']);
-  assert.deepEqual(m.settings.filter((s) => s.type === 'secret').map((s) => s.key), ['botToken', 'appToken'], 'both tokens live in the vault');
+  // R6 (docs/WORK_APPS.md): the person's own optional user token (status, reminders, search) is a vault secret too.
+  assert.deepEqual(m.settings.map((s) => s.key), ['botToken', 'appToken', 'userToken', 'mirror']);
+  assert.deepEqual(m.settings.filter((s) => s.type === 'secret').map((s) => s.key), ['botToken', 'appToken', 'userToken'], 'every token lives in the vault');
   assert.ok(m.settings.every((s) => s.tip.length <= 260));
   for (const lang of ['es', 'fr', 'de', 'pt-BR', 'it']) {
     assert.ok(m.i18n[lang]?.[m.description], `${lang}: description`);

@@ -18,7 +18,7 @@ Design and limits: [ops/EC45_DESIGN.md](ops/EC45_DESIGN.md).
 - **Filters:** who, what, where, outcome, from and to.
 - **Check the chain:** every row is linked to the one before with SHA-256, and the newest link is
   kept apart. An edited, removed or reordered row, or newest rows cut off, shows the first bad row.
-- **Export JSONL / Export CSV:** a ZIP with the matching rows and `manifest.json` (row count, first and
+- **Export JSONL / Export CSV / Export JSON** (one array): a ZIP with the matching rows and `manifest.json` (row count, first and
   last row, SHA-256 of the data file, the chain head, whether the chain checked out, and an HMAC-SHA256
   signature made with a key kept in this server's encrypted vault). Exporting is itself a row.
 - **Keep the audit trail** for 30 days, 90 days, a year (default) or until you change it. A row

@@ -54,6 +54,8 @@ export const TILES = [
   { id: 'td-money', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-inbox', section: 'needs', sizes: ['M', 'L'], size: 'M' },
   { id: 'td-shared', section: 'needs', sizes: ['S', 'M'], size: 'S' },
+  { id: 'td-errands', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  { id: 'td-family', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-otd', section: 'her', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-plans', section: 'her', sizes: ['S', 'M'], size: 'S' },
@@ -579,7 +581,7 @@ const num = (n) => Number(n ?? 0).toLocaleString(locale());
 const kTok = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag', 'td-shared': 'group', 'td-worktime': 'gauge' };
+const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag', 'td-shared': 'group', 'td-worktime': 'gauge', 'td-errands': 'todo', 'td-family': 'group' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -2074,6 +2076,8 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   if (has('teams')) draw('td-teams', () => renderTeams(d.teams));
   if (has('shared')) draw('td-shared', () => renderShared(d.shared));
   if (has('worktime')) draw('td-worktime', () => renderWorktime(d.worktime));
+  if (has('errands')) draw('td-errands', () => ctx.renderErrands?.(d.errands, tileHead));
+  if (has('family')) draw('td-family', () => ctx.renderFamily?.(d.family, tileHead));
   draw('td-setup', () => renderSetup(setupItems({ weather: d.weather ?? (has('weather') ? { setUp: false } : undefined), calendar: d.calendar, mail: d.mail === undefined && has('mail') && !ctx.member() ? null : d.mail, home: d.home?.connected === false ? 'not-connected' : home, projects: d.projects, member: ctx.member(), demo: ctx.demo(), hidden: prefs?.setupHidden ?? [] }), prefs));
   if (has('away')) renderAway(d.away);
   Object.assign(lastEmpty, empty);
