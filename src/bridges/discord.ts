@@ -26,7 +26,7 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { MAX_DOC_BYTES } from '../library/store.ts';
-import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, ownPictureOut, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, type IncomingFile, type MediaPort } from './media.ts';
+import { closeProgress, deliverOutgoing, DISCORD_FILE_OUT, isOwnPicture, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, type IncomingFile, type MediaPort } from './media.ts';
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
 import type { TurnExtra } from './telegram.ts';
@@ -1233,6 +1233,18 @@ export class DiscordBridge {
     }
   }
 
+  /**
+   * Pictures from her: one of her own pictures straight to the owner's DM with her. Returns her
+   * Discord conversation with him (where the app keeps it when Discord is the only destination).
+   */
+  async sendOwnPicture(files: { path: string; mime: string; name: string }[], caption: string): Promise<Conversation> {
+    if (!this.#me || this.#stopped) throw new Error("Discord isn't connected.");
+    const dm = await this.#ownerDm();
+    if (!dm) throw new Error('Link your Discord first.');
+    await this.#mediaPort(dm).sendPhotos(files.slice(0, MAX_PHOTOS_IN), caption.length <= 1900 ? caption : undefined);
+    return this.#app.store.currentChannelConversation('discord', dm, 'owner') ?? this.#newConversation('discord', dm, true, false);
+  }
+
   async #ownerDm(): Promise<string | undefined> {
     const owner = discordSettings(this.#app).ownerUserId;
     if (!owner) return undefined;
@@ -1251,14 +1263,8 @@ export class DiscordBridge {
     if (conv?.partner) return;
     // Her DMs with an owner and owner work channels get their own reminders back where they were set.
     const isOwnerConv = conv?.channel === 'discord' || Boolean(conv?.channel.startsWith('discord-work'));
-    // MNT2: her own pictures go as a picture when the owner chose it (even with mirroring off).
-    const pic = !isOwnerConv && !conv?.private ? ownPictureOut(this.#app, ev.message) : undefined;
-    if (pic === 'skip') return;
-    if (pic) {
-      const dm = await this.#ownerDm().catch(() => undefined);
-      if (dm) await this.#mediaPort(dm).sendPhotos(pic.files, pic.caption.length <= 1900 ? pic.caption : undefined).catch((err: Error) => (this.#error = err.message));
-      return;
-    }
+    // Her pictures on her own reach Discord only as a chosen destination (sendOwnPicture), never mirrored.
+    if (isOwnPicture(ev.message)) return;
     if (!isOwnerConv && !cfg.mirror) return;
     const ch = isOwnerConv ? conv!.channelKey! : await this.#ownerDm().catch(() => undefined);
     if (ch) await this.send(ch, ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content).catch((err: Error) => (this.#error = err.message));

@@ -54,14 +54,18 @@ test('E7 B2s: off by default; switched on she sends one picture with its caption
   const r = await go(s.app);
   assert.equal(r.sent?.caption, 'Look what I found 🍎');
   assert.deepEqual(s.scenes, ['selfie at the farmers market holding a bag of apples, cozy green sweater']);
-  const m = s.app.store.messages(s.conv.id).at(-1)!;
+  // Pictures from her: by default in a chat just for her pictures, never in whichever chat came first.
+  const pics = s.app.store.getConversation(r.sent!.conversationId!)!;
+  assert.equal(pics.title, `Pictures from ${s.app.persona.name}`);
+  assert.deepEqual(r.sent?.to, [{ kind: 'chat', name: pics.title }]);
+  assert.equal(s.app.store.messages(s.conv.id).length, 2, 'nothing landed in his other chat');
+  const m = s.app.store.messages(pics.id).at(-1)!;
   assert.equal(m.role, 'assistant');
   assert.equal((m.meta?.images as string[]).length, 1);
   assert.deepEqual(m.meta?.proactive, { reason: 'picture' });
   assert.equal(s.app.inner!.get(s.clock.now).proactiveCount, 1, 'counts toward her daily own-message limit');
   assert.match(String(s.app.requests.at(-1)!.messages.at(-1)!.content), /send Alex a picture of yourself.*Keep it non-explicit/s);
   // The same day: never a second one (and her picture is unanswered anyway).
-  s.app.store.addMessage(s.conv.id, 'user', 'cute!');
   assert.equal((await go(s.app)).skipped, 'one a day');
 });
 
@@ -95,8 +99,11 @@ test('E7 B2s: only the owner\'s own chat in the app: not a bot channel, a privat
   s2.app.store.deleteConversation(s2.conv.id);
   const tg = s2.app.store.createConversation({ channel: 'telegram', channelKey: '-100123' });
   s2.app.store.addMessage(tg.id, 'user', 'hi');
-  s2.app.store.createConversation({ channel: 'web', private: true });
-  assert.equal((await go(s2.app)).skipped, 'no chat');
+  const priv = s2.app.store.createConversation({ channel: 'web', private: true });
+  for (const chatId of [tg.id, priv.id, 'gone']) {
+    s2.app.settings.update({ photos: { mode: 'new', own: { on: true, dest: { here: 'chat', chatId } } } });
+    assert.equal((await go(s2.app)).skipped, 'no chat', chatId);
+  }
   const s3 = setup(t);
   s3.app.member = { limits: () => ({ pictures: true }) } as never;
   assert.equal((await go(s3.app)).skipped, 'not here');
@@ -167,8 +174,30 @@ test('E7 B3: /api/photos keeps the engine and own-picture settings and Send one 
   assert.deepEqual(v.estimate, { pictures: 11, dollars: 0 });
   assert.equal((await call('/photos', 'PUT', { comfy: { workflow: '{"nodes":[],"links":[]}' } })).status, 400);
   assert.equal((await call('/photos', 'PUT', { engine: 'dalle' })).status, 400);
+  // Pictures from her: where they go (a chat just for them by default; only his own 1:1 chats here).
+  assert.deepEqual((v as unknown as { dest: unknown }).dest, { here: 'own', telegram: false, discord: false });
+  const priv = s.app.store.createConversation({ channel: 'web', private: true });
+  const partner = s.app.store.createConversation({ channel: 'telegram', channelKey: '55', partner: 'Sam' });
+  for (const chatId of [priv.id, partner.id]) assert.equal((await call('/photos', 'PUT', { own: { dest: { here: 'chat', chatId } } })).status, 400, 'never a private or another person\'s chat');
+  assert.equal((await call('/photos', 'PUT', { own: { dest: { here: 'none' } } })).status, 400, 'at least one place');
+  assert.equal((await call('/photos', 'PUT', { own: { dest: { here: 'project', projectId: 77 } } })).status, 400);
+  r = await call('/photos', 'PUT', { own: { dest: { here: 'chat', chatId: s.conv.id, telegram: true } } });
+  const v2 = (await r.json()) as { dest: unknown; chats: { id: string }[]; targets: { to: unknown[]; missing: string[] }; apps: { telegram: boolean } };
+  assert.deepEqual(v2.dest, { here: 'chat', chatId: s.conv.id, telegram: true, discord: false });
+  assert.deepEqual(v2.chats.map((c) => c.id), [s.conv.id], 'only his own chats are offered');
+  assert.deepEqual(v2.targets.missing, ['telegram'], 'Telegram is not connected here');
+  assert.equal(v2.apps.telegram, false);
+  r = await call('/photos', 'PUT', { own: { dest: { here: 'own', telegram: false } } });
   s.app.settings.update({ photos: { ...s.app.settings.get().photos!, engine: 'grok' } });
   s.say('a sunny window seat with a book', 'Reading break');
   r = await call('/photos/own/test', 'POST', {});
-  assert.equal(((await r.json()) as { sent?: { caption: string } }).sent?.caption, 'Reading break');
+  assert.equal(((await r.json()) as { started: boolean }).started, true, 'Send one now answers at once and runs in the background');
+  type Job = { running: boolean; result?: { sent?: { caption: string } } };
+  const poll = async (): Promise<Job | null> => ((await (await call('/photos/own/test', 'GET')).json()) as { job: Job | null }).job;
+  let job = await poll();
+  for (let i = 0; i < 200 && (!job || job.running); i++) {
+    await new Promise((x) => setTimeout(x, 10));
+    job = await poll();
+  }
+  assert.equal(job?.result?.sent?.caption, 'Reading break');
 });

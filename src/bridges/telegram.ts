@@ -26,7 +26,7 @@ import { afterTurnExtras, askerLanguage, chatButton, chatsSettings, menuHash, OW
 import { channelProjectId, noteRoom } from './rooms.ts';
 import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
 import { roomTurn } from './now.ts';
-import { closeProgress, deliverOutgoing, ownPictureOut, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
+import { closeProgress, deliverOutgoing, isOwnPicture, FIRST_4_LINE, MAX_PHOTO_IN_BYTES, MAX_PHOTOS_IN, openProgress, othersPhotosOn, Outgoing, PHOTO_SIZE_LINE, PHOTOS_OFF_LINE, photoQuotaHit, progressOn, progressSettings, QUOTA_LINE, takeIncoming, takeLeftoverProgress, TELEGRAM_FILE_OUT, TELEGRAM_PHOTO_OUT, type IncomingFile, type MediaPort } from './media.ts';
 import { finalLine, ProgressMessage } from './progress.ts';
 import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem } from '../pending.ts';
 import { PRIO_FILE, PRIO_REPLY, RateLimited, realClock, SendQueue, type Clock } from './sendq.ts';
@@ -1051,6 +1051,18 @@ export class TelegramBridge {
     }
   }
 
+  /**
+   * Pictures from her: one of her own pictures straight to the owner's chat with her. Returns her
+   * Telegram conversation with him (where the app keeps it when Telegram is the only destination).
+   */
+  async sendOwnPicture(files: { path: string; mime: string; name: string }[], caption: string): Promise<Conversation> {
+    const cfg = telegramSettings(this.#app);
+    if (!cfg.ownerChatId || !this.#abort) throw new Error("Telegram isn't connected.");
+    await this.#mediaPort(cfg.ownerChatId).sendPhotos(files.slice(0, MAX_PHOTOS_IN), caption.length <= 1024 ? caption : undefined);
+    const key = String(cfg.ownerChatId);
+    return this.#app.store.currentChannelConversation('telegram', key, 'owner') ?? this.#app.store.createConversation({ title: 'Telegram', titleSource: 'placeholder', channel: 'telegram', channelKey: key, projectId: channelProjectId(this.#app, 'telegram') });
+  }
+
   /** Reminders and messages she starts herself also go to the owner's Telegram. */
   async #mirror(ev: HubEvent): Promise<void> {
     if (ev.type !== 'message' || ev.message.role === 'notice') return;
@@ -1061,15 +1073,8 @@ export class TelegramBridge {
     // Her chats with an owner and owner work groups get their own reminders back where they were set.
     const ownChat = conv && !conv.partner && (conv.channel === 'telegram' || conv.channel.startsWith('telegram-work')) && conv.channelKey ? Number(conv.channelKey) : undefined;
     const isTelegramConv = ownChat !== undefined;
-    // MNT2: her own pictures go as a picture when the owner chose it (even with mirroring off).
-    const pic = !isTelegramConv && !conv?.private ? ownPictureOut(this.#app, ev.message) : undefined;
-    if (pic === 'skip') return;
-    if (pic) {
-      await this.#mediaPort(cfg.ownerChatId).sendPhotos(pic.files, pic.caption.length <= 1024 ? pic.caption : undefined).catch((err: Error) => {
-        this.#error = err.message;
-      });
-      return;
-    }
+    // Her pictures on her own reach Telegram only as a chosen destination (sendOwnPicture), never mirrored.
+    if (isOwnPicture(ev.message)) return;
     if (!isTelegramConv && !cfg.mirror) return;
     await this.send(ownChat ?? cfg.ownerChatId, ev.reason === 'reminder' ? `⏰ ${ev.message.content}` : ev.message.content).catch((err: Error) => {
       this.#error = err.message;

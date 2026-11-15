@@ -11916,7 +11916,8 @@ function renderPhotoEngine(p) {
   if (p.tool?.name) $('#ph-tool-name').value = p.tool.name;
   $('#ph-tool-arg').value = p.tool?.arg ?? '';
   $('#ph-own-on').checked = Boolean(p.own?.on);
-  $('#ph-own-apps').checked = Boolean(p.own?.toApps);
+  renderOwnDest(p);
+  if (p.job?.running) watchOwnJob();
   // MNT2: a workflow saved inside ComfyUI (the list loads on request).
   const savedName = p.comfy?.saved ?? '';
   const keep = [...$('#ph-comfy-saved').options].map((o) => o.value).filter((v) => v);
@@ -11930,6 +11931,50 @@ function renderPhotoEngine(p) {
   $('#ph-own-cost').textContent = !est ? '' : est.dollars === undefined ? t('About {n} pictures a month; the cost depends on the tool.', { n: est.pictures }) : est.dollars === 0 ? t('About {n} pictures a month, no cost per picture.', { n: est.pictures }) : t('About {n} pictures a month, roughly ${d} (an estimate; check your provider).', { n: est.pictures, d: est.dollars.toFixed(2) });
   photoEngineShow(p);
 }
+// Pictures from her: where they go (a chat just for them, one of his chats, a project, Telegram, Discord).
+let ownDestView = {};
+function renderOwnDest(p) {
+  ownDestView = p;
+  const d = p.dest ?? { here: 'own' };
+  $('#ph-own-here').value = d.here ?? 'own';
+  $('#ph-own-chat').replaceChildren(...(p.chats ?? []).map((c) => new Option(c.title, c.id)));
+  if (d.chatId) $('#ph-own-chat').value = d.chatId;
+  $('#ph-own-project').replaceChildren(...(p.projects ?? []).map((x) => new Option(x.name, String(x.id))));
+  if (d.projectId) $('#ph-own-project').value = String(d.projectId);
+  $('#ph-own-tg').checked = Boolean(d.telegram);
+  $('#ph-own-dc').checked = Boolean(d.discord);
+  // An app that isn't connected can't be picked (one already picked can still be switched off).
+  $('#ph-own-tg').disabled = !p.apps?.telegram && !d.telegram;
+  $('#ph-own-dc').disabled = !p.apps?.discord && !d.discord;
+  ownDestShow();
+}
+/** A place her pictures go, in words. */
+function ownPlace(x) {
+  if (x.kind === 'telegram') return 'Telegram';
+  if (x.kind === 'discord') return 'Discord';
+  if (x.kind === 'project') return t('the project “{name}”', { name: x.name });
+  return t('the “{name}” chat', { name: x.name });
+}
+function ownDestShow() {
+  const here = $('#ph-own-here').value;
+  $('#ph-own-chat-row').hidden = here !== 'chat';
+  $('#ph-own-project-row').hidden = here !== 'project';
+  const p = ownDestView;
+  const to = [];
+  if (here === 'own') to.push({ kind: 'chat', name: t('Pictures from {name}', { name: p.herName || 'Sara' }) });
+  if (here === 'chat') { const c = (p.chats ?? []).find((x) => x.id === $('#ph-own-chat').value); if (c) to.push({ kind: 'chat', name: c.title }); }
+  if (here === 'project') { const x = (p.projects ?? []).find((y) => String(y.id) === $('#ph-own-project').value); if (x) to.push({ kind: 'project', name: x.name }); }
+  const notes = [];
+  for (const [k, box, name] of [['telegram', '#ph-own-tg', 'Telegram'], ['discord', '#ph-own-dc', 'Discord']]) {
+    if (!$(box).checked) continue;
+    if (p.apps?.[k]) to.push({ kind: k });
+    else notes.push(t("{app} isn't connected", { app: name }));
+  }
+  if (here === 'chat' && !(p.chats ?? []).length) notes.push(t('You have no chat with her here yet.'));
+  if (here === 'project' && !(p.projects ?? []).length) notes.push(t('You have no projects yet.'));
+  $('#ph-own-dest').textContent = [to.length ? t('Sends to: {places}', { places: to.map(ownPlace).join(' · ') }) : t('Pick at least one place for her pictures.'), ...notes].join(' · ');
+}
+for (const id of ['#ph-own-here', '#ph-own-chat', '#ph-own-project', '#ph-own-tg', '#ph-own-dc']) $(id).addEventListener('change', ownDestShow);
 function photoEngineShow(p = {}) {
   const e = $('#ph-engine').value;
   $('#ph-grok').hidden = e !== 'grok';
@@ -11952,7 +11997,9 @@ function pastedNodes(text) {
 }
 function photoEngineBody() {
   const engine = $('#ph-engine').value;
-  const body = { engine, own: { on: $('#ph-own-on').checked, toApps: $('#ph-own-apps').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value) } };
+  const here = $('#ph-own-here').value;
+  const dest = { here, telegram: $('#ph-own-tg').checked, discord: $('#ph-own-dc').checked, ...(here === 'chat' ? { chatId: $('#ph-own-chat').value } : {}), ...(here === 'project' ? { projectId: Number($('#ph-own-project').value) } : {}) };
+  const body = { engine, own: { on: $('#ph-own-on').checked, often: $('#ph-own-often').value, monthlyCap: Number($('#ph-own-cap').value), dest } };
   const pasted = $('#ph-comfy-wf').value.trim();
   const saved = $('#ph-comfy-saved').value;
   if (engine === 'comfyui' && (pasted || saved || $('#ph-comfy-node').value)) {
@@ -11975,7 +12022,12 @@ function ownSkip(why) {
   if (why === 'failed checks') return t('the picture idea did not pass the safety checks.');
   if (why === 'no picture') return t('no picture came back from the engine.');
   if (why === 'not here') return t('only on your own server.');
-  return why.replace(/^no picture: /, '');
+  if (why === 'no project') return t('the project picked for her pictures is gone; pick another.');
+  if (why === 'apps not connected') return t('the chat app picked for her pictures is not connected.');
+  if (why === 'no destination') return t('pick at least one place for her pictures.');
+  if (why === 'app pictures off') return t('sending pictures to chat apps is off in Apps and services.');
+  if (why === 'unanswered') return t('she waits for your answer to her last one.');
+  return why.replace(/^(no picture|not delivered): /, '');
 }
 $('#ph-engine').addEventListener('change', () => photoEngineShow());
 $('#ph-comfy-list').addEventListener('click', async () => {
@@ -11992,18 +12044,41 @@ $('#ph-comfy-list').addEventListener('click', async () => {
   }
 });
 $('#ph-comfy-wf').addEventListener('input', () => photoNodes(pastedNodes($('#ph-comfy-wf').value), ''));
+/** "Send one now" runs on the server; the page shows its steps until it is done. */
+const ownEngineName = { grok: 'Grok', openai: 'OpenAI', comfyui: 'ComfyUI' };
+function ownJobLine(job) {
+  if (job.running) return job.step === 'scene' ? t('Writing the scene…') : job.step === 'picture' ? t('Making the picture in {engine}…', { engine: job.engine === 'tool' ? t('the image tool') : ownEngineName[job.engine] ?? job.engine }) : t('Sending…');
+  const r = job.result ?? {};
+  const missed = (r.missed ?? []).map((m) => `${m.kind === 'telegram' ? 'Telegram' : 'Discord'}: ${m.why === 'not connected' ? t('not connected') : m.why === 'app pictures off' ? t('pictures to chat apps are off') : m.why}`);
+  if (r.sent) return [t('Sent to {places}: “{caption}”', { places: r.sent.to.map(ownPlace).join(' · '), caption: r.sent.caption }), ...(missed.length ? [t('Not sent to {list}', { list: missed.join('; ') })] : [])].join(' · ');
+  return t('Not sent: {why}', { why: ownSkip(String(r.skipped ?? '')) });
+}
+let ownJobTimer = 0;
+async function watchOwnJob() {
+  clearTimeout(ownJobTimer);
+  const b = $('#ph-own-test');
+  try {
+    const { job } = await api('/photos/own/test');
+    if (!job) { b.disabled = false; return; }
+    $('#ph-own-status').textContent = ownJobLine(job);
+    b.disabled = job.running;
+    if (job.running) ownJobTimer = setTimeout(watchOwnJob, 1500);
+  } catch (err) {
+    $('#ph-own-status').textContent = err.message;
+    b.disabled = false;
+  }
+}
 $('#ph-own-test').addEventListener('click', async () => {
   const b = $('#ph-own-test');
   b.disabled = true;
-  $('#ph-own-status').textContent = t('Making a picture…');
+  $('#ph-own-status').textContent = t('Writing the scene…');
   try {
     await savePhotos();
     const r = await api('/photos/own/test', { method: 'POST', body: {} });
-    const why = String(r.skipped ?? '');
-    $('#ph-own-status').textContent = r.sent ? t('Sent to your chat: “{caption}”', { caption: r.sent.caption }) : t('Not sent: {why}', { why: ownSkip(why) });
+    if (!r.started) $('#ph-own-status').textContent = t('One is already on its way.');
+    ownJobTimer = setTimeout(watchOwnJob, 800);
   } catch (err) {
     $('#ph-own-status').textContent = err.message;
-  } finally {
     b.disabled = false;
   }
 });

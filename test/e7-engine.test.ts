@@ -104,7 +104,7 @@ test('E7 B1: take_photo with ComfyUI puts her look and the scene into the chosen
   assert.match(text, /She is an adult/);
   assert.doesNotMatch(text, /photo/i, 'an anime look is not turned into a photo');
   assert.equal(wf['3'].inputs!.seed, Math.floor(0.5 * 2 ** 48));
-  assert.deepEqual(seen.find((x) => x.tool === 'get_image')!.args, { action: 'get', filename: 'e7/sara_0001.png' });
+  assert.deepEqual(seen.find((x) => x.tool === 'get_image')!.args, { action: 'get', filename: 'e7/sara_0001.png', type: 'output' });
   assert.equal(seen.filter((x) => x.tool === 'get_history').length, 2, 'polled until the output was there');
 });
 

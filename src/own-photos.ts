@@ -4,11 +4,15 @@
 // while her last own message is unanswered, only in the owner's own 1:1 chat in the app. At most one
 // a day, a monthly limit, and a message is saved only when the picture is really attached.
 import { bondContext, type AppContext } from './chat.ts';
-import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
+import { appLanguage, en, languageLine, talkLanguage } from './i18n.ts';
+import { say } from './bridges/commands.ts';
 import { personalize } from './identity.ts';
 import { complete, inQuiet, proactiveSettings } from './life.ts';
 import { localDate } from './memory-worker.ts';
 import { ownerEvidenceConversation } from './owner-evidence.ts';
+import { mediaSettings } from './bridges/media.ts';
+import { backgroundConversation, type Conversation } from './store.ts';
+import { existsSync } from 'node:fs';
 import { buildSystemPrompt, identityOf } from './persona.ts';
 import { CHILD_WORDS, photoSettings } from './photos.ts';
 import type { PhotoEngine } from './image-engines.ts';
@@ -28,8 +32,28 @@ export interface OwnPhotoSettings {
   monthlyCap: number;
   /** When she sent them (ISO, newest first, kept 40). */
   sent?: string[];
-  /** MNT2: also to the owner's Telegram/Discord DM (as a picture, off by default). */
+  /** MNT2: also to the owner's Telegram/Discord DM (as a picture, off by default). Replaced by `dest`. */
   toApps?: boolean;
+  /** Where her pictures go (Settings → Pictures from her → Send her pictures to). */
+  dest?: OwnDest;
+  /** Chats made for her pictures: 'own' ("Pictures from <her name>") or 'project:<id>' → conversation id. */
+  made?: Record<string, string>;
+}
+
+/** Here in the app: a chat just for her pictures, one of the owner's chats, a project's chat, or nowhere (apps only). */
+export type OwnPlace = 'own' | 'chat' | 'project' | 'none';
+export const OWN_PLACES: readonly OwnPlace[] = ['own', 'chat', 'project', 'none'];
+export interface OwnDest {
+  here: OwnPlace;
+  chatId?: string;
+  projectId?: number;
+  telegram?: boolean;
+  discord?: boolean;
+}
+/** One place a picture went (or would go), for the status line. */
+export interface OwnTarget {
+  kind: 'chat' | 'project' | 'telegram' | 'discord';
+  name?: string;
 }
 
 export const DEFAULT_OWN_PHOTOS: OwnPhotoSettings = { on: false, often: 'rarely', monthlyCap: 8 };
@@ -60,15 +84,82 @@ function thisMonth(sent: string[] | undefined, now: Date, tz: string | undefined
 }
 
 export interface OwnPhotoResult {
-  sent?: { messageId: number; caption: string };
+  sent?: { messageId: number; caption: string; conversationId?: string; to: OwnTarget[] };
   skipped?: string;
+  /** Chosen places that didn't get it (an app not connected, or sending failed), with the reason. */
+  missed?: { kind: 'telegram' | 'discord'; why: string }[];
 }
+
+/** The destination, with the old "also to my chat apps" switch read as before (a chat here + both apps). */
+export function ownDest(own: OwnPhotoSettings): OwnDest {
+  const d = own.dest;
+  if (d && OWN_PLACES.includes(d.here)) return { here: d.here, ...(d.chatId ? { chatId: d.chatId } : {}), ...(d.projectId ? { projectId: d.projectId } : {}), telegram: d.telegram === true, discord: d.discord === true };
+  return { here: 'own', telegram: own.toApps === true, discord: own.toApps === true };
+}
+
+/** "Pictures from <her name>", in the owner's language (the chat made for her pictures). */
+export const ownChatTitle = (app: AppContext) => say(app, appLanguage(app.settings.get()), en('Pictures from {name}'), { name: app.persona?.name || 'Sara' });
+
+/** The owner's own 1:1 chats here that can take her pictures (never a group, room, partner or private chat). */
+export function ownerWebChat(app: AppContext, id: string | undefined): Conversation | undefined {
+  if (!id) return undefined;
+  const c = ownerEvidenceConversation(app, id);
+  return c && c.channel === 'web' && c.mode === 'chat' ? c : undefined;
+}
+export function ownerWebChats(app: AppContext, limit = 60): { id: string; title: string }[] {
+  return app.store.listConversations().filter((c) => c.channel === 'web' && c.mode === 'chat' && !c.private && !c.partner && !c.archivedAt && ownerWebChat(app, c.id)).slice(0, limit).map((c) => ({ id: c.id, title: c.title }));
+}
+
+/** Telegram/Discord: the bridge runs and knows the owner. */
+export function ownAppReady(app: AppContext, kind: 'telegram' | 'discord'): boolean {
+  const st = app.bridges?.[kind]?.status();
+  return Boolean(st?.running && st.linked);
+}
+
+/** Where pictures go, for the status line; the chat here is made on first use (`create`). */
+function placeHere(app: AppContext, own: OwnPhotoSettings, dest: OwnDest, create: boolean): { conv?: Conversation; target?: OwnTarget; skipped?: string } {
+  if (dest.here === 'none') return {};
+  if (dest.here === 'chat') {
+    const conv = ownerWebChat(app, dest.chatId);
+    return conv ? { conv, target: { kind: 'chat', name: conv.title } } : { skipped: 'no chat' };
+  }
+  let key = 'own';
+  let title = ownChatTitle(app);
+  let projectId: number | null = null;
+  let target: OwnTarget = { kind: 'chat', name: title };
+  if (dest.here === 'project') {
+    const project = app.planner?.projects().find((x) => x.id === dest.projectId);
+    if (!project) return { skipped: 'no project' };
+    key = `project:${project.id}`;
+    projectId = project.id;
+    target = { kind: 'project', name: project.name };
+  }
+  const was = ownerWebChat(app, own.made?.[key]);
+  if (was && (projectId === null || was.projectId === projectId)) return { conv: was, target };
+  if (!create) return { target };
+  const conv = app.store.createConversation({ title, titleSource: 'placeholder', channel: 'web', mode: 'chat', projectId });
+  app.settings.update({ photos: { ...photoSettings(app.settings), own: { ...ownPhotoSettings(app), made: { ...ownPhotoSettings(app).made, [key]: conv.id } } } });
+  return { conv, target };
+}
+
+/** The places her next picture goes, without making anything. */
+export function ownTargets(app: AppContext): { to: OwnTarget[]; missing: ('telegram' | 'discord')[]; problem?: string } {
+  const own = ownPhotoSettings(app);
+  const dest = ownDest(own);
+  const here = placeHere(app, own, dest, false);
+  const to: OwnTarget[] = here.target ? [here.target] : [];
+  const missing: ('telegram' | 'discord')[] = [];
+  for (const k of ['telegram', 'discord'] as const) if (dest[k]) (ownAppReady(app, k) ? to.push({ kind: k }) : missing.push(k));
+  return { to, missing, ...(here.skipped ? { problem: here.skipped } : {}) };
+}
+
+export type OwnStep = 'scene' | 'picture' | 'sending';
 
 /**
  * One try. `force` = the owner's "Send one now" (he is there: the schedule, quiet hours and the
  * daily limit don't apply; the monthly limit and every content rule do).
  */
-export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; random?: () => number } = {}): Promise<OwnPhotoResult> {
+export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; random?: () => number; onStep?: (step: OwnStep) => void } = {}): Promise<OwnPhotoResult> {
   if (app.member || app.demo || app.offRecord) return { skipped: 'not here' };
   const own = ownPhotoSettings(app);
   if (!own.on && !opts.force) return { skipped: 'off' };
@@ -95,17 +186,31 @@ export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; ra
   const lastOwner = app.store.lastOwnerMessageAt();
   if (!lastOwner) return { skipped: 'never talked' };
   if (!opts.force && now.getTime() - lastOwner.getTime() > OWNER_AWAY_DAYS * 86_400_000) return { skipped: 'owner away' };
-  // The owner's own 1:1 chat in the app: never a group, room, work channel, partner or other app.
-  const conv = app.store.listConversations().find((c) => c.mode === 'chat' && c.channel === 'web' && ownerEvidenceConversation(app, c.id));
-  if (!conv) return { skipped: 'no chat' };
-  if (app.isBusy?.(conv.id)) return { skipped: 'busy' };
-  const msgs = app.store.messages(conv.id).filter((m) => m.role !== 'notice');
+  // Where it goes: the chosen place here (never a group, room, work channel, partner or another
+  // person's chat) and/or the owner's own Telegram/Discord chat with her.
+  const dest = ownDest(own);
+  const here = placeHere(app, own, dest, false);
+  if (here.skipped) return { skipped: here.skipped };
+  const apps = (['telegram', 'discord'] as const).filter((k) => dest[k]);
+  const missed: NonNullable<OwnPhotoResult['missed']> = apps.filter((k) => !ownAppReady(app, k)).map((k) => ({ kind: k, why: 'not connected' }));
+  const sendApps = apps.filter((k) => ownAppReady(app, k));
+  if (dest.here === 'none' && !sendApps.length) return { skipped: apps.length ? 'apps not connected' : 'no destination', ...(missed.length ? { missed } : {}) };
+  if (dest.here === 'none' && !mediaSettings(app).send) return { skipped: 'app pictures off' };
+  // The owner's latest own chat gives the scene its context (read only; nothing is sent there unless chosen).
+  const recent = app.store.listConversations().find((c) => c.mode === 'chat' && c.channel === 'web' && ownerEvidenceConversation(app, c.id));
+  const conv = here.conv ?? recent ?? backgroundConversation(app.store, ownChatTitle(app));
+  if (here.conv && app.isBusy?.(here.conv.id)) return { skipped: 'busy' };
+  const msgs = conv.id ? app.store.messages(conv.id).filter((m) => m.role !== 'notice') : [];
   const lastMsg = msgs.at(-1);
   if (!opts.force && lastMsg?.role === 'assistant' && lastMsg.meta?.proactive) return { skipped: 'unanswered' };
+  // Her last picture went somewhere he may not have answered (a chat just for pictures, an app).
+  if (!opts.force && own.sent?.[0] && lastOwner.getTime() < new Date(own.sent[0]).getTime()) return { skipped: 'unanswered' };
   if (!opts.force && (opts.random ?? Math.random)() > CHANCE) return { skipped: 'not this time' };
 
   const owner = s.ownerName?.trim() || 'the owner';
-  const explicitOk = adultModeOn(s) && !isWorkChannel(conv.channel);
+  // Explicit only where every destination allows it (the owner's own DMs; never a work channel).
+  const channels = [...(dest.here === 'none' ? [] : ['web']), ...sendApps];
+  const explicitOk = adultModeOn(s) && !channels.some((c) => isWorkChannel(c));
   const system = buildSystemPrompt(app.persona, {
     now,
     timeZone: tz,
@@ -116,6 +221,7 @@ export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; ra
   });
   const note = personalize(`[Note from the app, not from ${owner}: you decide to send ${owner} a picture of yourself right now, the way someone close would: what you're doing, where you are or what you're wearing, fitting your day and the recent chat. Reply with exactly two lines. SCENE: what the picture shows (place, what you're doing and wearing, framing). CAPTION: one short, natural line in your voice to go with it. ${explicitOk ? '' : 'Keep it non-explicit. '}Never anything involving minors. Don't mention this note. If nothing feels natural right now, reply with exactly SKIP.]`, identityOf(app.persona));
   const history = msgs.slice(-12).filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content.trim()).map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+  opts.onStep?.('scene');
   const raw = (await complete(app, conv, [{ role: 'system', content: system }, ...history, { role: 'user', content: note }], 220, 'quick')).trim();
   if (!raw || /^skip\b/i.test(raw)) return { skipped: 'model chose not to' };
   const scene = /SCENE:\s*(.+)/i.exec(raw)?.[1]?.trim().slice(0, 500) ?? '';
@@ -127,7 +233,8 @@ export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; ra
   if (checkClaims(caption, []).length) return { skipped: 'failed checks' };
 
   const images: string[] = [];
-  const ctx = { workspaceDir: '', signal: AbortSignal.timeout(8 * 60_000), sandbox: app.sandbox, conversationId: conv.id, attachImage: (id: string) => images.push(id), unattended: !opts.force } as ToolContext;
+  const ctx = { workspaceDir: '', signal: AbortSignal.timeout(8 * 60_000), sandbox: app.sandbox, conversationId: here.conv?.id ?? (conv.id || undefined), attachImage: (id: string) => images.push(id), unattended: !opts.force } as ToolContext;
+  opts.onStep?.('picture');
   try {
     await take.run({ scene }, ctx);
   } catch (err) {
@@ -136,14 +243,65 @@ export async function maybeOwnPhoto(app: AppContext, opts: { force?: boolean; ra
   // Only claim a picture that is really there.
   const shown = images.filter((id) => app.uploads?.get(id));
   if (!shown.length) return { skipped: 'no picture' };
-  if (disclosureDue(app.store.lastDisclosureAt(), now)) {
-    const text = disclosureText(app.persona.name, appLanguage(s));
-    const n = app.store.addMessage(conv.id, 'notice', `disclosure:${text}`);
-    app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...n, content: text, meta: { kind: 'disclosure' } }, reason: 'proactive' });
+  opts.onStep?.('sending');
+  const text = app.redactor.redact(caption);
+  const to: OwnTarget[] = [];
+  // The owner's own Telegram/Discord chat with her, straight from here (not a mirror of another chat).
+  let appConv: Conversation | undefined;
+  if (sendApps.length && !mediaSettings(app).send) for (const k of sendApps.splice(0)) missed.push({ kind: k, why: 'app pictures off' });
+  const files = shown.map((id) => ({ id, f: app.uploads!.get(id)! })).filter((x) => existsSync(x.f.path)).map((x) => ({ path: x.f.path, mime: x.f.mime, name: x.id }));
+  for (const k of sendApps) {
+    try {
+      const c = await app.bridges![k]!.sendOwnPicture(files, text);
+      appConv ??= c;
+      to.push({ kind: k });
+    } catch (err) {
+      missed.push({ kind: k, why: (err as Error).message.slice(0, 200) });
+    }
   }
-  const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(caption), { proactive: { reason: 'picture' }, images: shown });
+  // Kept here too, so it is in her Photos and the chat's history: the chosen place, or (apps only) her chat in that app.
+  const place = dest.here === 'none' ? appConv : placeHere(app, ownPhotoSettings(app), dest, true).conv;
+  if (dest.here !== 'none' && here.target) to.unshift(here.target);
+  if (!to.length || !place) return { skipped: `not delivered: ${missed.map((m) => m.why).join('; ') || 'no place'}`, ...(missed.length ? { missed } : {}) };
+  if (disclosureDue(app.store.lastDisclosureAt(), now)) {
+    const d = disclosureText(app.persona.name, appLanguage(s));
+    const n = app.store.addMessage(place.id, 'notice', `disclosure:${d}`);
+    app.events?.publish({ type: 'message', conversationId: place.id, message: { ...n, content: d, meta: { kind: 'disclosure' } }, reason: 'proactive' });
+  }
+  const msg = app.store.addMessage(place.id, 'assistant', text, { proactive: { reason: 'picture' }, images: shown });
   if (app.inner) app.inner.save({ ...app.inner.get(now), lastProactiveAt: now.toISOString(), proactiveDay: today, proactiveCount: sentToday + 1 });
   app.settings.update({ photos: { ...photoSettings(app.settings), own: { ...ownPhotoSettings(app), sent: [now.toISOString(), ...(own.sent ?? [])].slice(0, 40) } } });
-  app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
-  return { sent: { messageId: msg.id, caption: msg.content } };
+  app.events?.publish({ type: 'message', conversationId: place.id, message: msg, reason: 'proactive' });
+  return { sent: { messageId: msg.id, caption: msg.content, conversationId: place.id, to }, ...(missed.length ? { missed } : {}) };
+}
+
+/** "Send one now" in the background: one at a time; the page asks how it goes. */
+export interface OwnPhotoJob {
+  running: boolean;
+  step: OwnStep | 'done';
+  engine: PhotoEngine;
+  startedAt: string;
+  result?: OwnPhotoResult;
+  error?: string;
+}
+const JOBS = new WeakMap<object, OwnPhotoJob>();
+const jobKey = (app: AppContext): object => app.settings;
+
+export function ownPhotoJob(app: AppContext): OwnPhotoJob | undefined {
+  return JOBS.get(jobKey(app));
+}
+
+export function startOwnPhotoJob(app: AppContext, run: typeof maybeOwnPhoto = maybeOwnPhoto): { started: boolean; job: OwnPhotoJob } {
+  const was = JOBS.get(jobKey(app));
+  if (was?.running) return { started: false, job: was };
+  const job: OwnPhotoJob = { running: true, step: 'scene', engine: photoSettings(app.settings).engine ?? 'grok', startedAt: app.now().toISOString() };
+  JOBS.set(jobKey(app), job);
+  void run(app, { force: true, onStep: (step) => (job.step = step) })
+    .then((result) => (job.result = result))
+    .catch((err: Error) => (job.result = { skipped: `no picture: ${err.message}` }))
+    .finally(() => {
+      job.running = false;
+      job.step = 'done';
+    });
+  return { started: true, job };
 }

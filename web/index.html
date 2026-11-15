@@ -2857,8 +2857,19 @@
           <label>Its prompt setting <button type="button" class="tip" data-tip="The name of the tool's setting that takes the description, as the tool lists it (often prompt).">?</button> <input id="ph-tool-arg"></label>
         </div>
         <h4>Pictures on her own</h4>
-        <label class="row"><input id="ph-own-on" type="checkbox"> She sends pictures on her own <button type="button" class="tip" data-tip="Now and then she sends you a picture of what she's doing, with one line, like a person would. Only in your own chat here, never at quiet hours, and it counts as one of her own messages for the day.">?</button></label>
-        <label class="row"><input id="ph-own-apps" type="checkbox"> Also send them to my chat apps <button type="button" class="tip" data-tip="Her pictures on her own also arrive as a picture in your own Telegram or Discord chat with her, if that app is connected. Off: they stay in the app only.">?</button></label>
+        <label class="row"><input id="ph-own-on" type="checkbox"> She sends pictures on her own <button type="button" class="tip" data-tip="Now and then she sends you a picture of what she's doing, with one line, like a person would. Only where you choose below, never at quiet hours, and it counts as one of her own messages for the day.">?</button></label>
+        <label>Send her pictures to <button type="button" class="tip" data-tip="Where her pictures go, also with Send one now. A chat just for them is made the first time. Never a group, a room or someone else's chat.">?</button>
+          <select id="ph-own-here">
+            <option value="own">A chat just for her pictures</option>
+            <option value="chat">One of my chats here</option>
+            <option value="project">A chat in a project</option>
+            <option value="none">Only my chat apps</option>
+          </select></label>
+        <label id="ph-own-chat-row" hidden>Which chat <button type="button" class="tip" data-tip="One of your own chats with her in this app. Private chats, groups and chats with other people are not offered.">?</button> <select id="ph-own-chat"></select></label>
+        <label id="ph-own-project-row" hidden>Which project <button type="button" class="tip" data-tip="Her pictures go to a chat in that project, made the first time and named after her.">?</button> <select id="ph-own-project"></select></label>
+        <label class="row"><input id="ph-own-tg" type="checkbox"> To my Telegram <button type="button" class="tip" data-tip="Each picture also arrives in your own chat with her there. Only once that app is set up in Apps and services.">?</button></label>
+        <label class="row"><input id="ph-own-dc" type="checkbox"> To my Discord <button type="button" class="tip" data-tip="Each picture also arrives in your own DM with her there. Only once that app is set up in Apps and services.">?</button></label>
+        <p id="ph-own-dest" class="muted small" role="status"></p>
         <label>How often <button type="button" class="tip" data-tip="Never more than one a day. She skips it when you haven't written for a week or didn't answer her last message of her own.">?</button>
           <select id="ph-own-often">
             <option value="rarely">Rarely (about once a week)</option>

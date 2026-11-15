@@ -104,7 +104,7 @@ function ownPicture(app: TestApp): void {
 }
 
 const OWNER = 1001;
-test('MNT2: with "also to my chat apps" on, her own picture reaches the owner\'s Telegram as a photo; off: nothing goes', async (t) => {
+test('Pictures from her: her own picture is never mirrored to Telegram; as a chosen destination it goes straight to the owner\'s chat as a photo', async (t) => {
   for (const toApps of [true, false]) {
     const { dir, cleanup } = tempDir();
     const app: TestApp = makeApp(dir, { now: new Date('2026-11-07T12:00:00Z') });
@@ -125,22 +125,25 @@ test('MNT2: with "also to my chat apps" on, her own picture reaches the owner\'s
     await bridge.restart(); await bridge.menus; await bridge.leftovers;
     try {
       ownPicture(app);
+      await new Promise(r => setTimeout(r, 300));
+      assert.ok(!sent.some(s => s.method === 'sendPhoto' || (s.method === 'sendMessage' && s.body.text === 'On my walk by the river.')), 'not mirrored (even with mirroring on)');
       if (toApps) {
+        const pic = app.uploads!.get(app.uploads!.saveBytes(makeTestPicture(8)).id)!;
+        const conv = await bridge.sendOwnPicture([{ path: pic.path, mime: pic.mime, name: 'p.png' }], 'On my walk by the river.');
+        assert.equal(conv.channel, 'telegram');
+        assert.equal(conv.channelKey, String(OWNER));
         assert.ok(await until(() => sent.some(s => s.method === 'sendPhoto')), 'a photo went to Telegram');
         const photo = sent.find(s => s.method === 'sendPhoto')!;
         assert.equal(String(photo.form!.get('chat_id')), String(OWNER));
         assert.equal(photo.form!.get('caption'), 'On my walk by the river.');
         assert.ok(!sent.some(s => s.method === 'sendMessage' && s.body.text === 'On my walk by the river.'), 'the caption is not sent twice');
-      } else {
-        await new Promise(r => setTimeout(r, 300));
-        assert.ok(!sent.some(s => s.method === 'sendPhoto' || (s.method === 'sendMessage' && s.body.text === 'On my walk by the river.')), 'a caption without its picture is not mirrored');
       }
     } finally { bridge.stop(); server.close(); app.store.close(); cleanup(); }
   }
   void t;
 });
 
-test('MNT2: with "also to my chat apps" on, her own picture reaches the owner\'s Discord DM as one files[0] message', async () => {
+test('Pictures from her: as a chosen destination her picture reaches the owner\'s Discord DM as one files[0] message (never mirrored)', async () => {
   const { dir, cleanup } = tempDir();
   const app: TestApp = makeApp(dir, { now: new Date('2026-11-07T12:00:00Z') });
   const sent: { method: string; path: string; body: Record<string, unknown>; form?: FormData }[] = [];
@@ -162,6 +165,13 @@ test('MNT2: with "also to my chat apps" on, her own picture reaches the owner\'s
   try {
     ownPicture(app);
     const posts = () => sent.filter(s => s.method === 'POST' && s.path === '/channels/dm-owner/messages');
+    await new Promise(r => setTimeout(r, 300));
+    assert.equal(posts().length, 0, 'not mirrored');
+    assert.ok(await until(() => bridge.status().running), 'connected');
+    const pic = app.uploads!.get(app.uploads!.saveBytes(makeTestPicture(8)).id)!;
+    const conv = await bridge.sendOwnPicture([{ path: pic.path, mime: pic.mime, name: 'p.png' }], 'On my walk by the river.');
+    assert.equal(conv.channel, 'discord');
+    assert.equal(conv.channelKey, 'dm-owner');
     assert.ok(await until(() => posts().some(p => p.form)), 'a picture went to the owner DM (even with mirroring off: he chose it)');
     const payload = JSON.parse(String(posts().find(p => p.form)!.form!.get('payload_json')));
     assert.equal(payload.content, 'On my walk by the river.');

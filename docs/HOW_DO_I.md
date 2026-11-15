@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 230 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 231 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -322,6 +322,13 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Set Pictures to Off.
 2. She will describe instead of sending a picture.
+
+**How do I choose where her pictures go?**
+
+1. Under Pictures on her own, pick a place in Send her pictures to.
+2. For one of your chats or a project, pick which one.
+3. Switch on To my Telegram or To my Discord if you want them there too.
+4. The line below shows where they go.
 
 ### Companions
 

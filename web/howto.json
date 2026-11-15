@@ -186,6 +186,17 @@
     "Set Pictures to Off.",
     "She will describe instead of sending a picture."
    ]
+  },
+  {
+   "id": "dest",
+   "q": "How do I choose where her pictures go?",
+   "steps": [
+    "Under Pictures on her own, pick a place in Send her pictures to.",
+    "For one of your chats or a project, pick which one.",
+    "Switch on To my Telegram or To my Discord if you want them there too.",
+    "The line below shows where they go."
+   ],
+   "show": "#ph-own-here"
   }
  ],
  "her-companions": [

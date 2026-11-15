@@ -4,7 +4,7 @@ import { createReadStream } from 'node:fs';
 import { vaultKeyFor } from '../chat.ts';
 import { cleanWorkflow, listComfyWorkflows, loadComfyWorkflow, PHOTO_ENGINES, type PhotoEngine, promptNodes } from '../image-engines.ts';
 import { mcpToolName } from '../tools/mcp.ts';
-import { maybeOwnPhoto, monthlyEstimate, OWN_PACES, type OwnPhotoPace, ownPhotoSettings } from '../own-photos.ts';
+import { monthlyEstimate, OWN_PACES, OWN_PLACES, type OwnDest, type OwnPhotoPace, type OwnPlace, ownAppReady, ownDest, ownerWebChat, ownerWebChats, ownPhotoJob, ownPhotoSettings, ownTargets, startOwnPhotoJob } from '../own-photos.ts';
 import { findEverything } from '../find.ts';
 import { as400, fromPhoneApp, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { forgetMemory, localDate, type MemorySettings, memorySettings } from '../memory-worker.ts';
@@ -353,9 +353,12 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
     // E7 (B3): "Send one now": a picture on her own right away (all content rules and the monthly limit apply).
-    if (a === 'photos' && b === 'own' && c === 'test' && method === 'POST') {
+    // It runs in the background (a ComfyUI picture can take minutes): POST starts it, GET tells how it goes.
+    if (a === 'photos' && b === 'own' && c === 'test' && (method === 'POST' || method === 'GET')) {
       if (app.member || app.demo) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
-      return send(res, 200, await maybeOwnPhoto(app, { force: true }));
+      if (method === 'GET') return send(res, 200, { job: ownPhotoJob(app) ?? null });
+      const { started, job } = startOwnPhotoJob(app);
+      return send(res, 200, { started, job });
     }
     // MNT2 (E7 follow-up): the workflows saved inside ComfyUI, to pick one instead of pasting the export.
     const comfyDeps = () => ({ tools: { get: (n: string) => app.tools.get(n), permission: (n: string) => app.tools.permission(n, app.settings.get().toolPermissions) } });
@@ -380,7 +383,12 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
           engine: p.engine ?? 'grok', openaiKey: Boolean(openai && app.vault.get(vaultKeyFor(openai.id))), comfyServers, imageTools: mcpTools.map((t) => t.spec.name),
           comfy: p.comfy ? { server: p.comfy.server, node: p.comfy.node, input: p.comfy.input ?? 'text', seed: Boolean(p.comfy.seed), saved: p.comfy.saved ?? null, nodes: promptNodes(p.comfy.workflow) } : null, tool: p.tool ?? null,
           // E7 (B2s): pictures on her own, and about what they cost a month.
-          own: (({ on, often, monthlyCap, sent, toApps }) => ({ on, often, monthlyCap, toApps: Boolean(toApps), sentThisMonth: (sent ?? []).filter((x) => x.slice(0, 7) === app.now().toISOString().slice(0, 7)).length }))(ownPhotoSettings(app)),
+          own: (({ on, often, monthlyCap, sent }) => ({ on, often, monthlyCap, sentThisMonth: (sent ?? []).filter((x) => x.slice(0, 7) === app.now().toISOString().slice(0, 7)).length }))(ownPhotoSettings(app)),
+          // Where her pictures go, what can be picked, and the places named for the status line.
+          dest: ownDest(ownPhotoSettings(app)), targets: ownTargets(app), herName: app.persona?.name ?? '',
+          chats: ownerWebChats(app), projects: (app.planner?.projects() ?? []).map((x) => ({ id: x.id, name: x.name })),
+          apps: { telegram: ownAppReady(app, 'telegram'), discord: ownAppReady(app, 'discord') },
+          job: ownPhotoJob(app) ?? null,
           estimate: monthlyEstimate(p.engine ?? 'grok', ownPhotoSettings(app), (app.subscriptions?.grokStatus().signedIn ?? false) && !app.vault.has(PHOTO_KEY_VAULT)) };
       };
       if (method === 'GET') return send(res, 200, await view());
@@ -425,9 +433,28 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
         }
         let own = cur.own;
         if (body.own && typeof body.own === 'object') {
-          const o = body.own as { on?: unknown; often?: unknown; monthlyCap?: unknown; toApps?: unknown };
+          const o = body.own as { on?: unknown; often?: unknown; monthlyCap?: unknown; dest?: unknown };
           const was = ownPhotoSettings(app);
-          own = { ...was, on: o.on === undefined ? was.on : o.on === true, toApps: o.toApps === undefined ? Boolean(was.toApps) : o.toApps === true, often: OWN_PACES.includes(o.often as OwnPhotoPace) ? (o.often as OwnPhotoPace) : was.often, monthlyCap: o.monthlyCap === undefined ? was.monthlyCap : Math.max(0, Math.min(31, Math.round(Number(o.monthlyCap) || 0))) };
+          let dest = ownDest(was);
+          if (o.dest && typeof o.dest === 'object') {
+            const d = o.dest as { here?: unknown; chatId?: unknown; projectId?: unknown; telegram?: unknown; discord?: unknown };
+            const here = OWN_PLACES.includes(d.here as OwnPlace) ? (d.here as OwnPlace) : dest.here;
+            const next: OwnDest = { here, telegram: d.telegram === undefined ? dest.telegram : d.telegram === true, discord: d.discord === undefined ? dest.discord : d.discord === true };
+            if (here === 'chat') {
+              const chat = ownerWebChat(app, String(d.chatId ?? dest.chatId ?? ''));
+              if (!chat) throw new HttpError(400, 'Pick one of your own chats here.');
+              next.chatId = chat.id;
+            }
+            if (here === 'project') {
+              const id = Number(d.projectId ?? dest.projectId);
+              if (!(app.planner?.projects() ?? []).some((x) => x.id === id)) throw new HttpError(400, 'Pick a project.');
+              next.projectId = id;
+            }
+            if (here === 'none' && !next.telegram && !next.discord) throw new HttpError(400, 'Pick at least one place for her pictures.');
+            dest = next;
+          }
+          const { toApps: _old, ...rest } = was;
+          own = { ...rest, dest, on: o.on === undefined ? was.on : o.on === true, often: OWN_PACES.includes(o.often as OwnPhotoPace) ? (o.often as OwnPhotoPace) : was.often, monthlyCap: o.monthlyCap === undefined ? was.monthlyCap : Math.max(0, Math.min(31, Math.round(Number(o.monthlyCap) || 0))) };
         }
         app.settings.update({ photos: { ...cur, mode, model, engine, comfy, tool, own } });
         return send(res, 200, await view());

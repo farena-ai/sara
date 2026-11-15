@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.13.1 (2026-11-15): her pictures with ComfyUI, sent where you choose
+
+- Fixed: **Pictures from her with ComfyUI** no longer hang on *Making a picture*. The ComfyUI tool server
+  (comfyui-mcp 0.5x) reports finished runs as text, which Sara didn't read, so she waited 5 minutes although
+  ComfyUI was done in seconds. She now reads both forms, fetches the picture as soon as it is there, and stops
+  at once with the reason when the run fails or saves no picture (*check it ends in Save Image*).
+- Changed: **Send one now** runs in the background: the page shows *Writing the scene…*, *Making the picture
+  in ComfyUI…* and then where it went, or why not.
+- New: **Send her pictures to** (Settings → Sara → Pictures from her): a chat just for her pictures (the
+  default, made the first time), one of your own chats, a chat in a project, or only your chat apps, plus
+  *To my Telegram* / *To my Discord* (only when connected). Before, they went to whichever of your chats came
+  first. The line under the choices names the places. *Also send them to my chat apps* became a chat just for
+  her pictures + Telegram + Discord.
+
 ## 3.13.0 (2026-11-15): a calmer, premium Settings
 
 ## 3.12.0 (2026-11-15): work apps, family, trust and voice ready

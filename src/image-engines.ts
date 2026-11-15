@@ -151,20 +151,73 @@ export async function loadComfyWorkflow(d: EngineDeps, server: string, name: str
 
 const NO_PICTURE = "The picture was made, but this Sara can't receive pictures from tool servers yet, so nothing was sent.";
 
+export type ComfyRun = { state: 'pending' } | { state: 'done'; file: string; type?: string } | { state: 'error'; reason: string };
+
+const IMAGE_FILE = /\.(?:png|jpe?g|webp)$/i;
+const EMPTY_RUN = 'ComfyUI finished but the workflow saved no picture: check it ends in Save Image.';
+
+/**
+ * Reads one get_history answer: the JSON of older tool servers, or the markdown of comfyui-mcp
+ * (`**Status**: success | Completed: true`, `- Node 10: images → **sub/x.png (type=output)**`).
+ */
+export function readComfyHistory(text: string): ComfyRun {
+  const t = String(text ?? '');
+  // Markdown (comfyui-mcp 0.5x).
+  const status = /\*\*Status\*\*:\s*([\w-]+)\s*\|\s*Completed:\s*(\w+)/i.exec(t);
+  if (status || /^##\s+Execution:/m.test(t)) {
+    if (/\*\*Execution was interrupted\/cancelled\*\*/i.test(t)) return { state: 'error', reason: 'it was stopped in ComfyUI.' };
+    const exc = /\*\*Exception\*\*:\s*(.+)/.exec(t)?.[1]?.trim();
+    const node = /\*\*Failed node\*\*:\s*(.+)/.exec(t)?.[1]?.trim();
+    if (status?.[1].toLowerCase() === 'error' || exc) return { state: 'error', reason: [exc || 'the workflow failed', node ? `(node ${node})` : ''].filter(Boolean).join(' ').slice(0, 300) };
+    for (const m of t.matchAll(/^\s*-\s*Node\s+[^:]+:\s*(?:images|videos|video|gifs)\s*→\s*\*\*(.+?)\*\*\s*$/gim)) {
+      for (const part of m[1].split(/,\s+/)) {
+        const f = /^(.+?)(?:\s+\(type=(output|temp|input)\))?$/.exec(part.trim());
+        if (f && IMAGE_FILE.test(f[1])) return { state: 'done', file: f[1], ...(f[2] ? { type: f[2] } : {}) };
+      }
+    }
+    if (status && (status[1].toLowerCase() === 'success' || status[2].toLowerCase() === 'true')) return { state: 'error', reason: EMPTY_RUN };
+    return { state: 'pending' };
+  }
+  // JSON (older servers, raw ComfyUI history).
+  if (/"status_str"\s*:\s*"error"|execution_error/i.test(t)) {
+    const msg = /"exception_message"\s*:\s*"((?:[^"\\]|\\.)*)"/.exec(t)?.[1];
+    return { state: 'error', reason: (msg ?? t).slice(0, 300) };
+  }
+  if (/execution_interrupted/i.test(t)) return { state: 'error', reason: 'it was stopped in ComfyUI.' };
+  const m = /"filename"\s*:\s*"([^"]+\.(?:png|jpe?g|webp))"(?:[^}]*?"subfolder"\s*:\s*"([^"]*)")?(?:[^}]*?"type"\s*:\s*"(output|temp|input)")?/i.exec(t);
+  if (m) return { state: 'done', file: m[2] ? `${m[2]}/${m[1]}` : m[1], ...(m[3] ? { type: m[3] } : {}) };
+  if (/"status_str"\s*:\s*"success"|"completed"\s*:\s*true/i.test(t)) return { state: 'error', reason: EMPTY_RUN };
+  return { state: 'pending' };
+}
+
+/** The readable part of a tool server's error (its JSON "message"), at most 300 characters. */
+export function comfyReason(text: string): string {
+  const t = String(text ?? '').trim();
+  const j = firstObject(t) as { message?: unknown; error?: unknown } | undefined;
+  const msg = typeof j?.message === 'string' ? j.message : typeof j?.error === 'string' ? j.error : t;
+  return msg.replace(/\s*\n\s*-?\s*/g, ' · ').replace(/\s+/g, ' ').trim().slice(0, 300);
+}
+
 export async function comfyPhoto(d: EngineDeps, e: ComfyEngine, prompt: string, o: RunOpts): Promise<Buffer> {
   const name = (tool: string) => mcpToolName(e.server, tool);
   const wf = fillWorkflow(e, prompt, d.random);
-  const queued = await runTool(d, name('enqueue_workflow'), { action: 'enqueue', workflow: wf }, o);
+  let queued: { text: string };
+  try {
+    queued = await runTool(d, name('enqueue_workflow'), { action: 'enqueue', workflow: wf }, o);
+  } catch (err) {
+    // comfyui-mcp answers a refused workflow (a missing model, no output node) with a JSON error.
+    throw new ToolError(`ComfyUI didn't take the workflow: ${comfyReason((err as Error).message)}`);
+  }
   const id = /prompt_id["']?\s*[:=]\s*["']?([\w-]{6,})/i.exec(queued.text)?.[1];
-  if (!id) throw new ToolError(`ComfyUI didn't take the workflow: ${queued.text.slice(0, 200)}`);
+  if (!id) throw new ToolError(`ComfyUI didn't take the workflow: ${comfyReason(queued.text)}`);
   const sleep = d.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
   for (let i = 0; i < 100; i++) {
     if (o.signal?.aborted) throw new ToolError('Stopped.');
     const h = await runTool(d, name('get_history'), { action: 'list', prompt_id: id }, o);
-    if (/"status_str"\s*:\s*"error"|execution_error/i.test(h.text)) throw new ToolError(`ComfyUI couldn't finish the picture: ${h.text.slice(0, 200)}`);
-    const m = /"filename"\s*:\s*"([^"]+\.(?:png|jpe?g|webp))"(?:[^}]*?"subfolder"\s*:\s*"([^"]*)")?/i.exec(h.text);
-    if (m) {
-      const got = await runTool(d, name('get_image'), { action: 'get', filename: m[2] ? `${m[2]}/${m[1]}` : m[1] }, o);
+    const run = readComfyHistory(h.text);
+    if (run.state === 'error') throw new ToolError(run.reason === EMPTY_RUN ? EMPTY_RUN : `ComfyUI couldn't finish the picture: ${run.reason}`);
+    if (run.state === 'done') {
+      const got = await runTool(d, name('get_image'), { action: 'get', filename: run.file, ...(run.type ? { type: run.type } : {}) }, o);
       if (!got.images.length) throw new ToolError(NO_PICTURE);
       return got.images[0];
     }
