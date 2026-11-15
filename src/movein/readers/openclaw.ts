@@ -119,7 +119,7 @@ export const openclawReader: MoveInReader = {
     for (const it of items.filter((x) => x.kind === 'ws-dreams' || x.kind === 'dreams')) {
       for (const x of markdownItems(await b.text(it.path, 1024 * 1024))) note(emit, skipped, ctx, { section: 'reflections', ref: `${it.path}#L${x.line}`, text: x.text, kind: 'reflection', happenedOn: isoDay(/(\d{4}-\d{2}-\d{2})/.exec(it.path)?.[1] ?? it.mtime, today) });
     }
-    if (b.has(`${WS}HEARTBEAT.md`) && !templates.has(`${WS}HEARTBEAT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}HEARTBEAT.md`, title: 'HEARTBEAT.md', data: { code: 'agenda', what: 'HEARTBEAT.md check-ins', why: 'Her own plans (Settings → Her → Her own plans) are off until you switch them on; add these there if you want them.' } });
+    if (b.has(`${WS}HEARTBEAT.md`) && !templates.has(`${WS}HEARTBEAT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}HEARTBEAT.md`, title: 'HEARTBEAT.md', data: { code: 'agenda', what: 'HEARTBEAT.md check-ins', why: 'Her own plans (Settings → Sara → Her own plans) are off until you switch them on; add these there if you want them.' } });
     if (b.has(`${WS}BOOT.md`)) emit({ section: 'later', kind: 'later', ref: `${WS}BOOT.md`, title: 'BOOT.md', data: { code: 'boot', what: 'BOOT.md start-up checklist', why: 'Sara starts every chat with her memory and greets you herself; keep anything still useful as a note or a scheduled task.' } });
 
     // ---------------- sessions (§6.6): legacy JSONL trees ----------------

@@ -1,4 +1,4 @@
-// Phase 98 (ST3): Settings → Add-ons → Plugins (docs/design/STAPLES.md §6.11, docs/PLUGINS.md).
+// Phase 98 (ST3): Settings → Skills & tools → Plugins (docs/design/STAPLES.md §6.11, docs/PLUGINS.md).
 // A card per plugin: name, version, which companions it is on for, the fence chip, the last thing it
 // did, and a ⋯ menu (settings, log, check for updates, roll back, remove). Add a plugin: a .zip, a
 // git address or a folder on the server, then the review card (the shared proposal card): every
@@ -163,7 +163,7 @@ async function renderBuiltin() {
       const row = el('div', 'add-row');
       // PL2c (N14): a chat app that comes with Sara is set up on its own page, not here (one door).
       if (CHAT_APP_PAGE[b.id] && !b.updateAvailable) {
-        const go = btn(t('Set up in Chat apps → {name}', { name: b.name }), 'ghost', () => {
+        const go = btn(t('Set up in Apps and services → {name}', { name: b.name }), 'ghost', () => {
           location.hash = `#view=settings:${CHAT_APP_PAGE[b.id]}`;
         });
         if (b.installed) row.append(el('span', 'muted small', t('Added ({version})', { version: b.installedVersion })), ' ');
@@ -836,7 +836,7 @@ function renderSenderCheck(box, p, view, companion) {
   box.append(row, out);
 }
 
-// Phase 117 / PL2a: Settings → Chat apps → Signal and Email are guided setup cards now (web/signal.js,
+// Phase 117 / PL2a: Settings → Connections → Apps and services → Signal and Email are guided setup cards now (web/signal.js,
 // web/email.js); their settings button opens the same window as here.
 /** The plugin's settings and log window, for the Signal and Email pages. */
 export async function openPluginSettings(p) {

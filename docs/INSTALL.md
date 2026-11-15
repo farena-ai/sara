@@ -50,7 +50,7 @@ shows a suggestion in [brackets]: just press Enter to take it.
    workspace. (Not asked when bubblewrap is already installed.)
 3. **Voice on this server?** [n] downloads local speech recognition and voices (about 650 MB), so
    speech never leaves the server. (x86_64 only: on arm64 the question is skipped and cloud voices
-   work in Settings → Her → Voice. Also skipped when local voice is already installed.)
+   work in Settings → Sara → Voice. Also skipped when local voice is already installed.)
 4. **Port** [7860], then a summary and **Go ahead?** [Y].
 
 At the end it prints your **one-time owner token** and the address to open. Keep the token in a
@@ -276,7 +276,7 @@ sara uninstall [--delete-data]
 **Updating from Sara herself (C9):** when a new version is out, an **Update** button appears in the top
 bar. It starts grey and gets more insistent as the release ages (blue after 2 days, amber after 4, red
 after 7); a security release is red at once, and **Update required** means your version is older than
-the oldest one still supported. Press it, then **Update now** in Settings → Data & health → Updates:
+the oldest one still supported. Press it, then **Update now** in Settings → Privacy & system → Updates:
 Sara downloads the installer, checks it against the release's signed update notice, keeps the
 installer of the version you have, installs silently and restarts. If the new version doesn't answer
 within 3 minutes she reinstalls the previous one and tells you. This works for the *only while I'm
@@ -452,7 +452,7 @@ ones gone; see [Choosing a model](CHOOSING_A_MODEL.md#model-lists-stay-current-b
 - **Through an Ollama you run** (on the server or another computer): sign that Ollama in once with
   `ollama signin` on that computer. Sara then offers every Ollama Cloud model under *Ollama Cloud
   (added when you pick one)* and adds a model to that Ollama the first time you use it. Switch
-  this off or on per provider in *Settings → Models → Model providers → Include all Ollama Cloud
+  this off or on per provider in *Settings → Models & usage → Providers and plans → Include all Ollama Cloud
   models*.
 - **With an API key**: add the *Ollama Cloud (API key)* provider and paste a key from
   ollama.com. Its list comes straight from Ollama Cloud.
@@ -469,12 +469,12 @@ Sara checks each list once a day. Nothing is sent anywhere for this but the list
 
 | Extra | How |
 |---|---|
-| **Subscriptions** (ChatGPT plan, Claude Pro/Max, SuperGrok/X Premium+) | `sudo /opt/sara-src/deploy/install-agents.sh`, then Settings → Models → Subscriptions |
+| **Subscriptions** (ChatGPT plan, Claude Pro/Max, SuperGrok/X Premium+) | `sudo /opt/sara-src/deploy/install-agents.sh`, then Settings → Models & usage → Providers and plans → Subscriptions |
 | **Local voice** (speech recognition + voices on your server) | `sudo /opt/sara-src/deploy/install-voice.sh` |
 | **Phone app + notifications** | Open Sara on your phone → *Add to Home Screen*; Settings → Connections → Phone and notifications |
-| **Telegram / Discord** | Settings → Chat apps → Telegram / Discord (create a bot, paste its token, link yourself) |
-| **Web search** | Settings → Add-ons → Web search (Brave, Tavily, Ollama or SearXNG) |
-| **MCP tools** | Settings → Add-ons → Other programs (MCP) ("Start from": Email or Calendar presets) |
+| **Telegram / Discord** | Settings → Connections → Apps and services → Telegram / Discord (create a bot, paste its token, link yourself) |
+| **Web search** | Settings → Skills & tools → Web search (Brave, Tavily, Ollama or SearXNG) |
+| **MCP tools** | Settings → Skills & tools → Other programs (MCP) ("Start from": Email or Calendar presets) |
 | **Browser for testing** (she previews, clicks through and screenshots the web apps she builds; also the Browser add-on) | Nothing to do: Windows uses Microsoft Edge, macOS Chrome, Edge or Chromium if installed; anywhere else Sara downloads Playwright's Chromium headless shell into her own data folder the first time it is needed (~110 MB download, no root; see [BROWSER.md](BROWSER.md)). Optional on Linux: `sudo /opt/sara-src/deploy/install-browser.sh` puts a pinned build in `/opt/sara-browser` instead |
 
 The installers download only pinned versions and check each download against its checksum (Node.js,
@@ -579,7 +579,7 @@ already there): `sudo /opt/sara-src/deploy/install-voice.sh --instance work` or
 
 **Ollama on a shared server.** Every Sara here talks to the same Ollama. If that Ollama is signed in
 to ollama.com, its cloud models run on that account and are billed to it, so they are **off** for
-every Sara except the first one (Settings → Models → the Ollama provider → *Use Ollama Cloud
+every Sara except the first one (Settings → Models & usage → the Ollama provider → *Use Ollama Cloud
 models*). Leave it off for Saras you host for other people, and give them their own models (their own
 Ollama, or a cloud key of their own).
 
@@ -600,20 +600,20 @@ sudo sara logs -f           # follow the log
 sudo sara access [how]      # how you reach her (tailscale, local, domain, lan)
 ```
 
-Or from the app: **Settings → Data & health → Updates** (same steps, done by the root-owned
+Or from the app: **Settings → Privacy & system → Updates** (same steps, done by the root-owned
 `sara-updater` helper that `install.sh` sets up; Sara herself never gets admin rights).
 
 Backups run daily (the last 7 are kept) in `/var/lib/sara/backups`. **They contain your keys.**
-Settings → Data & health → Backups → *Off-server copy* puts an encrypted copy (your passphrase, AES-256-GCM)
+Settings → Privacy & system → Backups → *Off-server copy* puts an encrypted copy (your passphrase, AES-256-GCM)
 of each daily backup in a folder (e.g. a mounted drive) or S3-compatible storage (Backblaze B2,
 Cloudflare R2, AWS S3, Wasabi). Keep the passphrase in your password manager: without it the copies
-can't be opened. Settings → Data & health → Health shows the model, disk space, backups, memory, sandbox,
+can't be opened. Settings → Privacy & system → Health shows the model, disk space, backups, memory, sandbox,
 bridges and MCP servers at a glance; *Run full check* is the same as `sara doctor` and also reports
 whether the testing browser was found and how to install it when it is missing.
 
 ## Upgrading
 
-**Native install:** `sudo sara update`, or Settings → Data & health → Updates. Every update:
+**Native install:** `sudo sara update`, or Settings → Privacy & system → Updates. Every update:
 
 1. makes a backup (in `/var/lib/sara/backups`),
 2. gets the new version and reinstalls it (your data and `sara.env` are not touched),
@@ -662,13 +662,13 @@ of it; `node_modules` and similar rebuildable folders in workspaces are left out
 | `SARA_CLAUDE_BIN` / `SARA_GROK_BIN` | (found on the PATH) | Where the Claude Code / Grok program is, if not in `SARA_AGENTS_DIR` or on the PATH |
 | `SARA_BROWSER` | (found by itself) | Path to a Chromium-family browser for testing previews |
 | `SARA_REPORT_TO` | the developer's report inbox | Where a reply you report with ⚑ is also sent (`https://sara.backstagecoding.com/api/public/report`). `off` = never send reports anywhere; they stay on your server |
-| `SARA_PRIVATE_LOCAL` | unset | Phase 67: `1` = *Nothing leaves this computer* is always on (can't be turned off in the app); `start` = on until the owner turns it off in Settings → Models → On this computer. Only this computer (`127.0.0.1`, `::1`, `localhost`) is reached. See [PRIVATE_LOCAL.md](PRIVATE_LOCAL.md) |
+| `SARA_PRIVATE_LOCAL` | unset | Phase 67: `1` = *Nothing leaves this computer* is always on (can't be turned off in the app); `start` = on until the owner turns it off in Settings → Models & usage → On this computer. Only this computer (`127.0.0.1`, `::1`, `localhost`) is reached. See [PRIVATE_LOCAL.md](PRIVATE_LOCAL.md) |
 | `SARA_RESTORE_DRILL` | unset | EC28, internal: set only by the restore drill (`src/restore-drill.ts`) on the throwaway copy it boots. `1` = answer health and sign-in but start no workers, chat apps, plugins, tool servers or backups. Never set it on a real server. See [RECOVERY.md](RECOVERY.md) |
 | `SARA_PERSONA` | `persona/sara.json` | The character file a new install starts from |
 | `SARA_BACKUP_PASSPHRASE` | (none) | Passphrase for restoring an encrypted `.enc` off-server copy without being asked (Docker, Mac) |
 | `SARA_TOOLS_USER` | (none; `sara-tools` in Docker) | A separate user her commands run as when there's no bubblewrap (set by the Docker image) |
 | `SARA_LOG_FORMAT` | `text` | How her log lines look on the console (the journal, `docker logs`): `text` (the message, as always) or `json` (one JSON object per line: `t`, `level`, `msg`). See [Logs](#logs) |
-| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file. Without it the owner picks the level in Settings → Data & health → Health → *Log level*; when set, it wins |
+| `SARA_LOG_LEVEL` | `info` | Quietest lines kept: `debug`, `info`, `warn` or `error`. Applies to the console and every log file. Without it the owner picks the level in Settings → Privacy & system → Health → *Log level*; when set, it wins |
 | `SARA_LOG_FILE` / `SARA_LOG_MAX_MB` / `SARA_LOG_KEEP` | (none) / `10` / `5` | An extra log file (in `SARA_LOG_FORMAT`), rotated by Sara herself when it reaches the size, keeping that many older files (`.1` newest) |
 | `SARA_DEMO` / `SARA_DEMO_DAILY` | (off) / `300` | Demo server mode and its daily message limit (set by `install-demo.sh`) |
 | `SARA_DEMO_CALL_CODE` / `SARA_DEMO_CALL_MINUTES_PER_DAY` | (off) / `30` | Demo: reviewer code that unlocks live calls (unset = no calls in the demo), and call minutes a day for everyone |
@@ -686,14 +686,14 @@ systems set it up together with the desktop app. What differs from Linux:
   writable, and your whole home folder (documents, photos, mail, keys) and her data folder are
   hidden. Windows has no
   sandbox, so the shell and background-job tools ask you before every command (you can still set a
-  tool to *Allowed* in Settings → Coding → Tools and approvals).
-- **Updates:** Settings → Data & health → Updates checks the newest release and links its download
+  tool to *Allowed* in Settings → Skills & tools → Tools and approvals).
+- **Updates:** Settings → Privacy & system → Updates checks the newest release and links its download
   page; running the new installer updates Sara in place.
 - **Local voice** (piper/whisper) is Linux only for now: use Grok or OpenAI voice.
 - **Windows:** see [Windows: one installer](#windows-one-installer-for-her-server-and-the-app) above.
 - **Installer variables:** `SARA_DATA` (data folder), `SARA_PORT`, `SARA_ACCESS` (`local`,
   `tailscale`, `domain` or `lan`) and `SARA_PUBLIC_URL` (the address to open on a phone; shown with a
-  QR code in Settings → Data & health → Health), `SARA_INSTALLED=1` (admin hints then say `sara …`).
+  QR code in Settings → Privacy & system → Health), `SARA_INSTALLED=1` (admin hints then say `sara …`).
 - **Admin flags** (wrapped by the `sara` command): `node src/main.ts --version`, `--status`,
   `--doctor`, `--backup [file]` (add `--no-workspaces` to leave her coding workspaces out),
   `--restore <file>`, `--reset-token`, and `--tailscale-status` (JSON: installed, running, DNS name,
@@ -773,7 +773,7 @@ On a systemd installation, you can also check the service journal with `sudo jou
 | Setting | What it does |
 |---|---|
 | `SARA_LOG_FORMAT=json` | The console gets one JSON object per line (`{"t":"…","level":"warn","msg":"…"}`) for log collectors (Loki, Vector, Datadog, `jq`). Default `text`: the message as before (journald and Docker add their own timestamps) |
-| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures. The same choice is in Settings → Data & health → Health → *Log level* (saved, applied at once); the environment variable wins while it is set |
+| `SARA_LOG_LEVEL=warn` | Leaves out quieter lines everywhere. `debug` shows extra detail, `info` is the default, `error` only failures. The same choice is in Settings → Privacy & system → Health → *Log level* (saved, applied at once); the environment variable wins while it is set |
 | `SARA_LOG_FILE=/var/log/sara/sara.log` | Also writes every line to this file (text lines with a timestamp and level, or JSON with `SARA_LOG_FORMAT=json`). Sara rotates it herself: at `SARA_LOG_MAX_MB` (default 10) it becomes `sara.log.1`, older ones move up to `SARA_LOG_KEEP` (default 5) and the oldest is deleted. The folder must be writable by her user (`sudo mkdir /var/log/sara && sudo chown sara /var/log/sara`) |
 
 - **systemd (Linux):** the console goes to the journal, which rotates and limits itself (`journalctl --disk-usage`; limits in `/etc/systemd/journald.conf`, `SystemMaxUse=`). Nothing else is needed; `SARA_LOG_FORMAT=json` makes `journalctl -u sara -o cat | jq` work.
@@ -794,7 +794,7 @@ On a systemd installation, you can also check the service journal with `sudo jou
 - **Replies arrive all at once**: your proxy buffers responses; turn buffering off (see above).
 - **Signed in, but thrown out again right away (behind HTTPS)**: Sara doesn't know she's behind a
   proxy. Run `sudo SARA_BEHIND_PROXY=1 /opt/sara-src/deploy/install.sh`.
-- **Settings → Data & health → Updates says it can't update / `git` "dubious ownership"**: the checkout isn't
+- **Settings → Privacy & system → Updates says it can't update / `git` "dubious ownership"**: the checkout isn't
   root's. Move it: `sudo mv ~/sara /opt/sara-src && sudo chown -R root:root /opt/sara-src && sudo
   /opt/sara-src/deploy/install.sh`.
 - **Tool sandbox says `none`**: install `bubblewrap` (`apt install bubblewrap` / `dnf install

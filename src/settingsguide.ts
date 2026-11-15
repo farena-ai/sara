@@ -14,7 +14,7 @@ import type { Tool } from './tools/types.ts';
 const WEB = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'web');
 
 export interface GuideEntry {
-  /** What it is, e.g. "Jealousy (Settings → Her → Relationship)". */
+  /** What it is, e.g. "Jealousy (Settings → Sara → Relationship)". */
   title: string;
   text: string;
   /** In-app link (/#view=…, /#tour=…) or the guide (/help#…). */
@@ -143,13 +143,13 @@ export function guideEntries(webDir = WEB): GuideEntry[] {
   // Dials: personality (Name and personality page) and relationship (Relationship page).
   for (const t of TRAITS) {
     const page = t.group === 'Together' ? 'her-relationship' : 'her-character';
-    const pageName = t.group === 'Together' ? 'Relationship (Settings → Her)' : t.group === 'Work' ? 'At work, coding conversations only (Settings → Her → Name and personality)' : 'Personality studio (Settings → Her → Name and personality)';
+    const pageName = t.group === 'Together' ? 'Relationship (Settings → Sara)' : t.group === 'Work' ? 'At work, coding conversations only (Settings → Sara → Name and personality)' : 'Personality studio (Settings → Sara → Name and personality)';
     add(`${t.label} dial (${pageName})`, `${t.tip} The slider runs from "${t.low}" to "${t.high}"; the middle is balanced. Low: ${t.examples[0]} Middle: ${t.examples[1]} High: ${t.examples[2]}`, `/#view=settings:${page}`, t.id, t.group === 'Together' ? 'Relationship' : 'Name and personality');
   }
   // Phase 51: the "Quiet when I'm focused" switch, next to the work dials.
-  add(`${QUIET_FOCUS.label} switch (At work, Settings → Her → Name and personality)`, QUIET_FOCUS.tip, '/#view=settings:her-character', 'quiet focused work mode', 'Name and personality');
+  add(`${QUIET_FOCUS.label} switch (At work, Settings → Sara → Name and personality)`, QUIET_FOCUS.tip, '/#view=settings:her-character', 'quiet focused work mode', 'Name and personality');
   // Model jobs.
-  for (const j of JOBS) add(`${j.label}: the model for this job (Settings → Models → Which model does what)`, j.tip, '/#view=settings:models-routes', `${j.id} model job`, 'Which model does what');
+  for (const j of JOBS) add(`${j.label}: the model for this job (Settings → Models & usage → Which model does what)`, j.tip, '/#view=settings:models-routes', `${j.id} model job`, 'Which model does what');
   // The guide, one entry per section.
   const help = readFileSync(join(webDir, 'help.html'), 'utf8');
   const parts = [...help.matchAll(/<h2 id="([\w-]+)">([^<]+)<\/h2>([\s\S]*?)(?=<h2 id=|<\/main>|$)/g)];

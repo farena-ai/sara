@@ -43,4 +43,4 @@ With the switch on, the owner token as an `Authorization: Bearer` header only wo
 from elsewhere use a device code or an API key.
 
 Servers set up before this version keep it **off** and show a one-time notice; new servers start with
-it on. An admin can pin it on (Data & health → Policy → *Keep new-device approval on*).
+it on. An admin can pin it on (Household → Policy → *Keep new-device approval on*).

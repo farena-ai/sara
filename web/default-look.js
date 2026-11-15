@@ -1,13 +1,13 @@
 // The built-in looks (src/default-look.ts): Sara (she), a male default (he) and a they/them default.
 // Until a custom look exists, the one matching her pronouns shows ("auto"), or the one picked by name
-// in Settings → Her → Look. When the pronouns change while a built-in look shows, the owner is asked
+// in Settings → Sara → Look. When the pronouns change while a built-in look shows, the owner is asked
 // once whether to switch to the matching one; the pictures update at once either way (no reload).
 import { t } from './naming.js';
 
 let deps = { api: async () => ({}), onChange: () => {} };
 let lastPronouns;
 
-/** Shows the built-in look picker (Settings → Her → Look) from GET /api/look. */
+/** Shows the built-in look picker (Settings → Sara → Look) from GET /api/look. */
 export function renderDefaultLook(l) {
   const sel = document.querySelector('#look-default');
   if (!sel || !l?.defaults) return;

@@ -19,7 +19,7 @@ export const DEFAULT_DISCORD_VOICE: DiscordVoiceSettings = { on: false, guildId:
 
 export const DISCORD_VOICE_LINES = {
   noTransport: en('Discord voice needs a voice library (Discord’s voice connection and the Opus codec) that Sara doesn’t include yet, so it stays off.'),
-  noBridge: en('Connect Discord first (Settings → Chat apps → Discord).'),
+  noBridge: en('Connect Discord first (Settings → Connections → Apps and services → Discord).'),
   noChannel: en('Pick the voice channel first (its server ID and channel ID).'),
 } as const;
 

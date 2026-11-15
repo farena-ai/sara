@@ -20,18 +20,18 @@ export function livesLines(counts: Record<string, number>, config: Proposal[], c
   if (counts.persona) add('SOUL.md / persona files', 'Settings → Her (her character sheet)', 'her');
   if (counts.memories || counts.profile) add('MEMORY.md / USER.md', 'Settings → Memory (her notes; archived ones are searchable)', 'memory');
   if (counts.conversations) add('Sessions', 'Past conversations (archived, original dates)');
-  if (counts.skills) add('Skills', 'Settings → Add-ons → Skills', 'skills');
+  if (counts.skills) add('Skills', 'Settings → Skills & tools → Skills', 'skills');
   if (counts.tasks || counts.reminders) add('Cron jobs', 'Your planner (tasks and reminders)', 'planner');
   if (counts.cards) add('Kanban', board ? 'The board' : 'Your planner');
   if (counts.people) add('People tables', people ? 'People' : 'Her notes, tagged with the name');
-  if (counts.goals) add('Goals and intentions', 'Settings → Her → Her own plans (paused)', 'agenda');
+  if (counts.goals) add('Goals and intentions', 'Settings → Sara → Her own plans (paused)', 'agenda');
   for (const p of config) {
     if (p.kind === 'knob' && p.state !== 'confirmed') continue;
     add(`${p.title} (${p.from.split('#').at(-1)})`, p.lives, p.page);
   }
   for (const c of code) {
     const t = c.translation;
-    const now = t.type === 'rule' ? 'Settings → Her → How she talks (a rule line)' : t.type === 'guard' ? `Settings → Coding → Tools and approvals (${t.tool} asks first)` : t.type === 'rebuild' ? 'A rebuild plan (Rebuild as a Sara plugin)' : t.type === 'flag' ? 'Needs you (not translated)' : (t.where ?? t.feature ?? 'Left behind');
+    const now = t.type === 'rule' ? 'Settings → Sara → How she talks (a rule line)' : t.type === 'guard' ? `Settings → Skills & tools → Tools and approvals (${t.tool} asks first)` : t.type === 'rebuild' ? 'A rebuild plan (Rebuild as a Sara plugin)' : t.type === 'flag' ? 'Needs you (not translated)' : (t.where ?? t.feature ?? 'Left behind');
     add(`${c.kind} "${c.name}"`, now, t.page);
   }
   return out.slice(0, 400);
@@ -49,7 +49,7 @@ export function herMessage(name: string, agent: string, r: Report): string {
   if (r.translated.length) lines.push('', `Translated into how things work here (${sum(r.translated)}):`, ...r.translated.slice(0, 20).map((l) => `• ${l.text}`));
   if (r.needsYou.length) lines.push('', `I need you for these (${sum(r.needsYou)}):`, ...r.needsYou.slice(0, 15).map((l) => `• ${l.text}`), ...(r.needsYou.length > 15 ? [`• …and ${r.needsYou.length - 15} more on the Move in page.`] : []));
   lines.push('', `Left behind on purpose (${sum(r.leftBehind)}): ${r.leftBehind.slice(0, 8).map((l) => l.text).join('; ') || 'nothing'}${r.leftBehind.length > 8 ? '; and more on the Move in page' : ''}.`);
-  lines.push('', 'None of the old hooks or plugins ran: I read them as text. Keys never moved with me, so the services that need one are waiting for you.', `You can undo this move-in for ${UNDO_DAYS} days in Settings → Data & health → Move in from another agent.`);
+  lines.push('', 'None of the old hooks or plugins ran: I read them as text. Keys never moved with me, so the services that need one are waiting for you.', `You can undo this move-in for ${UNDO_DAYS} days in Settings → Privacy & system → Move in and export → Move in from another agent.`);
   return lines.join('\n');
 }
 
@@ -120,7 +120,7 @@ export function rebuildTask(app: AppContext, batchId: string, key: string): { co
     '',
     'The old code is in old-code/ as .txt files: reference text only. Do not run it, rename it or copy it in.',
     'Write a new ST3 plugin from scratch: sara-plugin.json (start from the draft below) and its main file. Ask only for the permissions it really needs.',
-    'It is installed through Settings → Add-ons → Plugins, with the permission review card.',
+    'It is installed through Settings → Skills & tools → Plugins, with the permission review card.',
     '',
     '```json',
     JSON.stringify(plan.manifest, null, 2),

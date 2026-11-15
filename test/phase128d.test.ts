@@ -138,18 +138,26 @@ test('128d.6 C1: the split moved code only: the modules\' keys and ids equal the
   for (const f of MODULES) for (const id of new Set(keysIds(web(f)).ids)) assert.ok(html.includes(`id="${id}"`) || ['settings-nav-list'].includes(id), `${f}: #${id} on the page`);
 });
 
-test('128d.7 the Settings paths in the guide and the app use the 8 groups (no "Abilities →" or a chat app under "Connections →")', () => {
+// SETTINGS3 (docs/design/SETTINGS3.md): the chat apps are tiles again under Connections › Apps and services,
+// so the check is now that no path names a group that is gone (Add-ons, Chat apps, Data & health, Coding, Her).
+test('128d.7 the Settings paths in the guide and the app use the SETTINGS3 groups (no "Abilities →", "Add-ons →", "Chat apps →", "Data & health →")', () => {
   const chatApps = ['Telegram', 'Discord', 'Signal', 'Email', 'WhatsApp', 'Matrix', 'iMessage', 'Pick up across apps'];
   const files = ['help.html', 'index.html', 'tips.json', 'howto.json', ...MODULES, 'app.js', 'store.js', 'packs.js', 'movein.js', 'persist.js', 'refs.js', 'lean.js', 'ssh.js', 'skills.js', 'plugins.js', 'pickup.js'];
   for (const f of files) {
     const s = web(f);
     assert.doesNotMatch(s, /Abilities\s*(?:→|&rarr;)/, `${f}: "Abilities →"`);
-    for (const a of chatApps) assert.ok(!new RegExp(`Connections\\s*(?:→|&rarr;)\\s*${a}\\b`).test(s), `${f}: Connections → ${a}`);
+    for (const a of chatApps) assert.ok(!new RegExp(`Connections\\s*(?:→|&rarr;)\\s*${a}\\b`).test(s), `${f}: Connections → ${a} (they are under Apps and services)`);
+    assert.doesNotMatch(s, /(?:Add-ons|Chat apps|Data (?:&|&amp;) health)\s*(?:→|&rarr;)/, `${f}: a gone group in a path`);
+    assert.doesNotMatch(s, /Settings\s*(?:→|&rarr;)\s*(?:Her|Coding|Models)\s*(?:→|&rarr;)/, `${f}: Settings → Her/Coding/Models →`);
   }
   for (const l of ['es', 'fr', 'de', 'pt-BR', 'it']) {
     const d = JSON.parse(web(`i18n/${l}.json`)) as Record<string, string>;
     assert.equal(Object.keys(d).filter((k) => /Abilities\s*(?:→|&rarr;)/.test(k)).length, 0, `${l}: no old key left`);
   }
-  // The one-release search alias for the old names is still there (docs/design/POLISH2.md Q2).
-  assert.match(web('settings-nav.js'), /const SETTINGS_WAS = \{/);
+  // The one-release search alias for the old names is still there (docs/design/POLISH2.md Q2), now with
+  // the five names SETTINGS3 retired.
+  const nav = web('settings-nav.js');
+  assert.match(nav, /const SETTINGS_WAS = \{/);
+  const was = nav.slice(nav.indexOf('const SETTINGS_WAS = {'), nav.indexOf('};', nav.indexOf('const SETTINGS_WAS = {')));
+  for (const g of ['Her', "'Chat apps'", "'Add-ons'", 'Coding', "'Data & health'"]) assert.ok(was.includes(`\n  ${g}: [`), g);
 });

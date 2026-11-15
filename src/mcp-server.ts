@@ -654,7 +654,7 @@ async function gated(cx: CallContext, tool: string | null, name: string, summary
   const alwaysAsk = rest.length === 2 && rest[0].alwaysAsk;
   const set = tool ? cx.app.tools.permission(tool, cx.app.settings.get().toolPermissions) : 'ask';
   const perm = alwaysAsk && set === 'auto' ? 'ask' : set;
-  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : 'notes'} for ${cx.app.persona.name} (Settings → Coding → Tools and approvals).`;
+  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : 'notes'} for ${cx.app.persona.name} (Settings → Skills & tools → Tools and approvals).`;
   if (perm === 'auto') return run();
   if (!cx.deps.requestApproval) return 'This needs the owner’s OK, and approvals aren’t available here.';
   // Changes wait in their own conversation, so ask_sara isn't blocked while the owner decides.
@@ -711,7 +711,7 @@ async function dispatch(msg: RpcRequest, version: string, modern: boolean, cx: C
       const tool = toolsFor(app).find((t) => t.name === name);
       if (!tool) {
         const hidden = TOOLS.find((t) => t.name === name);
-        if (hidden?.write) return done({ content: [{ type: 'text', text: `${name} is off: the owner can turn on “Let other apps change things” in Sara (Settings → Connections → Other apps).` }], isError: true });
+        if (hidden?.write) return done({ content: [{ type: 'text', text: `${name} is off: the owner can turn on “Let other apps change things” in Sara (Settings → Connections → Apps and services → Other apps).` }], isError: true });
         throw new RpcError(-32602, `Unknown tool: ${name.slice(0, 60)}`);
       }
       const args = (params.arguments && typeof params.arguments === 'object' && !Array.isArray(params.arguments) ? params.arguments : {}) as Json;
@@ -748,7 +748,7 @@ export async function handleMcp(req: IncomingMessage, res: ServerResponse, deps:
   if (deps.demo) return writeJson(res, 404, { jsonrpc: '2.0', error: { code: -32600, message: 'MCP is off on the demo server.' } });
   const s = otherAppsSettings(deps.app.settings.get());
   // DNS rebinding / other web pages: an Origin must be this site or one the owner allowed.
-  if (!corsAllowed(req, res, s)) return writeJson(res, 403, { jsonrpc: '2.0', error: { code: -32600, message: 'This web address may not use Sara’s MCP server. Allow it in Settings → Connections → Other apps.' } });
+  if (!corsAllowed(req, res, s)) return writeJson(res, 403, { jsonrpc: '2.0', error: { code: -32600, message: 'This web address may not use Sara’s MCP server. Allow it in Settings → Connections → Apps and services → Other apps.' } });
   if (method === 'OPTIONS') {
     res.writeHead(204, HEADERS);
     return void res.end();
@@ -760,7 +760,7 @@ export async function handleMcp(req: IncomingMessage, res: ServerResponse, deps:
   const caller = callerOf(req, deps.auth);
   if (!caller) {
     res.setHeader('www-authenticate', 'Bearer realm="sara"');
-    return writeJson(res, 401, { jsonrpc: '2.0', error: { code: -32001, message: 'Missing or wrong API key. Make one in Sara: Settings → Connections → Other apps → Create an API key.' } });
+    return writeJson(res, 401, { jsonrpc: '2.0', error: { code: -32001, message: 'Missing or wrong API key. Make one in Sara: Settings → Connections → Apps and services → Other apps → Create an API key.' } });
   }
   const wait = deps.limiter.take(`mcp:${caller.id}`);
   if (wait) {

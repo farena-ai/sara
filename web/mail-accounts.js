@@ -1,4 +1,4 @@
-// M1 (docs/EMAIL.md): Settings → Add-ons → Email and calendar. Every mailbox she can read: the list
+// M1 (docs/EMAIL.md): Settings → Connections → Apps and services → Email and calendar. Every mailbox she can read: the list
 // (provider, address, default, Test, Remove) and three ways to add one: Gmail (its own page),
 // Outlook / Microsoft 365 (numbered steps for the owner's own Microsoft app, the redirect address to
 // copy, then Sign in with Microsoft) and another provider (pick it, the app-password steps, Add and

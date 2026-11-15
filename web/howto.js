@@ -41,6 +41,8 @@ export function howtoForStep(step) {
 export function showMe(sel, doc = document) {
   const hit = [...doc.querySelectorAll(sel)].find((n) => n.getClientRects().length) ?? doc.querySelector(sel);
   if (!hit) return false;
+  // SETTINGS3 S3: a control inside a closed Advanced fold opens it first.
+  for (let d = hit.closest('details:not([open])'); d; d = d.parentElement?.closest('details:not([open])')) d.open = true;
   const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   hit.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' });
   hit.classList.remove('howto-pulse');

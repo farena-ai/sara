@@ -1,4 +1,4 @@
-// EC7 (docs/ops/EC7_DESIGN.md): Settings → Chat apps → Microsoft Teams. Before it is added: what it
+// EC7 (docs/ops/EC7_DESIGN.md): Settings → Connections → Apps and services → Microsoft Teams. Before it is added: what it
 // is, what he needs and Start. After that the shared stepper (web/setup-card.js): one step open at a
 // time, the exact Azure and Teams screens as a numbered list, a check Sara runs; a step turns ✓ only
 // when Sara checked it. Teams must call Sara, so step 3 says plainly what that needs (a public https

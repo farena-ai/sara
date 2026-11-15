@@ -1,4 +1,4 @@
-// Phase 57: character cards in Settings → Her → Name and personality (the gallery). Import a card
+// Phase 57: character cards in Settings → Sara → Name and personality (the gallery). Import a card
 // (SillyTavern / Character Card V2 and V3, PNG or JSON) or a Sara character file with the one
 // Import button or by dropping the file,
 // see a preview first, then make her that character or add the character as a new companion.

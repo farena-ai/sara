@@ -3,7 +3,7 @@
 ## Common questions
 
 **What happens if Sara stops during a job or message send?**
-Open Settings → Data & health → Readiness and recovery. Jobs offer review of a fresh restart; teams remain held
+Open Settings → Privacy & system → Health → Readiness and recovery. Jobs offer review of a fresh restart; teams remain held
 until explicit recovery. An uncertain native message stays unknown instead of being blindly sent
 again. Check the destination first. See [Recovery](RECOVERY.md) for supported paths and limits.
 
@@ -46,10 +46,10 @@ On the server: `sudo sara reset-token` (Windows: `sara reset-token`; Mac: `sara 
 
 **How do I back her up, or move her to another computer?**
 She backs up every day by herself (the last 7 are kept). For a copy somewhere else, set up the
-off-server copy in Settings → Data & health → Backups. Moving: [MOVING.md](MOVING.md).
+off-server copy in Settings → Privacy & system → Backups. Moving: [MOVING.md](MOVING.md).
 
 **How do I update her?**
-Linux: `sudo sara update` or Settings → Data & health → Updates. Windows and Mac: run the newer
+Linux: `sudo sara update` or Settings → Privacy & system → Updates. Windows and Mac: run the newer
 installer (Updates links the download). Only the latest version gets fixes
 ([SECURITY.md](../SECURITY.md#supported-versions)).
 
@@ -62,7 +62,7 @@ approvals. On Windows she asks before every command.
 Only if you allow it, on Telegram or Discord. Those are *partner chats* (see below).
 
 **Can I have more than one companion?**
-Yes: Settings → Her → Companions. Each has her own name, character, look, voice, conversations and
+Yes: Settings → Sara → Companions. Each has her own name, character, look, voice, conversations and
 memories.
 
 **Something's wrong. Where do I start?**
@@ -102,7 +102,7 @@ default, can only be turned on in a web browser, with an "I am 18 or older" conf
 block on sexual content involving minors applies whatever the setting.
 
 **Background model**: the model for behind-the-scenes work ("Memory and summaries" in Settings →
-Models → Which model does what): noting what matters, summaries, learning from documents. A fast,
+Models & usage → Which model does what): noting what matters, summaries, learning from documents. A fast,
 cheap or local model is fine.
 
 **Meaning search**: finding things said in other words, using an embedding model such as
@@ -115,7 +115,7 @@ OS-isolated, so she asks before every command.
 Health reports execution isolation separately from approval policy: **asking first is not
 isolation**. A warning about an unavailable sandbox can therefore appear even when every command
 needs approval. Keep those approvals on; for isolated trials, use a supported isolation driver
-in Coding → Tools and approvals. A copy-and-diff trial alone is not OS isolation.
+in Skills & tools → Tools and approvals. A copy-and-diff trial alone is not OS isolation.
 
 **Workspace**: the folder for a coding project, where she reads, writes and runs things.
 

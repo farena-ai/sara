@@ -26,7 +26,7 @@ export interface PriceTag {
   source: 'built-in' | 'add-on' | 'owner';
 }
 
-/** The owner's limits and own prices (Settings → Data & health → Usage and costs → Spend limits). */
+/** The owner's limits and own prices (Settings → Models & usage → Usage and costs → Spend limits). */
 export interface SpendSettings {
   /** 0 = no limit. US dollars, counted in the owner's time zone. */
   dayUsd: number;

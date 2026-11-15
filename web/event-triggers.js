@@ -1,4 +1,4 @@
-// C4 (docs/ops/C4_DESIGN.md, docs/TRIGGERS.md): Settings → Connections → Webhooks → "When this
+// C4 (docs/ops/C4_DESIGN.md, docs/TRIGGERS.md): Settings → Connections → Apps and services → Webhooks → "When this
 // happens". A trigger listens to one source (a new email, a Slack or Teams message, one of your
 // webhooks, a tool server's event), checks its filter and then runs your instruction or one of your
 // crews with the event as input. Each has a daily run cap and token budget, a pause switch and a

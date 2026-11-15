@@ -5,7 +5,7 @@ Sara2.70.0 installation and registered-host checks on Windows and Linux. HTTP an
 Workbench additionally passed installation and scripted chat-approval checks against the
 current Sara2.71.0 source. Browse the
 [Developer collection](https://backstagecoding.com/sara/store/browse/category/developer/), or open
-**Settings → Add-ons → Get more** in Sara. Review permissions before installing; installation
+**Settings → Skills & tools → Get more** in Sara. Review permissions before installing; installation
 leaves the add-on Off until you explicitly enable it for a companion.
 
 Each package has a bounded supported scope, shown below and on its listing. The remaining
@@ -124,7 +124,7 @@ offered in their place.
 
 ## Developer MCP connections (M01–M30)
 
-Settings → Add-ons → Other programs (MCP) → **Developer connections** lists all thirty MCP
+Settings → Skills & tools → Other programs (MCP) → **Developer connections** lists all thirty MCP
 targets: 2 fixture-tested, 22 needing your account or service, 6 blocked.
 
 | State | Targets | What you can do |

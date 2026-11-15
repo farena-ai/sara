@@ -1,5 +1,5 @@
 // C13 (docs/ops/C13_DESIGN.md): co-authored commits and the pull-request draft.
-// - Her commits carry a `Co-authored-by:` trailer (Settings → Coding → GitHub; on by default, the
+// - Her commits carry a `Co-authored-by:` trailer (Settings → Connections → Apps and services → GitHub; on by default, the
 //   companion's name with a noreply address that can't reach anybody).
 // - The pull-request helper drafts a title and body from the branch's commit subjects and diff
 //   stat; opening it goes through the GitHub connection and needs the owner's OK.

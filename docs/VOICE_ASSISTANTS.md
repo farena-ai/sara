@@ -11,7 +11,7 @@ happens there through Home Assistant. Each way is optional and set up on its own
 | **Home Assistant voice** (Voice PE, ESPHome satellites, the HA app) | Sara as the conversation agent | Home Assistant integration | Yes (since 1.x) |
 | **Siri** (iPhone) | "Ask Sara" → say your message → her reply in Siri | Nothing: comes with the iPhone app | Built and compiled; ships with the next iPhone app update |
 | **Siri / Shortcuts on a Mac** | A Shortcut that asks her through her API | A Shortcut with an API key (below) | Yes (no native Mac intent yet) |
-| **Presence** | She notices you got home, left, bedtime, morning lights | Settings → Add-ons → Home Assistant → Presence | Yes, via Home Assistant |
+| **Presence** | She notices you got home, left, bedtime, morning lights | Settings → Connections → Apps and services → Home Assistant → Presence | Yes, via Home Assistant |
 
 ## The same rules everywhere
 
@@ -80,7 +80,7 @@ The Mac app is a small native wrapper built without Xcode's project system, so i
 App Intents yet. Until it does, a Shortcut can ask her through her **OpenAI-compatible API**
 (works on Mac, iPhone and iPad, with or without the app):
 
-1. In Sara: Settings → Connections → Other apps → **Create an API key** (name it "Shortcuts").
+1. In Sara: Settings → Connections → Apps and services → Other apps → **Create an API key** (name it "Shortcuts").
 2. Shortcuts app → new shortcut named **Ask Sara**:
    - **Ask for Input** (Text, prompt "What do you want to tell her?")
    - **Get Contents of URL**: `https://<her address>/v1/chat/completions`, Method **POST**,
@@ -92,7 +92,7 @@ App Intents yet. Until it does, a Shortcut can ask her through her **OpenAI-comp
 
 ## Presence (through Home Assistant)
 
-**Settings → Add-ons → Home Assistant → Presence**, per companion, off until you switch it on:
+**Settings → Connections → Apps and services → Home Assistant → Presence**, per companion, off until you switch it on:
 
 - Pick the **people or phones** to watch (`person.…` or `device_tracker.…` from Home Assistant),
   and what she reacts to: **getting home**, **leaving**, **bedtime** (a switch or input_boolean

@@ -379,7 +379,7 @@ export class HistoryImporter {
         now.paused = true;
         now.ids.unshift(id);
         now.failed--;
-        this.#status = { ...this.#status, message: `Paused: the background model didn't answer (${r?.error ?? 'error'}). Check Settings → Models, then press Resume.` };
+        this.#status = { ...this.#status, message: `Paused: the background model didn't answer (${r?.error ?? 'error'}). Check Settings → Models & usage, then press Resume.` };
       }
       this.#saveQueue(now);
       if (!now.ids.length) {

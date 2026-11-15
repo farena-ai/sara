@@ -42,8 +42,8 @@ export const VIEW_TITLES: Record<string, string> = {
 };
 export const VIEWS_HEADING = 'Chat and the main views';
 /** Settings groups in the order of the Settings menu. */
-// Phase 128 (PL2b, POLISH2 §4.2): the 8 groups of 2.61.1 (test/phase128b checks this equals SETTINGS_GROUPS in web/app.js).
-export const GROUP_ORDER = ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household'];
+// SETTINGS3: 6 groups + Household (test/phase128b checks this equals SETTINGS_GROUPS in web/settings-nav.js).
+export const GROUP_ORDER = ['Sara', 'You', 'Models & usage', 'Connections', 'Skills & tools', 'Privacy & system', 'Household'];
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 

@@ -33,12 +33,12 @@ per press), so a large history never runs up a bill or keeps a local model busy 
 When a photo comes in she writes one or two short sentences as her memory of the moment: what you
 two were talking about (the six lines before the photo and two after), in her own personality and
 the language you talk in. Photos **from you** go to the *Looking at pictures* model (Settings →
-Models → Which model does what) when one can see pictures (Ollama reports it; other providers by
+Models & usage → Which model does what) when one can see pictures (Ollama reports it; other providers by
 model name), so she can say what's in them; otherwise the caption comes from the conversation only.
 Pictures **she** took use the scene she asked for.
 
 - **In the background, a few at a time:** three captions a minute at most, after the server has
-  been up for 30 seconds. Each call is metered as `moments` in Settings → Models → Usage.
+  been up for 30 seconds. Each call is metered as `moments` in Settings → Models & usage → Usage.
 - **Cost note:** the album says which model writes them: *on your own hardware (free)*, *through your
   plan* (subscriptions), or *a paid model, about $X per 100 captions* (from your price table; if the
   price isn't known it says so).
@@ -103,7 +103,7 @@ the caption as its text.
 - Adults-only photos are hidden while Adult mode is off, and always in the phone apps (store rules).
 - The demo server refuses the album and shows no *On this day* card.
 - Backups include it (it's in `sara.db`, and the photos in `uploads/`). The JSON export
-  (Data & health → Export) doesn't, like the scrapbook.
+  (Privacy & system → Move in and export) doesn't, like the scrapbook.
 - Captions go to the model that writes them: see [PRIVACY.md](PRIVACY.md).
 
 ## For developers

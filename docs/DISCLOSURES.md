@@ -59,7 +59,7 @@ relationships in your life, take breaks, and turn off "texting first" if it stop
   speaks to xAI. With the Grok sign-in they count toward your subscription's weekly usage; with an
   xAI API key they are billed to that key.
 - **Live calls and voice notes** (only if you use them): on a live call your voice is streamed
-  (through your Sara server) to the voice service chosen in Settings → Her → Voice → "Live calls with":
+  (through your Sara server) to the voice service chosen in Settings → Sara → Voice → "Live calls with":
   xAI's Grok voice or OpenAI's Realtime voice, and her spoken replies come back from that service's
   voice model; the words are saved in your conversation like typed messages. Grok calls use your
   Grok sign-in or an xAI API key; OpenAI calls use an OpenAI API key and are billed per use to that

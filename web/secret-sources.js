@@ -1,4 +1,4 @@
-// EC10 (docs/ops/EC10_DESIGN.md): Settings → Data & health → Operations → Secret sources. Lists
+// EC10 (docs/ops/EC10_DESIGN.md): Settings → Privacy & system → Health → Operations → Secret sources. Lists
 // where each server key comes from (Sara's vault or a reference) and whether it can be read now.
 // The server never sends a value; this view only shows names, references and status.
 import { t } from './naming.js';

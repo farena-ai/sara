@@ -1,4 +1,4 @@
-// EC26 (docs/ops/EC26_DESIGN.md): Settings → Her → At work. Her work profile (name, tone, which
+// EC26 (docs/ops/EC26_DESIGN.md): Settings → Sara → At work. Her work profile (name, tone, which
 // chats are work, work tools) and the two memory spaces with Copy to work / Copy to personal.
 // The server decides and refuses (the admin's workMode pin); this page only shows what it says.
 import { t } from './naming.js';

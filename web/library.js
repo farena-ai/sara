@@ -236,7 +236,7 @@ function showJob(d) {
   $('#lib-doc-ocr-ask').hidden = !ask;
   if (ask) {
     const e = job.estimate;
-    const cost = e.usd === null ? t('the cost is not known for this model (see Settings → Data & health → Usage and costs)') : t('about ${usd}', { usd: e.usd.toFixed(2) });
+    const cost = e.usd === null ? t('the cost is not known for this model (see Settings → Models & usage → Usage and costs)') : t('about ${usd}', { usd: e.usd.toFixed(2) });
     $('#lib-doc-ocr-text').textContent = t('{n} scanned pages need her picture model, {model} ({provider}). It runs in the cloud: {time}, {cost}.', { n: e.pages, model: e.model, provider: e.provider, time: duration(e.seconds), cost });
   }
 }
@@ -482,7 +482,7 @@ export async function openLibrary(docId, page = 0) {
   else showHome();
 }
 
-// ---------- Phase 74: the Library settings page (Settings → Add-ons → Library)
+// ---------- Phase 74: the Library settings page (Settings → Skills & tools → Library)
 const SPEED_WORDS = { 1: 'Gentle (chat always first)', 2: 'Normal', 3: 'Fast' };
 let speedSeg = null;
 function speedLabel() {

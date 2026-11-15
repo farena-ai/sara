@@ -7,7 +7,7 @@ and waits for your OK, and she reads each change back before she says it worked.
 
 ## Google Docs and Sheets
 
-- **Turn it on:** Settings → Add-ons → Gmail and Calendar → **Docs and Sheets** → *Allow Docs and
+- **Turn it on:** Settings → Connections → Apps and services → Gmail and Calendar → **Docs and Sheets** → *Allow Docs and
   Sheets*. Google shows a new permission page (the `documents` and `spreadsheets` permissions). A normal
   Google sign-in never asks for them; once allowed, later sign-ins keep them.
 - **Tools:** `gdoc_read`, `gdoc_append`, `gdoc_replace_text` (Docs API `batchUpdate`), `gsheet_read`,
@@ -20,7 +20,7 @@ and waits for your OK, and she reads each change back before she says it worked.
 
 ## Word and Excel in Microsoft 365
 
-- **Turn it on:** Settings → Add-ons → Email and calendar → **Word and Excel files** → *Allow Word and
+- **Turn it on:** Settings → Connections → Apps and services → Email and calendar → **Word and Excel files** → *Allow Word and
   Excel files* for an Outlook / Microsoft 365 account. Microsoft asks for `Files.ReadWrite`; the account
   remembers it (and asks for it again on renewal).
 - **Files:** a OneDrive/SharePoint link (Share → Copy link), a path like `/Documents/Budget.xlsx`, or an

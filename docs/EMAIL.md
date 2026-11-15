@@ -1,7 +1,7 @@
 # Your email and calendar: Gmail, Outlook and the rest
 
 Sara reads, searches, answers and tidies **your own** mailboxes, whichever provider they are at, and
-works with your calendar. Everything is set up in **Settings → Add-ons → Email and calendar**.
+works with your calendar. Everything is set up in **Settings → Connections → Apps and services → Email and calendar**.
 (Her *own* mailbox, the one you write to, is a different feature: [EMAIL_BRIDGE.md](EMAIL_BRIDGE.md).)
 
 ## Which providers
@@ -64,7 +64,7 @@ registered by someone for that; Sara can't ship a shared one without a publisher
 Microsoft's review, so you register your own, free. Since 3.3.0 it is a *public client* app: **no
 client secret** to make, copy or renew.
 
-Settings → Add-ons → Email and calendar → **Add Outlook or Microsoft 365** shows:
+Settings → Connections → Apps and services → Email and calendar → **Add Outlook or Microsoft 365** shows:
 
 1. **Make a free sign-in app at Microsoft (once).** Press *Open Microsoft app registrations*, sign
    in with the same Microsoft account as the mailbox (a personal Outlook.com account gets its own
@@ -147,7 +147,7 @@ folder except Deleted Items and Junk Email.
 ## Who can use it
 
 **Everyone in the household, each with their own mailboxes.** The owner connects theirs as above.
-A household member opens the same page (Settings → Add-ons → Email and calendar) in their own
+A household member opens the same page (Settings → Connections → Apps and services → Email and calendar) in their own
 space and adds their own:
 
 - **Outlook / Microsoft 365**: *Sign in with Microsoft* with their own Microsoft account. It uses the

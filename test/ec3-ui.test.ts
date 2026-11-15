@@ -11,7 +11,7 @@ const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
 
 test('the Monitoring section sits on the Operations page, owner only, hidden until loaded, no inline styles', () => {
   const page = /<section class="settings-page" data-page="dh-operations"[^>]*>([\s\S]*?)<\/section>/.exec(html)!;
-  assert.match(page[0], /data-group="Data & health"/);
+  assert.match(page[0], /data-group="Privacy & system" data-title="[^"]+" data-host="dh-health"/); // SETTINGS3: a section of Health
   assert.match(page[0], /data-owner-only/);
   const box = /<div id="mon-box"[^>]*>/.exec(page[1])!;
   assert.match(box[0], /\bhidden\b/);

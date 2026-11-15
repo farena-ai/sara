@@ -41,7 +41,7 @@ quiet hours (a slot inside them is skipped), two failures stop it, and private l
 
 **Tools keep your approval settings.** The card names the tools a routine uses (Price watch:
 `web_fetch`; Inbox triage: Gmail search and read). If one of them is set to *Ask* in Settings →
-Coding → Tools and approvals, the routine pauses at that step and tells you, exactly like a repeat
+Skills & tools → Tools and approvals, the routine pauses at that step and tells you, exactly like a repeat
 does; set it to run without asking yourself if you want it unattended. A tool set to *Never* stays never.
 
 ## My routines

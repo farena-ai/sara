@@ -751,7 +751,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { url, hasToken: true });
       }
     }
-    // Phase 57: Settings → Connections → Other apps: the switches, the allowed browser addresses and the keys.
+    // Phase 57: Settings → Connections → Apps and services → Other apps: the switches, the allowed browser addresses and the keys.
     // The stdio bridge for MCP apps that start a program (Claude Desktop): one standalone file.
     // Phase 72: Settings → Other apps → Alexa: the skill id (owner), one-time link codes, linked Alexas.
     if (a === 'alexa') {
@@ -844,7 +844,7 @@ export function createHomeAssistantApi(ctx: RouteCtx): (req: IncomingMessage, re
    * this token made itself (channel 'home-assistant', key `<device id>:…`): list them, make one, rename
    * one, read it, send a message, decline her approvals there. Nothing else: no other conversation, no
    * memories, files, settings or devices. Her turns run without her tools unless the owner lets other
-   * apps use them (Settings → Connections → Other apps), and with the external-app memory rule (M3).
+   * apps use them (Settings → Connections → Apps and services → Other apps), and with the external-app memory rule (M3).
    */
   async function homeAssistantApi(req: IncomingMessage, res: ServerResponse, method: string, parts: string[], deviceId: string): Promise<void> {
     const [a, b, c] = parts;

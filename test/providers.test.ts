@@ -236,9 +236,9 @@ test('openai-compatible: long tool calls report progress before the call arrives
 test('providers: errors a beginner hits are plain sentences with what to do, plus the provider\'s own words', () => {
   const openai = errorDetail('{"error":{"message":"Incorrect API key provided: sk-wro***00.","type":"invalid_request_error","code":"invalid_api_key"}}');
   assert.equal(openai, 'Incorrect API key provided: sk-wro***00.');
-  assert.equal(friendlyHttpError('OpenAI', 401, openai), "OpenAI didn't accept the key or sign-in. Check it in Settings → Models → OpenAI. (OpenAI said: Incorrect API key provided: sk-wro***00.)");
+  assert.equal(friendlyHttpError('OpenAI', 401, openai), "OpenAI didn't accept the key or sign-in. Check it in Settings → Models & usage → OpenAI. (OpenAI said: Incorrect API key provided: sk-wro***00.)");
   const ollama = errorDetail('{"error":{"message":"model \'qwen9:7b\' not found","type":"not_found_error"}}');
-  assert.match(friendlyHttpError('Ollama on my computer', 404, ollama, 'qwen9:7b'), /^Ollama on my computer doesn't have the model "qwen9:7b"\. Pick another one in Settings → Models, or download it with: ollama pull qwen9:7b\./);
+  assert.match(friendlyHttpError('Ollama on my computer', 404, ollama, 'qwen9:7b'), /^Ollama on my computer doesn't have the model "qwen9:7b"\. Pick another one in Settings → Models & usage, or download it with: ollama pull qwen9:7b\./);
   assert.match(friendlyHttpError('OpenRouter', 429, 'Rate limit exceeded'), /busy or the usage limit is reached/);
   assert.match(friendlyHttpError('OpenAI', 429, 'You exceeded your current quota'), /busy or the usage limit/);
   assert.match(friendlyHttpError('xAI', 402, ''), /needs credit or a paid plan/);

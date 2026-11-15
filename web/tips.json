@@ -1102,7 +1102,7 @@
       "memory"
     ],
     "cs-provider": [
-      "Use a different model service (one you added in Settings → Models) just for this conversation. Empty: the usual one.",
+      "Use a different model service (one you added in Settings → Models & usage) just for this conversation. Empty: the usual one.",
       "brain"
     ],
     "cs-model": [
@@ -1222,7 +1222,7 @@
       "usage"
     ],
     "team-budget-usd": [
-      "The most this one task may cost on paid models, estimated from the prices in Settings → Data & health → Usage and costs. Models on your own computer and subscriptions count as $0. The usual limit is set under Helpers and limits.",
+      "The most this one task may cost on paid models, estimated from the prices in Settings → Models & usage → Usage and costs. Models on your own computer and subscriptions count as $0. The usual limit is set under Helpers and limits.",
       "usage"
     ],
     "team-l-usd": [
@@ -1470,7 +1470,7 @@
       "budgets"
     ],
     "bud-quick": [
-      "Near a limit, the rest of the reply runs on your quick model (Models → Which model does what), if one is set and it's cheaper. Then she uses one more round of tools at most, then sums up.",
+      "Near a limit, the rest of the reply runs on your quick model (Models & usage → Which model does what), if one is set and it's cheaper. Then she uses one more round of tools at most, then sums up.",
       "budgets"
     ],
     "bud-on-limit": [

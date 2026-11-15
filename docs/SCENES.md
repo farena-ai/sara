@@ -12,7 +12,7 @@ Household-member scenes (R1B4) and multi-companion group chats are not part of i
 
 ## Where
 
-Settings → Chat apps → Session continuity → **Shared scenes**.
+Settings → Connections → Pick up across apps → Session continuity → **Shared scenes**.
 
 - **Use shared scenes in linked chats** (on by default). Off stops every scene from reaching her
   replies; every scene is kept and you can still open, unlink, reset or delete them.

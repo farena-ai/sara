@@ -50,7 +50,7 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
       }
       throw new HttpError(404, 'Not found');
     }
-    // EC10: where each server secret comes from (Settings → Data & health → Secret sources). Never a value.
+    // EC10: where each server secret comes from (Settings → Privacy & system → Secret sources). Never a value.
     if (a === 'secrets') {
       ownerOnly();
       const env = process.env;

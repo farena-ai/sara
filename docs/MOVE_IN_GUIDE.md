@@ -7,7 +7,7 @@ removes for 30 days. (Design: [design/MOVE_IN.md](design/MOVE_IN.md).)
 
 ## The easy way
 
-Open **Settings → Data & health → Move in from another agent** (or press **Ctrl K** and type
+Open **Settings → Privacy & system → Move in and export → Move in from another agent** (or press **Ctrl K** and type
 *move in*, *import hermes* or *import openclaw*).
 
 - **Old assistant on this computer.** Sara looks for it by herself and shows, for example,
@@ -91,7 +91,7 @@ you confirm it and press Import.
 
 - **Model providers** are matched to Sara's own list; pick another from the list if the match is
   wrong. Keys never move: a confirmed provider arrives with an empty key, and the report says where
-  to paste yours (*Settings → Models*). Subscription sign-ins (ChatGPT, Claude) become Sara's own
+  to paste yours (*Settings → Models & usage*). Subscription sign-ins (ChatGPT, Claude) become Sara's own
   sign-in; you sign in again. Models on the old computer are only added if Sara's server can reach
   them.
 - **Voice** switches to the same service and voice when Sara has it (paste that service's key in
@@ -120,7 +120,7 @@ Sara now, and her message about the move. **Download the report** saves it as a 
 
 ## Undo
 
-**Settings → Data & health → Move in → Past move-ins → Undo** (for 30 days). Sara shows how many
+**Settings → Privacy & system → Move in → Past move-ins → Undo** (for 30 days). Sara shows how many
 things will go first. Undo removes exactly what that move-in brought: notes, conversations, skills,
 tasks, reminders, cards, its board and the notes she learned from those conversations. It puts her
 old personality back and returns the settings it changed (providers it added are removed; a

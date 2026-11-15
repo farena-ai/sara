@@ -58,7 +58,7 @@ Sizes: **S** = an evening, **M** = a weekend.
 ## Web app
 
 7. **Character gallery: check it at phone width** (S)
-   Open Settings → Her → Name and personality → gallery on a 390-pixel-wide window and fix cards
+   Open Settings → Sara → Name and personality → gallery on a 390-pixel-wide window and fix cards
    that overflow or wrap badly (long tags, the "Try a line" row).
    *Where:* the `gallery-*` rules in [`web/style.css`](../web/style.css), cards built around
    `gallery-tags` in [`web/app.js`](../web/app.js).

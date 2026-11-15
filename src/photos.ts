@@ -151,7 +151,7 @@ export async function generatePhoto(d: PhotoDeps, scene: string, signal?: AbortS
   const key = await xaiImageKey(d).catch((e: Error) => {
     throw new ToolError(e.message);
   });
-  if (!key) throw new ToolError('No way to make pictures: sign in to Grok (Settings → Models → Subscriptions) or add an xAI key in Settings → Her → Voice.');
+  if (!key) throw new ToolError('No way to make pictures: sign in to Grok (Settings → Models & usage → Providers and plans → Subscriptions) or add an xAI key in Settings → Sara → Voice.');
   const ref = d.customPortrait() ?? readFileSync(join(d.webDir, PORTRAITS.portrait));
   const who = d.persona?.() ?? { name: 'Sara', pronouns: 'she' as const };
   const look = who.appearance ? ` (${who.appearance})` : '';

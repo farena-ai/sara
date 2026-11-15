@@ -212,7 +212,7 @@ async function addOne() {
   void loadWhenList();
 }
 
-// ---------------------------------------------------------------- Settings → You → When it comes up
+// ---------------------------------------------------------------- Settings → You → Briefing and reminders → When it comes up
 
 const IDS = { 'wm-on': ['on'], 'wm-confirm': ['confirm'], 'wm-per-reply': ['perReply'], 'wm-per-day': ['perDay'], 'wm-expires': ['expiresDays'], 'wm-gap': ['each', 'gapHours'], 'wm-fires': ['each', 'fires'], 'wm-calls': ['calls'], 'wm-rooms': ['rooms'] };
 const CHOICES = { 'wm-per-reply': 'perReply', 'wm-per-day': 'perDay', 'wm-expires': 'expiresDays', 'wm-gap': 'gapHours', 'wm-fires': 'fires' };

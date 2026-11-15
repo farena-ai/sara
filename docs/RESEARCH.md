@@ -11,7 +11,7 @@ research run instead of reading page after page in the chat. A card shows her pl
 with **Start**; after that the run works in the background with its own budget and its own context,
 and the same card shows how it goes and the report when it is done.
 
-You need **web search** set up first (*Settings → Add-ons → Web search*: Brave, Tavily, Ollama
+You need **web search** set up first (*Settings → Connections → Apps and services → Web search*: Brave, Tavily, Ollama
 web search or your own SearXNG). Connecting Ollama Cloud with a key turns Ollama web search on with
 the same key. Without web search she never promises to look things up: a message that asks her to
 search shows *"I can't search the web yet"* with a **Turn on web search** button (one tap when an
@@ -60,7 +60,7 @@ can't.
   with what she has** for a report without the model.
 - **Partial, never blank.** A report written early, cut short by the budget, stopped or written
   without the model starts with **Partial report** and lists what is missing.
-- **Small models.** Research uses the model you picked for *Web research* in *Settings → Models →
+- **Small models.** Research uses the model you picked for *Web research* in *Settings → Models & usage →
   Which model does what*. With none picked and a small talking model (14B or smaller by its name),
   she uses a bigger model you set for Planning, Coding or Writing; with none, the run takes short
   steps (a plan of up to 3 steps, fewer pages per search and a few notes per page kept with the

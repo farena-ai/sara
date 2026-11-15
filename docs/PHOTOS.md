@@ -1,6 +1,6 @@
 # Pictures from her
 
-Settings → Her → **Pictures from her**.
+Settings → Sara → **Pictures from her**.
 
 - **Pictures:** Off, only her own portraits (free), or her portraits and new pictures.
 - **Picture engine** (for new pictures):
@@ -8,7 +8,7 @@ Settings → Her → **Pictures from her**.
     subscription or an xAI API key.
   - **OpenAI images:** uses the OpenAI key from Settings → Models (billed per picture).
   - **A ComfyUI workflow:** runs on your own ComfyUI through the ComfyUI tool server
-    (Settings → Add-ons → Other programs (MCP)). Either pick a workflow you saved in ComfyUI
+    (Settings → Skills & tools → Other programs (MCP)). Either pick a workflow you saved in ComfyUI
     (**Saved in ComfyUI** → **Load the list**; Sara reads it converted to API format and keeps a copy,
     so pick it again after you change it in ComfyUI), or open the workflow in ComfyUI, choose
     **Workflow → Export (API)** and paste the file. Pick the node that takes the prompt (usually the
@@ -37,7 +37,7 @@ what she's doing, with one line, like a person would.
   connected; *Sending pictures and files* in Chat apps must be on). Off: they stay in the app, and
   the line isn't sent there without its picture.
 
-She follows the same rules as her own messages (Settings → Her → Relationship): not during quiet
+She follows the same rules as her own messages (Settings → Sara → Relationship): not during quiet
 hours, inside her daily limit (a picture counts as one of her messages), not while her last message
 of her own is unanswered, and not when you haven't written for a week. Only in your own chat in the
 app: never in groups, rooms, work channels, other apps or household members' chats. Pictures never
@@ -51,7 +51,7 @@ server.
 ## Always allow
 
 - On an approval card, **Always allow this tool** allows it now and from then on. The card shows
-  **Undo**; Settings → Coding → Tools and approvals changes it too.
+  **Undo**; Settings → Skills & tools → Tools and approvals changes it too.
 - In Tools → *Other programs* (and on each server's card in Other programs) one choice per tool
   server: **Ask me first**, **Always allow the safe ones** (tools that only read or make pictures and
   results), **Always allow everything**, or **Never**. *Which tools each choice covers* lists them.

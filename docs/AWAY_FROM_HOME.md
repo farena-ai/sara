@@ -43,7 +43,7 @@ Then connect the phone app ([PHONE.md](PHONE.md), step 2): the pairing QR now ho
   on Windows) and the pairing QR uses this computer's home-network address. That address works
   only on the same Wi-Fi and has no HTTPS, so the microphone may not work in the phone browser.
 - **Your own domain** (`SARA_PUBLIC_URL=https://…`, see [INSTALL.md](INSTALL.md)) is used too.
-- **Health** (Settings → Data & health → Health) shows the same answer: *Your other devices: …*,
+- **Health** (Settings → Privacy & system → Health) shows the same answer: *Your other devices: …*,
   with a link here when your phone can't reach her yet.
 - **Private local mode** ("Nothing leaves this computer") pauses turning it on.
 

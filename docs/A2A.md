@@ -7,7 +7,7 @@ normative `a2a.proto`), written from the specification with no SDK. She works in
 - **Server.** Other agents ask her things, within what you allow them.
 - **Client.** She asks other agents.
 
-Everything is in **Settings → Connections → Other agents**. A2A is off until you switch on
+Everything is in **Settings → Connections → Apps and services → Other agents**. A2A is off until you switch on
 *Let other agents reach her*.
 
 ## Sara as a server (other agents ask her)

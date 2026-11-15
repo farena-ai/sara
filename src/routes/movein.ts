@@ -1,4 +1,4 @@
-// Phase 104 (MI1, docs/design/MOVE_IN.md §7): Settings → Data & health → Move in from another agent.
+// Phase 104 (MI1, docs/design/MOVE_IN.md §7): Settings → Privacy & system → Move in and export → Move in from another agent.
 // The owner's only (household.ts never lists "movein" as a member route), never in the demo.
 //   GET    /api/movein                          the collector (hash, command), bundles, past move-ins
 //   GET    /api/movein/collector                the collector file (download)

@@ -6,7 +6,7 @@ import { t } from './naming.js';
 import { icon } from './icons.js';
 
 /** Every place, in the order they are listed. */
-// V3 (docs/ops/V3_DESIGN.md §2): Add-ons is a place too (it opens Settings → Add-ons → Get more). New
+// V3 (docs/ops/V3_DESIGN.md §2): Add-ons is a place too (it opens Settings → Skills & tools → Get more). New
 // devices pin it; a device that saved its own pins finds it under More.
 export const DESTS = ['today', 'planner', 'errands', 'family', 'memory', 'library', 'scrapbook', 'moments', 'story', 'team', 'findings', 'evals', 'addons'];
 export const DEFAULT_PINS = ['today', 'planner', 'library', 'addons', 'moments'];

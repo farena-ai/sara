@@ -11,7 +11,7 @@ it any time, and you can use a different model for each job.
 | **In the cloud with an API key** (OpenAI, Anthropic, xAI, OpenRouter, Ollama Cloud) | You pay the provider per use | The strongest models, no GPU needed | Per token: see [COSTS.md](COSTS.md) |
 | **A subscription you already pay for** (ChatGPT plan, Claude Pro/Max, SuperGrok / X Premium+) | Sara signs in with your plan | Using what you already pay for | Counts toward your plan's limits |
 
-The setup guide finds Ollama on the same computer by itself. **Settings → Models → On this
+The setup guide finds Ollama on the same computer by itself. **Settings → Models & usage → On this
 computer** suggests a model from the table below for that computer's graphics card (or Mac memory)
 and downloads it, and holds the switch **Nothing leaves this computer** ([PRIVATE_LOCAL.md](PRIVATE_LOCAL.md)). Everything else is in **Settings →
 Models**: *Default model*, *Which model does what*, *Subscriptions* and *Model providers*.
@@ -45,14 +45,14 @@ Good to know:
 - Pick models that support **tool calling** for coding and anything that uses her tools. Most
   recent models do; Ollama's model pages say so.
 - Ollama on another computer (a gaming PC at home, for example) works too: point Sara at it with
-  the *Ollama on my computer* template in Settings → Models → Model providers. Use Tailscale or
+  the *Ollama on my computer* template in Settings → Models & usage → Providers and plans. Use Tailscale or
   your home network, not the open internet.
 
 ## How much of the chat she keeps in mind (the context window)
 
 Every model can read a limited amount at once: its **context window**, counted in tokens (a token
 is about ¾ of an English word). Since 3.4.1 Sara sets how much of a conversation she rereads each
-turn from the model that conversation actually uses. Settings → Models → Default model → Long
+turn from the model that conversation actually uses. Settings → Models & usage → Default model → Long
 conversations → *How much of the chat she keeps in mind*:
 
 - **Auto: balanced** (the default). Follows the model. On pay-per-token cloud models it stops at
@@ -141,7 +141,7 @@ card) is the better pick; a small local model stays fine for quick chores.
 ### Is my model right for this computer?
 
 Sara checks the talking model against the computer it runs on and says so plainly in **Settings →
-Models → Default model** and in **Data & health → Health → Run full check** ("Chat model speed"):
+Models & usage → Default model** and in **Privacy & system → Health → Run full check** ("Chat model speed"):
 
 - **Slow here:** a model on your own Ollama that runs on the processor (Ollama's `/api/ps` shows
   no graphics memory for it, or this computer has no graphics card) and has more than 3 billion
@@ -187,7 +187,7 @@ You never have to type a model name or hunt for a new one. Sara keeps every prov
 (Ollama, Ollama Cloud, OpenAI, Anthropic, xAI, OpenRouter, ChatGPT plan, Claude, Grok, any
 OpenAI-compatible service) up to date:
 
-- **Once a day** she checks each list by herself (*Settings → Models → Model providers → Keep the
+- **Once a day** she checks each list by herself (*Settings → Models & usage → Providers and plans → Keep the
   model list up to date*, on by default). **↻ Refresh** next to any model picker, on the *Default
   model* page and on each provider card checks right away. Adding a provider or changing its key
   checks it too.
@@ -198,7 +198,7 @@ OpenAI-compatible service) up to date:
   a companion's own model, a helper, a backup, the safety check) moves to the best replacement on
   the same provider: the same family with the highest version (Gemma 4 31B → Gemma 5 31B), else the
   model recommended for that job. Today and Health say what changed, e.g. "Gemma 4 31B was retired
-  by Ollama Cloud; Talking now uses Gemma 5 31B." Turn off *Settings → Models → Default model →
+  by Ollama Cloud; Talking now uses Gemma 5 31B." Turn off *Settings → Models & usage → Default model →
   Switch to the replacement automatically* to only get a warning in Health instead.
 
 ### Every Ollama Cloud model through your Ollama
@@ -217,7 +217,7 @@ computer.
 
 ## What each job is
 
-In **Settings → Models → Which model does what**, every job uses your default model unless you
+In **Settings → Models & usage → Which model does what**, every job uses your default model unless you
 pick another. **✨ Use recommended** fills in picks from what's connected (it looks at model names
 only; nothing is sent anywhere). Each job also has *Test* (does it work, how fast) and *Compare…*
 (a short side-by-side test where you pick the winner).
@@ -239,7 +239,7 @@ only; nothing is sent anywhere). Each job also has *Test* (does it work, how fas
 | **Double-check her claims** (optional, off by default) | Asked only when the built-in receipt check can't tell whether she claims something (saved, sent, ran) no tool did; it can only add a correction | A small local model (on the dev PC `qwen3.5:9b` answered in about 0.1 s; see [RESULTS](RESULTS.md#claim-check-in-six-languages)) |
 
 Live voice calls don't use these: they run on the voice service you choose (Grok or OpenAI) in
-Settings → Her → Voice. Pictures of her are made by xAI Grok Imagine (Settings → Her → Pictures
+Settings → Sara → Voice. Pictures of her are made by xAI Grok Imagine (Settings → Sara → Pictures
 from her).
 
 ## A few setups that work

@@ -35,7 +35,7 @@ import { LOCAL_VOICES, voiceWords } from './voices.ts';
 export const PACK_CARD_MS = 15 * 60_000;
 export const MAX_STAGED = 3;
 export const COMPANION_CAP = 8;
-export const CAP_LINE = 'Up to 8 companions on one server. Retire one in Settings → Her → Companions first.';
+export const CAP_LINE = 'Up to 8 companions on one server. Retire one in Settings → Sara → Companions first.';
 export type PackOrigin = 'store' | 'file' | 'card';
 export type PackTrust = 'first-party' | 'reviewed' | 'community' | 'file';
 
@@ -363,7 +363,7 @@ export class PackInstaller {
       sheet,
       sheetLines: sheet.reduce((n, s) => n + s.lines.length, 0),
       look: { kind: m.includes.look, count: files.filter((f) => f.path.startsWith('look/')).length, rights: RIGHTS_WORDS(jsonOf(by.get('rights.json'))), needsPictures: m.needs.pictures, closet: m.includes.closet, adultLooks, reference: m.includes.reference, picture: Boolean(by.get('cover.png')) },
-      voice: voice ? { words: voiceWords(voice), speed: voice.speed ?? 1, here: voiceHere && keyed, ...(!voiceHere ? { note: `${LOCAL_VOICES[local!] ?? local} isn't on this computer yet: Get local voices (Settings → Her → Voice) or she'll use yours until then.` } : !keyed ? { note: 'There is no key for that voice here, so she uses your local voice until you add one.' } : {}) } : null,
+      voice: voice ? { words: voiceWords(voice), speed: voice.speed ?? 1, here: voiceHere && keyed, ...(!voiceHere ? { note: `${LOCAL_VOICES[local!] ?? local} isn't on this computer yet: Get local voices (Settings → Sara → Voice) or she'll use yours until then.` } : !keyed ? { note: 'There is no key for that voice here, so she uses your local voice until you add one.' } : {}) } : null,
       greeting: greet?.first ? { first: fillNames(greet.first, owner, name), others: greet.others?.length ?? 0 } : null,
       skills: m.skills.map((s) => (s.store ? { key: `store:${s.store}`, name: s.store, from: 'store' as const, ...(s.why ? { why: s.why } : {}) } : { key: `pack:${s.bundled}`, name: s.bundled!, from: 'pack' as const, ...(s.why ? { why: s.why } : {}) })),
       routines: m.routines.map((r) => {

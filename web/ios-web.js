@@ -1,6 +1,6 @@
 // R4 (docs/IPHONE.md): the installed web app on an iPhone. iOS (16.4 and later) gives web push and the
 // app badge only to a web app opened from the Home Screen, and it shows no notification buttons and no
-// share target: those come from Apple Shortcuts (Settings → Connections → iPhone Shortcuts).
+// share target: those come from Apple Shortcuts (Settings → Connections → Phone and notifications → iPhone Shortcuts).
 // No DOM at import time, so the tests can load it.
 
 /** An iPhone, iPod or iPad (iPads ask for the desktop site and look like a Mac with touch). */

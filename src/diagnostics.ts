@@ -42,7 +42,7 @@ const pick = (v: unknown, list: readonly number[], dflt: number, testAny = false
   return Number.isFinite(n) && list.includes(n) ? n : dflt;
 };
 
-/** Settings → Coding → Check her edits (owner settings; unknown values fall back to the defaults). */
+/** Settings → Skills & tools → Check her edits (owner settings; unknown values fall back to the defaults). */
 export function preciseSettings(app: AppContext): PreciseSettings {
   const raw = ((app.settings.get() as { precise?: { checks?: Partial<PreciseSettings['checks']>; refs?: Partial<PreciseSettings['refs']> } }).precise ?? {});
   const c = raw.checks ?? {};

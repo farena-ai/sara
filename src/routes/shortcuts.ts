@@ -6,7 +6,7 @@
 //   POST /api/shortcuts/ask     {text} (JSON, a form or plain text) -> a turn in this iPhone's "Siri"
 //                               chat: at most two sentences (text) or JSON {say, url, later?}
 //   GET  /api/shortcuts/widget  plain lines: next reminder, watches, what waits for you
-// Signed in (Settings → Connections → iPhone Shortcuts): GET /api/shortcuts, POST /api/shortcuts/tokens
+// Signed in (Settings → Connections → Phone and notifications → iPhone Shortcuts): GET /api/shortcuts, POST /api/shortcuts/tokens
 // {label, scopes}, DELETE /api/shortcuts/tokens/<id>, PUT /api/shortcuts/links (owner: iCloud links).
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { audit } from '../audit-trail.ts';

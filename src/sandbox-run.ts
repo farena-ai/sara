@@ -233,7 +233,7 @@ export function classifyCommand(command: string): CommandRisk {
 }
 
 // ------------------------------------------------------------------------------------------------
-// 2. Settings (Settings → Coding → Coding projects → "Try commands in a sandbox first")
+// 2. Settings (Settings → Skills & tools → Coding projects → "Try commands in a sandbox first")
 // ------------------------------------------------------------------------------------------------
 
 export type SandboxGateMode = 'off' | 'risky' | 'every';

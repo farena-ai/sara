@@ -16,7 +16,7 @@ Slack comes with Sara as a plugin and stays **off until you add it**.
 
 ## The four steps
 
-*Settings → Chat apps → Slack* and press **Start**, then **Add Slack** on the short step that says what
+*Settings → Connections → Apps and services → Slack* and press **Start**, then **Add Slack** on the short step that says what
 it can reach (slack.com only). Each step turns ✓ only when Sara has checked it.
 
 1. **Create the Slack app.** Press *Copy the manifest*, open api.slack.com/apps → *Create New App* →

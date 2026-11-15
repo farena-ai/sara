@@ -194,7 +194,7 @@ export function cameraState(c: CameraContext): CameraState {
   }
   if (t.error) return no(t.error);
   const name = t.model ?? t.provider?.label ?? 'This model';
-  if (!t.sees) return { allowed: false, sees: false, message: '{model} can’t look at pictures (or the app can’t tell that it can), so your camera is only shown to you. Pick a model that can for “Looking at pictures” in Settings → Models → Which model does what.', params: { model: name } };
+  if (!t.sees) return { allowed: false, sees: false, message: '{model} can’t look at pictures (or the app can’t tell that it can), so your camera is only shown to you. Pick a model that can for “Looking at pictures” in Settings → Models & usage → Which model does what.', params: { model: name } };
   return { allowed: true, sees: true, goesTo: `${t.provider?.label ?? 'the model'} (${name})` };
 }
 

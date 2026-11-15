@@ -40,7 +40,7 @@ reloads, setup comes back at the step you were on.
 ## 3. Keep Sara, or make your own
 
 Keep Sara as she is, pick a ready-made character, or choose *Make my own* for a guided five-minute
-*Create your companion* right after setup. All of it can be changed later in *Settings → Her*.
+*Create your companion* right after setup. All of it can be changed later in *Settings → Sara*.
 
 ## 4. Connect a brain
 
@@ -56,7 +56,7 @@ already pay for (ChatGPT, Claude, SuperGrok), or add a cloud key. Help choosing:
 account there. An **Ollama Cloud key also turns on web search** with the same key, so she can look
 things up for you (unless you already set up another search).
 
-Skipped this step? Open **Settings → Models → Default model → Connect an AI model** to return
+Skipped this step? Open **Settings → Models & usage → Default model → Connect an AI model** to return
 to the guided choices. You do not need to repeat your name or companion setup. The chooser tests
 that the model answers before you confirm it as the default. Cancelling keeps your current default
 and chat draft; connections you explicitly saved with **Use it** or **Connect** stay saved.
@@ -78,7 +78,7 @@ line under her reply says what she did.
 
 <img src="screenshots/dials.webp" alt="Settings, Name and personality: the personality dials (Warmth, Patience, Emotional depth, Starts conversations, Shows affection…), each with its end words, the word for where it sits, a number and a line in her voice" width="760">
 
-*Settings → Her → Name and personality*: every dial shows where it sits and a line in her voice that
+*Settings → Sara → Name and personality*: every dial shows where it sits and a line in her voice that
 changes as you move it, so you hear the difference before you chat. Every step of every dial is in
 the app's guide (Help → *Shaping your companion*).
 
@@ -94,7 +94,7 @@ right page with its answer ready.
 
 Want her to do something on a schedule? **Planner → Routines** has ready-made ones (a morning
 briefing, a reminder to stretch, a weekly review, a price watch…), each with what it costs before you
-turn it on ([Routines](ROUTINES.md)). And once you're set up, *Settings → Data & health → Safety
+turn it on ([Routines](ROUTINES.md)). And once you're set up, *Settings → Privacy & system → Safety
 check-up* tells you in plain words if anything could let someone in ([Safety check-up](SAFETY_CHECKUP.md)).
 
 Need a setting? Search at the top of Settings (for example, *backup*, *voice* or *permissions*). Results show a short description and where the page lives. Open one, then **Back to results** to keep your query. Keyboard users can use **Skip to main content** to reach Today or chat; help buttons work with Enter or Space.
@@ -102,14 +102,14 @@ Need a setting? Search at the top of Settings (for example, *backup*, *voice* or
 ## 8. Talk to her from your phone's apps
 
 She can answer you in the chat apps you already use, with the same memories: **Telegram** (the easiest:
-make a bot with @BotFather in two minutes, paste its key in *Settings → Chat apps → Telegram*), Discord,
+make a bot with @BotFather in two minutes, paste its key in *Settings → Connections → Apps and services → Telegram*), Discord,
 Signal, WhatsApp, Matrix, iMessage and email. Each one has a setup card that says what you need, about
 how long it takes and what it costs, then checks every step and ends with a test message on your phone.
 Type `/` in any of them for her commands ([Chats and commands](CHATS.md)).
 
-Two more things worth a look once you're set up: **Settings → Add-ons → Get more**, the Sara Store
+Two more things worth a look once you're set up: **Settings → Skills & tools → Get more**, the Sara Store
 (plugins, skills, tool servers and companions, each through a review card; nothing switches on by itself),
-and **Settings → Her → Hey Sara** in the Windows app, to say her name and talk hands-free
+and **Settings → Sara → Hey Sara** in the Windows app, to say her name and talk hands-free
 ([Hey Sara](HEY_SARA.md)).
 
 ## When you're stuck

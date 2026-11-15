@@ -10,7 +10,7 @@ API through a small Spotify developer app that **you** own. Nothing goes through
 
 ## Set it up (about 5 minutes, once)
 
-1. Open **Settings → Connections → Spotify** in Sara. It shows the *redirect address* to copy.
+1. Open **Settings → Connections → Apps and services → Spotify** in Sara. It shows the *redirect address* to copy.
 2. Open the [Spotify developer dashboard](https://developer.spotify.com/dashboard), sign in and press
    **Create app** (any name, e.g. "Sara").
 3. Under **Redirect URIs** paste the address Sara showed, e.g. `https://sara.example.com/api/spotify/callback`.
@@ -38,7 +38,7 @@ reading", "queue Clair de Lune" or "make a playlist of the songs we talked about
 that an action needs Premium, she says so plainly. If no device is open, she asks you to open Spotify
 on a phone, computer or speaker.
 
-Every Spotify tool can be set to *Allowed*, *Ask me first* or *Off* in **Settings → Coding → Tools**
+Every Spotify tool can be set to *Allowed*, *Ask me first* or *Off* in **Settings → Skills & tools → Tools**
 (group *Music*).
 
 ## Disconnect

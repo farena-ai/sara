@@ -304,11 +304,14 @@ test('128a.5 C3: the shared helpers are imported, not copied', () => {
   assert.match(web('screens.css'), /@media \(max-width: 480px\) \{\n {2}\.wa-box \.kit-card, \.plg-signal \.kit-card, \.setup-host \.kit-card \{ border: 0;/);
 });
 
-test('128a.6 N5 and N4: Telegram opens on the steps with the options under More; Email picks the provider first', () => {
+test('128a.6 N5 and N4: Telegram opens on the steps, then its connection; the rarer options fold under Advanced; Email picks the provider first', () => {
   const html = web('index.html');
   const tg = html.slice(html.indexOf('data-page="co-telegram"'), html.indexOf('data-page="co-discord"'));
-  assert.ok(tg.indexOf('id="tg-setup"') < tg.indexOf('<details id="tg-more"'), 'the steps come first');
-  for (const id of ['tg-token', 'tg-enabled', 'tg-link', 'tg-owners', 'tg-cmd-native', 'tg-media-send', 'tg-prog-on', 'tg-rooms']) assert.ok(tg.indexOf(`id="${id}"`) > tg.indexOf('<details id="tg-more"'), `${id} kept, under More`);
+  // SETTINGS3: the essentials stay in view (key, on/off, link, who may talk to her); Advanced starts at Commands.
+  for (const id of ['tg-token', 'tg-enabled', 'tg-others', 'tg-link', 'tg-owners']) assert.ok(tg.indexOf('id="tg-setup"') < tg.indexOf(`id="${id}"`) && tg.indexOf(`id="${id}"`) < tg.indexOf('id="tg-cmd-native"'), `${id} after the steps, before Advanced`);
+  for (const id of ['tg-media-send', 'tg-prog-on', 'tg-rooms']) assert.ok(tg.indexOf(`id="${id}"`) > tg.indexOf('id="tg-cmd-native"'), `${id} kept, under Advanced`);
+  assert.doesNotMatch(tg, /<details id="tg-more"/, 'no second fold inside the page');
+  assert.match(web('settings-look.js'), /'co-telegram': 'tg-cmd-native',/);
   const tjs = web('telegram-setup.js');
   assert.match(tjs, /https:\/\/t\.me\/BotFather/);
   assert.match(tjs, /copyRow\(t\('Send this'\), '\/newbot'/);

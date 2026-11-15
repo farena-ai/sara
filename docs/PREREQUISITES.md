@@ -7,9 +7,9 @@ is missing and can install it for you with this system's normal installer.
 
 ## Where you see it
 
-- **On the tool server's card** (Settings → Add-ons → Get more → an item → Get): *It needs: node
+- **On the tool server's card** (Settings → Skills & tools → Get more → an item → Get): *It needs: node
   (found) · Google Chrome (not found)* with **Install it for me** next to anything missing.
-- **Settings → Add-ons → Other programs (MCP) → Programs add-ons need**: every program Sara knows,
+- **Settings → Skills & tools → Other programs (MCP) → Programs add-ons need**: every program Sara knows,
   found or not (with its version), and the same button.
 
 ## What happens when you press Install it for me

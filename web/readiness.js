@@ -1,4 +1,4 @@
-// EC28 (docs/ops/EC1828_DESIGN.md): Settings → Data & health → Readiness and recovery, the top half.
+// EC28 (docs/ops/EC1828_DESIGN.md): Settings → Privacy & system → Health → Readiness and recovery, the top half.
 // Is this install ready for real use? The verdict in words, one row per area (ready / needs
 // attention / not ready) with its one fix, and Run a restore drill with the last measured result.
 // The server sends codes and numbers; the words are here. Safety-backed rows bring their own line.

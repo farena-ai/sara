@@ -64,20 +64,19 @@ test('V2 header: one model · workspace chip, and the context ring as a small me
   assert.match(web('index.html'), /<button id="ctx-ring" class="ctx-ring" type="button" aria-label="How full this conversation is" aria-expanded="false" aria-controls="ctx-sheet" hidden><span class="ctx-dial" aria-hidden="true"><\/span><span id="ctx-pct" class="ctx-pct"><\/span><\/button>/);
 });
 
-test('V2 Settings: a full-height sheet on desktop with flat group headings (Classic and phones keep the accordion)', () => {
+// SETTINGS3 (docs/design/SETTINGS3.md): the flat caps headings gave way to a two-level rail everywhere
+// (the group of the page on screen shows its pages; Sara Classic and phones too).
+test('V2 Settings: a full-height sheet on desktop; SETTINGS3 two-level rail (accordion everywhere, no flat headings)', () => {
   const nav = web('settings-nav.js');
-  // A caps heading per group next to the accordion button; CSS picks one, so keyboard and screen
-  // readers only meet what is on screen.
-  assert.match(nav, /const cap = el\('h3', 'settings-nav-cap', t\(g\)\);[\s\S]*?box\.append\(cap, head, items\);/);
+  assert.match(nav, /head\.append\(lineIcon\(info\?\.icon[^)]*\), el\('span', 'sng-name', t\(g\)\), el\('span', 'sng-count', String\(secs\.length\)\)/);
+  assert.match(nav, /box\.append\(head, items\);/);
+  assert.doesNotMatch(nav, /settings-nav-cap|flatNav/);
   const css = web('screens.css');
   const v2 = css.slice(css.indexOf('/* ---------- V2 '));
   assert.ok(v2.length > 100, 'the V2 section');
   assert.match(v2, /@media \(min-width: 721px\) \{[\s\S]*?:where\(:root:not\(\[data-palette="classic"\]\)\) dialog\.settings-dialog \{[^}]*height: min\(1000px, calc\(100dvh - 48px\)\);[^}]*max-height: calc\(100dvh - 48px\);[^}]*margin: auto;[^}]*border-radius: 18px;/);
-  assert.match(v2, /:where\(:root:not\(\[data-palette="classic"\]\)\) \.settings-nav \.settings-nav-head \{ display: none; \}/);
-  assert.match(nav, /export const flatNav = \(\) => typeof matchMedia === 'function' && document\.documentElement\.dataset\.palette !== 'classic' && matchMedia\('\(min-width: 721px\)'\)\.matches;/);
-  assert.match(nav, /export function setGroupOpen\(box, open, remember = true\) \{\s*if \(flatNav\(\)\) open = true;/, 'flat: every group stays open');
-  assert.match(v2, /\.settings-nav-cap \{[^}]*text-transform: uppercase;[^}]*color: var\(--text-3\);/);
-  assert.match(css, /^\.settings-nav-cap \{ display: none; \}/m, 'hidden by default (Classic, phones)');
+  assert.doesNotMatch(css, /\.settings-nav \.settings-nav-head \{ display: none; \}/, 'the group heads show');
+  assert.match(web('settings3.css'), /#settings \.settings-nav-items \{[^}]*border-left: 1px solid var\(--line\);/);
 });
 
 test('V2 tables: usage and a run\'s model calls as real tables (scoped header cells, numbers right-aligned), jobs aligned', () => {

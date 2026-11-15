@@ -1,4 +1,4 @@
-// EC26 (docs/ops/EC26_DESIGN.md): Settings → Her → At work.
+// EC26 (docs/ops/EC26_DESIGN.md): Settings → Sara → At work.
 //   GET  /api/work-profile                       the profile, its choices and whether the admin pinned it
 //   PUT  /api/work-profile                       known keys only; turning it off under the pin is 409
 //   GET  /api/work-profile/memories?space=&q=    her notes of one space (newest 50, or matches)

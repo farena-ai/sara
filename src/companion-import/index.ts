@@ -20,7 +20,7 @@ const isPng = (b: Buffer) => b.length >= 8 && b.readUInt32BE(0) === 0x89504e47;
 const baseName = (n: string) => (n.split('/').pop() ?? n).replace(/\.[^.]+$/, '').slice(0, 60) || 'chat';
 
 const NOT_A_CHAT = en("This file doesn't look like a chat export. Supported: ChatGPT and Claude exports, Character.AI chats, SillyTavern chats (.jsonl), and chats saved as JSON, CSV, text or Markdown.");
-const CARD = en('This is a character card, not a chat. Import it in Settings → Her → Name and personality → Import a character…');
+const CARD = en('This is a character card, not a chat. Import it in Settings → Sara → Name and personality → Import a character…');
 
 /** A Phase 51 export (ChatGPT/Claude) as speakers: "You" and the assistant. */
 function fromAssistant(p: ParsedExport): RawExport {

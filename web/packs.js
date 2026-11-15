@@ -1,7 +1,7 @@
 // Phase 127 (2.60.0, docs/design/PACKS.md §6, §8, §9, §13): companion packs in the app. *Share her*
 // (exactly what leaves, with memories, chats, people, keys and his name locked), the pack card (*Add
 // her* makes a NEW companion; nobody he has changes), the update card (a diff he picks from), *From a
-// file* on Settings → Her → Companions, and the Companions shelf card for Get more. Everything comes
+// file* on Settings → Sara → Companions, and the Companions shelf card for Get more. Everything comes
 // from /api/packs on Sara's own server; every text from a pack is set with textContent.
 import { serverText, t } from './naming.js';
 
@@ -390,7 +390,7 @@ export function openCard(card, o = {}) {
   });
   if (card.capReached) {
     addB.disabled = true;
-    nodes.push(el('p', 'small', t('Up to 8 companions on one server. Retire one in Settings → Her → Companions first.')));
+    nodes.push(el('p', 'small', t('Up to 8 companions on one server. Retire one in Settings → Sara → Companions first.')));
   }
   acts.append(cancel, addB);
   nodes.push(acts);
@@ -488,7 +488,7 @@ export function openUpdate(m, o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Settings → Her → Companions: From a file, the row's pack line and ⋯ menu
+// Settings → Sara → Companions: From a file, the row's pack line and ⋯ menu
 // ---------------------------------------------------------------------------------------------
 
 async function previewFile(file, o = {}) {

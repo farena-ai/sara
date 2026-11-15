@@ -365,6 +365,15 @@ export function initCommandBar(ctx) {
       if (!isCommandKey(e)) return;
       e.preventDefault();
       e.stopPropagation();
+      // SETTINGS3 S4: inside Settings, Ctrl K is the Settings search (every setting, page and how-to).
+      const settings = document.getElementById('settings');
+      if (settings?.open && !d.open) {
+        settings.classList.remove('page-open');
+        const box = document.getElementById('settings-search');
+        box?.focus();
+        box?.select();
+        return;
+      }
       if (d.open) closeCommandBar();
       else openCommandBar();
     },

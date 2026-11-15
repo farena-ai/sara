@@ -277,7 +277,7 @@ test('128c.7 N14: the Plugins page opens without the amber box; Comes with Sara 
   assert.match(plugins, /\$\('#plg-fence-note'\)\.hidden = state\.fence !== 'node-only' \|\| !\(state\.plugins \?\? \[\]\)\.some\(\(p\) => p\.origin && p\.origin !== 'builtin' && p\.origin !== 'store'\);/);
   assert.match(plugins, /const CHAT_APP_PAGE = \{ email: 'co-email', signal: 'co-signal', whatsapp: 'co-whatsapp', matrix: 'co-matrix', imessage: 'co-imessage', slack: 'co-slack', teams: 'co-teams' \};/);
   for (const id of ['co-email', 'co-signal', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams']) assert.match(html, new RegExp(`data-page="${id}"`));
-  assert.match(plugins, /t\('Set up in Chat apps → \{name\}', \{ name: b\.name \}\)/);
+  assert.match(plugins, /t\('Set up in Apps and services → \{name\}', \{ name: b\.name \}\)/);
 });
 
 test('128c.8 N15: Share her ticks dials by default; routine chips write the pack format’s ids; Save the file says why it waits', async () => {

@@ -2,7 +2,7 @@
 // portraits, small avatars, blink and mouth frames, face landmarks): Sara (she), a male default (he)
 // and an androgynous default (they). Until the owner makes or picks a look of their own, the one that
 // matches the companion's pronouns is shown ("auto"); the owner can also pick one by name in
-// Settings → Her → Look. A custom look always wins and is never replaced.
+// Settings → Sara → Look. A custom look always wins and is never replaced.
 // Sara's pictures live at the web root (web/sara-portrait.jpg, web/sara/…); the others mirror those
 // paths under web/looks/<he|they>/. Prompts: docs/APPEARANCE.md.
 import { existsSync } from 'node:fs';

@@ -5,7 +5,27 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.13.0 (2026-11-15): a calmer, premium Settings
+
 ## 3.12.0 (2026-11-15): work apps, family, trust and voice ready
+- New: **Settings, redesigned (SETTINGS3).** Six groups plus Household instead of nine: *Sara* (named after her),
+  *You*, *Models & usage*, *Connections*, *Skills & tools* (Coding is a sub-heading there) and *Privacy & system*.
+  The list on the left shows the pages of the group you are in (51 entries instead of 82). Nothing was removed and
+  every link still works: eleven small pages became sections of a bigger one (for example Leave-by reminders and
+  When it comes up are now on *Briefing and reminders*; Subscriptions on *Providers and plans*; Budgets on *Usage
+  and costs*; How she did, Readiness and recovery and Operations on *Health*; bringing her or your chats over on
+  *Move in and export*), and the chat apps, your accounts, web search, data sources and the developer pages are
+  tiles under *Connections → Apps and services*, each with a status dot.
+- New: Settings opens on an **Overview**: her status, what needs your attention, quick switches (Night or Day, the
+  morning briefing, calls from her, Hey Sara, tidy long chats), your connected apps and the household.
+- New: **Search finds single settings**, not only pages: it shows where each one lives and what it is set to now;
+  choosing one opens its page and highlights the row. **Ctrl K** inside Settings goes to the search.
+- Changed: a calmer page layout: each setting is one row (its name on the left, the control on the right), rows sit
+  in cards, a quiet *i* explains each one, switches instead of check boxes, "All changes saved" at the top, *On this
+  page* on wide screens, and long pages keep their rarely used settings under **Advanced** (closed until you open it;
+  remembered on this device; search opens it for you). Phones go Settings → group → page.
+- The old group names (Her, Models, Chat apps, Add-ons, Coding, Data & health) still find their pages in search for
+  one release and say where they went.
 
 ## 3.11.0 (2026-11-15): errands, an easy start and iPhone Shortcuts
 

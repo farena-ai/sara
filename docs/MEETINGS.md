@@ -46,7 +46,7 @@ recording, then writes the notes. Lines are named *Recording* (she doesn't tell 
 
 ## The notes
 
-One model call (the model picked for writing in *Settings → Models → Which model does what*) writes the
+One model call (the model picked for writing in *Settings → Models & usage → Which model does what*) writes the
 summary, decisions and action items from the transcript, only from what was said: an owner or date
 nobody named is shown as *Not said*. The notes are a document in her Library, *Meeting notes - <name> -
 <date>.md*, and stay there even when the meeting is deleted. **Write the notes again** asks again (for

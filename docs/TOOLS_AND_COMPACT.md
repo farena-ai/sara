@@ -29,7 +29,7 @@ tools for her next step. Nothing is switched off: a tool she calls without havin
 your approval card, and a tool that isn't allowed in this chat (an MCP tool in a private chat) can't be
 found or run.
 
-- Settings → Coding → Tools and approvals → *Short tool list*: Automatic (above 6,000 tokens of
+- Settings → Skills & tools → Tools and approvals → *Short tool list*: Automatic (above 6,000 tokens of
   tools), Always or Off; the size; how long a looked-up tool stays; the smaller list for local models.
 - In a chat: `/tools`, `/tools all`, `/tools lean`, `/tools +github`, `/tools -github`. The ring's sheet
   in the header shows "Tools: 23 of 142 offered · ≈ 2.9k tokens a step" and *What she has*.
@@ -44,7 +44,7 @@ reads instead. Your last turns (6 by default) stay word for word, the folded mes
 PC with gemma4:12b: a coding chat at 91 % (14,621 of 16,000 characters) went to 40 % (6,342), 12
 messages folded into a 1,611-character summary written on this computer.
 
-- **Who writes it:** a model on this computer first, else the quick model (Settings → Models → Default
+- **Who writes it:** a model on this computer first, else the quick model (Settings → Models & usage → Default
   model → Long conversations → *Tidy long chats*). **Private chats only ever use a model on this
   computer**, or a plain list the app makes from your asks and her receipts. A daily limit (40 tidies,
   500k tokens) applies; past it she makes the plain list.

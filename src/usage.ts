@@ -88,7 +88,7 @@ export const DEFAULT_PRICES: readonly PriceRow[] = [
   { model: 'grok-4.7', inPerM: 2, outPerM: 6, source: 'xAI models page, 2026-10-27' },
 ];
 
-/** Cleans the owner's price table (Settings → Data & health → Usage). */
+/** Cleans the owner's price table (Settings → Privacy & system → Usage). */
 export function cleanPrices(v: unknown): PriceRow[] {
   if (!Array.isArray(v)) throw new Error('prices must be a list.');
   if (v.length > 200) throw new Error('Up to 200 prices.');
@@ -278,7 +278,7 @@ export class UsageStore {
     return this.#totals('team_task_id = ?', [id]);
   }
 
-  /** Totals since a time, by model and by purpose (Settings → Data & health → Usage). */
+  /** Totals since a time, by model and by purpose (Settings → Privacy & system → Usage). */
   summary(sinceIso: string): { total: UsageTotals; byModel: (UsageTotals & { providerId: string; providerLabel: string; model: string })[]; byPurpose: (UsageTotals & { purpose: string })[] } {
     const group = (cols: string) =>
       this.#db.prepare(`SELECT ${cols}, COUNT(*) AS calls, SUM(input) AS input, SUM(output) AS output, SUM(cached) AS cached, COALESCE(SUM(usd),0) AS usd, SUM(CASE WHEN usd IS NULL THEN 1 ELSE 0 END) AS unpriced, GROUP_CONCAT(DISTINCT billing) AS billing FROM usage WHERE at >= ? GROUP BY ${cols} ORDER BY SUM(input) + SUM(output) DESC LIMIT 50`).all(sinceIso) as Row[];

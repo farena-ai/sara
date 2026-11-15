@@ -112,7 +112,7 @@ export function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Options {
       key = saved.token;
     } else if (!isAddress) usage(`no server called "${server}" in sara-chat (sara-chat servers lists them), and it isn't an address starting with https://.`);
   }
-  if (!key) usage('no API key (SARA_API_KEY or --key-file). Make one in Sara: Settings → Connections → Other apps.');
+  if (!key) usage('no API key (SARA_API_KEY or --key-file). Make one in Sara: Settings → Connections → Apps and services → Other apps.');
   let u: URL;
   try {
     u = new URL(server);
@@ -788,7 +788,7 @@ export const DESCRIBE_TOOLS = [
 const DESCRIBE_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 
 /** Sara's version, for --describe when no package.json is next to this file. Kept equal to package.json by a test. */
-export const SARA_VERSION = '3.12.0';
+export const SARA_VERSION = '3.13.0';
 
 /** Sara's real version: package.json next to the repo when this runs from a checkout, else SARA_VERSION. */
 export function describeVersion(): string {
@@ -800,7 +800,7 @@ export function describeVersion(): string {
   }
   return SARA_VERSION;
 }
-const CONNECT_HINT = 'This is the Sara MCP bridge in --describe mode, with no Sara server behind it. Run your own Sara (https://github.com/farena-ai/sara), make an API key in Settings → Connections → Other apps, and start the bridge with --server https://<her address> and SARA_API_KEY.';
+const CONNECT_HINT = 'This is the Sara MCP bridge in --describe mode, with no Sara server behind it. Run your own Sara (https://github.com/farena-ai/sara), make an API key in Settings → Connections → Apps and services → Other apps, and start the bridge with --server https://<her address> and SARA_API_KEY.';
 
 /** --describe: answers locally, never contacts anything. */
 export function describeAnswer(msg: { id?: unknown; method?: unknown; params?: Record<string, unknown> }): unknown {

@@ -74,7 +74,7 @@ Then *Try again*. Sara never runs package managers with root for this.
 
 ## The card
 
-The Browser add-on's Store page and its *Add* card, and *Settings → Add-ons → Other programs*, show
+The Browser add-on's Store page and its *Add* card, and *Settings → Skills & tools → Other programs*, show
 one status card:
 
 | State | Card |

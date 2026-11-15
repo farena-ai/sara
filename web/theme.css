@@ -356,6 +356,9 @@ html.ios-short-view { --safe-b: 0px; }
   --h-control: 34px;
   --h-row: 34px;
   --pad-card: 16px;
+  /* SETTINGS3: the Settings rail and the one control width of a settings row (web/settings3.css). */
+  --s3-rail-w: 268px;
+  --s3-control-w: 232px;
   --fs-11: 11px;
   --fs-12: 12px;
   --fs-13: 13px;

@@ -86,5 +86,5 @@ Liveness and readiness probes call `/api/health` on port 7860. For a business pr
 `HEALTHCHECK` logic or point the probes at a TCP check.
 
 Back up the volume (her memories, vault and settings) with your cluster's snapshot tool, or use
-Sara's own backups (Settings → Data & health). Restoring means: scale to zero, restore the volume,
+Sara's own backups (Settings → Privacy & system). Restoring means: scale to zero, restore the volume,
 start again.

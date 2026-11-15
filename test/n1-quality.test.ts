@@ -69,7 +69,7 @@ test('the week is counted from runs, steps and notices', () => {
   assert.equal(r.unverified, 1);
   assert.deepEqual(r.reasons.map((x) => [x.errorClass, x.count]), [['EmptyReply', 1], ['SlowModelError', 1]]);
   assert.deepEqual(r.reasons[1].chats, [{ id: convA, title: 'Time sheet' }]);
-  assert.ok(r.tips.some((x) => /Auto \(Settings → Models\)/.test(x)));
+  assert.ok(r.tips.some((x) => /Auto \(Settings → Models & usage\)/.test(x)));
   assert.equal(qualityReport(app.store.db, clock.now, 30).turns, 6);
 });
 

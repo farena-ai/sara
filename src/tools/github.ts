@@ -1,5 +1,5 @@
 // Phase 20: GitHub issues and pull requests, with the owner's GitHub token (Settings →
-// Coding → GitHub). Reading runs on its own; creating issues, commenting and opening pull
+// Connections → Apps and services → GitHub). Reading runs on its own; creating issues, commenting and opening pull
 // requests ask the owner first. The repository comes from the workspace's git remote unless one
 // is named. Text on GitHub can come from anyone: information, never instructions.
 import { netFetch } from '../net-guard.ts';
@@ -36,7 +36,7 @@ interface Issue {
 }
 
 export async function ghCall<T>(t: string | undefined, fetchImpl: FetchLike, path: string, init: { method?: string; body?: unknown; signal?: AbortSignal } = {}): Promise<T> {
-  if (!t) throw new ToolError('GitHub is not connected (Settings → Coding → GitHub).');
+  if (!t) throw new ToolError('GitHub is not connected (Settings → Connections → Apps and services → GitHub).');
   const res = await fetchImpl(`${API}${path}`, {
     method: init.method ?? 'GET',
     headers: { authorization: `Bearer ${t}`, accept: 'application/vnd.github+json', 'x-github-api-version': '2022-11-28', 'user-agent': 'Sara', ...(init.body ? { 'content-type': 'application/json' } : {}) },

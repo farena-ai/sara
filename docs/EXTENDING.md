@@ -46,7 +46,7 @@ A tool is a plain object that implements `Tool` from
 | Field | What it's for |
 |---|---|
 | `spec` | `name`, `description` and JSON-schema `parameters`: what the model sees. Write the description for the model: when to use it, what it returns. |
-| `defaultPermission` | `'auto'` (runs without asking), `'ask'` (an Allow/Deny card first) or `'never'` (shipped switched off). The owner can change it per tool in Settings → Coding → Tools and approvals. |
+| `defaultPermission` | `'auto'` (runs without asking), `'ask'` (an Allow/Deny card first) or `'never'` (shipped switched off). The owner can change it per tool in Settings → Skills & tools → Tools and approvals. |
 | `isAvailable?()` | Return `false` to hide the tool (e.g. not configured yet). Hidden tools are not offered to the model. |
 | `runsCommands?` | `true` for tools that run commands the model wrote. On a computer with no sandbox (Windows) these always ask first, unless the owner explicitly chose otherwise. |
 | `summarize(args)` | One short line for the activity log and the approval card ("weather in Austin"). |
@@ -152,7 +152,7 @@ A character is a JSON file (`"format": "sara-character"`, `"version": 1`) with a
 name, pronouns (`she`, `he` or `they`), age (**18 or older: the loader refuses anything else**),
 summary, background, personality, speech and boundaries, plus optional dials (`traits`, 0–10),
 `humour`, `life` details, `talk` style and `relationship`. The owner can export and import these
-in Settings → Her → Name and personality (Save / Load a character file), so a character file is also the way to share one.
+in Settings → Sara → Name and personality (Save / Load a character file), so a character file is also the way to share one.
 
 The example is [`examples/characters/ada-pair-programmer.json`](../examples/characters/ada-pair-programmer.json).
 The dials and their meanings are listed in the in-app guide and in
@@ -179,7 +179,7 @@ Sara tool called `mcp_<server>_<tool>`. Tools the server marks read-only
 (`annotations.readOnlyHint`) run without asking; everything else asks first. The owner can change
 either in Settings.
 
-Add one in **Settings → Add-ons → Other programs (MCP)**: a name, stdio (command + arguments) or
+Add one in **Settings → Skills & tools → Other programs (MCP)**: a name, stdio (command + arguments) or
 HTTP (address), and any secret environment variables or headers (kept in the encrypted vault).
 
 **Connection investigations (in development, after 2.68):** this same Settings page adds twenty-one
@@ -227,7 +227,7 @@ the web chat, under the step that made it.
   it, *Ask* shows the usual approval card in the chat (nothing runs until **Allow**), and only tools
   set to run on their own (read-only ones by default) run straight away. What happened is noted in
   the conversation.
-- **Turn off per server:** **Settings → Add-ons → Other programs (MCP)** → edit the server →
+- **Turn off per server:** **Settings → Skills & tools → Other programs (MCP)** → edit the server →
   untick **Show its apps in the chat**. Sara then doesn't offer apps to that server at all.
 - Apps live in memory: after Sara restarts, an old panel says it is no longer open; ask again.
 
@@ -266,7 +266,7 @@ uses `argparse`, keeps pure work in `lib.py`, and tests it with `python3 -m unit
 
 ## Add a model provider
 
-Most model servers speak the OpenAI chat-completions API: add them in Settings → Models → Model
+Most model servers speak the OpenAI chat-completions API: add them in Settings → Models & usage → Model
 providers → Add or update a provider, Type **OpenAI-compatible**, with their address, no code needed. A truly different API needs an adapter in
 [`src/providers/`](../src/providers/) implementing `Provider` from `src/providers/types.ts`
 (`listModels()` and `stream(request)` yielding `text`, `tool_call` and `usage` events); see

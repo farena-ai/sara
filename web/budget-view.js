@@ -118,7 +118,7 @@ export function overrideNote(state) {
   return state?.override ? el('p', 'muted small budget-override', t('This reply ran on extra budget you gave: {amount}', { amount: amountWords(state.override) })) : null;
 }
 
-// ---- Settings → Coding → Budgets ----
+// ---- Settings → Models & usage → Usage and costs → Budgets ----
 
 /** Fills a budget pick-list with its choices (labels in the app language). */
 export function fillBudgetSelect(select, kind, choices, value) {

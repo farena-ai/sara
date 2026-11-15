@@ -7,14 +7,12 @@ const t = (s) => s;
 
 /** The groups in order, each with the one line the home shows under its name (English; t() at draw). */
 export const SETTINGS_GROUP_INFO = [
-  { name: 'Her', desc: t('Who she is, how she looks and sounds, and how she reaches you.') },
+  { name: 'Sara', desc: t('Who she is, how she looks and sounds, and how she reaches you.') },
   { name: 'You', desc: t('About you, how Sara looks on this device, your briefing and reminders.') },
-  { name: 'Models', desc: t('Which AI runs her, for which job, and models on this computer.') },
-  { name: 'Chat apps', desc: t('Talk to her from Telegram, Discord, Signal, email and more.') },
-  { name: 'Add-ons', desc: t('The store, skills, plugins, web search, the library and tool servers.') },
-  { name: 'Coding', desc: t('Coding projects, tools and approvals, GitHub, budgets and servers.') },
-  { name: 'Connections', desc: t('Your phone, this computer, computer use, other apps and agents.') },
-  { name: 'Data & health', desc: t('Safety, health, backups, devices, usage, updates and privacy.') },
+  { name: 'Models & usage', desc: t('Which AI runs her, for which job, what it costs and its limits.') },
+  { name: 'Connections', desc: t('Apps and services, your devices, your phone and this computer.') },
+  { name: 'Skills & tools', desc: t('The store, skills, plugins, tools, the library and coding.') },
+  { name: 'Privacy & system', desc: t('Safety, privacy, backups, moving in, health and updates.') },
   { name: 'Household', desc: t('The people on this server and your own account.') },
 ];
 
@@ -36,11 +34,17 @@ export function homeModel(pages, orderOf = () => 0) {
   return [...by].sort(([a], [b]) => rank(a) - rank(b)).map(([group, list]) => ({ group, desc: SETTINGS_GROUP_INFO.find((x) => x.name === group)?.desc ?? '', pages: list }));
 }
 
-/** Breadcrumbs for a page: Settings (→ home) › its group (→ home at that group) › the page. */
-export function crumbsFor(page) {
+/**
+ * Breadcrumbs for a page: Settings (→ home) › its group (→ home at that group) › the page. SETTINGS3: a
+ * tile page sits under Apps and services (co-services), a merged page under its host.
+ */
+export function crumbsFor(page, titleOf = (id) => id) {
+  const host = page.dataset.host;
   return [
     { label: 'Settings', to: 'home' },
     { label: page.dataset.group, to: `home:${page.dataset.group}` },
+    ...(page.dataset.tile ? [{ label: t('Apps and services'), to: 'co-services' }] : []),
+    ...(host ? [{ label: titleOf(host), to: host }] : []),
     { label: page.dataset.title, to: '' },
   ];
 }

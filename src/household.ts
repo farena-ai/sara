@@ -454,7 +454,7 @@ export class MemberPolicy {
 
   /** Throws when this model isn't one the owner allowed for this member. */
   checkModel(providerId: string, model: string): void {
-    if (!this.limits().models.some((m) => m.providerId === providerId && m.model === model)) throw new Error(`The owner of this server hasn't made ${model} available to you. Pick one of your models in Settings → Models.`);
+    if (!this.limits().models.some((m) => m.providerId === providerId && m.model === model)) throw new Error(`The owner of this server hasn't made ${model} available to you. Pick one of your models in Settings → Models & usage.`);
   }
 
   /** Their own messages today and the estimated cost today (all their companions). */

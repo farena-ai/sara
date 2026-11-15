@@ -495,7 +495,7 @@ export class StoreInstaller {
       await this.d.app.mcp?.start(cfg).catch(() => undefined);
       const v = (JSON.parse(row.prev_recipe) as { version?: string }).version;
       this.d.installs.upsert({ ...row, version: v ?? row.version, recipe: row.prev_recipe, prev_recipe: row.recipe, updated_at: at });
-    } else if (row.kind === 'companion') throw new InstallError(409, 'companion', 'A companion goes back from her row in Settings → Her → Companions.');
+    } else if (row.kind === 'companion') throw new InstallError(409, 'companion', 'A companion goes back from her row in Settings → Sara → Companions.');
     else throw new InstallError(409, 'skill', 'A skill goes back from its own page (Versions).');
     return this.d.installs.get(item)!;
   }
@@ -516,7 +516,7 @@ export class StoreInstaller {
       const [scope, name] = splitRef(row.local_ref);
       app.skills?.delete(scope, name);
     } else if (row.kind === 'companion') {
-      throw new InstallError(409, 'companion', 'A companion goes with Retire her (Settings → Her → Companions).');
+      throw new InstallError(409, 'companion', 'A companion goes with Retire her (Settings → Sara → Companions).');
     } else {
       app.mcp?.stop(row.local_ref);
       app.settings.update({ mcpServers: (app.settings.get().mcpServers ?? []).filter((x) => x.name !== row.local_ref) });

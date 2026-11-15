@@ -63,9 +63,13 @@ test('V3 slice 2: Settings home lists every page under its group (1 click), with
   const model = nav.homeModel(PAGES.map((p) => ({ dataset: { page: p.id, group: p.group, title: p.title } })));
   const listed = model.flatMap((g: { pages: { dataset: { page: string } }[] }) => g.pages.map((p) => p.dataset.page));
   assert.deepEqual([...listed].sort(), PAGES.map((p) => p.id).sort(), 'every page once');
-  assert.deepEqual(model.map((g: { group: string }) => g.group), ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household']);
-  // Crumbs: Settings › group › page; Settings and the group are buttons back to the home.
+  // SETTINGS3: 6 groups + Household.
+  assert.deepEqual(model.map((g: { group: string }) => g.group), ['Sara', 'You', 'Models & usage', 'Connections', 'Skills & tools', 'Privacy & system', 'Household']);
+  // Crumbs: Settings › group › page; Settings and the group are buttons back to the home. SETTINGS3: a tile
+  // page sits under Apps and services, a merged page under its host.
   assert.deepEqual(nav.crumbsFor({ dataset: { page: 'you-appearance', group: 'You', title: 'Appearance' } }), [{ label: 'Settings', to: 'home' }, { label: 'You', to: 'home:You' }, { label: 'Appearance', to: '' }]);
+  assert.deepEqual(nav.crumbsFor({ dataset: { page: 'co-telegram', group: 'Connections', title: 'Telegram', tile: 'chat' } }).map((c: { to: string }) => c.to), ['home', 'home:Connections', 'co-services', '']);
+  assert.deepEqual(nav.crumbsFor({ dataset: { page: 'ab-when', group: 'You', title: 'When it comes up', host: 'you-briefing' } }, () => 'Briefing and reminders').map((c: { label: string }) => c.label), ['Settings', 'You', 'Briefing and reminders', 'When it comes up']);
   assert.match(html, /<nav id="settings-crumbs" class="settings-crumbs" aria-label="Breadcrumb"><\/nav>\s*<h2 id="settings-page-title" tabindex="-1"><\/h2>/);
   assert.match(html, /<section id="settings-home" class="settings-home" aria-labelledby="settings-page-title" hidden><\/section>/);
   const app = web('app.js');

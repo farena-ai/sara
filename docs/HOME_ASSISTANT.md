@@ -9,7 +9,7 @@ Sara reads the state of your home and, with your OK, changes things (lights, swi
 covers, climate, scenes, scripts).
 
 1. In Home Assistant: your profile → **Security → Long-lived access tokens → Create token**.
-2. In Sara: **Settings → Add-ons → Home Assistant**. Enter your Home Assistant address (for
+2. In Sara: **Settings → Connections → Apps and services → Home Assistant**. Enter your Home Assistant address (for
    example `http://homeassistant.local:8123` or your Nabu Casa address) and the token.
 
 The token is kept in Sara's encrypted vault. Reading states runs on its own; anything that changes
@@ -35,7 +35,7 @@ Home Assistant then has its own device token, listed as "Home Assistant"; sign i
 it. That token only reaches Home Assistant's own conversations (titled "Home Assistant" in Sara):
 not your other chats, settings or memory pages. Like other apps, Home Assistant conversations
 don't bring up things from your private chats, and her tools stay off there unless you allow
-other apps to use them (Settings → Connections → Other apps). `sara.send_message` only works in
+other apps to use them (Settings → Connections → Apps and services → Other apps). `sara.send_message` only works in
 conversations the integration started.
 
 Her safety layer runs on the Sara server and is the same as in her own apps: the AI disclosure
@@ -88,7 +88,7 @@ block. A speaker reads exactly the reply the conversation in Sara shows.
 
 ## 4. Presence: she notices what happens at home
 
-With direction 1 connected, **Settings → Add-ons → Home Assistant → Presence** (per companion,
+With direction 1 connected, **Settings → Connections → Apps and services → Home Assistant → Presence** (per companion,
 off until you switch it on) lets her react when someone gets home or leaves (`person.…` or
 `device_tracker.…`), at bedtime (a switch or `input_boolean` turning on, or a time while someone is
 home) or when a light goes on in the morning. She says one short line of her own as a message on

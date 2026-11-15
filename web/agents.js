@@ -1,4 +1,4 @@
-// Phase 100 (ST5, docs/design/STAPLES.md §8.6, docs/A2A.md): Settings → Connections → Other agents.
+// Phase 100 (ST5, docs/design/STAPLES.md §8.6, docs/A2A.md): Settings → Connections → Apps and services → Other agents.
 // Her switches (let other agents reach her, her name on the public card, the home network in private
 // mode, the name she answers for), her agent card address, the agents (In: may ask her; Out: she may
 // ask), "Give an agent a key" (a checklist of what it may do, shown once), "Add an agent she can ask"

@@ -1,0 +1,664 @@
+{
+ "_about": "SETTINGS3 judgement per page: tier (everyday/sometimes/advanced), proposed home (to), overlaps. Read by scripts/settings3-inventory.mjs.",
+ "pages": {
+  "her-character": {
+   "tier": "everyday",
+   "to": "Sara › Name and personality",
+   "overlap": []
+  },
+  "her-relationship": {
+   "tier": "everyday",
+   "to": "Sara › Relationship",
+   "overlap": []
+  },
+  "her-look": {
+   "tier": "everyday",
+   "to": "Sara › Look",
+   "overlap": []
+  },
+  "her-pictures": {
+   "tier": "sometimes",
+   "to": "Sara › Pictures from her",
+   "overlap": [
+    "her-look"
+   ]
+  },
+  "her-voice": {
+   "tier": "everyday",
+   "to": "Sara › Voice (Advanced fold: other speech services)",
+   "overlap": [
+    "her-hey",
+    "her-calls"
+   ]
+  },
+  "her-hey": {
+   "tier": "sometimes",
+   "to": "Sara › Hey Sara",
+   "overlap": [
+    "her-voice"
+   ]
+  },
+  "her-calls": {
+   "tier": "sometimes",
+   "to": "Sara › Calls from her",
+   "overlap": [
+    "co-phone",
+    "her-voice"
+   ]
+  },
+  "her-companions": {
+   "tier": "sometimes",
+   "to": "Sara › Companions",
+   "overlap": [
+    "her-import"
+   ]
+  },
+  "her-work": {
+   "tier": "advanced",
+   "to": "Sara › At work",
+   "overlap": [
+    "co-slack",
+    "co-teams"
+   ]
+  },
+  "her-import": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Move in and export (section; alias)",
+   "overlap": [
+    "dh-data",
+    "dh-movein",
+    "her-companions"
+   ]
+  },
+  "you-about": {
+   "tier": "everyday",
+   "to": "You › About you (Advanced fold: titles, while she works)",
+   "overlap": []
+  },
+  "you-appearance": {
+   "tier": "everyday",
+   "to": "You › Appearance",
+   "overlap": []
+  },
+  "you-briefing": {
+   "tier": "everyday",
+   "to": "You › Briefing and reminders (host page, renamed)",
+   "overlap": [
+    "you-leave-by",
+    "ab-when",
+    "her-calls"
+   ]
+  },
+  "you-leave-by": {
+   "tier": "sometimes",
+   "to": "You › Briefing and reminders (section; alias)",
+   "overlap": [
+    "you-briefing"
+   ]
+  },
+  "ab-when": {
+   "tier": "sometimes",
+   "to": "You › Briefing and reminders (section; alias)",
+   "overlap": [
+    "you-briefing",
+    "you-automations"
+   ]
+  },
+  "you-automations": {
+   "tier": "sometimes",
+   "to": "You › Automations",
+   "overlap": [
+    "ab-when",
+    "co-hooks"
+   ]
+  },
+  "you-details": {
+   "tier": "sometimes",
+   "to": "You › My details (cards, folded)",
+   "overlap": [
+    "you-business"
+   ]
+  },
+  "you-business": {
+   "tier": "sometimes",
+   "to": "You › Business details",
+   "overlap": [
+    "you-details"
+   ]
+  },
+  "you-knows": {
+   "tier": "sometimes",
+   "to": "You › What Sara knows",
+   "overlap": [
+    "ab-library"
+   ]
+  },
+  "you-adult": {
+   "tier": "sometimes",
+   "to": "You › Adult mode (web only, last)",
+   "overlap": []
+  },
+  "models-default": {
+   "tier": "everyday",
+   "to": "Models & usage › Default model (Advanced fold: long chats, tidy)",
+   "overlap": []
+  },
+  "models-routes": {
+   "tier": "advanced",
+   "to": "Models & usage › Which model does what",
+   "overlap": []
+  },
+  "models-providers": {
+   "tier": "sometimes",
+   "to": "Models & usage › Providers and plans (host, renamed)",
+   "overlap": [
+    "models-subs",
+    "models-local"
+   ]
+  },
+  "models-subs": {
+   "tier": "sometimes",
+   "to": "Models & usage › Providers and plans (section; alias)",
+   "overlap": [
+    "models-providers"
+   ]
+  },
+  "models-local": {
+   "tier": "sometimes",
+   "to": "Models & usage › On this computer",
+   "overlap": [
+    "models-providers",
+    "desktop-app",
+    "co-computer"
+   ]
+  },
+  "co-telegram": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile (Advanced fold: commands, files, progress, rooms)",
+   "overlap": []
+  },
+  "co-discord": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile (Advanced fold: commands, files, progress, rooms)",
+   "overlap": []
+  },
+  "co-signal": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": []
+  },
+  "co-email": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": [
+    "ab-mail"
+   ]
+  },
+  "co-whatsapp": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": []
+  },
+  "co-matrix": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": []
+  },
+  "co-imessage": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": []
+  },
+  "co-slack": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": [
+    "her-work"
+   ]
+  },
+  "co-teams": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Chat apps tile",
+   "overlap": [
+    "her-work"
+   ]
+  },
+  "co-pickup": {
+   "tier": "advanced",
+   "to": "Connections › Apps and services › Pick up across apps (host)",
+   "overlap": [
+    "co-continuity"
+   ]
+  },
+  "co-continuity": {
+   "tier": "advanced",
+   "to": "Connections › Pick up across apps (section; alias)",
+   "overlap": [
+    "co-pickup"
+   ]
+  },
+  "ab-store": {
+   "tier": "sometimes",
+   "to": "Skills & tools › Get more",
+   "overlap": []
+  },
+  "ab-skills": {
+   "tier": "sometimes",
+   "to": "Skills & tools › Skills",
+   "overlap": []
+  },
+  "ab-plugins": {
+   "tier": "advanced",
+   "to": "Skills & tools › Plugins",
+   "overlap": [
+    "ab-store",
+    "ab-mcp"
+   ]
+  },
+  "ab-mcp": {
+   "tier": "advanced",
+   "to": "Skills & tools › Other programs (MCP)",
+   "overlap": [
+    "ab-plugins",
+    "co-apps"
+   ]
+  },
+  "ab-library": {
+   "tier": "advanced",
+   "to": "Skills & tools › Library",
+   "overlap": [
+    "you-knows"
+   ]
+  },
+  "ab-search": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Services tile (Web search)",
+   "overlap": []
+  },
+  "ab-data": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Services tile (Data sources)",
+   "overlap": []
+  },
+  "ab-mail": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Accounts tile (Email and calendar)",
+   "overlap": [
+    "ab-google",
+    "co-email"
+   ]
+  },
+  "ab-google": {
+   "tier": "sometimes",
+   "to": "Connections › Email and calendar › Google (detail, own page)",
+   "overlap": [
+    "ab-mail"
+   ]
+  },
+  "ab-home": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Accounts tile (Home Assistant)",
+   "overlap": [
+    "co-hooks"
+   ]
+  },
+  "ab-recipes": {
+   "tier": "advanced",
+   "to": "stays a redirect to Skills",
+   "overlap": []
+  },
+  "ab-projects": {
+   "tier": "advanced",
+   "to": "Skills & tools › Coding › Coding projects",
+   "overlap": []
+  },
+  "ab-precise": {
+   "tier": "advanced",
+   "to": "Skills & tools › Coding › Check her edits",
+   "overlap": []
+  },
+  "ab-persist": {
+   "tier": "advanced",
+   "to": "Skills & tools › Coding › Keep going and repeats",
+   "overlap": []
+  },
+  "ab-ssh": {
+   "tier": "advanced",
+   "to": "Skills & tools › Coding › Servers over SSH",
+   "overlap": []
+  },
+  "ab-tools": {
+   "tier": "sometimes",
+   "to": "Skills & tools › Tools and approvals",
+   "overlap": [
+    "dh-policy",
+    "dh-safety"
+   ]
+  },
+  "ab-github": {
+   "tier": "advanced",
+   "to": "Connections › Apps and services › Accounts tile (GitHub)",
+   "overlap": [
+    "co-hooks"
+   ]
+  },
+  "ab-budgets": {
+   "tier": "advanced",
+   "to": "Models & usage › Usage and costs › Limits (section; alias)",
+   "overlap": [
+    "dh-usage",
+    "dh-usage-report"
+   ]
+  },
+  "dh-devices": {
+   "tier": "everyday",
+   "to": "Connections › Devices and sign-in",
+   "overlap": [
+    "co-phone",
+    "account"
+   ]
+  },
+  "co-phone": {
+   "tier": "everyday",
+   "to": "Connections › Phone and notifications (Advanced fold: Apple push keys, phone calls)",
+   "overlap": [
+    "co-shortcuts",
+    "her-calls",
+    "dh-devices"
+   ]
+  },
+  "co-shortcuts": {
+   "tier": "sometimes",
+   "to": "Connections › Phone and notifications › iPhone Shortcuts (section; alias)",
+   "overlap": [
+    "co-phone"
+   ]
+  },
+  "desktop-app": {
+   "tier": "sometimes",
+   "to": "Connections › This computer (desktop app only)",
+   "overlap": [
+    "co-computer",
+    "models-local"
+   ]
+  },
+  "co-computer": {
+   "tier": "sometimes",
+   "to": "Connections › Computer use",
+   "overlap": [
+    "desktop-app"
+   ]
+  },
+  "co-spotify": {
+   "tier": "sometimes",
+   "to": "Connections › Apps and services › Accounts tile (Spotify)",
+   "overlap": []
+  },
+  "co-apps": {
+   "tier": "advanced",
+   "to": "Connections › Apps and services › For developers tile (Other apps)",
+   "overlap": [
+    "ab-mcp",
+    "co-agents"
+   ]
+  },
+  "co-agents": {
+   "tier": "advanced",
+   "to": "Connections › Apps and services › For developers tile (Other agents)",
+   "overlap": [
+    "co-apps"
+   ]
+  },
+  "co-hooks": {
+   "tier": "advanced",
+   "to": "Connections › Apps and services › For developers tile (Webhooks)",
+   "overlap": [
+    "you-automations",
+    "ab-github"
+   ]
+  },
+  "dh-safety": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Safety check-up (feeds Home: Needs attention)",
+   "overlap": [
+    "ab-tools",
+    "dh-recovery"
+   ]
+  },
+  "dh-privacy": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Privacy",
+   "overlap": []
+  },
+  "dh-backups": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Backups",
+   "overlap": [
+    "dh-data",
+    "dh-recovery"
+   ]
+  },
+  "dh-data": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Move in and export (host, renamed)",
+   "overlap": [
+    "her-import",
+    "dh-movein",
+    "dh-backups"
+   ]
+  },
+  "dh-movein": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Move in and export (section; alias)",
+   "overlap": [
+    "dh-data",
+    "her-import"
+   ]
+  },
+  "dh-health": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Health (host)",
+   "overlap": [
+    "dh-quality",
+    "dh-recovery",
+    "dh-operations"
+   ]
+  },
+  "dh-quality": {
+   "tier": "advanced",
+   "to": "Privacy & system › Health › How she did (section; alias)",
+   "overlap": [
+    "dh-health",
+    "dh-trust"
+   ]
+  },
+  "dh-recovery": {
+   "tier": "advanced",
+   "to": "Privacy & system › Health › Readiness and recovery (section; alias)",
+   "overlap": [
+    "dh-health",
+    "dh-safety",
+    "dh-backups"
+   ]
+  },
+  "dh-operations": {
+   "tier": "advanced",
+   "to": "Privacy & system › Health › Operations (Advanced fold; alias)",
+   "overlap": [
+    "dh-health"
+   ]
+  },
+  "dh-updates": {
+   "tier": "sometimes",
+   "to": "Privacy & system › Updates (also on Home status card)",
+   "overlap": []
+  },
+  "dh-reports": {
+   "tier": "advanced",
+   "to": "Privacy & system › Reports",
+   "overlap": [
+    "dh-trust"
+   ]
+  },
+  "dh-usage": {
+   "tier": "sometimes",
+   "to": "Models & usage › Usage and costs (host)",
+   "overlap": [
+    "ab-budgets",
+    "dh-usage-report"
+   ]
+  },
+  "household": {
+   "tier": "sometimes",
+   "to": "Household › People on this server",
+   "overlap": []
+  },
+  "dh-policy": {
+   "tier": "advanced",
+   "to": "Household › Policy",
+   "overlap": [
+    "ab-tools"
+   ]
+  },
+  "dh-audit": {
+   "tier": "advanced",
+   "to": "Household › Audit trail",
+   "overlap": []
+  },
+  "dh-retention": {
+   "tier": "advanced",
+   "to": "Household › Retention and legal hold",
+   "overlap": []
+  },
+  "dh-trust": {
+   "tier": "advanced",
+   "to": "Household › Trust report",
+   "overlap": [
+    "dh-reports",
+    "dh-quality"
+   ]
+  },
+  "dh-usage-report": {
+   "tier": "advanced",
+   "to": "Household › Usage reports (members see it too)",
+   "overlap": [
+    "dh-usage"
+   ]
+  },
+  "dh-shares": {
+   "tier": "sometimes",
+   "to": "Household › Shared links",
+   "overlap": []
+  },
+  "account": {
+   "tier": "everyday",
+   "to": "Household › Your account (members only)",
+   "overlap": [
+    "dh-devices"
+   ]
+  }
+ },
+ "overlaps": [
+  {
+   "topic": "Bringing things in",
+   "pages": [
+    "her-import",
+    "dh-data",
+    "dh-movein"
+   ],
+   "note": "Three pages import history (companion apps, ChatGPT/Claude, other agents); Companions also has a \"Bring your companion\" section. One page, three sections."
+  },
+  {
+   "topic": "Budgets and spend",
+   "pages": [
+    "ab-budgets",
+    "dh-usage",
+    "dh-usage-report"
+   ],
+   "note": "Per-reply ceilings, spend limits and monthly budgets live on three pages. Limits move into Usage and costs; Usage reports stays (members see it)."
+  },
+  {
+   "topic": "Health and readiness",
+   "pages": [
+    "dh-health",
+    "dh-quality",
+    "dh-recovery",
+    "dh-operations",
+    "dh-safety"
+   ],
+   "note": "Four read-mostly status pages. Health hosts the three thin ones as sections; Safety check-up stays and feeds Home."
+  },
+  {
+   "topic": "Email",
+   "pages": [
+    "ab-mail",
+    "ab-google",
+    "co-email"
+   ],
+   "note": "Your mailboxes, the Google account, and her own mailbox. One \"Email and calendar\" tile (Google as its detail); her mailbox stays a chat-app tile, renamed \"Her own email\" in the tile caption only."
+  },
+  {
+   "topic": "Briefings and reminders",
+   "pages": [
+    "you-briefing",
+    "you-leave-by",
+    "ab-when",
+    "her-calls"
+   ],
+   "note": "Three small reminder pages in You. One page with three sections; Calls from her links to it."
+  },
+  {
+   "topic": "This computer",
+   "pages": [
+    "desktop-app",
+    "co-computer",
+    "models-local"
+   ],
+   "note": "\"This computer\", \"Computer use\" (whose first heading is also \"This computer\") and \"On this computer\". Kept apart, adjacent, with distinct one-line leads."
+  },
+  {
+   "topic": "Phone",
+   "pages": [
+    "co-phone",
+    "co-shortcuts",
+    "dh-devices",
+    "her-calls"
+   ],
+   "note": "iPhone Shortcuts (5 settings) becomes a section of Phone and notifications."
+  },
+  {
+   "topic": "Pick up and continuity",
+   "pages": [
+    "co-pickup",
+    "co-continuity"
+   ],
+   "note": "Both about sharing context between apps. One page."
+  },
+  {
+   "topic": "Model sources",
+   "pages": [
+    "models-providers",
+    "models-subs"
+   ],
+   "note": "Subscriptions are a kind of provider. One page \"Providers and plans\"."
+  },
+  {
+   "topic": "Plugins and tool servers",
+   "pages": [
+    "ab-plugins",
+    "ab-mcp",
+    "ab-store"
+   ],
+   "note": "Kept apart (different jobs) but adjacent; the store links both."
+  },
+  {
+   "topic": "Reports",
+   "pages": [
+    "dh-reports",
+    "dh-trust",
+    "dh-quality"
+   ],
+   "note": "Three things called a report. Kept (different audiences); leads say which is which."
+  }
+ ]
+}

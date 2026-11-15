@@ -1,5 +1,5 @@
 // Phase 124 (2.57.0, docs/store/SARA_STORE.md §6.1, §6.2, §11.1): the Sara Store, part 1 in the
-// app. Settings → Data & health → Privacy gets the *Sara Store* row (on by default; off: no store
+// app. Settings → Privacy & system → Privacy gets the *Sara Store* row (on by default; off: no store
 // reads at all), when the list was last checked, *Check now*, and a line for each add-on the store
 // pulled. Plugins, Skills and Other programs (MCP) get *More in the Sara Store* (a plain link to the
 // website). Browsing and installing in Settings (*Get more*) are Phase 125. Everything here comes
@@ -111,7 +111,7 @@ export function initStore(o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Phase 125 (2.58.0, docs/store/SARA_STORE.md §8, §9.4, §10.1, §12.3): Settings → Add-ons → Get
+// Phase 125 (2.58.0, docs/store/SARA_STORE.md §8, §9.4, §10.1, §12.3): Settings → Skills & tools → Get
 // more. Browse and search (on Sara's own server: nothing is sent while typing), the item page, Get
 // through the review cards that exist (a plugin's card with the store strip, the skills import, the
 // new tool-server card), My add-ons, Submit yours, My submissions and Report this. Every text from

@@ -51,7 +51,7 @@ export class Speech {
 
   /**
    * Phase 48: an OpenAI API key for live calls (OpenAI Realtime): the speech API key when that
-   * speech API is OpenAI's, else the key of an OpenAI model provider (Settings → Models). API keys
+   * speech API is OpenAI's, else the key of an OpenAI model provider (Settings → Models & usage). API keys
    * only: a ChatGPT plan sign-in covers the Responses API, not the Realtime API (see live.ts).
    */
   openaiRealtimeKey(): { key: string; source: 'voice' | 'provider'; provider?: string } | undefined {
@@ -79,11 +79,11 @@ export class Speech {
       return { engine: 'grok', how, billedTo: how === 'grok-subscription' ? 'your Grok subscription (weekly usage)' : 'your xAI API account' };
     };
     const oaHow = (k: NonNullable<typeof oa>): LiveChoice => ({ engine: 'openai', how: k.source === 'voice' ? 'openai-key' : 'openai-provider-key', billedTo: k.source === 'voice' ? 'your OpenAI API account (the speech API key)' : `your OpenAI API account (the key of the "${k.provider}" model provider)` });
-    if (want === 'grok') return grok ? grokHow() : { engine: null, message: 'Live calls are set to Grok voice: sign in to Grok (Settings → Models → Subscriptions) or add an xAI key (Settings → Voice).' };
-    if (want === 'openai') return oa ? oaHow(oa) : { engine: null, message: 'Live calls are set to OpenAI: add an OpenAI API key in Settings → Voice (or an OpenAI model provider in Settings → Models).' };
+    if (want === 'grok') return grok ? grokHow() : { engine: null, message: 'Live calls are set to Grok voice: sign in to Grok (Settings → Models & usage → Providers and plans → Subscriptions) or add an xAI key (Settings → Voice).' };
+    if (want === 'openai') return oa ? oaHow(oa) : { engine: null, message: 'Live calls are set to OpenAI: add an OpenAI API key in Settings → Voice (or an OpenAI model provider in Settings → Models & usage).' };
     if (grok) return grokHow();
     if (oa) return oaHow(oa);
-    return { engine: null, message: 'Live calls need Grok voice or OpenAI: sign in to Grok (Settings → Models → Subscriptions), or add an xAI or OpenAI API key (Settings → Voice).' };
+    return { engine: null, message: 'Live calls need Grok voice or OpenAI: sign in to Grok (Settings → Models & usage → Providers and plans → Subscriptions), or add an xAI or OpenAI API key (Settings → Voice).' };
   }
 
   /** The key or sign-in for the chosen live voice service (renews a Grok sign-in if needed). */

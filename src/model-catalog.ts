@@ -190,7 +190,7 @@ export function ollamaCloudDefault(daemonHasCloud: boolean, instance = instanceN
 }
 /** The plain refusal when Ollama Cloud models are off for this Sara. */
 export const CLOUD_OFF = (label: string, model: string) =>
-  `${model} is an Ollama Cloud model: it runs on ollama.com and is billed to the ollama.com account ${label} is signed in to. Ollama Cloud models are turned off for this Sara (Settings → Models → ${label} → Use Ollama Cloud models).`;
+  `${model} is an Ollama Cloud model: it runs on ollama.com and is billed to the ollama.com account ${label} is signed in to. Ollama Cloud models are turned off for this Sara (Settings → Models & usage → ${label} → Use Ollama Cloud models).`;
 /** Hardening L1: a list this much shorter than the last one is treated as a glitch (nothing retired). */
 export const SHRINK_LIMIT = 0.5;
 
@@ -732,7 +732,7 @@ export class ModelCatalog {
   }
 
   #stuck(use: ModelUse, by: string, auto: boolean): RetiredUse {
-    return { where: use.where, job: use.job, providerId: use.providerId, model: use.model, text: `${use.model} was retired by ${by}, but ${use.where} still uses it.${auto ? ' No replacement was found:' : ''} Pick another model in Settings → Models.`, reason: auto ? 'retired-no-replacement' : 'retired-auto-switch-off', from: use.model, provider: by };
+    return { where: use.where, job: use.job, providerId: use.providerId, model: use.model, text: `${use.model} was retired by ${by}, but ${use.where} still uses it.${auto ? ' No replacement was found:' : ''} Pick another model in Settings → Models & usage.`, reason: auto ? 'retired-no-replacement' : 'retired-auto-switch-off', from: use.model, provider: by };
   }
 
   /** Retired models still in use (without changing anything): for Health. */

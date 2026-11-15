@@ -1,6 +1,6 @@
 // Phase 8: `sara doctor`, deeper checks than the Health page: database integrity, every model
 // provider actually answers, data folder permissions, off-server copies, Node and optional installs.
-// Used by the CLI (`node src/main.ts --doctor`, `sara doctor`) and Settings → Data & health.
+// Used by the CLI (`node src/main.ts --doctor`, `sara doctor`) and Settings → Privacy & system.
 import { isOllamaDaemon } from './model-catalog.ts';
 import { isCloudModelName } from './model-names.ts';
 import { existsSync, statfsSync, statSync } from 'node:fs';
@@ -78,7 +78,7 @@ export function fitnessLine(f: FitnessView): DoctorCheck {
   if (f.medianS !== undefined && f.reasons.includes('slow-replies')) keys.push(en('Replies take about {s} s with {model} on this computer.'));
   else if (f.reasons.includes('cpu-big')) keys.push(en('{model} runs on the processor here (no graphics card), so replies can take minutes.'));
   if (f.reasons.includes('no-tools')) keys.push(en("{model} can't use tools: computer use, documents and shopping won't work."));
-  keys.push(f.choices.length ? en('Faster choices: {choices} (Settings → Models → Default model).') : en('Faster choices: an Ollama Cloud model, a smaller local model, or a computer with a graphics card.'));
+  keys.push(f.choices.length ? en('Faster choices: {choices} (Settings → Models & usage → Default model).') : en('Faster choices: an Ollama Cloud model, a smaller local model, or a computer with a graphics card.'));
   const fill = (k: string) => Object.entries(params).reduce((a, [p, v]) => a.replaceAll(`{${p}}`, String(v)), k);
   // `parts`: each sentence is its own translated key (the app joins them).
   return { name, status: 'warn', detail: keys.map(fill).join(' '), parts: keys.map((key) => ({ key, params })) };
@@ -128,7 +128,7 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
   } else add('Database', 'warn', 'not created yet (first start)');
 
   // Every provider actually answers.
-  if (!s.providers.length) add('Models', 'fail', 'No model provider set up (Settings → Models).');
+  if (!s.providers.length) add('Models', 'fail', 'No model provider set up (Settings → Models & usage).');
   await Promise.all(
     s.providers.map(async (p) => {
       const t = Date.now();
@@ -150,7 +150,7 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
   const ageH = last ? (now.getTime() - Date.parse(last.createdAt)) / 3600_000 : Infinity;
   add('Backups', ageH < 48 ? 'ok' : 'warn', last ? `newest ${last.name} (${Math.round(ageH)} h old)` : 'no backups yet');
   const off = { ...DEFAULT_OFFSITE, ...s.offsite };
-  if (off.kind === 'off') add('Off-server copy', 'warn', 'off: if this server is lost, so are its backups (Settings → Data & health)');
+  if (off.kind === 'off') add('Off-server copy', 'warn', 'off: if this server is lost, so are its backups (Settings → Privacy & system)');
   else if (!d.vault.has(OFFSITE_PASS_VAULT)) add('Off-server copy', 'fail', 'no passphrase set');
   else if (!off.last) add('Off-server copy', 'warn', 'set up; no copy made yet');
   else add('Off-server copy', off.last.ok ? 'ok' : 'fail', off.last.ok ? `last ${off.last.name} at ${off.last.at}` : `last attempt failed: ${off.last.error}`);
@@ -160,8 +160,8 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
   if (d.sandbox) {
     add('Tool sandbox', d.sandbox.mode !== 'none' ? 'ok' : 'warn', d.sandbox.mode !== 'none' ? `${d.sandbox.mode}: ${d.sandbox.detail}` : en('No execution isolation. Commands run directly on this computer.'));
     const unasked = d.tools ? d.tools.list().filter((t) => t.runsCommands && d.tools!.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name) : [];
-    add(en('Command approvals'), !d.tools || unasked.length ? 'warn' : 'ok', !d.tools ? en('Command approval policy is unavailable.') : unasked.length ? `${unasked.join(', ')} run without asking (Settings → Coding → Tools and approvals)` : en('Command tools ask for approval or are blocked. Approval does not provide execution isolation.'));
-    if (unasked.length) Object.assign(out.at(-1)!, { detailKey: en('{tools} run without asking (Settings → Coding → Tools and approvals)'), params: { tools: unasked.join(', ') } });
+    add(en('Command approvals'), !d.tools || unasked.length ? 'warn' : 'ok', !d.tools ? en('Command approval policy is unavailable.') : unasked.length ? `${unasked.join(', ')} run without asking (Settings → Skills & tools → Tools and approvals)` : en('Command tools ask for approval or are blocked. Approval does not provide execution isolation.'));
+    if (unasked.length) Object.assign(out.at(-1)!, { detailKey: en('{tools} run without asking (Settings → Skills & tools → Tools and approvals)'), params: { tools: unasked.join(', ') } });
   }
 
   // Optional installs.
@@ -184,7 +184,7 @@ export async function runDoctor(d: DoctorDeps): Promise<DoctorCheck[]> {
     await Promise.all(
       d.dataSources.kinds().map(async (k) => {
         const name = DATA_NAMES[k.kind] ?? `Live data: ${k.kind}`;
-        if (k.needsKey && !k.hasKey) return out.push({ name, status: 'warn', detail: `${k.label}: no key yet (optional; Settings → Add-ons → Data sources)`, detailKey: en('{source}: no key yet (optional; Settings → Add-ons → Data sources)'), params: { source: k.label } });
+        if (k.needsKey && !k.hasKey) return out.push({ name, status: 'warn', detail: `${k.label}: no key yet (optional; Settings → Connections → Apps and services → Data sources)`, detailKey: en('{source}: no key yet (optional; Settings → Connections → Apps and services → Data sources)'), params: { source: k.label } });
         const r = await d.dataSources!.test(k.kind).catch((err: Error) => ({ ok: false, message: err.message, source: k.label }));
         if (r.ok) out.push({ name, status: 'ok', detail: `${k.label} answered`, detailKey: en('{source} answered'), params: { source: k.label } });
         else out.push({ name, status: 'warn', detail: `${k.label}: ${r.message}`.slice(0, 200) });

@@ -1,4 +1,4 @@
-// Phase 65: Settings → Her → Bring her from another app. Choose a chat file → see what's in it and
+// Phase 65: Settings → Privacy & system → Move in and export → Bring her from another app. Choose a chat file → see what's in it and
 // say who is who → see the size and the model (cloud models cost money) → she reads it (progress,
 // Stop) → review what she learned (facts about you, your history together, a personality draft),
 // edit, untick → Save. Nothing is kept before Save; the raw chats only when asked.

@@ -391,7 +391,7 @@ async function suConnect(config, apiKey) {
     await loadProviders();
     $('#su-model-note').textContent = t('Loading models…');
     $('#su-model-row').hidden = false;
-    // Phase 114 (F4/F5): the same list and count as Models → Default model, in two groups (on this
+    // Phase 114 (F4/F5): the same list and count as Models & usage → Default model, in two groups (on this
     // computer, Ollama Cloud) with the pick first, instead of every raw tag in one long list.
     modelCache.delete(config.id);
     const view = await modelViewFor(config.id);

@@ -1,4 +1,4 @@
-// R1B1 shared roleplay scenes: owner controls in Settings → Chat apps → Session continuity.
+// R1B1 shared roleplay scenes: owner controls in Settings → Connections → Apps and services → Pick up across apps → Session continuity.
 // R1B3: the one shared room seat, the "In scene" chip in the chat header and "Add to scene".
 // Every string goes through t(); stored titles, premises, canon and labels are text nodes only.
 import { t } from './naming.js';
@@ -293,7 +293,7 @@ export function renderSceneChip(conv) {
   chip.title = `${chip.textContent}. ${scene.audience === 'room' ? t('This shared room is linked to a shared scene. Only you see this chip.') : t('This chat is linked to a shared scene. Only you see this chip.')}`;
 }
 
-/** Opens Settings → Chat apps → Session continuity at this scene's card. */
+/** Opens Settings → Connections → Apps and services → Session continuity at this scene's card. */
 async function openSceneCard(id) {
   if (!ctx?.openSettings || !Number.isInteger(id)) return;
   await ctx.openSettings('co-continuity');

@@ -21,16 +21,16 @@ Node 24+, zero runtime dependencies, no build step. Other ways to install: [docs
    Code, Codex or Grok Build) first when you are already signed in.
 2. **Open a project:** *+ Project* in the sidebar, with a workspace folder. Start a conversation in it
    (or tap *Look at my project*, *Fix a failing test* or *Start a new project* on the last setup step).
-3. **Choose how she runs code** in *Settings → Coding → Tools and approvals*: she asks first, and
+3. **Choose how she runs code** in *Settings → Skills & tools → Tools and approvals*: she asks first, and
    risky commands can run in a throwaway sandbox copy first.
 4. **Ask for something real**, and watch the cards: files changed, tests passed or failed, and every
    command waiting for your **Allow**.
-5. **Connect GitHub** (*Settings → Coding → GitHub*) for issues and pull requests.
+5. **Connect GitHub** (*Settings → Connections → Apps and services → GitHub*) for issues and pull requests.
 6. **Use her from your editor or terminal:** `sara-chat`, the VS Code panel, MCP for Claude Code and
    Cursor, or the OpenAI-compatible address ([clients](clients.md), [other apps](OTHER_APPS.md)).
-7. **Set a budget** (*Settings → Coding → Budgets*) so a long task stops where you want.
+7. **Set a budget** (*Settings → Models & usage → Usage and costs → Budgets*) so a long task stops where you want.
 
-After interruption, use **Settings → Data & health → Readiness and recovery**. A job restart is a reviewed new
+After interruption, use **Settings → Privacy & system → Health → Readiness and recovery**. A job restart is a reviewed new
 request, not continuation from a shell instruction offset. Team completed steps are preserved, but
 unfinished effects need explicit review; publication may require manual reconciliation. Current
 approval/privacy rules still apply. [Recovery details](RECOVERY.md).
@@ -65,14 +65,14 @@ Wrote a file ×2 · +4 more*) opens to every command and its output.
 
 <img src="screenshots/work-dials.webp" alt="Settings, Coding projects: the How she is while you code dials (Banter while working, Celebrations, Teasing about bugs) with a sample line each, Quiet when I'm focused, and the workspace picker" width="760">
 
-*Settings → Coding → Coding projects* sets how chatty she is while working (with a sample line for
+*Settings → Skills & tools → Coding projects* sets how chatty she is while working (with a sample line for
 each step), *Quiet when I'm focused*, and what she knows about each project.
 
 ## Project checkpoints
 
 Project checkpoints are included in the 2.67.0 public release.
 
-In **Settings → Coding → Coding projects**, open **Project checkpoint** beside a repository's
+In **Settings → Skills & tools → Coding projects**, open **Project checkpoint** beside a repository's
 notes. Keep the current logic, any blockers and one to three next steps. Save before changing tasks
 or starting a new coding chat. You can also ask Sara to save a checkpoint in an ordinary owner coding
 conversation; she uses `project_checkpoint`, not a background summarizer.
@@ -106,7 +106,7 @@ and the files it touched (`*` = this chat touched the file too). Click the title
 chat. Only titles, times and paths are shown, never message text. It is a note: nothing is locked,
 merged or asked again, and editors outside Sara show up on her next step, not instantly.
 
-Check results now say what they ran on. In **Settings → Coding → Check her edits** and on the goal
+Check results now say what they ran on. In **Settings → Skills & tools → Check her edits** and on the goal
 chip a result reads `ran on a1b2c3d + 2 changed files, current`, or `stale since 14:02: HEAD
 a1b2c3d → 9f8e7d6, 3 files changed (…)`, or `basis unknown` (older results, git errors, or very
 large/many changed files). Sara is told that a stale or unknown result is not proof and that she
@@ -139,7 +139,7 @@ or 1024px and up), or says it's fixed or looks right now without a screenshot or
 - **Repeats:** `/loop every 10m for 2h: check the deploy and tell me if it's red`. Every repeat has an end
   time, a cap on checks and a daily budget, and stays quiet while nothing changes. Planner → *Repeats*
   lists them.
-- **The limits** are three presets in *Settings → Coding → Keep going and repeats*: *Careful*, *Normal*
+- **The limits** are three presets in *Settings → Skills & tools → Keep going and repeats*: *Careful*, *Normal*
   (the defaults) and *Long jobs* (20 rounds, 4 hours, 2,000,000 tokens), each spelled out in rounds, time,
   tokens and dollars; your own numbers stay under *Fine-tune*.
 - **Steer her while she works:** what you type mid-turn offers *Tell her now* (she reads it before her
@@ -157,7 +157,7 @@ word for word and *Undo* brings it back. Private chats only ever use a model on 
 
 ## Get tools from the Store (2.57–2.61)
 
-*Settings → Add-ons → Get more* is the signed Sara Store: tool servers such as a browser (Playwright),
+*Settings → Skills & tools → Get more* is the signed Sara Store: tool servers such as a browser (Playwright),
 GitHub, files on this computer and current docs (Context7), plus plugins and skills. A tool server's card
 shows the exact command (and its Windows form), what it needs and what it can reach; keys go to the vault
 and nothing switches on by itself. `sara pack` checks your own plugin, skill or tool server before you
@@ -212,6 +212,6 @@ other chat apps ([CHATS.md](CHATS.md)). The table is generated from the app's ow
 | Hand-off to Claude Code, Codex or Grok Build | *Subscriptions* | [choosing a model](CHOOSING_A_MODEL.md) |
 
 Every page in the app has a **How do I…?** box; the coding ones are in the list at
-[How do I…?](HOW_DO_I.md) under *Settings → Coding*. Benchmarks, with the honest reading:
+[How do I…?](HOW_DO_I.md) under *Settings → Skills & tools*. Benchmarks, with the honest reading:
 [RESULTS.md](RESULTS.md). The code itself: [ARCHITECTURE.md](ARCHITECTURE.md) and
 [EXTENDING.md](EXTENDING.md).

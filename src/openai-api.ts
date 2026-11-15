@@ -91,13 +91,13 @@ export async function handleOpenAI(req: IncomingMessage, res: ServerResponse, pa
   const method = req.method ?? 'GET';
   if (deps.demo) return sendError(res, 404, 'The API for other apps is off on the demo server.', 'invalid_request_error', 'not_available');
   const s = otherAppsSettings(deps.app.settings.get());
-  if (!corsAllowed(req, res, s)) return sendError(res, 403, 'This web address may not use the API. Allow it in Sara: Settings → Connections → Other apps → Browser apps that may call her.', 'invalid_request_error', 'origin_not_allowed');
+  if (!corsAllowed(req, res, s)) return sendError(res, 403, 'This web address may not use the API. Allow it in Sara: Settings → Connections → Apps and services → Other apps → Browser apps that may call her.', 'invalid_request_error', 'origin_not_allowed');
   if (method === 'OPTIONS') {
     res.writeHead(204, BASE_HEADERS);
     return void res.end();
   }
   const caller = callerOf(req, deps.auth);
-  if (!caller) return sendError(res, 401, 'Incorrect or missing API key. Make one in Sara: Settings → Connections → Other apps → Create an API key.', 'invalid_request_error', 'invalid_api_key', { 'www-authenticate': 'Bearer' });
+  if (!caller) return sendError(res, 401, 'Incorrect or missing API key. Make one in Sara: Settings → Connections → Apps and services → Other apps → Create an API key.', 'invalid_request_error', 'invalid_api_key', { 'www-authenticate': 'Bearer' });
   const wait = deps.limiter.take(caller.id);
   if (wait) return sendError(res, 429, `Too many requests with this key. Try again in ${wait} seconds.`, 'rate_limit_exceeded', 'rate_limit_exceeded', { 'retry-after': String(wait) });
 

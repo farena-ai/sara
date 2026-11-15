@@ -14,7 +14,7 @@ server event, see **When this happens** on the same page: [TRIGGERS.md](TRIGGERS
 
 ## Make one
 
-*Settings → Connections → Webhooks → New webhook*. Three steps:
+*Settings → Connections → Apps and services → Webhooks → New webhook*. Three steps:
 
 1. **Where it comes from**: GitHub, Stripe, Home Assistant or Something else. This picks how
    deliveries are checked and offers ready-made conditions.

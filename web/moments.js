@@ -118,11 +118,11 @@ function albumCard(a) {
 
 function costLine(d) {
   const c = d.captioner;
-  if (!c) return t('Captions wait until a model is set up (Settings → Models).');
+  if (!c) return t('Captions wait until a model is set up (Settings → Models & usage).');
   if (c.billing === 'local') return t('Captions by {model} on your own hardware (free).', { model: c.model });
   if (c.billing === 'subscription') return t('Captions by {model} through your {provider} plan (counts toward its limits).', { model: c.model, provider: c.provider });
   return c.usdPer100 === null
-    ? t('Captions by {model} ({provider}): a paid model; the cost per caption isn’t known (add its price in Settings → Models → Usage).', { model: c.model, provider: c.provider })
+    ? t('Captions by {model} ({provider}): a paid model; the cost per caption isn’t known (add its price in Settings → Models & usage → Usage).', { model: c.model, provider: c.provider })
     : t('Captions by {model} ({provider}): a paid model, about ${usd} per 100 captions.', { model: c.model, provider: c.provider, usd: c.usdPer100.toFixed(2) });
 }
 

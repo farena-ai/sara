@@ -32,7 +32,7 @@ refused with 401 and counted on the card.
 
 ## The seven steps
 
-*Settings → Chat apps → Microsoft Teams* and press **Start**, then **Add Microsoft Teams** on the short
+*Settings → Connections → Apps and services → Microsoft Teams* and press **Start**, then **Add Microsoft Teams** on the short
 step that says what it can reach. Each step turns ✓ only when Sara has checked it.
 
 1. **Make the Azure Bot.** portal.azure.com → *Create a resource* → *Azure Bot* → *Create* → any bot

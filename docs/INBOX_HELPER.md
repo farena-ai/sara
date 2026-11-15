@@ -3,7 +3,7 @@
 Sara reads the new email in your connected mailboxes (Gmail, Outlook and Microsoft 365, Yahoo, iCloud
 and other IMAP mailboxes; see [Email and calendar](EMAIL.md)) and turns what needs doing into
 one-tap cards on **Today → From your inbox**. Turn it on or off, pick the mailboxes and choose what she
-may do on her own in **Settings → Add-ons → Email and calendar → Inbox helper**.
+may do on her own in **Settings → Connections → Apps and services → Email and calendar → Inbox helper**.
 
 ## What becomes a card
 

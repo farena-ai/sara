@@ -1,6 +1,6 @@
 # Container sandbox and allowed sites
 
-Settings → Coding → **Tools and approvals** → *Isolation* and *Sites sandboxed work may reach*.
+Settings → Skills & tools → **Tools and approvals** → *Isolation* and *Sites sandboxed work may reach*.
 Owner only. Design: [ops/EC89_DESIGN.md](ops/EC89_DESIGN.md).
 
 ## Where her commands run

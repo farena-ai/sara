@@ -1,7 +1,7 @@
 # Plugins: writing one for Sara
 
 A **plugin** is a folder with a manifest (`sara-plugin.json`) and JavaScript code. The owner adds it
-in **Settings → Add-ons → Plugins** from a .zip, a git address or a folder on the server, reads its
+in **Settings → Skills & tools → Plugins** from a .zip, a git address or a folder on the server, reads its
 review card, and switches it on per companion. It runs **in its own process**, with only the
 permissions its manifest declares and the owner approved, and talks to Sara over **a small JSON
 channel** on stdin/stdout. It can hook into turns, run on a schedule or on an event, and add tools,
@@ -143,7 +143,7 @@ Store's signed list, the review card adds one line: *From the Sara Store · Made
 later pulls that version, the plugin is switched off on every companion with the chip *Pulled from the
 Sara Store: …* and nothing is deleted. See [STORE.md](STORE.md).
 
-**Getting it from the store and sending yours (2.58).** **Settings → Add-ons → Get more** installs a
+**Getting it from the store and sending yours (2.58).** **Settings → Skills & tools → Get more** installs a
 store plugin through this same review card (origin *Sara Store*); updates show the permission diff and
 are never applied on their own. To offer yours, run `sara pack <folder>`: the manifest and permission
 checks, a key scan, the fenced smoke test (no network, fake keys, every tool must answer `ready`), the
@@ -447,7 +447,7 @@ shows **the same review card** with *Comes with Sara · made by the Sara team*. 
 switches on by itself; on an unfenced host the trust tick is still required. When Sara ships a newer
 version, the shelf shows *Update available* and *Check for updates* re-reads the bundled folder.
 The chat-app plugins (Email, Signal, WhatsApp, Matrix, iMessage) are set up on their own page, so their
-rows say *Set up in Chat apps → …* and open it.
+rows say *Set up in Apps and services → …* and open it.
 Their `sara-plugin.mjs` is the same file as `examples/plugins/sara-plugin.mjs`.
 
 ## 9. Testing your plugin

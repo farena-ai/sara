@@ -46,14 +46,14 @@ approval needed): `code_diagnostics` (errors and warnings in a file), `code_defi
 A server starts on first use per project and language, stops after 5 minutes idle, at most four run
 at once, each request has a 15-second limit, and Node-based servers get a 1.5 GB memory limit (on
 Linux any server is stopped past it). Servers get a clean environment, never Sara's keys. Without a
-server she says so and falls back to reading and searching. **Settings → Coding → GitHub → Her
+server she says so and falls back to reading and searching. **Settings → Connections → Apps and services → GitHub → Her
 commits** lists which servers this computer has.
 
 ## Co-authored commits
 
 Her commits end with `Co-authored-by: Sara <sara@noreply.sara.invalid>` (her current name, an
 address that reaches nobody), so GitHub shows who helped. Change the name and email, or turn it off,
-in **Settings → Coding → GitHub → Her commits**.
+in **Settings → Connections → Apps and services → GitHub → Her commits**.
 
 ## The Workspace tab
 

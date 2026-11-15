@@ -99,7 +99,7 @@ export interface PrereqDeps {
   fetch?: Fetcher;
   /** Where job temp folders go (`<data>/cache/prereqs`). */
   tmpRoot: string;
-  /** The owner's setting (Settings → Add-ons); the EC5 pin tightens it. */
+  /** The owner's setting (Settings → Skills & tools); the EC5 pin tightens it. */
   setting: () => InstallsSetting | undefined;
   timeoutMs?: number;
   /** Adds a catalog folder to Sara's own PATH after an install (tool servers then find it). */

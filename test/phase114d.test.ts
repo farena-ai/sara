@@ -55,8 +55,8 @@ test('PL1d: the How do I…? index in the guide lists every entry of howto.json,
   // Views first, then the Settings groups in menu order; every Settings page has a title.
   const sections = howtoSections(data, titles());
   assert.equal(sections[0].pages[0].id, 'chat');
-  // PL2b (2.61.1, POLISH2 §4.2): the 8 groups (Chat apps, Add-ons and Coding replace Abilities; Connections keeps 6 pages).
-  assert.deepEqual(sections.slice(1).map((s) => s.heading), ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household']);
+  // SETTINGS3 (docs/design/SETTINGS3.md): 6 groups + Household, the first named after her.
+  assert.deepEqual(sections.slice(1).map((s) => s.heading), ['Sara', 'You', 'Models & usage', 'Connections', 'Skills & tools', 'Privacy & system', 'Household']);
 });
 
 test('PL1d: the guide index needs no new translations (titles and questions are keys the app already has)', () => {
@@ -66,7 +66,7 @@ test('PL1d: the guide index needs no new translations (titles and questions are 
   for (const m of index.matchAll(/<(h3|h4|summary|li)\b[^>]*>([^<]*)<\/\1>/g)) keys.add(m[2].replace(/&amp;/g, '&'));
   for (const lang of ['es', 'fr', 'de', 'it', 'pt-BR']) {
     const dict = JSON.parse(read(`web/i18n/${lang}.json`)) as Record<string, string>;
-    const missing = [...keys].filter((k) => !dict[k] && !['Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Matrix', 'iMessage', 'Slack', 'Microsoft Teams', 'Hey Sara', 'Email', 'Webhooks', 'Home Assistant', 'Spotify'].includes(k));
+    const missing = [...keys].filter((k) => !dict[k] && !['Sara', 'Chat', 'GitHub', 'Telegram', 'Discord', 'Signal', 'WhatsApp', 'Matrix', 'iMessage', 'Slack', 'Microsoft Teams', 'Hey Sara', 'Email', 'Webhooks', 'Home Assistant', 'Spotify'].includes(k));
     assert.deepEqual(missing.slice(0, 5), [], `${lang}: ${missing.length} index lines untranslated`);
   }
   // help-i18n.js translates the index's page titles and questions by their text.

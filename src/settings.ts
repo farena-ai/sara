@@ -157,17 +157,17 @@ export interface Settings {
   /** Phase 78: how long run snapshots are kept (days; 0 = until deleted) and their size cap (MB). */
   /** Phase 84: the eval loop's "Re-check monthly" (off by default; owner-only). */
   evalSchedule?: Partial<import('./evals.ts').EvalSchedule>;
-  /** Phase 97 (ST2): skills she learns (per companion; Settings → Add-ons → Skills). */
+  /** Phase 97 (ST2): skills she learns (per companion; Settings → Skills & tools → Skills). */
   skillLearning?: Partial<import('./skill-learning.ts').LearnSettings>;
   /** Phase 98 (ST3): plugins switched on for this companion, their settings (secrets live in the vault). */
   plugins?: import('./plugins/manager.ts').CompanionPluginSettings;
   runs?: Partial<import('./runs.ts').RunSettings>;
-  /** Settings → Data & health: the log level (SARA_LOG_LEVEL, when set, wins). Missing = info. */
+  /** Settings → Privacy & system: the log level (SARA_LOG_LEVEL, when set, wins). Missing = info. */
   logLevel?: import('./log.ts').LogLevel;
-  /** EC3: monitoring (Settings → Data & health → Monitoring); off by default. Secrets live in the vault. */
+  /** EC3: monitoring (Settings → Privacy & system → Monitoring); off by default. Secrets live in the vault. */
   telemetry?: Partial<{ metrics: Partial<import('./telemetry/config.ts').TelemetrySettings['metrics']>; traces: Partial<import('./telemetry/config.ts').TelemetrySettings['traces']> }>;
   /**
-   * Phase 79: per-reply budgets (Settings → Coding → Budgets): coding chats and everyday chats
+   * Phase 79: per-reply budgets (Settings → Models & usage → Usage and costs → Budgets): coding chats and everyday chats
    * (tokens, steps, optional $ and minutes, on/off), the quick-model step and what happens at the limit.
    */
   /** C8: spend limits and the owner's own tool prices (src/spend.ts). */
@@ -180,25 +180,25 @@ export interface Settings {
   learn?: { monthlyTokens?: number };
   turnBudgets?: Partial<Omit<import('./budget.ts').TurnBudgetSettings, 'coding' | 'chat'>> & { coding?: Partial<import('./budget.ts').TurnLimits>; chat?: Partial<import('./budget.ts').TurnLimits> };
   /**
-   * Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects): off, only
+   * Phase 80: "Try commands in a sandbox first" (Settings → Skills & tools → Coding projects): off, only
    * risky commands (default) or every command; network for tries, the size and time limits, and the
    * Docker image used on Windows when Docker is present.
    */
   sandboxGate?: Partial<import('./sandbox-run.ts').SandboxGateSettings>;
   /**
-   * Phase 81: the security pass (Settings → Coding → Coding projects): after coding turns /
+   * Phase 81: the security pass (Settings → Skills & tools → Coding projects): after coding turns /
    * only when asked / off, the Reviewing model's second look, live advisories from OSV.dev (off by
    * default), the pass's token budget and the fix loop's test run.
    */
   securityPass?: Partial<import('./security/pass.ts').SecuritySettings>;
   /**
-   * Phase 82: the threat model after coding turns (Settings → Coding → Coding projects): Off /
+   * Phase 82: the threat model after coding turns (Settings → Skills & tools → Coding projects): Off /
    * Report only / Report and offer the fix pass (default). Uses the security pass's reviewer switch
    * and budget.
    */
   threatModel?: Partial<import('./security/threats.ts').ThreatSettings>;
   /**
-   * Phase 86: red-team mode (Settings → Coding → Coding projects): before a push / PR / release
+   * Phase 86: red-team mode (Settings → Skills & tools → Coding projects): before a push / PR / release
    * (Off / Ask me (default) / Always), attacker scripts per run, its own token budget and time limit.
    */
   redteam?: Partial<import('./redteam.ts').RedTeamSettings>;
@@ -301,7 +301,7 @@ export interface Settings {
   /**
    * Phase 72: her Alexa skill (server-wide, the owner's): the skill id from the Alexa developer
    * console (requests for any other skill are refused) and whether her Alexa replies use the quick
-   * model (Settings → Models → Which model does what). Linked Alexa accounts are in <data>/alexa.json.
+   * model (Settings → Models & usage → Which model does what). Linked Alexa accounts are in <data>/alexa.json.
    */
   alexa?: { skillId?: string; quick?: boolean };
   /** Phase 72: smart-home presence through Home Assistant (per companion; off by default). */

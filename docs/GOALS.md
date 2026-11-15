@@ -9,7 +9,7 @@ yours only, both start only when you press **Start**, and after a restart both c
 | How it ends | The check passes, she's stuck, a cap, or you stop it | Its end time, its check limit, *Stop when*, failures, or you |
 | Start it | `+ → Keep going until it's done…` or `/goal make the tests pass` | `+ → Repeat this…` or `/loop every 10m for 2h: check the deploy` |
 | See them | The strip above the chat box | The strip, and Planner → **Repeats** |
-| Settings | Settings → Coding → **Keep going and repeats** | the same page |
+| Settings | Settings → Skills & tools → **Keep going and repeats** | the same page |
 
 ### How far she may go (Sara 2.61.2)
 

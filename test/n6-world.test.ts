@@ -260,7 +260,7 @@ test('N6 page wiring: Settings → You → What Sara knows, tips, how-to, i18n �
   const html = readFileSync(join(ROOT, 'web/index.html'), 'utf8');
   assert.ok(html.includes('data-page="you-knows" data-group="You" data-title="What Sara knows"'), 'the page is in Settings → You');
   const nav = readFileSync(join(ROOT, 'web/settings-nav.js'), 'utf8');
-  assert.match(nav, /'you-details', 'you-knows'/);
+  assert.match(nav, /'you-business', 'you-knows'/); // SETTINGS3: You's order
   const tips = JSON.parse(readFileSync(join(ROOT, 'web/tips.json'), 'utf8'));
   assert.ok(tips.pages['you-knows']);
   const howto = JSON.parse(readFileSync(join(ROOT, 'web/howto.json'), 'utf8'));

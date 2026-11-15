@@ -483,7 +483,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       if (!h) return send(res, 200, { buckets: [], up: 0 });
       return send(res, 200, days ? h.history({ days: Math.min(31, Math.max(1, Number(days) || 7)) }) : h.history({ hours: 24 }));
     }
-    // Settings → Data & health: the log level, saved in settings; SARA_LOG_LEVEL (when set) still wins.
+    // Settings → Privacy & system: the log level, saved in settings; SARA_LOG_LEVEL (when set) still wins.
     if (a === 'logs' && b === 'level' && !c) {
       const view = () => ({ level: app.log?.level ?? 'info', saved: app.settings.get().logLevel ?? null, env: app.log?.options.levelFromEnv ? app.log.options.level : null, choices: LOG_LEVELS });
       if (method === 'GET') return send(res, 200, view());

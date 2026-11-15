@@ -43,7 +43,7 @@ export function adoptDefaultModel(app: RouteCtx['app'], providerId: string, mode
 /**
  * Leftover 6: the picture jobs (Looking at pictures, Screen) whose chosen model can't take pictures
  * (a subscription app, or a model its provider's list says is text only), and the model that gets
- * the pictures instead, for the notice in Settings → Models.
+ * the pictures instead, for the notice in Settings → Models & usage.
  */
 export function pictureNotices(app: AppContext): Record<string, { providerId: string; model: string; usedProvider?: string; usedModel?: string }> {
   const s = app.settings.get();
@@ -368,7 +368,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         }
       }
     }
-    // Phase 52: the cost and token meter (Settings → Data & health → Usage) and the price table.
+    // Phase 52: the cost and token meter (Settings → Privacy & system → Usage) and the price table.
     if (a === 'usage') {
       const meter = app.usage;
       if (!meter) throw new HttpError(404, 'Not available');

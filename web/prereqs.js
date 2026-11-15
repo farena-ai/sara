@@ -1,5 +1,5 @@
 // PRQ (docs/ops/PRQ_DESIGN.md): programs add-ons need on the computer where Sara runs. The store
-// card's "It needs" line and Settings → Add-ons → Other programs list them; *Install it for me*
+// card's "It needs" line and Settings → Skills & tools → Other programs list them; *Install it for me*
 // shows the approval card with the exact commands, then the progress (Stop), then the re-check.
 // Owner only (the server refuses everyone else). Every value is set as text.
 import { serverText, t } from './naming.js';
@@ -200,7 +200,7 @@ export function needsLine(needs, onInstalled) {
   return box;
 }
 
-// ---- Settings → Add-ons → Other programs: the programs list and the install setting ----
+// ---- Settings → Skills & tools → Other programs: the programs list and the install setting ----
 
 const STATE = (p) => (p.found ? (p.old ? t('Found, but too old ({version})', { version: p.version ?? '?' }) : p.version ? t('Found ({version})', { version: p.version }) : t('Found')) : t('Not found'));
 

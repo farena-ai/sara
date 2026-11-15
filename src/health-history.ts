@@ -1,4 +1,4 @@
-// Phase 30: health history for Settings → Data & health. A sample every 5 minutes while Sara runs
+// Phase 30: health history for Settings → Privacy & system. A sample every 5 minutes while Sara runs
 // (so gaps are downtime): problems logged, chat turns, failed turns, how long replies took to
 // start, memory and disk. Kept 31 days, in sara.db. Read back per hour or per day.
 import { freemem, loadavg } from 'node:os';

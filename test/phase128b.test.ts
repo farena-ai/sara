@@ -34,37 +34,46 @@ const list = (name: string) => /const NAME = \[([\s\S]*?)\];/.source.replace('NA
 const ORDER = new RegExp(list('SETTINGS_ORDER')).exec(app)![1].match(/'([\w-]+)'/g)!.map((s) => s.slice(1, -1));
 const GROUPS = [...new RegExp(list('SETTINGS_GROUPS')).exec(app)![1].matchAll(/name: '([^']+)'/g)].map((m) => m[1]);
 
-test('128b.1 N29: every page id in SETTINGS_ORDER is in exactly one group; 8 groups (+ Household) with bounded pages; ids unchanged', () => {
+// SETTINGS3 (docs/design/SETTINGS3.md): 6 groups + Household (the first named after her), a two-level rail of
+// at most 10 entries per group. A merged page (data-host) is a section of its host and a tile page
+// (data-tile) is reached from Apps and services, so neither has a rail entry; their ids are unchanged.
+test('128b.1 N29/SETTINGS3: every page id in SETTINGS_ORDER is in exactly one group; 6 groups (+ Household) with <= 10 rail entries; ids unchanged', () => {
   assert.equal(V.startsWith('2.61') || satisfies(V, '>=2.61.1'), true);
-  assert.deepEqual(GROUPS, ['Her', 'You', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Connections', 'Data & health', 'Household']);
+  assert.deepEqual(GROUPS, ['Sara', 'You', 'Models & usage', 'Connections', 'Skills & tools', 'Privacy & system', 'Household']);
   // The guide's index and HOW_DO_I.md group the same way (generated from the group table).
   assert.deepEqual(GROUP_ORDER, GROUPS);
   assert.equal(new Set(ORDER).size, ORDER.length, 'SETTINGS_ORDER has no page twice');
   assert.deepEqual([...ORDER].sort(), sections.map((s) => s.id).sort(), 'SETTINGS_ORDER lists every page');
   const byGroup = new Map<string, string[]>();
+  const head = (id: string) => new RegExp(`<section class="settings-page[^"]*" data-page="${id}"[^>]*>`).exec(html)![0];
+  const entry = (id: string) => !/data-host=|data-tile=/.test(head(id)) && id !== 'ab-recipes' && id !== 'account';
   for (const s of sections) {
     assert.ok(GROUPS.includes(s.group), `${s.id}: group ${s.group} has a header`);
     byGroup.set(s.group, [...(byGroup.get(s.group) ?? []), s.id]);
   }
-  // The retired Recipes page and the member-only account page aren't in the owner's list.
-  // Q3 adds Recovery and Q4 adds Operations; EC7 adds Microsoft Teams as the eleventh chat app (Chat
-  // apps keeps its chat apps together rather than splitting them); other groups retain the ten-page cap.
-  // 3.0.3: Devices and sign-in moved to Connections (people look there to add a phone or computer).
-  assert.equal(byGroup.get('Data & health')?.length, 12); // N1 adds How she did
-  assert.ok(byGroup.get('Data & health')?.includes('dh-operations'));
-  for (const [g, ids] of byGroup) assert.ok(ids.filter((x) => x !== 'ab-recipes' && x !== 'account').length <= (g === 'Data & health' || g === 'Chat apps' ? 12 : 10), `${g}: ${ids.length} pages`);
+  // Rail entries per group: the pages that stand alone (+ Apps and services in Connections).
+  const entries = (g: string) => byGroup.get(g)!.filter(entry).length + (g === 'Connections' ? 1 : 0);
+  for (const g of GROUPS) assert.ok(entries(g) <= 10, `${g}: ${entries(g)} entries`);
+  assert.deepEqual(GROUPS.map(entries), [9, 8, 5, 5, 10, 7, 7], '51 entries (desktop-app counts; only the desktop app shows it)');
   const want: Record<string, string[]> = {
-    'Chat apps': ['co-telegram', 'co-discord', 'co-signal', 'co-email', 'co-whatsapp', 'co-matrix', 'co-imessage', 'co-slack', 'co-teams', 'co-pickup', 'co-continuity'],
-    'Add-ons': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-search', 'ab-data', 'ab-library', 'ab-mail', 'ab-google', 'ab-home', 'ab-recipes'],
-    Coding: ['ab-projects', 'ab-precise', 'ab-persist', 'ab-budgets', 'ab-github', 'ab-ssh', 'ab-tools'],
-    // V1 (docs/ops/V1_DESIGN.md §7): Appearance became its own page in You.
-    // N2: Automations joins You (8 pages).
-    // N4: My details joins You (9 pages). N6: What Sara knows (10, the cap).
-    You: ['you-about', 'you-appearance', 'you-briefing', 'you-business', 'you-details', 'you-knows', 'you-leave-by', 'ab-when', 'you-automations', 'you-adult'],
-    Connections: ['dh-devices', 'co-phone', 'co-shortcuts', 'co-computer', 'desktop-app', 'co-apps', 'co-agents', 'co-hooks', 'co-spotify'],
+    Sara: ['her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-work'],
+    You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-automations', 'you-details', 'you-business', 'you-knows', 'you-adult'],
+    'Models & usage': ['models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local', 'dh-usage', 'ab-budgets'],
+    Connections: ['dh-devices', 'co-phone', 'co-shortcuts', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-whatsapp', 'co-signal', 'co-imessage', 'co-matrix', 'co-slack', 'co-teams', 'co-email', 'co-pickup', 'co-continuity', 'ab-mail', 'ab-google', 'ab-home', 'ab-github', 'co-spotify', 'ab-search', 'ab-data', 'co-apps', 'co-agents', 'co-hooks'],
+    'Skills & tools': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-tools', 'ab-library', 'ab-recipes', 'ab-projects', 'ab-precise', 'ab-persist', 'ab-ssh'],
+    'Privacy & system': ['dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'her-import', 'dh-movein', 'dh-health', 'dh-quality', 'dh-recovery', 'dh-operations', 'dh-updates', 'dh-reports'],
   };
   for (const [g, ids] of Object.entries(want)) assert.deepEqual([...byGroup.get(g)!].sort(), [...ids].sort(), g);
-  // Inside each group the nav follows SETTINGS_ORDER, so a group's pages are next to each other.
+  // The 11 merges: each host is a real page of the same group and the same audience (owner/member flags).
+  const hosts = Object.fromEntries(sections.flatMap((s) => { const m = /data-host="([\w-]+)"/.exec(head(s.id)); return m ? [[s.id, m[1]]] : []; }));
+  assert.deepEqual(Object.keys(hosts).sort(), ['ab-budgets', 'ab-when', 'co-continuity', 'co-shortcuts', 'dh-movein', 'dh-operations', 'dh-quality', 'dh-recovery', 'her-import', 'models-subs', 'you-leave-by']);
+  const flags = (id: string) => ['data-owner-only', 'data-member-only'].filter((f) => head(id).includes(f)).join();
+  for (const [id, host] of Object.entries(hosts)) {
+    assert.equal(sections.find((s) => s.id === id)!.group, sections.find((s) => s.id === host)!.group, `${id} → ${host}: same group`);
+    assert.equal(flags(id), flags(host), `${id} → ${host}: same audience`);
+    assert.ok(!hosts[host], `${host} is not itself merged`);
+  }
+  // Inside each group the rail follows SETTINGS_ORDER, so a group's pages are next to each other.
   const groupOf = new Map(sections.map((s) => [s.id, s.group]));
   const runs = ORDER.map((id) => groupOf.get(id)).filter((g, i, a) => g !== a[i - 1]);
   assert.deepEqual(runs, GROUPS, 'one run per group, in the group order');
@@ -283,6 +292,6 @@ test('128b.8 the guide index groups pages by the new table (generated; HOW_DO_I.
   const heads = howtoSections(howto as unknown as HowtoData, titles).slice(1).map((s) => s.heading);
   assert.deepEqual(heads, GROUPS);
   const md = readFileSync(join(ROOT, 'docs', 'HOW_DO_I.md'), 'utf8');
-  for (const g of ['Chat apps', 'Add-ons', 'Coding']) assert.ok(md.includes(`## Settings → ${g}`), g);
-  assert.ok(!md.includes('## Settings → Abilities'));
+  for (const g of ['Sara', 'Models & usage', 'Skills & tools', 'Privacy & system']) assert.ok(md.includes(`## Settings → ${g}`), g);
+  for (const g of ['Abilities', 'Chat apps', 'Add-ons', 'Coding', 'Data & health']) assert.ok(!md.includes(`## Settings → ${g}\n`), g);
 });

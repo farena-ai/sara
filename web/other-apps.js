@@ -1,4 +1,4 @@
-// Phase 57: Settings → Connections → Other apps. Her OpenAI-compatible address (/v1) and MCP
+// Phase 57: Settings → Connections → Apps and services → Other apps. Her OpenAI-compatible address (/v1) and MCP
 // address (/mcp) with copyable set-up snippets, API keys (made here, shown once, listed with a
 // Remove), and the three switches: her tools for other apps, changes from other apps, and the
 // browser apps on other addresses that may call her. Saves by itself.

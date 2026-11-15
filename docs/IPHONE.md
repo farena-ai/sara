@@ -70,10 +70,10 @@ Shortcut files can't be imported on today's iOS unless Apple signed them, so Sar
 1. Build *Share to Sara* and *Ask Sara* from the steps (with your own token, to test them).
 2. In each shortcut: ⓘ → **Setup** → *Add New Question* for the URL of *Get Contents of URL*
    ("Your Sara address + /api/shortcuts/share") and for the Authorization header value
-   ("Bearer and your token from Settings → Connections → iPhone Shortcuts"). Import questions
+   ("Bearer and your token from Settings → Connections → Phone and notifications → iPhone Shortcuts"). Import questions
    clear those fields when shared, so your token doesn't go with it.
 3. Share → **Copy iCloud Link**. Open the link once to check it says *Set Up Shortcut*.
-4. Paste both links in Settings → Connections → iPhone Shortcuts → *Ready-made links for
+4. Paste both links in Settings → Connections → Phone and notifications → iPhone Shortcuts → *Ready-made links for
    everyone* (owner only; one set for the whole server). Everyone then sees *Get* buttons, and
    each person answers the two questions with their own token.
 

@@ -132,7 +132,7 @@
    "id": "on",
    "q": "How do I use her at work in Slack or Teams?",
    "steps": [
-    "Open Settings → Her → At work.",
+    "Open Settings → Sara → At work.",
     "Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).",
     "Give her a name and tone at work if you like, then press Save."
    ],
@@ -142,7 +142,7 @@
    "id": "copy",
    "q": "How do I let her know something at work and at home?",
    "steps": [
-    "Open Settings → Her → At work.",
+    "Open Settings → Sara → At work.",
     "Under Work memories, find the note.",
     "Press Copy to work or Copy to personal. The original stays where it is."
    ],
@@ -1054,7 +1054,7 @@
    "id": "toggle",
    "q": "How do I turn session continuity on or off?",
    "steps": [
-    "Open Settings → Chat apps → Session continuity.",
+    "Open Settings → Connections → Apps and services → Pick up across apps → Session continuity.",
     "Switch Use context across my sessions on or off; it saves automatically.",
     "Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings."
    ],
@@ -1387,7 +1387,7 @@
    "q": "How do I let her answer in a Slack channel?",
    "steps": [
     "In the channel, type /invite and her name.",
-    "In Settings → Chat apps → Slack, press Answer here next to that channel.",
+    "In Settings → Connections → Apps and services → Slack, press Answer here next to that channel.",
     "Mention her in the channel; she answers in a thread."
    ],
    "show": "#sl-box"
@@ -1409,7 +1409,7 @@
    "q": "How do I let her answer in a Teams channel?",
    "steps": [
     "Add her app to the team (Apps → her app → Add to a team).",
-    "Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.",
+    "Mention her once in the channel, then press Answer here next to it in Settings → Connections → Apps and services → Microsoft Teams.",
     "Mention her again; she answers in that thread."
    ],
    "show": "#te-box"
@@ -1760,7 +1760,7 @@
    "id": "fix",
    "q": "How do I make slow replies faster?",
    "steps": [
-    "Open Models → Which model does what.",
+    "Open Models & usage → Which model does what.",
     "Pick Auto (recommended) for the job."
    ],
    "show": "#q-tips"
@@ -1887,7 +1887,7 @@
    "id": "limit",
    "q": "How do I set a spending limit?",
    "steps": [
-    "Open Budgets on this page or Coding → Budgets.",
+    "Open Budgets on this page or Models & usage → Usage and costs → Budgets.",
     "Set a limit per job or per day."
    ]
   }
@@ -2101,7 +2101,7 @@
    "id": "limits",
    "q": "How do I change how much repeats may spend?",
    "steps": [
-    "Open Settings → Coding → Keep going and repeats.",
+    "Open Settings → Skills & tools → Keep going and repeats.",
     "Pick Careful, Normal or Long jobs."
    ]
   }

@@ -1,12 +1,12 @@
 # Her at work
 
 The same companion can help you at work, in Slack, Microsoft Teams or any work chat you choose, without
-your work and your personal life ever mixing. Settings → Her → **At work**.
+your work and your personal life ever mixing. Settings → Sara → **At work**.
 
 ## Turning it on
 
 1. Connect Slack ([SLACK.md](SLACK.md)) or Teams ([TEAMS.md](TEAMS.md)) first.
-2. Open Settings → Her → At work and tick **Use a work profile**.
+2. Open Settings → Sara → At work and tick **Use a work profile**.
 3. Tick the chats that are work: Slack and Microsoft Teams are ticked already. Matrix, Email, Discord
    work channels and Telegram work groups can be ticked too. Her chats in the app are never work chats.
 4. If you like, give her a **Name at work** (for example *Ava from IT*) and a **Tone at work**: friendly

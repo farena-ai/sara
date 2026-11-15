@@ -19,7 +19,7 @@ launch you follow, a team, prices, a product's docs, rules that change.
   how often to refresh, and the sources (the open web, or only this site).
 
 Only you (the owner) can start one; household members can't yet. It needs web pages to be allowed
-(Tools) and, for a topic, a web search setup (Settings → Add-ons → Web search). A single website
+(Tools) and, for a topic, a web search setup (Settings → Connections → Apps and services → Web search). A single website
 works without web search.
 
 ## What she does

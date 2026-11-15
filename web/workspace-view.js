@@ -4,7 +4,7 @@
 // terminal (each command through her shell's rules: off when commands are off, same sandbox and
 // network), a chat with her that sees the open file (an @file reference), and the task worktrees
 // with Merge / Open PR / Discard. Folder: the main checkout or one of her task worktrees.
-// Also: Settings → Coding → GitHub → "Her commits" (the co-author line, the language servers found).
+// Also: Settings → Connections → Apps and services → GitHub → "Her commits" (the co-author line, the language servers found).
 import { t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
@@ -55,7 +55,7 @@ export function initWorkspaceView(c) {
   document.addEventListener('pp-tab', (e) => {
     if (e.detail === 'workspace') void open(ctx.workspace());
   });
-  // Settings → Coding → GitHub: the co-author line.
+  // Settings → Connections → Apps and services → GitHub: the co-author line.
   $('#ca-save')?.addEventListener('click', () => void saveCoAuthor());
 }
 
@@ -369,7 +369,7 @@ async function startTree() {
   await loadTree();
 }
 
-// ---------- Settings → Coding → GitHub: her commits ----------
+// ---------- Settings → Connections → Apps and services → GitHub: her commits ----------
 export async function loadCoAuthor() {
   if (!$('#ca-on')) return;
   try {

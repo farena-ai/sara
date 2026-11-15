@@ -119,9 +119,9 @@ The extension isn't published to any marketplace; install it from the `.vsix`.
 
 The clients have their own version numbers (the `version` in `clients/cli/package.json` and
 `clients/vscode/package.json`), separate from the server's, so `sara-chat --help` can show a
-lower number than your server (Settings → Data & health → Updates shows the server's).
+lower number than your server (Settings → Privacy & system → Updates shows the server's).
 
 ## Usage and budgets from the clients
 
 Every message from the clients is a normal turn, so it's counted by the token meter like any
-other (Settings → Data & health → Usage and costs, and the line under each conversation).
+other (Settings → Models & usage → Usage and costs, and the line under each conversation).

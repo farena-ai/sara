@@ -91,7 +91,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I change how much repeats may spend?**
 
-1. Open Settings → Coding → Keep going and repeats.
+1. Open Settings → Skills & tools → Keep going and repeats.
 2. Pick Careful, Normal or Long jobs.
 
 ### Planner → Routines
@@ -201,7 +201,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Each variant is scored next to your settings.
 2. A winner is named only when the evidence says so.
 
-## Settings → Her
+## Settings → Sara
 
 ### Name and personality
 
@@ -287,13 +287,13 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I use her at work in Slack or Teams?**
 
-1. Open Settings → Her → At work.
+1. Open Settings → Sara → At work.
 2. Tick Use a work profile, and the chats that are work (Slack and Teams are ticked).
 3. Give her a name and tone at work if you like, then press Save.
 
 **How do I let her know something at work and at home?**
 
-1. Open Settings → Her → At work.
+1. Open Settings → Sara → At work.
 2. Under Work memories, find the note.
 3. Press Copy to work or Copy to personal. The original stays where it is.
 
@@ -348,19 +348,6 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Read her card: everything that will shape her is on it.
 3. Press Add her: she is a new companion and nobody you have changes.
 
-### Bring her from another app
-
-**How do I bring her from another app?**
-
-1. Export your data from that app (ChatGPT, Claude, a character app).
-2. Choose the file under Choose the file.
-3. Tick what to keep, then press Let her read them.
-
-**How do I throw an import away?**
-
-1. Before saving, press Never mind.
-2. After a read, press Throw it all away.
-
 ## Settings → You
 
 ### About you
@@ -392,7 +379,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Pick Sara Classic as the palette.
 2. Decoration turns the glow and moving light back on.
 
-### Morning briefing
+### Briefing and reminders
 
 **How do I get a morning briefing?**
 
@@ -518,7 +505,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Press Forget next to one; Done lists the ones that already came up.
 3. Or type /when for the list and /when forget 1.
 
-## Settings → Models
+## Settings → Models & usage
 
 ### Default model
 
@@ -550,7 +537,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Pick the model in that job's row.
 2. Press Test to see its speed and an answer.
 
-### Model providers
+### Providers and plans
 
 **How do I add a model service with a key?**
 
@@ -589,7 +576,122 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Remove a model you don't use from its row.
 2. Ollama deletes its files.
 
-## Settings → Chat apps
+### Budgets
+
+**How do I limit what a coding reply may use?**
+
+1. Under Coding chats, set Tokens, Steps or a Spending limit.
+2. She stops and asks when a reply reaches it.
+
+**What happens near the limit?**
+
+1. Choose under Near the limit whether she asks or stops.
+2. Usage and costs shows what was used.
+
+### Usage and costs
+
+**How do I see what she costs?**
+
+1. Read the top line for today.
+2. Open By model or By what it was for for details.
+
+**How do I set a spending limit?**
+
+1. Open Budgets on this page or Models & usage → Usage and costs → Budgets.
+2. Set a limit per job or per day.
+
+## Settings → Connections
+
+### Web search
+
+**How do I let her search the web?**
+
+1. Pick a Search service.
+2. Paste its API key if it needs one.
+3. Ask her to look something up.
+
+**How do I search without a key?**
+
+1. Pick a service marked Free · no key.
+2. Or run your own SearXNG and paste its URL.
+
+### Data sources
+
+**How do I add a free key for odds or prices?**
+
+1. Pick the source.
+2. Open its Get a free key link and sign up.
+3. Paste the key and press Test.
+
+**How do I get told when a price crosses a number?**
+
+1. Ask her: “tell me when AAPL goes above 400”.
+2. She checks it in the background and tells you once per crossing.
+3. Remove it under Tell me when.
+
+### Gmail and Calendar
+
+**How do I connect Gmail and Calendar?**
+
+1. Paste your Google Client ID and secret.
+2. Press Save, then Sign in with Google.
+
+**How do I disconnect Google?**
+
+1. Press Sign out of Google.
+
+### Email and calendar
+
+**How do I add an Outlook or Microsoft 365 mailbox?**
+
+1. Under Microsoft, follow the numbered steps to make your own Microsoft app.
+2. Paste its client ID and secret, then press Save.
+3. Press Sign in with Microsoft and allow Sara.
+
+**How do I add Yahoo, iCloud or another mailbox?**
+
+1. Under Add another provider, pick your provider.
+2. Make an app password with the steps shown, then paste it.
+3. Press Add and check.
+
+**How do I choose which mailbox she uses first?**
+
+1. In the list of mailboxes, press Make default on the one you want.
+
+**How do I let her do things from my email on her own?**
+
+1. Under Inbox helper, keep Read new email and suggest what to do with it on.
+2. Under Do it for me, tick the kinds she may do without asking, like packages.
+3. Everything else stays a card on Today with Accept.
+
+### Home Assistant
+
+**How do I connect Home Assistant?**
+
+1. Type the Home Assistant address.
+2. Paste a long-lived access token.
+3. Press Save and test.
+
+**How do I let her notice when I get home?**
+
+1. Connect Home Assistant first.
+2. Under Presence, switch on React to what happens at home.
+3. Pick the people and what she does.
+
+### Spotify
+
+**How do I connect Spotify?**
+
+1. Make an app at developer.spotify.com.
+2. Add the redirect address this page shows.
+3. Paste its Client ID and press Save.
+4. Press Connect Spotify and allow access.
+
+**How do I let her play music?**
+
+1. Tick Let her control playback.
+2. Press Connect again.
+3. Ask her to play, pause or queue a song.
 
 ### Pick up across apps
 
@@ -608,7 +710,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I turn session continuity on or off?**
 
-1. Open Settings → Chat apps → Session continuity.
+1. Open Settings → Connections → Apps and services → Pick up across apps → Session continuity.
 2. Switch Use context across my sessions on or off; it saves automatically.
 3. Off stops new context but keeps saved notes. Pick up across apps and While she's working keep their own settings.
 
@@ -626,6 +728,70 @@ them in one place. In the app, open the box and press **Show me** to see the con
 3. Clear also removes expired saved notes while continuity is off; only this session's saved notes are removed.
 4. Original chats, old run records, exports and backups stay.
 5. If the notes changed elsewhere, reload and review them before trying again.
+
+### GitHub
+
+**How do I add a GitHub token?**
+
+1. Make a token on GitHub (Settings → Developer settings).
+2. Paste it in GitHub token.
+3. Press Save.
+
+**How do I turn issues into tasks?**
+
+1. Under Issues become tasks, set a label.
+2. Press Look now to fetch them.
+
+### iPhone Shortcuts
+
+**How do I share to Sara from my iPhone?**
+
+1. Press Make a token and copy it.
+2. In the Shortcuts app, build Share to Sara with the steps shown here.
+3. Turn on Show in Share Sheet.
+
+**How do I ask Sara with Siri?**
+
+1. Make a token with Ask Sara on.
+2. Build the Ask Sara shortcut with the steps shown here.
+3. Say "Hey Siri, Ask Sara".
+
+### Phone and notifications
+
+**How do I put her on my phone?**
+
+1. Open Sara in your phone's browser and sign in.
+2. Press Install Sara as an app (or Add to Home Screen).
+3. Then turn on notifications.
+
+**How do I get notifications?**
+
+1. Press Turn on for this device.
+2. Press Send a test.
+
+### This computer
+
+**How do I ask her from anywhere?**
+
+1. Pick a Quick ask shortcut.
+2. Press it in any app and type.
+
+**How do I check notifications work?**
+
+1. Press Show a test notification.
+
+### Computer use
+
+**How do I let her use this computer?**
+
+1. Allow her under This computer.
+2. Choose when she must ask first under Her actions.
+3. Move the mouse to take over any time.
+
+**How do I stop her right away?**
+
+1. Move the mouse or press a key.
+2. She stops and waits.
 
 ### Telegram
 
@@ -747,7 +913,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I let her answer in a Slack channel?**
 
 1. In the channel, type /invite and her name.
-2. In Settings → Chat apps → Slack, press Answer here next to that channel.
+2. In Settings → Connections → Apps and services → Slack, press Answer here next to that channel.
 3. Mention her in the channel; she answers in a thread.
 
 ### Microsoft Teams
@@ -761,368 +927,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I let her answer in a Teams channel?**
 
 1. Add her app to the team (Apps → her app → Add to a team).
-2. Mention her once in the channel, then press Answer here next to it in Settings → Chat apps → Microsoft Teams.
+2. Mention her once in the channel, then press Answer here next to it in Settings → Connections → Apps and services → Microsoft Teams.
 3. Mention her again; she answers in that thread.
-
-## Settings → Add-ons
-
-### Get more
-
-**How do I add something from the store?**
-
-1. Search or pick it on a shelf, then open it.
-2. Read what it can do, then press Get.
-3. Read its card and press Install: it stays off until you switch it on.
-
-**How do I update an add-on?**
-
-1. Open My add-ons.
-2. Press Update next to it and read what changed.
-3. Nothing updates by itself.
-
-**How do I send the Sara team my plugin?**
-
-1. Press Submit yours.
-2. Give the folder, then press Check it.
-3. Fix what it finds, then send it: the team reviews it before it is listed.
-
-### Skills
-
-**How do I teach her a skill?**
-
-1. Press New skill.
-2. Write the steps in plain words and save.
-3. She uses it when a request matches.
-
-**How do I add a skill from someone else?**
-
-1. Press Add a skill.
-2. Pick a zip, a GitHub link or a file.
-3. Read it before switching it on.
-
-### Plugins
-
-**How do I add a plugin?**
-
-1. Press Add a plugin.
-2. Read the permissions it asks for.
-3. Switch it on when you trust it.
-
-**How do I stop a plugin?**
-
-1. Switch it off on its card.
-2. Its log stays under What it did.
-
-**How do I try a workflow candidate?**
-
-1. Open Workflow candidates and read Details and limits.
-2. Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.
-3. It stays off for every companion. Enable it separately on its installed card.
-
-**How do I use a starter guide?**
-
-1. Open Starter guides under Workflow candidates.
-2. Read its members, qualification, privacy, costs and setup checklist.
-3. Follow existing Settings links and review each member separately. Nothing installs as a group.
-
-### Web search
-
-**How do I let her search the web?**
-
-1. Pick a Search service.
-2. Paste its API key if it needs one.
-3. Ask her to look something up.
-
-**How do I search without a key?**
-
-1. Pick a service marked Free · no key.
-2. Or run your own SearXNG and paste its URL.
-
-### Data sources
-
-**How do I add a free key for odds or prices?**
-
-1. Pick the source.
-2. Open its Get a free key link and sign up.
-3. Paste the key and press Test.
-
-**How do I get told when a price crosses a number?**
-
-1. Ask her: “tell me when AAPL goes above 400”.
-2. She checks it in the background and tells you once per crossing.
-3. Remove it under Tell me when.
-
-### Library
-
-**How do I give her a document?**
-
-1. Open Library from the sidebar.
-2. Drop the file on the box at the top.
-3. Ask her about it in any chat.
-
-**How do I make reading gentler on my computer?**
-
-1. Pick Gentle under Background reading.
-2. Big documents then take longer.
-
-### Gmail and Calendar
-
-**How do I connect Gmail and Calendar?**
-
-1. Paste your Google Client ID and secret.
-2. Press Save, then Sign in with Google.
-
-**How do I disconnect Google?**
-
-1. Press Sign out of Google.
-
-### Email and calendar
-
-**How do I add an Outlook or Microsoft 365 mailbox?**
-
-1. Under Microsoft, follow the numbered steps to make your own Microsoft app.
-2. Paste its client ID and secret, then press Save.
-3. Press Sign in with Microsoft and allow Sara.
-
-**How do I add Yahoo, iCloud or another mailbox?**
-
-1. Under Add another provider, pick your provider.
-2. Make an app password with the steps shown, then paste it.
-3. Press Add and check.
-
-**How do I choose which mailbox she uses first?**
-
-1. In the list of mailboxes, press Make default on the one you want.
-
-**How do I let her do things from my email on her own?**
-
-1. Under Inbox helper, keep Read new email and suggest what to do with it on.
-2. Under Do it for me, tick the kinds she may do without asking, like packages.
-3. Everything else stays a card on Today with Accept.
-
-### Home Assistant
-
-**How do I connect Home Assistant?**
-
-1. Type the Home Assistant address.
-2. Paste a long-lived access token.
-3. Press Save and test.
-
-**How do I let her notice when I get home?**
-
-1. Connect Home Assistant first.
-2. Under Presence, switch on React to what happens at home.
-3. Pick the people and what she does.
-
-### Other programs (MCP)
-
-**How do I connect another program (MCP)?**
-
-1. Pick Start from, or type the Command or URL.
-2. Add any Secrets it needs.
-3. Press Save and connect.
-
-**What is an MCP server?**
-
-1. A small program that gives her new tools.
-2. Its tools then appear in Tools and approvals.
-
-**How do I inspect an MCP recipe preview?**
-
-1. Open Connection investigations and filter the list.
-2. Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.
-3. Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.
-
-**How do I verify MCP approval settings?**
-
-1. Inspect each discovered tool in Tools and approvals and select Ask or Off.
-2. Save, leave the page, reopen it and read back the saved permissions.
-3. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.
-
-## Settings → Coding
-
-### Tools and approvals
-
-**How do I make her ask before she does something?**
-
-1. Find the tool in its group.
-2. Set it to Ask me first.
-3. Approval cards then appear in chat.
-
-**How do I switch a tool off?**
-
-1. Find the tool in its group.
-2. Set it to Off.
-
-### Coding projects
-
-**How do I point her at my project?**
-
-1. Pick a Workspace (your projects folder).
-2. In a chat, press the conversation chip and switch to coding.
-3. Ask: "Look at my project".
-
-**How do I make her try commands safely?**
-
-1. Switch on Try commands in a sandbox first.
-2. Pick the size and time limits.
-3. Nothing is applied until you choose.
-
-**How do I check before I ship?**
-
-1. Press Before you ship.
-2. Read the results in Findings.
-
-### Budgets
-
-**How do I limit what a coding reply may use?**
-
-1. Under Coding chats, set Tokens, Steps or a Spending limit.
-2. She stops and asks when a reply reaches it.
-
-**What happens near the limit?**
-
-1. Choose under Near the limit whether she asks or stops.
-2. Usage and costs shows what was used.
-
-### Keep going and repeats
-
-**How do I make her keep going until the tests pass?**
-
-1. In the chat, press + and pick Keep going until it’s done….
-2. Under Done when, pick the check (the project’s tests are offered first).
-3. Press Start. She works in rounds; Sara runs the check after each one.
-
-**How do I have her check something every few minutes?**
-
-1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
-2. Pick how often and until when, then press Start.
-3. She only tells you when something changes; Planner → Repeats lists them all.
-
-### Check her edits
-
-**How do I let her check her edits with my project's own type checker?**
-
-1. Keep Check her edits on at the top of this page.
-2. Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).
-3. From then on she sees the errors her edit caused in the same reply and fixes them.
-
-**How do I switch checks off for one project?**
-
-1. Under Projects, pick the workspace.
-2. Set that project to Off.
-3. In a chat app you can also send /problems off.
-
-**How do I attach a file or my changes to a message?**
-
-1. In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.
-2. Type a few letters to find a file; add :10-25 for just those lines.
-3. Send. The chips under your message show what she got.
-
-### GitHub
-
-**How do I add a GitHub token?**
-
-1. Make a token on GitHub (Settings → Developer settings).
-2. Paste it in GitHub token.
-3. Press Save.
-
-**How do I turn issues into tasks?**
-
-1. Under Issues become tasks, set a label.
-2. Press Look now to fetch them.
-
-### Servers over SSH
-
-**How do I connect a server?**
-
-1. Type the server address and your user name under Connect a server.
-2. Press Connect and wait while Sara looks at it.
-3. Say yes to its ID card, then follow the way in she picks.
-
-**How do I connect a cPanel server?**
-
-1. In cPanel, make an API token called sara that expires tomorrow.
-2. Copy it and paste it into the cPanel token box.
-3. Press Install my key: Sara installs her key and deletes the token.
-
-**What if it doesn't work?**
-
-1. Read the box under the button you pressed.
-2. Press the button it offers, like Find the port or Check now.
-
-**Does she ask before running commands there?**
-
-1. Yes, every command asks first by default.
-2. Change it in Tools and approvals.
-
-## Settings → Connections
-
-### Spotify
-
-**How do I connect Spotify?**
-
-1. Make an app at developer.spotify.com.
-2. Add the redirect address this page shows.
-3. Paste its Client ID and press Save.
-4. Press Connect Spotify and allow access.
-
-**How do I let her play music?**
-
-1. Tick Let her control playback.
-2. Press Connect again.
-3. Ask her to play, pause or queue a song.
-
-### iPhone Shortcuts
-
-**How do I share to Sara from my iPhone?**
-
-1. Press Make a token and copy it.
-2. In the Shortcuts app, build Share to Sara with the steps shown here.
-3. Turn on Show in Share Sheet.
-
-**How do I ask Sara with Siri?**
-
-1. Make a token with Ask Sara on.
-2. Build the Ask Sara shortcut with the steps shown here.
-3. Say "Hey Siri, Ask Sara".
-
-### Phone and notifications
-
-**How do I put her on my phone?**
-
-1. Open Sara in your phone's browser and sign in.
-2. Press Install Sara as an app (or Add to Home Screen).
-3. Then turn on notifications.
-
-**How do I get notifications?**
-
-1. Press Turn on for this device.
-2. Press Send a test.
-
-### This computer
-
-**How do I ask her from anywhere?**
-
-1. Pick a Quick ask shortcut.
-2. Press it in any app and type.
-
-**How do I check notifications work?**
-
-1. Press Show a test notification.
-
-### Computer use
-
-**How do I let her use this computer?**
-
-1. Allow her under This computer.
-2. Choose when she must ask first under Her actions.
-3. Move the mouse to take over any time.
-
-**How do I stop her right away?**
-
-1. Move the mouse or press a key.
-2. She stops and waits.
 
 ### Other apps
 
@@ -1174,7 +980,209 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press Sign out all other devices.
 2. Or make a new token with Make a new token.
 
-## Settings → Data & health
+## Settings → Skills & tools
+
+### Get more
+
+**How do I add something from the store?**
+
+1. Search or pick it on a shelf, then open it.
+2. Read what it can do, then press Get.
+3. Read its card and press Install: it stays off until you switch it on.
+
+**How do I update an add-on?**
+
+1. Open My add-ons.
+2. Press Update next to it and read what changed.
+3. Nothing updates by itself.
+
+**How do I send the Sara team my plugin?**
+
+1. Press Submit yours.
+2. Give the folder, then press Check it.
+3. Fix what it finds, then send it: the team reviews it before it is listed.
+
+### Tools and approvals
+
+**How do I make her ask before she does something?**
+
+1. Find the tool in its group.
+2. Set it to Ask me first.
+3. Approval cards then appear in chat.
+
+**How do I switch a tool off?**
+
+1. Find the tool in its group.
+2. Set it to Off.
+
+### Skills
+
+**How do I teach her a skill?**
+
+1. Press New skill.
+2. Write the steps in plain words and save.
+3. She uses it when a request matches.
+
+**How do I add a skill from someone else?**
+
+1. Press Add a skill.
+2. Pick a zip, a GitHub link or a file.
+3. Read it before switching it on.
+
+### Plugins
+
+**How do I add a plugin?**
+
+1. Press Add a plugin.
+2. Read the permissions it asks for.
+3. Switch it on when you trust it.
+
+**How do I stop a plugin?**
+
+1. Switch it off on its card.
+2. Its log stays under What it did.
+
+**How do I try a workflow candidate?**
+
+1. Open Workflow candidates and read Details and limits.
+2. Press Review local candidate, inspect its exact permissions and trust warning, then Install only if you agree.
+3. It stays off for every companion. Enable it separately on its installed card.
+
+**How do I use a starter guide?**
+
+1. Open Starter guides under Workflow candidates.
+2. Read its members, qualification, privacy, costs and setup checklist.
+3. Follow existing Settings links and review each member separately. Nothing installs as a group.
+
+### Library
+
+**How do I give her a document?**
+
+1. Open Library from the sidebar.
+2. Drop the file on the box at the top.
+3. Ask her about it in any chat.
+
+**How do I make reading gentler on my computer?**
+
+1. Pick Gentle under Background reading.
+2. Big documents then take longer.
+
+### Other programs (MCP)
+
+**How do I connect another program (MCP)?**
+
+1. Pick Start from, or type the Command or URL.
+2. Add any Secrets it needs.
+3. Press Save and connect.
+
+**What is an MCP server?**
+
+1. A small program that gives her new tools.
+2. Its tools then appear in Tools and approvals.
+
+**How do I inspect an MCP recipe preview?**
+
+1. Open Connection investigations and filter the list.
+2. Expand View recipe preview or Why blocked; read prerequisites, scope, costs and qualification.
+3. Prepare configuration yourself in the existing form only after review. Previews do not save, connect or authorize accounts.
+
+**How do I verify MCP approval settings?**
+
+1. Inspect each discovered tool in Tools and approvals and select Ask or Off.
+2. Save, leave the page, reopen it and read back the saved permissions.
+3. Repeat after discovery, reconnect and updates. Server read-only annotations can auto-allow calls and do not enforce external-effect approval or cost limits.
+
+### Coding projects
+
+**How do I point her at my project?**
+
+1. Pick a Workspace (your projects folder).
+2. In a chat, press the conversation chip and switch to coding.
+3. Ask: "Look at my project".
+
+**How do I make her try commands safely?**
+
+1. Switch on Try commands in a sandbox first.
+2. Pick the size and time limits.
+3. Nothing is applied until you choose.
+
+**How do I check before I ship?**
+
+1. Press Before you ship.
+2. Read the results in Findings.
+
+### Keep going and repeats
+
+**How do I make her keep going until the tests pass?**
+
+1. In the chat, press + and pick Keep going until it’s done….
+2. Under Done when, pick the check (the project’s tests are offered first).
+3. Press Start. She works in rounds; Sara runs the check after each one.
+
+**How do I have her check something every few minutes?**
+
+1. In the chat, press + and pick Repeat this… (or type /loop every 10m: what to check).
+2. Pick how often and until when, then press Start.
+3. She only tells you when something changes; Planner → Repeats lists them all.
+
+### Check her edits
+
+**How do I let her check her edits with my project's own type checker?**
+
+1. Keep Check her edits on at the top of this page.
+2. Under Projects, pick the workspace and set the project to On (or press Check her edits here on the card the first time she changes a file there).
+3. From then on she sees the errors her edit caused in the same reply and fixes them.
+
+**How do I switch checks off for one project?**
+
+1. Under Projects, pick the workspace.
+2. Set that project to Off.
+3. In a chat app you can also send /problems off.
+
+**How do I attach a file or my changes to a message?**
+
+1. In the message box, type @ and pick A file, My changes, This branch, Problems or A web page.
+2. Type a few letters to find a file; add :10-25 for just those lines.
+3. Send. The chips under your message show what she got.
+
+### Servers over SSH
+
+**How do I connect a server?**
+
+1. Type the server address and your user name under Connect a server.
+2. Press Connect and wait while Sara looks at it.
+3. Say yes to its ID card, then follow the way in she picks.
+
+**How do I connect a cPanel server?**
+
+1. In cPanel, make an API token called sara that expires tomorrow.
+2. Copy it and paste it into the cPanel token box.
+3. Press Install my key: Sara installs her key and deletes the token.
+
+**What if it doesn't work?**
+
+1. Read the box under the button you pressed.
+2. Press the button it offers, like Find the port or Check now.
+
+**Does she ask before running commands there?**
+
+1. Yes, every command asks first by default.
+2. Change it in Tools and approvals.
+
+## Settings → Privacy & system
+
+### Bring her from another app
+
+**How do I bring her from another app?**
+
+1. Export your data from that app (ChatGPT, Claude, a character app).
+2. Choose the file under Choose the file.
+3. Tick what to keep, then press Let her read them.
+
+**How do I throw an import away?**
+
+1. Before saving, press Never mind.
+2. After a read, press Throw it all away.
 
 ### Safety check-up
 
@@ -1243,7 +1251,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I make slow replies faster?**
 
-1. Open Models → Which model does what.
+1. Open Models & usage → Which model does what.
 2. Pick Auto (recommended) for the job.
 
 ### Backups
@@ -1264,7 +1272,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.
 3. Read the result: how long it took, what it counted and how much a restore now would lose.
 
-### Export and import
+### Move in and export
 
 **How do I export everything?**
 
@@ -1299,18 +1307,6 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I see what changed?**
 
 1. Press What's new in each version.
-
-### Usage and costs
-
-**How do I see what she costs?**
-
-1. Read the top line for today.
-2. Open By model or By what it was for for details.
-
-**How do I set a spending limit?**
-
-1. Open Budgets on this page or Coding → Budgets.
-2. Set a limit per job or per day.
 
 ### Privacy
 

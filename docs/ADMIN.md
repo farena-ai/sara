@@ -13,7 +13,7 @@ admin of a household server. Public summary: [SECURITY_OVERVIEW.md](SECURITY_OVE
 | Rules for everyone, you included | Settings → Household → Policy ([AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md)) | The operator's model policy ([BUSINESS_OPERATIONS.md](BUSINESS_OPERATIONS.md)) |
 | Audit export | Settings → Household → Audit trail: JSONL, CSV or JSON, signed | Organization administration → Audit export: CSV or JSON |
 | How long data is kept, legal hold | Settings → Household → Retention and legal hold ([DATA_RIGHTS.md](DATA_RIGHTS.md)) | Per workspace content hold ([BUSINESS.md](BUSINESS.md)) |
-| Prove a backup restores | Settings → Data & health → Recovery → **Run a restore drill** ([RECOVERY.md](RECOVERY.md)) | The operator's recovery rehearsal ([BUSINESS_OPERATIONS.md](BUSINESS_OPERATIONS.md)) |
+| Prove a backup restores | Settings → Privacy & system → Recovery → **Run a restore drill** ([RECOVERY.md](RECOVERY.md)) | The operator's recovery rehearsal ([BUSINESS_OPERATIONS.md](BUSINESS_OPERATIONS.md)) |
 | A reviewer's summary | Settings → Household → Trust report ([TRUST_REPORT.md](TRUST_REPORT.md)) | |
 
 ## Tools for household members

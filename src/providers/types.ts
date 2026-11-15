@@ -169,9 +169,9 @@ export function errorDetail(body: string): string {
 /** A plain sentence for a failed provider request, with what to do, then the provider's words. */
 export function friendlyHttpError(label: string, status: number, detail: string, model?: string): string {
   const said = detail ? ` (${label} said: ${detail})` : '';
-  if (status === 401 || status === 403) return `${label} didn't accept the key or sign-in. Check it in Settings → Models → ${label}.${said}`;
-  if (status === 404 && /model/i.test(detail)) return `${label} doesn't have the model${model ? ` "${model}"` : ''}. Pick another one in Settings → Models${/ollama/i.test(label) ? `, or download it with: ollama pull ${model ?? '<model>'}` : ''}.${said}`;
-  if (status === 429) return `${label} says it's busy or the usage limit is reached. Try again in a minute, or set a backup model in Settings → Models.${said}`;
+  if (status === 401 || status === 403) return `${label} didn't accept the key or sign-in. Check it in Settings → Models & usage → ${label}.${said}`;
+  if (status === 404 && /model/i.test(detail)) return `${label} doesn't have the model${model ? ` "${model}"` : ''}. Pick another one in Settings → Models & usage${/ollama/i.test(label) ? `, or download it with: ollama pull ${model ?? '<model>'}` : ''}.${said}`;
+  if (status === 429) return `${label} says it's busy or the usage limit is reached. Try again in a minute, or set a backup model in Settings → Models & usage.${said}`;
   if (status === 402 || /insufficient|quota|credit|billing/i.test(detail)) return `${label} needs credit or a paid plan for this.${said}`;
   if (status >= 500) return `${label} had a problem on its side (HTTP ${status}). Try again in a minute.${said}`;
   return `${label} returned HTTP ${status}${detail ? `: ${detail}` : ''}`;

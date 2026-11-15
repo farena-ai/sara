@@ -51,6 +51,8 @@ export function saved(dialog, text = 'Saved ✓') {
   tag.classList.remove('show');
   void tag.offsetWidth; // restart the fade
   tag.classList.add('show');
+  // SETTINGS3 S1: the Settings header's save chip listens (web/settings-look.js).
+  dialog.dispatchEvent(new CustomEvent('sara-saved', { detail: { text, error: false } }));
 }
 
 /** Runs a window's save function; shows Saved ✓ or the error. Returns true when it saved. */
@@ -100,6 +102,7 @@ async function saveNow(dialog) {
   } catch (err) {
     saved(dialog, t('Not saved: {message}', { message: err.message }));
     dialog.querySelector(':scope > .dialog-top > .saved-tag')?.classList.add('error');
+    dialog.dispatchEvent(new CustomEvent('sara-saved', { detail: { text: t('Not saved: {message}', { message: err.message }), error: true } }));
     dirty.add(dialog);
     return false;
   }

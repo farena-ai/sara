@@ -1,4 +1,4 @@
-// R4 (docs/IPHONE.md): Settings → Connections → iPhone Shortcuts. A token per iPhone (shown once,
+// R4 (docs/IPHONE.md): Settings → Connections → Phone and notifications → iPhone Shortcuts. A token per iPhone (shown once,
 // with a QR code), the steps to build "Share to Sara", "Ask Sara" and the widget shortcut with this
 // server and the new token filled in, the owner's ready-made iCloud links, and the Home Screen guide.
 import { t } from './naming.js';

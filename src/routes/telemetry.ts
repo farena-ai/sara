@@ -1,4 +1,4 @@
-// EC3 (docs/ops/EC3_DESIGN.md §7): Settings → Data & health → Monitoring. Owner only: device
+// EC3 (docs/ops/EC3_DESIGN.md §7): Settings → Privacy & system → Monitoring. Owner only: device
 // tokens, the demo and household members are refused, as for Operations.
 import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';

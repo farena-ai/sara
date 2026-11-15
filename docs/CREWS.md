@@ -46,7 +46,7 @@ starts again until you turn a crew on.
 ## For admins
 
 - Crews are the owner's: household members, the demo and paired devices can't use them.
-- Policy pin **Crews: Off** (Settings → Data & health → Policy) refuses making, running,
+- Policy pin **Crews: Off** (Settings → Privacy & system → Policy) refuses making, running,
   scheduling and mail-starting crews on the server. See [AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md).
 - Every change is an audit row (`crews.do`, `crews.change`, `crews.remove`); scheduled and
   mail-started runs write `crew.run` (role system), and each run is also `run.team`.

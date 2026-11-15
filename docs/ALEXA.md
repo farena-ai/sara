@@ -25,7 +25,7 @@ before it reads a word.
      "Other languages" below).
    - Type of experience: **Other** → model **Custom** → hosting **Provision your own**.
    - Template: **Start from Scratch**. Press **Create Skill** (top right) and wait for it.
-3. In Sara: **Settings → Connections → Other apps → Talk to her through Alexa** → **Download the
+3. In Sara: **Settings → Connections → Apps and services → Other apps → Talk to her through Alexa** → **Download the
    interaction model** (`sara-alexa-model.json`; the same file is in this repository as
    `integrations/alexa/interaction-model.en-US.json`).
 4. Back in the console, left side: **Build → Interaction Model → JSON Editor**. Select all the text
@@ -48,7 +48,7 @@ before it reads a word.
 
 ## 2. Link your Alexa to her (each person, once)
 
-1. In Sara: **Settings → Connections → Other apps → Talk to her through Alexa → Make a link code**.
+1. In Sara: **Settings → Connections → Apps and services → Other apps → Talk to her through Alexa → Make a link code**.
    You get six digits that work **once, for 10 minutes** (only a hash is kept on the server).
 2. Say: **"Alexa, ask sara companion to link code 1 2 3 4 5 6"** (your digits). Or open the skill
    ("Alexa, open sara companion") and say "link code" and the digits.
@@ -98,7 +98,7 @@ Alexa gives a skill about 8 seconds. After 1.5 seconds she has Alexa say **"One 
 progressive response). If her answer still isn't ready after 6 seconds, she says **"I need a little
 more time for that. Ask me again in a moment"** and keeps working; ask again ("what did you find?")
 and she gives the kept answer. To answer inside the time more often, tick **Answer Alexa with the
-quick model** (it uses the *Quick replies* model from Settings → Models → Which model does what) or
+quick model** (it uses the *Quick replies* model from Settings → Models & usage → Which model does what) or
 use a fast model for her.
 
 ## How Sara checks a request (for the curious)

@@ -303,7 +303,7 @@ export class CompanionImporter {
     }
     const localOnly = opts.localOnly !== false;
     const m = this.#model(localOnly);
-    if (!m.chain) throw new ImportError(localOnly ? en('No model on your own hardware is set up for this. Untick "Only models on this server", or read it without a model.') : en('No model is set up for this yet. Read it without a model, or set one up in Settings → Models.'));
+    if (!m.chain) throw new ImportError(localOnly ? en('No model on your own hardware is set up for this. Untick "Only models on this server", or read it without a model.') : en('No model is set up for this yet. Read it without a model, or set one up in Settings → Models & usage.'));
     const chunks = this.#chunks(s);
     if (!chunks.length) throw new ImportError(en('None of the chosen conversations has lines from you.'));
     if (chunks.length > MAX_CHUNKS) throw new ImportError(en('That is too much to read at once. Choose fewer conversations.'));

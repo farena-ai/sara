@@ -454,7 +454,7 @@ export async function runSafetyCheck(d: SafetyDeps, by: 'page' | 'cli' | 'weekly
     const exp = d.auth?.expiresOf(x.id);
     return (exp && Date.parse(exp) - now.getTime() < 14 * DAY) || (x.lastSeen === x.createdAt && now.getTime() - Date.parse(x.createdAt) > 30 * DAY);
   });
-  add({ id: 'links', title: T(en('Agents and the hub')), status: keys.length ? 'amber' : 'green', line: keys.length ? T(en('Agent key(s) never used or about to expire: {list}.'), { list: keys.map((x) => x.label).join(', ') }) : T(en('No unused agent keys. The anonymous check-in is your choice in Data & health → Privacy.')), why: T(en('An agent key nobody uses is one more way in. The check-in sends no personal data; it is your choice in Privacy.')), ...(keys.length ? { fixes: [{ id: 'remove-keys', label: T(en('Remove unused agent keys')), kind: 'one-click', undo: 'none', items: keys.map((x) => ({ id: `agentKey.${x.id}`, label: x.label })), changes: T(en('Removes the agent keys listed.')) }] } : {}) });
+  add({ id: 'links', title: T(en('Agents and the hub')), status: keys.length ? 'amber' : 'green', line: keys.length ? T(en('Agent key(s) never used or about to expire: {list}.'), { list: keys.map((x) => x.label).join(', ') }) : T(en('No unused agent keys. The anonymous check-in is your choice in Privacy & system → Privacy.')), why: T(en('An agent key nobody uses is one more way in. The check-in sends no personal data; it is your choice in Privacy.')), ...(keys.length ? { fixes: [{ id: 'remove-keys', label: T(en('Remove unused agent keys')), kind: 'one-click', undo: 'none', items: keys.map((x) => ({ id: `agentKey.${x.id}`, label: x.label })), changes: T(en('Removes the agent keys listed.')) }] } : {}) });
 
   // S15 secrets
   const hits = scanSecrets(d);
@@ -708,7 +708,7 @@ export async function weeklySafetyTick(d: SafetyDeps): Promise<{ ran: boolean; w
   const fresh = app.settings.get().safetyCheck ?? {};
   app.settings.update({ safetyCheck: { ...fresh, last: { at: now.toISOString(), statuses: Object.fromEntries(rep.checks.map((c) => [c.id, c.status])) } } });
   if (worse.length) {
-    const text = trOwner(en('Safety check-up: {list}. Open Settings → Data & health → Safety check-up.'), s, { list: worse.map((c) => c.line.replace(/[.!]$/, '')).join(' · ') });
+    const text = trOwner(en('Safety check-up: {list}. Open Settings → Privacy & system → Safety check-up.'), s, { list: worse.map((c) => c.line.replace(/[.!]$/, '')).join(' · ') });
     const conv = homeConversation(app) ?? app.store.listConversations().find((c) => !c.partner) ?? app.store.createConversation({ title: identityOf(app.persona).name });
     const msg = app.store.addMessage(conv.id, 'assistant', text, { app: true, safetyCheck: { worse: worse.map((c) => c.id) } });
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'job' });
@@ -727,7 +727,7 @@ export function todaySafetyLine(app: AppContext): { red: number; line: string } 
 
 // ------------------------------------------------------------------ the CLI (§5.7)
 
-const PAGE_NAMES: Record<string, string> = { 'dh-devices': 'Connections → Devices and sign-in', 'dh-backups': 'Data & health → Backups', 'dh-updates': 'Data & health → Updates', 'co-phone': 'Connections → Phone', 'co-hooks': 'Connections → Webhooks' };
+const PAGE_NAMES: Record<string, string> = { 'dh-devices': 'Connections → Devices and sign-in', 'dh-backups': 'Privacy & system → Backups', 'dh-updates': 'Privacy & system → Updates', 'co-phone': 'Connections → Phone', 'co-hooks': 'Connections → Apps and services → Webhooks' };
 export function formatSafety(r: SafetyReport, o: { fixes?: boolean } = {}): string {
   const icon = { green: '✓', amber: '!', red: '✗', skip: '-' } as const;
   const lines = r.checks.map((c) => {
@@ -739,7 +739,7 @@ export function formatSafety(r: SafetyReport, o: { fixes?: boolean } = {}): stri
   return lines.join('\n');
 }
 export function verdictLine(r: SafetyReport): string {
-  return `${r.title}: ${r.words}${r.verdict === 'safe' ? '' : ' Fix them in Settings → Data & health → Safety check-up, or run: sara doctor --safety'}`;
+  return `${r.title}: ${r.words}${r.verdict === 'safe' ? '' : ' Fix them in Settings → Privacy & system → Safety check-up, or run: sara doctor --safety'}`;
 }
 export const exitCodeOf = (v: Verdict): number => (v === 'safe' ? 0 : v === 'tighten' ? 1 : 2);
 
@@ -750,14 +750,14 @@ export function createSafetyReportTool(deps: () => SafetyDeps): Tool {
     defaultPermission: 'auto',
     spec: {
       name: 'safety_report',
-      description: "Read the owner's safety check-up: the verdict and one line per check (read-only; you can't fix anything: point the owner at Settings → Data & health → Safety check-up).",
+      description: "Read the owner's safety check-up: the verdict and one line per check (read-only; you can't fix anything: point the owner at Settings → Privacy & system → Safety check-up).",
       parameters: { type: 'object', properties: {} },
     },
     isAvailable: () => !deps().app.member,
     summarize: () => 'Read the safety check-up',
     async run() {
       const r = await runSafetyCheck(deps(), 'her');
-      return `${r.title}: ${r.words}\n${r.checks.filter((c) => c.status !== 'skip').map((c) => `- ${c.title} (${c.accepted ? 'accepted' : c.status}): ${c.line}`).join('\n')}\nFixes are only on the page (Settings → Data & health → Safety check-up); you can't apply them.`;
+      return `${r.title}: ${r.words}\n${r.checks.filter((c) => c.status !== 'skip').map((c) => `- ${c.title} (${c.accepted ? 'accepted' : c.status}): ${c.line}`).join('\n')}\nFixes are only on the page (Settings → Privacy & system → Safety check-up); you can't apply them.`;
     },
   };
 }

@@ -1,4 +1,4 @@
-// Phase 121 part B (docs/design/BEGIN.md §5.2, §5.10): Settings → Data & health → Safety check-up.
+// Phase 121 part B (docs/design/BEGIN.md §5.2, §5.10): Settings → Privacy & system → Safety check-up.
 // The verdict in words on top, then FIX THESE FIRST (red), NEEDS A LOOK (amber), FINE (folded) and
 // RECENT FIXES with Undo. A one-click fix turns into an inline confirm that says what changes and
 // whether it can be undone; the token fix asks for the current token and shows the new one once.

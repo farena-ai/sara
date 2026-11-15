@@ -1,6 +1,6 @@
 // V4d (docs/ops/V4_DESIGN.md → V4d): her picture in the new look. Settings → Appearance → Her picture
 // (this device, sara.herPicture): the presence orb (default), her portrait, or the picture you
-// uploaded (Settings → Her). A picture shows round with the orb's live state as a thin ring
+// uploaded (Settings → Sara). A picture shows round with the orb's live state as a thin ring
 // (web/v4-pages.css). Sara Classic always shows her picture, as before.
 // A1 (docs/ops/A1_AVATAR_DESIGN.md): her portrait is now animated (web/avatar.js); 'portrait-still'
 // keeps the still picture, 'vrm' shows a 3D model brought by the owner (web/avatar-vrm.js).

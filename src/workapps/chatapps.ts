@@ -16,8 +16,8 @@ const WHY: Record<string, string> = {
   needs_user_token: 'This needs your own Slack user token (status, reminders and search can only be done as you). Add it in Settings → Connections → Slack → Your user token.',
   chat_not_found: 'She only knows the Teams chats and channels where someone talked to her bot. Send her a message there first.',
   NOT_RUNNING: "That chat app isn't connected right now (Settings → Connections).",
-  unknown_action: 'This version of the chat app add-on is too old for that: update it in Settings → Add-ons → Plugins.',
-  UNKNOWN: 'This version of the chat app add-on is too old for that: update it in Settings → Add-ons → Plugins.',
+  unknown_action: 'This version of the chat app add-on is too old for that: update it in Settings → Skills & tools → Plugins.',
+  UNKNOWN: 'This version of the chat app add-on is too old for that: update it in Settings → Skills & tools → Plugins.',
 };
 const why = (r: Record<string, unknown>) => {
   if (r.needUserToken) return WHY.needs_user_token;

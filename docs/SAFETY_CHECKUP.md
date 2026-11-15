@@ -1,6 +1,6 @@
 # Safety check-up
 
-**Settings → Data & health → Safety check-up** (owner only) looks at how Sara is set up and says, in
+**Settings → Privacy & system → Safety check-up** (owner only) looks at how Sara is set up and says, in
 plain words, what could let someone in or lose your data. It only reads: no model call, nothing sent
 anywhere. Nothing changes until you tap a fix, and a fix can only make things safer.
 

@@ -1,4 +1,4 @@
-// Phase 104 (MI1, docs/design/MOVE_IN.md §7, §12): Settings → Data & health → Move in from another
+// Phase 104 (MI1, docs/design/MOVE_IN.md §7, §12): Settings → Privacy & system → Move in from another
 // agent. V4e: a five-step wizard (pick the agent, run the collector with the exact command for that
 // system, bring the file, check and import, done); before that, three steps (get the collector, run
 // it, upload the file), then what the collector packed,
@@ -743,7 +743,7 @@ function personaCard(pv) {
   name.value = ch.persona?.name ?? d.sheet.name;
   name.maxLength = 40;
   name.addEventListener('input', () => (ch.persona = { ...ch.persona, name: name.value }));
-  nameRow.append(el('span', '', t('Name')), name, tip(t('Her name on the new sheet. You can change it here or later in Settings → Her.')));
+  nameRow.append(el('span', '', t('Name')), name, tip(t('Her name on the new sheet. You can change it here or later in Settings → Sara.')));
   const ageRow = el('label', 'mi-field');
   const age = el('input');
   age.id = 'mi-age';
@@ -1016,7 +1016,7 @@ function reportLine(l) {
     'custom-skipped': () => t('Store cards you skipped: {n}', { n: l.count }),
     'custom-card': () => t('A store card not confirmed: nothing from it came in ({text})', { text: l.text.split('"')[3] ?? '' }),
     schedules: () => t('Old schedules → {n} tasks and reminders (they never act by themselves)', { n: l.count }),
-    'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Add-ons → Skills)', { n: l.count }),
+    'skills-held': () => t('{n} skills run scripts: off until you check them (Settings → Skills & tools → Skills)', { n: l.count }),
     'store-copies': () => t('{n} copies of one store (same tables): only one was mapped', { n: l.count }),
   };
   if (map[l.key]) return map[l.key]();
@@ -1548,14 +1548,14 @@ const KIND_NAME = {
   approvals: () => t('Approvals'), roster: () => t('Another agent'), knob: () => t('Other setting'),
 };
 const KIND_TIP = {
-  provider: () => t('A model service the old agent used. Confirm adds it to Sara with an empty key: paste your own key in Settings → Models. Pick another kind if the match is wrong.'),
+  provider: () => t('A model service the old agent used. Confirm adds it to Sara with an empty key: paste your own key in Settings → Models & usage. Pick another kind if the match is wrong.'),
   'sign-in': () => t('The old agent signed in to a subscription. Confirm adds Sara\'s own sign-in for it; you sign in again with your account.'),
   local: () => t('Models on the old computer or your home network. Sara adds them only if her server can reach that address.'),
   voice: () => t('Her old voice. Confirm switches Sara to the same service and voice when she has it; paste that service\'s key in Settings → Voice.'),
   channel: () => t('Where you talked to the old agent. Sara never connects a channel by herself: confirm puts the reconnect steps in your report. Stop the old bot first, or both of us will answer.'),
   peer: () => t('Another agent the old one talked to. It is never connected by a move-in: add it again in Settings → Other agents with a new key.'),
   webhook: () => t('Outside services that sent events to the old agent. Sara makes new signed addresses; confirm puts the steps in your report.'),
-  mcp: () => t('Tool servers the old agent started. Programs never start from a move-in; add the ones you still want in Settings → Add-ons → Other programs (MCP).'),
+  mcp: () => t('Tool servers the old agent started. Programs never start from a move-in; add the ones you still want in Settings → Skills & tools → Other programs (MCP).'),
   timezone: () => t('Your time zone from the old agent. Sara uses it only when she has none yet.'),
   info: () => t('Shown so nothing is silent, never copied. Old allowlists and approvals never become "Always allowed" in Sara.'),
 };

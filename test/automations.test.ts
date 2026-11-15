@@ -392,7 +392,7 @@ test('N2 page, tile, lean words and i18n: Settings → You → Automations, a To
   const html = web('index.html');
   assert.match(html, /<section class="settings-page" data-page="you-automations" data-group="You" data-title="Automations" hidden>/);
   assert.match(html, /id="td-automations"/);
-  assert.match(web('settings-nav.js'), /'ab-when', 'you-automations', 'you-adult'/);
+  assert.match(web('settings-nav.js'), /'you-leave-by', 'ab-when', 'you-automations'/);
   assert.match(web('today.js'), /draw\('td-automations', /);
   const js = web('automations.js');
   assert.doesNotMatch(js, /style=|\.style\./, 'no inline styles');

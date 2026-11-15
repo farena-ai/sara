@@ -5,7 +5,7 @@ history together. She reads them and **suggests** what she learned; you check ev
 what you keep is saved. Each companion has her own import: open it while talking to the companion
 it's for.
 
-Where: **Settings → Her → Bring her from another app**.
+Where: **Settings → Privacy & system → Move in and export → Bring her from another app**.
 
 ## What it reads
 
@@ -33,7 +33,7 @@ A name counts as a speaker when it starts at least two lines; other lines contin
 above. Messages are split into one conversation per day when they have dates. Times without a
 time zone are kept as written.
 
-Character cards (PNG or JSON) are not chats: import those in *Settings → Her → Name and
+Character cards (PNG or JSON) are not chats: import those in *Settings → Sara → Name and
 personality → Import a character…* ([OTHER_APPS.md](OTHER_APPS.md)).
 
 ## How to export from each app
@@ -66,7 +66,7 @@ check the app's help.
    notes) and which conversations to bring.
 3. **Estimate**: how many tokens it takes, in how many model calls, and which model reads it (the
    companion's background model). A model on your own hardware costs nothing; a cloud model shows
-   its estimated price (or that its price isn't known: set one in *Data & health → Usage and
+   its estimated price (or that its price isn't known: set one in *Models & usage → Usage and
    costs*). **Only models on this server** is on by default: with it, a cloud model is never used,
    the same rule as private conversations. Up to 300 model calls per import (about 3.5 million
    characters); choose fewer conversations for more.
@@ -93,7 +93,7 @@ check the app's help.
   apps** (the `/v1` API, MCP) and never count as her own words.
 - Kept chats are archived `import-<app>` conversations: the other app's lines are marked as theirs,
   never hers; they're left out of other apps, MCP and the API, like *Bring your history*.
-- **Remove imported history** (*Data & health → Export and import*) deletes all imported
+- **Remove imported history** (*Privacy & system → Move in and export*) deletes all imported
   conversations, the "what she learned" records, and every note learned from them.
 - Nothing else is kept: the parsed chats live in the server's memory until you save or throw them
   away (two hours at most) and are never written to disk.
@@ -121,7 +121,7 @@ fixtures in `test/companion-import-fixtures.ts`.
 ## Bring your companion (Character.AI, Replika, Kindroid, Nomi)
 
 This makes a **new** companion from what another companion app lets you take with you: her
-character, her memories and, if you like, your chats. Where: **Settings → Her → Companions → Bring
+character, her memories and, if you like, your chats. Where: **Settings → Sara → Companions → Bring
 your companion from another app**.
 
 1. Choose where she comes from (or leave *Find out from the files*), then choose her files (up to 10,

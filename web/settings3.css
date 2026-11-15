@@ -1,0 +1,266 @@
+/* SETTINGS3 (docs/design/SETTINGS3.md): the calm, premium Settings outside Sara Classic.
+   S1: one row anatomy (label left, control right at a fixed width, a quiet "i" tip), rows in cards with
+   one radius, one padding and hairlines, a sticky header with the save chip, "On this page" at ≥ 1280 px.
+   Theme variables only (web/theme.css); every rule is scoped outside Sara Classic (test/settings3-look). */
+
+/* ---------- The window and its two columns ---------- */
+:root:not([data-palette="classic"]) dialog#settings { --s3-pad: 40px; --s3-card-pad: 20px; --s3-radius: 12px; }
+@media (min-width: 721px) {
+  :root:not([data-palette="classic"]) dialog#settings.settings-dialog { width: min(1400px, calc(100vw - 48px)); height: min(1040px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); border-radius: 16px; background: var(--surface-0); }
+  :root:not([data-palette="classic"]) #settings .settings-layout { grid-template-columns: var(--s3-rail-w) minmax(0, 1fr); }
+}
+:root:not([data-palette="classic"]) #settings .settings-nav { background: var(--surface-1); border-right: 1px solid var(--line); padding: 22px 16px 16px; gap: 12px; }
+:root:not([data-palette="classic"]) #settings .settings-nav > h2 { margin: 0 4px 2px; color: var(--text-1); font: 600 16px/1.3 var(--font-ui); letter-spacing: -.01em; }
+:root:not([data-palette="classic"]) #settings .settings-nav input[type="search"] { height: 36px; min-height: 36px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-0); padding: 0 12px; font-size: 13px; color: var(--text-1); }
+:root:not([data-palette="classic"]) #settings .settings-main { background: var(--surface-0); position: relative; }
+
+/* ---------- Sticky header: crumbs, title, one-line lead, save chip ---------- */
+:root:not([data-palette="classic"]) #settings .settings-page-head { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; padding: 26px calc(var(--s3-pad) + 200px) 0 var(--s3-pad); }
+:root:not([data-palette="classic"]) #settings .settings-page-head h2 { flex-basis: 100%; margin: 2px 0 0; color: var(--text-1); font: 600 22px/1.25 var(--font-ui); letter-spacing: -.015em; }
+:root:not([data-palette="classic"]) #settings .settings-crumbs:not(:empty) { margin: 0; font-size: 12px; color: var(--text-3); }
+:root:not([data-palette="classic"]) #settings .settings-page-desc { margin: 6px 0 0; padding: 0 var(--s3-pad); max-width: calc(640px + 2 * var(--s3-pad)); color: var(--text-2); font-size: 14px; line-height: 1.5; }
+:root:not([data-palette="classic"]) #settings .settings-page-desc a { font-size: 13px; white-space: nowrap; }
+:root:not([data-palette="classic"]) #settings .s3-chip { position: absolute; top: 24px; right: 72px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: var(--r-pill, 999px); color: var(--text-3); font: 500 12px/1 var(--font-ui); white-space: nowrap; transition: color var(--dur-1, 120ms) ease, background-color var(--dur-1, 120ms) ease; }
+:root:not([data-palette="classic"]) #settings .s3-chip::before { content: ""; width: 10px; height: 6px; margin-top: -3px; border-left: 1.6px solid var(--success); border-bottom: 1.6px solid var(--success); transform: rotate(-45deg); }
+:root:not([data-palette="classic"]) #settings .s3-chip.s3-just { color: var(--text-1); background: var(--success-soft); }
+:root:not([data-palette="classic"]) #settings .s3-chip.s3-error { color: var(--danger); background: var(--danger-soft); white-space: normal; max-width: 360px; height: auto; padding: 4px 10px; }
+:root:not([data-palette="classic"]) #settings .s3-chip.s3-error::before { display: none; }
+/* The chip replaces the footer note and the corner tag (Save buttons stay where they were). */
+:root:not([data-palette="classic"]) #settings .settings-actions:has(> #settings-hint:only-child) { display: none; }
+:root:not([data-palette="classic"]) #settings > .dialog-top > .saved-tag { display: none; }
+:root:not([data-palette="classic"]) #settings #settings-error:empty { display: none; }
+
+/* "How do I…?" as a quiet line under the lead, not a box. */
+:root:not([data-palette="classic"]) #settings .settings-howto:not(:empty) { padding: 10px var(--s3-pad) 0; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details.howto { max-width: 760px; border: 0; background: none; box-shadow: none; padding: 0; margin: 0; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details.howto > summary { display: flex; width: fit-content; min-height: 28px; align-items: center; gap: 6px; padding: 4px 10px 4px 6px; border-radius: var(--r-pill, 999px); border: 1px solid var(--line); background: var(--surface-1); color: var(--text-2); font-size: 12.5px; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details.howto > summary::after { content: none; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details.howto .howto-mark { width: 18px; height: 18px; font-size: 11px; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details[open] { padding: 0 0 4px; }
+:root:not([data-palette="classic"]) #settings .settings-howto > details[open] > :not(summary) { margin-top: 10px; }
+
+/* ---------- The page column and "On this page" ---------- */
+:root:not([data-palette="classic"]) #settings .settings-pages { padding: 20px var(--s3-pad) 56px; scroll-padding-top: 16px; }
+:root:not([data-palette="classic"]) #settings .settings-pages > :not(.s3-toc) { max-width: 760px; }
+:root:not([data-palette="classic"]) #settings .s3-toc { display: none; }
+@media (min-width: 1280px) {
+  :root:not([data-palette="classic"]) #settings .settings-pages:has(> .s3-toc:not([hidden])) { display: grid; grid-template-columns: minmax(0, 760px) 200px; column-gap: 48px; align-content: start; }
+  :root:not([data-palette="classic"]) #settings .settings-pages:has(> .s3-toc:not([hidden])) > :not(.s3-toc) { grid-column: 1; }
+  :root:not([data-palette="classic"]) #settings .s3-toc:not([hidden]) { display: block; grid-column: 2; grid-row: 1 / span 400; align-self: start; position: sticky; top: 4px; padding-top: 4px; }
+}
+:root:not([data-palette="classic"]) #settings .s3-toc-cap { margin: 0 0 10px; color: var(--text-3); font: 600 11px/1.2 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; }
+:root:not([data-palette="classic"]) #settings .s3-toc ul { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--line); }
+:root:not([data-palette="classic"]) #settings .s3-toc-item { display: block; width: 100%; min-height: 0; margin: 0 0 0 -1px; padding: 5px 0 5px 12px; border: 0; border-left: 2px solid transparent; border-radius: 0; background: none; box-shadow: none; color: var(--text-3); font: 400 13px/1.35 var(--font-ui); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-toc-item:hover { color: var(--text-1); }
+:root:not([data-palette="classic"]) #settings .s3-toc-item[aria-current="true"] { border-left-color: var(--accent-solid); color: var(--text-1); }
+
+/* ---------- Cards and rows ---------- */
+:root:not([data-palette="classic"]) #settings .settings-page:not([hidden]) { display: flex; flex-direction: column; gap: 16px; }
+:root:not([data-palette="classic"]) #settings .s3-card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--s3-radius); box-shadow: var(--elev-1); padding: 4px 0; min-width: 0; }
+:root:not([data-palette="classic"]) #settings .s3-card:not(:has(> :not([hidden], :empty:not(input, select, textarea, img, canvas, iframe, video, hr)))) { display: none; }
+:root:not([data-palette="classic"]) #settings .s3-card > * { margin: 0; padding: 12px var(--s3-card-pad); min-width: 0; }
+:root:not([data-palette="classic"]) #settings .s3-card > * + * { border-top: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-card > :is(p, div, span, ul, ol):empty { display: none; }
+:root:not([data-palette="classic"]) #settings .s3-card > :is([hidden], :empty:not(input, select, textarea, img, canvas, iframe, video)):first-child + * { border-top: 0; }
+/* The card's heading and the line under it read as one header. */
+:root:not([data-palette="classic"]) #settings .s3-card > h3:first-child { display: flex; align-items: center; gap: 6px; padding: 14px var(--s3-card-pad) 10px; color: var(--text-1); font: 600 14px/1.35 var(--font-ui); letter-spacing: 0; text-transform: none; }
+:root:not([data-palette="classic"]) #settings .s3-card > h3:first-child + :is(p.muted, p.small, p.hint) { border-top: 0; padding-top: 0; color: var(--text-3); font-size: 13px; line-height: 1.5; }
+:root:not([data-palette="classic"]) #settings .s3-card > h3:first-child + * { border-top-color: var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-card :is(h3, h4):not(:first-child) { color: var(--text-2); font: 600 12px/1.3 var(--font-ui); letter-spacing: .06em; text-transform: uppercase; }
+:root:not([data-palette="classic"]) #settings .s3-card p.muted.small { color: var(--text-3); font-size: 12.5px; line-height: 1.5; }
+/* Cards inside cards become plain blocks. */
+:root:not([data-palette="classic"]) #settings .s3-card :is(.lean-card, .card-box, .kit-card) { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; margin: 0; }
+:root:not([data-palette="classic"]) #settings .s3-card > :is(.lean-card, .card-box, .kit-card) { padding: 12px var(--s3-card-pad); }
+:root:not([data-palette="classic"]) #settings .s3-card > * + :is(.lean-card, .card-box) { border-top: 1px solid var(--hairline); }
+/* Side-by-side fields (.add-row) become one row each; their buttons sit at the right. */
+:root:not([data-palette="classic"]) #settings .s3-card .add-row:has(> label > :is(select, input:not([type="checkbox"], [type="radio"]))) { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+:root:not([data-palette="classic"]) #settings .s3-card .add-row > label:has(> :is(select, input)) { display: flex; align-items: center; gap: 4px 6px; min-height: 36px; padding: 6px 0; color: var(--text-1); font-size: 14px; }
+:root:not([data-palette="classic"]) #settings .s3-card .add-row:has(> label > :is(select, input)) > :is(button, .button) { align-self: flex-end; margin-top: 6px; }
+/* Rows inside a plain wrapper still get their hairlines. */
+:root:not([data-palette="classic"]) #settings .s3-card > :is(div, .lean-card) > :is(label, p, .add-row) + :is(label, .add-row) { border-top: 1px solid var(--hairline); }
+
+/* A field row: label (and its tip) left, the control right at one width. */
+:root:not([data-palette="classic"]) #settings .s3-card > label:has(> :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]))),
+:root:not([data-palette="classic"]) #settings .s3-card > :is(div, .lean-card) > label:has(> :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]))) { display: flex; align-items: center; gap: 4px 6px; min-height: 36px; color: var(--text-1); font-size: 14px; }
+:root:not([data-palette="classic"]) #settings .s3-card > :is(div, .lean-card) > label:has(> :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]))) { padding: 8px 0; }
+:root:not([data-palette="classic"]) #settings .s3-card label:has(> :is(select, input)) > :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { flex: none; width: var(--s3-control-w); margin: 0 0 0 auto; }
+:root:not([data-palette="classic"]) #settings .s3-card label:has(> :is(select, input)) > :is(select, input)[hidden] { display: none; }
+:root:not([data-palette="classic"]) #settings .s3-card label > :is(input[type="number"], input[type="time"]) { width: 112px; }
+/* Long text boxes stay below their label at full width. */
+:root:not([data-palette="classic"]) #settings .s3-card > label:has(> textarea) { display: flex; flex-direction: column; align-items: stretch; gap: 8px; color: var(--text-1); font-size: 14px; }
+
+/* Controls: one height, one radius. */
+:root:not([data-palette="classic"]) #settings .settings-pages :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { height: 34px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background-color: var(--surface-1); color: var(--text-1); font: 400 13.5px/1.2 var(--font-ui); box-shadow: none; }
+:root:not([data-palette="classic"]) #settings .settings-pages textarea { border: 1px solid var(--line); border-radius: 8px; background: var(--surface-1); color: var(--text-1); font: 400 13.5px/1.5 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .settings-pages :is(select, input, textarea):focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 1px; border-color: transparent; }
+
+/* A switch row: the text left, the switch right. */
+:root:not([data-palette="classic"]) #settings .settings-pages :is(label.row, label:has(> input[type="checkbox"]:first-child)):has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 6px; min-height: 36px; color: var(--text-1); font-size: 14px; line-height: 1.4; }
+:root:not([data-palette="classic"]) #settings .settings-pages :is(label.row, label:has(> input[type="checkbox"]:first-child)) > input[type="checkbox"] { order: 9; flex: none; appearance: none; -webkit-appearance: none; width: 36px; height: 20px; margin: 0 0 0 auto; padding: 0; border: 0; border-radius: 999px; background: radial-gradient(circle at 10px 50%, var(--surface-1) 0 7px, transparent 7.5px), color-mix(in srgb, var(--text-3) 55%, var(--surface-3)); cursor: pointer; transition: background var(--dur-1, 120ms) ease; }
+:root:not([data-palette="classic"]) #settings .settings-pages :is(label.row, label:has(> input[type="checkbox"]:first-child)) > input[type="checkbox"]:checked { background: radial-gradient(circle at 26px 50%, var(--on-accent) 0 7px, transparent 7.5px), var(--accent-solid); }
+:root:not([data-palette="classic"]) #settings .settings-pages :is(label.row, label:has(> input[type="checkbox"]:first-child)) > input[type="checkbox"]:disabled { opacity: .5; cursor: default; }
+:root:not([data-palette="classic"]) #settings .settings-pages :is(label.row, label:has(> input[type="checkbox"]:first-child)) > input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+
+/* The quiet "i" tip after a label (full strength on hover and focus). */
+:root:not([data-palette="classic"]) #settings .settings-pages button.tip { flex: none; display: inline-grid; place-items: center; width: 16px; min-width: 16px; height: 16px; min-height: 16px; margin: 0 2px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: none; box-shadow: none; color: transparent; font-size: 0; line-height: 0; opacity: .75; vertical-align: middle; cursor: help; }
+:root:not([data-palette="classic"]) #settings .settings-pages button.tip::before { content: "i"; color: var(--text-3); font: 600 10px/1 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .settings-pages button.tip:is(:hover, :focus-visible) { opacity: 1; border-color: var(--text-3); }
+:root:not([data-palette="classic"]) #settings .settings-pages button.tip:is(:hover, :focus-visible)::before { color: var(--text-1); }
+
+/* ---------- S2: the two-level rail (the group of the page on screen shows its pages) ---------- */
+:root:not([data-palette="classic"]) #settings #settings-nav-list { display: flex; flex-direction: column; gap: 2px; }
+:root:not([data-palette="classic"]) #settings .settings-nav-home { display: flex; align-items: center; gap: 10px; min-height: 34px; margin: 0 0 8px; padding: 0 10px; border-radius: 8px; color: var(--text-2); font: 500 14px/1.2 var(--font-ui); box-shadow: none; }
+:root:not([data-palette="classic"]) #settings .settings-nav-group { margin: 0; padding: 0; border: 0; }
+:root:not([data-palette="classic"]) #settings .settings-nav-group:first-of-type { margin-top: 2px; padding-top: 10px; border-top: 1px solid var(--line); }
+:root:not([data-palette="classic"]) #settings .settings-nav-head { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; margin: 0; padding: 0 10px; border: 0; border-radius: 8px; background: none; box-shadow: none; color: var(--text-2); font: 400 14px/1.2 var(--font-ui); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .settings-nav-head:hover, :root:not([data-palette="classic"]) #settings .settings-nav-home:hover { background: var(--surface-2); color: var(--text-1); }
+:root:not([data-palette="classic"]) #settings :is(.settings-nav-head, .settings-nav-home) .sng-icon { flex: none; width: 16px; height: 16px; color: var(--text-3); }
+:root:not([data-palette="classic"]) #settings .settings-nav-head .sng-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root:not([data-palette="classic"]) #settings .settings-nav-head .sng-count { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+:root:not([data-palette="classic"]) #settings .settings-nav-head .sng-chev { display: none; }
+:root:not([data-palette="classic"]) #settings .settings-nav-group.open > .settings-nav-head { color: var(--text-1); font-weight: 500; }
+:root:not([data-palette="classic"]) #settings .settings-nav-group.open > .settings-nav-head .sng-icon { color: var(--accent-text); }
+:root:not([data-palette="classic"]) #settings .settings-nav-group.open > .settings-nav-head .sng-count { visibility: hidden; }
+:root:not([data-palette="classic"]) #settings .settings-nav-items { display: flex; flex-direction: column; gap: 1px; margin: 2px 0 8px 18px; padding: 0 0 0 9px; border-left: 1px solid var(--line); }
+:root:not([data-palette="classic"]) #settings .settings-nav-items[hidden] { display: none; }
+:root:not([data-palette="classic"]) #settings .settings-nav-items .settings-nav-item { display: block; width: 100%; min-height: 30px; margin: 0; padding: 6px 10px; border: 0; border-radius: 7px; background: none; box-shadow: none; color: var(--text-2); font: 400 13.5px/1.3 var(--font-ui); text-align: left; }
+:root:not([data-palette="classic"]) #settings .settings-nav-items .settings-nav-item:hover { background: var(--surface-2); color: var(--text-1); }
+:root:not([data-palette="classic"]) #settings :is(.settings-nav-items .settings-nav-item, .settings-nav-home)[aria-current="true"] { background: var(--surface-3); color: var(--text-1); font-weight: 600; box-shadow: none; }
+:root:not([data-palette="classic"]) #settings .settings-nav-home[aria-current="true"] .sng-icon { color: var(--accent-text); }
+:root:not([data-palette="classic"]) #settings .settings-nav-sub { margin: 8px 0 2px; padding: 0 10px; color: var(--text-3); font: 600 11px/1.3 var(--font-ui); letter-spacing: .07em; text-transform: uppercase; }
+
+/* A merged page's own heading, between its host's cards. */
+:root:not([data-palette="classic"]) #settings .settings-page[data-host]:not([hidden]) { margin-top: 28px; }
+:root:not([data-palette="classic"]) #settings .s3-section-head { margin: 0 0 -4px; padding: 0 2px; color: var(--text-3); font: 600 11.5px/1.3 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; scroll-margin-top: 16px; }
+
+/* ---------- S5: Apps and services (tiles) ---------- */
+:root:not([data-palette="classic"]) #settings .s3-services:not([hidden]) { display: flex; flex-direction: column; gap: 22px; max-width: 1040px; }
+:root:not([data-palette="classic"]) #settings .s3-filter { display: inline-flex; align-self: flex-start; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-1); }
+:root:not([data-palette="classic"]) #settings .s3-filter-opt { display: inline-flex; align-items: center; gap: 6px; min-height: 28px; padding: 0 12px; border: 0; border-radius: 7px; background: none; box-shadow: none; color: var(--text-2); font: 500 13px/1 var(--font-ui); cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-filter-opt[aria-pressed="true"] { background: var(--surface-3); color: var(--text-1); }
+:root:not([data-palette="classic"]) #settings .s3-filter-n { color: var(--text-3); font-variant-numeric: tabular-nums; }
+:root:not([data-palette="classic"]) #settings .s3-tiles-head { margin: 0 0 10px; padding: 0 2px; color: var(--text-3); font: 600 11.5px/1.3 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; }
+:root:not([data-palette="classic"]) #settings .s3-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+:root:not([data-palette="classic"]) #settings .s3-tile { display: flex; align-items: center; gap: 12px; min-height: 66px; margin: 0; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); color: var(--text-1); text-align: left; cursor: pointer; transition: border-color var(--dur-1, 120ms) ease, background-color var(--dur-1, 120ms) ease; }
+:root:not([data-palette="classic"]) #settings .s3-tile:hover { border-color: color-mix(in srgb, var(--line) 40%, var(--text-3)); background: var(--surface-2); }
+:root:not([data-palette="classic"]) #settings .s3-tile:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+:root:not([data-palette="classic"]) #settings .s3-tile-mark { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 9px; background: var(--surface-3); color: var(--text-1); font: 600 13px/1 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-tile-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+:root:not([data-palette="classic"]) #settings .s3-tile-title { font: 600 14px/1.25 var(--font-ui); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root:not([data-palette="classic"]) #settings .s3-tile-line { display: flex; align-items: center; gap: 6px; min-width: 0; color: var(--text-3); font: 400 12.5px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-tile-line > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+:root:not([data-palette="classic"]) #settings .s3-tile-chev { flex: none; color: var(--text-3); font-size: 18px; line-height: 1; }
+:root:not([data-palette="classic"]) #settings .s3-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--text-3); }
+:root:not([data-palette="classic"]) #settings .s3-dot[data-state="on"] { border-color: var(--success); background: var(--success); }
+:root:not([data-palette="classic"]) #settings .s3-dot[data-state="warn"] { border-color: var(--warn); background: var(--warn); }
+:root:not([data-palette="classic"]) #settings .s3-dot[data-state="bad"] { border-color: var(--danger); background: var(--danger); }
+
+/* ---------- S3: the Advanced fold (closed by default, remembered per device) ---------- */
+:root:not([data-palette="classic"]) #settings details.s3-adv { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; border: 0; background: none; }
+:root:not([data-palette="classic"]) #settings details.s3-adv > summary.s3-adv-sum { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 32px; padding: 0 12px 0 10px; border: 1px solid var(--line); border-radius: var(--r-pill, 999px); background: var(--surface-1); color: var(--text-2); font: 500 13px/1 var(--font-ui); list-style: none; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings details.s3-adv > summary.s3-adv-sum::-webkit-details-marker { display: none; }
+:root:not([data-palette="classic"]) #settings details.s3-adv > summary.s3-adv-sum::before { content: ""; width: 6px; height: 6px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(-45deg); transition: transform var(--dur-1, 120ms) ease; }
+:root:not([data-palette="classic"]) #settings details.s3-adv[open] > summary.s3-adv-sum::before { transform: rotate(45deg); }
+:root:not([data-palette="classic"]) #settings details.s3-adv > summary.s3-adv-sum:hover { color: var(--text-1); border-color: color-mix(in srgb, var(--line) 40%, var(--text-3)); }
+:root:not([data-palette="classic"]) #settings details.s3-adv > summary.s3-adv-sum:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+
+/* ---------- S4: search finds single settings ---------- */
+:root:not([data-palette="classic"]) #settings .s3-search { position: relative; display: block; }
+:root:not([data-palette="classic"]) #settings .s3-search > input[type="search"] { width: 100%; padding-right: 58px; }
+:root:not([data-palette="classic"]) #settings .s3-kbd { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-1); color: var(--text-3); font: 500 10.5px/1.3 var(--font-ui); pointer-events: none; }
+:root:not([data-palette="classic"]) #settings .s3-kbd::after { content: "Ctrl K"; }
+:root:not([data-palette="classic"]) #settings .s3-search:focus-within > .s3-kbd { display: none; }
+@media (pointer: coarse) { :root:not([data-palette="classic"]) #settings .s3-kbd { display: none; } }
+:root:not([data-palette="classic"]) #settings .s3-hits:not([hidden]) { display: flex; flex-direction: column; gap: 8px; margin: 0 0 4px; }
+:root:not([data-palette="classic"]) #settings .s3-hits-head { margin: 4px 2px 2px; color: var(--text-3); font: 600 11.5px/1.3 var(--font-ui); letter-spacing: .08em; text-transform: uppercase; }
+:root:not([data-palette="classic"]) #settings .s3-hit-list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); overflow: hidden; }
+:root:not([data-palette="classic"]) #settings .s3-hit-item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; margin: 0; padding: 8px 16px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text-1); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-hit-item + .s3-hit-item { border-top: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-hit-item:is(:hover, :focus-visible) { background: var(--surface-2); outline: none; }
+:root:not([data-palette="classic"]) #settings .s3-hit-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+:root:not([data-palette="classic"]) #settings .s3-hit-label { font: 500 14px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-hit-path { color: var(--text-3); font: 400 12px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-hit-value { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 3px 8px; border-radius: 6px; background: var(--surface-3); color: var(--text-2); font: 500 12px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-hit { border-radius: 8px; background: var(--accent-soft); box-shadow: 0 0 0 2px var(--accent-solid); transition: background-color 400ms ease, box-shadow 400ms ease; }
+
+:root:not([data-palette="classic"]) #settings .settings-results:not([hidden]) { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); overflow: hidden; }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result { display: grid; grid-template-columns: minmax(0, 1fr); gap: 2px; margin: 0; padding: 12px 16px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text-1); text-decoration: none; }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result + .settings-result { border-top: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result:is(:hover, :focus-visible) { background: var(--surface-2); outline: none; }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result > strong { order: -1; font: 600 14px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result > span { color: var(--text-3); font-size: 12.5px; line-height: 1.45; }
+:root:not([data-palette="classic"]) #settings .settings-results > .settings-result > span:last-child { color: var(--text-2); overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+
+/* ---------- S6: the overview on the Settings home ---------- */
+:root:not([data-palette="classic"]) #settings .s3-overview:not([hidden]) { display: flex; flex-direction: column; gap: 20px; max-width: 1040px; margin: 0 0 28px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-search { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 50px; margin: 0; padding: 0 16px; border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); color: var(--text-3); font: 400 15px/1.2 var(--font-ui); text-align: left; cursor: text; }
+:root:not([data-palette="classic"]) #settings .s3-ov-search::before { content: ""; flex: none; width: 12px; height: 12px; border: 1.6px solid currentColor; border-radius: 50%; box-shadow: 4px 4px 0 -3px currentColor; }
+:root:not([data-palette="classic"]) #settings .s3-ov-search-text { flex: 1; }
+:root:not([data-palette="classic"]) #settings .s3-ov-kbd { padding: 2px 6px; border: 1px solid var(--line); border-radius: 5px; color: var(--text-3); font: 500 11px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-cols { display: grid; grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+:root:not([data-palette="classic"]) #settings .s3-ov-col { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+:root:not([data-palette="classic"]) #settings .s3-ov-card { border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); overflow: hidden; }
+:root:not([data-palette="classic"]) #settings .s3-ov-card[hidden] { display: none; }
+:root:not([data-palette="classic"]) #settings .s3-ov-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px 12px; border-bottom: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-ov-head > h3 { margin: 0; color: var(--text-1); font: 600 14px/1.3 var(--font-ui); letter-spacing: 0; text-transform: none; }
+:root:not([data-palette="classic"]) #settings .s3-ov-link { text-decoration: none; min-height: 0; padding: 0; border: 0; background: none; box-shadow: none; color: var(--accent-text); font: 500 13px/1.3 var(--font-ui); cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-count { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; color: var(--text-2); font: 500 12px/1 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-facts { display: grid; grid-template-columns: 1fr 1fr; }
+:root:not([data-palette="classic"]) #settings .s3-ov-fact { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; margin: 0; padding: 14px 20px; border: 0; border-radius: 0; border-bottom: 1px solid var(--hairline); background: none; box-shadow: none; color: var(--text-1); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-fact:nth-child(odd) { border-right: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-ov-fact:hover { background: var(--surface-2); }
+:root:not([data-palette="classic"]) #settings .s3-ov-k { color: var(--text-3); font: 400 12px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-v { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 600 14px/1.35 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-need { display: flex; align-items: flex-start; gap: 12px; width: 100%; margin: 0; padding: 14px 20px; border: 0; border-radius: 0; background: none; box-shadow: none; color: var(--text-1); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-need + .s3-ov-need { border-top: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-ov-need:hover { background: var(--surface-2); }
+:root:not([data-palette="classic"]) #settings .s3-ov-need > .s3-dot { margin-top: 5px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-need-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-need-title { font: 600 14px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-need-line { color: var(--text-2); font: 400 13px/1.45 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-row { display: flex; align-items: center; gap: 16px; min-height: 64px; padding: 10px 20px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-row + .s3-ov-row { border-top: 1px solid var(--hairline); }
+:root:not([data-palette="classic"]) #settings .s3-ov-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-row-label { color: var(--text-1); font: 400 14px/1.35 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-row-where { color: var(--text-3); font: 400 12.5px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-switch { display: flex; min-height: 0; margin: 0; padding: 0; border: 0; }
+:root:not([data-palette="classic"]) #settings .s3-ov-switch > input[type="checkbox"] { flex: none; appearance: none; -webkit-appearance: none; width: 36px; height: 20px; margin: 0; padding: 0; border: 0; border-radius: 999px; background: radial-gradient(circle at 10px 50%, var(--surface-1) 0 7px, transparent 7.5px), color-mix(in srgb, var(--text-3) 55%, var(--surface-3)); cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-switch > input[type="checkbox"]:checked { background: radial-gradient(circle at 26px 50%, var(--on-accent) 0 7px, transparent 7.5px), var(--accent-solid); }
+:root:not([data-palette="classic"]) #settings .s3-ov-switch > input[type="checkbox"]:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg { display: inline-flex; flex: none; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-0); }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg-opt { position: relative; display: block; margin: 0; padding: 0; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg-opt > input { position: absolute; opacity: 0; width: 1px; height: 1px; margin: 0; }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg-opt > span { display: block; padding: 5px 12px; border-radius: 7px; color: var(--text-2); font: 500 13px/1.2 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg-opt > input:checked + span { background: var(--surface-1); color: var(--text-1); box-shadow: var(--elev-1); }
+:root:not([data-palette="classic"]) #settings .s3-ov-seg-opt > input:focus-visible + span { outline: 2px solid var(--accent-solid); outline-offset: 1px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-app-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; padding: 10px 12px 12px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-app { display: flex; align-items: center; gap: 10px; min-width: 0; margin: 0; padding: 8px; border: 0; border-radius: 8px; background: none; box-shadow: none; color: var(--text-1); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .s3-ov-app:hover { background: var(--surface-2); }
+:root:not([data-palette="classic"]) #settings .s3-ov-app > .s3-tile-mark { width: 30px; height: 30px; font-size: 12px; }
+:root:not([data-palette="classic"]) #settings .s3-ov-house > p { margin: 0; padding: 14px 20px 16px; }
+/* The groups under the overview read as "All settings". */
+:root:not([data-palette="classic"]) #settings .s3-overview:not([hidden]) + .settings-home .sh-intro { margin-top: 0; color: var(--text-3); font: 400 13px/1.5 var(--font-ui); }
+@media (max-width: 1100px) {
+  :root:not([data-palette="classic"]) #settings .s3-ov-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ---------- Phone: label above a full-width control; switches stay inline ---------- */
+@media (max-width: 720px) {
+  :root:not([data-palette="classic"]) dialog#settings { --s3-pad: 16px; --s3-card-pad: 16px; }
+  :root:not([data-palette="classic"]) #settings .settings-page-head { padding: 12px var(--s3-pad) 0; }
+  :root:not([data-palette="classic"]) #settings .settings-page-head h2 { font-size: 24px; }
+  /* The save chip joins the first row (after the back buttons, clear of the close button) and wraps to its
+     own line when Back to results leaves no room: it never sits on top of a button, in any language. */
+  :root:not([data-palette="classic"]) #settings :is(#settings-back, #settings-results-back) { order: -2; }
+  :root:not([data-palette="classic"]) #settings .s3-chip { position: static; order: -1; align-self: center; margin: 0 40px 0 auto; max-width: calc(100% - 40px); }
+  :root:not([data-palette="classic"]) #settings .s3-chip .s3-chip-text { overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+  :root:not([data-palette="classic"]) #settings .settings-page-head > .settings-crumbs { flex-basis: 100%; }
+  :root:not([data-palette="classic"]) #settings .s3-ov-search { font-size: 14px; }
+  :root:not([data-palette="classic"]) #settings .s3-ov-kbd { display: none; }
+  :root:not([data-palette="classic"]) #settings .s3-ov-facts { grid-template-columns: 1fr; }
+  :root:not([data-palette="classic"]) #settings .s3-ov-fact:nth-child(odd) { border-right: 0; }
+  :root:not([data-palette="classic"]) #settings .s3-card > label:has(> :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]))),
+  :root:not([data-palette="classic"]) #settings .s3-card > :is(div, .lean-card) > label:has(> :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"]))) { flex-wrap: wrap; }
+  :root:not([data-palette="classic"]) #settings .s3-card label:has(> :is(select, input)) > :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { flex: 1 1 100%; width: 100%; margin: 4px 0 0; }
+  :root:not([data-palette="classic"]) #settings .settings-pages :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { height: 40px; min-height: 40px; font-size: 16px; }
+}

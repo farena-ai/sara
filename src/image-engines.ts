@@ -87,8 +87,8 @@ async function runTool(d: EngineDeps, name: string, args: Record<string, unknown
   const tool = d.tools?.get(name);
   if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new ToolError(`The picture tool ${name} isn't connected right now.`);
   const perm = d.tools!.permission(name);
-  if (perm === 'never') throw new ToolError(`${name} is set to Off in Settings → Coding → Tools and approvals.`);
-  if (o.unattended && perm !== 'auto') throw new ToolError(`For pictures on her own, ${name} must be Always allowed (Settings → Coding → Tools and approvals).`);
+  if (perm === 'never') throw new ToolError(`${name} is set to Off in Settings → Skills & tools → Tools and approvals.`);
+  if (o.unattended && perm !== 'auto') throw new ToolError(`For pictures on her own, ${name} must be Always allowed (Settings → Skills & tools → Tools and approvals).`);
   const images: Buffer[] = [];
   const ctx = {
     workspaceDir: '',

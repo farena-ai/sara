@@ -172,7 +172,7 @@ on Windows, `service/server.env` on a Mac): *Nothing leaves this computer* is th
 start until the owner turns it off. Silent Windows install: `/PRIVATE=1`. The installer passes it on
 as `sara setup … --private start|off`.
 
-The apps themselves need nothing more: Settings → Models → **On this computer** (part of the web
+The apps themselves need nothing more: Settings → Models & usage → **On this computer** (part of the web
 app) finds Ollama, suggests a model for the computer's graphics card or memory and downloads it, and
 holds the switch. A **🔒 Only this computer** badge shows in the top bar while it's on. What the
 switch guarantees and what it can't (her commands on Windows, the web view's own updates, the system

@@ -213,7 +213,7 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
     const sid = sidOf(req);
     const url = new URL(req.url ?? '/', 'http://x');
 
-    // ---- the person's view (Settings → Her → Hey Sara) ----
+    // ---- the person's view (Settings → Sara → Hey Sara) ----
     if (!b && method === 'GET') {
       const f = store.read(alive);
       const lex = lexicon();

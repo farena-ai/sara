@@ -44,7 +44,7 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
     const visionSet = Boolean(s.routes?.vision && s.providers.some((p) => p.id === s.routes!.vision!.providerId));
     try {
       const first = resolveChain(cx, conv, visionSet ? 'vision' : 'turn')[0];
-      if (!first) return { kind: 'classic', error: 'Pick a model first (Settings → Models).' };
+      if (!first) return { kind: 'classic', error: 'Pick a model first (Settings → Models & usage).' };
       return { kind: 'classic', provider: first.provider.config, model: first.model, sees: await modelSees(first.provider.config, first.model, Date.now()) };
     } catch (err) {
       return { kind: 'classic', error: (err as Error).message };
@@ -228,7 +228,7 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         if (existsSync(file)) data = readFileSync(file);
         else {
           const key = await xaiKey().catch(() => undefined);
-          if (!key) throw new HttpError(400, 'Sign in to Grok first (Models → Subscriptions), or add an xAI key.');
+          if (!key) throw new HttpError(400, 'Sign in to Grok first (Models & usage → Providers and plans → Subscriptions), or add an xAI key.');
           try {
             data = (await xaiSpeak({ voiceId, language: lang === 'auto' ? 'en' : lang }, key, text, 1)).data;
           } catch (err) {

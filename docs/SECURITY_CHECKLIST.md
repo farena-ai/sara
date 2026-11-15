@@ -16,19 +16,19 @@ safe. Most are in **Settings → Connections → Devices and sign-in**.
    access` shows how she's reached now.
 5. **Check who's signed in.** The list on Devices and sign-in shows every browser, phone and app.
    Sign out any you don't recognize or no longer use.
-6. **Review tool approvals.** *Settings → Coding → Tools and approvals*: anything that runs
+6. **Review tool approvals.** *Settings → Skills & tools → Tools and approvals*: anything that runs
    commands, sends things, spends money or reaches other people should stay on **Ask**. On
    Windows, where there's no command sandbox, keep commands on Ask.
-7. **Check the sandbox.** *Settings → Data & health → Health* shows the tool sandbox. On Linux it
+7. **Check the sandbox.** *Settings → Privacy & system → Health* shows the tool sandbox. On Linux it
    should say `bwrap` (bubblewrap); if it says `none`, see
    [INSTALL.md, Troubleshooting](INSTALL.md#troubleshooting).
-8. **Set up an off-server backup.** *Settings → Data & health → Backups → Off-server copy* puts an
+8. **Set up an off-server backup.** *Settings → Privacy & system → Backups → Off-server copy* puts an
    encrypted copy of each daily backup on another drive or in S3-compatible storage. Keep the
    passphrase in your password manager: without it the copies can't be opened.
 9. **Treat backups like keys.** Backups on the server contain her vault key. Don't copy them to
    shared folders or send them to anyone.
 10. **Keep her updated.** Only the latest release gets security fixes: `sudo sara update` (Linux)
-    or Settings → Data & health → Updates.
+    or Settings → Privacy & system → Updates.
 
 Optional, for more privacy: [PRIVACY.md](PRIVACY.md) lists everything that can leave your server
 and how to turn each off (for example `SARA_REPORT_TO=off`, or local models for every job).

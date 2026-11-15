@@ -101,7 +101,7 @@ export class Translations {
       p.reach = ok ? 'yes' : 'no';
       if (!ok) {
         p.mode = 'info';
-        p.why = "That address is the old machine's own (or Sara's server can't reach it). Set up Ollama where Sara runs, or give its address in Settings → Models.";
+        p.why = "That address is the old machine's own (or Sara's server can't reach it). Set up Ollama where Sara runs, or give its address in Settings → Models & usage.";
       }
     }
     this.#d.staging.setMeta('configKeys', trees.reduce((n, t) => n + (t.tree ? keyPaths(t.tree).length : (t.keys?.length ?? 0)), 0));
@@ -297,11 +297,11 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
         providers = [...providers, cfg];
         r.changes.push({ path: 'providers', provider: cfg.id });
         r.items.push({ kind: 'setting', table: 'settings.providers', id: cfg.id, ref: `${p.from}|${p.key}` });
-        r.translated.push(line('tr-provider', `${p.old} → provider "${cfg.label}" in Settings → Models${cfg.defaultModel ? ` (${cfg.defaultModel})` : ''}`, { examples: [shownFrom(p.from)] }));
-        if (p.kind === 'sign-in') r.needsYou.push(line('sign-in', `Sign in to ${cfg.label} with your own account (Settings → Models).`, { page: 'models' } as Partial<ReportLine>));
+        r.translated.push(line('tr-provider', `${p.old} → provider "${cfg.label}" in Settings → Models & usage${cfg.defaultModel ? ` (${cfg.defaultModel})` : ''}`, { examples: [shownFrom(p.from)] }));
+        if (p.kind === 'sign-in') r.needsYou.push(line('sign-in', `Sign in to ${cfg.label} with your own account (Settings → Models & usage).`, { page: 'models' } as Partial<ReportLine>));
         else if (cfg.needsKey) keys.push(cfg.label);
       } catch (err) {
-        r.needsYou.push(line('cfg-failed', `${p.title}: couldn't be added (${(err as Error).message}). Add it by hand in Settings → Models.`));
+        r.needsYou.push(line('cfg-failed', `${p.title}: couldn't be added (${(err as Error).message}). Add it by hand in Settings → Models & usage.`));
       }
       continue;
     }
@@ -329,8 +329,8 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
     }
     r.leftBehind.push(line('cfg-kept', `${p.title}: Sara kept her own setting`, { examples: [shownFrom(p.from)] }));
   }
-  if (keys.length) r.needsYou.unshift(line('keys', `Paste keys: ${[...new Set(keys)].join(', ')} (Settings → Models / Voice). Keys never move with a bundle.`, { count: new Set(keys).size, page: 'models' } as Partial<ReportLine>));
-  if (routes.length) r.needsYou.push(line('routes', `Pick the models for each job once the providers work: ${routes.slice(0, 4).join('; ')} (Settings → Models → Which model does what).`, { count: routes.length, page: 'models' } as Partial<ReportLine>));
+  if (keys.length) r.needsYou.unshift(line('keys', `Paste keys: ${[...new Set(keys)].join(', ')} (Settings → Models & usage / Voice). Keys never move with a bundle.`, { count: new Set(keys).size, page: 'models' } as Partial<ReportLine>));
+  if (routes.length) r.needsYou.push(line('routes', `Pick the models for each job once the providers work: ${routes.slice(0, 4).join('; ')} (Settings → Models & usage → Which model does what).`, { count: routes.length, page: 'models' } as Partial<ReportLine>));
 
   // ---------------- hooks and plugins ----------------
   const perms = { ...(patch.toolPermissions ?? s.toolPermissions ?? {}) };
@@ -370,7 +370,7 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
       }
       r.rules.push(t.rule);
       r.items.push({ kind: 'persona-rule', table: 'persona.json', id: t.rule, ref: c.key });
-      r.translated.push(line('tr-rule', `${label} → personality rule "${t.rule}" (Settings → Her → How she talks)`, { examples: [c.folder] }));
+      r.translated.push(line('tr-rule', `${label} → personality rule "${t.rule}" (Settings → Sara → How she talks)`, { examples: [c.folder] }));
       continue;
     }
     if (t.type === 'guard' && t.tool) {
@@ -380,7 +380,7 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
         perms[t.tool] = 'ask';
         permsChanged = true;
         r.items.push({ kind: 'setting', table: 'settings', id: `toolPermissions.${t.tool}`, ref: c.key });
-        r.translated.push(line('tr-guard', `${label} → Sara asks before "${t.tool}" (Settings → Coding → Tools and approvals)`, { examples: [c.folder] }));
+        r.translated.push(line('tr-guard', `${label} → Sara asks before "${t.tool}" (Settings → Skills & tools → Tools and approvals)`, { examples: [c.folder] }));
       } else r.translated.push(line('tr-guard', `${label} → Sara already ${now === 'never' ? 'never uses' : 'asks before'} "${t.tool}"`, { examples: [c.folder] }));
       continue;
     }

@@ -26,7 +26,7 @@ and you switch it on yourself, one companion at a time.
 
 ## Adding something (Sara 2.58)
 
-Open **Settings → Add-ons → Get more**. Search or pick an add-on on a shelf, read its page (what it
+Open **Settings → Skills & tools → Get more**. Search or pick an add-on on a shelf, read its page (what it
 does, what it can do in Sara's own words, pictures, versions, the checks it passed), then press **Get**:
 
 - **A plugin** shows the same review card as **Add a plugin**, with **From the Sara Store** on it.
@@ -60,7 +60,7 @@ yet**, and each still shows its full card.
   request has only `User-Agent: Sara`.
 - Sara checks the list's signature against two keys built into Sara. A list that doesn't check out is
   thrown away, and Sara keeps the last good one.
-- To switch it off: **Settings → Data & health → Privacy → Sara Store**. Your add-ons keep working.
+- To switch it off: **Settings → Privacy & system → Privacy → Sara Store**. Your add-ons keep working.
 - Sara never asks the store in the demo, in private local mode, or for household members.
 
 ## When an add-on is pulled

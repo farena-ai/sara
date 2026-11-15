@@ -1,5 +1,5 @@
 // V4e (docs/ops/V4_DESIGN.md → V4e, docs/MOVE_IN_GUIDE.md): the move-in as a guided, five-step
-// wizard (Settings → Data & health → Move in from another agent). This file is the plain data and
+// wizard (Settings → Privacy & system → Move in and export → Move in from another agent). This file is the plain data and
 // the pure parts (which step a bundle's state belongs to, the exact command for each system and
 // source); web/movein.js does the page. No imports and no DOM work at import time, so the tests
 // check the commands in Node.

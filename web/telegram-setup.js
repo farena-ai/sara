@@ -1,7 +1,7 @@
-// PL2a (docs/design/POLISH2.md N1, N5): Settings → Chat apps → Telegram opens on the shared setup card
+// PL2a (docs/design/POLISH2.md N1, N5): Settings → Connections → Apps and services → Telegram opens on the shared setup card
 // and three plain steps (open @BotFather, /newbot, paste the key: ✓ when Sara reached the bot), then
-// Link and Test. Every option stays where it was, folded under *More* below (ids unchanged), so the
-// first screen is the steps, not eight checkboxes.
+// Link and Test. The connection card (key, on/off, who may talk to her) stays below it; the rarer options
+// fold under the page's Advanced (SETTINGS3, settings-look.js ADVANCED), ids unchanged.
 import { t } from './naming.js';
 import { api, btn, checking, copyRow, el, field, foldedLine, link, okLine, setupCard, stepNav, stepper, testList, tip, useTranslator } from './setup-card.js';
 
@@ -101,9 +101,6 @@ function draw() {
   if (!box || !last) return;
   const steps = Object.keys(STEPS).map((id) => ({ id, ok: Boolean(stepOk(id)) }));
   const working = last.running && last.linked;
-  // The options fold under More until it works.
-  const more = $('#tg-more');
-  if (more && !more.dataset.touched) more.open = working;
   if (!st.started && !last.hasToken) return void box.replaceChildren(setupCard('telegram', { onStart: () => ((st.started = true), draw()) }));
   if (working && !st.force) return void box.replaceChildren(foldedLine(t('Telegram: working as {bot}', { bot: `@${last.bot}` }), () => ((st.force = true), (st.open = 'bot'), draw())));
   if (!st.open) st.open = (steps.find((s) => !s.ok) ?? steps[0]).id;
@@ -115,10 +112,5 @@ export function renderTelegramSetup(tg, o = {}) {
   last = tg;
   if (o.reload) hooks = { reload: o.reload };
   st.tested ||= sessionStorage.getItem('sara.telegram.tested') === '1';
-  const more = $('#tg-more');
-  if (more && !more.dataset.wired) {
-    more.dataset.wired = '1';
-    more.addEventListener('toggle', () => (more.dataset.touched = '1'));
-  }
   draw();
 }

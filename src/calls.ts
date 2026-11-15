@@ -184,7 +184,7 @@ export class CallBroker {
     const now = this.#now();
     const tz = this.#app.settings.get().timeZone;
     if (input.kind !== 'test' && !rules.enabled) return { skipped: 'Calls from her are off.' };
-    if (this.#o.canCall && !this.#o.canCall()) return { skipped: 'Calls need Grok voice: sign in to Grok (Settings → Models → Subscriptions) or add an xAI key (Settings → Voice).' };
+    if (this.#o.canCall && !this.#o.canCall()) return { skipped: 'Calls need Grok voice: sign in to Grok (Settings → Models & usage → Providers and plans → Subscriptions) or add an xAI key (Settings → Voice).' };
     if (this.#ring?.state === 'ringing') return { skipped: 'She is already ringing.' };
     if (this.#inCall()) return { skipped: 'You are on a call.' };
     if (input.kind !== 'test' && input.kind !== 'scheduled' && inQuietHours(rules, now, tz)) return { skipped: 'Quiet hours.' };

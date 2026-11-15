@@ -314,7 +314,7 @@ const PHASES: Record<Exclude<LibraryJob['phase'], 'done' | 'cancelled'>, PhaseFn
       const limits = libraryLimits(app.settings.get());
       if (limits.ocr === 'off') {
         lib.setOcrStatus(doc.id, null, 'skipped');
-        warn(lib, job, `${todo.length} scanned page${todo.length === 1 ? ' was' : 's were'} not read: reading scanned pages is off (Settings → Add-ons → Library).`);
+        warn(lib, job, `${todo.length} scanned page${todo.length === 1 ? ' was' : 's were'} not read: reading scanned pages is off (Settings → Skills & tools → Library).`);
         return finishText(app, lib, doc);
       }
       const est = ocrEstimate(app, doc, todo.length, job.secOcr);
@@ -375,7 +375,7 @@ const PHASES: Record<Exclude<LibraryJob['phase'], 'done' | 'cancelled'>, PhaseFn
         if (failures >= 3) {
           // The picture model isn't answering: the rest wait for "Read it again".
           lib.setOcrStatus(doc.id, null, 'failed');
-          warn(lib, lib.job(doc.id)!, 'The picture model stopped answering, so the remaining scanned pages were not read. Check Settings → Models → Which model does what → Looking at pictures, then press Read it again.');
+          warn(lib, lib.job(doc.id)!, 'The picture model stopped answering, so the remaining scanned pages were not read. Check Settings → Models & usage → Which model does what → Looking at pictures, then press Read it again.');
           break;
         }
       }

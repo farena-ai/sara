@@ -508,7 +508,7 @@ export function resolveProvider(app: AppContext, providerId: string | null, mode
   // EC5: a provider kind the admin's policy doesn't allow is never used (chat, jobs, bridges, the API).
   policy().checkProvider(config);
   const chosen = model ?? (providerId ? undefined : s.defaultModel) ?? config.defaultModel;
-  if (!chosen) throw new Error(`No default model is set for ${config.label}. Pick one in Settings → Models → Default model.`);
+  if (!chosen) throw new Error(`No default model is set for ${config.label}. Pick one in Settings → Models & usage → Default model.`);
   // 3.4.1: `dry` only names the model (the history budget, the ring): no provider is made, nothing is metered.
   if (dry) {
     if (config.needsKey && !app.vault.get(vaultKeyFor(config.id))) throw new Error(`${config.label} needs an API key. Add it in Settings.`);
@@ -567,7 +567,7 @@ export function resolveChain(app: AppContext, conv: Conversation, job: Job, adul
     const r = resolveProvider(app, priv.providerId, priv.model, { purpose: 'private', ...(conv.id ? { conversationId: conv.id } : {}) }, dry);
     return [{ ...r, from: 'private' }];
   }
-  throw new Error(`${chain[0]?.provider.config.label ?? 'This model'} is paused in private local mode: it isn't on this computer. Pick a model on this computer in Settings → Models → On this computer, or turn "Nothing leaves this computer" off.`);
+  throw new Error(`${chain[0]?.provider.config.label ?? 'This model'} is paused in private local mode: it isn't on this computer. Pick a model on this computer in Settings → Models & usage → On this computer, or turn "Nothing leaves this computer" off.`);
 }
 
 /**
@@ -872,7 +872,7 @@ export async function judgeClaims(app: AppContext, reply: string, receipts: Rece
 }
 
 /**
- * Phase 62: the optional claim judge (Settings → Models → "Double-check her claims"; off by
+ * Phase 62: the optional claim judge (Settings → Models & usage → "Double-check her claims"; off by
  * default). Asked only about sentences the patterns are unsure about, one strict yes/no with the
  * words that prove it, each with a short time limit. It can only add a claim: no setting, a
  * timeout, an error or an unclear answer leaves the pattern result as it was. It uses only the
@@ -2291,7 +2291,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 127 (PACKS.md §11.2): a companion whose pack the Sara Store pulled is paused (her chats stay readable).
   const pulled = packPaused(app.dataDir);
   if (pulled) {
-    yield { type: 'error', message: `${app.persona.name} was pulled from the Sara Store: ${pulled.reason || 'no reason given'}. Settings → Her → Companions has the ways out.` };
+    yield { type: 'error', message: `${app.persona.name} was pulled from the Sara Store: ${pulled.reason || 'no reason given'}. Settings → Sara → Companions has the ways out.` };
     return;
   }
   const now = app.now();

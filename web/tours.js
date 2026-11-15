@@ -70,7 +70,7 @@ function makeTours() {
       { when: () => phoneWidth(), before: sidebar(false), sel: '#bb-today', title: t('Today'), text: t('Your home screen: the weather, your day, the Planner, what she remembered, photos, background work and your home, as tiles. Her face at the top of the list opens it too.') },
       { before: navStep('#open-planner'), sel: '#open-planner', title: t('Planner'), text: t('To-dos, reminders and notes. You can also just ask her: "remind me to call Mom at 5".') },
       { before: navStep('#open-memory'), sel: '#open-memory', title: t('Memory'), text: t('What she remembers about you. Look through it, correct it or make her forget something.') },
-      { before: settingsAt('her-character'), sel: '#settings-nav-list [data-page="her-character"]', title: t('Make her yours'), text: t('Her name, personality, look and voice are under Settings → Her. Every setting has a ? that explains it.') },
+      { before: settingsAt('her-character'), sel: '#settings-nav-list [data-page="her-character"]', title: t('Make her yours'), text: t('Her name, personality, look and voice are under Settings → Sara. Every setting has a ? that explains it.') },
     ],
     coding: [
       { before: async () => { sidebar(false)(); await showHeadChips(); }, sel: '#conv-settings-btn', title: t('This conversation'), text: t('The folder, model and mode of this conversation. Switch the mode to Coding for project work: she reads, edits and runs things in that folder.') },

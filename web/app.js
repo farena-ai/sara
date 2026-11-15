@@ -149,7 +149,10 @@ import { createSecretSources } from './secret-sources.js';
 import { createReadiness } from './readiness.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
-import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsPages } from './settings-nav.js';
+import { initSaveChip, initTocSpy } from './settings-look.js';
+import { buildServices, tileCaption, tileMark } from './settings-services.js';
+import { buildOverview } from './settings-overview.js';
+import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsOrderOf, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
 import { initGetStarted, paintToday as paintGetStarted, paintSettingsCard as paintGuideCard } from './get-started.js';
 import { sharedEvents } from './shared-events.js';
@@ -5521,8 +5524,8 @@ async function loadVoice() {
   $('#v-xai-note').textContent = d.keys.xai
     ? t('Uses the xAI API key you saved here (billed per character by xAI). Clear it to use your Grok subscription instead.')
     : d.keys.grokSubscription
-      ? t('Uses your Grok subscription (signed in under Models → Subscriptions): it counts toward your weekly Grok usage, no extra charge. You can also clone a voice in the xAI console and pick it here.')
-      : t('Sign in to Grok (Models → Subscriptions) to use your subscription, or paste an xAI API key (billed per character).');
+      ? t('Uses your Grok subscription (signed in under Models & usage → Providers and plans → Subscriptions): it counts toward your weekly Grok usage, no extra charge. You can also clone a voice in the xAI console and pick it here.')
+      : t('Sign in to Grok (Models & usage → Providers and plans → Subscriptions) to use your subscription, or paste an xAI API key (billed per character).');
   voice.xaiKeySaved = d.keys.xai;
   $('#v-xai-lang').value = v.xai?.language ?? 'en';
   const xv = v.xai?.voiceId ?? 'eve';
@@ -5969,7 +5972,7 @@ function renderTitleSettings(v) {
   $('#ti-cap-out').textContent = String(v.settings.dailyCap);
   for (const id of ['#ti-auto', '#ti-model', '#ti-cap', '#ti-all']) $(id).disabled = !titleCardOwner;
   const used = t('Today: {n} of {cap} titles', { n: v.today.runs, cap: v.today.cap });
-  const model = v.model ? t('Model: {model} ({label})', { model: v.model.model, label: v.model.label }) : v.settings.model === 'local' ? t('No model on this computer yet: titles stay as they are (chats from Telegram or Discord get a few topic words). Set one up in Models → On this computer, or pick Quick helpers.') : t('No quick model is set: titles stay as they are.');
+  const model = v.model ? t('Model: {model} ({label})', { model: v.model.model, label: v.model.label }) : v.settings.model === 'local' ? t('No model on this computer yet: titles stay as they are (chats from Telegram or Discord get a few topic words). Set one up in Models & usage → On this computer, or pick Quick helpers.') : t('No quick model is set: titles stay as they are.');
   $('#ti-state').textContent = `${used} · ${model}`;
 }
 async function loadTitleSettings() {
@@ -6488,7 +6491,7 @@ async function loadRuns() {
   $('#runs-keep').dataset.loaded = '1';
   $('#runs-stats').textContent = t('Runs: {n}, {mb} MB', { n: r.stats.runs.toLocaleString(locale()), mb: r.stats.mb.toLocaleString(locale(), { minimumFractionDigits: 1, maximumFractionDigits: r.stats.mb < 0.1 ? 2 : 1 }) });
 }
-// Settings → Data & health: the log level (owner only; SARA_LOG_LEVEL on the server wins).
+// Settings → Privacy & system: the log level (owner only; SARA_LOG_LEVEL on the server wins).
 function showLogLevel(r) {
   $('#log-level').value = r.saved ?? r.level;
   $('#log-level').dataset.loaded = '1';
@@ -6509,7 +6512,7 @@ async function saveRuns() {
   await api('/runs/settings', { method: 'PUT', body: { keepDays: Number($('#runs-keep').value) } });
   void loadRuns();
 }
-// ---------- Phase 80: "Try commands in a sandbox first" (Settings → Coding → Coding projects) ----------
+// ---------- Phase 80: "Try commands in a sandbox first" (Settings → Skills & tools → Coding projects) ----------
 async function loadSandboxGate(recheck = false) {
   let r;
   try {
@@ -6550,7 +6553,7 @@ async function saveSandboxGate() {
   await api('/sandbox', { method: 'PUT', body: { mode: $('#sbx-mode').value, network: $('#sbx-network').checked, maxMB: Number($('#sbx-size').value), timeLimitS: Number($('#sbx-time').value) } });
 }
 $('#sbx-recheck').addEventListener('click', () => void loadSandboxGate(true));
-// ---------- Phase 81: the security pass (Settings → Coding → Coding projects) ----------
+// ---------- Phase 81: the security pass (Settings → Skills & tools → Coding projects) ----------
 async function loadSecPass() {
   let r;
   try {
@@ -6575,7 +6578,7 @@ async function saveSecPass() {
   if (!$('#sec-form').dataset.loaded) return;
   await api('/security-pass', { method: 'PUT', body: { mode: $('#sec-mode').value, reviewer: $('#sec-reviewer').checked, advisories: $('#sec-advisories').checked, budgetTokens: Number($('#sec-budget').value), runTests: $('#sec-tests').checked } });
 }
-// ---------- Phase 82: the threat model after coding turns (Settings → Coding → Coding projects) ----------
+// ---------- Phase 82: the threat model after coding turns (Settings → Skills & tools → Coding projects) ----------
 async function loadThreatModel() {
   let r;
   try {
@@ -6592,7 +6595,7 @@ async function saveThreatModel() {
   if (!$('#thr-mode').dataset.loaded) return;
   await api('/threat-model', { method: 'PUT', body: { mode: $('#thr-mode').value } });
 }
-// ---------- Phase 86: red-team mode (Settings → Coding → Coding projects) ----------
+// ---------- Phase 86: red-team mode (Settings → Skills & tools → Coding projects) ----------
 async function loadRedTeam() {
   let r;
   try {
@@ -6659,7 +6662,7 @@ $('#sec-open').addEventListener('click', () => {
   $('#settings').close();
   void openFindings();
 });
-// ---------- Phase 79: per-reply budgets (Settings → Coding → Budgets) ----------
+// ---------- Phase 79: per-reply budgets (Settings → Models & usage → Usage and costs → Budgets) ----------
 const BUDGET_KINDS = ['coding', 'chat'];
 const BUDGET_LINES = ['tokens', 'steps', 'usd', 'minutes'];
 async function loadBudgets() {
@@ -6675,7 +6678,7 @@ async function loadBudgets() {
   }
   $('#bud-quick').checked = r.quick;
   $('#bud-on-limit').value = r.onLimit;
-  $('#bud-quick-note').textContent = r.quickSet ? t('Uses your quick model from Which model does what.') : t('No quick model is set (Models → Which model does what), so this step is skipped.');
+  $('#bud-quick-note').textContent = r.quickSet ? t('Uses your quick model from Which model does what.') : t('No quick model is set (Models & usage → Which model does what), so this step is skipped.');
   $('#ab-budgets-form').dataset.loaded = '1';
   budgetLinesShown();
   void loadLearnBudget();
@@ -6979,7 +6982,11 @@ async function loadGoogle() {
     : g.configured
       ? t('Your Google app is saved. Press "Sign in with Google" (step 7).')
       : t('Not set up.');
-  if (!g.configured && !g.connected) $('#g-setup').open = false;
+  // SETTINGS3: the steps are the page until Google is connected (open once; the person's toggle wins after).
+  if (!$('#g-setup').dataset.shown) {
+    $('#g-setup').dataset.shown = '1';
+    $('#g-setup').open = !g.connected;
+  }
 }
 $('#g-copy').addEventListener('click', () => navigator.clipboard?.writeText(gRedirect()));
 $('#g-save').addEventListener('click', async () => {
@@ -7021,7 +7028,7 @@ globalThis.openSettingsPage = (page) => void openSettings(page);
   const m = /^#google=(\w+)/.exec(location.hash);
   if (m) {
     history.replaceState(null, '', location.pathname);
-    const msg = { connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Add-ons → Gmail and Calendar and try again.") }[m[1]];
+    const msg = { connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Skills & tools → Gmail and Calendar and try again.") }[m[1]];
     if (msg) setTimeout(() => alert(msg), 600);
   }
 }
@@ -8600,7 +8607,7 @@ function renderProviders() {
     );
   }
 
-  // UX 24: subscriptions (Claude, ChatGPT, Grok) sign in under Settings → Models → Subscriptions and
+  // UX 24: subscriptions (Claude, ChatGPT, Grok) sign in under Settings → Models & usage → Subscriptions and
   // add themselves; as a form template they'd make a broken provider.
   $('#preset').replaceChildren(
     new Option(t('Custom…'), ''),
@@ -8898,6 +8905,8 @@ $('#model-select').addEventListener('change', () => {
 });
 
 // PL2d: the Settings list of pages, its groups and search live in settings-nav.js.
+initSaveChip($('#settings'), $('#settings-state'), t);
+initTocSpy($('.settings-pages'), $('#settings-toc'));
 initSettingsNav({ isMember, el, showSettingsTab, pageLead: (page) => pageLead(page), openSearchPlace, help: () => HELP });
 
 
@@ -8965,11 +8974,21 @@ function showSettingsTab(page, opts = {}) {
   }
   page = OLD_TABS[page] ?? page;
   if (page === 'home' || page?.startsWith('home:')) return void showSettingsHome(page.slice(5), opts);
+  // SETTINGS3 S5: Apps and services, the hub of the tile pages (web/settings-services.js).
+  if (page === 'co-services') return void showServices(opts);
   $('#settings-home').hidden = true;
+  if ($('#settings-services')) $('#settings-services').hidden = true;
+  if ($('#settings-overview')) $('#settings-overview').hidden = true;
   const pages = settingsPages();
-  const pick = pages.some((p) => p.dataset.page === page) ? page : pages[0].dataset.page;
-  for (const p of pages) p.hidden = p.dataset.page !== pick;
-  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === pick));
+  let pick = pages.some((p) => p.dataset.page === page) ? page : pages[0].dataset.page;
+  // SETTINGS3 S2: a merged page opens its host page, scrolled to its section (its id never changed).
+  const host = pages.find((p) => p.dataset.page === pick)?.dataset.host;
+  const part = host && pages.some((p) => p.dataset.page === host) ? pick : '';
+  if (part) pick = host;
+  const shown = new Set([pick, ...pages.filter((p) => p.dataset.host === pick).map((p) => p.dataset.page)]);
+  for (const p of pages) p.hidden = !shown.has(p.dataset.page);
+  const entry = pages.find((p) => p.dataset.page === pick)?.dataset.tile ? 'co-services' : pick;
+  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === entry));
   const sec = pages.find((p) => p.dataset.page === pick);
   $('#settings-page-title').textContent = t(sec.dataset.title);
   paintCrumbs(sec);
@@ -8985,12 +9004,12 @@ function showSettingsTab(page, opts = {}) {
   // R5: Phone calls (co-phone) and Discord's voice channel (co-discord), owner only (web/phone-calls.js).
   if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();
   if (pick === 'dh-safety') void loadSafetyCheck();
-  if (pick === 'dh-quality') void loadQuality();
-  if (pick === 'dh-recovery') {
+  if (shown.has('dh-quality')) void loadQuality();
+  if (shown.has('dh-recovery')) {
     void readiness.refresh();
     void recovery.refresh();
   }
-  if (pick === 'dh-operations') {
+  if (shown.has('dh-operations')) {
     void operations.refresh();
     void monitoring.refresh();
     void secretSourcesView.refresh();
@@ -9000,9 +9019,9 @@ function showSettingsTab(page, opts = {}) {
     void loadLearning();
   }
   if (pick === 'ab-plugins') void loadPlugins();
-  // Phase 125: Settings → Add-ons → Get more (the Sara Store).
+  // Phase 125: Settings → Skills & tools → Get more (the Sara Store).
   if (pick === 'ab-store') void loadGetMore();
-  // Phase 126: Settings → Her → Hey Sara.
+  // Phase 126: Settings → Sara → Hey Sara.
   if (pick === 'her-hey') void loadWakePage();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
@@ -9017,17 +9036,17 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-imessage') void loadIMessagePage();
   if (pick === 'co-slack') void loadSlackPage();
   if (pick === 'co-teams') void loadTeamsPage();
-  if (pick === 'ab-budgets') void loadBudgets();
+  if (shown.has('ab-budgets')) void loadBudgets();
   if (pick === 'ab-persist') void loadPersistSettings();
   // Phase 123: the Short tool list and Tidy long chats cards.
   if (pick === 'ab-tools' || pick === 'models-default') void loadLean();
   if (pick === 'models-default') void paintFitness($('#model-fitness'));
   if (pick === 'you-about') void paintGuideCard();
   if (pick === 'ab-precise') void loadPreciseSettings();
-  if (pick === 'ab-when') void loadWhenSettings();
+  if (shown.has('ab-when')) void loadWhenSettings();
   if (pick === 'you-automations') void loadAutomations();
   if (pick === 'co-pickup') void loadPickupSettings();
-  if (pick === 'co-continuity') void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
+  if (shown.has('co-continuity')) void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
@@ -9037,8 +9056,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-phone') renderInstallGuide($('#ph-install'));
   if (pick === 'co-hooks') void Promise.all([loadHooks(), loadEventTriggers()]);
   if (pick === 'co-computer') void loadComputer();
-  if (pick === 'her-import') void loadImport();
-  if (pick === 'dh-movein') void loadMoveIn();
+  if (shown.has('her-import')) void loadImport();
+  if (shown.has('dh-movein')) void loadMoveIn();
   if (pick === 'models-local') void loadLocalModels();
   if (pick === 'household') void loadHousehold();
   if (pick === 'account') void loadAccount();
@@ -9050,7 +9069,9 @@ function showSettingsTab(page, opts = {}) {
   $('#settings-empty').hidden = true;
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
   $('.settings-pages').scrollTop = 0;
-  localStorage.setItem('sara.settingsPage', pick);
+  // The dialog may open (and the page fill in) right after this: scroll once it is laid out.
+  if (part) for (const wait of [0, 350]) setTimeout(() => requestAnimationFrame(() => localStorage.getItem('sara.settingsPage') === part && document.getElementById(`s3-part-${part}`)?.scrollIntoView({ block: 'start' })), wait);
+  localStorage.setItem('sara.settingsPage', part || pick);
   if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
 }
 
@@ -9059,12 +9080,19 @@ function showSettingsTab(page, opts = {}) {
 const SETTINGS_START = () => (document.documentElement.dataset.palette === 'classic' ? (localStorage.getItem('sara.settingsPage') ?? 'her-character') : 'home');
 function showSettingsHome(group = '', opts = {}) {
   for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  $('#settings-services').hidden = true;
   buildSettingsHome();
   $('#settings-home').hidden = false;
+  // SETTINGS3 S6: the overview above the groups (status, needs attention, quick settings, apps, household).
+  drawOverview();
+  $('#settings-overview').hidden = false;
+  if (!isMember()) void Promise.all([refreshServiceFacts(), api('/safety-check').then((s) => (SAFETY_NOW = s)).catch(() => null)]).then(() => !$('#settings-overview').hidden && drawOverview());
   for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === 'home'));
-  $('#settings-page-title').textContent = t('All settings');
+  $('#settings-page-title').textContent = t('Overview');
   paintCrumbs(null);
-  $('#settings-page-desc').hidden = true;
+  $('#settings-help-text').textContent = t('Everything about Sara, in one place. Changes save as you make them.');
+  $('#settings-help-link').href = '/help#start';
+  $('#settings-page-desc').hidden = false;
   $('#settings-howto').replaceChildren();
   $('#settings-empty').hidden = true;
   $('.settings-actions').toggleAttribute('data-quiet', true);
@@ -9072,6 +9100,98 @@ function showSettingsHome(group = '', opts = {}) {
   $('.settings-pages').scrollTop = 0;
   if (group) document.querySelector(`#settings-home .sh-group[data-group="${CSS.escape(group)}"]`)?.scrollIntoView({ block: 'start' });
   if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
+}
+
+let SAFETY_NOW = null;
+function drawOverview() {
+  const provider = $('#default-provider')?.selectedOptions?.[0]?.textContent?.trim();
+  const model = $('#default-model')?.value?.trim();
+  buildOverview($('#settings-overview'), {
+    t,
+    el,
+    member: isMember(),
+    model: model ? `${model}${provider ? ` · ${provider}` : ''}` : '',
+    owner: $('#owner-name')?.value?.trim() ?? '',
+    facts: SERVICE_FACTS,
+    safety: isMember() ? null : SAFETY_NOW,
+    tiles: settingsPages().filter((p) => p.dataset.tile).sort((a, b) => settingsOrderOf(a) - settingsOrderOf(b)).map((p) => ({ id: p.dataset.page, title: tileCaption(p.dataset.page, p.dataset.title), mark: tileMark(p.dataset.page, p.dataset.title) })),
+    open: (page) => showSettingsTab(page, { focus: true }),
+    search: () => {
+      $('#settings').classList.remove('page-open');
+      $('#settings-search').focus();
+    },
+  });
+}
+
+// SETTINGS3 S2/S5: Connections › Apps and services, the tiles of the chat apps, accounts, sources and
+// developer pages (each tile opens its page; web/settings-services.js).
+let servicesFilter = 'all';
+const SERVICE_FACTS = {};
+function showServices(opts = {}) {
+  for (const p of document.querySelectorAll('#settings .settings-page')) p.hidden = true;
+  $('#settings-home').hidden = true;
+  $('#settings-overview').hidden = true;
+  const box = $('#settings-services');
+  const draw = () => buildServices(box, settingsPages().filter((p) => p.dataset.tile), settingsOrderOf, {
+    t,
+    facts: SERVICE_FACTS,
+    filter: servicesFilter,
+    setFilter: (f) => {
+      servicesFilter = f;
+      draw();
+      box.querySelector(`[data-filter="${f}"]`)?.focus();
+    },
+    open: (id) => showSettingsTab(id, { focus: true }),
+  });
+  draw();
+  box.hidden = false;
+  for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === 'co-services'));
+  $('#settings-page-title').textContent = t('Apps and services');
+  paintCrumbs({ dataset: { page: 'co-services', group: 'Connections', title: 'Apps and services' } });
+  $('#settings-help-text').textContent = t('Everything Sara talks to. Pick one to connect it, check it or change it.');
+  $('#settings-help-link').href = '/help#accounts';
+  $('#settings-page-desc').hidden = false;
+  $('#settings-howto').replaceChildren();
+  $('#settings-empty').hidden = true;
+  $('.settings-actions').toggleAttribute('data-quiet', true);
+  openGroupOf('co-services');
+  $('#settings').classList.add('page-open');
+  $('.settings-pages').scrollTop = 0;
+  localStorage.setItem('sara.settingsPage', 'co-services');
+  if (opts.focus) $('#settings-page-title').focus({ preventScroll: true });
+  void refreshServiceFacts().then((changed) => changed && !box.hidden && draw());
+}
+/**
+ * S5: each tile's state from the GET endpoints its page already uses (owner only; a member's tiles say
+ * nothing they can't change). Returns true when something changed.
+ */
+async function refreshServiceFacts() {
+  if (isMember()) return false;
+  const get = (p) => api(p).catch(() => null);
+  const [tg, dc, gh, gg, ha, sp, ws, ds, ml, ag, hk, oa] = await Promise.all(['/bridges/telegram', '/bridges/discord', '/github', '/google', '/home', '/spotify', '/search', '/data-sources', '/mail/accounts', '/agents', '/hooks', '/other-apps'].map(get));
+  const on = (line = t('Connected')) => ({ state: 'on', line });
+  const warn = (line) => ({ state: 'warn', line });
+  const bridge = (b) => (!b ? null : b.error && b.hasToken ? warn(t('Can’t connect')) : b.running || (b.enabled && b.hasToken) ? on(b.bot?.username ? `${t('Connected')} · @${b.bot.username}` : t('Connected')) : null);
+  const next = {
+    'co-telegram': bridge(tg),
+    'co-discord': bridge(dc),
+    'ab-github': gh?.hasToken ? on() : null,
+    'ab-google': gg?.connected ? on() : gg?.configured ? warn(t('Not signed in')) : null,
+    'ab-home': ha?.hasToken ? (ha.ok ? on() : warn(t('Can’t sign in'))) : null,
+    'co-spotify': sp?.connected ? (sp.needsReconnect ? warn(t('Sign in again')) : on()) : null,
+    'ab-search': ws?.ready ? on(`${t('On')} · ${ws.provider ?? ''}`) : ws?.provider ? warn(t('Needs a key')) : null,
+    'ab-data': ds?.kinds?.some((k) => k.ready) ? on(t('Free sources')) : null,
+    'ab-mail': ml?.accounts?.length ? on(`${t('Connected')} · ${ml.accounts.length}`) : null,
+    'co-agents': ag?.settings?.enabled ? on(t('On')) : null,
+    'co-hooks': hk?.hooks?.length ? on(`${t('On')} · ${hk.hooks.length}`) : null,
+    'co-apps': oa?.keys?.length ? on(`${t('On')} · ${oa.keys.length}`) : null,
+  };
+  const before = JSON.stringify(SERVICE_FACTS);
+  for (const [k, v] of Object.entries(next)) {
+    if (v) SERVICE_FACTS[k] = v;
+    else delete SERVICE_FACTS[k];
+  }
+  return JSON.stringify(SERVICE_FACTS) !== before;
 }
 
 /** 3.3.0 (ezplain): the everyday words Ctrl K and the Settings search match (web/everyday-words.js). */
@@ -9155,6 +9275,8 @@ async function openSettings(tab, opts = {}) {
   } finally {
     clearTimeout(cap);
     if (run === settingsLoad) settingsLoading('');
+    // SETTINGS3 S6: the overview shows the model and owner once they are loaded.
+    if (run === settingsLoad && !$('#settings-overview').hidden) drawOverview();
   }
   loadModels();
 }
@@ -9733,8 +9855,8 @@ function modelNoticeText(n) {
   if (!n || typeof n !== 'object') return String(n ?? '');
   const by = n.provider === 'its provider' ? t('its provider') : n.provider;
   if (n.reason === 'retired' && n.from && n.to && n.provider && n.where) return t('{from} was retired by {by}; {where} now uses {to}.', { from: n.from, to: n.to, by, where: modelWhereWords(n.where) });
-  if (n.reason === 'retired-no-replacement' && n.from && n.provider && n.where) return t('{from} was retired by {by}, but {where} still uses it. No replacement was found: pick another model in Settings → Models.', { from: n.from, by, where: modelWhereWords(n.where, true) });
-  if (n.reason === 'retired-auto-switch-off' && n.from && n.provider && n.where) return t('{from} was retired by {by}, but {where} still uses it. Pick another model in Settings → Models.', { from: n.from, by, where: modelWhereWords(n.where, true) });
+  if (n.reason === 'retired-no-replacement' && n.from && n.provider && n.where) return t('{from} was retired by {by}, but {where} still uses it. No replacement was found: pick another model in Settings → Models & usage.', { from: n.from, by, where: modelWhereWords(n.where, true) });
+  if (n.reason === 'retired-auto-switch-off' && n.from && n.provider && n.where) return t('{from} was retired by {by}, but {where} still uses it. Pick another model in Settings → Models & usage.', { from: n.from, by, where: modelWhereWords(n.where, true) });
   if (n.reason === 'list-shrank' && n.provider && Number.isFinite(n.before) && Number.isFinite(n.now)) return t("{provider}'s model list shrank from {before} to {now} models in one check. That looks like a glitch, so nothing was retired; the earlier list is kept.", { provider: n.provider, before: n.before, now: n.now });
   return String(n.text ?? '');
 }
@@ -10601,7 +10723,7 @@ initBusy({ api, state, append, bubble, el, canSteer: () => !state.conv?.partner,
 initPersist({ api, state, el, openConversation: (id) => void openConversation(id), openSettings: (page) => void openSettings(page) });
 // Phase 123: the short tool list and Tidy this chat (web/lean.js).
 initLean({ api, state, el, reload: () => void openConversation(state.currentId), newSession: () => void runChatCommand('/new') });
-// Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Data & health).
+// Phase 121: routines (Planner → Routines) and the safety check-up (Settings → Privacy & system).
 initRoutines({ api, el, openConversation: (id) => { $('#planner').close(); void openConversation(id); }, openSettings: (page) => { $('#planner').close(); void openSettings(page); } });
 // E5: Read together (web/read-together.js): the Library's Read together opens beside this chat.
 initReadTogether({ api, current: () => state.currentId });
@@ -10642,7 +10764,7 @@ initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 initMemberTools({ api });
 // R4: Settings → Connections → iPhone Shortcuts (web/shortcuts-page.js).
 initShortcutsPage({ api, el, copyText });
-// EC26: Settings → Her → At work (web/work-profile.js).
+// EC26: Settings → Sara → At work (web/work-profile.js).
 initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });
 // C8: spend limits, Token Saver and its badge (web/spend.js).
@@ -11470,7 +11592,7 @@ $('#td-start-hide').addEventListener('click', async () => {
   $('#td-start').hidden = true;
 });
 
-// N1: "How she did" (Settings → Data & health) and its card on the weekly review.
+// N1: "How she did" (Settings → Privacy & system) and its card on the weekly review.
 const QUALITY_KEYS = ['turns', 'failed', 'slow', 'empty', 'fallbacks', 'refused', 'stale', 'unverified'];
 function qualityLabel(k) {
   return {
@@ -11752,7 +11874,7 @@ function renderPhotos(p) {
   $('#ph-new').hidden = p.mode !== 'new';
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
   $('#ph-key').placeholder = p.hasKey ? t('saved (leave empty to keep)') : p.grokSubscription ? t('not needed: uses your Grok subscription') : p.providerKey ? t('leave empty to use the xAI key from Models') : 'xai-…';
-  $('#ph-status').textContent = p.mode !== 'new' ? '' : p.hasKey ? t('Uses the xAI API key saved here (billed per picture).') : p.grokSubscription ? t('Uses your Grok subscription: counts toward your weekly Grok usage (Imagine).') : p.providerKey ? t("Uses your xAI model provider's API key (billed per picture).") : t('Sign in to Grok (Models → Subscriptions) or add an xAI API key to let her take new pictures.');
+  $('#ph-status').textContent = p.mode !== 'new' ? '' : p.hasKey ? t('Uses the xAI API key saved here (billed per picture).') : p.grokSubscription ? t('Uses your Grok subscription: counts toward your weekly Grok usage (Imagine).') : p.providerKey ? t("Uses your xAI model provider's API key (billed per picture).") : t('Sign in to Grok (Models & usage → Providers and plans → Subscriptions) or add an xAI API key to let her take new pictures.');
   renderPhotoEngine(p);
   $('#ph-taken').replaceChildren(
     ...p.taken.map((t) => {
@@ -12370,8 +12492,8 @@ function renderDialExtras() {
   }
 }
 
-// Phase 114 (P10): the work dials and Quiet when I'm focused again at the top of Coding → Coding projects
-// projects (same draft, same save as Her → Name and personality).
+// Phase 114 (P10): the work dials and Quiet when I'm focused again at the top of Skills & tools → Coding projects
+// projects (same draft, same save as Sara → Name and personality).
 function buildWorkDialsOnProjects() {
   const box = $('#pj-work-dials');
   if (!box || box.childElementCount) return;
@@ -12595,7 +12717,7 @@ async function galleryUse(g) {
 // UX 6: the one Import button for both kinds of file lives in cards.js (Sara files go to #char-file).
 // L12: a ready-made character keeps her current picture; a new look is one click away.
 $('#gallery-look').addEventListener('click', () => showSettingsTab('her-look', { focus: true }));
-// C7: bring your companion from Character.AI, Replika, Kindroid or Nomi (Settings → Her → Companions).
+// C7: bring your companion from Character.AI, Replika, Kindroid or Nomi (Settings → Sara → Companions).
 initBring({ refresh: () => renderCompanionsPage().catch(() => {}), switchTo: (id) => switchCompanion(id) });
 // Phase 57: character cards (import with a preview first, export as a card) and Settings → Other apps.
 initCards({
@@ -12650,7 +12772,7 @@ initInboxHelper({
     if (s) s.textContent = msg;
   },
 });
-// C4: Settings → Connections → Webhooks → When this happens.
+// C4: Settings → Connections → Apps and services → Webhooks → When this happens.
 initEventTriggers({
   api,
   el,
@@ -12659,7 +12781,7 @@ initEventTriggers({
     void openConversation(id);
   },
 });
-// Phase 102: Settings → Connections → Webhooks.
+// Phase 102: Settings → Connections → Apps and services → Webhooks.
 initHooks({
   copyText,
   openConversation: (id) => {
@@ -12671,7 +12793,7 @@ initHooks({
     void openCardOnBoard(0, ref);
   },
 });
-// Phase 104: Settings → Data & health → Move in from another agent.
+// Phase 104: Settings → Privacy & system → Move in and export → Move in from another agent.
 initMoveIn({
   copyText,
   showSettingsTab: (page) => showSettingsTab(page),
@@ -12682,7 +12804,7 @@ initMoveIn({
 });
 initAlexa({ copyText });
 initSsh();
-// C14: Settings → Connections → Spotify.
+// C14: Settings → Connections → Apps and services → Spotify.
 initSpotify(api);
 initPresence();
 initLocalModels({ openSettings: (page) => void openSettings(page) });

@@ -52,7 +52,7 @@ export function healthReport(app: AppContext, info: AppInfo) {
   // 3.3.0: set up is not the same as working: a failed real call since the last good one is not ✓.
   const down = s.providers.length && s.defaultModel ? modelHealth(app) : null;
   if (down) add(en('Model'), false, [down.key, down.params]);
-  else add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('No default model: pick one in Settings → Models → Default model.')) : en('No model provider set up'));
+  else add(en('Model'), Boolean(s.providers.length && s.defaultModel), s.providers.length ? (s.defaultModel ?? en('No default model: pick one in Settings → Models & usage → Default model.')) : en('No model provider set up'));
   add(en('Disk space'), !disk || disk.freeBytes > 1e9, disk ? [en('{gb} GB free'), { gb: (disk.freeBytes / 1e9).toFixed(1) }] : en('unknown'));
   const last = backups[0];
   const backupAgeH = last ? (now.getTime() - Date.parse(last.createdAt)) / 3600_000 : Infinity;
@@ -76,7 +76,7 @@ export function healthReport(app: AppContext, info: AppInfo) {
   // Approval prompts govern permission; they do not isolate command execution.
   const unasked = app.tools.list().filter((t) => t.runsCommands && app.tools.permission(t.spec.name, s.toolPermissions) === 'auto').map((t) => t.spec.name);
   add(en('Tool sandbox'), app.sandbox.mode !== 'none', app.sandbox.mode !== 'none' ? `${app.sandbox.mode} (${app.sandbox.detail})` : en('No execution isolation. Commands run directly on this computer.'));
-  add(en('Command approvals'), !unasked.length, unasked.length ? [en('{tools} run without asking (Settings → Coding → Tools and approvals)'), { tools: unasked.join(', ') }] : en('Command tools ask for approval or are blocked. Approval does not provide execution isolation.'));
+  add(en('Command approvals'), !unasked.length, unasked.length ? [en('{tools} run without asking (Settings → Skills & tools → Tools and approvals)'), { tools: unasked.join(', ') }] : en('Command tools ask for approval or are blocked. Approval does not provide execution isolation.'));
   // Phase 56: retired models still chosen somewhere, and switches made for them lately.
   if (app.modelCatalog) {
     // Hardening L1: a list that suddenly shrank (kept, nothing retired) is a warning too.

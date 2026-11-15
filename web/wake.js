@@ -1,4 +1,4 @@
-// Phase 126 (docs/design/WAKE.md §8.1, §8.2): Settings → Her → Hey Sara. The top block is this device
+// Phase 126 (docs/design/WAKE.md §8.1, §8.2): Settings → Sara → Hey Sara. The top block is this device
 // and only exists inside the apps (the Windows app's window.SaraDesktop, the Android app's
 // window.SaraPhone): the switch, the pack, the microphone, how easily she wakes, the chime, "just
 // mine", the talk shortcut, Try it and Remove. Below: the words that wake her (each for one of your
@@ -263,7 +263,7 @@ function wire() {
   });
 }
 
-/** Opens the page (Settings → Her → Hey Sara). */
+/** Opens the page (Settings → Sara → Hey Sara). */
 export async function loadWakePage() {
   wire();
   try {

@@ -341,7 +341,7 @@ export async function openRunView(runId, { api, named = () => '' }) {
     }
     branchBox.append(el('h4', 'run-sec-h', t('Branches')), ul);
   }
-  const note = el('p', 'muted small run-foot', branchable ? t('Secrets are hidden in what is kept here. Branch from a step to try something else: this run stays as it is. Kept as long as Settings → Data & health → Health says.') : t('Read only. Secrets are hidden in what is kept here. Kept as long as Settings → Data & health → Health says.'));
+  const note = el('p', 'muted small run-foot', branchable ? t('Secrets are hidden in what is kept here. Branch from a step to try something else: this run stays as it is. Kept as long as Settings → Privacy & system → Health says.') : t('Read only. Secrets are hidden in what is kept here. Kept as long as Settings → Privacy & system → Health says.'));
   body.replaceChildren(...[head, stats, steps.length ? list : el('p', 'muted', t('No steps were recorded for this run.')), branchBox, note].filter(Boolean));
   // A single step opens by itself.
   if (steps.length === 1) list.querySelector('details')?.setAttribute('open', '');

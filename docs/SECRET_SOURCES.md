@@ -1,6 +1,6 @@
 # Secret sources: keys from outside Sara
 
-Settings → Data & health → **Operations** → *Secret sources*. Owner only. Design:
+Settings → Privacy & system → **Operations** → *Secret sources*. Owner only. Design:
 [ops/EC10_DESIGN.md](ops/EC10_DESIGN.md).
 
 Sara keeps keys in her own encrypted vault by default. A server key (a model provider key, a chat app

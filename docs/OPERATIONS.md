@@ -1,6 +1,6 @@
 # Operating Sara
 
-Open **Settings → Data & health → Operations** with an owner sign-in. Press **Refresh operations**
+Open **Settings → Privacy & system → Health → Operations** with an owner sign-in. Press **Refresh operations**
 to see current evidence. Household members, the demo and device-code app credentials cannot read
 protected measurements. This page does not call a model, send a bot message or perform a restore.
 
@@ -35,7 +35,7 @@ Logs use the existing rotation/redaction policy. Avoid posting whole owner logs 
 
 ## Metrics, traces and readiness for your own monitoring (EC3)
 
-Off by default. Turn them on under **Settings → Data & health → Operations → Monitoring** (owner
+Off by default. Turn them on under **Settings → Privacy & system → Health → Operations → Monitoring** (owner
 only). Nothing is sent to a paid service; Sara never adds chat text, prompts, tool arguments or
 output, file contents, error messages, people or keys to a metric label or a span. Design and the
 full metric list: `docs/ops/EC3_DESIGN.md` (private) and the dashboard in

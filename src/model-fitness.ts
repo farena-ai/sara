@@ -4,7 +4,7 @@
 // timing says how slow it really is here; a model without tool support can't do computer use,
 // documents or shopping. The check only reads (the runs table, Ollama's /api/ps and /api/show,
 // the connected model lists); a faster choice changes the chat route only when the person clicks
-// "Use this" (Settings → Models, the full check), with Undo. Nothing switches by itself.
+// "Use this" (Settings → Models & usage, the full check), with Undo. Nothing switches by itself.
 import type { DatabaseSync } from 'node:sqlite';
 import { resolveChain, type AppContext } from './chat.ts';
 import { isOllamaDaemon, noteOllamaPs } from './model-context.ts';

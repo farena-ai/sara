@@ -5,8 +5,8 @@ main button each, about five minutes. Every screen can be skipped, and where you
 
 | Step | What it does | Where it goes |
 |---|---|---|
-| 1. Pick a model | The AI she thinks with. *Use Auto* lets her pick the best connected model per job, and the speed check says when a model is too slow for this computer. | Settings → Models |
-| 2. Connect your mail | Gmail, Outlook or another mailbox. Reading and sorting; sending always asks first. | Settings → Add-ons → Email and calendar |
+| 1. Pick a model | The AI she thinks with. *Use Auto* lets her pick the best connected model per job, and the speed check says when a model is too slow for this computer. | Settings → Models & usage |
+| 2. Connect your mail | Gmail, Outlook or another mailbox. Reading and sorting; sending always asks first. | Settings → Connections → Apps and services → Email and calendar |
 | 3. Connect your calendar | Google Calendar or Outlook, for Today and leave-by reminders. | the same page |
 | 4. Add your phone | Scan the code with your phone: the Android app or the Home Screen web app, with notifications. | Settings → Connections → Phone and notifications |
 | 5. Add your computer | *Get the app* opens the download page; then sign the app in with a code. | `/download`, then Settings → Devices and sign-in |

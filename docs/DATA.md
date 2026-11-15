@@ -4,7 +4,7 @@ Sara can read live prices, scores, standings and betting lines from free sources
 you, and add up your own spreadsheets exactly. Everything here is information and math: she never
 trades, never places bets and never calls a bet a sure thing.
 
-## Data sources (Settings → Add-ons → Data sources)
+## Data sources (Settings → Connections → Apps and services → Data sources)
 
 | Kind | Default (no key) | Other free choices |
 |---|---|---|

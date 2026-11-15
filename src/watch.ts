@@ -313,7 +313,7 @@ export class Watches {
     if (!Array.isArray(raw) || raw.some((x) => typeof x !== 'string' || !(WATCH_BRIDGES as readonly string[]).includes(x))) throw new WatchError(400, en('Alerts can only also go to your own linked Telegram or Discord chat.'));
     const list = [...new Set(raw as WatchBridge[])];
     const linked = this.#linked();
-    if (list.some((b) => !linked[b])) throw new WatchError(400, en('Link your Telegram or Discord first (Settings → Chat apps), then pick it here.'));
+    if (list.some((b) => !linked[b])) throw new WatchError(400, en('Link your Telegram or Discord first (Settings → Connections → Apps and services), then pick it here.'));
     return list;
   }
 

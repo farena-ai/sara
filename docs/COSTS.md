@@ -7,7 +7,7 @@ your own numbers rather than fixed prices: **always check the provider's own pri
 ## Seeing what you spend
 
 - **A usage line under each chat** shows the tokens and the estimated cost of that conversation.
-- **Settings → Data & health → Usage and costs**: today, 7 and 30 days, by model and by purpose
+- **Settings → Models & usage → Usage and costs**: today, 7 and 30 days, by model and by purpose
   (chat, coding, team tasks, background jobs, memory, library…). Local models show as "local" and
   subscriptions as "$0 (subscription)".
 - The costs are **estimates** from a price table. Sara ships with list prices for a few OpenAI,
@@ -26,7 +26,7 @@ the step line show *about $0.07* (a new picture from Grok Imagine), *about $0.04
 your own computer is free and shows nothing. An add-on declares its price in its `plugin.json`
 (`"costs": { "<tool>": 0.05 }`, or `null` for unknown); your own price for any tool wins.
 
-**Spend limits** (Settings → Data & health → Usage and costs → *Spend limits*): dollars a day and a
+**Spend limits** (Settings → Models & usage → Usage and costs → *Spend limits*): dollars a day and a
 month, counted in your time zone over everything on the usage record (model calls and paid tools),
 plus a daily limit per paid tool. At a limit a paid step stops and asks you; **Allow** runs that one
 call, **Deny** spends nothing. Where nobody can answer a card (a loop tick, another app's request) it
@@ -107,7 +107,7 @@ models on your own hardware have no per-token charge, so Auto uses their window.
 
 ### Subscriptions: no extra bill, but limits
 
-Signing in with a **ChatGPT plan, Claude Pro/Max or SuperGrok / X Premium+** (Settings → Models →
+Signing in with a **ChatGPT plan, Claude Pro/Max or SuperGrok / X Premium+** (Settings → Models & usage →
 Subscriptions) costs nothing on top of your plan. What she does counts toward your plan's usage
 limits, the same as using it yourself, and the provider can slow you down or pause you when you
 reach them. The usage page shows these as "$0 (subscription)".

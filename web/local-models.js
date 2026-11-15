@@ -1,4 +1,4 @@
-// Phase 67: Settings → Models → On this computer. The "Nothing leaves this computer" switch (private
+// Phase 67: Settings → Models & usage → On this computer. The "Nothing leaves this computer" switch (private
 // local mode; the server enforces it at one choke point, src/net-guard.ts), the list of what it
 // pauses, and a model on this computer: Ollama found (or how to get it), the hardware, a suggested
 // model, Download with progress and Cancel, and the models already here with Use.

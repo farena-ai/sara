@@ -55,12 +55,12 @@ What happens to the picture depends on who answers on this call:
 | Live call with **OpenAI** | Yes: a still picture goes to OpenAI's Realtime service in the call. |
 | Live call with **Grok voice** | No: Grok's realtime voice doesn't take pictures. The camera is a self-view only and the screen says so. |
 | Classic call, a model that can look at pictures (for example `gemma4`, `qwen2.5vl`, `llava`, GPT-4o, Claude, Gemini) | Yes: the newest picture goes with what you say (every sentence while it is under 30 seconds old). |
-| Classic call, a model that can't (or Sara can't tell) | No: self-view only; the screen says which model and how to pick one that can (*Settings → Models → Which model does what → Looking at pictures*). |
+| Classic call, a model that can't (or Sara can't tell) | No: self-view only; the screen says which model and how to pick one that can (*Settings → Models & usage → Which model does what → Looking at pictures*). |
 
 Sara asks Ollama which of its models take pictures (Ollama lists *vision* for them); for other
 providers it goes by known model names.
 
-**How often she looks:** *Settings → Her → Voice → On video calls she looks*: only when you press
+**How often she looks:** *Settings → Sara → Voice → On video calls she looks*: only when you press
 **👀 Look at this**, or every 5, 10 (the default), 20 or 30 seconds. **Look at this** sends a picture
 now and asks her what she thinks. *Camera pictures per call* caps a call at 20, 40, 60 (default) or
 120 pictures. Both are per companion and save by themselves. The server enforces the same limits

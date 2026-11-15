@@ -367,14 +367,14 @@ export function readCode(inp: CodeInput): CodeCard {
     intent = 'style';
     const rule = styleRule(hay, description)!;
     summary = `${what} changed how the old agent's replies look ("${rule.replace(/\.$/, '')}").`;
-    tr = unsafeLine(rule) ? { type: 'flag', why: "Sara's safety layer stays on: this rule would weaken it, so it is not translated." } : { type: 'rule', rule, where: 'Settings → Her → How she talks', page: 'her' };
+    tr = unsafeLine(rule) ? { type: 'flag', why: "Sara's safety layer stays on: this rule would weaken it, so it is not translated." } : { type: 'rule', rule, where: 'Settings → Sara → How she talks', page: 'her' };
   } else if (GUARD.test(hay) && TOOLWORD.test(hay) && /pre_tool_call|before_tool_call|tool:before|block|deny|confirm|approv/i.test(hay)) {
     intent = 'guard';
     const tw = TOOLWORD.exec(hay)?.[0] ?? 'commands';
     const tool = TOOL_MAP.find(([re]) => re.test(tw))?.[1] ?? 'shell';
     claim(`stops or asks before ${tw}`, new RegExp(tw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i'));
     summary = `${what} made the old agent stop or ask before "${tw}".`;
-    tr = { type: 'guard', tool, where: 'Settings → Coding → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` };
+    tr = { type: 'guard', tool, where: 'Settings → Skills & tools → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` };
   } else if (RITUAL.test(hay) && !hosts.length) {
     intent = 'ritual';
     summary = `${what} ran when a new chat or session started${description ? ` (${description})` : ''}.`;
@@ -388,7 +388,7 @@ export function readCode(inp: CodeInput): CodeCard {
     intent = 'logging';
     const notify = /notify|notification|ping me|pushover|ntfy/i.test(hay);
     summary = `${what} ${notify ? 'sent notifications about' : 'logged or measured'} what the old agent did.`;
-    tr = notify ? { type: 'feature', feature: 'Job notices tell you when long work ends (jobs strip and Today)', where: 'Today', page: 'today' } : { type: 'left', feature: 'Sara keeps her own run log', where: 'Settings → Data & health → Runs', page: 'runs', why: 'Sara keeps her own run log.' };
+    tr = notify ? { type: 'feature', feature: 'Job notices tell you when long work ends (jobs strip and Today)', where: 'Today', page: 'today' } : { type: 'left', feature: 'Sara keeps her own run log', where: 'Settings → Privacy & system → Runs', page: 'runs', why: 'Sara keeps her own run log.' };
   } else if (hosts.length || secrets.length || flags.includes('runs-programs')) {
     intent = 'integration';
     summary = `${what} ${hosts.length ? `talked to ${hosts.slice(0, 3).join(', ')}` : flags.includes('runs-programs') ? 'ran programs on the old machine' : 'used outside services'}${description ? ` (${description})` : ''}.`;
@@ -455,12 +455,12 @@ export function mergeModelRead(card: CodeCard, inp: Pick<CodeInput, 'files'>, ra
   if (intent === 'style') {
     const rule = String(o.rule ?? '').replace(/\s+/g, ' ').trim().slice(0, 160);
     if (!rule) return { ...next, intent, translation: card.translation };
-    return { ...next, intent, translation: unsafeLine(rule) ? { type: 'flag', why: "Sara's safety layer stays on: this rule would weaken it, so it is not translated." } : { type: 'rule', rule: /[.!?]$/.test(rule) ? rule : `${rule}.`, where: 'Settings → Her → How she talks', page: 'her' } };
+    return { ...next, intent, translation: unsafeLine(rule) ? { type: 'flag', why: "Sara's safety layer stays on: this rule would weaken it, so it is not translated." } : { type: 'rule', rule: /[.!?]$/.test(rule) ? rule : `${rule}.`, where: 'Settings → Sara → How she talks', page: 'her' } };
   }
   if (intent === 'guard') {
     const tw = String(o.tool ?? '');
     const tool = TOOL_MAP.find(([re]) => re.test(tw))?.[1];
-    return { ...next, intent, translation: tool ? { type: 'guard', tool, where: 'Settings → Coding → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` } : { type: 'flag', why: `It guarded "${tw.slice(0, 40)}", which Sara has no tool for.` } };
+    return { ...next, intent, translation: tool ? { type: 'guard', tool, where: 'Settings → Skills & tools → Tools and approvals', page: 'abilities', why: `Sara will ask you before every "${tool}" step (it only ever makes her more careful).` } : { type: 'flag', why: `It guarded "${tw.slice(0, 40)}", which Sara has no tool for.` } };
   }
   if (intent === card.intent) return next;
   // A different intent than Sara's own reading: keep Sara's translation, show her summary, let the owner decide.

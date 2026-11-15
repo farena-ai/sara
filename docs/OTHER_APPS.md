@@ -14,12 +14,12 @@ Sara can be reached from other programs, with her own memory and personality:
   the same page under *Talk to her through Alexa*. Step by step: [ALEXA.md](ALEXA.md); all voice
   assistants: [VOICE_ASSISTANTS.md](VOICE_ASSISTANTS.md).
 
-Everything here is set up in **Settings → Connections → Other apps**. None of it is available on
+Everything here is set up in **Settings → Connections → Apps and services → Other apps**. None of it is available on
 the demo server.
 
 ## API keys
 
-Each app gets its own **API key**: Settings → Connections → Other apps → *Create an API key for
+Each app gets its own **API key**: Settings → Connections → Apps and services → Other apps → *Create an API key for
 another app*. Name it after the app; the key is shown once (copy it then). You confirm it's you
 first (passkey, owner token or two-step code), like approving an app's sign-in.
 
@@ -217,7 +217,7 @@ history, documents shared in one chat only, and, while Adult mode is off, anythi
 | `remember_fact` | Adds a fact about you to her memory | always asks |
 
 They follow her approval rules: the to-do and note tools use the setting of her `todo` and `note`
-tools (Settings → Coding → Tools and approvals: allowed, ask first, or off); `remember_fact`
+tools (Settings → Skills & tools → Tools and approvals: allowed, ask first, or off); `remember_fact`
 always asks. When something asks first, the tool answers *"Waiting for approval in Sara"* and an
 approval card waits in the conversation *"<key name>: changes (MCP)"*; nothing changes until you
 press Allow. An unknown `#id` is refused straight away, without asking. Changes show up in the
@@ -249,7 +249,7 @@ or remove the key in Sara and make a new one.
 ### Claude Desktop (stdio bridge)
 
 Claude Desktop starts programs, so it uses a small bridge: `clients/mcp/sara-mcp.ts` (or download
-it from Settings → Connections → Other apps → Claude Desktop). It needs Node.js 24 or later and
+it from Settings → Connections → Apps and services → Other apps → Claude Desktop). It needs Node.js 24 or later and
 no packages. It reads JSON-RPC lines on stdin, sends each to `/mcp` with your key, and writes the
 answers back. The key comes from `SARA_API_KEY` (or `--key-file`), never the command line.
 
@@ -291,7 +291,7 @@ It works on a Mac, iPhone or iPad without the app; the steps are in
 
 ## Alexa
 
-Settings → Connections → Other apps → **Talk to her through Alexa**: the owner pastes the skill ID
+Settings → Connections → Apps and services → Other apps → **Talk to her through Alexa**: the owner pastes the skill ID
 from the Alexa developer console (and may let her answer Alexa with the quick model); everyone, the
 owner and household members, makes one-time **link codes** for their own Alexa and sees and unlinks
 their linked Alexas there. The interaction model to paste into the console is downloadable there
@@ -299,7 +299,7 @@ too. Full guide: [ALEXA.md](ALEXA.md).
 
 ## Character cards
 
-Settings → Her → Name and personality → *Import a character…* (or drop the file on that
+Settings → Sara → Name and personality → *Import a character…* (or drop the file on that
 area; the same button also takes Sara's own character files). Sara reads Character Card **V2** (`chara_card_v2`), **V3** (`chara_card_v3`) and old flat
 V1 cards, from **JSON** (up to 2 MB) or from a **PNG** (up to 20 MB) with the card in a `ccv3`
 or `chara` text chunk (tEXt, zTXt or iTXt). You see a preview first, then choose **Make her this

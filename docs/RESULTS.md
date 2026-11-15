@@ -377,7 +377,7 @@ conversation in a git workspace):
 So about **0.6–0.8 kB per step plus about 5 kB per new prompt** (prompts repeat within a turn and
 often between turns); a busy day of 200 coding turns adds roughly 2–3 MB. History is never
 copied (a message-id range); tool outputs are kept shortened to 4,000 characters. Retention (90
-days by default) and the 200 MB cap keep it bounded; Settings → Data & health → Health shows
+days by default) and the 200 MB cap keep it bounded; Settings → Privacy & system → Health shows
 *Runs: N, X MB*.
 
 ## Library (documents)
@@ -496,7 +496,7 @@ answer with page links: `outputs/p74-shots/` (desktop and phone width; not in gi
 ## Budgets: a long coding task stops cleanly (Phase 79)
 
 A throwaway server on this PC (Windows 11, Ollama): main model `qwen3.8:27b-mtp-q4_K_M`, quick model
-`spark-x2.5:4b-bf16` (Models → Which model does what), a coding chat in a scratch workspace. The task
+`spark-x2.5:4b-bf16` (Models & usage → Which model does what), a coding chat in a scratch workspace. The task
 needs more than 40 steps by design: a trail of 60 clue files in random nested folders, each naming
 the next, "read them one after another with read_file, then tell me the secret word". (The search
 tool was set to *never* for the step runs: with it, the 4B model searched for "END" and skipped

@@ -187,7 +187,7 @@ export function createCodingTools(app: AppContext): Tool[] {
       if (paths.some((p) => p.startsWith('-'))) throw new ToolError('Paths may not start with "-".');
       const add = await git(ctx, [...C, 'add', '--', ...(paths.length ? paths : ['.'])]);
       if (add.code !== 0) throw new ToolError(add.out);
-      // C13: her commits name her as co-author (Settings → Coding → GitHub).
+      // C13: her commits name her as co-author (Settings → Connections → Apps and services → GitHub).
       const c = await git(ctx, [...C, 'commit', '-m', withCoAuthor(message, coAuthorOf(app.settings.get().coAuthor, ctx.companionName ?? app.persona.name))]);
       if (c.code !== 0) throw new ToolError(c.out || 'Nothing to commit.');
       return clip(c.out, 5000);
@@ -242,7 +242,7 @@ export function createCodingTools(app: AppContext): Tool[] {
       const kind = str(args, 'agent') === 'grok' ? 'grok' : 'claude';
       const task = str(args, 'task').trim();
       if (task.length < 10 || task.length > 8000) throw new ToolError('Describe the task in 10 to 8000 characters.');
-      if (kind === 'claude' ? !subs.claudeStatus().signedIn : !subs.grokStatus().signedIn) throw new ToolError(`${kind === 'claude' ? 'Claude' : 'Grok'} isn't signed in (Settings → Models → Subscriptions).`);
+      if (kind === 'claude' ? !subs.claudeStatus().signedIn : !subs.grokStatus().signedIn) throw new ToolError(`${kind === 'claude' ? 'Claude' : 'Grok'} isn't signed in (Settings → Models & usage → Providers and plans → Subscriptions).`);
       const { conversationId, workspace } = convWorkspace(app, ctx);
       const rt = subs.agent(kind);
       mkdirSync(rt.home, { recursive: true, mode: 0o700 });

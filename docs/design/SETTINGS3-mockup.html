@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sara Settings 3: mockup</title>
+<!--
+  SETTINGS3 mockup (design only, docs/design/SETTINGS3.md). Self-contained: no network, no dependencies.
+  Colours are copied from web/theme.css (Graphite palette, its default violet accent, Night and Day);
+  page names, setting labels and sections come from the real inventory (scripts/settings3-inventory.mjs).
+  Connection states, the model name and the numbers on the home are made-up examples.
+  Views: #home  #group/<id>  #page/<page-id>  #page/<id>/adv  #apps  #app/<page-id>  #search/<words>
+  Theme: ?theme=light|dark. ?shot=1 hides the mockup toolbar.
+-->
+<style>
+:root, :root[data-theme="dark"] {
+  color-scheme: dark;
+  --surface-0: #0b0c0e; --surface-1: #121316; --surface-2: #17181c; --surface-3: #1f2025;
+  --line: #2a2b31;
+  --text-1: #ededef; --text-2: #b4b5bb; --text-3: #8f9098;
+  --accent-solid: #a78bfa; --accent-text: #c4b5fd; --on-accent: #0b0b0c;
+  --success: #4ade80; --warn: #fbbf24; --danger: #f87171; --info: #7aa7ff;
+  --elev-1: 0 1px 2px rgb(0 0 0 / .4);
+  --elev-2: 0 0 0 1px var(--line), 0 12px 32px -8px rgb(0 0 0 / .55);
+  --elev-3: 0 0 0 1px var(--line), 0 24px 64px -16px rgb(0 0 0 / .7);
+  --scrim: rgb(0 0 0 / .55);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --surface-0: #f3f4f6; --surface-1: #ffffff; --surface-2: #f6f7f9; --surface-3: #eceef2;
+  --line: #e1e3e8;
+  --text-1: #16171b; --text-2: #4a4c55; --text-3: #64666f;
+  --accent-solid: #7c3aed; --accent-text: #6d28d9; --on-accent: #ffffff;
+  --success: #157d3c; --warn: #a15c07; --danger: #c62828; --info: #1d4fd7;
+  --elev-1: 0 1px 2px rgb(15 15 25 / .08);
+  --elev-2: 0 0 0 1px var(--line), 0 12px 32px -10px rgb(15 15 25 / .16);
+  --elev-3: 0 0 0 1px var(--line), 0 24px 60px -18px rgb(15 15 25 / .22);
+  --scrim: rgb(15 15 25 / .32);
+}
+:root {
+  --r-1: 4px; --r-2: 6px; --r-3: 8px; --r-4: 12px; --r-round: 999px;
+  --h-control: 34px;
+  --fs-11: 11px; --fs-12: 12px; --fs-13: 13px; --fs-14: 14px; --fs-16: 16px; --fs-20: 20px; --fs-24: 24px;
+  --dur-1: 90ms; --dur-2: 140ms; --ease-std: cubic-bezier(.2, 0, 0, 1);
+  --font-ui: "Segoe UI Variable Text", "Segoe UI Variable", "SF Pro Text", -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --hairline: color-mix(in srgb, var(--line) 70%, transparent);
+  --accent-soft: color-mix(in srgb, var(--accent-solid) 14%, transparent);
+  --accent-line: color-mix(in srgb, var(--accent-solid) 45%, transparent);
+  --success-soft: color-mix(in srgb, var(--success) 14%, transparent);
+  --warn-soft: color-mix(in srgb, var(--warn) 14%, transparent);
+  /* SETTINGS3 layout tokens (would live next to the V1 tokens in theme.css). */
+  --s3-rail: 268px;
+  --s3-page: 760px;
+  --s3-gap: 16px;
+  --s3-row-y: 14px;
+  --s3-row-x: 20px;
+  --s3-ctl: 232px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 14px/1.45 var(--font-ui); color: var(--text-1); background: var(--surface-0); -webkit-font-smoothing: antialiased; }
+button { font: inherit; color: inherit; }
+svg.i { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+
+/* The app behind the sheet (only a hint of it). */
+.app-ghost { position: fixed; inset: 0; background: var(--surface-0); }
+.app-ghost::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 264px; background: var(--surface-1); border-right: 1px solid var(--line); }
+.app-ghost::after { content: ""; position: absolute; inset: 0; background: var(--scrim); }
+
+/* ---------- The Settings sheet ---------- */
+.sheet { position: fixed; inset: 24px; display: grid; grid-template-columns: var(--s3-rail) 1fr; background: var(--surface-0); border-radius: 14px; box-shadow: var(--elev-3); overflow: hidden; }
+.rail { background: var(--surface-1); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; }
+.rail-top { padding: 20px 16px 12px; }
+.rail-title { font-size: var(--fs-16); font-weight: 600; letter-spacing: -.01em; margin: 0 4px 14px; }
+.find { display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-2); color: var(--text-3); cursor: pointer; text-align: left; transition: border-color var(--dur-2) var(--ease-std); }
+.find:hover { border-color: var(--accent-line); }
+.find span { flex: 1; font-size: var(--fs-13); }
+kbd { font: 500 11px/1 var(--font-ui); color: var(--text-3); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 3px 5px; background: var(--surface-1); }
+.rail-nav { flex: 1; overflow: auto; padding: 4px 12px 16px; }
+.nv { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: var(--r-3); background: none; color: var(--text-2); cursor: pointer; text-align: left; font-size: var(--fs-14); transition: background var(--dur-1) var(--ease-std), color var(--dur-1) var(--ease-std); }
+.nv:hover { background: var(--surface-2); color: var(--text-1); }
+.nv .i { color: var(--text-3); }
+.nv .ct { margin-left: auto; font-size: var(--fs-12); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.nv[aria-current="true"] { background: var(--surface-3); color: var(--text-1); font-weight: 500; }
+.nv[aria-current="true"] .i { color: var(--accent-text); }
+.nv-group[data-open] > .nv { color: var(--text-1); }
+.nv-group[data-open] > .nv .i { color: var(--accent-text); }
+.nv-pages { margin: 2px 0 8px 18px; padding-left: 9px; border-left: 1px solid var(--line); }
+.nv-pages .nv { min-height: 30px; padding: 5px 10px; font-size: var(--fs-13); }
+.nv-sub { font-size: var(--fs-11); color: var(--text-3); text-transform: uppercase; letter-spacing: .06em; padding: 10px 10px 4px; }
+.rail-sep { height: 1px; background: var(--hairline); margin: 8px 6px; }
+.rail-foot { border-top: 1px solid var(--line); padding: 12px 16px; display: flex; align-items: center; gap: 10px; font-size: var(--fs-13); }
+.ava { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-3); color: var(--text-2); font-weight: 600; font-size: var(--fs-12); flex: none; }
+.ava.her { background: linear-gradient(135deg, color-mix(in srgb, var(--accent-solid) 60%, var(--surface-3)), var(--surface-3)); color: var(--text-1); }
+.rail-foot .who { display: flex; flex-direction: column; line-height: 1.25; }
+.rail-foot .who small { color: var(--text-3); font-size: var(--fs-12); }
+.rail-foot .help { margin-left: auto; }
+
+.main { display: flex; flex-direction: column; min-width: 0; min-height: 0; position: relative; }
+.head { position: sticky; top: 0; z-index: 2; display: flex; align-items: flex-start; gap: 16px; padding: 22px 40px 18px; background: color-mix(in srgb, var(--surface-0) 88%, transparent); backdrop-filter: blur(12px); border-bottom: 1px solid transparent; }
+.head.scrolled { border-bottom-color: var(--hairline); }
+.head-text { flex: 1; min-width: 0; max-width: var(--s3-page); }
+.crumbs { display: flex; align-items: center; gap: 6px; font-size: var(--fs-12); color: var(--text-3); margin-bottom: 6px; min-height: 17px; }
+.crumbs a { color: var(--text-3); text-decoration: none; }
+.crumbs a:hover { color: var(--text-1); }
+.crumbs .sep { opacity: .6; }
+h1 { margin: 0; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -.015em; }
+.lead { margin: 6px 0 0; color: var(--text-2); font-size: var(--fs-14); max-width: 640px; }
+.head-side { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+.saved { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: var(--r-round); font-size: var(--fs-12); color: var(--text-3); transition: background var(--dur-2), color var(--dur-2); }
+.saved .i { width: 14px; height: 14px; color: var(--success); }
+.saved.flash { background: var(--success-soft); color: var(--text-1); }
+.iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border-radius: var(--r-3); border: 1px solid transparent; background: none; color: var(--text-2); cursor: pointer; }
+.iconbtn:hover { background: var(--surface-2); border-color: var(--line); color: var(--text-1); }
+.scroll { flex: 1; overflow: auto; padding: 4px 40px 56px; }
+.page { max-width: var(--s3-page); }
+.page.wide { max-width: 1040px; }
+
+/* Cards and rows: one anatomy everywhere. */
+.card { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-4); margin-bottom: var(--s3-gap); overflow: hidden; }
+.card-h { padding: 16px var(--s3-row-x) 4px; display: flex; align-items: baseline; gap: 10px; }
+.card-h h2 { margin: 0; font-size: var(--fs-14); font-weight: 600; letter-spacing: -.005em; }
+.card-h .more { margin-left: auto; font-size: var(--fs-13); color: var(--accent-text); text-decoration: none; white-space: nowrap; }
+.card-d { padding: 0 var(--s3-row-x) 10px; margin: 2px 0 0; color: var(--text-3); font-size: var(--fs-13); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 24px; padding: var(--s3-row-y) var(--s3-row-x); border-top: 1px solid var(--hairline); min-height: 56px; transition: background var(--dur-2) var(--ease-std); }
+.card-h + .row, .card-d + .row { border-top-color: var(--hairline); }
+.row-l { min-width: 0; }
+.row-t { display: flex; align-items: center; gap: 6px; font-size: var(--fs-14); color: var(--text-1); }
+.row-d { margin-top: 2px; font-size: var(--fs-13); color: var(--text-3); }
+.row.link { cursor: pointer; }
+.row.link:hover { background: var(--surface-2); }
+.row .chev { color: var(--text-3); }
+.row.hl { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent-solid); }
+.row.hl .row-t::after { content: "Found by search"; margin-left: 8px; font-size: var(--fs-11); color: var(--accent-text); border: 1px solid var(--accent-line); border-radius: var(--r-round); padding: 1px 7px; }
+.tip { width: 16px; height: 16px; display: inline-grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); color: var(--text-3); font: 600 10px/1 var(--font-ui); background: none; cursor: help; padding: 0; }
+.tip { opacity: .6; transition: opacity var(--dur-2); }
+.row:hover .tip, .tip:focus-visible { opacity: 1; }
+.tip:hover { color: var(--accent-text); border-color: var(--accent-line); }
+.note { display: flex; gap: 8px; align-items: flex-start; padding: 0 var(--s3-row-x) 14px; margin-top: -6px; color: var(--text-3); font-size: var(--fs-13); }
+
+/* Controls */
+.sel { appearance: none; height: 32px; width: var(--s3-ctl); padding: 0 30px 0 10px; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238f9098' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10l5 5 5-5'/%3E%3C/svg%3E") no-repeat right 8px center / 16px; color: var(--text-1); font: var(--fs-13)/30px var(--font-ui); text-overflow: ellipsis; white-space: nowrap; overflow: hidden; display: block; cursor: pointer; }
+.sel:hover, .inp:hover { border-color: color-mix(in srgb, var(--text-3) 50%, var(--line)); }
+.inp { height: 32px; width: var(--s3-ctl); padding: 0 10px; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-2); color: var(--text-1); font: var(--fs-13) var(--font-ui); display: flex; align-items: center; overflow: hidden; white-space: nowrap; }
+.inp.ph { color: var(--text-3); }
+.inp.short { width: 112px; }
+.sw { position: relative; width: 36px; height: 20px; border-radius: var(--r-round); background: var(--surface-3); border: 1px solid var(--line); cursor: pointer; flex: none; transition: background var(--dur-2) var(--ease-std); padding: 0; }
+.sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-3); transition: transform var(--dur-2) var(--ease-std), background var(--dur-2); }
+.sw[aria-checked="true"] { background: var(--accent-solid); border-color: var(--accent-solid); }
+.sw[aria-checked="true"]::after { transform: translateX(16px); background: var(--on-accent); }
+.seg { display: inline-flex; padding: 2px; border: 1px solid var(--line); border-radius: var(--r-3); background: var(--surface-2); }
+.seg button { border: 0; background: none; height: 26px; padding: 0 12px; border-radius: var(--r-2); font-size: var(--fs-13); color: var(--text-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface-1); color: var(--text-1); box-shadow: var(--elev-1), 0 0 0 1px var(--line); }
+.btn { height: 32px; padding: 0 14px; border-radius: var(--r-3); border: 1px solid var(--line); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-13); cursor: pointer; white-space: nowrap; }
+.btn:hover { border-color: color-mix(in srgb, var(--text-3) 50%, var(--line)); }
+.btn.primary { background: var(--accent-solid); border-color: var(--accent-solid); color: var(--on-accent); font-weight: 500; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.val { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; }
+.swatch { width: 32px; height: 32px; border-radius: var(--r-3); border: 1px solid var(--line); background: var(--accent-solid); }
+.slider { width: var(--s3-ctl); height: 4px; border-radius: 2px; background: linear-gradient(90deg, var(--accent-solid) 45%, var(--surface-3) 45%); position: relative; }
+.slider::after { content: ""; position: absolute; left: calc(45% - 7px); top: -5px; width: 14px; height: 14px; border-radius: 50%; background: var(--surface-1); border: 1px solid var(--line); box-shadow: var(--elev-1); }
+
+/* Status dots: the only other colours. */
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; background: var(--text-3); }
+.dot.ok { background: var(--success); box-shadow: 0 0 0 3px var(--success-soft); }
+.dot.warn { background: var(--warn); box-shadow: 0 0 0 3px var(--warn-soft); }
+.dot.off { background: transparent; border: 1.5px solid var(--text-3); width: 8px; height: 8px; }
+
+/* Advanced fold */
+.adv { margin: 8px 0 var(--s3-gap); }
+.adv-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px var(--s3-row-x); border: 1px dashed var(--line); border-radius: var(--r-4); background: none; color: var(--text-2); cursor: pointer; text-align: left; font-size: var(--fs-14); transition: border-color var(--dur-2), background var(--dur-2); }
+.adv-btn:hover { border-color: var(--accent-line); background: var(--surface-1); }
+.adv-btn small { color: var(--text-3); font-size: var(--fs-13); }
+.adv-btn .chev { margin-left: auto; transition: transform var(--dur-2) var(--ease-std); color: var(--text-3); }
+.adv[data-open] .adv-btn { border-style: solid; background: var(--surface-1); }
+.adv[data-open] .adv-btn .chev { transform: rotate(90deg); }
+.adv-hint { margin: -6px 2px 0; color: var(--text-3); font-size: var(--fs-13); }
+.adv[data-open] + .adv-hint { display: none; }
+.adv-body { display: none; margin-top: var(--s3-gap); }
+.adv[data-open] .adv-body { display: block; }
+.sec-label { font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin: 28px 2px 10px; }
+.sec-label:first-child { margin-top: 8px; }
+
+/* Home */
+.hero-find { display: flex; align-items: center; gap: 12px; width: 100%; height: 52px; padding: 0 16px; margin: 4px 0 24px; border: 1px solid var(--line); border-radius: var(--r-4); background: var(--surface-1); color: var(--text-3); cursor: pointer; font-size: var(--fs-16); text-align: left; box-shadow: var(--elev-1); transition: border-color var(--dur-2); }
+.hero-find:hover { border-color: var(--accent-line); }
+.hero-find .i { width: 18px; height: 18px; }
+.hero-find span { flex: 1; }
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: var(--s3-gap); margin-bottom: var(--s3-gap); }
+.grid > .card { margin: 0; }
+.c7 { grid-column: span 7; } .c5 { grid-column: span 5; } .c4 { grid-column: span 4; } .c6 { grid-column: span 6; } .c12 { grid-column: span 12; }
+.status-top { display: flex; align-items: center; gap: 14px; padding: 18px var(--s3-row-x) 14px; }
+.status-top .ava { width: 44px; height: 44px; font-size: var(--fs-16); }
+.status-top h2 { margin: 0; font-size: var(--fs-16); font-weight: 600; }
+.status-top p { margin: 2px 0 0; color: var(--text-3); font-size: var(--fs-13); }
+.pill { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: var(--r-round); font-size: var(--fs-12); background: var(--surface-2); border: 1px solid var(--line); color: var(--text-2); margin-left: auto; white-space: nowrap; }
+.facts { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--hairline); }
+.fact { padding: 12px var(--s3-row-x); display: flex; flex-direction: column; gap: 2px; border-bottom: 1px solid var(--hairline); }
+.fact:nth-child(odd) { border-right: 1px solid var(--hairline); }
+.fact small { color: var(--text-3); font-size: var(--fs-12); }
+.fact b { font-weight: 500; font-size: var(--fs-14); display: flex; align-items: center; gap: 8px; }
+.fact-foot { padding: 12px var(--s3-row-x); font-size: var(--fs-13); color: var(--text-3); display: flex; align-items: center; gap: 10px; }
+.fact-foot a, .att a { color: var(--accent-text); text-decoration: none; }
+.att { display: flex; gap: 12px; align-items: flex-start; padding: 13px var(--s3-row-x); border-top: 1px solid var(--hairline); cursor: pointer; }
+.att:hover { background: var(--surface-2); }
+.att .dot { margin-top: 6px; }
+.att b { font-weight: 500; display: block; font-size: var(--fs-14); }
+.att span { color: var(--text-3); font-size: var(--fs-13); }
+.att .chev { margin-left: auto; color: var(--text-3); align-self: center; }
+.mini-apps { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 6px 14px 14px; }
+.mini { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-3); cursor: pointer; border: 1px solid transparent; }
+.mini:hover { background: var(--surface-2); border-color: var(--line); }
+.mini .mono { width: 28px; height: 28px; font-size: var(--fs-12); }
+.mini div { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+.mini small { color: var(--text-3); font-size: var(--fs-12); display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+.groups { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s3-gap); }
+.gcard { background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-4); padding: 18px 20px 16px; }
+.gcard-h { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.gicon { width: 32px; height: 32px; border-radius: var(--r-3); background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--accent-text); flex: none; }
+.gcard h3 { margin: 0; font-size: var(--fs-14); font-weight: 600; }
+.gcard p { margin: 10px 0 10px; color: var(--text-3); font-size: var(--fs-13); }
+.plinks { display: flex; flex-wrap: wrap; gap: 2px 0; font-size: var(--fs-13); }
+.plinks a { color: var(--text-2); text-decoration: none; }
+.plinks a:hover { color: var(--accent-text); }
+.plinks a:not(:last-child)::after { content: "·"; color: var(--text-3); margin: 0 7px; opacity: .7; }
+
+.page-wrap { display: grid; grid-template-columns: minmax(0, var(--s3-page)) 188px; gap: 48px; align-items: start; }
+.page-wrap .page { max-width: none; }
+.toc { position: sticky; top: 8px; padding-top: 6px; font-size: var(--fs-13); }
+.toc b { display: block; font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); margin-bottom: 10px; }
+.toc a { display: block; padding: 5px 0 5px 12px; border-left: 1px solid var(--line); color: var(--text-3); text-decoration: none; }
+.toc a:hover { color: var(--text-1); }
+.toc a.on { color: var(--text-1); border-left: 2px solid var(--accent-solid); padding-left: 11px; }
+@media (max-width: 1279px) { .page-wrap { grid-template-columns: 1fr; } .toc { display: none; } }
+.col { display: flex; flex-direction: column; gap: var(--s3-gap); }
+.col > .card { margin: 0; }
+.col > .card:last-child { flex: 1; }
+.hh { display: flex; align-items: center; gap: 12px; padding: 8px var(--s3-row-x) 18px; }
+.strong { color: var(--text-1); font-weight: 500; }
+.push { margin-left: auto; }
+b.m { font-weight: 500; }
+.card-h .pill { margin-left: auto; }
+.hh p { margin: 0; color: var(--text-3); font-size: var(--fs-13); flex: 1; }
+.t-m { display: none; }
+.home-wrap { display: flex; flex-direction: column; }
+
+/* Connections */
+.filters { display: flex; align-items: center; gap: 12px; margin: 4px 0 4px; }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tile { display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 68px; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-4); cursor: pointer; transition: border-color var(--dur-2), box-shadow var(--dur-2); }
+.tile:hover { border-color: var(--accent-line); box-shadow: var(--elev-1); }
+.tile[aria-current="true"] { border-color: var(--accent-solid); box-shadow: 0 0 0 1px var(--accent-solid); }
+.mono { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--surface-3); color: var(--text-1); font-weight: 600; font-size: var(--fs-14); flex: none; letter-spacing: -.02em; }
+.tile-t { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.tile-t b { font-weight: 500; }
+.tile-t small { color: var(--text-3); font-size: var(--fs-12); display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile .chev { margin-left: auto; color: var(--text-3); }
+
+/* Detail drawer (a connection) */
+.scrim { position: absolute; inset: 0; background: var(--scrim); z-index: 5; }
+.drawer { position: absolute; top: 0; right: 0; bottom: 0; width: 600px; max-width: 100%; z-index: 6; background: var(--surface-0); border-left: 1px solid var(--line); box-shadow: var(--elev-3); display: flex; flex-direction: column; }
+.drawer .head { background: var(--surface-0); padding: 20px 28px 16px; border-bottom: 1px solid var(--hairline); }
+.drawer .scroll { padding: 18px 28px 40px; }
+.drawer-id { display: flex; align-items: center; gap: 14px; }
+.drawer-id .mono { width: 44px; height: 44px; font-size: var(--fs-16); }
+
+/* Search palette */
+.palette-wrap { position: fixed; inset: 0; z-index: 20; background: var(--scrim); display: flex; justify-content: center; align-items: flex-start; padding-top: 96px; }
+.palette { width: 680px; max-width: calc(100% - 32px); background: var(--surface-1); border-radius: 14px; box-shadow: var(--elev-3); overflow: hidden; display: flex; flex-direction: column; max-height: calc(100% - 160px); }
+.pal-in { display: flex; align-items: center; gap: 12px; padding: 0 18px; height: 56px; border-bottom: 1px solid var(--line); }
+.pal-in .i { width: 18px; height: 18px; color: var(--text-3); }
+.pal-in input { flex: 1; border: 0; outline: 0; background: none; color: var(--text-1); font: var(--fs-16) var(--font-ui); }
+.pal-list { overflow: auto; padding: 6px 8px 8px; }
+.pal-h { font-size: var(--fs-11); font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--text-3); padding: 12px 12px 6px; }
+.pal-item { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: var(--r-3); cursor: pointer; }
+.pal-item[aria-selected="true"] { background: var(--surface-3); }
+.pal-item .k { width: 28px; height: 28px; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--line); display: grid; place-items: center; color: var(--text-3); flex: none; }
+.pal-item .k .i { width: 14px; height: 14px; }
+.pal-item .tx { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.pal-item .tx b { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pal-item .tx small { color: var(--text-3); font-size: var(--fs-12); }
+.pal-item .v { margin-left: auto; color: var(--text-3); font-size: var(--fs-12); white-space: nowrap; }
+.pal-item[aria-selected="true"] .ent { display: inline-block; }
+.ent { display: none; margin-left: 8px; }
+mark { background: var(--accent-soft); color: var(--text-1); border-radius: 3px; padding: 0 1px; }
+.pal-foot { display: flex; align-items: center; gap: 14px; padding: 10px 16px; border-top: 1px solid var(--line); color: var(--text-3); font-size: var(--fs-12); }
+.pal-foot span { display: inline-flex; align-items: center; gap: 6px; }
+.pal-foot .r { margin-left: auto; }
+
+/* Mockup toolbar (not part of the design) */
+.mock-bar { position: fixed; right: 36px; bottom: 34px; z-index: 30; display: flex; gap: 6px; padding: 6px; border-radius: var(--r-4); background: var(--surface-1); box-shadow: var(--elev-2); font-size: var(--fs-12); }
+.mock-bar a, .mock-bar button { border: 0; background: none; color: var(--text-2); padding: 5px 8px; border-radius: var(--r-2); text-decoration: none; cursor: pointer; font-size: var(--fs-12); }
+.mock-bar a:hover, .mock-bar button:hover { background: var(--surface-3); }
+.shot .mock-bar { display: none; }
+
+/* Phone header bits (hidden on desktop) */
+.ph-back { display: none; }
+
+/* ---------- Phone: a drill-down list (390 px) ---------- */
+@media (max-width: 720px) {
+  :root { --s3-row-x: 16px; --s3-gap: 14px; --h-control: 44px; }
+  .app-ghost { display: none; }
+  .sheet { inset: 0; border-radius: 0; grid-template-columns: 1fr; box-shadow: none; }
+  .rail { display: none; }
+  .head { padding: 10px 16px 14px; flex-wrap: wrap; background: color-mix(in srgb, var(--surface-0) 92%, transparent); }
+  .head-text { order: 2; flex-basis: 100%; }
+  .head-side { order: 1; width: 100%; margin: 0; }
+  .ph-back { display: inline-flex; align-items: center; gap: 2px; height: 36px; padding: 0 6px 0 0; border: 0; background: none; color: var(--accent-text); font-size: var(--fs-16); cursor: pointer; }
+  .head-side .saved { margin-left: auto; }
+  .crumbs { display: none; }
+  h1 { font-size: 26px; margin-top: 4px; }
+  .home h1, .is-home h1 { font-size: 30px; }
+  .lead { font-size: var(--fs-14); }
+  .scroll { padding: 4px 16px 40px; }
+  .row { gap: 12px; min-height: 52px; }
+  .row.stack, .row.field { grid-template-columns: 1fr; gap: 10px; }
+  .row.stack .sel, .row.stack .inp, .row.field .sel, .row.field .inp { width: 100%; height: 40px; line-height: 38px; }
+  .row.field .btns { justify-content: flex-start; }
+  .t-d { display: none; } .t-m { display: inline; }
+  .home-wrap { gap: var(--s3-gap); }
+  .home-wrap > .o-grid, .home-wrap .col { display: contents; }
+  .home-wrap .card, .home-wrap .hero-find, .home-wrap .sec-label { margin: 0; }
+  .o-status { order: 1; } .o-att { order: 2; } .o-label { order: 3; margin-top: 8px !important; } .o-groups { order: 4; } .o-quick { order: 5; } .o-apps { order: 6; } .o-house { order: 7; }
+  .grid { grid-template-columns: 1fr; }
+  .grid > .card { grid-column: 1 / -1; }
+  .groups, .tiles { grid-template-columns: 1fr; gap: 0; background: var(--surface-1); border: 1px solid var(--line); border-radius: var(--r-4); overflow: hidden; }
+  .tile { border: 0; border-radius: 0; border-top: 1px solid var(--hairline); min-height: 60px; padding: 12px 16px; }
+  .tile:first-child { border-top: 0; }
+  .tile:hover { box-shadow: none; }
+  .gcard { border: 0; border-radius: 0; border-top: 1px solid var(--hairline); padding: 12px 16px; }
+  .gcard:first-child { border-top: 0; }
+  .gcard p, .gcard .plinks { display: none; }
+  .gcard-h .chev { display: block; margin-left: auto; color: var(--text-3); }
+  .hero-find { height: 44px; font-size: var(--fs-14); margin: 2px 0 18px; }
+  .hero-find kbd { display: none; }
+  .facts { grid-template-columns: 1fr 1fr; }
+  .mini-apps { grid-template-columns: 1fr; }
+  .drawer { width: 100%; border-left: 0; position: fixed; z-index: 15; }
+  .drawer .head { padding: 10px 16px 14px; }
+  .drawer .scroll { padding: 14px 16px 40px; }
+  .scrim { display: none; }
+  .palette-wrap { padding-top: 0; background: var(--surface-0); }
+  .palette { width: 100%; max-width: 100%; max-height: 100%; height: 100%; border-radius: 0; box-shadow: none; background: var(--surface-0); }
+  .pal-foot { display: none; }
+  .pal-item .v { display: none; }
+  .mock-bar { right: 8px; bottom: 8px; }
+  .filters .seg button { padding: 0 9px; }
+}
+@media (min-width: 721px) { .gcard-h .chev { display: none; } }
+</style>
+</head>
+<body>
+<div class="app-ghost" aria-hidden="true"></div>
+<div class="sheet" role="dialog" aria-label="Settings">
+  <aside class="rail">
+    <div class="rail-top">
+      <div class="rail-title">Settings</div>
+      <button class="find" type="button" data-go="#search/">
+        <svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <span>Search settings</span><kbd>Ctrl K</kbd>
+      </button>
+    </div>
+    <nav class="rail-nav" id="rail" aria-label="Settings pages"></nav>
+    <div class="rail-foot">
+      <div class="ava">A</div>
+      <div class="who">Alex<small>Owner · 3 devices</small></div>
+      <button class="iconbtn help" type="button" aria-label="Help"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></svg></button>
+    </div>
+  </aside>
+  <section class="main" id="main"></section>
+</div>
+<div id="overlay"></div>
+<div class="mock-bar" aria-label="Mockup views (not part of the design)">
+  <a href="#home">Home</a><a href="#apps">Connections</a><a href="#app/co-telegram">Telegram</a><a href="#page/models-default">Default model</a><a href="#search/voice">Search</a>
+  <button type="button" id="mock-theme">Light / Dark</button>
+</div>
+<script>
+'use strict';
+const INV = [{"id":"her-character","t":"Name and personality","who":"all","lead":"Her name, pronouns and personality: start from a ready-made character, a guided setup, dials (also for coding), her life. Try her answers first. The character file saves, shares or loads her.","h":["Start from a character","Starting point","Personality dials Guide","Her life","While you code","Staying in character","Character file"],"b":["✨ Create your companion","Make a new look","Import a character…","Make her this character"],"c":[["Name","text","",""],["Pronouns","select","","she / her"],["Age","number","",""],["Use the card's picture as her picture","checkbox","Start from a character",""],["Relationship","select","Starting point",""],["How she talks","select","Starting point",""],["Humour","select","Starting point",""],["Quiet when I'm focused","checkbox","While you code",""],["Check her replies","select","Staying in character","Off"],["Use the look from the file","checkbox","Character file",""],["Use the voice from the file","checkbox","Character file",""]]},{"id":"her-relationship","t":"Relationship","who":"all","lead":"What you are to each other and how she is with you: romance, jealousy, being away, disagreements, intimacy and a stop word. Try her reactions before saving.","h":["Your relationship","Dials Guide","Intimacy"],"b":["Undo changes","Try it"],"c":[["In your own words (optional)","textarea","Your relationship",""],["When you're away","select","Dials Guide",""],["When you disagree","select","Dials Guide",""],["Your other companions","select","Dials Guide",""],["Slow burn: romance grows with time together","checkbox","Dials Guide",""],["How far things go","select","Intimacy",""],["She likes","text","Intimacy",""],["Her limits","text","Intimacy",""],["Her turn-offs","text","Intimacy",""],["Your hard limits","text","Intimacy",""],["Stop word","text","Intimacy",""]]},{"id":"desktop-app","t":"This computer","who":"all","lead":"How the Sara app behaves on this computer: start when you sign in, keep running next to the clock when you close the window (so she can still reach you), and notifications.","h":[],"b":["Try it","Show a test notification","Your Saras…","Update now"],"c":[["Start Sara when I sign in to this computer","checkbox","",""],["Keep running when I close the window","checkbox","",""],["Quick ask shortcut","select","",""],["Show notifications","checkbox","",""],["Update the app by itself","checkbox","",""]]},{"id":"co-computer","t":"Computer use","who":"all","lead":"Let her use web pages on this computer in her own browser window: look, read, click and type. Off until you turn it on, and you can stop her any time.","h":["This computer","Linux hands","Get the app","Your computers","Dev tunnels","Saved logins","Her actions","Household"],"b":["Add a folder…","Open System Settings","Open System Settings","Try again"],"c":[["Let Sara use this computer","checkbox","This computer",""],["Screenshots only to models on this computer","checkbox","This computer",""],["The whole screen: apps, mouse and keyboard","checkbox","This computer",""],["Let Sara see my tabs","checkbox","This computer",""],["Let her run commands on this computer","checkbox","This computer",""],["Approvals for commands","select","This computer","Ask once per task"],["Simple read-only commands without asking","checkbox","This computer",""],["Files: read my Desktop, Documents and Downloads","checkbox","This computer",""],["Which folders","select","This computer","Desktop, Documents and Downloads"],["Also hide these windows","textarea","This computer",""],["Approvals for her desktop","select","This computer","Ask once per task"],["When you move the mouse","select","This computer","Pause Sara"],["Keep working when I walk away","checkbox","This computer",""],["Ask for Windows Hello / Touch ID before Sara uses a saved login","checkbox","This computer",""],["Lock again after","select","This computer","5 idle minutes"],["Which computer","select","Dev tunnels",""],["Approvals for clicking and typing","select","Her actions","Ask once per task"],["Include my browser extensions in check-ups","checkbox","Her actions",""],["Let household members use computer use","checkbox","Household",""]]},{"id":"her-work","t":"At work","who":"owner","lead":"Her work profile for Slack, Teams and other work chats: her work name and tone, work tools only, a separate work memory, and no moods, romance or pictures on her own.","h":["Which chats are work","What she may use at work","Work memories"],"b":["Save"],"c":[["Use a work profile","checkbox","",""],["Name at work","text","",""],["Tone at work","select","","Friendly and professional"],["Slack","checkbox","Which chats are work",""],["Microsoft Teams","checkbox","Which chats are work",""],["Matrix","checkbox","Which chats are work",""],["Email","checkbox","Which chats are work",""],["Discord work channels","checkbox","Which chats are work",""],["Telegram work groups","checkbox","Which chats are work",""],["Research: web search and reading pages","checkbox","What she may use at work",""],["Files in the work workspace","checkbox","What she may use at work",""],["Work workspace","text","What she may use at work",""],["Calendar","checkbox","What she may use at work",""],["Commands","checkbox","What she may use at work",""],["atw-space","select","Work memories","Work notes"],["atw-q","search","Work memories",""]]},{"id":"her-companions","t":"Companions","who":"all","lead":"More than one companion on this server: each with her own character, look, voice, conversations and memories. Add, switch and remove them here.","h":["Add a companion","Bring your companion from another app","Planner"],"b":["Add","From a file…","Get a companion from the Store","See what comes over"],"c":[["Name","text","Add a companion",""],["Pronouns","select","Add a companion","she / her"],["Start from","select","Add a companion","A new character (shape them afterwards)"],["From","select","Bring your companion from another app","Find out from the files"],["Or paste her backstory, key memories or shared notes","textarea","Bring your companion from another app",""],["To-dos, reminders and notes","select","Planner","One planner, shared by all companions"]]},{"id":"her-import","t":"Bring her from another app","who":"owner","lead":"Bring chats from Character.AI, SillyTavern, Replika, Nomi, Kindroid, ChatGPT or Claude: she suggests what she learned, you check it, and only what you keep is saved.","h":["Choose the file"],"b":["Move in from another agent","Choose a file","All","None"],"c":[["Which app it came from","select","Choose the file",""],["Only models on this server","checkbox","Choose the file",""],["Add the ticked notes to her personality","checkbox","Choose the file",""],["Also keep the chats (read-only, private)","checkbox","Choose the file",""]]},{"id":"her-look","t":"Look","who":"all","lead":"What she looks like in the app. Describe a look (Grok Imagine paints it), dress her in outfits and places, change one thing at a time with her face locked, and keep looks in her closet. Tag closet looks with scenarios and she can dress for the time, the weather and what is happening by herself.","h":["Outfits and places","Change one thing","Closet","Dress automatically"],"b":["Open Appearance","Make a picture","Use this look","Try again"],"c":[["Describe the look","text","",""],["Style","select","","Illustrated"],["This picture is AI-made, of me, or used with the person's permission","checkbox","",""],["look-default","select","","Matches the pronouns"],["Outfit","select","Outfits and places",""],["Where","select","Outfits and places","Keep the same place"],["Describe the outfit","text","Outfits and places",""],["What","select","Change one thing",""],["To","select","Change one thing",""],["Describe it","text","Change one thing",""],["Face lock: keep her face the same in every outfit and picture","checkbox","Change one thing",""],["Name this look","text","Closet",""],["Dress for the time, the weather and what's happening","checkbox","Dress automatically",""],["Work hours from","time","Dress automatically",""],["to","time","Dress automatically",""],["Wear for now","select","Dress automatically",""],["For","select","Dress automatically","4 hours"],["Name","text","Dress automatically",""],["From","text","Dress automatically",""],["To","text","Dress automatically",""]]},{"id":"her-voice","t":"Voice","who":"all","lead":"The voice she speaks with (voice notes, read-aloud, calls) and how she hears you. With Grok voice she can laugh, sigh and whisper (Expressive voice); the tone and her mood shape how she sounds.","h":[],"b":["▶ Listen","Use Grok voice","Preview","▶ Hear a sample"],"c":[["Voice","select","",""],["Hearing you","select","","On this server"],["Her voice","select","","On this server"],["Local voice","select","",""],["Speed","number","",""],["Expressive voice","select","","Subtle"],["Tone","select","","Natural"],["Her voice follows her mood","checkbox","",""],["Calls (📞)","select","","Live: instant replies, interrupt any time (Grok or OpenAI)"],["Live calls with","select","","Whichever is set up (Grok first)"],["On video calls she looks","select","","Only when I press Look at this"],["Camera pictures per call","select","","Up to 20"],["Voice","select","",""],["Model","select","",""],["OpenAI API key","password","",""],["Voice notes on Telegram and Discord","select","","Answer a voice note with a voice note"],["Grok voice","select","",""],["Language","select","","English"],["xAI API key (optional)","password","",""],["Speech API URL (OpenAI-compatible)","text","",""],["Hearing model","text","",""],["Voice model","text","",""],["Voice","text","",""],["Speech API key","password","",""],["ElevenLabs voice id","text","",""],["ElevenLabs model","text","",""],["ElevenLabs key","password","",""]]},{"id":"her-hey","t":"Hey Sara","who":"all","lead":"Say “Hey Sara” and talk, hands-free, in the Windows, Mac or Android app. A small model on the device listens only for her words; nothing is sent until then. Off until you switch it on, per device.","h":[],"b":["Try it","Remove from this device","Add words","Download"],"c":[["Listen for “Hey Sara” on this computer","checkbox","",""],["Microphone","select","","System default"],["How easily she wakes","select","","Wakes easily"],["Talk shortcut","select","",""],["Chime when she starts and stops listening","checkbox","",""],["This computer is just mine","checkbox","",""],["Pause while the screen is locked","checkbox","",""],["Only while charging","checkbox","",""],["Only while Sara is open","checkbox","",""],["New words","text","",""],["For","select","",""],["She answers in","select","","Her “Hey Sara” conversation"],["The phrase starts","select","","One question"],["Keep listening after her answer","select","","Off"],["Never in my quiet hours","checkbox","",""],["Allow Hey Sara on this server","checkbox","",""],["Members may use Hey Sara on their own devices","checkbox","",""]]},{"id":"her-calls","t":"Calls from her","who":"all","lead":"When she may ring you: reminders, finished tasks, the morning briefing; quiet hours and a daily limit. Missed calls become messages.","h":[],"b":["Call me now","Allow full-screen calls"],"c":[["Let her call me","checkbox","",""],["Reminders","select","","Only when I ask her to call (\"call me at 5\")"],["A long task finishes","select","","Send a message"],["Morning briefing","select","","Send a message"],["Quiet hours from","time","",""],["to","time","",""],["Calls a day, at most","select","","1"],["Ring for","select","","30 seconds"]]},{"id":"her-pictures","t":"Pictures from her","who":"all","lead":"Pictures she can send you, made with an image model. Off unless you set it up.","h":[],"b":["Load the list","Send one now"],"c":[["Pictures","select","","Off"],["Picture engine","select","","Grok Imagine (keeps her face)"],["xAI API key (optional)","password","",""],["Image model","text","",""],["ComfyUI tool server","select","",""],["Saved in ComfyUI Load the list","select","","Paste one below instead"],["Workflow (API format)","textarea","",""],["Node that takes the prompt","select","",""],["New random seed each time","checkbox","",""],["Image tool","select","",""],["Its prompt setting","text","",""],["She sends pictures on her own","checkbox","",""],["Also send them to my chat apps","checkbox","",""],["How often","select","","Rarely (about once a week)"],["Monthly limit","number","",""]]},{"id":"models-local","t":"On this computer","who":"owner","lead":"Run her model on this computer: Sara finds Ollama, suggests a model that fits your graphics card or memory, and downloads it. The switch Nothing leaves this computer keeps every request on this computer.","h":["A model on this computer"],"b":["Download this model","Cancel"],"c":[["Nothing leaves this computer","checkbox","",""],["Model to download","select","A model on this computer",""]]},{"id":"models-default","t":"Default model","who":"all","lead":"The AI model she thinks with in new conversations. Each conversation can use a different one.","h":["Connect a brain","Always-current model lists","Long conversations","Tidy long chats"],"b":["Connect an AI model","↻ Refresh"],"c":[["Provider","select","Connect a brain",""],["Model","text","Connect a brain",""],["Switch to the replacement automatically","checkbox","Always-current model lists",""],["How much of the chat she keeps in mind","select","Long conversations","Auto: balanced (follows the model)"],["Tidy long chats on their own","checkbox","Tidy long chats",""],["When the chat is","select","Tidy long chats","75 % full"],["Keep your last turns word for word","select","Tidy long chats","3 turns"],["Who writes the summary","select","Tidy long chats","A model on this computer first, else the quick model"],["Daily limit","select","Tidy long chats","20 tidies"],["Token limit a day","select","Tidy long chats","200k tokens"],["Keep a crisis conversation word for word for","select","Tidy long chats","24 hours"]]},{"id":"models-routes","t":"Which model does what","who":"owner","lead":"Point each job at a model: your best one for talking, a model that can see for pictures, a fast one for background work. Test checks one; Compare… lets you pick the best blind. Backups take over if a model fails.","h":[],"b":["✨ Use recommended"],"c":[["Switch after","select","","30 seconds"]]},{"id":"models-subs","t":"Subscriptions","who":"owner","lead":"Use a ChatGPT, Claude or Grok plan you already pay for, where the provider allows it.","h":[],"b":["Continue with ChatGPT","Sign out","Finish","Sign in to Claude"],"c":[["sub-chatgpt-url","text","",""],["sub-claude-code","text","",""],["sub-claude-token","password","",""]]},{"id":"models-providers","t":"Model providers","who":"owner","lead":"Where models come from: Ollama on this or another computer, or a cloud service with an API key. Keys are stored encrypted on your server.","h":[],"b":["Save provider"],"c":[["Template","select","",""],["ID","text","",""],["Name","text","",""],["Type","select","","OpenAI-compatible"],["Base URL","text","",""],["API key","password","",""],["Runs on my own hardware","checkbox","",""],["Requires an API key","checkbox","",""]]},{"id":"you-about","t":"About you","who":"all","lead":"Your name, time zone, language and what you mostly do with her.","h":["Language","Session titles","While she's working"],"b":["Name recent chats now"],"c":[["What should Sara call you","text","",""],["Time zone","text","",""],["What you mostly do with her","select","","Company: talk, plan my day, remember things"],["Language","select","Language","Automatic (this browser's language)"],["Talk to me in","select","Language","Automatic (the language you write in)"],["Titles that grow","checkbox","Session titles",""],["Model for titles","select","Session titles","This computer"],["Chat titles a day 60 Past this she keeps the current titles.","range","Session titles",""],["When you send a message while she's working","select","While she's working","Tell her now, at her next step"],["Messages that can wait","select","While she's working","3"],["Side questions use","select","While she's working","Quick model"],["Side questions per day","select","While she's working","20"]]},{"id":"you-appearance","t":"Appearance","who":"all","lead":"How the app looks on this device: palette, Night or Day, color, layout, decoration and her picture.","h":["Theme","Layout and text","Chat behavior"],"b":["Reset to defaults","Upload your picture of her","Open Look","Choose a .vrm file"],"c":[["Palette","select","Theme","Graphite (default)"],["Night or Day","select","Theme","Night"],["Color","select","Theme","Theme color"],["Your color","color","Theme",""],["Your color","text","Theme",""],["Background motion","select","Theme","On: a faint light that moves with how busy she is (default)"],["Decoration","select","Theme","Reduced: flat, no glow or blur"],["Glass blur","select","Theme","Auto: on, except in Firefox (default)"],["Layout","select","Layout and text","Comfortable"],["Text size in chat","select","Layout and text","Small"],["Her picture","select","Layout and text","Presence orb (default)"],["Show run details","select","Layout and text","Folded (default)"],["Her picture in work views","select","Layout and text","Small (default)"],["Her replies appear","select","Chat behavior","As fast as they arrive"],["Sessions shown","select","Chat behavior","5 (the default)"],["Chat background","select","Chat behavior","Plain"]]},{"id":"you-briefing","t":"Morning briefing","who":"all","lead":"A morning message with the weather, your list, calendar and important mail, and a weekly review of how things went.","h":["Weekly review","Yearly look back"],"b":["Send one now"],"c":[["Send me a morning briefing","checkbox","",""],["Time","time","",""],["Weather for","text","",""],["Units","select","","°F"],["Send me a weekly review","checkbox","Weekly review",""],["Day","select","Weekly review","Sunday"],["Time","time","Weekly review",""],["Send me a look back on our anniversary","checkbox","Yearly look back",""]]},{"id":"you-leave-by","t":"Leave-by reminders","who":"all","lead":"A heads-up when it’s time to leave for calendar events that have an address.","h":[],"b":[],"c":[["Remind me when it's time to leave","checkbox","",""],["Home address","text","",""],["Getting there by","select","","Car"],["Extra minutes","number","",""]]},{"id":"you-business","t":"Business details","who":"all","lead":"Your business name, address, logo and how to get paid, for the invoices and quotes Sara makes. Plus the currency, tax rate and payment terms she uses by default.","h":["Booking page","Accounting export"],"b":[],"c":[["Business name","text","",""],["Email","email","",""],["Phone","text","",""],["Tax ID","text","",""],["Address","textarea","",""],["Logo picture","select","","No logo"],["How to pay you","textarea","",""],["Currency","select","",""],["Tax rate (%)","number","",""],["Due in (days)","number","",""]]},{"id":"you-details","t":"My details","who":"all","lead":"What you type into forms again and again (name, addresses, sizes, vehicle, insurance and loyalty numbers), so Sara can fill web forms in your own browser. Never passwords or card numbers.","h":["Name and contact","Home address","Work address","Shipping address","Date of birth and sizes","Vehicles","Insurance","Loyalty numbers","Work and emergency contact","Store checks in your browser"],"b":[],"c":[["First name","text","Name and contact",""],["Last name","text","Name and contact",""],["Email","email","Name and contact",""],["Work email","email","Name and contact",""],["Mobile phone","tel","Name and contact",""],["Home phone","tel","Name and contact",""],["Work phone","tel","Name and contact",""],["Street address","text","Home address",""],["Apt, suite, unit","text","Home address",""],["City","text","Home address",""],["State","text","Home address",""],["ZIP code","text","Home address",""],["Country","text","Home address",""],["Street address","text","Work address",""],["Apt, suite, unit","text","Work address",""],["City","text","Work address",""],["State","text","Work address",""],["ZIP code","text","Work address",""],["Country","text","Work address",""],["Street address","text","Shipping address",""],["Apt, suite, unit","text","Shipping address",""],["City","text","Shipping address",""],["State","text","Shipping address",""],["ZIP code","text","Shipping address",""],["Country","text","Shipping address",""],["Date of birth","date","Date of birth and sizes",""],["Shirt size","text","Date of birth and sizes",""],["Pants size","text","Date of birth and sizes",""],["Dress size","text","Date of birth and sizes",""],["Shoe size","text","Date of birth and sizes",""],["Make","text","Vehicles",""],["Model","text","Vehicles",""],["Year","text","Vehicles",""],["License plate","text","Vehicles",""],["VIN","text","Vehicles",""],["Make","text","Vehicles",""],["Model","text","Vehicles",""],["Year","text","Vehicles",""],["License plate","text","Vehicles",""],["VIN","text","Vehicles",""],["Kind","text","Insurance",""],["Company","text","Insurance",""],["Policy number","text","Insurance",""],["Kind","text","Insurance",""],["Company","text","Insurance",""],["Policy number","text","Insurance",""],["Store","text","Loyalty numbers",""],["Number","text","Loyalty numbers",""],["Store","text","Loyalty numbers",""],["Number","text","Loyalty numbers",""],["Store","text","Loyalty numbers",""],["Number","text","Loyalty numbers",""],["Store","text","Loyalty numbers",""],["Number","text","Loyalty numbers",""],["Employer","text","Work and emergency contact",""],["Job title","text","Work and emergency contact",""],["Emergency contact","text","Work and emergency contact",""],["Relationship","text","Work and emergency contact",""],["Emergency phone","tel","Work and emergency contact",""],["Leave the store’s tab open after a check","checkbox","Store checks in your browser",""]]},{"id":"you-knows","t":"What Sara knows","who":"all","lead":"What Sara knows about your world, from your chats and your Library documents, each with its source. Edit, delete or mark Not true; dates in documents can become reminders.","h":["From your documents","Ask your documents","What she knows"],"b":["Ask"],"c":[["wsk-ask","search","Ask your documents",""]]},{"id":"you-adult","t":"Adult mode","who":"all","lead":"Off by default. Can only be changed in a web browser, by an adult.","h":[],"b":["Turn on adult mode","Turn off adult mode"],"c":[["I am 18 or older. (If you are not 18 or older, do not turn on adult mode.)","checkbox","",""]]},{"id":"ab-store","t":"Get more","who":"owner","lead":"Add-ons from the Sara Store: plugins, skills, tool servers and companions checked by the Sara team. Each shows what it can do before you add it, and nothing switches on by itself.","h":[],"b":["Check now","Browse","My add-ons","Submit"],"c":[["Search add-ons","search","",""],["Show add-ons nobody has reviewed yet","checkbox","",""]]},{"id":"ab-tools","t":"Tools and approvals","who":"owner","lead":"What she’s allowed to do on her own and what asks you first (running commands, sending mail, pushing code…).","h":["Short tool list","Isolation","Sites sandboxed work may reach","Your decisions","Browser for testing"],"b":["Look again","Install Docker for me","Save","Look again"],"c":[["Send her","select","Short tool list","Automatic (fits each step)"],["Short list above","select","Short tool list","3,000 tokens"],["Keep a looked-up tool for","select","Short tool list","5 of your messages"],["Code mode: one script for many tool calls","checkbox","Short tool list",""],["Smaller list on models on this computer","checkbox","Short tool list",""],["Allow internet access for shell commands","checkbox","Short tool list",""],["Sandbox for commands and add-on jobs","select","Isolation","Automatic"],["Which sites","select","Sites sandboxed work may reach","Any site"],["Allowed sites, one per line","textarea","Sites sandboxed work may reach",""],["Check her plans against what you decided","checkbox","Your decisions",""],["When a plan goes against a decision","select","Your decisions","Stop on clear conflicts"]]},{"id":"ab-mail","t":"Email and calendar","who":"all","lead":"Connect Gmail, Outlook and other mailboxes so she can find mail, draft replies, tidy up and handle your calendar. Sending, organizing and calendar changes ask you first.","h":["Inbox helper","Word and Excel files"],"b":[],"c":[]},{"id":"ab-google","t":"Gmail and Calendar","who":"owner","lead":"Connect Gmail and Calendar so she can find mail, draft replies and handle your calendar. Sending and adding events ask you first.","h":["Docs and Sheets"],"b":["Sign out of Google","Reconnect to allow organizing","Copy","Save"],"c":[["Client ID","text","",""],["Client secret","password","",""]]},{"id":"ab-github","t":"GitHub","who":"owner","lead":"Connect GitHub so she can commit, push, open pull requests and work with issues. Watch repositories and new issues become tasks.","h":["Issues become tasks","Her commits"],"b":["Save","Remove","Look now","Save"],"c":[["GitHub token","password","",""],["Repositories to watch (one per line, owner/name)","textarea","Issues become tasks",""],["Only issues labeled","text","Issues become tasks",""],["Look for new ones","select","Issues become tasks","Off"],["Name her as co-author","checkbox","Her commits",""],["Name","text","Her commits",""],["Email","email","Her commits",""]]},{"id":"ab-projects","t":"Coding projects","who":"owner","lead":"What she knows about each coding project: commands, layout, rules and her notes. Add a note to teach her something for next time.","h":["How she is while you code","Loop guard","Try commands in a sandbox first","Security pass","Threat model","Red team"],"b":["Look again","Before you ship","Look again","Open findings"],"c":[["Quiet when I'm focused","checkbox","How she is while you code",""],["Workspace","select","How she is while you code",""],["Try commands in a sandbox first","select","Try commands in a sandbox first","Only risky commands"],["Let tries use the network","checkbox","Try commands in a sandbox first",""],["Largest copy","select","Try commands in a sandbox first",""],["Time limit for a try","select","Try commands in a sandbox first",""],["Check her code changes","select","Security pass","After coding turns"],["A second look by the Reviewing model","checkbox","Security pass",""],["Check dependencies for known vulnerabilities (OSV.dev)","checkbox","Security pass",""],["Budget for the second look and each fix","select","Security pass",""],["Run the project's tests after a fix (in a sandbox copy)","checkbox","Security pass",""],["Threat model after coding turns","select","Threat model","Report and offer the fix pass"],["Red-team before shipping","select","Red team","Ask me"],["Probe scripts by the Coding model","select","Red team",""],["Red-team budget","select","Red team",""],["Time limit for a run","select","Red team",""]]},{"id":"ab-budgets","t":"Budgets","who":"owner","lead":"Ceilings for each of her replies (tokens, steps, dollars, time), for coding and everyday chats, and what she does near and at the limit.","h":["Coding chats","Everyday chats","Near the limit","Learning a topic"],"b":[],"c":[["Limit each reply in coding chats","checkbox","Coding chats",""],["Tokens","select","Coding chats",""],["Steps","select","Coding chats",""],["Spending limit","select","Coding chats",""],["Time","select","Coding chats",""],["Limit each reply in everyday chats","checkbox","Everyday chats",""],["Tokens","select","Everyday chats",""],["Steps","select","Everyday chats",""],["Spending limit","select","Everyday chats",""],["Time","select","Everyday chats",""],["Switch to the quick model to save","checkbox","Near the limit",""],["At the limit","select","Near the limit","Wrap up and tell me what's left"],["Monthly learning budget","select","Learning a topic",""]]},{"id":"ab-when","t":"When it comes up","who":"all","lead":"Reminders that wait for a person or a topic to come up in your own messages (“when Dan comes up, remind me he owes me $20”): how often, how many a day, and when they end.","h":[],"b":[],"c":[["Keep “when it comes up” reminders","checkbox","",""],["When you ask for one","select","","Set it, with Undo"],["In one reply","select","",""],["In a day","select","",""],["Ends after","select","",""],["Every time: at most once in","select","",""],["Every time: how many times","select","",""],["Your lines in shared rooms","select","","Off"],["Also in calls with her in the app","checkbox","",""]]},{"id":"you-automations","t":"Automations","who":"all","lead":"Everything that runs on its own, in one place: make one from your own words or a starter, preview it, try it without doing anything, switch it on or off and see its history.","h":["Templates","Your automations"],"b":["Preview","Read it","Open a file…"],"c":[["Describe it","textarea","",""],["atm-tpl-text","textarea","Templates",""]]},{"id":"ab-precise","t":"Check her edits","who":"owner","lead":"Checks after her edits (your project's own type checker or linter, asked once per project) and @-references: attach a file, lines, your changes, the branch, the errors or a web page.","h":["Check her edits","Projects","Attach with @"],"b":[],"c":[["Check her edits","checkbox","Check her edits",""],["Her next step waits","select","Check her edits",""],["A check is stopped after (seconds)","select","Check her edits",""],["Errors written out","select","Check her edits",""],["Remind her to fix what she broke","select","Check her edits",""],["Also show warnings","checkbox","Check her edits",""],["Workspace","select","Projects",""],["Read @-references in my messages","checkbox","Attach with @",""],["Largest reference (characters)","select","Attach with @",""],["In older messages","select","Attach with @","One line"],["Web pages with @url:","checkbox","Attach with @",""]]},{"id":"ab-persist","t":"Keep going and repeats","who":"owner","lead":"Keep going until it’s done (goals on a chat, ended only by a check you pick) and repeats (checks on a timer in a chat): their caps, quiet hours and daily budgets.","h":["How far she may go"],"b":[],"c":[["Let her keep going until it’s done","checkbox","",""],["Let her repeat things in a chat","checkbox","",""],["Rounds per goal","select","How far she may go",""],["Time per goal (minutes)","select","How far she may go",""],["Tokens per goal","select","How far she may go",""],["Dollars per goal","select","How far she may go",""],["Stuck after","select","How far she may go",""],["Check time limit (minutes)","select","How far she may go",""],["Reviewer check uses","select","How far she may go","The Reviewing model"],["Shortest interval (minutes)","select","How far she may go",""],["End when none is given (hours)","select","How far she may go",""],["Longest repeat (hours)","select","How far she may go",""],["Checks per repeat","select","How far she may go",""],["Tokens per check","select","How far she may go",""],["Steps per check","select","How far she may go",""],["Tokens per day, all repeats","select","How far she may go",""],["Dollars per day, all repeats","select","How far she may go",""],["At night","select","How far she may go","Don’t check"],["Stop after failures","select","How far she may go",""],["Stop when nothing changes","select","How far she may go",""],["Repeats at once","select","How far she may go",""]]},{"id":"ab-recipes","t":"Recipes","who":"owner","lead":"Recipes became skills: everything she saved is in Skills now. This page takes you there.","h":[],"b":["Open Skills"],"c":[]},{"id":"ab-skills","t":"Skills","who":"all","lead":"How-tos she follows for kinds of tasks, in the open Agent Skills format: switch them on or off for this companion, make your own, add skills from other apps, export them.","h":["How she uses them","Skills she learns","Project skills"],"b":["New skill","Add a skill","Export all","Make it a skill"],"c":[["From a recipe","select","",""],["Offer to make skills","checkbox","Skills she learns",""],["She offers a skill after you've asked: 3","range","Skills she learns",""],["Look back","select","Skills she learns",""],["Offers per day","select","Skills she learns",""],["Check learned skills before using them","checkbox","Skills she learns",""],["Learn from step chains in coding","checkbox","Skills she learns",""],["Propose fixes after using a skill","checkbox","Skills she learns",""],["Show","select","Skills she learns","All skills"]]},{"id":"ab-plugins","t":"Plugins","who":"owner","lead":"Installed plugins, five included chat apps, local workflow candidates and starter guides. Candidates use the normal permission review and stay off until enabled for each companion.","h":["Waiting for you","Comes with Sara"],"b":["Add a plugin"],"c":[]},{"id":"ab-home","t":"Home Assistant","who":"owner","lead":"Home Assistant: she can see your lights, sensors and thermostat, and change things after you approve.","h":["Presence"],"b":["Save and test","Disconnect","Try it now"],"c":[["Home Assistant address","text","",""],["Long-lived access token","password","",""],["React to what happens at home","checkbox","Presence",""],["People and phones to watch","select","Presence",""],["When someone gets home","checkbox","Presence",""],["When someone leaves","checkbox","Presence",""],["At bedtime","checkbox","Presence",""],["Bedtime switch","select","Presence",""],["Or bedtime at","time","Presence",""],["When a light goes on in the morning","checkbox","Presence",""],["Morning light","select","Presence",""],["Morning from","time","Presence",""],["Morning until","time","Presence",""],["How she reacts","select","Presence","A message (notification)"],["Speaker","select","Presence",""],["Home Assistant voice","select","Presence",""],["At most once every","select","Presence","1 hour"]]},{"id":"ab-ssh","t":"Servers over SSH","who":"owner","lead":"Connect your other servers so she can work on them over SSH. She makes her own key and finds the easiest way to install it (a cPanel token, the password once, or one pasted line). Every command there asks you first.","h":["Connect a server","Connect","Your servers"],"b":["Set the port myself","Connect","Cancel","Yes, remember it and continue"],"c":[["Server address","text","Connect a server",""],["User name","text","Connect a server",""],["Port","number","Connect a server",""],["cPanel token","password","Connect",""],["Delete the token for me when I'm done","checkbox","Connect",""],["Password","password","Connect",""],["Save the password for future sessions","checkbox","Connect",""],["I understand the risk. Keep the password anyway.","checkbox","Connect",""],["Where is the server","select","Connect","cPanel (any host)"],["Private key","textarea","Connect",""],["Or the path of a key file on the Sara server","text","Connect",""],["Name","text","Your servers",""],["User name","text","Your servers",""],["Port","number","Your servers",""]]},{"id":"ab-search","t":"Web search","who":"owner","lead":"How she searches the web for up-to-date answers.","h":[],"b":[],"c":[["Search service","select","","Off"],["API key","password","",""],["SearXNG URL","text","",""]]},{"id":"ab-data","t":"Data sources","who":"all","lead":"Where live prices, scores and odds come from: free sources, a key field for those that need one, a Test button and your “tell me when” watches.","h":["Stock prices","Sports","Odds","Tell me when"],"b":["Test","Test","Test"],"c":[["Source","select","Stock prices",""],["Finnhub key Get a free key","password","Stock prices",""],["Alpha Vantage key Get a free key","password","Stock prices",""],["Source","select","Sports",""],["TheSportsDB key (optional) Get a key","password","Sports",""],["Source","select","Odds",""],["The Odds API key Get a free key","password","Odds",""]]},{"id":"ab-library","t":"Library","who":"owner","lead":"How big her documents may be and how she reads long ones: size limits, scanned pages, background speed.","h":[],"b":[],"c":[["Largest document","select","","Up to 100 MB"],["Largest document for household members","select","","Up to 25 MB"],["Scanned pages","select","","Read them; ask me first when a cloud model would"],["Background reading:","range","",""]]},{"id":"ab-mcp","t":"Other programs (MCP)","who":"owner","lead":"Existing MCP connections and manual setup, plus read-only recipe previews and blocked investigations. Verify Ask or Off permissions after discovery, reconnect and updates; annotations are not approval or cost fences.","h":["Programs add-ons need"],"b":["Save and connect"],"c":[["Start from","select","","Blank"],["Name","text","",""],["Type","select","","Command on this server (stdio)"],["Command","text","",""],["Arguments","text","",""],["URL","text","",""],["Secrets","textarea","",""],["Enabled","checkbox","",""],["Show its apps in the chat","checkbox","",""],["Program installs","select","Programs add-ons need","Ask first"]]},{"id":"co-phone","t":"Phone and notifications","who":"all","lead":"Notifications on your phone and computers, the phone apps, and adding her to your home screen.","h":["Phone app","Notifications","Phone calls"],"b":["Add her to your home screen","Your Saras…","Turn on for this device","Turn off for this device"],"c":[["Instant notifications (keeps a quiet connection to your server open; uses a litt","checkbox","Phone app",""],["Hide the message text on the lock screen","checkbox","Phone app",""],["Lock the app","checkbox","Phone app",""],["Place reminders (\"remind me when I get to the store\"; saved places are in Planne","checkbox","Phone app",""],["Show the message text in notifications (turn off if others see your lock screen)","checkbox","Notifications",""],["apns-p8","textarea","Notifications",""],["Key ID","text","Notifications",""],["Team ID","text","Notifications",""],["App ID (change only if you built the app yourself under another ID)","text","Notifications",""],["Switched on","checkbox","Phone calls",""],["Provider","select","Phone calls","Twilio (or a Twilio-compatible provider)"],["Account SID","text","Phone calls",""],["Auth token","password","Phone calls",""],["Her phone number","text","Phone calls",""],["Your number","text","Phone calls",""],["Public address of this server","text","Phone calls",""],["People who get through (one per line: name, number)","textarea","Phone calls",""],["Record calls she places (she tells them first)","checkbox","Phone calls",""],["Longest call, in minutes","number","Phone calls",""],["Your price per minute, US dollars","number","Phone calls",""]]},{"id":"co-shortcuts","t":"iPhone Shortcuts","who":"all","lead":"Share to Sara and Ask Sara with Siri on an iPhone through Apple Shortcuts: a token for each iPhone and the steps to build them.","h":["Tokens","Get the ready-made shortcuts","Make “Share to Sara”","Make “Ask Sara” for Siri","A widget with Shortcuts"],"b":["Make a token","Save links"],"c":[["Name of the iPhone","text","Tokens",""],["Share to Sara","checkbox","Tokens",""],["Ask Sara and the widget","checkbox","Tokens",""],["Share to Sara link","text","A widget with Shortcuts",""],["Ask Sara link","text","A widget with Shortcuts",""]]},{"id":"co-telegram","t":"Telegram","who":"owner","lead":"Talk to her on Telegram too: same memories, same her.","h":["Connection","Remote work and groups","Commands","Pictures and files","Progress while she works","Rooms"],"b":["Link my Telegram","Unlink","Register menus now","Send me a test picture"],"c":[["Bot token","password","Connection",""],["Switched on","checkbox","Connection",""],["Send reminders and messages she starts to my Telegram too","checkbox","Connection",""],["Let other people talk to her (as an AI, no tools, nothing private, nothing sexua","checkbox","Connection",""],["More owners (Telegram user IDs)","text","Remote work and groups",""],["Owners can use her tools in groups too","checkbox","Remote work and groups",""],["Answer when her name is said in a group (no @ needed)","checkbox","Remote work and groups",""],["Answer @all and @everyone in a group","checkbox","Remote work and groups",""],["Adult groups (group IDs)","text","Remote work and groups",""],["Show commands in the app menu","checkbox","Commands",""],["Her name works as a command","checkbox","Commands",""],["Offer a new session when a chat is long","checkbox","Commands",""],["Send me pictures and files here","checkbox","Pictures and files",""],["Look at pictures other people send","select","Pictures and files","No"],["Send screenshots of her work","checkbox","Pictures and files",""],["Keep other people's pictures for","select","Pictures and files","1 day"],["Show her progress while she works","checkbox","Progress while she works",""],["Where it shows","select","Progress while she works","Private chats only"],["Show it after","select","Progress while she works","5 seconds"],["When she's done","select","Progress while she works","Keep one summary line"]]},{"id":"co-discord","t":"Discord","who":"owner","lead":"Talk to her on Discord too.","h":["Connection","Remote work and servers","Other bots","Commands","Pictures and files","Progress while she works","Rooms","Voice channel"],"b":["Link my Discord","Unlink","Register menus now","Send me a test picture"],"c":[["Bot token","password","Connection",""],["Switched on","checkbox","Connection",""],["Send reminders and messages she starts to my Discord DMs too","checkbox","Connection",""],["Answer other people in servers (as an AI, no tools, nothing private; adult only","checkbox","Connection",""],["More owners (Discord user IDs)","text","Remote work and servers",""],["Owners can use her tools in server channels too","checkbox","Remote work and servers",""],["Answer when her name is said in a server (no @ needed)","checkbox","Remote work and servers",""],["Answer @everyone and @here","checkbox","Remote work and servers",""],["Answer other bots (when they @mention her, reply to her, or say her name)","checkbox","Other bots",""],["Only these bots (bot or webhook IDs, leave empty for any)","text","Other bots",""],["Replies to bots before a person must speak: 2 1 = she answers a bot once, then w","range","Other bots",""],["At most per hour, per channel","select","Other bots","5"],["Adult channels (channel IDs)","text","Other bots",""],["Show commands in the app menu","checkbox","Commands",""],["Her name works as a command","checkbox","Commands",""],["Offer a new session when a chat is long","checkbox","Commands",""],["Send me pictures and files here","checkbox","Pictures and files",""],["Look at pictures other people send","select","Pictures and files","No"],["Send screenshots of her work","checkbox","Pictures and files",""],["Keep other people's pictures for","select","Pictures and files","1 day"],["Show her progress while she works","checkbox","Progress while she works",""],["Where it shows","select","Progress while she works","Private chats only"],["Show it after","select","Progress while she works","5 seconds"],["When she's done","select","Progress while she works","Keep one summary line"],["Server ID","text","Voice channel",""],["Voice channel ID","text","Voice channel",""],["Join and talk in this channel","checkbox","Voice channel",""]]},{"id":"co-signal","t":"Signal","who":"owner","lead":"Talk to her on Signal through your own signal-cli: link your chat with a code, groups when she's called.","h":["Signal"],"b":[],"c":[]},{"id":"co-email","t":"Email","who":"owner","lead":"Give her a mailbox of her own: email her or forward her a mail and she answers in the same thread.","h":["Email"],"b":[],"c":[]},{"id":"co-whatsapp","t":"WhatsApp","who":"owner","lead":"Text her on WhatsApp through your own Meta WhatsApp Business account: a guided setup that checks each step, then she answers like on Telegram.","h":["WhatsApp"],"b":[],"c":[]},{"id":"co-matrix","t":"Matrix","who":"owner","lead":"Talk to her in Element or any Matrix app through a Matrix account of her own: a guided setup that checks each step, for rooms without end-to-end encryption.","h":["Matrix"],"b":[],"c":[]},{"id":"co-imessage","t":"iMessage","who":"owner","lead":"Text her from Messages on your iPhone through BlueBubbles on your own Mac, with an Apple ID of her own: a guided setup that checks each step. Needs a Mac.","h":["iMessage"],"b":[],"c":[]},{"id":"co-slack","t":"Slack","who":"owner","lead":"Talk to her in Slack through a small Slack app you create from a manifest: her DMs, and mentions in channels you switch on. A guided setup that checks each step; no public address needed.","h":["Slack"],"b":[],"c":[]},{"id":"co-teams","t":"Microsoft Teams","who":"owner","lead":"Talk to her in Microsoft Teams through a free Azure Bot and a Teams app package Sara builds: her personal chat, and mentions in channels you switch on. Teams needs a public https address for Sara.","h":["Microsoft Teams"],"b":[],"c":[]},{"id":"co-continuity","t":"Session continuity","who":"owner","lead":"Choose whether your own sessions with this companion share context. Inspect or clear saved notes in This conversation, even while continuity is off. Expired notes can remain until a write or explicit clear.","h":["Session continuity","Shared scenes"],"b":[],"c":[["Use context across my sessions","checkbox","Session continuity",""],["Replies at the same time","number","Session continuity",""],["Use shared scenes in linked chats","checkbox","Shared scenes",""]]},{"id":"co-pickup","t":"Pick up across apps","who":"owner","lead":"Carry our last conversation between your apps: start on Telegram, open the app, and pick it up with Continue here or /continue. Nothing is copied or merged.","h":["Your chats that take part"],"b":[],"c":[["When I switch apps","select","","Offer to pick up"],["How recent","select","",""],["Back-and-forths carried","select","",""],["A fresh chat takes the coding folder along","checkbox","",""]]},{"id":"co-spotify","t":"Spotify","who":"owner","lead":"Spotify: she can search, see what is playing and your playlists, and if you allow it make playlists or control playback.","h":["What she may do"],"b":["Disconnect Spotify","Copy","Save","Connect Spotify"],"c":[["Client ID","text","",""],["Let her make and change playlists","checkbox","What she may do",""],["Let her control playback","checkbox","What she may do",""]]},{"id":"co-apps","t":"Other apps","who":"all","lead":"Use her from other apps (SillyTavern, Open WebUI, Claude Code, Cursor, Claude Desktop) with an API key.","h":["Her addresses","API keys","What other apps may do","Talk to her through Alexa","Set up an app"],"b":["Copy","Copy","Create an API key for another app","Copy"],"c":[["Name of the app","text","API keys",""],["Let other apps use her tools","checkbox","What other apps may do",""],["Let other apps change things","checkbox","What other apps may do",""],["Browser apps that may call her","text","What other apps may do",""],["Skill ID","text","Talk to her through Alexa",""],["Answer Alexa with the quick model","checkbox","Talk to her through Alexa",""]]},{"id":"co-agents","t":"Other agents","who":"owner","lead":"Let other AI agents ask her things, and let her ask them (the open A2A protocol), with a key per agent and your OK for anything that changes something.","h":["Her agent card","Agents","Give an agent a key","Add an agent she can ask","Recent requests"],"b":["Copy","Make a key","Copy","Look it up"],"c":[["Let other agents reach her","checkbox","",""],["Show her name on the public card","checkbox","",""],["Allow agents on my network in private mode","checkbox","",""],["She answers for","text","",""],["Name of the agent","text","Give an agent a key",""],["Use web search","checkbox","Give an agent a key",""],["Add to-dos (asks you)","checkbox","Give an agent a key",""],["Share notes that aren't private","checkbox","Give an agent a key",""],["Tasks a day","select","Give an agent a key","200"],["Tokens a day","select","Give an agent a key","100,000"],["The key works for","select","Give an agent a key","180 days"],["Agent's address","text","Add an agent she can ask",""]]},{"id":"co-hooks","t":"Webhooks","who":"owner","lead":"Let GitHub, Stripe, Home Assistant or a script tell her when something happens: a signed address per webhook, conditions, then she tells you, adds a card or runs a skill.","h":["Your webhooks","When this happens"],"b":["New webhook"],"c":[["Keep the delivery log","select","Your webhooks","for 14 days"]]},{"id":"dh-safety","t":"Safety check-up","who":"owner","lead":"Read-only checks of how Sara is set up (who can reach her, sign-in, backups, tools that run without asking, chat apps, webhooks, secrets in her notes), with one-click fixes that only make things safer.","h":["Make a new owner token"],"b":["Check again","Make a new token","Copy","Sign in again"],"c":[["Your current owner token","password","Make a new owner token",""]]},{"id":"dh-audit","t":"Audit trail","who":"owner","lead":"Who changed what, when and from where: settings, sign-ins, approvals and background work. Names only, never values or chat text. Filter, check the chain and export it.","h":["Export","Keep"],"b":["Check the chain","Export JSONL","Export CSV","Export JSON"],"c":[["Who","select","","Everyone"],["What","select","","Everything"],["Where","select","","Anywhere"],["Outcome","select","","Any"],["From","date","",""],["To","date","",""],["Include message content","checkbox","Export",""],["Keep the audit trail","select","Keep","for 30 days"]]},{"id":"dh-retention","t":"Retention and legal hold","who":"owner","lead":"How long chats, memories and files are kept, a legal hold for one person or the whole server that stops every deletion, and one person's data as a download or deleted with a receipt.","h":["Keep","Legal hold","People","Edit history"],"b":["Open the audit trail"],"c":[["Keep chats","select","Keep","until I change this"],["Keep memories","select","Keep","until I change this"],["Keep files and photos","select","Keep","until I change this"],["Keep run history","select","Keep","until I change this"],["Keep older log files","select","Keep","until I change this"],["Keep inbox scans","select","Keep","until I change this"],["Hold everything on this server","checkbox","Legal hold",""]]},{"id":"dh-policy","t":"Policy","who":"owner","lead":"Pin rules for everyone on this server: allowed model providers, tool limits, Always allow off, adult mode off, Store installs, retention. Pinned settings can't be changed until the policy changes.","h":["Allowed model providers","Tools","Safety"],"b":["Save the policy","Export JSON","Import JSON"],"c":[["Policy name","text","",""],["OpenAI-compatible (Ollama, OpenAI…)","checkbox","Allowed model providers",""],["Anthropic","checkbox","Allowed model providers",""],["ChatGPT subscription","checkbox","Allowed model providers",""],["Claude Code subscription","checkbox","Allowed model providers",""],["Grok subscription","checkbox","Allowed model providers",""],["Commands","select","Tools","No limit"],["Tool servers (MCP)","select","Tools","No limit"],["Turn off Always allow","checkbox","Tools",""],["Keep adult mode off","checkbox","Safety",""],["No internet for her commands","checkbox","Safety",""],["Server keys only from secret sources","checkbox","Safety",""],["Require the container sandbox","checkbox","Safety",""],["Only these sites for sandboxed work","checkbox","Safety",""],["Sites, one per line","textarea","Safety",""],["Keep private local mode on","checkbox","Safety",""],["Sara Store","select","Safety","No limit"],["Replies at the same time","select","Safety","No limit"],["Turn off Learn a topic","checkbox","Safety",""],["Turn off How she works with you","checkbox","Safety",""],["Hard daily spending cap","select","Safety","No cap"],["Turn off household members' own mailboxes","checkbox","Safety",""],["Turn off Phone as a helper","checkbox","Safety",""],["Keep work mode on everywhere","checkbox","Safety",""],["Keep new-device approval on","checkbox","Safety",""],["Turn off Code mode","checkbox","Safety",""],["Turn off meetings","checkbox","Safety",""],["Turn off shared links","checkbox","Safety",""],["Program installs","select","Safety","No limit"],["Turn off editors","checkbox","Safety",""],["Turn off event triggers","checkbox","Safety",""],["Crews","select","Safety","No limit"],["Overnight memory tidy","select","Safety","No limit"],["Keep the whole server on legal hold","checkbox","Safety",""],["No deleting one person's data","checkbox","Safety",""],["Audit trail retention","select","Safety","Not pinned"]]},{"id":"dh-health","t":"Health","who":"owner","lead":"How you reach her (the address to open on your phone, with a QR code), and is everything working? Checks the database, every model, backups and more, and says what to do when something’s wrong.","h":["Check everything","Run history","History","Recent problems"],"b":["Check everything","Copy the results","Send in a problem report","Run full check"],"c":[["Make and remove a test draft","checkbox","Check everything",""],["Add and remove a test event","checkbox","Check everything",""],["Send a test notification","checkbox","Check everything",""],["Keep runs","select","Run history","for 90 days"],["hh-range","select","History","Last 24 hours"],["Log level","select","Recent problems","Debug (most detail)"]]},{"id":"dh-quality","t":"How she did","who":"owner","lead":"How her replies went this week: failed, slow and empty replies, backup models that took over, refused desktop actions and changes she could not check, with links to the chats and tips.","h":["Top problems","Tips"],"b":[],"c":[["Period","select","","Last 7 days"]]},{"id":"dh-operations","t":"Operations","who":"owner","lead":"Read local HTTP measurements, readiness evidence and current-space queue counts. Refresh is read-only; configured models and saved backups are not proof of inference or recovery.","h":["Monitoring","Secret sources"],"b":["Make a scrape token","Remove the token","Copy","Copy the scrape config"],"c":[["Serve metrics at /metrics","checkbox","Monitoring",""],["Addresses that may read without a token","text","Monitoring",""],["Send traces","checkbox","Monitoring",""],["Collector address","url","Monitoring",""],["Share of replies traced","range","Monitoring",""],["Collector headers","textarea","Monitoring",""]]},{"id":"dh-recovery","t":"Readiness and recovery","who":"owner","lead":"Is this install ready for real use: each area ready, needs attention or not ready, with one fix, and a restore drill that proves a backup opens. Below, interrupted work to review; nothing restarts by itself.","h":["Restore drill","Interrupted work"],"b":["Check again","Run a restore drill"],"c":[]},{"id":"dh-devices","t":"Devices and sign-in","who":"all","lead":"Signed-in phones, computers and apps: add one with a code (no token needed), approve the terminal client or VS Code when they ask, or sign one out. Passkeys and two-step sign-in keep the owner sign-in safe.","h":["Use Sara away from home","Offline on this device","Phone as a helper","Apps asking to sign in","Household members' apps","Approve new devices","Passkeys","Two-step sign-in"],"b":["Add a phone or computer","Set up access","Cancel the code","Got it"],"c":[["Keep a copy on this device for offline","checkbox","Offline on this device",""],["Also keep private chats","checkbox","Offline on this device",""],["Sara may ask this device for its camera, location or screen","checkbox","Phone as a helper",""],["Ask me before a new device signs in from elsewhere","checkbox","Approve new devices",""],["Devices at most","select","Approve new devices","No limit"],["Allowed addresses","text","Approve new devices",""],["Current token","password","Approve new devices",""],["Name it","text","Passkeys",""],["Code from the app","text","Two-step sign-in",""],["Current code","text","Two-step sign-in",""]]},{"id":"dh-backups","t":"Backups","who":"owner","lead":"Daily backups on the server, and an encrypted copy somewhere else in case the server is lost.","h":["Off-server copy"],"b":["Back up now","Copy the latest backup now","Test restore now"],"c":[["Back up automatically every day, keep days","checkbox","",""],["Back up automatically every day, keep days","number","",""],["Copy backups to","select","Off-server copy","Nowhere (off)"],["Folder","text","Off-server copy",""],["Endpoint","text","Off-server copy",""],["Bucket","text","Off-server copy",""],["Region","text","Off-server copy",""],["Key ID","text","Off-server copy",""],["Secret key","password","Off-server copy",""],["Passphrase","password","Off-server copy",""],["Keep the newest copies","number","Off-server copy",""]]},{"id":"dh-data","t":"Export and import","who":"owner","lead":"Bring in your ChatGPT or Claude history, download everything as one file, or bring in an export from another Sara.","h":["Bring your history","Export and import"],"b":["Choose an export (.zip)","Import","Never mind","Pause"],"c":[["Learn from them (a few conversations a minute, in the background)","checkbox","Bring your history",""],["Oldest first","checkbox","Bring your history",""],["Include run history","checkbox","Export and import",""]]},{"id":"dh-movein","t":"Move in from another agent","who":"owner","lead":"Bring your old assistant over from Hermes Agent or OpenClaw: one button when it is on this computer, one pasted line when it is on another. You see everything before it comes in, and Undo takes it all back.","h":["How it works","Past move-ins","Saved store mappings"],"b":["Next","Windows (PowerShell)","Mac","Linux"],"c":[["I ran it and have the .saramove file","checkbox","How it works",""]]},{"id":"dh-updates","t":"Updates","who":"owner","lead":"Get the newest version. A backup is made first, and Sara goes back by herself if the update doesn’t start.","h":[],"b":["Check for updates","Update now"],"c":[]},{"id":"dh-shares","t":"Shared links","who":"all","lead":"Conversations you shared as read-only links: when each expires and how often it was opened. Revoke a link to end it at once, and choose whether private chats may be shared.","h":[],"b":[],"c":[["Allow sharing private chats","checkbox","",""],["Household members can share their own chats","checkbox","",""]]},{"id":"dh-usage-report","t":"Usage reports","who":"all","lead":"Tokens and estimated cost by day, week or month, split by person, workspace, project and model. Download it as CSV and set monthly budgets that warn you early.","h":["Split by","Monthly budgets"],"b":["Download CSV","Add budget"],"c":[["Show","select","","Daily"],["From","date","",""],["To","date","",""],["Who","checkbox","Split by",""],["Workspace","checkbox","Split by",""],["Project","checkbox","Split by",""],["Model","checkbox","Split by",""],["For","select","Monthly budgets",""],["$","number","Monthly budgets",""],["or tokens","number","Monthly budgets",""],["Warn at","select","Monthly budgets","80%"]]},{"id":"dh-trust","t":"Trust report","who":"owner","lead":"What Sara said against what actually ran, for a week, one run or one project: flagged claims, tool calls, failures, approvals, refusals, sandbox, sources and audit rows. Download it for a reviewer.","h":["Download"],"b":["Show","Markdown","PDF","Word"],"c":[["Report on","select","","A week"],["From","date","",""],["Run number","number","",""],["Project","select","",""]]},{"id":"dh-usage","t":"Usage and costs","who":"owner","lead":"Tokens and estimated costs of every model call (chats, jobs, team tasks, memory and other helpers), budgets for jobs and team tasks, and your price table.","h":["By companion","By model","By what it was for","Budgets","Spend limits","Tools that cost money","Token Saver","Prices per model"],"b":["Save spend settings","Add a price"],"c":[["Show","select","","Today"],["Each job: tokens","number","Budgets",""],["or $","number","Budgets",""],["Each team task: $","number","Budgets",""],["Each day $","number","Spend limits",""],["Each month $","number","Spend limits",""],["Mode","select","Token Saver","Off"],["Daily line","select","Token Saver",""]]},{"id":"household","t":"People on this server","who":"owner","lead":"Invite other adults to their own private space on this server, choose the models they may use and a daily limit, see how much they use, pause or remove them.","h":["Invite someone","Waiting invites","People","Tools for household members"],"b":["Make invite","Copy link"],"c":[["Their name","text","Invite someone",""],["The invite works for","select","Invite someone","1 day"],["Messages a day","select","Invite someone",""],["Spending a day","select","Invite someone",""],["Voice","checkbox","Invite someone",""],["Pictures from her","checkbox","Invite someone",""],["This person is 18 or older","checkbox","Invite someone",""],["This is a child (kid-safe mode)","checkbox","Invite someone",""],["Age band","select","Invite someone","Age 10-12"],["I am this child’s parent or guardian","checkbox","Invite someone",""],["Rules for","select","Tools for household members","Everyone"],["Computer use","select","Tools for household members","Same as everyone"],["Sending email","select","Tools for household members","Same as everyone"],["Web search and reading","select","Tools for household members","Same as everyone"],["Errands","select","Tools for household members","Same as everyone"],["Automations","select","Tools for household members","Same as everyone"],["Every tool asks first","checkbox","Tools for household members",""],["Paid tools, at most","select","Tools for household members",""]]},{"id":"account","t":"Your account","who":"member","lead":"Your member account here: what the owner allowed you, today’s use, your sign-in, downloading your data and deleting your account.","h":["Sign-in and devices","Your data","Delete my account"],"b":["Devices and sign-in","Make a new token","Delete my account"],"c":[["Current token","password","Sign-in and devices",""],["Your member token","password","Delete my account",""]]},{"id":"dh-privacy","t":"Privacy","who":"owner","lead":"The anonymous daily check-in: switch it off, see exactly what it sends, or start over with a new install ID.","h":[],"b":["Show what's sent","Reset the install ID","Check now"],"c":[["Anonymous daily check-in","checkbox","",""],["Sara Store","checkbox","",""]]},{"id":"dh-reports","t":"Reports","who":"all","lead":"Replies you reported with ⚑.","h":["Reports from the apps"],"b":[],"c":[]}];
+const P = Object.fromEntries(INV.map((p) => [p.id, p]));
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const params = new URLSearchParams(location.search);
+document.documentElement.dataset.theme = params.get('theme') === 'light' ? 'light' : 'dark';
+if (params.get('shot')) document.body.classList.add('shot');
+$('#mock-theme').onclick = () => { document.documentElement.dataset.theme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; };
+
+const IC = {
+  sara: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
+  you: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21c0-4.4 3.6-7 8-7s8 2.6 8 7',
+  models: 'M7 7h10v10H7zM10 3v4M14 3v4M10 17v4M14 17v4M3 10h4M3 14h4M17 10h4M17 14h4',
+  conn: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+  skills: 'M12 3l2.5 5.5L20 9l-4 4 1 6-5-3-5 3 1-6-4-4 5.5-.5z',
+  system: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6zM9 12l2 2 4-4',
+  house: 'M3 11l9-7 9 7M5 10v10h14V10M10 20v-6h4v6',
+  home: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  chev: 'M9 6l6 6-6 6', back: 'M15 6l-6 6 6 6', check: 'M5 12.5l4.5 4.5L19 7.5', x: 'M6 6l12 12M18 6L6 18',
+  search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14zM20 20l-3.5-3.5', page: 'M7 3h7l5 5v13H7zM14 3v5h5', slider: 'M4 7h10M18 7h2M4 17h4M12 17h8M14 5v4M8 15v4',
+};
+const icon = (k, cls = 'i') => `<svg class="${cls}" viewBox="0 0 24 24"><path d="${IC[k] ?? k}"/></svg>`;
+
+// ---- The proposed structure (docs/design/SETTINGS3.md) ----
+const GROUPS = [
+  { id: 'sara', name: 'Sara', icon: 'sara', desc: 'Who she is, how she looks and sounds, and how she reaches you.', pages: ['her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-work'] },
+  { id: 'you', name: 'You', icon: 'you', desc: 'About you, how the app looks on this device, your briefing and reminders.', pages: ['you-about', 'you-appearance', 'you-briefing', 'you-automations', 'you-details', 'you-business', 'you-knows', 'you-adult'] },
+  { id: 'models', name: 'Models & usage', icon: 'models', desc: 'Which AI runs her, for which job, what it costs and its limits.', pages: ['models-default', 'models-routes', 'models-providers', 'models-local', 'dh-usage'] },
+  { id: 'conn', name: 'Connections', icon: 'conn', desc: 'Chat apps, your accounts, your devices and other programs.', pages: ['co-hub', 'dh-devices', 'co-phone', 'desktop-app', 'co-computer'] },
+  { id: 'skills', name: 'Skills & tools', icon: 'skills', desc: 'The store, skills, plugins, tools and approvals, and coding.', pages: ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-tools', 'ab-library', '|Coding', 'ab-projects', 'ab-precise', 'ab-persist', 'ab-ssh'] },
+  { id: 'system', name: 'Privacy & system', icon: 'system', desc: 'Safety, privacy, backups, health and updates.', pages: ['dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'dh-health', 'dh-updates', 'dh-reports'] },
+  { id: 'house', name: 'Household', icon: 'house', desc: 'The people on this server and the rules they share.', pages: ['household', 'dh-policy', 'dh-audit', 'dh-retention', 'dh-trust', 'dh-usage-report', 'dh-shares'] },
+];
+const RENAME = { 'you-briefing': 'Briefing and reminders', 'models-providers': 'Providers and plans', 'dh-data': 'Move in and export', 'co-hub': 'Apps and services', 'co-email': 'Her own email' };
+// Thin pages that become a section of a stronger page (their ids stay as aliases).
+const MERGE = { 'you-briefing': ['you-leave-by', 'ab-when'], 'models-providers': ['models-subs'], 'dh-usage': ['ab-budgets'], 'co-phone': ['co-shortcuts'], 'co-pickup': ['co-continuity'], 'dh-health': ['dh-quality', 'dh-recovery', 'dh-operations'], 'dh-data': ['dh-movein', 'her-import'] };
+const HOST = {};
+for (const [h, gs] of Object.entries(MERGE)) for (const g of gs) HOST[g] = h;
+const TILES = [
+  ['Chat apps', [['co-telegram', 'ok', 'Connected · @alex'], ['co-discord', 'off', 'Not set up'], ['co-whatsapp', 'off', 'Not set up'], ['co-signal', 'off', 'Not set up'], ['co-imessage', 'off', 'Not set up'], ['co-matrix', 'off', 'Not set up'], ['co-slack', 'ok', 'Connected · 2 channels'], ['co-teams', 'off', 'Not set up'], ['co-email', 'off', 'Not set up']]],
+  ['Your accounts', [['ab-mail', 'ok', 'Connected · 2 mailboxes'], ['ab-home', 'warn', 'Can’t sign in'], ['ab-github', 'ok', 'Connected · 3 repositories'], ['co-spotify', 'off', 'Not set up']]],
+  ['Sources', [['ab-search', 'ok', 'On · Brave Search'], ['ab-data', 'ok', 'Free sources']]],
+  ['For developers', [['co-apps', 'ok', '1 key'], ['co-agents', 'off', 'Off'], ['co-hooks', 'ok', '2 webhooks']]],
+];
+const TILE = Object.fromEntries(TILES.flatMap(([, l]) => l.map((t) => [t[0], t])));
+const MONO = { 'co-telegram': 'Tg', 'co-discord': 'Dc', 'co-whatsapp': 'Wa', 'co-signal': 'Si', 'co-imessage': 'iM', 'co-matrix': 'Mx', 'co-slack': 'Sl', 'co-teams': 'Te', 'co-email': '@', 'ab-mail': 'Ma', 'ab-home': 'HA', 'ab-github': 'Gh', 'co-spotify': 'Sp', 'ab-search': 'Ws', 'ab-data': 'Ds', 'co-apps': 'Ap', 'co-agents': 'Ag', 'co-hooks': 'Wh', 'co-pickup': 'Pu' };
+P['co-hub'] = { id: 'co-hub', t: 'Apps and services', lead: 'Everything Sara talks to. Pick one to connect it, check it or change it.', h: [], b: [], c: [] };
+const title = (id) => RENAME[id] ?? P[id]?.t ?? id;
+const groupOf = (id) => GROUPS.find((g) => g.pages.includes(id)) ?? (TILE[id] || id === 'co-pickup' ? GROUPS[3] : HOST[id] ? groupOf(HOST[id]) : null);
+const pageCount = (g) => g.pages.filter((x) => !x.startsWith('|')).length;
+
+// ---- Rows ----
+const sw = (on) => `<button class="sw" role="switch" aria-checked="${on ? 'true' : 'false'}" type="button"></button>`;
+const tipBtn = (s) => `<button class="tip" type="button" title="${esc(s)}" aria-label="About this setting">i</button>`;
+function control(kind, value, label) {
+  const on = /switched on|automatically|on their own|follows her mood|instant|send me a morning|hide the message|show commands|answer when her name/i.test(label);
+  switch (kind) {
+    case 'checkbox': return sw(on);
+    case 'select': return `<div class="sel">${esc(value || 'Choose…')}</div>`;
+    case 'password': return `<div class="inp">••••••••••</div>`;
+    case 'time': return `<div class="inp short">07:00</div>`;
+    case 'number': return `<div class="inp short">${/minute/i.test(label) ? '10' : /days|keep/i.test(label) ? '14' : '1.0'}</div>`;
+    case 'color': return `<div class="swatch"></div>`;
+    case 'range': return `<div class="slider"></div>`;
+    case 'radio': return sw(false);
+    default: return `<div class="inp ph">${esc(value || '')}</div>`;
+  }
+}
+function row(label, ctl, { desc = '', tip = '', stack = false, link = '', hl = false, attrs = '' } = {}) {
+  const field = /class="(sel|inp)/.test(ctl);
+  return `<div class="row${stack ? ' stack' : ''}${field ? ' field' : ''}${link ? ' link' : ''}${hl ? ' hl' : ''}" ${link ? `data-go="${link}"` : ''} ${attrs}>
+    <div class="row-l"><div class="row-t">${esc(label)}${tip ? tipBtn(tip) : ''}</div>${desc ? `<div class="row-d">${esc(desc)}</div>` : ''}</div>
+    ${ctl}</div>`;
+}
+const card = (h, body, { d = '', more = '' } = {}) => `<div class="card">${h ? `<div class="card-h"><h2>${esc(h)}</h2>${more}</div>` : ''}${d ? `<p class="card-d">${esc(d)}</p>` : ''}${body}</div>`;
+function advanced(count, inner, open) {
+  return `<div class="adv"${open ? ' data-open' : ''}><button class="adv-btn" type="button">${icon('slider')}<span>Advanced</span><small>${count} more setting${count === 1 ? '' : 's'}</small>${icon('chev', 'i chev')}</button><div class="adv-body">${inner}</div></div>`;
+}
+
+// A page drawn from the inventory: one card per section, rows in the shared anatomy, and an
+// Advanced fold for the rest of a long page (the build decides per page; this is the default rule).
+function genericCards(p, { hl = -1, base = 0, first = '', nofold = false } = {}) {
+  const secs = [];
+  p.c.forEach((c, i) => {
+    const s = c[2] || first;
+    let box = secs.find((x) => x.s === s);
+    if (!box) secs.push((box = { s, rows: [] }));
+    box.rows.push([c, i]);
+  });
+  const heads = p.h.filter((h) => !secs.some((x) => x.s === h)).slice(0, 2);
+  const drawSec = (x) => card(x.s, x.rows.map(([c, i]) => row(c[0], control(c[1], c[3], c[0]), { stack: ['select', 'text', 'textarea', 'password'].includes(c[1]) && c[0].length > 28, tip: 'Tip text from web/tips.json', hl: i + base === hl, attrs: `data-row="${p.id}:${i}"` })).join(''));
+  const many = !nofold && p.c.length > 10;
+  let main = [], adv = [];
+  if (!many) main = secs;
+  else if (secs.length > 1) { main = secs.slice(0, 2); adv = secs.slice(2); if (main.reduce((n, x) => n + x.rows.length, 0) > 12) { adv = secs.slice(1); main = secs.slice(0, 1); } }
+  else { main = [{ s: secs[0].s, rows: secs[0].rows.slice(0, 8) }]; adv = [{ s: 'More', rows: secs[0].rows.slice(8) }]; }
+  const advHit = adv.some((x) => x.rows.some(([, i]) => i + base === hl));
+  let html = main.map(drawSec).join('');
+  if (!p.c.length) html += card('', `<div class="row"><div class="row-l"><div class="row-t">${esc(p.h[0] || title(p.id))}</div><div class="row-d">${esc((p.lead || '').slice(0, 140))}</div></div><div class="btns">${(p.b.length ? p.b.slice(0, 2) : ['Set up']).map((b, j) => `<button class="btn${j ? '' : ' primary'}" type="button">${esc(b)}</button>`).join('')}</div></div>`);
+  for (const h of heads) if (p.c.length) html += card(h, `<div class="row link"><div class="row-l"><div class="row-d">Built when the page opens (lists, cards, setup steps).</div></div>${icon('chev', 'i chev')}</div>`);
+  if (adv.length) html += advanced(adv.reduce((n, x) => n + x.rows.length, 0), adv.map(drawSec).join(''), advHit || state.adv);
+  return html;
+}
+
+// ---- Hand-made pages ----
+function pageModels(hl) {
+  const H = (k) => hl === `models-default:${k}`;
+  return card('Model', [
+    row('Provider', `<div class="sel">Ollama on my computer</div>`, { tip: 'Where her model runs.', hl: H(0) }),
+    row('Model', `<div class="sel">gemma4:12b</div>`, { desc: 'Fits this computer: runs on the graphics card.', tip: 'The model new chats use.', hl: H(1) }),
+    row('Switch to the replacement automatically', sw(true), { desc: 'Sara checks every provider’s model list once a day. Retired models are swapped for their replacement.', tip: 'Off: she asks first.', hl: H(2) }),
+  ].join('')) + card('Long conversations', [
+    row('How much of the chat she keeps in mind', `<div class="sel">Auto: balanced (follows the model)</div>`, { desc: 'With gemma4:12b she keeps about 9,000 words of a chat in mind.', tip: 'Older parts are left out, with their summary.', stack: false, hl: H(3) }),
+    row('Tidy long chats on their own', sw(true), { desc: 'Folds the older part of a chat into a short summary she reads instead. Undo puts it back.', tip: 'Your messages stay where they are.', hl: H(4) }),
+  ].join('')) + advanced(6, card('Tidy long chats', [
+    row('When the chat is', `<div class="sel">85 % full</div>`, { hl: H(5) }),
+    row('Keep your last turns word for word', `<div class="sel">6 turns</div>`, { tip: 'Your newest messages are never folded.', hl: H(6) }),
+    row('Who writes the summary', `<div class="sel">A model on this computer first, else the quick model</div>`, { tip: 'Nothing leaves when a model on this computer writes it.', hl: H(7) }),
+    row('Daily limit', `<div class="sel">40 tidies</div>`, { hl: H(8) }),
+    row('Token limit a day', `<div class="sel">500k tokens</div>`, { hl: H(9) }),
+    row('Keep a crisis conversation word for word for', `<div class="sel">72 hours</div>`, { tip: 'That exchange is never folded for this long.', hl: H(10) }),
+  ].join(''), { d: 'How the summary is made and how often. The defaults suit most people.' }), state.adv || /models-default:(5|6|7|8|9|10)$/.test(hl ?? ''));
+}
+function pageHub() {
+  const nOk = TILES.flatMap(([, l]) => l).filter((t) => t[1] === 'ok').length;
+  const nWarn = TILES.flatMap(([, l]) => l).filter((t) => t[1] === 'warn').length;
+  const n = TILES.flatMap(([, l]) => l).length;
+  return `<div class="filters"><div class="seg" role="group" aria-label="Show"><button aria-pressed="true">All ${n}</button><button>Connected ${nOk}</button><button>Needs you ${nWarn}</button></div></div>` +
+    TILES.map(([h, list]) => `<div class="sec-label">${esc(h)}</div><div class="tiles">${list.map(tile).join('')}</div>`).join('') +
+    `<div class="sec-label">Across apps</div>` + card('', row('Pick up across apps', sw(true), { desc: 'Start on Telegram, open the app, and pick up the same conversation. Includes session continuity.', link: '#page/co-pickup' }));
+}
+function tile([id, st, line]) {
+  return `<div class="tile" data-go="#app/${id}" ${state.app === id ? 'aria-current="true"' : ''}><div class="mono">${esc(MONO[id] ?? title(id)[0])}</div><div class="tile-t"><b>${esc(title(id))}</b><small><span class="dot ${st}"></span>${esc(line)}</small></div>${icon('chev', 'i chev')}</div>`;
+}
+function drawerTelegram() {
+  return card('Connection', [
+    row('Bot token', `<div class="btns"><div class="inp short">••••••• 4f2a</div><button class="btn" type="button">Replace</button></div>`, { tip: 'From @BotFather in Telegram.' }),
+    row('Switched on', sw(true)),
+    row('Your Telegram', `<div class="btns"><span class="val">Linked · @alex</span><button class="btn" type="button">Unlink</button></div>`),
+  ].join('')) + card('Who can talk to her', [
+    row('Send reminders and messages she starts to my Telegram too', sw(true)),
+    row('Let other people talk to her', sw(false), { desc: 'As an AI, with no tools and nothing private.' }),
+    row('Answer when her name is said in a group (no @ needed)', sw(true)),
+    row('More owners (Telegram user IDs)', `<div class="inp ph">None</div>`, { tip: 'People who may use her tools here.' }),
+  ].join('')) + (() => { const tg = P['co-telegram']; const rest = { ...tg, h: [], c: tg.c.filter((c) => !['', 'Connection'].includes(c[2]) && !/Send reminders|Let other people|Answer when her name|More owners|Bot token|Switched on/.test(c[0])) }; return advanced(rest.c.length, rest.c.length ? genericCards(rest, { nofold: true }) : '', false); })() + `<p class="adv-hint">Commands · Pictures and files · Progress while she works · Rooms · Remote work and groups</p>`;
+}
+
+// ---- Home ----
+function home() {
+  const q = [
+    ['Night or Day', `<div class="seg" role="group" aria-label="Night or Day"><button aria-pressed="true">Night</button><button>Day</button><button>System</button></div>`, 'Appearance', 'you-appearance'],
+    ['Send me a morning briefing', sw(true), 'Briefing and reminders · 7:00 AM', 'you-briefing'],
+    ['Instant notifications', sw(true), 'Phone and notifications', 'co-phone'],
+    ['Let her call me', sw(false), 'Calls from her', 'her-calls'],
+    ['Listen for “Hey Sara” on this computer', sw(false), 'Hey Sara', 'her-hey'],
+    ['Tidy long chats on their own', sw(true), 'Default model', 'models-default'],
+  ];
+  const apps = [['co-telegram', 'ok', 'Connected'], ['ab-mail', 'ok', '2 mailboxes'], ['co-slack', 'ok', 'Connected'], ['ab-home', 'warn', 'Can’t sign in'], ['ab-github', 'ok', '3 repositories'], ['co-discord', 'off', 'Not set up']];
+  return `<div class="home-wrap"><button class="hero-find" type="button" data-go="#search/">${icon('search')}<span>Search 692 settings, every page and how-to</span><kbd>Ctrl K</kbd></button>
+  <div class="grid o-grid">
+    <div class="card c7 o-status">
+      <div class="status-top"><div class="ava her">S</div><div><h2>Sara is ready</h2><p>Everything she needs is working.</p></div><span class="pill"><span class="dot ok"></span>All good</span></div>
+      <div class="facts">
+        <div class="fact"><small>Thinking with</small><b>gemma4:12b · on this computer</b></div>
+        <div class="fact"><small>Health</small><b><span class="dot ok"></span>14 of 14 checks pass</b></div>
+        <div class="fact"><small>Backups</small><b>Today, 3:00 AM · on the server</b></div>
+        <div class="fact"><small>Version</small><b>3.11.0 · update ready</b></div>
+      </div>
+      <div class="fact-foot"><div class="ava">A</div><span>Signed in as <b class="strong">Alex</b>, owner · 3 devices</span><a href="#page/dh-devices" class="push">Devices and sign-in</a></div>
+    </div>
+    <div class="card c5 o-att">
+      <div class="card-h"><h2>Needs your attention</h2><span class="pill">3</span></div>
+      <div class="att" data-go="#app/ab-home"><span class="dot warn"></span><div><b>Home Assistant can’t sign in</b><span>The access token stopped working. Make a new one in Home Assistant.</span></div>${icon('chev', 'i chev')}</div>
+      <div class="att" data-go="#page/dh-backups"><span class="dot warn"></span><div><b>No copy of your backups off this server</b><span>If this computer is lost, so are the backups.</span></div>${icon('chev', 'i chev')}</div>
+      <div class="att" data-go="#page/dh-updates"><span class="dot"></span><div><b>Sara 3.11.1 is ready to install</b><span>A backup is made first.</span></div>${icon('chev', 'i chev')}</div>
+    </div>
+    <div class="card c7 o-quick"><div class="card-h"><h2>Quick settings</h2></div>
+      ${q.map(([l, c, d, id]) => row(l, c, { desc: d, attrs: `data-page-link="${id}"` })).join('')}
+    </div>
+    <div class="col c5">
+      <div class="card o-apps"><div class="card-h"><h2>Connected apps</h2><a class="more" href="#apps">All apps and services</a></div>
+        <div class="mini-apps">${apps.map(([id, st, s]) => `<div class="mini" data-go="#app/${id}"><div class="mono">${esc(MONO[id])}</div><div><b class="m">${esc(title(id))}</b><small><span class="dot ${st}"></span>${esc(s)}</small></div></div>`).join('')}</div>
+      </div>
+      <div class="card o-house"><div class="card-h"><h2>Household</h2><a class="more" href="#page/household">People on this server</a></div>
+        <div class="hh"><p>Just you so far. Invite another adult to a private space of their own, with the models and limits you choose.</p><button class="btn" type="button" data-go="#page/household">Invite someone</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="sec-label o-label">All settings</div>
+  <div class="groups o-groups">${GROUPS.map((g) => `<div class="gcard"><div class="gcard-h" data-go="#group/${g.id}"><div class="gicon">${icon(g.icon)}</div><h3>${esc(g.name)}</h3>${icon('chev', 'i chev')}</div><p>${esc(g.desc)}</p><div class="plinks">${g.pages.filter((x) => !x.startsWith('|')).map((x) => `<a href="#${x === 'co-hub' ? 'apps' : 'page/' + x}">${esc(title(x))}</a>`).join('')}</div></div>`).join('')}</div></div>`;
+}
+function groupPage(g) {
+  let out = '';
+  let buf = [];
+  const flush = () => { if (buf.length) out += card('', buf.join('')); buf = []; };
+  for (const x of g.pages) {
+    if (x.startsWith('|')) { flush(); out += `<div class="sec-label">${esc(x.slice(1))}</div>`; continue; }
+    const p = P[x];
+    const extra = (MERGE[x] ?? []).map((m) => P[m]?.t).filter(Boolean);
+    buf.push(row(title(x), icon('chev', 'i chev'), { desc: (x === 'co-hub' ? '19 apps: Telegram, WhatsApp, Slack, email, Home Assistant, GitHub…' : (p?.lead ?? '').replace(/\s+\S*$/, '').slice(0, 96) + '…') + (extra.length ? `  Also: ${extra.join(', ')}.` : ''), link: x === 'co-hub' ? '#apps' : `#page/${x}` }));
+  }
+  flush();
+  return out;
+}
+
+// "On this page": the cards of a long page, for a quick jump (wide screens only).
+function tocHtml(body) {
+  const names = [...body.matchAll(/<div class="card-h"><h2>([^<]+)<\/h2>|<div class="sec-label"[^>]*>([^<]+)<\/div>|<span>(Advanced)<\/span>/g)].map((m) => m[1] || m[2] || m[3]);
+  const seen = [...new Set(names)];
+  if (seen.length < 3) return '';
+  return `<nav class="toc" aria-label="On this page"><b>On this page</b>${seen.map((n, i) => `<a href="#" data-toc="${esc(n)}" class="${i ? '' : 'on'}">${n}</a>`).join('')}</nav>`;
+}
+
+// ---- Router ----
+const state = { view: 'home', page: '', app: '', hl: '', adv: false, q: null };
+function parse() {
+  const h = decodeURIComponent(location.hash.slice(1) || 'home');
+  const [v, a = '', b = '', c = ''] = h.split('/');
+  Object.assign(state, { view: v, page: '', app: '', hl: '', adv: false, q: null, group: '' });
+  if (v === 'page') { state.page = HOST[a] ?? a; state.adv = b === 'adv'; state.hl = b === 'hl' ? c : ''; }
+  if (v === 'app') { state.view = 'apps'; state.app = a; }
+  if (v === 'group') state.group = a;
+  if (v === 'search') { state.q = a; state.view = 'home'; }
+}
+function rail(currentGroup, currentPage) {
+  const navItem = (x) => `<button class="nv" type="button" data-go="${x === 'co-hub' ? '#apps' : '#page/' + x}" ${x === currentPage ? 'aria-current="true"' : ''}>${esc(title(x))}</button>`;
+  $('#rail').innerHTML = `<button class="nv" type="button" data-go="#home" ${state.view === 'home' ? 'aria-current="true"' : ''}>${icon('home')}Overview</button><div class="rail-sep"></div>` +
+    GROUPS.map((g) => {
+      const open = g.id === currentGroup;
+      return `<div class="nv-group"${open ? ' data-open' : ''}><button class="nv" type="button" data-go="#group/${g.id}" ${state.group === g.id ? 'aria-current="true"' : ''}>${icon(g.icon)}${esc(g.name)}<span class="ct">${open ? '' : pageCount(g)}</span></button>${open ? `<div class="nv-pages">${g.pages.map((x) => (x.startsWith('|') ? `<div class="nv-sub">${esc(x.slice(1))}</div>` : navItem(x))).join('')}</div>` : ''}</div>`;
+    }).join('');
+}
+function headHtml({ crumbs, h1, h1html = '', lead, back }) {
+  return `<header class="head"><div class="head-text"><div class="crumbs">${crumbs}</div><h1>${h1html || esc(h1)}</h1>${lead ? `<p class="lead">${esc(lead)}</p>` : ''}</div>
+    <div class="head-side">${back ? `<button class="ph-back" type="button" data-go="${back[1]}">${icon('back')}${esc(back[0])}</button>` : ''}<span class="saved" id="saved">${icon('check')}<span>All changes saved</span></span><button class="iconbtn" type="button" aria-label="Close">${icon('x')}</button></div></header>`;
+}
+const crumb = (parts) => parts.map(([l, href], i) => (i ? '<span class="sep">›</span>' : '') + (href ? `<a href="${href}">${esc(l)}</a>` : `<span>${esc(l)}</span>`)).join('');
+function render() {
+  parse();
+  const main = $('#main');
+  let head = '', body = '', wide = false, drawer = '';
+  if (state.view === 'home') {
+    rail('', '');
+    head = headHtml({ crumbs: '', h1: '', h1html: '<span class="t-d">Overview</span><span class="t-m">Settings</span>', lead: 'Everything about Sara, in one place. Changes save as you make them.' });
+    body = home(); wide = true;
+  } else if (state.view === 'group') {
+    const g = GROUPS.find((x) => x.id === state.group) ?? GROUPS[0];
+    rail(g.id, '');
+    head = headHtml({ crumbs: crumb([['Settings', '#home']]), h1: g.name, lead: g.desc, back: ['Settings', '#home'] });
+    body = groupPage(g);
+  } else if (state.view === 'apps') {
+    rail('conn', 'co-hub');
+    head = headHtml({ crumbs: crumb([['Settings', '#home'], ['Connections', '#group/conn']]), h1: 'Apps and services', lead: P['co-hub'].lead, back: ['Connections', '#group/conn'] });
+    body = pageHub(); wide = true;
+    if (state.app) {
+      const p = P[state.app] ?? P['co-telegram'];
+      const t = TILE[state.app] ?? [state.app, 'off', 'Not set up'];
+      const inner = state.app === 'co-telegram' ? drawerTelegram() : genericCards(p);
+      const extra = state.app === 'ab-mail' ? card('Google account', row('Gmail and Calendar', icon('chev', 'i chev'), { desc: 'Sign-in, Docs and Sheets, and organizing permission for Google.', link: '#page/ab-google' })) : '';
+      drawer = `<div class="scrim" data-go="#apps"></div><aside class="drawer" aria-label="${esc(title(p.id))}"><header class="head"><div class="head-text"><div class="drawer-id"><div class="mono">${esc(MONO[p.id] ?? p.t[0])}</div><div><h1 style="font-size:20px">${esc(title(p.id))}</h1><div class="row-d" style="display:flex;align-items:center;gap:6px"><span class="dot ${t[1]}"></span>${esc(t[2])}</div></div></div><p class="lead" style="margin-top:12px">${esc(p.lead)}</p></div><div class="head-side"><button class="ph-back" type="button" data-go="#apps">${icon('back')}Apps</button><span class="saved">${icon('check')}<span>Saved</span></span><button class="iconbtn" type="button" data-go="#apps" aria-label="Close">${icon('x')}</button></div></header><div class="scroll">${inner}${extra}</div></aside>`;
+    }
+  } else {
+    const id = state.page || 'models-default';
+    const g = groupOf(id) ?? GROUPS[0];
+    rail(g.id, TILE[id] || id === 'co-pickup' ? 'co-hub' : id);
+    const p = P[id];
+    const parent = TILE[id] || id === 'co-pickup' ? [['Apps and services', '#apps']] : [];
+    head = headHtml({ crumbs: crumb([['Settings', '#home'], [g.name, `#group/${g.id}`], ...parent]), h1: title(id), lead: p?.lead, back: parent.length ? ['Apps', '#apps'] : [g.name, `#group/${g.id}`] });
+    body = id === 'models-default' ? pageModels(state.hl) : genericCards(p, { hl: state.hl.startsWith(id + ':') ? +state.hl.split(':')[1] : -1, first: MERGE[id] ? p.t : '' });
+    for (const m of MERGE[id] ?? []) {
+      const gp = P[m];
+      body += `<div class="sec-label" id="sec-${m}">${esc(gp.t)}</div>` + genericCards(gp, { hl: state.hl.startsWith(m + ':') ? +state.hl.split(':')[1] : -1 });
+    }
+  }
+  main.className = 'main' + (state.view === 'home' ? ' is-home' : '');
+  const toc = state.view === 'page' ? tocHtml(body) : '';
+  main.innerHTML = head + `<div class="scroll" id="scroll">${toc ? `<div class="page-wrap"><div class="page">${body}</div>${toc}</div>` : `<div class="page${wide ? ' wide' : ''}">${body}</div>`}</div>` + drawer;
+  const sc = $('#scroll');
+  sc.addEventListener('scroll', () => $('.head', main).classList.toggle('scrolled', sc.scrollTop > 4));
+  const hlRow = $('.row.hl', main);
+  if (hlRow) hlRow.scrollIntoView({ block: 'center' });
+  if (state.hl && !hlRow) { const s = $(`#sec-${state.hl.split(':')[0]}`); if (s) s.scrollIntoView({ block: 'start' }); }
+  renderPalette();
+}
+
+// ---- Search (the hero): settings first, then pages; Enter jumps to the row and highlights it ----
+const INDEX = [];
+for (const p of INV) {
+  if (p.id === 'ab-recipes') continue;
+  const host = HOST[p.id] ?? p.id;
+  const g = groupOf(p.id);
+  p.c.forEach((c, i) => INDEX.push({ kind: 'setting', label: c[0], path: `${g?.name ?? ''} › ${title(host)}${host !== p.id ? ' › ' + p.t : ''}`, value: c[1] === 'checkbox' ? (/switched on|automatically|on their own|follows her mood|instant/i.test(c[0]) ? 'On' : 'Off') : c[3] || '', go: `#page/${p.id}/hl/${p.id}:${i}` }));
+  INDEX.push({ kind: 'page', label: title(p.id), path: g?.name ?? '', value: '', go: TILE[p.id] ? `#app/${p.id}` : `#page/${p.id}`, lead: p.lead });
+}
+function rank(q) {
+  const w = q.toLowerCase().trim();
+  if (!w) return { s: [], p: [] };
+  const re = new RegExp(`\\b${w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+  const score = (x) => (x.label.toLowerCase().startsWith(w) ? 3 : re.test(x.label) ? 2 : x.label.toLowerCase().includes(w) ? 1 : 0);
+  const seen = new Set();
+  const hits = INDEX.map((x) => [x, score(x)]).filter(([x, s]) => s && !seen.has(x.kind + x.label + x.path) && seen.add(x.kind + x.label + x.path)).sort((a, b) => b[1] - a[1] || a[0].label.length - b[0].label.length);
+  const best = hits.find(([x]) => x.kind === 'page' && x.label.toLowerCase() === w)?.[0];
+  return { best, s: hits.filter(([x]) => x.kind === 'setting').slice(0, 6).map(([x]) => x), p: hits.filter(([x]) => x.kind === 'page' && x !== best).slice(0, 3).map(([x]) => x), n: hits.length };
+}
+const markQ = (s, q) => { const w = q.trim(); if (!w) return esc(s); const i = s.toLowerCase().indexOf(w.toLowerCase()); return i < 0 ? esc(s) : esc(s.slice(0, i)) + '<mark>' + esc(s.slice(i, i + w.length)) + '</mark>' + esc(s.slice(i + w.length)); };
+function renderPalette() {
+  const o = $('#overlay');
+  if (state.q === null) { o.innerHTML = ''; return; }
+  const q = state.q;
+  const r = rank(q);
+  const item = (x, sel) => `<div class="pal-item" data-go="${x.go}" ${sel ? 'aria-selected="true"' : ''}><span class="k">${icon(x.kind === 'page' ? 'page' : 'slider')}</span><span class="tx"><b>${markQ(x.label, q)}</b><small>${esc(x.path)}</small></span><span class="v">${esc(x.value)}</span><kbd class="ent">↵</kbd></div>`;
+  const recent = [INDEX.find((x) => x.label === 'Night or Day'), INDEX.find((x) => x.label === 'Send me a morning briefing'), INDEX.find((x) => x.kind === 'page' && x.label === 'Telegram'), INDEX.find((x) => x.kind === 'page' && x.label === 'Backups')].filter(Boolean);
+  o.innerHTML = `<div class="palette-wrap" data-close><div class="palette" role="dialog" aria-label="Search settings">
+    <div class="pal-in">${icon('search')}<input id="pal-q" value="${esc(q)}" placeholder="Search settings, pages and how-tos" autocomplete="off" aria-label="Search settings"><kbd>Esc</kbd></div>
+    <div class="pal-list">${q.trim() ? (r.best ? `<div class="pal-h">Best match</div>${item({ ...r.best, path: r.best.path + ' · ' + (r.best.lead || '').slice(0, 70) + '…' }, true)}` : '') + (r.s.length ? `<div class="pal-h">Settings</div>${r.s.map((x, i) => item(x, !r.best && i === 0)).join('')}` : '') + (r.p.length ? `<div class="pal-h">Pages</div>${r.p.map((x) => item(x, false)).join('')}` : '') + (!r.s.length && !r.p.length ? `<div class="pal-h">Nothing found</div>` : '') : `<div class="pal-h">Recent</div>${recent.map((x, i) => item(x, i === 0)).join('')}<div class="pal-h">Jump to</div>${GROUPS.slice(0, 4).map((g) => `<div class="pal-item" data-go="#group/${g.id}"><span class="k">${icon(g.icon)}</span><span class="tx"><b>${esc(g.name)}</b><small>${esc(g.desc)}</small></span></div>`).join('')}`}</div>
+    <div class="pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> move</span><span><kbd>↵</kbd> open and highlight</span><span><kbd>Esc</kbd> close</span><span class="r">${q.trim() ? `${r.n} matches in 692 settings and 83 pages` : '692 settings · 83 pages'}</span></div>
+  </div></div>`;
+  const inp = $('#pal-q');
+  inp.focus(); inp.setSelectionRange(q.length, q.length);
+  inp.addEventListener('input', () => { history.replaceState(null, '', '#search/' + encodeURIComponent(inp.value)); state.q = inp.value; renderPalette(); });
+}
+
+document.addEventListener('click', (e) => {
+  const sw_ = e.target.closest('.sw');
+  if (sw_) { sw_.setAttribute('aria-checked', sw_.getAttribute('aria-checked') === 'true' ? 'false' : 'true'); flash(); return; }
+  const segb = e.target.closest('.seg button');
+  if (segb) { for (const b of segb.parentElement.children) b.setAttribute('aria-pressed', String(b === segb)); if (/^(Night|Day|System)$/.test(segb.textContent)) { document.documentElement.dataset.theme = segb.textContent === 'Day' ? 'light' : 'dark'; } flash(); return; }
+  const tc = e.target.closest('[data-toc]');
+  if (tc) { e.preventDefault(); const n = tc.dataset.toc; const el = [...document.querySelectorAll('#scroll .card-h h2, #scroll .sec-label, #scroll .adv-btn span')].find((x) => x.textContent === n); el?.scrollIntoView({ block: 'start', behavior: 'smooth' }); for (const a of document.querySelectorAll('.toc a')) a.classList.toggle('on', a === tc); return; }
+  const adv = e.target.closest('.adv-btn');
+  if (adv) { adv.parentElement.toggleAttribute('data-open'); return; }
+  if (e.target.matches('[data-close]')) { location.hash = '#home'; return; }
+  const go = e.target.closest('[data-go]');
+  if (go) { e.preventDefault(); location.hash = go.dataset.go; }
+  const pl = e.target.closest('[data-page-link]');
+  if (pl && !e.target.closest('.sw, .seg')) location.hash = '#page/' + pl.dataset.pageLink;
+});
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); location.hash = '#search/'; }
+  if (e.key === 'Escape' && state.q !== null) location.hash = '#home';
+  if (e.key === 'Enter' && state.q !== null) { const s = $('.pal-item[aria-selected="true"]'); if (s) location.hash = s.dataset.go; }
+});
+function flash() { const s = $('#saved'); if (!s) return; s.querySelector('span').textContent = 'Saved'; s.classList.add('flash'); clearTimeout(flash.t); flash.t = setTimeout(() => { s.classList.remove('flash'); s.querySelector('span').textContent = 'All changes saved'; }, 1400); }
+addEventListener('hashchange', render);
+render();
+</script>
+</body>
+</html>

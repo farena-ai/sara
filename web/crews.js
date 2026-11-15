@@ -195,7 +195,7 @@ function crewForm(c) {
   const minutes = Object.assign(document.createElement('input'), { type: 'number', min: '2', max: '240', value: String(c.limits?.minutes ?? 20) });
   field(t('Time limit (minutes)'), minutes, t('The most one run may take, from 2 to 240 minutes.'));
   const tg = Object.assign(document.createElement('input'), { type: 'checkbox', checked: Boolean(c.alsoTo?.includes('telegram')), disabled: !data.telegram });
-  field(t('Also send to Telegram'), tg, data.telegram ? t('The summary and the report file also go to your own linked Telegram chat.') : t('Link your Telegram first (Settings → Chat apps).'));
+  field(t('Also send to Telegram'), tg, data.telegram ? t('The summary and the report file also go to your own linked Telegram chat.') : t('Link your Telegram first (Settings → Connections → Apps and services).'));
   const acts = el('div', 'rt-more-acts');
   acts.append(btn(c.id ? t('Save') : t('Add the crew'), 'primary small', async () => {
     const body = {

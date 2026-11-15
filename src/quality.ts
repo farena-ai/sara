@@ -105,7 +105,7 @@ export function qualityReport(db: DatabaseSync, now: Date, days = 7): QualityRep
 export function qualityTips(r: Pick<QualityReport, 'failed' | 'slow' | 'empty' | 'fallbacks' | 'refused' | 'stale' | 'unverified' | 'reasons'>): string[] {
   const tips: string[] = [];
   const slowModel = r.reasons.some((x) => x.errorClass === 'SlowModelError');
-  if (r.slow > 0 || slowModel || r.fallbacks > 2) tips.push(en('Some replies were slow. Auto (Settings → Models) picks a faster model per job and hands over when one is slow.'));
+  if (r.slow > 0 || slowModel || r.fallbacks > 2) tips.push(en('Some replies were slow. Auto (Settings → Models & usage) picks a faster model per job and hands over when one is slow.'));
   if (r.empty > 0) tips.push(en('A model returned empty replies. Pick another for that job, or use Auto so the next model answers.'));
   if (r.failed > 0 && !slowModel && r.empty === 0) tips.push(en('Open a failed chat to see what went wrong; Fix it on the error often has the answer.'));
   if (r.refused > 0) tips.push(en('Desktop actions were refused or not approved in time. Check Computer use in the Sara app on that computer.'));

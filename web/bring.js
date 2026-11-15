@@ -1,4 +1,4 @@
-// C7: Settings → Her → Companions → Bring your companion from another app. Her export files and/or
+// C7: Settings → Sara → Companions → Bring your companion from another app. Her export files and/or
 // pasted notes go to the server (read there, never here), the preview shows what comes over, the
 // owner unticks what he doesn't want, then she arrives as a new companion.
 import { serverText, t } from './naming.js';

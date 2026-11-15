@@ -77,7 +77,7 @@ member's copy (and, if you tick it, what each learned there).
 ## Usage and cost
 
 Every model call in a group chat (each reply and the router step) is recorded in that companion's
-meter with purpose **group** (Settings → Data & health → Usage shows *Group chats*). Private rooms
+meter with purpose **group** (Settings → Privacy & system → Usage shows *Group chats*). Private rooms
 use each companion's Private route.
 
 ## Other apps, phones, bridges

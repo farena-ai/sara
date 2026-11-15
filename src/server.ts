@@ -1554,11 +1554,11 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await codingRoutes(req, res, method, parts)) !== NEXT) return;
     // Phase 84: the eval loop (owner-only; src/routes/evals.ts).
     if ((await evalRoutes(req, res, method, parts)) !== NEXT) return;
-    // Phase 96: skills (Settings → Add-ons → Skills; each person's own; src/routes/skills.ts).
+    // Phase 96: skills (Settings → Skills & tools → Skills; each person's own; src/routes/skills.ts).
     if ((await skillRoutes(req, res, method, parts)) !== NEXT) return;
-    // Phase 98: plugins (Settings → Add-ons → Plugins; the owner's only; src/routes/plugins.ts).
+    // Phase 98: plugins (Settings → Skills & tools → Plugins; the owner's only; src/routes/plugins.ts).
     if ((await pluginRoutes(req, res, method, parts)) !== NEXT) return;
-    // Phase 100: other agents (A2A; Settings → Connections → Other agents; the owner's only; src/routes/agents.ts).
+    // Phase 100: other agents (A2A; Settings → Connections → Apps and services → Other agents; the owner's only; src/routes/agents.ts).
     if ((await agentRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hookRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1998,7 +1998,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         // Phase 71: a member's models are set up by the owner: no first-run guide.
         if (opts.member) return send(res, 200, { done: true, ownerName: s.ownerName ?? '', usePath: usePathOf(s.usePath), ollama: [], subscriptions: { grok: false, claude: false, chatgpt: false } });
         const done = Boolean(s.setupDone) || (s.providers.length > 0 && Boolean(s.ownerName));
-        // Phase 114 (F4): `models` counts the models on that computer (as Models → On this computer
+        // Phase 114 (F4): `models` counts the models on that computer (as Models & usage → On this computer
         // does); `cloud` the Ollama Cloud tags it also has.
         const ollama: { url: string; models: number; cloud: number }[] = [];
         if (!done || /[?&]detect\b/.test(req.url ?? '')) {

@@ -81,7 +81,7 @@ picture):
 | **Default (they)** | `web/looks/they/…` (same paths) | an androgynous adult in their late 20s: messy black jaw-length shag, small hoops, mustard sweater |
 
 Until you make or pick a look of your own, the one that matches her pronouns shows (**Default look:
-Matches the pronouns**, in *Settings → Her → Look*), or the one you pick there by name. A custom look
+Matches the pronouns**, in *Settings → Sara → Look*), or the one you pick there by name. A custom look
 always wins: it is never replaced, and going back to the default look shows the chosen default again.
 When you change her pronouns while a default look shows, the app asks once whether to use the matching
 one; the pictures change at once, without a reload. The sign-in page and companions other than the

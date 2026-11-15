@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## A calmer, premium Settings, in 3.13.0
+
+Settings now opens on an Overview: her status, what needs you, quick switches and your connected apps.
+Six groups plus Household replace the long list, thin pages became sections of stronger ones, and
+every setting sits in the same clean row. Rarely used options fold under Advanced, chat apps and
+services are tiles with a status dot, and search finds a single setting, opens it and highlights
+it (Ctrl+K). On phones you tap down from group to page. Every option and old link still works.
+
 ## Work apps, family, trust and voice ready, in 3.12.0
 
 Edit Google Docs and Sheets and Word and Excel files online, post and search in Slack and Teams, share a

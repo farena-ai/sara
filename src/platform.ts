@@ -51,7 +51,7 @@ export interface AdminHelp {
   where: string;
 }
 
-/** The admin hints the web app shows (Settings → Data & health, Backups, Updates, sign-in, subscriptions). */
+/** The admin hints the web app shows (Settings → Privacy & system, Backups, Updates, sign-in, subscriptions). */
 export function adminHelp(o: HintEnv = {}): AdminHelp {
   const platform = o.platform ?? process.platform;
   const env = o.env ?? process.env;

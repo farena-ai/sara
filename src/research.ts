@@ -432,7 +432,7 @@ export class Research {
     const app = this.#app;
     const perms = app.settings.get().toolPermissions;
     if (privateLocalOn()) return en('Paused in private local mode: research needs the internet.');
-    if (!searchConfig(app.settings, app.vault)) return en('Set up web search first (Settings → Add-ons → Web search).');
+    if (!searchConfig(app.settings, app.vault)) return en('Set up web search first (Settings → Connections → Apps and services → Web search).');
     if (app.tools.permission('web_search', perms) === 'never') return en('Web search is switched off (tool permissions or the admin policy), so research can’t run.');
     if (app.tools.permission('web_fetch', perms) === 'never') return en('Web pages are switched off (tool permissions or the admin policy), so research can’t run.');
     return null;

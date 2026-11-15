@@ -5,7 +5,7 @@ tool, waits for the result, calls the next, and so on: every call is a round tri
 **Code mode** lets her write one short script that makes all those calls and hands back only the
 result. It is faster, and it uses fewer tokens on big jobs.
 
-It is **off by default**. Turn it on in Settings → Coding → Tools and approvals → *Code mode: one
+It is **off by default**. Turn it on in Settings → Skills & tools → Tools and approvals → *Code mode: one
 script for many tool calls*.
 
 ## When she uses it

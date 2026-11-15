@@ -179,7 +179,7 @@ export class SpotifyAccount {
     if (!r.ok || !j.access_token) {
       if (j.error === 'invalid_grant' && body.grant_type === 'refresh_token') {
         this.#vault.delete(SPOTIFY_TOKEN_VAULT);
-        throw new Error('Spotify signed Sara out (the sign-in expired or was removed). Connect again in Settings → Connections → Spotify.');
+        throw new Error('Spotify signed Sara out (the sign-in expired or was removed). Connect again in Settings → Connections → Apps and services → Spotify.');
       }
       throw new Error(`Spotify sign-in failed: ${j.error_description ?? j.error ?? r.status}`);
     }
@@ -188,7 +188,7 @@ export class SpotifyAccount {
 
   async #access(): Promise<string> {
     const t = this.#tokens();
-    if (!t) throw new Error('Spotify is not connected (Settings → Connections → Spotify).');
+    if (!t) throw new Error('Spotify is not connected (Settings → Connections → Apps and services → Spotify).');
     if (t.expiresAt > this.#now()) return t.access;
     const c = this.#client();
     if (!c) throw new Error('The Spotify app was removed.');

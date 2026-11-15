@@ -23,7 +23,7 @@ async function load() {
 
 test('EC28 the readiness box sits on the Recovery page (renamed), owner only, hidden until loaded, no inline styles', () => {
   const page = /<section class="settings-page" data-page="dh-recovery"[^>]*>([\s\S]*?)<\/section>/.exec(html)!;
-  assert.match(page[0], /data-group="Data & health"/);
+  assert.match(page[0], /data-group="Privacy & system" data-title="[^"]+" data-host="dh-health"/); // SETTINGS3: a section of Health
   assert.match(page[0], /data-title="Readiness and recovery"/);
   assert.match(page[0], /data-owner-only/);
   const box = /<div id="rd-box"[^>]*>/.exec(page[1])!;

@@ -1,4 +1,4 @@
-// Phase 102 (ST7, docs/design/STAPLES.md §10.8, docs/WEBHOOKS.md): Settings → Connections → Webhooks.
+// Phase 102 (ST7, docs/design/STAPLES.md §10.8, docs/WEBHOOKS.md): Settings → Connections → Apps and services → Webhooks.
 // New webhook is a three-step form (1 where it comes from · 2 when · 3 what she does), then the
 // address with Copy, the sender's secret (shown once), where to paste them and what can reach this
 // server. Each hook is a card with today's counts, a 7-day sparkline, what it does, Test (a dry run,

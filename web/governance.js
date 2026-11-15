@@ -1,4 +1,4 @@
-// EC4 + EC5 (docs/ops/EC45_DESIGN.md): Settings → Data & health → Audit trail and Policy, and the
+// EC4 + EC5 (docs/ops/EC45_DESIGN.md): Settings → Privacy & system → Audit trail and Policy, and the
 // "Set by your admin" locks on the pages a policy pins. The server enforces every pin; the locks
 // only say so before a change is refused.
 import { t } from './naming.js';

@@ -35,7 +35,7 @@ VS Code) can't be helpers, and household members can't use it: it is the owner's
 
 Nothing beyond what you'd keep anyway: requests live in memory and disappear when answered. A
 picture becomes part of that conversation (delete the message to delete it). A location is only in
-that tool step. The audit trail (Settings → Data & health → Audit trail) gets one row per request:
+that tool step. The audit trail (Settings → Privacy & system → Audit trail) gets one row per request:
 `phone.camera`, `phone.location` or `phone.screen` with *OK*, *Refused* (Deny) or *Failed* (no
 answer, not possible) and the device's name; switching a device on or off is a `phone.helper` row.
 Never the picture, never coordinates.

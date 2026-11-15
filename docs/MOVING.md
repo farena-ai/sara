@@ -16,7 +16,7 @@ them (for example from a Windows PC to a Linux server).
 | Windows | `sara backup C:\Users\<you>\Desktop\sara-move.tar.gz` (terminal as administrator for a service install) |
 | Mac | `sara backup ~/Desktop/sara-move.tar.gz`, or menu bar → *Sara on this Mac → Back up now* |
 
-You can also press *Back up now* in Settings → Data & health → Backups. A backup made a moment ago
+You can also press *Back up now* in Settings → Privacy & system → Backups. A backup made a moment ago
 is best: anything said after it won't move.
 
 **The backup contains her keys** (the vault and the key that opens it). Copy it to the new machine
@@ -45,15 +45,15 @@ deleted) and starts her again.
 ## 4. Sign in and check
 
 1. Sign in with your **old owner token** (the one from before the move).
-2. Open Settings → Data & health → Health, or run `sara doctor`, to check that every model
+2. Open Settings → Privacy & system → Health, or run `sara doctor`, to check that every model
    provider answers. A provider that pointed at `127.0.0.1` (Ollama on the old machine) needs its
-   address changed in Settings → Models → Model providers.
+   address changed in Settings → Models & usage → Providers and plans.
 3. **Passkeys belong to a web address.** If Sara's address changed, sign in with the owner token
    (and your two-step code, if on) and add the passkey again.
 4. **Phones and apps** remember the old address. If it changed, pair them again (Settings → Connections →
    Devices and sign-in → *Add a phone or computer*) and sign out the old entries.
 5. **Subscriptions:** on Linux, run `sudo /opt/sara-src/deploy/install-agents.sh` again on the new
-   server. If a subscription shows as signed out, sign in again in Settings → Models →
+   server. If a subscription shows as signed out, sign in again in Settings → Models & usage →
    Subscriptions.
 6. **Coding projects:** folders like `node_modules` aren't in backups. Ask her to reinstall the
    project's packages (or run the install command yourself) before building.

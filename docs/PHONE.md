@@ -79,7 +79,7 @@ signs the phone out of that server only. [SERVERS.md](SERVERS.md)
   → Places*, then switch on *Place reminders* in *Settings → Connections → Phone and
   notifications* on your phone and allow location "all the time". The phone only tells your server
   "arrived at" or "left" a saved place, never your live location.
-- **Voice:** the microphone button and live calls work on the phone too (Settings → Her → Voice).
+- **Voice:** the microphone button and live calls work on the phone too (Settings → Sara → Voice).
 - **Video calls** (🎥): her moving picture full screen while you talk, and your camera if you turn it
   on (off by default; the phone asks for the camera the first time). A video call runs inside the
   app, so keep it open; voice calls keep going with the screen off. [VIDEO_CALLS.md](VIDEO_CALLS.md)
@@ -146,7 +146,7 @@ More: [INSTALL.md](INSTALL.md), [FAQ.md](FAQ.md).
   **Talk** button; her answers are spoken and kept to two short sentences; no screens of text; she
   doesn't offer computer use or long tasks while you drive. Ask "read my messages" to hear her newest
   reminders and notes. It turns off by itself after 2 hours without use, and her voice setting goes
-  back to what it was. Her voice must be set up (Settings → Her → Voice).
+  back to what it was. Her voice must be set up (Settings → Sara → Voice).
   Errands work hands-free too: start one by voice, say "approve" or "no" to her card (computer-use
   cards wait for the computer), and ask how your errands are going ([PHONE_CALLS.md](PHONE_CALLS.md)).
 

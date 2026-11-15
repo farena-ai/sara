@@ -1,6 +1,6 @@
 # Readiness and recovery
 
-**Settings → Data & health → Readiness and recovery** answers two questions: is this install ready
+**Settings → Privacy & system → Health → Readiness and recovery** answers two questions: is this install ready
 for real use, and is there interrupted work to review? The page is the owner's only (not the demo,
 household members or apps signed in with a device code).
 

@@ -80,7 +80,7 @@ Other ACP editors (Neovim plugins, Emacs, Obsidian and others): start `sara-chat
 - **Approvals in the editor:** every write and every command asks first (*Allow once*, or *Allow
   edits in this folder for this session* / *Always allow this exact command for this session*, or
   *Reject*). The "always" choices last until the editor closes the agent. Anything her own rules say
-  to ask about (for example commands, set in Settings → Coding) shows as the same question in the
+  to ask about (for example commands, set in Settings → Skills & tools) shows as the same question in the
   editor, and answering it there is the answer in Sara.
 - **Commands** run in the editor's terminal, in the folder you have open.
 - **Never touched:** files outside the open folder, `.env` files, keys, certificates and credential

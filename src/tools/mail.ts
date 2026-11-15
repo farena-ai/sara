@@ -60,7 +60,7 @@ export function createMailTools(d: MailToolDeps): Tool[] {
   };
   const gtool = (name: string): Tool => {
     const t = google.get(name);
-    if (!t || (t.isAvailable && !t.isAvailable())) throw new ToolError('Gmail is not connected (Settings → Add-ons → Gmail and Calendar).');
+    if (!t || (t.isAvailable && !t.isAvailable())) throw new ToolError('Gmail is not connected (Settings → Connections → Apps and services → Gmail and Calendar).');
     return t;
   };
   const words = (fn: () => unknown) => {

@@ -503,19 +503,13 @@ button.ghost:disabled, button.ghost:disabled:hover { color: var(--btn-off-text);
 :where(:root:not([data-palette="classic"])) .sng-count { color: var(--text-3); font-variant-numeric: tabular-nums; }
 :where(:root:not([data-palette="classic"])) .settings-nav-head { color: var(--text-2); }
 
-/* ---------- V2 · Settings (V1 §5): a full-height sheet on desktop, flat group headings ----------
+/* ---------- V2 · Settings (V1 §5): a full-height sheet on desktop ----------
    Outside Sara Classic and wider than a phone, Settings opens as a large centred panel (V4e: it was a
-   sheet on the right that left an empty blurred third on wide screens), and the nav lists every page under caps headings (no accordion, no counts;
-   settings-nav.js flatNav() keeps every group open there).
-   Sara Classic and phones keep the centred window and the accordion. */
-.settings-nav-cap { display: none; }
+   sheet on the right that left an empty blurred third on wide screens). SETTINGS3: the rail is two-level
+   everywhere (the group of the page on screen shows its pages; web/settings3.css draws it). */
 @media (min-width: 721px) {
   :where(:root:not([data-palette="classic"])) dialog.settings-dialog { width: min(1240px, calc(100vw - 64px)); height: min(1000px, calc(100dvh - 48px)); max-height: calc(100dvh - 48px); max-width: none; margin: auto; border: 1px solid var(--line); border-radius: 18px; }
-  :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-head { display: none; }
   :where(:root:not([data-palette="classic"])) .settings-nav-items { padding: 0 0 4px; }
-  :where(:root:not([data-palette="classic"])) .settings-nav-cap { display: block; margin: 14px 0 4px; padding: 0 10px; font-size: 11px; font-weight: 600; line-height: 16px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-3); }
-  :where(:root:not([data-palette="classic"])) .settings-nav-group:first-child .settings-nav-cap { margin-top: 4px; }
-  :where(:root:not([data-palette="classic"])) .settings-nav .settings-nav-group { border-top: 0; padding: 0; }
 }
 /* Dense rows with a mouse (touch keeps kit.css's 44 px). */
 @media (min-width: 721px) and (pointer: fine) {

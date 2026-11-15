@@ -1,5 +1,5 @@
 // Phase 113 (docs/SUPPORT.md): the anonymous daily check-in's first-run notice and Settings →
-// Data & health → Privacy, a notice from the hub (shown once), Help → Report a problem / Suggest
+// Privacy & system → Privacy, a notice from the hub (shown once), Help → Report a problem / Suggest
 // something (one sheet with diagnostics shown in full, a tick per part), My reports, and "Report
 // this" on error notices. The page never talks to the hub itself: everything goes through Sara's
 // own /api/hub routes. Text from the hub is always shown as plain text (textContent).
@@ -175,7 +175,7 @@ async function firstRun(action) {
   st.queue?.pump();
 }
 
-// ---- Settings → Data & health → Privacy ----
+// ---- Settings → Privacy & system → Privacy ----
 
 export async function loadPrivacy() {
   try {

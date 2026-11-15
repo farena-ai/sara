@@ -15,7 +15,7 @@ Every entry in the library appears in Sara once, in the place it can actually be
 
 | Where in Settings | What you find there | Count |
 |---|---|---|
-| **Add-ons → Get more** | Signed Store plugins, tool servers and the four starter companions | 16 |
+| **Skills & tools → Get more** | Signed Store plugins, tool servers and the four starter companions | 16 |
 | **Plugins → Workflow candidates** | Twelve supplied-data workflows and nineteen developer add-ons (see [Developer add-ons](DEVELOPER_ADDONS.md)); review the exact files, install, then switch on per companion | 31 |
 | **Other programs (MCP) → Connection investigations** | Seven read-only recipe previews (Tavily, Firecrawl and Linear need your own account) and fourteen blocked investigations, each with its reason | 21 |
 | **Other programs (MCP) → Developer connections** | Thirty developer targets: two fixture-tested recipes (Storybook, local Qdrant) you can copy into the add form, twenty-two held until you supply an account, key or service, and six blocked, each with its reason | 30 |
@@ -48,7 +48,7 @@ Image-generation and live home operations remain separate integrations with thei
 ## Using a native workflow
 
 1. Read the entry's publication state, exact scope and prerequisites.
-2. If it is on the signed store, use **Settings → Add-ons → Get more**. Otherwise use only a package you deliberately obtained and reviewed; a pending listing is not an install action.
+2. If it is on the signed store, use **Settings → Skills & tools → Get more**. Otherwise use only a package you deliberately obtained and reviewed; a pending listing is not an install action.
 3. Review its manifest and permissions. Installation does not enable it. Enable it only for the companion you intend.
 4. Supply labelled source material and the options the tool requests. Treat external content as data, not instructions authorizing other actions.
 5. Review the result. References to supplied text establish provenance, not independent truth.
@@ -68,7 +68,7 @@ Seven prepared recipe sources cover MarkItDown, Tavily, Firecrawl, Chrome DevToo
 - Executable packages are pinned at the top level. That does not lock every transitive dependency or qualify installation scripts.
 - Use Node 24 LTS for the Node-based previews and check `node --version`; a dependency-presence indicator does not validate the installed version.
 - Keys belong in vault-backed secret fields, never scripts, URLs or downloadable packages.
-- Before any feature request, open **Settings → Coding → Tools and approvals**. Set every discovered tool in that server's group to **Ask me first** or **Off**. Save, leave and reopen the page to confirm the settings. Repeat after restart, updates or newly discovered tools.
+- Before any feature request, open **Settings → Skills & tools → Tools and approvals**. Set every discovered tool in that server's group to **Ask me first** or **Off**. Save, leave and reopen the page to confirm the settings. Repeat after restart, updates or newly discovered tools.
 - Server “read-only” annotations can otherwise allow automatic execution. Recipe ask advice alone does not enforce an approval fence; read operations can also disclose data or consume provider credits.
 - DBHub requires database-enforced read-only credentials for a dedicated database. A SQL tool name or successful demo SELECT does not enforce least privilege.
 - The pinned draw.io preview can open the default browser. Keep browser-opening/editing tools Off until separately qualified; no link-only guarantee is made.

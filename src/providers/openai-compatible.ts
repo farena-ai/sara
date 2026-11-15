@@ -368,7 +368,7 @@ export class OpenAICompatibleProvider implements Provider {
   }
 }
 
-const friendlyNotFound = (label: string, model: string, text: string): string => `${label} doesn't have the model "${model}". Pick another one in Settings → Models, or download it with: ollama pull ${model}${text ? ` (${label} said: ${text.replace(/\s+/g, ' ').slice(0, 200)})` : ''}`;
+const friendlyNotFound = (label: string, model: string, text: string): string => `${label} doesn't have the model "${model}". Pick another one in Settings → Models & usage, or download it with: ollama pull ${model}${text ? ` (${label} said: ${text.replace(/\s+/g, ' ').slice(0, 200)})` : ''}`;
 
 /** Tests: forget the remembered num_ctx and the daemons without /api/chat. */
 export function resetOllamaContext(): void {

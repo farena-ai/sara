@@ -260,7 +260,7 @@ export class Subscriptions {
       // Grok renews its own sign-in when it needs to; a token with time left is still good even if
       // this renewal didn't move it. Only a token that is really past its time counts as expired.
       const valid = Boolean(a?.expires_at && Date.parse(a.expires_at) - now() > 30_000);
-      if (!a?.key || (!fresh() && !valid)) throw new Error('Your Grok sign-in needs renewing. Sign in to Grok again (Settings → Models → Subscriptions).');
+      if (!a?.key || (!fresh() && !valid)) throw new Error('Your Grok sign-in needs renewing. Sign in to Grok again (Settings → Models & usage → Providers and plans → Subscriptions).');
     }
     return a.key;
   }

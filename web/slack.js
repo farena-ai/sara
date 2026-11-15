@@ -1,4 +1,4 @@
-// EC1 (docs/ops/EC1_DESIGN.md): Settings → Chat apps → Slack. Before it is added: what it is, what he
+// EC1 (docs/ops/EC1_DESIGN.md): Settings → Connections → Apps and services → Slack. Before it is added: what it is, what he
 // needs and Start. After that the shared stepper (web/setup-card.js): one step open at a time, the
 // exact Slack screens as a numbered list, a check Sara runs; a step turns ✓ only when Sara checked it.
 // Step 1 shows the app manifest he pastes at api.slack.com (Socket Mode, so no public address). Every

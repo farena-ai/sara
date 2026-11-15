@@ -75,7 +75,7 @@ export function initCarMode({ talk, recording, voiceReady }) {
     btn.classList.toggle('car-listening', rec);
     label.textContent = rec ? t('Listening… tap to send') : t('Talk');
     btn.setAttribute('aria-pressed', String(rec));
-    status.textContent = !voiceReady() ? t('Set up her voice first: Settings → Her → Voice.') : rec ? t('I’m listening.') : speaking ? t('She’s answering.') : t('Tap Talk and say what you need.');
+    status.textContent = !voiceReady() ? t('Set up her voice first: Settings → Sara → Voice.') : rec ? t('I’m listening.') : speaking ? t('She’s answering.') : t('Tap Talk and say what you need.');
   };
   view = { sync };
   btn.addEventListener('click', () => {

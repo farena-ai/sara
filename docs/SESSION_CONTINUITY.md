@@ -9,7 +9,7 @@ or give a tool permission to do anything.
 
 ## Turn it on or off
 
-Open **Settings → Chat apps → Session continuity → Use context across my sessions**. It is on by
+Open **Settings → Connections → Pick up across apps → Session continuity → Use context across my sessions**. It is on by
 default for eligible owner sessions. The change saves automatically and survives a restart.
 This control is separate from **Pick up across apps** and **While she's working**; changing it
 preserves those settings.

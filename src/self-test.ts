@@ -1,4 +1,4 @@
-// R1 (c): Settings → Data & health → Health → "Check everything". One click, plain lines: does mail read,
+// R1 (c): Settings → Privacy & system → Health → "Check everything". One click, plain lines: does mail read,
 // can a draft be made and removed (with consent), does the calendar read and take a test event (consent),
 // does a test notification reach each phone (consent), is the desktop app connected and current and can it
 // list windows (read-only, no actions), the Mac tabs switch, the inbox helper's last scan, the last

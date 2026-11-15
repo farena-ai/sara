@@ -1,4 +1,4 @@
-// EC3 (docs/ops/EC3_DESIGN.md §7): Settings → Data & health → Operations → Monitoring. Switches for
+// EC3 (docs/ops/EC3_DESIGN.md §7): Settings → Privacy & system → Health → Operations → Monitoring. Switches for
 // the Prometheus endpoint and OpenTelemetry traces, the scrape token (shown once), the collector's
 // headers (write-only), the scrape config to copy, the Grafana dashboard and the last export status.
 import { t } from './naming.js';

@@ -9,7 +9,9 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const IMPORT = /from\s+['"]\.\.\/tools\/([\w.-]+)\/node_modules\/([^'"]+)['"]|import\(\s*['"]\.\.\/tools\/([\w.-]+)\/node_modules\/([^'"]+)['"]\s*\)/g;
+const IMPORT = /from\s+['"]\.\.\/tools\/([\w.-]+)\/node_modules\/([^'"]+)['"]|(?:import|require)\(\s*['"]\.\.\/tools\/([\w.-]+)\/node_modules\/([^'"]+)['"]\s*\)/g;
+/** Any file of a tool a test loads (its own modules import the tool's packages in turn). */
+const TOOL_FILE = /['"]\.\.\/tools\/([\w.-]+)\/(?!node_modules\/)[^'"]+['"]/g;
 
 /** Each tool a test imports packages from, with the imported files that are not there. */
 export function missingToolPackages(root: string): Map<string, string[]> {
@@ -24,6 +26,13 @@ export function missingToolPackages(root: string): Map<string, string[]> {
       const list = out.get(tool) ?? [];
       if (!list.includes(file)) list.push(file);
       out.set(tool, list);
+    }
+    for (const m of readFileSync(join(dir, f), 'utf8').matchAll(TOOL_FILE)) {
+      const tool = m[1];
+      const lock = join(root, 'tools', tool, 'package-lock.json');
+      if (out.has(tool) || !existsSync(lock) || existsSync(join(root, 'tools', tool, 'node_modules'))) continue;
+      const pkgs = Object.keys((JSON.parse(readFileSync(lock, 'utf8')) as { packages?: Record<string, unknown> }).packages ?? {}).filter((k) => k.startsWith('node_modules/'));
+      if (pkgs.length) out.set(tool, ['node_modules/']);
     }
   }
   return out;

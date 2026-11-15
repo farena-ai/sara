@@ -324,7 +324,7 @@ export class Learning {
     if (privateLocalOn()) return en('Paused in private local mode: learning needs the internet.');
     if (app.tools.permission('web_fetch', perms) === 'never') return en('Web pages are switched off (tool permissions or the admin policy), so she can’t learn.');
     if (kind === 'topic') {
-      if (!searchConfig(app.settings, app.vault)) return en('Set up web search first (Settings → Add-ons → Web search).');
+      if (!searchConfig(app.settings, app.vault)) return en('Set up web search first (Settings → Connections → Apps and services → Web search).');
       if (app.tools.permission('web_search', perms) === 'never') return en('Web search is switched off (tool permissions or the admin policy), so she can’t learn a topic. A single website still works.');
     }
     if (!app.skills || app.skills.writableScopes().length === 0) return en('Skills are not available here.');

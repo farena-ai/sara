@@ -34,7 +34,7 @@ export interface LogOptions {
   file?: string;
   maxBytes: number;
   keep: number;
-  /** SARA_LOG_LEVEL was set: it wins over the level saved in Settings → Data & health. */
+  /** SARA_LOG_LEVEL was set: it wins over the level saved in Settings → Privacy & system. */
   levelFromEnv?: boolean;
 }
 

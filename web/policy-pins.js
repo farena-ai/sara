@@ -1,5 +1,5 @@
 // C2: the policy pins in one table, in the server's PIN_KEYS order (src/policy-profile.ts): each key,
-// its label (the text of its row on Settings → Data & health → Policy), the form control that sets it,
+// its label (the text of its row on Settings → Privacy & system → Policy), the form control that sets it,
 // how that control reads and writes the pin, and the controls on other pages it locks or the page it
 // notes. test/policy-pins.test.ts checks the table against PIN_KEYS and web/index.html.
 import { t } from './naming.js';

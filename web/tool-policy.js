@@ -36,7 +36,7 @@ export function alwaysAllowButton(ev, card) {
     card.querySelectorAll('button').forEach((x) => (x.disabled = true));
     try {
       await api(`/approvals/${ev.approvalId}`, { method: 'POST', body: { approved: true, how: 'tool' } });
-      const line = el('p', 'muted small approval-always', t('Always allowed now: {tool}. You can change it in Settings → Coding → Tools and approvals.', { tool: ev.name }));
+      const line = el('p', 'muted small approval-always', t('Always allowed now: {tool}. You can change it in Settings → Skills & tools → Tools and approvals.', { tool: ev.name }));
       line.dataset.raw = '';
       const undo = el('button', 'linkish', t('Undo'));
       undo.type = 'button';

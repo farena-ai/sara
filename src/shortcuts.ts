@@ -92,8 +92,8 @@ export function widgetLines(app: AppContext, extras: { next?: { text: string; at
 
 /** What the Shortcut says back (English keys; the route translates). */
 export const SC_LINES = {
-  bad: en('This Shortcuts token is not valid. Make a new one in Sara: Settings → Connections → iPhone Shortcuts.'),
-  scope: en('This Shortcuts token is not allowed to do that. Make one that is in Sara: Settings → Connections → iPhone Shortcuts.'),
+  bad: en('This Shortcuts token is not valid. Make a new one in Sara: Settings → Connections → Phone and notifications → iPhone Shortcuts.'),
+  scope: en('This Shortcuts token is not allowed to do that. Make one that is in Sara: Settings → Connections → Phone and notifications → iPhone Shortcuts.'),
   slow: en('Too many requests from this Shortcut. Wait a minute and try again.'),
   privateLocal: en('Private local mode is on: Sara does not answer other devices until it is off.'),
   saved: en('Saved to Sara: {names}. Open Sara to go on.'),

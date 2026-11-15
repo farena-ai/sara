@@ -1,4 +1,4 @@
-// C14 (docs/ops/C14_DESIGN.md): Settings → Connections → Spotify. The owner's own Spotify app
+// C14 (docs/ops/C14_DESIGN.md): Settings → Connections → Apps and services → Spotify. The owner's own Spotify app
 // (Client ID only, PKCE), what she may do (playlists, playback), Connect, status and Disconnect.
 import { t } from './naming.js';
 

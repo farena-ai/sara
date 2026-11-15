@@ -122,7 +122,7 @@ export function overBudget(b: Budget | undefined, used: { tokens: number; usd: n
 }
 
 // ------------------------------------------------------------------------------------------------
-// Per-turn budgets (Settings → Coding → Budgets)
+// Per-turn budgets (Settings → Models & usage → Usage and costs → Budgets)
 // ------------------------------------------------------------------------------------------------
 
 export interface TurnLimits {

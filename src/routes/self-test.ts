@@ -1,4 +1,4 @@
-// R1 (c): "Check everything" (Settings → Data & health → Health). Owner only.
+// R1 (c): "Check everything" (Settings → Privacy & system → Health). Owner only.
 //   POST /api/self-test {draft?, event?, push?}   → {lines: SelfTestLine[], report: string}
 // The consent flags allow the checks that write something (a draft, a test event, a notification);
 // each is removed again (the notification just shows). src/self-test.ts has the checks.

@@ -80,7 +80,7 @@ paths, addresses, model names or keys. We don't keep your IP address.
 
 - The first time you open Sara you see a short notice about it, with **Show what's sent** and
   **Turn off**. Nothing is sent before that notice has been shown.
-- **Settings → Data & health → Privacy**: the **Anonymous daily check-in** switch, **Show what's
+- **Settings → Privacy & system → Privacy**: the **Anonymous daily check-in** switch, **Show what's
   sent** (the exact text the next check-in would send) and **Reset the install ID** (a new random ID,
   so later check-ins can't be linked to earlier ones).
 - It is never sent from the demo, from household members' spaces (the server checks in once for
@@ -94,6 +94,6 @@ The full list of everything that can leave your server is in [PRIVACY.md](PRIVAC
 
 | You see | Why | What to do |
 |---|---|---|
-| Reports can't be sent while “Nothing leaves this computer” is on | Private local mode blocks every connection off this computer | Turn it off for a moment (Settings → Models → On this computer), send, turn it on again |
+| Reports can't be sent while “Nothing leaves this computer” is on | Private local mode blocks every connection off this computer | Turn it off for a moment (Settings → Models & usage → On this computer), send, turn it on again |
 | Too many reports today | A few reports a day per server keeps spam away | Try again tomorrow, or add to your earlier report in *My reports* |
 | The support desk didn't answer | The desk or your internet is down | Try again later; nothing was lost on your side |

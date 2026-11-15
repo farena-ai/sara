@@ -1,5 +1,5 @@
 // Phase 114 (F4): one way to count a model list, shared by the first-run guide, Models → Default
-// model and Models → On this computer. Ollama Cloud tags ("glm-5.2:cloud", "gpt-oss:120b-cloud")
+// model and Models & usage → On this computer. Ollama Cloud tags ("glm-5.2:cloud", "gpt-oss:120b-cloud")
 // run on Ollama's servers, so they are counted apart from the models on this computer; embedding
 // models can't chat and are not counted. The same rules as src/model-names.ts (countModels), which
 // test/phase114a.test.ts keeps in step.

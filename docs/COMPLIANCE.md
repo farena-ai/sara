@@ -88,7 +88,7 @@ sending (an email, a message, a comment) and calendar entries. A negation only c
 clause ("I created the file, but I couldn't run the tests" is still a claim about the file);
 quoted examples of three words or more, block quotes and code are not her claims.
 
-The optional claim judge (*Settings → Models → Which model does what → Double-check her claims*,
+The optional claim judge (*Settings → Models & usage → Which model does what → Double-check her claims*,
 off by default) is a small model asked one strict question per sentence, only for sentences the
 patterns can't place: "did the assistant say it already did this itself? Answer yes or no and copy
 the words that say it." A "yes" counts only with words that really are in the sentence. It has a

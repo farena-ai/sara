@@ -4,7 +4,7 @@ Sara can run entirely on one computer: her server, her model and everything she 
 switch **Nothing leaves this computer** on, she doesn't connect to anything except that computer.
 This page says what the switch guarantees, how it's enforced, and what it can't promise.
 
-Where: **Settings → Models → On this computer**. The same page helps you get a model that runs
+Where: **Settings → Models & usage → On this computer**. The same page helps you get a model that runs
 there. While the switch is on, a **🔒 Only this computer** badge sits in the top bar.
 
 ## A model on this computer

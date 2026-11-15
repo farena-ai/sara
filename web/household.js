@@ -43,7 +43,7 @@ function fillSelect(sel, values, label, current) {
 function modelPicker(models, chosen, onChange) {
   const box = el('div', 'hh-models');
   if (!models.length) {
-    box.append(el('p', 'muted small', t('Add a model first (Settings → Models).')));
+    box.append(el('p', 'muted small', t('Add a model first (Settings → Models & usage).')));
     return box;
   }
   const isOn = (m) => chosen.some((c) => c.providerId === m.providerId && c.model === m.model);

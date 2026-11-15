@@ -6,7 +6,7 @@ Sara can have **her own email address**. You write to it (or forward a mail to i
 `docs/design/BRIDGES3.md` §5 and its *As built (2.50.0), part B* note.
 
 This is **her** mailbox, not yours. Reading and organising **your** inbox (Gmail, Outlook, Yahoo,
-iCloud and more) is a different feature: Settings → Add-ons → Email and calendar
+iCloud and more) is a different feature: Settings → Connections → Apps and services → Email and calendar
 ([EMAIL.md](EMAIL.md)). The email bridge adds no inbox tools.
 
 ## What you need
@@ -32,7 +32,7 @@ Your normal password won't work. The app password goes **only into Sara's encryp
 
 ## Setting it up
 
-Since 2.61.0 the page is a guided setup card: *Settings → Chat apps → Email → Start*. Each step
+Since 2.61.0 the page is a guided setup card: *Settings → Connections → Apps and services → Email → Start*. Each step
 turns ✓ only when Sara has checked it.
 
 1. **Pick her mail provider** (Gmail, iCloud, Fastmail or Other). The card shows where that

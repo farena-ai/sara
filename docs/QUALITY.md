@@ -5,7 +5,7 @@ Three small things that make Sara's answers more dependable: the right model per
 
 ## Auto: the right model per job
 
-**Settings → Models → Which model does what** has **Auto (recommended)** for Talking, Coding (tools
+**Settings → Models & usage → Which model does what** has **Auto (recommended)** for Talking, Coding (tools
 and long tasks), Looking at pictures and Web research. Auto picks from what is connected, by a small
 score per model:
 
@@ -29,7 +29,7 @@ talking: first word in 2 s here, can use tools."). Her own model (per companion)
 talking.
 
 New installs start on Auto for all four jobs (when the first model provider is added). Existing
-installs keep their choices; the model fitness notice (Settings → Models, the full check) offers
+installs keep their choices; the model fitness notice (Settings → Models & usage, the full check) offers
 **Use Auto (recommended)** with Undo. `GET /api/model-jobs/auto` shows what Auto would pick now.
 
 ## "Did it work?" after every change
@@ -56,7 +56,7 @@ changing tool behind the claim said *Could not verify*, the reply gets the usual
 
 ## How she did (weekly, owner only)
 
-**Settings → Data & health → How she did** counts, for the last 7, 14 or 30 days, from her run
+**Settings → Privacy & system → Health → How she did** counts, for the last 7, 14 or 30 days, from her run
 history on this computer: replies, failed replies, slow replies (over a minute), empty replies,
 backup models that took over, desktop actions refused or done on a changed window, and changes she
 could not check; the top five failure reasons (error class) with links to the chats; and tips. The

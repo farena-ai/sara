@@ -230,7 +230,7 @@ the member's own confirmation.
 
 ### Alexa (2.1)
 
-Each member links their own Alexa: Settings → Connections → Other apps → *Talk to her through Alexa*
+Each member links their own Alexa: Settings → Connections → Apps and services → Other apps → *Talk to her through Alexa*
 → **Make a link code** in their own space. The code (and later every request from that Amazon
 account) is tied to the member's space and the companion that was open, so their Alexa only ever
 reaches their own companion; the owner's list doesn't show it. The skill itself and its ID are the

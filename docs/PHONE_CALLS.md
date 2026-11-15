@@ -67,7 +67,7 @@ place, hang up, record, and the stream's messages. A SIP trunk or WebRTC gateway
 provider's media API) would be a second implementation of the same interface; it is not built in,
 and choosing "SIP or WebRTC" says so.
 
-## Discord voice (Settings → Chat apps → Discord → Voice channel)
+## Discord voice (Settings → Connections → Apps and services → Discord → Voice channel)
 
 Joining a channel is one gateway message (op 4, Voice State Update) on the existing bridge
 connection, but the audio needs Discord's voice transport (a second WebSocket, UDP, encryption and

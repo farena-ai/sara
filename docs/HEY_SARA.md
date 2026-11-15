@@ -10,7 +10,7 @@ Hey Sara is **off** until you switch it on, on each device, from that device.
 
 ## Switch it on
 
-1. Open Sara in the Windows, Mac or Android app, then **Settings → Her → Hey Sara** (Linux: see
+1. Open Sara in the Windows, Mac or Android app, then **Settings → Sara → Hey Sara** (Linux: see
    below).
 2. Under **This device**, switch on **Listen for "Hey Sara"**. Windows asks once to download the
    keyword pack (about 50 MB, checked against a SHA-256 fingerprint built into Sara; a download

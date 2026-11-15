@@ -231,12 +231,12 @@ const BRIDGED = new Set(['telegram', 'discord']);
 const KNOBS: [RegExp, string, string][] = [
   [/^(memory|memories|compression|compaction|context|session|sessions|history|summar)/i, 'Settings → Memory', 'memory'],
   [/^(display|ui|theme|streaming|stream|cli|terminal|tui|skin|banner)/i, 'Settings → Look', 'look'],
-  [/^(max_tokens|max_turns|temperature|reasoning|thinking|iterations|budget|limits?|rate)/i, 'Settings → Coding → Budgets', 'budgets'],
-  [/^(gateway|server|port|host|bind|logging|log|telemetry|metrics|update|updates|diagnostics|debug)/i, 'Settings → Data & health', 'checkup'],
-  [/^(browser|web|search)/i, 'Settings → Add-ons → Web search', 'abilities'],
+  [/^(max_tokens|max_turns|temperature|reasoning|thinking|iterations|budget|limits?|rate)/i, 'Settings → Models & usage → Usage and costs → Budgets', 'budgets'],
+  [/^(gateway|server|port|host|bind|logging|log|telemetry|metrics|update|updates|diagnostics|debug)/i, 'Settings → Privacy & system', 'checkup'],
+  [/^(browser|web|search)/i, 'Settings → Connections → Apps and services → Web search', 'abilities'],
   [/^(cron|automations?|schedules?)/i, 'Your planner (schedules came across as tasks)', 'planner'],
-  [/^(skills?|plugins?|hooks?|extensions?)/i, 'Settings → Add-ons', 'abilities'],
-  [/^(agent|agents|personalit|persona|soul|identity)/i, 'Settings → Her', 'her'],
+  [/^(skills?|plugins?|hooks?|extensions?)/i, 'Settings → Skills & tools', 'abilities'],
+  [/^(agent|agents|personalit|persona|soul|identity)/i, 'Settings → Sara', 'her'],
 ];
 
 const SKIP_TOP = new Set(['$include', '$schema', 'version', 'meta', 'wizard', 'lastRunVersion']);
@@ -283,24 +283,24 @@ function providers(eps: Endpoint[], ctx: TranslateContext, add: Add): void {
     const login = SIGN_IN.find((x) => x.re.test(`${e.name} ${e.api ?? ''}`));
     const model = [...e.models][0] ?? '';
     if (login) {
-      add({ key: `sign-in:${e.name}`, kind: 'sign-in', mode: 'apply', title: presetLabel(login.preset), from: e.from, old: `signed in to ${e.name}${model ? ` (model ${model})` : ''}`, choice: login.preset, options: [{ value: login.preset, label: presetLabel(login.preset) }], data: { preset: login.preset, ...(model ? { model } : {}) }, steps: [`Settings → Models → ${presetLabel(login.preset)}: sign in with your own account.`], lives: 'Settings → Models', page: 'models' });
+      add({ key: `sign-in:${e.name}`, kind: 'sign-in', mode: 'apply', title: presetLabel(login.preset), from: e.from, old: `signed in to ${e.name}${model ? ` (model ${model})` : ''}`, choice: login.preset, options: [{ value: login.preset, label: presetLabel(login.preset) }], data: { preset: login.preset, ...(model ? { model } : {}) }, steps: [`Settings → Models & usage → ${presetLabel(login.preset)}: sign in with your own account.`], lives: 'Settings → Models & usage', page: 'models' });
       continue;
     }
     if (/nous|portal|copilot|gemini[-_ ]?cli|qwen[-_ ]?(oauth|portal)|minimax[-_ ]?portal/i.test(e.name) && !e.baseUrl) {
-      add({ key: `sign-in:${e.name}`, kind: 'sign-in', mode: 'info', title: e.name, from: e.from, old: `signed in to ${e.name}`, lives: 'Settings → Models', page: 'models', why: `Sara can't sign in to ${e.name}. Add another model in Settings → Models, or that service's API key if it has one.` });
+      add({ key: `sign-in:${e.name}`, kind: 'sign-in', mode: 'info', title: e.name, from: e.from, old: `signed in to ${e.name}`, lives: 'Settings → Models & usage', page: 'models', why: `Sara can't sign in to ${e.name}. Add another model in Settings → Models & usage, or that service's API key if it has one.` });
       continue;
     }
     const preset = matchPreset(e.name, e.baseUrl);
     const base = e.baseUrl || PROVIDER_PRESETS.find((p) => p.id === preset)?.baseUrl || '';
     if (preset === 'ollama-local') {
-      add({ key: `local:${base || e.name}`, kind: 'local', mode: 'apply', title: e.name || 'Local models', from: e.from, old: `${e.name || 'local models'} at ${base}${model ? ` (model ${model})` : ''}`, choice: 'ollama-local', options: providerOptions(), data: { baseUrl: base, ...(model ? { model } : {}), name: e.name }, reach: 'unchecked', lives: 'Settings → Models', page: 'models', warn: "That address is the old machine's own. Sara checks whether her server can reach it before it is added." });
+      add({ key: `local:${base || e.name}`, kind: 'local', mode: 'apply', title: e.name || 'Local models', from: e.from, old: `${e.name || 'local models'} at ${base}${model ? ` (model ${model})` : ''}`, choice: 'ollama-local', options: providerOptions(), data: { baseUrl: base, ...(model ? { model } : {}), name: e.name }, reach: 'unchecked', lives: 'Settings → Models & usage', page: 'models', warn: "That address is the old machine's own. Sara checks whether her server can reach it before it is added." });
       continue;
     }
     if (ctx.providers.some((p) => p.baseUrl.replace(/\/+$/, '').toLowerCase() === base.replace(/\/+$/, '').toLowerCase())) {
-      add({ key: `provider:${e.name}`, kind: 'provider', mode: 'info', title: presetLabel(preset), from: e.from, old: `${e.name}${model ? ` (model ${model})` : ''}`, lives: 'Settings → Models', page: 'models', why: 'Sara already has this provider set up.' });
+      add({ key: `provider:${e.name}`, kind: 'provider', mode: 'info', title: presetLabel(preset), from: e.from, old: `${e.name}${model ? ` (model ${model})` : ''}`, lives: 'Settings → Models & usage', page: 'models', why: 'Sara already has this provider set up.' });
       continue;
     }
-    add({ key: `provider:${e.name}`, kind: 'provider', mode: 'apply', title: presetLabel(preset), from: e.from, old: `${e.name}${base ? ` at ${base}` : ''}${model ? ` (model ${model})` : ''}`, options: providerOptions(), choice: preset, data: { baseUrl: base, ...(model ? { model } : {}), name: e.name }, ...(e.secrets.length ? { secrets: [...new Set(e.secrets)].slice(0, 6) } : {}), steps: ['Paste your key in Settings → Models (keys never move with the bundle).'], lives: 'Settings → Models', page: 'models' });
+    add({ key: `provider:${e.name}`, kind: 'provider', mode: 'apply', title: presetLabel(preset), from: e.from, old: `${e.name}${base ? ` at ${base}` : ''}${model ? ` (model ${model})` : ''}`, options: providerOptions(), choice: preset, data: { baseUrl: base, ...(model ? { model } : {}), name: e.name }, ...(e.secrets.length ? { secrets: [...new Set(e.secrets)].slice(0, 6) } : {}), steps: ['Paste your key in Settings → Models (keys never move with the bundle).'], lives: 'Settings → Models & usage', page: 'models' });
   }
 }
 
@@ -335,7 +335,7 @@ function channel(t: ConfigTree, path: string, name: string, v: unknown, add: Add
     });
     return;
   }
-  add({ key: `channel:${id}`, kind: 'channel', mode: 'info', title: label, from: `${t.path}#${path}`, old: `${label}: ${facts}`, lives: 'Settings → Add-ons → Plugins', page: 'plugins', why: `Sara doesn't speak ${label} yet. A plugin bridge can add it (Settings → Add-ons → Plugins).`, ...(secrets.length ? { secrets: secrets.slice(0, 6) } : {}) });
+  add({ key: `channel:${id}`, kind: 'channel', mode: 'info', title: label, from: `${t.path}#${path}`, old: `${label}: ${facts}`, lives: 'Settings → Skills & tools → Plugins', page: 'plugins', why: `Sara doesn't speak ${label} yet. A plugin bridge can add it (Settings → Skills & tools → Plugins).`, ...(secrets.length ? { secrets: secrets.slice(0, 6) } : {}) });
 }
 
 function approvals(t: ConfigTree, path: string, v: unknown, what: string, add: Add): void {
@@ -389,7 +389,7 @@ function hermes(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<str
   if (main) {
     mark('model');
     eps.push({ name: main.provider || (main.base ? hostOf(main.base) : 'openai'), baseUrl: main.base, models: new Set(main.model ? [main.model] : []), from: `${t.path}#model`, secrets: secretNames(m, 'model') });
-    if (main.model) add({ key: 'route:chat', kind: 'route', mode: 'info', title: 'Chat model', from: `${t.path}#model`, old: `chat with ${main.model}${main.provider ? ` on ${main.provider}` : ''}`, lives: 'Settings → Models → Which model does what', page: 'models', why: 'Pick it for Chat once its provider works (after you paste the key).' });
+    if (main.model) add({ key: 'route:chat', kind: 'route', mode: 'info', title: 'Chat model', from: `${t.path}#model`, old: `chat with ${main.model}${main.provider ? ` on ${main.provider}` : ''}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Pick it for Chat once its provider works (after you paste the key).' });
   }
   if (isObj(c.providers)) {
     mark('providers');
@@ -404,7 +404,7 @@ function hermes(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<str
       const r = splitModelRef(x);
       if (r.provider && !eps.some((e) => e.name === r.provider)) eps.push({ name: r.provider, baseUrl: '', models: new Set([r.model]), from: `${t.path}#${k}`, secrets: [] });
     }
-    if (list.length) add({ key: `route:fallback:${k}`, kind: 'route', mode: 'info', title: 'Backup models', from: `${t.path}#${k}`, old: `backup models in order: ${list.slice(0, 4).join(', ')}`, lives: 'Settings → Models → Which model does what', page: 'models', why: 'Set the same order under "if it fails" once the providers work.' });
+    if (list.length) add({ key: `route:fallback:${k}`, kind: 'route', mode: 'info', title: 'Backup models', from: `${t.path}#${k}`, old: `backup models in order: ${list.slice(0, 4).join(', ')}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Set the same order under "if it fails" once the providers work.' });
   }
   if (isObj(c.auxiliary)) {
     mark('auxiliary');
@@ -412,7 +412,7 @@ function hermes(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<str
       const model = s(get(a, 'model'));
       const job = /vision|image/i.test(task) ? 'Pictures (vision)' : /compress|summar|memory|title/i.test(task) ? 'Background' : /web|search|extract/i.test(task) ? 'Research' : 'Quick';
       if (s(get(a, 'provider')) || s(get(a, 'base_url'))) eps.push({ name: s(get(a, 'provider')) || hostOf(s(get(a, 'base_url'))), baseUrl: s(get(a, 'base_url')), models: new Set(model ? [model] : []), from: `${t.path}#auxiliary.${task}`, secrets: secretNames(a, `auxiliary.${task}`) });
-      if (model) add({ key: `route:aux:${task}`, kind: 'route', mode: 'info', title: job, from: `${t.path}#auxiliary.${task}`, old: `${task} with ${model}`, lives: 'Settings → Models → Which model does what', page: 'models', why: `Pick it for "${job}" once its provider works.` });
+      if (model) add({ key: `route:aux:${task}`, kind: 'route', mode: 'info', title: job, from: `${t.path}#auxiliary.${task}`, old: `${task} with ${model}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: `Pick it for "${job}" once its provider works.` });
     }
   }
   providers(eps, ctx, add);
@@ -469,9 +469,9 @@ function openclaw(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<s
     const r = splitModelRef(ref);
     eps.push({ name: r.provider || 'openai', baseUrl: '', models: new Set([r.model]), from: `${t.path}#agents.defaults.model`, secrets: [] });
   }
-  if (chosen.primary) add({ key: 'route:chat', kind: 'route', mode: 'info', title: 'Chat model', from: `${t.path}#agents.defaults.model`, old: `chat with ${chosen.primary}`, lives: 'Settings → Models → Which model does what', page: 'models', why: 'Pick it for Chat once its provider works (after you paste the key).' });
-  if (chosen.fallbacks.length) add({ key: 'route:fallback', kind: 'route', mode: 'info', title: 'Backup models', from: `${t.path}#agents.defaults.model.fallbacks`, old: `backup models in order: ${chosen.fallbacks.slice(0, 4).join(', ')}`, lives: 'Settings → Models → Which model does what', page: 'models', why: 'Set the same order under "if it fails" once the providers work.' });
-  if (image.primary) add({ key: 'route:vision', kind: 'route', mode: 'info', title: 'Pictures (vision)', from: `${t.path}#agents.defaults.imageModel`, old: `pictures with ${image.primary}`, lives: 'Settings → Models → Which model does what', page: 'models', why: 'Pick it for "Pictures (vision)" once its provider works.' });
+  if (chosen.primary) add({ key: 'route:chat', kind: 'route', mode: 'info', title: 'Chat model', from: `${t.path}#agents.defaults.model`, old: `chat with ${chosen.primary}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Pick it for Chat once its provider works (after you paste the key).' });
+  if (chosen.fallbacks.length) add({ key: 'route:fallback', kind: 'route', mode: 'info', title: 'Backup models', from: `${t.path}#agents.defaults.model.fallbacks`, old: `backup models in order: ${chosen.fallbacks.slice(0, 4).join(', ')}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Set the same order under "if it fails" once the providers work.' });
+  if (image.primary) add({ key: 'route:vision', kind: 'route', mode: 'info', title: 'Pictures (vision)', from: `${t.path}#agents.defaults.imageModel`, old: `pictures with ${image.primary}`, lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Pick it for "Pictures (vision)" once its provider works.' });
   // models.providers: { name: { baseUrl, apiKey, api, models: [...] } }
   const mp = get(c, 'models.providers');
   if (isObj(mp)) {
@@ -535,7 +535,7 @@ function openclaw(t: ConfigTree, ctx: TranslateContext, add: Add, handled: Set<s
   if (isObj(c.skills)) {
     mark('skills');
     const names = secretNames(c.skills, 'skills');
-    if (names.length) add({ key: 'skill-keys', kind: 'knob', mode: 'info', title: 'Skill keys', from: `${t.path}#skills`, old: `${names.length} keys for skills (removed)`, secrets: names.slice(0, 12), lives: 'Settings → Add-ons → Skills', page: 'skills', why: 'Add the keys again for the skills that need them.' });
+    if (names.length) add({ key: 'skill-keys', kind: 'knob', mode: 'info', title: 'Skill keys', from: `${t.path}#skills`, old: `${names.length} keys for skills (removed)`, secrets: names.slice(0, 12), lives: 'Settings → Skills & tools → Skills', page: 'skills', why: 'Add the keys again for the skills that need them.' });
   }
   if (isObj(c.plugins)) mark('plugins');
 }

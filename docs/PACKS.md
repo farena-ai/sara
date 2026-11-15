@@ -3,14 +3,14 @@
 A companion pack is one file (`name.sara-companion.zip`) that holds a companion: her character, her
 personality dials, her look, her voice choice, her first message and a few starter skills. You can give
 one to a friend, keep one as a backup of how she was, or add one from the Sara Store
-(**Settings → Add-ons → Get more → Companions**).
+(**Settings → Skills & tools → Get more → Companions**).
 
 A pack never holds anything about you or your life with her: no memories, no chats, no people you told
 her about, no keys, no vault, no pictures she sent you, no cloned voice, your name or your notes.
 
 ## Share her
 
-Open **Settings → Her → Companions** and press **Share her** on her row.
+Open **Settings → Sara → Companions** and press **Share her** on her row.
 
 - Tick what goes in. Her character is always in. Her personality dials are ticked too (with none set,
   she simply uses the defaults on the other side). Her look, closet, face reference, voice, first
@@ -81,7 +81,7 @@ card. A card that describes a character under 18 with romance or sexual content 
 
 Juniper (a cozy friend), Rowan (a calm mentor), Vesper (a ship's AI) and Jax (a cheerful hacker) are on
 the Sara Store as the first companions. They come without pictures for now: **Make her look** in
-Settings → Her → Look builds one with your own image key.
+Settings → Sara → Look builds one with your own image key.
 
 ## Household members
 

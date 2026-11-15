@@ -28,7 +28,7 @@ export interface PolicyPins {
   /** off: no Store installs; official: signed Store shelf only (no community items). */
   store?: 'off' | 'official';
   auditRetentionDays?: (typeof RETENTION_CHOICES)[number];
-  /** PRQ: installing programs add-ons need (Settings → Add-ons): ask first, or off. */
+  /** PRQ: installing programs add-ons need (Settings → Skills & tools): ask first, or off. */
   programInstalls?: 'ask' | 'off';
   /** EC8: commands and plugin jobs only in a container (refused when no engine works). */
   containerSandbox?: true;
