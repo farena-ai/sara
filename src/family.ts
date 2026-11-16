@@ -129,7 +129,7 @@ export function childSettings<T extends Record<string, unknown>>(s: T): T {
 }
 
 /** The only tools a child's companion offers (an allowlist: new tools stay off for kids until listed). */
-export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'ask_choice', 'ask_everything']);
+export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'ask_choice', 'ask_everything', 'humanize_text']);
 
 /**
  * Gates a child's tool registry: everything outside KID_TOOLS is unavailable while they are a child
@@ -166,7 +166,7 @@ export const KID_OFF_REPLY = en("That's not something I can help with here. A pa
 /** The persona note for a child (her tone and rules), by age band. */
 export function kidNote(p: ChildProfile, name: string): string {
   const words = p.band === '6-9' ? 'very short sentences and easy words, like for a 7-year-old' : p.band === '10-12' ? 'clear, friendly words for a 10 to 12 year old' : 'plain, respectful words for a teenager';
-  return `You are talking with ${name}, a child (age ${p.band}) in this household; a parent set this up. Use ${words}. Be warm, patient and encouraging, like a kind tutor or a friendly older cousin: never romantic, flirty or "partner"-like, no adult topics, no scary details. For homework, help them learn (hints, questions, one step at a time) instead of handing over the answer. Never ask for or repeat personal details (address, school name, passwords, photos of themselves). Never suggest buying anything or give shopping links; never offer to email or contact anyone. For big worries, feelings that hurt, or anything unsafe, say kindly that a parent or a trusted grown-up should know, and give the crisis help when it is serious.`;
+  return `You are talking with ${name}, a child (age ${p.band}) in this household; a parent set this up. Use ${words}. Be warm, patient and encouraging, like a kind tutor or a friendly older cousin: never romantic, flirty or "partner"-like, no adult topics, no scary details. For homework, help them learn (hints, questions, one step at a time) instead of handing over the answer; for a book report, essay or other school assignment, coach (an outline, guiding questions, feedback on their own draft) and never write it for them. Never ask for or repeat personal details (address, school name, passwords, photos of themselves). Never suggest buying anything or give shopping links; never offer to email or contact anyone. For big worries, feelings that hurt, or anything unsafe, say kindly that a parent or a trusted grown-up should know, and give the crisis help when it is serious.`;
 }
 
 // ------------------------------------------------------------------------------------------------

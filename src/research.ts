@@ -1154,6 +1154,17 @@ export class Research {
    * 3.1.2: Save as a skill / Keep it fresh: a learned topic made from this run's pages (no second
    * read). `refresh` other than 'never' keeps it fresh on that schedule (Learn a topic).
    */
+  /** S11 (docs/WRITING_STYLE.md): Keep / Undo of "Make it sound human" on a finished report. */
+  replaceReport(id: number, md: string): ResearchRun {
+    const run = this.get(id);
+    if (!run) throw new ResearchError(404, en('That research run is gone.'));
+    if (!run.report) throw new ResearchError(409, en('That research run can’t do this now.'));
+    const text = String(md ?? '').trim();
+    if (!text) throw new ResearchError(400, en('There is no text to rewrite.'));
+    this.#set(id, { report: text.slice(0, 400_000) });
+    return this.get(id)!;
+  }
+
   saveAsSkill(id: number, refresh: unknown = 'never'): ResearchRun {
     const run = this.#must(id, 'done', 'stopped');
     const learn = this.#app.learnTopics;

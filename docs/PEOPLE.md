@@ -82,6 +82,63 @@ On a phone the card opens full screen.
 - **Export.** Export includes your people (proposed and active). Import doesn't bring people in.
   They are rebuilt from memories.
 
+## Keeping in touch
+
+S4 (relationship memory). On top of the cards, Sara keeps track of how you and the people in your
+life stay in touch. It is built from what you already connected, and nothing is copied: no message
+text is stored, only the sentence of a promise you confirm.
+
+- **Last contact on each channel.** Mail they sent you and mail you sent them (headers of the
+  mailboxes in your combined inbox), the chat rooms she keeps up with (Discord, Telegram groups),
+  and calendar meetings (past and the next one). Shown on the card and as "in touch 3 days ago"
+  on the list.
+- **Waiting for your reply.** When their newest mail is newer than anything you sent them and is 3
+  or more days old: "Dan has waited 2 weeks for your reply". Lists and newsletters never count.
+- **Promises.** "I'll send you the slides by Friday" in your own sent mail, or in your reply to them
+  in a chat room, becomes a promise with a due day. It waits as *to confirm* until you answer
+  **Yes, I promised** or **Not a promise**. You can add one on the card too, or tell her
+  (`person_note` stays for facts). Then: "You promised Ana: send you the slides (by Fri, Nov 20)".
+- **Dates.** The birthday on the card, plus anniversaries and other yearly days you add on the card.
+  A week ahead.
+- **Keep in touch.** Pick how often (every 2 weeks to every year) for people you don't want to lose
+  touch with: "You haven't been in touch with Ben for 2 months". **I got in touch** resets it.
+- **Email addresses** on the card match mail and meetings. She learns an address by herself when a
+  sender uses the card's full name (two words or more).
+
+### Where you see it
+
+- **Memory → People → Needs attention**: everything above, most urgent first (overdue promises,
+  long waits, dates, keep in touch), each with its answers (Done, Later for a week, Not needed).
+- **Today → People** tile, while someone needs you (birthdays stay on the Dates tile).
+- **Ask her**: "who's waiting for my reply?", "what did I promise Ana?" (`people_due`,
+  `promise_list`, read-only, run on their own).
+
+### Privacy
+
+- One switch on the People page: **Keep track of contact and promises** (on by default). Off, and
+  while you are off the record, nothing is read. Private local mode skips mail and calendars.
+- Only chat *rooms* she keeps up with are read, never adult rooms, never your conversations with her
+  and never private chats. S9a private messages are never read.
+- Private cards stay out of Today and of her answers in normal chats.
+- Your space only: each household member's contacts, promises and nudges live in their own space.
+- **Forget this person** also deletes their contact rows, promises, dates, addresses and snoozes;
+  **Merge** moves them to the card that stays.
+- Mail is read on the reminder tick at most every 30 minutes (90 days back the first time), up to
+  15 of your sent mails per pass for promises. **Check now** reads at once.
+
+### Design (one page)
+
+| Decision | Why |
+| --- | --- |
+| Derived rows only (`person_ties`, `person_contact`, `person_promises` in the space's database) | No second copy of mail or chats; forget is one delete |
+| Rules, not a model, find promises (English phrasing: "I'll / I will / let me + verb", due words like Friday, tomorrow, next week, Nov 20) | Free, local, predictable; a model pass can come later |
+| Every found promise needs a tap | A wrong guess never nags |
+| Match by address, learn by full name only | First names alone are ambiguous |
+| Rooms: a linked person's lines, and the owner's replies to them | Rooms are where the owner talks to people through Sara's bridges |
+
+Risks: promise rules miss other languages and indirect phrasing (gap); a shared mailbox address can
+match the wrong card (edit the addresses). Tests: `test/s4-people.test.ts`.
+
 ## For developers
 
 | Piece | File |
@@ -91,7 +148,8 @@ On a phone the card opens full screen.
 | Tools `person_lookup`, `people_list` (run on their own), `person_note` (asks) | `src/people-tools.ts` |
 | Routes `/api/people…`, `/api/person-facts/:id` | `src/routes/people.ts` |
 | Page | `web/people.js`, `web/people.css`, `#memory` in `web/index.html` |
-| Tests | `test/phase101.test.ts`, people case in `test/household-isolation.test.ts` |
+| S4 keeping in touch (contact, promises, dates, nudges, tools `people_due`, `promise_list`) | `src/people-ties.ts`, `src/routes/people-ties.ts`, `web/people-ties.js` |
+| Tests | `test/phase101.test.ts`, `test/s4-people.test.ts`, people case in `test/household-isolation.test.ts` |
 
 `PeopleStore.gate()` is the single check every outside path uses. A memory linked to a person, or a
 text that names an active person, stays in. New outside paths must call it.

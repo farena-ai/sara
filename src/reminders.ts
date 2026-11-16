@@ -70,6 +70,8 @@ export class ReminderScheduler {
     this.#app.errands?.due(now);
     // S3: long-running goals check progress, nudge, propose new plans and send weekly summaries on the same tick.
     this.#app.longGoals?.due(now);
+    // S4: last contact, waiting replies and promises from mail, calendars and rooms (at most every 30 minutes).
+    void this.#app.peopleTies?.due(now);
     // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
     void this.#app.messages?.due(now).catch(() => undefined);
     // HANDSFREE 3a: calendars added by link are read again every 15 minutes (in the background).
@@ -78,6 +80,8 @@ export class ReminderScheduler {
     familyTick(this.#app, now);
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
     this.#app.inbox?.due(now);
+    // S6: travel: check-in, leave-by and flight status alerts on the same tick.
+    this.#app.travel?.due(now);
     // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
     this.#app.productWatches?.due(now);
     // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.

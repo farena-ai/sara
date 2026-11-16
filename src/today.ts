@@ -85,8 +85,14 @@ export interface Today {
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
   /** R3: open errands, the ones waiting on you first (none open: no tile). */
   errands?: ReturnType<import('./errands.ts').Errands['todayTile']>;
+  /** S6: the next trip (or the one under way) and what comes next in it (none: no tile). */
+  trips?: ReturnType<import('./travel.ts').Travel['todayTile']>;
   /** S3: active long-running goals (progress, next step; a waiting new plan first; none: no tile). */
   goals?: ReturnType<import('./long-goals.ts').LongGoals['todayTile']>;
+  /** S4: people who need you (waiting replies, promises, dates, keep in touch; none: no tile). */
+  people?: ReturnType<import('./people-ties.ts').PeopleTies['todayTile']>;
+  /** S2: action items due this week and follow-up emails waiting (none: no tile). */
+  meetings?: ReturnType<import('./meetings.ts').Meetings['todayTile']>;
   /** R8: Family: a parent's approvals and kids' balances, or a kid's own chores and balance. */
   family?: NonNullable<ReturnType<import('./family.ts').FamilyStore['todayTile']>> & { names: Record<string, string> };
   /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
@@ -110,7 +116,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'family', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'people', 'family', 'meetings', 'trips', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -572,6 +578,24 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.longGoals?.todayTile();
       if (tile) out.goals = tile;
       meta('goals');
+    },
+    people: () => {
+      // S4: a tile only while someone needs you (birthdays stay on the Dates tile).
+      const tile = demo ? undefined : app.peopleTies?.todayTile();
+      if (tile) out.people = tile;
+      meta('people');
+    },
+    meetings: () => {
+      // S2: the owner's meetings only (members and the demo have none).
+      const tile = demo || member ? undefined : app.meetings?.todayTile();
+      if (tile) out.meetings = tile;
+      meta('meetings');
+    },
+    trips: () => {
+      // S6: the next trip within two weeks, or the one under way.
+      const tile = demo ? undefined : app.travel?.todayTile();
+      if (tile) out.trips = tile;
+      meta('trips');
     },
     family: () => {
       // R8: chores and allowance (none set up: no tile).

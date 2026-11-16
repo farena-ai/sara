@@ -37,6 +37,7 @@ import { loadEmailPage } from './email.js';
 import { loadMailAccounts } from './mail-accounts.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
+import { loadWritingStyle } from './writing-style.js';
 import { dateCard, initFacts, loadFacts } from './facts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
@@ -45,6 +46,8 @@ import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
 import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
 import { initGoals, loadGoals, openGoals, renderGoalsTile } from './long-goals.js';
+import { loadMeetingPrefs, openMeetingsView, renderMeetingsTile } from './meetings.js';
+import { initTrips, loadTrips, openTrips, renderTripsTile } from './trips.js';
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
 import { initFamily, loadFamily, openFamily, renderFamilyTile } from './family.js';
 import { initMessages, messagesChanged, openMessages, refreshMessagesBadge } from './messages.js';
@@ -59,7 +62,8 @@ import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
 import { boardEvent, initBoard, openCardOnBoard, plannerView, rememberView } from './board.js';
 import { checkPrompts as checkDevicePrompts, initDeviceApproval, loadDeviceApproval, waitForApproval, waitOnSignIn } from './device-approval.js';
 import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPlans, renderPlansTile } from './agenda.js';
-import { initPeople, peopleEvent, peopleOnOpen, showPerson } from './people.js';
+import { initPeople, peopleEvent, peopleOnOpen, peopleShowAttention, showPerson } from './people.js';
+import { renderPeopleDueTile } from './people-ties.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { focusSshServer, initSsh, loadSsh } from './ssh.js';
@@ -1751,6 +1755,9 @@ initToday({
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
   renderErrands: (part, head) => renderErrandsTile(part, head),
   renderGoals: (part, head) => renderGoalsTile(part, head),
+  renderPeopleDue: (part, head) => renderPeopleDueTile(part, head, () => (peopleShowAttention(), openMemory({ tab: 'people' }))),
+  renderMeetings: (part, head) => renderMeetingsTile(part, head),
+  renderTrips: (part, head) => renderTripsTile(part, head),
   renderFamily: (part, head) => renderFamilyTile(part, head),
   renderInbox: (part, head) => renderInboxTile(part, head, dateCard),
   renderPhotos: renderTodayPhotos,
@@ -7413,6 +7420,7 @@ function startEvents() {
     // R3: an errand moved: its page refreshes while it is open.
     if (part === 'errands' && $('#errands')?.open) void loadErrands();
     if (part === 'goals' && $('#goals')?.open) void loadGoals();
+    if (part === 'trips' && $('#trips')?.open) void loadTrips();
     if (part === 'family' && $('#family')?.open) void loadFamily();
   });
   es.addEventListener('job', () => todayPartChanged('work'));
@@ -9331,9 +9339,9 @@ async function loadSettingsPages(onCore = () => {}) {
   savedDefaultModelRevision = defaultModelRevision;
   onCore();
   // Phase 71: a household member's space answers only their own pages; the owner's are skipped.
-  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
+  if (isMember()) return void (await Promise.all([loadDevices().catch(() => {}), loadPhotos().catch(() => {}), loadBriefing(), loadVoice().catch(() => {}), loadCalls().catch(() => {}), loadPush(), loadAdult(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadWritingStyle(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDataSources()]));
   await tools;
-  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources()]);
+  await Promise.all([loadDevices().catch(() => {}), loadDeviceApproval(), loadPhotos(), loadOffsite(), loadBriefing(), loadSearch(), loadMcp(), renderRoutes(), loadVoice(), loadCalls(), loadTelegram(), loadDiscord(), loadChatCommands(), loadChatMedia(), loadTitleSettings(), loadWhileBusy(), loadPush(), loadHealth(), loadBackups(), loadSubs(), loadGitHub(), loadHome(), loadGoogle(), loadSpotify(), loadAdult(), loadApns(), loadReports(), loadLeaveBy(), loadBusinessDetails(), loadMyDetails(), loadWritingStyle(), loadFacts(), loadReview(), loadSecurity(), renderCompanionsPage(), loadDesktop(), loadDesktopGet(), loadHistory(), loadUsage(), loadMcpPresets(), loadDataSources(), loadDataSources()]);
 }
 /**
  * M9: text drawn from data before a language change stays in the old language, so the open
@@ -9982,7 +9990,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), addons: () => $('#open-addons').click() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -12448,6 +12456,12 @@ $('#open-errands').addEventListener('click', () => {
   void openErrands();
 });
 // S3 (docs/GOALS.md): the Goals page.
+// S6 (docs/TRAVEL.md): the Trips page.
+initTrips({ api, el });
+$('#open-trips').addEventListener('click', () => {
+  closeSidebar();
+  void openTrips();
+});
 initGoals({
   api,
   el,

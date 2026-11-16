@@ -39,6 +39,12 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-errands', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   // S3: Goals (active long-running goals, progress and next step); shown only while one is active.
   { id: 'td-goals', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  // S4: People (waiting replies, promises, dates, keep in touch); shown only while someone needs you.
+  { id: 'td-people', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  // S2: Meetings (action items due this week, follow-up emails waiting); shown only then.
+  { id: 'td-meetings', section: 'needs', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
+  // S6: Trips (the next trip or the one under way, what comes next); shown only then.
+  { id: 'td-trips', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   // R8: Family (chores to approve, kids' balances; a kid's own chores); shown once chores exist.
   { id: 'td-family', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   { id: 'td-memories', section: 'her', sizes: ['S', 'M'], size: 'S' },

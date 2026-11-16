@@ -36,7 +36,7 @@ export function tileTitle(id) {
     'td-calendar': t('Your day'), 'td-weather': t('Weather'), 'td-dates': t('Coming up'), 'td-needs': t('Needs you'), 'td-mail': t('Mail'),
     'td-memories': t('She remembered'), 'td-otd': t('Moments'), 'td-plans': t('Her plans'), 'td-rooms': t('Rooms'), 'td-jobs': t('Running now'),
     'td-board': t('On the board'), 'td-projects': t('Coding projects'), 'td-usage': t('Usage today'), 'td-business': t('Money and replies'), 'td-money': t('Money'), 'td-home': t('Home'), 'td-models': t('Model changes'),
-    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-automations': t('Automations'), 'td-inbox': t('From your inbox'), 'td-teams': t('My teams'), 'td-shared': t('Shared with you'), 'td-worktime': t('Clients and hours'), 'td-errands': t('Errands'), 'td-goals': t('Goals'), 'td-family': t('Family'), 'td-agenda': t('Planner'), 'td-setup': t('Add to your day'),
+    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-automations': t('Automations'), 'td-inbox': t('From your inbox'), 'td-teams': t('My teams'), 'td-shared': t('Shared with you'), 'td-worktime': t('Clients and hours'), 'td-errands': t('Errands'), 'td-goals': t('Goals'), 'td-people': t('People'), 'td-family': t('Family'), 'td-agenda': t('Planner'), 'td-meetings': t('Meetings'), 'td-trips': t('Trips'), 'td-setup': t('Add to your day'),
   };
   return words[id] ?? id;
 }
@@ -68,6 +68,9 @@ export function tileTip(id) {
     'td-automations': t('Shown only when an automation failed, waits for your OK, or runs today.'),
     'td-errands': t('Goals she is taking care of, the ones waiting on you first. Shows while an errand is open.'),
     'td-goals': t('Your goals over days: progress, the next step and any new plan she proposes. Shows while a goal is active.'),
+    'td-people': t('People who need you: replies they wait for, promises you made, dates and friends to get in touch with. Shows while someone needs you.'),
+    'td-meetings': t('Action items from your meetings due this week, and follow-up emails waiting for you. Shows only then.'),
+    'td-trips': t('Your next trip from booking emails: what comes next, with flight status. Shows two weeks before a trip.'),
     'td-family': t('Chores waiting for your OK and the kids’ allowance; for a kid, their chores today. Shows once there are chores.'),
     'td-inbox': t('Bills, receipts, packages, trips and appointments she found in your new email, each with Accept. Shows when there is something.'),
     'td-shared': t('Items on shared household lists given to you, and lists waiting for you to accept. Shows once someone shares a list with you.'),

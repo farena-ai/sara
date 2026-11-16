@@ -192,3 +192,38 @@
 #settings #wsk-suggest-list .ih-cards { margin-bottom: var(--s-2); }
 .wsk-card .ih-head { flex-wrap: wrap; }
 .wsk-card .ih-main { white-space: normal; overflow: visible; text-overflow: clip; }
+
+/* S4 (docs/PEOPLE.md "Keeping in touch"): needs attention, the card's ties section, Today's tile. */
+.ppl-ties-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+#memory .ppl-ties-row label.row { display: flex; align-items: center; gap: var(--s-2); margin: 0; flex: 1 1 260px; min-width: 0; }
+#memory .ppl-ties-row label.row input { width: 22px; flex: none; }
+.ppl-ties-row label[hidden], .ppl-ties-row label[hidden] + button { display: none; }
+.pt-due { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); grid-column: 1 / -1; }
+.pt-due-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-3); border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-1); border-left: 3px solid var(--accent); }
+.pt-due-row.k-wait { border-left-color: var(--warn); }
+.pt-due-row.k-check { border-left-color: var(--info); }
+.pt-due-row.k-date { border-left-color: var(--accent-text); }
+.pt-due-name { font-weight: 600; color: var(--text-1); }
+.pt-due-text { flex: 1 1 220px; min-width: 0; color: var(--text-2); overflow-wrap: anywhere; }
+.pt-due-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pt-ties .pt-contacts, .pt-ties .pt-list { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: var(--s-1, 4px); }
+.pt-ties .pt-list li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.pt-c-word { color: var(--text-1); font-weight: 600; }
+.pt-p-text { color: var(--text-1); overflow-wrap: anywhere; }
+.pt-p.s-done .pt-p-text { text-decoration: line-through; color: var(--text-3); }
+#memory .pt-field { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); margin: var(--s-2) 0; }
+#memory .pt-field > span { color: var(--text-2); }
+#memory .pt-field > .tip { flex: none; }
+#memory .pt-field input, #memory .pt-field select { flex: 1 1 200px; min-width: 0; }
+.pt-dates, .pt-promises { margin-top: var(--s-3); }
+.pt-sub { font-weight: 600; color: var(--text-1); margin-right: var(--s-2); }
+.pt-add { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.pt-add input:not([type="date"]) { flex: 1 1 200px; min-width: 0; }
+.pt-tile { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: var(--s-2); }
+.pt-tile-row { padding-left: var(--s-2); border-left: 3px solid var(--accent); color: var(--text-1); overflow-wrap: anywhere; }
+.pt-tile-row.k-wait { border-left-color: var(--warn); }
+.pt-tile-row.k-check { border-left-color: var(--info); }
+#memory .pt-field input, #memory .pt-field select { width: auto; max-width: 420px; }
+#memory .pt-add input { width: auto; margin: 0; }
+#memory .pt-add input[type="date"] { flex: 0 0 auto; }
+#memory .pt-add > button { flex: none; }

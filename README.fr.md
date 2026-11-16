@@ -24,7 +24,7 @@
 
 **Mettre à jour :** sur un serveur Linux, `sudo sara update` (sauvegarde d’abord, revient en arrière si elle ne répond pas) · Docker : `sudo git pull && sudo docker compose up -d --build` · apps Windows et Mac : Réglages → Données et santé → Mises à jour · Android : Google Play. [Mettre à niveau](docs/INSTALL.md#upgrading).
 
-> **État :** 3.15.0, [Choix à toucher, objectifs, recherche, tout demander, messages privés](https://github.com/farena-ai/sara/releases/tag/v3.15.0). Touchez ses options au lieu d’écrire, objectifs sur plusieurs jours, rapports de recherche sourcés, une recherche dans toute votre vie et messages privés entre serveurs Sara. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 3.16.0, [Une écriture qui sonne humaine, réunions, garder le contact, voyages](https://github.com/farena-ai/sara/releases/tag/v3.16.0). Rendre le texte humain (dans votre propre voix, faits verrouillés), notes de réunion à partir d’enregistrements, mémoire des relations et assistant de voyage. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versions récentes · 6 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Une écriture qui sonne humaine, réunions, garder le contact, voyages](docs/WRITING_STYLE.md)** — Réécrit documents et rapports en langage simple ; enregistrez ou importez des réunions pour la transcription, les décisions et des suivis rédigés ; voyez qui attend votre réponse et ce que vous avez promis ; voyages tirés des mails de réservation avec alertes et options de rebooking. |
 | **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Choix à toucher, objectifs, recherche, tout demander, messages privés](docs/CHOICES.md)** — Boutons de réponse dans l’appli, Telegram et Discord ; objectifs avec étapes et rappels ; recherche web et dans vos fichiers vers Word/PDF ; questions sur mails, fichiers, chats et agendas ; messages et communautés entre serveurs que les agents ne voient jamais. |
 | **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Les documents enregistrés comptent comme enregistrés](docs/DOCUMENTS.md)** — Créer un document, remplir un formulaire, factures, exports et modifications Docs/Sheets/Excel comptent désormais comme preuve d’enregistrement. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Tous vos comptes ensemble, et son propre icône](docs/MAIL_ACCOUNTS.md)** — Agendas Google, Outlook, iCloud, Fastmail et Yahoo étiquetés par compte ; l’icône de l’appli, l’onglet et les notifications utilisent sa propre image. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Ses photos avec ComfyUI, envoyées où vous voulez](docs/PHOTOS.md)** — Nouveau réglage Envoyer ses photos à : un chat réservé à ses photos, une de vos discussions, un chat de projet et/ou Telegram et Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Des réglages plus calmes et haut de gamme](docs/HOW_DO_I.md)** — La recherche trouve un réglage précis et le met en évidence (Ctrl+K) ; sur téléphone on descend du groupe à la page ; toutes les options et anciens liens fonctionnent. |
-| **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Applis pro, famille, confiance et voix prête](docs/WORK_APPS.md)** — Règles d’outils par membre appliquées sur le serveur, export d’audit et conservation ; appels prêts et éteints jusqu’à un fournisseur ; faits en six langues, accessibilité et modèles. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versions 2.6x précédentes</b>: de la 3.11.0 à la 2.61.5</summary>
+<summary><b>Versions 2.6x précédentes</b>: de la 3.12.0 à la 2.61.5</summary>
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Applis pro, famille, confiance et voix prête](docs/WORK_APPS.md)** — Règles d’outils par membre appliquées sur le serveur, export d’audit et conservation ; appels prêts et éteints jusqu’à un fournisseur ; faits en six langues, accessibilité et modèles. |
 | **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Démarches, démarrage facile et Raccourcis iPhone](docs/ERRANDS.md)** — Remboursements, réservations, résiliations et devis planifiés et suivis étape par étape ; les paiements restent chez vous. Une page de téléchargement, un autotest et des pièces jointes Outlook jusqu’à 150 Mo. |
 | **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Partout où vous êtes, connaît votre monde, travaille avec votre équipe](docs/WHAT_SARA_KNOWS.md)** — L’app Mac fait comme Windows ; les notifications ont Approuver, Reporter, Répondre et Accepter ; elle répond à partir de vos fichiers avec citations exactes et pages ; les heures deviennent des factures sans double facturation. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Depuis vos e-mails, et formulaires remplis](docs/INBOX_HELPER.md)** — Rien ne se fait seul sans votre accord, et rien venant d’un e-mail n’envoie ni ne paie. Les formulaires s’arrêtent avant Envoyer après une carte de vérification ; les e-mails ont des pièces jointes ; les magasins qui la bloquent sont vérifiés dans votre navigateur. |

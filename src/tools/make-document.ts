@@ -10,6 +10,7 @@ import type { AppContext } from '../chat.ts';
 import { fileQuotaHit, recordShared, sha256, sharedDir } from '../bridges/media.ts';
 import { DocError, FORMAT_LABEL, madeDocs, makeDocument } from '../documents/make.ts';
 import { FORMATS, TEMPLATES } from '../documents/spec.ts';
+import { humanize, isAssignment, isChild, proseWords, writingFor, type WritingStyle } from '../humanize.ts';
 import { minorSexualMatch } from '../safety.ts';
 import { humanSize } from './send-file.ts';
 import { ToolError, type Tool, type ToolContext } from './types.ts';
@@ -32,6 +33,7 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
           content: { type: 'string', description: 'The whole document as Markdown.' },
           template: { type: 'string', enum: [...TEMPLATES], description: 'Optional look: report, letter, resume or plain. Picked from the request when left out.' },
           basedOn: { type: 'number', description: 'Optional: the number of a document you made, to make a new version of it.' },
+          style: { type: 'string', enum: ['natural', 'as-written'], description: 'Optional (S11): natural rewrites the prose in plain, human words first (facts kept exactly); as-written keeps your words. Left out: the person\'s default in Settings.' },
           sheets: { type: 'array', description: 'Optional for xlsx: [{"name":"Budget","rows":[["Item","Cost"],["Rent",1200],["Total","=SUM(B2:B2)"]]}].', items: { type: 'object' } },
           slides: { type: 'array', description: 'Optional for pptx: [{"title":"…","bullets":["…"],"notes":"…","image":"upload:ID"}].', items: { type: 'object' } },
         },
@@ -55,6 +57,24 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
       }
       const text = `${String(args.title ?? '')}\n${String(args.content ?? '').slice(0, 200_000)}`;
       if (minorSexualMatch(text, { fromHer: true })) throw new ToolError("I won't make that.");
+      // S11 kid mode (docs/WRITING_STYLE.md): she coaches a child's school assignment instead of writing it.
+      if (isChild(app) && isAssignment(`${String(args.title ?? '')}\n${String(args.content ?? '').slice(0, 400)}`) && proseWords(String(args.content ?? '')) > 80) {
+        throw new ToolError("This looks like a school assignment, so don't write it for them. Coach instead: make an outline (headings, bullet points and guiding questions), or read their own draft and give suggestions. The report has to be in their own words.");
+      }
+      // S11: "Make it sound human" as a style option (prose formats; the person's default when left out).
+      let styled = '';
+      const style: WritingStyle = args.style === 'natural' || args.style === 'as-written' ? args.style : writingFor(app).get().style;
+      if (style === 'natural' && !isChild(app) && ['docx', 'pdf', 'md', 'html'].includes(String(args.format ?? '')) && String(args.content ?? '').split(/\s+/).length >= 12 && !has('sheets') && !has('slides')) {
+        try {
+          const r = await humanize(app, String(args.content), { voice: Boolean(writingFor(app).get().card), ...(conv ? { conv } : {}), ...(ctx.signal ? { signal: ctx.signal } : {}) });
+          if (r.kept !== 'original') {
+            args = { ...args, content: r.after };
+            styled = ` It was made to sound human first (reads natural ${r.check.after.score}/100, was ${r.check.before.score}; every number, name, quote and citation kept).`;
+          }
+        } catch {
+          // As written when the rewrite can't run (no model, too long).
+        }
+      }
       let out;
       try {
         out = makeDocument(app, args, { ...(conv ? { conversationId: conv.id } : {}), keep: !conv?.private });
@@ -65,7 +85,7 @@ export function createMakeDocumentTool(getApp: () => AppContext): Tool {
       const { made, data, mime } = out;
       const shared = shareMade(app, ctx, conv, made, data, mime);
       const where = [shared ? 'it is in the chat with Download, Open and Make changes buttons' : '', made.libraryId ? `it is saved in the Library (document ${made.libraryId})` : ''].filter(Boolean).join(', and ');
-      return `Made “${made.title}” as a ${FORMAT_LABEL[made.format]} (${made.name}, ${humanSize(data.length)}), document #${made.id}${made.version > 1 ? `, version ${made.version}` : ''}.${where ? ` ${where[0].toUpperCase()}${where.slice(1)}.` : ''} Tell the owner in a sentence; don't paste the content again. To change it later, call make_document with basedOn: ${made.id}.`;
+      return `Made “${made.title}” as a ${FORMAT_LABEL[made.format]} (${made.name}, ${humanSize(data.length)}), document #${made.id}${made.version > 1 ? `, version ${made.version}` : ''}.${where ? ` ${where[0].toUpperCase()}${where.slice(1)}.` : ''}${styled} Tell the owner in a sentence; don't paste the content again. To change it later, call make_document with basedOn: ${made.id}.`;
     },
   };
 }

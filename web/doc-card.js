@@ -4,6 +4,7 @@
 // the composer, which makes the next version and keeps the old ones) and the other versions.
 import { t } from './naming.js';
 import { addSaveButtons, dragOut } from './save-to-pc.js';
+import { humanizeButton } from './humanize.js';
 
 const ICON = { docx: '📘', pdf: '📕', xlsx: '📗', pptx: '📙', md: '📝', csv: '📊', html: '🌐' };
 const KIND = () => ({ docx: t('Word document'), pdf: t('PDF'), xlsx: t('Excel spreadsheet'), pptx: t('PowerPoint presentation'), md: t('Markdown file'), csv: t('CSV file'), html: t('Web page') });
@@ -103,6 +104,8 @@ export function docCard(f) {
   change.type = 'button';
   change.addEventListener('click', () => askChanges(made));
   acts.append(dl, open, change);
+  // S11: Make it sound human (prose documents): side by side, Keep makes the next version.
+  if (['docx', 'pdf', 'md', 'html'].includes(made.format)) acts.append(humanizeButton({ madeId: made.id }, f.name ?? made.title));
   // The desktop app: Save to… / Save to Downloads, and dragging the card out to a folder.
   addSaveButtons(acts, { url: `${base(made.id)}/file`, name: f.name ?? made.title });
   dragOut(card, { url: `${base(made.id)}/file`, name: f.name ?? made.title, format: made.format });

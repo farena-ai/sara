@@ -85,6 +85,7 @@ import { createRoutineRoutes } from './routes/routines.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
+import { createTravelRoutes } from './routes/travel.ts';
 import { createPhoneCallRoutes, phoneUpgrade, phoneWebhook } from './routes/phone-calls.ts';
 import { createFamilyRoutes } from './routes/family.ts';
 import { createInboxRoutes } from './routes/inbox.ts';
@@ -98,6 +99,7 @@ import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createBizRoutes } from './routes/biz.ts';
 import { createMyDetailsRoutes } from './routes/my-details.ts';
+import { createWritingRoutes } from './routes/writing.ts';
 import { createFactsRoutes } from './routes/facts.ts';
 import { createWorkRoutes } from './routes/work.ts';
 import { createCrewRoutes } from './routes/crews.ts';
@@ -442,7 +444,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'data-sources']);
+  const AUDITED = new Set(['messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1017,6 +1019,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const automationRoutes = createAutomationRoutes(ctx);
   const errandRoutes = createErrandRoutes(ctx);
   const longGoalRoutes = createLongGoalRoutes(ctx);
+  const travelRoutes = createTravelRoutes(ctx);
   const phoneCallRoutes = createPhoneCallRoutes(ctx);
   const familyRoutes = createFamilyRoutes(ctx);
   // N3: from your inbox, each person's own (src/routes/inbox.ts).
@@ -1037,6 +1040,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const bizRoutes = createBizRoutes(ctx);
   // N4: Settings → You → My details, each person's own (src/routes/my-details.ts).
   const myDetailsRoutes = createMyDetailsRoutes(ctx);
+  // S11: Write like a person, each person's own (src/routes/writing.ts).
+  const writingRoutes = createWritingRoutes(ctx);
   // N6: Settings → You → What Sara knows, each person's own (src/routes/facts.ts).
   const factsRoutes = createFactsRoutes(ctx);
   // N7: Today's timer Stop and the work tiles' data, each person's own (src/routes/work.ts).
@@ -1583,6 +1588,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await travelRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneCallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bookingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await familyRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1595,6 +1601,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await myDetailsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await writingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await factsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;

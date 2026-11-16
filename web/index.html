@@ -224,6 +224,7 @@
           <div class="side-dest" data-dest="planner"><button class="side-go" id="open-planner" type="button" title="Planner: to-dos, reminders, notes (Alt+P)"><i class="ic" data-icon="planner"></i><span>Planner</span></button></div>
           <div class="side-dest" data-dest="errands"><button class="side-go" id="open-errands" type="button" title="Errands: goals she takes care of from start to finish, and what she needs from you"><i class="ic" data-icon="todo"></i><span>Errands</span></button></div>
           <div class="side-dest" data-dest="goals"><button class="side-go" id="open-goals" type="button" title="Goals: bigger things you want done over days or weeks, with milestones, progress and a weekly summary"><i class="ic" data-icon="flag"></i><span>Goals</span></button></div>
+          <div class="side-dest" data-dest="trips"><button class="side-go" id="open-trips" type="button" title="Trips: bookings from your email as one timeline, flight alerts and packing lists"><i class="ic" data-icon="calendar"></i><span>Trips</span></button></div>
           <div class="side-dest" data-dest="family"><button class="side-go" id="open-family" type="button" title="Family: chores and allowance, grocery lists, kid-safe mode"><i class="ic" data-icon="group"></i><span>Family</span></button></div>
           <div class="side-dest" data-dest="msgs" data-owner-only><button class="side-go" id="open-msgs" type="button" data-owner-only title="Messages: private chats with the owners of linked servers (Sara never reads them)"><i class="ic" data-icon="chat"></i><span>Messages</span><i id="msgs-dot" class="side-dot" hidden></i></button></div>
           <div class="side-dest" data-dest="memory"><button class="side-go" id="open-memory" type="button" title="What she remembers (Alt+M)"><i class="ic" data-icon="memory"></i><span>Memory</span></button></div>
@@ -523,6 +524,9 @@
                 <section class="today-card td-tile" id="td-shared" hidden tabindex="0" aria-labelledby="td-shared-h"><div class="td-tile-head"><h3 id="td-shared-h">Shared with you</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-errands" hidden tabindex="0" aria-labelledby="td-errands-h"><div class="td-tile-head"><h3 id="td-errands-h">Errands</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-goals" hidden tabindex="0" aria-labelledby="td-goals-h"><div class="td-tile-head"><h3 id="td-goals-h">Goals</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-people" hidden tabindex="0" aria-labelledby="td-people-h"><div class="td-tile-head"><h3 id="td-people-h">People</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-meetings" hidden tabindex="0" aria-labelledby="td-meetings-h"><div class="td-tile-head"><h3 id="td-meetings-h">Meetings</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-trips" hidden tabindex="0" aria-labelledby="td-trips-h"><div class="td-tile-head"><h3 id="td-trips-h">Trips</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-family" hidden tabindex="0" aria-labelledby="td-family-h"><div class="td-tile-head"><h3 id="td-family-h">Family</h3></div><div class="td-body"></div></section>
               </div>
             </section>
@@ -1538,6 +1542,23 @@
       <div id="gl-list" class="gl-list"></div>
     </form>
   </dialog>
+  <!-- S6 (docs/TRAVEL.md): Trips (bookings from email as one timeline, flight alerts, packing lists) -->
+  <dialog id="trips" aria-label="Trips">
+    <form method="dialog" class="settings-body trips">
+      <h2>Trips</h2>
+      <p class="muted small">Bookings she finds in your email (flights, hotels, rental cars, trains, event tickets) become one timeline per trip, with times in each place’s time zone. She reminds you to check in, says when to leave for the airport and tells you about delays, gate changes and cancellations. She never books, changes or pays for anything.</p>
+      <p id="tp-status" class="muted small" role="status"></p>
+      <div id="tp-list" class="tp-list"></div>
+      <h3>Flight status <button type="button" class="tip" data-tip="Flight status comes from a source you turn on. None is free without a key, so it starts off; check-in and leave-by reminders work without one.">?</button></h3>
+      <div class="tp-set" data-nodirty data-noauto>
+        <div class="tp-row"><button type="button" class="tip" data-tip="AirLabs has a free plan: sign up at airlabs.co, copy your API key and save it here. She checks only flights leaving within 36 hours.">?</button><span>Source</span> <select id="tp-provider" aria-label="Flight status source"><option value="off">Off</option><option value="airlabs">AirLabs (your own free key)</option></select></div>
+        <div id="tp-key-row" class="tp-row" hidden><button type="button" class="tip" data-tip="The key is kept in this server’s vault, never in chats or logs. Save an empty box to remove it.">?</button><input id="tp-key" type="password" autocomplete="off" placeholder="AirLabs API key" aria-label="AirLabs API key"> <button id="tp-key-save" type="button" class="small">Save key</button> <span id="tp-key-state" class="muted small"></span></div>
+        <label class="tp-check"><input id="tp-alerts" type="checkbox"> Delays, gate changes and cancellations on your phone <button type="button" class="tip" data-tip="Delays of 15 minutes or more, gate changes, diversions and cancellations, with rebooking options. Close to departure they come even in quiet hours.">?</button></label>
+        <label class="tp-check"><input id="tp-checkin" type="checkbox"> Check-in reminder 24 hours before <button type="button" class="tip" data-tip="A reminder when check-in opens, 24 hours before each flight, with a link to the airline.">?</button></label>
+        <label class="tp-check"><input id="tp-leaveby" type="checkbox"> When to leave for the airport <button type="button" class="tip" data-tip="Uses your leave-by home and travel mode (Settings, Leave-by reminders) so you get to the airport 2 hours before a flight, 3 for international.">?</button></label>
+      </div>
+    </form>
+  </dialog>
   <!-- R8 (docs/FAMILY.md): Family (chores and allowance, grocery lists, kid-safe mode) -->
   <dialog id="family" aria-label="Family">
     <form method="dialog" class="settings-body family">
@@ -1971,6 +1992,11 @@
           <div class="ppl-filters" role="group" aria-label="Show">
             <div id="ppl-circles" class="ppl-chips"></div>
             <button id="ppl-tip-circles" type="button" class="tip" data-tip="Circles group people: family, partner, friends, work, neighbors, other. She guesses from what you call them (&quot;my manager&quot; is work); change it on the card. In a work chat she leans to work people.">?</button>
+          </div>
+          <!-- S4 (docs/PEOPLE.md "Keeping in touch"): last contact, waiting replies and promises (web/people-ties.js). -->
+          <div class="ppl-ties-row">
+            <label class="row"><input id="ppl-ties-on" type="checkbox" checked> Keep track of contact and promises <button type="button" class="tip" data-tip="Reads your mail headers, calendars and the chat rooms she keeps up with to show the last contact, replies people wait for and promises you made. Only on this server; no message text is kept.">?</button></label>
+            <button id="ppl-ties-scan" type="button" class="ghost small">Check now</button>
           </div>
           <div id="ppl-new" class="ppl-new" hidden>
             <label>Name <input id="ppl-new-name" required maxlength="80" placeholder="e.g. Jamie"> <button type="button" class="tip" data-tip="How you usually say their name. Add nicknames on the card.">?</button></label>
@@ -2810,6 +2836,13 @@
         </div>
         <label>ElevenLabs key <input id="v-el-key" type="password" autocomplete="off" placeholder="leave empty to keep"></label>
       </details>
+      <!-- S2 (docs/MEETINGS.md): meeting recordings (web/meetings.js loadMeetingPrefs). -->
+      <h3 data-owner-only>Meetings <button type="button" class="tip" data-tip="How Sara records and hears your meetings (Library → Meetings).">?</button></h3>
+      <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
+        <label class="row"><input id="meet-remind" type="checkbox"> Remind me to tell everyone <button type="button" class="tip" data-tip="Before a recording starts she shows, and says out loud, a line asking everyone on the call to agree.">?</button></label>
+        <label class="row"><input id="meet-cloud" type="checkbox"> Let a cloud engine hear meetings <button type="button" class="tip" data-tip="Off: meetings are heard only by the hearing engine on this computer. On: your Speech API or Grok voice may hear them when there is no local engine.">?</button></label>
+        <p id="meet-prefs-note" class="muted small" role="status"></p>
+      </div>
         </section>
         <section class="settings-page" data-page="her-hey" data-group="Sara" data-title="Hey Sara" hidden>
       <p class="muted small page-lead">Say “Hey Sara” and talk, without touching anything. Off until you turn it on, on each device. <button type="button" class="tip" data-tip="Say her name and talk, hands-free. A small model on the device listens only for the words; nothing is sent until you say them. Off until you turn it on, separately on each device.">?</button></p>
@@ -3190,6 +3223,16 @@
           <select id="wb-cap"><option value="20" data-raw>20</option><option value="60">60 (the default)</option><option value="200" data-raw>200</option></select>
         </label>
         <p id="wb-state" class="muted small" role="status"></p>
+      </div>
+      <!-- S11 (docs/WRITING_STYLE.md): Writing style and Match my voice, each person's own (web/writing-style.js). -->
+      <h3>Writing style</h3>
+      <div id="wr-box" class="wr-box" data-nodirty data-noauto>
+        <label>Writing style for documents and drafts <select id="wr-style" data-noauto><option value="as-written">As written</option><option value="natural">Natural</option></select></label>
+        <p class="muted small">Natural: documents, email drafts, summaries and reports she writes use plain, everyday words, with every number, name, quote and citation kept exactly. Any document or report also has a Make it sound human button.</p>
+        <label>Match my voice: samples of your own writing <textarea id="wr-samples" rows="4" data-noauto placeholder="Paste 1 to 5 things you wrote; put a line with --- between them"></textarea></label>
+        <label>Or pick documents you wrote from your Library <select id="wr-lib" multiple size="4" data-noauto></select></label>
+        <div class="actions-left"><button id="wr-make" type="button">Make my style card</button><button id="wr-forget" type="button" class="ghost">Forget my style card</button></div>
+        <p id="wr-card" class="muted small" role="status"></p>
       </div>
         </section>
         <!-- V1 (docs/ops/V1_DESIGN.md): Appearance is its own page; every choice is kept on this device. -->

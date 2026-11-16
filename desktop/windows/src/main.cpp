@@ -57,6 +57,7 @@
 #include "voice-pill.h"     // the listening / thinking / speaking pill
 #include "wake.h"
 #include "save-files.h"
+#include "meeting-rec.h"
 #include <wtsapi32.h>
 #include <memory>
 #include <thread>
@@ -3405,7 +3406,15 @@ static const wchar_t* kShim = LR"JS(
     // attachments (never sent by themselves). The page's own hook when it has one, else its attach
     // button's file input, so the page's own rules (types, sizes, how many) apply as for a drop.
     if (d.attach) attach(e.additionalObjects ? [...e.additionalObjects] : []);
+    // S2: the finished meeting recording (Record this computer): the Meetings page sends it in parts.
+    if (d.meetingFile) meetingFile(e.additionalObjects ? [...e.additionalObjects] : []);
   });
+  const meetingFile = async (handles) => {
+    const h = handles[0];
+    let file = null;
+    try { file = h && typeof h.getFile === 'function' ? await h.getFile() : h; } catch (err) { file = null; }
+    if (file) window.dispatchEvent(new CustomEvent('sara-meeting-file', { detail: { file } }));
+  };
   const attach = async (handles) => {
     const files = [];
     for (const h of handles) {
@@ -3430,6 +3439,7 @@ static const wchar_t* kShim = LR"JS(
   const post = (o) => chrome.webview.postMessage(o);
   window.SaraDesktop = {
     platform: 'windows',
+    meetingRec: true,
     call(m, a = {}) { return new Promise((resolve, reject) => { const id = next++; pending.set(id, { resolve, reject }); post({ id, m, ...a }); }); },
     notify(title, body, conv) { post({ m: 'notify', title: String(title || ''), body: String(body || ''), conv: String(conv || '') }); },
     attention(kind) { post({ m: 'attention', kind: String(kind || '') }); },
@@ -3634,6 +3644,46 @@ static std::wstring prefsJson() {
          L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"frame\":\"" + jsonEscape(frameReport()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
 }
 
+
+// ---------- S2: Record this computer (docs/MEETINGS.md) ----------
+// The owner's Meetings page starts and stops it after its consent notice. The finished WAV (mic left,
+// computer sound right) goes back to the page as a read-only file handle; the page sends it to her
+// server in parts and then asks us to delete it. Leftovers are swept after a week.
+static std::wstring g_lastRecording;
+static std::wstring meetingsFolder() { return dataDir() + L"\\meetings"; }
+static void meetingRec(const std::wstring& id, const std::wstring& op) {
+  if (op == L"status") return reply(id, L"{\"recording\":" + std::wstring(sararec::recording() ? L"true" : L"false") + L",\"seconds\":" + std::to_wstring((long long)sararec::seconds()) + L",\"loopback\":" + (sararec::loopback() ? L"true" : L"false") + L"}");
+  if (op == L"start") {
+    sararec::sweep(meetingsFolder());
+    std::wstring why;
+    if (!sararec::start(meetingsFolder(), why)) return reply(id, L"", why);
+    logLine(std::wstring(L"meeting: recording started") + (sararec::loopback() ? L" (mic + computer sound)" : L" (mic only)"));
+    return reply(id, L"{\"loopback\":" + std::wstring(sararec::loopback() ? L"true" : L"false") + L"}");
+  }
+  if (op == L"stop") {
+    std::wstring path = sararec::stop();
+    if (path.empty()) return reply(id, L"", L"Nothing is being recorded.");
+    g_lastRecording = path;
+    logLine(L"meeting: recording stopped");
+    ComPtr<ICoreWebView2Environment14> e14;
+    ComPtr<ICoreWebView2_23> w23;
+    ComPtr<ICoreWebView2FileSystemHandle> h;
+    ComPtr<ICoreWebView2ObjectCollection> list;
+    IUnknown* raw = nullptr;
+    if (!g_env || !g_web || FAILED(g_env.As(&e14)) || FAILED(g_web.As(&w23)) || FAILED(e14->CreateWebFileSystemFileHandle(path.c_str(), COREWEBVIEW2_FILE_SYSTEM_HANDLE_PERMISSION_READ_ONLY, &h)) || !h)
+      return reply(id, L"", L"This version of Microsoft Edge WebView2 can't hand the recording to Sara. It is saved in " + meetingsFolder() + L".");
+    raw = h.Get();
+    reply(id, L"{\"seconds\":" + std::to_wstring((long long)sararec::seconds()) + L"}");
+    if (FAILED(e14->CreateObjectCollection(1, &raw, &list)) || FAILED(w23->PostWebMessageAsJsonWithAdditionalObjects(L"{\"meetingFile\":true}", list.Get()))) logLine(L"meeting: couldn't hand the recording to the page");
+    return;
+  }
+  if (op == L"discard") {
+    if (!g_lastRecording.empty()) sararec::discard(meetingsFolder(), g_lastRecording);
+    g_lastRecording.clear();
+    return reply(id, L"true");
+  }
+  reply(id, L"", L"unknown");
+}
 
 static void onMessage(const std::wstring& json, const std::wstring& source) {
   auto m = parseFlatJson(json);
@@ -3908,6 +3958,7 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   }
   if (kind == L"notify") return notifyFromPage(m[L"title"], m[L"body"], m[L"conv"]);
   if (kind == L"attached") return filesAttached(m[L"ok"] == L"true");
+  if (kind == L"meetingRec") return meetingRec(id, m[L"op"]);
   if (kind == L"attention") {
     // A call: bring the window up (Windows may only flash the taskbar button if another app is busy).
     showWindow();

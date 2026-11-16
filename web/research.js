@@ -6,6 +6,7 @@
 import { parse, toDom } from './markdown.js';
 import { serverText, t } from './naming.js';
 import { budgetBits, capLine, progressBits, runButtons, statusLine, topicLine } from './research-card.js';
+import { humanizeButton } from './humanize.js';
 
 const $ = (s) => document.querySelector(s);
 const POLL_MS = 1500;
@@ -278,6 +279,8 @@ function reportView(run) {
   };
   const base = `/api/research/${run.id}/`;
   acts.append(link(t('Download PDF'), `${base}export?format=pdf`), link(t('Download Word'), `${base}export?format=docx`), link(t('Download Markdown'), `${base}export?format=md`));
+  // S11: Make it sound human: side by side; Keep replaces the report (downloads use it).
+  acts.append(humanizeButton({ researchId: run.id }, run.question, () => void render(), 'ghost small'));
   if (run.reportDocId) acts.append(btn(t('Open in her Library'), 'ghost small', () => void import('./library.js').then((m) => m.openLibrary(run.reportDocId))));
   const md = el('div', 'rs-report-text');
   md.append(toDom(parse(run.report)));

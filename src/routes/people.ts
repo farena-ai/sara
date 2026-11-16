@@ -9,6 +9,7 @@ import { backfillDone, startBackfill } from '../people-backfill.ts';
 import { CIRCLES, FACT_CATEGORIES, type FactCategory, type Person, type PersonFact, validBirthday } from '../people.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { keepRoom, roomName } from '../bridges/keepup.ts';
+import { peopleTiesRoute } from './people-ties.ts';
 
 const PHOTO_MAX = 3 * 1024 * 1024;
 
@@ -29,7 +30,7 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
     const factView = (f: PersonFact) => ({ ...f, source: f.conversationId && app.store.getConversation(f.conversationId) ? { conversationId: f.conversationId, title: title(f.conversationId), messageId: f.messageId } : null, memoryKind: f.memoryId ? (mem.get(f.memoryId)?.kind ?? null) : null });
     const brief = (p: Person) => {
       const facts = people.facts(p.id);
-      return { ...p, factCount: facts.length, sensitiveCount: facts.filter((f) => f.category).length, conversations: people.conversationsMentioning(p.id), preview: facts.filter((f) => !f.category && !f.pending).slice(0, 3).map(factView) };
+      return { ...p, lastContact: app.peopleTies?.lastContact(p.id) ?? null, factCount: facts.length, sensitiveCount: facts.filter((f) => f.category).length, conversations: people.conversationsMentioning(p.id), preview: facts.filter((f) => !f.category && !f.pending).slice(0, 3).map(factView) };
     };
     // Sensitive facts (health, intimate, money, legal) come as a count until the card's folded group
     // is opened (`?sensitive=1`), like the "She remembered" privacy rule.
@@ -50,6 +51,8 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
         })();
         return { ...x, name: r ? roomName(r) : null, bridge: r?.bridge ?? null };
       }),
+      // S4: last contact per channel, promises, dates and keep-in-touch (no message text).
+      ties: app.peopleTies?.summary(p.id) ?? null,
       sameAs: p.origin === 'room' && p.status === 'proposed' ? people.sameNameAs(p.id).map((o) => ({ id: o.id, name: o.name, status: o.status })) : [],
     });
     const person = (raw: string | undefined) => {
@@ -131,6 +134,8 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
       }
       throw new HttpError(405, 'Method not allowed');
     }
+    // S4: keeping in touch (attention, promises, per-card ties; src/routes/people-ties.ts).
+    if (a === 'people' && (await peopleTiesRoute(ctx, req, res, method, parts))) return;
     const p = person(b);
     if (!c && method === 'GET') return send(res, 200, full(p, new URL(req.url ?? '/', 'http://x').searchParams.get('sensitive') === '1'));
     if (!c && method === 'PUT') {

@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Writing that sounds human, meetings, keeping in touch, and trips, in 3.16.0
+
+A Make it sound human button rewrites her documents and reports in plain, varied language, and can match
+your own voice, with facts, quotes and citations locked. Record a call on your Windows PC (after a consent
+step) or upload a recording for a transcript with speakers, a summary, decisions, action items and drafted
+follow-ups that wait for you. Your People cards show who is waiting for your reply, promises you made,
+dates and friends to keep in touch with. Booking emails become trips with check-in, leave-by and
+disruption alerts; she suggests rebooking options and never books or pays.
+
 ## Choices to tap, goals, research, ask anything, and private messages, in 3.15.0
 
 When she asks you to choose, the options are buttons (in the app, Telegram and Discord), with "Other,

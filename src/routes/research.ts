@@ -12,12 +12,13 @@
 //   PUT    /api/research/:id/budget          3.1.2: {pages?, minutes?, tokens?} → {run}
 //   POST   /api/research/:id/skill           3.1.2: {refresh?} Save as a skill / Keep it fresh → {run}
 //   DELETE /api/research/:id                 forget the run (its Library document stays)
-//   GET    /api/research/:id/export?format=md|docx|pdf
+//   GET    /api/research/:id/export?format=md|docx|pdf  (S11: &style=natural makes it sound human first)
 // S1: POST /api/research also takes {web?, library?, localOnly?} (where she reads; models on his
 // hardware only) and PUT .../plan {reach}; a run carries `reach` and `costCap` (the most its model
 // may cost, shown before Start); GET /api/research says whether the web and his Library are ready.
 import { markdownToDocx, markdownToPdf } from '../doc-write.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
+import { humanize, writingFor } from '../humanize.ts';
 import { LearnError } from '../learn.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { RESEARCH, ResearchError, type Research, type ResearchRun } from '../research.ts';
@@ -105,7 +106,12 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
       if (format !== 'md' && format !== 'docx' && format !== 'pdf') throw new HttpError(400, 'Pick Markdown, Word or PDF.');
       const run = r.get(id)!;
       if (!run.report) throw new HttpError(409, 'The report isn’t written yet.');
-      const bytes = format === 'md' ? Buffer.from(run.report, 'utf8') : format === 'docx' ? markdownToDocx(run.report, run.question) : markdownToPdf(run.report, run.question);
+      // S11: ?style=natural exports it made to sound human (facts locked; as written when the rewrite can't run).
+      let report = run.report;
+      if (new URL(req.url ?? '/', 'http://x').searchParams.get('style') === 'natural') {
+        report = await humanize(app, report, { voice: Boolean(writingFor(app).get().card) }).then((h) => h.after, () => report);
+      }
+      const bytes = format === 'md' ? Buffer.from(report, 'utf8') : format === 'docx' ? markdownToDocx(report, run.question) : markdownToPdf(report, run.question);
       const name = `Research - ${run.question.replace(/[\\/:*?"<>|]+/g, '').trim().slice(0, 120)}.${format}`;
       const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
       res.writeHead(200, { 'content-type': TYPES[format], 'content-length': bytes.length, 'content-disposition': `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`, 'cache-control': 'no-store', ...SECURITY_HEADERS });

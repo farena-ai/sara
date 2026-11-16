@@ -8,6 +8,7 @@
 import { serverText, t } from './naming.js';
 import { proposalCard } from './proposal-card.js';
 import { emptyState } from './tidy.js';
+import { attentionView, tiesApi, tiesSection } from './people-ties.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -45,7 +46,7 @@ const CIRCLE_ONE = { family: () => t('family'), partner: () => t('partner'), fri
 const CATEGORY_WORD = { health: () => t('health'), intimate: () => t('intimate'), money: () => t('money'), legal: () => t('legal') };
 
 let ctx = null;
-const st = { list: [], counts: { proposed: 0, active: 0 }, backfill: null, notes: 0, filter: 'all', q: '', open: null, sensitive: false, editing: false, splitting: null, timer: 0, poll: 0, laterReview: false };
+const st = { list: [], counts: { proposed: 0, active: 0 }, backfill: null, notes: 0, filter: 'all', q: '', open: null, sensitive: false, editing: false, splitting: null, timer: 0, poll: 0, laterReview: false, attention: [], tiesOn: true };
 
 // ---------------- pure helpers (tested in Node) ----------------
 
@@ -130,7 +131,15 @@ export async function loadPeople() {
     if (q) params.set('q', q);
     if (CIRCLES.includes(filter)) params.set('circle', filter);
     if (filter === 'proposed') params.set('status', 'proposed');
-    const d = await api(`/people${params.size ? `?${params}` : ''}`);
+    // S4: who needs attention (waiting replies, promises, dates, keep in touch) next to the list.
+    const [d, due] = await Promise.all([api(`/people${params.size ? `?${params}` : ''}`), tiesApi('/people/attention').catch(() => null)]);
+    st.attention = due?.items ?? [];
+    st.tiesOn = due ? due.on !== false : st.tiesOn;
+    const box = $('#ppl-ties-on');
+    if (box) {
+      box.checked = st.tiesOn;
+      box.closest('label').hidden = !due;
+    }
     st.list = d.people;
     st.counts = d.counts;
     st.backfill = d.backfill;
@@ -168,7 +177,7 @@ function renderCircles() {
     b.setAttribute('aria-pressed', st.filter === id ? 'true' : 'false');
     return b;
   };
-  box.replaceChildren(chip('all', t('Everyone')), ...CIRCLES.map((c) => chip(c, CIRCLE_WORD[c]())), ...(st.counts.proposed || st.filter === 'proposed' ? [chip('proposed', t('To check ({n})', { n: st.counts.proposed }))] : []));
+  box.replaceChildren(...(st.attention.length || st.filter === 'attention' ? [chip('attention', t('Needs attention ({n})', { n: st.attention.length }))] : []), chip('all', t('Everyone')), ...CIRCLES.map((c) => chip(c, CIRCLE_WORD[c]())), ...(st.counts.proposed || st.filter === 'proposed' ? [chip('proposed', t('To check ({n})', { n: st.counts.proposed }))] : []));
 }
 
 /** The banner at the top: the backfill offer, its progress, or "I found N people… Check them?". */
@@ -240,6 +249,11 @@ function pollBackfill() {
 
 function renderList() {
   const list = $('#ppl-list');
+  if (st.filter === 'attention') {
+    list.classList.remove('ppl-review-mode');
+    list.replaceChildren(st.attention.length ? attentionView(st.attention, { openPerson: (id) => openPerson(id), changed: () => loadPeople() }) : emptyState('team', t('Nobody needs you right now.')));
+    return;
+  }
   if (!st.list.length) {
     const q = st.q.trim();
     list.replaceChildren(emptyState('team', q ? t('Nobody matches “{q}”.', { q }) : st.filter === 'proposed' ? t('Nothing to check right now.') : t('No people yet.'), 'div', q || st.filter !== 'all' ? '' : t('As you talk about the people in your life, she suggests a card for each. You can also add one.')));
@@ -263,7 +277,7 @@ function tile(p) {
   if (p.origin === 'room') top.append(el('span', 'ppl-badge room', t('from a room')));
   mid.append(top);
   if (p.relation) mid.append(el('span', 'ppl-rel', p.relation));
-  const sub = [p.lastMentioned ? t('mentioned {when}', { when: agoWords(p.lastMentioned) }) : '', p.birthday ? birthdayWords(p.birthday) : ''].filter(Boolean);
+  const sub = [p.lastContact ? t('in touch {when}', { when: agoWords(p.lastContact) }) : '', p.lastMentioned && !p.lastContact ? t('mentioned {when}', { when: agoWords(p.lastMentioned) }) : '', p.birthday ? birthdayWords(p.birthday) : ''].filter(Boolean);
   if (sub.length) mid.append(el('span', 'ppl-sub', sub.join(' · ')));
   b.append(avatar(p), mid);
   b.addEventListener('click', () => void openPerson(p.id));
@@ -516,6 +530,8 @@ function renderCard() {
     knows.append(ul);
   } else knows.append(el('p', 'muted small', t('Nothing yet. When you talk about {name}, she adds it here with where she heard it.', { name: p.name })));
   parts.push(knows);
+  // S4: keeping in touch (last contact, cadence, addresses, dates, promises).
+  if (d.ties) parts.push(tiesSection(p, d.ties, () => openPerson(p.id, { keep: true })));
   // Phase 110 (CH4, §7.8): the rooms she knows this person from, with his two switches per room.
   if (d.rooms?.length) {
     const sec = el('section', 'ppl-sec ppl-rooms');
@@ -822,6 +838,12 @@ export function peopleEvent() {
   }, 1500);
 }
 
+/** S4: Today's People tile opens the page on "Needs attention". */
+export function peopleShowAttention() {
+  st.filter = 'attention';
+  st.open = null;
+}
+
 export function initPeople(c) {
   ctx = c;
   if (!$('#ppl-list')) return;
@@ -835,6 +857,22 @@ export function initPeople(c) {
     }, 250);
   });
   $('#ppl-backfill').addEventListener('click', () => void startBackfill());
+  // S4: the keeping-in-touch switch and "Check now".
+  $('#ppl-ties-on')?.addEventListener('change', (e) => void tiesApi('/people/ties-on', { method: 'PUT', body: { on: e.target.checked } }).then(() => loadPeople()).catch(showErr));
+  $('#ppl-ties-scan')?.addEventListener('click', async (e) => {
+    e.target.disabled = true;
+    $('#ppl-status').textContent = t('Checking your mail, calendars and rooms…');
+    try {
+      await tiesApi('/people/scan', { method: 'POST', body: {} });
+      st.filter = 'attention';
+      $('#ppl-status').textContent = '';
+      await loadPeople();
+    } catch (err) {
+      showErr(err);
+    } finally {
+      e.target.disabled = false;
+    }
+  });
   $('#ppl-add').addEventListener('click', () => {
     $('#ppl-new').hidden = false;
     $('#ppl-new-name').focus();

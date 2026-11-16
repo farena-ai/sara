@@ -531,6 +531,8 @@ export class PeopleStore {
 
   #wipe(id: number): void {
     this.db.prepare('DELETE FROM person_facts WHERE person_id = ?').run(id);
+    // S4: the derived contact, promises and keep-in-touch rows go too (src/people-ties.ts).
+    this.onWipe?.(id);
     // Phase 110: forgetting a person clears their room notes too (the archive is his record and stays).
     try {
       for (const r of this.db.prepare('SELECT room_id, platform_user_id FROM people_rooms WHERE person_id = ?').all(id) as Row[]) this.db.prepare("UPDATE room_people SET notes = '[]', person_id = NULL WHERE room_id = ? AND platform_user_id = ?").run(Number(r.room_id), String(r.platform_user_id));
@@ -601,6 +603,7 @@ export class PeopleStore {
     const b = this.get(into);
     if (!a || !b || id === into || !['proposed', 'active'].includes(a.status) || !['proposed', 'active'].includes(b.status)) return undefined;
     this.db.prepare('UPDATE person_facts SET person_id = ? WHERE person_id = ?').run(into, id);
+    this.onMerge?.(id, into);
     // A fact that was held on both cards is now about this one: one copy stays.
     for (const r of this.db.prepare('SELECT pending FROM person_facts WHERE person_id = ? AND pending IS NOT NULL GROUP BY pending HAVING COUNT(*) > 1').all(into) as Row[]) {
       const ids = (this.db.prepare('SELECT id FROM person_facts WHERE person_id = ? AND pending = ? ORDER BY id').all(into, r.pending) as Row[]).map((x) => Number(x.id));
@@ -1182,6 +1185,9 @@ export class PeopleStore {
   }
   /** Phase 119: more private texts (set by src/mentions.ts wirePeople). */
   extraPrivate?: () => string[];
+  /** S4: called when a card's rows are wiped (forget) and when one card is merged into another. */
+  onWipe?: (id: number) => void;
+  onMerge?: (id: number, into: number) => void;
 
   // ---------------------------------------------------------------- the backfill (STAPLES §9.3)
 

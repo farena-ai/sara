@@ -5,6 +5,34 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.16.0 (2026-11-16): writing that sounds human, meetings, keeping in touch, trips
+
+- Added: **write like a person.** A *Make it sound human* button on documents she made and on research
+  reports shows a side-by-side view (what changed is marked, a "reads natural" score before and after)
+  with Keep and Undo. Plain everyday words, varied sentences, no stock phrases like "delve" or "in
+  conclusion"; every number, name, quote, citation and link stays exactly the same (she retries once, then
+  keeps the original sentences). Ask in chat too ("make this sound more natural"). *Match my voice* learns a
+  short style card from 1 to 5 samples of your own writing, kept in your own space. A default in Settings →
+  You → About you → Writing style (Natural or As written). For kids it coaches (outline, questions,
+  suggestions on their own draft) and won't write an assignment for them. See docs/WRITING_STYLE.md.
+- Added: **Keeping in touch** on your People cards. For each person she shows the last contact on
+  each channel (mail you sent and got, chat rooms she keeps up with, calendar meetings), who is waiting
+  for your reply ("Dan has waited 2 weeks for your reply"), promises found in your own sent mail and
+  chat replies ("I'll send you the slides by Friday", confirmed by you first), birthdays and
+  anniversaries, and a keep-in-touch reminder for people you pick. Memory -> People -> Needs attention
+  lists it most urgent first, Today has a People tile, and she can answer "who's waiting for my
+  reply?". No message text is stored; one switch turns it off; forgetting a person removes all of it.
+  See docs/PEOPLE.md.
+- Meeting assistant (S2, docs/MEETINGS.md): record a Zoom, Teams or Meet call on this PC from the Windows app (your microphone and the computer's sound, after a consent notice she can say out loud), or give her any recording up to 3 hours (MP3, M4A, MP4, WebM, OGG, WAV; sent in parts). The transcript names Speaker 1 and Speaker 2 (by channel, or by pauses and pitch) with times; rename speakers, search the transcript and play the recording from any line. The notes add open questions and the matching calendar event; follow-up emails per attendee group wait for you to press Send. Meetings are heard on this computer unless you allow a cloud engine (Settings → Voice → Meetings). A Meetings tile on Today lists action items due this week; she can answer from your notes in chat (meeting_list, meeting_summarize).
+- Added: **Trips.** Bookings Sara finds in your email (flights, hotels, rental cars, trains, event
+  tickets, from every connected mailbox) become one timeline per trip, with each time in its own place's
+  time zone; the same booking in two mailboxes shows once. A Trips page and a Today tile; Add to calendar
+  and a packing list (a shared list, from the trip's length and the forecast) on a tap. A check-in
+  reminder 24 hours before each flight and a leave-by alert for the airport from your leave-by settings.
+  Flight status is off until you choose a source (AirLabs with your own free key): then delays, gate
+  changes and cancellations go to your phone, and a cancellation or long delay lists rebooking options.
+  She never books, changes or pays for anything. See docs/TRAVEL.md.
+
 ## 3.15.0 (2026-11-16): choices to tap, goals, research, ask anything, private messages
 
 - New: **pick-an-answer cards.** When she asks you to choose between a few options, they show as buttons

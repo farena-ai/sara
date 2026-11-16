@@ -1988,6 +1988,32 @@ progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-rad
 #goals .gl-moves { margin: 0; padding-left: 1.2em; color: var(--text-2); }
 #goals .gl-log { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
 .gl-tile .gl-tile-item { display: grid; gap: 4px; }
+/* S6 (docs/TRAVEL.md): Trips page and tile. */
+#trips .tp-list { display: grid; gap: 12px; margin-top: 8px; }
+#trips .tp-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 8px; }
+#trips .tp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; justify-content: space-between; }
+#trips .tp-title { font-size: 15px; font-weight: 650; color: var(--text-1); overflow-wrap: anywhere; }
+#trips .tp-line { margin: 0; padding: 0 0 0 14px; list-style: none; display: grid; gap: 8px; border-left: 2px solid color-mix(in srgb, var(--accent-solid) 35%, transparent); }
+#trips .tp-b { display: grid; gap: 2px; min-width: 0; }
+#trips .tp-b-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+#trips .tp-kind { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+#trips .tp-b-title { color: var(--text-1); overflow-wrap: anywhere; }
+#trips .tp-b-meta { overflow-wrap: anywhere; }
+.tp-chip.tp-st-cancelled, .tp-chip.tp-st-diverted, .tp-chip.tp-late { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--text-1); }
+.tp-chip { background: color-mix(in srgb, var(--accent-solid) 12%, transparent); color: var(--text-1); }
+#trips .tp-rebook { border-radius: 8px; padding: 6px 10px; background: color-mix(in srgb, var(--danger) 8%, transparent); }
+#trips .tp-rebook-list { margin: 4px 0 0; padding-left: 1.2em; display: grid; gap: 2px; }
+#trips .tp-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#trips .tp-pack { margin: 0; }
+#trips .tp-set { display: grid; gap: 8px; }
+#trips .tp-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#trips .tp-row select, #trips .tp-row input { width: auto; flex: 0 1 auto; min-width: 0; }
+#trips .tp-row #tp-key { flex: 1 1 14em; }
+#trips .tp-check { display: flex; align-items: center; gap: 8px; }
+#trips .tp-check input { width: 18px; height: 18px; flex: none; margin: 0; }
+.tp-tile .tp-tile-trip { display: grid; gap: 2px; }
+.tp-tile .tp-tile-top { display: flex; justify-content: space-between; gap: 8px; }
+.tp-tile .tp-tile-title { font-weight: 600; color: var(--text-1); }
 .gl-tile .gl-tile-top { display: flex; justify-content: space-between; gap: 8px; }
 .gl-tile .gl-tile-title { color: var(--text-1); overflow-wrap: anywhere; }
 .gl-tile .gl-tile-plan { color: var(--accent-solid); }

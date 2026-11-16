@@ -25,6 +25,8 @@ export function createInboxTools(getApp: () => AppContext): Tool[] {
     {
       defaultPermission: 'auto',
       interruptible: true,
+      // S6: with the travel assistant on, trip_list / trip_status take over.
+      isAvailable: () => !getApp().travel,
       spec: { name: 'trips_list', description: 'The person’s trips found in their email: flights (number, airports, times), hotel (dates, address) and confirmation codes, with the check-in and leave-by reminders she set.', parameters: { type: 'object', properties: {} } },
       summarize: () => 'List trips',
       async run() {

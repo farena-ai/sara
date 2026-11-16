@@ -92,7 +92,7 @@ test('V4d Today: every card type is still on the page, rendered and restyled', (
   const today = read('web', 'today.js');
   const css = read('web', 'v4-pages.css');
   const tiles = [...today.matchAll(/\{ id: '(td-[a-z]+)', section:/g)].map((m) => m[1]);
-  assert.equal(tiles.length, 29, 'the 29 Today tiles (E6 Money and replies, E3 Money, E4 My teams, N2 Automations, N3 From your inbox, N7 Shared with you and Clients and hours, R3 Errands, S3 Goals, R8 Family)');
+  assert.equal(tiles.length, 32, 'the 32 Today tiles (E6 Money and replies, E3 Money, E4 My teams, N2 Automations, N3 From your inbox, N7 Shared with you and Clients and hours, R3 Errands, S3 Goals, S4 People, S2 Meetings, S6 Trips, R8 Family)');
   for (const id of tiles) {
     assert.match(html, new RegExp(`<section class="today-card td-tile[^"]*" id="${id}"`), `${id} is on the page`);
     assert.match(today, new RegExp(`draw\\('${id}', `), `${id} is drawn by renderToday`);

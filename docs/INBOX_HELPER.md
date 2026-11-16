@@ -5,6 +5,10 @@ and other IMAP mailboxes; see [Email and calendar](EMAIL.md)) and turns what nee
 one-tap cards on **Today → From your inbox**. Turn it on or off, pick the mailboxes and choose what she
 may do on her own in **Settings → Connections → Apps and services → Email and calendar → Inbox helper**.
 
+Trips also go to the **Trips** page ([Travel assistant](TRAVEL.md)): every booking (flights, hotels,
+rental cars, trains, event tickets) joins one timeline per trip, deduped across mailboxes; with it on, the
+Today inbox tile no longer lists trips (the Trips tile does).
+
 ## What becomes a card
 
 | Email | Accept does |

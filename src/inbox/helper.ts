@@ -317,6 +317,12 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
       const f = await this.#ask(m);
       if (f) findings = [f];
     }
+    // S6 (docs/TRAVEL.md): bookings (flights, hotels, cars, trains, event tickets) join the person's trips.
+    try {
+      this.#app.travel?.observe(m, findings);
+    } catch (err) {
+      console.warn(`travel: ${(err as Error).message}`);
+    }
     for (const f of findings) {
       if (f.kind === 'shipping' && f.tracking && this.#updatePackage(f, m)) {
         updated++;
@@ -851,7 +857,8 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
     const since = new Date(this.#now().getTime() - 86_400_000).toISOString();
     const done = (this.#db.prepare("SELECT * FROM inbox_items WHERE status = 'done' AND auto = 1 AND done_at >= ? ORDER BY id DESC LIMIT 4").all(since) as Row[]).map((r) => this.#item(r));
     const packages = this.packages().slice(0, 5);
-    const trips = this.trips().slice(0, 3);
+    // S6: with the travel assistant, trips have their own Today tile.
+    const trips = this.#app.travel ? [] : this.trips().slice(0, 3);
     const rules = this.rules().filter((r) => r.status === 'suggested').slice(0, 2);
     if (!pending.length && !done.length && !packages.length && !trips.length && !rules.length) return undefined;
     return { pending, done, packages, trips, rules, auto: this.settings().auto };

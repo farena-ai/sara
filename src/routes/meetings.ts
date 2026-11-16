@@ -12,7 +12,13 @@
 //   POST   /api/meetings/:id/end                 → {meeting} (notes are written)
 //   POST   /api/meetings/:id/notes               write the notes again → {meeting}
 //   POST   /api/meetings/:id/todos               {items: [index]} → {added}
-//   GET    /api/meetings/:id/recording           the kept recording
+//   GET    /api/meetings/:id/recording           the kept recording (?play=1: inline, with Range for seeking)
+// S2 (docs/MEETINGS.md):
+//   PUT    /api/meetings/prefs                   {remind, cloud} → {prefs}
+//   POST   /api/meetings/upload                  {title, consent, keepAudio, name, parts, channels, startedAt, seconds} → {meeting}
+//   POST   /api/meetings/:id/part?i=n            raw WAV (one part) → {received}
+//   POST   /api/meetings/:id/speakers            {from, to} → {meeting} (rename a speaker)
+//   POST   /api/meetings/:id/drafts/:i           {action: send|save|dismiss, to?, subject?, body?} → {draft, meeting}
 import { audit } from '../audit-trail.ts';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { LegalHoldError } from '../legal-hold.ts';
@@ -44,13 +50,26 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
     if (!b) {
       if (method === 'GET') {
         const why = m.refusal();
-        return send(res, 200, { meetings: m.list(), ready: !why, why, limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
+        return send(res, 200, { meetings: m.list(), ready: !why, why, prefs: m.prefs(), limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
       }
       if (method === 'POST') {
         const body = await readJson(req);
         return send(res, 200, { meeting: await wrap(() => m.start(body)) });
       }
       throw new HttpError(405, 'Method not allowed');
+    }
+    if (b === 'prefs' && !c && method === 'PUT') {
+      const body = await readJson(req);
+      const cur = m.prefs();
+      const next = { remind: typeof body.remind === 'boolean' ? body.remind : cur.remind, cloud: typeof body.cloud === 'boolean' ? body.cloud : cur.cloud };
+      const s = app.settings.get() as { meetings?: object };
+      app.settings.update({ meetings: { ...s.meetings, ...next } } as never);
+      audit({ action: 'meeting.prefs', role: 'owner', channel: 'web', keys: Object.keys(next).filter((k) => next[k as keyof typeof next] !== cur[k as keyof typeof cur]) });
+      return send(res, 200, { prefs: m.prefs() });
+    }
+    if (b === 'upload' && !c && method === 'POST') {
+      const body = await readJson(req);
+      return send(res, 200, { meeting: await wrap(() => m.upload(body)) });
     }
     if (b === 'file' && !c && method === 'POST') {
       const bytes = await readRaw(req, MEETINGS.maxFileBytes);
@@ -71,13 +90,43 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
       const audio = await readRaw(req, MEETINGS.maxAudioBytes);
       return send(res, 200, await wrap(() => m.hear(id, { speaker: q.get('speaker'), audio })));
     }
+    if (c === 'part' && method === 'POST') {
+      const bytes = await readRaw(req, MEETINGS.partBytes);
+      return send(res, 200, await wrap(() => m.part(id, Number(q.get('i')), bytes)));
+    }
     if (c === 'recording' && method === 'GET') {
       const rec = m.recording(id);
       if (!rec) throw new HttpError(404, 'Not found');
-      audit({ action: 'meeting.recording', role: 'owner', channel: 'web', target: String(id) });
-      res.writeHead(200, { 'content-type': rec.type, 'content-length': rec.bytes.length, 'content-disposition': `attachment; filename="meeting-${id}.${rec.ext}"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
+      const play = q.get('play') === '1';
+      // S2: played on the Meetings page (seeking asks for byte ranges); a download is audited.
+      const range = play ? /^bytes=(\d*)-(\d*)$/.exec(String(req.headers.range ?? '')) : null;
+      if (!play || !req.headers.range) audit({ action: 'meeting.recording', role: 'owner', channel: 'web', target: String(id), ...(play ? { keys: ['play'] } : {}) });
+      const size = rec.bytes.length;
+      const head = { 'content-type': rec.type, 'accept-ranges': 'bytes', 'content-disposition': play ? 'inline' : `attachment; filename="meeting-${id}.${rec.ext}"`, 'cache-control': 'no-store', ...SECURITY_HEADERS };
+      if (range && (range[1] || range[2])) {
+        const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
+        const end = range[1] && range[2] ? Math.min(size - 1, Number(range[2])) : size - 1;
+        if (start >= size || start > end) {
+          res.writeHead(416, { 'content-range': `bytes */${size}`, ...SECURITY_HEADERS });
+          res.end();
+          return;
+        }
+        res.writeHead(206, { ...head, 'content-range': `bytes ${start}-${end}/${size}`, 'content-length': end - start + 1 });
+        res.end(rec.bytes.subarray(start, end + 1));
+        return;
+      }
+      res.writeHead(200, { ...head, 'content-length': size });
       res.end(rec.bytes);
       return;
+    }
+    if (c === 'drafts' && method === 'POST') {
+      const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+      const draft = await wrap(() => m.draft(id, Number(parts[3]), body));
+      return send(res, 200, { draft, meeting: m.get(id) });
+    }
+    if (c === 'speakers' && method === 'POST') {
+      const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+      return send(res, 200, { meeting: await wrap(() => m.rename(id, body.from, body.to)) });
     }
     if (method === 'POST' && (c === 'join' || c === 'end' || c === 'notes' || c === 'todos')) {
       const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);

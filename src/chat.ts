@@ -93,6 +93,7 @@ import { ownerCueNote } from './owner-cues.ts';
 import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
+import { writingNote } from './humanize.ts';
 import { packNote } from './pack-hint.ts';
 import { OWNER_CUES_MARK } from './attunement.ts';
 import { autoRecall, lastTimeNote, sharedOwnerFacts, sharedWithApps } from './recall.ts';
@@ -276,8 +277,12 @@ export interface AppContext {
   errands?: import('./errands.ts').Errands;
   /** S3: long-running goals above errands (src/long-goals.ts), on the reminder tick. */
   longGoals?: import('./long-goals.ts').LongGoals;
+  /** S4: relationship memory on the People cards (src/people-ties.ts), on the reminder tick. */
+  peopleTies?: import('./people-ties.ts').PeopleTies;
   /** R5: phone calls in and out (docs/PHONE_CALLS.md), switched off until the owner sets them up. */
   phoneCalls?: import('./phone-calls.ts').PhoneCalls;
+  /** S6: the travel assistant (src/travel.ts): trips from booking mail, flight alerts, packing lists. */
+  travel?: import('./travel.ts').Travel;
   /** N3: from your inbox (src/inbox/helper.ts): suggestion cards from new mail, packages, trips, filing. */
   inbox?: import('./inbox/helper.ts').InboxHelper;
   /** EC13: the overnight memory tidy of this space (src/memory-tidy.ts). Checked on the reminder tick. */
@@ -1452,7 +1457,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
@@ -3501,6 +3506,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // C12: "How to work with <name>" (held/confirmed working traits, capped; a new one is announced once).
     const style = directOwnerInput || app.member ? workingStyleNote(app, store.getConversation(conv.id) ?? conv, opts) : undefined;
     if (style) messages.push({ role: 'system', content: style });
+    // S11: Writing style Natural (and their voice card) for what she writes them (src/humanize.ts).
+    const writing = directOwnerInput || app.member ? writingNote(app) : undefined;
+    if (writing) messages.push({ role: 'system', content: writing });
     // R2: the starter pack's one line about what they use her for (src/get-started.ts).
     const pack = directOwnerInput || app.member ? packNote(app) : undefined;
     if (pack) messages.push({ role: 'system', content: pack });

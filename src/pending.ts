@@ -64,6 +64,8 @@ const READ_ONLY_INTERRUPTIBLE: ReadonlySet<string> = new Set([
   'packages_list', 'trips_list', 'inbox_suggestions',
   // S5: ask your whole life (docs/ASK_EVERYTHING.md).
   'ask_everything',
+  // S2: meeting notes (docs/MEETINGS.md).
+  'meeting_list', 'meeting_summarize',
 ]);
 export function interruptible(name: string, tool?: { interruptible?: boolean }): boolean {
   return tool?.interruptible === true || READ_ONLY_INTERRUPTIBLE.has(name);

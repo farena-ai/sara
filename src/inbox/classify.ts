@@ -35,6 +35,22 @@ export interface Flight {
   departs?: string;
   arrives?: string;
 }
+/** S6 (docs/TRAVEL.md): a rental car; places as written, times as local wall time (or ISO with an offset). */
+export interface Car {
+  company: string;
+  pickup?: string;
+  pickupAt?: string;
+  dropoff?: string;
+  dropoffAt?: string;
+}
+/** S6: a train (or a coach) ride. */
+export interface Train {
+  train: string;
+  from?: string;
+  to?: string;
+  departs?: string;
+  arrives?: string;
+}
 export interface Hotel {
   name: string;
   address?: string;
@@ -66,6 +82,8 @@ export interface Finding {
   confirmation?: string;
   flights?: Flight[];
   hotel?: Hotel;
+  car?: Car;
+  trains?: Train[];
   // appointment
   title?: string;
   start?: string;
@@ -289,6 +307,21 @@ function fromJsonLd(items: Record<string, unknown>[]): Finding[] {
       const name = str(h.name, 80);
       if (!name) continue;
       out.push({ kind: 'trip', source: 'jsonld', ref: str(o.reservationNumber, 20) ?? `${name}|${when(o.checkinTime) ?? ''}`, confirmation: str(o.reservationNumber, 20), hotel: { name, ...(addressOf(h.address) ? { address: addressOf(h.address) } : {}), ...(when(o.checkinTime ?? o.checkinDate) ? { checkIn: when(o.checkinTime ?? o.checkinDate) } : {}), ...(when(o.checkoutTime ?? o.checkoutDate) ? { checkOut: when(o.checkoutTime ?? o.checkoutDate) } : {}) } });
+    } else if (t === 'RentalCarReservation') {
+      // S6: a rental car (pickup and drop-off places and times).
+      const company = str(obj(o.reservationFor).rentalCompany ?? o.provider ?? obj(o.reservationFor).brand, 60);
+      if (!company) continue;
+      const pick = addressOf(o.pickupLocation) ?? str(o.pickupLocation, 120);
+      const drop = addressOf(o.dropoffLocation) ?? str(o.dropoffLocation, 120);
+      out.push({ kind: 'trip', source: 'jsonld', ref: str(o.reservationNumber, 20) ?? `${company}|${when(o.pickupTime) ?? ''}`, ...(str(o.reservationNumber, 20) ? { confirmation: str(o.reservationNumber, 20) } : {}), car: { company, ...(pick ? { pickup: pick } : {}), ...(when(o.pickupTime) ? { pickupAt: when(o.pickupTime) } : {}), ...(drop ? { dropoff: drop } : {}), ...(when(o.dropoffTime) ? { dropoffAt: when(o.dropoffTime) } : {}) } });
+    } else if (t === 'TrainReservation' || t === 'BusReservation') {
+      // S6: a train or coach ride.
+      const f = obj(o.reservationFor);
+      const num = str(f.trainNumber ?? f.busNumber ?? f.name, 20);
+      if (!num) continue;
+      const from = str(obj(f.departureStation ?? f.departureBusStop).name, 80);
+      const to = str(obj(f.arrivalStation ?? f.arrivalBusStop).name, 80);
+      out.push({ kind: 'trip', source: 'jsonld', ref: str(o.reservationNumber, 20) ?? `${num}|${when(f.departureTime) ?? ''}`, ...(str(o.reservationNumber, 20) ? { confirmation: str(o.reservationNumber, 20) } : {}), trains: [{ train: num, ...(from ? { from } : {}), ...(to ? { to } : {}), ...(when(f.departureTime) ? { departs: when(f.departureTime) } : {}), ...(when(f.arrivalTime) ? { arrives: when(f.arrivalTime) } : {}) }] });
     } else if (t === 'Invoice') {
       const payee = str(o.provider ?? o.broker, 60);
       const amount = money(o.totalPaymentDue ?? o.minimumPaymentDue);
@@ -313,7 +346,7 @@ function fromJsonLd(items: Record<string, unknown>[]): Finding[] {
   // A flight and a hotel in one mail: one trip.
   const trips = out.filter((f) => f.kind === 'trip');
   if (trips.length > 1) {
-    const one: Finding = { ...trips[0]!, flights: trips.flatMap((x) => x.flights ?? []), ...(trips.find((x) => x.hotel) ? { hotel: trips.find((x) => x.hotel)!.hotel } : {}) };
+    const one: Finding = { ...trips[0]!, flights: trips.flatMap((x) => x.flights ?? []), ...(trips.find((x) => x.hotel) ? { hotel: trips.find((x) => x.hotel)!.hotel } : {}), ...(trips.find((x) => x.car) ? { car: trips.find((x) => x.car)!.car } : {}), ...(trips.some((x) => x.trains) ? { trains: trips.flatMap((x) => x.trains ?? []) } : {}) };
     return [one, ...out.filter((f) => f.kind !== 'trip')];
   }
   return out;
@@ -349,12 +382,48 @@ function fromRules(m: InboxMail, text: string, now: Date): Finding[] {
   const conf = /\b(?:confirmation|booking|record locator|reservation)\s*(?:code|number|#|no\.?)?\s*(?:is)?:?\s*([A-Z0-9]{6})\b/i.exec(all)?.[1];
   const flightNos = [...all.matchAll(/\bflight\s*(?:#|number)?:?\s*([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{1,4})\b/gi)].map((x) => `${x[1]!.toUpperCase()}${x[2]}`);
   if (flightNos.length && (conf || /\b(itinerary|boarding|departs?|departure)\b/i.test(all))) {
-    const dep = dateAfter(all, /\b(depart(s|ure|ing)?|leaves?)\b:?/i, now) ?? findDate(text, now);
-    const arr = dateAfter(all, /\b(arriv(es|al|ing)|lands?)\b:?/i, now);
-    const route = /\b([A-Z]{3})\s*(?:→|->|to|–|-)\s*([A-Z]{3})\b/.exec(all);
-    const flights: Flight[] = [...new Set(flightNos)].slice(0, 6).map((f, i) => ({ flight: f, ...(i === 0 && route ? { from: route[1], to: route[2] } : {}), ...(i === 0 && at(dep) ? { departs: at(dep) } : {}), ...(i === 0 && at(arr) ? { arrives: at(arr) } : {}) }));
+    // S6: each flight reads the route and times written after it (up to the next flight).
+    const marks = [...all.matchAll(/\bflight\s*(?:#|number)?:?\s*([A-Z]{2}|[A-Z]\d|\d[A-Z])\s?(\d{1,4})\b/gi)];
+    const seenNo = new Set<string>();
+    const flights: Flight[] = [];
+    marks.forEach((x, i) => {
+      const f = `${x[1]!.toUpperCase()}${x[2]}`;
+      if (seenNo.has(f) || flights.length >= 6) return;
+      seenNo.add(f);
+      const part = all.slice(x.index!, marks[i + 1]?.index ?? all.length);
+      const dep = dateAfter(part, /\b(depart(s|ure|ing)?|leaves?)\b:?/i, now) ?? (i === 0 ? findDate(text, now) : undefined);
+      const arr = dateAfter(part, /\b(arriv(es|al|ing)|lands?)\b:?/i, now);
+      const route = /\b([A-Z]{3})\s*(?:→|->|to|–|-)\s*([A-Z]{3})\b/.exec(part) ?? (i === 0 ? /\b([A-Z]{3})\s*(?:→|->|to|–|-)\s*([A-Z]{3})\b/.exec(all) : null);
+      flights.push({ flight: f, ...(route ? { from: route[1], to: route[2] } : {}), ...(at(dep) ? { departs: at(dep) } : {}), ...(at(arr) ? { arrives: at(arr) } : {}) });
+    });
     out.push({ kind: 'trip', source: 'rules', ref: conf ?? flights.map((f) => `${f.flight}|${f.departs ?? ''}`).join(','), ...(conf ? { confirmation: conf.toUpperCase() } : {}), flights });
     return out;
+  }
+  // S6: rental cars: a pick-up and a return/drop-off with dates, and rental words.
+  const carConf = /\b(?:confirmation|reservation|booking)[ \t]*(?:code|number|#|no\.?)?[ \t]*(?:is)?:?[ \t]*((?=[A-Z]*\d)[A-Z0-9]{5,12})\b/i.exec(all)?.[1];
+  if (/\b(car rental|rental car|rent(?:ing|ed)? a car|renting with|your rental)\b/i.test(all)) {
+    const pl = /\bpick[- ]?up\b(?: (?:location|date|time))*:?\s*([^\n]*)/i.exec(all);
+    const dl = /\b(?:return|drop[- ]?off)\b(?: (?:location|date|time))*:?\s*([^\n]*)/i.exec(all);
+    const pAt = pl ? findDate(pl[1]!, now) : undefined;
+    const dAt = dl ? findDate(dl[1]!, now) : undefined;
+    if (pAt) {
+      const placeOf = (line: string) => clip(line.split(/,\s*(?=(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? \d|\d{1,2}\/\d|\d{4}-)/i)[0], 120) || undefined;
+      const company = /\b(?:renting with|thanks for choosing)\s+([A-Z][\w&' -]{2,40}?)[.!,\n]/.exec(all)?.[1]?.trim() ?? name;
+      out.push({ kind: 'trip', source: 'rules', ref: carConf ?? `${company}|${pAt.day}`, ...(carConf ? { confirmation: carConf.toUpperCase() } : {}), car: { company, ...(placeOf(pl![1]!) ? { pickup: placeOf(pl![1]!) } : {}), pickupAt: at(pAt)!, ...(dl && placeOf(dl[1]!) ? { dropoff: placeOf(dl[1]!) } : {}), ...(dAt ? { dropoffAt: at(dAt) } : {}) } });
+      return out;
+    }
+  }
+  // S6: trains: a train number and a departure.
+  const trainNo = /\btrain\s*(?:#|no\.?|number)?:?\s*(\d{1,5})\b/i.exec(all);
+  if (trainNo && /\b(depart(s|ure)?|tickets?|reservation|booking)\b/i.test(all)) {
+    const part = all.slice(trainNo.index);
+    const dep = dateAfter(part, /\b(depart(s|ure|ing)?|leaves?)\b:?/i, now);
+    const arr = dateAfter(part, /\b(arriv(es|al|ing))\b:?/i, now);
+    const route = /\bfrom\s+([A-Z][\w .'-]{1,40}?)\s+to\s+([A-Z][\w .'-]{1,40}?)\s*(?:\n|$|,|\.)/.exec(part);
+    if (dep) {
+      out.push({ kind: 'trip', source: 'rules', ref: carConf ?? `${trainNo[1]}|${dep.day}`, ...(carConf ? { confirmation: carConf.toUpperCase() } : {}), trains: [{ train: trainNo[1]!, ...(route ? { from: route[1]!.trim(), to: route[2]!.trim() } : {}), departs: at(dep)!, ...(arr ? { arrives: at(arr) } : {}) }] });
+      return out;
+    }
   }
   // Hotels: check-in and check-out dates.
   const cin = dateAfter(all, /\bcheck[- ]?in\b(?: date)?:?/i, now);

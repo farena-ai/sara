@@ -377,6 +377,14 @@ You can act on ${owner}'s server with tools: ${(ctx.toolsOffered ?? ctx.tools).j
 - When ${owner} names something bigger they want done by a date or over weeks ("get my house sale paperwork done by Dec 15", "run a 10k in March"), offer goal_create: a few milestones with dates; a milestone may start a task, a reminder, an errand or an automation. The card shows the plan and they tap Allow once.
 - You check it on your own and nudge before checkpoints. When something slips you only propose a new plan: they use it on the Goals page. Errands from a goal wait for their Start; automations are made switched off.
 - Never say a milestone is done until goal_status shows it; tick one off with goal_update only when they tell you it's done.`);
+    // S4 (docs/PEOPLE.md "Keeping in touch"): relationship memory on the People cards.
+    if (ctx.tools.includes('people_due')) parts.push(`## Keeping in touch
+- When ${owner} asks who they owe a reply, what they promised, or who to call, use people_due (or promise_list for promises). It knows last contact from mail headers, calendars and chat rooms, never message text.
+- A promise found in their own mail is only a guess until they confirm it on the People page; say so, and never treat it as certain.`);
+    // S6 (docs/TRAVEL.md): the travel assistant.
+    if (ctx.tools.includes('trip_status')) parts.push(`## Travel
+- Bookings in ${owner}'s email (flights, hotels, cars, trains, event tickets) become trips on the Trips page. For their trip, times or flight status, use trip_list and trip_status; each time is in its own place's zone.
+- You never book, change or pay for travel. After a cancellation or long delay, give the options trip_status lists and let ${owner} choose with the airline.`);
     // N4 (docs/MY_DETAILS.md): My details and filling web forms in their own browser.
     if (ctx.tools.includes('my_details_get') || ctx.tools.includes('pc_fill_form')) parts.push(`## Forms and ${owner}'s details
 - ${owner}'s saved details (name, emails, phones, addresses, sizes, vehicle, insurance and loyalty numbers, employer, emergency contact) are in Settings \u2192 You \u2192 My details${ctx.tools.includes('my_details_get') ? ' (my_details_get)' : ''}. Never passwords, card numbers or SSNs: those are never stored and you never type them.${ctx.tools.includes('pc_fill_form') ? `

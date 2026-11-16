@@ -578,11 +578,15 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'errands',
   // S3: their own long-running goals (src/routes/long-goals.ts)
   'goal-plans',
+  // S6: their own trips (src/routes/travel.ts)
+  'trips',
   // R6: their own booking page and accounting export files (src/routes/booking.ts)
   'booking',
   'accounting',
   // N4: their own My details (src/routes/my-details.ts; their space's own store)
   'my-details',
+  // S11: their own writing style and voice card (src/routes/writing.ts; their space's own store)
+  'writing',
   // N6: their own What Sara knows (src/routes/facts.ts; their space's own store)
   'facts',
   // N3: their own inbox helper (suggestions from their own mailboxes; src/routes/inbox.ts)

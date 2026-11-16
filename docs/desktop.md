@@ -1071,6 +1071,14 @@ OpenAI-compatible fake model that calls `make_document`, the test build (`-DSARA
 `SARA_DESKTOP_TEST_DIR`, `--portable`) with `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=…`,
 and CDP's `Input.dispatchDragEvent` with real file paths for the drops.
 
+## Record a meeting on this PC (S2)
+
+Library → Meetings → **Record this computer** (Windows app only) records the default microphone
+and the computer's own sound (WASAPI loopback) into `meetings\rec-*.wav` in the app's data folder,
+after the consent tick and notice. Stop hands the file to the page as a read-only handle; the page
+sends it to the server in parts and the app deletes it (leftovers after a week). Source:
+`src/meeting-rec.cpp`, bridge message `meetingRec` in `main.cpp`. See [MEETINGS.md](MEETINGS.md).
+
 ## Linux hands (CU8 implementation draft)
 
 On the Linux computer you want Sara to use, install Chrome or Chromium and keep a visible terminal

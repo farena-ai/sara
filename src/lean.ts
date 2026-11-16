@@ -130,7 +130,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^ssh_/, 'ssh', 'SSH servers'],
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
-  [/^(person_|people_)/, 'people', 'people'],
+  [/^(person_|people_|promise_)/, 'people', 'people'],
   // E5: the decision helper and side-by-side comparisons (src/decisions.ts).
   [/^(decide|decision_(list|record|review)|compare)$/, 'decisions', 'decisions'],
   [/^(start_job|stop_job|job_status|delegate_task)$/, 'jobs', 'background jobs'],
@@ -168,6 +168,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^errand_\w+$/, 'errands', 'errands'],
   // S3: long-running goals (docs/GOALS.md).
   [/^goal_(create|status|update)$/, 'goals', 'goals over days'],
+  // S2: meeting notes (docs/MEETINGS.md).
+  [/^meeting_(list|summarize)$/, 'meetings', 'meeting notes'],
   // R5: phone calls in her own voice (docs/PHONE_CALLS.md).
   [/^phone_call$/, 'calls', 'phone calls'],
   // R6: Google Docs/Sheets, Word/Excel online, Slack/Teams actions, accounting exports (docs/WORK_APPS.md).
@@ -178,13 +180,15 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^my_details_get$/, 'details', 'my details'],
   // N6: what she knows about their world (facts with sources; forget one).
   [/^(facts_list|fact_forget)$/, 'facts', 'what she knows'],
+  // S6: the travel assistant (docs/TRAVEL.md).
+  [/^trip_(list|status)$/, 'travel', 'trips and flights'],
   // N3: from your inbox (packages, trips, suggestions, filing rules).
   [/^(packages_list|trips_list|inbox_suggestions|inbox_file_rule)$/, 'inbox', 'from your inbox'],
   [/^analyze_table$/, 'tables', 'spreadsheet totals'],
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
-  [/^(make_document|fill_document)$/, 'documents', 'make documents'],
+  [/^(make_document|fill_document|humanize_text)$/, 'documents', 'make documents'],
   // E6: invoices and quotes, follow-ups, contracts, expenses, action items.
   [/^(invoice_\w+|follow_ups|contract_review|expense_\w+|action_items)$/, 'business', 'business and documents'],
   // E3: portfolio, budget and bills.
@@ -273,12 +277,16 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   team: ['team', 'equipo', 'equipe', 'squadra'],
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
-  people: ['person', 'people', 'persona', 'personne', 'pessoa'],
+  people: ['person', 'people', 'persona', 'personne', 'pessoa',
+    // S4: keeping in touch (promises, waiting replies, who to call), six languages folded.
+    'i promised', 'my promises', 'promised', 'keep in touch', 'get in touch', 'waiting for my reply', 'who needs me', 'who should i call', 'prometi', 'mis promesas', 'he prometido', 'j ai promis', 'mes promesses', 'ich habe versprochen', 'versprochen', 'meine versprechen', 'minhas promessas', 'ho promesso', 'le mie promesse'],
   // E5 (decide, compare): weighing options, in six languages (folded, no accents).
   decisions: ['should i', 'decide', 'decision', 'which is better', 'which one is better', 'compare', 'comparison', 'pros and cons', 'choose between', 'vs', 'versus', 'side by side', 'decidir', 'decision', 'cual es mejor', 'comparar', 'pros y contras', 'elegir entre', 'dois je', 'decider', 'quel est le meilleur', 'comparer', 'avantages et inconvenients', 'choisir entre', 'soll ich', 'entscheiden', 'entscheidung', 'was ist besser', 'vergleichen', 'vor und nachteile', 'wahlen zwischen', 'decisao', 'qual e melhor', 'pros e contras', 'escolher entre', 'decidere', 'decisione', 'quale e meglio', 'confrontare', 'pro e contro', 'scegliere tra'],
   // make_document: documents and files she makes (all six languages, folded, no accents).
   documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella',
     // fill_document: forms and templates to fill in.
+    // S11 humanize_text: "make it sound human" (six languages, folded).
+    'sound human', 'sound natural', 'more natural', 'less stiff', 'sounds like ai', 'sound like me', 'my voice', 'humanize', 'rewrite', 'reword', 'mas natural', 'reescribe', 'reescribir', 'mi voz', 'plus naturel', 'reecris', 'reecrire', 'ma voix', 'naturlicher', 'umschreiben', 'schreib um', 'meine stimme', 'mais natural', 'reescreva', 'reescrever', 'minha voz', 'piu naturale', 'riscrivi', 'riscrivere', 'la mia voce',
     'form', 'forms', 'fill', 'fill in', 'fill out', 'template', 'time sheet', 'timesheet', 'application form', 'formulario', 'plantilla', 'rellena', 'rellenar', 'llena', 'llenar', 'formulaire', 'modele', 'remplis', 'remplir', 'formular', 'vorlage', 'ausfullen', 'preencha', 'preencher', 'modulo', 'compila', 'compilare'],
   // E6: invoices and quotes, follow-ups, contracts, expenses, action items (six languages, folded).
   business: ['invoice', 'invoices', 'quote', 'quotes', 'estimate', 'bill', 'paid', 'overdue', 'unpaid', 'follow up', 'follow ups', 'followup', 'reply', 'replies', 'owe a reply', 'contract', 'agreement', 'lease', 'receipt', 'receipts', 'expense', 'expenses', 'reimburse', 'reimbursement', 'action items', 'action item',
@@ -318,6 +326,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'tarefa domestica', 'tarefas de casa', 'mesada', 'pontos', 'terminei', 'quanto dinheiro eu tenho', 'licao de casa', 'pesquisar',
     'faccenda', 'faccende', 'paghetta', 'punti', 'ho finito', 'quanti soldi ho', 'compiti', 'cercare'],
   // S3 (docs/GOALS.md): long-running goals over days or weeks.
+  meetings: ['meeting', 'meetings', 'the meeting', 'meeting notes', 'action items', 'the call', 'reunion', 'reuniones', 'acta', 'reunion de', 'compte rendu', 'besprechung', 'protokoll', 'sitzung', 'reuniao', 'reunioes', 'ata da reuniao', 'riunione', 'riunioni', 'verbale'],
   goals: ['my goal', 'my goals', 'a goal', 'goal', 'goals', 'milestone', 'milestones', 'by december', 'by january', 'by the end of', 'over the next', 'weeks', 'on track', 'weekly summary', 'progress',
     'mi meta', 'mis metas', 'mi objetivo', 'objetivo', 'meta', 'hito', 'progreso',
     'mon objectif', 'mes objectifs', 'objectif', 'etape', 'progres',
@@ -349,6 +358,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'o que voce sabe sobre mim', 'minha franquia', 'minha apolice', 'meu contrato de aluguel', 'quando vence', 'expira', 'renovacao', 'lembre se de que', 'esqueca que',
     'cosa sai di me', 'la mia franchigia', 'la mia polizza', 'il mio contratto d affitto', 'quando scade', 'scade', 'rinnovo', 'garanzia', 'ricorda che', 'dimentica che'],
   // N3 (docs/INBOX_HELPER.md): packages, trips, what came in by email (six languages, folded).
+  // S6 (docs/TRAVEL.md): trips, flights and their status.
+  travel: ['trip', 'trips', 'my trip', 'flight', 'flights', 'my flight', 'itinerary', 'travel', 'gate', 'delayed', 'delay', 'cancelled', 'check in', 'boarding', 'hotel', 'rental car', 'packing',
+    'viaje', 'vuelo', 'vuelos', 'itinerario', 'puerta de embarque', 'retrasado', 'cancelado', 'equipaje',
+    'voyage', 'vol', 'vols', 'itineraire', 'porte', 'retarde', 'annule', 'bagages',
+    'reise', 'flug', 'fluge', 'reiseplan', 'gate', 'verspatet', 'annulliert', 'packliste',
+    'viagem', 'voo', 'voos', 'itinerario', 'portao', 'atrasado', 'cancelado', 'mala',
+    'viaggio', 'volo', 'voli', 'itinerario', 'gate', 'in ritardo', 'cancellato', 'valigia'],
   inbox: ['package', 'packages', 'tracking', 'tracking number', 'delivery', 'delivered', 'shipped', 'flight', 'trip', 'itinerary', 'hotel', 'reservation', 'appointment', 'receipt', 'bill', 'inbox', 'email me', 'from my email', 'file pdfs', 'file attachments',
     'paquete', 'paquetes', 'seguimiento', 'entrega', 'vuelo', 'viaje', 'itinerario', 'hotel', 'reserva', 'cita', 'recibo', 'factura', 'bandeja de entrada', 'enviame un correo',
     'colis', 'suivi', 'livraison', 'vol', 'voyage', 'itineraire', 'hotel', 'reservation', 'rendez vous', 'recu', 'facture', 'boite de reception', 'envoie moi un mail',

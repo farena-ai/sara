@@ -27,6 +27,23 @@
 .ms-action { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .ms-task { font-weight: 600; }
 .ms-added { color: var(--accent); }
+/* S2: times, search, speakers, playback, drafts, the desktop recorder, the Today tile. */
+.ms-line { grid-template-columns: 52px minmax(70px, max-content) 1fr; align-items: baseline; }
+.ms-time { min-height: 28px; padding: 0 6px; font-variant-numeric: tabular-nums; justify-self: start; }
+.ms-audio { width: 100%; }
+.ms-tools .ms-field input[type="search"] { width: 100%; max-width: 100%; }
+.ms-speakers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.ms-chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 999px; padding: 2px 4px 2px 12px; }
+.ms-rename { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; }
+.ms-rename .ms-field { margin: 0; }
+.ms-event { margin: 0; color: var(--muted); }
+.ms-draft { display: grid; gap: 4px; }
+.ms-field textarea { width: 100%; max-width: 100%; font: inherit; resize: vertical; }
+.ms-rec .ms-notice { font-size: 15px; }
+.ms-tile { display: grid; gap: 4px; margin: 0 0 8px; padding: 0; list-style: none; }
+#meet-prefs label.row { display: flex; align-items: center; gap: 8px; }
+#meet-prefs label.row input[type="checkbox"] { width: 22px; flex: 0 0 auto; }
 @media (max-width: 520px) {
-  .ms-line { grid-template-columns: 1fr; gap: 0; }
+  .ms-line { grid-template-columns: 52px 1fr; gap: 0 6px; }
+  .ms-line .ms-said { grid-column: 1 / -1; }
 }

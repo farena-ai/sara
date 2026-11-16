@@ -5,7 +5,7 @@ between their people and a way for one harness to look into another's problems. 
 against what already exists before it is built (GREP FIRST); existing engines are reused:
 research, errands, automations, approvals, receipts/verify, the library, inbox helper, A2A, the hub.
 
-Build order: wave S-A (S10, S1, S3, S5, S9a), wave S-B (S2, S4, S6), wave S-C (S7, S8, S9b). Each wave
+Build order: wave S-A (S10, S1, S3, S5, S9a), wave S-B (S2, S4, S6), wave S-C (S7, S8, S9b, S11). Each wave
 ships after a 0-fail suite.
 
 | # | Feature | What the person gets |
@@ -19,6 +19,7 @@ ships after a 0-fail suite.
 | S7 | Documents end to end | Contracts, proposals and letters drafted from their templates and past documents, with tracked changes in Word, a clause checklist, and a signature-ready PDF. Information, not legal advice. |
 | S8 | Agent teams | A big job split between helpers working in parallel (research, draft, check), each with its own budget and tools, then merged with one approval point and a visible plan. |
 | S9 | Linked harnesses | See below. |
+| S11 | Write like a person | A "Make it sound human" option for anything she writes (reports, book reports from the Library, summaries, emails, research reports): plain everyday words, varied sentence length, no stock AI phrases ("delve", "tapestry", "in conclusion", rule-of-three lists, em-dash habits), concrete details from the source instead of filler. It can match the person's own voice from a few samples of their writing they choose. Facts, quotes and citations stay exactly as they were, and a side-by-side view shows what changed. A style setting per document and a default in Settings. Not built or sold as a way to dodge AI detectors or school rules: in kid mode it coaches (outline, questions, feedback on their draft) instead of writing the report for them. |
 | S10 | Pick-an-answer cards | When she offers options or asks a decision question, the choices appear in the chat as buttons to tap (one or several), always with "Other, type it out" last. Her recommended option is first and marked. A pick is sent as the person's answer. Works on phone, desktop, Telegram (inline buttons) and Discord (buttons), and falls back to a numbered list where buttons can't show. Never used for approvals (those keep their own cards). |
 
 ## S9: linked harnesses (Sara and Hank)

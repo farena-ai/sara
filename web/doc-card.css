@@ -19,3 +19,34 @@
   .doc-card-actions > :is(a.button, button) { flex: 1 1 auto; }
   .doc-preview { width: 100vw; height: 100dvh; max-width: none; max-height: none; border-radius: 0; }
 }
+
+/* S11 (docs/WRITING_STYLE.md): Make it sound human, side by side (web/humanize.js). */
+.hz-view { width: min(1100px, 96vw); max-height: 90vh; padding: 16px 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-1); color: var(--text); overflow: auto; }
+.hz-view::backdrop { background: var(--scrim); }
+.hz-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding-right: 40px; }
+.hz-title { margin: 0; }
+.hz-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60ch; }
+.hz-scores { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.hz-score { padding: 2px 10px; border-radius: 999px; font-size: 0.85em; background: var(--warn-soft); color: var(--text); }
+.hz-score.hz-natural { background: var(--success-soft); }
+.hz-score.hz-stiff { background: var(--danger-soft); }
+.hz-facts { margin: 4px 0 10px; color: var(--warn); }
+.hz-facts.ok { color: var(--success); }
+.hz-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.hz-col { min-width: 0; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; background: var(--surface-2, var(--surface-1)); }
+.hz-col-title { margin: 0 0 6px; font-size: 0.9em; color: var(--text-2); }
+.hz-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; max-height: 55vh; overflow: auto; }
+.hz-del { background: var(--danger-soft); text-decoration: line-through; text-decoration-color: var(--danger); }
+.hz-add { background: var(--success-soft); text-decoration: none; }
+.hz-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: flex-end; margin-top: 12px; }
+.hz-voice { margin-right: auto; display: inline-flex; align-items: center; gap: 6px; }
+.hz-voice input { width: 18px; height: 18px; }
+.hz-coach h4 { margin: 10px 0 4px; }
+.wr-box textarea { width: 100%; }
+@media (max-width: 720px) {
+  /* Full screen on a phone: the generic phone dialog cap stops short of the bottom bar (hides Keep). */
+  dialog#hz-view:not(#_) { inset: 0; margin: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: none; border-radius: 0; padding: 12px; }
+  .hz-scores { padding-right: 44px; }
+  .hz-cols { grid-template-columns: 1fr; }
+  .hz-text { max-height: 32vh; }
+}

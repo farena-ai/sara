@@ -61,6 +61,8 @@ import { resolveAttachments } from './mail/attachments.ts';
 import { myDetailsFor } from './my-details.ts';
 import { InboxHelper } from './inbox/helper.ts';
 import { createInboxTools } from './tools/inbox.ts';
+import { Travel } from './travel.ts';
+import { createTravelTools } from './tools/travel.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -76,6 +78,7 @@ import { MemoryStore } from './memory.ts';
 import { PeopleStore } from './people.ts';
 import { mentionToolDeps, wirePeople } from './mentions.ts';
 import { createPeopleTools } from './people-tools.ts';
+import { createPeopleTiesTools, PeopleTies } from './people-ties.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
@@ -114,6 +117,7 @@ import { Learning } from './learn.ts';
 import { runAutoUpdates } from './addon-autoupdate.ts';
 import { storeAutoUpdateDeps } from './routes/store.ts';
 import { Meetings } from './meetings.ts';
+import { createMeetingTools } from './tools/meetings.ts';
 import { Crews } from './crews.ts';
 import { Workers } from './workers.ts';
 import { broadcastEvent, EventTriggers, mcpEventOf, registerTriggers, subscribeWanted } from './event-triggers.ts';
@@ -198,6 +202,7 @@ import { createBizTools } from './tools/biz.ts';
 import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
+import { createHumanizeTool } from './tools/humanize.ts';
 import { createDecisionTools } from './decisions.ts';
 import { createAskChoiceTool } from './choices.ts';
 import { sweepShared } from './bridges/media.ts';
@@ -1102,6 +1107,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createSendFileTool(() => app));
   // make_document (docs/DOCUMENTS.md): Word, PDF, Excel, PowerPoint and more, for the owner and members.
   tools.add(createMakeDocumentTool(() => app));
+  // S11 (docs/WRITING_STYLE.md): "Make it sound human" in chat (members too; a child gets coaching).
+  tools.add(createHumanizeTool(() => app));
   // E5: the decision helper and comparisons (each space's own decisions; members too).
   for (const t of createDecisionTools(() => app)) tools.add(t);
   // S10 (docs/CHOICES.md): pick-an-answer cards (members too).
@@ -1240,6 +1247,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // Phase 119: his "when it comes up" reminders count as private texts for her outside gate.
     wirePeople(app);
     for (const t of createPeopleTools(() => app)) tools.add(t);
+    // S4 (docs/PEOPLE.md "Keeping in touch"): last contact, promises, dates and nudges on the cards.
+    app.peopleTies = new PeopleTies(app);
+    for (const t of createPeopleTiesTools(() => app)) tools.add(t);
   }
   // Phase 103 (ST8): her own agenda (per companion, in each person's own space; off by default; never the demo).
   if (!isDemo) {
@@ -1272,6 +1282,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.learnTopics = new Learning(app, store.db);
     // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).
     app.meetings = new Meetings(app, store.db);
+    // S2: meeting_list / meeting_summarize (read only).
+    for (const t of createMeetingTools(() => app)) app.tools.add(t);
     const g = app.goals.startupSweep();
     const l = app.loops.startupSweep();
     if (g || l) console.log(`Keep going and repeats: ${g} goal(s) and ${l} repeat(s) from before the restart are paused.`);
@@ -1602,6 +1614,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // N3 (docs/INBOX_HELPER.md): from your inbox, each space's own mailboxes (members' mail stays theirs).
     app.inbox = new InboxHelper(app, store.db);
     for (const t of createInboxTools(() => app)) tools.add(t);
+    // S6 (docs/TRAVEL.md): trips from booking mail, each space's own (members' trips stay theirs).
+    app.travel = new Travel(app, store.db);
+    for (const t of createTravelTools(() => app)) tools.add(t);
   }
   if (!isMember) for (const t of createReviewTools(() => app)) tools.add(t);
   if (!isMember) tools.add(createIssueTool(() => app));

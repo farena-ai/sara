@@ -1,6 +1,18 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "wr-style": [
+      "Natural: what she writes you (documents, email drafts, summaries) uses plain words and varied sentences; facts stay exact. As written: no extra rewrite. Example: Natural for letters.",
+      "library"
+    ],
+    "wr-samples": [
+      "Paste 1 to 5 things you wrote yourself, like emails or posts. She notes your sentence length, tone, contractions and favorite words, and keeps only that short card.",
+      "library"
+    ],
+    "wr-lib": [
+      "Pick documents you wrote from your Library (up to 5 samples in all). Only your own space sees your style card.",
+      "library"
+    ],
     "wsk-ask": [
       "Ask about your own papers, like “what’s my deductible?” or “when does my lease end?”. She searches every Library file and answers with the exact words, the file and the page, or says it isn’t in your documents.",
       "what-sara-knows"
@@ -191,6 +203,14 @@
     ],
     "vg-voice": [
       "Her Grok voice. Press ▶ to hear one first; picking it saves it for her spoken replies and live calls.",
+      "voice"
+    ],
+    "meet-remind": [
+      "Before a recording starts she shows, and says out loud, a line asking everyone on the call to agree.",
+      "voice"
+    ],
+    "meet-cloud": [
+      "Off: meetings are heard only by the hearing engine on this computer. On: your Speech API or Grok voice may hear them when there is no local engine.",
       "voice"
     ],
     "v-stt": [
