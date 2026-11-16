@@ -41,9 +41,11 @@
   <link rel="stylesheet" href="/research.css">
   <link rel="stylesheet" href="/doc-card.css">
   <link rel="stylesheet" href="/decision.css">
+  <link rel="stylesheet" href="/choice.css">
   <link rel="stylesheet" href="/drop.css">
   <link rel="stylesheet" href="/meetings.css">
   <link rel="stylesheet" href="/recall.css">
+  <link rel="stylesheet" href="/ask-everything.css">
   <link rel="stylesheet" href="/v3.css">
   <link rel="stylesheet" href="/sharing.css">
   <link rel="stylesheet" href="/v4.css">
@@ -221,7 +223,9 @@
           <div class="side-dest" data-dest="today"><button class="side-go" id="open-today" type="button" title="Today (Alt+T)"><i class="ic" data-icon="today"></i><span>Today</span></button></div>
           <div class="side-dest" data-dest="planner"><button class="side-go" id="open-planner" type="button" title="Planner: to-dos, reminders, notes (Alt+P)"><i class="ic" data-icon="planner"></i><span>Planner</span></button></div>
           <div class="side-dest" data-dest="errands"><button class="side-go" id="open-errands" type="button" title="Errands: goals she takes care of from start to finish, and what she needs from you"><i class="ic" data-icon="todo"></i><span>Errands</span></button></div>
+          <div class="side-dest" data-dest="goals"><button class="side-go" id="open-goals" type="button" title="Goals: bigger things you want done over days or weeks, with milestones, progress and a weekly summary"><i class="ic" data-icon="flag"></i><span>Goals</span></button></div>
           <div class="side-dest" data-dest="family"><button class="side-go" id="open-family" type="button" title="Family: chores and allowance, grocery lists, kid-safe mode"><i class="ic" data-icon="group"></i><span>Family</span></button></div>
+          <div class="side-dest" data-dest="msgs" data-owner-only><button class="side-go" id="open-msgs" type="button" data-owner-only title="Messages: private chats with the owners of linked servers (Sara never reads them)"><i class="ic" data-icon="chat"></i><span>Messages</span><i id="msgs-dot" class="side-dot" hidden></i></button></div>
           <div class="side-dest" data-dest="memory"><button class="side-go" id="open-memory" type="button" title="What she remembers (Alt+M)"><i class="ic" data-icon="memory"></i><span>Memory</span></button></div>
           <div class="side-dest" data-dest="library"><button class="side-go" id="open-library" type="button" title="Library: documents she keeps and knows (Alt+L)"><i class="ic" data-icon="library"></i><span>Library</span></button></div>
           <div class="side-dest" data-dest="scrapbook"><button class="side-go" id="open-scrapbook" type="button" title="Scrapbook (Alt+B)"><i class="ic" data-icon="scrapbook"></i><span>Scrapbook</span></button></div>
@@ -368,6 +372,7 @@
       <div id="demo-bar" class="offrecord-bar" hidden>👋 <strong>Demo.</strong> Conversations here aren't saved and disappear after a few hours; please don't share personal information. On your own server Sara also remembers, plans, codes and connects to your mail, calendar and phone.</div>
       <div id="offrecord-bar" class="offrecord-bar" hidden>🕶 <strong>Off the record.</strong> Nothing here is saved: she won't remember it, it isn't in backups, and it's gone when you close it or the server restarts. No tools or photos here. <button id="offrecord-end" type="button" class="ghost small">Close it now</button></div>
       <div id="jobs-strip" class="jobs-strip" hidden></div>
+      <div id="hf-banner" class="hf-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="hf-text" class="hf-text"></span> <button id="hf-log" type="button" class="ghost small">Steps</button> <button id="hf-stop" type="button" class="danger small">Stop</button><ol id="hf-steps" class="hf-steps" hidden></ol></div>
       <div id="cu-badge" class="cu-badge" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="cu-badge-text" class="cu-badge-text"></span> <button id="cu-badge-stop" type="button" class="danger small">Stop</button></div>
       <div id="cu-live" class="cu-live" role="region" aria-label="Live view" hidden>
         <img id="cu-live-img" class="cu-live-img" alt="What Sara sees in the Sara browser">
@@ -517,6 +522,7 @@
                 <section class="today-card td-tile" id="td-inbox" hidden tabindex="0" aria-labelledby="td-inbox-h"><div class="td-tile-head"><h3 id="td-inbox-h">From your inbox</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-shared" hidden tabindex="0" aria-labelledby="td-shared-h"><div class="td-tile-head"><h3 id="td-shared-h">Shared with you</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-errands" hidden tabindex="0" aria-labelledby="td-errands-h"><div class="td-tile-head"><h3 id="td-errands-h">Errands</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-goals" hidden tabindex="0" aria-labelledby="td-goals-h"><div class="td-tile-head"><h3 id="td-goals-h">Goals</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-family" hidden tabindex="0" aria-labelledby="td-family-h"><div class="td-tile-head"><h3 id="td-family-h">Family</h3></div><div class="td-body"></div></section>
               </div>
             </section>
@@ -1189,6 +1195,29 @@
       <p class="actions-left"><button id="servers-add" type="button">Add a server</button> <span id="servers-status" class="muted small" role="status"></span></p>
     </form>
   </dialog>
+  <dialog id="ask-all" class="ask-all" aria-labelledby="ask-title">
+    <form method="dialog" class="settings-body">
+      <h2 id="ask-title">Ask about anything in your life</h2>
+      <p class="muted small">One question across your emails, files, chats, calendars, notes, lists and contacts. Every answer line names where it came from; tap it to open the source. Private chats are never searched.</p>
+      <div class="ask-row"><input id="ask-q" type="search" placeholder="When is my lease renewal due?" autocomplete="off" aria-label="Ask about anything in your life"><button id="ask-go" type="button">Ask</button></div>
+      <div id="ask-sources" class="ask-sources" role="group" aria-label="Where to look"></div>
+      <p id="ask-status" class="muted small" role="status"></p>
+      <div id="ask-results">
+        <section id="ask-answer" class="ask-answer" hidden>
+          <h3>What I found</h3>
+          <ol id="ask-answer-list"></ol>
+          <p class="actions-left"><button id="ask-chat" type="button" class="ghost small">Ask Sara about it in a chat</button></p>
+        </section>
+        <div id="ask-groups"></div>
+      </div>
+      <section id="ask-view" hidden>
+        <p class="actions-left"><button id="ask-view-back" type="button" class="ghost small">Back to results</button></p>
+        <h3 id="ask-view-title"></h3>
+        <p id="ask-view-where" class="muted small"></p>
+        <pre id="ask-view-text" class="ask-view-text"></pre>
+      </section>
+    </form>
+  </dialog>
   <dialog id="file-view" class="small-dialog">
     <form method="dialog" class="settings-body">
       <h2 id="file-view-title">File</h2>
@@ -1494,6 +1523,21 @@
       <div id="er-list" class="er-list"></div>
     </form>
   </dialog>
+  <!-- S3 (docs/GOALS.md): Goals over days (milestones, progress, a new plan when something slips, history) -->
+  <dialog id="goals" aria-label="Goals">
+    <form method="dialog" class="settings-body goals">
+      <h2>Goals <span id="gl-proposals" class="er-chip er-waiting_you" hidden></span></h2>
+      <p class="muted small">Bigger things you want done by a date. She keeps the plan of milestones, checks progress, nudges you before each checkpoint, proposes a new plan when something slips and sends a weekly summary. Anything that acts still asks you first.</p>
+      <div class="add-row gl-new" data-nodirty>
+        <span class="gl-tipwrap"><button type="button" class="tip" data-tip="A goal starts with three checkpoints up to its date; change them on its card. In a chat she can make a fuller plan whose milestones start tasks, reminders or errands.">?</button></span>
+        <input id="gl-title" maxlength="200" placeholder="What do you want done? (get my house sale paperwork done…)" aria-label="What do you want done?">
+        <input id="gl-due" type="date" aria-label="By when">
+        <button id="gl-add" type="button" class="small">Set it up</button>
+      </div>
+      <p id="gl-status" class="muted small" role="status"></p>
+      <div id="gl-list" class="gl-list"></div>
+    </form>
+  </dialog>
   <!-- R8 (docs/FAMILY.md): Family (chores and allowance, grocery lists, kid-safe mode) -->
   <dialog id="family" aria-label="Family">
     <form method="dialog" class="settings-body family">
@@ -1507,6 +1551,32 @@
       </div>
       <p id="fam-status" class="muted small" role="status"></p>
       <div id="fam-body" class="fam-body" data-nodirty data-noauto></div>
+    </form>
+  </dialog>
+  <!-- S9a (docs/MESSAGES.md): private messages between the owners of linked servers. Sara is not involved. -->
+  <dialog id="msgs" aria-label="Messages">
+    <form method="dialog" class="settings-body msgs">
+      <h2>Messages <span id="msgs-unread" class="msgs-badge" hidden></span></h2>
+      <p class="muted small">Private chats with the people who own other linked Sara servers, one to one or in communities. Sara never reads them: they stay out of her memory, her chats and every model.</p>
+      <div class="msgs-tools">
+        <button type="button" class="small" id="msgs-link">Link a server</button>
+        <button type="button" class="ghost small" id="msgs-join-open">Paste a code</button>
+        <button type="button" class="ghost small" id="msgs-new-group">New community</button>
+      </div>
+      <p id="msgs-status" class="muted small" role="status"></p>
+      <div id="msgs-panel" class="msgs-panel" hidden data-nodirty data-noauto></div>
+      <div class="msgs-cols" data-nodirty data-noauto>
+        <div id="msgs-list" class="msgs-list" aria-label="Chats"></div>
+        <div id="msgs-chat" class="msgs-chat"></div>
+      </div>
+      <details class="msgs-settings" data-nodirty data-noauto>
+        <summary>Messages settings</summary>
+        <label class="msgs-row"><span class="msgs-lab">Keep messages for <button type="button" class="tip" data-tip="How long this server keeps chats, in days (30 by default; 0 keeps them always). Each chat can have its own time under Options. The other person chooses their own.">?</button></span><input id="msgs-keep" type="number" min="0" max="3650" step="1"></label>
+        <label class="msgs-row"><input id="msgs-receipts" type="checkbox"><span>Send read receipts <button type="button" class="tip" data-tip="When on, the other person sees when you have read their message. Off: you still see theirs if they send them.">?</button></span></label>
+        <label class="msgs-row"><input id="msgs-typing" type="checkbox"><span>Show when I am typing <button type="button" class="tip" data-tip="When on, the other person sees “typing…” while you write.">?</button></span></label>
+        <label class="msgs-row"><span class="msgs-lab">My name for others <button type="button" class="tip" data-tip="The name other owners see next to your messages. Empty: your name from Sara’s settings.">?</button></span><input id="msgs-name" maxlength="60"></label>
+        <label class="msgs-row"><span class="msgs-lab">This server’s address <button type="button" class="tip" data-tip="The address other servers use to reach this one (https, or your home network or Tailscale). Empty: the address you opened Sara with.">?</button></span><input id="msgs-url" maxlength="200" placeholder="https://sara.example.net"></label>
+      </details>
     </form>
   </dialog>
   <dialog id="moments" aria-label="Our moments">
@@ -2492,6 +2562,8 @@
       <div id="cu-acts" hidden>
         <h3>Her actions</h3>
         <label class="row">Approvals for clicking and typing <select id="cu-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Once per task (default): her first action on a site asks. Every time: each action asks. Always allowed: no cards. Payments and account settings always ask.">?</button></label>
+        <label class="row">How often she asks <button type="button" class="tip" data-tip="Once per task: the first card offers Let her finish this task, and saying just do it starts it. Passwords, codes and payments always stay yours.">?</button> <select id="cu-approvals" data-noauto><option value="task">Ask once per task (recommended)</option><option value="step">Ask before each step</option><option value="never">Never ask except the hard limits</option></select></label>
+        <label class="row">Let her finish a task for <button type="button" class="tip" data-tip="How long Let her finish this task lasts. It also ends when you press Stop or use the computer yourself.">?</button> <select id="cu-hf-for" data-noauto><option value="15m">15 minutes</option><option value="1h">1 hour</option><option value="stop">Until I stop her</option></select></label>
         <h4>Always allowed on these sites</h4>
         <ul id="cu-always" class="cu-list"></ul>
         <p id="cu-always-none" class="muted small">No sites here yet. Press Always on a card to add one.</p>
@@ -3478,6 +3550,8 @@
       <div id="ma-combined" data-nodirty data-noauto></div>
       <h3>Calendars <button type="button" class="tip" data-tip="Pick which calendars of each account show on Today, in the briefing and for your booking page, and where new events go.">?</button></h3>
       <div id="ma-cals" data-nodirty data-noauto></div>
+      <h3>Add a calendar by link <button type="button" class="tip" data-tip="The easiest way: paste your calendar's private iCal link (Google, Outlook or iCloud). Read only, checked every 15 minutes, shown on Today and in answers.">?</button></h3>
+      <div id="cl-page" data-nodirty data-noauto></div>
       <h3>Inbox helper <button type="button" class="tip" data-tip="She turns new email into one-tap cards on Today: bills, receipts, packages, trips, appointments and paid invoices. Suggestions only until you turn on “do it for me” for a kind. Read only: she never sends, pays or deletes anything here.">?</button></h3>
       <p id="ih-status" class="muted small" role="status"></p>
       <div id="ih-page" data-nodirty data-noauto></div>
@@ -3490,6 +3564,8 @@
       <div id="g-organize" class="add-row" hidden><button id="g-reconnect" type="button">Reconnect to allow organizing</button><button type="button" class="tip" data-tip="She can now organize your mail: archive, mark read, labels, stars, trash and spam. She shows the count first, and Undo works for 30 days. That needs one more Google permission (gmail.modify; it can't delete for good). Reconnect and leave the boxes ticked.">?</button></div>
       <details id="g-setup" data-noauto>
         <summary>Set it up (about 10 minutes, once)</summary>
+        <p class="muted small">Only need your calendar, read only? Add it by link under Email and calendar → Add a calendar by link: no Google app needed.</p>
+        <div class="add-row"><span><button type="button" class="tip" data-tip="She opens her own browser on your computer and does these steps for you, without a card on every click. You only sign in to Google and copy two values into Sara.">?</button></span><button id="g-auto" type="button">Let her set it up for me</button></div>
         <p class="muted small">She reads your email and calendar through Google's own APIs, using a small Google app that <strong>you</strong> own, so nothing goes through anyone else. Reading is automatic; drafting, sending and adding events always ask you first.</p>
         <ol class="small setup-steps">
           <li>Open <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">Google Cloud Console</a> and make a project (any name, e.g. "Sara").</li>

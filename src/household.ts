@@ -576,6 +576,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'automations',
   // R3: their own errands (src/routes/errands.ts)
   'errands',
+  // S3: their own long-running goals (src/routes/long-goals.ts)
+  'goal-plans',
   // R6: their own booking page and accounting export files (src/routes/booking.ts)
   'booking',
   'accounting',

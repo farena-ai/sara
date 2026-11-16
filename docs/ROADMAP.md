@@ -108,6 +108,17 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Choices to tap, goals, research, ask anything, and private messages, in 3.15.0
+
+When she asks you to choose, the options are buttons (in the app, Telegram and Discord), with "Other,
+type it out" last. Goals over days get milestones, nudges and a weekly summary. Research reports read
+your own files as well as the web, cite every finding and list what couldn't be verified, exported to
+Word or PDF. One question searches your mail, files, chats, calendars, notes and lists, with each source
+cited. And two or more Sara servers can link with a code for private messages and communities between
+their owners, which the agents never see. Computer use can finish a task hands-free once you say "just do
+it" (the hard limits stay), scrolls inside panels and recovers from small mistakes, and a Google, Outlook
+or iCloud calendar can be added by pasting its private link.
+
 ## All your accounts together, and her own icon, in 3.14.0
 
 Sign in to more than one Google account, and bring in calendars from every account (Google, Outlook,

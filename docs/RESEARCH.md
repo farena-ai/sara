@@ -18,6 +18,55 @@ search shows *"I can't search the web yet"* with a **Turn on web search** button
 Ollama Cloud key is there), and `/learn` answers in the chat with the same button. Only the owner can run research; household members and the demo
 can't.
 
+## Deep research reports (S1)
+
+A run can read **your own files** as well as the web, and the report is built to be checked.
+
+- **Where she reads** (on the plan, before **Start**): *The web*, *Your Library* or both. The same
+  searches are looked up in the documents kept in her Library (never in her own research reports);
+  each matching document becomes a numbered source like a page, listed as *your Library*. Without
+  web search set up she can still research your Library.
+- **The cost cap** is shown under the plan before you start: *Budget: up to 8 pages, 20 minutes,
+  about 120k tokens · at most about $0.36* (the token budget at the model's price; *free* for models
+  on this computer, *on your subscription*, or *price unknown*). Raise pages or time while she works.
+- **The report** has **Summary**, **Findings** (every sentence ends with a numbered link to its
+  source), **Open questions** (what the sources leave open, plus the steps no source answered),
+  **What I couldn't verify** (every sentence of her draft that no source read in this run backs,
+  marked *(unverified)*: nothing is passed off as a finding without a source), *What is missing*,
+  and **Sources**, each with a short **quote**: the sentence of that source closest to what it is
+  cited for.
+- **When it's done** you get a notification (*Your research report is ready*), the report is kept in
+  her Library and downloads as Word, PDF or Markdown.
+- **Private runs.** A run started from a private chat, or while *Nothing leaves this computer* is on,
+  plans and writes **only with models on your own hardware** and reads **no web**. In a private
+  chat's run you may tick *The web* on the plan (still local models only); in *Nothing leaves this
+  computer* mode the web can't be ticked, so she researches your Library only. If no local model is
+  set up, no cloud model is asked instead: the run pauses with *the model stopped answering* and
+  *Write with what she has* gives the quotes without a model. You can also tick *Only models on this
+  computer* for any run.
+
+### Design (one page)
+
+- **Engine reused, not duplicated:** `src/research.ts` (EC6 + 3.1.2: plan approval, checkpoints,
+  pause/resume/stop, budget, retries, `checkClaims`) gains a `reach` column (`{web, library,
+  localOnly}`), library candidates (`LibraryStore.searchWords` over kept documents, one source per
+  document, `via: 'library'`, url `library:<docId>`), `costCap()` (price table + `billingOf`),
+  and a push notification in `#finish` (`app.push.notifyOwner`, tag `research-<id>`).
+- **Claims:** `checkClaims` now also returns the unsupported sentences (`unverified`) and the claims
+  each source backs (`claims`); questions need no source. `bestQuote()` picks each source's quote.
+- **Local only:** model calls for a `localOnly` run go through a private copy of the background
+  conversation, so the normal routing (`resolveFor`) refuses every model not marked local, and in
+  private local mode every model not on this computer. No new routing code.
+- **Background:** a run already works in the background with its own checkpoints (resumed after a
+  restart); the chat card (`research_start`) and *Library → Research a question* show live status,
+  Pause, Write the report now and Stop.
+- **API:** `POST /api/research {question, web?, library?, localOnly?}`, `PUT /api/research/:id/plan
+  {steps, pages, reach}`; runs carry `reach`, `costCap`, `conversationPrivate`; `GET /api/research`
+  adds `web`, `library`, `privateLocal`.
+- **Tests:** `test/s1-research.test.ts` (fake SearXNG + pages, scripted model, a Library document):
+  web + Library report sections, unverified marking, quotes, Word/PDF, notification, Library-only
+  without web search, private local mode, a private chat with a cloud-only model (never called).
+
 ## How a run goes
 
 1. **Ask.** Type your question and press **Draft a plan**. She writes 2 to 5 steps, each one part of
@@ -41,7 +90,7 @@ can't.
 4. **Pause** stops after the current page; **Resume** goes on from exactly where it stopped.
    **Write the report now** stops reading and writes the report from the pages read so far.
    **Stop** stops everything at once: she doesn't call the model again, and you still get a report.
-5. **The report** is kept in her Library (a Markdown document named *Research - your question*),
+5. **The report** (Summary, Findings, Open questions, What I couldn't verify, Sources with quotes) is kept in her Library (a Markdown document named *Research - your question*),
    so she can look things up in it later, and downloads as **PDF**, **Word** or **Markdown**.
 
 ## Long runs (3.1.2)

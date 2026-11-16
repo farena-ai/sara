@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 3.14.0, [Tutti i tuoi account insieme e la sua icona](https://github.com/farena-ai/sara/releases/tag/v3.14.0). Più account Google, calendari da ogni account, una posta in arrivo unica e risposte dall’indirizzo giusto. [Scopri le novità](#novità)
+> **Stato:** 3.15.0, [Scelte da toccare, obiettivi, ricerca, chiedi tutto, messaggi privati](https://github.com/farena-ai/sara/releases/tag/v3.15.0). Tocca le sue opzioni invece di scrivere, obiettivi di più giorni, rapporti di ricerca con fonti, una ricerca in tutta la tua vita e messaggi privati tra server Sara. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -167,20 +167,22 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Scelte da toccare, obiettivi, ricerca, chiedi tutto, messaggi privati](docs/CHOICES.md)** — Pulsanti di risposta nell’app, Telegram e Discord; obiettivi con tappe e promemoria; ricerca dal web e dai tuoi file in Word/PDF; domande su email, file, chat e calendari; messaggi e comunità tra server che gli agenti non vedono mai. |
+| **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[I documenti salvati contano come salvati](docs/DOCUMENTS.md)** — Creare un documento, compilare un modulo, fatture, esportazioni e modifiche in Docs/Sheets/Excel ora contano come prova del salvataggio. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Tutti i tuoi account insieme e la sua icona](docs/MAIL_ACCOUNTS.md)** — Calendari di Google, Outlook, iCloud, Fastmail e Yahoo etichettati per account; icona dell’app, scheda e notifiche usano la sua immagine. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Le sue foto con ComfyUI, inviate dove scegli](docs/PHOTOS.md)** — Nuova impostazione Invia le sue foto a: una chat solo per le sue foto, una delle tue chat, una chat di progetto e/o Telegram e Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Impostazioni più calme e premium](docs/HOW_DO_I.md)** — La ricerca trova una singola impostazione e la evidenzia (Ctrl+K); sul telefono si scende dal gruppo alla pagina; tutte le opzioni e i vecchi link funzionano ancora. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[App di lavoro, famiglia, fiducia e voce pronta](docs/WORK_APPS.md)** — Regole degli strumenti per membro applicate sul server, esportazione audit e conservazione; chiamate pronte e spente finché non colleghi un fornitore; fatti in sei lingue, accessibilità e modelli. |
-| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Commissioni, un avvio facile e Comandi su iPhone](docs/ERRANDS.md)** — Rimborsi, prenotazioni, disdette e preventivi pianificati e seguiti passo passo; i pagamenti restano a te. Una pagina di download, un autotest e allegati Outlook fino a 150 MB. |
-| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Ovunque tu sia, conosce il tuo mondo, lavora con il tuo team](docs/WHAT_SARA_KNOWS.md)** — L’app Mac fa ciò che fa Windows; le notifiche hanno Approva, Posticipa, Rispondi e Accetta; risponde dai tuoi file con citazioni esatte e pagine; le ore diventano fatture senza doppia fatturazione. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 3.9.0 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 3.11.0 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Commissioni, un avvio facile e Comandi su iPhone](docs/ERRANDS.md)** — Rimborsi, prenotazioni, disdette e preventivi pianificati e seguiti passo passo; i pagamenti restano a te. Una pagina di download, un autotest e allegati Outlook fino a 150 MB. |
+| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Ovunque tu sia, conosce il tuo mondo, lavora con il tuo team](docs/WHAT_SARA_KNOWS.md)** — L’app Mac fa ciò che fa Windows; le notifiche hanno Approva, Posticipa, Rispondi e Accetta; risponde dai tuoi file con citazioni esatte e pagine; le ore diventano fatture senza doppia fatturazione. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Dalla tua posta, e moduli compilati](docs/INBOX_HELPER.md)** — Niente parte da solo finché non lo dici, e niente dalle email invia o paga. I moduli si fermano prima di Invia dopo una scheda di controllo; le email hanno allegati; i negozi che la bloccano si controllano nel tuo browser. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Fa le cose giuste, e da sola](docs/AUTOMATIONS.md)** — Sceglie il modello giusto per ogni compito e passa a un altro se è lento, verifica ciò che ha cambiato, riferisce ogni settimana e avvia le tue automazioni con anteprima, prova e cronologia. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Un’assistente di tutti i giorni: soldi, sport, acquisti, decisioni, lavoro](docs/BUSINESS_TOOLS.md)** — Valuta le opzioni in base a ciò che conta per te, segnala le scelte al fotofinish e ricontrolla dopo. Fatture e preventivi numerati con stato pagato/scaduto, a chi devi una risposta, contratti letti citando ogni punto, ricevute trasformate in note spese. |

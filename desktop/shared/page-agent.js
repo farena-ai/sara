@@ -348,15 +348,40 @@
     var b = e.getBoundingClientRect();
     return { selected: mask(o.text.trim()), desc: mask(desc(e)), x: Math.round(b.left + b.width / 2), y: Math.round(b.top + b.height / 2) };
   }
+  // HANDSFREE: pages like web mail, calendars and cloud consoles scroll a panel, not the window. Without a ref
+  // she scrolls the scrollable box under the middle of the window (then its scrollable ancestors, then the
+  // window) and checks that it really moved; the reply says where she is now.
+  function canScroll(el, dy) {
+    if (!el || el.nodeType !== 1) return false;
+    var cs = getComputedStyle(el);
+    if (!/(auto|scroll|overlay)/.test(cs.overflowY)) return false;
+    if (el.scrollHeight <= el.clientHeight + 1) return false;
+    return dy > 0 ? el.scrollTop + el.clientHeight < el.scrollHeight - 1 : el.scrollTop > 0;
+  }
   function scroll(a) {
+    var se = document.scrollingElement || document.documentElement;
     if (a.ref || a.text) {
       var r = resolve(a);
       if (r.stale) return { stale: true, error: r.stale };
       if (r.missing) return { error: r.missing };
       r.el.scrollIntoView({ block: 'center' });
-    } else window.scrollBy(0, Math.max(-20000, Math.min(20000, Number(a.dy) || innerHeight * 0.8)));
-    var se = document.scrollingElement || document.documentElement;
-    return { scrollY: Math.round(scrollY), maxY: Math.max(0, Math.round(se.scrollHeight - innerHeight)) };
+      return { scrollY: Math.round(scrollY), maxY: Math.max(0, Math.round(se.scrollHeight - innerHeight)) };
+    }
+    var dy = Math.max(-20000, Math.min(20000, Number(a.dy) || innerHeight * 0.8));
+    var el = document.elementFromPoint(Math.round(innerWidth / 2), Math.round(innerHeight / 2));
+    for (var n = 0; el && el !== document.body && el !== document.documentElement && n < 40; n++, el = el.parentElement) {
+      if (!canScroll(el, dy)) continue;
+      var before = el.scrollTop;
+      el.scrollTop = before + dy;
+      if (el.scrollTop !== before) {
+        var name = mask(desc(el) || el.getAttribute('aria-label') || '');
+        return { scrollY: Math.round(el.scrollTop), maxY: Math.max(0, Math.round(el.scrollHeight - el.clientHeight)), before: Math.round(before), moved: true, container: name.slice(0, 60) };
+      }
+    }
+    var wy = scrollY;
+    window.scrollBy(0, dy);
+    var moved = scrollY !== wy;
+    return { scrollY: Math.round(scrollY), maxY: Math.max(0, Math.round(se.scrollHeight - innerHeight)), before: Math.round(wy), moved: moved };
   }
   // The keys she may press (a fixed list, checked here on the device): named keys, and Ctrl / Shift /
   // Alt / Meta with one letter or digit. The caller sends exactly these key events.

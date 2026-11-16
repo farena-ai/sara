@@ -18,6 +18,9 @@ const KINDS: { mime: string; ext: string; magic: (b: Buffer) => boolean }[] = [
 
 export class UploadError extends Error {}
 
+/** S9a: the picture type of some bytes by their first bytes (the same check as photo uploads), or undefined. */
+export const sniffImage = (b: Buffer): string | undefined => KINDS.find((k) => k.magic(b))?.mime;
+
 export interface Upload {
   id: string;
   mime: string;

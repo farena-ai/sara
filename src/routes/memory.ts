@@ -6,6 +6,7 @@ import { cleanWorkflow, listComfyWorkflows, loadComfyWorkflow, PHOTO_ENGINES, ty
 import { mcpToolName } from '../tools/mcp.ts';
 import { monthlyEstimate, OWN_PACES, OWN_PLACES, type OwnDest, type OwnPhotoPace, type OwnPlace, ownAppReady, ownDest, ownerWebChat, ownerWebChats, ownPhotoJob, ownPhotoSettings, ownTargets, startOwnPhotoJob } from '../own-photos.ts';
 import { findEverything } from '../find.ts';
+import { askEverything, readAskMail } from '../ask-everything.ts';
 import { as400, fromPhoneApp, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { forgetMemory, localDate, type MemorySettings, memorySettings } from '../memory-worker.ts';
 import { clampDecay, decayPolicy, explainPolicy, FADE_PRESETS, type FadePreset } from '../memory-rank.ts';
@@ -465,6 +466,23 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
       if (!f) throw new HttpError(404, 'Not found');
       res.writeHead(200, { 'content-type': f.mime, 'cache-control': 'private, max-age=31536000, immutable', ...SECURITY_HEADERS });
       return void createReadStream(f.path).pipe(res);
+    }
+    // S5 (docs/ASK_EVERYTHING.md): one question across mail, files, chats, calendar, notes, lists and
+    // contacts, grouped with a cited answer; and one email in full to open a mail hit at the spot.
+    if (a === 'find' && b === 'ask' && method === 'GET') {
+      const sp = new URL(req.url ?? '/', 'http://x').searchParams;
+      if (c === 'mail' && !parts[3]) {
+        try {
+          return send(res, 200, await readAskMail(app, sp.get('account') ?? '', sp.get('id') ?? ''));
+        } catch (err) {
+          throw new HttpError(404, (err as Error).message.slice(0, 200));
+        }
+      }
+      if (c) return NEXT;
+      const q = (sp.get('q') ?? '').trim().slice(0, 300);
+      if (!q) throw new HttpError(400, 'Ask a question.');
+      const sources = (sp.get('sources') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+      return send(res, 200, await askEverything(app, q, sources.length ? { sources } : {}));
     }
     if (a === 'find' && method === 'GET') {
       const sp = new URL(req.url ?? '/', 'http://x').searchParams;

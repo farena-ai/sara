@@ -34,6 +34,7 @@ import { PENDING_LINES, pendingFor, snippet, whileBusySettings, type PendingItem
 import { adultModeOn } from '../settings.ts';
 import { readFileSync } from 'node:fs';
 import { nameCalled } from './rules.ts';
+import { choiceButton } from '../choices.ts';
 import { afterTurnExtras, askerLanguage, BUSY_COMMANDS, chatButton, chatsSettings, OWNER_ONLY_COMMANDS, commandAllowed, DESCRIPTIONS, DISCORD_LOCALES, DISCORD_NAMES, isCommandName, MENU_COMMANDS, menuHash, modelChoices, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, type Asker, type BridgeAdapter, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, discordRoomName, noteRoom, roomOf, roomStale } from './rooms.ts';
 import { deleteLine, editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
@@ -146,7 +147,11 @@ interface DInteraction {
   data?: { custom_id?: string; name?: string; values?: string[]; options?: { name: string; value?: unknown; focused?: boolean }[] };
   user?: DUser;
   member?: { user: DUser };
+  /** The message a button sits on. */
+  message?: { id: string };
 }
+/** S10: pick-an-answer buttons, five to a row (the first, her recommended one, is the primary button). */
+const choiceRows = (buttons: { label: string; data: string }[]) => Array.from({ length: Math.ceil(buttons.length / 5) }, (_, r) => ({ type: 1, components: buttons.slice(r * 5, r * 5 + 5).map((b, n) => ({ type: 2, style: r === 0 && n === 0 ? 1 : 2, label: b.label.slice(0, 80), custom_id: b.data })) }));
 /** Discord's own status line on the menu (others see less than the owner; checked on every use). */
 const DISCORD_STATUS = en('How full this chat is (the owner sees more)');
 interface DMessage {
@@ -441,6 +446,18 @@ export class DiscordBridge {
       const owner = Boolean(who && isDiscordOwner(discordSettings(this.#app), who.id));
       const content = !owner ? say(this.#app, askerLanguage(i.locale), en('Only the person who runs me can stop this.')) : this.#tr(this.#stopTurn(st[1]) ? en('Stopping.') : en('Nothing to stop.'));
       return void (await this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, { type: 4, data: { content, flags: 64 } }));
+    }
+    // S10 (docs/CHOICES.md): a pick-an-answer button (owner only); a pick runs her turn as his own message.
+    if (i.data?.custom_id?.startsWith('ch:')) {
+      const cb = (body: Record<string, unknown>) => this.#rest('POST', `/interactions/${i.id}/${i.token}/callback`, body);
+      if (!who || !isDiscordOwner(discordSettings(this.#app), who.id)) return void (await cb({ type: 4, data: { content: say(this.#app, askerLanguage(i.locale), en('Only the owner can answer that.')), flags: 64 } }));
+      const r = choiceButton(this.#app, i.data.custom_id, (t) => this.#tr(t));
+      if (r?.buttons) await cb({ type: 7, data: { components: choiceRows(r.buttons) } });
+      else if (r?.edit) await cb({ type: 7, data: { content: r.edit, components: [] } });
+      else await cb({ type: 4, data: { content: r?.text ?? '', flags: 64 } });
+      const channelId = i.channel_id ?? i.channel?.id;
+      if (r?.send && channelId) return this.handleMessage({ id: i.message?.id ?? i.id, channel_id: channelId, ...(i.guild_id ? { guild_id: i.guild_id } : {}), author: who, content: r.send });
+      return;
     }
     // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here); the row is updated in place.
     if (i.data?.custom_id && /^(wm|pk|cu):/.test(i.data.custom_id)) {
@@ -1139,13 +1156,15 @@ export class DiscordBridge {
     if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
     for (const t of outgoing) {
+      // S10: her pick-an-answer card goes as buttons (below), not as its numbered list.
+      if (extras?.drop && t === extras.drop) continue;
       if (voice && t.length <= 1200 && !t.includes('```') && (await this.sendVoice(channelId, t))) continue;
       await paceLikeTyping(app, t, since, () => void this.#rest('POST', `/channels/${channelId}/typing`).catch(() => undefined));
       await this.send(channelId, t);
       since = Date.now();
     }
     await closing?.catch(() => undefined);
-    for (const row of extras?.rows ?? []) await this.send(channelId, row.text, row.buttons.length ? { components: [{ type: 1, components: row.buttons.map((b, n) => ({ type: 2, style: n === 0 ? 1 : 2, label: b.label.slice(0, 80), custom_id: b.data })) }] } : {}).catch(() => undefined);
+    for (const row of extras?.rows ?? []) await this.send(channelId, row.text, row.buttons.length ? { components: row.buttons[0].data.startsWith('ch:') ? choiceRows(row.buttons) : [{ type: 1, components: row.buttons.map((b, n) => ({ type: 2, style: n === 0 ? 1 : 2, label: b.label.slice(0, 80), custom_id: b.data })) }] } : {}).catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a channel he works in, in his DMs).
     if (where) {
       const line = nearlyFullOffer(app, app.store.getConversation(conv.id) ?? conv, fill, where.lang, where.place);

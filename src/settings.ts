@@ -211,7 +211,7 @@ export interface Settings {
    * (level: ask every time / once per task (default) / always allowed, with a one-time warning), and the
    * site + action kinds the owner chose "Always" for on a card. Payments and account settings ask every time.
    */
-  computerUse?: { members?: boolean; level?: 'ask' | 'task' | 'always'; alwaysWarned?: boolean; always?: { site: string; kind: string; at: string }[]; /** Phase 94: include the owner's browser extensions in check-ups (default on). */ checkupExtensions?: boolean };
+  computerUse?: { members?: boolean; level?: 'ask' | 'task' | 'always'; alwaysWarned?: boolean; always?: { site: string; kind: string; at: string }[]; /** Phase 94: include the owner's browser extensions in check-ups (default on). */ checkupExtensions?: boolean; /** HANDSFREE: ask before each step / once per task (default) / never except the hard limits. */ approvals?: 'step' | 'task' | 'never'; /** HANDSFREE: how long "Let her finish this task" lasts. */ handsFreeFor?: '15m' | '1h' | 'stop' };
   /** Discord bridge (Phase 6). Bot token lives in the vault (bridge:discord). */
   discord?: Partial<DiscordSettings>;
   /** Automatic backups (Phase 6). */

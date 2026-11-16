@@ -156,6 +156,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shared_list$/, 'shared', 'shared lists'],
   [/^(safety_report|suggest_routine)$/, 'safety', 'safety'],
   [/^(settings_guide|find_tools)$/, 'help', 'help'],
+  // S10 (docs/CHOICES.md): pick-an-answer cards.
+  [/^ask_choice$/, 'choices', 'pick-an-answer cards'],
   [/^(find_product|stores_near|product_watch_add|product_watch_list|product_watch_remove)$/, 'shopping', 'shopping'],
   [/^change_setting$/, 'settings', 'everyday settings'],
   [/^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines)$/, 'live-data', 'prices, scores and odds'],
@@ -164,6 +166,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^automation_\w+$/, 'automations', 'automations'],
   // R3: errands, start to finish (docs/ERRANDS.md).
   [/^errand_\w+$/, 'errands', 'errands'],
+  // S3: long-running goals (docs/GOALS.md).
+  [/^goal_(create|status|update)$/, 'goals', 'goals over days'],
   // R5: phone calls in her own voice (docs/PHONE_CALLS.md).
   [/^phone_call$/, 'calls', 'phone calls'],
   // R6: Google Docs/Sheets, Word/Excel online, Slack/Teams actions, accounting exports (docs/WORK_APPS.md).
@@ -230,7 +234,7 @@ export const tokensOf = (tools: { spec: ToolSpec }[]): number => tools.reduce((n
 // §4.2 core, safety pins
 // ---------------------------------------------------------------------------------------------
 
-export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'make_document', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search', 'research_start'] as const;
+export const CORE_CHAT = ['todo', 'note', 'remind', 'recall', 'session_context', 'library', 'send_file', 'make_document', 'share_photo', 'person_lookup', 'skill_use', 'settings_guide', 'web_fetch', 'web_search', 'research_start', 'ask_choice', 'ask_everything'] as const;
 export const CORE_CODING = ['list_dir', 'read_file', 'write_file', 'edit_file', 'search', 'shell', 'code_map', 'code_find', 'code_refs', 'git', 'git_commit', 'start_job', 'web_fetch', 'skill_use', 'todo', 'remind', 'session_context'] as const;
 /** Tools whose absence could leave something running or reachable: always offered when eligible. */
 export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revoke_key', 'ssh_forget_password', 'safety_report'] as const;
@@ -313,6 +317,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'hausarbeit', 'hausarbeiten', 'taschengeld', 'punkte', 'ich bin fertig', 'wie viel geld habe ich', 'hausaufgaben', 'suchen',
     'tarefa domestica', 'tarefas de casa', 'mesada', 'pontos', 'terminei', 'quanto dinheiro eu tenho', 'licao de casa', 'pesquisar',
     'faccenda', 'faccende', 'paghetta', 'punti', 'ho finito', 'quanti soldi ho', 'compiti', 'cercare'],
+  // S3 (docs/GOALS.md): long-running goals over days or weeks.
+  goals: ['my goal', 'my goals', 'a goal', 'goal', 'goals', 'milestone', 'milestones', 'by december', 'by january', 'by the end of', 'over the next', 'weeks', 'on track', 'weekly summary', 'progress',
+    'mi meta', 'mis metas', 'mi objetivo', 'objetivo', 'meta', 'hito', 'progreso',
+    'mon objectif', 'mes objectifs', 'objectif', 'etape', 'progres',
+    'mein ziel', 'meine ziele', 'ziel', 'meilenstein', 'fortschritt',
+    'minha meta', 'minhas metas', 'marco', 'progresso',
+    'il mio obiettivo', 'i miei obiettivi', 'obiettivo', 'traguardo', 'progressi'],
   // R3 (docs/ERRANDS.md): errands she takes care of from start to finish.
   errands: ['errand', 'errands', 'take care of', 'handle this', 'handle it', 'get a refund', 'refund', 'refunded', 'money back', 'book', 'book an', 'schedule an appointment', 'make an appointment', 'cancel my subscription', 'cancel my membership', 'find someone to', 'find me a', 'get quotes', 'quotes', 'complaint letter', 'dispute', 'oil change', 'plumber',
     'recado', 'encargate', 'ocupate de', 'reembolso', 'devolucion', 'reservar', 'pedir cita', 'cancelar mi suscripcion', 'busca a alguien', 'presupuestos', 'carta de queja',

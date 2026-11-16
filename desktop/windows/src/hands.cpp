@@ -2542,6 +2542,8 @@ class Hands {
   std::atomic<bool> approving_{false}, takeoverPending_{false}, clearDeskGrants_{false};
   std::atomic<ULONGLONG> deskUntil_{0};
   std::map<std::string, ULONGLONG> deskGrants_;
+  /** HANDSFREE: "Let her finish this task" (key → until): confirmed once here, kept across turns, dropped on Stop/takeover. */
+  std::map<std::string, ULONGLONG> freeGrants_;
   inline static Hands* hookOwner_ = nullptr;
   HHOOK mouseHook_ = nullptr, keyHook_ = nullptr;
   std::atomic<bool> keep{false};      // Phase 88: let Sara keep control when the person uses her window
@@ -4078,7 +4080,7 @@ class Hands {
       action.tab = (int)a["tab"].num(0); action.title = a["title"].str(); action.review = r.op == "d.type" ? a["review"].str() : std::string(); action.ownBrowserPid = browser.pid(); action.onlyPid = (DWORD)host.tabsTestPid;
       sarascreen::ActionInfo info; auto checked = sarascreen::inspect(action, info);
       if (!checked.code.empty()) { e = {checked.code, checked.message}; return {}; }
-      if (clearDeskGrants_.exchange(false)) deskGrants_.clear();
+      if (clearDeskGrants_.exchange(false)) { deskGrants_.clear(); freeGrants_.clear(); }
       auto now = GetTickCount64(); std::string task = a["task"].str().substr(0, 160);
       for (auto it = deskGrants_.begin(); it != deskGrants_.end();) it = now - it->second > 15 * 60000 ? deskGrants_.erase(it) : std::next(it);
       int level = desktopLevel.load();
@@ -4087,14 +4089,28 @@ class Hands {
       // N4: a form fill's review card is always shown (even with "Always allowed"); "Allow for this task" then covers its fields.
       bool reviewCard = !action.review.empty();
       bool granted = !reviewCard && (level == 2 || (level == 1 && !task.empty() && deskGrants_.count(task)));
+      // HANDSFREE: the person let her finish this task (on this card, once): account and sign-in pages stop asking too;
+      // payments, passwords, 2FA, recovery, installs and settings pages (info.hard) still ask. Never at "Ask every time".
+      std::string freeKey = a["handsFree"].str().substr(0, 160);
+      for (auto it = freeGrants_.begin(); it != freeGrants_.end();) it = now >= it->second ? freeGrants_.erase(it) : std::next(it);
+      bool freeOn = !freeKey.empty() && level >= 1 && !a["forceOnce"].truthy() && !reviewCard && !info.hard;
+      if (freeOn && freeGrants_.count(freeKey)) { once = false; granted = true; }
+      bool offerFree = freeOn && !freeGrants_.count(freeKey);
       deskUntil_ = now + 15 * 60000;
       if (once || !granted) {
         approving_ = true;
-        int answer = desktopApproval(wide(info.target), !once && (level == 1 || (reviewCard && level == 2)) && !task.empty(), host.testLabel, r.cancel.get());
+        int answer = desktopApproval(wide(info.target), !once && (level == 1 || (reviewCard && level == 2)) && !task.empty(), host.testLabel, r.cancel.get(), offerFree);
         approving_ = false;
         sendText(std::string("{\"t\":\"ev\",\"kind\":\"local_approval\",\"allowed\":") + (answer ? "true" : "false") + "}");
         if (!answer || r.cancel->load()) { e = {"denied_local", "The person at this computer did not approve that action."}; return {}; }
         if (r.op != "d.launch" && r.op != "d.tabswitch") { auto fresh = sarascreen::refreshApproved(action); if (!fresh.code.empty()) { e = {fresh.code, fresh.message}; return {}; } }
+        if (answer == 2 && offerFree) {
+          double ms = a["handsFreeMs"].num(3600000);
+          if (!(ms >= 60000)) ms = 60000;
+          if (ms > 8.0 * 3600000) ms = 8.0 * 3600000;
+          freeGrants_[freeKey] = GetTickCount64() + (ULONGLONG)ms;
+          localLog("handsfree", "Let her finish this task", freeKey);
+        }
         if (answer == 2) deskGrants_[task] = GetTickCount64();
       }
       auto result = sarascreen::input(action, [&] { return r.cancel->load() || isPaused || takeoverPending_ || stopping || !desktop; });
@@ -4136,6 +4152,8 @@ class Hands {
       e = {"unsupported", "This computer doesn't do \"" + r.op.substr(0, 40) + "\" (not in its command set)."};
       return {};
     }
+    // HANDSFREE: the end of a turn keeps "Let her finish this task"; endHandsFree drops that one grant (Stop, time, takeover).
+    if (r.op == "c.endTask" && !a["endHandsFree"].str().empty()) { freeGrants_.erase(a["endHandsFree"].str().substr(0, 160)); return "{\"ended\":true}"; }
     if (r.op == "c.endTask") { deskUntil_ = 0; deskGrants_.clear(); lastOpAt_ = 0; updateBadge(); return "{\"ended\":true}"; }
     if (r.op == "c.ping") return "{\"pong\":true,\"at\":" + std::to_string(GetTickCount64()) + "}";
     // Phase 88: nothing acts while the person has taken over; and the device's own rate limit.
@@ -4353,7 +4371,8 @@ class Hands {
       Sleep(150);
       thumb(r.id, t, a, cancel);
       frame(t);
-      return "{\"tab\":" + q(t.id) + ",\"scrollY\":" + num(v["scrollY"].num()) + ",\"maxY\":" + num(v["maxY"].num()) + "}";
+      // HANDSFREE: whether it moved, where it was before and which scrolling panel (the server falls back to Page Down).
+      return "{\"tab\":" + q(t.id) + ",\"scrollY\":" + num(v["scrollY"].num()) + ",\"maxY\":" + num(v["maxY"].num()) + (v.has("before") ? ",\"before\":" + num(v["before"].num()) : std::string()) + (v.has("moved") ? std::string(",\"moved\":") + (v["moved"].truthy() ? "true" : "false") : std::string()) + (v.has("container") ? ",\"container\":" + q(v["container"].str()) : std::string()) + "}";
     }
     if (r.op == "b.close") {
       browser.call("Target.closeTarget", "{\"targetId\":" + q(t.targetId) + "}", "", 10000, e, cancel);

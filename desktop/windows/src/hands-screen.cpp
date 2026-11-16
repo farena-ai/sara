@@ -1158,6 +1158,11 @@ bool neverAction(const std::string& label, bool extensions = false) {
   static const std::regex ext(R"(\b(delete|erase|trash|recycle|unlink)\b(?!\s+(my |your |this |the )?account\b)|run as administrator|elevat(ed|ion)|\buac\b|remove (a |the )?(file|folder)s?\b|empty (the )?(trash|recycle)|move to trash|format (disk|drive)|security settings)", std::regex::icase);
   return std::regex_search(label, extensions ? ext : re);
 }
+/** HANDSFREE: the actions that ask every time even when the person let her finish the task (src/computer-policy.ts ACCOUNT_HARD). */
+bool hardAction(const std::string& label) {
+  static const std::regex re(R"(\b(pay|payment|purchase|buy|checkout|order|donate|card|credit|billing|cvv|cvc|password|recovery|passkey|install|uninstall)\b|cc-number|cc-csc|2fa|two.factor|2-step|verification code|one.time code|backup code)", std::regex::icase);
+  return std::regex_search(label, re);
+}
 bool onceAction(const std::string& label) {
   static const std::regex re(R"(\b(pay|payment|purchase|buy|checkout|order|donate|card|credit|billing|cvv|cvc|account|password|recovery|privacy|security|send|post|install|uninstall)\b|cc-number|cc-csc|2fa|two.factor)", std::regex::icase);
   return std::regex_search(label, re);
@@ -1285,7 +1290,7 @@ bool richWebEditor(IUIAutomationElement* e, const std::string& app) {
   TDBG("rich? framework=" + framework + " aria=" + props);
   return (framework == "chrome" || framework == "gecko") && props.find("multiline=true") != std::string::npos;
 }
-struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false; std::string ownName; };
+struct Bound { View view; Win win; Item item; POINT point{}; bool sensitive = false, extensions = false, hardPage = false; std::string ownName; };
 /** After the person's Allow: bring that exact window to the front. Windows refuses SetForegroundWindow from a
  *  process that isn't in front, so for that one call this thread shares input with the window in front. */
 /** The target is in front when it is the foreground window or the foreground window is its own popup (owned by it,
@@ -1331,7 +1336,7 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
   // 3.6.x: the Settings app on its Apps (Installed apps, Startup, Default apps) and Storage pages only, and those always ask.
   if (settingsWindow(w->app, w->title)) {
     if (settingsPage(w->h).empty()) return refusal("denied_local", "In Settings Sara only uses the Apps pages (Installed apps, Startup, Default apps) and Storage; accounts, sign-in, privacy, security, BitLocker, firewall and recovery stay with the person. Open one of those pages first (for example ms-settings:startupapps).");
-    b.sensitive = true;
+    b.sensitive = true; b.hardPage = true;
   } else if (dangerousApp(w->app)) return refusal("denied_local", "Terminals, Windows Security, the Registry Editor and protected applications are not desktop input targets (commands go through pc_run, which the person approves).");
   if (!browserAllowed(w->h, w->app, &a)) return refusal("denied_local", "Sara cannot control her own server/sign-in in a browser, a browser whose address cannot be checked safely, or an address bar being edited (only an address may be typed there, then Enter).");
   // 3.5.x: the person's own browser: banking and password-manager pages stay blocked; payment, account and sign-in pages ask every time.
@@ -1342,6 +1347,9 @@ Result bind(const Action& a, Bound& b, bool activate, bool approvedRefresh = fal
     std::string internal = internalPage(address);
     if (internal == "blocked") return refusal("denied_local", "That browser page holds passwords, payment methods or account and sync settings: Sara never acts there. The person does that part.");
     b.sensitive = sensitivePage(w->title + " " + address) || internal == "settings";
+    // HANDSFREE: payment pages, password / 2FA / recovery pages and the browser's own settings ask even hands-free.
+    static const std::regex hardPage(R"(check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet|password|two[- ]?factor|2fa|2-step|signinoptions|recovery|backup.?codes|passkey|security.?key)", std::regex::icase);
+    b.hardPage = internal == "settings" || std::regex_search(w->title + " " + address, hardPage);
     b.extensions = extensionsPage(address);
   }
   // 3.5.x: before the approval (inspect) the target may be behind other windows: the person sees the card, and only
@@ -1493,6 +1501,7 @@ Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
   if (info) {
     info->target = std::string("Switch to your ") + browserLabelOf(w->app) + " tab:\n" + t.title;
     info->once = sensitivePage(t.title) || !internalPage(t.title).empty();
+    info->hard = !internalPage(t.title).empty() || hardAction(t.title);
   }
   if (!execute) return {};
   ComPtr<IUIAutomationElement> el = els[a.tab - 1];
@@ -1523,7 +1532,7 @@ Result tabSwitch(const Action& a, bool execute, ActionInfo* info) {
 Result inspect(const Action& a, ActionInfo& info) {
   TDBG("inspect " + a.op);
   Com com;
-  if (a.op == "d.launch") { info.target = "Open installed app: " + a.app; info.once = onceAction(a.app); return launch(a, false); }
+  if (a.op == "d.launch") { info.target = "Open installed app: " + a.app; info.once = onceAction(a.app); info.hard = hardAction(a.app); return launch(a, false); }
   if (a.op == "d.tabswitch") return tabSwitch(a, false, &info);
   Bound b; auto r = bind(a, b, false, false, true); if (!r.code.empty()) return r;
   if (a.op == "d.keys" && !std::regex_match(lower(a.combo), std::regex("enter|tab|shift\\+tab|escape|arrowleft|arrowright|arrowup|arrowdown|home|end|pageup|pagedown|backspace|ctrl\\+a"))) return refusal("denied_local", "That key combination is not on the safe desktop key list.");
@@ -1537,11 +1546,13 @@ Result inspect(const Action& a, ActionInfo& info) {
   }
   if (a.op == "d.keys") info.target += "\nKeys: " + a.combo;
   info.once = onceAction(b.win.title + " " + b.item.name + " " + a.text) || b.sensitive;
+  info.hard = hardAction(b.item.name + " " + a.text) || b.hardPage || (b.extensions && std::regex_search(b.item.name, std::regex("remove", std::regex::icase)));
   if (a.op == "d.drag") {
     Action destination = a; destination.ref.clear(); destination.x = a.toX; destination.y = a.toY;
     Bound end; auto checked = bind(destination, end, false, false, true); if (!checked.code.empty()) return checked;
     info.target += "\nDrop on: " + end.item.role + " " + end.item.name;
     info.once = info.once || onceAction(end.item.name);
+    info.hard = info.hard || hardAction(end.item.name);
   }
   return {};
 }

@@ -18,6 +18,7 @@
 //   GET    /api/computer                    the server-wide choices; PUT changes them (owner only)
 //   GET    /api/computer/frame/<id>?after=n the live view: the newest frame after n (long-poll, memory only)
 //   GET    /api/computer/thumb/<sha>        a step thumbnail from the run record
+import { HANDS_FREE_FOR, handsFreeFor } from '../handsfree.ts';
 import { policy } from '../policy-profile.ts';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -75,7 +76,7 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     if (opts.member && (!hub.allowed() || (a === 'computer' && !b && method !== 'GET'))) throw new HttpError(403, 'Only the owner of this server can use this.', OWNER_ONLY);
     const settingsView = () => {
       const cu = app.settings.get().computerUse ?? {};
-      return { members: cu.members === true, level: actLevel(cu.level), always: (cu.always ?? []).map((x) => ({ site: x.site, kind: x.kind, at: x.at })), alwaysWarned: cu.alwaysWarned === true, checkupExtensions: cu.checkupExtensions !== false };
+      return { members: cu.members === true, level: actLevel(cu.level), approvals: cu.approvals === 'step' || cu.approvals === 'never' ? cu.approvals : 'task', handsFreeFor: handsFreeFor(cu.handsFreeFor), always: (cu.always ?? []).map((x) => ({ site: x.site, kind: x.kind, at: x.at })), alwaysWarned: cu.alwaysWarned === true, checkupExtensions: cu.checkupExtensions !== false };
     };
 
     if (a === 'computer') {
@@ -85,10 +86,20 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
         if (body.members !== undefined && typeof body.members !== 'boolean') throw new HttpError(400, 'members must be true or false.');
         if (body.level !== undefined && !ACT_LEVELS.includes(body.level as never)) throw new HttpError(400, 'level: ask, task or always.');
         if (body.checkupExtensions !== undefined && typeof body.checkupExtensions !== 'boolean') throw new HttpError(400, 'checkupExtensions must be true or false.');
+        if (body.approvals !== undefined && !['step', 'task', 'never'].includes(body.approvals as string)) throw new HttpError(400, 'approvals: step, task or never.');
+        if (body.handsFreeFor !== undefined && !(HANDS_FREE_FOR as readonly string[]).includes(body.handsFreeFor as string)) throw new HttpError(400, 'handsFreeFor: 15m, 1h or stop.');
         const cu = { ...(app.settings.get().computerUse ?? {}) };
         if (typeof body.members === 'boolean') cu.members = body.members;
         // Phase 94: browser extensions in check-ups (shown only, never changed).
         if (typeof body.checkupExtensions === 'boolean') cu.checkupExtensions = body.checkupExtensions;
+        // HANDSFREE: "Never ask except the hard limits", from a remote device, asks the owner first (like Always allowed).
+        if (body.approvals !== undefined) {
+          // An organization policy that forbids "Always allowed" forbids this too.
+          if (body.approvals === 'never') policy().guard('alwaysAllow', true);
+          if (body.approvals === 'never' && cu.approvals !== 'never') ctx.askFirst(req, 'allow-all');
+          cu.approvals = body.approvals as 'step' | 'task' | 'never';
+        }
+        if (body.handsFreeFor !== undefined) cu.handsFreeFor = body.handsFreeFor as '15m' | '1h' | 'stop';
         // Phase 88: "Always allowed" shows its warning once (the page asks before sending this).
         if (body.level !== undefined) {
           policy().guard('alwaysAllow', body.level === 'always');
@@ -106,6 +117,15 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
         }
         app.settings.update({ computerUse: cu });
         return send(res, 200, settingsView());
+      }
+      // HANDSFREE: the stretch of one conversation (the chat's banner and the step log), and Stop.
+      if (b === 'handsfree' && c && !d) {
+        if (!app.store.getConversation(c)) throw new HttpError(404, 'Not found');
+        if (method === 'GET') return send(res, 200, hub.handsFree.view(c));
+        if (method === 'DELETE') {
+          hub.handsFree.stop(c, 'you');
+          return send(res, 200, hub.handsFree.view(c));
+        }
       }
       if (b === 'frame' && c && !d && method === 'GET') {
         const url = new URL(req.url ?? '/', 'http://x');
@@ -205,7 +225,7 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
     if (c === 'op' && !d && method === 'POST') {
-      // The owner's own test of a computer (\"Try it\" in Settings, scripts/hands-conformance.ts). The
+      // The owner's own test of a computer ("Try it" in Settings, scripts/hands-conformance.ts). The
       // device still runs only its own command set; anything else comes back refused.
       const body = await readJson(req, 32 * 1024);
       const op = String(body.op ?? '');

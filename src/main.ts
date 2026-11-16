@@ -1,3 +1,4 @@
+import { CalendarLinks } from './calendar-links.ts';
 import { asyncAutoBackupTick, beginBackupShutdown } from './backup-async.ts';
 // Entry point: `node src/main.ts`. Admin flags (the `sara` command on each system wraps them):
 //   --version · --status · --doctor · --backup [file] · --restore <file> · --reset-token
@@ -42,6 +43,8 @@ import { Automations } from './automations.ts';
 import { createAutomationTools } from './tools/automations.ts';
 import { Errands } from './errands.ts';
 import { createErrandTools } from './tools/errands.ts';
+import { LongGoals } from './long-goals.ts';
+import { createLongGoalTools } from './tools/long-goals.ts';
 import { PhoneCalls } from './phone-calls.ts';
 import { createPhoneCallTools } from './tools/phone-calls.ts';
 import { createGoogleWorkTools } from './workapps/gdocs.ts';
@@ -185,6 +188,7 @@ import { ModelCatalog } from './model-catalog.ts';
 import { createProvider } from './providers/registry.ts';
 import { HealthHistory } from './health-history.ts';
 import { createRecallTool, sharedWithApps } from './recall.ts';
+import { createAskEverythingTool } from './ask-everything.ts';
 import { backfill, RecallIndex, recallMode } from './triggers.ts';
 import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
@@ -195,6 +199,7 @@ import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
 import { createDecisionTools } from './decisions.ts';
+import { createAskChoiceTool } from './choices.ts';
 import { sweepShared } from './bridges/media.ts';
 import { PendingInputs } from './pending.ts';
 import { createLibraryTool } from './library/use.ts';
@@ -206,6 +211,7 @@ import { SkillLearner } from './skill-learning.ts';
 import { PluginManager } from './plugins/manager.ts';
 import { A2AServer } from './a2a.ts';
 import { A2AClient } from './a2a-client.ts';
+import { Messenger } from './messages.ts';
 import { HookManager } from './webhooks.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
@@ -609,6 +615,8 @@ const googles = new GoogleAccounts(vault, google, googleBase ? { apiBase: google
 const msBase = msBases();
 const msOpts = { ...(msBase.graph ? { graphBase: msBase.graph } : {}), ...(msBase.login ? { loginBase: msBase.login } : {}) };
 const mailAccounts = new MailAccounts(vault, google, new MicrosoftAuth(vault, msOpts), { ms: msOpts, imap: { timeZone: () => settings.get().timeZone }, googles, viewFile: join(dataDir, 'mail-view.json') });
+// HANDSFREE 3a: calendars added by link (the secret address in the vault, the names next to mail-view.json).
+mailAccounts.calendarLinks = new CalendarLinks(vault, join(dataDir, 'calendar-links.json'));
 // C14: Spotify (the owner's own Spotify app; off until he connects it).
 const spotifyBase = spotifyApiBase();
 const spotify = new SpotifyAccount(vault, spotifyBase ? { apiBase: spotifyBase } : {});
@@ -697,6 +705,9 @@ const hookManager = isDemo
     })();
 let a2aServer: A2AServer | undefined;
 let a2aClient: A2AClient | undefined;
+// S9a (docs/MESSAGES.md): private messages between the owners of linked servers. The owner's only (never
+// a member's space, kid mode or the demo); its own database file, never her memory, context or tools.
+const messenger = isDemo ? undefined : new Messenger({ dataDir, vault, name: () => settings.get().ownerName ?? '' });
 
 /**
  * Phase 71: a person's space (docs/HOUSEHOLD.md). The owner's is the data folder itself, exactly as
@@ -754,6 +765,7 @@ function memberMailFor(space: Space): void {
   space.mailVault = mv;
   memberMailVaults.add(mv);
   space.mail = new MailAccounts(mv, undefined, new MicrosoftAuth(mv, { ...msOpts, clientVault: vault }), { ms: msOpts, imap: { timeZone: () => space.settings.get().timeZone }, off: () => !policyStore.memberMailOn, viewFile: join(mdir, 'mail-view.json') });
+  space.mail.calendarLinks = new CalendarLinks(mv, join(mdir, 'calendar-links.json'));
   space.mail.onChange = () => {
     for (const c of space.companions.all()) clearTodayCache(c.app);
   };
@@ -1083,6 +1095,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createMomentsTool(() => app, moments));
   // Phase 32: she can look through her past conversations.
   tools.add(createRecallTool(() => app));
+  tools.add(createAskEverythingTool(() => app));
   // Phase 44: her library (documents she keeps), and the tool to look things up in it.
   tools.add(createLibraryTool(() => app));
   // Phase 115 (BR1): she can share a file in the chat (a chip in the app; a real file in chat apps).
@@ -1091,6 +1104,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createMakeDocumentTool(() => app));
   // E5: the decision helper and comparisons (each space's own decisions; members too).
   for (const t of createDecisionTools(() => app)) tools.add(t);
+  // S10 (docs/CHOICES.md): pick-an-answer cards (members too).
+  tools.add(createAskChoiceTool());
   // fill_document (docs/DOCUMENTS.md): she fills in the person's own Excel or Word form (a checked copy).
   tools.add(createFillDocumentTool(() => app));
   // N4 (docs/MY_DETAILS.md): my_details_get, the person's own saved details (each space's own; never the demo).
@@ -1563,6 +1578,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // R3 (docs/ERRANDS.md): errands, start to finish, each space's own (members too).
     app.errands = new Errands(app, store.db);
     for (const t of createErrandTools(() => app)) tools.add(t);
+    // S3 (docs/GOALS.md): long-running goals above errands, each space's own (members too).
+    app.longGoals = new LongGoals(app, store.db);
+    for (const t of createLongGoalTools(() => app)) tools.add(t);
     // R5 (docs/PHONE_CALLS.md): phone calls, the owner's only; ready but switched off until set up.
     if (!isMember) {
       app.phoneCalls = new PhoneCalls(app, store.db);
@@ -1631,6 +1649,19 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       app.a2a = a2aServer;
       app.a2aClient = a2aClient;
       for (const t of a2aClient.tools()) tools.add(t);
+    }
+  }
+  // S9a: the Messages page (owner only); the main companion's push and events carry its notifications.
+  if (!isMember && messenger) {
+    app.messages = messenger;
+    if (main) {
+      messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
+      messenger.onNotify = (title, body, chat) => {
+        const push = app.push;
+        if (!push) return;
+        const line = push.settings.preview ? (body.length > 180 ? `${body.slice(0, 177)}…` : body) : trOwner('Open the app to see it.', app.settings.get());
+        void push.sendAll({ title, body: line, url: '/#view=messages', tag: `pm-${chat}` }).catch(() => undefined);
+      };
     }
   }
   // Phase 102: the owner's companions get his webhooks (members and the demo never).

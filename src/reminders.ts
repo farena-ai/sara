@@ -68,6 +68,12 @@ export class ReminderScheduler {
     this.#app.automations?.due(now);
     // R3: errands take their next step, check follow-ups and deadlines on the same tick.
     this.#app.errands?.due(now);
+    // S3: long-running goals check progress, nudge, propose new plans and send weekly summaries on the same tick.
+    this.#app.longGoals?.due(now);
+    // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
+    void this.#app.messages?.due(now).catch(() => undefined);
+    // HANDSFREE 3a: calendars added by link are read again every 15 minutes (in the background).
+    (this.#app.mailAccounts as { calendarLinks?: { tick(): void } } | undefined)?.calendarLinks?.tick();
     // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).
     familyTick(this.#app, now);
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.

@@ -7,6 +7,8 @@ export type HubEvent = (
   /** A background job started, made progress or ended (Phase 13). */
   | { type: 'job'; job: import('./jobs.ts').Job }
   | { type: 'planner'; what: 'tasks' | 'reminders' | 'notes' }
+  /** S9a: a private-messages chat changed (a message, a receipt, typing). The chat id only, never what anyone wrote. */
+  | { type: 'pm'; chat: string }
   /** 3.0.3: `saved` = new notes the memory worker put on this chat's replies (the open chat redraws). */
   | { type: 'memory'; conversationId: string; saved?: number }
   /** Phase 101 (ST6): people cards changed (proposed, facts added, edited, forgotten). Never names or facts. */
@@ -61,7 +63,7 @@ export type HubEvent = (
   /** Phase 84: an eval moved on (a run finished, the judge, the result). */
   | { type: 'eval'; id: number; status: string; progress?: unknown }
   /** Phase 87: Sara's hands on a computer: online/offline, a new live-view frame, Stop pressed there. */
-  | { type: 'computer'; deviceId: string; state?: 'online' | 'offline'; frame?: number; conversationId?: string; stopped?: boolean; by?: string; ev?: string; run?: { id: string; state: string; command?: string; shell?: string; chunk?: string; exitCode?: number | null; outcome?: string } }
+  | { type: 'computer'; deviceId: string; state?: 'online' | 'offline'; frame?: number; conversationId?: string; stopped?: boolean; by?: string; ev?: string; handsFree?: boolean; until?: string; why?: string; run?: { id: string; state: string; command?: string; shell?: string; chunk?: string; exitCode?: number | null; outcome?: string } }
   /** Phase 118 (PERSIST §4.16): a chat goal changed state (the chip, Today, the board). */
   | { type: 'goal'; conversationId: string; goal: import('./goals.ts').GoalView | null }
   /** Phase 118: a goal's check finished (the step line, the progress message). */

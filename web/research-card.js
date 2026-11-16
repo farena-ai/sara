@@ -75,6 +75,17 @@ export function statusLine(run) {
   }
 }
 
+/** S1: where the run reads, which models may write, and its budget with the cost cap, in a line. */
+export function capLine(run) {
+  const r = run.reach ?? { web: true, library: false, localOnly: false };
+  const where = r.web && r.library ? t('Reads the web and your Library') : r.library ? t('Reads your Library only') : t('Reads the web');
+  const c = run.costCap;
+  const cost = !c ? '' : c.local ? t('free: models on this computer') : c.subscription ? t('on your subscription') : c.usd != null ? t('at most about ${usd}', { usd: c.usd.toFixed(2) }) : t('price unknown for this model');
+  const budget = t('Budget: up to {pages} pages, {min} minutes, about {k}k tokens', { pages: run.budget?.pages ?? '?', min: run.budget?.minutes ?? '?', k: Math.round((run.budget?.tokens ?? 0) / 1000) });
+  const p = el('p', 'small muted rs-cap', [where, r.localOnly ? t('only models on this computer') : '', budget, cost].filter(Boolean).join(' · '));
+  return p;
+}
+
 /** Pages read, blocked, not found, failed; time and pages against the budget. */
 export function progressBits(run) {
   const box = el('div', 'rs-progress');
@@ -203,7 +214,7 @@ export function researchCard(c) {
       await draw();
     };
     const parts = [];
-    if (run.status === 'plan') parts.push(planWords(run));
+    if (run.status === 'plan') parts.push(planWords(run), capLine(run));
     if (run.status !== 'planning') parts.push(progressBits(run));
     if (run.status === 'plan' || run.status === 'running' || run.status === 'paused') {
       if (!limits.budgetPages) limits = (await api('/research').catch(() => ({}))).limits ?? {};

@@ -4,6 +4,7 @@
 // copy, then Sign in with Microsoft) and another provider (pick it, the app-password steps, Add and
 // check). Passwords and secrets go to the server once and are never shown again.
 import { t } from './naming.js';
+import { loadCalendarLinks } from './calendar-links.js';
 import { api, btn, checking, copyRow, el, enc, field, link, okLine, stepper, tip, useTranslator } from './setup-card.js';
 
 useTranslator(t);
@@ -223,7 +224,7 @@ function accountRow(a) {
   // MULTIMAIL: what each account brings, at a glance.
   li.append(el('span', 'rc-chip ok', t('Mail ✓')));
   if (a.calendar) li.append(el('span', 'rc-chip ok', t('Calendar ✓')));
-  else if (a.caldav === 'google') li.append(el('span', 'muted small ma-calnote', t('Calendar: use Sign in with Google')));
+  else if (a.caldav === 'google') li.append(el('span', 'muted small ma-calnote', t('Calendar: use Add a calendar by link, or Google sign-in')));
   if (view.default === a.id) li.append(el('span', 'rc-chip ok', t('Default')));
   if (a.problem) li.append(el('span', 'error small', t('Signed out: sign in again.')));
   const acts = el('span', 'ma-acts');
@@ -429,6 +430,8 @@ function render() {
 }
 
 export async function loadMailAccounts() {
+  // HANDSFREE 3a: "Add a calendar by link" on the same page.
+  void loadCalendarLinks();
   view = await api('/mail/accounts').catch(() => null);
   if (!view) return;
   // Coming back from Microsoft's sign-in page.

@@ -1,5 +1,6 @@
 // Connections: Google, Home Assistant, chat bridges, Alexa, other apps, reports, the event stream.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
+import { CalLinkError } from '../calendar-links.ts';
 import { randomBytes } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -438,6 +439,28 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       const gst = member ? undefined : app.google?.status();
       const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
       if (b === 'accounts' && !c && method === 'GET') return send(res, 200, view());
+      // HANDSFREE 3a: calendars added by link (read only; the address is a secret and never comes back out).
+      if (b === 'calendar-links' && accts.calendarLinks) {
+        const links = accts.calendarLinks;
+        if (!c && method === 'GET') return send(res, 200, { links: links.list() });
+        if (!c && method === 'POST') {
+          guardOn();
+          const body = await readJson(req);
+          try {
+            const link = await links.add(String(body.name ?? ''), String(body.url ?? ''));
+            forget();
+            return send(res, 200, { link, links: links.list() });
+          } catch (err) {
+            if (err instanceof CalLinkError) throw new HttpError(err.status, err.message);
+            throw err;
+          }
+        }
+        if (c && !parts[3] && method === 'DELETE') {
+          if (!links.remove(c)) throw new HttpError(404, 'Calendar link not found.');
+          forget();
+          return send(res, 200, { links: links.list() });
+        }
+      }
       if (b === 'view' && method === 'PUT') {
         guardOn();
         const body = await readJson(req);

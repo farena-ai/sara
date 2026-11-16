@@ -4,6 +4,7 @@
 // server's vault; each household member has their own list in their own vault (members/<id>/mail),
 // which nobody else's tools, Today or routes ever open. The demo has none; private conversations
 // get no mail tools; an admin policy can switch members' mail off (`memberMail: false`).
+import type { CalendarLinks } from '../calendar-links.ts';
 import { randomBytes } from 'node:crypto';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { GoogleAccount } from '../google.ts';
@@ -61,6 +62,8 @@ export const mailAccountsForState = (state: string): MailAccounts | undefined =>
 export const MEMBER_MAIL_OFF = 'Your admin switched off mailboxes for household members on this server.';
 
 export class MailAccounts {
+  /** HANDSFREE 3a: this person's calendars added by link (src/calendar-links.ts; main.ts sets it). */
+  calendarLinks?: CalendarLinks;
   readonly #vault: Vault;
   readonly #google: GoogleAccount | undefined;
   readonly ms: MicrosoftAuth;

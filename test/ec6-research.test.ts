@@ -114,12 +114,14 @@ test('ec6 research: plan → edit → read (with failures and reasons) → a cit
   assert.equal(reason('/secret'), 'blocked');
   // The report: every body sentence links a page read in this run.
   const md = r.report!;
-  const body = md.slice(0, md.indexOf('## What is missing'));
+  const body = md.slice(0, md.search(/## (Open questions|What I couldn’t verify)/));
   for (const line of body.split('\n').filter((l) => l.trim() && !l.startsWith('#') && !/^Research report/.test(l))) {
     assert.match(line, /\[[12]\]\(http:\/\/[ab]\.example:\d+\/heat-[ab]\)/, `uncited line kept: ${line}`);
   }
-  assert.doesNotMatch(md, /best choice for everyone|404 page proves|9000%|Penguins/);
-  assert.match(md, /## What is missing[\s\S]*Cost of running one[\s\S]*4 sentences were left out/);
+  // S1: unsupported sentences are not findings; they are listed under What I couldn't verify, marked.
+  assert.doesNotMatch(body, /best choice for everyone|404 page proves|9000%|Penguins/);
+  assert.match(md, /## What I couldn’t verify\n\n- Heat pumps are the best choice for everyone\. \(unverified\)[\s\S]*Penguins prefer geothermal\. \(unverified\)/);
+  assert.match(md, /## What is missing[\s\S]*Cost of running one[\s\S]*4 sentences could not be checked/);
   assert.match(md, /## Sources\n\n1\. \[Cold climate study\]\(http:\/\/a\.example:\d+\/heat-a\)/);
   assert.match(md, /## Pages not found[\s\S]*\/gone[^\n]*not found \(HTTP 404\)/);
   assert.match(md, /\/binary[^\n]*not a text page/i);

@@ -85,6 +85,8 @@ export interface Today {
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
   /** R3: open errands, the ones waiting on you first (none open: no tile). */
   errands?: ReturnType<import('./errands.ts').Errands['todayTile']>;
+  /** S3: active long-running goals (progress, next step; a waiting new plan first; none: no tile). */
+  goals?: ReturnType<import('./long-goals.ts').LongGoals['todayTile']>;
   /** R8: Family: a parent's approvals and kids' balances, or a kid's own chores and balance. */
   family?: NonNullable<ReturnType<import('./family.ts').FamilyStore['todayTile']>> & { names: Record<string, string> };
   /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
@@ -108,7 +110,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'family', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'family', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -564,6 +566,12 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.errands?.todayTile();
       if (tile) out.errands = tile;
       meta('errands');
+    },
+    goals: () => {
+      // S3: a tile only while a goal is active (a waiting new plan first).
+      const tile = demo ? undefined : app.longGoals?.todayTile();
+      if (tile) out.goals = tile;
+      meta('goals');
     },
     family: () => {
       // R8: chores and allowance (none set up: no tile).

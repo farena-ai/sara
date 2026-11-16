@@ -673,6 +673,57 @@ administrator prompt or an administrator window, a locked computer). Words like 
 delete or disable about something on the computer (or a check-up number like "#3") bring her the desktop and
 command tools. `CU6NativeChecks.exe` (test-hooks build) checks the new rules natively.
 
+### Hands-free: "Let her finish this task" (3.15)
+
+Setting things up (a Google calendar, an app, a form) used to ask on every click, because account,
+sign-in and OAuth pages always asked and each new host (accounts.google.com, console.cloud.google.com,
+calendar.google.com) asked again. Now the person can let her finish the task:
+
+- **How it starts:** clear go-ahead words in the request ("set up Google Calendar for me, just do it",
+  "do it without asking me", "hands-free", the same in es/fr/de/pt-BR/it: `src/handsfree.ts` `saysGoAhead`),
+  or **Let her finish this task** on the first card. Settings → Computer use → *How often she asks*:
+  *Ask once per task (recommended)* (the default: the card offers it and the words start it), *Ask before each
+  step* (never hands-free) or *Never ask except the hard limits* (every computer-use task is hands-free).
+- **What it covers:** every site, host and app in that conversation: no card for opening a site, clicking,
+  typing, choosing, sending, or account and security pages (Google account, Cloud console, OAuth consent,
+  calendar sharing). Follow-up messages in the same chat ("I signed in, go on") keep it.
+- **How long:** *Let her finish a task for* 15 minutes / 1 hour (default) / until I stop her (8 hours at most).
+  It also ends on Stop (the banner, the badge, the computer's Stop or Ctrl+Alt+Esc), when the person moves
+  the mouse or types there (the existing "PC in use" pause), or when the time runs out.
+- **The hard limits never change:** she never types passwords or one-time codes (she hands over with "your
+  turn"); payments and purchases ask every time; password, 2-step, recovery and delete-account settings ask
+  every time; banking and password-manager windows stay blocked; administrator prompts are the person's;
+  nothing happens on a locked computer; installing or uninstalling asks; the browser's own settings pages
+  ask. A re-planned run ("Re-plan from here") still asks for each action.
+- **On the person's own computer** desktop approvals stay local: the Windows app shows one card with
+  **Let her finish this task** (it gets the hands-free key and time from the server, `handsFree` /
+  `handsFreeMs` on `d.*` ops); after that its account and sign-in pages stop asking. The grant survives the
+  end of a turn (`c.endTask`) and is dropped with `c.endTask {endHandsFree}` (Stop, time, takeover).
+  `info.hard` (hands-screen.cpp `hardAction` / `hardPage`) keeps the hard limits there. "Ask every time" in
+  the app itself is never relaxed. The Mac app doesn't have the hands-free card yet (it asks as before).
+- **While she drives:** a banner above the composer ("Sara is finishing this task on her own until 3:40 PM")
+  with Stop, and a step log (Steps) that stays after it ends (`GET/DELETE /api/computer/handsfree/<conversation>`).
+
+### Forgiving tools for smaller models (3.15)
+
+- **Stale refs:** when an element from an older look is gone (`There is no e177 on the page now`), she looks
+  again once and acts on the element with the same role and name (the nearest number when several match),
+  in her browser and on the desktop. `pc_browser_read` with a gone ref reads the whole page instead.
+- **Old desktop looks** ("That look is older than 20 seconds"), **"That container's point hits a different
+  control"** and **"Another window covers that point"**: one fresh look and one retry (the covered case
+  takes a picture look; the app brings the window forward when it acts).
+- **Scrolling:** `pc_browser_scroll` needs only a direction (amount screen/half/end). The page agent scrolls
+  the scrollable panel under the middle of the window (web mail, calendars and cloud consoles scroll a panel,
+  not the window), checks it moved, then tries its scrollable ancestors and the window; if nothing moved the
+  server presses Page Down / Page Up once. The answer says where she is (top, middle with %, bottom).
+  `pc_scroll` on the desktop with only a direction scrolls the biggest scrolling part of the window from the
+  latest look (else the middle of its picture), about a screen of wheel turns, and says when nothing changed.
+- **Tab ids:** a made-up tab (`t1`), a number, or words of a title or address find the tab in her browser;
+  otherwise the error lists the tabs. `pc_my_tabs` with a window id from before a browser restart uses the
+  same tab number when there is one browser window, and otherwise lists the current tab ids.
+- **Made-up tool names** (`pc_read_text`, `pc_browser_scroll_down`): a close name runs the real tool with a note
+  in its result (`src/tool-alias.ts`); otherwise the error lists the tools of that family.
+
 ### Sara-Setup.exe: her server and the app together (Phase 46c)
 
 What the Windows installer puts on the computer (details for owners: docs/INSTALL.md → Windows):

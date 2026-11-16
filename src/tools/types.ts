@@ -188,8 +188,8 @@ export interface ComputerApproval {
   /** Payments and account settings ask every time (no "for this task", no "always"); so does a saved login (Phase 90). */
   risk: 'normal' | 'send' | 'payment' | 'account' | 'login';
   why: string;
-  /** The answers on this card besides Don't: once, task, always. */
-  choices: ('once' | 'task' | 'always')[];
+  /** The answers on this card besides Don't: once, task, always, free (HANDSFREE: "Let her finish this task"). */
+  choices: ('once' | 'task' | 'always' | 'free')[];
 }
 
 export type GmailApproval = {

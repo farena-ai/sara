@@ -24,7 +24,7 @@
 
 **Atualizar:** num servidor Linux, `sudo sara update` (faz backup antes e volta atrás se ela não responder) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows e Mac: Configurações → Dados e saúde → Atualizações · Android: Google Play. [Como atualizar](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.14.0, [Todas as suas contas juntas e o ícone dela](https://github.com/farena-ai/sara/releases/tag/v3.14.0). Várias contas Google, agendas de todas as contas, uma caixa de entrada combinada e respostas do endereço certo. [Veja as novidades](#novidades)
+> **Status:** 3.15.0, [Opções para tocar, metas, pesquisa, pergunte tudo, mensagens privadas](https://github.com/farena-ai/sara/releases/tag/v3.15.0). Toque nas opções dela em vez de digitar, metas de vários dias, relatórios de pesquisa com fontes, uma busca em toda a sua vida e mensagens privadas entre servidores Sara. [Veja as novidades](#novidades)
 >
 > Instalador Windows: sem assinatura ([guia do SmartScreen](docs/INSTALL.md)). O processo de publicação do macOS exige downloads assinados e notarizados; cada compilação é verificada separadamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web na tela inicial](docs/PHONE.md).
 
@@ -167,20 +167,22 @@ Versões recentes · 6 de novembro de 2026. [Histórico completo](CHANGELOG.md) 
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Opções para tocar, metas, pesquisa, pergunte tudo, mensagens privadas](docs/CHOICES.md)** — Botões de resposta no app, Telegram e Discord; metas com marcos e lembretes; pesquisa na web e nos seus arquivos para Word/PDF; perguntas sobre e-mails, arquivos, chats e agendas; mensagens e comunidades entre servidores que os agentes nunca veem. |
+| **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Documentos salvos contam como salvos](docs/DOCUMENTS.md)** — Criar um documento, preencher um formulário, faturas, exportações e edições no Docs/Sheets/Excel agora contam como prova de que foi salvo. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Todas as suas contas juntas e o ícone dela](docs/MAIL_ACCOUNTS.md)** — Agendas do Google, Outlook, iCloud, Fastmail e Yahoo marcadas por conta; o ícone do app, a aba e as notificações usam a imagem dela. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[As fotos dela com ComfyUI, enviadas para onde você escolher](docs/PHOTOS.md)** — Nova opção Enviar as fotos dela para: um chat só para as fotos dela, um dos seus chats, um chat de projeto e/ou Telegram e Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Configurações mais calmas e premium](docs/HOW_DO_I.md)** — A busca encontra um ajuste específico e o destaca (Ctrl+K); no celular você desce do grupo à página; todas as opções e links antigos continuam funcionando. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Apps de trabalho, família, confiança e voz pronta](docs/WORK_APPS.md)** — Regras de ferramentas por membro aplicadas no servidor, exportação de auditoria e retenção; chamadas prontas e desligadas até conectar um provedor; fatos em seis idiomas, acessibilidade e modelos. |
-| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Tarefas, um começo fácil e Atalhos no iPhone](docs/ERRANDS.md)** — Reembolsos, agendamentos, cancelamentos e orçamentos planejados e acompanhados passo a passo; pagamentos ficam com você. Uma página de download, um autoteste e anexos do Outlook de até 150 MB. |
-| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Onde você estiver, conhece seu mundo, trabalha com sua equipe](docs/WHAT_SARA_KNOWS.md)** — O app de Mac faz o que o de Windows faz; notificações têm Aprovar, Adiar, Responder e Aceitar; ela responde a partir dos seus arquivos com citações exatas e páginas; horas viram faturas sem cobrar duas vezes. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versões 2.6x anteriores</b>: da 3.9.0 até a 2.61.5</summary>
+<summary><b>Versões 2.6x anteriores</b>: da 3.11.0 até a 2.61.5</summary>
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Tarefas, um começo fácil e Atalhos no iPhone](docs/ERRANDS.md)** — Reembolsos, agendamentos, cancelamentos e orçamentos planejados e acompanhados passo a passo; pagamentos ficam com você. Uma página de download, um autoteste e anexos do Outlook de até 150 MB. |
+| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Onde você estiver, conhece seu mundo, trabalha com sua equipe](docs/WHAT_SARA_KNOWS.md)** — O app de Mac faz o que o de Windows faz; notificações têm Aprovar, Adiar, Responder e Aceitar; ela responde a partir dos seus arquivos com citações exatas e páginas; horas viram faturas sem cobrar duas vezes. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Do seu e-mail, e formulários preenchidos](docs/INBOX_HELPER.md)** — Nada roda sozinho até você permitir, e nada do e-mail envia ou paga. Formulários param antes de Enviar após um cartão de revisão; e-mails levam anexos; lojas que a bloqueiam são consultadas no seu navegador. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Acerta e trabalha sozinha](docs/AUTOMATIONS.md)** — Ela escolhe o modelo certo para cada tarefa e troca quando um está lento, confere o que mudou, conta toda semana como foi e roda suas automações com prévia, teste e histórico. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Uma assistente do dia a dia: dinheiro, esportes, compras, decisões, negócios](docs/BUSINESS_TOOLS.md)** — Pese opções pelo que importa para você, com decisões apertadas sinalizadas e um retorno depois. Faturas e orçamentos numerados com controle de pagos e atrasados, a quem você deve resposta, contratos lidos citando cada ponto, recibos em relatórios de despesas. |

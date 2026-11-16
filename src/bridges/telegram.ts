@@ -22,6 +22,7 @@ import { identityOf } from '../persona.ts';
 import type { Conversation } from '../store.ts';
 import { takeChatDocument, type SharedDoc } from '../library/intake.ts';
 import { everyoneCalled, nameCalled } from './rules.ts';
+import { choiceButton } from '../choices.ts';
 import { afterTurnExtras, askerLanguage, chatButton, chatsSettings, menuHash, OWNER_ONLY_COMMANDS, menuList, nearlyFullOffer, nextSession, OTHER_LANGS, ownerLanguage, parseCommand, runCommand, say, setSessionModel, TELEGRAM_LANGS, type Asker, type BridgeAdapter, type CommandName, type CommandReply, type ModelPick, type ParsedCommand, type Place } from './commands.ts';
 import { channelProjectId, noteRoom } from './rooms.ts';
 import { editLine, keepRoomByKey, leftRoom, logLine, maybeSummarize, noteHerLine, reading, setSeesAll, type KeepRoom, type Who } from './keepup.ts';
@@ -444,6 +445,16 @@ export class TelegramBridge {
         if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the person who runs me can stop this.')) }).catch(() => undefined));
         const stopped = this.#stopTurn(st[1]);
         return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: this.#tr(stopped ? en('Stopping.') : en('Nothing to stop.')) }).catch(() => undefined));
+      }
+      // S10 (docs/CHOICES.md): a pick-an-answer button (owner only); a pick runs her turn as his own message.
+      if (q.data?.startsWith('ch:')) {
+        if (!isTelegramOwner(cfg, q.from.id)) return void (await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: say(this.#app, askerLanguage(q.from.language_code), en('Only the owner can answer that.')) }).catch(() => undefined));
+        const r = choiceButton(this.#app, q.data, (t) => this.#tr(t));
+        await this.#call('answerCallbackQuery', { callback_query_id: q.id, text: (r?.text ?? '').slice(0, 190) }).catch(() => undefined);
+        if (q.message && r?.buttons) await this.#call('editMessageReplyMarkup', { chat_id: q.message.chat.id, message_id: q.message.message_id, reply_markup: { inline_keyboard: r.buttons.map((b) => [{ text: b.label.slice(0, 60), callback_data: b.data }]) } }).catch(() => undefined);
+        if (q.message && r?.edit) await this.#call('editMessageText', { chat_id: q.message.chat.id, message_id: q.message.message_id, text: r.edit, reply_markup: { inline_keyboard: [] } }).catch(() => undefined);
+        if (q.message && r?.send) return this.handle({ update_id: u.update_id, message: { message_id: q.message.message_id, chat: q.message.chat, from: q.from, text: r.send } }, o);
+        return;
       }
       // Phase 119: the ⏰ buttons and the pickup offer (owner only, checked here).
       if (q.data && /^(wm|pk|cu):/.test(q.data)) {
@@ -919,6 +930,8 @@ export class TelegramBridge {
     if (extras?.before) outgoing.unshift(extras.before);
     let since = started;
     for (const t of outgoing) {
+      // S10: her pick-an-answer card goes as buttons (below), not as its numbered list.
+      if (extras?.drop && t === extras.drop) continue;
       // Spoken replies: short ones as a voice note (with code or long text, as text).
       if (voice && t.length <= 1200 && !t.includes('```')) {
         void this.#call('sendChatAction', { chat_id: chatId, action: 'record_voice' }).catch(() => undefined);
@@ -929,7 +942,7 @@ export class TelegramBridge {
       since = Date.now();
     }
     await closing?.catch(() => undefined);
-    for (const row of extras?.rows ?? []) await this.send(chatId, row.text, row.buttons.length ? { reply_markup: { inline_keyboard: [row.buttons.map((b) => ({ text: b.label, callback_data: b.data }))] } } : {}).catch(() => undefined);
+    for (const row of extras?.rows ?? []) await this.send(chatId, row.text, row.buttons.length ? { reply_markup: { inline_keyboard: row.buttons[0].data.startsWith('ch:') ? row.buttons.map((b) => [{ text: b.label.slice(0, 60), callback_data: b.data }]) : [row.buttons.map((b) => ({ text: b.label, callback_data: b.data }))] } } : {}).catch(() => undefined);
     // Phase 107 (§4.7): nearly full: she offers /new once (in a room he works in, privately to him).
     if (where) {
       const fresh = app.store.getConversation(conv.id) ?? conv;

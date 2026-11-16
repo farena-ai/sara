@@ -22,8 +22,8 @@
 // - opening a site the owner didn't name asks once per site per task; localhost runs without a card
 //   only when one of her jobs listens there (src/computer-policy.ts);
 // - private conversations and private local mode open only localhost, and pictures go only to a
-//   model on the owner's own hardware (so does every picture from a computer set to \"local models
-//   only\");
+//   model on the owner's own hardware (so does every picture from a computer set to "local models
+//   only");
 // - one task per computer at a time, a budget of actions and minutes per task, and everything she
 //   reads is data, never instructions.
 import { policy } from '../policy-profile.ts';
@@ -34,6 +34,8 @@ import { actionVerdict, actLevel, askedToSaveLogin, desktopActionVerdict, extens
 import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { managerName } from '../hands-managers.ts';
 import { HandsError, PROXY_BLOCKED_MESSAGE, type HandsDeviceView, type HandsReply } from '../hands.ts';
+import { handsFreeMs, saysGoAhead, type HandsFreeState } from '../handsfree.ts';
+import { nextSetupStep, redirectFrom, type SetupPage } from '../google-setup.ts';
 import { BROWSER_APP, browserLabel, browserTabs, desktopItems, desktopWindows, maskDesktopText, type DesktopItem } from '../hands-desktop.ts';
 import { cleanRelPath, fileEntries, fileRootsOf, FileRuleError, matchRoot, rootLabel } from '../hands-files.ts';
 /** 3.5.x: "Desktop, Documents, Downloads and Projects" (the allowed places by name; never paths). */
@@ -92,6 +94,8 @@ const views = new Map<string, Map<string, string>>();
 const shots = new Map<string, { w: number; h: number }>();
 /** Phase 88: what prepare() found for a call (the same arguments object reaches run()). */
 const preparedActs = new WeakMap<object, { expect?: string; site: string; target: string }>();
+/** HANDSFREE: a note for the action's result ("I looked again and acted on the same element"). */
+const preparedNotes = new WeakMap<object, string>();
 /** Phase 94: the latest check-up report per conversation and computer (in memory; suggestions are only from it). */
 const checkups = new Map<string, { report: CheckupReport; done: Set<string>; at: number }>();
 /** What pc_checkup wraps its report in (names on the computer are data, never instructions). */
@@ -147,6 +151,35 @@ export function createComputerTools(app: AppContext): Tool[] {
     return g.sites;
   };
 
+  // HANDSFREE (src/handsfree.ts): "Let her finish this task".
+  const approvalsMode = (): 'step' | 'task' | 'never' => {
+    const v = app.settings.get().computerUse?.approvals;
+    // An organization policy without "Always allowed" keeps it to once per task (the card or the words).
+    return v === 'step' ? v : v === 'never' && policy().alwaysAllowOn ? v : 'task';
+  };
+  /** The live hands-free stretch of this conversation; clear go-ahead words or the setting start one. */
+  const freeOf = (conversationId: string | undefined, replay?: boolean): HandsFreeState | undefined => {
+    const h = hub();
+    if (!h || !conversationId || replay) return undefined;
+    const mode = approvalsMode();
+    if (mode === 'step') return undefined;
+    const live = h.handsFree.active(conversationId);
+    if (live) return live;
+    const ms = handsFreeMs(app.settings.get().computerUse?.handsFreeFor);
+    if (mode === 'never') return h.handsFree.start(conversationId, { ms, by: 'setting' });
+    if (saysGoAhead(taskOf(conversationId).ownerText)) return h.handsFree.start(conversationId, { ms, by: 'words' });
+    return undefined;
+  };
+  const startFree = (conversationId: string) => hub()?.handsFree.start(conversationId, { ms: handsFreeMs(app.settings.get().computerUse?.handsFreeFor), by: 'card' });
+  /** What the computer needs to know about a hands-free stretch (it confirms it once on its own card). */
+  const freeArgs = (conversationId: string): Record<string, unknown> => {
+    const st = freeOf(conversationId);
+    return st ? { handsFree: st.task, handsFreeMs: Math.max(0, st.until - Date.now()) } : {};
+  };
+  const logStep = (conversationId: string | undefined, what: string, where?: string) => {
+    if (conversationId) hub()?.handsFree.step(conversationId, what, where);
+  };
+
   const pick = (args: Record<string, unknown>): HandsDeviceView => {
     const h = hub();
     if (!h || !h.allowed()) throw new ToolError('Computer use is not available here.');
@@ -165,6 +198,23 @@ export function createComputerTools(app: AppContext): Tool[] {
 
   /** One op on the chosen computer, with the task's lease and budget; device refusals become plain errors. */
   const op = async (ctx: ToolContext, d: HandsDeviceView, name: string, args: Record<string, unknown>, what?: string, deadlineMs?: number): Promise<HandsReply> => {
+    try {
+      return await op1(ctx, d, name, args, what, deadlineMs);
+    } catch (err) {
+      // HANDSFREE (robustness): "No tab t1": the tab by its number, title or address, else the list of tabs.
+      const code = (err as { code?: string }).code;
+      if (!name.startsWith('b.') || name === 'b.tabs' || typeof args.tab !== 'string' || !args.tab || (code !== 'not_found' && !/\btab\b/i.test((err as Error).message))) throw err;
+      const list = (await op1(ctx, d, 'b.tabs', {}).catch(() => undefined))?.result.tabs;
+      const tabs = (Array.isArray(list) ? list : []) as Record<string, unknown>[];
+      const want = String(args.tab).trim().toLowerCase();
+      const num = /^(?:t|tab\s*)?#?(\d{1,3})$/.exec(want);
+      const hits = num ? [tabs[Number(num[1]) - 1]].filter(Boolean) : tabs.filter((t) => `${String(t.title ?? '')} ${String(t.url ?? '')}`.toLowerCase().includes(want));
+      const real = hits.length === 1 ? String(hits[0].tab ?? '') : '';
+      if (!real || real === args.tab) throw new ToolError(`${(err as Error).message} Tabs in ${BR()} now: ${tabs.map((t, i) => `${i + 1}. ${String(t.tab)} \u201c${String(t.title ?? '').slice(0, 50)}\u201d`).join('; ') || 'none'}. Use one of those tab ids, or leave tab out for the current tab.`);
+      return await op1(ctx, d, name, { ...args, tab: real }, what, deadlineMs);
+    }
+  };
+  const op1 = async (ctx: ToolContext, d: HandsDeviceView, name: string, args: Record<string, unknown>, what?: string, deadlineMs?: number): Promise<HandsReply> => {
     const conv = convOf(ctx);
     const h = hub()!;
     if (!h.claim(d.id, conv.id)) throw new ToolError(`${NAME()} is using ${nameOf(d)} for another conversation right now. Wait for that task to finish (or ask the owner to stop it).`);
@@ -320,7 +370,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       } catch {
         /* the verdict says it's not an address */
       }
-      const v = navigationVerdict(url, { ownerText: t.ownerText, granted: grantsOf(ctx.conversationId), localOnly: localOnly(ctx.conversationId), jobPort: (p) => jobPorts.includes(p) });
+      const v = navigationVerdict(url, { ownerText: t.ownerText, granted: grantsOf(ctx.conversationId), localOnly: localOnly(ctx.conversationId), jobPort: (p) => jobPorts.includes(p), handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)) });
       if (v.act === 'block') return { refuse: `Error: ${v.why}` };
       if (v.act === 'ask') return { ask: true, summary: `open ${v.site} in ${BR()} (${v.why}; once you allow it, she can open it again during this task)` };
       return {};
@@ -356,6 +406,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       const r = await op(ctx, d, 'b.open', { url, newTab: args.new_tab === true, thumb: 320 });
       thumbs(ctx, r);
       const x = r.result;
+      logStep(conv.id, `opened ${String(x.url ?? url).slice(0, 100)}`, nameOf(d));
       return `Opened ${String(x.url ?? url)} in ${BR()} on ${nameOf(d)}${via}${x.status ? ` (HTTP ${x.status})` : ''}. Title: ${String(x.title ?? '') || '(none)'}. Tab ${String(x.tab ?? '?')}.${problems(x)}${via ? ' Next: pc_browser_logs, then pc_browser_look.' : ''}`;
     },
   };
@@ -452,10 +503,21 @@ export function createComputerTools(app: AppContext): Tool[] {
     summarize: (a) => `read the page in ${BR()}${a.ref ? ` (${String(a.ref)})` : ''}`,
     async run(args, ctx) {
       const d = pick(args);
-      const r = await op(ctx, d, 'b.read', { ...(args.tab ? { tab: String(args.tab) } : {}), ...(args.ref ? { ref: String(args.ref) } : {}), max: 8000 });
+      const readOnce = (ref?: string) => op(ctx, d, 'b.read', { ...(args.tab ? { tab: String(args.tab) } : {}), ...(ref ? { ref } : {}), max: 8000 });
+      let r: HandsReply;
+      let note = '';
+      try {
+        r = await readOnce(args.ref ? String(args.ref) : undefined);
+      } catch (err) {
+        // HANDSFREE (robustness): that element is gone: look again once and read the same one, else the whole page.
+        if (!args.ref || !/no element|no e\d|not on the page|stale|changed/i.test((err as Error).message)) throw err;
+        const fresh = await relook(ctx, d, args, String(args.ref));
+        r = await readOnce(fresh);
+        note = fresh ? `\n[The page changed: I looked again and read the same element (now ${fresh}).]` : `\n[${String(args.ref)} is not on the page any more, so this is the whole page's text.]`;
+      }
       const x = r.result;
       const text = String(x.text ?? '');
-      return `${UNTRUSTED}\n${String(x.title ?? '') || '(no title)'} — ${String(x.url ?? '')}\n\n${text || '(no text)'}${x.more ? '\n[… more text not shown]' : ''}${flagged(text)}`;
+      return `${UNTRUSTED}\n${String(x.title ?? '') || '(no title)'} — ${String(x.url ?? '')}\n\n${text || '(no text)'}${x.more ? '\n[… more text not shown]' : ''}${flagged(text)}${note}`;
     },
   };
 
@@ -541,21 +603,59 @@ export function createComputerTools(app: AppContext): Tool[] {
   };
   const VERB: Record<ActKind, string> = { click: 'click', type: 'type into', select: 'choose in', keys: 'press keys in', upload: 'upload a file to' };
 
+  /**
+   * HANDSFREE (robustness): a ref from an older look is gone. Look again once (the element list only) and find the
+   * element with the same role and name (the nearest number when several match); undefined when it isn't there.
+   */
+  const relook = async (ctx: ToolContext | { signal: AbortSignal; conversationId?: string }, d: HandsDeviceView, args: Record<string, unknown>, oldRef: string): Promise<string | undefined> => {
+    const was = views.get(d.id)?.get(oldRef);
+    let items: Record<string, unknown>[] = [];
+    try {
+      const r = await hub()!.request(d.id, 'b.snapshot', { ...tabOf(args) }, { signal: ctx.signal, deadlineMs: 15_000 });
+      items = (Array.isArray(r.result.items) ? r.result.items : []) as Record<string, unknown>[];
+    } catch {
+      return undefined;
+    }
+    const seen = new Map<string, string>();
+    for (const i of items) seen.set(String(i.ref), fpOf(i.role, i.name));
+    views.set(d.id, seen);
+    if (!was || was.endsWith('|')) return undefined;
+    const same = items.filter((i) => fpOf(i.role, i.name) === was);
+    if (!same.length) return undefined;
+    const n = Number(oldRef.slice(1));
+    same.sort((a, b) => Math.abs(Number(String(a.ref).slice(1)) - n) - Math.abs(Number(String(b.ref).slice(1)) - n));
+    return String(same[0].ref);
+  };
+
   /** Before the card: what the target is (the device looks it up, nothing acts) and what the rows say. */
   const prepareAct = async (kind: ActKind, args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string; replay?: boolean }, labelKey: string, extra: { text?: string; file?: string } = {}): Promise<Prepared> => {
     if (!ctx.conversationId) return {};
     const d = pick(args);
     const h = hub()!;
     if (!h.claim(d.id, ctx.conversationId)) return { refuse: `Error: ${NAME()} is using ${nameOf(d)} for another conversation right now.` };
-    const tgt = targetOf(d, args, labelKey);
+    let tgt = targetOf(d, args, labelKey);
     let found: Record<string, unknown>;
+    const findIt = async () => (await h.request(d.id, 'b.find', { ...tgt, ...tabOf(args) }, { signal: ctx.signal, deadlineMs: 15_000 })).result;
     try {
-      found = (await h.request(d.id, 'b.find', { ...tgt, ...tabOf(args) }, { signal: ctx.signal, deadlineMs: 15_000 })).result;
+      found = await findIt();
     } catch (err) {
       if (err instanceof HandsError && err.code === 'unsupported') return { refuse: `Error: ${nameOf(d)} can't act in ${BR()} yet: tell the owner to ${updateHow(d)}.` };
-      return { refuse: `Error: ${(err as Error).message}` };
+      if (!(err instanceof HandsError && (err.code === 'stale_view' || err.code === 'not_found') && typeof tgt.ref === 'string')) return { refuse: `Error: ${(err as Error).message}` };
+      found = { found: false, stale: true, error: err.message };
     }
-    if (found.found !== true) return { refuse: `Error: ${String(found.error ?? 'That is not on the page.')}${found.stale ? ' Look again (pc_browser_look) and use the new refs.' : ''}` };
+    // HANDSFREE (robustness): the page changed under an older ref: look again once and use the same element.
+    let again = '';
+    if (found.found !== true && typeof tgt.ref === 'string') {
+      const fresh = await relook(ctx, d, args, tgt.ref);
+      if (fresh) {
+        args.ref = fresh;
+        tgt = targetOf(d, args, labelKey);
+        found = await findIt().catch((err: Error) => ({ found: false, error: err.message }));
+        if (found.found === true) again = fresh;
+      }
+    }
+    if (found.found !== true) return { refuse: `Error: ${String(found.error ?? 'That is not on the page.')} I looked again once and it isn't there now: look (pc_browser_look) and pick it from the new list.` };
+    if (again) preparedNotes.set(args, `(The page changed, so I looked again and acted on the same element, now ${again}.)`);
     const page = (found.page ?? {}) as Record<string, unknown>;
     let site = '';
     try {
@@ -564,7 +664,8 @@ export function createComputerTools(app: AppContext): Tool[] {
       return { refuse: `Error: ${BR()} has no web page open: pc_browser_open first.` };
     }
     const cu = app.settings.get().computerUse ?? {};
-    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: policy().alwaysAllowOn || actLevel(cu.level) !== 'always' ? actLevel(cu.level) : 'task', taskSites: actSitesOf(ctx.conversationId), always: policy().alwaysAllowOn ? (cu.always ?? []) : [] });
+    const free = freeOf(ctx.conversationId, ctx.replay);
+    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: policy().alwaysAllowOn || actLevel(cu.level) !== 'always' ? actLevel(cu.level) : 'task', taskSites: actSitesOf(ctx.conversationId), always: policy().alwaysAllowOn ? (cu.always ?? []) : [], handsFree: Boolean(free), offerFree: approvalsMode() !== 'step' && !ctx.replay });
     // M8 "Re-plan from here": a branch never repeats her actions on its own; each new one asks (once).
     const verdict = ctx.replay && base.act !== 'block' ? { act: 'ask' as const, risk: base.risk, why: 're-planned from an earlier step: every action asks', choices: ['once' as const] } : base;
     const target = describe(found);
@@ -582,6 +683,11 @@ export function createComputerTools(app: AppContext): Tool[] {
       answered: (ok, how) => {
         if (!ok) return;
         if (how === 'task' && verdict.choices.includes('task')) actSitesOf(conversationId).add(site);
+        // HANDSFREE: "Let her finish this task": no more cards in this task, on any site or app, until it ends.
+        if (how === 'free' && verdict.choices.includes('free')) {
+          actSitesOf(conversationId).add(site);
+          startFree(conversationId);
+        }
         if (how === 'always' && verdict.choices.includes('always') && policy().alwaysAllowOn) {
           const now = app.settings.get().computerUse ?? {};
           const list = (now.always ?? []).filter((a) => !(a.site === site && a.kind === kind));
@@ -604,6 +710,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     const ne = Number(x.newErrors ?? 0);
     const nf = Number(x.newFailed ?? 0);
     if (ne || nf) bits.push(`New since the action: ${ne} console error${ne === 1 ? '' : 's'}, ${nf} failed request${nf === 1 ? '' : 's'} (pc_browser_logs shows them).`);
+    if (typeof x.__note === 'string') bits.push(x.__note);
     bits.push('Look again (pc_browser_look) before your next action; after two failed tries at the same thing, stop and tell the owner.');
     const out = `${UNTRUSTED}\n${bits.join(' ')}`;
     return out + flagged(alerts.join(' '));
@@ -614,10 +721,23 @@ export function createComputerTools(app: AppContext): Tool[] {
     const prep = preparedActs.get(args);
     const tgt = labelKey === 'none' ? {} : targetOf(d, args, labelKey);
     if (prep?.expect && tgt.ref && !tgt.expect) tgt.expect = prep.expect;
-    const r = await op(ctx, d, opName, { ...tgt, ...tabOf(args), ...extra, thumb: 320 }, what);
+    let r: HandsReply;
+    try {
+      r = await op(ctx, d, opName, { ...tgt, ...tabOf(args), ...extra, thumb: 320 }, what);
+    } catch (err) {
+      // HANDSFREE (robustness): the element went stale between the card and the action: look again once, same element.
+      const code = (err as { code?: string }).code;
+      if ((code !== 'stale_view' && code !== 'not_found') || typeof tgt.ref !== 'string') throw err;
+      const fresh = await relook(ctx, d, args, tgt.ref);
+      if (!fresh) throw new ToolError(`${(err as Error).message} I looked again once and that element is not there now: look (pc_browser_look) and pick it from the new list.`);
+      args.ref = fresh;
+      r = await op(ctx, d, opName, { ...targetOf(d, args, labelKey), ...tabOf(args), ...extra, thumb: 320 }, what);
+      preparedNotes.set(args, `(The page changed, so I looked again and acted on the same element, now ${fresh}.)`);
+    }
     thumbs(ctx, r);
-    void kind;
-    return { d, x: r.result };
+    logStep(ctx.conversationId, `${kind}: ${what}`.slice(0, 160), prep?.site);
+    const note = preparedNotes.get(args);
+    return { d, x: note ? { ...r.result, __note: note } : r.result };
   };
 
   const click: Tool = {
@@ -692,18 +812,55 @@ export function createComputerTools(app: AppContext): Tool[] {
     defaultPermission: 'auto',
     spec: {
       name: 'pc_browser_scroll',
-      description: "Scroll the page in Sara's browser on the owner's computer: down or up by about a screen, or to an element (ref).",
-      parameters: obj({ direction: { type: 'string', enum: ['down', 'up'] }, ...REF_ARG, ...TAB_ARG, ...COMPUTER_ARG }),
+      description: "Scroll the page in Sara's browser on the owner's computer: direction down/up (no ref needed: it scrolls the page or the scrolling panel in the middle of the window), amount 'screen' (default), 'half' or 'end', or to an element (ref). It says where you are (top, middle, bottom).",
+      parameters: obj({ direction: { type: 'string', enum: ['down', 'up'] }, amount: { type: 'string', enum: ['screen', 'half', 'end'], description: 'How far (default about a screen)' }, ...REF_ARG, ...TAB_ARG, ...COMPUTER_ARG }),
     },
     isAvailable: anyOnline,
     summarize: (a) => `scroll ${a.ref ? `to ${String(a.ref)}` : String(a.direction ?? 'down')} in ${BR()}`,
     async run(args, ctx) {
       const d = pick(args);
-      const tgt = args.ref ? targetOf(d, args, 'none') : {};
-      const r = await op(ctx, d, 'b.scroll', { ...tgt, ...(args.ref ? {} : { dy: args.direction === 'up' ? -700 : 700 }), ...tabOf(args), thumb: 320 }, 'scrolling the page');
+      const up = /^up/i.test(String(args.direction ?? ''));
+      const amount = args.amount === 'half' ? 0.5 : args.amount === 'end' ? 40 : 0.85;
+      const plain = { dy: Math.round((up ? -1 : 1) * 820 * amount), dir: up ? 'up' : 'down', amount: String(args.amount ?? 'screen'), ...tabOf(args), thumb: 320 };
+      let note = '';
+      let r: HandsReply;
+      if (args.ref) {
+        // HANDSFREE (robustness): a stale ref looks again once; if the element is gone, scroll in its direction instead.
+        try {
+          r = await op(ctx, d, 'b.scroll', { ...targetOf(d, args, 'none'), ...tabOf(args), thumb: 320 }, 'scrolling the page');
+        } catch (err) {
+          const code = (err as { code?: string }).code;
+          if (code !== 'stale_view' && code !== 'not_found' && !/no e\d|no element|changed/i.test((err as Error).message)) throw err;
+          const fresh = await relook(ctx, d, args, String(args.ref));
+          if (fresh) {
+            args.ref = fresh;
+            r = await op(ctx, d, 'b.scroll', { ...targetOf(d, args, 'none'), ...tabOf(args), thumb: 320 }, 'scrolling the page');
+            note = ` (The page changed: I looked again and scrolled to the same element, now ${fresh}.)`;
+          } else {
+            r = await op(ctx, d, 'b.scroll', plain, 'scrolling the page');
+            note = ` (${String(args.ref)} is not on the page any more, so I scrolled the page ${plain.dir}.)`;
+          }
+        }
+      } else r = await op(ctx, d, 'b.scroll', plain, 'scrolling the page');
+      let x = r.result;
+      // Nothing moved (an older app, or a page whose scrolling panel the computer missed): Page Down / Page Up once.
+      const before = Number(x.before ?? NaN);
+      const stuck = !args.ref && (x.moved === false || (Number.isFinite(before) && before === Number(x.scrollY)));
+      const atEnd = (up && Number(x.scrollY) <= 0) || (!up && Number(x.maxY) > 0 && Number(x.scrollY) >= Number(x.maxY));
+      if (stuck && !atEnd) {
+        const k = await op(ctx, d, 'b.keys', { combo: up ? 'PageUp' : 'PageDown', ...tabOf(args), thumb: 320 }, 'scrolling with the keyboard').catch(() => undefined);
+        if (k) {
+          note += ` (The page didn't move, so I pressed ${up ? 'Page Up' : 'Page Down'}.)`;
+          x = { ...x, ...(k.result.scrollY !== undefined ? { scrollY: k.result.scrollY, maxY: k.result.maxY } : {}) };
+        }
+      }
       thumbs(ctx, r);
-      const x = r.result;
-      return `Scrolled: now ${String(x.scrollY ?? '?')} of ${String(x.maxY ?? '?')} pixels down. Look again to see what's there.`;
+      logStep(ctx.conversationId, `scrolled ${args.ref ? 'to an element' : plain.dir}`);
+      const y = Number(x.scrollY);
+      const max = Number(x.maxY);
+      const where = !Number.isFinite(y) || !Number.isFinite(max) ? '' : max <= 0 ? 'the whole page fits on the screen' : y <= 2 ? 'at the top' : y >= max - 2 ? 'at the bottom' : `in the middle (${Math.round((y / max) * 100)}% down)`;
+      const box = typeof x.container === 'string' && x.container ? ` the scrolling panel ${quote(x.container)}` : '';
+      return `Scrolled${box}${where ? `: now ${where}` : ''}${Number.isFinite(y) ? ` (${y} of ${Number.isFinite(max) ? max : '?'} pixels)` : ''}.${note} Look again to see what's there.`;
     },
   };
 
@@ -910,7 +1067,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     return desk[0];
   };
   /** Phase 92: refs from the latest desktop look per computer (CU6 acts on them; tied to their viewId). */
-  const deskViews = new Map<string, { viewId?: string; window?: string; app?: string; title?: string; refs: Map<string, DesktopItem> }>();
+  const deskViews = new Map<string, { viewId?: string; window?: string; app?: string; title?: string; w?: number; h?: number; refs: Map<string, DesktopItem> }>();
   const permHelp = (d: HandsDeviceView, what: 'capture' | 'ax') =>
     /mac/i.test(`${d.os ?? ''} ${d.app ?? ''}`)
       ? what === 'capture'
@@ -1000,7 +1157,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       }
       const items = desktopItems(x.items);
       const w = (x.window ?? x.marksOf ?? {}) as Record<string, unknown>;
-      deskViews.set(d.id, { ...(typeof x.viewId === 'string' ? { viewId: x.viewId } : {}), ...(w.id ? { window: String(w.id) } : {}), ...(w.app ? { app: String(w.app) } : {}), ...(w.title ? { title: String(w.title) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
+      deskViews.set(d.id, { ...(typeof x.viewId === 'string' ? { viewId: x.viewId } : {}), ...(w.id ? { window: String(w.id) } : {}), ...(w.app ? { app: String(w.app) } : {}), ...(w.title ? { title: String(w.title) } : {}), ...(Number(x.w) > 0 && Number(x.h) > 0 ? { w: Number(x.w), h: Number(x.h) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
       const head = w.title || w.app ? `Window: \u201c${String(w.title ?? '') || '(no title)'}\u201d (${String(w.app ?? 'app')})` : win.id ? 'Window' : 'The window in front';
       const total = Number(x.total ?? items.length);
       let out = `${UNTRUSTED_SCREEN}\n${head} on ${nameOf(d)}${x.viewId ? ` (picture ${String(x.viewId)}${x.w ? `, ${String(x.w)}\u00d7${String(x.h)} px; positions are in picture pixels` : ''})` : '; positions are screen points'}:\n${items.map(itemLine).join('\n') || '(nothing the system lists in it: this app may not support accessibility; a picture may help)'}${total > items.length ? `\n[\u2026 ${total - items.length} more not shown]` : ''}`;
@@ -1050,15 +1207,38 @@ export function createComputerTools(app: AppContext): Tool[] {
     return `${action} ${target} on ${nameOf(d)}`;
   };
   const replayDesktop = new WeakSet<object>();
+  /**
+   * HANDSFREE (robustness): pc_scroll with only a direction (what small models send): about a screen of wheel
+   * turns, on the biggest scrolling part of the window from the latest look, else the middle of its picture.
+   */
+  const SCROLLISH = /^(?:pane|document|list|tree|table|grid|scrollbar|scroll ?viewer|group|custom|data ?grid|text)$/i;
+  const scrollDefaults = (d: HandsDeviceView, args: Record<string, unknown>): void => {
+    if (args.dy === undefined && args.dx === undefined && args.amount === undefined) {
+      const up = /^up/i.test(String(args.direction ?? ''));
+      const far = args.how_far === 'half' ? 3 : args.how_far === 'end' ? 20 : 6;
+      args.dy = (up ? -1 : 1) * 120 * far;
+    } else if (typeof args.amount === 'number' && args.dy === undefined) args.dy = Math.max(-2400, Math.min(2400, Number(args.amount) * (Math.abs(Number(args.amount)) <= 20 ? 120 : 1)));
+    if (args.ref || (typeof args.x === 'number' && typeof args.y === 'number')) return;
+    const view = deskViews.get(d.id);
+    if (!view?.viewId) return;
+    const area = (i: DesktopItem) => (i.box ? i.box[2] * i.box[3] : 0);
+    const big = [...view.refs.values()].filter((i) => SCROLLISH.test(i.role) && area(i) > 0 && !i.secret).sort((a, b) => area(b) - area(a))[0];
+    if (big) args.ref = big.ref;
+    else if (view.w && view.h) {
+      args.x = Math.round(view.w / 2);
+      args.y = Math.round(view.h / 2);
+    }
+  };
   const prepareDesktop = async (action: DesktopAction, args: Record<string, unknown>, ctx: { signal: AbortSignal; conversationId?: string; replay?: boolean }): Promise<Prepared> => {
     if (!ctx.conversationId) return { refuse: 'Error: No owner conversation for desktop input.' };
     if (ctx.replay) replayDesktop.add(args);
     const d = pickDesk(args);
     if (d.approvalsHere !== true) return { refuse: 'Error: Desktop actions need an approval surface on that computer.' };
+    if (action === 'scroll') scrollDefaults(d, args);
     if (action !== 'open_app') desktopTarget(d, args);
     const item = deskViews.get(d.id)?.refs.get(String(args.ref ?? ''));
     const view = deskViews.get(d.id);
-    const verdict = desktopActionVerdict({ site: `desktop:${d.id}`, kind: action, target: item ?? { name: String(args.app ?? '') }, text: typeof args.text === 'string' ? args.text : undefined, level: 'task', ...(view?.app || view?.title ? { window: { app: view.app, title: view.title } } : {}) });
+    const verdict = desktopActionVerdict({ site: `desktop:${d.id}`, kind: action, target: item ?? { name: String(args.app ?? '') }, text: typeof args.text === 'string' ? args.text : undefined, level: 'task', handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)), ...(view?.app || view?.title ? { window: { app: view.app, title: view.title } } : {}) });
     if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
     if (app.member && verdict.risk === 'payment') return { refuse: `Error: ${PURCHASE_REFUSAL}` };
     // Native code independently inspects and asks. No broker card is created, so a phone can't answer.
@@ -1066,10 +1246,13 @@ export function createComputerTools(app: AppContext): Tool[] {
   };
   const desktopRun = async (action: DesktopAction, opName: string, args: Record<string, unknown>, ctx: ToolContext): Promise<string> => {
     const d = pickDesk(args);
+    if (action === 'scroll') scrollDefaults(d, args);
+    const namesBefore = action === 'scroll' ? [...(deskViews.get(d.id)?.refs.values() ?? [])].map((i) => `${i.role}|${i.name ?? ''}`).join('\n') : '';
     const target = action === 'open_app' ? { app: String(args.app ?? '') } : desktopTarget(d, args);
     hub()!.desktopUsed(convOf(ctx).id, d.id);
     const forceOnce = replayDesktop.delete(args);
-    const send = (where: Record<string, unknown>) => op(ctx, d, opName, { ...where, task: taskOf(convOf(ctx).id).key, forceOnce, ...(action === 'type' ? { text: str(args, 'text') } : {}), ...(action === 'keys' ? { combo: str(args, 'combo') } : {}), ...(action === 'scroll' ? { dx: Number(args.dx ?? 0), dy: Number(args.dy ?? args.amount ?? 0) } : {}), ...(action === 'drag' ? { toX: Number(args.to_x), toY: Number(args.to_y) } : {}), ...(action === 'click' ? { button: args.button === 'right' ? 'right' : 'left', double: args.double === true } : {}) }, desktopSummary(args, d, action));
+    const free = forceOnce ? {} : freeArgs(convOf(ctx).id);
+    const send = (where: Record<string, unknown>) => op(ctx, d, opName, { ...where, task: taskOf(convOf(ctx).id).key, forceOnce, ...free, ...(action === 'type' ? { text: str(args, 'text') } : {}), ...(action === 'keys' ? { combo: str(args, 'combo') } : {}), ...(action === 'scroll' ? { dx: Number(args.dx ?? 0), dy: Number(args.dy ?? args.amount ?? 0) } : {}), ...(action === 'drag' ? { toX: Number(args.to_x), toY: Number(args.to_y) } : {}), ...(action === 'click' ? { button: args.button === 'right' ? 'right' : 'left', double: args.double === true } : {}) }, desktopSummary(args, d, action));
     // 3.6.x: busy web apps change while she acts. The computer refuses when the very control she named changed (its
     // own check, not the website's); she looks again once by herself and retries on the one control with the same
     // role and name. The computer checks it again from the start (and asks again when it would ask).
@@ -1078,19 +1261,41 @@ export function createComputerTools(app: AppContext): Tool[] {
       await send(target);
     } catch (err) {
       const was = typeof target.ref === 'string' ? deskViews.get(d.id)?.refs.get(target.ref) : undefined;
-      if ((err as { code?: string }).code !== 'stale_view' || !was?.name) throw err;
-      const fresh = await deskOp(ctx, d, 'd.elements', { ...(target.window ? { window: target.window } : {}), limit: 300 }, 'looking again after the page changed');
+      const msg = (err as Error).message;
+      const code = (err as { code?: string }).code;
+      // HANDSFREE (robustness): an old look ("older than 20 seconds"), a changed control or another window in front:
+      // look again once by herself and retry the same control (same role and name) or, for a point, the same point.
+      const old = code === 'stale_view' && /older than|look again/i.test(msg);
+      const covered = code === 'denied_local' && /covers that point/i.test(msg);
+      const hitsOther = code === 'stale_view' && /hits a different control/i.test(msg);
+      if (!(code === 'stale_view' && was?.name) && !old && !covered && !hitsOther) throw err;
+      const fresh = await deskOp(ctx, d, covered || !target.ref ? 'd.shot' : 'd.elements', { ...(target.window ? { window: target.window } : {}), ...(covered || !target.ref ? { maxEdge: 1280, marks: true } : { limit: 300 }) }, 'looking again after the window changed');
       const items = Array.isArray(fresh.result.items) ? desktopItems(fresh.result.items) : [];
-      const same = items.filter((i) => i.role === was.role && i.name === was.name);
-      if (same.length !== 1 || typeof fresh.result.viewId !== 'string') throw new ToolError(`${(err as Error).message} I looked again once: ${same.length ? 'several controls now have that name' : 'that control is not there now'}, so use pc_look and pick it again.`);
-      const fw = (fresh.result.window ?? {}) as Record<string, unknown>;
+      if (typeof fresh.result.viewId !== 'string') throw err;
+      const fw = (fresh.result.window ?? fresh.result.marksOf ?? {}) as Record<string, unknown>;
       deskViews.set(d.id, { viewId: fresh.result.viewId, ...(target.window ? { window: String(target.window) } : {}), ...(fw.app ? { app: String(fw.app) } : {}), ...(fw.title ? { title: String(fw.title) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
-      await send({ ...target, ref: same[0].ref, viewId: fresh.result.viewId });
-      again = ' (The page changed while I was about to act: I looked again once and acted on the same control.)';
+      let retry: Record<string, unknown>;
+      if (was?.name) {
+        const same = items.filter((i) => i.role === was.role && i.name === was.name);
+        if (!same.length) throw new ToolError(`${msg} I looked again once: that control is not there now, so use pc_look and pick it again.`);
+        const n = Number(String(target.ref).slice(1));
+        same.sort((a, b) => Math.abs(Number(a.ref.slice(1)) - n) - Math.abs(Number(b.ref.slice(1)) - n));
+        retry = { ...target, ref: same[0].ref, viewId: fresh.result.viewId };
+      } else if (hitsOther) throw new ToolError(`${msg} I looked again once: pick that control by its ref from the new list (pc_look).`);
+      else retry = { ...target, viewId: fresh.result.viewId };
+      try {
+        await send(retry);
+      } catch (err2) {
+        throw new ToolError(`${(err2 as Error).message} (I looked again once and tried again${covered ? ' with the window in front' : ''}.) Use pc_look and pick it from the new list.`);
+      }
+      again = covered ? ' (Another window was in front: I brought the window forward, looked again and acted.)' : ' (The window changed while I was about to act: I looked again once and acted on the same control.)';
     }
+    logStep(convOf(ctx).id, `${action}: ${desktopSummary(args, d, action)}`.slice(0, 160), deskViews.get(d.id)?.title ?? nameOf(d));
     // CU6's receipt is deliberately a fresh look, not the device's cached after-state.
     const verify = action === 'open_app' ? await deskOp(ctx, d, 'd.windows', {}, 'verifying the app launch') : await deskOp(ctx, d, 'd.elements', { ...(target.window ? { window: target.window } : {}), limit: 300 }, 'verifying the desktop action');
     const items = Array.isArray(verify.result.items) ? desktopItems(verify.result.items) : [];
+    // HANDSFREE: a scroll that changed nothing in the window is said plainly (top/bottom, or a part that doesn't scroll).
+    if (action === 'scroll' && namesBefore && items.length && items.map((i) => `${i.role}|${i.name ?? ''}`).join('\n') === namesBefore) again += ` Nothing in the window changed: it may already be at the ${Number(args.dy) < 0 ? 'top' : 'bottom'}, or that part doesn't scroll (try pc_keys "pagedown" on a control in it, or a ref of the list itself).`;
     deskViews.delete(d.id);
     const vw = (verify.result.window ?? {}) as Record<string, unknown>;
     if (items.length) deskViews.set(d.id, { ...(typeof verify.result.viewId === 'string' ? { viewId: verify.result.viewId } : {}), ...(target.window ? { window: String(target.window) } : {}), ...(vw.app ? { app: String(vw.app) } : {}), ...(vw.title ? { title: String(vw.title) } : {}), refs: new Map(items.map((i) => [i.ref, i])) });
@@ -1107,7 +1312,7 @@ export function createComputerTools(app: AppContext): Tool[] {
   const desktopClick = desktopTool('click', 'd.click', 'Click a button, link or control in one of the owner\u2019s own windows: any app, or their own browser window (after pc_my_tabs switch, when the computer can check its address). Look first (pc_look); use a ref or coordinates from that look. The owner approves on that computer; payment, account and sign-in pages, the browser\u2019s own settings pages (edge://extensions, chrome://extensions, about:addons: there Remove removes an extension) and the Settings app\u2019s Apps and Storage pages always ask. The computer refuses blocked (banking, password managers), secure, elevated, locked, paused, or unsafe targets.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, button: { type: 'string', enum: ['left', 'right'] }, double: { type: 'boolean' }, window: { type: 'string' } });
   const desktopType = desktopTool('type', 'd.type', 'Type non-secret text into a field (ref) from your latest pc_look, in any of the owner\u2019s apps or their own browser window (e.g. Notepad, a web form, or an address like \"edge://extensions\" into the browser\u2019s address bar, then pc_keys \"enter\"). The owner approves on that computer. Never a password: password and secure fields are always refused there.', { ref: { type: 'string' }, text: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, window: { type: 'string' } }, ['text']);
   const desktopKeys = desktopTool('keys', 'd.keys', 'Press a safe key combination in the owner desktop. The computer blocks system and destructive combinations.', { ref: { type: 'string' }, combo: { type: 'string' }, window: { type: 'string' } }, ['combo']);
-  const desktopScroll = desktopTool('scroll', 'd.scroll', 'Scroll an owner desktop window after a fresh look.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number' }, amount: { type: 'number' }, window: { type: 'string' } });
+  const desktopScroll = desktopTool('scroll', 'd.scroll', 'Scroll an owner desktop window after a fresh look: direction down/up is enough (it scrolls the biggest scrolling part of the window, or its middle, about a screen); ref or x/y to scroll one part; how_far half/screen/end.', { direction: { type: 'string', enum: ['down', 'up'] }, how_far: { type: 'string', enum: ['half', 'screen', 'end'] }, ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, dx: { type: 'number' }, dy: { type: 'number', description: 'Wheel amount (120 = one notch; positive scrolls down)' }, amount: { type: 'number' }, window: { type: 'string' } });
   const desktopDrag = desktopTool('drag', 'd.drag', 'Drag a visible desktop control to a destination in the same fresh view.', { ref: { type: 'string' }, x: { type: 'number' }, y: { type: 'number' }, to_x: { type: 'number' }, to_y: { type: 'number' }, window: { type: 'string' } }, ['to_x', 'to_y']);
   const desktopLaunch = desktopTool('open_app', 'd.launch', 'Open an installed desktop application by its registered app name or bundle id. No command lines are accepted.', { app: { type: 'string' } }, ['app']);
 
@@ -1308,7 +1513,16 @@ export function createComputerTools(app: AppContext): Tool[] {
     const id = /^(w[0-9a-z]+)#(\d{1,3})$/i.exec(want);
     const all = wins.flatMap((w) => (w.hidden ? [] : w.tabs.map((t, i) => ({ w, t, i: i + 1 }))));
     const hits = id ? all.filter((x) => x.w.id === id[1] && x.i === Number(id[2])) : all.filter((x) => !x.t.hidden && `${x.t.title ?? ''} ${x.t.url ?? ''}`.toLowerCase().includes(want.toLowerCase()));
-    if (!hits.length) return `No open tab ${id ? `\u201c${want}\u201d` : `matches \u201c${want.slice(0, 60)}\u201d`}. List the tabs again (pc_my_tabs) and use a tab id.`;
+    if (!hits.length) {
+      // HANDSFREE (robustness): the window ids change when a browser restarts: the tab's number in the only window still counts.
+      const solo = wins.filter((w) => !w.hidden);
+      if (id && solo.length === 1 && solo[0].tabs[Number(id[2]) - 1] && !solo[0].tabs[Number(id[2]) - 1].hidden && solo[0].id) {
+        const t = solo[0].tabs[Number(id[2]) - 1];
+        return { window: solo[0].id, index: Number(id[2]), title: t.title ?? '', ...(t.url ? { url: t.url } : {}) };
+      }
+      const now = all.filter((x) => !x.t.hidden && x.w.id).slice(0, 12).map((x) => `${x.w.id}#${x.i} \u201c${(x.t.title ?? '').slice(0, 40)}\u201d`);
+      return `No open tab ${id ? `\u201c${want}\u201d` : `matches \u201c${want.slice(0, 60)}\u201d`}. The open tabs now: ${now.join(', ') || 'none'}. Use one of those ids (or words of its title).`;
+    }
     if (hits.length > 1) return `Several tabs match \u201c${want.slice(0, 60)}\u201d: ${hits.slice(0, 6).map((x) => `${x.w.id}#${x.i} \u201c${(x.t.title ?? '').slice(0, 50)}\u201d`).join(', ')}. Say which by its id.`;
     const h = hits[0];
     if (h.t.hidden) return `That tab is hidden from you on purpose (${h.t.hidden}): never act there.`;
@@ -1343,9 +1557,11 @@ export function createComputerTools(app: AppContext): Tool[] {
         const list = browserTabs((await deskOp(ctx, d, 'd.tabs', {}, 'reading your browser tabs')).result.browsers);
         const t = tabRef(list, String(args.tab ?? ''));
         if (typeof t === 'string') throw new ToolError(t);
-        const page = ownBrowserPage(t.title, t.url ?? '');
+        const replayed = replayDesktop.delete(args);
+        const page = ownBrowserPage(t.title, t.url ?? '', '', Boolean(!replayed && freeOf(conv.id)));
         hub()!.desktopUsed(conv.id, d.id);
-        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task: taskOf(conv.id).key, forceOnce: replayDesktop.delete(args) || page.act === 'once' }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
+        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task: taskOf(conv.id).key, forceOnce: replayed || page.act === 'once', ...(replayed ? {} : freeArgs(conv.id)) }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
+        logStep(conv.id, `switched to the tab \u201c${t.title.slice(0, 60)}\u201d`, nameOf(d));
         deskViews.delete(d.id);
         const x = r.result;
         return `${UNTRUSTED_SCREEN}\nSwitched on ${nameOf(d)} (the owner allowed it there): the tab \u201c${maskDesktopText(String(x.title ?? t.title)).slice(0, 160)}\u201d${x.url || t.url ? ` (${maskDesktopText(String(x.url ?? t.url)).slice(0, 200)})` : ''} is in front in window ${String(x.window ?? t.window)}. Next: pc_look with window "${String(x.window ?? t.window)}" to see the page, then pc_click / pc_type there (each approved on that computer; payment, account and sign-in pages always ask; never type a password).`;
@@ -1504,7 +1720,38 @@ export function createComputerTools(app: AppContext): Tool[] {
     },
   };
 
-  const all = [devices, open, navigate, look, read, tabs, logs, request, click, type, select, keys, scrollTool, upload, downloads, login, saveLogin, yourTurn, windowsTool, lookTool, myTabs, files, desktopClick, desktopType, desktopKeys, desktopScroll, desktopDrag, desktopLaunch, checkup, checkupApply, fillForm];
+  // HANDSFREE 3b: the guided "Set up Google sign-in for me" errand (src/google-setup.ts): where she is, what next.
+  const setupDone = new Map<string, Set<string>>();
+  const googleSetup: Tool = {
+    defaultPermission: 'auto',
+    interruptible: true,
+    spec: {
+      name: 'pc_google_setup',
+      description: "The step-by-step guide for setting up the owner's own Google sign-in (a Google Cloud project, the Calendar and Gmail APIs, the Google Auth Platform, a Web client with Sara's redirect address) in your browser. Call it first, then after every step: it reads the page in your browser and says which checkpoints are done and exactly what to do next. Signing in and copying the Client ID and secret into Sara are the owner's (your turn). Only when the owner asked to set up Google sign-in.",
+      parameters: obj({ redirect: { type: 'string', description: "Sara's redirect address (from the owner's message; it ends in /api/google/callback)" }, ...TAB_ARG, ...COMPUTER_ARG }),
+    },
+    isAvailable: anyOnline,
+    summarize: () => 'check the Google sign-in setup steps',
+    async run(args, ctx) {
+      const conv = convOf(ctx);
+      const redirect = (typeof args.redirect === 'string' && redirectFrom(args.redirect)) || redirectFrom(taskOf(conv.id).ownerText) || [...app.store.messages(conv.id)].reverse().map((m) => (m.role === 'user' ? redirectFrom(m.content) : undefined)).find(Boolean);
+      if (!redirect) throw new ToolError("Sara's redirect address is missing: ask the owner to press \u201cLet her set it up\u201d in Settings \u2192 Gmail and Calendar (it gives you the address), or to paste the address shown there under step 5.");
+      const d = pick(args);
+      let pageNow: SetupPage = { url: '' };
+      try {
+        const r = await op(ctx, d, 'b.read', { ...tabOf(args), max: 4000 });
+        pageNow = { url: String(r.result.url ?? ''), title: String(r.result.title ?? ''), text: String(r.result.text ?? '') };
+      } catch {
+        /* no page open yet: the first step says what to open */
+      }
+      const seen = setupDone.get(conv.id) ?? new Set<string>();
+      const next = nextSetupStep(pageNow, redirect, seen);
+      setupDone.set(conv.id, new Set(next.done));
+      logStep(conv.id, `Google setup: ${next.step.title}`);
+      return `${UNTRUSTED}\n${next.text}`;
+    },
+  };
+  const all = [devices, open, navigate, look, read, tabs, logs, request, click, type, select, keys, scrollTool, upload, downloads, login, saveLogin, yourTurn, windowsTool, lookTool, myTabs, files, desktopClick, desktopType, desktopKeys, desktopScroll, desktopDrag, desktopLaunch, checkup, checkupApply, fillForm, googleSetup];
   // 3.4.x: every description names the companion ("Fred's browser", his/her/their) when it is read, so a rename shows at once.
   for (const t of all) {
     const raw = t.spec.description;

@@ -5,6 +5,66 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.15.0 (2026-11-16): choices to tap, goals, research, ask anything, private messages
+
+- New: **pick-an-answer cards.** When she asks you to choose between a few options, they show as buttons
+  under her question: her recommended one first and marked, "Other, type it out" last, one or several
+  picks. Your pick is sent as your own message. Works in the app (phone and desktop, keyboard and screen
+  readers), as inline buttons in your Telegram chat and buttons in your Discord DM; everywhere else she
+  sends a numbered list ("reply with a number or type your own"). A card closes once you answer or type
+  something else. Never used for approvals. See docs/CHOICES.md.
+- Added: **Goals over days.** Tell her something bigger you want done by a date ("get my house sale
+  paperwork done by Dec 15") and she keeps a plan of milestones with due dates. A milestone can start a
+  Planner task, a reminder, an errand (waiting for your Start) or an automation (made switched off). She
+  checks progress on her own, nudges you the day before each checkpoint, proposes a new plan when
+  something slips (nothing moves until you press Use the new plan) and sends a weekly summary per goal.
+  A Goals page (progress bar, next step, history) and a Today tile. Every approval works as before. See
+  docs/GOALS.md.
+- Added: deep research reports. A research run can read your own files in her Library as well as the
+  web (pick on the plan; without web search it researches your Library). The plan shows the budget and the
+  most it may cost before you press Start. The report has a Summary, Findings with numbered sources, Open
+  questions and *What I couldn't verify* (any sentence no source backs is listed there, marked unverified),
+  and each source comes with a short quote. You get a notification when it is done. Runs from a private chat
+  or in *Nothing leaves this computer* mode use only models on your own hardware and no web (a private chat
+  may allow the web). See docs/RESEARCH.md.
+- Added: **ask your whole life.** One question across your emails (every mailbox), files (Library pages and
+  workspace files), past chats, calendars, notes, to-do and shared lists, and contacts. Type in the search box
+  and pick **✦ Ask about anything in your life**: a short answer quotes each source with a number you tap to
+  open it at the spot (the email with the quote marked, the document at its page, the chat at the message),
+  and the matches are grouped by source. In a chat she uses the new `ask_everything` tool and cites [n].
+  Private chats, forgotten messages and off-the-record chats are never searched; household members only
+  search their own; kid mode keeps to its allowlist. See docs/ASK_EVERYTHING.md.
+- Added: **Messages between linked servers.** Private chats between the people who own two or more Sara
+  servers: link with a one-time code (works once, for 30 minutes) and unlink from either side; one-to-one
+  chats and communities (the creator's server hosts it; anyone with its code joins; the creator and the
+  moderators they pick can remove or ban, enforced by the host, and make a new code). Pictures and files
+  up to 5 MB, edit and delete your own messages, read receipts and typing (each can be turned off), mute,
+  block, leave, report to the creator, and a phone/desktop notification. Messages go straight from server
+  to server, signed with the link's own keys, wait and retry while the other server is offline, are
+  sealed at rest, and are kept 30 days by default (your choice, per chat too). Sara is not involved: they
+  never reach her memory, her chats, a model, a tool or the logs, unless you press "Ask Sara about this".
+  Owner only. See docs/MESSAGES.md.
+
+- Added: hands-free computer use. Say "just do it" (or press **Let her finish this task** on the first
+  card) and she finishes the task without a card on every click, across every site and app, for 15
+  minutes, an hour or until you stop her (Settings → Computer use → How often she asks). Account and
+  sign-in pages now ask once per task. The hard limits stay: passwords and codes are yours, payments ask,
+  banking and password managers stay blocked, administrator prompts are yours. A banner with Stop and a
+  step log show what she did. The Windows app confirms it once on its own card.
+- Added: Add a calendar by link (Settings → Email and calendar): paste a Google, Outlook or iCloud private
+  iCal link and its events show on Today and in answers (read only, checked every 15 minutes, the link kept
+  in the vault).
+- Added: Let her set it up for me (Settings → Gmail and Calendar): she makes your Google app in her browser,
+  step by step, and you only sign in and copy two values.
+- Fixed: computer use with smaller models: a changed page, an old look or a window in front makes her look
+  again once and retry the same control; scrolling works without a ref (also inside scrolling panels) and
+  says where she is; made-up tab ids and tool names find the right ones.
+
+## 3.14.1 (2026-11-16): saved documents count as saved
+
+- Fixed: a document she made and saved in the Library is no longer called "not checked" when she says so.
+  Making a document (and filling a form, invoices, exports, edits in Docs/Sheets/Excel) now counts as proof,
+  also in a later message, so pressing *do it now* no longer saved the same document again and again.
 ## 3.14.0 (2026-11-16): all your accounts together, and her own icon
 
 - Added: several accounts together. Sign in to more than one Google account (Settings → Email and

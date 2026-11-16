@@ -384,7 +384,7 @@ test('a task through her tools: fill the form and submit it, cards per the rows,
     assert.equal(card.action, 'type');
     assert.equal(card.site, new URL(fx).host);
     assert.equal(card.text, 'Ada');
-    assert.deepEqual(card.choices, ['once', 'task', 'always']);
+    assert.deepEqual(card.choices, ['once', 'task', 'always', 'free'], 'HANDSFREE: the first card also offers "Let her finish this task"');
     assert.match(cards[0].summary, /type into the field “Name” on 127\.0\.0\.1:\d+ in Sara\u2019s browser on Test PC/);
     const results = evs.filter((x): x is Extract<ChatEvent, { type: 'tool_result' }> => x.type === 'tool_result');
     assert.deepEqual(results.map((x) => x.status), ['ok', 'ok', 'ok', 'ok', 'ok', 'ok', 'ok'], JSON.stringify(results.map((x) => x.output)));

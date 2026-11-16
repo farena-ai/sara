@@ -44,12 +44,15 @@ import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
 import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
+import { initGoals, loadGoals, openGoals, renderGoalsTile } from './long-goals.js';
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
 import { initFamily, loadFamily, openFamily, renderFamilyTile } from './family.js';
+import { initMessages, messagesChanged, openMessages, refreshMessagesBadge } from './messages.js';
 import { initInboxHelper, loadInboxHelper, renderInboxTile } from './inbox-helper.js';
 import { initWorkApps, loadWorkApps } from './workapps.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
+import { initHandsFree, onHandsFreeEvent, refreshHandsFree } from './handsfree.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
 import { initPcFilesSettings, renderPcFilesPrefs } from './pc-files-settings.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
@@ -127,6 +130,7 @@ import { sandboxButtons, sandboxFirstNote, sandboxFlag, sandboxSection, teamSand
 import { advisoryFlag, advisorySection, initFindings, openFindings, openRedTeam, redteamFlag, redteamGateSection, refreshFindings, securityCard, threatCard } from './findings-view.js';
 import { openRunView } from './run-view.js';
 import { recallChip, recallKindWords } from './recall-view.js';
+import { initAsk, openAsk } from './ask-everything.js';
 import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, whenFor } from './recall-when.js';
 import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
 import { addToSceneAction, canonChip, initScenes, lineCanonChip, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
@@ -165,6 +169,7 @@ import { durationWords, turnHeads } from './turn-meta.js';
 import { initOrbs, orbMount, orbSignal } from './orb.js';
 import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './run-timeline.js';
 import { initMemoryMap } from './memory-map.js';
+import { choiceCard } from './choice-card.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -1259,6 +1264,8 @@ async function openConversation(id) {
   void persistOpen(conv.id);
   // Phase 119: was he just talking in another of his chats? (the pickup banner)
   void pickupOpen(conv.id);
+  // HANDSFREE: "Let her finish this task" banner and step log for this chat.
+  void refreshHandsFree(conv.id);
   // R1C2: other chats of his active on this project (coding chats only; the server decides).
   void projectNowOpen(conv.id, { api, open: (other) => void openConversation(other), current: () => state.currentId });
   if (conv.activity && !state.streaming) watchConversation(conv);
@@ -1743,6 +1750,7 @@ initToday({
   renderWatching: (part, head) => renderWatchingTile(part, head),
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
   renderErrands: (part, head) => renderErrandsTile(part, head),
+  renderGoals: (part, head) => renderGoalsTile(part, head),
   renderFamily: (part, head) => renderFamilyTile(part, head),
   renderInbox: (part, head) => renderInboxTile(part, head, dateCard),
   renderPhotos: renderTodayPhotos,
@@ -2278,7 +2286,7 @@ function renderMessages(messages, opts = {}) {
       continue;
     } else {
       // Phase 61: app notices with a template (a backup model took over) in the app language.
-      const b = bubble(m.role, m.role === 'notice' && m.meta?.key ? serverText(m.meta, m.content) : m.content, m.kind, m.id, Array.isArray(m.meta?.images) ? m.meta.images.map((i) => `/api/uploads/${i}`) : [], Array.isArray(m.meta?.docs) ? m.meta.docs : []);
+      const b = bubble(m.role, m.role === 'notice' && m.meta?.key ? serverText(m.meta, m.content) : m.role === 'assistant' && m.meta?.choice?.question ? m.meta.choice.question : m.content, m.kind, m.id, Array.isArray(m.meta?.images) ? m.meta.images.map((i) => `/api/uploads/${i}`) : [], Array.isArray(m.meta?.docs) ? m.meta.docs : []);
       // Phase 51: a reply from another assistant in imported history is labelled as theirs.
       if (m.role === 'assistant' && typeof m.meta?.importedFrom === 'string') {
         b.classList.add('imported');
@@ -2300,6 +2308,8 @@ function renderMessages(messages, opts = {}) {
       // Phase 120: what his @-references attached, and the checks chip under her reply.
       if (m.role === 'user' && Array.isArray(m.meta?.refs) && m.meta.refs.length) b.append(refChipsSent(m.meta.refs, m.id));
       if (m.role === 'assistant' && m.meta?.checks?.state) b.append(checksChip(m.meta.checks));
+      // S10 (docs/CHOICES.md): her pick-an-answer card; open until answered or a later message.
+      if (m.role === 'assistant' && m.meta?.choice?.options) b.append(choiceCard(m.meta.choice, { open: m.meta.choice.answered === undefined && m.id > (lastUser?.id ?? 0), t, send: (s) => void send(s), other: () => $('#input')?.focus() }));
       // R1B3 follow-up: a line picked into the scene's canon says so.
       const lineCanon = lineCanonChip(m, state.conv);
       if (lineCanon) b.append(lineCanon);
@@ -3800,7 +3810,7 @@ function computerApproval(card, title, k, decide) {
     unlock.dataset.raw = '';
     lines.push(unlock);
   }
-  const why = k.risk === 'login' && managers ? t('Signing in with your password manager: this asks every time.') : k.risk === 'login' ? t('Using a saved login: this asks every time.') : k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' ? t('Account or security settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
+  const why = k.risk === 'login' && managers ? t('Signing in with your password manager: this asks every time.') : k.risk === 'login' ? t('Using a saved login: this asks every time.') : k.risk === 'payment' ? t('A payment or purchase: this asks every time.') : k.risk === 'account' && k.choices.includes('task') ? t('Account or security settings: this asks once per task.') : k.risk === 'account' ? t('Passwords, two-step sign-in and recovery settings: this asks every time.') : k.risk === 'send' ? t('Sending something as you: this asks every time.') : k.choices.includes('task') ? t('Her first action on this site in this task.') : k.choices.includes('always') ? t('Every action asks (your setting).') : t('This asks every time.');
   lines.push(el('p', 'muted small', why));
   const row = el('div', 'row');
   const btn = (label, cls, fn) => {
@@ -3810,7 +3820,9 @@ function computerApproval(card, title, k, decide) {
     row.append(b);
     return b;
   };
-  btn(t('Allow once'), '', () => decide(true));
+  // HANDSFREE: "Let her finish this task": no more cards in this task (the hard limits still ask).
+  if (k.choices.includes('free')) btn(t('Let her finish this task'), '', () => decide(true, 'free'));
+  btn(t('Allow once'), k.choices.includes('free') ? 'ghost' : '', () => decide(true));
   if (k.choices.includes('task')) btn(t('Allow for this task'), 'ghost', () => decide(true, 'task'));
   if (k.choices.includes('always')) btn(t('Always on {site}', { site: k.site }), 'ghost', () => decide(true, 'always'));
   btn(t("Don't"), 'ghost', () => decide(false));
@@ -6965,6 +6977,13 @@ $('#apns-remove').addEventListener('click', async () => {
 
 // ---------- Google: Gmail + Calendar (Phase 14) ----------
 const gRedirect = () => `${location.origin}/api/google/callback`;
+// HANDSFREE 3b: "Let her set it up for me": a new chat that starts the guided errand hands-free.
+$('#g-auto')?.addEventListener('click', async () => {
+  const st = $('#settings');
+  if (st?.open) st.close();
+  await newConversation();
+  await send(t('Set up Google sign-in for me in your browser, just do it. Use pc_google_setup. My redirect address is {url}', { url: gRedirect() }));
+});
 async function loadGoogle() {
   const g = await api('/google').catch(() => null);
   if (!g) return;
@@ -7384,6 +7403,8 @@ function startEvents() {
   es.addEventListener('history-import', (e) => renderHistStatus(JSON.parse(e.data).status));
   // Phase 104: a move-in's upload, check, read or import moved on.
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
+  // S9a: a private-messages chat changed (its id only).
+  es.addEventListener('pm', (e) => messagesChanged(JSON.parse(e.data).chat));
   // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
   es.addEventListener('today', (e) => {
     const part = JSON.parse(e.data).part;
@@ -7391,6 +7412,7 @@ function startEvents() {
     if (part === 'needs' || part === 'errands') void refreshBadge();
     // R3: an errand moved: its page refreshes while it is open.
     if (part === 'errands' && $('#errands')?.open) void loadErrands();
+    if (part === 'goals' && $('#goals')?.open) void loadGoals();
     if (part === 'family' && $('#family')?.open) void loadFamily();
   });
   es.addEventListener('job', () => todayPartChanged('work'));
@@ -9960,7 +9982,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), family: () => $('#open-family').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), addons: () => $('#open-addons').click() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10084,8 +10106,12 @@ async function runSearch() {
     [t('Scrapbook'), r.scrapbook.map((x) => hit(`♥ ${x.title}`, x.snippet, async () => (x.conversationId && x.messageId ? openIn(x.conversationId, x.messageId) : $('#open-scrapbook').click())))],
     [t('Files'), r.files.map((x) => hit(`📄 ${x.title}`, x.snippet, () => openFileView(x.workspace, x.path, q)))],
   ].filter(([, items]) => items.length);
-  if (!sections.length) return nav.replaceChildren(el('p', 'muted small group-empty', t('Nothing found.')));
+  // S5: the same words asked across mail, files, calendars, lists and contacts too.
+  const ask = hit(`✦ ${t('Ask about anything in your life')}`, `“${q}”`, async () => openAsk(q));
+  ask.classList.add('search-ask');
+  if (!sections.length) return nav.replaceChildren(ask, el('p', 'muted small group-empty', t('Nothing found.')));
   nav.replaceChildren(
+    ask,
     ...sections.flatMap(([label, items]) => {
       const head = el('div', 'group-head');
       head.append(el('span', 'group-toggle', `${label} `), el('small', 'muted', String(items.length)));
@@ -10800,6 +10826,27 @@ initSlash({
   },
 });
 initWhen({ api, el });
+// S5: the ask box (web/ask-everything.js).
+initAsk({
+  api,
+  el,
+  openChat: async (id, messageId) => {
+    if (todayOpen()) closeToday({ focus: false });
+    await openConversation(id);
+    if (messageId) await jumpToMessage(messageId);
+  },
+  openFile: (ws, path, q) => openFileView(ws, path, q),
+  openPlanner: (tab) => openPlannerTab(tab),
+  showPerson: (id) => showPerson(id),
+  openLibrary: (id, page) => openLibrary(id, page),
+  askInChat: async (q) => {
+    if (todayOpen()) closeToday({ focus: false });
+    const conv = await api('/conversations', { method: 'POST', body: {} });
+    state.conversations.unshift(conv);
+    await openConversation(conv.id);
+    await send(q);
+  },
+});
 initSessionContinuity({ api });
 initScenes({ api, openSettings: (page) => openSettings(page) });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
@@ -12376,9 +12423,46 @@ $('#open-family').addEventListener('click', () => {
   closeSidebar();
   void openFamily();
 });
+// S9a (docs/MESSAGES.md): Messages between linked servers' owners. "Ask Sara about this" is the only way
+// one reaches her: a new chat opens with the text in the box, and the owner decides to send it.
+initMessages({
+  api,
+  el,
+  notify: (title, body) => notify(title, body),
+  askHer: async (text) => {
+    $('#msgs').close();
+    await newConversation();
+    const box = $('#input');
+    box.value = text;
+    box.dispatchEvent(new Event('input'));
+    box.focus();
+  },
+});
+$('#open-msgs').addEventListener('click', () => {
+  closeSidebar();
+  void openMessages();
+});
+void refreshMessagesBadge();
 $('#open-errands').addEventListener('click', () => {
   closeSidebar();
   void openErrands();
+});
+// S3 (docs/GOALS.md): the Goals page.
+initGoals({
+  api,
+  el,
+  openConversation: (id) => {
+    if ($('#goals').open) $('#goals').close();
+    void openConversation(id);
+  },
+  openErrands: () => {
+    if ($('#goals').open) $('#goals').close();
+    void openErrands();
+  },
+});
+$('#open-goals').addEventListener('click', () => {
+  closeSidebar();
+  void openGoals();
 });
 initHousehold({ show, boot, copyText, showSettingsTab });
 for (const b of document.querySelectorAll('[data-story]')) {
@@ -14145,6 +14229,10 @@ async function loadComputer() {
   $('#cu-acts').hidden = h.role !== 'owner';
   $('#cu-level').value = h.level || 'task';
   $('#cu-level').dataset.was = h.level || 'task';
+  // HANDSFREE: how often she asks, and how long "Let her finish this task" lasts.
+  $('#cu-approvals').value = h.approvals || 'task';
+  $('#cu-approvals').dataset.was = h.approvals || 'task';
+  $('#cu-hf-for').value = h.handsFreeFor || '1h';
   // Phase 94: browser extensions in check-ups (on unless the owner turned it off).
   $('#cu-checkup-ext').checked = h.checkupExtensions !== false;
   $('#cu-desktop-level').closest('label').hidden = true;
@@ -14577,6 +14665,7 @@ $('#cu-desktop').addEventListener('change', async () => {
   if (r && !r.error) renderCuPerms(r);
 });
 initPcRunSettings(() => handsBridge());
+initHandsFree({ api, stop: () => { if (state.streaming) $('#stop')?.click(); } });
 $('#cu-tabs').addEventListener('change', async () => {
   const box = $('#cu-tabs');
   const d = handsBridge();
@@ -14696,6 +14785,19 @@ $('#cu-level').addEventListener('change', async () => {
     $('#cu-status').textContent = err.message;
   }
 });
+for (const [id, key] of [['#cu-approvals', 'approvals'], ['#cu-hf-for', 'handsFreeFor']]) {
+  $(id).addEventListener('change', async () => {
+    const sel = $(id);
+    try {
+      const r = await api('/computer', { method: 'PUT', body: { [key]: sel.value } });
+      sel.dataset.was = r[key];
+      $('#cu-status').textContent = t('Saved');
+    } catch (err) {
+      if (sel.dataset.was) sel.value = sel.dataset.was;
+      $('#cu-status').textContent = err.message;
+    }
+  });
+}
 $('#cu-desktop-level').addEventListener('change', async () => {
   const sel = $('#cu-desktop-level');
   const bridge = handsBridge();
@@ -14769,6 +14871,7 @@ function hideLiveView() {
 async function onComputerEvent(ev) {
   if (!ev || typeof ev !== 'object') return;
   const mine = !ev.conversationId || ev.conversationId === state.currentId;
+  if (onHandsFreeEvent(ev)) return;
   // 3.5 (PC tools): a command on the owner's computer: the live panel with its output and Stop.
   if (ev.run) {
     onPcRunEvent(ev, state.currentId, { stop: async (id) => { if (state.streaming) $('#stop')?.click(); await api(`/hands/${encodeURIComponent(id)}/stop`, { method: 'POST', body: {} }).catch(() => {}); } });

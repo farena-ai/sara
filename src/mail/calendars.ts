@@ -70,6 +70,9 @@ export function calendarSources(app: { google?: AppContext['google']; mailAccoun
       },
     });
   }
+  // HANDSFREE 3a: calendars added by link (read only), labeled by the name the person gave them.
+  const links = (accts as { calendarLinks?: { sources(): CalSource[] } } | undefined)?.calendarLinks;
+  if (links && typeof links.sources === 'function') out.push(...links.sources());
   return out;
 }
 

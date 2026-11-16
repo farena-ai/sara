@@ -5,7 +5,7 @@
 // Polls the run every 1.5 s while it works; nothing here calls a model or fetches a page itself.
 import { parse, toDom } from './markdown.js';
 import { serverText, t } from './naming.js';
-import { budgetBits, progressBits, runButtons, statusLine, topicLine } from './research-card.js';
+import { budgetBits, capLine, progressBits, runButtons, statusLine, topicLine } from './research-card.js';
 
 const $ = (s) => document.querySelector(s);
 const POLL_MS = 1500;
@@ -13,6 +13,8 @@ let runId = null;
 let timer = null;
 let draft = null;
 let limits = { pageChoices: [4, 8, 12, 20], defaultPages: 8, maxSteps: 5, maxSearches: 3 };
+// S1: whether the web and his Library can be read now (GET /api/research).
+let avail = { web: { ready: true }, library: { ready: false }, privateLocal: false };
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -93,11 +95,16 @@ async function render() {
     if (runId == null) {
       const r = await api('/research');
       limits = r.limits ?? limits;
+      avail = { web: r.web ?? avail.web, library: r.library ?? avail.library, privateLocal: Boolean(r.privateLocal) };
       host.replaceChildren(askForm(r), pastRuns(r.runs));
       return;
     }
     const { run } = await api(`/research/${runId}`);
-    if (!limits.budgetPages) limits = (await api('/research').catch(() => ({}))).limits ?? limits;
+    if (!limits.budgetPages || run.status === 'plan') {
+      const all = await api('/research').catch(() => ({}));
+      limits = all.limits ?? limits;
+      if (all.web) avail = { web: all.web, library: all.library, privateLocal: Boolean(all.privateLocal) };
+    }
     host.replaceChildren(runView(run));
     if (working(run.status) || (run.topic && run.topic.status !== 'ready' && run.topic.status !== 'failed')) timer = setTimeout(() => void render(), POLL_MS);
   } catch (e) {
@@ -113,6 +120,7 @@ function askForm(r) {
   q.placeholder = t('For example: do heat pumps work in cold climates?');
   box.append(field(t('Your question'), q, t('She drafts a plan first and reads nothing until you start it. She uses your web search and reads public pages only; every sentence of the report links the page it came from.')));
   if (!r.ready) box.append(el('p', 'small error', serverText({ error: r.why }, r.why ?? '')));
+  else if (r.web && !r.web.ready) box.append(el('p', 'small muted', `${serverText({ error: r.why }, r.why ?? '')} ${t('She can still research your Library.')}`));
   const status = el('p', 'small', '');
   status.setAttribute('role', 'status');
   const go = btn(t('Draft a plan'), '', async () => {
@@ -156,6 +164,7 @@ function runView(run) {
   st.setAttribute('role', 'status');
   box.append(st);
   if (run.status === 'plan') box.append(planEditor(run));
+  if (run.status === 'running' || run.status === 'paused') box.append(capLine(run));
   // 3.1.2: progress, the budget he can raise, Pause / Resume, Save as a skill (web/research-card.js).
   if (run.status !== 'plan' && run.status !== 'planning') box.append(progressBits(run));
   if (run.status === 'running' || run.status === 'paused') box.append(budgetBits(run, limits, () => void render()));
@@ -177,7 +186,7 @@ async function act(path, body = {}) {
 }
 
 function planEditor(run) {
-  draft ??= structuredClone(run.plan);
+  draft ??= { ...structuredClone(run.plan), reach: { ...run.reach } };
   const box = el('div', 'rs-plan');
   draft.steps.forEach((step, i) => {
     const row = el('fieldset', 'rs-step');
@@ -206,6 +215,7 @@ function planEditor(run) {
   for (const n of limits.pageChoices) pages.append(new Option(t('up to {n} pages', { n }), String(n), false, n === draft.pages));
   pages.addEventListener('change', () => (draft.pages = Number(pages.value)));
   box.append(field(t('Pages to read'), pages, t('At most this many pages are read. More pages take longer and use more of your model; you can write the report early at any time.')));
+  box.append(reachBox(run), capLine(run));
   const status = el('p', 'small', '');
   const acts = el('div', 'actions-left');
   acts.append(
@@ -227,6 +237,33 @@ function planEditor(run) {
     }),
   );
   box.append(acts, status);
+  return box;
+}
+
+/** S1: where she reads (the web, his Library) and whether only models on this computer may write. */
+function reachBox(run) {
+  const box = el('fieldset', 'rs-reach');
+  box.append(el('legend', 'small', t('Where she reads')));
+  const forced = avail.privateLocal || run.conversationPrivate;
+  const row = (label, key, on, help, ok = true) => {
+    const id = `rs-reach-${key}`;
+    const l = el('label', 'rs-check');
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.id = id;
+    c.checked = Boolean(on);
+    c.disabled = !ok;
+    c.addEventListener('change', () => (draft.reach[key] = c.checked));
+    l.append(c, document.createTextNode(` ${label} `));
+    const wrap = el('div', 'rs-check-row');
+    wrap.append(l, tip(help));
+    return wrap;
+  };
+  box.append(
+    row(t('The web'), 'web', draft.reach.web, t('Searches the web with your web search and reads public pages. Off in Nothing leaves this computer mode; in a private chat only when you tick it.'), avail.web.ready && !avail.privateLocal),
+    row(t('Your Library'), 'library', draft.reach.library, t('Looks the same searches up in your own files in her Library and cites them like pages.'), avail.library.ready),
+    row(t('Only models on this computer'), 'localOnly', draft.reach.localOnly, t('Plans and writes only with models on your own hardware. Always on for private chats and in Nothing leaves this computer mode.'), !forced),
+  );
   return box;
 }
 
@@ -256,15 +293,21 @@ function sourceLists(run) {
   const read = run.sources.filter((s) => s.status === 'read');
   const failed = run.sources.filter((s) => s.status === 'failed');
   const blocked = run.sources.filter((s) => s.status === 'blocked');
-  box.append(el('h3', '', t('Pages read ({n})', { n: read.length })));
+  box.append(el('h3', '', t('Sources read ({n})', { n: read.length })));
   const ul = el('ol', 'rs-list');
   for (const s of read) {
     const li = el('li');
-    const a = el('a', '', s.title);
-    a.href = s.url;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    li.append(a, el('span', 'muted small', ` · ${new URL(s.url).host}`));
+    // S1: his own file (a Library source) opens in her Library, not as a web page.
+    if (s.via === 'library') {
+      const docId = Number(s.url.slice('library:'.length));
+      li.append(btn(s.title, 'rs-doc-link', () => void import('./library.js').then((m) => m.openLibrary(docId))), el('span', 'muted small', ` · ${t('your Library')}`));
+    } else {
+      const a = el('a', '', s.title);
+      a.href = s.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      li.append(a, el('span', 'muted small', ` · ${new URL(s.url).host}`));
+    }
     ul.append(li);
   }
   if (!read.length) box.append(el('p', 'muted small', t('None yet.')));

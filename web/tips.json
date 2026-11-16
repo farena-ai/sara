@@ -1133,6 +1133,10 @@
       "After reading a document she writes its key points into her memory (dates, amounts, names, what to do), each with the exact words it came from. You can check and delete them by opening the document. Off: she only looks things up in it.",
       "library"
     ],
+    "ask-q": [
+      "Ask one question across your emails, files, chats, calendars, notes, lists and contacts, like “when is my lease renewal due?”. Each answer line cites its source; tap it to open the spot.",
+      "find"
+    ],
     "lib-q": [
       "Search all your documents at once, by words and (when Meaning search is on) by meaning. Click a result to open the document.",
       "library"

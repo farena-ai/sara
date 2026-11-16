@@ -25,6 +25,8 @@ export interface NavFacts {
   localOnly: boolean;
   /** Does one of her jobs listen on this localhost port? */
   jobPort: (port: number) => boolean;
+  /** HANDSFREE: the person let her finish this task (src/handsfree.ts): no card for a new site. */
+  handsFree?: boolean;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -67,12 +69,14 @@ export function navigationVerdict(raw: string, facts: NavFacts): Verdict {
     const port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
     if (facts.jobPort(port)) return { act: 'allow', why: 'one of her jobs listens there' };
     if (facts.granted.has(site)) return { act: 'allow', why: 'allowed in this task' };
+    if (facts.handsFree) return { act: 'allow', why: 'hands-free: she finishes this task' };
     // The owner gave this exact address ("my app at localhost:5173").
     const named = namedSites(facts.ownerText);
     if (named.has(site) || named.has(`localhost:${port}`) || named.has(`127.0.0.1:${port}`)) return { act: 'allow', why: 'the owner named it' };
     return { act: 'ask', site, why: `a program on this computer (port ${port}) that isn't one of her jobs` };
   }
   if (facts.granted.has(site)) return { act: 'allow', why: 'allowed in this task' };
+  if (facts.handsFree) return { act: 'allow', why: 'hands-free: she finishes this task' };
   const named = namedSites(facts.ownerText);
   const bare = site.replace(/^www\./, '');
   if (named.has(site) || named.has(bare) || named.has(`www.${bare}`)) return { act: 'allow', why: 'the owner named it' };
@@ -136,10 +140,26 @@ export interface ActFacts {
   taskSites: ReadonlySet<string>;
   /** "Always on this site" choices: site + kind. */
   always: readonly { site: string; kind: string }[];
+  /** HANDSFREE: the person let her finish this task: only the hard limits still ask or block. */
+  handsFree?: boolean;
+  /** HANDSFREE: the card may offer "Let her finish this task" (Settings → Computer use → approvals). */
+  offerFree?: boolean;
 }
-export type ActVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
+export type ActChoice = 'once' | 'task' | 'always' | 'free';
+export type ActVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ActChoice[] } | { act: 'block'; risk: ActRisk; why: string };
 
 const PAY = /\b(pay|pay now|place (?:your )?order|buy|buy now|purchase|check ?out|complete (?:the )?(?:order|purchase)|confirm (?:the )?(?:order|purchase|payment)|subscribe|donate|add (?:a )?card|submit payment|proceed to payment)\b/i;
+/**
+ * HANDSFREE: the account rows that stay every-time whatever the person chose (passwords, 2FA, recovery,
+ * deleting or closing the account, changing its email). The other account and security words (privacy
+ * settings, API keys, access tokens, OAuth consent, calendar sharing) ask once per task.
+ */
+const ACCOUNT_HARD = /\b(delete (?:my |your |the )?account|close (?:my |your )?account|deactivate|remove (?:my |your )?account|change (?:my |your )?(?:password|email|e-mail)|reset (?:my |your )?password|new password|(?:current|old|confirm) password|two[- ]factor|2fa|2-step|one[- ]time (?:code|password)|verification code|recovery (?:code|email|phone|options?)|backup codes?|security (?:questions?|key)|passkeys?|sign out (?:of )?all)\b/i;
+const ACCOUNT_HARD_PAGE = /password|two[- ]?factor|2fa|2-step|signinoptions|recovery|backup.?codes|passkey|security.?key/i;
+/** An account action that asks every time, even hands-free (passwords, 2FA, recovery, delete account). */
+export function accountHard(f: Pick<ActFacts, 'target' | 'page'>): boolean {
+  return ACCOUNT_HARD.test(f.target.name ?? '') || ACCOUNT_HARD_PAGE.test(`${f.page.title ?? ''} ${f.page.url ?? ''}`);
+}
 const ACCOUNT = /\b(delete (?:my |your |the )?account|close (?:my |your )?account|deactivate|remove (?:my |your )?account|change (?:my |your )?(?:password|email|e-mail)|reset (?:my |your )?password|new password|two[- ]factor|2fa|recovery (?:code|email|phone)|security (?:settings|questions?)|privacy settings|sign out (?:of )?all|revoke|api keys?|access tokens?)\b/i;
 const SEND = /\b(send|post|publish|tweet|reply|comment|share|submit (?:message|comment|post|review))\b/i;
 /** Text shaped like a key, token or Sara sign-in: never typed by her. */
@@ -162,15 +182,21 @@ export function actRisk(f: Pick<ActFacts, 'kind' | 'target' | 'page'>): ActRisk 
 
 export function actionVerdict(f: ActFacts): ActVerdict {
   const risk = actRisk(f);
-  if (f.kind === 'type' && f.target.secret) return { act: 'block', risk, why: 'That is a password field: Sara never types passwords. Ask the owner to type it themselves in the Sara browser, then go on.' };
+  if (f.kind === 'type' && f.target.secret) return { act: 'block', risk, why: 'That is a password field: Sara never types passwords. Hand it to the owner (pc_browser_your_turn) so they type it themselves in the Sara browser, then go on.' };
   if (f.text && looksSecret(f.text)) return { act: 'block', risk, why: 'That text looks like a key or a sign-in token: Sara never types those (and never Sara\u2019s own sign-in).' };
   if (risk === 'payment') return { act: 'ask', risk, why: 'a payment or purchase (asks every time)', choices: ['once'] };
-  if (risk === 'account') return { act: 'ask', risk, why: 'account or security settings (asks every time)', choices: ['once'] };
+  const hard = accountHard(f);
+  if (hard) return { act: 'ask', risk: 'account', why: 'passwords, two-step sign-in and recovery settings (asks every time)', choices: ['once'] };
+  // HANDSFREE: the person let her finish this task: everything below the hard limits goes ahead.
+  if (f.handsFree) return { act: 'allow', risk, why: 'hands-free: she finishes this task' };
+  const free: ActChoice[] = f.offerFree ? ['free'] : [];
+  // Account and security pages (Google account, Cloud console, OAuth consent, calendar sharing) ask once per task.
+  if (risk === 'account') return f.taskSites.has(f.site) ? { act: 'allow', risk, why: 'allowed for this task' } : { act: 'ask', risk, why: 'account or security settings (asks once per task)', choices: ['once', 'task', ...free] };
   if (f.always.some((a) => a.site === f.site && a.kind === f.kind)) return { act: 'allow', risk, why: 'always allowed on this site' };
   if (f.level === 'always') return { act: 'allow', risk, why: 'her browser actions are always allowed' };
-  if (risk === 'send') return { act: 'ask', risk, why: 'sending something as you (asks every time)', choices: ['once'] };
+  if (risk === 'send') return { act: 'ask', risk, why: 'sending something as you (asks every time)', choices: ['once', ...free] };
   if (f.level === 'task' && f.taskSites.has(f.site)) return { act: 'allow', risk, why: 'allowed for this task' };
-  return { act: 'ask', risk, why: f.level === 'ask' ? 'every action asks' : 'the first action on this site in this task', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
+  return { act: 'ask', risk, why: f.level === 'ask' ? 'every action asks' : 'the first action on this site in this task', choices: f.level === 'task' ? ['once', 'task', 'always', ...free] : ['once', 'always', ...free] };
 }
 
 // ---- Phase 93 (CU6): desktop input -------------------------------------------------------------
@@ -193,8 +219,11 @@ export interface DesktopFacts {
   text?: string;
   /** 3.6.x: the window of the latest look (its app and title), when known. */
   window?: { app?: string; title?: string };
+  /** HANDSFREE: the person let her finish this task (confirmed once on that computer). */
+  handsFree?: boolean;
 }
 export type DesktopVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
+const DESKTOP_ACCOUNT_HARD = /password|2fa|two[- ]factor|recovery|passkey|one[- ]time code|verification code|backup code/i;
 
 const DESKTOP_NEVER = /admin(?:istrator)?|elevat(?:ed|ion)|uac|secure desktop|password manager|bank(?:ing)?|security settings|sara(?:'s)? (?:own )?(?:sign[- ]?in|server token)|(?:delete|remove|erase) (?:a )?(?:file|folder)|empty (?:the )?(?:trash|recycle)|move to trash|run as administrator|credential manager/i;
 const DESKTOP_ACCOUNT = /account|password|2fa|two[- ]factor|recovery|security|privacy|sign out|revoke/i;
@@ -233,7 +262,9 @@ const EXTENSIONS_TITLE = /\b(?:extensions?|add-?ons?(?: manager)?|erweiterungen|
 export function extensionsWindow(app: string, title: string): boolean {
   return BROWSER_APP_NAME.test(app) && EXTENSIONS_TITLE.test(title) && !/password|passkey|payment|wallet|sync|account|security/i.test(title);
 }
-export function ownBrowserPage(title: string, url = '', blocked = ''): { act: 'block' | 'once' | 'level'; why: string } {
+/** HANDSFREE: the payment half of SENSITIVE_PAGE (asks every time, even hands-free); the rest asks once per task hands-free. */
+export const PAYMENT_PAGE = /check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet/i;
+export function ownBrowserPage(title: string, url = '', blocked = '', handsFree = false): { act: 'block' | 'once' | 'level'; why: string } {
   if (blocked) return { act: 'block', why: `That tab is hidden from you on purpose (${blocked}): never act there.` };
   const internal = browserInternalPage(url);
   if (internal === 'blocked') return { act: 'block', why: 'That is the browser\u2019s own passwords, payment methods or account/sync page: never act there (the owner does that part).' };
@@ -245,7 +276,8 @@ export function ownBrowserPage(title: string, url = '', blocked = ''): { act: 'b
   } catch {
     /* the text as it is */
   }
-  if (SENSITIVE_PAGE.test(`${title} ${path}`)) return { act: 'once', why: 'a payment, account, security or sign-in page (asks every time)' };
+  if (PAYMENT_PAGE.test(`${title} ${path}`)) return { act: 'once', why: 'a payment page (asks every time)' };
+  if (SENSITIVE_PAGE.test(`${title} ${path}`)) return handsFree && !ACCOUNT_HARD_PAGE.test(`${title} ${path}`) ? { act: 'level', why: 'hands-free: an account or sign-in page' } : { act: 'once', why: 'an account, security or sign-in page (asks every time)' };
   return { act: 'level', why: '' };
 }
 
@@ -258,7 +290,8 @@ export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
   const removeWord = extensions ? /\b(?:delete|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)|\bremove (?:a |the )?(?:file|folder)s?\b/i : /\b(?:delete|remove|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)/i;
   if (DESKTOP_NEVER.test(words) || removeWord.test(f.target.name ?? '')) return { act: 'block', risk, why: 'The computer refuses that protected desktop action.' };
   if (extensions && /\bremove\b/i.test(f.target.name ?? '')) return { act: 'ask', risk: 'account', why: 'removing a browser extension (asks every time)', choices: ['once'] };
-  if (risk === 'payment' || risk === 'account') return { act: 'ask', risk, why: `${risk === 'payment' ? 'payment or purchase' : 'account or security setting'} (asks once)`, choices: ['once'] };
+  if (risk === 'payment' || (risk === 'account' && (!f.handsFree || DESKTOP_ACCOUNT_HARD.test(words)))) return { act: 'ask', risk, why: `${risk === 'payment' ? 'payment or purchase' : 'account or security setting'} (asks once)`, choices: ['once'] };
+  if (f.handsFree && f.level !== 'ask') return { act: 'allow', risk, why: 'hands-free: she finishes this task' };
   if (f.level === 'always' || (f.level === 'task' && f.taskGranted)) return { act: 'allow', risk, why: f.level === 'always' ? 'desktop actions are always allowed' : 'allowed for this task' };
   return { act: 'ask', risk, why: f.level === 'ask' ? 'every desktop action asks' : 'the first desktop action in this task asks', choices: f.level === 'task' ? ['once', 'task', 'always'] : ['once', 'always'] };
 }

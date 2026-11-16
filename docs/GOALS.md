@@ -1,5 +1,8 @@
 # Keep going until it's done, and repeats
 
+> Looking for **goals over days** (a plan of milestones with dates, a Goals page and a weekly summary)?
+> See [Goals over days](#goals-over-days) at the end of this page.
+
 Two ways to let her carry on in a chat without you typing each step (Phase 118, 2.51.0). Both are
 yours only, both start only when you press **Start**, and after a restart both come back **paused**.
 
@@ -114,3 +117,65 @@ them. In Telegram and the other chat apps `/goal` and `/loop` work the same way 
 | `/loop start` · `/loop pause` · `/loop stop` · `/loop` | Drive this chat's repeats |
 
 Design and every rule: [design/PERSIST.md](design/PERSIST.md).
+
+## Goals over days
+
+Something bigger you want done by a date: "get my house sale paperwork done by Dec 15", "run a 10k in
+March". She keeps a plan of **milestones** with due dates, follows it on her own and tells you how it goes.
+(Unlike *Keep going until it's done* above, which works in one chat for minutes, a goal like this lasts
+days or weeks.)
+
+**Set one up.** Tell her in a chat (she shows the plan on a card; you tap **Allow** once), or open
+**Goals** in the sidebar (under **More** unless you pin it), type what you want done, pick a date and press
+**Set it up**. The page starts with three checkpoints spread up to the date; change them on the goal's card.
+
+**What a milestone can start.** When its turn comes (the one before it is done), a milestone can start:
+
+| Kind | What happens |
+|---|---|
+| A task | A Planner task, due on the milestone's date. Ticking the task off ticks the milestone off. |
+| A reminder | A reminder on the morning of its date. |
+| An errand | An errand, planned and **waiting for your Start** on the Errands page. When the errand is done, so is the milestone. |
+| An automation | An automation (from a chat), made **switched off**: it does nothing until you turn it on. |
+| Just a checkpoint | Nothing; tick it off yourself (or tell her). |
+
+**What she does on her own.** About once an hour she checks each goal: finished tasks and errands tick
+their milestones off, the next milestone starts its thing, and when a checkpoint is due tomorrow she
+nudges you once (in the goal's own chat, and on your phone outside quiet hours). Once a week each goal
+gets a short summary: how many milestones are done, what finished this week, the next step.
+
+**When something slips** (a checkpoint passes undone, or its errand stops), she proposes **a new plan**:
+the missed milestone gets two more days and the later ones move as much (kept before the goal's date
+when they fit; if they don't, the goal's date moves too). Nothing changes until you press **Use the new
+plan** on the Goals page; **Keep the old plan** keeps it (that slip isn't proposed again). Tasks,
+reminders and errands move with their milestones.
+
+**Approvals are unchanged.** Every email, form, payment and choice in an errand still asks you; an
+automation acts only once you turn it on; she can't use a new plan for you. Pause, Resume and Stop are on
+each goal's card; stopping a goal leaves what it started where it is. Household members each have their
+own goals, in their own space. Private local mode pauses the checks.
+
+### Design (S3, one page)
+
+- **Engine:** `src/long-goals.ts` (`LongGoals`, table `long_goals` in the space's own `store.db`: title,
+  due, status `active|paused|done|stopped`, JSON milestones / history / proposal, last check, last
+  weekly). No timer: `ReminderScheduler.tick` calls `due(now)`; each goal is checked at most hourly.
+- **Reuse, never duplicate:** tasks and reminders through `PlannerStore` (`addTask`/`updateTask`,
+  `addReminder`/`cancelReminder`), errands through `Errands.start(…, { by: 'page' })` (status
+  *planning*) and `Errands.update` (deadline), automations through `Automations.create` + `setEnabled(false)`.
+  Only the current milestone starts its thing, so a long plan doesn't fill the Planner up front.
+- **Check order:** sync links (task done / errand done or stopped) → all done ends the goal → start the
+  current milestone → slip → nudge → weekly summary. Messages go to the goal's own chat (channel `goal`)
+  and, outside quiet hours, a push (`goal-<id>` tag).
+- **Slip rule:** the earliest undone milestone whose date passed (local time zone) or whose errand stopped,
+  once per due date. New date = today + 2 days; later dated milestones shift by the same number of days,
+  clamped to the goal's date when the slipped one fits, else the goal's date shifts too. A stopped errand
+  proposes a fresh errand (accepting clears the link). One proposal at a time; `accept` only `by: 'person'`.
+- **Tools:** `goal_create` (asks; the card is `planText`), `goal_status` (read-only, interruptible),
+  `goal_update` (notes, tick off / reopen / skip, add, move dates, pause / resume / stop; never a
+  proposal). Lean family `goals` (six languages). Persona section *Goals over days*.
+- **Routes:** `/api/goal-plans` (`/api/goals` is the chat goals'): list, preview, create, get, patch,
+  `accept|dismiss|pause|resume|stop`, delete. Members reach their own (`MEMBER_ROUTES`); never the demo.
+- **UI:** the Goals place (`web/long-goals.js`, `#goals`): progress bar, next step, milestones, the new plan
+  on the shared proposal card, history. Today tile `td-goals` (shown while a goal is active).
+- **Limits:** 20 open goals, 10 milestones each, 60 history lines.

@@ -24,7 +24,7 @@
 
 **Actualizar:** en un servidor Linux, `sudo sara update` (antes hace una copia de seguridad y vuelve atrás si ella no responde) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows y Mac: Ajustes → Datos y salud → Actualizaciones · Android: Google Play. [Cómo actualizar](docs/INSTALL.md#upgrading).
 
-> **Estado:** 3.14.0, [Todas tus cuentas juntas y su propio icono](https://github.com/farena-ai/sara/releases/tag/v3.14.0). Varias cuentas de Google, calendarios de todas las cuentas, una bandeja combinada y respuestas desde la dirección correcta. [Ver novedades](#novedades)
+> **Estado:** 3.15.0, [Opciones para tocar, metas, investigación, pregunta lo que sea, mensajes privados](https://github.com/farena-ai/sara/releases/tag/v3.15.0). Toca sus opciones en vez de escribir, metas de varios días, informes de investigación con fuentes, una búsqueda en toda tu vida y mensajes privados entre servidores Sara. [Ver novedades](#novedades)
 >
 > Instalador Windows: sin firma ([guía de SmartScreen](docs/INSTALL.md)). El proceso de publicación de macOS exige descargas firmadas y notarizadas; cada compilación se verifica por separado. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web en la pantalla de inicio](docs/PHONE.md).
 
@@ -167,20 +167,22 @@ Versiones recientes · 6 de noviembre de 2026. [Historial completo](CHANGELOG.md
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Opciones para tocar, metas, investigación, pregunta lo que sea, mensajes privados](docs/CHOICES.md)** — Botones de respuesta en la app, Telegram y Discord; metas con hitos y avisos; investigación de la web y tus archivos a Word/PDF; preguntas sobre correo, archivos, chats y calendarios; mensajes y comunidades entre servidores que los agentes nunca ven. |
+| **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Los documentos guardados cuentan como guardados](docs/DOCUMENTS.md)** — Crear un documento, rellenar un formulario, facturas, exportaciones y cambios en Docs/Sheets/Excel ya cuentan como prueba de que se guardó. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Todas tus cuentas juntas y su propio icono](docs/MAIL_ACCOUNTS.md)** — Calendarios de Google, Outlook, iCloud, Fastmail y Yahoo etiquetados por cuenta; el icono de la app, la pestaña y las notificaciones usan su propia imagen. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Sus fotos con ComfyUI, enviadas a donde elijas](docs/PHOTOS.md)** — Nuevo ajuste Enviar sus fotos a: un chat solo para sus fotos, uno de tus chats, un chat de proyecto y/o Telegram y Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Ajustes más tranquilos y premium](docs/HOW_DO_I.md)** — La búsqueda encuentra un ajuste concreto y lo resalta (Ctrl+K); en el teléfono se baja de grupo a página; todas las opciones y enlaces antiguos siguen funcionando. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Apps de trabajo, familia, confianza y voz lista](docs/WORK_APPS.md)** — Reglas de herramientas por miembro aplicadas en el servidor, exportación de auditoría y retención; llamadas listas y apagadas hasta conectar un proveedor; datos en seis idiomas, accesibilidad y plantillas. |
-| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Recados, un inicio fácil y Atajos de iPhone](docs/ERRANDS.md)** — Reembolsos, reservas, cancelaciones y presupuestos planificados y seguidos paso a paso; los pagos quedan contigo. Una página de descarga, una autoprueba y adjuntos de Outlook de hasta 150 MB. |
-| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Donde estés, conoce tu mundo, trabaja con tu equipo](docs/WHAT_SARA_KNOWS.md)** — La app de Mac hace lo mismo que la de Windows; las notificaciones tienen Aprobar, Posponer, Responder y Aceptar; responde desde tus archivos con citas exactas y páginas; las horas se convierten en facturas sin cobrar dos veces. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versiones 2.6x anteriores</b>: de la 3.9.0 a la 2.61.5</summary>
+<summary><b>Versiones 2.6x anteriores</b>: de la 3.11.0 a la 2.61.5</summary>
 
 | Versión | Qué cambia para ti |
 |---|---|
+| **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Recados, un inicio fácil y Atajos de iPhone](docs/ERRANDS.md)** — Reembolsos, reservas, cancelaciones y presupuestos planificados y seguidos paso a paso; los pagos quedan contigo. Una página de descarga, una autoprueba y adjuntos de Outlook de hasta 150 MB. |
+| **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Donde estés, conoce tu mundo, trabaja con tu equipo](docs/WHAT_SARA_KNOWS.md)** — La app de Mac hace lo mismo que la de Windows; las notificaciones tienen Aprobar, Posponer, Responder y Aceptar; responde desde tus archivos con citas exactas y páginas; las horas se convierten en facturas sin cobrar dos veces. |
 | **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Desde tu correo, y formularios rellenados](docs/INBOX_HELPER.md)** — Nada se hace solo hasta que lo pidas, y nada del correo envía ni paga. Los formularios se detienen antes de Enviar tras una tarjeta de revisión; los correos llevan adjuntos; las tiendas que la bloquean se consultan en tu navegador. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Acierta y trabaja sola](docs/AUTOMATIONS.md)** — Elige el modelo adecuado para cada tarea y cambia si uno va lento, verifica lo que cambió, informa cada semana de cómo le fue y ejecuta tus automatizaciones con vista previa, prueba e historial. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Un asistente para cada día: dinero, deportes, compras, decisiones, negocio](docs/BUSINESS_TOOLS.md)** — Sopesa opciones según lo que te importa, avisa cuando está reñido y vuelve a preguntar después. Facturas y presupuestos numerados con seguimiento de pagos y vencidos, a quién debes responder, contratos leídos citando cada punto, recibos convertidos en informes de gastos. |

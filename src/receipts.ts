@@ -306,7 +306,9 @@ const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin emba
 /** Read-only tools: they never back an action claim. */
 const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|mail_read|mail_search|mail_thread|mail_needs_answer|mail_accounts|mail_folders|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
 
-const WRITE_TOOLS = new Set(['write_file', 'edit_file']);
+// 3.14.1: tools that write a file or a Library document back "I made / saved it" too (make_document said
+// "saved in the Library (document 10)", yet "it's saved as document #10" was flagged and re-done).
+const WRITE_TOOLS = new Set(['write_file', 'edit_file', 'make_document', 'fill_document', 'invoice_make', 'accounting_export', 'expense_report', 'time_invoice', 'time_report', 'word_fill', 'recipe_save', 'gdoc_append', 'gdoc_replace_text', 'gsheet_update_range', 'gsheet_append_rows', 'excel_update_range']);
 /** Phase 73: a command on one of the owner's servers counts like her shell; these change her server list. */
 const COMMAND_TOOLS = new Set(['shell', 'ssh_run']);
 const SSH_CHANGE = new Set(['ssh_connect', 'ssh_revoke_key', 'ssh_remove_server', 'ssh_forget_password']);
@@ -366,6 +368,14 @@ function priorSupports(sentence: string, prior: Receipt[], kinds: (r: Receipt) =
  * 3.4.3: "the results I saved in note #1" after a note tool saved note 1 in an earlier turn (from the
  * live test: the next turn's model was told off for a save that really happened).
  */
+/** 3.14.1: "it's saved as document #10" after a tool made document 10 (or Library document 10) earlier. */
+function priorDocument(sentence: string, prior: Receipt[]): boolean {
+  const n = /\b(?:document|doc|file)\s*(?:#|number\s*|no\.\s*)?(\d{1,6})\b/i.exec(sentence)?.[1];
+  if (!n) return false;
+  const re = new RegExp(String.raw`\b(?:document|doc)\s*#?\s*${n}\b`, 'i');
+  return prior.some((r) => r.status === 'ok' && WRITE_TOOLS.has(r.name) && re.test(String(r.output ?? '')));
+}
+
 function priorNote(sentence: string, prior: Receipt[]): boolean {
   const n = /\bnote\s*(?:#|number\s*|no\.\s*)?(\d{1,6})\b/i.exec(sentence)?.[1];
   if (!n) return false;
@@ -444,7 +454,7 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     const artifact = ARTIFACT.test(s) || I18N.artifact.test(s) || ART2.test(s);
     // 3.4.2: keeping something for the owner ("I've saved your results to your note") is backed by the note tool too.
     const keep = claimed(s, KEEP);
-    const savedBefore = priorNote(s, prior);
+    const savedBefore = priorNote(s, prior) || priorDocument(s, prior);
     if (artifact && !b.hasWrite && !priorWrite(s) && !savedBefore && !(b.hasPlanner && (keep || claimed(s, [PLANNER, I18N.planner]))) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
     if (artifact && !b.hasRun && !priorRun(s) && claimed(s, [RUN_VERB, I18N.run, ...MORE.run!])) add('run', s, 'missing');
     if (claimed(s, [TESTS_PASS, I18N.tests, ...MORE.tests_pass!])) {

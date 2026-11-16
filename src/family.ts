@@ -129,7 +129,7 @@ export function childSettings<T extends Record<string, unknown>>(s: T): T {
 }
 
 /** The only tools a child's companion offers (an allowlist: new tools stay off for kids until listed). */
-export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search']);
+export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'ask_choice', 'ask_everything']);
 
 /**
  * Gates a child's tool registry: everything outside KID_TOOLS is unavailable while they are a child

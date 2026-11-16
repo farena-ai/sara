@@ -1,5 +1,6 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
+import { toolAlias } from './tool-alias.ts';
 import { kidNote, kidTurn } from './family.ts';
 import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
@@ -123,6 +124,7 @@ import { frameNote, noFrameNote } from './video.ts';
 import { metered } from './usage.ts';
 import { cutOtherSpeakers, GROUP_TOOLS, isGroupChannel, otherLine, ownerLine, stripLeadTag } from './group.ts';
 import { cardFor, type Card } from './cards.ts';
+import { ASK_CHOICE, choiceText, parseChoice, settleChoice, type Choice } from './choices.ts';
 import { BOT_WALL_LINE, looksLikeBotWall, WebTurn } from './web-guard.ts';
 /** 3.1.2: tools whose output may be a bot-check page (commands, browsers, MCP browser tools). */
 const BOT_WALL_TOOLS = /^(shell|run_command|browser_read|browser_open|pc_browser_\w+|mcp_.*(browser|playwright|fetch|navigate|snapshot).*)$/i;
@@ -246,6 +248,8 @@ export interface AppContext {
   loops?: import('./loops.ts').Loops;
   /** E4: the owner's file/log watches (owner space only; src/watch.ts). Checked on the reminder tick. */
   watches?: import('./watch.ts').Watches;
+  /** S9a: private messages between the owners of linked servers (owner space only; never her context, tools or memory). */
+  messages?: import('./messages.ts').Messenger;
   /** E1: live data (quotes, sports, odds) from this space's chosen free sources. */
   dataSources?: import('./data-sources.ts').DataSources;
   /** E1: "tell me when" watches on live data (this companion's store). */
@@ -270,6 +274,8 @@ export interface AppContext {
   automations?: import('./automations.ts').Automations;
   /** R3: errands, start to finish (src/errands.ts). Driven by the reminder tick and the inbox helper's new mail. */
   errands?: import('./errands.ts').Errands;
+  /** S3: long-running goals above errands (src/long-goals.ts), on the reminder tick. */
+  longGoals?: import('./long-goals.ts').LongGoals;
   /** R5: phone calls in and out (docs/PHONE_CALLS.md), switched off until the owner sets them up. */
   phoneCalls?: import('./phone-calls.ts').PhoneCalls;
   /** N3: from your inbox (src/inbox/helper.ts): suggestion cards from new mail, packages, trips, filing. */
@@ -471,6 +477,8 @@ export type ChatEvent =
   | { type: 'mentions'; messageId: number; items: import('./mentions.ts').ChipItem[] }
   /** Phase 120 (PRECISE §4.3): the first-time card of a project (Check her edits here / Not now / Never). */
   | { type: 'checks_card'; card: ChecksCard }
+  /** S10 (docs/CHOICES.md): her turn ended with a pick-an-answer card (on message `messageId`). */
+  | { type: 'choice'; messageId: number; choice: Choice }
   /** Phase 120 (§4.11): the reply chip (types clean, or errors left). */
   | { type: 'checks'; messageId: number; chip: ChecksChip }
   /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
@@ -2018,7 +2026,7 @@ interface ScopeToolsInput { noModel: boolean; external: boolean; checkpointExter
 function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: ScopeToolsInput): Tool[] {
   let tools = x.noModel || conv.partner || opts.noTools ? [] : app.tools.enabled(app.settings.get().toolPermissions).filter((t) => !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(t.spec.name)));
   // Hardening M3: with her tools allowed for other apps, her look-back over every past conversation stays out.
-  if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall');
+  if (opts.externalApp) tools = tools.filter((t) => t.spec.name !== 'recall' && t.spec.name !== 'ask_everything');
   // N5b: while driving, no computer use and no long or background tasks.
   if (opts.car || opts.phoneCall) tools = tools.filter((t) => !CAR_BLOCKED_TOOL(t.spec.name));
   // E6: while an item of a public feed is shared in this chat, nothing that reaches outside (strangers' text may ask for it).
@@ -2026,7 +2034,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   // Phase 100: an outside request gets only the tools its policy lists (default none).
   if (opts.outside) {
     const allowed = new Set(opts.outside.tools);
-    tools = tools.filter((t) => allowed.has(t.spec.name) && t.spec.name !== 'recall' && !t.spec.name.startsWith('a2a_'));
+    tools = tools.filter((t) => allowed.has(t.spec.name) && t.spec.name !== 'recall' && t.spec.name !== 'ask_everything' && !t.spec.name.startsWith('a2a_'));
   }
   // Phase 70: the album stays in her own conversations with the owner: never for other apps, shared work channels or groups.
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
@@ -2311,6 +2319,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
 
   const isFirst = store.messages(conv.id).every((m) => m.role === 'notice');
   const meta = { ...(opts.images?.length ? { images: opts.images } : {}), ...(opts.docs?.length ? { docs: opts.docs } : {}), ...(opts.via ? { via: opts.via } : {}), ...(opts.othersPhotos?.length ? { othersPhotos: opts.othersPhotos } : {}), ...(opts.pendingId ? { queued: true } : {}), ...(opts.untrusted ? { untrusted: true } : {}), ...(opts.clientKey ? { clientKey: opts.clientKey } : {}) };
+  // S10: a new message from them closes her open pick-an-answer card (a pick, a number or anything else).
+  if (!opts.resume && !opts.group) settleChoice(store, conv.id, text);
   const userMsg = opts.resume || opts.group ? store.messages(conv.id).filter((m) => m.role === 'user').at(-1) : store.addMessage(conv.id, 'user', text, Object.keys(meta).length ? meta : undefined);
   // Phase 107: a line /reset cleared isn't answered again on Continue.
   if (!userMsg || (opts.resume && userMsg.meta?.skipped === true && !store.messages(conv.id).some((m) => m.id > userMsg.id && m.role === 'assistant'))) {
@@ -2699,6 +2709,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   }
 
   let lastAssistantId = 0;
+  /** S10: the pick-an-answer card that ends this turn. */
+  let asked: Choice | undefined;
   /** M8: she already answered in this turn (text the owner sees). */
   let answered = false;
   // Pictures Sara sends during this turn go on her next saved message.
@@ -3767,6 +3779,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const lastChangeIdx = calls.findLastIndex((c) => CHANGES_FILES(c.name));
     /** EC21: one call through the whole path: each of the model's calls, and each call a run_code script makes (`parent`). */
     const oneCall = async function* (call: ToolCall, callIdx: number, parent?: string): AsyncGenerator<ChatEvent, CallEnd> {
+      // HANDSFREE: a made-up name close to one tool offered this turn runs that tool (with a note); else a hint lists the real ones.
+      let aliasNote = '';
+      let aliasHint = '';
+      if (!tools.some((t) => t.spec.name === call.name) && !app.tools.get(call.name)) {
+        const al = toolAlias(call.name, tools.map((t) => t.spec.name), call.arguments);
+        if (al && 'note' in al) {
+          aliasNote = al.note;
+          call = { ...call, name: al.name, arguments: al.args };
+        } else if (al) aliasHint = al.hint;
+      }
       const tool = tools.find(t => t.spec.name === call.name) ?? app.tools.get(call.name);
       let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
       if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, app.settings.get());
@@ -3869,7 +3891,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         output = admissionFailure.message;
       } else if (!tool) {
         status = 'error';
-        output = `Unknown tool "${call.name}".`;
+        output = aliasHint || `Unknown tool "${call.name}".`;
       } else if (conv.partner || !tools.some((t) => t.spec.name === call.name) || (tool.isAvailable && !tool.isAvailable())) {
         // Only the tools offered this turn may run (partner chats have none), whatever the model says.
         status = 'denied';
@@ -4253,6 +4275,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (ranTool && !signal.aborted && !cutShort && guard.record(call.name, call.arguments, status, output)) guardOut();
       else if (approval === 'denied' && !tried && !signal.aborted) guard.declined(call.name, call.arguments);
       const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
+      if (aliasNote) output = `${aliasNote}\n${output}`;
       const stored = clip(output, TOOL_RESULT_LIMIT);
       // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
       const offer = call.name === 'web_fetch' && webTurn.takeOffer() ? { kind: 'research-offer' as const, question: clip(text.replace(/\s+/g, ' ').trim(), 300) } : undefined;
@@ -4340,7 +4363,20 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         yield { type: 'tool_result', id: call.id, name: call.name, status: 'error', output: out, ms: 0 };
         continue;
       }
-      if ((yield* oneCall(call, callIdx)) === 'end') return;
+      const done = yield* oneCall(call, callIdx);
+      if (done === 'end') return;
+      // S10: a good ask_choice call ends her turn with the card (after this step's other calls).
+      if (call.name === ASK_CHOICE && done.status === 'ok') {
+        const c = parseChoice(call.arguments);
+        if (!('error' in c)) asked ??= c;
+      }
+    }
+    if (asked) {
+      const shown = choiceText(asked, (s) => trOwner(s, app.settings.get()));
+      lastAssistantId = addAssistantMessage(shown, { model, provider: provider.config.label, choice: asked }).id;
+      yield { type: 'token', text: shown };
+      yield { type: 'choice', messageId: lastAssistantId, choice: asked };
+      break;
     }
     if (step === maxSteps - 1 && !meter?.final) {
       rec.stopped('steps');

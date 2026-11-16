@@ -10,6 +10,7 @@
 import { createHash } from 'node:crypto';
 import { contextFill, resolveFor, type AppContext } from '../chat.ts';
 import { appLanguage, en, toLang, tr as translate } from '../i18n.ts';
+import { choiceButtons, openChoice } from '../choices.ts';
 import { identityOf } from '../persona.ts';
 import { localDate } from '../memory-worker.ts';
 import type { Conversation } from '../store.ts';
@@ -1115,8 +1116,8 @@ export function menuList(app: AppContext, names: readonly CommandName[], lang: s
  * (once), the ⏰ buttons for reminders that came up in it, and the pickup offer (once per switch).
  * `plain`: plugin bridges without buttons get one text line each instead.
  */
-export function afterTurnExtras(app: AppContext, conversationId: string, place: Place, o: { plain?: boolean } = {}): { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } {
-  const out: { before?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } = { rows: [] };
+export function afterTurnExtras(app: AppContext, conversationId: string, place: Place, o: { plain?: boolean } = {}): { before?: string; drop?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } {
+  const out: { before?: string; drop?: string; rows: { text: string; buttons: { label: string; data: string }[] }[] } = { rows: [] };
   if ((place !== 'owner-dm' && place !== 'work-room') || app.member) return out;
   const lang = ownerLanguage(app);
   const tr = (text: string, params?: Record<string, unknown>) => say(app, lang, text, params);
@@ -1135,6 +1136,12 @@ export function afterTurnExtras(app: AppContext, conversationId: string, place: 
     if (chk?.state === 'left' && chk.left) out.rows.push({ text: tr('⚠ {n} type errors left in {file} ({checker}).', { n: chk.left, file: chk.files?.[0] ?? '', checker: chk.checker ?? '' }), buttons: [] });
   }
   if (place !== 'owner-dm') return out;
+  // S10 (docs/CHOICES.md): her pick-an-answer card as buttons instead of its numbered list (`drop`).
+  const choice = o.plain ? undefined : openChoice(app.store, conversationId);
+  if (choice) {
+    out.drop = app.store.messageById(choice.message.id)?.content.trim();
+    out.rows.push({ text: choice.choice.question, buttons: choiceButtons(choice.message.id, choice.choice, (s) => tr(s)) });
+  }
   const pk = pickupsFor(app);
   if (pk?.autoMarked.delete(conversationId)) {
     const p = pk.active(conversationId);

@@ -13,9 +13,13 @@
 //   POST   /api/research/:id/skill           3.1.2: {refresh?} Save as a skill / Keep it fresh → {run}
 //   DELETE /api/research/:id                 forget the run (its Library document stays)
 //   GET    /api/research/:id/export?format=md|docx|pdf
+// S1: POST /api/research also takes {web?, library?, localOnly?} (where she reads; models on his
+// hardware only) and PUT .../plan {reach}; a run carries `reach` and `costCap` (the most its model
+// may cost, shown before Start); GET /api/research says whether the web and his Library are ready.
 import { markdownToDocx, markdownToPdf } from '../doc-write.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { LearnError } from '../learn.ts';
+import { privateLocalOn } from '../net-guard.ts';
 import { RESEARCH, ResearchError, type Research, type ResearchRun } from '../research.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -36,6 +40,8 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
       counts: { read: run.sources.filter((s) => s.status === 'read').length, blocked: run.sources.filter((s) => s.status === 'blocked').length, notFound: run.sources.filter((s) => s.reason === 'not-found').length, failed: run.sources.filter((s) => s.status === 'failed' && s.reason !== 'not-found').length },
       partial: run.cut !== null && run.report !== null,
       topic: topic ? { id: topic.id, status: topic.status, refresh: topic.refresh, skill: topic.skill, partial: topic.partial } : null,
+      conversationPrivate: Boolean(run.conversationId && app.store.getConversation(run.conversationId)?.private),
+      costCap: run.status === 'plan' || run.status === 'running' || run.status === 'paused' ? r.costCap(run) : null,
     };
   };
   const wrap = <T>(f: () => T): T => {
@@ -58,11 +64,12 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
     if (!b) {
       if (method === 'GET') {
         const why = r.refusal();
-        return send(res, 200, { runs: r.list().map((x) => ({ ...view(r, x), report: null })), ready: !why, why, limits: { pageChoices: RESEARCH.pageChoices, defaultPages: RESEARCH.defaultPages, maxSteps: RESEARCH.maxSteps, maxSearches: RESEARCH.maxSearches, budgetPages: RESEARCH.budgetPages, budgetMinutes: RESEARCH.budgetMinutes, budgetTokens: RESEARCH.budgetTokens }, model: r.modelChoice() });
+        const library = r.libraryReady();
+        return send(res, 200, { runs: r.list().map((x) => ({ ...view(r, x), report: null })), ready: !why || library, why, web: { ready: !why, why }, library: { ready: library }, privateLocal: privateLocalOn(), limits: { pageChoices: RESEARCH.pageChoices, defaultPages: RESEARCH.defaultPages, maxSteps: RESEARCH.maxSteps, maxSearches: RESEARCH.maxSearches, budgetPages: RESEARCH.budgetPages, budgetMinutes: RESEARCH.budgetMinutes, budgetTokens: RESEARCH.budgetTokens }, model: r.modelChoice() });
       }
       if (method === 'POST') {
         const body = await readJson(req);
-        return send(res, 200, { run: view(r, wrap(() => r.create(body as { question?: unknown }))) });
+        return send(res, 200, { run: view(r, wrap(() => r.create(body as { question?: unknown; web?: unknown; library?: unknown; localOnly?: unknown }))) });
       }
       throw new HttpError(405, 'Method not allowed');
     }

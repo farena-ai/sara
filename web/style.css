@@ -1618,6 +1618,16 @@ body:not(.member) [data-member-only] { display: none !important; }
 .cu-badge { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--accent); border-radius: 999px; background: var(--surface-2); }
 .cu-badge-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--accent); animation: cu-pulse 1.6s ease-in-out infinite; }
 .cu-badge.paused { border-color: var(--warn); }
+/* HANDSFREE: "Let her finish this task" banner and step log (web/handsfree.js). */
+.hf-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--accent); border-radius: 14px; background: var(--surface-2); }
+.hf-banner.done { border-color: var(--line); }
+.hf-banner.done .cu-badge-dot { animation: none; background: var(--text-3); }
+.hf-text { flex: 1 1 200px; min-width: 0; font-size: .9em; overflow-wrap: anywhere; }
+.cl-list { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 6px; }
+.cl-item { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 6px 10px; border: 1px solid var(--line); border-radius: 10px; }
+.cl-name { font-weight: 600; }
+.cl-item .muted { flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.hf-steps { flex: 1 0 100%; margin: 4px 0 2px; padding-left: 22px; max-height: 180px; overflow-y: auto; font-size: .85em; color: var(--text-2); }
 .cu-badge.paused .cu-badge-dot { background: var(--warn); animation: none; }
 .cu-badge-text { flex: 1 1 160px; min-width: 0; font-size: .9em; overflow-wrap: anywhere; }
 .cu-badge button { min-height: 44px; min-width: 44px; border-radius: 999px; }
@@ -1948,6 +1958,39 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 #errands .er-edit { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 6px; border-top: 1px solid var(--line); }
 #errands .er-log { margin: 6px 0 0 1.8em; padding: 0; list-style: none; }
 .er-tile .er-tile-needs { color: var(--accent-solid); }
+/* S3 (docs/GOALS.md): Goals over days */
+#goals .gl-new { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#goals .gl-new #gl-title { flex: 1 1 12em; width: auto; min-width: 0; }
+#goals .gl-new #gl-due, #goals .gl-add-m .gl-m-due { flex: 0 0 auto; width: auto; }
+#goals .gl-list { display: grid; gap: 12px; margin-top: 12px; }
+#goals .gl-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 8px; }
+#goals .gl-head { display: flex; align-items: baseline; gap: 10px; justify-content: space-between; }
+#goals .gl-title { display: block; margin: 0; font-size: 15px; font-weight: 650; color: var(--text-1); overflow-wrap: anywhere; }
+#goals .gl-meta, #goals .gl-next { margin: 0; }
+#goals .gl-next-h { color: var(--text-2); font-weight: 600; }
+.gl-chip.gl-active { background: color-mix(in srgb, var(--accent-solid) 12%, transparent); color: var(--text-1); }
+.gl-chip.gl-done { background: color-mix(in srgb, var(--accent-solid) 16%, transparent); color: var(--text-1); }
+.gl-chip.gl-stopped { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--text-1); }
+progress.gl-bar { display: block; width: 100%; height: 6px; border: 0; border-radius: 3px; background: color-mix(in srgb, var(--text-3) 22%, transparent); overflow: hidden; appearance: none; -webkit-appearance: none; }
+progress.gl-bar::-webkit-progress-bar { background: color-mix(in srgb, var(--text-3) 22%, transparent); border-radius: 3px; }
+progress.gl-bar::-webkit-progress-value { background: var(--accent-solid); border-radius: 3px; }
+progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-radius: 3px; }
+#goals .gl-ms { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+#goals .gl-m { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+#goals .gl-m input.gl-m-box { width: 18px; height: 18px; flex: none; margin: 0; }
+#goals .gl-m-text { flex: 1 1 12em; min-width: 0; color: var(--text-1); overflow-wrap: anywhere; }
+#goals .gl-m-done .gl-m-text { color: var(--text-3); text-decoration: line-through; }
+#goals .gl-m-skipped .gl-m-text { color: var(--text-3); }
+#goals .gl-add-m { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 6px; border-top: 1px solid var(--line); }
+#goals .gl-add-m .gl-m-new { flex: 1 1 12em; width: auto; min-width: 0; }
+#goals .gl-add-m .gl-m-kind { flex: 0 1 auto; width: auto; min-width: 0; }
+#goals .gl-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#goals .gl-moves { margin: 0; padding-left: 1.2em; color: var(--text-2); }
+#goals .gl-log { margin: 6px 0 0; padding: 0; list-style: none; display: grid; gap: 2px; }
+.gl-tile .gl-tile-item { display: grid; gap: 4px; }
+.gl-tile .gl-tile-top { display: flex; justify-content: space-between; gap: 8px; }
+.gl-tile .gl-tile-title { color: var(--text-1); overflow-wrap: anywhere; }
+.gl-tile .gl-tile-plan { color: var(--accent-solid); }
 /* R5 (docs/PHONE_CALLS.md): Phone calls and Discord voice sections (web/phone-calls.js). */
 .tel-form { display: grid; gap: var(--s-2, 8px); }
 .tel-form textarea { width: 100%; }
@@ -1975,6 +2018,73 @@ button.conv-see-more, button.conv-show-less { min-height: 44px; padding: 0 10px;
 #settings .wa-req.wa-declined { opacity: .7; }
 @media (max-width: 520px) {
   #settings .wa-day { grid-template-columns: 64px minmax(0, 1fr) 10px minmax(0, 1fr); justify-content: stretch; }
+}
+
+/* S9a (web/messages.js, docs/MESSAGES.md): the Messages page (two columns; one at phone width). */
+dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
+#msgs .msgs-tools { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+#msgs #msgs-status:empty { display: none; }
+#msgs .msgs-panel { display: grid; gap: 8px; padding: 10px 12px; margin: 6px 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
+#msgs .msgs-panel[hidden] { display: none; }
+#msgs .msgs-panel > button { justify-self: start; }
+#msgs .msgs-code { width: 100%; min-width: 0; font-family: var(--font-mono); font-size: 12px; }
+#msgs .msgs-cols { display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); gap: 12px; margin-top: 8px; min-height: 440px; }
+#msgs .msgs-list { display: flex; flex-direction: column; gap: 4px; max-height: 64vh; overflow: auto; padding-right: 2px; }
+#msgs .msgs-item:not(#_) { display: grid; gap: 2px; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--text-1); text-align: left; font: inherit; box-shadow: none; }
+#msgs .msgs-item:not(#_):is(:hover, [aria-current="true"]) { border-color: var(--line); background: var(--surface-2); }
+#msgs .msgs-item-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#msgs .msgs-item-top strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#msgs .msgs-item-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#msgs .msgs-badge { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-solid); color: var(--on-accent); font: 600 11px/18px var(--font-ui); text-align: center; }
+#msgs .msgs-badge[hidden] { display: none; }
+#msgs .msgs-req { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
+#msgs .msgs-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+#msgs .msgs-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-1); }
+#msgs .msgs-chat > .msgs-empty { margin: auto; }
+#msgs .msgs-head { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+#msgs .msgs-title { display: grid; flex: 1 1 auto; min-width: 0; }
+#msgs .msgs-back { display: none; }
+#msgs .msgs-menu { position: relative; }
+#msgs .msgs-menu > summary { list-style: none; cursor: pointer; padding: 4px 10px; border: 1px solid var(--line); border-radius: 8px; color: var(--text-2); font-size: 13px; }
+#msgs .msgs-menu > summary::-webkit-details-marker { display: none; }
+#msgs .msgs-menu-body { position: absolute; right: 0; top: calc(100% + 4px); z-index: 3; display: grid; gap: 6px; width: min(340px, 80vw); max-height: 60vh; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); box-shadow: var(--elev-3); }
+#msgs .msgs-menu-body > button { justify-self: start; }
+#msgs .msgs-keep { display: flex; align-items: center; gap: 8px; }
+#msgs .msgs-keep select { flex: 1 1 auto; min-width: 0; width: auto; }
+#msgs .msgs-members { display: grid; gap: 4px; }
+#msgs .msgs-member { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px; padding: 4px 0; border-top: 1px solid var(--line); font-size: 13px; }
+#msgs .msgs-report { margin: 0; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); }
+#msgs .msgs-scroll { display: flex; flex-direction: column; gap: 8px; flex: 1 1 auto; min-height: 240px; max-height: 52vh; overflow: auto; padding: 12px; }
+#msgs .msgs-msg { display: grid; gap: 3px; align-self: flex-start; max-width: min(78%, 560px); padding: 8px 11px; border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; background: var(--surface-2); color: var(--text-1); }
+#msgs .msgs-msg.mine { align-self: flex-end; border-color: var(--accent-line); border-radius: 14px 14px 4px 14px; background: var(--accent-soft); }
+#msgs .msgs-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#msgs .msgs-author { color: var(--accent-text); font-weight: 600; }
+#msgs .msgs-img { display: block; max-width: 100%; max-height: 260px; border-radius: 10px; }
+#msgs .msgs-meta { font-size: 11px; }
+#msgs .msgs-msg .msgs-acts { opacity: 0; transition: opacity .15s; }
+#msgs .msgs-msg:is(:hover, :focus-within) .msgs-acts { opacity: 1; }
+@media (hover: none) { #msgs .msgs-msg .msgs-acts { opacity: .8; } }
+#msgs .msgs-msg .msgs-acts button { padding: 0; font-size: 12px; }
+#msgs .msgs-typing { margin: 0; font-style: italic; }
+#msgs .msgs-compose { display: grid; gap: 6px; padding: 10px 12px; border-top: 1px solid var(--line); }
+#msgs .msgs-input { width: 100%; min-width: 0; resize: vertical; }
+#msgs .msgs-compose-row { display: flex; align-items: center; gap: 8px; }
+#msgs .msgs-compose-row .msgs-chip { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#msgs .msgs-compose-row > button:last-child { margin-left: auto; }
+#msgs .msgs-settings { margin-top: 12px; }
+#msgs .msgs-settings > summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
+#msgs .msgs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
+#msgs .msgs-row .msgs-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 12em; color: var(--text-2); }
+#msgs .msgs-row input:not([type="checkbox"]) { flex: 1 1 14em; min-width: 0; width: auto; }
+#msgs .msgs-row input[type="checkbox"] { width: 18px; height: 18px; flex: none; margin: 0; }
+@media (max-width: 720px) {
+  dialog#msgs:not(#_) { width: 100vw; max-width: 100vw; }
+  #msgs .msgs-cols { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  #msgs.msgs-in-chat .msgs-list, #msgs:not(.msgs-in-chat) .msgs-chat { display: none; }
+  #msgs.msgs-in-chat .msgs-back { display: inline-flex; }
+  #msgs .msgs-list { max-height: none; }
+  #msgs .msgs-scroll { max-height: 58vh; }
+  #msgs .msgs-msg { max-width: 88%; }
 }
 
 /* R8 (docs/FAMILY.md): the Family page (chores, allowance, groceries, kids) and its Shopping mode. */

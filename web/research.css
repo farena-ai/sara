@@ -23,6 +23,14 @@
 .rcard-research .rs-list { padding-left: 20px; }
 .rs-card-body { display: grid; gap: 4px; }
 
+/* S1: where a run reads, its cost cap, and his own files among the sources. */
+.rs-reach { border: 1px solid var(--border); border-radius: 10px; padding: 6px 12px 8px; margin: 8px 0; display: grid; gap: 2px; }
+.rs-check-row { display: flex; align-items: center; gap: 6px; min-height: 36px; }
+.rs-reach .rs-check-row .rs-check { display: inline-flex; flex-direction: row; flex-wrap: nowrap; align-items: center; gap: 8px; margin: 0; cursor: pointer; }
+.rs-reach .rs-check-row .rs-check input { display: inline-block; width: 20px; height: 20px; min-height: 0; margin: 0; flex: none; }
+.rs-cap { margin: 4px 0; overflow-wrap: anywhere; }
+.rs-sources .rs-doc-link { background: none; border: 0; padding: 0; min-height: 0; color: var(--accent); text-decoration: underline; font: inherit; cursor: pointer; text-align: left; }
+
 /* C6 (docs/LEARN.md): What she has learned (web/learn.js). */
 .lnt-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px 14px; align-items: end; }
 .lnt-grid select { width: 100%; min-height: 44px; }

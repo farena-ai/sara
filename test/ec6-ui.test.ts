@@ -18,7 +18,9 @@ test('ec6 ui: Research lives in the Library with tips, plain controls and no inl
   const fields = [...js.matchAll(/field\(t\('[^']*'\), \w+, t\('((?:[^'\\]|\\.)*)'\)\)/g)];
   assert.equal(fields.length, 4, 'question, a step, its searches, pages');
   for (const m of fields) assert.ok(m[1].length <= 260, m[1]);
-  assert.equal([...js.matchAll(/document\.createElement\('(input|select|textarea)'\)/g)].length, 4, 'no control without a field');
+  // S1: plus one labelled checkbox maker (Where she reads), each row with its ? tip.
+  assert.equal([...js.matchAll(/document\.createElement\('(input|select|textarea)'\)/g)].length, 5, 'no control without a field');
+  assert.match(js, /wrap\.append\(l, tip\(help\)\)/);
   // 3.1.2: the run's buttons (Pause, Resume, Write the report now…) live in web/research-card.js, shared with the chat card.
   const card = web('research-card.js');
   for (const path of ['/start', '/stop', '/plan']) assert.ok(js.includes(`${path}\``), path);

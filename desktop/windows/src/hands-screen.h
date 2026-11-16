@@ -68,7 +68,8 @@ struct Action {
   std::string review;
   DWORD ownBrowserPid = 0, onlyPid = 0;
 };
-struct ActionInfo { std::string target; bool once = false; };
+/** once: ask on this action; hard (HANDSFREE): ask even hands-free (payments, passwords, 2FA, recovery, installs, settings pages). */
+struct ActionInfo { std::string target; bool once = false; bool hard = false; };
 Result inspect(const Action& a, ActionInfo& info);
 Result refreshApproved(Action& a);
 Result input(const Action& a, const std::function<bool()>& cancelled);

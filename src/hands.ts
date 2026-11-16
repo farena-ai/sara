@@ -47,6 +47,7 @@
 //                    req d.elements {window?, viewId?, limit} → {window, items: [{ref, role, name, value | secret, box}], total}
 //   Blocked windows are black in pictures and absent from lists; Sara's own windows never appear;
 //   secure fields are boxed out and never give a value: all on the device, before anything is sent.
+import { HandsFree } from './handsfree.ts';
 import { randomUUID } from 'node:crypto';
 import type { EventHub } from './events.ts';
 import { CU5_OPS, CU6_OPS, DESKTOP_INPUT_OPS, TAB_OPS, TAB_SWITCH_OPS } from './hands-desktop.ts';
@@ -322,11 +323,19 @@ export class HandsHub {
   readonly #tasks = new Map<string, { steps: number; startedAt: number }>();
   /** Phase 89: the dev tunnels to this person's computers (src/tunnel.ts). */
   readonly tunnels: Tunnels;
+  /** HANDSFREE: "Let her finish this task" per conversation (src/handsfree.ts). */
+  readonly handsFree = new HandsFree();
 
   constructor(opts: { events?: EventHub; allowed?: () => boolean; known?: () => { id: string; label: string; lastSeen?: string }[]; tunnels?: ConstructorParameters<typeof Tunnels>[1] } = {}) {
     if (opts.events) this.events = opts.events;
     this.allowed = opts.allowed ?? (() => true);
     this.known = opts.known ?? (() => []);
+    this.handsFree.onStart = (st) => this.#publish({ deviceId: '', conversationId: st.conversationId, handsFree: true, until: new Date(st.until).toISOString() });
+    // HANDSFREE: when a stretch ends, every computer drops its one hands-free grant at once.
+    this.handsFree.onEnd = (st) => {
+      for (const d of this.#devices.values()) if (d.ws && d.hello?.ops?.includes('c.endTask')) void this.request(d.id, 'c.endTask', { endHandsFree: st.task }, { deadlineMs: 30_000 }).catch(() => {});
+      this.#publish({ deviceId: '', conversationId: st.conversationId, handsFree: false, ...(st.ended ? { why: st.ended.why } : {}) });
+    };
     this.tunnels = new Tunnels(
       {
         connected: (id) => this.connected(id),
@@ -485,6 +494,8 @@ export class HandsHub {
       if ((kind === 'takeover' || kind === 'resumed') && d.hello) {
         // Phase 88: the person moved the mouse or typed in the Sara browser (or pressed Resume there).
         d.hello.paused = kind === 'takeover';
+        // HANDSFREE: the person typed or clicked there themselves: hands-free ends (the pause stays as before).
+        if (kind === 'takeover' && d.lease) this.handsFree.stop(d.lease.conversationId, 'takeover');
         this.#publish({ deviceId: d.id, paused: d.hello.paused, ...(d.lease ? { conversationId: d.lease.conversationId } : {}) });
         return;
       }
@@ -501,6 +512,7 @@ export class HandsHub {
         d.lease = undefined;
         // Stop ends her dev tunnels on that computer too.
         this.tunnels.closeDevice(d.id, 'stopped on the computer');
+        if (conv) this.handsFree.stop(conv, 'you');
         this.#publish({ deviceId: d.id, stopped: true, by: m.by === 'user' ? 'user' : 'device', ...(conv ? { conversationId: conv } : {}) });
         if (conv && m.by === 'user') for (const fn of this.#stopListeners) fn(conv, d.id);
         return;
