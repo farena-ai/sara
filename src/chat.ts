@@ -380,6 +380,10 @@ export interface AppContext {
   spotify?: import('./spotify.ts').SpotifyAccount;
   /** Gmail organizing (archive, labels, trash…): the undo log and bulk runs. Owner only, never the demo. */
   gmail?: import('./gmail-organize.ts').GmailOrganizer;
+  /** MULTIMAIL: every Google sign-in (the owner's; `google` above is the first). */
+  googleAccounts?: import('./google-accounts.ts').GoogleAccounts;
+  /** MULTIMAIL: the organizers of later Google accounts, by undo-id prefix ('g2_'…). */
+  gmailExtra?: Map<string, import('./gmail-organize.ts').GmailOrganizer>;
   /** M1: the owner's other mailboxes (Outlook, IMAP) and their organizer (the owner only, never members or the demo). */
   mailAccounts?: import('./mail/accounts.ts').MailAccounts;
   mailOrganizer?: import('./mail/organize.ts').MailOrganizer;

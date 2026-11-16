@@ -3633,7 +3633,8 @@ function approvalCard(ev, block) {
     );
     title.dataset.raw = '';
     // Phase 99: a board step reads as one plain line ("Move “Fix login” (Website) from To do to Doing").
-    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^card_/.test(ev.name) || WORKAPP_CARD.test(ev.name)) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
+    // MULTIMAIL: with several mailboxes an email's card reads From / To / Subject (the mailbox it goes from).
+    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^card_/.test(ev.name) || WORKAPP_CARD.test(ev.name) || (/^mail_(send|draft)$/.test(ev.name) && /^(SEND email|Draft email)\nFrom: /.test(ev.summary ?? ''))) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
   } else {
     title.textContent = t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: ev.name });
     title.dataset.raw = '';

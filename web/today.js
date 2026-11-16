@@ -232,7 +232,7 @@ export function dayItems(d, now = Date.now()) {
   for (const e of d?.calendar?.events ?? []) {
     const at = e.allDay ? null : Date.parse(e.start);
     const fin = Date.parse(e.end ?? e.start);
-    items.push({ kind: 'event', id: e.id, title: e.title, at, allDay: Boolean(e.allDay), where: e.location ?? '', past: !e.allDay && Number.isFinite(fin) && fin < now });
+    items.push({ kind: 'event', id: e.id, title: e.title, at, allDay: Boolean(e.allDay), where: e.location ?? '', ...(e.account ? { account: e.account } : {}), past: !e.allDay && Number.isFinite(fin) && fin < now });
     const lb = e.allDay ? undefined : (d?.calendar?.leaveBy ?? []).find((l) => l.eventId === e.id);
     if (lb) {
       const la = Date.parse(lb.leaveAt);
@@ -677,6 +677,21 @@ export function renderWeather(w) {
   temp.title = `${w.now ?? '–'}${unit}`;
 }
 
+/**
+ * MULTIMAIL: which account an event or email came from (several mailboxes/calendars): the name
+ * before @ and a colour dot that stays the same for that address (theme label colours).
+ */
+function acctChip(address) {
+  let h = 0;
+  for (const c of String(address)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  const chip = el('span', `td-acct td-acct-c${h % 6}`);
+  chip.title = address;
+  // alex@gmail, alex@work-studio: the name and the mail host, short enough for a phone row.
+  const [user, host = ''] = String(address).split('@');
+  chip.append(el('span', 'td-acct-dot'), raw(el('span', 'td-acct-name', host ? `${user}@${host.split('.')[0]}` : user)));
+  return chip;
+}
+
 /** Your day (§4.1): one timeline (events, reminders, timed to-dos, leave-by) with a Now marker. */
 export function renderDay(d, fmtDue) {
   const tile = $('#td-calendar');
@@ -747,6 +762,7 @@ function dayRow(x, fmtDue) {
   title.title = x.title;
   what.append(title);
   if (x.where) what.append(raw(el('span', 'td-what-where', x.where)));
+  if (x.account) what.append(acctChip(x.account));
   li.append(when, dot, what);
   if (x.kind === 'todo') li.append(tickButton({ id: x.id, title: x.title }, li));
   return li;
@@ -1049,6 +1065,7 @@ export function renderMail(m) {
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.append(raw(el('span', 'td-mail-from', x.from)), raw(el('span', 'td-mail-subj', x.subject)));
+        if (x.account) a.append(acctChip(x.account));
         li.append(a, el('span', 'td-mail-at muted small', x.at ? time(Date.parse(x.at)) : ''));
         ul.append(li);
       }

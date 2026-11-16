@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## All your accounts together, and her own icon, in 3.14.0
+
+Sign in to more than one Google account, and bring in calendars from every account (Google, Outlook,
+iCloud, Fastmail, Yahoo), each event labeled with its account. Searches, Today's mail and "waiting for
+my answer" cover every mailbox, and replies go from the address the email came to. The desktop app,
+browser tab, installed web app, notifications and the Mac Dock use her own picture as the icon; a
+renamed companion with no picture gets her initial, never Sara's face.
+
 ## A calmer, premium Settings, in 3.13.0
 
 Settings now opens on an Overview: her status, what needs you, quick switches and your connected apps.

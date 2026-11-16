@@ -12,6 +12,8 @@ import type { AppContext } from '../chat.ts';
 import { rawEmail } from '../google.ts';
 import { en } from '../i18n.ts';
 import { zonedParts, zonedToUtc } from '../planner.ts';
+import { allEvents, calendarSources } from '../mail/calendars.ts';
+import type { CalendarEventOut } from '../mail/types.ts';
 
 export interface BookingWindow {
   /** 0 = Sunday … 6 = Saturday */
@@ -299,7 +301,8 @@ export class Booking {
     const cals: { id: string; label: string }[] = [];
     const g = this.#app.google?.status();
     if (g?.connected && g.calendar) cals.push({ id: 'google', label: g.email ? `Google (${g.email})` : 'Google Calendar' });
-    for (const a of this.#app.mailAccounts?.list() ?? []) if (a.kind === 'microsoft' && a.calendar && !a.problem) cals.push({ id: a.id, label: `Outlook (${a.address})` });
+    // MULTIMAIL: later Google accounts, Outlook and CalDAV (iCloud, Fastmail, Yahoo) calendars too.
+    for (const a of this.#app.mailAccounts?.list() ?? []) if (a.id !== 'google' && a.calendar && !a.problem) cals.push({ id: a.id, label: `${a.kind === 'google' ? 'Google' : a.kind === 'microsoft' ? 'Outlook' : 'Calendar'} (${a.address})` });
     const mailbox = g?.connected && g.gmail ? (g.email ?? 'Gmail') : (this.#app.mailAccounts?.list().find((a) => a.kind !== 'google' && !a.problem)?.address ?? null);
     return { calendars: cals, mailbox };
   }
@@ -307,6 +310,13 @@ export class Booking {
   async #calendarBusy(from: Date, to: Date): Promise<Busy[]> {
     if (this.#deps.busy) return this.#deps.busy(from, to);
     const out: Busy[] = [];
+    // MULTIMAIL: with several calendars, every chosen calendar of every account counts as busy.
+    const all = calendarSources(this.#app);
+    if (all.length > 1 || all.some((x) => x.kind === 'imap')) {
+      const { events } = await allEvents(all, from, to, 500, AbortSignal.timeout(20_000)).catch(() => ({ events: [] as CalendarEventOut[] }));
+      for (const e of events) if (!e.allDay && e.end) out.push({ start: new Date(e.start), end: new Date(e.end) });
+      return this.#plannerBusy(out, from, to);
+    }
     const g = this.#app.google;
     if (g?.status().calendar) {
       const r = (await g.api('https://www.googleapis.com/calendar/v3/freeBusy', { method: 'POST', body: { timeMin: from.toISOString(), timeMax: to.toISOString(), items: [{ id: 'primary' }] } }).catch(() => ({}))) as { calendars?: { primary?: { busy?: { start: string; end: string }[] } } };
@@ -318,6 +328,10 @@ export class Booking {
       const evs = await accts!.provider(a.id).calendar?.events(from, to, undefined).catch(() => []);
       for (const e of evs ?? []) if (!e.allDay && e.end) out.push({ start: new Date(e.start), end: new Date(e.end) });
     }
+    return this.#plannerBusy(out, from, to);
+  }
+
+  #plannerBusy(out: Busy[], from: Date, to: Date): Busy[] {
     // The planner: a task due at a set time keeps that half hour free.
     for (const t of this.#app.planner?.tasks({ status: 'open' }) ?? []) {
       if (!t.dueAt) continue;
@@ -379,8 +393,8 @@ export class Booking {
     const target = calendars.find((c) => c.id === s.calendar) ?? calendars[0];
     if (!target) throw new BookingError(en('No calendar is connected (Settings → Email and calendar, or Gmail and Calendar).'), 409);
     const tz = this.tz ?? 'UTC';
-    if (target.id === 'google') {
-      const g = this.#app.google!;
+    if (target.id === 'google' || target.id.startsWith('google:')) {
+      const g = (target.id === 'google' ? this.#app.google : this.#app.mailAccounts?.googleOf(target.id))!;
       const CAL = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
       const ev = (await g.api(`${CAL}?sendUpdates=none`, { method: 'POST', body: { summary: e.title, description: e.notes, start: { dateTime: `${wall(e.start, tz)}:00`, timeZone: tz }, end: { dateTime: `${wall(e.end, tz)}:00`, timeZone: tz }, attendees: e.guests.map((email) => ({ email })) } })) as { id?: string };
       const back = ev.id ? ((await g.api(`${CAL}/${ev.id}`).catch(() => undefined)) as { id?: string } | undefined) : undefined;

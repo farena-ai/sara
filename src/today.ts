@@ -17,6 +17,8 @@ import { factsFor } from './facts.ts';
 import { dayStartUtc } from './planner.ts';
 import { en } from './i18n.ts';
 import { getLayout, recordMail, type TodayPrefs } from './today-layout.ts';
+import { allEvents, calendarSources } from './mail/calendars.ts';
+import type { GoogleAccount } from './google.ts';
 
 export interface TodayEvent {
   id: string;
@@ -25,6 +27,8 @@ export interface TodayEvent {
   end?: string;
   allDay: boolean;
   location?: string;
+  /** MULTIMAIL: the account it came from (only when several calendars are read). */
+  account?: string;
 }
 export interface TodayMail {
   id: string;
@@ -35,6 +39,8 @@ export interface TodayMail {
   at?: string;
   /** M1: another mailbox than Gmail: its web app (the tile links there instead of Gmail). */
   webUrl?: string;
+  /** MULTIMAIL: the mailbox it is in (the combined tile labels each row). */
+  account?: string;
 }
 export interface MailOrganised {
   action: string;
@@ -58,7 +64,7 @@ export interface Today {
   day: string;
   agenda: { tasks: { id: number; title: string; dueAt: string | null; overdue: boolean; project: string | null }[]; reminders: { id: number; text: string; dueAt: string }[]; doneToday?: number };
   calendar?: { events: TodayEvent[]; error?: string; leaveBy?: { eventId: string; leaveAt: string; minutes: number }[] };
-  mail?: { unread: number; important: TodayMail[]; error?: string; total?: number; change?: { total: number; unread: number }; organised?: MailOrganised[]; at?: string; reconnect?: boolean; provider?: string; account?: string; webUrl?: string };
+  mail?: { unread: number; important: TodayMail[]; error?: string; total?: number; accounts?: { address: string; unread: number; error?: string }[]; change?: { total: number; unread: number }; organised?: MailOrganised[]; at?: string; reconnect?: boolean; provider?: string; account?: string; webUrl?: string };
   her?: { name: string; mood: string; energy: string; expression: string; day: string | null };
   /** Phase 101 (ST6): a date about someone on a people card names them (the tile opens the card). */
   dates: { what: string; inDays: number; years: number | null; personId?: number; person?: string }[];
@@ -239,8 +245,11 @@ function msCalendar(app: AppContext): import('./mail/types.ts').MailAccountInfo 
   return app.google?.status().calendar ? undefined : app.mailAccounts?.list().find((a) => ok(a));
 }
 /** Whether Today and the briefing have a calendar (Google's or Outlook's). */
-export const hasCalendar = (app: AppContext): boolean => Boolean(msCalendar(app) || app.google?.status().calendar);
-const calendarKey = (app: AppContext): string => msCalendar(app)?.address ?? app.google?.status().email ?? '';
+export const hasCalendar = (app: AppContext): boolean => Boolean(msCalendar(app) || app.google?.status().calendar || calendarSources(app).length);
+const calendarKey = (app: AppContext): string => {
+  const all = calendarSources(app);
+  return all.length > 1 ? all.map((x) => x.id).join(',') : (msCalendar(app)?.address ?? app.google?.status().email ?? all[0]?.address ?? '');
+};
 
 /**
  * M1: events between two times from the calendar Sara uses everywhere (the default mailbox's
@@ -252,6 +261,12 @@ export async function calendarEvents(app: AppContext, from: Date, to: Date, max:
 
 async function calendarBetween(app: AppContext, from: Date, to: Date, max: number, timeoutMs = 8000): Promise<TodayEvent[]> {
   countCall(app, 'calendar');
+  // MULTIMAIL: several calendars (more Google accounts, Outlook, CalDAV): read them all, labeled.
+  const all = calendarSources(app);
+  if (all.length > 1 || (all.length === 1 && all[0].kind === 'imap')) {
+    const { events } = await allEvents(all, from, to, max, AbortSignal.timeout(timeoutMs));
+    return events.map((e) => ({ id: e.id, title: e.title, start: e.start, ...(e.end ? { end: e.end } : {}), allDay: e.allDay, ...(e.location ? { location: e.location } : {}), ...(e.account ? { account: e.account } : {}) }));
+  }
   const ms = msCalendar(app);
   if (ms) {
     const list = await app.mailAccounts!.provider(ms.id).calendar!.events(from, to, undefined, AbortSignal.timeout(timeoutMs));
@@ -287,12 +302,20 @@ const GMAIL = 'https://gmail.googleapis.com/gmail/v1/users/me';
 
 /** Mail 2.0 (§5.3): inbox total and unread, important unread with time and thread, what she organised today. */
 export async function mailToday(app: AppContext): Promise<Today['mail']> {
+  // MULTIMAIL: several mailboxes in the combined view: every one, each row labeled.
+  const accts = app.mailAccounts as (NonNullable<AppContext['mailAccounts']> & { combined?: () => import('./mail/types.ts').MailAccountInfo[] }) | undefined;
+  const combined = typeof accts?.combined === 'function' ? accts.combined().filter((a) => !(app.member && a.kind === 'google')) : [];
+  if (combined.length > 1) return combinedMailToday(app, combined);
   // M1: the default mailbox (Gmail when it is the default: exactly as before).
   const def = app.mailAccounts?.default();
   if (def && def.kind !== 'google') return otherMailToday(app, def);
   // Gmail's sign-in is the owner's only: a member's Today never reads it, even if one were attached.
-  const g = app.member ? undefined : app.google;
+  const g = app.member ? undefined : def?.id && def.id !== 'google' ? (app.mailAccounts?.googleOf?.(def.id) ?? app.google) : app.google;
   if (!g?.status().gmail) return undefined;
+  return gmailToday(app, g);
+}
+
+async function gmailToday(app: AppContext, g: GoogleAccount): Promise<NonNullable<Today['mail']>> {
   try {
     countCall(app, 'gmail');
     const signal = AbortSignal.timeout(8000);
@@ -303,6 +326,9 @@ export async function mailToday(app: AppContext): Promise<Today['mail']> {
     const metas = await Promise.all(
       (important.messages ?? []).map((m) => g.api(`${GMAIL}/messages/${m.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject`, { signal }) as Promise<{ id: string; threadId?: string; internalDate?: string; payload?: GmailPart }>),
     );
+    // MULTIMAIL: a later Google account opens in Gmail as that account.
+    const email = g.status().email;
+    const other = g.id !== 'google' && email;
     return {
       unread: inbox.messagesUnread ?? 0,
       ...(typeof inbox.messagesTotal === 'number' ? { total: inbox.messagesTotal } : {}),
@@ -312,11 +338,37 @@ export async function mailToday(app: AppContext): Promise<Today['mail']> {
         subject: header(m.payload, 'Subject') || en('(no subject)'),
         ...(m.threadId ? { threadId: m.threadId } : {}),
         ...(m.internalDate && Number.isFinite(Number(m.internalDate)) ? { at: new Date(Number(m.internalDate)).toISOString() } : {}),
+        ...(other ? { webUrl: `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#inbox/${m.threadId ?? m.id}` } : {}),
       })),
     };
   } catch (err) {
     return { unread: 0, important: [], error: (err as Error).message };
   }
+}
+
+/** MULTIMAIL: Today's Mail over several mailboxes: counts added up, important rows labeled, newest first. */
+async function combinedMailToday(app: AppContext, list: import('./mail/types.ts').MailAccountInfo[]): Promise<Today['mail']> {
+  const parts = await Promise.all(
+    list.map(async (a) => {
+      if (a.kind === 'google') {
+        const g = app.mailAccounts?.googleOf?.(a.id) ?? (a.id === 'google' ? app.google : undefined);
+        return { a, m: g ? await gmailToday(app, g) : { unread: 0, important: [], error: 'Signed out: sign in again.' } };
+      }
+      return { a, m: (await otherMailToday(app, a))! };
+    }),
+  );
+  const ok = parts.filter((p) => !p.m.error);
+  const important = parts
+    .flatMap((p) => p.m.important.map((x) => ({ ...x, account: p.a.address })))
+    .sort((x, y) => (y.at ?? '').localeCompare(x.at ?? ''))
+    .slice(0, 8);
+  return {
+    unread: ok.reduce((n, p) => n + p.m.unread, 0),
+    ...(ok.length && ok.every((p) => typeof p.m.total === 'number') ? { total: ok.reduce((n, p) => n + (p.m.total ?? 0), 0) } : {}),
+    important,
+    accounts: parts.map((p) => ({ address: p.a.address, unread: p.m.unread, ...(p.m.error ? { error: p.m.error } : {}) })),
+    ...(ok.length ? {} : { error: parts[0]?.m.error ?? 'No mailbox answered.' }),
+  };
 }
 
 /** M1: Today's Mail for an Outlook or IMAP default mailbox: the same shape as Gmail's. */
@@ -344,6 +396,9 @@ async function otherMailToday(app: AppContext, a: import('./mail/types.ts').Mail
 /** The mail cache key: this companion, the local day and the mailbox (§5.2). */
 export const mailKey = (app: AppContext, day: string): string => `${app.companionId ?? 'main'}|${day}|${mailAddress(app)}`;
 const mailAddress = (app: AppContext): string => {
+  const accts = app.mailAccounts as { combined?: () => { id: string }[] } | undefined;
+  const comb = typeof accts?.combined === 'function' ? accts.combined() : [];
+  if (comb.length > 1) return comb.map((a) => a.id).join(',');
   const def = app.mailAccounts?.default();
   return def && def.kind !== 'google' ? def.address : (app.google?.status().email ?? '');
 };
@@ -444,7 +499,7 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
     mail: async () => {
       // Subjects and senders are this person's own: the owner's mailboxes, or a member's own (their
       // app only ever holds their own accounts; no Gmail sign-in for members). Never the demo.
-      if (demo || !(app.google?.status().gmail || app.mailAccounts?.hasOthers())) return;
+      if (demo || !(app.google?.status().gmail || app.mailAccounts?.hasOthers() || app.mailAccounts?.list().some((a) => a.kind === 'google'))) return;
       const r = await cachedPart(app, 'mail', mailKey(app, today), () => mailToday(app), { fresh });
       const m = r.value as Today['mail'];
       if (!m) return;

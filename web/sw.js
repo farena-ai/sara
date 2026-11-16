@@ -218,7 +218,7 @@ self.addEventListener('push', (event) => {
       if (wins.some((w) => w.focused && w.visibilityState === 'visible')) return;
       // N5b: buttons (Approve/Decline, Snooze 1 h, Reply, Accept) with the notification's one-time token.
       const actions = Array.isArray(data.actions) && data.act ? data.actions.slice(0, 2) : [];
-      await self.registration.showNotification(data.title, { body: data.body, icon: '/icon-192.png', badge: '/icon-192.png', tag: data.tag, ...(actions.length ? { actions: data.actions } : {}), data: { url: data.url, act: actions.length ? data.act : undefined, companion: data.companion } });
+      await self.registration.showNotification(data.title, { body: data.body, icon: '/app-icon.png?s=192', badge: '/app-icon.png?s=96', tag: data.tag, ...(actions.length ? { actions: data.actions } : {}), data: { url: data.url, act: actions.length ? data.act : undefined, companion: data.companion } });
     })(),
   );
 });

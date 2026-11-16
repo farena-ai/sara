@@ -170,6 +170,8 @@ interface Row {
 }
 
 export interface Opts {
+  /** MULTIMAIL: undo ids of a later Google account ('g2_…'); the first account keeps 'g_'. */
+  idPrefix?: string;
   timeZone: () => string | undefined;
   now?: () => Date;
   sleep?: (ms: number) => Promise<void>;
@@ -220,6 +222,9 @@ export class GmailOrganizer {
     db.prepare('DELETE FROM gmail_actions WHERE created_at < ?').run(new Date(this.#o.now().getTime() - (UNDO_DAYS + 1) * 86_400_000).toISOString());
   }
 
+  get #pre(): string {
+    return this.#o.idPrefix ?? 'g_';
+  }
   get cap(): number {
     return this.#o.cap;
   }
@@ -387,7 +392,7 @@ export class GmailOrganizer {
   }
 
   #record(r: Omit<Row, 'id' | 'created_at' | 'undone_at'>, labelName?: string): string {
-    const id = `g_${randomBytes(6).toString('base64url').replace(/[-_]/g, 'x')}`;
+    const id = `${this.#o.idPrefix ?? 'g_'}${randomBytes(6).toString('base64url').replace(/[-_]/g, 'x')}`;
     this.#db
       .prepare('INSERT INTO gmail_actions (id, created_at, conversation_id, action, query, add_labels, remove_labels, per, ids, done, failed, undo_of, label_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(id, this.#o.now().toISOString(), r.conversation_id, r.action, r.query, r.add_labels, r.remove_labels, r.per, r.ids, r.done, r.failed, r.undo_of, labelName ?? null);
@@ -401,7 +406,7 @@ export class GmailOrganizer {
    * that are not undone (undo records left out), grouped by action and label, newest first.
    */
   organisedSince(sinceIso: string): { action: string; label?: string; count: number; ids: string[] }[] {
-    const rows = this.#db.prepare('SELECT id, action, done, label_name FROM gmail_actions WHERE created_at >= ? AND undone_at IS NULL AND undo_of IS NULL ORDER BY created_at DESC, rowid DESC').all(sinceIso) as { id: string; action: string; done: number; label_name: string | null }[];
+    const rows = this.#db.prepare('SELECT id, action, done, label_name FROM gmail_actions WHERE created_at >= ? AND undone_at IS NULL AND undo_of IS NULL AND substr(id, 1, ?) = ? ORDER BY created_at DESC, rowid DESC').all(sinceIso, this.#pre.length, this.#pre) as { id: string; action: string; done: number; label_name: string | null }[];
     const groups = new Map<string, { action: string; label?: string; count: number; ids: string[] }>();
     for (const r of rows) {
       const k = `${r.action}|${r.label_name ?? ''}`;
@@ -442,8 +447,8 @@ export class GmailOrganizer {
   latest(conversationId: string | undefined): string | undefined {
     const since = new Date(this.#o.now().getTime() - UNDO_DAYS * 86_400_000).toISOString();
     const r = (conversationId
-      ? this.#db.prepare('SELECT id FROM gmail_actions WHERE conversation_id = ? AND undone_at IS NULL AND undo_of IS NULL AND created_at >= ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(conversationId, since)
-      : this.#db.prepare('SELECT id FROM gmail_actions WHERE undone_at IS NULL AND undo_of IS NULL AND created_at >= ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(since)) as { id: string } | undefined;
+      ? this.#db.prepare('SELECT id FROM gmail_actions WHERE conversation_id = ? AND undone_at IS NULL AND undo_of IS NULL AND created_at >= ? AND substr(id, 1, ?) = ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(conversationId, since, this.#pre.length, this.#pre)
+      : this.#db.prepare('SELECT id FROM gmail_actions WHERE undone_at IS NULL AND undo_of IS NULL AND created_at >= ? AND substr(id, 1, ?) = ? ORDER BY created_at DESC, rowid DESC LIMIT 1').get(since, this.#pre.length, this.#pre)) as { id: string } | undefined;
     return r?.id;
   }
 

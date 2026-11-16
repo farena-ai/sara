@@ -839,8 +839,43 @@ The apps tell the page they can host its header in the title bar; the page answe
   carry its AUMID). `builtin` puts the exe's icon back on those shortcuts and deletes the files.
   The uninstaller removes the shortcuts as before; the files go with the data folder.
 - The window title, the app's own title strip and the tray tooltip use her name (kept per server
-  too). Switching servers switches both. Test builds never touch real shortcuts:
-  `SARA_TEST_SHORTCUT=<path to a .lnk>` names one to update.
+  too, so a start says it before the page loads). Switching servers switches both. Test builds never
+  touch real shortcuts: `SARA_TEST_SHORTCUT=<path to a .lnk>` names one to update.
+
+### The server-made icon (ownicon)
+
+- The server makes her icon itself (`src/app-icon.ts`, no new dependencies: `src/jpeg.ts` decodes
+  JPEGs, PNGs are read and written with `node:zlib`): `GET /app-icon.png?s=<px>` (16, 20, 24, 32, 40,
+  48, 64, 96, 128, 180, 192, 256, 512; other sizes snap up), `&shape=rounded` (default, the app's
+  rounded square), `square` (iPhone home screen) or `maskable` (Android, full bleed, letter inside the
+  safe zone), and `GET /app-icon.ico` (16…256 PNG frames). Both answer `ETag` + `no-cache`, so a
+  client asks again cheaply and gets `304` until her picture or name changes; `x-sara-icon` says
+  `face`, `builtin` or `initial`. Per companion (the request's companion, like every page).
+- What it shows: her uploaded picture or her look (custom, or the he/they default) → that face,
+  cropped square (closer at 48 px and below); Sara, still named Sara, with her own look → Sara's app
+  icon; anyone else without a picture (a renamed main companion, another companion) → a **monogram**:
+  her initial (accents folded, É → E; no drawable letter → a sparkle) in white on the theme's accent
+  gradient (`--accent-from` → `--accent-to`). A picture it can't read (WebP, progressive JPEG) → the
+  monogram. Signed out and the demo get Sara's own icon: nothing about her shows before sign-in.
+- `/api/session` → `face` also says `icon: '/app-icon.png'` and `iconVersion`; a renamed companion
+  without a picture is `kind: 'initial'` (before ownicon she was `builtin` and the app kept Sara's face).
+- The quick-ask page fetches `/app-icon.png?s=256` when the version changes (its 45 s "Now" poll, sooner
+  on events) and hands it over with `iconFull` (a monogram: the app skips its closer face crop at small
+  sizes). Older servers without `face.icon`: the page draws the face as before. The tray menu's face
+  and the quick-ask header show the monogram too.
+- Web: the tab icon (`<link rel="icon" href="/app-icon.png?s=64">`), `apple-touch-icon`
+  (`?s=180&shape=square`), the manifest's icons while signed in, and push notifications
+  (`icon: /app-icon.png?s=192`) use it. The offline page and the service worker's cache keep the static
+  `icon-192.png` (no server, no icon to make).
+- **The exe and the installer's shortcut:** the exe keeps Sara's icon (it is the product's icon on a
+  fresh install, before any server is known, and a signed exe can't change). The app's own shortcuts
+  (Start menu, desktop, taskbar pin, ones with this exe and AUMID) are pointed at the generated `.ico`
+  with `IShellLink::SetIconLocation` after the first connect, named after its content so Explorer's
+  icon cache can't keep the old picture. This is what reliably works: the shortcut's icon is a file
+  path Explorer reads, while the exe's own resource can't be changed at run time.
+- **Mac:** `NSApp.applicationIconImage` from the same icon (cached per server as `icon-<host>.png` in
+  the app's caches folder, so the Dock shows it from the start); `builtin` puts the bundle's icon back.
+  The Finder/Launchpad icon of `Sara.app` stays the bundle's.
 
 ## Quick ask and the tray "Now" (2.6)
 

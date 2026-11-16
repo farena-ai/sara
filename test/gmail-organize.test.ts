@@ -411,11 +411,13 @@ test('gmail organize: owner only (members and the demo never get it); other apps
   const block = main.slice(main.indexOf('if (!isMember) {\n    for (const t of createBrowserTools(app))'), main.indexOf('// Phase 38: meaning search'));
   assert.match(block, /if \(!isDemo\) \{\s+app\.gmail = new GmailOrganizer/);
   assert.match(block, /createGmailOrganizeTools/);
-  assert.equal(main.match(/createGmailOrganizeTools\(/g)?.length, 1, 'registered in one place only');
-  assert.match(main, /\.\.\.\(isMember \? \{\} : \{ google \}\)/, 'members have no Google account at all');
+  // MULTIMAIL: once for the first Google account, once for each later one (both inside the owner's block).
+  assert.equal(main.match(/createGmailOrganizeTools\(/g)?.length, 2, 'registered in the owner block only');
+  assert.equal(block.match(/createGmailOrganizeTools\(/g)?.length, 2, 'registered in the owner block only');
+  assert.match(main, /\.\.\.\(isMember \? \{\} : \{ google, googleAccounts: googles \}\)/, 'members have no Google account at all');
   // The Undo button's route lives under /api/google (owner-only for members, refused on the demo).
   const routes = readFileSync(join(ROOT, 'src', 'routes', 'connections.ts'), 'utf8');
-  assert.match(routes, /if \(a === 'google'\) \{[\s\S]*?b === 'undo' && c && method === 'POST'[\s\S]*?const gm = app\.gmail;\s+if \(!gm\) throw new HttpError\(404/);
+  assert.match(routes, /if \(a === 'google'\) \{[\s\S]*?b === 'undo' && c && method === 'POST'[\s\S]*?const gm = pre \? app\.gmailExtra\?\.get\(pre\) : app\.gmail;\s+if \(!gm\) throw new HttpError\(404/);
   // Other apps (MCP) have no Gmail tools of their own; /v1 turns stop at any approval.
   const mcp = readFileSync(join(ROOT, 'src', 'mcp-server.ts'), 'utf8');
   assert.ok(!/gmail/i.test(mcp));

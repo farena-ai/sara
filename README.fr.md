@@ -24,7 +24,7 @@
 
 **Mettre à jour :** sur un serveur Linux, `sudo sara update` (sauvegarde d’abord, revient en arrière si elle ne répond pas) · Docker : `sudo git pull && sudo docker compose up -d --build` · apps Windows et Mac : Réglages → Données et santé → Mises à jour · Android : Google Play. [Mettre à niveau](docs/INSTALL.md#upgrading).
 
-> **État :** 3.13.1, [Ses photos avec ComfyUI, envoyées où vous voulez](https://github.com/farena-ai/sara/releases/tag/v3.13.1). Ses photos fonctionnent de nouveau avec ComfyUI, et Envoyer maintenant montre sa progression au lieu de rester bloqué. [Voir les nouveautés](#quoi-de-neuf)
+> **État :** 3.14.0, [Tous vos comptes ensemble, et son propre icône](https://github.com/farena-ai/sara/releases/tag/v3.14.0). Plusieurs comptes Google, les agendas de tous les comptes, une boîte combinée et des réponses depuis la bonne adresse. [Voir les nouveautés](#quoi-de-neuf)
 >
 > Installateur Windows : non signé ([aide SmartScreen](docs/INSTALL.md)). Le processus de publication macOS exige des téléchargements signés et notariés ; chaque compilation est vérifiée séparément. Android : [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone : [app web sur l’écran d’accueil](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versions récentes · 6 novembre 2026. [Journal complet](CHANGELOG.md) · [Tous 
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Tous vos comptes ensemble, et son propre icône](docs/MAIL_ACCOUNTS.md)** — Agendas Google, Outlook, iCloud, Fastmail et Yahoo étiquetés par compte ; l’icône de l’appli, l’onglet et les notifications utilisent sa propre image. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Ses photos avec ComfyUI, envoyées où vous voulez](docs/PHOTOS.md)** — Nouveau réglage Envoyer ses photos à : un chat réservé à ses photos, une de vos discussions, un chat de projet et/ou Telegram et Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Des réglages plus calmes et haut de gamme](docs/HOW_DO_I.md)** — La recherche trouve un réglage précis et le met en évidence (Ctrl+K) ; sur téléphone on descend du groupe à la page ; toutes les options et anciens liens fonctionnent. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Applis pro, famille, confiance et voix prête](docs/WORK_APPS.md)** — Règles d’outils par membre appliquées sur le serveur, export d’audit et conservation ; appels prêts et éteints jusqu’à un fournisseur ; faits en six langues, accessibilité et modèles. |
 | **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Démarches, démarrage facile et Raccourcis iPhone](docs/ERRANDS.md)** — Remboursements, réservations, résiliations et devis planifiés et suivis étape par étape ; les paiements restent chez vous. Une page de téléchargement, un autotest et des pièces jointes Outlook jusqu’à 150 Mo. |
 | **[3.10.0](https://github.com/farena-ai/sara/releases/tag/v3.10.0)** | **[Partout où vous êtes, connaît votre monde, travaille avec votre équipe](docs/WHAT_SARA_KNOWS.md)** — L’app Mac fait comme Windows ; les notifications ont Approuver, Reporter, Répondre et Accepter ; elle répond à partir de vos fichiers avec citations exactes et pages ; les heures deviennent des factures sans double facturation. |
-| **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Depuis vos e-mails, et formulaires remplis](docs/INBOX_HELPER.md)** — Rien ne se fait seul sans votre accord, et rien venant d’un e-mail n’envoie ni ne paie. Les formulaires s’arrêtent avant Envoyer après une carte de vérification ; les e-mails ont des pièces jointes ; les magasins qui la bloquent sont vérifiés dans votre navigateur. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versions 2.6x précédentes</b>: de la 3.8.0 à la 2.61.5</summary>
+<summary><b>Versions 2.6x précédentes</b>: de la 3.9.0 à la 2.61.5</summary>
 
 | Version | Ce qui change pour vous |
 |---|---|
+| **[3.9.0](https://github.com/farena-ai/sara/releases/tag/v3.9.0)** | **[Depuis vos e-mails, et formulaires remplis](docs/INBOX_HELPER.md)** — Rien ne se fait seul sans votre accord, et rien venant d’un e-mail n’envoie ni ne paie. Les formulaires s’arrêtent avant Envoyer après une carte de vérification ; les e-mails ont des pièces jointes ; les magasins qui la bloquent sont vérifiés dans votre navigateur. |
 | **[3.8.0](https://github.com/farena-ai/sara/releases/tag/v3.8.0)** | **[Elle fait juste, et toute seule](docs/AUTOMATIONS.md)** — Elle choisit le bon modèle pour chaque tâche et passe à un autre s’il est lent, vérifie ce qu’elle a changé, fait le point chaque semaine et lance vos automatisations avec aperçu, essai et historique. |
 | **[3.7.0](https://github.com/farena-ai/sara/releases/tag/v3.7.0)** | **[Une assistante du quotidien : argent, sport, achats, décisions, pro](docs/BUSINESS_TOOLS.md)** — Pesez les options selon ce qui compte pour vous, avec les choix serrés signalés et un suivi plus tard. Factures et devis numérotés avec suivi des paiements et retards, à qui vous devez une réponse, contrats lus en citant chaque point, reçus transformés en notes de frais. |
 | **[3.6.5](https://github.com/farena-ai/sara/releases/tag/v3.6.5)** | **[Les formulaires PDF aussi](docs/DOCUMENTS.md)** — Zones de texte, cases à cocher, boutons radio et listes, repérés par les mots imprimés à côté de chaque case. Les PDF protégés ou scannés reçoivent une réponse claire et l’étape suivante. |

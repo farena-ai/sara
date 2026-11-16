@@ -3,7 +3,7 @@
 // verification and an app password, IMAP is switched off in the mailbox's web settings, or the mail
 // server can't be reached. The server's own words stay available as details.
 
-export type SignInReason = 'password' | 'two-step' | 'imap-off' | 'unreachable' | 'other';
+export type SignInReason = 'password' | 'two-step' | 'imap-off' | 'unreachable' | 'smtp-blocked' | 'other';
 
 export function explainSignIn(raw: string, preset = ''): SignInReason {
   const s = String(raw ?? '');
@@ -11,6 +11,9 @@ export function explainSignIn(raw: string, preset = ''): SignInReason {
   if (/application-specific password|app(lication)? password required|5\.7\.9|web ?browser|web login required|two-step|2-step|second factor/i.test(s)) return 'two-step';
   if (/not enabled for imap|imap (access )?is (disabled|off|not enabled)|enable imap|imap.{0,20}disabled|yet to enable imap|pop3?\/imap|imap access/i.test(s)) return 'imap-off';
   if (/authenticationfailed|authentication failed|invalid credentials|login failed|incorrect (user|password)|username and password not accepted|bad (user|password)|\b535\b|auth(entication)? (error|failure)|wrong password|invalid (login|password)/i.test(s)) return 'password';
+  // The host answered for the mail server with its own certificate: its firewall sends outgoing mail
+  // to the local mail system (cPanel "SMTP Restrictions" and similar), so outside servers can't be reached.
+  if (/altnames|does not match certificate|hostname\/ip does not match/i.test(s)) return 'smtp-blocked';
   if (/enotfound|eai_again|econnrefused|econnreset|ehostunreach|enetunreach|etimedout|timed? ?out|took too long|could ?n.t (connect|reach)|could(n.t| not) be found|not be reached|no such host|certificate|self.signed/i.test(s)) return 'unreachable';
   // Yahoo and AOL answer a wrong app password with a bare "[AUTHENTICATIONFAILED]"-like line; the
   // presets that always need an app password treat a plain LOGIN refusal as a wrong password.

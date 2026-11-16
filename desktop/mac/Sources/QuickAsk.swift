@@ -77,6 +77,7 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     self.app = app
     super.init()
     if let data = try? Data(contentsOf: faceCacheURL), let img = NSImage(data: data) { face = img }
+    applyDockIcon()
     // "Now" every 45 s while the app runs.
     timer = Timer.scheduledTimer(withTimeInterval: 45, repeats: true) { [weak self] _ in self?.refresh() }
   }
@@ -152,6 +153,7 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     mood = ""
     items = []
     face = (try? Data(contentsOf: faceCacheURL)).flatMap { NSImage(data: $0) }
+    applyDockIcon()
     pageServer = ""
     web?.configuration.userContentController.removeAllScriptMessageHandlers()
     web?.removeFromSuperview()
@@ -351,6 +353,16 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
       face = img
       try? data.write(to: faceCacheURL)
     }
+    // Ownicon: her icon in the Dock (the server's /app-icon.png, or 'builtin' for Sara with her own look).
+    if signedIn && !demo, let s = b["icon"] as? String {
+      if s == "builtin" {
+        try? FileManager.default.removeItem(at: iconCacheURL)
+        applyDockIcon()
+      } else if s.hasPrefix("data:image/png;base64,"), let data = Data(base64Encoded: String(s.dropFirst(22))), data.count < 2 * 1024 * 1024, NSImage(data: data) != nil {
+        try? data.write(to: iconCacheURL)
+        applyDockIcon()
+      }
+    }
     app?.updateStatusTip()
     // Phase 75 stage 3: approvals waiting → a notification with Allow / Deny; decided ones go away.
     app?.notifyApprovals(signedIn && !demo ? b["asks"] as? String ?? "" : "")
@@ -369,6 +381,13 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
     let host = String(hostOf(app?.server ?? "none").map { $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" ? $0 : "_" }.prefix(100))
     return dir.appendingPathComponent("face-\(host).png")
+  }
+
+  /// Ownicon: her app icon for this server (cached like the face, so a start shows it at once).
+  var iconCacheURL: URL { faceCacheURL.deletingLastPathComponent().appendingPathComponent("icon-" + String(faceCacheURL.lastPathComponent.dropFirst(5))) }
+  /// The Dock icon: hers when this server gave one, else the app's own (nil = the bundle's icon).
+  func applyDockIcon() {
+    NSApp.applicationIconImage = (try? Data(contentsOf: iconCacheURL)).flatMap { NSImage(data: $0) }
   }
 
   /// The page that loaded must be the quick-ask page (it always is: it's loaded from the bundle).

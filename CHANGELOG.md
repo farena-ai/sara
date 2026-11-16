@@ -5,6 +5,26 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.14.0 (2026-11-16): all your accounts together, and her own icon
+
+- Added: several accounts together. Sign in to more than one Google account (Settings → Email and
+  calendar → Add another Google account), each with its own permissions; calendars from every account
+  (each Google account, Outlook, and iCloud / Fastmail / Yahoo through their app password) on Today, in
+  the briefing, for the booking page and in the calendar tools, each event labeled with its account;
+  a combined inbox (Today's Mail, searches and "waiting for my answer" cover every mailbox, labeled;
+  pick which); replies go from the mailbox that got the email, and the approval card shows From:.
+  New events ask which calendar unless a default is set. See docs/MAIL_ACCOUNTS.md.
+- Fixed: **the desktop app's icon is your companion's, not Sara's.** A renamed companion without a picture of
+  her own (for example Sara renamed to Hank with the default look) now gets a monogram with her initial on the
+  theme's colors as the window, taskbar, tray, notification, Start-menu shortcut and Mac Dock icon, instead of
+  Sara's face. With a picture or a look of her own, that picture is the icon, as before.
+- New: the server makes her app icon at every size (`/app-icon.png?s=16…512`, `/app-icon.ico`, with an ETag
+  that changes with her look and name). The browser tab icon, the installed web app's icons (manifest,
+  iPhone home screen) and push notifications use it; the sign-in page keeps Sara's own icon.
+- New: the Mac app's Dock icon follows her look too.
+- Fixed: adding a mailbox on a server whose firewall redirects outgoing mail (cPanel *SMTP Restrictions*)
+  now says so in plain words instead of *couldn't reach the mail server*.
+
 ## 3.13.1 (2026-11-15): her pictures with ComfyUI, sent where you choose
 
 - Fixed: **Pictures from her with ComfyUI** no longer hang on *Making a picture*. The ComfyUI tool server

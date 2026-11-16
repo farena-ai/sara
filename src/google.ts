@@ -80,12 +80,23 @@ export class GoogleAccount {
 
   readonly #base: string | undefined;
   #signedOut = false;
+  /** MULTIMAIL: which vault entry holds this sign-in ('google:token' for the first account). */
+  readonly #key: string;
+  /** MULTIMAIL: 'google' for the first account (as before), 'google:<n>' for each one added later. */
+  readonly id: string;
 
-  constructor(vault: Vault, opts: { fetch?: Fetch; now?: () => number; apiBase?: string } = {}) {
+  constructor(vault: Vault, opts: { fetch?: Fetch; now?: () => number; apiBase?: string; tokenKey?: string; id?: string } = {}) {
     this.#vault = vault;
     this.#fetch = opts.fetch ?? netFetch;
     this.#now = opts.now ?? Date.now;
     this.#base = opts.apiBase;
+    this.#key = opts.tokenKey ?? GOOGLE_TOKEN_VAULT;
+    this.id = opts.id ?? 'google';
+  }
+
+  /** MULTIMAIL: this sign-in started the `state` (the callback asks every account). */
+  hasPending(state: string): boolean {
+    return this.#pending.has(state);
   }
 
   #client(): Client | undefined {
@@ -93,7 +104,7 @@ export class GoogleAccount {
     return raw ? (JSON.parse(raw) as Client) : undefined;
   }
   #tokens(): Tokens | undefined {
-    const raw = this.#vault.get(GOOGLE_TOKEN_VAULT);
+    const raw = this.#vault.get(this.#key);
     return raw ? (JSON.parse(raw) as Tokens) : undefined;
   }
 
@@ -121,11 +132,11 @@ export class GoogleAccount {
     if (clientSecret.length < 10) throw new Error('Paste the Client secret too (it starts with GOCSPX-).');
     this.#vault.set(GOOGLE_CLIENT_VAULT, JSON.stringify({ clientId, clientSecret }));
     // A different app means the old sign-in no longer matches.
-    this.#vault.delete(GOOGLE_TOKEN_VAULT);
+    this.#vault.delete(this.#key);
   }
 
   /** The address to send the owner to. `redirect` must be registered in the Google app. R6: `docs` adds Docs and Sheets. */
-  authUrl(redirect: string, opts: { docs?: boolean } = {}): string {
+  authUrl(redirect: string, opts: { docs?: boolean; choose?: boolean } = {}): string {
     const c = this.#client();
     if (!c) throw new Error('Add your Google app (Client ID and secret) first.');
     for (const [k, v] of this.#pending) if (this.#now() - v.at > 10 * 60_000) this.#pending.delete(k);
@@ -138,7 +149,8 @@ export class GoogleAccount {
       response_type: 'code',
       scope: [...GOOGLE_SCOPES, ...(opts.docs || this.status().docs ? GOOGLE_DOCS_SCOPES : [])].join(' '),
       access_type: 'offline',
-      prompt: 'consent',
+      // MULTIMAIL: adding another account lets the person pick which Google account signs in.
+      prompt: opts.choose ? 'select_account consent' : 'consent',
       include_granted_scopes: 'true',
       state,
       code_challenge: createHash('sha256').update(verifier).digest('base64url'),
@@ -157,10 +169,10 @@ export class GoogleAccount {
     const j = await this.#token({ grant_type: 'authorization_code', code, redirect_uri: p.redirect, code_verifier: p.verifier, client_id: c.clientId, client_secret: c.clientSecret });
     if (!j.refresh_token) throw new Error('Google did not give a long-lived sign-in. Remove Sara at myaccount.google.com → Security → Third-party access, then try again.');
     const tokens: Tokens = { access: j.access_token, refresh: j.refresh_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, scopes: j.scope ?? '' };
-    this.#vault.set(GOOGLE_TOKEN_VAULT, JSON.stringify(tokens));
+    this.#vault.set(this.#key, JSON.stringify(tokens));
     try {
       const prof = (await this.api('https://gmail.googleapis.com/gmail/v1/users/me/profile')) as { emailAddress?: string };
-      if (prof.emailAddress) this.#vault.set(GOOGLE_TOKEN_VAULT, JSON.stringify({ ...tokens, email: prof.emailAddress }));
+      if (prof.emailAddress) this.#vault.set(this.#key, JSON.stringify({ ...tokens, email: prof.emailAddress }));
     } catch {
       /* Gmail not allowed: the email address just isn't shown */
     }
@@ -172,7 +184,7 @@ export class GoogleAccount {
     const j = (await r.json().catch(() => ({}))) as { access_token?: string; error?: string; error_description?: string; refresh_token?: string; expires_in?: number; scope?: string };
     if (!r.ok || !j.access_token) {
       if (j.error === 'invalid_grant') {
-        this.#vault.delete(GOOGLE_TOKEN_VAULT);
+        this.#vault.delete(this.#key);
         this.#signedOut = true;
         throw new Error('Google signed Sara out (the sign-in expired or was removed). Sign in again in Settings → Connections → Apps and services → Gmail and Calendar.');
       }
@@ -189,7 +201,7 @@ export class GoogleAccount {
     if (!c) throw new Error('The Google app was removed.');
     const j = await this.#token({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: c.clientId, client_secret: c.clientSecret });
     const next: Tokens = { ...t, access: j.access_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, ...(j.refresh_token ? { refresh: j.refresh_token } : {}) };
-    this.#vault.set(GOOGLE_TOKEN_VAULT, JSON.stringify(next));
+    this.#vault.set(this.#key, JSON.stringify(next));
     return next.access;
   }
 
@@ -214,13 +226,29 @@ export class GoogleAccount {
 
   async disconnect(): Promise<void> {
     const t = this.#tokens();
-    this.#vault.delete(GOOGLE_TOKEN_VAULT);
+    this.#vault.delete(this.#key);
     if (t) await this.#fetch(`${REVOKE_URL}?token=${encodeURIComponent(t.refresh)}`, { method: 'POST', signal: AbortSignal.timeout(10_000) }).catch(() => undefined);
+  }
+
+  /** MULTIMAIL: the calendars this account can see (Google's calendar list). */
+  async calendars(signal?: AbortSignal): Promise<{ id: string; name: string; primary: boolean }[]> {
+    const r = (await this.api('https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=reader&maxResults=100', { ...(signal ? { signal } : {}) })) as { items?: { id: string; summary?: string; summaryOverride?: string; primary?: boolean }[] };
+    return (r.items ?? []).map((c) => ({ id: c.id, name: c.summaryOverride ?? c.summary ?? c.id, primary: c.primary === true }));
+  }
+
+  /** MULTIMAIL: the raw sign-in (moved to another slot when the same address signs in again). */
+  takeTokens(): string | undefined {
+    const raw = this.#vault.get(this.#key);
+    this.#vault.delete(this.#key);
+    return raw;
+  }
+  putTokens(raw: string): void {
+    this.#vault.set(this.#key, raw);
   }
 
   forgetClient(): void {
     this.#vault.delete(GOOGLE_CLIENT_VAULT);
-    this.#vault.delete(GOOGLE_TOKEN_VAULT);
+    this.#vault.delete(this.#key);
   }
 }
 

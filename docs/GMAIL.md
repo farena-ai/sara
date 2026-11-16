@@ -73,6 +73,13 @@ yourself added as a test user (Google then signs you out every 7 days), or **pub
 unverified** for your own use (the setup steps' choice; you see the "Google hasn't verified this
 app" page once and choose *Advanced → Go to Sara*).
 
+## More than one Google account
+
+Settings → Email and calendar → **Add another Google account** signs in another Google account
+through the same Google app (Google's account picker comes first). Each account keeps its own
+permissions; organizing, Undo and replies stay in the account the email is in. Details:
+[MAIL_ACCOUNTS.md](MAIL_ACCOUNTS.md).
+
 ## Who can use it
 
 - **The owner only.** Household members don't have Google tools at all (and never the owner's

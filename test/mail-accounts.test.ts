@@ -32,7 +32,7 @@ vault.set(GOOGLE_TOKEN_VAULT, JSON.stringify({ access: 'a', refresh: 'r', expire
 const google = new GoogleAccount(vault);
 const msOpts = { graphBase: `${fake.base}/v1.0`, loginBase: `${fake.base}/login` };
 const ms = new MicrosoftAuth(vault, msOpts);
-const accounts = new MailAccounts(vault, google, ms, { ms: msOpts });
+const accounts = new MailAccounts(vault, google, ms, { ms: msOpts, viewFile: `${tmp.dir}/mail-view.json` });
 const organizer = new MailOrganizer(new DatabaseSync(':memory:'), { timeZone: () => 'UTC' });
 
 // Stand-ins for the Gmail tools: they record what reaches them.
@@ -74,8 +74,13 @@ test('Gmail + Outlook: the default, routing by account, Gmail handed over as it 
   const acc = await tool('mail_accounts').run({}, ctx());
   assert.match(acc, /me@gmail\.com \(Gmail\) · default/);
   assert.match(acc, /ana@outlook\.com \(Outlook \/ Microsoft 365\)/);
-  // No account: the default (Gmail) through gmail_search, with the same words.
-  assert.match(await tool('mail_search').run({ query: 'from:boss' }, ctx()), /^GMAIL gmail_search \{"query":"from:boss","max":10\}/);
+  // No account: MULTIMAIL searches every mailbox in the combined inbox (Gmail through gmail_search,
+  // with the same words), each part labeled.
+  const both = await tool('mail_search').run({ query: 'from:boss' }, ctx());
+  assert.match(both, /me@gmail\.com \(Gmail\):\nGMAIL gmail_search \{"query":"from:boss","max":10\}/);
+  assert.match(both, /ana@outlook\.com \(Outlook\):[\s\S]*Contract/);
+  // Gmail alone when it is left out of nothing and named.
+  assert.match(await tool('mail_search').run({ query: 'from:boss', account: 'gmail' }, ctx()), /^GMAIL gmail_search \{"query":"from:boss","max":10\}/);
   // account: outlook → Graph.
   assert.match(await tool('mail_search').run({ query: 'from:boss', account: 'outlook' }, ctx()), /Contract/);
   assert.match(await tool('mail_search').run({ query: 'from:boss', account: 'ana@outlook.com' }, ctx()), /Contract/);
@@ -119,6 +124,9 @@ test('the result card of an Outlook change: Undo by m_ id, no Gmail link', async
 });
 
 test("Today's Mail card and the briefing use the Outlook default", async () => {
+  // MULTIMAIL: Today combines every mailbox by default; with Gmail left out of the combined view
+  // it reads the Outlook default alone, exactly as before.
+  accounts.setView({ off: ['google'] });
   app.mailAccounts = accounts;
   app.google = google;
   const m = await mailToday(app);

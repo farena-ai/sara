@@ -16,6 +16,7 @@ import { PreviewManager } from './preview.ts';
 import { BrowserManager, findBrowser } from './browser.ts';
 import { BrowserSetup, setBrowserSetup } from './browser-setup.ts';
 import { GoogleAccount, googleApiBase } from './google.ts';
+import { GoogleAccounts } from './google-accounts.ts';
 import { SpotifyAccount, spotifyApiBase } from './spotify.ts';
 import { createSpotifyTools } from './tools/spotify.ts';
 import { GmailOrganizer } from './gmail-organize.ts';
@@ -600,12 +601,14 @@ const subscriptions = new Subscriptions(vault, dataDir);
 // SARA_GOOGLE_API_BASE (loopback only) points the Google APIs at a local fake for tests.
 const googleBase = googleApiBase();
 const google = new GoogleAccount(vault, googleBase ? { apiBase: googleBase } : {});
+// MULTIMAIL: more Google sign-ins through the same Google app ('google:2'…); the first stays `google`.
+const googles = new GoogleAccounts(vault, google, googleBase ? { apiBase: googleBase } : {});
 // M1: the owner's other mailboxes: Outlook / Microsoft 365 (Graph, the owner's own Microsoft app)
 // and IMAP providers (app passwords). SARA_MS_GRAPH_BASE / SARA_MS_LOGIN_BASE (loopback only) are
 // for tests.
 const msBase = msBases();
 const msOpts = { ...(msBase.graph ? { graphBase: msBase.graph } : {}), ...(msBase.login ? { loginBase: msBase.login } : {}) };
-const mailAccounts = new MailAccounts(vault, google, new MicrosoftAuth(vault, msOpts), { ms: msOpts, imap: { timeZone: () => settings.get().timeZone } });
+const mailAccounts = new MailAccounts(vault, google, new MicrosoftAuth(vault, msOpts), { ms: msOpts, imap: { timeZone: () => settings.get().timeZone }, googles, viewFile: join(dataDir, 'mail-view.json') });
 // C14: Spotify (the owner's own Spotify app; off until he connects it).
 const spotifyBase = spotifyApiBase();
 const spotify = new SpotifyAccount(vault, spotifyBase ? { apiBase: spotifyBase } : {});
@@ -736,6 +739,7 @@ const ownerSpace: Space = { id: 'owner', dir: dataDir, auth, settings, vault, ev
 mailAccounts.onChange = () => {
   for (const c of companions.all()) clearTodayCache(c.app);
 };
+googles.onChange = () => mailAccounts.onChange?.();
 /**
  * M1: a member's own mailboxes. Their list, tokens and app passwords are in their own vault
  * (members/<id>/mail, sealed with the server's key so their folder alone holds no key); the
@@ -749,7 +753,7 @@ function memberMailFor(space: Space): void {
   const mv = new Vault(mdir, serverKey);
   space.mailVault = mv;
   memberMailVaults.add(mv);
-  space.mail = new MailAccounts(mv, undefined, new MicrosoftAuth(mv, { ...msOpts, clientVault: vault }), { ms: msOpts, imap: { timeZone: () => space.settings.get().timeZone }, off: () => !policyStore.memberMailOn });
+  space.mail = new MailAccounts(mv, undefined, new MicrosoftAuth(mv, { ...msOpts, clientVault: vault }), { ms: msOpts, imap: { timeZone: () => space.settings.get().timeZone }, off: () => !policyStore.memberMailOn, viewFile: join(mdir, 'mail-view.json') });
   space.mail.onChange = () => {
     for (const c of space.companions.all()) clearTodayCache(c.app);
   };
@@ -1206,7 +1210,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     }),
     voice,
     subscriptions,
-    ...(isMember ? {} : { google }),
+    ...(isMember ? {} : { google, googleAccounts: googles }),
     // M1: this person's own mailboxes (the owner's, or the member's own; never someone else's).
     ...(space.mail ? { mailAccounts: space.mail } : {}),
     ...(isMember || isDemo ? {} : { spotify }),
@@ -1411,7 +1415,24 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     const googleTools = createGoogleTools(google, () => settingsC.get().timeZone, (ids) => resolveAttachments(app, ids, 'google'));
     const calendarNames = new Set(['calendar_events', 'calendar_add', 'calendar_remove']);
     for (const t of googleTools) if (isDemo || !calendarNames.has(t.spec.name)) tools.add(t);
-    if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone)) tools.add(t);
+    // MULTIMAIL: the same Google tools for each later Google account (made when first used), with
+    // its own organizer (undo ids 'g<n>_…', so Undo always goes back to the right account).
+    const extraGoogle = new Map<string, Map<string, import('./tools/types.ts').Tool>>();
+    const googleFor = (id: string): Map<string, import('./tools/types.ts').Tool> | undefined => {
+      const n = /^google:(\d{1,2})$/.exec(id)?.[1];
+      const g = n && !isDemo ? googles.get(id) : undefined;
+      if (!g || !n) return undefined;
+      let m = extraGoogle.get(id);
+      if (!m) {
+        const own = createGoogleTools(g, () => settingsC.get().timeZone, (ids) => resolveAttachments(app, ids, 'google'));
+        const org = new GmailOrganizer(g, store.db, { idPrefix: `g${n}_`, timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (cid) => store.getConversation(cid)?.workspace, onChange: gmailTodayHook(app) });
+        (app.gmailExtra ??= new Map()).set(`g${n}_`, org);
+        m = new Map([...own, ...createGmailOrganizeTools({ google: g, organizer: org })].map((t) => [t.spec.name, t]));
+        extraGoogle.set(id, m);
+      }
+      return m;
+    };
+    if (!isDemo) for (const t of routeCalendarTools(googleTools.filter((x) => calendarNames.has(x.spec.name)), mailAccounts, () => settingsC.get().timeZone, googleFor)) tools.add(t);
     // R6 (docs/WORK_APPS.md): Google Docs/Sheets (once allowed), Word/Excel online (once allowed), Slack/Teams actions.
     if (!isDemo) {
       for (const t of createGoogleWorkTools(google)) tools.add(t);
@@ -1427,7 +1448,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       for (const t of gmailOrganize) tools.add(t);
       // M1: mail_* for every mailbox (a Gmail account is handed to the gmail_* tools above).
       app.mailOrganizer = new MailOrganizer(store.db, { timeZone: () => settingsC.get().timeZone, now: () => app.now(), jobs: () => app.jobs, workspaceOf: (id) => store.getConversation(id)?.workspace, onChange: gmailTodayHook(app) });
-      for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), timeZone: () => settingsC.get().timeZone })) tools.add(t);
+      for (const t of createMailTools({ files: (ids, kind) => resolveAttachments(app, ids, kind), accounts: mailAccounts, organizer: app.mailOrganizer, google: new Map([...googleTools, ...gmailOrganize].map((t) => [t.spec.name, t])), googleFor, timeZone: () => settingsC.get().timeZone })) tools.add(t);
     }
   } else if (space.mail && space.mailVault && !isDemo) {
     // M1: a member's own mailboxes (Outlook / Microsoft 365 and IMAP; Gmail through an app password).

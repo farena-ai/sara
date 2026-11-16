@@ -5,7 +5,10 @@
 // which nobody else's tools, Today or routes ever open. The demo has none; private conversations
 // get no mail tools; an admin policy can switch members' mail off (`memberMail: false`).
 import { randomBytes } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import type { GoogleAccount } from '../google.ts';
+import type { GoogleAccounts } from '../google-accounts.ts';
+import { CalDav, CALDAV_PRESETS, type CalDavConfig } from './caldav.ts';
 import type { Vault } from '../vault.ts';
 import { GraphMail, msAuthForState, type MicrosoftAuth, type MsOpts, type MsTokens } from './graph.ts';
 import { ImapMail, type ImapConfig, type ImapOpts } from './imap.ts';
@@ -19,6 +22,21 @@ export const imapPasswordVault = (id: string): string => `mail:imap:${id}:passwo
 interface Stored extends MailAccountInfo {
   /** IMAP only: servers, sign-in name, copy to Sent, the pinned certificate (Proton Bridge). */
   imap?: Omit<ImapConfig, 'address'>;
+  /** MULTIMAIL: IMAP accounts whose provider has CalDAV (iCloud, Fastmail, Yahoo): where it is and the calendars found. */
+  caldav?: CalDavConfig;
+}
+
+/**
+ * MULTIMAIL: what the combined views show (a plain file next to the person's data, not the vault:
+ * calendar ids can be addresses, and every vault string is hidden in logs and cards).
+ */
+export interface MailView {
+  /** Accounts left out of the combined inbox, Today's Mail and "waiting for my answer" (ids). */
+  off?: string[];
+  /** Per account: the calendars that show (ids); false hides the account's calendar entirely. */
+  calendars?: Record<string, string[] | false>;
+  /** Where new events go when she isn't told: "<account id>" or "<account id>|<calendar id>". */
+  calendarDefault?: string;
 }
 
 export interface AccountsOpts {
@@ -26,6 +44,12 @@ export interface AccountsOpts {
   imap?: Omit<ImapOpts, 'onFingerprint'>;
   /** A member's mailboxes: true while the admin's policy switches members' mail off (nothing listed, nothing added). */
   off?: () => boolean;
+  /** MULTIMAIL: every Google sign-in (the owner's); without it, only `google` (the first). */
+  googles?: GoogleAccounts;
+  /** MULTIMAIL: the combined-view choices (mail-view.json in the person's folder). */
+  viewFile?: string;
+  /** MULTIMAIL: CalDAV requests (tests: a fake server). */
+  caldav?: { fetch?: typeof fetch };
 }
 
 /** Which person's accounts a Microsoft sign-in belongs to (the callback route asks by `state`). */
@@ -86,14 +110,28 @@ export class MailAccounts {
     this.#vault.set(ACCOUNTS_VAULT, JSON.stringify(list));
   }
 
+  /** MULTIMAIL: every signed-in Google account (the first one first). */
+  googleAccounts(): GoogleAccount[] {
+    if (this.#o.googles) return this.#o.googles.all();
+    return this.#google?.status().connected ? [this.#google] : [];
+  }
+  /** MULTIMAIL: a Google account by id ('google', 'google:2'). */
+  googleOf(id: string): GoogleAccount | undefined {
+    if (this.#o.googles) return this.#o.googles.get(id);
+    return id === 'google' ? this.#google : undefined;
+  }
+
   /** Every connected mailbox, Google first. No secrets. */
   list(): MailAccountInfo[] {
     const out: MailAccountInfo[] = [];
-    const g = this.#google?.status();
-    if (g?.connected && g.gmail) out.push({ id: 'google', kind: 'google', provider: 'google', address: g.email ?? 'Gmail', addedAt: '', calendar: g.calendar });
+    for (const ga of this.googleAccounts()) {
+      const g = ga.status();
+      if (g.connected && g.gmail) out.push({ id: ga.id, kind: 'google', provider: 'google', address: g.email ?? 'Gmail', addedAt: '', calendar: g.calendar });
+    }
     for (const s of this.#stored()) {
-      const { imap: _imap, ...info } = s;
+      const { imap: _imap, caldav: _cd, ...info } = s;
       void _imap;
+      void _cd;
       const signedOut = s.kind === 'microsoft' && !this.ms.hasTokens(s.id);
       out.push({ ...info, ...(signedOut ? { problem: 'Signed out: sign in again.' } : {}) });
     }
@@ -132,10 +170,13 @@ export class MailAccounts {
     let p: MailProvider;
     if (s.kind === 'microsoft') p = new GraphMail(this.ms, s.id, s.address, this.#o.ms);
     else if (s.kind === 'imap' && s.imap) {
-      p = new ImapMail({ address: s.address, ...s.imap }, () => this.#vault.get(imapPasswordVault(s.id)), {
+      const im = new ImapMail({ address: s.address, ...s.imap }, () => this.#vault.get(imapPasswordVault(s.id)), {
         ...this.#o.imap,
         onFingerprint: (fp) => this.#update(s.id, (x) => (x.imap ? { ...x, imap: { ...x.imap, fingerprint: fp } } : x)),
       });
+      // MULTIMAIL: the same app password opens the provider's CalDAV calendars.
+      if (s.caldav) im.calendar = this.#calDav(s);
+      p = im;
     } else throw new Error('That account is handled by Gmail.');
     this.#providers.set(id, p);
     return p;
@@ -191,6 +232,13 @@ export class MailAccounts {
 
   /** Removes an account and its secrets (Google: use the Google page). */
   async remove(id: string): Promise<void> {
+    // MULTIMAIL: a later Google account is signed out here (the first one on its own page, as before).
+    if (/^google:\d+$/.test(id) && this.#o.googles) {
+      await this.#o.googles.remove(id);
+      this.#forgetView(id);
+      this.#changed();
+      return;
+    }
     if (id === 'google') throw new Error('Sign out of Google on its own page.');
     // Removing works even while the admin's policy has members' mail off (their secrets go).
     const s = this.#raw().find((x) => x.id === id);
@@ -201,7 +249,106 @@ export class MailAccounts {
     this.#vault.delete(imapPasswordVault(id));
     this.#save(this.#raw().filter((x) => x.id !== id));
     if (this.#vault.get(DEFAULT_VAULT) === id) this.#vault.delete(DEFAULT_VAULT);
+    this.#forgetView(id);
     this.#changed();
+  }
+  #forgetView(id: string): void {
+    if (this.#vault.get(DEFAULT_VAULT) === id) this.#vault.delete(DEFAULT_VAULT);
+    const v = this.view();
+    if (!this.#o.viewFile || !existsSync(this.#o.viewFile)) return;
+    const cals = { ...(v.calendars ?? {}) };
+    delete cals[id];
+    const next: MailView = { ...v, off: (v.off ?? []).filter((x) => x !== id), calendars: cals };
+    if (next.calendarDefault?.split('|')[0] === id) delete next.calendarDefault;
+    writeFileSync(this.#o.viewFile, JSON.stringify(next, null, 1));
+  }
+
+  // ---------- MULTIMAIL: CalDAV and the combined views ----------
+
+  #calDav(s: Stored): CalDav {
+    return new CalDav(s.caldav!, () => this.#vault.get(imapPasswordVault(s.id)), { ...(this.#o.caldav?.fetch ? { fetch: this.#o.caldav.fetch } : {}), chosen: () => this.chosenCalendars(s.id) });
+  }
+  /** Where an IMAP account's provider keeps CalDAV (undefined: none Sara knows, e.g. Gmail app passwords). */
+  calDavUrl(id: string): string | undefined {
+    const s = this.#raw().find((x) => x.id === id);
+    return s?.kind === 'imap' ? (s.caldav?.url ?? CALDAV_PRESETS[s.provider]) : undefined;
+  }
+  /** Turns on an IMAP account's calendar: finds its calendars with the same app password, then saves. */
+  async enableCalendar(id: string, url?: string, signal?: AbortSignal): Promise<MailAccountInfo> {
+    this.#assertOn();
+    const s = this.#raw().find((x) => x.id === id);
+    if (!s || s.kind !== 'imap' || !s.imap) throw new Error('There is no such account.');
+    const base = url?.trim() || this.calDavUrl(id);
+    if (!base) throw new Error(s.provider === 'gmail' ? 'A Gmail app password can\'t open Google Calendar. Sign in with Google instead (Add another → Google) for the calendar.' : 'Sara doesn\'t know a calendar address for this provider. Type its CalDAV address.');
+    if (!/^https:\/\//.test(base) && !(this.#o.caldav?.fetch && /^http:\/\/127\.0\.0\.1:\d+\//.test(base))) throw new Error('The calendar address starts with https://.');
+    const cfg: CalDavConfig = { url: base, user: s.imap.user };
+    const cd = new CalDav(cfg, () => this.#vault.get(imapPasswordVault(id)), this.#o.caldav?.fetch ? { fetch: this.#o.caldav.fetch } : {});
+    await cd.discover(signal);
+    this.#update(id, (x) => ({ ...x, calendar: true, caldav: cfg }));
+    this.#providers.delete(id);
+    this.#changed();
+    return this.list().find((x) => x.id === id)!;
+  }
+  /** Turns an IMAP account's calendar off again (mail stays). */
+  disableCalendar(id: string): void {
+    this.#update(id, (x) => {
+      const { caldav: _c, ...rest } = x;
+      void _c;
+      return { ...rest, calendar: false };
+    });
+    this.#providers.delete(id);
+    this.#changed();
+  }
+
+  view(): MailView {
+    const f = this.#o.viewFile;
+    if (!f || !existsSync(f)) return {};
+    try {
+      const j = JSON.parse(readFileSync(f, 'utf8')) as MailView;
+      return j && typeof j === 'object' ? j : {};
+    } catch {
+      return {};
+    }
+  }
+  setView(patch: Partial<MailView>): MailView {
+    const f = this.#o.viewFile;
+    if (!f) throw new Error('Not available here.');
+    const ids = new Set(this.list().map((a) => a.id));
+    const next: MailView = { ...this.view() };
+    if (patch.off !== undefined) next.off = [...new Set((Array.isArray(patch.off) ? patch.off : []).map(String))].filter((x) => ids.has(x));
+    if (patch.calendars !== undefined) {
+      const cals = { ...(next.calendars ?? {}) };
+      for (const [k, v] of Object.entries(patch.calendars ?? {})) {
+        if (!ids.has(k) && !this.googleOf(k)) continue;
+        if (v === false) cals[k] = false;
+        else if (Array.isArray(v)) cals[k] = [...new Set(v.map(String))].slice(0, 50);
+        else delete cals[k];
+      }
+      next.calendars = cals;
+    }
+    if (patch.calendarDefault !== undefined) {
+      const d = String(patch.calendarDefault ?? '');
+      if (d && !ids.has(d.split('|')[0]) && !this.googleOf(d.split('|')[0])) throw new Error('There is no such calendar.');
+      if (d) next.calendarDefault = d;
+      else delete next.calendarDefault;
+    }
+    writeFileSync(f, JSON.stringify(next, null, 1));
+    this.#changed();
+    return next;
+  }
+  /** The accounts in the combined inbox, Today's Mail and "waiting for my answer" (signed-in ones). */
+  combined(): MailAccountInfo[] {
+    const off = new Set(this.view().off ?? []);
+    return this.list().filter((a) => !a.problem && !off.has(a.id));
+  }
+  /** The calendars chosen for an account (undefined: the account's usual ones; [] when hidden). */
+  chosenCalendars(id: string): string[] | undefined {
+    const v = this.view().calendars?.[id];
+    return v === false ? [] : v;
+  }
+  /** The calendars found for a CalDAV account (from its last discovery). */
+  calDavCalendars(id: string): { id: string; name: string }[] {
+    return this.#raw().find((x) => x.id === id)?.caldav?.calendars ?? [];
   }
 
   /** Any mailbox besides Google (the neutral tools and the page show). */

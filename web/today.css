@@ -420,6 +420,13 @@ html.sara-busy .td-face { animation: her-breathe var(--breathe) ease-in-out infi
 /* Mail 2.0 */
 .td-mail-counts { font-variant-numeric: tabular-nums; }
 /* M1: the default mailbox's address next to the Mail title, in its own case. */
+/* MULTIMAIL: the account an event or email came from (combined Today). */
+.td-acct { display: inline-flex; align-items: center; gap: 4px; min-width: 0; max-width: 12em; font-size: var(--fs-meta); color: var(--text-2); white-space: nowrap; }
+.td-acct-name { overflow: hidden; text-overflow: ellipsis; }
+.td-acct-dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--acct, var(--lbl-gray)); }
+.td-acct-c0 { --acct: var(--lbl-blue); } .td-acct-c1 { --acct: var(--lbl-green); } .td-acct-c2 { --acct: var(--lbl-purple); }
+.td-acct-c3 { --acct: var(--lbl-orange); } .td-acct-c4 { --acct: var(--lbl-teal); } .td-acct-c5 { --acct: var(--lbl-pink); }
+.td-what .td-acct, .td-mail-link .td-acct { margin-left: 6px; }
 .td-mail-account { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-meta); color: var(--text-2); text-transform: none; letter-spacing: 0; }
 .td-mail-change { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 0; color: var(--text-2); font-variant-numeric: tabular-nums; }
 .td-mail-list, .td-org-list { display: grid; gap: 2px; margin: 0; padding: 0; list-style: none; }

@@ -35,7 +35,10 @@ const bytes = async (p: string) => Buffer.from(await (await fetch(base + p, { he
 
 test('Sara with her own default look: builtin (the app keeps its icon); signed out: nothing', async () => {
   app.persona = { ...app.persona, name: 'Sara', pronouns: 'she' };
-  assert.deepEqual((await session()).face, { kind: 'builtin', src: '/sara-avatar.jpg', tag: 'b' });
+  const { icon, iconVersion, ...face } = (await session()).face as { icon?: string; iconVersion?: string };
+  assert.deepEqual(face, { kind: 'builtin', src: '/sara-avatar.jpg', tag: 'b' });
+  assert.equal(icon, '/app-icon.png', 'ownicon: the server-made icon');
+  assert.ok(iconVersion);
   assert.equal((await session(false)).face, undefined, 'her face is private to the signed-in owner');
 });
 
@@ -68,6 +71,8 @@ test('another companion without a look: her initial; a custom look: the look', (
   const look = { custom: false, fileOrDefault: () => undefined };
   assert.equal(appFaceOf({ dataDir: join(dir, 'none'), companionId: 'c2', persona: { name: 'Mia' }, look }).kind, 'initial');
   assert.equal(appFaceOf({ dataDir: join(dir, 'none'), companionId: 'main', persona: { name: 'Sara' }, look }).kind, 'builtin');
+  // Ownicon: Sara renamed (Hank) without a look of her own: her initial, never Sara's face.
+  assert.equal(appFaceOf({ dataDir: join(dir, 'none'), companionId: 'main', persona: { name: 'Hank' }, look }).kind, 'initial');
   const custom = { custom: true, fileOrDefault: (rel: string) => (rel === 'sara-avatar.jpg' ? join(WEB, 'sara-avatar.jpg') : undefined) };
   assert.equal(appFaceOf({ dataDir: join(dir, 'none'), companionId: 'c2', persona: { name: 'Mia' }, look: custom }).kind, 'look');
 });
@@ -76,10 +81,22 @@ test('Windows app: the face becomes every icon; Sara keeps the built-in one; nam
   const cpp = readFileSync(join(ROOT, 'desktop', 'windows', 'src', 'main.cpp'), 'utf8');
   const qa = readFileSync(join(ROOT, 'desktop', 'shared', 'quick-ask.html'), 'utf8');
   // The page: once per server tag, 256 px, or 'builtin'; older servers say nothing.
-  assert.match(qa, /const icon = f\.kind === 'builtin' \? 'builtin' : await makeIcon\(/);
+  assert.match(qa, /const icon = f\.kind === 'builtin' \? 'builtin' : f\.icon \? await fetchIcon\(f\.icon \+ '\?s=256&' \+ v\) : await makeIcon\(/, 'ownicon: the server-made icon, the page drawing for older servers');
   assert.match(qa, /c\.width = c\.height = 256;/);
   assert.match(qa, /const icon = await iconFor\(session\.face\);\s*post\(\{ a: 'state'[^}]*\bicon,/);
   assert.match(qa, /const faceKey = url \+ ' ' \+/, 'the tray menu face follows a new look too');
+  // Ownicon: a monogram for the tray menu face too, and it fills the icon (no closer face crop).
+  assert.match(qa, /session\.face\.kind === 'initial' && session\.face\.icon \? session\.face\.icon \+ '\?s=64' : faceUrl\(\)/);
+  assert.match(qa, /iconFull = r\.headers\.get\('x-sara-icon'\) === 'initial';/);
+  assert.match(cpp, /if \(size <= 48 && !g_iconFull\) \{/);
+  assert.match(cpp, /takeIcon\(m\[L"icon"\], m\[L"iconFull"\] == L"true"\);/);
+  assert.match(cpp, /g_now\.name == L"Sara" \? companionName\(\) : g_now\.name;/, 'the tray tooltip says her cached name from the start');
+  assert.match(cpp, /applyCompanionName\(companionName\(\)\);\s*updateTrayTip\(\);/);
+  assert.match(cpp, /g_iconFull = getPref\(\(L"iconfull-" \+ serverTag\(\)\)\.c_str\(\)\) == L"1";/, 'cached with the icon');
+  // The Mac app: the Dock icon is hers too (NSApp.applicationIconImage; nil = the bundle's own).
+  const mac = readFileSync(join(ROOT, 'desktop', 'mac', 'Sources', 'QuickAsk.swift'), 'utf8');
+  assert.match(mac, /NSApp\.applicationIconImage = \(try\? Data\(contentsOf: iconCacheURL\)\)/);
+  assert.match(mac, /if s == "builtin" \{\s*try\? FileManager\.default\.removeItem\(at: iconCacheURL\)/);
   // The app: cached per server, every icon, the built-in one for Sara.
   assert.match(cpp, /static std::wstring iconCachePath\(\) \{ return dataDir\(\) \+ L"\\\\icon-" \+ serverTag\(\) \+ L"\.png"; \}/);
   assert.match(cpp, /if \(icon == L"builtin"\) \{[\s\S]{0,120}g_iconPng\.clear\(\);[\s\S]{0,80}DeleteFileW\(iconCachePath\(\)\.c_str\(\)\);/);

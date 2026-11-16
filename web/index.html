@@ -10,8 +10,8 @@
   <meta name="apple-mobile-web-app-title" content="Sara">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="manifest" href="/manifest.webmanifest" crossorigin="use-credentials">
-  <link rel="icon" href="/icon-192.png">
-  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="icon" href="/app-icon.png?s=64" sizes="64x64" type="image/png">
+  <link rel="apple-touch-icon" href="/app-icon.png?s=180&amp;shape=square">
   <script src="/theme-boot.js"></script>
   <script src="/viewport.js"></script>
   <link rel="stylesheet" href="/theme.css">
@@ -3474,6 +3474,10 @@
       <p class="muted small page-lead">Your own mailboxes: Gmail, Outlook.com and Microsoft 365, Yahoo, iCloud, Fastmail and more. She reads and searches them; drafting, sending, organizing and calendar changes always ask you first, and nothing is ever deleted for good.</p>
       <p id="ma-status" class="muted small" role="status"></p>
       <div id="ma-page"></div>
+      <h3>Combined inbox and Today <button type="button" class="tip" data-tip="Which mailboxes she reads together for Today's Mail, searches and “waiting for my answer”. Each email says which mailbox it is in.">?</button></h3>
+      <div id="ma-combined" data-nodirty data-noauto></div>
+      <h3>Calendars <button type="button" class="tip" data-tip="Pick which calendars of each account show on Today, in the briefing and for your booking page, and where new events go.">?</button></h3>
+      <div id="ma-cals" data-nodirty data-noauto></div>
       <h3>Inbox helper <button type="button" class="tip" data-tip="She turns new email into one-tap cards on Today: bills, receipts, packages, trips, appointments and paid invoices. Suggestions only until you turn on “do it for me” for a kind. Read only: she never sends, pays or deletes anything here.">?</button></h3>
       <p id="ih-status" class="muted small" role="status"></p>
       <div id="ih-page" data-nodirty data-noauto></div>

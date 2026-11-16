@@ -1,8 +1,9 @@
 // 3.5.2: the companion's face for the desktop apps' icons (window, taskbar, tray, notifications,
 // Start-menu shortcut; docs/desktop.md → Her face as the app's icon). /api/session says which
 // picture it is and a tag that changes when it changes; the app's quick-ask page draws it (with the
-// sign-in) and hands the PNG to the app. 'builtin' = Sara with her own default look: the app keeps
-// its built-in icon.
+// sign-in) and hands the PNG to the app. 'builtin' = Sara (named Sara) with her own default look: the
+// app keeps its built-in icon. Ownicon: a renamed companion without a picture of her own is 'initial'
+// (a monogram from /app-icon.png, src/app-icon.ts), never Sara's face.
 import { existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { AVATAR_TYPES } from './http.ts';
@@ -14,6 +15,8 @@ export interface AppFace {
   src: string;
   /** Changes whenever the picture does (a new look, an uploaded picture, a rename). */
   tag: string;
+  /** Ownicon: the server-made icon (any size: ?s=16…512; /app-icon.ico), the same picture as an app icon. */
+  icon?: string;
 }
 
 interface FaceSource {
@@ -48,7 +51,12 @@ export function appFaceOf(app: FaceSource): AppFace {
   // A custom look, or the he/they default look that matches the pronouns (or was picked).
   const look = app.look?.fileOrDefault('sara-avatar.jpg');
   if (look) return { kind: 'look', src: '/sara-avatar.jpg', tag: `l${app.look?.custom ? 'c' : ''}${stamp(look)}` };
-  // Another companion without a look of her own: her initial (src/server.ts serves it there).
-  if (app.companionId && app.companionId !== 'main' && !app.look?.custom) return { kind: 'initial', src: '/sara-avatar.jpg', tag: `i${encodeURIComponent(app.persona.name).slice(0, 60)}` };
+  // Another companion, or Sara renamed, without a look of her own: her initial (a monogram).
+  if (!isSaraDefault(app)) return { kind: 'initial', src: '/app-icon.png?s=256', tag: `i${encodeURIComponent(app.persona.name).slice(0, 60)}` };
   return { kind: 'builtin', src: '/sara-avatar.jpg', tag: 'b' };
+}
+
+/** Sara herself: the first companion, still named Sara (her own face and the app's own icon fit). */
+export function isSaraDefault(app: Pick<FaceSource, 'companionId' | 'persona'>): boolean {
+  return (!app.companionId || app.companionId === 'main') && app.persona.name.trim().toLowerCase() === 'sara';
 }

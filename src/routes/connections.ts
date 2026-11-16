@@ -432,8 +432,58 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         for (const cx of opts.companions?.all() ?? []) clearTodayCache(cx.app);
         clearTodayCache(app);
       };
-      const view = () => ({ accounts: accts.list(), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
+      // MULTIMAIL: what each account brings (mail, calendar; CalDAV where the provider has it), the
+      // combined-view choices, and whether another Google account can be added (owner, Google app saved).
+      const caldavOf = (x: { id: string; kind: string; calendar: boolean; provider: string }) => (x.kind !== 'imap' ? undefined : x.calendar ? 'on' : accts.calDavUrl(x.id) ? 'can' : x.provider === 'gmail' ? 'google' : 'none');
+      const gst = member ? undefined : app.google?.status();
+      const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
       if (b === 'accounts' && !c && method === 'GET') return send(res, 200, view());
+      if (b === 'view' && method === 'PUT') {
+        guardOn();
+        const body = await readJson(req);
+        try {
+          accts.setView({ ...(body.off !== undefined ? { off: body.off as string[] } : {}), ...(body.calendars !== undefined ? { calendars: body.calendars as Record<string, string[] | false> } : {}), ...(body.calendarDefault !== undefined ? { calendarDefault: String(body.calendarDefault ?? '') } : {}) });
+        } catch (err) {
+          throw as400(err);
+        }
+        forget();
+        return send(res, 200, view());
+      }
+      // MULTIMAIL: every account's calendars with which ones show (Google: its calendar list; Outlook:
+      // its main calendar; CalDAV: the calendars found when it was turned on).
+      if (b === 'calendars' && method === 'GET') {
+        const out: { id: string; address: string; kind: string; calendars: { id: string; name: string; on: boolean }[]; error?: string }[] = [];
+        for (const x of accts.list()) {
+          if (!x.calendar || x.problem) continue;
+          const chosen = accts.chosenCalendars(x.id);
+          try {
+            let cals: { id: string; name: string; primary?: boolean }[] = [];
+            if (x.kind === 'google') cals = (await accts.googleOf(x.id)?.calendars(AbortSignal.timeout(15_000))) ?? [];
+            else if (x.kind === 'microsoft') cals = [{ id: 'default', name: 'Calendar', primary: true }];
+            else cals = accts.calDavCalendars(x.id);
+            out.push({ id: x.id, address: x.address, kind: x.kind, calendars: cals.map((k) => ({ id: k.primary && x.kind === 'google' ? 'primary' : k.id, name: k.name, on: chosen ? chosen.includes(k.primary && x.kind === 'google' ? 'primary' : k.id) : x.kind === 'google' ? Boolean(k.primary) : true })) });
+          } catch (err) {
+            out.push({ id: x.id, address: x.address, kind: x.kind, calendars: [], error: (err as Error).message.slice(0, 200) });
+          }
+        }
+        return send(res, 200, { accounts: out, default: accts.view().calendarDefault ?? null });
+      }
+      if (b === 'accounts' && c && parts[3] === 'calendar' && method === 'POST') {
+        guardOn();
+        const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+        try {
+          await accts.enableCalendar(c, typeof body.url === 'string' ? body.url : undefined, AbortSignal.timeout(30_000));
+        } catch (err) {
+          throw as400(err);
+        }
+        forget();
+        return send(res, 200, view());
+      }
+      if (b === 'accounts' && c && parts[3] === 'calendar' && method === 'DELETE') {
+        accts.disableCalendar(c);
+        forget();
+        return send(res, 200, view());
+      }
       if (b === 'default' && method === 'PUT') {
         guardOn();
         const body = await readJson(req);
@@ -456,7 +506,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (b === 'accounts' && c && parts[3] === 'test' && method === 'POST') {
         try {
-          if (c === 'google') return send(res, 200, { ok: true, text: app.google?.status().connected ? 'Gmail is connected.' : 'Gmail is not connected.' });
+          if (c === 'google' || /^google:\d+$/.test(c)) return send(res, 200, { ok: true, text: accts.googleOf(c)?.status().connected ? 'Gmail is connected.' : 'Gmail is not connected.' });
           const p = accts.provider(c);
           const text = await p.test(AbortSignal.timeout(30_000));
           return send(res, 200, { ok: true, text });
@@ -528,9 +578,21 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!g) throw new HttpError(404, 'Not available');
       const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${opts.trustProxy && req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http'}://${req.headers.host}`;
       const redirect = `${origin}/api/google/callback`;
-      if (!b && method === 'GET') return send(res, 200, { ...g.status(), redirect });
+      // MULTIMAIL: every Google sign-in (the first one is `google`, as before).
+      const gl = app.googleAccounts;
+      if (!b && method === 'GET') return send(res, 200, { ...g.status(), redirect, ...(gl ? { accounts: gl.list().map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs })) } : {}) });
+      if (b === 'accounts' && c && method === 'DELETE' && gl) {
+        try {
+          await gl.remove(c);
+        } catch (err) {
+          throw as400(err);
+        }
+        for (const cx of opts.companions?.all() ?? []) clearTodayCache(cx.app);
+        clearTodayCache(app);
+        return send(res, 200, { ...g.status(), accounts: gl.list().map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs })) });
+      }
       if (!b && method === 'DELETE') {
-        // Phase 111: every companion's Today forgets the Google parts (one Google account per server).
+        // Phase 111: every companion's Today forgets the Google parts (the first Google account; MULTIMAIL's later ones are removed under /api/google/accounts/:id).
         for (const cx of opts.companions?.all() ?? []) clearTodayCache(cx.app);
         clearTodayCache(app);
         await g.disconnect();
@@ -540,6 +602,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         const body = await readJson(req);
         try {
           g.setClient(String(body.clientId ?? ''), String(body.clientSecret ?? ''));
+          // MULTIMAIL: later sign-ins belonged to the old Google app.
+          gl?.forgetExtras();
         } catch (err) {
           throw as400(err);
         }
@@ -548,12 +612,15 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'client' && method === 'DELETE') {
         await g.disconnect();
         g.forgetClient();
+        gl?.forgetExtras();
         return send(res, 200, g.status());
       }
       // Gmail organizing: the result card's Undo button (exactly the emails that change touched).
       if (b === 'undo' && c && method === 'POST' && c.startsWith('m_')) return mailUndo(c);
       if (b === 'undo' && c && method === 'POST') {
-        const gm = app.gmail;
+        // MULTIMAIL: a later Google account's change ('g2_…') goes back through its own organizer.
+        const pre = /^g\d{1,2}_/.exec(c)?.[0];
+        const gm = pre ? app.gmailExtra?.get(pre) : app.gmail;
         if (!gm) throw new HttpError(404, 'Not available');
         if (!gm.canOrganize()) throw new HttpError(409, RECONNECT_TEXT);
         const problem = gm.undoProblem(c);
@@ -572,6 +639,9 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         // R6: {docs: true} adds Docs and Sheets editing (a new Google consent page; never silently).
         const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
         try {
+          // MULTIMAIL: {add: true} signs in another Google account (Google's account picker first);
+          // {id} asks again for one account (e.g. to allow Docs and Sheets there).
+          if (gl && (body.add === true || typeof body.id === 'string')) return send(res, 200, { url: gl.authUrl(redirect, { docs: body.docs === true, add: body.add === true, ...(typeof body.id === 'string' ? { id: body.id } : {}) }) });
           return send(res, 200, { url: g.authUrl(redirect, { docs: body.docs === true }) });
         } catch (err) {
           throw as400(err);

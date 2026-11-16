@@ -23,9 +23,10 @@ Outlook.com no longer lets programs in with a password over IMAP (Microsoft swit
 September 2024): Microsoft requires its own sign-in, which is why Outlook goes through Microsoft Graph
 with an app you own. Nothing goes through anyone else's servers.
 
-You can connect **several mailboxes** (for example Gmail and Outlook). One is the **default**: she
-uses it unless you name another ("search my Outlook for the invoice", "what needs an answer in all my
-mail?"). Today's Mail card and the morning briefing show the default mailbox (and its calendar).
+You can connect **several mailboxes** (for example two Gmail accounts and an Outlook). Searches, Today's
+Mail card and "what needs an answer?" cover all of them, each email labeled with its mailbox; replies go
+from the mailbox that got the email, new emails from the **default** unless you name another. Calendars
+from every account show together. Details: [MAIL_ACCOUNTS.md](MAIL_ACCOUNTS.md).
 
 ## Adding Gmail (3 steps, about 3 minutes)
 

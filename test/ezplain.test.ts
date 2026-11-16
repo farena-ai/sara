@@ -102,6 +102,7 @@ test('ezplain 5: a failed mail sign-in says why in plain words (wrong password, 
   assert.equal(explainSignIn('[ALERT] Your account is not enabled for IMAP use. Please visit your Gmail settings page and enable it.', 'gmail'), 'imap-off');
   assert.equal(explainSignIn('IMAP access is disabled for your domain', 'zoho'), 'imap-off');
   assert.equal(explainSignIn('getaddrinfo ENOTFOUND imap.example.com', 'other'), 'unreachable');
+  assert.equal(explainSignIn("the encrypted connection failed: Hostname/IP does not match certificate's altnames: Host: smtp.gmail.com. is not in the cert's altnames: DNS:mail.example.net", 'gmail'), 'smtp-blocked');
   assert.equal(explainSignIn("imap.invalid couldn't be found", 'other'), 'unreachable');
   assert.equal(explainSignIn('connect ECONNREFUSED 127.0.0.1:1143', 'proton'), 'unreachable');
   assert.equal(explainSignIn('The mail server took too long to answer.', 'yahoo'), 'unreachable');

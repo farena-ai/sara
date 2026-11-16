@@ -16,6 +16,8 @@ const walk = (p: GPart | undefined, out: GPart[] = []): GPart[] => {
   return out;
 };
 
+const googleOf = (app: AppContext, id: string) => (id === 'google' ? app.google : undefined) ?? app.mailAccounts?.googleOf?.(id);
+
 function accountOf(app: AppContext, address: string) {
   const a = app.mailAccounts?.list().find((x) => x.address.toLowerCase() === address.toLowerCase());
   if (!a) throw new Error('That mailbox is not connected any more.');
@@ -27,12 +29,14 @@ export async function readNewMail(app: AppContext, o: { account: string; since: 
   const a = accountOf(app, o.account);
   const out: InboxMail[] = [];
   if (a.kind === 'google') {
-    if (!app.google) return out;
+    // MULTIMAIL: each Google account through its own sign-in.
+    const g = googleOf(app, a.id);
+    if (!g) return out;
     const q = `in:inbox after:${Math.floor(o.since.getTime() / 1000)} -from:me`;
-    const list = (await app.google.api(`${GMAIL}/messages?${new URLSearchParams({ q, maxResults: String(o.max) })}`, { signal: o.signal })) as { messages?: { id: string }[] };
+    const list = (await g.api(`${GMAIL}/messages?${new URLSearchParams({ q, maxResults: String(o.max) })}`, { signal: o.signal })) as { messages?: { id: string }[] };
     for (const { id } of list.messages ?? []) {
       if (o.seen.has(id)) continue;
-      const m = (await app.google.api(`${GMAIL}/messages/${id}?format=full`, { signal: o.signal })) as { id: string; internalDate?: string; snippet?: string; payload?: GPart };
+      const m = (await g.api(`${GMAIL}/messages/${id}?format=full`, { signal: o.signal })) as { id: string; internalDate?: string; snippet?: string; payload?: GPart };
       const parts = walk(m.payload);
       const plain = parts.find((p) => p.mimeType === 'text/plain' && !p.filename);
       const html = parts.find((p) => p.mimeType === 'text/html' && !p.filename);
@@ -55,11 +59,12 @@ export async function readNewMail(app: AppContext, o: { account: string; since: 
 export async function readAttachment(app: AppContext, account: string, mailId: string, name: string, signal: AbortSignal): Promise<{ name: string; mime: string; data: Buffer } | undefined> {
   const a = accountOf(app, account);
   if (a.kind === 'google') {
-    if (!app.google) return undefined;
-    const m = (await app.google.api(`${GMAIL}/messages/${mailId}?format=full`, { signal })) as { payload?: GPart };
+    const g = googleOf(app, a.id);
+    if (!g) return undefined;
+    const m = (await g.api(`${GMAIL}/messages/${mailId}?format=full`, { signal })) as { payload?: GPart };
     const part = walk(m.payload).find((p) => p.filename === name && p.body?.attachmentId);
     if (!part) return undefined;
-    const got = (await app.google.api(`${GMAIL}/messages/${mailId}/attachments/${part.body!.attachmentId}`, { signal })) as { data?: string };
+    const got = (await g.api(`${GMAIL}/messages/${mailId}/attachments/${part.body!.attachmentId}`, { signal })) as { data?: string };
     return got.data ? { name, mime: part.mimeType ?? 'application/octet-stream', data: Buffer.from(got.data, 'base64url') } : undefined;
   }
   const p = app.mailAccounts!.provider(a.id);

@@ -88,7 +88,8 @@ function card(it) {
   head.append(el('span', 'ih-kind', KIND_LABEL()[it.kind] ?? it.kind), el('span', 'ih-main', main));
   row.append(head);
   if (sub) row.append(el('div', 'ih-sub muted small', sub));
-  const from = el('div', 'ih-from muted small', `${it.sender} · “${it.subject}”`);
+  // MULTIMAIL: with cards from several mailboxes, each says which one it came from.
+  const from = el('div', 'ih-from muted small', `${it.sender} · “${it.subject}”${severalBoxes && it.account ? ` · ${it.account}` : ''}`);
   row.append(from);
   const acts = el('div', 'ih-acts');
   const accept = btn(it.kind === 'file' ? t('File it') : t('Accept'), 'small', () => void act(`/inbox/items/${it.id}/accept`));
@@ -117,7 +118,11 @@ async function fileIt(it) {
 }
 
 /** Today: the "From your inbox" tile. */
+/** MULTIMAIL: the pending cards come from more than one mailbox (each card then names its mailbox). */
+let severalBoxes = false;
+
 export function renderInboxTile(p, tileHead, dateCard) {
+  severalBoxes = new Set((p?.pending ?? []).map((x) => x.account).filter(Boolean)).size > 1;
   const tile = $('#td-inbox');
   if (!tile) return;
   tile.hidden = !p;

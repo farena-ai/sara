@@ -1466,6 +1466,8 @@ static HBITMAP faceBitmap() {
 static std::vector<BYTE> g_iconPng;
 static HICON g_winBig = nullptr, g_winSmall = nullptr;
 static std::wstring g_iconIco;  // the generated .ico in use ("" = the built-in icon)
+// Ownicon: the server's monogram (her initial) fills the icon: no closer face crop at small sizes.
+static bool g_iconFull = false;
 static bool g_relaunchSet = false;
 
 static std::wstring serverTag() {
@@ -1521,7 +1523,7 @@ static bool faceBgra(const std::vector<BYTE>& png, int size, std::vector<BYTE>& 
       FAILED(dec->GetFrame(0, &frame)) || FAILED(frame->GetSize(&w, &h)) || w < 8 || h < 8)
     return false;
   IWICBitmapSource* src = frame.Get();
-  if (size <= 48) {
+  if (size <= 48 && !g_iconFull) {
     WICRect r{(INT)(w * 12 / 100), (INT)(h * 6 / 100), (INT)(w * 76 / 100), (INT)(h * 76 / 100)};
     if (SUCCEEDED(f->CreateBitmapClipper(&clip)) && SUCCEEDED(clip->Initialize(frame.Get(), &r))) src = clip.Get();
   }
@@ -1754,9 +1756,10 @@ static void applyCompanionIcon() {
 static void loadCachedIcon() {
   g_iconPng = readAll(iconCachePath(), 2 * 1024 * 1024);
   if (!isPng(g_iconPng)) g_iconPng.clear();
+  g_iconFull = getPref((L"iconfull-" + serverTag()).c_str()) == L"1";
 }
-/** {a:'state', icon: 'builtin' | 'data:image/png;base64,…'} from the quick-ask page. */
-static void takeIcon(const std::wstring& icon) {
+/** {a:'state', icon: 'builtin' | 'data:image/png;base64,…', iconFull} from the quick-ask page. */
+static void takeIcon(const std::wstring& icon, bool full) {
   if (icon.empty()) return;  // an older server: nothing said, nothing changes
   if (icon == L"builtin") {
     if (g_iconPng.empty() && g_iconIco.empty()) return;
@@ -1767,8 +1770,10 @@ static void takeIcon(const std::wstring& icon) {
   const std::wstring prefix = L"data:image/png;base64,";
   if (icon.rfind(prefix, 0) != 0) return;
   auto png = base64Decode(toUtf8(icon.substr(prefix.size())));
-  if (!isPng(png) || png == g_iconPng) return;
+  if (!isPng(png) || (png == g_iconPng && full == g_iconFull)) return;
   g_iconPng = png;
+  g_iconFull = full;
+  setPref((L"iconfull-" + serverTag()).c_str(), full ? L"1" : L"0");
   writeAll(iconCachePath(), png);
   applyCompanionIcon();
 }
@@ -1787,7 +1792,8 @@ static void applyCompanionName(const std::wstring& name) {
 
 /** The tray tooltip: "Sara · relaxed" (+ approvals waiting, + which Sara when there are several). */
 static void updateTrayTip() {
-  std::wstring tip = g_now.name.empty() ? L"Sara" : g_now.name;
+  // Ownicon: her name as this server last gave it until the page says (companionName), not "Sara".
+  std::wstring tip = g_now.name.empty() || g_now.name == L"Sara" ? companionName() : g_now.name;
   if (!g_now.mood.empty()) tip += L" · " + g_now.mood;
   size_t waiting = 0;
   for (auto& i : g_now.items) waiting += i.kind == L"approval";
@@ -1851,7 +1857,7 @@ static void takeNow(std::map<std::wstring, std::wstring>& m) {
   // 3.5.2: her name on the window, her face as the app's icon (when the page drew it).
   if (n.signedIn && !n.demo) {
     applyCompanionName(n.name);
-    takeIcon(m[L"icon"]);
+    takeIcon(m[L"icon"], m[L"iconFull"] == L"true");
   }
   updateTrayTip();
   // Phase 75 stage 3: approvals waiting → a toast with Allow / Deny (once each); decided ones go away.
@@ -4688,6 +4694,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   loadCachedIcon();
   applyCompanionIcon();
   applyCompanionName(companionName());
+  updateTrayTip();  // ownicon: her cached name on the tray from the start, not "Sara"
   ensureSendTo();
   // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start), "Now" every 45 s.
   registerShortcut(true);

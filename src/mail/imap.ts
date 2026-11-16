@@ -183,6 +183,8 @@ export interface ImapOpts extends Pick<OpenOpts, 'ca' | 'lookup' | 'testLoopback
 
 export class ImapMail implements MailProvider {
   readonly kind = 'imap' as const;
+  /** MULTIMAIL: the provider's CalDAV calendars (iCloud, Fastmail, Yahoo), when turned on. */
+  calendar?: MailProvider['calendar'];
   readonly #cfg: ImapConfig;
   readonly #password: () => string | undefined;
   readonly #o: ImapOpts;

@@ -46,6 +46,7 @@ const REASON = {
   'two-step': (p) => (p === 'gmail' ? t('Google wants an app password, and that needs 2-Step Verification on first: Google Account → Security → 2-Step Verification. Then make the app password.') : t('Your provider wants an app password, and that needs two-step sign-in switched on first in your account security settings.')),
   'imap-off': (p) => (p === 'gmail' ? t('IMAP is switched off for this Gmail. In Gmail on the web: Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP → Save, then press Check it again.') : t('Mail apps are switched off for this mailbox. Switch IMAP on in its web settings, then press Check it again.')),
   unreachable: () => t("Sara couldn't reach the mail server. Check this computer's internet connection, then try again."),
+  'smtp-blocked': () => t("This server doesn't let Sara send mail to outside mail servers (its firewall sends outgoing mail to its own mail system). Ask whoever runs the server to allow Sara on ports 465 and 587, then try again."),
   other: () => t("That didn't work. Check the address and the app password, then try again."),
 };
 function reasonLine(out, err, presetId) {
@@ -219,7 +220,10 @@ function accountRow(a) {
   name.append(el('strong', 'ma-provider', KIND[a.kind] ?? (view.presets.find((p) => p.id === a.provider)?.name ?? t('Other'))), el('span', 'ma-address', ` ${a.address}`));
   name.lastChild.dataset.raw = '';
   li.append(name);
-  if (a.calendar) li.append(el('span', 'rc-chip', t('Mail and calendar')));
+  // MULTIMAIL: what each account brings, at a glance.
+  li.append(el('span', 'rc-chip ok', t('Mail ✓')));
+  if (a.calendar) li.append(el('span', 'rc-chip ok', t('Calendar ✓')));
+  else if (a.caldav === 'google') li.append(el('span', 'muted small ma-calnote', t('Calendar: use Sign in with Google')));
   if (view.default === a.id) li.append(el('span', 'rc-chip ok', t('Default')));
   if (a.problem) li.append(el('span', 'error small', t('Signed out: sign in again.')));
   const acts = el('span', 'ma-acts');
@@ -231,7 +235,9 @@ function accountRow(a) {
     const s = $('#ma-status');
     if (s) reasonLine(s, r, a.provider);
   }));
-  if (a.kind === 'google') acts.append(btn(t('Open'), 'ghost small', () => globalThis.openSettingsPage?.('ab-google')));
+  if (a.caldav === 'can') acts.append(btn(t('Turn on calendar'), 'ghost small', () => calendarOn(a)));
+  if (a.caldav === 'on') acts.append(btn(t('Turn off calendar'), 'ghost small', async () => ((view = await api(`/mail/accounts/${enc(a.id)}/calendar`, { method: 'DELETE' })), render())));
+  if (a.id === 'google') acts.append(btn(t('Open'), 'ghost small', () => globalThis.openSettingsPage?.('ab-google')));
   else
     acts.append(btn(t('Remove'), 'ghost small', async () => {
       if (!confirm(t('Remove {address} from Sara? Its sign-in is deleted; your mail stays where it is.', { address: a.address }))) return;
@@ -240,6 +246,116 @@ function accountRow(a) {
     }));
   li.append(acts);
   return li;
+}
+
+/** MULTIMAIL: the same app password opens the provider's calendars (iCloud, Fastmail, Yahoo). */
+async function calendarOn(a, url) {
+  status(t('Checking…'));
+  try {
+    view = await api(`/mail/accounts/${enc(a.id)}/calendar`, { method: 'POST', body: url ? { url } : {} });
+    render();
+    status(t('Calendar on for {address}.', { address: a.address }));
+    void loadCalendars();
+  } catch (err) {
+    if (!url && /calendar address/.test(err.message)) {
+      const typed = prompt(t('Your provider’s calendar (CalDAV) address, from its help pages:'), 'https://');
+      if (typed && typed !== 'https://') return calendarOn(a, typed.trim());
+    }
+    status(err.message);
+  }
+}
+
+/** MULTIMAIL: which mailboxes the combined inbox, Today's Mail and “waiting for my answer” read. */
+function renderCombined() {
+  const box = $('#ma-combined');
+  if (!box || !view) return;
+  const list = view.accounts.filter((a) => !a.problem);
+  if (list.length < 2) return box.replaceChildren(el('p', 'muted small', t('With two or more mailboxes, choose here which ones the combined inbox and Today show.')));
+  const off = new Set(view.view?.off ?? []);
+  const rows = el('div', 'ma-choose');
+  for (const a of list) {
+    const row = el('label', 'row ma-pick');
+    const box2 = el('input');
+    box2.type = 'checkbox';
+    box2.checked = !off.has(a.id);
+    box2.addEventListener('change', async () => {
+      const next = view.accounts.filter((x) => x.id !== a.id && off.has(x.id)).map((x) => x.id);
+      if (!box2.checked) next.push(a.id);
+      try {
+        view = await api('/mail/view', { method: 'PUT', body: { off: next } });
+        renderCombined();
+      } catch (err) {
+        status(err.message);
+      }
+    });
+    const txt = el('span', 'ma-pick-text');
+    txt.append(el('span', 'ma-pick-name', a.address), el('span', 'muted small', a.kind === 'google' ? 'Gmail' : (KIND[a.kind] ?? (view.presets.find((p) => p.id === a.provider)?.name ?? t('Other')))));
+    txt.firstChild.dataset.raw = '';
+    row.append(txt, box2);
+    rows.append(row);
+  }
+  box.replaceChildren(rows);
+}
+
+let cals = null;
+/** MULTIMAIL: every account's calendars (which show) and where new events go. */
+export async function loadCalendars() {
+  cals = await api('/mail/calendars').catch(() => null);
+  renderCalendars();
+}
+function renderCalendars() {
+  const box = $('#ma-cals');
+  if (!box) return;
+  if (!cals?.accounts?.length) return box.replaceChildren(el('p', 'muted small', t('No calendar yet. Google, Outlook, iCloud, Fastmail and Yahoo accounts can bring theirs.')));
+  const parts = [];
+  for (const acc of cals.accounts) {
+    const card = el('div', 'ma-cal-acc');
+    const head = el('strong', 'ma-cal-head', acc.address);
+    head.dataset.raw = '';
+    card.append(head);
+    if (acc.error) card.append(el('p', 'error small', acc.error));
+    for (const c of acc.calendars) {
+      const row = el('label', 'row ma-pick');
+      const cb = el('input');
+      cb.type = 'checkbox';
+      cb.checked = c.on;
+      cb.addEventListener('change', async () => {
+        c.on = cb.checked;
+        const ids = acc.calendars.filter((x) => x.on).map((x) => x.id);
+        try {
+          await api('/mail/view', { method: 'PUT', body: { calendars: { [acc.id]: ids.length ? ids : false } } });
+          status(t('Saved.'));
+        } catch (err) {
+          status(err.message);
+        }
+      });
+      const name = el('span', 'ma-pick-name', c.id === 'primary' ? t('Main calendar') : c.name);
+      if (c.id !== 'primary') name.dataset.raw = '';
+      row.append(name, cb);
+      card.append(row);
+    }
+    parts.push(card);
+  }
+  // Where new events go when she isn't told.
+  const pick = el('select', '');
+  pick.id = 'ma-cal-default';
+  pick.append(new Option(t('Ask me each time'), ''));
+  for (const acc of cals.accounts) pick.append(new Option(acc.address, acc.id));
+  pick.value = cals.default?.split('|')[0] ?? '';
+  pick.addEventListener('change', async () => {
+    try {
+      await api('/mail/view', { method: 'PUT', body: { calendarDefault: pick.value } });
+      status(t('Saved.'));
+    } catch (err) {
+      status(err.message);
+    }
+  });
+  const lab = el('label', 'plg-field ma-cal-default');
+  const nm = el('span', 'plg-field-name');
+  nm.append(el('span', '', t('New events go to')), tip(t('When you don’t say which calendar, she asks you, or uses this one.')));
+  lab.append(nm, pick);
+  if (cals.accounts.length > 1) parts.push(lab);
+  box.replaceChildren(...parts);
 }
 
 /** A household member's Outlook: the owner's Microsoft app signs them in (no setup steps here). */
@@ -281,11 +397,24 @@ function render() {
   // 3.3.0 (ezplain): everyone starts with the 3-step app-password route; the Google Cloud sign-in is
   // Advanced (a link inside it).
   const addGmail = () => ((adding = 'other'), (preset = 'gmail'), render());
+  // MULTIMAIL: more Google sign-ins through the owner's Google app (once it is set up).
+  const gApp = view.googleApp;
+  const addGoogle = gApp?.configured && gApp.multi
+    ? btn(gApp.connected ? t('Add another Google account') : t('Sign in with Google'), 'ghost', async () => {
+        try {
+          const r = await api('/google/connect', { method: 'POST', body: { add: true } });
+          location.href = r.url;
+        } catch (err) {
+          status(err.message);
+        }
+      })
+    : null;
   add.append(
+    ...(addGoogle ? [addGoogle] : []),
     btn(t('Add Gmail'), adding === 'other' && preset === 'gmail' ? '' : 'ghost', addGmail),
     btn(t('Add Outlook or Microsoft 365'), adding === 'ms' ? '' : 'ghost', () => ((adding = adding === 'ms' ? '' : 'ms'), render())),
     btn(t('Add another provider'), adding === 'other' && preset !== 'gmail' ? '' : 'ghost', () => ((adding = adding === 'other' && preset !== 'gmail' ? '' : 'other'), (preset = ''), render())),
-    tip(t('Several mailboxes can be connected. She uses the default one unless you name another ("search my Outlook for…").')),
+    tip(t('Connect as many mailboxes as you like. Search, Today and “waiting for my answer” cover them all; a reply goes from the mailbox that got the email.')),
   );
   const parts = [list, add];
   if (view.member) parts.unshift(el('p', 'muted small ma-own', t('These are your own mailboxes: only your companions use them, and nobody else on this server can see them.')));
@@ -296,6 +425,7 @@ function render() {
   }
   if (adding === 'other') parts.push(otherForm());
   page.replaceChildren(...parts);
+  renderCombined();
 }
 
 export async function loadMailAccounts() {
@@ -310,4 +440,5 @@ export async function loadMailAccounts() {
     msOpen = 'signin';
   }
   render();
+  void loadCalendars();
 }

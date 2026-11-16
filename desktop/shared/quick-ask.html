@@ -287,11 +287,29 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     img.onerror = () => resolve('');
     img.src = url;
   });
+  /** Ownicon: the server's own icon (src/app-icon.ts: her face, or a monogram with her initial) as a data URL. */
+  let iconFull = false;
+  const fetchIcon = async (url) => {
+    try {
+      const r = await fetch(url, { credentials: 'same-origin', cache: 'no-cache' });
+      const b = r.ok ? await r.blob() : null;
+      iconFull = r.headers.get('x-sara-icon') === 'initial';
+      if (!b || b.type !== 'image/png' || b.size > 1024 * 1024) return '';
+      return await new Promise((resolve) => {
+        const fr = new FileReader();
+        fr.onload = () => resolve(String(fr.result || ''));
+        fr.onerror = () => resolve('');
+        fr.readAsDataURL(b);
+      });
+    } catch (e) { return ''; }
+  };
   const iconFor = async (f) => {
     if (!f || typeof f.kind !== 'string') return '';  // an older server: the app keeps what it has
-    const key = f.kind + ' ' + f.tag;
+    const key = f.kind + ' ' + f.tag + ' ' + (f.iconVersion || '');
     if (key === lastIcon) return '';
-    const icon = f.kind === 'builtin' ? 'builtin' : await makeIcon(f.src + (f.src.includes('?') ? '&' : '?') + 'v=' + encodeURIComponent(f.tag));
+    const v = 'v=' + encodeURIComponent(f.iconVersion || f.tag);
+    iconFull = false;
+    const icon = f.kind === 'builtin' ? 'builtin' : f.icon ? await fetchIcon(f.icon + '?s=256&' + v) : await makeIcon(f.src + (f.src.includes('?') ? '&' : '?') + v);
     if (icon) lastIcon = key;
     return icon;
   };
@@ -353,7 +371,8 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       for (const j of (Array.isArray(jobs) ? jobs : []).filter((x) => x.status === 'running').slice(0, 6)) {
         lines.push(['job', String(j.id), clean(j.conversationId, 60), clean(j.label, 70) + '… ' + since(j.startedAt)].join('\t'));
       }
-      const url = faceUrl();
+      // Ownicon: a companion without a picture of her own shows her monogram, never Sara's face.
+      const url = session.face && session.face.kind === 'initial' && session.face.icon ? session.face.icon + '?s=64' : faceUrl();
       // 3.5.2: a new look keeps the same address: the server's face tag tells it changed.
       const faceKey = url + ' ' + ((session.face && session.face.tag) || '');
       let face = '';
@@ -365,8 +384,9 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
       faceImg.src = url;
       faceImg.hidden = false;
       faceImg.closest('header').classList.toggle('own-face', Boolean(her && her.customAvatar));
+      // iconFull: the monogram fills the icon (the app's closer face crop at small sizes would cut it).
       const icon = await iconFor(session.face);
-      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, icon, now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
+      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, icon, iconFull: Boolean(icon && icon !== 'builtin' && iconFull), now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
       checkVoice();
     })().finally(() => { refreshing = null; });
     return refreshing;

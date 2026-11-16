@@ -43,6 +43,7 @@ import { personalize } from './identity.ts';
 import { stripTypeScriptTypes } from 'node:module';
 import { identityOf } from './persona.ts';
 import { appFaceOf } from './app-face.ts';
+import { appIconInfo, MANIFEST_ICONS, serveAppIcon } from './app-icon.ts';
 import { cleanTags, CONVERSATION_MODES, Store, type Conversation, type ConversationMode, type StoredMessage } from './store.ts';
 import { titleView } from './titles.ts';
 import { clampBanter, GROUP_CHANNEL, groupRooms, isGroupChannel, MAX_MEMBERS, MIN_MEMBERS, TURN_STYLES, type GroupRoom, type TurnStyle } from './group.ts';
@@ -484,10 +485,14 @@ export function createSaraServer(opts: ServerOptions): Server {
       res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : identityJs);
     }
+    // Ownicon: the companion's app icon at any size, and as a .ico (src/app-icon.ts).
+    if (pathname === '/app-icon.png' || pathname === '/app-icon.ico') return serveAppIcon(req, res, pathname, isAuthed(req) && !opts.demo ? app : undefined, webRoot);
     if (pathname === '/manifest.webmanifest') {
       // The installed app is named after the companion (only for the signed-in owner).
       const m = JSON.parse(readFileSync(join(webRoot, 'manifest.webmanifest'), 'utf8')) as Record<string, unknown>;
       if (isAuthed(req)) m.name = m.short_name = app.persona.name;
+      // Ownicon: her own icons while signed in (src/app-icon.ts), Sara's art for the sign-in page.
+      if (isAuthed(req) && !opts.demo) m.icons = MANIFEST_ICONS;
       res.writeHead(200, { 'content-type': 'application/manifest+json', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : JSON.stringify(m));
     }
@@ -1355,7 +1360,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         })(),
         ...(authed ? { identity: identityOf(app.persona) } : {}),
         // 3.5.2: which picture is her face, for the desktop apps' icons (src/app-face.ts).
-        ...(authed && !opts.demo ? { face: appFaceOf(app) } : {}),
+        ...(authed && !opts.demo ? { face: { ...appFaceOf(app), icon: '/app-icon.png', iconVersion: appIconInfo(app).version } } : {}),
         // Feature 4: whose offline copy this page may keep (per server and per person on it).
         ...(authed && !opts.demo ? { serverId: serverIdOf(app.rootDir ?? app.dataDir), space: spaceId } : {}),
         // Phase 67: the header badge while nothing may leave this computer.
@@ -1380,7 +1385,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (error) result = error === 'access_denied' ? 'refused' : 'failed';
       else {
         try {
-          await app.google.finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+          // MULTIMAIL: whichever Google account started this sign-in (the first one, or one added later).
+          await (app.googleAccounts ?? app.google).finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
           // Phase 111: every companion's Today reads Google again.
           for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
         } catch (err) {

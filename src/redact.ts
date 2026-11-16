@@ -78,6 +78,9 @@ export class Redactor {
   }
 }
 
+/** Fields of a sign-in record that are labels (shown in cards), never secrets. */
+const PUBLIC_FIELDS = new Set(['email', 'address', 'scopes']);
+
 /** All secret strings in the vault, including values nested in JSON (MCP env/headers). */
 export function vaultSecretValues(values: string[]): string[] {
   const out: string[] = [];
@@ -87,7 +90,9 @@ export function vaultSecretValues(values: string[]): string[] {
       try {
         const walk = (x: unknown): void => {
           if (typeof x === 'string') out.push(x);
-          else if (x && typeof x === 'object') Object.values(x as Record<string, unknown>).forEach(walk);
+          // MULTIMAIL: a sign-in's own address and permission list are labels, not secrets (they name
+          // each mailbox in cards and on Today); the tokens next to them stay hidden.
+          else if (x && typeof x === 'object') for (const [k, v] of Object.entries(x as Record<string, unknown>)) if (!(typeof v === 'string' && PUBLIC_FIELDS.has(k))) walk(v);
         };
         walk(JSON.parse(v));
       } catch {
