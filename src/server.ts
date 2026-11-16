@@ -93,6 +93,9 @@ import { createInboxRoutes } from './routes/inbox.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createMessagesRoutes } from './routes/messages.ts';
 import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
+import { createRemoteRepairRoutes, handleRepairPeer } from './routes/remote-repair.ts';
+import { createRepairRoutes } from './routes/repair.ts';
+import { createSelfCodeRoutes } from './routes/self-code.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
 import { createLearnRoutes } from './routes/learn.ts';
@@ -447,7 +450,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1034,6 +1037,11 @@ export function createSaraServer(opts: ServerOptions): Server {
   const messagesRoutes = createMessagesRoutes(ctx);
   // S9b: the support link on top of a messages link (src/routes/support.ts; docs/SUPPORT_LINK.md).
   const supportRoutes = createSupportRoutes(ctx);
+  const remoteRepairRoutes = createRemoteRepairRoutes(ctx); // T5: fix passes (docs/REMOTE_REPAIR.md)
+  // ROADMAP_T: self-repair (src/routes/repair.ts; docs/SELF_REPAIR.md), owner only.
+  const repairRoutes = createRepairRoutes(ctx);
+  // T3: her own code changes, the owner's only (src/routes/self-code.ts; docs/SELF_CODE.md).
+  const selfCodeRoutes = createSelfCodeRoutes(ctx);
   // E1: Settings → Data sources and the live-data watches, each person's own (src/routes/data-sources.ts).
   const dataSourceRoutes = createDataSourceRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
@@ -1604,6 +1612,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await messagesRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await supportRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await remoteRepairRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await repairRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await selfCodeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2611,6 +2622,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       // Never on the demo or in a household member's space.
       if (url.pathname.startsWith('/msg/v1/support/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleSupportPeer(ctx, req, res, url.pathname);
+      }
+      if (url.pathname.startsWith('/msg/v1/repair/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleRepairPeer(ctx, req, res, url.pathname);
       }
       if (url.pathname.startsWith('/msg/v1/')) {
         if (app.messages && !opts.member && !opts.demo) return await app.messages.handlePeer(req, res, url.pathname);

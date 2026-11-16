@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Privacy & system → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.17.0, [Documents end to end, agent teams, support link, alerts where you want](https://github.com/farena-ai/sara/releases/tag/v3.17.0). Templates with your own clauses, Word tracked changes, a clause checklist and signing PDFs; parallel agent teams with one approval; a help pass between linked servers. [See what changed](#whats-new)
+> **Status:** 3.18.0, [Self-repair, friends fixing friends, quieter communities](https://github.com/farena-ai/sara/releases/tag/v3.18.0). She finds and fixes her own setup problems with undo, proposes new skills, can test and apply code fixes after one approval, and a linked friend can fix things with a fix pass. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.18.0](https://github.com/farena-ai/sara/releases/tag/v3.18.0)** | **[Self-repair, friends fixing friends, quieter communities](docs/SELF_REPAIR.md)** — Self-repair from health checks and errors with automatic undo; grow new skills; tested code fixes with rollback where the install allows; ask a linked friend's Sara to fix your server with your approval; popups for messages and quiet community counts. |
 | **[3.17.0](https://github.com/farena-ai/sara/releases/tag/v3.17.0)** | **[Documents end to end, agent teams, support link, alerts where you want](docs/AGENT_TEAMS.md)** — Fill templates and draft from past documents with sources; revise with real tracked changes; get a ready-to-sign PDF; run a team of helpers on a big job; let a friend's Sara look at redacted health and logs; send alerts to the project you choose. |
 | **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Writing that sounds human, meetings, keeping in touch, trips](docs/WRITING_STYLE.md)** — Rewrite documents and reports in plain language; record or upload meetings for transcripts, decisions and drafted follow-ups; see who waits for your reply and what you promised; trips from booking emails with alerts and rebooking options. |
 | **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Choices to tap, goals, research, ask anything, private messages](docs/CHOICES.md)** — Pick-an-answer buttons in the app, Telegram and Discord; goals with milestones and nudges; research from the web and your files to Word/PDF; ask across mail, files, chats and calendars; linked-server messages and communities the agents never see. |
 | **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Saved documents count as saved](docs/DOCUMENTS.md)** — Making a document, filling a form, invoices, exports and Docs/Sheets/Excel edits now count as proof that it was saved. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[All your accounts together, and her own icon](docs/MAIL_ACCOUNTS.md)** — Calendars from Google, Outlook, iCloud, Fastmail and Yahoo labeled by account; the app icon, browser tab and notifications use her own picture. |
-| **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Her pictures with ComfyUI, sent where you choose](docs/PHOTOS.md)** — A new Send her pictures to setting: a chat just for her pictures, one of your chats, a project chat, and/or Telegram and Discord. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.13.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.13.1 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Her pictures with ComfyUI, sent where you choose](docs/PHOTOS.md)** — A new Send her pictures to setting: a chat just for her pictures, one of your chats, a project chat, and/or Telegram and Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[A calmer, premium Settings](docs/HOW_DO_I.md)** — Search finds a single setting and highlights it (Ctrl+K); phones drill down from group to page; every option and old link still works. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[Work apps, family, trust and voice ready](docs/WORK_APPS.md)** — Member tool rules enforced on the server, audit export and retention; phone calls built and off until you connect a provider; facts in six languages, accessibility and automation templates. |
 | **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Errands, an easy start and iPhone Shortcuts](docs/ERRANDS.md)** — Refunds, bookings, cancellations and quotes planned and followed up step by step; payments stay with you. A download page, a self-test, and Outlook attachments up to 150 MB. |

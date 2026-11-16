@@ -49,7 +49,7 @@ export function createMessagesRoutes(ctx: RouteCtx): RouteHandler {
     const body = method === 'GET' || method === 'DELETE' ? {} : await readJson(req, MSG.bodyBytes);
     const url = (typeof body.url === 'string' && body.url) || origin(req);
     const keep = new URL(req.url ?? '/', 'http://x').searchParams.get('history') !== 'remove';
-    if (!b && method === 'GET') return send(res, 200, { settings: m.settings(), chats: m.chats(), unread: m.unread(), requests: m.requests(), links: m.links().length, limits: { fileMB: MSG.fileBytes / 1024 / 1024, textChars: MSG.textChars } });
+    if (!b && method === 'GET') return send(res, 200, { settings: m.settings(), chats: m.chats(), ...m.counts(), requests: m.requests(), links: m.links().length, limits: { fileMB: MSG.fileBytes / 1024 / 1024, textChars: MSG.textChars } });
     if (b === 'settings' && method === 'PUT') return send(res, 200, { settings: await wrap(() => m.setSettings(body)) });
     if (b === 'invite' && method === 'POST') return send(res, 200, await wrap(() => m.invite(url)));
     if (b === 'join' && method === 'POST') return send(res, 200, { chat: await wrap(() => m.join(String(body.code ?? ''), url)) });

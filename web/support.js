@@ -4,6 +4,7 @@
 //   helper side  "Look at <name>'s Sara" → the redacted report and what looks wrong, "Suggest a fix".
 // Both sides see the help log. Nothing here runs anything on either computer.
 import { t } from './naming.js';
+import { initRemoteRepair, loadRemoteRepair, remoteLogText, remoteRows, remoteStrip } from './remote-repair.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, askHer?: (text: string) => void, confirm?: (text: string) => Promise<boolean> } | null} */
 let ctx = null;
@@ -38,6 +39,8 @@ const shown = (v) => {
   return String(v);
 };
 const label = (path) => LABELS()[path] ?? path;
+/** The plain name of an allowlisted setting (also used by remote-repair.js). */
+export const settingLabel = (path) => label(path);
 /** A provider id as its name (this server's list on the helped side; the report's on the helper side). */
 let names = new Map();
 const provider = (id) => names.get(id) ?? id;
@@ -50,12 +53,14 @@ export function initSupport(c, helpers) {
   reload = helpers.reload;
   say = helpers.say;
   panel = helpers.panel;
+  initRemoteRepair(c, helpers); // T5: fix passes live in the same strip (docs/REMOTE_REPAIR.md).
 }
 
 /** Loads the support state (passes, proposals, log) with the Messages page. */
 export async function loadSupport() {
   if (!ctx) return;
   try {
+    await loadRemoteRepair();
     state = await ctx.api('/support');
     names = new Map((state.providers ?? []).map((p) => [p.id, p.label]));
   } catch {
@@ -78,13 +83,16 @@ export function supportRows(open) {
     row.append(btn(t('Open'), 'small', () => open(link)));
     rows.push(row);
   }
-  return rows;
+  return [...rows, ...remoteRows(open)];
 }
 
 /** The help strip under a one-to-one chat's head (active chats only). */
 export function supportStrip(chat) {
   const box = el('div', 'sup-strip');
+  const rr = remoteStrip(chat);
+  if (rr.childElementCount) box.append(rr);
   if (!state || chat.kind !== 'direct' || chat.status !== 'active' || !chat.linkId) return box;
+  rr.remove();
   const link = chat.linkId;
   const name = chat.title;
   const line = el('div', 'sup-line');
@@ -110,6 +118,7 @@ export function supportStrip(chat) {
   if (h?.note) box.append(el('p', 'small sup-note', t('{name} wrote: {note}', { name, note: h.note })));
   // Setting changes first, plain notes after.
   for (const p of pending(link).sort((x, y) => y.diff.length - x.diff.length)) box.append(card(p));
+  if (rr.childElementCount) box.append(rr);
   const log = (state.log ?? []).filter((r) => r.link === link);
   const outs = (state.proposals ?? []).filter((p) => p.link === link && p.side === 'out').slice(0, 5);
   if (log.length || outs.length) {
@@ -140,7 +149,7 @@ function logText(r) {
     case 'denied':
       return mine ? t('You declined {name}’s suggestion.', { name: n }) : t('{name} declined your suggestion.', { name: n });
     default:
-      return r.kind;
+      return remoteLogText(r) ?? r.kind;
   }
 }
 

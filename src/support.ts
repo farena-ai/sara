@@ -114,10 +114,12 @@ export function patchFor(s: Settings, changes: SupportChange[]): Partial<Setting
 const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const clip = (s: unknown, n: number) => String(s ?? '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n);
 
+/** The signed scope word: 'support' (S9b help pass) or 'repair' (T5 fix pass, docs/REMOTE_REPAIR.md). */
+export type SupportScope = 'support' | 'repair';
 /** The headers of a support-scope request (exported for tests). */
-export function signSupport(linkId: string, op: string, body: string, key: KeyObject, at: Date): Record<string, string> {
+export function signSupport(linkId: string, op: string, body: string, key: KeyObject, at: Date, scope: SupportScope = 'support'): Record<string, string> {
   const time = at.toISOString();
-  const sig = sign(null, Buffer.from(`support\n${linkId}\n${time}\n${op}\n${sha(body)}`), key).toString('base64');
+  const sig = sign(null, Buffer.from(`${scope}\n${linkId}\n${time}\n${op}\n${sha(body)}`), key).toString('base64');
   return { 'sara-sup-link': linkId, 'sara-sup-time': time, 'sara-sup-sig': sig };
 }
 
@@ -149,7 +151,7 @@ export interface LogRow {
   link: string;
   peer: string;
   side: 'helper' | 'helped';
-  kind: 'pass' | 'revoke' | 'look' | 'propose' | 'approved' | 'denied';
+  kind: 'pass' | 'revoke' | 'look' | 'propose' | 'approved' | 'denied' | `repair-${string}`;
   detail: string;
 }
 
@@ -311,25 +313,25 @@ export class SupportLink {
 
   // ---- the wire ----------------------------------------------------------------------------------
   /** A signed support call to the other side; throws SupportError with the other side's status. */
-  async call(linkId: string, op: string, payload: Record<string, unknown>): Promise<Record<string, unknown>> {
+  async call(linkId: string, op: string, payload: Record<string, unknown>, scope: SupportScope = 'support'): Promise<Record<string, unknown>> {
     const p = this.peer(linkId);
     const key = this.#m.privateKeyFor(linkId);
     if (!key) throw new SupportError(404, en('That link is gone. Link the servers again under Messages.'));
     const body = JSON.stringify({ v: 1, id: randomUUID(), ...payload });
     let res: Response;
     try {
-      res = await this.#m.peerFetch(`${p.url}/msg/v1/support/${op}`, { method: 'POST', headers: { 'content-type': 'application/json', ...signSupport(linkId, op, body, key, this.#now()) }, body, redirect: 'error', signal: AbortSignal.timeout(45_000) });
+      res = await this.#m.peerFetch(`${p.url}/msg/v1/${scope}/${op}`, { method: 'POST', headers: { 'content-type': 'application/json', ...signSupport(linkId, op, body, key, this.#now(), scope) }, body, redirect: 'error', signal: AbortSignal.timeout(45_000) });
     } catch {
       throw new SupportError(502, en('The other server did not answer. Check its address and try again.'));
     }
     const j = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-    if (res.status === 403) throw new SupportError(403, en('You need a valid help pass first.'));
+    if (res.status === 403) throw new SupportError(403, scope === 'repair' && typeof j.error === 'string' && j.error !== 'no valid pass' ? clip(j.error, 200) : scope === 'repair' ? en('You need a valid fix pass first.') : en('You need a valid help pass first.'));
     if (!res.ok) throw new SupportError(res.status === 400 ? 400 : 502, typeof j.error === 'string' && res.status === 400 ? clip(j.error, 200) : en('The other server did not answer. Check its address and try again.'));
     return j;
   }
 
   /** Checks a peer request: link, time, support-scope signature for this op, replay. Returns the link id. */
-  verify(headers: IncomingHttpHeaders, op: string, body: string): { linkId: string; name: string } {
+  verify(headers: IncomingHttpHeaders, op: string, body: string, scope: SupportScope = 'support'): { linkId: string; name: string } {
     const linkId = String(headers['sara-sup-link'] ?? '');
     const time = String(headers['sara-sup-time'] ?? '');
     const sig = String(headers['sara-sup-sig'] ?? '');
@@ -339,7 +341,7 @@ export class SupportLink {
     if (!p || !Number.isFinite(t) || Math.abs(t - this.#now().getTime()) > SKEW_MS) throw unsigned;
     let ok = false;
     try {
-      ok = verify(null, Buffer.from(`support\n${linkId}\n${time}\n${op}\n${sha(body)}`), p.key, Buffer.from(sig, 'base64'));
+      ok = verify(null, Buffer.from(`${scope}\n${linkId}\n${time}\n${op}\n${sha(body)}`), p.key, Buffer.from(sig, 'base64'));
     } catch {
       ok = false;
     }

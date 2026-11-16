@@ -2098,6 +2098,24 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #msgs .msgs-item-last { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #msgs .msgs-badge { display: inline-block; min-width: 18px; padding: 0 6px; border-radius: 999px; background: var(--accent-solid); color: var(--on-accent); font: 600 11px/18px var(--font-ui); text-align: center; }
 #msgs .msgs-badge[hidden] { display: none; }
+/* T4: the quiet community count (not the accent badge), the Communities heading, the code note. */
+#msgs .msgs-quiet { display: inline-block; min-width: 18px; padding: 0 6px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface-2); color: var(--text-2); font: 500 11px/16px var(--font-ui); text-align: center; }
+#msgs .msgs-group-head { display: flex; align-items: center; gap: 6px; margin: 10px 10px 2px; color: var(--text-3); font-size: 12px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+#msgs .msgs-note { margin: 0; color: var(--text-2); }
+#msgs .msgs-panel > p { margin: 0; }
+/* T4: popup cards for new messages: bottom corner, stacked, theme colors only. */
+#msgs-pops:not(#_) { position: fixed; inset: auto 16px calc(16px + var(--safe-b)) auto; width: min(340px, calc(100vw - 32px)); margin: 0; padding: 0; border: 0; background: transparent; overflow: visible; color: var(--text-1); z-index: 60; }
+#msgs-pops:is(:popover-open, :not([popover])) { display: grid; gap: 8px; }
+#msgs-pops:not([popover]):empty { display: none; }
+#msgs-pops .msgs-pop { display: flex; align-items: flex-start; gap: 4px; padding: 4px; border: 1px solid var(--accent-line); border-radius: 14px; background: var(--surface-1); box-shadow: var(--shadow-2); animation: msgs-pop-in .18s ease-out; }
+#msgs-pops .msgs-pop-open:not(#_) { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; padding: 8px 10px; border: 0; border-radius: 10px; background: transparent; color: var(--text-1); text-align: left; font: inherit; font-size: 14px; box-shadow: none; cursor: pointer; }
+#msgs-pops .msgs-pop-open:not(#_):is(:hover, :focus-visible) { background: var(--surface-2); }
+#msgs-pops .msgs-pop-open strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#msgs-pops .msgs-pop-body { color: var(--text-2); font-size: 13px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+#msgs-pops .msgs-pop-x:not(#_) { flex: 0 0 auto; width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 8px; color: var(--text-3); font-size: 18px; line-height: 1; }
+@keyframes msgs-pop-in { from { opacity: 0; transform: translateY(8px); } }
+@media (prefers-reduced-motion: reduce) { #msgs-pops .msgs-pop { animation: none; } }
+@media (max-width: 720px) { #msgs-pops:not(#_) { inset: auto 12px calc(84px + var(--safe-b)) 12px; width: auto; } }
 #msgs .msgs-req { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 10px; border: 1px solid var(--accent-line); border-radius: 10px; background: var(--accent-soft); font-size: 13px; }
 #msgs .msgs-acts { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 #msgs .msgs-chat { display: flex; flex-direction: column; min-width: 0; min-height: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-1); }
@@ -2160,10 +2178,29 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #msgs .sup-problem { color: var(--text-1); font-weight: 600; }
 #msgs .sup-ok { color: var(--text-2); }
 #msgs .sup-logtext { max-height: 220px; overflow: auto; margin: 4px 0 0; padding: 8px; border-radius: 8px; background: var(--surface-1); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* T5 (web/remote-repair.js, docs/REMOTE_REPAIR.md): fix passes, plans and live progress in a one-to-one chat. */
+#msgs .rr-strip { display: grid; gap: 6px; }
+#msgs .sup-strip:has(.rr-card) { max-height: 62vh; }
+#msgs .rr-chip { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-1); font-size: 13px; overflow-wrap: anywhere; }
+#msgs .rr-card fieldset + fieldset { margin-top: 2px; }
+#msgs .rr-steps { margin: 0; padding-left: 22px; display: grid; gap: 6px; }
+#msgs .rr-step > p { margin: 2px 0 0; overflow-wrap: anywhere; }
+#msgs .rr-step-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+#msgs .rr-step-title { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
+#msgs .rr-badge { flex: none; padding: 1px 8px; border-radius: 999px; background: var(--surface-1); color: var(--text-2); font-size: 12px; }
+#msgs .rr-done > .rr-step-head .rr-badge { color: var(--text-1); background: var(--accent-soft); }
+#msgs :is(.rr-failed, .rr-refused) > .rr-step-head .rr-badge { color: var(--danger, var(--text-1)); }
+#msgs .rr-running > .rr-step-head .rr-badge { color: var(--text-1); border: 1px solid var(--accent-line); }
+#msgs .rr-status { margin: 0; color: var(--text-2); }
+#msgs .rr-report { margin: 0; color: var(--text-1); }
+#msgs .rr-h { margin: 8px 0 2px; font-size: 13px; color: var(--text-2); }
+#msgs .rr-problems { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+#msgs .rr-problem { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; }
+#msgs .rr-problem > span:first-child { flex: 1 1 14em; min-width: 0; overflow-wrap: anywhere; }
 #msgs .msgs-settings > summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
 #msgs .msgs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
 #msgs .msgs-row .msgs-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 12em; color: var(--text-2); }
-#msgs .msgs-row input:not([type="checkbox"]) { flex: 1 1 14em; min-width: 0; width: auto; }
+#msgs .msgs-row :is(input:not([type="checkbox"]), select) { flex: 1 1 14em; min-width: 0; width: auto; }
 #msgs .msgs-row input[type="checkbox"] { width: 18px; height: 18px; flex: none; margin: 0; }
 @media (max-width: 720px) {
   dialog#msgs:not(#_) { width: 100vw; max-width: 100vw; }
@@ -2216,3 +2253,38 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #family.fam-shopping .fam-h { font-size: 15px; color: var(--accent-solid); }
 .fam-tile .fam-big, #family .fam-big { font-weight: 650; }
 .fam-tile-h { margin: 0; color: var(--accent-solid); }
+/* ROADMAP_T: Self-repair on Settings → Privacy & system → Health (web/repair.js). */
+#repair-view .rp-list li { display: flex; gap: 6px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
+#repair-view .rp-list li:last-child { border-bottom: 0; }
+#repair-view .rp-body { display: grid; gap: 3px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+#repair-view .rp-body > strong { font-size: 12px; text-transform: none; }
+#repair-view .rp-fix { display: block; }
+#repair-view .rp-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+#repair-view .rp-sub { margin: 10px 0 0; font-weight: 600; }
+#repair-view .rp-steps summary { cursor: pointer; color: var(--muted); }
+#repair-view .rp-steps ol { margin: 4px 0 0; padding-left: 18px; }
+
+/* T3: Settings → Updates → Code changes (web/self-code.js). */
+.cc-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.cc-field { display: flex; align-items: center; gap: 6px; margin: 6px 0 4px; }
+#cc-request { width: 100%; box-sizing: border-box; }
+.cc-caps { display: grid; grid-template-columns: auto minmax(0, 12em); gap: 6px 12px; align-items: center; }
+.cc-caps .cc-field { margin: 0; }
+.cc-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.cc-diff, .cc-report, .cc-preview { display: block; min-width: 0; max-width: 100%; }
+/* Settings gives details a grid; the diff's long lines must scroll inside it, not widen the card. */
+#cc-list .cc-diff:not(#_) { display: block; overflow: hidden; }
+.cc-diff pre .cc-add { color: var(--success); }
+.cc-diff pre .cc-del { color: var(--danger); }
+.cc-card { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); padding: 10px 12px; min-width: 0; }
+.cc-card[data-status="proposed"] { border-color: var(--accent-solid); }
+.cc-card p { margin: 4px 0; }
+.cc-title { display: block; overflow-wrap: anywhere; }
+.cc-checks { margin: 4px 0; padding-left: 18px; }
+.cc-checks .cc-ok { color: var(--success); }
+.cc-checks .cc-bad { color: var(--danger); }
+.cc-diff pre, .cc-preview pre { box-sizing: border-box; width: 100%; min-width: 0; max-width: 100%; margin: 6px 0 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; max-height: 320px; overflow: auto; white-space: pre; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--text); background: var(--panel); }
+.cc-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cc-tick { display: flex; align-items: center; gap: 6px; }
+.cc-tick input { width: 18px; height: 18px; margin: 0; }
+@media (max-width: 720px) { .cc-caps { grid-template-columns: minmax(0, 1fr); } }

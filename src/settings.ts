@@ -103,6 +103,8 @@ export interface Settings {
   routes?: Partial<Record<RoutePurpose, ModelRoute>>;
   /** Phase 38: seconds to wait for a model's first word before the next one takes over (default 60). */
   fallbackAfterSec?: number;
+  /** ROADMAP_T (docs/SELF_REPAIR.md): self-repair permission ('auto1' default | 'ask') and the 24-hour full permission (ISO). */
+  repair?: { permission?: 'auto1' | 'ask'; fullUntil?: string | null };
   /** Phase 38: fallbacks for the default model (used for any job without its own route). */
   defaultFallbacks?: { providerId: string; model: string }[];
   /** N1: jobs whose model Auto picks from what is connected (src/auto-route.ts); new installs get all four. */
@@ -119,6 +121,8 @@ export interface Settings {
   board?: { concurrent?: number };
   /** C13: the Co-authored-by trailer on her commits (on by default; the companion with a noreply address). */
   coAuthor?: Partial<import('./coding-depth.ts').CoAuthor>;
+  /** T3: level 3 self-repair (src/self-code.ts): per-repair spending cap (US$, default 2) and time cap (minutes, default 20). */
+  selfCode?: { capUsd?: number; minutes?: number };
   /** C15: approve a new device from chat (src/device-approval.ts). */
   deviceApproval?: { on?: boolean; allowedHosts?: string[]; maxDevices?: number; notice?: boolean };
   /** Phase 52: the owner's own model prices (USD per 1M tokens; they win over the shipped defaults). */

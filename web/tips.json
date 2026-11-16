@@ -1,6 +1,18 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "cc-request": [
+      "Say what is broken or what to change, with any error text. She never changes her safety layer, limits, kid mode, approvals, audit trail or vault.",
+      "care"
+    ],
+    "cc-cap": [
+      "The most the coding model may spend on one fix; she stops at the cap. Local models cost nothing.",
+      "care"
+    ],
+    "cc-minutes": [
+      "How long she may work on one fix, checks included. The full test suite runs when it fits; otherwise related tests and a test start.",
+      "care"
+    ],
     "wr-style": [
       "Natural: what she writes you (documents, email drafts, summaries) uses plain words and varied sentences; facts stay exact. As written: no extra rewrite. Example: Natural for letters.",
       "library"
@@ -836,6 +848,14 @@
     "dc-servers": [
       "Answer other people in servers when they call her (mention, reply, or the switches below). With them she's openly an AI, has no tools and shares nothing private.",
       "safety"
+    ],
+    "repair-permission": [
+      "Small fixes on her own: she fixes setup problems (a stuck job, a bad setting, a stopped add-on) and tells you after. Ask me first: every fix waits for your OK.",
+      "operations"
+    ],
+    "repair-full": [
+      "One OK covers every step of a bigger repair for 24 hours. She never changes safety, limits, kid mode, approvals, the audit trail or her own permission.",
+      "operations"
     ],
     "runs-keep": [
       "How long the step records of her replies, jobs and team tasks are kept. Older ones are removed by themselves; a run history over 200 MB loses its oldest runs first. Backups include it. Example: 90 days.",

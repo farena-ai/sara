@@ -132,7 +132,11 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
   [/^(person_|people_|promise_)/, 'people', 'people'],
   // S9b: the support link (look at a linked Sara with a help pass, suggest a fix).
-  [/^support_(look|propose)$/, 'support', 'helping another Sara'],
+  [/^(support_(look|propose)|remote_(help_request|look|fix_plan))$/, 'support', 'helping another Sara'],
+  // ROADMAP_T: self-repair (check yourself, fix what is broken, learn to do something).
+  [/^repair_(status|fix)$/, 'repair', 'fixing herself'],
+  // T3: changing her own code (src/tools/self-code.ts).
+  [/^self_code_fix$/, 'selfcode', 'changing her own code'],
   // E5: the decision helper and side-by-side comparisons (src/decisions.ts).
   [/^(decide|decision_(list|record|review)|compare)$/, 'decisions', 'decisions'],
   [/^(start_job|stop_job|job_status|delegate_task)$/, 'jobs', 'background jobs'],
@@ -281,7 +285,9 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   team: ['team', 'equipo', 'equipe', 'squadra'],
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
-  support: ['help pass', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],
+  repair: ['fix yourself', 'repair yourself', 'is broken', 's broken', 'not working', 'doesnt work', 'doesn t work', 'stopped working', 'check yourself', 'self repair', 'learn to', 'arreglate', 'no funciona', 'esta roto', 'repare toi', 'ne marche pas', 'ne fonctionne pas', 'reparier dich', 'funktioniert nicht', 'ist kaputt', 'conserte se', 'nao funciona', 'esta quebrado', 'aggiustati', 'non funziona', 'e rotto'],
+  support: ['help pass', 'fix pass', 'have sara fix', 'fix it remotely', 'pase de arreglo', 'pass de réparation', 'reparaturpass', 'passe de conserto', 'pass di riparazione', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],
+  selfcode: ['your code', 'your own code', 'your source code', 'change your code', 'fix your code', 'tu codigo', 'tu propio codigo', 'ton code', 'votre code', 'ton propre code', 'deinen code', 'dein code', 'deinen eigenen code', 'seu codigo', 'seu proprio codigo', 'il tuo codice', 'tuo codice'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa',
     // S4: keeping in touch (promises, waiting replies, who to call), six languages folded.
     'i promised', 'my promises', 'promised', 'keep in touch', 'get in touch', 'waiting for my reply', 'who needs me', 'who should i call', 'prometi', 'mis promesas', 'he prometido', 'j ai promis', 'mes promesses', 'ich habe versprochen', 'versprochen', 'meine versprechen', 'minhas promessas', 'ho promesso', 'le mie promesse'],
@@ -846,7 +852,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

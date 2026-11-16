@@ -24,7 +24,7 @@
 
 **Aggiornare:** su un server Linux `sudo sara update` (prima fa un backup e torna indietro se lei non risponde) · Docker: `sudo git pull && sudo docker compose up -d --build` · app per Windows e Mac: Impostazioni → Dati e salute → Aggiornamenti · Android: Google Play. [Come aggiornare](docs/INSTALL.md#upgrading).
 
-> **Stato:** 3.17.0, [Documenti dall’inizio alla fine, team di agenti, collegamento di supporto, avvisi dove vuoi](https://github.com/farena-ai/sara/releases/tag/v3.17.0). Modelli con le tue clausole, revisioni di Word, checklist delle clausole e PDF da firmare; team di agenti in parallelo con una sola approvazione; pass di aiuto tra server collegati. [Scopri le novità](#novità)
+> **Stato:** 3.18.0, [Autoriparazione, amici che aiutano amici, community più tranquille](https://github.com/farena-ai/sara/releases/tag/v3.18.0). Trova e corregge i propri problemi di configurazione con annulla, propone nuove abilità, può testare e applicare correzioni del codice con un’approvazione, e un amico collegato può riparare con un pass. [Scopri le novità](#novità)
 >
 > Installer Windows: non firmato ([guida SmartScreen](docs/INSTALL.md)). Il processo di rilascio macOS richiede download firmati e autenticati da Apple; ogni build viene verificata separatamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web nella schermata Home](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versioni recenti · 6 novembre 2026. [Registro completo](CHANGELOG.md) · [Tutti
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.18.0](https://github.com/farena-ai/sara/releases/tag/v3.18.0)** | **[Autoriparazione, amici che aiutano amici, community più tranquille](docs/SELF_REPAIR.md)** — Autoriparazione da controlli ed errori con annullamento automatico; nuove abilità; correzioni del codice testate con ripristino dove l’installazione lo consente; chiedi alla Sara di un amico collegato di riparare il tuo server con la tua approvazione; avvisi per i messaggi e contatori discreti per le community. |
 | **[3.17.0](https://github.com/farena-ai/sara/releases/tag/v3.17.0)** | **[Documenti dall’inizio alla fine, team di agenti, collegamento di supporto, avvisi dove vuoi](docs/AGENT_TEAMS.md)** — Compila modelli e redigi da documenti passati con le fonti; rivedi con vere revisioni tracciate; ottieni un PDF pronto per la firma; affida un lavoro grande a un team di aiutanti; lascia che la Sara di un amico veda stato e log oscurati; manda gli avvisi nel progetto che scegli. |
 | **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Testi che suonano umani, riunioni, restare in contatto, viaggi](docs/WRITING_STYLE.md)** — Riscrive documenti e rapporti in linguaggio semplice; registra o carica riunioni per trascrizione, decisioni e follow-up redatti; vedi chi aspetta la tua risposta e cosa hai promesso; viaggi dalle email di prenotazione con avvisi e opzioni di riprenotazione. |
 | **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Scelte da toccare, obiettivi, ricerca, chiedi tutto, messaggi privati](docs/CHOICES.md)** — Pulsanti di risposta nell’app, Telegram e Discord; obiettivi con tappe e promemoria; ricerca dal web e dai tuoi file in Word/PDF; domande su email, file, chat e calendari; messaggi e comunità tra server che gli agenti non vedono mai. |
 | **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[I documenti salvati contano come salvati](docs/DOCUMENTS.md)** — Creare un documento, compilare un modulo, fatture, esportazioni e modifiche in Docs/Sheets/Excel ora contano come prova del salvataggio. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Tutti i tuoi account insieme e la sua icona](docs/MAIL_ACCOUNTS.md)** — Calendari di Google, Outlook, iCloud, Fastmail e Yahoo etichettati per account; icona dell’app, scheda e notifiche usano la sua immagine. |
-| **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Le sue foto con ComfyUI, inviate dove scegli](docs/PHOTOS.md)** — Nuova impostazione Invia le sue foto a: una chat solo per le sue foto, una delle tue chat, una chat di progetto e/o Telegram e Discord. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versioni 2.6x precedenti</b>: dalla 3.13.0 alla 2.61.5</summary>
+<summary><b>Versioni 2.6x precedenti</b>: dalla 3.13.1 alla 2.61.5</summary>
 
 | Versione | Cosa cambia per te |
 |---|---|
+| **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[Le sue foto con ComfyUI, inviate dove scegli](docs/PHOTOS.md)** — Nuova impostazione Invia le sue foto a: una chat solo per le sue foto, una delle tue chat, una chat di progetto e/o Telegram e Discord. |
 | **[3.13.0](https://github.com/farena-ai/sara/releases/tag/v3.13.0)** | **[Impostazioni più calme e premium](docs/HOW_DO_I.md)** — La ricerca trova una singola impostazione e la evidenzia (Ctrl+K); sul telefono si scende dal gruppo alla pagina; tutte le opzioni e i vecchi link funzionano ancora. |
 | **[3.12.0](https://github.com/farena-ai/sara/releases/tag/v3.12.0)** | **[App di lavoro, famiglia, fiducia e voce pronta](docs/WORK_APPS.md)** — Regole degli strumenti per membro applicate sul server, esportazione audit e conservazione; chiamate pronte e spente finché non colleghi un fornitore; fatti in sei lingue, accessibilità e modelli. |
 | **[3.11.0](https://github.com/farena-ai/sara/releases/tag/v3.11.0)** | **[Commissioni, un avvio facile e Comandi su iPhone](docs/ERRANDS.md)** — Rimborsi, prenotazioni, disdette e preventivi pianificati e seguiti passo passo; i pagamenti restano a te. Una pagina di download, un autotest e allegati Outlook fino a 150 MB. |

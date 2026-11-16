@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Self-repair, friends fixing friends, and quieter communities, in 3.18.0
+
+Sara finds her own problems from health checks and errors and fixes setup issues herself (model services,
+stuck jobs, add-ons, the database, caches, settings, app updates), undoing any fix that makes things worse.
+Repeated failures become proposed skills. Where her code is a writable checkout she can prepare a code fix,
+test it and apply it after one approval, with automatic rollback. A linked friend's server can be asked to
+look and fix things through a time-limited fix pass; every step runs through your own repair engine with your
+approval. One-to-one messages pop up; communities stay quiet unless you are mentioned.
+
 ## Documents end to end, agent teams, a support link, and alerts where you want them, in 3.17.0
 
 Mark Library documents as templates and she fills them, reusing your own clauses with their sources; edits

@@ -1600,6 +1600,9 @@
         <label class="msgs-row"><span class="msgs-lab">Keep messages for <button type="button" class="tip" data-tip="How long this server keeps chats, in days (30 by default; 0 keeps them always). Each chat can have its own time under Options. The other person chooses their own.">?</button></span><input id="msgs-keep" type="number" min="0" max="3650" step="1"></label>
         <label class="msgs-row"><input id="msgs-receipts" type="checkbox"><span>Send read receipts <button type="button" class="tip" data-tip="When on, the other person sees when you have read their message. Off: you still see theirs if they send them.">?</button></span></label>
         <label class="msgs-row"><input id="msgs-typing" type="checkbox"><span>Show when I am typing <button type="button" class="tip" data-tip="When on, the other person sees “typing…” while you write.">?</button></span></label>
+        <label class="msgs-row"><input id="msgs-popup" type="checkbox"><span>Show a popup for new messages <button type="button" class="tip" data-tip="A small card in the corner when a one-to-one message or a mention arrives and that chat isn’t open. It hides after 8 seconds; click it to open the chat.">?</button></span></label>
+        <label class="msgs-row"><input id="msgs-sound" type="checkbox"><span>Play a soft sound with it <button type="button" class="tip" data-tip="A short, quiet chime with the popup. Off by default.">?</button></span></label>
+        <label class="msgs-row"><span class="msgs-lab">Communities notify me <button type="button" class="tip" data-tip="Communities stay quiet: a small count inside Messages. Pick when they notify you like a one-to-one chat. Each community can change it under Options.">?</button></span><select id="msgs-community"><option value="mentions">When I’m mentioned</option><option value="all">Everything</option><option value="none">Nothing</option></select></label>
         <label class="msgs-row"><span class="msgs-lab">My name for others <button type="button" class="tip" data-tip="The name other owners see next to your messages. Empty: your name from Sara’s settings.">?</button></span><input id="msgs-name" maxlength="60"></label>
         <label class="msgs-row"><span class="msgs-lab">This server’s address <button type="button" class="tip" data-tip="The address other servers use to reach this one (https, or your home network or Tailscale). Empty: the address you opened Sara with.">?</button></span><input id="msgs-url" maxlength="200" placeholder="https://sara.example.net"></label>
       </details>
@@ -4796,6 +4799,11 @@
       <p class="small"><button id="doctor-run" type="button" class="ghost">Run full check</button> <span class="muted small">Also checks the database, asks every model provider for its models and checks the off-server copy (same as <code data-admin="doctor">sudo sara doctor</code>).</span></p>
       <ul id="doctor-checks" class="health" hidden></ul>
       <div id="doctor-fitness" class="lean-card fit-card" role="status" hidden></div>
+      <h3 id="repair-head">Self-repair <button type="button" class="tip" data-tip="She checks herself every 15 minutes (models, sign-ins, add-ons, jobs, database, disk, settings). Each fix keeps a copy first and is put back if things get worse.">?</button></h3>
+      <p class="small"><label>When something breaks <button type="button" class="tip" data-tip="Small fixes on her own: she fixes setup problems (a stuck job, a bad setting, a stopped add-on) and tells you after. Ask me first: every fix waits for your OK.">?</button> <select id="repair-permission"><option value="auto1">Small fixes on her own, then tell me</option><option value="ask">Ask me first, every time</option></select></label></p>
+      <p class="small"><label><input type="checkbox" id="repair-full" data-nodirty data-noauto> Full permission for 24 hours <button type="button" class="tip" data-tip="One OK covers every step of a bigger repair for 24 hours. She never changes safety, limits, kid mode, approvals, the audit trail or her own permission.">?</button></label> <span id="repair-full-until" class="muted small"></span></p>
+      <p class="small"><button id="repair-check" type="button">Check now</button> <button id="repair-fix-all" type="button" class="ghost">Fix what she can</button> <span id="repair-status" class="muted small" role="status"></span></p>
+      <div id="repair-view" class="rp-view" data-nodirty data-noauto></div>
       <h3>Run history <button type="button" class="tip" data-tip="Each reply, background job and team task keeps a record of its steps: the model, what went into the prompt, the tools and their results, files touched, tokens and cost. Open it with Show the run under a reply. Secrets are hidden in it.">?</button></h3>
       <p class="small"><label>Keep runs <select id="runs-keep"><option value="30">for 30 days</option><option value="90" selected>for 90 days</option><option value="365">for a year</option><option value="0">until deleted</option></select></label> <span id="runs-stats" class="muted small"></span></p>
       <p class="small"><button id="runs-delete" type="button" class="small danger">Delete run history</button> <span class="muted small">Chats, memories and files stay; only the step records go.</span></p>
@@ -5123,6 +5131,23 @@
       <p class="small"><a id="up-whatsnew" href="https://github.com/farena-ai/sara/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer">What's new in each version ↗</a></p>
       <p id="up-download-row" hidden><a id="up-download" class="button" target="_blank" rel="noopener noreferrer" href="https://github.com/farena-ai/sara/releases/latest">Download the new version</a></p>
       <p id="up-manual" class="muted small" hidden><span data-admin-when="known">To update her: <code data-admin="update">sudo sara update</code>.</span><span data-admin-when="unknown">This server updates from the command line. On the server run <code>sudo sara update</code> (Docker: <code>docker compose pull &amp;&amp; docker compose up -d</code>).</span></p>
+      <!-- T3: her own code changes (web/self-code.js, docs/SELF_CODE.md). -->
+      <h3 id="cc-head">Code changes <button type="button" class="tip" data-tip="She can fix her own code: in a separate copy, tested, shown on one card. Nothing changes until you approve it; if she doesn't start properly, she goes back by herself.">?</button></h3>
+      <div id="cc-host" class="cc-host" data-nodirty data-noauto>
+        <p id="cc-why" class="muted small" hidden></p>
+        <div id="cc-new" hidden>
+          <label class="cc-field" for="cc-request">What should she fix? <button type="button" class="tip" data-tip="Say what is broken or what to change, with any error text. She never changes her safety layer, limits, kid mode, approvals, audit trail or vault.">?</button></label>
+          <textarea id="cc-request" rows="3" maxlength="2000"></textarea>
+          <div class="cc-caps">
+            <label class="cc-field" for="cc-cap">Spending cap per fix <button type="button" class="tip" data-tip="The most the coding model may spend on one fix; she stops at the cap. Local models cost nothing.">?</button></label>
+            <select id="cc-cap"></select>
+            <label class="cc-field" for="cc-minutes">Time cap <button type="button" class="tip" data-tip="How long she may work on one fix, checks included. The full test suite runs when it fits; otherwise related tests and a test start.">?</button></label>
+            <select id="cc-minutes"></select>
+          </div>
+          <p class="actions-left"><button id="cc-go" type="button">Prepare a fix</button></p>
+        </div>
+        <div id="cc-list" class="cc-list"></div>
+      </div>
         </section>
         <!-- EC11: links the owner shared (web/sharing.js). -->
         <section class="settings-page" data-page="dh-shares" data-group="Household" data-title="Shared links" hidden>

@@ -5,6 +5,44 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.18.0 (2026-11-16): self-repair, friends fixing friends, quieter communities
+
+- Added: **a friend's Sara can fix things on your server when you ask.** Say "I can't get X working, can
+  you have Sam fix it" (or press *Ask Sam to fix something* in your Messages chat with a linked friend), pick
+  how long (1 hour, 1 day, 7 days) and how much (look only / fix with my OK each time / fix within this
+  pass). Sam accepts, his Sara looks at your Sara's problem list and sends a plan; your Sara checks every
+  step and runs it herself, with your OK (code changes always ask on their own). Live progress, Stop and
+  Undo on both sides, a short report at the end, and every step in the help log and audit trail. No
+  commands, files, passwords or remote control. Owner only; refused in private local mode.
+- Added: **new-message notices in Messages.** A one-to-one message now shows a small card in the corner
+  of Sara's page (click it to open the chat; it hides after 8 seconds), next to the phone push and the
+  desktop toast; a soft sound can go with it (off by default). Communities stay quiet: no push or popup,
+  just a small count next to Communities, unless someone @mentions you. Each community has *Notify me:
+  everything / when I'm mentioned / nothing*; the defaults are in Messages settings. The sidebar dot
+  counts one-to-one messages and mentions only.
+- Changed: **clearer link wording.** The link code says it works once for 30 minutes, and that once
+  you're linked you stay linked until either of you unlinks; each chat shows when it was linked.
+- Added: **she fixes herself.** Sara checks herself every 15 minutes and when you say "something is broken" or
+  "fix yourself": model services, sign-ins, add-ons, stuck jobs and errands, the database, disk space, settings
+  and the Sara apps. Small setup fixes run on their own and you are told after (or every fix asks first, your
+  choice); each one keeps a copy first and is put back by itself if things get worse. When the same thing
+  fails again and again, or you ask her to learn to do something, she suggests a skill or automation that starts
+  on trial. A "full permission for 24 hours" switch lets one OK cover a bigger repair. She never changes safety,
+  limits, kid mode, approvals, the audit trail, passwords or her own permission. Settings → Privacy & system →
+  Health → Self-repair shows what is wrong, what she fixed, and Undo. See docs/SELF_REPAIR.md.
+- Added: **Sara can fix her own code (with your OK).** When something in her is broken and a setting
+  can't fix it, ask her ("fix your code: …") or use Settings → Privacy & system → Updates → Code
+  changes. She makes the change in a separate copy with your coding model (stops at $2 per fix and 20
+  minutes; both adjustable), runs the typecheck and tests and a test start, and shows one card: what she
+  changed in plain words, the change itself, and the check results. Nothing changes until you press
+  **Approve and apply**; she keeps a copy of the old files, restarts, and goes back by herself if she
+  doesn't start properly. **Undo** takes a change out the same way. After an update she puts your
+  changes back (tested first) or parks the ones that no longer fit and tells you. She never touches her
+  safety layer, limits, kid mode, approvals, audit trail, vault or her own permissions, and never
+  weakens tests. Optional: send a fix to the Sara developers (you see exactly what is sent, private
+  details removed). Only on installs that run from a source folder she can write to; the apps, Docker
+  and the Linux server install say why not and offer a report instead. See docs/SELF_CODE.md.
+
 ## 3.17.0 (2026-11-16): documents end to end, agent teams, support link, alerts where you want
 
 - Changed: **Adult mode in the apps.** The Windows and Mac apps now use Adult mode like a web browser (turn it on with the 18+ confirmation, explicit levels, adults-only outfits, adult channels). The phone apps show the Adult mode page again with its state and Turn off; turning it on there still needs a web browser (store rules), and an Open in browser button opens the page in the phone's browser.

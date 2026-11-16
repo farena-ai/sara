@@ -53,7 +53,16 @@ export interface MsgSettings {
   typing: boolean;
   url: string;
   name: string;
+  /** T4: an in-app popup card for a new one-to-one message or mention. */
+  popup: boolean;
+  /** T4: a soft sound with the popup (off by default). */
+  sound: boolean;
+  /** T4: how communities notify unless a community picks its own. */
+  communityNotify: NotifyLevel;
 }
+/** T4: a community's "Notify me": everything, when I'm mentioned (the default), nothing. */
+export type NotifyLevel = 'all' | 'mentions' | 'none';
+export const NOTIFY_LEVELS: readonly NotifyLevel[] = ['all', 'mentions', 'none'];
 export interface ChatRow {
   id: string;
   kind: 'direct' | 'community';
@@ -64,6 +73,8 @@ export interface ChatRow {
   muted: boolean;
   blocked: boolean;
   retentionDays: number | null;
+  /** T4: a community's own "Notify me" (null: the server-wide default). */
+  notify: NotifyLevel | null;
   lastAt: string | null;
   createdAt: string;
 }
@@ -111,6 +122,27 @@ CREATE TABLE IF NOT EXISTS pm_requests (id TEXT PRIMARY KEY, chat TEXT NOT NULL,
 
 const sha = (s: string | Buffer) => createHash('sha256').update(s).digest('hex');
 const clip = (s: unknown, n: number) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
+
+/** T4: does the text @mention this name (the full name or its first word; any case; not inside a word)? */
+export function isMention(text: string, name: string): boolean {
+  const full = clip(name, MSG.nameChars);
+  if (!full) return false;
+  const first = full.split(' ')[0];
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const names = [...new Set([full, first])].filter((x) => x.length >= 2).map(esc).join('|');
+  return names ? new RegExp(`(^|[^\\p{L}\\p{N}_@.])@(?:${names})(?![\\p{L}\\p{N}_])`, 'iu').test(text) : false;
+}
+
+/**
+ * T4: where a new message's notice goes. `full` = push + toast + in-app popup; `quiet` = only the
+ * small community count inside Messages; `none` = no notice at all (muted, blocked, "nothing").
+ */
+export function notifyRoute(o: { kind: ChatRow['kind']; muted: boolean; blocked: boolean; level: NotifyLevel; mention: boolean }): 'full' | 'quiet' | 'none' {
+  if (o.muted || o.blocked) return 'none';
+  if (o.kind === 'direct') return 'full';
+  if (o.level === 'none') return 'none';
+  return o.level === 'all' || o.mention ? 'full' : 'quiet';
+}
 
 /** A join code: `sara-msg:` + base64url JSON {u: server address, t: token, k: 'l' (one-time link) | 'c' (community)}. */
 export function encodeCode(c: { u: string; t: string; k: 'l' | 'c' }): string {
@@ -192,7 +224,7 @@ export class Messenger {
   #flushing: Promise<void> | undefined;
   #closed = false;
   /** A new message for the owner (not muted, not blocked): main.ts sends the phone/desktop notification. */
-  onNotify: ((title: string, body: string, chatId: string) => void) | undefined;
+  onNotify: ((title: string, body: string, chatId: string, info?: { kind: ChatRow['kind']; mention: boolean }) => void) | undefined;
   /** Something changed in a chat (ids only): main.ts tells the open pages. */
   onChange: ((chatId: string) => void) | undefined;
 
@@ -200,6 +232,10 @@ export class Messenger {
     this.#db = new DatabaseSync(join(o.dataDir, 'messages.db'));
     this.#db.exec('PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;');
     this.#db.exec(SCHEMA);
+    // T4: columns added after S9a (older databases get them here).
+    const has = (t: string, c: string) => (this.#db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).some((r) => r.name === c);
+    if (!has('pm_chats', 'notify')) this.#db.exec('ALTER TABLE pm_chats ADD COLUMN notify TEXT');
+    if (!has('pm_messages', 'mention')) this.#db.exec('ALTER TABLE pm_messages ADD COLUMN mention INTEGER NOT NULL DEFAULT 0');
     this.#vault = o.vault;
     this.#now = o.now ?? (() => new Date());
     this.#name = o.name ?? (() => '');
@@ -243,7 +279,7 @@ export class Messenger {
   settings(): MsgSettings {
     const rows = this.#db.prepare('SELECT k, v FROM pm_settings').all() as { k: string; v: string }[];
     const m = Object.fromEntries(rows.map((r) => [r.k, JSON.parse(r.v)])) as Partial<MsgSettings>;
-    return { retentionDays: m.retentionDays ?? MSG.retentionDays, receipts: m.receipts ?? true, typing: m.typing ?? true, url: m.url ?? '', name: m.name ?? '' };
+    return { retentionDays: m.retentionDays ?? MSG.retentionDays, receipts: m.receipts ?? true, typing: m.typing ?? true, url: m.url ?? '', name: m.name ?? '', popup: m.popup ?? true, sound: m.sound ?? false, communityNotify: NOTIFY_LEVELS.includes(m.communityNotify as NotifyLevel) ? (m.communityNotify as NotifyLevel) : 'mentions' };
   }
   setSettings(v: Record<string, unknown>): MsgSettings {
     const put = (k: string, val: unknown) => this.#db.prepare('INSERT INTO pm_settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, JSON.stringify(val));
@@ -252,6 +288,9 @@ export class Messenger {
     if (v.typing !== undefined) put('typing', Boolean(v.typing));
     if (v.url !== undefined) put('url', v.url ? peerUrl(v.url) : '');
     if (v.name !== undefined) put('name', clip(v.name, MSG.nameChars));
+    if (v.popup !== undefined) put('popup', Boolean(v.popup));
+    if (v.sound !== undefined) put('sound', Boolean(v.sound));
+    if (v.communityNotify !== undefined) put('communityNotify', level(v.communityNotify));
     return this.settings();
   }
   name(): string {
@@ -393,24 +432,43 @@ export class Messenger {
     const r = this.#db.prepare('SELECT * FROM pm_chats WHERE id = ?').get(id) as Record<string, unknown> | undefined;
     return r ? chatRow(r) : undefined;
   }
-  chats(): (ChatRow & { unread: number; last: string })[] {
+  chats(): (ChatRow & { unread: number; mentions: number; last: string })[] {
     const rows = this.#db.prepare('SELECT * FROM pm_chats ORDER BY COALESCE(last_at, created_at) DESC').all() as Record<string, unknown>[];
+    const def = this.settings().communityNotify;
     return rows.map((r) => {
       const c = chatRow(r);
       const unread = (this.#db.prepare('SELECT COUNT(*) AS n FROM pm_messages WHERE chat = ? AND mine = 0 AND seen = 0 AND deleted = 0').get(c.id) as { n: number }).n;
+      const mentions = c.kind === 'community' && (c.notify ?? def) !== 'none' ? (this.#db.prepare('SELECT COUNT(*) AS n FROM pm_messages WHERE chat = ? AND mine = 0 AND seen = 0 AND deleted = 0 AND mention = 1').get(c.id) as { n: number }).n : 0;
       const lastRow = this.#db.prepare('SELECT * FROM pm_messages WHERE chat = ? ORDER BY at DESC LIMIT 1').get(c.id) as Record<string, unknown> | undefined;
       const lv = lastRow ? this.#view(lastRow) : undefined;
       const last = lv ? (lv.deleted ? '' : lv.text ? clip(lv.text, 80) : lv.file ? `📎 ${lv.file.name}` : '') : '';
-      return { ...c, unread: c.muted || c.blocked ? 0 : unread, last };
+      const quiet = c.muted || c.blocked;
+      return { ...c, unread: quiet ? 0 : unread, mentions: quiet ? 0 : mentions, last };
     });
   }
+  /** T4: the sidebar badge: one-to-one unread plus community mentions (never plain community posts). */
   unread(): number {
-    return this.chats().reduce((n, c) => n + c.unread, 0);
+    return this.counts().unread;
+  }
+  /** T4: `unread` = the badge; `community` = the quiet count inside Messages (communities not set to "nothing"). */
+  counts(): { unread: number; community: number } {
+    const def = this.settings().communityNotify;
+    let unread = 0;
+    let community = 0;
+    for (const c of this.chats()) {
+      if (c.kind === 'direct') unread += c.unread;
+      else {
+        unread += c.mentions;
+        if ((c.notify ?? def) !== 'none') community += c.unread;
+      }
+    }
+    return { unread, community };
   }
   patchChat(id: string, v: Record<string, unknown>): ChatRow {
     const c = this.chat(id);
     if (!c) throw new MsgError(404, en('Not found'));
     if (v.muted !== undefined) this.#db.prepare('UPDATE pm_chats SET muted = ? WHERE id = ?').run(v.muted ? 1 : 0, id);
+    if (v.notify !== undefined && c.kind === 'community') this.#db.prepare('UPDATE pm_chats SET notify = ? WHERE id = ?').run(v.notify === null || v.notify === '' ? null : level(v.notify), id);
     if (v.blocked !== undefined && c.kind === 'direct') this.#db.prepare('UPDATE pm_chats SET blocked = ? WHERE id = ?').run(v.blocked ? 1 : 0, id);
     if (v.retentionDays !== undefined) this.#db.prepare('UPDATE pm_chats SET retention = ? WHERE id = ?').run(v.retentionDays === null || v.retentionDays === '' ? null : days(v.retentionDays), id);
     if (Array.isArray(v.hide) && c.kind === 'community') this.#db.prepare('UPDATE pm_chats SET hidden = ? WHERE id = ?').run(JSON.stringify(v.hide.map((x) => clip(x, 64)).slice(0, MSG.members)), id);
@@ -846,7 +904,7 @@ export class Messenger {
       }
       if (c.blocked) return;
       if (ev.type === 'dm') {
-        if (this.#store(chatId, { id: s('mid'), mine: false, author: l.peer_name, authorId: 'peer', text: text(), file: file(), at: at() })) this.#arrived(c, l.peer_name, text() || '📎');
+        if (this.#store(chatId, { id: s('mid'), mine: false, author: l.peer_name, authorId: 'peer', text: text(), file: file(), at: at() })) this.#arrived(c, l.peer_name, text() || '📎', s('mid'));
       } else if (ev.type === 'edit') this.#applyEdit(chatId, s('mid'), 'peer', text());
       else if (ev.type === 'del') this.#applyDel(chatId, s('mid'), 'peer');
       else if (ev.type === 'read' && typeof ev.upto === 'string') {
@@ -866,7 +924,7 @@ export class Messenger {
         const f = file();
         if (this.#store(cid, { id: mid, mine: false, author: me.name, authorId: l.id, text: text(), file: f, at: at() })) {
           this.#fanout(cid, { type: 'c.msg', mid, text: text(), at: at(), author: me.name, authorId: l.id, ...(f ? { file: { name: f.name, data: f.bytes.toString('base64') } } : {}) }, { except: l.id });
-          this.#arrived(c, me.name, text() || '📎');
+          this.#arrived(c, me.name, text() || '📎', mid);
         }
       } else if (ev.type === 'c.edit') {
         if (this.#applyEdit(cid, s('mid'), l.id, text())) this.#fanout(cid, { type: 'c.edit', mid: s('mid'), text: text(), authorId: l.id }, { except: l.id });
@@ -906,7 +964,7 @@ export class Messenger {
     if (!c) return;
     if (ev.type === 'c.msg') {
       const author = s('author', MSG.nameChars) || '?';
-      if (this.#store(cid, { id: s('mid'), mine: false, author, authorId: s('authorId'), text: text(), file: file(), at: at() }) && !this.#hidden(cid).includes(s('authorId'))) this.#arrived(c, `${author} · ${c.title}`, text() || '📎');
+      if (this.#store(cid, { id: s('mid'), mine: false, author, authorId: s('authorId'), text: text(), file: file(), at: at() }) && !this.#hidden(cid).includes(s('authorId'))) this.#arrived(c, `${author} · ${c.title}`, text() || '📎', s('mid'));
     } else if (ev.type === 'c.edit') this.#applyEdit(cid, s('mid'), s('authorId'), text());
     else if (ev.type === 'c.del') this.#applyDel(cid, s('mid'), s('authorId'));
     else if (ev.type === 'c.typing') this.#setTyping(cid, s('name', MSG.nameChars));
@@ -950,10 +1008,14 @@ export class Messenger {
     this.#typing.set(chatId, m);
     this.onChange?.(chatId);
   }
-  #arrived(c: ChatRow, from: string, text: string): void {
+  #arrived(c: ChatRow, from: string, text: string, mid: string): void {
     this.#typing.get(c.id)?.delete(from);
+    // T4: a community @mention of the owner is stored (the badge counts it) and notifies like a one-to-one message.
+    const mention = c.kind === 'community' && isMention(text, this.name());
+    if (mention) this.#db.prepare('UPDATE pm_messages SET mention = 1 WHERE chat = ? AND id = ?').run(c.id, mid);
     this.onChange?.(c.id);
-    if (!c.muted && !c.blocked) this.onNotify?.(from, text, c.id);
+    const route = notifyRoute({ kind: c.kind, muted: c.muted, blocked: c.blocked, level: c.notify ?? this.settings().communityNotify, mention });
+    if (route === 'full') this.onNotify?.(from, text, c.id, { kind: c.kind, mention });
   }
 }
 
@@ -968,9 +1030,14 @@ function chatRow(r: Record<string, unknown>): ChatRow {
     muted: Boolean(r.muted),
     blocked: Boolean(r.blocked),
     retentionDays: (r.retention as number | null) ?? null,
+    notify: NOTIFY_LEVELS.includes(r.notify as NotifyLevel) ? (r.notify as NotifyLevel) : null,
     lastAt: (r.last_at as string | null) ?? null,
     createdAt: String(r.created_at),
   };
+}
+function level(v: unknown): NotifyLevel {
+  if (!NOTIFY_LEVELS.includes(v as NotifyLevel)) throw new MsgError(400, en('Pick everything, mentions or nothing.'));
+  return v as NotifyLevel;
 }
 function days(v: unknown): number {
   const n = Number(v);

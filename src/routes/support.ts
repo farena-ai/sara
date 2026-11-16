@@ -207,6 +207,23 @@ function shapeOnly(x: unknown): SupportChange {
   return { path, value: v };
 }
 
+/** A peer request's raw body (max 64 KB); also used by the T5 repair endpoint (src/routes/remote-repair.ts). */
+export function readPeerBody(req: IncomingMessage): Promise<string> {
+  return new Promise<string>((ok, fail) => {
+    const chunks: Buffer[] = [];
+    let n = 0;
+    req.on('data', (c: Buffer) => {
+      n += c.length;
+      if (n > 64 * 1024) {
+        fail(new Error('too big'));
+        req.destroy();
+      } else chunks.push(c);
+    });
+    req.on('end', () => ok(Buffer.concat(chunks).toString('utf8')));
+    req.on('error', fail);
+  });
+}
+
 /** POST /msg/v1/support/<op> from the other linked server (mounted in server.ts for the owner only). */
 export async function handleSupportPeer(ctx: RouteCtx, req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
   const reply = (status: number, body: unknown) => {
@@ -220,19 +237,7 @@ export async function handleSupportPeer(ctx: RouteCtx, req: IncomingMessage, res
   if (!['pass', 'revoke', 'look', 'propose', 'answer'].includes(op)) return reply(404, { error: 'not found' });
   let raw = '';
   try {
-    raw = await new Promise<string>((ok, fail) => {
-      const chunks: Buffer[] = [];
-      let n = 0;
-      req.on('data', (c: Buffer) => {
-        n += c.length;
-        if (n > 64 * 1024) {
-          fail(new Error('too big'));
-          req.destroy();
-        } else chunks.push(c);
-      });
-      req.on('end', () => ok(Buffer.concat(chunks).toString('utf8')));
-      req.on('error', fail);
-    });
+    raw = await readPeerBody(req);
   } catch {
     return reply(413, { error: 'too big' });
   }

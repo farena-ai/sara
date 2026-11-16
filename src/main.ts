@@ -222,6 +222,11 @@ import { A2AClient } from './a2a-client.ts';
 import { Messenger } from './messages.ts';
 import { supportOf } from './support.ts';
 import { createSupportTools } from './tools/support.ts';
+import { createRemoteRepairTools } from './tools/remote-repair.ts';
+import { repairOf } from './repair-env.ts';
+import { createRepairTools } from './tools/repair.ts';
+import { readyAt, SelfCode, selfCodeOf, selfCodeSettings, setSelfCode } from './self-code.ts';
+import { codingModel, createSelfCodeTools } from './tools/self-code.ts';
 import { HookManager } from './webhooks.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
@@ -1677,22 +1682,48 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       for (const t of a2aClient.tools()) tools.add(t);
     }
   }
+  // T3: level 3 self-repair (src/self-code.ts, docs/SELF_CODE.md): the owner's main companion only.
+  if (!isMember && !isDemo && main) {
+    const sc = new SelfCode({
+      root,
+      dataDir: app.dataDir,
+      db: store.db,
+      port,
+      version: () => `${info.version}${info.revision ? `+${info.revision}` : ''}`,
+      settings: () => selfCodeSettings(app.settings.get() as never),
+      model: codingModel(app),
+      hub: () => app.hub,
+      notify: (text) => void app.push?.notifyOwner('Code changes', text, '', 'self-code').catch(() => {}),
+      ready: () => readyAt(port),
+    });
+    setSelfCode(app, sc);
+    for (const t of createSelfCodeTools(() => selfCodeOf(app))) tools.add(t);
+    // After a start: the restart runner's outcome, then the patch queue (re-applied after an update).
+    setTimeout(() => void sc.afterBoot().catch((err: Error) => console.warn(`self-code: ${err.message}`)), 20_000).unref();
+  }
   // S9a: the Messages page (owner only); the main companion's push and events carry its notifications.
   if (!isMember && messenger) {
     app.messages = messenger;
     // S9b: the support link's tools (look with a help pass, suggest a fix); the owner's companions only.
     for (const t of createSupportTools(() => app)) tools.add(t);
+    for (const t of createRemoteRepairTools(() => app)) tools.add(t); // T5: fix passes (docs/REMOTE_REPAIR.md)
     if (main) {
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       const sup = supportOf(app);
       if (sup) sup.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       messenger.onNotify = (title, body, chat) => {
+        app.events?.publish({ type: 'pm', chat, notice: true }); // T4: the open pages show a popup card (ids only).
         const push = app.push;
         if (!push) return;
         const line = push.settings.preview ? (body.length > 180 ? `${body.slice(0, 177)}…` : body) : trOwner('Open the app to see it.', app.settings.get());
         void push.sendAll({ title, body: line, url: '/#view=messages', tag: `pm-${chat}` }).catch(() => undefined);
       };
     }
+  }
+  // ROADMAP_T (docs/SELF_REPAIR.md): self-repair, the owner's main companion only (never members, kid mode or the demo).
+  if (!isMember && !isDemo && main) {
+    app.repair = repairOf(app, { version: info.version });
+    for (const t of createRepairTools(() => app.repair)) tools.add(t);
   }
   // Phase 102: the owner's companions get his webhooks (members and the demo never).
   if (!isMember && hookManager) {

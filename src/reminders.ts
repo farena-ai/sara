@@ -88,6 +88,8 @@ export class ReminderScheduler {
     this.#app.learnTopics?.due(now);
     // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
     this.#app.crews?.due(now);
+    // ROADMAP_T: self-repair looks for problems at most every 15 minutes (level 1 fixes per the permission).
+    this.#app.repair?.due(now);
     // C10: workers' queues (time limits, the next job, held alerts).
     this.#app.workers?.tick(now);
     void this.#app.memoryTidy?.due(now).catch((err: Error) => console.warn(`memory tidy: ${err.message}`));

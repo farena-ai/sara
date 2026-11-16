@@ -124,6 +124,8 @@ const ALLOWED: Record<string, string> = {
   'src/ssh-easy.ts': "2.52.1 SSH Connect: the port greeting read and the anonymous cPanel TLS look call checkOutbound() before connecting (the manager also refuses non-loopback hosts first)",
   'src/egress.ts': "EC9 egress proxy for sandboxed work: only allowlisted host names, never a private address, and Sara's outboundAllowed() (private local mode) before every connection",
   'src/update-apply.ts': "C9 update runner (a separate process while Sara is stopped): only the health check of the just-installed server on 127.0.0.1",
+  'src/self-code.ts': 'T3 code changes: only her own /api/health(/ready) and the smoke start of her working copy on 127.0.0.1',
+  'src/self-code-runner.ts': 'T3 restart runner (a separate process while Sara restarts): only her own /api/health and /api/health/ready',
   'src/plugins/net.ts': "Phase 117 plugin socket broker: hosts only from the owner's plugin settings, refused in private local mode (assertOnline) and checked with checkOutbound() before connecting",
 };
 
@@ -163,7 +165,7 @@ test('source scan: no module in src/ calls fetch, WebSocket or a raw socket exce
     const src = readFileSync(join(ROOT, rel), 'utf8');
     if (rel === 'src/net-guard.ts' || rel === 'src/mcp-bridge.ts') continue;
     if (rel === 'src/preview.ts') assert.match(src, /host: '127\.0\.0\.1'/, why);
-    else if (rel === 'src/update-apply.ts') assert.ok(!/fetch\((?!`http:\/\/127\.0\.0\.1:)/.test(src), why);
+    else if (rel === 'src/update-apply.ts' || rel === 'src/self-code.ts' || rel === 'src/self-code-runner.ts') assert.ok(!/fetch\((?!`http:\/\/127\.0\.0\.1:)/.test(src), why);
     else assert.match(src, /checkOutbound\(|outboundAllowed\(/, `${rel}: ${why}`);
   }
 });

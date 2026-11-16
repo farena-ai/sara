@@ -7,10 +7,21 @@ memory exports or logs. Owner only (household members and kid mode never; not on
 
 ## Using it
 
-- **Messages** in the sidebar (under More until pinned). An unread dot shows there; phones get a push
-  notification and the desktop app a toast (muted chats stay quiet).
-- **Link a server**: makes a one-time code (`sara-msg:…`, works once, for 30 minutes). Send it to the
-  other owner; they press **Paste a code**. Either side can unlink at any time (*Options → Unlink*).
+- **Messages** in the sidebar (under More until pinned). An unread dot shows there for one-to-one
+  messages and for community messages that @mention you; phones get a push notification and the desktop
+  app a toast (muted chats stay quiet).
+- **New-message popup (T4)**: when a one-to-one message (or a mention) arrives and that chat is not open,
+  a small card shows in the bottom corner for 8 seconds (up to 3 stacked; it waits while the pointer or
+  keyboard focus is on it; it never takes the focus). Click it to open the chat. A soft sound can play
+  with it (off by default). Both are in *Messages settings*.
+- **Communities are quieter (T4)**: no push and no popup by default. Their new messages show as a small
+  grey count next to **Communities** in the chat list (never the sidebar dot). A message that mentions
+  you (`@YourName` or `@FirstName`) notifies like a one-to-one message. Per community, *Options →
+  Notify me*: **Everything**, **When I'm mentioned** (the default) or **Nothing**; the default for all
+  communities is *Messages settings → Communities notify me*.
+- **Link a server**: makes a one-time code (`sara-msg:…`). The code works once, for 30 minutes. Once
+  you're linked, you stay linked until either of you unlinks (*Options → Unlink*); each one-to-one chat shows
+  *Linked since* and the date. Send the code to the other owner; they press **Paste a code**.
 - **New community**: your server hosts it. Its code (in *Options*) lets anyone who has it join. You,
   and the moderators you name, can remove or ban a member and make a new code (the old one stops
   working for newcomers). **Message privately** on a member asks them for a one-to-one chat; it starts
@@ -39,13 +50,15 @@ memory exports or logs. Owner only (household members and kid mode never; not on
 | Communities | Hosted by the creator's server, which fans each post out to every member over its link with them (up to 50 members). Roles: host, mod, member. A moderator's kick/ban/new code is checked by the host. A ban stores the member server's address: the host refuses its joins with any code, and its link is deleted. |
 | Retention | Per person (setting) and per chat (*Keep messages*), 30 days by default; purged on the reminder tick, files too. Each side keeps its own copy for its own time. |
 | Unlink | The other side is told (`unlink`, `c.leave`, `c.removed`, `c.closed`), then both delete the link's keys; the history stays or goes as each person chooses. |
-| Notifications | `onNotify` → web push to the owner's devices (the body only when *previews* are on) and the page's SSE `pm` event (chat id only) → desktop toast. |
+| Notifications | `notifyRoute` (T4) decides per new message: `full` (one-to-one; a community set to *Everything*; a community @mention of the owner's Messages name or its first word, `isMention`), `quiet` (other community messages: only the count inside Messages) or `none` (muted, blocked, *Nothing*). `full` → `onNotify` → web push to the owner's devices (the body only when *previews* are on) and the SSE event `{type:'pm', chat, notice:true}` (ids only) → the page's popup card and desktop toast. Mentions are flagged on the stored row (`pm_messages.mention`); `GET /api/messages` returns `unread` (sidebar badge = one-to-one unread + unread mentions) and `community` (the quiet count; communities on *Nothing* excluded). Settings `popup` (on), `sound` (off), `communityNotify` (`mentions`); per chat `pm_chats.notify` (null = the default). |
 | Isolation | No model tool, no memory write, no conversation row, no log line with content. `test/s9a-messages.test.ts` proves it: a turn after messaging has none of the words in the model request, memory, `sara.db` or console, there is no message tool, and only `main.ts` and `routes/messages.ts` import the module. |
 
 ## Support link (S9b)
 
 The same link can carry a time-limited **help pass**: the other owner's Sara may then read a redacted
 support report and suggest fixes that you approve one by one. See [SUPPORT_LINK.md](SUPPORT_LINK.md).
+A **fix pass** (T5) goes further: the other owner's Sara sends a plan your Sara checks and runs herself,
+with your OK. See [REMOTE_REPAIR.md](REMOTE_REPAIR.md).
 
 ## Limits and gaps
 

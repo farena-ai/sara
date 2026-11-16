@@ -8,7 +8,9 @@ export type HubEvent = (
   | { type: 'job'; job: import('./jobs.ts').Job }
   | { type: 'planner'; what: 'tasks' | 'reminders' | 'notes' }
   /** S9a: a private-messages chat changed (a message, a receipt, typing). The chat id only, never what anyone wrote. */
-  | { type: 'pm'; chat: string }
+  | { type: 'pm'; chat: string; notice?: boolean }
+  /** ROADMAP_T: the self-repair log changed (src/repair.ts). */
+  | { type: 'repair' }
   /** 3.0.3: `saved` = new notes the memory worker put on this chat's replies (the open chat redraws). */
   | { type: 'memory'; conversationId: string; saved?: number }
   /** Phase 101 (ST6): people cards changed (proposed, facts added, edited, forgotten). Never names or facts. */

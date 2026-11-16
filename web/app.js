@@ -103,6 +103,7 @@ import { initReadTogether, readTogetherSwitched } from './read-together.js';
 import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-check.js';
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
+import { initSelfCode } from './self-code.js';
 import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
 import { initDataRights } from './data-rights.js';
 import { initMemberTools } from './member-tools.js';
@@ -175,6 +176,7 @@ import { initOrbs, orbMount, orbSignal } from './orb.js';
 import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './run-timeline.js';
 import { initMemoryMap } from './memory-map.js';
 import { choiceCard } from './choice-card.js';
+import { initRepair, loadRepair, saveRepair } from './repair.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -3655,7 +3657,7 @@ function approvalCard(ev, block) {
     title.dataset.raw = '';
     // Phase 99: a board step reads as one plain line ("Move “Fix login” (Website) from To do to Doing").
     // MULTIMAIL: with several mailboxes an email's card reads From / To / Subject (the mailbox it goes from).
-    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^(card_|alerts_route$)/.test(ev.name) || WORKAPP_CARD.test(ev.name) || (/^mail_(send|draft)$/.test(ev.name) && /^(SEND email|Draft email)\nFrom: /.test(ev.summary ?? ''))) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
+    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^(card_|alerts_route$|repair_fix$)/.test(ev.name) || WORKAPP_CARD.test(ev.name) || (/^mail_(send|draft)$/.test(ev.name) && /^(SEND email|Draft email)\nFrom: /.test(ev.summary ?? ''))) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
   } else {
     title.textContent = t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: ev.name });
     title.dataset.raw = '';
@@ -4017,6 +4019,7 @@ const TOOL_WORDS = {
 const WORKAPP_CARD = /^(gdoc_(append|replace_text)|gsheet_(update_range|append_rows)|excel_update_range|word_fill|slack_(post|react|status|remind)|teams_post)$/;
 const TOOL_NAME = {
   alerts_route: 'Choose where alerts go',
+  repair_fix: 'Fix herself', repair_status: 'Check what is wrong',
   list_dir: 'See her files', read_file: 'Read files', write_file: 'Write files', edit_file: 'Edit files', search: 'Search her files',
   code_map: 'Code overview', code_find: 'Find code', code_refs: 'Where code is used', code_deps: 'How files connect',
   starter_create: 'Start a project from a template', project_note: 'Project notes', review_code: 'Review code',
@@ -7417,7 +7420,7 @@ function startEvents() {
   // Phase 104: a move-in's upload, check, read or import moved on.
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
   // S9a: a private-messages chat changed (its id only).
-  es.addEventListener('pm', (e) => messagesChanged(JSON.parse(e.data).chat));
+  es.addEventListener('pm', (e) => (({ chat, notice }) => messagesChanged(chat, notice))(JSON.parse(e.data)));
   // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
   es.addEventListener('today', (e) => {
     const part = JSON.parse(e.data).part;
@@ -9044,6 +9047,11 @@ function showSettingsTab(page, opts = {}) {
   if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();
   if (pick === 'dh-safety') void loadSafetyCheck();
   if (shown.has('dh-quality')) void loadQuality();
+  // ROADMAP_T: Self-repair on the Health page (web/repair.js).
+  if (pick === 'dh-health' && typeof loadRepair === 'function' && !isMember()) {
+    initRepair();
+    void loadRepair();
+  }
   if (shown.has('dh-recovery')) {
     void readiness.refresh();
     void recovery.refresh();
@@ -9473,7 +9481,7 @@ const SETTINGS_SAVERS = {
   'co-discord': [saveDiscord, () => saveChatCommands('dc'), () => saveChatMedia('dc')],
   'co-phone': [savePush],
   'dh-usage': [saveUsage],
-  'dh-health': [saveRuns, saveLogLevel],
+  'dh-health': [saveRuns, saveLogLevel, saveRepair],
   'ab-budgets': [saveBudgets, saveLearnBudget],
   'ab-persist': [savePersistSettings],
   'ab-precise': [savePreciseSettings],
@@ -10814,6 +10822,7 @@ initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 // EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
 initSharing({ api, el });
+initSelfCode({ api });
 // EC17: Retention and legal hold (web/data-rights.js).
 initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 // R7: Settings → Household → People on this server → Tools for household members (web/member-tools.js).

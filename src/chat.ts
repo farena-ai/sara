@@ -375,6 +375,8 @@ export interface AppContext {
   privateLocal?: import('./private-local.ts').PrivateLocalStore;
   /** Phase 67: downloading a model into the local Ollama (one at a time, server-wide). */
   modelPuller?: import('./local-models.ts').ModelPuller;
+  /** ROADMAP_T T1/T2: the owner's self-repair engine (src/repair.ts; undefined for members and kid mode). */
+  repair?: import('./repair.ts').Repair;
   /** Injectable for tests. */
   providerFactory?: (config: ProviderConfig, apiKey?: string, subs?: Subscriptions) => Provider;
   /** Subscription logins (ChatGPT / Claude / Grok). */

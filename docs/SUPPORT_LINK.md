@@ -46,6 +46,16 @@ mode, sharing, shell or computer use.
 | Proposals | Helper: path on the allowlist and value shape checked; helped: `cleanChange` checks again against its own settings (known provider ids, model name shape, 10-600 s, booleans). Stored as a pending card with the exact diff; Approve writes exactly that patch with `settings.update`, then the helper is told (`answer`). A card is answered once (409). |
 | Tools | Owner's companions only (main.ts, next to the Messenger), hidden without a held pass, off in private chats and private local mode (OFFSERVER_TOOL / lean OFF), lean family `support`. `support_look` asks once per pass (`prepare` → `auto` after the first run on that pass); `support_propose` always asks. |
 
+## Fix passes (T5)
+
+A help pass only lets the other owner *suggest* settings. A **fix pass** (scope `repair`, signed separately
+from `support`) goes further: asked for by the helped owner (*Ask <name> to fix something*, or "can you have
+<name> fix it" in a chat), accepted by the helper, it lets the helper's Sara read the same report plus the
+helped server's own self-repair problem list and send a **plan** of steps the helped server's own engines
+accept (self-repair fixes, learning a skill, these allowlisted settings, code change requests). The helped
+server checks every step again and runs it itself, per step or once per plan (code changes always ask), with
+live progress, Stop and Undo on both sides. See [REMOTE_REPAIR.md](REMOTE_REPAIR.md).
+
 ## Limits and gaps
 
 - The helper reads the report on their own server: a look is only as private as that owner's Sara.

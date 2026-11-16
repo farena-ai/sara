@@ -12,6 +12,10 @@ let view = null;
 let typingAt = 0;
 let lastUnread = -1;
 let reloadTimer = 0;
+// T4: the last settings seen (popup, sound), so a notice needs no extra request for them.
+let prefs = { popup: true, sound: false, communityNotify: 'mentions' };
+const POP_MS = 8000;
+const POP_MAX = 3;
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
@@ -26,6 +30,7 @@ const say = (msg) => {
   if (s) s.textContent = msg;
 };
 const time = (iso) => new Date(iso).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+const day = (iso) => new Date(iso).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
 const ask = async (text) => (ctx.confirm ? ctx.confirm(text) : window.confirm(text));
 const KEEP = () => [
   ['', t('My default')],
@@ -44,7 +49,7 @@ export function initMessages(c) {
   $('#msgs-link')?.addEventListener('click', () => void linkCode());
   $('#msgs-join-open')?.addEventListener('click', () => joinForm());
   $('#msgs-new-group')?.addEventListener('click', () => groupForm());
-  for (const id of ['#msgs-keep', '#msgs-receipts', '#msgs-typing', '#msgs-name', '#msgs-url']) $(id)?.addEventListener('change', () => void saveSettings());
+  for (const id of ['#msgs-keep', '#msgs-receipts', '#msgs-typing', '#msgs-name', '#msgs-url', '#msgs-popup', '#msgs-sound', '#msgs-community']) $(id)?.addEventListener('change', () => void saveSettings());
   $('#msgs')?.addEventListener('close', () => {
     open = '';
     view = null;
@@ -71,6 +76,7 @@ export async function loadMessages() {
   await loadSupport();
   paintBadge(list.unread);
   paintSettings(list.settings);
+  if (list.settings) prefs = list.settings;
   paintList();
   if (open) await loadChat(open);
   else paintChat();
@@ -82,8 +88,10 @@ export async function refreshMessagesBadge() {
   try {
     const r = await ctx.api('/messages');
     // A desktop/browser notification for a new message while the page is not in front.
+    if (r.settings) prefs = r.settings;
     if (lastUnread >= 0 && r.unread > lastUnread && (document.hidden || !$('#msgs')?.open)) {
-      const c = r.chats.find((x) => x.unread > 0 && !x.muted);
+      // T4: only what counts in the badge (one-to-one, mentions) notifies; plain community posts stay quiet.
+      const c = r.chats.find((x) => (x.kind === 'community' ? x.mentions : x.unread) > 0 && !x.muted);
       if (c) ctx.notify?.(c.title, c.last || t('New message'));
     }
     lastUnread = r.unread;
@@ -102,15 +110,112 @@ function paintBadge(n) {
   }
 }
 
-/** Server event: a chat changed (ids only). */
-export function messagesChanged(chatId) {
+/** Server event: a chat changed (ids only); `notice` = a new one-to-one message or mention to show. */
+export function messagesChanged(chatId, notice = false) {
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     if ($('#msgs')?.open) void loadMessages();
     else void refreshMessagesBadge();
   }, 250);
-  void chatId;
+  if (notice) void noticeFor(chatId);
 }
+
+// ---- T4: the in-app popup card (bottom corner, stacked, never takes focus) --------------------------
+async function noticeFor(chatId) {
+  if (!ctx || prefs.popup === false) return;
+  // The chat is already in front: the message is on screen.
+  if (!document.hidden && $('#msgs')?.open && open === chatId) return;
+  let r;
+  try {
+    r = await ctx.api('/messages');
+  } catch {
+    return;
+  }
+  if (r.settings) prefs = r.settings;
+  const c = r.chats.find((x) => x.id === chatId);
+  if (!c || prefs.popup === false) return;
+  // A community below "everything" notifies only for a mention: say so on the card.
+  showPopup({ chatId, title: c.title, body: c.last || t('New message'), mention: c.kind === 'community' && (c.notify ?? prefs.communityNotify) !== 'all' });
+  if (prefs.sound) chime();
+}
+function popHost() {
+  let host = $('#msgs-pops');
+  if (!host) {
+    host = el('div', 'msgs-pops');
+    host.id = 'msgs-pops';
+    host.setAttribute('role', 'region');
+    host.setAttribute('aria-label', t('New messages'));
+    host.setAttribute('aria-live', 'polite');
+    if (typeof host.showPopover === 'function') host.popover = 'manual';
+    document.body.append(host);
+  }
+  // A modal dialog makes everything outside it inert: the stack moves into the top one so it stays clickable.
+  const modal = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).pop() ?? document.body;
+  if (host.parentElement !== modal) {
+    if (host.matches?.(':popover-open')) host.hidePopover();
+    modal.append(host);
+  }
+  if (host.popover && !host.matches(':popover-open')) host.showPopover();
+  return host;
+}
+function showPopup(n) {
+  const host = popHost();
+  for (const old of host.querySelectorAll(`.msgs-pop[data-chat="${CSS.escape(n.chatId)}"]`)) old.remove();
+  const card = el('div', 'msgs-pop');
+  card.dataset.chat = n.chatId;
+  const go = btn('', 'msgs-pop-open', () => {
+    card.remove();
+    tidy(host);
+    void openMessages(n.chatId);
+  });
+  go.append(el('strong', '', n.title), el('span', 'msgs-pop-body', n.body));
+  if (n.mention) go.append(el('span', 'muted small', t('Mentioned you')));
+  const x = btn('×', 'ghost msgs-pop-x', () => {
+    card.remove();
+    tidy(host);
+  });
+  x.setAttribute('aria-label', t('Dismiss'));
+  card.append(go, x);
+  host.append(card);
+  while (host.querySelectorAll('.msgs-pop').length > POP_MAX) host.querySelector('.msgs-pop')?.remove();
+  // Hides after 8 s; while the pointer is on it or it has keyboard focus, it waits another 8 s.
+  const arm = () =>
+    setTimeout(() => {
+      if (!card.isConnected) return;
+      if (card.matches(':hover, :focus-within')) return void arm();
+      card.remove();
+      tidy(host);
+    }, POP_MS);
+  arm();
+}
+function tidy(host) {
+  if (!host.querySelector('.msgs-pop') && host.popover && host.matches(':popover-open')) host.hidePopover();
+}
+/** A short, quiet two-note chime made in the page (no file; browsers allow it after the first click). */
+function chime() {
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    const ac = new AC();
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, ac.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.05, ac.currentTime + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + 0.45);
+    g.connect(ac.destination);
+    for (const [f, at] of [[660, 0], [880, 0.12]]) {
+      const o = ac.createOscillator();
+      o.type = 'sine';
+      o.frequency.value = f;
+      o.connect(g);
+      o.start(ac.currentTime + at);
+      o.stop(ac.currentTime + 0.45);
+    }
+    setTimeout(() => void ac.close().catch(() => undefined), 800);
+  } catch {
+    /* no sound: the card is enough */
+  }
+}
+// end popup
 
 function paintSettings(s) {
   if (!s) return;
@@ -123,10 +228,14 @@ function paintSettings(s) {
   set('#msgs-typing', s.typing);
   set('#msgs-name', s.name);
   set('#msgs-url', s.url);
+  set('#msgs-popup', s.popup !== false);
+  set('#msgs-sound', Boolean(s.sound));
+  set('#msgs-community', s.communityNotify || 'mentions');
 }
 async function saveSettings() {
   try {
-    const r = await ctx.api('/messages/settings', { method: 'PUT', body: { retentionDays: Number($('#msgs-keep').value || 0), receipts: $('#msgs-receipts').checked, typing: $('#msgs-typing').checked, name: $('#msgs-name').value, url: $('#msgs-url').value } });
+    const r = await ctx.api('/messages/settings', { method: 'PUT', body: { retentionDays: Number($('#msgs-keep').value || 0), receipts: $('#msgs-receipts').checked, typing: $('#msgs-typing').checked, name: $('#msgs-name').value, url: $('#msgs-url').value, popup: $('#msgs-popup')?.checked ?? true, sound: $('#msgs-sound')?.checked ?? false, communityNotify: $('#msgs-community')?.value || 'mentions' } });
+    prefs = r.settings;
     paintSettings(r.settings);
     say(t('Saved.'));
   } catch (err) {
@@ -154,17 +263,40 @@ function paintList() {
     box.append(el('p', 'muted small msgs-empty', t('No chats yet. Link a server with a one-time code, or join a community with its code.')));
     return;
   }
-  for (const c of list.chats) {
-    const b = btn('', 'msgs-item', () => void showChat(c.id));
-    b.setAttribute('aria-current', String(c.id === open));
-    const top = el('span', 'msgs-item-top');
-    top.append(el('strong', '', `${c.kind === 'community' ? '👥 ' : ''}${c.title}`));
-    if (c.unread) top.append(el('span', 'msgs-badge', String(c.unread)));
-    if (c.muted) top.append(el('span', 'muted small', t('muted')));
-    if (c.status === 'ended') top.append(el('span', 'muted small', t('ended')));
-    b.append(top, el('span', 'muted small msgs-item-last', c.blocked ? t('Blocked') : c.last || ' '));
-    box.append(b);
+  // T4: one-to-one chats first; communities under their own heading with a quiet count (not the accent badge).
+  const direct = list.chats.filter((c) => c.kind !== 'community');
+  const groups = list.chats.filter((c) => c.kind === 'community');
+  for (const c of direct) box.append(chatItem(c));
+  if (groups.length) {
+    const head = el('div', 'msgs-group-head');
+    head.append(el('span', '', t('Communities')));
+    if (list.community) {
+      const q = el('span', 'msgs-quiet', String(list.community));
+      q.title = t('{n} new in communities', { n: list.community });
+      q.setAttribute('aria-label', q.title);
+      head.append(q);
+    }
+    box.append(head);
+    for (const c of groups) box.append(chatItem(c));
   }
+}
+function chatItem(c) {
+  const b = btn('', 'msgs-item', () => void showChat(c.id));
+  b.setAttribute('aria-current', String(c.id === open));
+  const top = el('span', 'msgs-item-top');
+  top.append(el('strong', '', `${c.kind === 'community' ? '👥 ' : ''}${c.title}`));
+  const quietLevel = c.kind === 'community' && (c.notify ?? prefs.communityNotify) !== 'all';
+  if (c.mentions) {
+    const at = el('span', 'msgs-badge', `@${c.mentions}`);
+    at.title = t('Mentioned you');
+    top.append(at);
+  }
+  if (c.unread && quietLevel) top.append(el('span', 'msgs-quiet', String(c.unread)));
+  else if (c.unread) top.append(el('span', 'msgs-badge', String(c.unread)));
+  if (c.muted) top.append(el('span', 'muted small', t('muted')));
+  if (c.status === 'ended') top.append(el('span', 'muted small', t('ended')));
+  b.append(top, el('span', 'muted small msgs-item-last', c.blocked ? t('Blocked') : c.last || ' '));
+  return b;
 }
 async function answer(id, accept) {
   try {
@@ -189,7 +321,8 @@ async function linkCode() {
     code.readOnly = true;
     code.value = r.code;
     code.setAttribute('aria-label', t('One-time code'));
-    panel(el('p', 'small', t('Send this code to the other owner. It works once, for 30 minutes. They paste it under Messages → Paste a code.')), code, btn(t('Copy'), 'small', () => void navigator.clipboard?.writeText(r.code).then(() => say(t('Copied.')))));
+    // T4: the code expires; the link it makes does not.
+    panel(el('p', 'small', t('Send this code to the other owner. They paste it under Messages → Paste a code.')), el('p', 'small msgs-note', t('This code works once, for 30 minutes. Once you’re linked, you stay linked until either of you unlinks.')), code, btn(t('Copy'), 'small', () => void navigator.clipboard?.writeText(r.code).then(() => say(t('Copied.')))));
     code.select();
   } catch (err) {
     say(err.message);
@@ -251,7 +384,10 @@ async function loadChat(id) {
     const c = list?.chats.find((x) => x.id === id);
     if (c?.unread) {
       await ctx.api(`/messages/chats/${id}/read`, { method: 'POST', body: {} }).catch(() => undefined);
+      // T4: the quiet community count and the mention badge clear with it.
+      if (c.kind === 'community' && list.community) list.community = Math.max(0, list.community - c.unread);
       c.unread = 0;
+      c.mentions = 0;
       paintList();
       void refreshMessagesBadge();
     }
@@ -276,7 +412,7 @@ function paintChat() {
   }));
   const title = el('div', 'msgs-title');
   title.append(el('strong', '', chat.title));
-  const sub = chat.kind === 'community' ? t('{n} members', { n: view.members.length }) + (chat.role === 'host' ? ` · ${t('you host it')}` : chat.role === 'mod' ? ` · ${t('moderator')}` : '') : chat.status === 'ended' ? t('This chat has ended.') : t('Linked server');
+  const sub = chat.kind === 'community' ? t('{n} members', { n: view.members.length }) + (chat.role === 'host' ? ` · ${t('you host it')}` : chat.role === 'mod' ? ` · ${t('moderator')}` : '') : chat.status === 'ended' ? t('This chat has ended.') : t('Linked since {date}', { date: day(chat.createdAt) });
   title.append(el('span', 'muted small', sub));
   head.append(title, chatMenu(chat));
   box.append(head, supportStrip(chat));
@@ -314,6 +450,19 @@ function chatMenu(chat) {
   sel.addEventListener('change', () => void patch({ retentionDays: sel.value === '' ? null : Number(sel.value) }));
   keep.append(sel);
   body.append(keep);
+  // T4: a community's own "Notify me" (one-to-one chats always notify unless muted).
+  if (chat.kind === 'community') {
+    const lab = el('label', 'msgs-keep');
+    lab.append(el('span', 'small', t('Notify me')));
+    const pick = el('select');
+    const def = { all: t('Everything'), mentions: t('When I’m mentioned'), none: t('Nothing') };
+    pick.append(Object.assign(el('option', '', `${t('My default')} (${def[prefs.communityNotify] ?? def.mentions})`), { value: '' }));
+    for (const v of ['all', 'mentions', 'none']) pick.append(Object.assign(el('option', '', def[v]), { value: v }));
+    pick.value = chat.notify ?? '';
+    pick.addEventListener('change', () => void patch({ notify: pick.value || null }));
+    lab.append(pick);
+    body.append(lab);
+  }
   if (chat.kind === 'community') body.append(members(chat));
   if (view.code) {
     const code = el('input', 'msgs-code');
