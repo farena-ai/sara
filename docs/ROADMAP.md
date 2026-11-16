@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Documents end to end, agent teams, a support link, and alerts where you want them, in 3.17.0
+
+Mark Library documents as templates and she fills them, reusing your own clauses with their sources; edits
+arrive as real Word tracked changes, with a clause checklist and a PDF ready to sign. Agent teams split a
+big job between helpers working in parallel: you approve the plan once and every outside action on one final
+card. A time-limited help pass lets a linked server read health, errors and redacted logs and suggest fixes
+the owner approves. Tell her where alerts go ("put my stock alerts in the Stock Alerts project"). The desktop
+apps handle adult mode like a browser. This completes the S roadmap.
+
 ## Writing that sounds human, meetings, keeping in touch, and trips, in 3.16.0
 
 A Make it sound human button rewrites her documents and reports in plain, varied language, and can match

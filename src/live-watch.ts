@@ -12,6 +12,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { gatherThreads, type ThreadTip } from './biz/followups.ts';
+import { alertPlace, alertApps, describeDest, liveFeed, resolveTo, setItemDest } from './destinations.ts';
 import { DataError, leagueOf, teamMatch, type DataSources, type Game, type OddsEvent, type Quote } from './data-sources.ts';
 import { quietNow } from './life.ts';
 import { privateLocalOn } from './net-guard.ts';
@@ -538,15 +539,24 @@ export class LiveWatches {
     return Boolean(c && !c.partner);
   }
 
+  /**
+   * ALERTDEST: where this watch posts (src/destinations.ts): its own choice, its feed's default, or
+   * the chat it was made in; if that chat is gone, a chat named after the feed ("Stock alerts"),
+   * never whichever chat came first. Returns '' when only the chat apps get it.
+   */
   #conversation(r: Row): string {
-    if (r.conversation_id && this.#ownChat(r.conversation_id)) return r.conversation_id;
-    const store = this.#app.store;
-    return (store.listConversations().find((c) => !c.partner && c.channel === 'web') ?? store.createConversation({ title: 'Watches' })).id;
+    return this.#place(r).conversationId ?? '';
+  }
+  #place(r: Row) {
+    return alertPlace(this.#app, liveFeed(r.kind), { item: `live:${r.id}`, origin: () => (r.conversation_id && this.#ownChat(r.conversation_id) ? r.conversation_id : undefined) });
   }
 
   #card(r: Row, conversationId: string, text: string, extra: Record<string, unknown> = {}): void {
-    const msg = this.#app.store.addMessage(conversationId, 'notice', `livewatch:${text}`, { liveWatch: { id: r.id, kind: r.kind, label: labelOf(r.kind, JSON.parse(r.target_json), r.when_kind, r.value), ...extra } });
-    this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reply' });
+    if (conversationId) {
+      const msg = this.#app.store.addMessage(conversationId, 'notice', `livewatch:${text}`, { liveWatch: { id: r.id, kind: r.kind, label: labelOf(r.kind, JSON.parse(r.target_json), r.when_kind, r.value), ...extra } });
+      this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reply' });
+    }
+    alertApps(this.#app, { ...this.#place(r), ...(conversationId ? { conversationId } : {}) }, text, true);
     if (r.how !== 'chat' && !quietNow(this.#app, this.#app.now())) void this.#app.push?.notifyOwner(`Watch: ${labelOf(r.kind, JSON.parse(r.target_json), r.when_kind, r.value)}`.slice(0, 120), text.slice(0, 300), conversationId, `livewatch-${r.id}`).catch(() => {});
   }
 
@@ -611,6 +621,7 @@ export function createLiveWatchTools(getApp: () => AppContext): Tool[] {
             book: { type: 'string', description: 'odds: optional sportsbook (default: the median of all books).' },
             until: { type: 'string', description: 'Optional end date (YYYY-MM-DD). Default 30 days, at most 90.' },
             how: { type: 'string', enum: ['chat', 'phone', 'desktop'], description: 'chat: a card in this chat only. phone or desktop: the card plus a notification on their devices (default phone).' },
+            post_to: { type: 'string', description: 'Optional, when they say where it should post ("and post it in my Stock Alerts project"): a project name, one of their chat titles, here, telegram or discord. Default: their setting for this kind (usually this chat).' },
           },
           required: ['kind', 'when'],
           additionalProperties: false,
@@ -619,8 +630,13 @@ export function createLiveWatchTools(getApp: () => AppContext): Tool[] {
       summarize: (a) => `Watch: ${String(a.symbol ?? a.team ?? a.from ?? a.words ?? '')} ${String(a.when ?? '')} ${a.value ?? ''}`.trim(),
       run: async (a, ctx) =>
         wrap(() => {
-          const w = lw().add({ ...a, conversationId: ctx.conversationId ?? null });
-          return `Watch #${w.id} is on: ${w.label}. She checks ${w.kind === 'mail' ? 'their connected mail every 10 minutes (only new messages after now; the alert shows the sender and subject)' : w.kind === 'odds' ? 'every 2 hours (to save the free odds credits)' : w.kind === 'game' ? 'every minute while the game is on, every 10 minutes otherwise' : 'about every minute'} until ${whenText(w.until, getApp().settings.get().timeZone)}, and tells them ${w.how === 'chat' ? 'with a card in this chat' : 'with a card here and a notification'}, once per crossing. Confirm in a sentence; it's listed on Today and in Settings → Data sources.`;
+          const { post_to: postTo, ...rest } = a;
+          // ALERTDEST: "and post it in X" (a missing project is never made here: alerts_route asks first).
+          const to = postTo ? resolveTo(getApp(), String(postTo), ctx.conversationId) : undefined;
+          if (to && !('dest' in to)) throw new ToolError('missingProject' in to ? `There is no project called “${to.missingProject}”. Make the watch without post_to, then use alerts_route (it asks before making the project).` : to.error);
+          const w = lw().add({ ...rest, conversationId: ctx.conversationId ?? null });
+          if (to && 'dest' in to) setItemDest(getApp(), `live:${w.id}`, to.app ? { where: 'origin', [to.app]: true } : { where: to.dest.where!, ...(to.dest.conversationId ? { conversationId: to.dest.conversationId } : {}), ...(to.dest.projectId ? { projectId: to.dest.projectId } : {}) });
+          return `Watch #${w.id} is on: ${w.label}. She checks ${w.kind === 'mail' ? 'their connected mail every 10 minutes (only new messages after now; the alert shows the sender and subject)' : w.kind === 'odds' ? 'every 2 hours (to save the free odds credits)' : w.kind === 'game' ? 'every minute while the game is on, every 10 minutes otherwise' : 'about every minute'} until ${whenText(w.until, getApp().settings.get().timeZone)}, and tells them ${w.how === 'chat' ? 'with a card in this chat' : 'with a card here and a notification'}, once per crossing. It posts to: ${describeDest(getApp(), liveFeed(w.kind), `live:${w.id}`, () => w.conversationId ?? undefined)}. Confirm in a sentence; it's listed on Today and in Settings → Data sources.`;
         }),
     },
     {

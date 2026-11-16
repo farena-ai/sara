@@ -9,6 +9,7 @@ import { say } from './bridges/commands.ts';
 import { personalize } from './identity.ts';
 import { complete, inQuiet, proactiveSettings } from './life.ts';
 import { localDate } from './memory-worker.ts';
+import { appReady, ownerWebChat, ownerWebChats, placeChat } from './destinations.ts';
 import { ownerEvidenceConversation } from './owner-evidence.ts';
 import { mediaSettings } from './bridges/media.ts';
 import { backgroundConversation, type Conversation } from './store.ts';
@@ -100,46 +101,25 @@ export function ownDest(own: OwnPhotoSettings): OwnDest {
 /** "Pictures from <her name>", in the owner's language (the chat made for her pictures). */
 export const ownChatTitle = (app: AppContext) => say(app, appLanguage(app.settings.get()), en('Pictures from {name}'), { name: app.persona?.name || 'Sara' });
 
-/** The owner's own 1:1 chats here that can take her pictures (never a group, room, partner or private chat). */
-export function ownerWebChat(app: AppContext, id: string | undefined): Conversation | undefined {
-  if (!id) return undefined;
-  const c = ownerEvidenceConversation(app, id);
-  return c && c.channel === 'web' && c.mode === 'chat' ? c : undefined;
-}
-export function ownerWebChats(app: AppContext, limit = 60): { id: string; title: string }[] {
-  return app.store.listConversations().filter((c) => c.channel === 'web' && c.mode === 'chat' && !c.private && !c.partner && !c.archivedAt && ownerWebChat(app, c.id)).slice(0, limit).map((c) => ({ id: c.id, title: c.title }));
-}
-
-/** Telegram/Discord: the bridge runs and knows the owner. */
-export function ownAppReady(app: AppContext, kind: 'telegram' | 'discord'): boolean {
-  const st = app.bridges?.[kind]?.status();
-  return Boolean(st?.running && st.linked);
-}
+// The owner's own chats, the app check and the chat placing are shared with every alert (src/destinations.ts).
+export { ownerWebChat, ownerWebChats };
+export const ownAppReady = appReady;
 
 /** Where pictures go, for the status line; the chat here is made on first use (`create`). */
 function placeHere(app: AppContext, own: OwnPhotoSettings, dest: OwnDest, create: boolean): { conv?: Conversation; target?: OwnTarget; skipped?: string } {
   if (dest.here === 'none') return {};
-  if (dest.here === 'chat') {
-    const conv = ownerWebChat(app, dest.chatId);
-    return conv ? { conv, target: { kind: 'chat', name: conv.title } } : { skipped: 'no chat' };
-  }
-  let key = 'own';
-  let title = ownChatTitle(app);
-  let projectId: number | null = null;
-  let target: OwnTarget = { kind: 'chat', name: title };
-  if (dest.here === 'project') {
-    const project = app.planner?.projects().find((x) => x.id === dest.projectId);
-    if (!project) return { skipped: 'no project' };
-    key = `project:${project.id}`;
-    projectId = project.id;
-    target = { kind: 'project', name: project.name };
-  }
-  const was = ownerWebChat(app, own.made?.[key]);
-  if (was && (projectId === null || was.projectId === projectId)) return { conv: was, target };
-  if (!create) return { target };
-  const conv = app.store.createConversation({ title, titleSource: 'placeholder', channel: 'web', mode: 'chat', projectId });
-  app.settings.update({ photos: { ...photoSettings(app.settings), own: { ...ownPhotoSettings(app), made: { ...ownPhotoSettings(app).made, [key]: conv.id } } } });
-  return { conv, target };
+  // Stored keys stay as they were: 'own' and 'project:<id>' in photos.own.made.
+  return placeChat(app, {
+    here: dest.here === 'own' ? 'dedicated' : dest.here,
+    chatId: dest.chatId,
+    projectId: dest.projectId,
+    key: 'own',
+    projectKey: (id) => `project:${id}`,
+    title: ownChatTitle(app),
+    made: own.made,
+    save: (key, id) => app.settings.update({ photos: { ...photoSettings(app.settings), own: { ...ownPhotoSettings(app), made: { ...ownPhotoSettings(app).made, [key]: id } } } }),
+    create,
+  });
 }
 
 /** The places her next picture goes, without making anything. */

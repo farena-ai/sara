@@ -116,6 +116,11 @@ export class MadeDocs {
   versions(family: number): MadeDoc[] {
     return (this.#db.prepare('SELECT * FROM made_docs WHERE family = ? ORDER BY version').all(family) as Row[]).map(toMade);
   }
+  /** S7: the made document whose file is this Library document (its newest version). */
+  byLibrary(libraryId: number): MadeDoc | undefined {
+    const r = this.#db.prepare('SELECT * FROM made_docs WHERE library_id = ? ORDER BY id DESC LIMIT 1').get(libraryId) as Row | undefined;
+    return r ? toMade(r) : undefined;
+  }
   /** Forget the record of a library document that was deleted (the file itself is the Library's). */
   forgetLibrary(libraryId: number): void {
     this.#db.prepare('UPDATE made_docs SET library_id = NULL WHERE library_id = ?').run(libraryId);
@@ -143,6 +148,7 @@ export function makeDocument(app: AppContext, args: Record<string, unknown>, o: 
   const base = args.basedOn !== undefined && args.basedOn !== null && args.basedOn !== '' ? store.get(baseId) : undefined;
   if (args.basedOn !== undefined && args.basedOn !== null && args.basedOn !== '' && !base) throw new DocError(`There is no document #${String(args.basedOn)} here.`);
   if (base?.spec.filled) throw new DocError(`Document #${base.id} is the person's own form, filled in with fill_document; remaking it here would lose its layout. To change it, call fill_document again on the original form "${base.spec.filled.fromName}" with all the values (the corrected ones too).`);
+  if (base?.spec.edited) throw new DocError(`Document #${base.id} is a Word file kept exactly as it is (${base.spec.edited.kind === 'sign' ? 'made ready to sign' : 'filled from a template or revised with tracked changes'}); remaking it here would lose its own formatting. Change it with doc_revise (tracked changes), or doc_to_sign for the PDF.`);
   const spec = cleanSpec({ ...args, format: args.format ?? base?.format, title: args.title ?? base?.title, template: args.template ?? base?.spec.template });
   // Leftover 8: the PDF writer has Latin fonts only; refuse rather than print "?" for whole words.
   const unshown = spec.format === 'pdf' ? lettersPdfCantShow(`${spec.title}\n${spec.content}`) : [];

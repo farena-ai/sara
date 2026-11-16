@@ -45,6 +45,8 @@ export type HubEvent = (
   | { type: 'wake'; device: string; state: 'on' | 'off' | 'paused'; reason?: string }
   /** Phase 39: a team task changed (plan, a helper's progress, the end). */
   | { type: 'team'; task: { id: number; status: string; conversationId: string; approvals?: number } }
+  /** S8: a team run moved on (a helper, the scratchpad, the check, the final approval). */
+  | { type: 'team-run'; run: { id: number; status: string; conversationId: string } }
   /** A turn started or ended in a conversation (any device, Telegram or Discord): the other open
    * apps refresh it, so a chat can be picked up anywhere. */
   | { type: 'turn'; conversationId: string; state: 'started' | 'ended' }

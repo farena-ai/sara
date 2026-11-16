@@ -6,6 +6,7 @@ import { netFetch } from './net-guard.ts';
 import { guard } from './log.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import type { AppContext } from './chat.ts';
+import { alertApps, alertPlace } from './destinations.ts';
 import { complete, targetConversation } from './life.ts';
 import { localDate } from './memory-worker.ts';
 import { buildSystemPrompt } from './persona.ts';
@@ -236,7 +237,10 @@ export class BriefingWorker {
     const app = this.#app;
     const s = app.settings.get();
     const tz = s.timeZone;
-    const conv = targetConversation(app) ?? app.store.listConversations().find((c) => !c.partner) ?? app.store.createConversation({ title: 'Mornings' });
+    // ALERTDEST: where the person chose for the briefing (default: her main chat, as before).
+    const origin = () => (targetConversation(app) ?? app.store.listConversations().find((c) => !c.partner) ?? app.store.createConversation({ title: 'Mornings' })).id;
+    const place = alertPlace(app, 'briefing', { origin });
+    const conv = app.store.getConversation(place.conversationId ?? origin())!;
     const facts = await gatherFacts(app, now, this.#fetch);
     let text = '';
     try {
@@ -259,6 +263,7 @@ ${facts.agenda || '(nothing due)'}${facts.calendar ? `\nCalendar today:\n${facts
     const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { briefing: { day: today } });
     app.settings.update({ briefing: { ...briefingSettings(app), lastDay: today } });
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
+    alertApps(app, place, msg.content, false);
     // Phase 26: a briefing call, if the owner wants one: she goes over it on the phone.
     if (app.calls?.wants('briefing')) app.calls.ring({ kind: 'briefing', reason: 'Your morning briefing', brief: msg.content, conversationId: conv.id });
     return msg.content;

@@ -14,6 +14,7 @@
 // Table (additive, the space's own store.db, so each household member has their own): long_goals.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
+import { postAlert } from './destinations.ts';
 import { errandsFor } from './errands.ts';
 import { appLanguage, en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
@@ -472,8 +473,9 @@ CREATE TABLE IF NOT EXISTS long_goals (
       if (!g.conversationId || !this.#app.store.getConversation(g.conversationId)) {
         g.conversationId = this.#app.store.createConversation({ title: clip(`Goal: ${g.title}`, 60), channel: 'goal', channelKey: String(g.id) }).id;
       }
-      const msg = this.#app.store.addMessage(g.conversationId, 'assistant', text, { goal: { id: g.id } });
-      this.#app.events?.publish({ type: 'message', conversationId: g.conversationId, message: msg, reason: 'reminder' });
+      // ALERTDEST: nudges and weekly summaries go where the person chose (default: the goal's own chat).
+      const own = g.conversationId;
+      postAlert(this.#app, 'goals', { item: `goal:${g.id}`, origin: () => own, role: 'assistant', content: text, meta: { goal: { id: g.id } }, reason: 'reminder' });
     } catch {
       /* the chat was deleted */
     }

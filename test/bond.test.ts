@@ -177,9 +177,11 @@ test('explicit levels: only with Adult mode, only from a web browser; the apps n
   assert.deepEqual(levels, ['none', 'sweet', 'romantic', 'suggestive']);
   app.settings.update({ adultMode: { on: true, confirmedAt: clock.now.toISOString() } });
   assert.equal((await call('/api/persona', 'PUT', p, 'Mozilla/5.0 SaraPhone/1')).status, 403, 'not from the phone app');
-  assert.equal((await call('/api/persona', 'PUT', p, 'Mozilla/5.0 SaraDesktop/1 (Mac)')).status, 403, 'not from the desktop app');
   const appLevels = (await (await call('/api/persona/studio', 'GET', undefined, 'SaraPhone/1')).json()).intimacy.map((l: { id: string }) => l.id);
   assert.ok(!appLevels.includes('explicit'));
+  const deskLevels = (await (await call('/api/persona/studio', 'GET', undefined, 'Mozilla/5.0 SaraDesktop/1 (Windows)')).json()).intimacy.map((l: { id: string }) => l.id);
+  assert.ok(deskLevels.includes('explicit'), 'the desktop apps behave like a browser');
+  assert.equal((await call('/api/persona', 'PUT', p, 'Mozilla/5.0 SaraDesktop/1 (Mac)')).status, 200, 'desktop app with Adult mode on');
   assert.equal((await call('/api/persona', 'PUT', p, 'Mozilla/5.0 (Windows NT 10.0) Chrome/140')).status, 200, 'web browser with Adult mode on');
   // Saving other changes from the app keeps the level already chosen.
   assert.equal((await call('/api/persona', 'PUT', { ...p, summary: 'Changed.' }, 'SaraPhone/1')).status, 200);

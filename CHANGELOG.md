@@ -5,6 +5,45 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.17.0 (2026-11-16): documents end to end, agent teams, support link, alerts where you want
+
+- Changed: **Adult mode in the apps.** The Windows and Mac apps now use Adult mode like a web browser (turn it on with the 18+ confirmation, explicit levels, adults-only outfits, adult channels). The phone apps show the Adult mode page again with its state and Turn off; turning it on there still needs a web browser (store rules), and an Open in browser button opens the page in the phone's browser.
+- Added: **choose where alerts go.** Stock alerts, sports and odds, mail and product watches, automation
+  results, research done notices, goal nudges, travel alerts, inbox finds, reminders and the morning
+  briefing can each post to the chat they were set up in (as before), a chat just for them, a chat in a
+  project ("Stock Alerts › Stock alerts"), one of your own chats, or only Telegram/Discord. Say it in chat
+  ("put my stock alerts in the Stock Alerts project"; she asks before making a new project) or use
+  Settings → You → Automations → Where alerts go. Each watch and automation row shows *Posts to* with
+  Change. A watch whose chat was deleted now posts to a chat named after its kind, not whichever chat
+  came first. Never a group, a room or someone else's chat. See docs/ALERTS_DESTINATIONS.md.
+- Added: **contracts, proposals and letters, end to end.** Mark any Library document as a template
+  (contract, proposal, letter, NDA, statement of work or invoice cover): she finds its blanks
+  ({{Client}}, [CLIENT NAME], Date: ____) and a Word template gets a fill-in form; the copy keeps your
+  formatting. In chat she drafts from your template and your past documents, asks only for the facts she
+  doesn't know, and says which past document each reused clause came from. Revisions are real Word
+  tracked changes by "Sara" with the date, so you accept or reject each one in Word; the Library shows
+  them too, with Accept all and Reject all. A clause checklist per kind of document marks each clause
+  present (quoted), missing or unusual. Ready to sign makes a PDF with page numbers and signature, name
+  and date fields, after checking no blanks or tracked changes are left. Information, not legal advice.
+  See docs/DOCUMENTS.md.
+- Added: **agent teams** (team runs). For a big job she proposes a plan: helpers (researcher, drafter,
+  checker or your own), each with its model (Auto by default), its tools and its budget, and parts that run
+  at the same time unless one waits for another. You change the plan and approve it once. Findings go on a
+  shared scratchpad with their sources; a checker checks the draft against them and sends fixes back (two
+  rounds at most); one result comes back as a message or a document. Sending, posting, buying and computer
+  use are only queued during the run and wait for one final OK listing every action. Live progress, cost
+  so far, Pause and Stop on the run's chat card and in Team → Team runs. Private chats use local models
+  only. See docs/AGENT_TEAMS.md.
+- Added: **help each other's Sara** (support link). Between two linked servers (Messages), the owner who
+  needs help presses *Ask … for help* in their chat and gives a help pass for 1 hour, 1 day or 7 days
+  (revoke any time). The helper can then *Look at …'s Sara*: what looks wrong, models, health, the
+  self-test, recent errors, versions and app versions, and the last log lines, with keys, emails, tokens,
+  message text and medical things removed. Never chats, memories, files, mail or messages. The helper (or
+  their Sara, when asked "what's wrong with Hank's Sara?") can suggest a fix: a model, backup model, wait
+  time or a few on/off settings, or a plain note. It arrives as a card with the exact change, and nothing
+  changes until that owner approves it. No commands, no files, no remote control. Both owners see a help
+  log, and each look and suggestion is in the audit trail. See docs/SUPPORT_LINK.md.
+
 ## 3.16.0 (2026-11-16): writing that sounds human, meetings, keeping in touch, trips
 
 - Added: **write like a person.** A *Make it sound human* button on documents she made and on research

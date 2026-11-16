@@ -13,7 +13,7 @@ import { bondContext } from '../chat.ts';
 import { applyBring, BRING_SOURCE_NAME, BringError, type BringPlan, type BringRead, MAX_BRING_BYTES, MAX_BRING_FILES, MAX_PASTE, planBring, readBring } from '../companion-import/bring.ts';
 import { createCompanionDir, newCompanionPersona, retireCompanionDir } from '../companions.ts';
 import { galleryEntry, galleryLine, galleryList, NoBrainError } from '../gallery.ts';
-import { as400, AVATAR_TYPES, fromPhoneApp, fromSaraApp, HttpError, MAX_AVATAR, MAX_CHARACTER, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
+import { as400, AVATAR_TYPES, fromPhoneApp, HttpError, MAX_AVATAR, MAX_CHARACTER, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { expressionFor, leansPlayful, moodLabel } from '../inner.ts';
 import { cleanMeta, isAdultOutfit, LOOK_STYLES, type LookMeta, outfitPrompt, OUTFITS, PARTS, PLACES } from '../look.ts';
 import { localDate } from '../memory-worker.ts';
@@ -230,7 +230,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
           others: Object.entries(OTHERS).map(([id, x]) => ({ id, label: x.label })),
           otherCompanions: bondContext(app).otherCompanions,
           // Explicit levels: only with Adult mode on, and only offered in a web browser.
-          intimacy: INTIMACY_LEVELS.filter((l) => !l.adult || (adultModeOn(app.settings.get()) && !fromSaraApp(req))).map(({ id, label, adult }) => ({ id, label, adult })),
+          intimacy: INTIMACY_LEVELS.filter((l) => !l.adult || (adultModeOn(app.settings.get()) && !fromPhoneApp(req))).map(({ id, label, adult }) => ({ id, label, adult })),
         });
       }
       if (c === 'apply' && method === 'POST') {
@@ -483,7 +483,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         // Phase 35: choosing an explicit intimacy level needs Adult mode, from a web browser.
         const level = p.intimacy?.level;
         if (level && intimacyLevel(level)?.adult && level !== app.persona.intimacy?.level) {
-          if (fromSaraApp(req)) throw new HttpError(403, 'Explicit levels can only be chosen in a web browser.');
+          if (fromPhoneApp(req)) throw new HttpError(403, 'Explicit levels can only be chosen in a web browser.');
           if (!adultModeOn(app.settings.get())) throw new HttpError(403, 'Explicit levels need Adult mode: turn it on first (Settings → You → Adult mode, in a web browser).');
         }
         const saved = savePersona(app, p);
@@ -592,7 +592,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       const look = app.look;
       if (!look) throw new HttpError(404, 'Not available');
       // Phase 36: adults-only looks are listed only with Adult mode on, and never in the apps.
-      const adultOk = () => adultModeOn(app.settings.get()) && !fromSaraApp(req);
+      const adultOk = () => adultModeOn(app.settings.get()) && !fromPhoneApp(req);
       const view = async () => {
         const w = wardrobeSettings(app);
         const plan = await app.wardrobe?.plan().catch(() => undefined);
@@ -651,7 +651,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
           if (b === 'outfit') {
             const outfit = String(body.outfit ?? '').trim();
             const wear = outfitPrompt(outfit);
-            if (isAdultOutfit(wear) && !adultOk()) throw new Error(fromSaraApp(req) ? 'Adults-only outfits can only be made in a web browser.' : 'That outfit is adults-only: turn on Adult mode first (Settings → You → Adult mode, in a web browser).');
+            if (isAdultOutfit(wear) && !adultOk()) throw new Error(fromPhoneApp(req) ? 'Adults-only outfits can only be made in a web browser.' : 'That outfit is adults-only: turn on Adult mode first (Settings → You → Adult mode, in a web browser).');
             const place = typeof body.place === 'string' && body.place ? body.place.slice(0, 200) : undefined;
             if (place && /\b(child|kid|minor|teen|school)\b/i.test(place)) throw new Error('Pick another place.');
             look.outfit(current, outfit, { place, adultOk: adultOk() }).catch(() => {});
@@ -815,7 +815,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       const cur = app.settings.get().adultMode ?? { on: false };
       const view = () => {
         const m = app.settings.get().adultMode ?? { on: false };
-        return { on: adultModeOn(app.settings.get()), confirmedAt: m.confirmedAt ?? null, canTurnOn: !fromSaraApp(req) && !opts.demo, reason: opts.demo ? 'demo' : fromPhoneApp(req) ? 'app' : null };
+        return { on: adultModeOn(app.settings.get()), confirmedAt: m.confirmedAt ?? null, canTurnOn: !fromPhoneApp(req) && !opts.demo, reason: opts.demo ? 'demo' : fromPhoneApp(req) ? 'app' : null };
       };
       if (method === 'GET') return send(res, 200, await view());
       if (method === 'PUT') {
@@ -823,7 +823,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         if (body.on === true) {
           policy().guard('adultMode', true);
           if (opts.demo) throw new HttpError(403, 'Adult mode is not available in the demo.');
-          if (fromSaraApp(req)) throw new HttpError(403, 'Adult mode can only be turned on in a web browser.');
+          if (fromPhoneApp(req)) throw new HttpError(403, 'Adult mode can only be turned on in a web browser.');
           if (body.confirm18 !== true) throw new HttpError(400, 'Confirm that you are 18 or older to turn on adult mode.');
           app.settings.update({ adultMode: { on: true, confirmedAt: app.now().toISOString(), confirmedFrom: deviceLabel(String(req.headers['user-agent'] ?? '')) } });
         } else {

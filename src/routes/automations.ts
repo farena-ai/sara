@@ -18,8 +18,9 @@
 //   preview / dry-run / create also take {template, values} or {gallery, values}; create needs allow: true.
 import { exportTemplate, fillTemplate, GALLERY, parseTemplate, TemplateError } from '../automation-templates.ts';
 import { AutomationError, automationsFor, draftFromWords, STARTERS, type Draft } from '../automations.ts';
+import { appReady, checkDest, cleanDest, describeDest, destFor, feedItems, feedOfItem, FEEDS, feedTitle, isFeed, originLabel, ownerProjects, ownerWebChats, setFeedDest, setItemDest } from '../destinations.ts';
 import { HttpError, readJson, send } from '../http.ts';
-import { trOwner } from '../i18n.ts';
+import { en, trOwner } from '../i18n.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
@@ -58,8 +59,35 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(404, 'Not found');
     }
     const s = automationsFor(app);
+    // ALERTDEST (docs/ALERTS_DESTINATIONS.md): where alerts go, per feed and per item.
+    //   GET /api/automations/alerts  {feeds, chats, projects, apps}
+    //   PUT /api/automations/alerts  {feed, dest, alsoExisting?} | {item, dest | null}
+    if (b === 'alerts' && !c) {
+      if (method === 'PUT') {
+        const body = await readJson(req);
+        const dest = body.dest === null ? null : cleanDest(body.dest);
+        if (dest === undefined) throw new HttpError(400, T(en('Pick a place.')));
+        const feed = typeof body.item === 'string' ? feedOfItem(app, body.item) : isFeed(body.feed) ? body.feed : undefined;
+        if (!feed) throw new HttpError(404, 'Not found');
+        const bad = dest && checkDest(app, dest, feed);
+        if (bad) throw new HttpError(400, T(bad));
+        if (typeof body.item === 'string') setItemDest(app, body.item, dest);
+        else if (dest) setFeedDest(app, feed, dest, body.alsoExisting !== false);
+      } else if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      return send(res, 200, {
+        feeds: FEEDS.map((f) => ({ id: f.id, title: feedTitle(app, f.id), dest: destFor(app, f.id), postsTo: describeDest(app, f.id), originLabel: originLabel(app, f.id), items: feedItems(app, f.id).length, keepsChat: Boolean(f.keepsChat) })),
+        chats: ownerWebChats(app),
+        projects: ownerProjects(app),
+        apps: { telegram: appReady(app, 'telegram'), discord: appReady(app, 'discord') },
+      });
+    }
     if (!b && method === 'GET') {
-      return send(res, 200, { items: s.all(), waiting: s.waiting(), starters: STARTERS.map((x) => ({ id: x.id, name: T(x.name), pitch: T(x.pitch) })), tz: app.settings.get().timeZone ?? null });
+      // ALERTDEST: each row says where it posts ("Posts to: …").
+      const posts = (x: { key: string; conversationId?: string | null }) => {
+        const feed = feedOfItem(app, x.key);
+        return feed ? { feed, postsTo: describeDest(app, feed, x.key, () => x.conversationId ?? undefined), originLabel: originLabel(app, feed), dest: destFor(app, feed, x.key) } : {};
+      };
+      return send(res, 200, { items: s.all().map((x) => ({ ...x, ...posts(x) })), waiting: s.waiting(), starters: STARTERS.map((x) => ({ id: x.id, name: T(x.name), pitch: T(x.pitch) })), tz: app.settings.get().timeZone ?? null });
     }
     if (!b && method === 'POST') {
       const body = await readJson(req);

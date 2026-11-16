@@ -214,7 +214,7 @@ a Sara somewhere else*. How it works:
 
 The app keeps only the server addresses and its own settings. Each sign-in is that server's session
 cookie, stored in the app's own web view profile for that server; sign it out from Settings →
-Devices and sign-in like any other device, or remove the server in the app (Phase 68). Adult mode can't be turned on from the apps (web browser only).
+Devices and sign-in like any other device, or remove the server in the app (Phase 68). Adult mode works in the desktop apps like in a browser (Settings → You → Adult mode, 18+ confirmation); the phone apps can't turn it on (store rules) and offer Open in browser instead.
 
 ## Without a connection (works offline)
 

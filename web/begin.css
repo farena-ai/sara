@@ -146,6 +146,34 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 #team .rt-field input, #team .rt-field select, #team .rt-field textarea { flex: 1 1 12rem; min-height: 44px; width: auto; min-width: 0; }
 #team .rt-field input[type="checkbox"] { flex: none; width: 22px; height: 22px; min-height: 22px; }
 .crew-add .rt-more-acts, .crews-box > div > .rt-more-acts { align-items: center; }
+/* S8: Team → Team runs (web/team-runs.js) and the run's chat card. */
+.truns-box { margin: 12px 0; }
+.trn-new textarea { width: 100%; min-height: 44px; }
+.trn-row.trn-open { border-color: var(--accent); }
+.trn-row .rt-row-head { flex-wrap: wrap; gap: 2px 8px; }
+.trn-row .rt-row-head .rt-title { flex: 1 1 14rem; min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .trn-row .rt-row-head .wt-state { flex-basis: 100%; margin-left: 0; } }
+.trn-detail, .trn-plan { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.trn-role, .trn-parts { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin: 0; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.trn-role legend, .trn-parts legend { font-weight: 600; padding: 0 4px; }
+.trn-tools { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.trn-tools label, .trn-waits label { display: inline-flex; align-items: center; gap: 4px; }
+.trn-tools input[type="checkbox"], .trn-waits input[type="checkbox"], .trn-act input[type="checkbox"] { width: 20px; height: 20px; flex: none; }
+.trn-part { display: flex; flex-direction: column; gap: 4px; padding: 6px 0; border-top: 1px solid var(--line); }
+.trn-part:first-of-type { border-top: 0; }
+.trn-part .add-row input[type="text"] { flex: 1 1 200px; min-width: 0; }
+.trn-waits { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.trn-steps { margin: 0; padding-left: 18px; }
+.trn-steps li { margin: 2px 0; overflow-wrap: anywhere; }
+.trn-step.trn-running strong { color: var(--accent); }
+.trn-step.trn-failed strong, .trn-fix { color: var(--warn, inherit); }
+.trn-pad ul, .trn-log ul { margin: 4px 0; padding-left: 18px; overflow-wrap: anywhere; }
+.trn-final { display: flex; flex-direction: column; gap: 6px; padding: 10px; }
+#team .trn-act { display: flex; flex-direction: row; align-items: flex-start; gap: 8px; overflow-wrap: anywhere; }
+.trn-more > summary { cursor: pointer; padding: 4px 0; }
+.trn-more[open] { display: flex; flex-direction: column; gap: 6px; }
+.trn-sum { font-weight: 600; }
+.trn-card-line { margin: 4px 0; }
 /* C10: Team → Workers that stay (web/workers.js). */
 .workers-box { margin: 12px 0; }
 .wr-char, .wr-needs { margin: 2px 0; overflow-wrap: anywhere; }
@@ -201,6 +229,22 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .atm-gal-item > span { color: var(--text-2); overflow-wrap: anywhere; }
 .atm-ph { font-size: 0.9em; color: var(--text-1); }
 .atm-card input { width: 100%; max-width: 420px; }
+/* ALERTDEST: Where alerts go (SETTINGS3 row: text left, the picker right at 232 px). */
+.adst-box { display: flex; flex-direction: column; gap: 0; }
+.adst-row { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 6px 12px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.adst-row:last-child { border-bottom: 0; }
+.adst-text { display: flex; flex-direction: column; gap: 2px; flex: 1 1 200px; min-width: 0; color: var(--text-1); }
+.adst-text .muted { overflow-wrap: anywhere; }
+.adst-pick { display: flex; flex-direction: column; gap: 4px; flex: 0 1 232px; min-width: 0; }
+.adst-ctl { display: flex; flex-direction: column; gap: 4px; }
+.adst-ctl select { width: 100%; max-width: 232px; }
+.adst-apps { flex-wrap: wrap; gap: 2px 10px; align-items: center; }
+.adst-app { gap: 4px; align-items: center; }
+.adst-app input { width: auto; }
+.adst-note:empty { display: none; }
+.adst-posts { margin: 0; overflow-wrap: anywhere; }
+.atm-card .adst-pick { flex-basis: auto; }
+@media (max-width: 720px) { .adst-pick { flex: 1 1 100%; } .adst-ctl select { max-width: none; } }
 .et-tools { flex-wrap: wrap; gap: 4px 12px; }
 .et-form .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }
 .et-form .rt-field[hidden] { display: none; }

@@ -42,6 +42,11 @@ memory exports or logs. Owner only (household members and kid mode never; not on
 | Notifications | `onNotify` → web push to the owner's devices (the body only when *previews* are on) and the page's SSE `pm` event (chat id only) → desktop toast. |
 | Isolation | No model tool, no memory write, no conversation row, no log line with content. `test/s9a-messages.test.ts` proves it: a turn after messaging has none of the words in the model request, memory, `sara.db` or console, there is no message tool, and only `main.ts` and `routes/messages.ts` import the module. |
 
+## Support link (S9b)
+
+The same link can carry a time-limited **help pass**: the other owner's Sara may then read a redacted
+support report and suggest fixes that you approve one by one. See [SUPPORT_LINK.md](SUPPORT_LINK.md).
+
 ## Limits and gaps
 
 - The hub is not used for discovery (optional in the roadmap): people exchange codes themselves.

@@ -71,6 +71,10 @@ export interface DocSpec {
   slides?: Slide[];
   /** fill_document: this file is the person's own form filled in (content is what the copy reads as). */
   filled?: { fromId: number; fromName: string; fields: number; filled: number };
+  /** S7: the person's own Word file, filled from a template, revised with tracked changes, or made ready to sign. */
+  edited?: { kind: 'template' | 'tracked' | 'sign' | 'draft'; fromId?: number; fromName?: string; clauses?: { topic: string; fromId: number; fromName: string; quote: string }[] };
+  /** S7: a PDF made ready to sign: signature, name and date fields for each signer. */
+  sign?: { signers: { party: string; name?: string; title?: string }[] };
 }
 
 /** A picture from her library or uploads, ready to place. */

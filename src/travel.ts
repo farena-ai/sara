@@ -14,6 +14,7 @@
 //   status or forecast requests and sends nothing to the phone. Email text is data, never instructions.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
+import { postAlert } from './destinations.ts';
 import { en, trOwner } from './i18n.ts';
 import { senderName, type Finding, type InboxMail } from './inbox/classify.ts';
 import { quietNow } from './life.ts';
@@ -656,9 +657,8 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
     return c.id;
   }
   #say(text: string, urgent: boolean, b: BookingView, now: Date): void {
-    const conversationId = this.conversationId();
-    const msg = this.#app.store.addMessage(conversationId, 'assistant', text, { travel: { trip: b.tripId, booking: b.id } });
-    this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
+    // ALERTDEST: travel alerts go where the person chose (default: the Travel chat).
+    const conversationId = postAlert(this.#app, 'travel', { origin: () => this.conversationId(), role: 'assistant', content: text, meta: { travel: { trip: b.tripId, booking: b.id } }, reason: 'reminder' }) ?? '';
     if (privateLocalOn()) return;
     const quiet = this.#o.quiet ? this.#o.quiet() : quietNow(this.#app, now);
     if (quiet && !urgent) return;

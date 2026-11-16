@@ -1264,6 +1264,14 @@ export class DiscordBridge {
     return this.#app.store.currentChannelConversation('discord', dm, 'owner') ?? this.#newConversation('discord', dm, true, false);
   }
 
+  /** ALERTDEST: an alert straight to the owner's DM with her (a chosen destination, src/destinations.ts). */
+  async sendOwnText(text: string): Promise<void> {
+    if (!this.#me || this.#stopped) throw new Error("Discord isn't connected.");
+    const dm = await this.#ownerDm();
+    if (!dm) throw new Error('Link your Discord first.');
+    await this.send(dm, text);
+  }
+
   async #ownerDm(): Promise<string | undefined> {
     const owner = discordSettings(this.#app).ownerUserId;
     if (!owner) return undefined;

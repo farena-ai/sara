@@ -159,6 +159,8 @@ function wrap(runs: Run[], size: number, maxW: number, colorHex: string, force: 
 interface Page {
   ops: string[];
   annots: string[];
+  /** S7: form fields (widgets) on this page; `%P%` stands for the page's own object. */
+  fields: string[];
   images: Set<number>;
 }
 
@@ -171,7 +173,7 @@ export function makePdf(spec: DocSpec, image: ImageLookup): Buffer {
   let page!: Page;
   let y = 0;
   const newPage = () => {
-    page = { ops: [], annots: [], images: new Set() };
+    page = { ops: [], annots: [], fields: [], images: new Set() };
     pages.push(page);
     y = PAGE_H - M;
   };
@@ -383,6 +385,45 @@ export function makePdf(spec: DocSpec, image: ImageLookup): Buffer {
     prev = b;
   }
 
+  // S7: signature blocks with real form fields (signature, name, date) for each signer.
+  if (spec.sign?.signers.length) {
+    const body = th.body;
+    y -= 18;
+    // The heading stays with the first signer's block.
+    ensure(40 + 132);
+    drawLines(wrap([{ text: 'Signatures', bold: true }], th.h2, W, th.accent), M, th.h2, 1.3);
+    y -= 6;
+    spec.sign.signers.slice(0, 8).forEach((s, i) => {
+      const k = i + 1;
+      ensure(132);
+      drawLines(wrap([{ text: s.party, bold: true }], body, W, '111827'), M, body, 1.4);
+      y -= 34;
+      const lineW = 260;
+      rule(M, M + lineW, '374151', 0.8);
+      page.fields.push(`<< /Type /Annot /Subtype /Widget /FT /Sig /T ${pdfString(`Signature ${k}`)} /TU ${pdfString(toAnsi(`Signature: ${s.party}`))} /F 4 /P %P% /Rect [${n(M)} ${n(y)} ${n(M + lineW)} ${n(y + 30)}] /MK << /BC [0.6 0.6 0.6] >> >>`);
+      y -= 11;
+      page.ops.push(`BT /F1 8 Tf ${color(th.muted)} rg 1 0 0 1 ${n(M)} ${n(y)} Tm ${pdfString('Signature')} Tj ET`);
+      const field = (label: string, name: string, value: string | undefined) => {
+        y -= 20;
+        page.ops.push(`BT /F1 ${n(body - 1)} Tf ${color('374151')} rg 1 0 0 1 ${n(M)} ${n(y + 3)} Tm ${pdfString(label)} Tj ET`);
+        const x0 = M + 44;
+        rule(x0, x0 + 216, '9CA3AF', 0.5);
+        // A filled field carries its own appearance, so every viewer shows the value (not only those that redraw fields).
+        let ap = '';
+        if (value) {
+          const body = Buffer.from(`/Tx BMC q BT /Helv 10 Tf 0 g 2 4.5 Td ${pdfString(toAnsi(value))} Tj ET Q EMC`, 'latin1');
+          const apId = add(Buffer.concat([Buffer.from(`<< /Type /XObject /Subtype /Form /BBox [0 0 216 16] /Resources << /Font << /Helv 3 0 R >> >> /Length ${body.length} >>\nstream\n`, 'latin1'), body, Buffer.from('\nendstream', 'latin1')]));
+          ap = ` /AP << /N ${apId} 0 R >>`;
+        }
+        page.fields.push(`<< /Type /Annot /Subtype /Widget /FT /Tx /T ${pdfString(name)} /TU ${pdfString(toAnsi(`${label.replace(/:$/, '')}: ${s.party}`))} /F 4 /P %P% /Rect [${n(x0)} ${n(y)} ${n(x0 + 216)} ${n(y + 16)}] /DA (/Helv 10 Tf 0 g)${value ? ` /V ${pdfString(toAnsi(value))}` : ''}${ap} >>`);
+      };
+      field('Name:', `Name ${k}`, s.name);
+      if (s.title) field('Title:', `Title ${k}`, s.title);
+      field('Date:', `Date ${k}`, undefined);
+      y -= 18;
+    });
+  }
+
   // Fonts and info.
   objs[2] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
   objs[3] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
@@ -390,7 +431,8 @@ export function makePdf(spec: DocSpec, image: ImageLookup): Buffer {
   objs[5] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-BoldOblique /Encoding /WinAnsiEncoding >>';
   objs[6] = '<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>';
   objs[7] = `<< /Title ${pdfString(toAnsi(spec.title))} /Creator (Sara) /Producer (Sara) >>`;
-  const numbered = th.pageNumbers === 'always' || (th.pageNumbers === 'many' && pages.length > 1);
+  const numbered = Boolean(spec.sign) || th.pageNumbers === 'always' || (th.pageNumbers === 'many' && pages.length > 1);
+  const fieldIds: number[] = [];
   const kids: number[] = [];
   pages.forEach((p, i) => {
     if (numbered) {
@@ -399,11 +441,17 @@ export function makePdf(spec: DocSpec, image: ImageLookup): Buffer {
     }
     const content = deflateSync(Buffer.from(p.ops.join('\n'), 'latin1'));
     const contentId = add(Buffer.concat([Buffer.from(`<< /Length ${content.length} /Filter /FlateDecode >>\nstream\n`, 'latin1'), content, Buffer.from('\nendstream', 'latin1')]));
+    const pageId = contentId + p.annots.length + p.fields.length + 1;
     const annots = p.annots.map((a) => add(a));
+    for (const f of p.fields) {
+      const id = add(f.replace('%P%', `${pageId} 0 R`));
+      annots.push(id);
+      fieldIds.push(id);
+    }
     const xo = [...p.images].map((id) => `/Im${id} ${id} 0 R`).join(' ');
     kids.push(add(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${PAGE_W} ${PAGE_H}] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 6 0 R /F5 7 0 R >>${xo ? ` /XObject << ${xo} >>` : ''} >> /Contents ${contentId} 0 R${annots.length ? ` /Annots [${annots.map((a) => `${a} 0 R`).join(' ')}]` : ''} >>`));
   });
-  objs[0] = '<< /Type /Catalog /Pages 2 0 R >>';
+  objs[0] = fieldIds.length ? `<< /Type /Catalog /Pages 2 0 R /AcroForm << /Fields [${fieldIds.map((f) => `${f} 0 R`).join(' ')}] /NeedAppearances true /SigFlags 0 /DA (/Helv 0 Tf 0 g) /DR << /Font << /Helv 3 0 R >> >> >> >>` : '<< /Type /Catalog /Pages 2 0 R >>';
   objs[1] = `<< /Type /Pages /Kids [${kids.map((k) => `${k} 0 R`).join(' ')}] /Count ${kids.length} >>`;
 
   const chunks: Buffer[] = [Buffer.from('%PDF-1.4\n%\xe2\xe3\xcf\xd3\n', 'latin1')];

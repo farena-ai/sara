@@ -5,7 +5,8 @@ again: each member has a standing part, the crew has a brief (what it delivers),
 time. Sara leads it: she hands each member a card on the crew's own board, checks the work the way
 a team task does (a failing test goes back, claims need receipts) and sends **one** summary.
 
-Design: [ops/EC1213_DESIGN.md](ops/EC1213_DESIGN.md).
+Design: [ops/EC1213_DESIGN.md](ops/EC1213_DESIGN.md). For a one-off big job with parallel helpers, a plan you
+approve once and one final OK for outside actions, see [agent teams](AGENT_TEAMS.md).
 
 ## Make one
 

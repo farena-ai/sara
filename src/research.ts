@@ -31,6 +31,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { backgroundConversation } from './store.ts';
 import { audit } from './audit-trail.ts';
+import { destFor, postAlert } from './destinations.ts';
 import { resolveFor, type AppContext } from './chat.ts';
 import { en, trOwner } from './i18n.ts';
 import { searchConfig } from './integrations.ts';
@@ -1198,6 +1199,12 @@ export class Research {
     // S1: he hears when it is done (the run works in the background while he does other things).
     try {
       void this.#app.push?.notifyOwner(trOwner(en('Your research report is ready'), this.#app.settings.get()), run.question, run.conversationId ?? '', `research-${id}`).catch(() => undefined);
+      // ALERTDEST: a "done" line where the person chose (default: only the notification, as before).
+      const d = destFor(this.#app, 'research');
+      if (d.where !== 'origin' || d.telegram || d.discord) {
+        const from = run.conversationId && this.#app.store.getConversation(run.conversationId) ? run.conversationId : undefined;
+        postAlert(this.#app, 'research', { origin: () => from, role: 'assistant', content: `${trOwner(en('Your research report is ready'), this.#app.settings.get())}: ${run.question}${status === 'done' ? '' : ` (${status})`}`, meta: { researchDone: { id } }, reason: 'reminder' });
+      }
     } catch {
       /* no notifications here */
     }

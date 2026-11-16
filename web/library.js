@@ -11,6 +11,7 @@ import { openReadFeed, openReadTogether } from './read-together.js';
 import { closeResearch, openResearch } from './research.js';
 import { closeLearned, openLearned } from './learn.js';
 import { closeMeetings, openMeetings } from './meetings.js';
+import { showDocStudio } from './doc-studio.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -310,6 +311,8 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   $('#lib-doc-together').hidden = !(d.keep && !d.readOnly && d.status === 'ready' && ['text', 'markdown'].includes(d.kind));
   currentDoc = d;
   $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
+  // S7: contracts, proposals and letters (templates, tracked changes, clauses, ready to sign).
+  if (!quiet) void showDocStudio(d, { open: (docId) => openDoc(docId) });
   // Phase 110: a room archive is read-only (no re-read, no learning; Remove stays: his records, his choice).
   $('#lib-doc-reread').hidden = Boolean(d.readOnly);
   if (d.readOnly) $('#lib-doc-state').textContent = t('A read-only room archive: other people\'s words, kept as your record. She never learns from it by herself.');

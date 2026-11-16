@@ -16,7 +16,7 @@ import { cheapRoute } from '../cheap.ts';
 import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
 import { SESSION_COOKIE } from '../auth.ts';
-import { as400, cookies, fromPhoneApp, fromSaraApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
+import { as400, cookies, fromPhoneApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { appLanguage } from '../i18n.ts';
 import { policy } from '../policy-profile.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
@@ -290,7 +290,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
           botTurnLimit: botTurnLimitOf(s),
           botHourlyCap: botHourlyCapOf(s),
           // Adult channels are part of Adult mode: only while it's on, and never in the phone and desktop apps.
-          ...(fromSaraApp(req) || !adultModeOn(app.settings.get()) ? {} : { nsfwChannelIds: s.nsfwChannelIds ?? [] }),
+          ...(fromPhoneApp(req) || !adultModeOn(app.settings.get()) ? {} : { nsfwChannelIds: s.nsfwChannelIds ?? [] }),
           hasToken: Boolean(app.vault.get(DISCORD_VAULT)),
         };
       };
@@ -322,7 +322,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
             ...(body.botAllowList !== undefined ? { botAllowList: cleanBotList(body.botAllowList) } : {}),
             ...(body.botTurnLimit !== undefined ? { botTurnLimit: botTurnLimitOf({ ...cur, botTurnLimit: Number(body.botTurnLimit) }) } : {}),
             ...(body.botHourlyCap !== undefined ? { botHourlyCap: botHourlyCapOf({ ...cur, botHourlyCap: Number(body.botHourlyCap) }) } : {}),
-            ...(body.nsfwChannelIds !== undefined && !fromSaraApp(req) && adultModeOn(app.settings.get()) ? { nsfwChannelIds: cleanDiscordIds(body.nsfwChannelIds) } : {}),
+            ...(body.nsfwChannelIds !== undefined && !fromPhoneApp(req) && adultModeOn(app.settings.get()) ? { nsfwChannelIds: cleanDiscordIds(body.nsfwChannelIds) } : {}),
             ...(body.unlink === true ? { ownerUserId: undefined } : {}),
           },
         });
@@ -353,7 +353,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
           ownerWorkInGroups: s.ownerWorkInGroups === true,
           answerName: s.answerName === true,
           answerEveryone: s.answerEveryone === true,
-          ...(fromSaraApp(req) || !adultModeOn(app.settings.get()) ? {} : { nsfwChatIds: s.nsfwChatIds ?? [] }),
+          ...(fromPhoneApp(req) || !adultModeOn(app.settings.get()) ? {} : { nsfwChatIds: s.nsfwChatIds ?? [] }),
           hasToken: Boolean(app.vault.get(TELEGRAM_VAULT)),
         };
       };
@@ -381,7 +381,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
             ...(body.ownerWorkInGroups !== undefined ? { ownerWorkInGroups: Boolean(body.ownerWorkInGroups) } : {}),
             ...(body.answerName !== undefined ? { answerName: Boolean(body.answerName) } : {}),
             ...(body.answerEveryone !== undefined ? { answerEveryone: Boolean(body.answerEveryone) } : {}),
-            ...(body.nsfwChatIds !== undefined && !fromSaraApp(req) && adultModeOn(app.settings.get()) ? { nsfwChatIds: cleanTelegramIds(body.nsfwChatIds).filter((n) => n < 0) } : {}),
+            ...(body.nsfwChatIds !== undefined && !fromPhoneApp(req) && adultModeOn(app.settings.get()) ? { nsfwChatIds: cleanTelegramIds(body.nsfwChatIds).filter((n) => n < 0) } : {}),
             ...(body.unlink === true ? { ownerChatId: undefined } : {}),
           },
         });

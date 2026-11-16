@@ -356,6 +356,8 @@ test('S9a: the agents are not involved: messages never reach the model, memory, 
     }
   };
   walk(join(ROOT, 'src'));
-  assert.deepEqual(users.sort(), ['main.ts', 'routes/messages.ts']);
+  // S9b's support link imports only the Messenger type (it uses the link keys, never a message).
+  assert.deepEqual(users.sort(), ['main.ts', 'routes/messages.ts', 'support.ts']);
+  assert.match(readFileSync(join(ROOT, 'src', 'support.ts'), 'utf8'), /import type \{ Messenger \} from '\.\/messages\.ts'/);
   assert.ok(existsSync(join(a.dir, 'messages.db')), 'its own database file, never sara.db');
 });

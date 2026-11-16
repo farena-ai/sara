@@ -11,6 +11,7 @@
 // Table (additive, the companion's own store.db): product_watches.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from '../chat.ts';
+import { postAlert } from '../destinations.ts';
 import { en, fill, trOwner } from '../i18n.ts';
 import { matchScore, readProductPage, type Availability, type Offer } from './extract.ts';
 import type { PageLoad } from './find.ts';
@@ -255,12 +256,11 @@ export class ProductWatches {
   }
 
   #post(w: ProductWatch, text: string, kind: 'fired' | 'paused'): void {
+    // ALERTDEST: the watch's own place, its feed's default, or the chat it was made in (a chat named
+    // after the feed when that one is gone, never whichever chat came first).
     const store = this.#app.store;
-    let conv = w.conversationId ? store.getConversation(w.conversationId) : undefined;
-    conv ??= store.listConversations()[0] ?? store.createConversation({ title: 'Product watches' });
-    const msg = store.addMessage(conv.id, 'assistant', text, { productWatch: { id: w.id, kind, url: w.url } });
-    this.#app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'reply' });
+    const convId = postAlert(this.#app, 'products', { item: `product:${w.id}`, origin: () => (w.conversationId && store.getConversation(w.conversationId) ? w.conversationId : undefined), role: 'assistant', content: text, meta: { productWatch: { id: w.id, kind, url: w.url } }, reason: 'reply' }) ?? '';
     const s = this.#app.settings.get();
-    void this.#app.push?.notifyOwner(kind === 'fired' ? trOwner('Product watch: {label}', s, { label: w.label.slice(0, 60) }) : trOwner('Product watch paused', s), text, conv.id, `product-watch-${w.id}`).catch(() => {});
+    void this.#app.push?.notifyOwner(kind === 'fired' ? trOwner('Product watch: {label}', s, { label: w.label.slice(0, 60) }) : trOwner('Product watch paused', s), text, convId, `product-watch-${w.id}`).catch(() => {});
   }
 }

@@ -471,7 +471,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I turn on adult mode?**
 
 1. Press Turn on adult mode and confirm you're 18 or older.
-2. It works only in a web browser, not in the phone apps.
+2. It works in a web browser or the desktop app. In the phone apps, press Open in browser.
 
 **How do I turn it off again?**
 

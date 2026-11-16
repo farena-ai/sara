@@ -181,7 +181,8 @@ test('adults-only looks: need Adult mode, never listed in the apps, and she chan
   const adultId = look.currentSavedId()!;
   assert.equal(look.saved().find((s) => s.id === adultId)?.adult, true);
   assert.ok((await (await call('/api/look')).json()).saved.some((s: { id: string }) => s.id === adultId));
-  assert.ok(!(await (await call('/api/look', 'GET', undefined, 'SaraDesktop/1 (Windows)')).json()).saved.some((s: { id: string }) => s.id === adultId), 'hidden in the apps');
+  assert.ok(!(await (await call('/api/look', 'GET', undefined, 'SaraPhone/1 (iPhone)')).json()).saved.some((s: { id: string }) => s.id === adultId), 'hidden in the phone apps');
+  assert.ok((await (await call('/api/look', 'GET', undefined, 'SaraDesktop/1 (Windows)')).json()).saved.some((s: { id: string }) => s.id === adultId), 'the desktop apps list it like a browser');
   // Adult mode off → she changes into a non-adult look by herself, and the look can't be worn.
   app.settings.update({ adultMode: { on: false } });
   const to = await app.wardrobe!.tick();

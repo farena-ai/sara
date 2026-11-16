@@ -267,6 +267,8 @@ export interface AppContext {
   meetings?: import('./meetings.ts').Meetings;
   /** EC12: the owner's crews (src/crews.ts). Checked on the reminder tick. */
   crews?: import('./crews.ts').Crews;
+  /** S8: team runs (agent teams: a plan approved once, parallel helpers, one final approval; src/team-runs.ts). */
+  teamRuns?: import('./team-runs.ts').TeamRuns;
   /** C10: the owner's workers that stay (src/workers.ts). Driven by the reminder tick. */
   workers?: import('./workers.ts').Workers;
   /** C4: the owner's event triggers (src/event-triggers.ts). */
@@ -983,7 +985,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 /** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -2045,7 +2047,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
   if (opts.externalApp || opts.group || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'moments');
   // Phase 115 (BR1, §4.4): send_file only in the owner's own conversations (never other apps, MCP,
   // A2A, outside requests, voice assistants or groups of companions; partner chats have no tools).
-  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file' && t.spec.name !== 'make_document' && t.spec.name !== 'fill_document');
+  if (opts.externalApp || x.external || opts.group || opts.outside || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) tools = tools.filter((t) => t.spec.name !== 'send_file' && t.spec.name !== 'make_document' && t.spec.name !== 'fill_document' && !/^doc_(from_template|revise|to_sign)$/.test(t.spec.name));
   // Phase 73: her SSH tools work on the owner's real servers: only in the owner's own chats with her
   // (never other apps, MCP, the OpenAI-compatible API, group chats, shared work channels or private chats).
   if (opts.externalApp || opts.group || conv.private || isWorkChannel(conv.channel) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel)) tools = tools.filter((t) => !isSshTool(t.spec.name));

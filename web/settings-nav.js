@@ -24,14 +24,13 @@ const openSearchPlace = (...a) => ctx.openSearchPlace(...a);
 // Phase 128 (PL2b): Today's "Runs today" link asked for 'dh-runs', which never existed (it fell back to
 // the first page); the run history (Keep runs, Delete run history) is on Health.
 export const OLD_TABS = { yours: 'her-character', models: 'models-default', you: 'you-about', abilities: 'ab-tools', connections: 'co-phone', voice: 'her-voice', data: 'dh-health', 'dh-runs': 'dh-health', 'ab-recipes': 'ab-skills' };
-// In the phone apps the adult-mode page isn't offered (store rules; it's a web-browser setting).
-// Adult mode is web-browser only (hidden in the phone and desktop apps); "This computer" only in the desktop app.
+// ADULTAPPS: the Adult mode page shows everywhere; in the phone apps (store rules) it shows its state,
+// Turn off, and an Open in browser path instead of Turn on. "This computer" only in the desktop app.
 // Phase 71: a household member sees only their own pages (data-member-only), never the owner's
 // (data-owner-only); the household page isn't on the demo server.
 export const settingsPages = () =>
   [...document.querySelectorAll('#settings .settings-page')].filter(
     (p) =>
-      !(p.dataset.page === 'you-adult' && /\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent)) &&
       !(p.dataset.page === 'desktop-app' && !window.SaraDesktop) &&
       !(isMember() ? 'ownerOnly' in p.dataset : 'memberOnly' in p.dataset) &&
       !(['household', 'dh-recovery', 'dh-operations'].includes(p.dataset.page) && document.body.classList.contains('demo')) &&

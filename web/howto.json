@@ -439,7 +439,7 @@
    "q": "How do I turn on adult mode?",
    "steps": [
     "Press Turn on adult mode and confirm you're 18 or older.",
-    "It works only in a web browser, not in the phone apps."
+    "It works in a web browser or the desktop app. In the phone apps, press Open in browser."
    ],
    "show": "#adult-on"
   },

@@ -580,6 +580,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'goal-plans',
   // S6: their own trips (src/routes/travel.ts)
   'trips',
+  // S7: their own templates, tracked changes and signing PDFs (src/routes/doc-studio.ts)
+  'doc-studio',
   // R6: their own booking page and accounting export files (src/routes/booking.ts)
   'booking',
   'accounting',

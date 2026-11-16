@@ -131,6 +131,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^code_/, 'code', 'code map'],
   [/^(skill_|recipe_)/, 'skills', 'skills and recipes'],
   [/^(person_|people_|promise_)/, 'people', 'people'],
+  // S9b: the support link (look at a linked Sara with a help pass, suggest a fix).
+  [/^support_(look|propose)$/, 'support', 'helping another Sara'],
   // E5: the decision helper and side-by-side comparisons (src/decisions.ts).
   [/^(decide|decision_(list|record|review)|compare)$/, 'decisions', 'decisions'],
   [/^(start_job|stop_job|job_status|delegate_task)$/, 'jobs', 'background jobs'],
@@ -162,6 +164,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^change_setting$/, 'settings', 'everyday settings'],
   [/^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines)$/, 'live-data', 'prices, scores and odds'],
   [/^watch_(add|list|remove)$/, 'live-watch', 'tell me when'],
+  // ALERTDEST: where alerts and results go (docs/ALERTS_DESTINATIONS.md).
+  [/^alerts_route$/, 'alerts', 'where alerts go'],
   // N2: automations ("When ___, do ___").
   [/^automation_\w+$/, 'automations', 'automations'],
   // R3: errands, start to finish (docs/ERRANDS.md).
@@ -188,7 +192,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(agenda_)/, 'agenda', 'plans'],
   [/^(library|search_library)$/, 'library', 'library'],
   [/^send_file$/, 'files-out', 'send a file'],
-  [/^(make_document|fill_document|humanize_text)$/, 'documents', 'make documents'],
+  [/^(make_document|fill_document|humanize_text|doc_from_template|doc_revise|doc_checklist|doc_to_sign)$/, 'documents', 'make documents'],
   // E6: invoices and quotes, follow-ups, contracts, expenses, action items.
   [/^(invoice_\w+|follow_ups|contract_review|expense_\w+|action_items)$/, 'business', 'business and documents'],
   // E3: portfolio, budget and bills.
@@ -277,6 +281,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   team: ['team', 'equipo', 'equipe', 'squadra'],
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
+  support: ['help pass', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa',
     // S4: keeping in touch (promises, waiting replies, who to call), six languages folded.
     'i promised', 'my promises', 'promised', 'keep in touch', 'get in touch', 'waiting for my reply', 'who needs me', 'who should i call', 'prometi', 'mis promesas', 'he prometido', 'j ai promis', 'mes promesses', 'ich habe versprochen', 'versprochen', 'meine versprechen', 'minhas promessas', 'ho promesso', 'le mie promesse'],
@@ -284,6 +289,8 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   decisions: ['should i', 'decide', 'decision', 'which is better', 'which one is better', 'compare', 'comparison', 'pros and cons', 'choose between', 'vs', 'versus', 'side by side', 'decidir', 'decision', 'cual es mejor', 'comparar', 'pros y contras', 'elegir entre', 'dois je', 'decider', 'quel est le meilleur', 'comparer', 'avantages et inconvenients', 'choisir entre', 'soll ich', 'entscheiden', 'entscheidung', 'was ist besser', 'vergleichen', 'vor und nachteile', 'wahlen zwischen', 'decisao', 'qual e melhor', 'pros e contras', 'escolher entre', 'decidere', 'decisione', 'quale e meglio', 'confrontare', 'pro e contro', 'scegliere tra'],
   // make_document: documents and files she makes (all six languages, folded, no accents).
   documents: ['document', 'documents', 'word', 'word document', 'docx', 'pdf', 'report', 'resume', 'cv', 'letter', 'cover letter', 'spreadsheet', 'excel', 'xlsx', 'slides', 'slide deck', 'powerpoint', 'pptx', 'presentation', 'invoice', 'table', 'csv', 'markdown', 'file', 'documento', 'informe', 'carta', 'curriculum', 'hoja de calculo', 'diapositivas', 'presentacion', 'factura', 'tabla', 'rapport', 'lettre', 'tableur', 'feuille de calcul', 'diaporama', 'facture', 'tableau', 'dokument', 'bericht', 'brief', 'lebenslauf', 'tabelle', 'prasentation', 'folien', 'rechnung', 'relatorio', 'planilha', 'apresentacao', 'fatura', 'tabela', 'relazione', 'lettera', 'foglio di calcolo', 'presentazione', 'fattura', 'tabella',
+    // S7: contracts, proposals and letters from templates; tracked changes; clauses; ready to sign.
+    'contract', 'contracts', 'agreement', 'proposal', 'nda', 'statement of work', 'sow', 'template', 'my template', 'tracked changes', 'track changes', 'redline', 'clause', 'clauses', 'checklist', 'sign', 'signature', 'ready to sign', 'contrato', 'propuesta', 'plantilla', 'clausula', 'firma', 'contrat', 'proposition', 'modele', 'clause', 'signature', 'vertrag', 'angebot', 'vorlage', 'klausel', 'unterschrift', 'proposta', 'modelo', 'assinatura', 'contratto', 'modello', 'clausola', 'firma',
     // fill_document: forms and templates to fill in.
     // S11 humanize_text: "make it sound human" (six languages, folded).
     'sound human', 'sound natural', 'more natural', 'less stiff', 'sounds like ai', 'sound like me', 'my voice', 'humanize', 'rewrite', 'reword', 'mas natural', 'reescribe', 'reescribir', 'mi voz', 'plus naturel', 'reecris', 'reecrire', 'ma voix', 'naturlicher', 'umschreiben', 'schreib um', 'meine stimme', 'mais natural', 'reescreva', 'reescrever', 'minha voz', 'piu naturale', 'riscrivi', 'riscrivere', 'la mia voce',
@@ -371,6 +378,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'paket', 'pakete', 'sendungsverfolgung', 'lieferung', 'flug', 'reise', 'reiseplan', 'hotel', 'reservierung', 'termin', 'quittung', 'rechnung', 'posteingang', 'schick mir eine mail',
     'pacote', 'pacotes', 'rastreio', 'entrega', 'voo', 'viagem', 'itinerario', 'hotel', 'reserva', 'consulta', 'recibo', 'boleto', 'caixa de entrada', 'me mande um email',
     'pacco', 'pacchi', 'tracciamento', 'consegna', 'volo', 'viaggio', 'itinerario', 'albergo', 'prenotazione', 'appuntamento', 'ricevuta', 'bolletta', 'posta in arrivo', 'mandami una mail'],
+  alerts: ['alerts', 'my alerts', 'stock alerts', 'post them', 'post it in', 'put them in', 'put my', 'send them to', 'goes to', 'go to the', 'alertas', 'ponlas en', 'publicalas en', 'mandalas a', 'alertes', 'mets les dans', 'envoie les dans', 'benachrichtigungen', 'warnungen', 'leg sie in', 'schick sie an', 'coloque em', 'manda para', 'avisos', 'avvisi', 'mettili in', 'mandali a'],
   'live-watch': ['tell me when', 'alert me', 'let me know when', 'watch', 'notify me when', 'avisame cuando', 'alertame', 'vigila', 'dis moi quand', 'previens moi', 'alerte moi', 'surveille', 'sag mir wann', 'benachrichtige mich', 'beobachte', 'me avise quando', 'me alerte', 'vigie', 'dimmi quando', 'avvisami', 'tieni d occhio'],
   // E3 (docs/MONEY.md): portfolio, budget, subscriptions and bills (six languages, folded).
   money: ['portfolio', 'my stocks', 'stocks', 'holdings', 'investments', 'budget', 'spending', 'spend', 'spent', 'subscriptions', 'subscription', 'bills', 'bill', 'due', 'bank statement', 'bank export', 'transactions',
@@ -838,7 +846,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n.startsWith('errand_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

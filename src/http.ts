@@ -7,9 +7,10 @@ import { join } from 'node:path';
 import { fill } from './i18n.ts';
 import { WORKSPACE_NAME_RE } from './tools/workspace.ts';
 
-/** Requests from Sara's phone apps (their web views add "SaraPhone/<n>" to the user agent). */
+/** Requests from Sara's phone apps (their web views add "SaraPhone/<n>" to the user agent). Adult mode is
+ * gated on this one only (store rules); the desktop apps behave like a browser there (ADULTAPPS). */
 export const fromPhoneApp = (req: IncomingMessage): boolean => /\bSaraPhone\/\d/.test(String(req.headers['user-agent'] ?? ''));
-/** Phase 33: Sara's phone OR desktop apps (adult mode is turned on from a web browser only). */
+/** Phase 33: Sara's phone OR desktop apps (not for adult gating since ADULTAPPS: use fromPhoneApp). */
 export const fromSaraApp = (req: IncomingMessage): boolean => /\bSara(Phone|Desktop)\/\d/.test(String(req.headers['user-agent'] ?? ''));
 
 export function validWorkspace(v: unknown): string {

@@ -8,6 +8,8 @@ export interface MadeRef {
   format: string;
   version: number;
   title: string;
+  /** S7: the person's own Word file kept exactly (filled, revised, made ready to sign): no remaking. */
+  kept?: boolean;
 }
 export const PERMISSIONS: readonly Permission[] = ['auto', 'ask', 'never'];
 

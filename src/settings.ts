@@ -75,6 +75,8 @@ export interface Settings {
   mcpServers?: McpServerConfig[];
   /** Pictures from Sara (Phase 9). */
   photos?: Partial<PhotoSettings>;
+  /** ALERTDEST: where her alerts and results go, per feed and per item (src/destinations.ts). */
+  alerts?: import('./destinations.ts').AlertSettings;
   /** Phase 36: her closet (dress automatically, work hours, own scenarios, picked scenario). */
   wardrobe?: Partial<import('./wardrobe.ts').WardrobeSettings>;
   /** Phase 36: keep her face from the locked picture in every outfit and change (default on). */

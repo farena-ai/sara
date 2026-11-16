@@ -580,8 +580,8 @@ host keys, and, only if the owner asked, a server password in the vault.
 ## Relationship and intimacy (Phase 35)
 
 - Owner rule: no software limits beyond the legal ones; the model's own rules are the gate. So the
-  only gate on explicit intimacy levels is Adult mode (web-only, 18+ confirmation). Choosing an
-  explicit level is refused from the phone and desktop apps and while Adult mode is off; a level
+  only gate on explicit intimacy levels is Adult mode (browser or desktop app, 18+ confirmation). Choosing an
+  explicit level is refused from the phone apps (store rules) and while Adult mode is off; a level
   saved earlier is clamped to "suggestive" in the prompt whenever Adult mode is off.
 - Unchanged at every setting (automatic test over every relationship type × level × Adult mode):
   `SAFETY_BOUNDARIES`, the honesty rule, the minors-appear rule, crisis help and the minors block

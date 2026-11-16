@@ -83,6 +83,7 @@ import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
 import { createTeamTools, TeamManager } from './team.ts';
+import { createTeamRunTools, TeamRuns } from './team-runs.ts';
 import { createBoardTools, setUpBoard } from './board-work.ts';
 import { SharedBoardStore, type SharedBoardsAccess } from './shared-boards.ts';
 import { priceTable, UsageStore } from './usage.ts';
@@ -107,6 +108,7 @@ import { Watches } from './watch.ts';
 import { DataSources } from './data-sources.ts';
 import { createDataTools } from './tools/data.ts';
 import { LiveWatches, createLiveWatchTools } from './live-watch.ts';
+import { createAlertTools } from './destinations.ts';
 import { Sports } from './sports/follow.ts';
 import { createSportsTools } from './tools/sports.ts';
 import { createAnalyzeTableTool } from './table-query.ts';
@@ -198,6 +200,7 @@ import { LibraryStore } from './library/store.ts';
 import { LibraryWorker } from './library/worker.ts';
 import { createSendFileTool } from './tools/send-file.ts';
 import { createFillDocumentTool } from './tools/fill-document.ts';
+import { createDocStudioTools } from './tools/doc-studio.ts';
 import { createBizTools } from './tools/biz.ts';
 import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
@@ -217,6 +220,8 @@ import { PluginManager } from './plugins/manager.ts';
 import { A2AServer } from './a2a.ts';
 import { A2AClient } from './a2a-client.ts';
 import { Messenger } from './messages.ts';
+import { supportOf } from './support.ts';
+import { createSupportTools } from './tools/support.ts';
 import { HookManager } from './webhooks.ts';
 import { createSkillTools } from './skill-tools.ts';
 import { workspaceDir } from './tools/workspace.ts';
@@ -1115,6 +1120,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   tools.add(createAskChoiceTool());
   // fill_document (docs/DOCUMENTS.md): she fills in the person's own Excel or Word form (a checked copy).
   tools.add(createFillDocumentTool(() => app));
+  // S7 (docs/DOCUMENTS.md): templates, tracked changes, clause checklist, ready to sign.
+  for (const t of createDocStudioTools(() => app)) tools.add(t);
   // N4 (docs/MY_DETAILS.md): my_details_get, the person's own saved details (each space's own; never the demo).
   if (!isDemo) tools.add(createMyDetailsTool(() => app));
   // N6 (docs/WHAT_SARA_KNOWS.md): facts_list and fact_forget, the person's own world (never the demo).
@@ -1309,6 +1316,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.liveWatches = new LiveWatches(app, store.db);
     for (const t of createDataTools(() => app)) tools.add(t);
     for (const t of createLiveWatchTools(() => app)) tools.add(t);
+    for (const t of createAlertTools(() => app)) tools.add(t);
     // E4 (docs/SPORTS.md): followed teams, odds comparison, the bet log and the odds calculator.
     app.sports = new Sports(app, store.db);
     for (const t of createSportsTools(() => app)) tools.add(t);
@@ -1541,6 +1549,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isMember) app.team = new TeamManager(app, store.db);
   // EC12: crews (standing helpers the lead hands board cards to; the owner's only, never the demo).
   if (!isMember && !isDemo) app.crews = new Crews(app, store.db);
+  // S8: team runs (agent teams; the owner's only, never the demo).
+  if (!isMember && !isDemo) app.teamRuns = new TeamRuns(app, store.db);
   // C10: workers that stay (crew members or standalone helpers with their own queue and thread).
   if (!isMember && !isDemo) app.workers = new Workers(app, store.db);
   // C4: "When this happens" event triggers (the owner's only, never the demo or a member's space).
@@ -1553,6 +1563,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // C12: how he likes to work (each space and companion keeps its own beliefs; never the demo).
   if (!isDemo) app.workingStyle = new WorkingStyle(app, store.db);
   if (!isMember) for (const t of createTeamTools(() => app)) tools.add(t);
+  if (!isMember && !isDemo) for (const t of createTeamRunTools(() => app)) tools.add(t);
   // Phase 99 (ST4): the board over the planner, her card tools and the card worker (in the space that
   // owns the planner; companions sharing it use the main companion's worker).
   {
@@ -1669,8 +1680,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // S9a: the Messages page (owner only); the main companion's push and events carry its notifications.
   if (!isMember && messenger) {
     app.messages = messenger;
+    // S9b: the support link's tools (look with a help pass, suggest a fix); the owner's companions only.
+    for (const t of createSupportTools(() => app)) tools.add(t);
     if (main) {
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
+      const sup = supportOf(app);
+      if (sup) sup.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       messenger.onNotify = (title, body, chat) => {
         const push = app.push;
         if (!push) return;

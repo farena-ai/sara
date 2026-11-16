@@ -18,6 +18,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import { bizStore } from '../biz/store.ts';
 import { cheapCall, fenceLines } from '../cheap.ts';
 import type { AppContext } from '../chat.ts';
+import { postAlert } from '../destinations.ts';
 import { en, trOwner } from '../i18n.ts';
 import { findAddress, leaveBySettings, travelMinutes } from '../leaveby.ts';
 import { quietNow } from '../life.ts';
@@ -795,9 +796,8 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
     return this.#o.quiet ? this.#o.quiet() : quietNow(this.#app);
   }
   #say(text: string, meta: Record<string, unknown>, push = false, act?: import('../phone-actions.ts').ActItem): void {
-    const conversationId = this.#conversation();
-    const msg = this.#app.store.addMessage(conversationId, 'assistant', text, meta);
-    this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
+    // ALERTDEST: inbox finds go where the person chose (default: the "From your inbox" chat).
+    const conversationId = postAlert(this.#app, 'inbox', { origin: () => this.#conversation(), role: 'assistant', content: text, meta, reason: 'reminder' }) ?? '';
     if (push && !this.#quiet() && !privateLocalOn()) {
       const n = this.#o.notify ?? ((a: string, b: string, c: string, d: string, e?: import('../phone-actions.ts').ActItem) => this.#app.push?.notifyOwner(a, b, c, d, e) ?? Promise.resolve());
       void n(this.#T(en('From your inbox')), clip(text, 200), conversationId, 'inbox', act ? { ...act, conv: conversationId } : undefined).catch(() => undefined);

@@ -148,10 +148,12 @@ test('scheduler: delivers due reminders into their chat, repeats, skips busy cha
   app.script.push(text('Did you stretch?'));
   await drain(app, conv.id, 'hi');
   assert.match(JSON.stringify(app.requests.at(-1)!.messages), /Reminder: stretch/);
-  // Late delivery (server was off for a day) is marked late; deleted conversation falls back.
+  // Late delivery (server was off for a day) is marked late; a deleted conversation falls back to a
+  // chat named "Reminders" (ALERTDEST: never whichever chat came first).
   pl.addReminder({ text: 'old one', dueAt: new Date(NOW.getTime() - 86_400_000).toISOString(), conversationId: 'gone' });
   sched.tick();
-  assert.match(app.store.messages(conv.id).at(-1)!.content, /Reminder: old one \(this was due .*sorry it's late\)/);
+  const fallback = app.store.listConversations().find((c) => c.title === 'Reminders')!;
+  assert.match(app.store.messages(fallback.id).at(-1)!.content, /Reminder: old one \(this was due .*sorry it's late\)/);
 });
 
 test('planner API: tasks, projects, reminders, notes, events stream', async (t) => {

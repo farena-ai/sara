@@ -61,6 +61,7 @@ export async function loadAutomations() {
   if (!data.items.length) rows.push(el('p', 'muted small', t('Nothing runs on its own yet. Describe one above, or start from a ready-made one.')));
   for (const x of data.items) rows.push(itemRow(x));
   host.replaceChildren(...rows);
+  void loadDests();
 }
 
 function waitingRow(w) {
@@ -109,6 +110,7 @@ function itemRow(x) {
   if (x.last) facts.push(t('Last: {outcome}, {when}', { outcome: OUTCOMES()[x.last.outcome] ?? x.last.outcome, when: stamp(x.last.at) }));
   if (x.status) facts.push(x.status);
   if (facts.length) row.append(el('p', 'muted small', facts.join(' · ')));
+  if (x.postsTo) row.append(postsLine(x));
   const acts = el('div', 'row atm-acts');
   acts.append(btn(t('History'), 'ghost small', () => void toggleHistory(x, row)));
   if (x.source === 'automation') {
@@ -410,6 +412,154 @@ export function wireAutomationsForm() {
     if (!words) return say(t('Describe it first, like “every Friday at 3, fill my time sheet”.'));
     void previewDraft({ words });
   });
+}
+
+// ALERTDEST (docs/ALERTS_DESTINATIONS.md): where her alerts and results go. One row per feed
+// (stock alerts, sports and odds, mail watches, automations, research, goals, travel, …) with a
+// place picker; each automation/watch row says "Posts to: …" with Change for that one alone.
+let dests = null;
+const WHERE = (origin) => [['origin', origin || t('Where it was set up')], ['dedicated', t('A chat just for these')], ['project', t('A chat in a project')], ['chat', t('One of my chats')], ['apps', t('Only my chat apps')]];
+
+async function loadDests() {
+  const host = $('#atm-dest');
+  if (!ctx || !host) return;
+  try {
+    dests = await ctx.api('/automations/alerts');
+  } catch (e) {
+    host.replaceChildren(el('p', 'muted small', e.message));
+    return;
+  }
+  host.replaceChildren(...dests.feeds.map((f) => feedRow(f)));
+}
+
+/** The place picker: where + which chat/project + Telegram/Discord. `save(dest)` stores it. */
+function destPicker(cur, o) {
+  const box = el('div', 'adst-pick');
+  const where = document.createElement('select');
+  where.setAttribute('aria-label', o.label);
+  for (const [v, label] of WHERE(o.originLabel)) if (!(v === 'apps' && o.keepsChat)) where.append(new Option(label, v));
+  where.value = cur.where ?? 'origin';
+  const chat = document.createElement('select');
+  chat.setAttribute('aria-label', t('Which chat'));
+  chat.append(...(dests?.chats ?? []).map((c) => new Option(c.title, c.id)));
+  if (cur.conversationId) chat.value = cur.conversationId;
+  const project = document.createElement('select');
+  project.setAttribute('aria-label', t('Which project'));
+  project.append(...(dests?.projects ?? []).map((p) => new Option(p.name, String(p.id))));
+  if (cur.projectId) project.value = String(cur.projectId);
+  const sw = (kind, name) => {
+    const l = el('label', 'row adst-app');
+    const c = document.createElement('input');
+    c.type = 'checkbox';
+    c.checked = Boolean(cur[kind]);
+    c.disabled = !dests?.apps?.[kind] && !cur[kind];
+    l.append(c, el('span', 'small', t('Also to my {app}', { app: name })));
+    // Only once that app is set up (one already on can still be switched off).
+    l.hidden = c.disabled;
+    return { l, c };
+  };
+  const tg = sw('telegram', 'Telegram');
+  const dc = sw('discord', 'Discord');
+  const note = el('p', 'muted small adst-note');
+  const value = () => ({ where: where.value, ...(where.value === 'chat' ? { conversationId: chat.value } : {}), ...(where.value === 'project' ? { projectId: Number(project.value) } : {}), ...(tg.c.checked ? { telegram: true } : {}), ...(dc.c.checked ? { discord: true } : {}) });
+  const show = () => {
+    chat.hidden = where.value !== 'chat';
+    project.hidden = where.value !== 'project';
+    note.textContent = where.value === 'chat' && !chat.options.length ? t('You have no chat with her here yet.') : where.value === 'project' && !project.options.length ? t('You have no projects yet. Ask her: “put my stock alerts in a new Stock Alerts project”.') : '';
+  };
+  show();
+  const changed = () => {
+    show();
+    if (o.auto && !note.textContent) void o.save(value());
+  };
+  for (const x of [where, chat, project, tg.c, dc.c]) x.addEventListener('change', changed);
+  const line = el('div', 'adst-ctl');
+  line.append(where, chat, project);
+  box.append(line, note);
+  if (!tg.l.hidden || !dc.l.hidden) {
+    const apps = el('div', 'row adst-apps');
+    apps.append(tg.l, dc.l, tip(t('Each alert also arrives in your own chat with her there, once that app is set up in Apps and services. Never a group or someone else’s chat.')));
+    box.insertBefore(apps, note);
+  }
+  box.value = value;
+  return box;
+}
+
+function feedRow(f) {
+  const row = el('div', 'adst-row');
+  const left = el('div', 'adst-text');
+  const posts = el('span', 'muted small', t('Posts to: {where}', { where: f.postsTo }));
+  left.append(el('strong', 'small', f.title), posts);
+  const picker = destPicker(f.dest, {
+    label: t('Where {feed} go', { feed: f.title }),
+    keepsChat: f.keepsChat,
+    originLabel: f.originLabel,
+    auto: true,
+    save: async (dest) => {
+      try {
+        dests = await ctx.api('/automations/alerts', { method: 'PUT', body: { feed: f.id, dest, alsoExisting: true } });
+        const now = dests.feeds.find((x) => x.id === f.id);
+        posts.textContent = t('Posts to: {where}', { where: now?.postsTo ?? '' });
+        say(f.items ? t('Saved. The ones you have now post there too.') : t('Saved.'));
+        void refreshPosts();
+      } catch (e) {
+        say(e.message);
+      }
+    },
+  });
+  row.append(left, picker);
+  return row;
+}
+
+/** After a feed changes, the rows' "Posts to" lines follow without a full redraw. */
+async function refreshPosts() {
+  try {
+    const fresh = await ctx.api('/automations');
+    for (const x of fresh.items) {
+      const n = document.querySelector(`[data-posts="${CSS.escape(x.key)}"]`);
+      if (n && x.postsTo) n.textContent = t('Posts to: {where}', { where: x.postsTo });
+    }
+  } catch {
+    /* the next load shows it */
+  }
+}
+
+function postsLine(x) {
+  const wrap = el('div', 'adst-item');
+  const line = el('p', 'muted small adst-posts');
+  const text = el('span', '', t('Posts to: {where}', { where: x.postsTo }));
+  text.dataset.posts = x.key;
+  const change = btn(t('Change'), 'ghost small', () => {
+    const open = wrap.querySelector('.atm-card');
+    if (open) return open.remove();
+    const card = el('div', 'atm-card');
+    const picker = destPicker(x.dest ?? { where: 'origin' }, { label: t('Where this one posts'), keepsChat: false, originLabel: x.originLabel });
+    const acts = el('div', 'row');
+    acts.append(
+      btn(t('Save'), 'small', async () => {
+        try {
+          await ctx.api('/automations/alerts', { method: 'PUT', body: { item: x.key, dest: picker.value() } });
+          say(t('Saved.'));
+          void loadAutomations();
+        } catch (e) {
+          say(e.message);
+        }
+      }),
+      btn(t('Use the setting for all of these'), 'ghost small', async () => {
+        try {
+          await ctx.api('/automations/alerts', { method: 'PUT', body: { item: x.key, dest: null } });
+          void loadAutomations();
+        } catch (e) {
+          say(e.message);
+        }
+      }),
+    );
+    card.append(picker, acts);
+    wrap.append(card);
+  });
+  line.append(text, ' ', change);
+  wrap.append(line);
+  return wrap;
 }
 
 /** Today: a tile only when something failed, waits for an OK, or runs today. */

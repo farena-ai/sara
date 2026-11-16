@@ -55,7 +55,7 @@ import { type AppInfo } from './health.ts';
 import { summarizeConversation } from './memory-worker.ts';
 import { audit } from './audit-trail.ts';
 import { cleanClientKey, InFlightKeys, messageWithKey, serverIdOf } from './offline-keys.ts';
-import { as400, bodyKeys, clientIp, cookies, fromSaraApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
+import { as400, bodyKeys, clientIp, cookies, fromPhoneApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
 import { createCodingRoutes } from './routes/coding.ts';
@@ -86,11 +86,13 @@ import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
 import { createTravelRoutes } from './routes/travel.ts';
+import { createDocStudioRoutes } from './routes/doc-studio.ts';
 import { createPhoneCallRoutes, phoneUpgrade, phoneWebhook } from './routes/phone-calls.ts';
 import { createFamilyRoutes } from './routes/family.ts';
 import { createInboxRoutes } from './routes/inbox.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createMessagesRoutes } from './routes/messages.ts';
+import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
 import { createLearnRoutes } from './routes/learn.ts';
@@ -103,6 +105,7 @@ import { createWritingRoutes } from './routes/writing.ts';
 import { createFactsRoutes } from './routes/facts.ts';
 import { createWorkRoutes } from './routes/work.ts';
 import { createCrewRoutes } from './routes/crews.ts';
+import { createTeamRunRoutes } from './routes/team-runs.ts';
 import { createWorkerRoutes } from './routes/workers.ts';
 import { createTriggerRoutes } from './routes/triggers.ts';
 import { createMemoryTidyRoutes } from './routes/memory-tidy.ts';
@@ -439,12 +442,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'team-runs', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources']);
+  const AUDITED = new Set(['support', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1020,6 +1023,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const errandRoutes = createErrandRoutes(ctx);
   const longGoalRoutes = createLongGoalRoutes(ctx);
   const travelRoutes = createTravelRoutes(ctx);
+  const docStudioRoutes = createDocStudioRoutes(ctx);
   const phoneCallRoutes = createPhoneCallRoutes(ctx);
   const familyRoutes = createFamilyRoutes(ctx);
   // N3: from your inbox, each person's own (src/routes/inbox.ts).
@@ -1028,6 +1032,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const watchRoutes = createWatchRoutes(ctx);
   // S9a: private messages between linked servers' owners (src/routes/messages.ts; docs/MESSAGES.md).
   const messagesRoutes = createMessagesRoutes(ctx);
+  // S9b: the support link on top of a messages link (src/routes/support.ts; docs/SUPPORT_LINK.md).
+  const supportRoutes = createSupportRoutes(ctx);
   // E1: Settings → Data sources and the live-data watches, each person's own (src/routes/data-sources.ts).
   const dataSourceRoutes = createDataSourceRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
@@ -1048,6 +1054,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const workRoutes = createWorkRoutes(ctx);
   // EC12: crews, the owner's only (src/routes/crews.ts).
   const crewRoutes = createCrewRoutes(ctx);
+  const teamRunRoutes = createTeamRunRoutes(ctx);
   // C10: workers that stay, the owner's only (src/routes/workers.ts).
   const workerRoutes = createWorkerRoutes(ctx);
   // C4: "When this happens" event triggers, the owner's only (src/routes/triggers.ts).
@@ -1380,7 +1387,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         // Phase 53: the app language (the page loads its translations before showing anything).
         ...(authed ? { language: app.settings.get().language ?? 'auto', appLanguage: appLanguage(app.settings.get()) } : {}),
         // Phase 16: servers that had adult content before the switch existed ask once (web only).
-        ...(authed && app.settings.get().adultMode?.ask && !fromSaraApp(req) ? { adultAsk: true } : {}),
+        ...(authed && app.settings.get().adultMode?.ask && !fromPhoneApp(req) ? { adultAsk: true } : {}),
       });
     }
 
@@ -1589,12 +1596,14 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await travelRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await docStudioRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneCallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bookingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await familyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await inboxRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await messagesRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await supportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1605,6 +1614,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await factsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await crewRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await teamRunRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await triggerRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await tidyRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2599,6 +2609,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       // S9a (docs/MESSAGES.md): other linked servers deliver messages here, signed with the link's key.
       // Never on the demo or in a household member's space.
+      if (url.pathname.startsWith('/msg/v1/support/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleSupportPeer(ctx, req, res, url.pathname);
+      }
       if (url.pathname.startsWith('/msg/v1/')) {
         if (app.messages && !opts.member && !opts.demo) return await app.messages.handlePeer(req, res, url.pathname);
         await readRaw(req, 64 * 1024).catch(() => undefined);

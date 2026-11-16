@@ -95,6 +95,72 @@ merged cells and formulas; your original is never changed. The copy arrives as t
   filled; she says why and can make a new document with your values, or fill an Excel or Word version
   of the form instead.
 
+## Contracts, proposals and letters
+
+Draft contracts, proposals, letters, NDAs, statements of work and invoice covers from **your own
+templates and past documents**, revise them with **tracked changes in Word**, check them against a
+**clause checklist**, and make a **PDF ready to sign**. This is information, not legal advice: for
+anything important, have a lawyer read it.
+
+> "Draft the consulting agreement for Acme from my template."
+> "Make the payment 15 days, as tracked changes."
+> "Check the clauses in the Acme agreement."
+> "Make it ready to sign for Pat Doe at Acme and me."
+
+**Templates.** Open any document in the **Library** and tick **Use as a template** (pick its kind:
+contract, proposal, letter, NDA, statement of work or invoice cover). She finds its blanks:
+`{{Client}}`, `[CLIENT NAME]` or `[insert date]`, `<<Project>>` or `«Project»`, and a label with a line
+(`Date: ______`). Signature lines (`Signature: ____`, `By: ____`) are left for signing. A Word template
+shows a form with one box per blank; **Make the document** fills a copy in place, so every value keeps
+the blank's own font and formatting. The template itself never changes.
+
+**Drafting in chat.** She lists the blanks and asks only for the facts she doesn't know (with tap-to-pick
+answers where there are a few set options). She can reuse clauses from your **past documents** of the
+same kind, word for word, and says which document each one came from; a clause that isn't really in
+that document is refused.
+
+**Tracked changes.** When she revises a Word file, each change is a real Word revision by "Sara" with
+the date, word by word (only the words that change are marked). Open it in Word → **Review** to accept
+or reject each one; Track Changes is switched on in the file so your own edits are tracked too. The
+Library shows the same list (*Changed 30 → 15*, *Added*, *Removed*, who and when), with **Accept all**
+and **Reject all**. Every revision is a new version; the earlier ones are kept.
+
+**Clause checklist.** For each kind of document, the usual clauses, each marked **present** (with the
+sentence quoted and where it is), **missing**, or **unusual** (with why):
+
+| Kind | Clauses |
+|---|---|
+| Contract | parties, term, payment, termination, liability cap, indemnity, confidentiality, intellectual property, governing law, signatures |
+| NDA | parties, term, confidentiality, what is not confidential, termination, governing law, signatures |
+| Statement of work | parties, scope, timeline, payment, acceptance, termination, signatures |
+| Proposal | scope, timeline, price, assumptions |
+| Letter | date, greeting, closing |
+| Invoice cover | invoice number, date, amount due, due date, how to pay |
+
+Unusual: automatic renewal, unlimited liability, a late fee above 1.5% a month. Non-compete,
+exclusivity, one-sided changes and arbitration are listed as worth a second look.
+
+**Ready to sign.** From the final Word file she makes a PDF with page numbers and, for each signer, a
+**signature field**, a **name field** (filled when she knows the name) and a **date field**: real form
+fields any PDF reader that signs forms can use. First the check: no blanks left and no tracked
+changes left. If either fails, no PDF is made and she says what to fix (or makes a draft PDF if you ask).
+
+### How it works (for developers)
+
+| Piece | What it does |
+|---|---|
+| `src/documents/placeholders.ts` | Finds blanks in text (`detectPlaceholders`), fills text (`fillText`) and Word files in place (`fillDocxPlaceholders`: body, headers, footers). |
+| `src/documents/tracked.ts` | The paragraph model shared with filling: plain runs become characters that remember their run; edits keep each run's formatting; fields, links and earlier revisions are never cut. `reviseDocx` (find/replace word by word with an LCS diff, insert a paragraph, delete a paragraph; `w:ins`/`w:del` with `w:author`, `w:date`, unique `w:id`; paragraph marks too; `w:trackRevisions` in settings), `listRevisions`, `resolveAll` (accept/reject all), `addClauses`. |
+| `src/documents/clauses.ts` | `clauseChecklist(text, type)` per kind, reusing the E6 contract reader's sentences, places and flags (`src/biz/contracts.ts`); `guessDocType`. |
+| `src/documents/sign.ts` | `docxToMarkdown` (changes accepted) and `makeSignPdf`: the Ready to sign check, then the existing PDF maker with `spec.sign` (signature blocks: `/FT /Sig` and `/FT /Tx` widgets, an `/AcroForm`, appearance streams for filled names), read back with `readPdfForm`. |
+| `src/documents/templates.ts` | `doc_templates` table (per space), `pastClauses` (the person's own clause wording by kind, with its document), `quoteIn` (word-for-word check). |
+| `src/tools/doc-studio.ts` | Tools `doc_from_template`, `doc_revise`, `doc_checklist` (read-only), `doc_to_sign`; a document named in words means its newest version. Files are kept as made documents with `spec.edited` (never remade by `make_document`). |
+| `src/routes/doc-studio.ts`, `web/doc-studio.js` | `/api/doc-studio/…` (member route group `doc-studio`) and the Library panel. |
+
+Not done: comments (`w:comment`) and moved text, revising headers/footers and text boxes with tracked
+changes, real digital signatures (the fields are empty for the signer's own tool), legal-language
+checks beyond wording.
+
 ## Reading documents
 
 She already reads Word, Excel, PowerPoint, PDF, EPUB, web pages, Markdown and CSV files you add to

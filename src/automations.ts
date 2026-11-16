@@ -25,6 +25,7 @@
 // automation_runs.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext, ChatEvent } from './chat.ts';
+import { destFor, postAlert } from './destinations.ts';
 import { matches, type TriggerEvent } from './event-triggers.ts';
 import { en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
@@ -788,9 +789,10 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
       () => false,
     );
   }
+  /** ALERTDEST: what it tells goes where the person chose (default: its own chat, where its steps run). */
   #say(conversationId: string, text: string, meta: Record<string, unknown>): void {
-    const msg = this.#app.store.addMessage(conversationId, 'assistant', text, meta);
-    this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
+    const id = (meta.automation as { id?: number } | undefined)?.id;
+    postAlert(this.#app, 'automations', { ...(id ? { item: `auto:${id}` } : {}), origin: () => conversationId, role: 'assistant', content: text, meta, reason: 'reminder' });
   }
 
   /**
@@ -868,6 +870,8 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     const summary = clip(steps.map((s) => s.text).filter(Boolean).join(' · '), 300);
     this.#db.prepare('UPDATE automation_runs SET outcome = ?, summary = ?, steps_json = ?, conversation_id = ?, ended_at = ? WHERE id = ?').run(outcome, summary, JSON.stringify(steps), conversationId, outcome === 'waiting' ? null : this.#now().toISOString(), runId);
     if (!dry) this.#afterRun(a, outcome, summary, conversationId);
+    // ALERTDEST: steps run in its own chat; when results go elsewhere, the outcome goes there too.
+    if (!dry && outcome !== 'waiting' && summary && destFor(this.#app, 'automations', `auto:${a.id}`).where !== 'origin' && !a.actions.some((x) => x.kind === 'notify')) this.#say(conversationId, `${clip(a.name, 60)}: ${summary}`, { automation: { id: a.id, result: true } });
     this.#app.events?.publish({ type: 'automations' });
   }
 

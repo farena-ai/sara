@@ -100,6 +100,6 @@ export function shareMade(app: AppContext, ctx: ToolContext, conv: Conversation 
   const days = [7, 30, 90].includes(Number(keep)) ? Number(keep) : 30;
   const ch = conv.channel;
   const id = recordShared(app, { conversationId: conv.id, direction: 'out', bridge: ch.startsWith('telegram') ? 'telegram' : ch.startsWith('discord') ? 'discord' : ch.startsWith('plugin-') ? ch : 'web', chatKey: conv.channelKey ?? conv.id, sender: 'her', kind: 'file', name: made.name, mime, bytes: data.length, path: copy, status: 'ok', expiresAt: new Date(app.now().getTime() + days * 86_400_000).toISOString() });
-  ctx.attachFile({ id, name: made.name, mime, bytes: data.length, made: { id: made.id, format: made.format, version: made.version, title: made.title } });
+  ctx.attachFile({ id, name: made.name, mime, bytes: data.length, made: { id: made.id, format: made.format, version: made.version, title: made.title, ...(made.spec.edited && made.spec.edited.kind !== 'draft' ? { kept: true } : {}) } });
   return true;
 }

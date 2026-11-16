@@ -103,9 +103,11 @@ export function docCard(f) {
   const change = el('button', 'ghost', t('Make changes'));
   change.type = 'button';
   change.addEventListener('click', () => askChanges(made));
-  acts.append(dl, open, change);
+  acts.append(dl, open);
+  // S7: a file kept exactly as the person's own (filled, tracked changes, ready to sign) isn't remade.
+  if (!made.kept) acts.append(change);
   // S11: Make it sound human (prose documents): side by side, Keep makes the next version.
-  if (['docx', 'pdf', 'md', 'html'].includes(made.format)) acts.append(humanizeButton({ madeId: made.id }, f.name ?? made.title));
+  if (!made.kept && ['docx', 'pdf', 'md', 'html'].includes(made.format)) acts.append(humanizeButton({ madeId: made.id }, f.name ?? made.title));
   // The desktop app: Save to… / Save to Downloads, and dragging the card out to a folder.
   addSaveButtons(acts, { url: `${base(made.id)}/file`, name: f.name ?? made.title });
   dragOut(card, { url: `${base(made.id)}/file`, name: f.name ?? made.title, format: made.format });

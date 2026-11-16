@@ -94,6 +94,7 @@ import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRou
 import { initWatches, watchNotice } from './watches.js';
 import { initDataSources, liveWatchNotice, loadDataSources, renderWatchingTile, saveDataSources } from './data-sources.js';
 import { crewNotice, initCrews, loadCrews } from './crews.js';
+import { initTeamRuns, loadTeamRuns, onTeamRunEvent, teamRunNotice } from './team-runs.js';
 import { initWorkers, loadWorkers } from './workers.js';
 import { initMemoryTidy, loadMemoryTidy, memoryTidyNotice } from './memory-tidy.js';
 import { initWorkingStyle, loadWorkingStyle } from './working-style.js';
@@ -2278,6 +2279,9 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'crew') {
       // EC12: a crew run's card (web/crews.js): its status, cards, receipts and the report file.
       els.push(crewNotice(m));
+    } else if (m.role === 'notice' && m.kind === 'teamrun') {
+      // S8: a team run's live card (web/team-runs.js): the plan to approve, progress, the final OK.
+      els.push(teamRunNotice(m));
     } else if (m.role === 'notice' && m.kind === 'tidy') {
       // EC13: the overnight memory tidy's morning card (web/memory-tidy.js): Undo per change.
       els.push(memoryTidyNotice(m));
@@ -3651,7 +3655,7 @@ function approvalCard(ev, block) {
     title.dataset.raw = '';
     // Phase 99: a board step reads as one plain line ("Move “Fix login” (Website) from To do to Doing").
     // MULTIMAIL: with several mailboxes an email's card reads From / To / Subject (the mailbox it goes from).
-    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^card_/.test(ev.name) || WORKAPP_CARD.test(ev.name) || (/^mail_(send|draft)$/.test(ev.name) && /^(SEND email|Draft email)\nFrom: /.test(ev.summary ?? ''))) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
+    what.textContent = ev.name === 'shell' ? String(ev.args.command ?? '') : (/^(card_|alerts_route$)/.test(ev.name) || WORKAPP_CARD.test(ev.name) || (/^mail_(send|draft)$/.test(ev.name) && /^(SEND email|Draft email)\nFrom: /.test(ev.summary ?? ''))) && ev.summary ? ev.summary : JSON.stringify(ev.args, null, 2);
   } else {
     title.textContent = t('{name} wants to use {tool}:', { name: currentIdentity().name || t('Sara'), tool: ev.name });
     title.dataset.raw = '';
@@ -4012,6 +4016,7 @@ const TOOL_WORDS = {
 /** R6: work-app changes whose card text is her diff (old → new, + added lines). */
 const WORKAPP_CARD = /^(gdoc_(append|replace_text)|gsheet_(update_range|append_rows)|excel_update_range|word_fill|slack_(post|react|status|remind)|teams_post)$/;
 const TOOL_NAME = {
+  alerts_route: 'Choose where alerts go',
   list_dir: 'See her files', read_file: 'Read files', write_file: 'Write files', edit_file: 'Edit files', search: 'Search her files',
   code_map: 'Code overview', code_find: 'Find code', code_refs: 'Where code is used', code_deps: 'How files connect',
   starter_create: 'Start a project from a template', project_note: 'Project notes', review_code: 'Review code',
@@ -4054,7 +4059,7 @@ const TOOL_GROUP_OF = {
   list_dir: 'files', read_file: 'files', write_file: 'files', edit_file: 'files', search: 'files', code_map: 'files', code_find: 'files', code_refs: 'files', code_deps: 'files', starter_create: 'files', project_note: 'files', review_code: 'files',
   shell: 'run', start_job: 'run', job_status: 'run', stop_job: 'run', delegate_task: 'run',
   git: 'git', git_commit: 'git', git_branch: 'git', git_push: 'git', github_list: 'git', github_read: 'git', github_create_issue: 'git', github_comment: 'git', github_open_pr: 'git', github_post_review: 'git',
-  team_task: 'team', team_status: 'team', work_on_issue: 'team',
+  team_task: 'team', team_status: 'team', team_run: 'team', work_on_issue: 'team',
   preview_start: 'browser', preview_stop: 'browser', browser_open: 'browser', browser_screenshot: 'browser', browser_click: 'browser', browser_type: 'browser', browser_read: 'browser', browser_check: 'browser',
   ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
   tune_personality: 'her', settings_guide: 'her', change_setting: 'her',
@@ -4862,7 +4867,7 @@ async function renderRoutes() {
   jobsUi.jobs = info?.jobs ?? [];
   jobsUi.pictures = info?.pictures ?? {};
   jobsUi.rows.clear();
-  const adultOk = !/\b(SaraPhone|SaraDesktop)\/\d/.test(navigator.userAgent);
+  const adultOk = !/\bSaraPhone\/\d/.test(navigator.userAgent);
   // Her own model (this companion only), for talking.
   const comp = { id: 'companion', label: t('Her own model'), tip: t('The model this companion thinks with when you talk. Each companion can have her own; other jobs follow the rows below. Use default: the Talking row.') };
   $('#jobs-companion').replaceChildren(...jobRow(comp, s.companionModel, { noBackups: true, noCompare: true, blank: t('Same as Talking') }).childNodes);
@@ -7355,6 +7360,7 @@ function startEvents() {
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('watch:')) append(watchNotice({ ...ev.message, content: ev.message.content.slice(6) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('livewatch:')) append(liveWatchNotice(ev.message));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('crew:')) append(crewNotice({ ...ev.message, content: ev.message.content.slice(5) }));
+      else if (ev.message.role === 'notice' && ev.message.content.startsWith('teamrun:')) append(teamRunNotice({ ...ev.message, content: ev.message.content.slice(8) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('tidy:')) append(memoryTidyNotice({ ...ev.message, content: ev.message.content.slice(5) }));
       else if (ev.message.role === 'notice' && ev.message.content.startsWith('job:')) {
         append(jobCard(ev.message.content.slice(4), ev.message.meta?.status, ev.message.meta));
@@ -7508,6 +7514,8 @@ function startEvents() {
     onTeamEvent(JSON.parse(e.data).task);
     v4Kick();
   });
+  // S8: a team run moved on (web/team-runs.js: its chat card and the Team dialog).
+  es.addEventListener('team-run', (e) => onTeamRunEvent(JSON.parse(e.data).run));
   // Phase 52: an app (terminal, VS Code) asks to sign in: the Devices page shows it.
   es.addEventListener('device', (e) => {
     const { pending } = JSON.parse(e.data);
@@ -9824,12 +9832,23 @@ async function loadAdult() {
   $('#adult-state').textContent = a.on ? t('Adult mode is on (since {date}).', { date: new Date(a.confirmedAt).toLocaleDateString() }) : t('Adult mode is off.');
   $('#adult-on-box').hidden = !a.on;
   $('#adult-off-box').hidden = a.on || !a.canTurnOn;
-  $('#adult-app-note').hidden = a.on || a.canTurnOn;
+  // ADULTAPPS: in the phone apps (store rules) Turn on needs a web browser: offer to open this page there.
+  $('#adult-app-box').hidden = a.on || a.canTurnOn;
+  $('#adult-browser-row').hidden = a.reason !== 'app';
+  $('#adult-browser-link').textContent = '';
   if (a.reason === 'demo') $('#adult-app-note').textContent = t('Adult mode is not available in the demo.');
   $('#adult-confirm').checked = false;
   $('#adult-on').disabled = true;
 }
 $('#adult-confirm').addEventListener('change', () => ($('#adult-on').disabled = !$('#adult-confirm').checked));
+$('#adult-open-browser').addEventListener('click', async () => {
+  const url = `${location.origin}/#view=settings:you-adult`;
+  // The Android app opens it through its bridge; the iPhone app sends new windows to Safari.
+  if (window.SaraPhone?.openInBrowser) return void window.SaraPhone.openInBrowser(url);
+  if (window.SaraPhone?.platform === 'ios') return void window.open(url, '_blank', 'noopener');
+  const copied = await navigator.clipboard?.writeText(url).then(() => true, () => false);
+  $('#adult-browser-link').textContent = `${copied ? t('Link copied: paste it into your browser.') : t('Open this address in your browser:')} ${url}`;
+});
 $('#adult-on').addEventListener('click', async () => {
   try {
     await api('/adult', { method: 'PUT', body: { on: true, confirm18: $('#adult-confirm').checked } });
@@ -10765,6 +10784,8 @@ initReadTogether({ api, current: () => state.currentId });
 // E4: Watch a file (web/watches.js): Ask about this puts his own question in the message box of the watch's chat.
 // EC12: Team → Crews (web/crews.js); its chat card opens the Team dialog or the crew's chat.
 initCrews({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
+// S8: Team → Team runs (web/team-runs.js); its chat card opens the Team dialog on the run.
+initTeamRuns({ api, el, openConversation: (id) => openConversation(id), openTeam: () => openTeam() });
 // C10: Team → Workers that stay (web/workers.js).
 initWorkers({ api, el, openConversation: (id) => openConversation(id) });
 // EC13: Memory → Overnight tidy and its morning card (web/memory-tidy.js).
@@ -15209,6 +15230,8 @@ async function openTeam(taskId) {
   await loadTeam();
   // EC12: the Crews section of the Team dialog (web/crews.js).
   void loadCrews();
+  // S8: the Team runs section (web/team-runs.js).
+  void loadTeamRuns();
   // C10: the Workers that stay section (web/workers.js).
   void loadWorkers();
   if (taskId) team.current = taskId;

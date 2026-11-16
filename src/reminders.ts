@@ -1,6 +1,7 @@
 // Delivers due reminders into chat. Runs every 15 s; late reminders (server was down) are still
 // delivered, marked late. A conversation in the middle of a turn is skipped until the turn ends, so
 // a reminder never lands between a tool call and its result.
+import { alertApps, alertPlace } from './destinations.ts';
 import { familyTick } from './family.ts';
 import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
@@ -47,8 +48,7 @@ export class ReminderScheduler {
     let delivered = 0;
     for (const r of this.#planner.dueReminders(now)) {
       if (!this.#owns(r)) continue;
-      let conv = r.conversationId ? store.getConversation(r.conversationId) : undefined;
-      conv ??= store.listConversations()[0] ?? store.createConversation({ title: 'Reminders' });
+      const conv = { id: this.#where(r) };
       if (this.#app.isBusy?.(conv.id)) continue;
       // Phase 26: ring instead, when the owner asked for a call (or wants every reminder as one).
       // Monthly: the day it was first set for (the 31st), kept from the first time it fires.
@@ -101,6 +101,16 @@ export class ReminderScheduler {
   }
 
   /** A call (if the owner wants one and it rings), otherwise a chat message and a notification. */
+  /**
+   * ALERTDEST: the chat it was set in (none given: her latest chat, as before), or where the person
+   * chose for reminders; a chat named "Reminders" when the one it was set in is gone.
+   */
+  #where(r: Reminder): string {
+    const { store } = this.#app;
+    const origin = () => (r.conversationId ? store.getConversation(r.conversationId)?.id : (store.listConversations()[0] ?? store.createConversation({ title: 'Reminders' })).id);
+    return alertPlace(this.#app, 'reminders', { origin }).conversationId ?? origin() ?? store.createConversation({ title: 'Reminders' }).id;
+  }
+
   #deliver(r: Reminder, conversationId: string, text: string, next: Date | null, anchor?: number): void {
     const calls = this.#app.calls;
     if (calls?.wants(r.call ? 'scheduled' : 'reminder', r.call)) {
@@ -113,6 +123,7 @@ export class ReminderScheduler {
     const msg = this.#app.store.addMessage(conversationId, 'assistant', text, { reminder: { id: r.id, dueAt: r.dueAt, repeat: r.repeat, ...(r.placeId ? { placeId: r.placeId } : {}) } });
     this.#planner.markFired(r.id, next, anchor);
     this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
+    alertApps(this.#app, alertPlace(this.#app, 'reminders', { origin: () => conversationId, create: false }), text, false);
   }
 
   /**
@@ -126,8 +137,7 @@ export class ReminderScheduler {
     let delivered = 0;
     for (const r of this.#planner.placeReminders(placeId, event)) {
       if (!this.#owns(r)) continue;
-      let conv = r.conversationId ? store.getConversation(r.conversationId) : undefined;
-      conv ??= store.listConversations()[0] ?? store.createConversation({ title: 'Reminders' });
+      const conv = { id: this.#where(r) };
       this.#deliver(r, conv.id, `Reminder (${event === 'arrive' ? 'you’re at' : 'you just left'} ${place.name}): ${r.text}`, null);
       delivered++;
     }

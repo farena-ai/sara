@@ -1076,6 +1076,13 @@ export class TelegramBridge {
     return this.#app.store.currentChannelConversation('telegram', key, 'owner') ?? this.#app.store.createConversation({ title: 'Telegram', titleSource: 'placeholder', channel: 'telegram', channelKey: key, projectId: channelProjectId(this.#app, 'telegram') });
   }
 
+  /** ALERTDEST: an alert straight to the owner's chat with her (a chosen destination, src/destinations.ts). */
+  async sendOwnText(text: string): Promise<void> {
+    const cfg = telegramSettings(this.#app);
+    if (!cfg.ownerChatId || !this.#abort) throw new Error("Telegram isn't connected.");
+    await this.send(cfg.ownerChatId, text);
+  }
+
   /** Reminders and messages she starts herself also go to the owner's Telegram. */
   async #mirror(ev: HubEvent): Promise<void> {
     if (ev.type !== 'message' || ev.message.role === 'notice') return;

@@ -45,10 +45,10 @@ test('adult mode: off by default (non-explicit note, no adult route); on needs 1
   const phone = await call('/api/adult', { method: 'PUT', body: { on: true, confirm18: true }, ua: 'Mozilla/5.0 (Linux; Android 15) SaraPhone/1' });
   assert.equal(phone.status, 403);
   assert.match((await phone.json()).error, /only be turned on in a web browser/);
-  // Nor can the desktop apps (Phase 33): web browser only.
-  const desktop = await call('/api/adult', { method: 'PUT', body: { on: true, confirm18: true }, ua: 'Mozilla/5.0 (Windows NT 10.0) Edg/155.0 SaraDesktop/1 (Windows)' });
-  assert.equal(desktop.status, 403);
-  assert.equal((await (await call('/api/adult', { ua: 'SaraDesktop/1 (Mac)' })).json()).canTurnOn, false);
+  assert.deepEqual(await (await call('/api/adult', { ua: 'SaraPhone/1 (iPhone)' })).json(), { on: false, confirmedAt: null, canTurnOn: false, reason: 'app' });
+  // The desktop apps (not store apps) behave like a browser (ADULTAPPS): they can see and confirm it.
+  assert.deepEqual(await (await call('/api/adult', { ua: 'SaraDesktop/1 (Mac)' })).json(), { on: false, confirmedAt: null, canTurnOn: true, reason: null });
+  assert.equal((await call('/api/adult', { method: 'PUT', body: { on: true }, ua: 'SaraDesktop/1 (Windows)' })).status, 400, 'the 18+ box is still needed');
   assert.equal((await call('/api/adult', { method: 'PUT', body: { on: true } })).status, 400);
 
   // On (from a browser, confirmed): recorded, no extra note, explicit turns go to the adult route.
@@ -64,13 +64,18 @@ test('adult mode: off by default (non-explicit note, no adult route); on needs 1
   // Turning it off works from anywhere (the apps too).
   const off = await (await call('/api/adult', { method: 'PUT', body: { on: false }, ua: 'SaraPhone/1' })).json();
   assert.equal(off.on, false);
+  // From the desktop app, confirmed: on, like a browser.
+  const desk = await call('/api/adult', { method: 'PUT', body: { on: true, confirm18: true }, ua: 'Mozilla/5.0 (Windows NT 10.0) Edg/155.0 SaraDesktop/1 (Windows)' });
+  assert.equal(desk.status, 200);
+  assert.equal((await desk.json()).on, true);
+  await call('/api/adult', { method: 'PUT', body: { on: false } });
 });
 
-test('adult mode: servers set up before the switch ask once (web only); the answer clears it', async () => {
+test('adult mode: servers set up before the switch ask once (browsers and desktop apps); the answer clears it', async () => {
   app.settings.update({ adultMode: { on: false, ask: true } });
   assert.equal((await (await call('/api/session')).json()).adultAsk, true);
   assert.equal((await (await call('/api/session', { ua: 'SaraPhone/1' })).json()).adultAsk, undefined);
-  assert.equal((await (await call('/api/session', { ua: 'SaraDesktop/1 (Windows)' })).json()).adultAsk, undefined);
+  assert.equal((await (await call('/api/session', { ua: 'SaraDesktop/1 (Windows)' })).json()).adultAsk, true, 'the desktop apps ask like a browser');
   await call('/api/adult', { method: 'PUT', body: { on: false } });
   assert.equal((await (await call('/api/session')).json()).adultAsk, undefined);
 });

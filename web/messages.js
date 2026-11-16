@@ -2,6 +2,7 @@
 // and communities. Sara is not involved: nothing here calls a model, and a message reaches her only
 // when the owner presses "Ask Sara about this" (it opens a new chat with the text in the box, unsent).
 import { t } from './naming.js';
+import { initSupport, loadSupport, supportRows, supportStrip } from './support.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, notify?: (title: string, body: string) => void, askHer?: (text: string) => void, confirm?: (text: string) => Promise<boolean> } | null} */
 let ctx = null;
@@ -38,6 +39,8 @@ const KEEP = () => [
 
 export function initMessages(c) {
   ctx = c;
+  // S9b: the support link (help passes, looks, suggested fixes) lives in one-to-one chats.
+  initSupport(c, { reload: () => loadMessages(), say, panel });
   $('#msgs-link')?.addEventListener('click', () => void linkCode());
   $('#msgs-join-open')?.addEventListener('click', () => joinForm());
   $('#msgs-new-group')?.addEventListener('click', () => groupForm());
@@ -65,6 +68,7 @@ export async function loadMessages() {
     say(err.message);
     return;
   }
+  await loadSupport();
   paintBadge(list.unread);
   paintSettings(list.settings);
   paintList();
@@ -134,7 +138,7 @@ async function saveSettings() {
 function paintList() {
   const box = $('#msgs-list');
   if (!box) return;
-  box.replaceChildren();
+  box.replaceChildren(...supportRows((id) => void showChat(id)));
   for (const r of list.requests ?? []) {
     const row = el('div', 'msgs-req');
     row.append(el('span', '', t('{name} wants to chat with you privately.', { name: r.fromName })));
@@ -275,7 +279,7 @@ function paintChat() {
   const sub = chat.kind === 'community' ? t('{n} members', { n: view.members.length }) + (chat.role === 'host' ? ` · ${t('you host it')}` : chat.role === 'mod' ? ` · ${t('moderator')}` : '') : chat.status === 'ended' ? t('This chat has ended.') : t('Linked server');
   title.append(el('span', 'muted small', sub));
   head.append(title, chatMenu(chat));
-  box.append(head);
+  box.append(head, supportStrip(chat));
   const msgs = el('div', 'msgs-scroll');
   msgs.setAttribute('role', 'log');
   for (const m of view.messages) msgs.append(bubble(chat, m));

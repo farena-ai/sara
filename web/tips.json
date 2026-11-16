@@ -1824,7 +1824,7 @@
       "business"
     ],
     "you-adult": [
-      "Off by default. Can only be changed in a web browser, by an adult.",
+      "Off by default. Only an adult can turn it on, in a web browser or the desktop app (not the phone apps).",
       "safety"
     ],
     "ab-tools": [

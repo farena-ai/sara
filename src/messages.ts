@@ -210,7 +210,27 @@ export class Messenger {
   close(): void {
     if (this.#closed) return;
     this.#closed = true;
+    for (const f of this.#onClose.splice(0)) f();
     this.#db.close();
+  }
+  readonly #onClose: (() => void)[] = [];
+  /** S9b: runs when the Messenger closes (the support link's own database closes with it). */
+  whenClosed(f: () => void): void {
+    this.#onClose.push(f);
+  }
+  /** S9b: the transport (netFetch, or the tests' seam) for the support link's signed calls. */
+  peerFetch(url: string, init: RequestInit): Promise<Response> {
+    return this.#fetch(url, init);
+  }
+  /** S9b: a one-to-one link's other side (address, public key, name); never a community's links. */
+  peer(linkId: string): { id: string; url: string; key: KeyObject; name: string } | undefined {
+    const l = this.#link(linkId);
+    if (!l || l.kind !== 'direct') return undefined;
+    try {
+      return { id: l.id, url: l.peer_url, key: pubKey(l.peer_key), name: l.peer_name };
+    } catch {
+      return undefined;
+    }
   }
   checkpoint(): void {
     this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)');

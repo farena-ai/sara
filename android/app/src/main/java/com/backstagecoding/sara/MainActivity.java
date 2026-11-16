@@ -1479,6 +1479,21 @@ public class MainActivity extends Activity {
             return m.requestPinAppWidget(new ComponentName(MainActivity.this, WidgetProvider.class), null, null);
         }
 
+        /** ADULTAPPS: opens a page of THIS server in the phone's browser (Adult mode is turned on there). */
+        @JavascriptInterface
+        public void openInBrowser(String url) {
+            Uri u = Uri.parse(url == null ? "" : url);
+            String host = Uri.parse(Net.server(MainActivity.this)).getHost();
+            if (host == null || !host.equals(u.getHost()) || !("https".equals(u.getScheme()) || "http".equals(u.getScheme()))) return;
+            runOnUiThread(() -> {
+                try {
+                    startActivity(new Intent(Intent.ACTION_VIEW, u));
+                } catch (Exception ignored) {
+                    // no browser
+                }
+            });
+        }
+
         @JavascriptInterface
         public void changeServer() {
             runOnUiThread(() -> showSetup(null, null));

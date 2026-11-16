@@ -734,6 +734,11 @@
         <h3 id="crews-h">Crews <button type="button" class="tip" data-tip="A crew is a few of your helpers with standing parts, a brief, a budget and a time (by hand, every day or every week). The lead hands each one a board card, checks the work and sends one summary with a report file.">?</button></h3>
         <div id="crews" aria-labelledby="crews-h"></div>
       </section>
+      <!-- S8 (docs/AGENT_TEAMS.md): team runs, a big job split between helpers (web/team-runs.js). -->
+      <section class="truns-box">
+        <h3 id="truns-h">Team runs <button type="button" class="tip" data-tip="A big job split between helpers working at once: you change her plan (models, tools, budgets) and approve it once; a checker checks the claims; outside actions wait for one final OK.">?</button></h3>
+        <div id="truns" aria-labelledby="truns-h"></div>
+      </section>
       <!-- C10 (docs/ops/C10_DESIGN.md): workers that stay (web/workers.js). -->
       <section class="workers-box">
         <h3 id="workers-h">Workers that stay <button type="button" class="tip" data-tip="A worker is a helper (or a crew member) that keeps going: its own name, character and chat, the tools it may use, a daily budget and a queue of jobs it does one at a time. It tells you once when it needs you.">?</button></h3>
@@ -1911,6 +1916,10 @@
           <p class="muted small">Chapters and sections with their pages, and a short summary of each. Press a page to read the text from there.</p>
           <ol id="lib-doc-contents" class="lib-contents"></ol>
         </div>
+        <section id="lib-doc-studio" class="dstu" hidden data-nodirty>
+          <h3>Contracts, proposals and letters <button type="button" class="tip" data-tip="Use it as a template, see tracked changes, check the usual clauses and make a PDF ready to sign. Every file is a new copy; the original never changes.">?</button></h3>
+          <div id="lib-doc-studio-body"></div>
+        </section>
         <h3>What she learned from it</h3>
         <p class="muted small">Notes she keeps in her memory, each with the words it came from. Delete any that are wrong or not worth keeping.</p>
         <div id="lib-doc-facts" class="lib-facts"></div>
@@ -3505,7 +3514,11 @@
         <p><button id="adult-on" type="button" disabled>Turn on adult mode</button></p>
       </div>
       <div id="adult-on-box" hidden data-nodirty><p><button id="adult-off" type="button" class="ghost">Turn off adult mode</button></p></div>
-      <p id="adult-app-note" class="muted small" hidden>Adult mode can only be turned on in a web browser, not in the phone apps.</p>
+      <div id="adult-app-box" hidden data-nodirty>
+        <p id="adult-app-note" class="muted small">Turning it on needs a web browser. Open this page in your phone's browser, sign in there, and turn it on.</p>
+        <p id="adult-browser-row"><button id="adult-open-browser" type="button" class="ghost">Open in browser</button></p>
+        <p id="adult-browser-link" class="muted small" role="status"></p>
+      </div>
         </section>
 
         <section class="settings-page" data-page="ab-store" data-group="Skills & tools" data-title="Get more" data-owner-only hidden>
@@ -3774,6 +3787,9 @@
       <p id="atm-status" class="muted small" role="status"></p>
       <h3 id="atm-h">Your automations <button type="button" class="tip" data-tip="On/off, History (the last 50 runs with what each step did), Edit for the name and time, and Ask Sara to change it. Three failed runs in a row pause one and tell you why.">?</button></h3>
       <div id="atm-list" class="atm-box" data-nodirty data-noauto aria-labelledby="atm-h"></div>
+      <!-- ALERTDEST: where her alerts and results go (web/automations.js, src/destinations.ts). -->
+      <h3 id="atm-dest-h">Where alerts go <button type="button" class="tip" data-tip="Pick where each kind lands: the chat it was set up in, a chat just for them, a chat in a project, one of your chats, or only your chat apps. Or ask her: “put my stock alerts in the Stock Alerts project”.">?</button></h3>
+      <div id="atm-dest" class="atm-box adst-box" data-nodirty data-noauto aria-labelledby="atm-dest-h"></div>
         </section>
         <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
         <section class="settings-page" data-page="ab-precise" data-group="Skills & tools" data-title="Check her edits" data-owner-only hidden>

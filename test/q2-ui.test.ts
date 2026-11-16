@@ -112,7 +112,8 @@ test('Q2 actual result renderer filters roles, opens one page by keyboard click,
  sandbox.nav.paintSettingsResults('impossible-query');
  assert.equal(nodes['#settings-empty'].hidden,false);
  member=true; demo=true;
- assert.deepEqual(Array.from(sandbox.nav.settingsPages(),(p:any)=>p.dataset.page),['dh-backups']);
+ // ADULTAPPS: the Adult mode page shows in the phone apps too (state, Turn off, Open in browser).
+ assert.deepEqual(Array.from(sandbox.nav.settingsPages(),(p:any)=>p.dataset.page),['dh-backups','you-adult']);
  sandbox.nav.clearSettingsSearch();
  assert.equal(nodes['#settings-results'].hidden,true);
  assert.equal(nodes['#settings-results-back'].hidden,true);

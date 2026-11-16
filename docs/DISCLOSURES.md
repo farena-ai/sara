@@ -22,7 +22,7 @@ resources; that feature cannot be turned off.
 
 Sara can engage in romantic and sexual conversation between adults, but only after you turn it
 on. Adult content is **off** until you switch on **Adult mode** (Settings → You → Adult mode, in a
-web browser only: the phone and desktop apps and the demo can't turn it on) and tick "I am 18 or older".
+web browser or the desktop app; the phone apps show the page with an Open in browser button, and the demo can't turn it on) and tick "I am 18 or older".
 Only turn it on if adult content is legal for you where you live. There is **no ID check**: the
 confirmation is your word. Sexual content involving minors is blocked in all cases, including
 fiction and role-play, and that block cannot be turned off. In shared spaces (Telegram groups,

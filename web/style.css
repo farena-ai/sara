@@ -1182,6 +1182,41 @@ p:has(> #dc-status:empty):not(:has(> button:not([hidden]))) { display: none; }
 .mem-evidence.linkish { cursor: pointer; text-decoration: underline dotted; }
 .lib-facts .mem { grid-template-columns: 1fr auto; align-items: center; column-gap: 12px; }
 .lib-facts .mem > .mem-actions { grid-column: 2; grid-row: 1 / span 2; }
+/* S7 (web/doc-studio.js): contracts, proposals and letters in a Library document. */
+.dstu { display: grid; gap: 10px; margin: 12px 0; }
+.dstu > h3 { margin-bottom: 0; }
+.dstu-card { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: grid; gap: 8px; min-width: 0; }
+.dstu-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.dstu-row input[type=checkbox] { width: 18px; height: 18px; margin: 0; }
+.dstu-row select { width: auto; min-width: 10em; margin-left: auto; }
+.dstu-sub { display: flex; align-items: center; gap: 6px; margin: 0; }
+.dstu-form { display: grid; grid-template-columns: minmax(8em, max-content) minmax(0, 1fr); gap: 6px 10px; align-items: center; }
+.dstu-form input { width: 100%; min-width: 0; }
+.dstu-label { font-size: 0.9em; color: var(--muted); overflow-wrap: anywhere; }
+.dstu-made { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.dstu-revs, .dstu-checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 420px; overflow: auto; }
+.dstu-rev, .dstu-check { border-left: 3px solid var(--line); padding: 4px 8px; overflow-wrap: anywhere; }
+.dstu-rev ins { color: var(--success); text-decoration: underline; }
+.dstu-rev del { color: var(--danger); text-decoration: line-through; }
+.dstu-kind { font-size: 0.8em; color: var(--muted); }
+.dstu-ins { border-left-color: var(--success); }
+.dstu-del { border-left-color: var(--danger); }
+.dstu-chg { border-left-color: var(--warn); }
+.dstu-rev ins, .dstu-rev del { overflow-wrap: anywhere; }
+.dstu-card > p:empty, .dstu-card > div:empty { display: none; }
+.dstu-present { border-left-color: var(--success); }
+.dstu-missing { border-left-color: var(--danger); }
+.dstu-unusual { border-left-color: var(--warn); }
+.dstu-chip { display: inline-block; font-size: 0.78em; padding: 1px 7px; border-radius: 999px; background: var(--panel-2); color: var(--text); }
+.dstu-present .dstu-chip { background: var(--success-soft); }
+.dstu-missing .dstu-chip { background: var(--danger-soft); }
+.dstu-unusual .dstu-chip { background: var(--warn-soft); }
+.dstu-quote { margin: 4px 0 0; padding: 0 0 0 8px; border-left: 2px solid var(--line); color: var(--text); font-style: italic; }
+.dstu-banner { margin: 0; padding: 6px 10px; border-radius: 8px; background: var(--warn-soft); color: var(--text); }
+@media (max-width: 560px) {
+  .dstu-form { grid-template-columns: minmax(0, 1fr); }
+  .dstu-row select { margin-left: 0; width: 100%; }
+}
 .msg.user .doc-chip { background: color-mix(in srgb, var(--on-mine) 20%, transparent); border-color: color-mix(in srgb, var(--on-mine) 45%, transparent); color: inherit; }
 .login-help { text-align: left; margin: -4px 0 4px; }
 .login-help summary { cursor: pointer; color: var(--accent); }
@@ -2098,6 +2133,33 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #msgs .msgs-compose-row .msgs-chip { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #msgs .msgs-compose-row > button:last-child { margin-left: auto; }
 #msgs .msgs-settings { margin-top: 12px; }
+/* S9b (web/support.js, docs/SUPPORT_LINK.md): help passes, looks and suggested fixes in a one-to-one chat. */
+#msgs .sup-strip:empty { display: none; }
+#msgs .sup-strip { display: grid; gap: 6px; max-height: 42vh; overflow: auto; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+#msgs .sup-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+#msgs .sup-note { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#msgs .sup-card { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--accent-line); border-radius: 12px; background: var(--accent-soft); }
+#msgs .sup-card > p { margin: 0; }
+#msgs .sup-diff { width: 100%; border-collapse: collapse; font-size: 13px; }
+#msgs .sup-diff :is(th, td) { padding: 4px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+#msgs .sup-diff th { color: var(--text-2); font-weight: 600; white-space: nowrap; }
+#msgs .sup-diff :is(.sup-before, .sup-after) { min-width: 4.5em; }
+#msgs .sup-before { color: var(--text-2); text-decoration: line-through; }
+#msgs .sup-after { color: var(--text-1); font-weight: 600; }
+#msgs .sup-log > summary, #msgs .sup-sec > summary { cursor: pointer; color: var(--text-2); }
+#msgs .sup-log p, #msgs .sup-sec p { margin: 2px 0; overflow-wrap: anywhere; }
+#msgs .sup-hours { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 0; padding: 0; border: 0; }
+#msgs .sup-hours legend { padding: 0; margin-bottom: 4px; }
+#msgs .sup-hour { display: inline-flex; align-items: center; gap: 6px; }
+#msgs .sup-hour input { width: auto; margin: 0; }
+#msgs .sup-text { width: 100%; min-width: 0; resize: vertical; }
+#msgs .sup-val { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+#msgs .sup-val :is(input:not([type=checkbox]), select) { flex: 1 1 160px; min-width: 0; width: auto; }
+#msgs .sup-path { width: 100%; min-width: 0; }
+#msgs .sup-findings { margin: 0; padding-left: 18px; display: grid; gap: 2px; }
+#msgs .sup-problem { color: var(--text-1); font-weight: 600; }
+#msgs .sup-ok { color: var(--text-2); }
+#msgs .sup-logtext { max-height: 220px; overflow: auto; margin: 4px 0 0; padding: 8px; border-radius: 8px; background: var(--surface-1); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 #msgs .msgs-settings > summary { cursor: pointer; color: var(--text-2); font-size: 13px; }
 #msgs .msgs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; font-size: 13px; }
 #msgs .msgs-row .msgs-lab { display: inline-flex; align-items: center; gap: 6px; min-width: 12em; color: var(--text-2); }
