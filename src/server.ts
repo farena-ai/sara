@@ -143,7 +143,7 @@ import { createMemberToolsRoutes } from './routes/member-tools.ts';
 import { createPhoneHelperRoutes } from './routes/phone-helper.ts';
 import { createPhoneRoutes } from './routes/phone.ts';
 import { createShortcutRoutes } from './routes/shortcuts.ts';
-import { waitingCount } from './shortcuts.ts';
+import { badgeCount } from './shortcuts.ts';
 import { phoneMayApprove } from './phone-actions.ts';
 import type { ReportSource, UsageBudgets } from './usage-report.ts';
 import { createModelsRoutes } from './routes/models.ts';
@@ -1115,7 +1115,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   // R4: Apple Shortcuts on an iPhone (Share to Sara, Ask Sara, the widget) with a per-device token.
   const shortcutRoutes = createShortcutRoutes({ ...ctx, ...(opts.shortcutAskBudgetMs ? { askBudgetMs: opts.shortcutAskBudgetMs } : {}), ...(opts.shortcutLinksDir ? { linksDir: opts.shortcutLinksDir } : {}) });
   // R4: the installed web app's badge (iPhone and Android): approvals and inbox cards waiting.
-  if (app.push && !app.push.badge) app.push.badge = () => waitingCount(active, app);
+  if (app.push && !app.push.badge) app.push.badge = () => badgeCount(active, app);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   // R6 (docs/WORK_APPS.md): booking pages and accounting exports (src/routes/booking.ts).
   const bookingPublic = createBookingPublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });

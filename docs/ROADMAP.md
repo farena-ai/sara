@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Fixes in 3.18.1
+
+New one-to-one messages show a clear card at the top of the window that stays until you act, also for
+messages that arrived while Sara was closed. Windows updates now always replace the installed app (a duplicate
+left by an earlier update is removed, keeping your data), and adding a second mailbox can no longer drop the first.
+
 ## Self-repair, friends fixing friends, and quieter communities, in 3.18.0
 
 Sara finds her own problems from health checks and errors and fixes setup issues herself (model services,

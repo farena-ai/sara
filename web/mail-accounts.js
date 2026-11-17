@@ -193,7 +193,8 @@ function otherForm() {
         adding = '';
         preset = '';
         render();
-        status(t('Added. Sara signed in to both servers and sent nothing.'));
+        // HANKFIX: the same address again updates that mailbox; say so (another one needs its own address).
+        status(view.replaced ? t('{address} was already connected, so only its app password changed. To add another mailbox, use Add Gmail (or Add another provider) with that other address and its own app password.', { address: body.address }) : t('Added. Sara signed in to both servers and sent nothing.'));
       } catch (err) {
         reasonLine(out, err, body.preset);
       }

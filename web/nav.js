@@ -98,8 +98,12 @@ function layout() {
 }
 
 function syncDot() {
-  const dot = $('#team-dot');
-  $('#more-dot').hidden = !dot || dot.hidden || !$('#side-more-list').contains(dot);
+  // MSGPOP: unread Messages light More too (Messages lives in More unless pinned).
+  const more = $('#side-more-list');
+  $('#more-dot').hidden = !['#team-dot', '#msgs-dot'].some((id) => {
+    const dot = $(id);
+    return dot && !dot.hidden && more?.contains(dot);
+  });
 }
 
 const menu = () => $('#side-more-menu');
@@ -154,8 +158,10 @@ export function initNav() {
     items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
   });
   // The team's "working" dot also shows on More while Team is in there.
-  const dot = $('#team-dot');
-  if (dot) new MutationObserver(syncDot).observe(dot, { attributes: true, attributeFilter: ['hidden'] });
+  for (const id of ['#team-dot', '#msgs-dot']) {
+    const dot = $(id);
+    if (dot) new MutationObserver(syncDot).observe(dot, { attributes: true, attributeFilter: ['hidden'] });
+  }
   // The place whose window is open is marked in the list.
   const mark = () => {
     for (const [dest, id] of Object.entries(DIALOG)) document.querySelector(`#open-${dest}`)?.classList.toggle('is-open', Boolean(document.getElementById(id)?.open));

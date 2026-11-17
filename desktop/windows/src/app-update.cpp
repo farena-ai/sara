@@ -875,8 +875,9 @@ int runWatcher() {
     return std::wstring(b);
   };
   std::wstring server = sara(L"server"), lastServer = sara(L"lastServer"), pairNext = sara(L"pairNext");
-  // 4. Setup, silently, the app only (as it was installed), for the same server.
-  std::wstring args = L"\"" + installer + L"\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /MODE=remote /LOG=\"" + o.dataDir + L"\\updates\\install.log\"";
+  // 4. Setup, silently, the app only (as it was installed), for the same server. HANKFIX: always for this
+  //    user, said out loud (the app only is never an all-users install), so it replaces this install.
+  std::wstring args = L"\"" + installer + L"\" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /MODE=remote /CURRENTUSER /LOG=\"" + o.dataDir + L"\\updates\\install.log\"";
   if (server.empty()) {
     if (lastServer.empty()) return finish(false, 0, L"this app has no server address for Setup");
     args += L" /SERVER=\"" + lastServer + L"\"";

@@ -5,6 +5,30 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.18.1 (2026-11-17): message notices you can't miss, one Windows install, second mailboxes kept
+
+- Changed: **new one-to-one messages are hard to miss.** A clean card now appears at the top centre of the
+  window, in front of whatever you're doing (Today, Settings, a chat): who wrote, two lines of the
+  message, **Open** and **Later**. It stays until you choose, never takes your typing focus, and several
+  people stack into one card ("New messages from Hank and 2 others"). Messages that arrived while Sara was
+  closed, minimized or reconnecting get the card too when you come back; Later is remembered, a new
+  message brings it back. The sidebar shows the unread count (More shows a dot while Messages is in it),
+  the tab title starts with "(2) ", and the installed app's badge counts them. Communities stay quiet
+  (mentions use the same card). The old 8-second corner popup is gone.
+- Fixed: **Sara is listed once in Settings → Apps after an update or reinstall.** Every update (Settings →
+  Updates, the service's update task, the app's own update) runs Setup in the scope of the install that
+  is already there (all users or just you). A downloaded Sara.exe no longer adds a second entry next to
+  Setup's, and Setup takes over the old self-installed entry wherever it pointed. If Sara is listed twice
+  anyway, the app removes the copy that isn't running when it starts (her data stays) and says so in one
+  line; an all-users copy needs an administrator, so it tells you where to remove it.
+- Fixed: the Windows app's own update no longer stalls when your Sara doesn't answer at that moment
+  (Setup asked a question nobody could see).
+- Fixed: **adding a second Gmail (or any) mailbox never replaces the first.** Sara's vault now reads
+  changes another copy of it wrote before it saves, so an older copy can't write back an old list of
+  mailboxes. Adding the same address again updates that mailbox in place (same entry, default and
+  calendar choices kept) and says so, with how to add a different one. If a mailbox went missing
+  earlier, add it again with *Add Gmail* and its own app password.
+
 ## 3.18.0 (2026-11-16): self-repair, friends fixing friends, quieter communities
 
 - Added: **a friend's Sara can fix things on your server when you ask.** Say "I can't get X working, can

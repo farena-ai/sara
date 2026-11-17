@@ -6,10 +6,87 @@
 // new version doesn't come up within the time limit puts the previous one back (the previous
 // installer on Windows, the kept app copy on macOS). The outcome lands in plan.resultFile, which
 // Sara reads when she starts again. Node built-ins only: this file is copied and run alone.
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+// ---------- HANKFIX: one Sara in Settings → Apps (src/install-scope.ts re-exports this; this file runs alone) ----------
+// Setup (Inno, desktop/windows/installer/sara.iss) installs for all users (the service, HKLM) or for
+// this user (the app only, or her server while signed in, HKCU) under one AppId; very old apps also
+// listed themselves as "SaraDesktop" (HKCU). An update or reinstall must land on the install that is
+// there: the scope comes from the install that owns the app folder. When two are listed anyway, the
+// one not running is the stale one (desktop/windows/src/main.cpp removeDuplicateInstalls does the same).
+
+/** The release AppId (sara.iss [Setup] AppId; the TestInstall build has its own). */
+export const SARA_APP_ID = '6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17';
+export const UNINSTALL_KEY = 'Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall';
+export const STANDALONE_KEY = `${UNINSTALL_KEY}\\SaraDesktop`;
+
+export type InstallScope = 'all' | 'user';
+export interface InstallEntry {
+  scope: InstallScope;
+  /** 'setup': Sara-Setup.exe (Inno); 'standalone': a Sara.exe that listed itself (SaraDesktop). */
+  kind: 'setup' | 'standalone';
+  location: string;
+  uninstall?: string;
+  version?: string;
+}
+/** How a stale install goes: its uninstaller (silent, data kept), an administrator (all users), only its Apps entry, or its entry and its copy of Sara.exe. */
+export interface Duplicate {
+  entry: InstallEntry;
+  how: 'uninstall' | 'admin' | 'entry' | 'files';
+}
+
+const norm = (p: string): string => p.trim().replace(/^"|"$/g, '').replace(/[\\/]+$/, '').replace(/\//g, '\\').toLowerCase();
+const same = (a: string, b: string): boolean => Boolean(a) && norm(a) === norm(b);
+
+/** Reads one `reg query <key>` answer (empty or an error: nothing installed there). */
+function parseReg(out: string, scope: InstallScope, kind: InstallEntry['kind']): InstallEntry | undefined {
+  const v = (name: string) => new RegExp(`^\\s*${name}\\s+REG_(?:EXPAND_)?SZ\\s+(.*?)\\s*$`, 'mi').exec(out)?.[1];
+  const location = v('InstallLocation');
+  if (!location) return undefined;
+  const uninstall = v('UninstallString');
+  const version = v('DisplayVersion');
+  return { scope, kind, location: location.replace(/[\\/]+$/, ''), ...(uninstall ? { uninstall } : {}), ...(version ? { version } : {}) };
+}
+
+/** Every Sara install listed in Settings → Apps (all users first). */
+export function installsFromReg(o: { hklm: string; hkcu: string; standalone: string }): InstallEntry[] {
+  return [parseReg(o.hklm, 'all', 'setup'), parseReg(o.hkcu, 'user', 'setup'), parseReg(o.standalone, 'user', 'standalone')].filter((x): x is InstallEntry => Boolean(x));
+}
+
+/** This computer's Sara installs (Windows; elsewhere none). */
+export function readInstalls(appId = SARA_APP_ID): InstallEntry[] {
+  if (process.platform !== 'win32') return [];
+  const q = (key: string) => {
+    try {
+      return execFileSync('reg.exe', ['query', key, '/reg:64'], { encoding: 'utf8', windowsHide: true, timeout: 10_000, stdio: ['ignore', 'pipe', 'ignore'] });
+    } catch {
+      return '';
+    }
+  };
+  return installsFromReg({ hklm: q(`HKLM\\${UNINSTALL_KEY}\\{${appId}}_is1`), hkcu: q(`HKCU\\${UNINSTALL_KEY}\\{${appId}}_is1`), standalone: q(`HKCU\\${STANDALONE_KEY}`) });
+}
+
+/** The scope Setup must run in to replace the install in `appDir` (undefined: no Setup install there). */
+export function scopeFor(entries: InstallEntry[], appDir: string): InstallScope | undefined {
+  const setups = entries.filter((e) => e.kind === 'setup');
+  // Only the install in that very folder decides (a folder Setup doesn't own: the caller's default).
+  return setups.find((e) => same(e.location, appDir))?.scope;
+}
+
+/** The stale installs next to the one running from `runningDir` (none when Sara runs from neither). */
+export function duplicateInstalls(entries: InstallEntry[], runningDir: string): Duplicate[] {
+  const setups = entries.filter((e) => e.kind === 'setup');
+  const live = setups.find((e) => same(e.location, runningDir));
+  const out: Duplicate[] = [];
+  if (live) for (const e of setups) if (e !== live) out.push({ entry: e, how: e.scope === 'all' ? 'admin' : 'uninstall' });
+  // The old self-installed entry: never needed once Setup owns Sara.
+  if (setups.length)
+    for (const e of entries.filter((x) => x.kind === 'standalone')) out.push({ entry: e, how: setups.some((s) => same(s.location, e.location)) || same(e.location, runningDir) ? 'entry' : 'files' });
+  return out;
+}
 
 export interface UpdatePlan {
   platform: 'win32' | 'darwin';
@@ -72,10 +149,12 @@ function versionIn(file: string): string {
   }
 }
 
-/** Windows: the Inno Setup installer, silent, for the signed-in user (the per-user install) or, from the service's update task, for all users. */
-export function windowsDriver(plan: Pick<UpdatePlan, 'appDir' | 'port' | 'resultFile'>, run: Run = realRun, scope: 'user' | 'all' = 'user'): UpdateDriver {
+/** Windows: the Inno Setup installer, silent, for the signed-in user (the per-user install) or, from the service's update task, for all users.
+ *  HANKFIX: without a scope given, the scope of the install that owns `appDir` (never the other one: that would list Sara twice). */
+export function windowsDriver(plan: Pick<UpdatePlan, 'appDir' | 'port' | 'resultFile'>, run: Run = realRun, scope?: InstallScope, installs: () => InstallEntry[] = readInstalls): UpdateDriver {
   const go = async (file: string) => {
-    await run(file, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ...(scope === 'all' ? ['/ALLUSERS', '/MODE=service'] : ['/CURRENTUSER']), `/LOG=${join(dirname(plan.resultFile), `install-${basename(file)}.log`)}`]);
+    const s = scope ?? scopeFor(installs(), plan.appDir) ?? 'user';
+    await run(file, ['/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', ...(s === 'all' ? ['/ALLUSERS', '/MODE=service'] : ['/CURRENTUSER']), `/LOG=${join(dirname(plan.resultFile), `install-${basename(file)}.log`)}`]);
   };
   return {
     install: go,

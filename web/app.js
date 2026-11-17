@@ -50,7 +50,7 @@ import { loadMeetingPrefs, openMeetingsView, renderMeetingsTile } from './meetin
 import { initTrips, loadTrips, openTrips, renderTripsTile } from './trips.js';
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
 import { initFamily, loadFamily, openFamily, renderFamilyTile } from './family.js';
-import { initMessages, messagesChanged, openMessages, refreshMessagesBadge } from './messages.js';
+import { initMessages, messagesChanged, messagesReconnected, openMessages, refreshMessagesBadge } from './messages.js';
 import { initInboxHelper, loadInboxHelper, renderInboxTile } from './inbox-helper.js';
 import { initWorkApps, loadWorkApps } from './workapps.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
@@ -7421,6 +7421,8 @@ function startEvents() {
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
   // S9a: a private-messages chat changed (its id only).
   es.addEventListener('pm', (e) => (({ chat, notice }) => messagesChanged(chat, notice))(JSON.parse(e.data)));
+  // MSGPOP: (re)connected: messages that came while the stream was down get the notice card.
+  es.addEventListener('open', () => messagesReconnected());
   // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
   es.addEventListener('today', (e) => {
     const part = JSON.parse(e.data).part;
@@ -12467,6 +12469,7 @@ initMessages({
   api,
   el,
   notify: (title, body) => notify(title, body),
+  badge: () => void refreshBadge(),
   askHer: async (text) => {
     $('#msgs').close();
     await newConversation();

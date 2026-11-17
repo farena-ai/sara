@@ -162,6 +162,35 @@ updated it, so an app could stay on an old version for months while its server m
   public key); release builds don't contain these. `test/app-update-native.test.ts` checks the
   native notice check against notices Node signed (build `desktop/windows/build-test` first).
 
+## One Sara in Settings → Apps (3.18.x, HANKFIX)
+
+An update or reinstall always lands on the install that is already there; Sara never ends up listed
+twice.
+
+- **Which install:** Setup installs for all users (the service: `HKLM\…\Uninstall\{AppId}_is1`,
+  `C:\Program Files\Sara`) or for this user (the app only, or her server while signed in: the same key
+  under `HKCU`, `%LOCALAPPDATA%\Programs\Sara`). Very old apps listed themselves as `SaraDesktop`
+  (HKCU) too.
+- **Every launcher names the scope.** The server's update runner (`src/update-apply.ts`) takes the scope
+  of the install that owns its app folder (`scopeFor`, from `reg query`) and passes `/ALLUSERS /MODE=service`
+  or `/CURRENTUSER`; the service's update task says `all` itself. The app-only self-update
+  (`app-update.cpp`) passes `/MODE=remote /CURRENTUSER`. A manual run of the downloaded Setup keeps the
+  scope that is there: a silent run on a service PC starts again elevated as the service, and a run in
+  the other scope stops with *Uninstall that first* (`PrepareToInstall`), as before.
+- **No second entry from a downloaded Sara.exe:** the app only installs itself (`installIfNeeded`) when
+  Setup hasn't installed Sara (`setupInstalled`). Setup removes an old `SaraDesktop` entry wherever it
+  pointed (and its `Sara.exe` when that was in another folder).
+- **Cleanup on start** (`removeDuplicateInstalls` in `main.cpp`; `duplicateInstalls` in
+  `src/update-apply.ts` is the same rule, unit-tested): when the release (or the TestInstall) AppId is
+  listed in both scopes, the copy that isn't running is stale. A per-user stale copy is removed silently
+  with its own uninstaller and `/KEEPDATA` (her data, the app's sign-in and the running app stay; no
+  firewall/Tailscale changes); an all-users stale copy needs an administrator, so the person is told once,
+  in one line, to remove it in Settings → Apps. A stale `SaraDesktop` entry is removed. One toast says
+  what happened. A copy that runs from neither folder (portable) changes nothing.
+- **Tests:** `test/hankfix-install.test.ts` (registry parsing, scope choice, duplicate detection, the
+  launchers' switches); no real installs in tests. A live check uses only the TestInstall build
+  (`SARA_TEST_INSTALL=1`, AppId `8C1D7E52…`, *Sara update test*), never the real Sara on the PC.
+
 ## Private: everything on this computer (Phase 67)
 
 In *Run Sara on this computer* mode both installers ask one more thing: **Private: everything on

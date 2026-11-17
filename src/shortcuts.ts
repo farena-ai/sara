@@ -65,6 +65,17 @@ export function waitingCount(active: ReadonlyMap<string, { approvals: ReadonlyMa
   return n;
 }
 
+/** MSGPOP: the installed app's badge: what waits for an OK plus unread Messages (one-to-one, mentions). */
+export function badgeCount(active: ReadonlyMap<string, { approvals: ReadonlyMap<string, unknown> }>, app: Pick<AppContext, 'inbox' | 'messages'>): number {
+  let n = waitingCount(active, app);
+  try {
+    n += app.messages?.unread() ?? 0;
+  } catch {
+    /* Messages closed */
+  }
+  return n;
+}
+
 const LINES = {
   next: en('Next: {text}, {when}'),
   nothing: en('Nothing coming up.'),

@@ -3,7 +3,7 @@
 // EC10: an entry may hold a reference to an external source (src/secret-sources.ts); get() returns
 // the resolved value, which stays in memory only (never written back here).
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, readFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, statSync } from 'node:fs';
 import { audit } from './audit-trail.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { join, resolve } from 'node:path';
@@ -45,11 +45,36 @@ export class Vault {
   readonly #dir: string;
   readonly #key: Buffer;
   #data: Record<string, string>;
+  /** HANKFIX: the file as last read or written here (another copy's write is read before ours). */
+  #stamp = '';
 
   constructor(dataDir: string, masterKeyEnv?: string) {
     this.#dir = dataDir;
     this.#key = Vault.#loadKey(dataDir, masterKeyEnv);
     this.#data = this.#read();
+    this.#stamp = this.#fileStamp();
+  }
+
+  #fileStamp(): string {
+    try {
+      const st = statSync(join(this.#dir, FILE), { bigint: true });
+      return `${st.mtimeNs}:${st.size}:${st.ino}`;
+    } catch {
+      return '';
+    }
+  }
+  /** HANKFIX: another copy of this vault (another process, or an instance opened earlier) wrote the
+   *  file since: read it again, so a change here never writes back an old list (a second Gmail
+   *  account replacing the first). */
+  #fresh(): void {
+    const now = this.#fileStamp();
+    if (now === this.#stamp) return;
+    try {
+      this.#data = this.#read();
+      this.#stamp = now;
+    } catch {
+      /* half-written or another key: keep what we have */
+    }
   }
 
   static #loadKey(dir: string, env?: string): Buffer {
@@ -94,6 +119,7 @@ export class Vault {
     const out = Buffer.concat([iv, c.getAuthTag(), enc]);
     const path = join(this.#dir, FILE);
     writeFileAtomic(path, out, 0o600);
+    this.#stamp = this.#fileStamp();
   }
 
   /** Authenticated recovery payload; deliberately excluded from stored secret values. */
@@ -117,6 +143,7 @@ export class Vault {
   }
 
   get(name: string): string | undefined {
+    this.#fresh();
     const v = this.#data[name];
     if (v === undefined || !v.startsWith(REF_PREFIX)) return v;
     const refs = parseReference(v.slice(REF_PREFIX.length));
@@ -141,6 +168,7 @@ export class Vault {
 
   /** Every secret value (for redaction): stored values and the resolved values of references. */
   values(): string[] {
+    this.#fresh();
     return [...Object.values(this.#data).filter((v) => !v.startsWith(REF_PREFIX)), ...sources().values()];
   }
 
@@ -213,6 +241,7 @@ export class Vault {
   }
 
   has(name: string): boolean {
+    this.#fresh();
     return name in this.#data;
   }
 
@@ -221,6 +250,7 @@ export class Vault {
     const refs = parseReference(value);
     // EC5 pin: server keys only from external sources (a pasted key is refused; Sara's own secrets are not affected).
     if (!refs && SERVER_SECRET.test(name) && policy().pins.externalSecrets) throw policy().refusal('externalSecrets');
+    this.#fresh();
     const before = kindOf(this.#data[name]);
     this.#data[name] = refs ? REF_PREFIX + refs.map((r) => r.raw).join(' | ') : value;
     this.#write();
@@ -235,6 +265,7 @@ export class Vault {
   }
 
   delete(name: string): void {
+    this.#fresh();
     if (!(name in this.#data)) return;
     const before = kindOf(this.#data[name]);
     delete this.#data[name];

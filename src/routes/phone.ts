@@ -11,7 +11,7 @@ import { HttpError, readJson, readRaw, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
 import { SUPPORTED } from '../library/read.ts';
 import { ACT_LINES, ACT_PREFIX, ActError, parseMultipart, phoneMayApprove, sharePrefill, SNOOZE_MS, type ActClaims } from '../phone-actions.ts';
-import { waitingCount } from '../shortcuts.ts';
+import { badgeCount } from '../shortcuts.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export const SHARE_MAX_BYTES = 40 * 1024 * 1024;
@@ -120,7 +120,7 @@ export function createPhoneRoutes(ctx: RouteCtx): { publicRoutes: RouteHandler; 
   const routes: RouteHandler = async (req, res, method, parts) => {
     const [a, b] = parts;
     // R4: the installed web app's badge (navigator.setAppBadge): approvals and inbox cards waiting.
-    if (a === 'phone' && b === 'badge' && method === 'GET') return send(res, 200, { count: ctx.opts.demo ? 0 : waitingCount(active, app) });
+    if (a === 'phone' && b === 'badge' && method === 'GET') return send(res, 200, { count: ctx.opts.demo ? 0 : badgeCount(active, app) });
     if (a !== 'phone' || b !== 'share' || method !== 'POST') return NEXT;
     if (ctx.opts.demo) throw new HttpError(403, 'Not on the demo.');
     return share(req, res);

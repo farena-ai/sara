@@ -583,7 +583,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
             await provider.testSmtp();
             const info = accts.saveImap({ ...tried, id: draft.info.id }, draft.password);
             forget();
-            return send(res, 200, { ...view(), added: info.id, text });
+            return send(res, 200, { ...view(), added: info.id, ...(info.replaced ? { replaced: true } : {}), text });
           } catch (err) {
             last = (err as Error).message;
           }

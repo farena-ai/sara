@@ -143,6 +143,8 @@ const
   GUIDE_URL = 'https://github.com/farena-ai/sara/blob/main/docs/INSTALL.md#2-reach-her-securely-https';
   APP_KEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{{#AppGuid}}_is1';
   RUN_KEY = 'Software\Microsoft\Windows\CurrentVersion\Run';
+  // HANKFIX: the entry a very old self-installed Sara.exe made (a second "Sara" in Settings → Apps).
+  STANDALONE_KEY = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SaraDesktop';
 
 function SetEnvironmentVariable(lpName, lpValue: String): BOOL;
   external 'SetEnvironmentVariableW@kernel32.dll stdcall';
@@ -839,7 +841,9 @@ begin
       Result := False;
     end else begin
       RemotePage.Values[0] := D;
-      if not HttpOk(D + '/api/health') then
+      // HANKFIX: never asked in a silent run (the app's own update, Setup /VERYSILENT): a Sara that is
+      // briefly down must not leave Setup waiting on a question nobody sees.
+      if not WizardSilent and not HttpOk(D + '/api/health') then
         Result := MsgBox(D + ' isn''t answering right now.' + #13#10#13#10 + 'Use this address anyway? (Check it, or whether that Sara is running. You can change it later from her icon next to the clock: Connect to a different Sara…)', mbConfirmation, MB_YESNO) = IDYES;
     end;
   end;
@@ -1056,10 +1060,17 @@ end;
 procedure TakeOverStandaloneApp(const App: String);
 var Loc: String;
 begin
-  // A Sara.exe that installed itself into this same folder: this installer owns it now.
-  if RegQueryStringValue(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SaraDesktop', 'InstallLocation', Loc) and
-     (CompareText(RemoveBackslashUnlessRoot(Loc), RemoveBackslashUnlessRoot(App)) = 0) then
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\SaraDesktop');
+  // A Sara.exe that installed itself: this installer owns Sara now. HANKFIX: its entry goes wherever
+  // it pointed (one Sara in Settings → Apps), and its copy of Sara.exe too when that is elsewhere.
+#ifdef TestInstall
+  // The update test never touches a real Sara's entry on this PC.
+  exit;
+#endif
+  if not RegQueryStringValue(HKCU, STANDALONE_KEY, 'InstallLocation', Loc) then exit;
+  if (Loc <> '') and (CompareText(RemoveBackslashUnlessRoot(Loc), RemoveBackslashUnlessRoot(App)) <> 0) then
+    DeleteFile(AddBackslash(Loc) + 'Sara.exe');
+  RegDeleteKeyIncludingSubkeys(HKCU, STANDALONE_KEY);
+  Log('Removed the old SaraDesktop entry (' + Loc + ')');
 end;
 
 /// Remote mode: the app's server address, so its first start goes straight to pairing. A new
@@ -1202,6 +1213,9 @@ begin
 end;
 
 // ---------- uninstall ----------
+var
+  KeepData: Boolean;
+
 /// The app only (connected to a Sara somewhere else): no server, no data here.
 function UninstallingAppOnly: Boolean;
 var App: String;
@@ -1215,6 +1229,10 @@ var Form: TSetupForm; Box: TNewCheckBox; Msg: TNewStaticText; OkB, CancelB: TNew
 begin
   Result := True;
   DeleteData := (ExpandConstant('{param:DELETEDATA|0}') = '1') and not UninstallingAppOnly;
+  // HANKFIX: a duplicate removed by the running app (silent): her data, the app's sign-in and the
+  // running app stay; only this copy's files and entry go.
+  KeepData := HasSwitch('/KEEPDATA');
+  if KeepData then DeleteData := False;
   if UninstallSilent then exit;
   Form := CreateCustomForm(ScaleX(420), ScaleY(170), False, True);
   try
@@ -1275,7 +1293,7 @@ begin
   App := ExpandConstant('{app}');
   if CurUninstallStep = usUninstall then begin
     UninstData := EnvValue(App + '\sara.env', 'SARA_DATA');
-    CloseDesktopApp;
+    if not KeepData then CloseDesktopApp;
     if DeleteData and (UninstData <> '') and DirExists(UninstData) then begin
       Backup := ExpandConstant('{userdesktop}') + '\Sara-last-backup-' + GetDateTimeString('yyyymmdd-hhnnss', '-', ':') + '.tar.gz';
       if RunServerFlag(App, '--backup ' + Q(Backup), O) <> 0 then begin
@@ -1286,7 +1304,7 @@ begin
     end;
     if not UninstallingAppOnly then begin
       // Out of Tailscale serve and the firewall (Tailscale itself stays), then stop and remove her.
-      if FileExists(App + '\node\node.exe') then
+      if FileExists(App + '\node\node.exe') and not KeepData then
         Run(App + '\node\node.exe', '--disable-warning=ExperimentalWarning ' + Q(App + '\server\src\sara-windows.ts') + ' unconfigure', App + '\server', O);
       if FileExists(App + '\SaraService.exe') then begin
         Run(App + '\SaraService.exe', '--stop', App, O);
@@ -1301,7 +1319,8 @@ begin
   if CurUninstallStep = usPostUninstall then begin
     // The app's "Start with Windows" entry (when it points at this copy).
     if RegQueryStringValue(HKCU, RUN_KEY, 'Sara', O) and (Pos(Uppercase(App), Uppercase(O)) > 0) then RegDeleteValue(HKCU, RUN_KEY, 'Sara');
-    // The app's own files on this computer (its sign-in, window place).
+    // The app's own files on this computer (its sign-in, window place); kept for the running copy.
+    if KeepData then exit;
     DeleteFile(ExpandConstant('{#AppData}\desktop.ini'));
     DeleteFile(ExpandConstant('{#AppData}\desktop.log'));
     DelTree(ExpandConstant('{#AppData}\WebView'), True, True, True);

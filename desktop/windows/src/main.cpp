@@ -3534,6 +3534,77 @@ static DWORD testNumber(const wchar_t* name, DWORD def) {
 #endif
   return def;
 }
+// ---------- HANKFIX: one Sara in Settings → Apps (src/install-scope.ts is the same logic for the server) ----------
+// Setup's AppIds: the release and the update test build (a test install never touches the real one).
+static const wchar_t* kSetupIds[] = {L"{6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17}_is1", L"{8C1D7E52-3F0A-4B6E-9D21-5A7B3C9E0F64}_is1"};
+static const wchar_t* kUninstallRoot = L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\";
+static std::wstring regText(HKEY root, const std::wstring& key, const wchar_t* name) {
+  wchar_t v[2048] = L"";
+  DWORD n = sizeof(v);
+  if (RegGetValueW(root, key.c_str(), name, RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ, nullptr, v, &n) != ERROR_SUCCESS) return L"";
+  return v;
+}
+static std::wstring normDir(std::wstring p) {
+  while (!p.empty() && (p.back() == L'\\' || p.back() == L'/')) p.pop_back();
+  for (auto& c : p) c = (wchar_t)towlower(c == L'/' ? L'\\' : c);
+  return p;
+}
+/** Sara-Setup.exe installed Sara on this computer (for this user or for all users). */
+static bool setupInstalled() {
+  for (auto id : kSetupIds)
+    for (HKEY root : {HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE})
+      if (!regText(root, std::wstring(kUninstallRoot) + id, L"InstallLocation").empty()) return true;
+  return false;
+}
+/** On start: Sara listed twice (Setup for all users and for this user, or the old self-installed
+ *  SaraDesktop entry next to Setup's) loses the copy that isn't running, silently and keeping her
+ *  data (/KEEPDATA). An all-users copy needs an administrator: the person is told once, in one line. */
+static void removeDuplicateInstalls() {
+  const std::wstring here = normDir(exeDir());
+  std::wstring said;
+  for (auto id : kSetupIds) {
+    const std::wstring key = std::wstring(kUninstallRoot) + id;
+    struct E { HKEY root; std::wstring loc, unins, ver; };
+    std::vector<E> list;
+    for (HKEY root : {HKEY_LOCAL_MACHINE, HKEY_CURRENT_USER}) {
+      std::wstring loc = regText(root, key, L"InstallLocation");
+      if (!loc.empty()) list.push_back({root, loc, regText(root, key, L"UninstallString"), regText(root, key, L"DisplayVersion")});
+    }
+    bool live = false;
+    for (auto& e : list) live = live || normDir(e.loc) == here;
+    if (!live) continue;  // this copy isn't one of this AppId's installs (a portable copy, the other build)
+    for (auto& e : list) {
+      if (normDir(e.loc) == here) continue;
+      if (e.root == HKEY_LOCAL_MACHINE) {
+        if (getPref(L"duplicateTold") == normDir(e.loc)) continue;
+        setPref(L"duplicateTold", normDir(e.loc));
+        said = L"An older copy of Sara for all users (" + e.ver + L") is still in Settings \u2192 Apps. Remove it there as an administrator; her data stays.";
+        logLine(L"duplicate install (all users) at " + e.loc + L": told the person");
+        continue;
+      }
+      std::wstring unins = e.unins;
+      if (unins.size() > 1 && unins.front() == L'"') unins = unins.substr(1, unins.find(L'"', 1) - 1);
+      if (unins.empty() || !fileExists(unins)) continue;
+      std::wstring args = L"/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /KEEPDATA";
+      ShellExecuteW(nullptr, L"open", unins.c_str(), args.c_str(), nullptr, SW_HIDE);
+      said = L"Sara was listed twice in Settings \u2192 Apps; the older copy (" + e.ver + L") is being removed. Her data stays.";
+      logLine(L"duplicate install (this user) at " + e.loc + L": removing it");
+    }
+    // The old self-installed entry (release only): Setup owns Sara now.
+    if (id != kSetupIds[0]) continue;
+    const std::wstring sd = std::wstring(kUninstallRoot) + L"SaraDesktop";
+    std::wstring loc = regText(HKEY_CURRENT_USER, sd, L"InstallLocation");
+    if (loc.empty()) continue;
+    bool owned = normDir(loc) == here;
+    for (auto& e : list) owned = owned || normDir(e.loc) == normDir(loc);
+    if (!owned) DeleteFileW((loc + L"\\Sara.exe").c_str());
+    RegDeleteTreeW(HKEY_CURRENT_USER, sd.c_str());
+    logLine(L"removed the old SaraDesktop entry (" + loc + L")");
+    if (said.empty()) said = L"Sara was listed twice in Settings \u2192 Apps; the older entry is removed. Her data stays.";
+  }
+  if (!said.empty()) notifyPlain(L"One Sara again", said);
+}
+
 static void initUpdates() {
   saraupdate::Options o;
   o.version = kVersion;
@@ -3552,6 +3623,7 @@ static void initUpdates() {
   if (GetEnvironmentVariableW(L"SARA_UPDATE_KEY", b, 2048) > 0) o.keys = {{"test", toUtf8(b)}};
 #endif
   saraupdate::init(o);
+  removeDuplicateInstalls();  // HANKFIX: a copy that isn't one of Setup's installs changes nothing
   bool ok = false;
   std::wstring result = saraupdate::takeResult(ok);
   if (!result.empty()) {
@@ -4656,7 +4728,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
     return 0;
   }
   CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
-  if (!portable && !installedBySetup() && installIfNeeded()) {
+  // HANKFIX: a downloaded Sara.exe never lists a second Sara next to the one Setup installed.
+  if (!portable && !installedBySetup() && !setupInstalled() && installIfNeeded()) {
     CloseHandle(single);
     return 0;
   }

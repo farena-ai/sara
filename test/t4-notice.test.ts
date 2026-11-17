@@ -166,9 +166,7 @@ test('T4: wording, popup card, quiet indicator and settings rows in the page', (
   // The code expires; the link does not.
   assert.ok(js.includes("t('This code works once, for 30 minutes. Once you’re linked, you stay linked until either of you unlinks.')"));
   assert.ok(js.includes("t('Linked since {date}'"));
-  // The popup: body-level, polite live region, auto-hide 8 s, max 3, never takes focus.
-  assert.match(js, /POP_MS = 8000/);
-  assert.match(js, /POP_MAX = 3/);
+  // The popup: body-level, polite live region, never takes focus (MSGPOP: one top card, no auto-hide).
   assert.match(js, /aria-live', 'polite'/);
   const pop = js.slice(js.indexOf('function showPopup'), js.indexOf('// end popup'));
   assert.ok(pop.length > 100, 'showPopup exists');

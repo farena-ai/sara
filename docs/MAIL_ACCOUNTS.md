@@ -15,6 +15,10 @@ brings: **Mail ✓** and **Calendar ✓**.
   Docs/Sheets if you allow them). The first one keeps working exactly as before. Signing in again
   with an address that is already there just renews that sign-in. Up to 10 Google accounts.
 - **Outlook / Microsoft 365**: *Add Outlook or Microsoft 365* as many times as you like.
+- **More Gmail mailboxes with app passwords**: *Add Gmail* once per address, each with the app
+  password made in that Google account. Every one is added next to the others. Adding an address
+  that is already there only updates its app password (Sara says so); it never replaces another
+  mailbox. If a mailbox you added is missing from the list, add it again the same way.
 - **Other providers** (Yahoo, iCloud, Fastmail, Zoho, GMX…): *Add another provider*, with an app
   password.
 - **Remove** takes one account away (its sign-in is deleted; at Google it is revoked). The others stay.

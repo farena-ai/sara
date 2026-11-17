@@ -18732,5 +18732,10 @@
 "{name}’s fix plan: {done} of {all} steps done": "Piano di riparazione di {name}: {done} passi su {all} fatti",
 "Your fix plan for {name}: {done} of {all} steps done": "Il tuo piano di riparazione per {name}: {done} passi su {all} fatti",
 "You can undo each step in Messages.": "Puoi annullare ogni passo in Messaggi.",
-"by {name}’s Sara (fix pass)": "dalla Sara di {name} (pass di riparazione)"
+"by {name}’s Sara (fix pass)": "dalla Sara di {name} (pass di riparazione)",
+"You were mentioned in {name}": "Ti hanno menzionato in {name}",
+"New message from {name}": "Nuovo messaggio da {name}",
+"New messages from {name} and 1 other": "Nuovi messaggi da {name} e 1 altra persona",
+"New messages from {name} and {n} others": "Nuovi messaggi da {name} e altre {n} persone",
+"{address} was already connected, so only its app password changed. To add another mailbox, use Add Gmail (or Add another provider) with that other address and its own app password.": "{address} era già collegata, quindi è cambiata solo la sua password per le app. Per aggiungere un’altra casella, usa Aggiungi Gmail (o Aggiungi un altro provider) con quell’altro indirizzo e la sua password per le app."
 }

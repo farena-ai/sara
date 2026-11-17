@@ -221,16 +221,22 @@ export class MailAccounts {
     return { info, password, provider, users };
   }
 
-  saveImap(info: Stored, password: string): MailAccountInfo {
+  /** Saves a checked IMAP account. HANKFIX: the same address again updates that account in place
+   *  (its id, added date, default and calendar choices stay; `replaced` says so); any other address
+   *  is added next to the others. */
+  saveImap(info: Stored, password: string): MailAccountInfo & { replaced?: true } {
     this.#assertOn();
-    const list = this.#stored().filter((x) => !(x.kind === 'imap' && x.address === info.address));
-    this.#vault.set(imapPasswordVault(info.id), password);
-    this.#save([...list, info]);
-    this.#providers.delete(info.id);
+    const all = this.#stored();
+    const old = all.find((x) => x.kind === 'imap' && x.address.toLowerCase() === info.address.toLowerCase());
+    const saved: Stored = old ? { ...info, id: old.id, addedAt: old.addedAt, calendar: old.calendar, ...(old.caldav ? { caldav: old.caldav } : {}) } : info;
+    this.#vault.set(imapPasswordVault(saved.id), password);
+    this.#save(old ? all.map((x) => (x.id === old.id ? saved : x)) : [...all, saved]);
+    this.#providers.delete(saved.id);
     this.#changed();
-    const { imap: _i, ...pub } = info;
+    const { imap: _i, caldav: _c, ...pub } = saved;
     void _i;
-    return pub;
+    void _c;
+    return old ? { ...pub, replaced: true } : pub;
   }
 
   /** Removes an account and its secrets (Google: use the Google page). */

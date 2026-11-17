@@ -3,6 +3,7 @@
 // when the owner presses "Ask Sara about this" (it opens a new chat with the text in the box, unsent).
 import { t } from './naming.js';
 import { initSupport, loadSupport, supportRows, supportStrip } from './support.js';
+import { addNotice, countText, noticeCount, noticeTitle, parseShown, pendingNotices, remember, withCount } from './msg-notice.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, notify?: (title: string, body: string) => void, askHer?: (text: string) => void, confirm?: (text: string) => Promise<boolean> } | null} */
 let ctx = null;
@@ -14,8 +15,11 @@ let lastUnread = -1;
 let reloadTimer = 0;
 // T4: the last settings seen (popup, sound), so a notice needs no extra request for them.
 let prefs = { popup: true, sound: false, communityNotify: 'mentions' };
-const POP_MS = 8000;
-const POP_MAX = 3;
+// MSGPOP: the notices on the top card (newest first), the badge count, and the per-message memory.
+let notices = [];
+let badgeN = 0;
+let wantChime = false;
+const SHOWN_KEY = 'sara.msgs.shown';
 
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
@@ -54,6 +58,21 @@ export function initMessages(c) {
     open = '';
     view = null;
   });
+  // MSGPOP: back in front (window restored, tab shown): unread messages not shown yet get the card.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) void refreshMessagesBadge();
+  });
+  // A dialog opened or closed: the card moves into the top one so it stays visible and clickable.
+  if (typeof MutationObserver === 'function') {
+    new MutationObserver(() => {
+      if (notices.length) paintCard();
+    }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['open'] });
+  }
+}
+
+/** MSGPOP: the event stream (re)connected: anything that came in meanwhile gets the card. */
+export function messagesReconnected() {
+  void refreshMessagesBadge();
 }
 
 /** Opens the page (and a chat, when given). */
@@ -77,6 +96,7 @@ export async function loadMessages() {
   paintBadge(list.unread);
   paintSettings(list.settings);
   if (list.settings) prefs = list.settings;
+  sweep(list);
   paintList();
   if (open) await loadChat(open);
   else paintChat();
@@ -96,47 +116,91 @@ export async function refreshMessagesBadge() {
     }
     lastUnread = r.unread;
     paintBadge(r.unread);
+    sweep(r);
   } catch {
     /* not available (member, demo) */
   }
 }
 function paintBadge(n) {
+  // MSGPOP: a count pill in the sidebar (was a dot), the page header count, the tab title and app badge.
   const dot = $('#msgs-dot');
-  if (dot) dot.hidden = !n;
+  if (dot) {
+    dot.hidden = !n;
+    dot.textContent = n ? countText(n) : '';
+    if (n) dot.setAttribute('aria-label', t('{n} unread', { n }));
+    else dot.removeAttribute('aria-label');
+  }
   const b = $('#msgs-unread');
   if (b) {
     b.hidden = !n;
     b.textContent = n ? t('{n} unread', { n }) : '';
   }
+  const changed = n !== badgeN;
+  badgeN = n;
+  paintTitle();
+  if (changed) ctx?.badge?.();
+}
+// The tab title keeps its "(n) " prefix whoever sets the title next (activity, her name, help).
+let titleWatch = null;
+function paintTitle() {
+  const fix = () => {
+    const want = withCount(document.title, badgeN);
+    if (document.title !== want) document.title = want;
+  };
+  fix();
+  const node = document.querySelector('title');
+  if (!titleWatch && node && typeof MutationObserver === 'function') {
+    titleWatch = new MutationObserver(fix);
+    titleWatch.observe(node, { childList: true, characterData: true, subtree: true });
+  }
 }
 
 /** Server event: a chat changed (ids only); `notice` = a new one-to-one message or mention to show. */
 export function messagesChanged(chatId, notice = false) {
+  if (notice) wantChime = true;
   clearTimeout(reloadTimer);
   reloadTimer = setTimeout(() => {
     if ($('#msgs')?.open) void loadMessages();
     else void refreshMessagesBadge();
   }, 250);
-  if (notice) void noticeFor(chatId);
 }
 
-// ---- T4: the in-app popup card (bottom corner, stacked, never takes focus) --------------------------
-async function noticeFor(chatId) {
-  if (!ctx || prefs.popup === false) return;
-  // The chat is already in front: the message is on screen.
-  if (!document.hidden && $('#msgs')?.open && open === chatId) return;
-  let r;
+// ---- MSGPOP card: one notice at the top centre, stacked per sender, stays until Open / Later ---------
+const shownKeys = () => {
   try {
-    r = await ctx.api('/messages');
+    return parseShown(localStorage.getItem(SHOWN_KEY));
   } catch {
-    return;
+    return [];
   }
-  if (r.settings) prefs = r.settings;
-  const c = r.chats.find((x) => x.id === chatId);
-  if (!c || prefs.popup === false) return;
-  // A community below "everything" notifies only for a mention: say so on the card.
-  showPopup({ chatId, title: c.title, body: c.last || t('New message'), mention: c.kind === 'community' && (c.notify ?? prefs.communityNotify) !== 'all' });
-  if (prefs.sound) chime();
+};
+const markShown = (keys) => {
+  try {
+    if (keys.length) localStorage.setItem(SHOWN_KEY, JSON.stringify(remember(shownKeys(), keys)));
+  } catch {
+    /* private mode: the card may show again after a reload */
+  }
+};
+/** Unread chats not shown yet join the card; chats read meanwhile leave it. */
+function sweep(r) {
+  if (!r?.chats || document.body.classList.contains('member')) return;
+  const chime1 = wantChime;
+  wantChime = false;
+  const on = { ...prefs, openChat: !document.hidden && $('#msgs')?.open ? open : '' };
+  const still = new Set(pendingNotices(r.chats, [], on).map((n) => n.chatId));
+  const before = notices.map((n) => n.key).join();
+  notices = notices.filter((n) => still.has(n.chatId));
+  const fresh = pendingNotices(r.chats, shownKeys(), on).filter((n) => !notices.some((x) => x.key === n.key));
+  for (const n of fresh.reverse()) notices = addNotice(notices, n);
+  if (notices.map((n) => n.key).join() !== before || notices.length) paintCard();
+  if (fresh.length && chime1 && prefs.sound) chime();
+}
+/** The chat is on screen now: its notice is done. */
+function dropNotice(chatId) {
+  const n = notices.find((x) => x.chatId === chatId);
+  if (!n) return;
+  markShown([n.key]);
+  notices = notices.filter((x) => x !== n);
+  paintCard();
 }
 function popHost() {
   let host = $('#msgs-pops');
@@ -145,11 +209,10 @@ function popHost() {
     host.id = 'msgs-pops';
     host.setAttribute('role', 'region');
     host.setAttribute('aria-label', t('New messages'));
-    host.setAttribute('aria-live', 'polite');
     if (typeof host.showPopover === 'function') host.popover = 'manual';
     document.body.append(host);
   }
-  // A modal dialog makes everything outside it inert: the stack moves into the top one so it stays clickable.
+  // A modal dialog makes everything outside it inert: the card moves into the top one so it stays clickable.
   const modal = [...document.querySelectorAll('dialog[open]')].filter((d) => d.matches(':modal')).pop() ?? document.body;
   if (host.parentElement !== modal) {
     if (host.matches?.(':popover-open')) host.hidePopover();
@@ -158,38 +221,59 @@ function popHost() {
   if (host.popover && !host.matches(':popover-open')) host.showPopover();
   return host;
 }
-function showPopup(n) {
-  const host = popHost();
-  for (const old of host.querySelectorAll(`.msgs-pop[data-chat="${CSS.escape(n.chatId)}"]`)) old.remove();
-  const card = el('div', 'msgs-pop');
-  card.dataset.chat = n.chatId;
-  const go = btn('', 'msgs-pop-open', () => {
-    card.remove();
-    tidy(host);
-    void openMessages(n.chatId);
-  });
-  go.append(el('strong', '', n.title), el('span', 'msgs-pop-body', n.body));
-  if (n.mention) go.append(el('span', 'muted small', t('Mentioned you')));
-  const x = btn('×', 'ghost msgs-pop-x', () => {
-    card.remove();
-    tidy(host);
-  });
-  x.setAttribute('aria-label', t('Dismiss'));
-  card.append(go, x);
-  host.append(card);
-  while (host.querySelectorAll('.msgs-pop').length > POP_MAX) host.querySelector('.msgs-pop')?.remove();
-  // Hides after 8 s; while the pointer is on it or it has keyboard focus, it waits another 8 s.
-  const arm = () =>
-    setTimeout(() => {
-      if (!card.isConnected) return;
-      if (card.matches(':hover, :focus-within')) return void arm();
-      card.remove();
+function paintCard() {
+  if (!notices.length) {
+    const host = $('#msgs-pops');
+    if (host) {
+      host.replaceChildren();
       tidy(host);
-    }, POP_MS);
-  arm();
+    }
+    return;
+  }
+  showPopup();
+}
+function showPopup() {
+  const host = popHost();
+  let card = host.querySelector('.msgs-note');
+  if (!card) {
+    card = el('div', 'msgs-note');
+    // Read out politely; the card never moves keyboard focus.
+    card.setAttribute('role', 'status');
+    card.setAttribute('aria-live', 'polite');
+    host.append(card);
+  }
+  const first = notices[0];
+  const count = noticeCount(notices);
+  const av = el('span', 'msgs-note-av', first.initial);
+  av.setAttribute('aria-hidden', 'true');
+  const text = el('div', 'msgs-note-text');
+  const head = el('div', 'msgs-note-head');
+  head.append(el('strong', 'msgs-note-title', noticeTitle(notices, t)));
+  if (count > 1) {
+    const pill = el('span', 'msgs-note-count', countText(count));
+    pill.setAttribute('aria-label', t('{n} unread', { n: count }));
+    head.append(pill);
+  }
+  text.append(head, el('span', 'msgs-note-body', first.body || t('New message')));
+  const acts = el('div', 'msgs-note-acts');
+  const later = btn(t('Later'), 'ghost msgs-note-later', () => {
+    markShown(notices.map((n) => n.key));
+    notices = [];
+    paintCard();
+  });
+  const go = btn(t('Open'), 'primary msgs-note-open', () => {
+    // One sender: that chat. Several: the Messages list, where every unread chat is marked.
+    const one = notices.length === 1 ? notices[0].chatId : '';
+    markShown(notices.map((n) => n.key));
+    notices = [];
+    paintCard();
+    void openMessages(one);
+  });
+  acts.append(later, go);
+  card.replaceChildren(av, text, acts);
 }
 function tidy(host) {
-  if (!host.querySelector('.msgs-pop') && host.popover && host.matches(':popover-open')) host.hidePopover();
+  if (!host.querySelector('.msgs-note') && host.popover && host.matches(':popover-open')) host.hidePopover();
 }
 /** A short, quiet two-note chime made in the page (no file; browsers allow it after the first click). */
 function chime() {
@@ -372,6 +456,7 @@ async function showChat(id) {
   paintList();
 }
 async function loadChat(id) {
+  dropNotice(id);
   try {
     view = await ctx.api(`/messages/chats/${id}`);
   } catch {

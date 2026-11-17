@@ -7,13 +7,19 @@ memory exports or logs. Owner only (household members and kid mode never; not on
 
 ## Using it
 
-- **Messages** in the sidebar (under More until pinned). An unread dot shows there for one-to-one
-  messages and for community messages that @mention you; phones get a push notification and the desktop
-  app a toast (muted chats stay quiet).
-- **New-message popup (T4)**: when a one-to-one message (or a mention) arrives and that chat is not open,
-  a small card shows in the bottom corner for 8 seconds (up to 3 stacked; it waits while the pointer or
-  keyboard focus is on it; it never takes the focus). Click it to open the chat. A soft sound can play
-  with it (off by default). Both are in *Messages settings*.
+- **Messages** in the sidebar (under More until pinned). An unread count shows there for one-to-one
+  messages and for community messages that @mention you (More shows a dot while Messages is inside it),
+  and the tab title starts with "(n) "; phones get a push notification, the installed app's badge counts
+  them, and the desktop app a toast (muted chats stay quiet).
+- **New message notice (MSGPOP, replaces the T4 corner popup)**: a card at the top centre of the window,
+  in front of whatever is open (Today, Settings, a chat): the friend's initial, "New message from Hank",
+  two lines of the message, **Open** and **Later**. It stays until you press one of them or open that
+  chat, never takes the keyboard focus and is read out politely by screen readers. Several people: one
+  card, "New messages from Hank and 2 others", with the unread count; Open then shows the Messages list.
+  It also appears for unread messages that came while the page was closed, the window was minimized or
+  the connection dropped (on load, when the window comes back, after a reconnect). Later is remembered
+  per message on this browser, so it doesn't nag; a newer message from the same person shows it again.
+  A soft sound can play with it (off by default). Both are in *Messages settings*.
 - **Communities are quieter (T4)**: no push and no popup by default. Their new messages show as a small
   grey count next to **Communities** in the chat list (never the sidebar dot). A message that mentions
   you (`@YourName` or `@FirstName`) notifies like a one-to-one message. Per community, *Options →
@@ -50,7 +56,7 @@ memory exports or logs. Owner only (household members and kid mode never; not on
 | Communities | Hosted by the creator's server, which fans each post out to every member over its link with them (up to 50 members). Roles: host, mod, member. A moderator's kick/ban/new code is checked by the host. A ban stores the member server's address: the host refuses its joins with any code, and its link is deleted. |
 | Retention | Per person (setting) and per chat (*Keep messages*), 30 days by default; purged on the reminder tick, files too. Each side keeps its own copy for its own time. |
 | Unlink | The other side is told (`unlink`, `c.leave`, `c.removed`, `c.closed`), then both delete the link's keys; the history stays or goes as each person chooses. |
-| Notifications | `notifyRoute` (T4) decides per new message: `full` (one-to-one; a community set to *Everything*; a community @mention of the owner's Messages name or its first word, `isMention`), `quiet` (other community messages: only the count inside Messages) or `none` (muted, blocked, *Nothing*). `full` → `onNotify` → web push to the owner's devices (the body only when *previews* are on) and the SSE event `{type:'pm', chat, notice:true}` (ids only) → the page's popup card and desktop toast. Mentions are flagged on the stored row (`pm_messages.mention`); `GET /api/messages` returns `unread` (sidebar badge = one-to-one unread + unread mentions) and `community` (the quiet count; communities on *Nothing* excluded). Settings `popup` (on), `sound` (off), `communityNotify` (`mentions`); per chat `pm_chats.notify` (null = the default). |
+| Notifications | `notifyRoute` (T4) decides per new message: `full` (one-to-one; a community set to *Everything*; a community @mention of the owner's Messages name or its first word, `isMention`), `quiet` (other community messages: only the count inside Messages) or `none` (muted, blocked, *Nothing*). `full` → `onNotify` → web push to the owner's devices (the body only when *previews* are on) and the SSE event `{type:'pm', chat, notice:true}` (ids only) → the page's notice card (MSGPOP: `web/msg-notice.js` decides from the chat list's `lastIn`, the newest incoming message id, and a `sara.msgs.shown` localStorage list of shown `chat:message` keys; swept on load, `visibilitychange`, the event stream's `open` and every `pm` change) and desktop toast. The app badge (`/api/phone/badge`, push) adds `Messenger.unread()`. Mentions are flagged on the stored row (`pm_messages.mention`); `GET /api/messages` returns `unread` (sidebar badge = one-to-one unread + unread mentions) and `community` (the quiet count; communities on *Nothing* excluded). Settings `popup` (on), `sound` (off), `communityNotify` (`mentions`); per chat `pm_chats.notify` (null = the default). |
 | Isolation | No model tool, no memory write, no conversation row, no log line with content. `test/s9a-messages.test.ts` proves it: a turn after messaging has none of the words in the model request, memory, `sara.db` or console, there is no message tool, and only `main.ts` and `routes/messages.ts` import the module. |
 
 ## Support link (S9b)

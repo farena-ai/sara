@@ -432,7 +432,7 @@ export class Messenger {
     const r = this.#db.prepare('SELECT * FROM pm_chats WHERE id = ?').get(id) as Record<string, unknown> | undefined;
     return r ? chatRow(r) : undefined;
   }
-  chats(): (ChatRow & { unread: number; mentions: number; last: string })[] {
+  chats(): (ChatRow & { unread: number; mentions: number; last: string; lastIn: string; lastInAt: string | null })[] {
     const rows = this.#db.prepare('SELECT * FROM pm_chats ORDER BY COALESCE(last_at, created_at) DESC').all() as Record<string, unknown>[];
     const def = this.settings().communityNotify;
     return rows.map((r) => {
@@ -442,8 +442,10 @@ export class Messenger {
       const lastRow = this.#db.prepare('SELECT * FROM pm_messages WHERE chat = ? ORDER BY at DESC LIMIT 1').get(c.id) as Record<string, unknown> | undefined;
       const lv = lastRow ? this.#view(lastRow) : undefined;
       const last = lv ? (lv.deleted ? '' : lv.text ? clip(lv.text, 80) : lv.file ? `📎 ${lv.file.name}` : '') : '';
+      // MSGPOP: the newest incoming message (its id keys the page's "shown once" memory for the notice card).
+      const inRow = this.#db.prepare('SELECT id, at FROM pm_messages WHERE chat = ? AND mine = 0 AND deleted = 0 ORDER BY at DESC LIMIT 1').get(c.id) as { id: string; at: string } | undefined;
       const quiet = c.muted || c.blocked;
-      return { ...c, unread: quiet ? 0 : unread, mentions: quiet ? 0 : mentions, last };
+      return { ...c, unread: quiet ? 0 : unread, mentions: quiet ? 0 : mentions, last, lastIn: inRow?.id ?? '', lastInAt: inRow?.at ?? null };
     });
   }
   /** T4: the sidebar badge: one-to-one unread plus community mentions (never plain community posts). */
