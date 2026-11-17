@@ -598,10 +598,14 @@ sudo sara restore <file>    # stop, restore (current data is kept aside), start;
 sudo sara reset-token       # new owner token (signs out every browser)
 sudo sara logs -f           # follow the log
 sudo sara access [how]      # how you reach her (tailscale, local, domain, lan)
+sudo sara selfcode [list]   # code changes she made with your OK; revert <id> | off | on
 ```
 
 Or from the app: **Settings → Privacy & system → Updates** (same steps, done by the root-owned
-`sara-updater` helper that `install.sh` sets up; Sara herself never gets admin rights).
+`sara-updater` helper that `install.sh` sets up; Sara herself never gets admin rights). The same helper
+applies the code changes you approve in Settings → Privacy & system → Updates → Code changes, after
+checking them again itself ([SELF_CODE.md](SELF_CODE.md#on-a-linux-server)); `sudo sara selfcode off`
+turns that off.
 
 Backups run daily (the last 7 are kept) in `/var/lib/sara/backups`. **They contain your keys.**
 Settings → Privacy & system → Backups → *Off-server copy* puts an encrypted copy (your passphrase, AES-256-GCM)

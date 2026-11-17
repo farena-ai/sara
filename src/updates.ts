@@ -173,8 +173,10 @@ export class Updater {
       s.message = "The last update didn't finish. On the server run: sudo sara status";
     }
     const req = join(this.#o.dataDir, REQUEST);
-    if (existsSync(req)) {
-      const what = readFileSync(req, 'utf8').trim() === 'update' ? 'update' : 'check';
+    // rootapply: "selfcode" is a code change waiting for the root helper, not an update.
+    const word = existsSync(req) ? readFileSync(req, 'utf8').trim() : '';
+    if (word && word !== 'selfcode') {
+      const what = word === 'update' ? 'update' : 'check';
       const age = now.getTime() - statSync(req).mtimeMs;
       s.pending = what;
       if (age > STUCK_MS) {
@@ -193,6 +195,7 @@ export class Updater {
     if (!this.available) throw new Error('This server updates from the command line: sudo sara update');
     const s = this.status();
     if (s.pending || s.state === 'checking' || s.state === 'updating') throw new Error('An update check or update is already running.');
+    if (existsSync(join(this.#o.dataDir, REQUEST))) throw new Error('A code change is being applied on this server. Try again in a minute.');
     writeFileSync(join(this.#o.dataDir, REQUEST), `${what}\n`, { mode: 0o600 });
     // C9: the signed notice tells the button how old the release is and whether it is a security fix.
     void this.#readNotice().catch(() => undefined);

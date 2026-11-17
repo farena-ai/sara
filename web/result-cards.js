@@ -278,7 +278,32 @@ function handsInstall(c) {
   return card;
 }
 
-const DRAW = { weather, task, reminder, note, calendar, test, job, home, photo, search, chart, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
+/** MAILMULTI: "add another email account": the accounts already connected and a button to the page
+ * (Settings → Email and calendar, its "+ Add an account" choices open). Only Settings pages. */
+function openCard(c) {
+  const card = shell('open', 'mail', t('Email and calendar accounts'));
+  const list = Array.isArray(c.accounts) ? c.accounts.slice(0, 12) : [];
+  if (list.length) {
+    const ul = el('ul', 'rc-list');
+    for (const a of list) ul.append(el('li', 'small', String(a)));
+    card.append(ul);
+  } else card.append(el('p', 'rcard-sub muted small', t('No mailbox is connected yet.')));
+  const page = /^[a-z][\w-]{1,40}$/.test(c.page ?? '') ? c.page : 'ab-mail';
+  const go = el('button', 'rcard-open', t('+ Add an account'));
+  go.type = 'button';
+  go.addEventListener('click', () => {
+    try {
+      sessionStorage.setItem('sara.mail.add', '1');
+    } catch {
+      /* private mode: the page still opens */
+    }
+    location.hash = `#view=settings:${page}`;
+  });
+  card.append(go);
+  return card;
+}
+
+const DRAW = { open: (c) => openCard(c), weather, task, reminder, note, calendar, test, job, home, photo, search, chart, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {

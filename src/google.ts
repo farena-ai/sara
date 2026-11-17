@@ -125,14 +125,18 @@ export class GoogleAccount {
     };
   }
 
-  setClient(clientId: string, clientSecret: string): void {
+  /** Saves the owner's Google app. Returns true when it is a different app (every sign-in then starts over). */
+  setClient(clientId: string, clientSecret: string): boolean {
     clientId = clientId.trim();
     clientSecret = clientSecret.trim();
     if (!/^[\w.-]+\.apps\.googleusercontent\.com$/.test(clientId)) throw new Error('The Client ID ends with .apps.googleusercontent.com. Copy it from Google Cloud Console → Credentials.');
     if (clientSecret.length < 10) throw new Error('Paste the Client secret too (it starts with GOCSPX-).');
+    // MAILMULTI: the same app saved again (e.g. a new secret) keeps every sign-in: Google's
+    // sign-ins belong to the Client ID. A different app means the old sign-in no longer matches.
+    const changed = this.#client()?.clientId !== clientId;
     this.#vault.set(GOOGLE_CLIENT_VAULT, JSON.stringify({ clientId, clientSecret }));
-    // A different app means the old sign-in no longer matches.
-    this.#vault.delete(this.#key);
+    if (changed) this.#vault.delete(this.#key);
+    return changed;
   }
 
   /** The address to send the owner to. `redirect` must be registered in the Google app. R6: `docs` adds Docs and Sheets. */
@@ -244,6 +248,10 @@ export class GoogleAccount {
   }
   putTokens(raw: string): void {
     this.#vault.set(this.#key, raw);
+  }
+  /** MAILMULTI: the raw sign-in without removing it (to put it back if a sign-in was someone else). */
+  peekTokens(): string | undefined {
+    return this.#vault.get(this.#key);
   }
 
   forgetClient(): void {

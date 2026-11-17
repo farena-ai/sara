@@ -26,6 +26,10 @@
 #   sara uninstall           remove Sara from this server; your data is kept unless you add
 #                            --delete-data (a last backup is made first either way)
 #   sara instances           every Sara on this server, her port and whether she's running
+#   sara selfcode [list]     code changes Sara made (owner-approved) that are in place or parked
+#   sara selfcode revert <id>   take one out (restart and health check; back if she isn't healthy)
+#   sara selfcode off | on   turn her code changes off entirely (the helper refuses) or on again
+#   sara selfcode reapply    put the changes back after running install.sh by hand
 #   sara version
 #
 # Several Saras on one server: each has her own copy of this command, named after her
@@ -227,6 +231,24 @@ write_status() {
   chgrp "$NAME" "$tmp" && chmod 640 "$tmp"
   mv -f "$tmp" "$STATUS_FILE"
 }
+# rootapply: the root helper for Sara's owner-approved code changes (deploy/lib-selfcode.sh), from the
+# installed copy (root's) or the checkout. Never from her data folder.
+load_selfcode() {
+  local f
+  for f in "$APP_DIR/lib-selfcode.sh" "$(cat "$SRC_FILE" 2>/dev/null || true)/deploy/lib-selfcode.sh"; do
+    if [[ -f "$f" ]]; then
+      # shellcheck source=deploy/lib-selfcode.sh
+      . "$f"
+      return 0
+    fi
+  done
+  return 1
+}
+# After an update reinstalled a fresh copy: her queued code changes go back in (or are parked).
+selfcode_reapply() {
+  load_selfcode || return 0
+  sc_reapply || warn "Some of Sara's local code changes were parked after the update (sudo $NAME selfcode list)."
+}
 # A temporary folder only root can write to, that the sara user can still reach a file in.
 root_tmpdir() { local d; d="$(mktemp -d "/var/tmp/$NAME-root.XXXXXX")"; chmod 711 "$d"; echo "$d"; }
 src_dir() {
@@ -310,6 +332,7 @@ do_update() {
   fi
   write_status updating "Installing and restarting (about a minute)…"
   if run_install "$SRC_DIR" && healthy; then
+    selfcode_reapply
     # The demo server (if installed) runs the default Sara's code; other instances leave it alone.
     if [[ "$NAME" == sara ]] && systemctl list-unit-files sara-demo.service >/dev/null 2>&1 && systemctl is-enabled sara-demo >/dev/null 2>&1; then
       systemctl restart sara-demo && log "Restarted the demo server too."
@@ -320,6 +343,7 @@ do_update() {
     log "The new version didn't start properly. Going back to ${before:0:7}..."
     git -C "$SRC_DIR" reset -q --hard "$before"
     run_install "$SRC_DIR" || true
+    healthy && selfcode_reapply
     if healthy; then
       write_status rolledback "The update didn't start properly, so Sara went back to the version she had. Nothing was lost." ",\"from\":\"${before:0:7}\",\"tried\":\"${after:0:7}\""
       die "Update failed; rolled back to ${before:0:7}."
@@ -405,8 +429,15 @@ case "${1:-help}" in
     case "$req" in
       check) check_updates ;;
       update) do_update ;;
+      # rootapply: one owner-approved code change (or its undo); the helper checks everything itself.
+      selfcode) if load_selfcode; then sc_web_request || true; else log "No code-change helper here; update first."; fi ;;
       *) log "Ignored an unknown request: '$req'" ;;
     esac
+    ;;
+  selfcode)
+    need_root selfcode; shift
+    load_selfcode || die "This install has no code-change helper yet. Run: sudo $NAME update"
+    if [[ "${1:-}" == reapply ]]; then sc_reapply; else sc_cmd "$@"; fi
     ;;
   logs) need_root logs; shift; journalctl -u "$SVC" --no-pager -n 200 "$@" ;;
   access) need_root access; shift; access_cmd "$@" ;;

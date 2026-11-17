@@ -437,7 +437,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       // combined-view choices, and whether another Google account can be added (owner, Google app saved).
       const caldavOf = (x: { id: string; kind: string; calendar: boolean; provider: string }) => (x.kind !== 'imap' ? undefined : x.calendar ? 'on' : accts.calDavUrl(x.id) ? 'can' : x.provider === 'gmail' ? 'google' : 'none');
       const gst = member ? undefined : app.google?.status();
-      const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
+      const view = () => ({ accounts: accts.list().map((x) => ({ ...x, ...(caldavOf(x) ? { caldav: caldavOf(x) } : {}) })), view: accts.view(), ...(member ? {} : { googleApp: { configured: Boolean(gst?.configured), connected: Boolean(gst?.connected), multi: Boolean(app.googleAccounts), accounts: (app.googleAccounts?.list() ?? (gst?.connected ? [{ ...gst, id: 'google' }] : [])).map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs, canOrganize: x.canOrganize })) } }), default: accts.default()?.id ?? null, ...(member ? { member: true, google: false, ...(memberOff ? { off: true } : {}) } : {}), microsoft: { configured: Boolean(accts.ms.clientId()), clientId: member ? null : (accts.ms.clientId() ?? null), redirect: msRedirect, ...(member ? { ownerApp: true } : {}) }, presets: IMAP_PRESETS.map((p) => ({ id: p.id, name: p.name, imap: p.imap, smtp: p.smtp, passwordUrl: p.passwordUrl ?? null, passwordHow: p.passwordHow, enableImap: p.enableImap ?? null, loopback: Boolean(p.loopback) })) });
       if (b === 'accounts' && !c && method === 'GET') return send(res, 200, view());
       // HANDSFREE 3a: calendars added by link (read only; the address is a secret and never comes back out).
       if (b === 'calendar-links' && accts.calendarLinks) {
@@ -624,9 +624,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'client' && method === 'PUT') {
         const body = await readJson(req);
         try {
-          g.setClient(String(body.clientId ?? ''), String(body.clientSecret ?? ''));
-          // MULTIMAIL: later sign-ins belonged to the old Google app.
-          gl?.forgetExtras();
+          // MULTIMAIL: later sign-ins belonged to the old Google app (MAILMULTI: only when it is another app).
+          if (g.setClient(String(body.clientId ?? ''), String(body.clientSecret ?? ''))) gl?.forgetExtras();
         } catch (err) {
           throw as400(err);
         }

@@ -108,6 +108,13 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Fixes in 3.18.2
+
+Both mail pages show one list of every account with + Add an account; signing in to a different Google address
+always adds it, and re-saving the same Google app keeps every sign-in. Linux server installs can now apply
+owner-approved, tested code fixes through a locked-down helper that checks each change itself and rolls back
+if Sara doesn't come back healthy (`sara selfcode off` turns it off).
+
 ## Fixes in 3.18.1
 
 New one-to-one messages show a clear card at the top of the window that stays until you act, also for

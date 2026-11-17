@@ -16,6 +16,7 @@
 // NEVER (any level, any permission): edit the safety layer, hard limits, kid mode, approvals, the audit
 // trail, the vault, or the permission code (this file included).
 import { spawn, spawnSync } from 'node:child_process';
+import { createHash, randomUUID } from 'node:crypto';
 import { accessSync, constants, copyFileSync, cpSync, existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -28,262 +29,9 @@ import { en, fill } from './i18n.ts';
 import { privateLocalOn } from './net-guard.ts';
 import type { RunnerPlan, RunnerResult } from './self-code-runner.ts';
 
-// ------------------------------------------------------------------------------------------------
-// What she may never change
-// ------------------------------------------------------------------------------------------------
-
-/** Paths she may never change (relative to her source folder, forward slashes, any case). */
-export const PROTECTED_PATHS: readonly { re: RegExp; what: string }[] = [
-  { re: /^src\/(safety|safety-check)\.ts$|^src\/routes\/safety-check\.ts$|^docs\/compliance\.md$/i, what: 'the safety layer' },
-  { re: /^src\/(computer-policy|tool-policy|policy-profile|net-guard|private-local|web-guard|browser-guard|loop-guard|budget|usage)\.ts$/i, what: 'hard limits' },
-  { re: /^src\/(family|household|member-tools)\.ts$|^src\/routes\/(family|member-tools)\.ts$/i, what: 'kid mode and household limits' },
-  { re: /^src\/(pending|device-approval|hands-desktop-consent)\.ts$/i, what: 'approvals' },
-  { re: /^src\/(audit-trail|legal-hold)\.ts$|^src\/routes\/governance\.ts$/i, what: 'the audit trail' },
-  { re: /^src\/(vault|secret-sources|redact|auth|webauthn)\.ts$/i, what: 'the vault and sign-in' },
-  { re: /^src\/(settings|repair|self-code|self-code-runner)\.ts$|^src\/(routes|tools)\/(repair|self-code)\.ts$/i, what: 'her permissions and this repair code' },
-  { re: /^test\/([^/]*(safety|self-code|repair|audit|household-isolation|private-local|kid|family)[^/]*)\.test\.ts$/i, what: 'the tests that guard these' },
-  { re: /^(deploy|packaging|desktop|android|ios|\.git|\.github|\.secrets|node_modules|data|outputs)(\/|$)|^\.env/i, what: 'install scripts, apps and outside folders' },
-  { re: /^package(-lock)?\.json$/i, what: 'her dependencies' },
-];
-
-/** A path from the model, cleaned to `a/b.ts`; throws when it leaves her folder. */
-export function cleanPath(p: string): string {
-  const raw = String(p ?? '').replace(/\\/g, '/').trim();
-  // eslint-disable-next-line no-control-regex
-  if (!raw || /[\u0000-\u001f]/.test(raw) || /^[A-Za-z]:/.test(raw) || raw.startsWith('/')) throw new Error(`not inside her folder: ${raw}`);
-  const n = posix.normalize(raw).replace(/^(\.\/)+/, '');
-  if (n === '.' || n.startsWith('../') || n === '..' || n.split('/').includes('..')) throw new Error(`not inside her folder: ${raw}`);
-  return n;
-}
-
-/** Why a path may not be changed (undefined when it may). */
-export function protectedReason(path: string): string | undefined {
-  let p: string;
-  try {
-    p = cleanPath(path);
-  } catch {
-    return 'something outside her source folder';
-  }
-  return PROTECTED_PATHS.find((x) => x.re.test(p))?.what;
-}
-
-export interface FileChange {
-  path: string;
-  before: string | null;
-  after: string | null;
-}
-
-const isTestFile = (p: string) => /^test\//i.test(p) || /\.test\.[cm]?[jt]s$/i.test(p);
-const count = (s: string | null, re: RegExp) => (s ?? '').match(re)?.length ?? 0;
-const ASSERTS = /\bassert(?:\.\w+)?\s*\(|\bexpect\s*\(|\bt\.assert\b/g;
-const TESTS = /(?:^|[^\w.])(?:test|it|describe)(?:\.\w+)?\s*\(/gm;
-const SKIPS = /\.(?:skip|todo|only)\s*\(|\b(?:skip|todo)\s*:\s*(?:true|['"`])/g;
-
-/** Why a change weakens the tests (a deleted test file, fewer checks or tests, skipped tests). */
-export function testWeakening(changes: readonly FileChange[]): string | undefined {
-  for (const c of changes) {
-    if (!isTestFile(c.path) || c.before === null) continue;
-    if (c.after === null) return `it deletes the test file ${c.path}`;
-    if (count(c.after, ASSERTS) < count(c.before, ASSERTS)) return `it removes checks from ${c.path}`;
-    if (count(c.after, TESTS) < count(c.before, TESTS)) return `it removes tests from ${c.path}`;
-    if (count(c.after, SKIPS) > count(c.before, SKIPS)) return `it makes tests skip in ${c.path}`;
-  }
-  return undefined;
-}
-
-// ------------------------------------------------------------------------------------------------
-// The patch format: unified-diff style, applied by line matching (no git needed)
-// ------------------------------------------------------------------------------------------------
-
-type Op = { t: ' ' | '-' | '+'; s: string };
-const lines = (s: string) => s.split('\n');
-
-function diffLines(a: string[], b: string[]): Op[] {
-  let pre = 0;
-  while (pre < a.length && pre < b.length && a[pre] === b[pre]) pre++;
-  let suf = 0;
-  while (suf < a.length - pre && suf < b.length - pre && a[a.length - 1 - suf] === b[b.length - 1 - suf]) suf++;
-  const A = a.slice(pre, a.length - suf);
-  const B = b.slice(pre, b.length - suf);
-  const mid: Op[] = [];
-  if (A.length * B.length > 4_000_000) {
-    for (const s of A) mid.push({ t: '-', s });
-    for (const s of B) mid.push({ t: '+', s });
-  } else {
-    // Longest common subsequence on the changed middle.
-    const n = A.length;
-    const m = B.length;
-    const L = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
-    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i]![j] = A[i] === B[j] ? L[i + 1]![j + 1]! + 1 : Math.max(L[i + 1]![j]!, L[i]![j + 1]!);
-    let i = 0;
-    let j = 0;
-    while (i < n && j < m) {
-      if (A[i] === B[j]) (mid.push({ t: ' ', s: A[i]! }), i++, j++);
-      else if (L[i + 1]![j]! >= L[i]![j + 1]!) mid.push({ t: '-', s: A[i++]! });
-      else mid.push({ t: '+', s: B[j++]! });
-    }
-    while (i < n) mid.push({ t: '-', s: A[i++]! });
-    while (j < m) mid.push({ t: '+', s: B[j++]! });
-  }
-  return [...a.slice(0, pre).map((s) => ({ t: ' ' as const, s })), ...mid, ...a.slice(a.length - suf).map((s) => ({ t: ' ' as const, s }))];
-}
-
-/** A readable patch for these changes (3 lines of context; new and deleted files whole). */
-export function makePatch(changes: readonly FileChange[], ctx = 3): string {
-  const out: string[] = [];
-  for (const c of changes) {
-    if (c.before === c.after) continue;
-    out.push(c.before === null ? '--- /dev/null' : `--- a/${c.path}`, c.after === null ? '+++ /dev/null' : `+++ b/${c.path}`);
-    const a = c.before === null ? [] : lines(c.before);
-    const b = c.after === null ? [] : lines(c.after);
-    if (c.before === null || c.after === null) {
-      out.push(`@@ -${a.length ? 1 : 0},${a.length} +${b.length ? 1 : 0},${b.length} @@`, ...a.map((s) => `-${s}`), ...b.map((s) => `+${s}`));
-      continue;
-    }
-    const ops = diffLines(a, b);
-    const changed = ops.map((o, i) => (o.t !== ' ' ? i : -1)).filter((i) => i >= 0);
-    let k = 0;
-    while (k < changed.length) {
-      let start = Math.max(0, changed[k]! - ctx);
-      let end = Math.min(ops.length, changed[k]! + ctx + 1);
-      while (k + 1 < changed.length && changed[k + 1]! - ctx <= end) end = Math.min(ops.length, changed[++k]! + ctx + 1);
-      k++;
-      let oldStart = 1;
-      let newStart = 1;
-      for (let i = 0; i < start; i++) {
-        if (ops[i]!.t !== '+') oldStart++;
-        if (ops[i]!.t !== '-') newStart++;
-      }
-      const hunk = ops.slice(start, end);
-      const oldLen = hunk.filter((o) => o.t !== '+').length;
-      const newLen = hunk.filter((o) => o.t !== '-').length;
-      out.push(`@@ -${oldStart},${oldLen} +${newStart},${newLen} @@`, ...hunk.map((o) => `${o.t}${o.s}`));
-      start = end;
-    }
-  }
-  return out.length ? `${out.join('\n')}\n` : '';
-}
-
-interface Hunk {
-  oldStart: number;
-  ops: Op[];
-}
-export interface FilePatch {
-  path: string;
-  oldNull: boolean;
-  newNull: boolean;
-  hunks: Hunk[];
-}
-
-/** Reads a patch made by makePatch (hunk sizes decide where each hunk ends). */
-export function parsePatch(text: string): FilePatch[] {
-  const L = text.replace(/\r\n/g, '\n').split('\n');
-  const files: FilePatch[] = [];
-  let i = 0;
-  while (i < L.length) {
-    if (!L[i]!.startsWith('--- ')) {
-      i++;
-      continue;
-    }
-    const from = L[i]!.slice(4);
-    const to = (L[i + 1] ?? '').slice(4);
-    i += 2;
-    const path = cleanPath((to === '/dev/null' ? from : to).replace(/^[ab]\//, ''));
-    const fp: FilePatch = { path, oldNull: from === '/dev/null', newNull: to === '/dev/null', hunks: [] };
-    while (i < L.length && L[i]!.startsWith('@@')) {
-      const m = /^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/.exec(L[i]!);
-      if (!m) throw new Error('bad hunk header');
-      let oldLeft = Number(m[2]);
-      let newLeft = Number(m[4]);
-      i++;
-      const ops: Op[] = [];
-      while (oldLeft > 0 || newLeft > 0) {
-        const l = L[i++];
-        if (l === undefined) throw new Error('the patch ends inside a hunk');
-        const t = l[0] as Op['t'];
-        if (t !== ' ' && t !== '-' && t !== '+') throw new Error('bad patch line');
-        ops.push({ t, s: l.slice(1) });
-        if (t !== '+') oldLeft--;
-        if (t !== '-') newLeft--;
-      }
-      fp.hunks.push({ oldStart: Number(m[1]), ops });
-    }
-    files.push(fp);
-  }
-  return files;
-}
-
-function swap(fp: FilePatch): FilePatch {
-  return { path: fp.path, oldNull: fp.newNull, newNull: fp.oldNull, hunks: fp.hunks.map((h) => ({ oldStart: h.oldStart, ops: h.ops.map((o) => ({ t: o.t === '-' ? '+' : o.t === '+' ? '-' : ' ', s: o.s })) })) };
-}
-
-/** One file's new content, or a conflict (null content = the file doesn't exist). */
-function applyFile(content: string | null, fp: FilePatch): { ok: true; after: string | null } | { ok: false } {
-  const take = (t: Op['t']) => fp.hunks.flatMap((h) => h.ops.filter((o) => o.t === t || o.t === ' ').map((o) => o.s));
-  if (fp.oldNull) return content === null ? { ok: true, after: take('+').join('\n') } : { ok: false };
-  if (content === null) return { ok: false };
-  if (fp.newNull) return content === take('-').join('\n') ? { ok: true, after: null } : { ok: false };
-  const cur = lines(content);
-  let offset = 0;
-  let from = 0;
-  for (const h of fp.hunks) {
-    let found: { pos: number; old: string[]; neu: string[]; lead: number } | undefined;
-    // Exact first; then with fewer context lines at the edges (like patch's fuzz), so a release that
-    // added a line next to her change still takes it. The changed lines themselves must match.
-    for (let fuzz = 0; fuzz <= 3 && !found; fuzz++) {
-      let a = 0;
-      let b = h.ops.length;
-      while (a < fuzz && a < b && h.ops[a]!.t === ' ') a++;
-      while (h.ops.length - b < fuzz && b > a && h.ops[b - 1]!.t === ' ') b--;
-      if (fuzz && a === 0 && b === h.ops.length) break;
-      const ops = h.ops.slice(a, b);
-      const old = ops.filter((o) => o.t !== '+').map((o) => o.s);
-      const neu = ops.filter((o) => o.t !== '-').map((o) => o.s);
-      if (!old.length && fuzz) break;
-      const at = (p: number) => p >= from && p + old.length <= cur.length && old.every((s, k) => cur[p + k] === s);
-      const want = h.oldStart - 1 + offset + a;
-      let pos = at(want) ? want : -1;
-      if (pos < 0) {
-        // Shifted (lines added or removed above): the nearest place where the old lines match.
-        for (let p = from; p + old.length <= cur.length; p++) if (at(p) && (pos < 0 || Math.abs(p - want) < Math.abs(pos - want))) pos = p;
-      }
-      if (pos >= 0) found = { pos, old, neu, lead: a };
-    }
-    if (!found) return { ok: false };
-    cur.splice(found.pos, found.old.length, ...found.neu);
-    offset = found.pos - found.lead - (h.oldStart - 1) + found.neu.length - found.old.length;
-    from = found.pos + found.neu.length;
-  }
-  return { ok: true, after: cur.join('\n') };
-}
-
-const readOrNull = (f: string) => (existsSync(f) ? readFileSync(f, 'utf8') : null);
-
-/** Applies a patch to a folder: all files or none. `reverse` takes it out; `dryRun` only checks. */
-export function applyPatchTo(root: string, patch: string, o: { reverse?: boolean; dryRun?: boolean } = {}): { ok: boolean; conflicts: string[]; files: FileChange[] } {
-  const files: FileChange[] = [];
-  const conflicts: string[] = [];
-  for (const raw of parsePatch(patch)) {
-    const fp = o.reverse ? swap(raw) : raw;
-    const before = readOrNull(join(root, fp.path));
-    const r = applyFile(before, fp);
-    if (!r.ok) conflicts.push(fp.path);
-    else files.push({ path: fp.path, before, after: r.after });
-  }
-  if (conflicts.length || o.dryRun) return { ok: !conflicts.length, conflicts, files };
-  for (const f of files) {
-    const p = join(root, f.path);
-    if (f.after === null) rmSync(p, { force: true });
-    else {
-      mkdirSync(dirname(p), { recursive: true });
-      writeFileSync(p, f.after);
-    }
-  }
-  return { ok: true, conflicts, files };
-}
-
-/** The patch is in place in this folder (taking it out would work). */
-export const isApplied = (root: string, patch: string): boolean => applyPatchTo(root, patch, { reverse: true, dryRun: true }).ok;
+import { applyPatchTo, cleanPath, isApplied, isTestFile, makePatch, parsePatch, PROTECTED_PATHS, protectedReason, readOrNull, testWeakening, type FileChange } from './self-code-rules.ts';
+// The rules (protected paths, test weakening, the patch format) live in src/self-code-rules.ts.
+export { applyPatchTo, cleanPath, formatPatch, isApplied, makePatch, parsePatch, PROTECTED_PATHS, protectedReason, testWeakening, type FileChange, type FilePatch } from './self-code-rules.ts';
 const patchPaths = (patch: string) => parsePatch(patch).map((f) => f.path);
 
 // ------------------------------------------------------------------------------------------------
@@ -298,8 +46,30 @@ export interface InstallInfo {
   why?: string;
   root: string;
   git: boolean;
-  /** How a restart happens: she starts herself again (relaunch) or `node --watch` does on the change. */
-  mode: 'relaunch' | 'watch';
+  /**
+   * How a change goes live: she starts herself again (relaunch), `node --watch` does on the change, or
+   * (rootapply, a Linux server install) the root helper applies it to her read-only copy and restarts her.
+   */
+  mode: 'relaunch' | 'watch' | 'root-helper';
+  /** root-helper: the root-owned source checkout her working copies are made from (it has the tests). */
+  from?: string;
+}
+
+/** rootapply: what the root helper says about itself (`/var/lib/<name>-updater/selfcode.json`, root's). */
+export interface HelperState {
+  on: boolean;
+  src: string;
+}
+const instanceOf = (env: NodeJS.ProcessEnv) => (/^[a-z][a-z0-9-]{1,31}$/.test(env.SARA_INSTANCE ?? '') ? env.SARA_INSTANCE! : 'sara');
+export const helperDirOf = (env: NodeJS.ProcessEnv = process.env): string => `/var/lib/${instanceOf(env)}-updater`;
+/** The helper's marker, or undefined when this server has no helper (an older install). */
+export function readHelper(dir: string): HelperState | undefined {
+  try {
+    const j = JSON.parse(readFileSync(join(dir, 'selfcode.json'), 'utf8')) as Record<string, unknown>;
+    return j.helper === 1 ? { on: j.on === true, src: typeof j.src === 'string' ? j.src : '' } : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 const isWritable = (p: string) => {
@@ -317,7 +87,7 @@ const isWritable = (p: string) => {
  * by reinstalling or going back (owner decision), never by rewriting their code. Homebrew/WinGet: the
  * package manager owns the files. A source checkout she can write to: yes.
  */
-export function installInfo(o: { root: string; env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; exists?: (p: string) => boolean; writable?: (p: string) => boolean; execArgv?: string[] }): InstallInfo {
+export function installInfo(o: { root: string; env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; exists?: (p: string) => boolean; writable?: (p: string) => boolean; execArgv?: string[]; helper?: () => HelperState | undefined }): InstallInfo {
   const env = o.env ?? process.env;
   const platform = o.platform ?? process.platform;
   const exists = o.exists ?? existsSync;
@@ -330,6 +100,12 @@ export function installInfo(o: { root: string; env?: NodeJS.ProcessEnv; platform
   if (ch === 'docker') return no('container', en("She runs from a container image here: a change to her code would be lost the next time the image is pulled or the container is made again. She can send the problem to the Sara developers instead."));
   if (ch === 'homebrew' || ch === 'winget') return no('package', en('A package manager installed her here and owns these files: it would undo a change at its next upgrade. She can send the problem to the Sara developers instead.'));
   if (ch === 'desktop-app' || (platform === 'win32' && (env.SARA_MODE === 'user' || env.SARA_MODE === 'service' || env.SARA_INSTALLED === '1'))) return no(platform === 'darwin' ? 'desktop-mac' : 'desktop-windows', en("This is the desktop app: apps are repaired by reinstalling or going back to the previous version, never by changing their code. She can send the problem to the Sara developers instead."));
+  if (ch === 'installer' && platform === 'linux') {
+    // rootapply: the root helper applies an approved change to the read-only copy (deploy/lib-selfcode.sh).
+    const h = (o.helper ?? (() => readHelper(helperDirOf(env))))();
+    if (h?.on && h.src) return { kind: 'server', level3: true, root: o.root, git: false, mode: 'root-helper', from: h.src };
+    if (h) return no('server', en("The server's administrator turned off code changes from Sara. On the server, sudo sara selfcode on turns them back on. She can send the problem to the Sara developers instead."));
+  }
   if (ch === 'installer') return no('server', en('This server runs her from a read-only copy that the installer made (only sudo sara update changes it), so she cannot change her own code here. She can send the problem to the Sara developers instead.'));
   if (!writable(o.root) || !writable(join(o.root, 'src'))) return no('source', en("Her source folder isn't writable by the account she runs as, so she cannot change her own code here. She can send the problem to the Sara developers instead."));
   return { kind: 'source', level3: true, ...base };
@@ -343,7 +119,7 @@ const SKIP_COPY = new Set(['node_modules', '.git', 'data', 'outputs', '.secrets'
 const git = (cwd: string, args: string[], input?: string) => spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', windowsHide: true, timeout: 120_000, maxBuffer: 64 * 1024 * 1024, ...(input !== undefined ? { input } : {}) });
 
 /** A copy of her current source in `dir`: a git worktree (with her uncommitted changes) or a plain copy. */
-export function makeWorkdir(root: string, dir: string, o: { git: boolean }): void {
+export function makeWorkdir(root: string, dir: string, o: { git: boolean; from?: string }): void {
   mkdirSync(dirname(dir), { recursive: true });
   let done = false;
   if (o.git) {
@@ -358,7 +134,10 @@ export function makeWorkdir(root: string, dir: string, o: { git: boolean }): voi
       done = true;
     }
   }
-  if (!done) cpSync(root, dir, { recursive: true, filter: (src) => !SKIP_COPY.has(basename(src)) || resolve(src) === resolve(root) });
+  // rootapply: on a server the copy comes from the source checkout (it has the tests); her own
+  // dependencies stay the ones linked below.
+  const from = o.from ?? root;
+  if (!done) cpSync(from, dir, { recursive: true, filter: (src) => !SKIP_COPY.has(basename(src)) || resolve(src) === resolve(from) });
   // Dependencies through links (never copies, never deleted through: removeWorkdir unlinks them first):
   // her own node_modules and the hydrated ones of her tool folders (tools/<name>/node_modules).
   for (const rel of depFolders(root)) {
@@ -714,6 +493,9 @@ export interface SelfCodeDeps {
   healthTimeoutMs?: number;
   /** /api/health/ready answers 200 now (the restart must not make it worse). */
   ready?: () => Promise<boolean>;
+  /** rootapply: the root helper's folder (default /var/lib/<instance>-updater) and this instance's name. */
+  helperDir?: string;
+  instance?: string;
 }
 
 export class SelfCodeError extends Error {
@@ -829,6 +611,7 @@ export class SelfCode {
 
   status(): { available: boolean; kind: InstallKind; why: string | null; mode: string; cap: number; minutes: number; permission: string; fullUntil: string | null; version: string; changes: CodeChange[] } {
     const i = this.info();
+    if (i.mode === 'root-helper') this.#finishHelper();
     const s = this.settings();
     return { available: i.level3, kind: i.kind, why: i.why ?? null, mode: i.mode, cap: s.capUsd, minutes: s.minutes, permission: s.permission, fullUntil: s.fullUntil, version: this.#version(), changes: this.list() };
   }
@@ -882,7 +665,7 @@ export class SelfCode {
     };
     try {
       if (existsSync(wd)) removeWorkdir(this.#d.root, wd);
-      makeWorkdir(this.#d.root, wd, { git: info.git });
+      makeWorkdir(this.#d.root, wd, { git: info.git, ...(info.from ? { from: info.from } : {}) });
       const original = new Map<string, string | null>();
       const changes = (): FileChange[] =>
         [...original.entries()].map(([path, before]) => ({ path, before, after: readOrNull(join(wd, path)) })).filter((c) => c.before !== c.after);
@@ -1007,13 +790,13 @@ export class SelfCode {
   }
 
   /** The rules again on the stored patch (Approve and re-apply run them too). */
-  #recheck(patch: string): FileChange[] {
+  #recheck(patch: string, base = this.#d.root): FileChange[] {
     const parsed = parsePatch(patch);
     for (const f of parsed) {
       const what = protectedReason(f.path);
       if (what) throw new SelfCodeError(403, fill(en('It would change {what} ({path}), which she may never change.'), { what, path: f.path }));
     }
-    const dry = applyPatchTo(this.#d.root, patch, { dryRun: true });
+    const dry = applyPatchTo(base, patch, { dryRun: true });
     const weak = testWeakening(dry.files);
     if (weak) throw new SelfCodeError(403, fill(en('It weakens her tests ({why}).'), { why: weak }));
     return dry.files;
@@ -1050,7 +833,7 @@ export class SelfCode {
       node: process.execPath,
       args: [...process.execArgv, ...process.argv.slice(1)],
       cwd: process.cwd(),
-      mode: info.mode,
+      mode: info.mode === 'watch' ? 'watch' : 'relaunch',
       baselineReady,
       logFile: join(this.#d.dataDir, 'logs', 'self-code-restart.log'),
     };
@@ -1063,6 +846,7 @@ export class SelfCode {
     if (!c) throw new SelfCodeError(404, en('No such code change.'));
     if (c.status !== 'proposed') throw new SelfCodeError(409, en('This change is not ready to apply (only a prepared change that passed its checks can be).'));
     const patch = this.#patch(id);
+    if (info.mode === 'root-helper') return this.#askRoot(id, 'apply', patch, info, c);
     let files: FileChange[];
     try {
       files = this.#recheck(patch);
@@ -1091,6 +875,7 @@ export class SelfCode {
     if (!c) throw new SelfCodeError(404, en('No such code change.'));
     if (c.status !== 'applied') throw new SelfCodeError(409, en('Only an applied change can be undone.'));
     const patch = this.#patch(id);
+    if (info.mode === 'root-helper') return this.#askRoot(id, 'undo', patch, info, c);
     const dry = applyPatchTo(this.#d.root, patch, { reverse: true, dryRun: true });
     if (!dry.ok) throw new SelfCodeError(409, en('A later change touches the same lines: undo that one first.'));
     const snap = this.#snapshot(`${id}-undo`, dry.files.map((f) => f.path));
@@ -1099,6 +884,71 @@ export class SelfCode {
     this.#audit('undo', 'pending', id);
     await this.#restart(await this.#plan('undo', [id], snap, info));
     return this.get(id)!;
+  }
+
+  #helperDir = () => this.#d.helperDir ?? helperDirOf();
+
+  /**
+   * rootapply: hands an approved change to the root helper (it checks every rule again itself, applies it
+   * to her read-only copy, restarts her and goes back when she isn't healthy). She writes only her own
+   * data folder: the request (change number, owner approval id, the patch's hash) and the one-word
+   * "selfcode" request the updater path unit watches.
+   */
+  #askRoot(id: number, kind: 'apply' | 'undo', patch: string, info: InstallInfo, c: CodeChange): CodeChange {
+    const signal = join(this.#d.dataDir, 'update-request');
+    if (existsSync(signal)) throw new SelfCodeError(409, en('An update or another code change is waiting on this server. Try again in a minute.'));
+    if (kind === 'apply') {
+      try {
+        this.#recheck(patch, info.from ?? this.#d.root);
+      } catch (err) {
+        this.#set(id, { status: 'refused', note: (err as Error).message });
+        this.#audit('apply', 'refused', id, (err as Error).message);
+        throw err;
+      }
+    }
+    const approval = randomUUID();
+    const request = { v: 1, instance: this.#d.instance ?? instanceOf(process.env), id, kind, approval, ...(kind === 'apply' ? { sha256: createHash('sha256').update(patch).digest('hex') } : {}) };
+    writeFileSync(join(this.#dir, 'root-request.json'), `${JSON.stringify(request)}\n`, { mode: 0o600 });
+    writeFileSync(signal, 'selfcode\n', { mode: 0o600 });
+    this.#set(id, kind === 'apply' ? { status: 'applying', note: null, base: this.#version() } : { status: 'undoing', note: null });
+    this.#audit(kind, 'pending', id, `${kind === 'apply' ? (c.summary ?? c.request) : 'undo'} (root helper, approval ${approval})`);
+    // The helper may refuse without restarting her: status() reads its answers (the page asks every 5 s).
+    return this.get(id)!;
+  }
+  /** The root helper's results (`<helper dir>/selfcode/results/<id>.json`): newer than the change's row only. */
+  #finishHelper(): void {
+    const dir = join(this.#helperDir(), 'selfcode', 'results');
+    if (!existsSync(dir)) return;
+    for (const f of readdirSync(dir).filter((x) => /^\d+\.json$/.test(x))) {
+      let r: { id: number; kind: string; state: string; message?: string; at: string };
+      try {
+        r = JSON.parse(readFileSync(join(dir, f), 'utf8')) as typeof r;
+      } catch {
+        continue;
+      }
+      const c = this.get(Number(r.id));
+      if (!c) continue;
+      const busy = c.status === 'applying' || c.status === 'undoing';
+      // Results stay in root's folder: one counts once, when it is newer than the change's row.
+      if (!(Date.parse(r.at) > Date.parse(c.updatedAt) - (busy ? 2000 : 0))) continue;
+      const msg = r.message ? String(r.message).slice(0, 400) : null;
+      const ok = r.state === 'applied' || r.state === 'undone';
+      if (r.kind === 'undo') {
+        if (r.state === 'undone') this.#set(c.id, { status: 'undone', note: null });
+        else if (busy || c.status === 'applied') this.#set(c.id, { status: 'applied', note: msg });
+        else continue;
+      } else if (r.kind === 'reapply') {
+        // (also while still "applying": the update's answer can replace the apply's before she read it)
+        if (c.status !== 'applied' && c.status !== 'parked' && !busy) continue;
+        this.#set(c.id, ok ? { status: 'applied', note: null, base: this.#version(), appliedAt: r.at } : { status: 'parked', note: msg });
+      } else {
+        if (!busy) continue;
+        const status: ChangeStatus = ok ? 'applied' : r.state === 'rolledback' ? 'rolledback' : r.state === 'refused' ? 'refused' : 'failed';
+        this.#set(c.id, ok ? { status, note: null, appliedAt: r.at } : { status, note: msg });
+      }
+      this.#audit(r.kind === 'undo' ? 'undone' : r.kind === 'reapply' ? 'reapply' : 'applied', ok ? 'ok' : r.state === 'refused' ? 'refused' : 'failed', c.id, `root helper: ${r.state}${msg ? `: ${msg}` : ''}`);
+      if (!ok) this.#d.notify?.(`Code change #${c.id}: ${msg ?? r.state}`);
+    }
   }
 
   discard(id: number): CodeChange {
@@ -1118,6 +968,7 @@ export class SelfCode {
 
   /** On start: reads the runner's outcomes (applied, undone, went back) and tells the owner. */
   finish(): void {
+    this.#finishHelper();
     const dir = join(this.#dir, 'results');
     if (!existsSync(dir)) return;
     for (const f of readdirSync(dir).filter((x) => x.endsWith('.json'))) {
@@ -1161,7 +1012,8 @@ export class SelfCode {
     const info = this.info();
     const applied = (this.#d.db.prepare("SELECT id FROM self_code_changes WHERE status = 'applied' ORDER BY id").all() as Row[]).map((r) => Number(r.id));
     const missing = applied.filter((id) => !isApplied(this.#d.root, this.#patch(id)));
-    if (!missing.length || !info.level3) return;
+    // rootapply: on a server, `sudo sara update` puts the queue back itself (deploy/lib-selfcode.sh).
+    if (!missing.length || !info.level3 || info.mode === 'root-helper') return;
     const version = this.#version();
     const park = (id: number, key: string, params?: Record<string, string | number>) => {
       this.#set(id, { status: 'parked', note: key, params: params ?? null });

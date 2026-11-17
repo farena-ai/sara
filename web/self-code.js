@@ -67,6 +67,11 @@ export async function loadSelfCode() {
   const why = $('#cc-why');
   why.hidden = st.available;
   if (!st.available) why.textContent = `${t(st.why ?? 'She cannot change her own code on this install.')} ${t('To tell the developers about a problem: Settings → Privacy & system → Reports.')}`;
+  // rootapply: on a Linux server the root helper applies an approved change (docs/SELF_CODE.md).
+  if (st.available && st.mode === 'root-helper') {
+    why.hidden = false;
+    why.textContent = t("On this server a locked-down helper run by the system applies a change after you approve it. The server's administrator can turn it off.");
+  }
   $('#cc-new').hidden = !st.available;
   options($('#cc-cap'), [1, 2, 5, 10], (v) => `$${v}`, st.cap);
   options($('#cc-minutes'), [10, 20, 40, 60], (v) => t('{n} minutes', { n: v }), st.minutes);

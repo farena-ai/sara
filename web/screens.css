@@ -370,9 +370,14 @@ dialog .saved-tag { color: var(--success); }
 .ma-acts { display: flex; gap: var(--s-1, 4px); flex-wrap: wrap; margin-inline-start: auto; }
 .ma-acts > button { min-height: 36px; }
 .ma-empty { padding: var(--s-3, 12px); border: 1px dashed var(--hairline-strong); border-radius: 10px; color: var(--text-2); }
-#ma-page > .add-row { margin-bottom: var(--s-3, 12px); }
-#ma-page .wa-step-body .plg-field, .ma-other .plg-field { justify-self: stretch; max-width: 560px; display: grid; gap: 4px; }
-#ma-page .plg-field input, #ma-page .plg-field select { width: 100%; box-sizing: border-box; min-height: 44px; }
+:is(#ma-page, #g-accounts) > .add-row { margin-bottom: var(--s-3, 12px); }
+:is(#ma-page, #g-accounts) .wa-step-body .plg-field, .ma-other .plg-field { justify-self: stretch; max-width: 560px; display: grid; gap: 4px; }
+:is(#ma-page, #g-accounts) .plg-field input, :is(#ma-page, #g-accounts) .plg-field select { width: 100%; box-sizing: border-box; min-height: 44px; }
+/* MAILMULTI: "+ Add an account" and its choices (Google, Gmail app password, Outlook, another provider). */
+.ma-addkind { display: grid; gap: var(--s-2, 8px); max-width: 760px; margin: 0 0 var(--s-3, 12px); padding: var(--s-3, 12px); border: 1px solid var(--hairline-strong); border-radius: 10px; }
+.ma-addkind > p { margin: 0; }
+.ma-addkind .add-row { margin: 0; }
+.ma-addkind .add-row > button { min-height: 44px; }
 .ma-other { display: grid; gap: var(--s-2, 8px); max-width: 760px; }
 .ma-other > button, .ma-steps .button-link { justify-self: start; min-height: 44px; }
 .ma-steps .button-link { display: flex; width: fit-content; align-items: center; margin-top: 6px; }

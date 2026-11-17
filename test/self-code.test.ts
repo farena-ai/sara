@@ -205,7 +205,7 @@ test('T3: the patch format round-trips (new, changed, deleted files; reverse; al
 test('T3: install kinds: only a writable source folder gets level 3; the others say why', () => {
   const yes = (p: string) => p === '/.dockerenv';
   assert.deepEqual([installInfo({ root: '/app', platform: 'linux', exists: yes, writable: () => true }).kind, installInfo({ root: '/app', platform: 'linux', exists: yes, writable: () => true }).level3], ['container', false]);
-  const server = installInfo({ root: '/opt/sara', platform: 'linux', exists: (p) => p === '/usr/local/bin/sara', writable: () => false });
+  const server = installInfo({ root: '/opt/sara', platform: 'linux', exists: (p) => p === '/usr/local/bin/sara', writable: () => false, helper: () => undefined });
   assert.equal(server.kind, 'server');
   assert.match(server.why ?? '', /read-only/);
   const win = installInfo({ root: 'C:/Users/alex/AppData/Local/Programs/Sara/app', platform: 'win32', env: { SARA_MODE: 'user' }, exists: () => false, writable: () => true });

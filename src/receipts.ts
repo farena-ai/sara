@@ -304,7 +304,7 @@ export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
 /** Clause edges: punctuation and "but" words; negation counts only in the verb's own clause. */
 const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin embargo|mais|cependant|aber|jedoch|doch|mas|porém|però|ma)\s+/i;
 /** Read-only tools: they never back an action claim. */
-const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|mail_read|mail_search|mail_thread|mail_needs_answer|mail_accounts|mail_folders|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
+const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|mail_read|mail_search|mail_thread|mail_needs_answer|mail_accounts|mail_add_account|mail_folders|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
 
 // 3.14.1: tools that write a file or a Library document back "I made / saved it" too (make_document said
 // "saved in the Library (document 10)", yet "it's saved as document #10" was flagged and re-done).

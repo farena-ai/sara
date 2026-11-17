@@ -84,21 +84,28 @@ export class GoogleAccounts {
       return g.authUrl(redirect, { ...(opts.docs ? { docs: true } : {}), choose: true });
     }
     if (!opts.add || !this.primary.status().connected) return this.primary.authUrl(redirect, opts.docs ? { docs: true } : {});
-    const used = new Set([...this.#nums(), ...this.#slots.keys()]);
     if (this.#nums().length >= MAX_EXTRA) throw new Error('That is the most Google accounts Sara keeps (10). Remove one first.');
-    let n = 2;
-    while (used.has(n)) n++;
+    const n = this.#free();
     const g = this.#make(n);
     const url = g.authUrl(redirect, { ...(opts.docs ? { docs: true } : {}), choose: true });
     this.#slots.set(n, { g, at: Date.now() });
     return url;
   }
 
+  #free(): number {
+    const used = new Set([...this.#nums(), ...this.#slots.keys()]);
+    let n = 2;
+    while (used.has(n)) n++;
+    return n;
+  }
+
   /**
-   * Google came back with a code: the account that started it finishes. A new slot whose address
-   * is already signed in replaces that account's sign-in (no duplicates); otherwise it joins the list.
+   * Google came back with a code: the account that started it finishes. MAILMULTI: an address
+   * never replaces another one. If it is already listed, that account's sign-in is renewed in
+   * place; if the account that asked was signed in as someone else, the new address is ADDED
+   * (google:<n>) and the old one stays exactly as it was. `added` says a new account joined.
    */
-  async finish(code: string, state: string): Promise<GoogleStatus & { id: string }> {
+  async finish(code: string, state: string): Promise<GoogleStatus & { id: string; added?: true }> {
     for (const [n, s] of this.#slots) if (Date.now() - s.at > 10 * 60_000) this.#slots.delete(n);
     for (const [n, s] of this.#slots) {
       if (!s.g.hasPending(state)) continue;
@@ -115,10 +122,35 @@ export class GoogleAccounts {
       this.#extra.set(n, s.g);
       this.#saveNums([...this.#nums(), n]);
       this.#changed();
-      return { ...st, id: s.g.id };
+      return { ...st, id: s.g.id, added: true };
     }
     const g = [this.primary, ...this.#nums().map((n) => this.#of(n))].find((x) => x.hasPending(state)) ?? this.primary;
+    const before = g.peekTokens();
+    const was = g.status().email?.toLowerCase();
     const st = await g.finish(code, state);
+    const email = st.email?.toLowerCase();
+    // Signed in as an address another row already has: renew that row, put this one back.
+    const other = email ? this.all().find((x) => x !== g && x.status().email?.toLowerCase() === email) : undefined;
+    if (other) {
+      const raw = g.takeTokens();
+      if (raw) other.putTokens(raw);
+      if (before) g.putTokens(before);
+      this.#changed();
+      return { ...other.status(), id: other.id };
+    }
+    // Signed in as a different person than this row's: add them, keep this row.
+    if (before && was && email && was !== email) {
+      const raw = g.takeTokens();
+      g.putTokens(before);
+      if (this.#nums().length >= MAX_EXTRA) throw new Error('That is the most Google accounts Sara keeps (10). Remove one first.');
+      const n = this.#free();
+      const added = this.#make(n);
+      if (raw) added.putTokens(raw);
+      this.#extra.set(n, added);
+      this.#saveNums([...this.#nums(), n]);
+      this.#changed();
+      return { ...added.status(), id: added.id, added: true };
+    }
     this.#changed();
     return { ...st, id: g.id };
   }

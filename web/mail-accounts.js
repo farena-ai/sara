@@ -10,6 +10,8 @@ import { api, btn, checking, copyRow, el, enc, field, link, okLine, stepper, tip
 useTranslator(t);
 const $ = (sel) => document.querySelector(sel);
 let view = null;
+/** MAILMULTI: the same list (and its "+ Add an account") draws on Email and calendar (#ma-page) and on Gmail and Calendar (#g-accounts). */
+let host = '#ma-page';
 let adding = '';
 let msOpen = 'register';
 let preset = '';
@@ -212,8 +214,76 @@ function otherForm() {
 }
 
 function status(text) {
-  const s = $('#ma-status');
+  const s = host === '#ma-page' ? $('#ma-status') : $('#g-status');
   if (s) s.textContent = text;
+}
+
+/** MAILMULTI: Google sign-in for one more account (or again for one row: `id`). */
+async function googleSignIn(body) {
+  try {
+    const r = await api('/google/connect', { method: 'POST', body });
+    location.href = r.url;
+  } catch (err) {
+    status(err.message);
+  }
+}
+
+/** MAILMULTI: one Google account: its address, what it is used for, Reconnect and Remove. */
+function googleRow(g) {
+  const li = el('li', 'ma-row ma-google');
+  const name = el('span', 'ma-name');
+  name.append(el('strong', 'ma-provider', 'Google'), el('span', 'ma-address', ` ${g.email ?? t('(address not shown)')}`));
+  name.lastChild.dataset.raw = '';
+  li.append(name);
+  if (g.gmail) li.append(el('span', 'rc-chip ok', t('Mail ✓')));
+  if (g.calendar) li.append(el('span', 'rc-chip ok', t('Calendar ✓')));
+  if (g.docs) li.append(el('span', 'rc-chip ok', t('Docs ✓')));
+  if (!g.gmail && !g.calendar) li.append(el('span', 'error small', t('Nothing allowed: press Reconnect and leave the boxes ticked.')));
+  if (view.default === g.id) li.append(el('span', 'rc-chip ok', t('Default')));
+  const acts = el('span', 'ma-acts');
+  if (g.gmail && view.default !== g.id) acts.append(btn(t('Make default'), 'ghost small', async () => ((view = await api('/mail/default', { method: 'PUT', body: { id: g.id } })), render())));
+  acts.append(
+    btn(t('Reconnect'), 'ghost small', () => googleSignIn({ id: g.id })),
+    btn(t('Remove'), 'ghost small', async () => {
+      if (!confirm(t('Remove {address} from Sara? Its sign-in is deleted; your mail stays where it is.', { address: g.email ?? 'Google' }))) return;
+      try {
+        await api(`/google/accounts/${enc(g.id)}`, { method: 'DELETE' });
+      } catch (err) {
+        return status(err.message);
+      }
+      await reload();
+    }),
+  );
+  li.append(acts);
+  return li;
+}
+
+async function reload() {
+  view = (await api('/mail/accounts').catch(() => null)) ?? view;
+  render();
+}
+
+// 3.3.0 (ezplain): Gmail starts with the 3-step app-password route (the Google Cloud sign-in is the
+// "Google account" choice, or Advanced inside the form).
+const addGmail = () => ((adding = 'other'), (preset = 'gmail'), render());
+
+/** MAILMULTI: "+ Add an account": every kind in one place. */
+function chooser() {
+  const box = el('div', 'ma-addkind');
+  box.append(el('p', 'small', t('What kind of account?')));
+  const row = el('div', 'add-row');
+  const gApp = view.googleApp;
+  if (!view.member) {
+    if (gApp?.configured) row.append(Object.assign(btn(t('Google account'), 'ghost', () => googleSignIn({ add: true })), { title: t('Google sign-in: mail, calendar and Docs. Google shows its account picker: pick the account to add.') }));
+    else row.append(Object.assign(btn(t('Google account'), 'ghost', () => globalThis.openSettingsPage?.('ab-google')), { title: t('Google sign-in needs your own Google app first (about 10 minutes, once): it opens the steps.') }));
+  }
+  row.append(
+    btn(t('Gmail with an app password'), 'ghost', addGmail),
+    btn(t('Outlook or Microsoft 365'), 'ghost', () => ((adding = 'ms'), render())),
+    btn(t('Another provider'), 'ghost', () => ((adding = 'other'), (preset = ''), render())),
+  );
+  box.append(row, el('p', 'muted small', t('Each account is added next to the others; adding one never replaces another.')));
+  return box;
 }
 
 function accountRow(a) {
@@ -239,9 +309,7 @@ function accountRow(a) {
   }));
   if (a.caldav === 'can') acts.append(btn(t('Turn on calendar'), 'ghost small', () => calendarOn(a)));
   if (a.caldav === 'on') acts.append(btn(t('Turn off calendar'), 'ghost small', async () => ((view = await api(`/mail/accounts/${enc(a.id)}/calendar`, { method: 'DELETE' })), render())));
-  if (a.id === 'google') acts.append(btn(t('Open'), 'ghost small', () => globalThis.openSettingsPage?.('ab-google')));
-  else
-    acts.append(btn(t('Remove'), 'ghost small', async () => {
+  acts.append(btn(t('Remove'), 'ghost small', async () => {
       if (!confirm(t('Remove {address} from Sara? Its sign-in is deleted; your mail stays where it is.', { address: a.address }))) return;
       view = await api(`/mail/accounts/${enc(a.id)}`, { method: 'DELETE' });
       render();
@@ -385,37 +453,23 @@ function memberMs() {
 }
 
 function render() {
-  const page = $('#ma-page');
+  const page = $(host);
   if (!page || !view) return;
   const list = el('ul', 'ma-list');
-  for (const a of view.accounts) list.append(accountRow(a));
+  // MAILMULTI: every Google account first (with what it is used for), then the other mailboxes.
+  const gl = view.googleApp?.accounts ?? [];
+  for (const g of gl) list.append(googleRow(g));
+  for (const a of view.accounts) if (!(a.kind === 'google' && gl.some((g) => g.id === a.id))) list.append(accountRow(a));
   if (view.off) {
     page.replaceChildren(el('p', 'muted small ma-off', t('Your admin switched off mailboxes for household members on this server.')), list);
     return;
   }
-  if (!view.accounts.length) list.append(el('li', 'ma-empty small', t('No mailbox yet. Add one below: Gmail, Outlook or another provider.')));
-  const add = el('div', 'add-row');
-  // A member adds Gmail with an app password (the Google sign-in is the owner's).
-  // 3.3.0 (ezplain): everyone starts with the 3-step app-password route; the Google Cloud sign-in is
-  // Advanced (a link inside it).
-  const addGmail = () => ((adding = 'other'), (preset = 'gmail'), render());
-  // MULTIMAIL: more Google sign-ins through the owner's Google app (once it is set up).
-  const gApp = view.googleApp;
-  const addGoogle = gApp?.configured && gApp.multi
-    ? btn(gApp.connected ? t('Add another Google account') : t('Sign in with Google'), 'ghost', async () => {
-        try {
-          const r = await api('/google/connect', { method: 'POST', body: { add: true } });
-          location.href = r.url;
-        } catch (err) {
-          status(err.message);
-        }
-      })
-    : null;
+  if (!list.children.length) list.append(el('li', 'ma-empty small', t('No mailbox yet. Add one below: Gmail, Outlook or another provider.')));
+  const add = el('div', 'add-row ma-add');
+  // MAILMULTI: one prominent "+ Add an account" with every kind behind it (Google sign-in, Gmail
+  // with an app password, Outlook, another provider), on both pages.
   add.append(
-    ...(addGoogle ? [addGoogle] : []),
-    btn(t('Add Gmail'), adding === 'other' && preset === 'gmail' ? '' : 'ghost', addGmail),
-    btn(t('Add Outlook or Microsoft 365'), adding === 'ms' ? '' : 'ghost', () => ((adding = adding === 'ms' ? '' : 'ms'), render())),
-    btn(t('Add another provider'), adding === 'other' && preset !== 'gmail' ? '' : 'ghost', () => ((adding = adding === 'other' && preset !== 'gmail' ? '' : 'other'), (preset = ''), render())),
+    btn(t('+ Add an account'), adding === 'menu' ? '' : 'ma-add-btn', () => ((adding = adding === 'menu' ? '' : 'menu'), render())),
     tip(t('Connect as many mailboxes as you like. Search, Today and “waiting for my answer” cover them all; a reply goes from the mailbox that got the email.')),
   );
   const parts = [list, add];
@@ -425,16 +479,29 @@ function render() {
     const steps = MS_STEPS.map((id) => ({ id, ok: id === 'signin' ? view.accounts.some((a) => a.kind === 'microsoft' && !a.problem) : MS_STEPS.indexOf(id) < MS_STEPS.indexOf(msOpen) || (id !== 'signin' && view.microsoft.configured) }));
     parts.push(stepper({ title: t('Outlook or Microsoft 365'), steps, open: msOpen, titleOf: (id) => MS_TITLES[id](), bodyOf: msBody, onOpen: (id) => ((msOpen = id), render()) }));
   }
+  if (adding === 'menu') parts.push(chooser());
   if (adding === 'other') parts.push(otherForm());
   page.replaceChildren(...parts);
   renderCombined();
 }
 
-export async function loadMailAccounts() {
+export async function loadMailAccounts(where = '#ma-page') {
+  // The other page starts with its choices closed.
+  if (where !== host) adding = '';
+  host = where;
   // HANDSFREE 3a: "Add a calendar by link" on the same page.
-  void loadCalendarLinks();
+  if (host === '#ma-page') void loadCalendarLinks();
   view = await api('/mail/accounts').catch(() => null);
   if (!view) return;
+  // MAILMULTI: the chat's "+ Add an account" card opens the choices right away.
+  try {
+    if (sessionStorage.getItem('sara.mail.add')) {
+      sessionStorage.removeItem('sara.mail.add');
+      adding = 'menu';
+    }
+  } catch {
+    /* private mode */
+  }
   // Coming back from Microsoft's sign-in page.
   const m = /^#microsoft=(\w+)/.exec(location.hash);
   if (m) {
@@ -444,5 +511,5 @@ export async function loadMailAccounts() {
     msOpen = 'signin';
   }
   render();
-  void loadCalendars();
+  if (host === '#ma-page') void loadCalendars();
 }

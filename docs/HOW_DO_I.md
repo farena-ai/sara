@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 231 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 232 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -643,21 +643,26 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Paste your Google Client ID and secret.
 2. Press Save, then Sign in with Google.
 
-**How do I disconnect Google?**
+**How do I add another Google account?**
 
-1. Press Sign out of Google.
+1. Under Your accounts, press + Add an account, then Google account.
+2. In Google's account picker, choose the account and allow Sara.
+
+**How do I remove one Google account?**
+
+1. Under Your accounts, press Remove next to it.
 
 ### Email and calendar
 
 **How do I add an Outlook or Microsoft 365 mailbox?**
 
-1. Under Microsoft, follow the numbered steps to make your own Microsoft app.
+1. Press + Add an account, then Outlook or Microsoft 365.
 2. Paste its client ID and secret, then press Save.
 3. Press Sign in with Microsoft and allow Sara.
 
 **How do I add Yahoo, iCloud or another mailbox?**
 
-1. Under Add another provider, pick your provider.
+1. Press + Add an account, then Another provider, and pick yours.
 2. Make an app password with the steps shown, then paste it.
 3. Press Add and check.
 

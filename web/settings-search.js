@@ -41,7 +41,7 @@ export const SETTINGS_KEYWORDS = {
   'co-signal': ['signal-cli', 'chat app', 'chat apps', 'daemon', 'link qr'],
   'co-email': ['mail', 'smtp', 'chat app', 'chat apps', 'email her', 'write to her'],
   // M1: every mailbox provider finds Email and calendar (Ctrl+K uses the same index).
-  'ab-mail': ['outlook', 'outlook.com', 'hotmail', 'live.com', 'msn', 'microsoft 365', 'office 365', 'exchange', 'outlook calendar', 'yahoo', 'yahoo mail', 'aol', 'icloud', 'icloud mail', 'fastmail', 'zoho', 'gmx', 'web.de', 'proton', 'proton mail', 'proton bridge', 'imap', 'app password', 'email account', 'email accounts', 'mail account', 'mailbox', 'mailboxes', 'add email', 'other email', 'default mailbox', 'inbox'],
+  'ab-mail': ['outlook', 'outlook.com', 'hotmail', 'live.com', 'msn', 'microsoft 365', 'office 365', 'exchange', 'outlook calendar', 'yahoo', 'yahoo mail', 'aol', 'icloud', 'icloud mail', 'fastmail', 'zoho', 'gmx', 'web.de', 'proton', 'proton mail', 'proton bridge', 'imap', 'app password', 'email account', 'email accounts', 'mail account', 'mailbox', 'mailboxes', 'add email', 'other email', 'default mailbox', 'inbox', 'add account', 'add an account', 'another account', 'another gmail', 'second gmail', 'other gmail', 'second email', 'multiple accounts', 'several accounts', 'google accounts'],
   'co-whatsapp': ['meta', 'cloud api', 'tailscale', 'funnel', 'public address', 'chat app', 'chat apps', 'webhook'],
   'co-teams': ['teams', 'microsoft teams', 'azure bot', 'bot framework', 'microsoft 365'],
   'co-matrix': ['element', 'homeserver', 'tailscale', 'funnel', 'chat app', 'chat apps'],

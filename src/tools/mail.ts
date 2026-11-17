@@ -166,7 +166,41 @@ export function createMailTools(d: MailToolDeps): Tool[] {
       return accounts
         .list()
         .map((a) => `- ${a.address} (${a.kind === 'google' ? 'Gmail' : a.kind === 'microsoft' ? 'Outlook / Microsoft 365' : a.provider})${a.id === def ? ' · default' : ''}${a.calendar ? ' · mail and calendar' : ' · mail'}${a.problem ? ` · ${a.problem}` : ''}${a.kind === 'imap' ? ' · folders (no labels unless the server has keywords; no "important")' : a.kind === 'microsoft' ? ' · folders and categories (label = category), flag = star' : ''}`)
-        .join('\n');
+        .join('\n')
+        .concat('\n\nTo connect another account: [Add an account](/#view=settings:ab-mail)');
+    },
+  };
+
+  // MAILMULTI: "add another email account" / "connect my other Gmail": where to do it, as a card
+  // with the page's button (src/cards.ts `open`). Offered even before the first mailbox.
+  const addAccount: Tool = {
+    defaultPermission: 'auto',
+    spec: {
+      name: 'mail_add_account',
+      description: "Use when they want to connect or add an email or calendar account (another Gmail or Google account, Outlook, iCloud, Yahoo, work mail…). You can't sign in for them: this returns the accounts already connected and the link to the page with \"+ Add an account\". Give that link.",
+      parameters: obj({ kind: { type: 'string', description: 'What they want to add, if they said: gmail, google, outlook, icloud, yahoo, other.' } }),
+    },
+    // The owner always (even before the first mailbox); a household member once she has a mailbox
+    // (members without one, or with mail switched off by the admin, keep no mail_ tools).
+    isAvailable: () => !(accounts as { member?: boolean }).member || on(),
+    summarize: () => 'add an email account',
+    async run(args) {
+      let list: MailAccountInfo[] = [];
+      try {
+        list = accounts.list();
+      } catch {
+        /* no mailbox yet */
+      }
+      const member = Boolean((accounts as { member?: boolean }).member);
+      const kind = String(args.kind ?? '').toLowerCase();
+      const ways = member
+        ? 'Gmail with an app password, Outlook or Microsoft 365, or another provider (Yahoo, iCloud, Fastmail…)'
+        : 'a Google account (Google sign-in, once the Google app is set up on the Gmail and Calendar page), Gmail with an app password, Outlook or Microsoft 365, or another provider (Yahoo, iCloud, Fastmail…)';
+      return [
+        list.length ? `Connected now (${list.length}):\n${list.map((a) => `- ${a.address} (${a.kind === 'google' ? 'Google' : a.kind === 'microsoft' ? 'Outlook' : a.provider})`).join('\n')}` : 'No mailbox is connected yet.',
+        `To add ${list.length ? 'another' : 'an'} account: Settings → Connections → Email and calendar → "+ Add an account", then pick ${ways}. Each one is added next to the others; nothing is replaced.${/gmail|google/.test(kind) && !member ? ' For another Gmail: "Google account" signs in through Google (mail, calendar and Docs); "Gmail with an app password" works without the Google app (mail only).' : ''}`,
+        'Link: [Add an account](/#view=settings:ab-mail)',
+      ].join('\n\n');
     },
   };
 
@@ -540,7 +574,7 @@ export function createMailTools(d: MailToolDeps): Tool[] {
     },
   };
 
-  return [accountsTool, search, read, thread, needsAnswer, compose(false), compose(true), organize, undo, folders, senders, unsubscribe];
+  return [accountsTool, addAccount, search, read, thread, needsAnswer, compose(false), compose(true), organize, undo, folders, senders, unsubscribe];
 }
 
 // ---------- calendar: Google's tools, plus `account` for Outlook ----------

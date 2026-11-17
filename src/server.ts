@@ -1411,7 +1411,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       else {
         try {
           // MULTIMAIL: whichever Google account started this sign-in (the first one, or one added later).
-          await (app.googleAccounts ?? app.google).finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+          const done = await (app.googleAccounts ?? app.google).finish(url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? '');
+          // MAILMULTI: a different address was added next to the others (never in place of one).
+          if ('added' in done && done.added) result = 'added';
           // Phase 111: every companion's Today reads Google again.
           for (const cx of opts.companions?.all() ?? [{ app }]) clearTodayCache(cx.app);
         } catch (err) {

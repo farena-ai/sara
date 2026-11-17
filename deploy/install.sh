@@ -339,6 +339,7 @@ else
 fi
 install -m 644 "$SRC_DIR/deploy/lib-access.sh" "$APP_DIR/lib-access.sh"
 install -m 644 "$SRC_DIR/deploy/lib-instance.sh" "$APP_DIR/lib-instance.sh"
+install -m 644 "$SRC_DIR/deploy/lib-selfcode.sh" "$APP_DIR/lib-selfcode.sh"
 UPDATES_OK=1
 if [[ -d "$SRC_DIR/.git" ]]; then
   if [[ "$SRC_OWNER" == 0 ]]; then
@@ -373,6 +374,15 @@ rm -f "$DATA_DIR/update-status.json" "$DATA_DIR/update-status.json.tmp" # (older
 si_render_updater_path < "$SRC_DIR/deploy/sara-updater.path" > "/etc/systemd/system/$SI_UPDATER_PATH"
 si_render_updater_service < "$SRC_DIR/deploy/sara-updater.service" > "/etc/systemd/system/$SI_UPDATER_SERVICE"
 chmod 644 "/etc/systemd/system/$SI_UPDATER_PATH" "/etc/systemd/system/$SI_UPDATER_SERVICE"
+# rootapply: Sara's owner-approved code changes go live through the same updater (request word
+# "selfcode"; deploy/lib-selfcode.sh, docs/SELF_CODE.md). The marker tells her the helper is here.
+if ( NAME="$SI_NAME" STATUS_DIR="$SI_UPDATER_DIR" SRC_FILE="$SI_SOURCE_FILE" && . "$SRC_DIR/deploy/lib-selfcode.sh" && sc_marker ); then
+  if compgen -G "$SI_UPDATER_DIR/selfcode/queue/*.patch" >/dev/null; then
+    log "Sara's own code changes aren't in this fresh copy yet: sudo $CMD selfcode reapply puts them back ($CMD update does it by itself)."
+  fi
+else
+  log "Couldn't set up the code-change helper (Sara's code changes stay off here)."
+fi
 systemctl daemon-reload
 systemctl enable "$SVC" >/dev/null
 systemctl enable --now "$SI_UPDATER_PATH" >/dev/null 2>&1 || log "Couldn't enable $SI_UPDATER_PATH (updates from Settings won't work; $CMD update still does)."

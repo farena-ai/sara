@@ -5,6 +5,26 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.18.2 (2026-11-17): several Google accounts from either mail page, approved code fixes on servers
+
+- Fixed: **adding several Google accounts works from every page and never replaces one.** Settings →
+  Email and calendar and Gmail and Calendar now show the same list of every account (each Google
+  account with its address, what it is used for: mail, calendar, Docs, and Reconnect and Remove) and
+  one **+ Add an account** button: Google account, Gmail with an app password, Outlook or Microsoft
+  365, or another provider. Signing in to Google with an address that isn't listed always adds it
+  next to the others; the same address renews its own sign-in. Before, the Gmail and Calendar page's
+  Sign in button re-signed the first Google account, so picking another account replaced it. An
+  account lost that way can't come back by itself: add it again with + Add an account → Google
+  account. Saving the same Google app again (a new secret) now keeps every sign-in.
+- New: asking her "add another email account" or "connect my other Gmail" shows a card with your
+  accounts and a + Add an account button that opens the choices.
+- Added: **Code changes on Linux servers.** On a server install (`install.sh`), Sara can now fix her own
+  code too, still only after you press Approve. A small locked-down helper run by the system checks the
+  change again with its own rules (this Sara only, the approved patch, no protected files, no weaker
+  tests), puts it in place the way `sudo sara update` does, restarts her and puts the old code back if
+  she doesn't come back healthy. `sudo sara update` keeps your changes (parking any that no longer
+  fit). For the administrator: `sudo sara selfcode list | revert <id> | off | on`.
+
 ## 3.18.1 (2026-11-17): message notices you can't miss, one Windows install, second mailboxes kept
 
 - Changed: **new one-to-one messages are hard to miss.** A clean card now appears at the top centre of the

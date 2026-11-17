@@ -6,22 +6,32 @@ kind are in [EMAIL.md](EMAIL.md) (Outlook, IMAP providers) and [GMAIL.md](GMAIL.
 
 ## Adding accounts
 
-Settings → Connections → Apps and services → **Email and calendar** lists every account with what it
-brings: **Mail ✓** and **Calendar ✓**.
+Settings → Connections → Apps and services → **Email and calendar** and **Gmail and Calendar** show
+the same list: every account with what it is used for (**Mail ✓**, **Calendar ✓**, **Docs ✓**), and
+one button, **+ Add an account**, with every kind behind it:
 
-- **Another Google account**: once your Google app is set up (Gmail and Calendar page), press
-  **Add another Google account**. Google shows its account picker; pick the other account and allow
-  Sara. Each Google account has its own sign-in and its own permissions (Gmail, Calendar, and
-  Docs/Sheets if you allow them). The first one keeps working exactly as before. Signing in again
-  with an address that is already there just renews that sign-in. Up to 10 Google accounts.
-- **Outlook / Microsoft 365**: *Add Outlook or Microsoft 365* as many times as you like.
-- **More Gmail mailboxes with app passwords**: *Add Gmail* once per address, each with the app
-  password made in that Google account. Every one is added next to the others. Adding an address
-  that is already there only updates its app password (Sara says so); it never replaces another
-  mailbox. If a mailbox you added is missing from the list, add it again the same way.
-- **Other providers** (Yahoo, iCloud, Fastmail, Zoho, GMX…): *Add another provider*, with an app
-  password.
-- **Remove** takes one account away (its sign-in is deleted; at Google it is revoked). The others stay.
+- **Google account**: Google sign-in through your own Google app (set up once on the Gmail and
+  Calendar page; without it this choice opens those steps). Google shows its account picker; pick
+  the account to add and allow Sara. Each Google account has its own sign-in and its own permissions
+  (Gmail, Calendar, and Docs/Sheets if you allow them). Up to 10 Google accounts.
+- **Gmail with an app password**: mail only, no Google app needed; once per address.
+- **Outlook or Microsoft 365**: as many times as you like.
+- **Another provider** (Yahoo, iCloud, Fastmail, Zoho, GMX…): with an app password.
+
+Each Google row has **Reconnect** (sign in again, e.g. to allow more) and **Remove** (its sign-in is
+revoked at Google; the others stay). Other rows have **Check it** and **Remove**.
+
+**Nothing is ever replaced.** Whatever button you use, signing in to Google with an address that is
+not listed yet ADDS it next to the others; signing in with an address that is listed renews that
+account's sign-in in place. Up to 3.18.1 the Gmail and Calendar page's *Sign in again* re-signed
+the first Google account, so picking another account in Google's picker swapped the first one out:
+an account lost that way can't come back by itself, but adding it again is one click on
+**+ Add an account → Google account**. Saving the same Google app again (for example with a new
+client secret) keeps every sign-in; only a different app (another Client ID) starts over, because
+Google's sign-ins belong to the app.
+
+Asking in the chat works too: "add another email account" or "connect my other Gmail" gets a card
+with the accounts already there and a **+ Add an account** button that opens the choices.
 
 ## Calendars from every account
 
@@ -67,7 +77,14 @@ shown. The combined-view choices are kept in `mail-view.json` in your data folde
 - `src/google-accounts.ts`: `GoogleAccounts` over `GoogleAccount` (first account `google`, vault
   `google:token`; later ones `google:<n>`, vault `google:token:<n>`, list `google:accounts` = `{n:[…]}`).
   `authUrl(redirect, {add})` opens a new slot; `finish` routes by the PKCE `state`; the same address
-  replaces its own sign-in.
+  renews its own sign-in; a different address than the row that asked is added as a new slot
+  (`added: true`, callback `#google=added`) and that row's old sign-in is put back.
+  `GoogleAccount.setClient` returns whether the Client ID changed (only then do sign-ins go).
+- MAILMULTI web: `web/mail-accounts.js` `loadMailAccounts(where)` draws the one list into `#ma-page`
+  (Email and calendar) or `#g-accounts` (Gmail and Calendar); `GET /api/mail/accounts` `googleApp.accounts`
+  lists every Google sign-in with `gmail`/`calendar`/`docs`. The chat tool `mail_add_account` (always
+  offered) returns the accounts and the page link; `src/cards.ts` turns it into an `open` card
+  (web/result-cards.js `openCard`).
 - `src/mail/caldav.ts`: CalDAV discovery (principal → calendar-home-set → calendars with VEVENT),
   REPORT with `expand`, ICS read/write, PUT/DELETE. Presets: iCloud, Fastmail, Yahoo.
 - `src/mail/calendars.ts`: `calendarSources` / `allEvents` (labels only with more than one source).
@@ -80,4 +97,5 @@ shown. The combined-view choices are kept in `mail-view.json` in your data folde
 - Routes: `GET/PUT /api/mail/view`, `GET /api/mail/calendars`, `POST/DELETE /api/mail/accounts/:id/calendar`,
   `POST /api/google/connect {add:true}` or `{id}`, `DELETE /api/google/accounts/:id`.
 - Tests: `test/multimail.test.ts` (fake Google with two people, fake CalDAV server, per-account Gmail
-  stand-ins).
+  stand-ins); `test/mailmulti.test.ts` (route level, real in-process server: different address adds,
+  same address renews, the first slot, same app keeps sign-ins, both pages, the chat card).

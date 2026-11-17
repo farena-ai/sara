@@ -40,6 +40,8 @@ export type Card =
   | { kind: 'pc-run'; id: string; computer: string; shell: string; command: string; cwd?: string; outcome: 'done' | 'stopped' | 'timeout' | 'denied'; exitCode?: number | null; seconds?: number; output?: string; truncated?: boolean }
   /** 3.3.0 (ezplain): an everyday setting she changed when asked (web/everyday-card.js applies a device one once, with Undo). */
   | { kind: 'setting'; id: string; at: string; setting: string; value: string; device: boolean; from?: string }
+  /** MAILMULTI: a page to open ("add another email account"): the accounts already there and its button. */
+  | { kind: 'open'; page: string; title: string; accounts: string[]; button: string }
   /** E5: a decision's ranked options (web/decision-card.js), and a side-by-side comparison. */
   | import('./decisions.ts').DecisionCard
   | import('./decisions.ts').CompareCard
@@ -88,6 +90,10 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       }
       const from = def.device ? undefined : /\(was "([^"]*)"\)/.exec(output)?.[1];
       return { kind: 'setting', id: randomBytes(6).toString('hex'), at: new Date().toISOString(), setting, value: cut(value, 60), device: def.device, ...(from ? { from: cut(from, 60) } : {}) };
+    }
+    case 'mail_add_account': {
+      const accounts = [...output.matchAll(/^- (\S+@\S+|\S+) \(/gm)].map((m) => cut(m[1], 120)).slice(0, 12);
+      return { kind: 'open', page: 'ab-mail', title: 'Email and calendar accounts', accounts, button: '+ Add an account' };
     }
     case 'decide':
       return decisionCardOf(args, output);

@@ -3989,6 +3989,7 @@ const TOOL_WORDS = {
   calendar_add: 'Add an event to your Google Calendar.',
   calendar_remove: 'Delete an event from your Google Calendar.',
   mail_accounts: 'See which mailboxes are connected.',
+  mail_add_account: 'Show where to add another email account.',
   mail_search: 'Search any of your mailboxes (Gmail, Outlook, Yahoo, iCloud…).',
   mail_read: 'Read an email.',
   mail_thread: 'Read a whole email conversation.',
@@ -4038,7 +4039,7 @@ const TOOL_NAME = {
   // R6 (docs/WORK_APPS.md): the card shows her own old → new lines (the summary), not the arguments.
   gdoc_append: 'Add to a Google doc', gdoc_replace_text: 'Change a Google doc', gsheet_update_range: 'Change cells in a Google sheet', gsheet_append_rows: 'Add rows to a Google sheet', excel_update_range: 'Change cells in an Excel workbook', word_fill: 'Fill in a Word file', slack_post: 'Post in Slack', slack_react: 'React in Slack', slack_status: 'Set your Slack status', slack_remind: 'Make a Slack reminder', teams_post: 'Post in Teams',
   calendar_events: 'See your calendar', calendar_add: 'Add a calendar event', calendar_remove: 'Delete a calendar event', calendar_update: 'Change a calendar event',
-  mail_accounts: 'See your mailboxes', mail_search: 'Search your mail', mail_read: 'Read an email', mail_thread: 'Read an email conversation', mail_needs_answer: 'Find emails to answer', mail_draft: 'Draft an email', mail_send: 'Send an email',
+  mail_accounts: 'See your mailboxes', mail_add_account: 'Add an email account', mail_search: 'Search your mail', mail_read: 'Read an email', mail_thread: 'Read an email conversation', mail_needs_answer: 'Find emails to answer', mail_draft: 'Draft an email', mail_send: 'Send an email',
   mail_organize: 'Organize your mail', mail_undo: 'Undo a mail change', mail_folders: 'See mail folders', mail_senders: 'Mail clean-up summary', mail_unsubscribe_info: 'Find unsubscribe links',
   home_status: 'See your smart home', home_control: 'Switch things at home',
   spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
@@ -4057,7 +4058,7 @@ const TOOL_GROUP_OF = {
   web_search: 'web', web_fetch: 'web',
   gmail_search: 'mail', gmail_read: 'mail', gmail_thread: 'mail', gmail_needs_answer: 'mail', gmail_draft: 'mail', gmail_send: 'mail', calendar_events: 'mail', calendar_add: 'mail', calendar_remove: 'mail',
   gmail_organize: 'mail', gmail_undo: 'mail', gmail_labels: 'mail', gmail_senders: 'mail', gmail_unsubscribe_info: 'mail', calendar_update: 'mail',
-  mail_accounts: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail',
+  mail_accounts: 'mail', mail_add_account: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail',
   home_status: 'home', home_control: 'home',
   list_dir: 'files', read_file: 'files', write_file: 'files', edit_file: 'files', search: 'files', code_map: 'files', code_find: 'files', code_refs: 'files', code_deps: 'files', starter_create: 'files', project_note: 'files', review_code: 'files',
   shell: 'run', start_job: 'run', job_status: 'run', stop_job: 'run', delegate_task: 'run',
@@ -4087,7 +4088,7 @@ const TOOL_NEEDS = {
   web_search: 'search', github_list: 'github', github_read: 'github', github_create_issue: 'github', github_comment: 'github', github_open_pr: 'github', github_post_review: 'github', work_on_issue: 'github',
   gmail_search: 'google', gmail_read: 'google', gmail_thread: 'google', gmail_needs_answer: 'google', gmail_draft: 'google', gmail_send: 'google', calendar_events: 'google', calendar_add: 'google', calendar_remove: 'google',
   gmail_organize: 'google', gmail_undo: 'google', gmail_labels: 'google', gmail_senders: 'google', gmail_unsubscribe_info: 'google',
-  mail_accounts: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail', calendar_update: 'mail',
+  mail_accounts: 'mail', mail_add_account: 'mail', mail_search: 'mail', mail_read: 'mail', mail_thread: 'mail', mail_needs_answer: 'mail', mail_draft: 'mail', mail_send: 'mail', mail_organize: 'mail', mail_undo: 'mail', mail_folders: 'mail', mail_senders: 'mail', mail_unsubscribe_info: 'mail', calendar_update: 'mail',
   spotify_search: 'spotify', spotify_now_playing: 'spotify', spotify_my_playlists: 'spotify', spotify_top: 'spotify', spotify_devices: 'spotify', spotify_playlist_create: 'spotify', spotify_playlist_add: 'spotify', spotify_playback: 'spotify',
   home_status: 'home', home_control: 'home', take_photo: 'pictures', change_outfit: 'looks', delegate_task: 'agents', moments: 'moments',
 };
@@ -7003,16 +7004,19 @@ async function loadGoogle() {
   const g = await api('/google').catch(() => null);
   if (!g) return;
   $('#g-redirect').textContent = gRedirect();
-  $('#g-connected').hidden = !g.connected;
+  // MAILMULTI: each account's row has Remove; the old one-account sign-out stays only without the list.
+  $('#g-connected').hidden = !g.connected || Array.isArray(g.accounts);
   // Signed in before organizing existed: one more permission (gmail.modify) is needed.
   $('#g-organize').hidden = !(g.connected && g.gmail && !g.canOrganize);
   $('#g-connect').disabled = !g.configured;
-  $('#g-connect').textContent = g.connected ? t('Sign in again') : t('Sign in with Google');
+  $('#g-connect').textContent = g.connected ? t('Add another Google account') : t('Sign in with Google');
   $('#g-forget').hidden = !g.configured;
   $('#g-client-id').value = g.clientId ?? '';
   $('#g-client-secret').placeholder = g.configured ? t('saved (leave empty to keep)') : 'GOCSPX-…';
   const parts = g.gmail && g.calendar ? t('Gmail and Calendar') : g.gmail ? 'Gmail' : g.calendar ? t('Calendar') : '';
-  $('#g-status').textContent = g.connected
+  $('#g-status').textContent = (g.accounts?.length ?? 0) > 1
+    ? t('{n} Google accounts are signed in through your Google app. Each one is listed above.', { n: g.accounts.length })
+    : g.connected
     ? `${g.email ? t('Connected as {email}: {what}.', { email: g.email, what: parts || t('nothing allowed') }) : t('Connected: {what}.', { what: parts || t('nothing allowed') })} ${t('She can read; drafting, sending and adding events ask you first.')}${!g.gmail || !g.calendar ? ` ${t('(Sign in again and leave all boxes ticked to allow both.)')}` : ''}`
     : g.configured
       ? t('Your Google app is saved. Press "Sign in with Google" (step 7).')
@@ -7039,13 +7043,22 @@ $('#g-save').addEventListener('click', async () => {
 });
 $('#g-connect').addEventListener('click', async () => {
   try {
-    const { url } = await api('/google/connect', { method: 'POST', body: {} });
+    // MAILMULTI: once one is signed in, this button adds another (never re-signs the first by surprise).
+    const g = await api('/google').catch(() => null);
+    const { url } = await api('/google/connect', { method: 'POST', body: g?.connected ? { add: true } : {} });
     location.href = url;
   } catch (err) {
     $('#g-status').textContent = err.message;
   }
 });
-$('#g-reconnect').addEventListener('click', () => $('#g-connect').click());
+$('#g-reconnect').addEventListener('click', async () => {
+  try {
+    const { url } = await api('/google/connect', { method: 'POST', body: { id: 'google' } });
+    location.href = url;
+  } catch (err) {
+    $('#g-status').textContent = err.message;
+  }
+});
 $('#g-disconnect').addEventListener('click', async () => {
   await api('/google', { method: 'DELETE' });
   loadGoogle();
@@ -7063,8 +7076,10 @@ globalThis.openSettingsPage = (page) => void openSettings(page);
   const m = /^#google=(\w+)/.exec(location.hash);
   if (m) {
     history.replaceState(null, '', location.pathname);
-    const msg = { connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Skills & tools → Gmail and Calendar and try again.") }[m[1]];
+    const msg = { added: t('Another Google account was added next to the others. Settings → Email and calendar lists them all.'), connected: t('Google is connected. Try: "what\'s on my calendar tomorrow?"'), refused: t('Google sign-in was cancelled.'), failed: t("Google sign-in didn't work. Check the steps in Settings → Skills & tools → Gmail and Calendar and try again.") }[m[1]];
     if (msg) setTimeout(() => alert(msg), 600);
+    // MAILMULTI: an added account shows in the one list right away.
+    if (m[1] === 'added') setTimeout(() => void openSettings('ab-mail'), 300);
   }
 }
 
@@ -9078,6 +9093,8 @@ function showSettingsTab(page, opts = {}) {
     void loadMailAccounts();
     void loadInboxHelper();
   }
+  // MAILMULTI: the same account list with "+ Add an account" on Gmail and Calendar.
+  if (pick === 'ab-google' && typeof loadMailAccounts === 'function') void loadMailAccounts('#g-accounts');
   // R6 (docs/WORK_APPS.md): booking page, accounting export, Docs/Sheets and Word/Excel permissions.
   if (pick === 'you-business' || pick === 'ab-google' || pick === 'ab-mail') void loadWorkApps(pick);
   if (pick === 'co-whatsapp') void loadWhatsAppPage();

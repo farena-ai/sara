@@ -748,12 +748,21 @@
    "show": "#g-connect"
   },
   {
-   "id": "out",
-   "q": "How do I disconnect Google?",
+   "id": "add",
+   "q": "How do I add another Google account?",
    "steps": [
-    "Press Sign out of Google."
+    "Under Your accounts, press + Add an account, then Google account.",
+    "In Google's account picker, choose the account and allow Sara."
    ],
-   "show": "#g-disconnect"
+   "show": "#g-accounts"
+  },
+  {
+   "id": "out",
+   "q": "How do I remove one Google account?",
+   "steps": [
+    "Under Your accounts, press Remove next to it."
+   ],
+   "show": "#g-accounts"
   }
  ],
  "ab-mail": [
@@ -761,7 +770,7 @@
    "id": "outlook",
    "q": "How do I add an Outlook or Microsoft 365 mailbox?",
    "steps": [
-    "Under Microsoft, follow the numbered steps to make your own Microsoft app.",
+    "Press + Add an account, then Outlook or Microsoft 365.",
     "Paste its client ID and secret, then press Save.",
     "Press Sign in with Microsoft and allow Sara."
    ],
@@ -771,7 +780,7 @@
    "id": "other",
    "q": "How do I add Yahoo, iCloud or another mailbox?",
    "steps": [
-    "Under Add another provider, pick your provider.",
+    "Press + Add an account, then Another provider, and pick yours.",
     "Make an app password with the steps shown, then paste it.",
     "Press Add and check."
    ],

@@ -35,17 +35,54 @@ or fails the tests is **parked** and you are told. Ask her again for a parked fi
 
 ### Where it works
 
-Only where her source is a folder she can write to and that stays after a restart: a **source
-checkout** (`git clone` + `node src/main.ts`, or `npm start`). Everywhere else the card says why and
-offers a report to the developers instead:
+Where her source is a folder she can write to and that stays after a restart (a **source
+checkout**: `git clone` + `node src/main.ts`, or `npm start`), and on a **Linux server install**
+through the root helper (below). Everywhere else the card says why and offers a report to the
+developers instead:
 
 | Install | Code changes | Why |
 |---|---|---|
 | Source checkout (`git clone`, `npm start`, `node --watch`) | yes | her own writable folder |
-| Linux server (`install.sh`: `/opt/sara` from `/opt/sara-src`) | no | a read-only copy made by root (only `sudo sara update` changes it; the service runs with `ProtectSystem=strict`) |
+| Linux server (`install.sh`: `/opt/sara` from `/opt/sara-src`) | yes, through the root helper | she still can't write her code; a small root helper applies the change you approved (see below). The server's administrator can turn it off |
 | Docker / container image | no | a change would vanish the next time the image is pulled |
 | Windows and Mac apps | no | apps are repaired by reinstalling or going back, never by rewriting their code |
 | Homebrew / WinGet | no | the package manager owns the files |
+
+### On a Linux server
+
+A server install runs her from `/opt/<name>`, a copy only root can change (the service runs with
+`ProtectSystem=strict`). There a small, locked-down **root helper** puts an approved change in place,
+the same way `sudo sara update` does:
+
+1. She prepares and tests the change in her own copy in her data folder (made from the source
+   checkout, so the related tests are there), exactly as above. The spending and time caps are the same.
+2. You press **Approve and apply**. She writes a request in her data folder (the change number, an
+   approval id, the patch's fingerprint) and the word `selfcode` in `update-request`, which the
+   `<name>-updater` unit already watches. She never gets admin rights.
+3. The helper (root) reads the request and patch as her user (so a link can't make root read anything
+   else), then checks everything again with **its own copy of the rules** from the root-owned source
+   checkout: the request is for this Sara only, it carries an approval id, the patch is the one that
+   was approved, no protected path, no test weakening, no path outside the folders the installer
+   copies. It never runs a command from the request.
+4. It keeps a copy of the files it changes, applies the change to `/opt/<name>`, restarts her and waits
+   for her health check. If she doesn't come back healthy it puts the old files back and restarts her.
+   The card shows **Applied**, **Went back** or **Refused** with the reason. **Undo** works the same way.
+5. `sudo sara update` reinstalls a fresh copy, then puts your changes back in order. A change that no
+   longer fits the new version or breaks a rule is **parked** (the card says so); if she doesn't start
+   properly with them, they are all taken out and parked.
+
+The source checkout itself is never changed, so another Sara on the same server never gets this
+Sara's changes. For the server's administrator:
+
+```sh
+sudo sara selfcode            # list the changes in place and the parked ones
+sudo sara selfcode revert 12  # take change #12 out (restart, health check, back if she isn't healthy)
+sudo sara selfcode off        # turn code changes off entirely: the helper refuses every request
+sudo sara selfcode on         # turn them back on (she still asks you on every change)
+sudo sara selfcode reapply    # put them back after running install.sh by hand (sara update does it itself)
+```
+
+Turning it off keeps the changes already in place (revert them one by one if you want them gone).
 
 ### What she never changes
 
@@ -82,6 +119,26 @@ under `node --watch` the watcher restarts her. The result file is read at the ne
 then `afterBoot` checks the queue: a patch whose lines aren't in her files is re-applied in a copy,
 checked, then applied live through the same runner, or parked.
 
+**Server installs (rootapply, owner decision 2026-11-17).** The rules (`PROTECTED_PATHS`, test
+weakening, the patch format) live in `src/self-code-rules.ts`, which imports nothing but Node; the root
+side is `src/self-code-root.ts` (imports only that file) plus `deploy/lib-selfcode.sh`, sourced by the
+`sara` command. All three are protected paths. Root runs the node part from the root-owned source
+checkout, which the helper never patches, so a change can never alter the code root runs. Flow:
+`<name>-updater.path` → `sara web-request` → word `selfcode` → `sc_web_request` (reads
+`<data>/self-code/root-request.json` and `patches/<id>.patch` with `runuser -u <name>`, `check`,
+snapshot + `apply` on `/opt/<name>` (only `src web persona templates skills plugins`; test files are
+judged against the checkout), restart, `/api/health` + same version, else `restore` + restart).
+Root's state is `/var/lib/<name>-updater/selfcode/` (`queue/` applied patches, `parked/`, `results/`
+read by Sara, `snap/` root only) and the marker `selfcode.json` (`{helper, on, src}`) that
+`installInfo` reads: `mode: 'root-helper'`, `from` = the checkout her working copies are made from.
+The off switch is `/etc/<name>/selfcode-off`. `SelfCode.apply/undo` write the request instead of
+touching files; `status()`/`finish()` read the results (a result counts only when newer than the
+change's row); her in-app re-apply after an update is skipped there, `sara update` does it
+(`sc_reapply`). Deviation from the first sketch: patches go to `/opt/<name>`, not to a `local/selfcode`
+branch of `/opt/sara-src`, because several instances can share one checkout and must never get each
+other's changes. The approval id is a consistency check written by her own process; the hard limits
+are root's own rules, the off switch and the health rollback.
+
 **Routes:** `/api/self-code` (GET status, POST request, PUT settings; `/:id` GET card with diff,
 `/apply`, `/undo`, `/discard`, `/report` GET preview / POST `{send:true}`), owner only, apply and undo
 ask a remote device first (`restart`).
@@ -97,4 +154,8 @@ protected-path refusal, test-weakening refusal, patch round trip, install kinds,
 modes (node_modules survives), related tests, smoke start, apply + health ok, apply + health bad →
 rollback, Undo, patch queue re-apply after a fake update, conflict and failing-test parking, cost cap
 stop, time/fix rounds, private local mode, hub report scrubbed and previewed exactly, member and kid
-refusal.
+refusal. `test/self-code-root.test.ts` (fake root in temp folders, fake systemctl and health): request
+checks (approval, other instance, shape), protected path, test weakening, path traversal, swapped patch,
+apply + healthy → Applied, unhealthy → rolled back, off switch, undo and `selfcode revert`, `sara update`
+re-apply with a conflict parked and an unhealthy re-apply parked, the wiring in `deploy/sara` and
+`install.sh`, and SelfCode in helper mode (request written, no live change, results read).
