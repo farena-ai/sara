@@ -72,6 +72,10 @@ release steps: [docs/ops/C18_PLAY_RELEASE.md](../docs/ops/C18_PLAY_RELEASE.md).
 - **Phone as a helper location** (C18, 2.87.0): after *Allow once* the app takes one location fix
   itself and hands it to the page (`SaraPhone.helperLocate` → `window.saraHelperLocated`), so it
   works with http servers at home too (the web view's own geolocation is https-only).
+- **Messages from people (U2.9)**: a friend's one-to-one message is a notification under *Messages
+  from people*; a community mention (or a community on *Everything*) comes quietly under *Community
+  messages*; plain community posts stay in Messages. Download links and exports save to
+  **Download/Sara** (`SaraPhone.saveFile` / `saveData`, Android 10+). Details: [docs/ANDROID.md](../docs/ANDROID.md).
 - **App lock**: fingerprint, face or your screen lock after 30 seconds away; the app is hidden in
   the recent-apps view while the lock is on. **Hide the message text on the lock screen** is
   there too.
@@ -100,7 +104,7 @@ the page's colours, so nothing is padded twice. The check result is in logcat (`
 check …`). "Follow the system" in the page follows the phone's dark mode.
 - **Notification categories** (phone Settings → Apps → Sara → Notifications): *Messages from
   her*, *Calls from <her name>* (ringing), *Call in progress*, *Instant notifications* (the quiet
-  note while they're on).
+  note while they're on), *Messages from people* and *Community messages* (U2.9, created with the first one).
 
 That text is in `res/values/strings.xml` and translated in `values-de`, `-es`, `-fr`, `-it` and
 `-pt-rBR` (the app follows the phone's language); `test/android-strings.test.ts` checks all six

@@ -45,7 +45,8 @@
 .wr-box textarea { width: 100%; }
 @media (max-width: 720px) {
   /* Full screen on a phone: the generic phone dialog cap stops short of the bottom bar (hides Keep). */
-  dialog#hz-view:not(#_) { inset: 0; margin: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: none; border-radius: 0; padding: 12px; }
+  dialog#hz-view:not(#_) { inset: 0; margin: 0; width: 100vw; max-width: 100vw; height: 100dvh; max-height: none; border-radius: 0; padding: calc(12px + var(--safe-t)) 12px calc(12px + var(--safe-b)); }
+  dialog#hz-view:not(#_) > .dialog-x { top: calc(10px + var(--safe-t)); }
   .hz-scores { padding-right: 44px; }
   .hz-cols { grid-template-columns: 1fr; }
   .hz-text { max-height: 32vh; }

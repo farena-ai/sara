@@ -572,7 +572,8 @@ async function wavParts(file, keepStereo, say) {
     const parts = [];
     for (let o = 0; o < w.bytes; o += step) {
       const n = Math.min(step, w.bytes - o);
-      parts.push(new Blob([wavHeader(w.channels, w.rate, n), file.slice(w.offset + o, w.offset + o + n)]));
+      // Read when sent, one part at a time (a Mac recording comes from the app in pieces, never all at once).
+      parts.push(async () => new Blob([wavHeader(w.channels, w.rate, n), await file.slice(w.offset + o, w.offset + o + n).arrayBuffer()]));
     }
     return { parts, seconds: w.bytes / (frame * w.rate) };
   }
@@ -602,7 +603,8 @@ async function wavParts(file, keepStereo, say) {
         pcm[i] = Math.max(-32768, Math.min(32767, Math.round((v / data.length) * 32767)));
       }
     }
-    parts.push(new Blob([wavHeader(channels, 16000, pcm.byteLength), pcm.buffer]));
+    const part = new Blob([wavHeader(channels, 16000, pcm.byteLength), pcm.buffer]);
+    parts.push(async () => part);
   }
   return { parts, seconds: audio.duration };
 }
@@ -616,12 +618,12 @@ async function sendRecording(file, o, say) {
   const { meeting } = await api('/meetings/upload', { method: 'POST', body: { title: o.title, consent: true, keepAudio: o.keepAudio, name: file.name, parts: parts.length, channels: o.channels, seconds: Math.round(seconds), ...(startedAt ? { startedAt } : {}) } });
   for (let i = 0; i < parts.length; i++) {
     say(t('Sending part {n} of {total}…', { n: i + 1, total: parts.length }));
-    await api(`/meetings/${meeting.id}/part?i=${i}`, { method: 'POST', raw: parts[i] });
+    await api(`/meetings/${meeting.id}/part?i=${i}`, { method: 'POST', raw: await parts[i]() });
   }
   return meeting.id;
 }
 
-// ---------------------------------------------------------------- S2: Record this computer (Windows app)
+// ---------------------------------------------------------------- S2: Record this computer (Windows and Mac apps)
 
 const desktopRecorder = () => Boolean(globalThis.SaraDesktop?.meetingRec);
 let recTimer = null;
@@ -648,8 +650,13 @@ function desktopForm(r) {
   problem(box, r);
   const status = el('p', 'small', '');
   status.setAttribute('role', 'status');
+  const micOnly = el('p', 'small muted', globalThis.SaraDesktop?.platform === 'mac' ? t('Only your microphone is being recorded. To include the call’s sound, allow Sara in System Settings → Privacy & Security → Screen & System Audio Recording, then start again.') : t('Only your microphone is being recorded: the sound of this computer could not be captured.'));
+  micOnly.hidden = true;
   const acts = el('div', 'actions-left');
-  const stop = btn(t('Stop and write the notes'), '', () => void stopDesktop(status, acts));
+  const stop = btn(t('Stop and write the notes'), '', () => {
+    micOnly.hidden = true;
+    void stopDesktop(status, acts);
+  });
   const go = btn(t('Start recording'), '', async () => {
     if (!ok.checked) {
       status.textContent = t('Tick that everyone on the call knows it is recorded first.');
@@ -662,18 +669,22 @@ function desktopForm(r) {
       if (prefs.remind) speak(line.replace(/^[^"]*"|"[^"]*$/g, ''));
       acts.replaceChildren(stop);
       tick(status, res?.startedAt ? Date.parse(res.startedAt) : Date.now());
+      // U2.7: without the computer's sound (the Mac's Screen & System Audio Recording permission) it says so.
+      micOnly.hidden = res?.loopback !== false;
     } catch (e) {
-      status.textContent = e.message === 'mic' ? t('The microphone could not start. Check Windows Settings → Privacy → Microphone.') : e.message || t('Recording could not start.');
+      const mac = globalThis.SaraDesktop?.platform === 'mac';
+      status.textContent = e.message === 'mic' ? (mac ? t('The microphone could not start. Check System Settings → Privacy & Security → Microphone.') : t('The microphone could not start. Check Windows Settings → Privacy → Microphone.')) : e.message || t('Recording could not start.');
       go.disabled = false;
     }
   });
   go.disabled = !r.ready;
   acts.append(go);
-  box.append(acts, status);
+  box.append(acts, status, micOnly);
   void globalThis.SaraDesktop.call('meetingRec', { op: 'status' }).then((st) => {
     if (st?.recording) {
       acts.replaceChildren(stop);
       tick(status, Date.now() - st.seconds * 1000);
+      micOnly.hidden = st.loopback !== false;
     }
   }).catch(() => {});
   return box;

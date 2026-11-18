@@ -63,6 +63,42 @@ final class Notify {
         nm.notify((int) id, b.build());
     }
 
+    // ---------- U2.9: Messages from people (the Messages page), not from her ----------
+    static final String PEOPLE_CHANNEL = "people";
+    static final String COMMUNITY_CHANNEL = "community";
+
+    /**
+     * A message from a person: one-to-one on "Messages from people" (heads-up), community mentions and
+     * communities set to Everything on "Community messages" (no heads-up; each can be silenced in the
+     * phone's settings). Tapping opens Messages. `badge` is the app's number (one-to-one + mentions +
+     * approvals waiting) for launchers that show one.
+     */
+    static void person(Context c, String server, String chat, String msgId, String kind, String title, String from, boolean mention, String text, int badge, String host) {
+        NotificationManager nm = c.getSystemService(NotificationManager.class);
+        if (nm == null) return;
+        boolean direct = "direct".equals(kind);
+        nm.createNotificationChannel(new NotificationChannel(PEOPLE_CHANNEL, c.getString(R.string.channel_people), NotificationManager.IMPORTANCE_HIGH));
+        nm.createNotificationChannel(new NotificationChannel(COMMUNITY_CHANNEL, c.getString(R.string.channel_community), NotificationManager.IMPORTANCE_DEFAULT));
+        int id = ("pm:" + server + ":" + chat + ":" + msgId).hashCode();
+        Intent open = new Intent(c, MainActivity.class).putExtra("path", "/#view=messages").putExtra("server", server).setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        String head = direct ? from : mention ? c.getString(R.string.notify_mentioned, title) : title;
+        String body = direct ? text : from + ": " + text;
+        Notification.Builder b = new Notification.Builder(c, direct ? PEOPLE_CHANNEL : COMMUNITY_CHANNEL)
+                .setSmallIcon(R.drawable.ic_notify)
+                .setColor(COLOR)
+                .setContentTitle(head)
+                .setContentText(body)
+                .setStyle(new Notification.BigTextStyle().bigText(body))
+                .setCategory(Notification.CATEGORY_MESSAGE)
+                .setGroup("pm-" + chat)
+                .setAutoCancel(true)
+                .setContentIntent(PendingIntent.getActivity(c, id, open, PendingIntent.FLAG_IMMUTABLE | PendingIntent.FLAG_UPDATE_CURRENT));
+        if (badge > 0) b.setNumber(badge);
+        if (host != null) b.setSubText(host);
+        privacy(c, b, head);
+        nm.notify(id, b.build());
+    }
+
     /** After a reply from the notification: show what was sent (Android expects the update). */
     static void replied(Context c, int id, String name, CharSequence reply, String problem) {
         NotificationManager nm = manager(c);

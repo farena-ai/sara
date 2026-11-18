@@ -7,8 +7,8 @@ meeting matches an event in your calendar she drafts a **follow-up email** for e
 attendees that waits for you to press *Send*. Three ways in, all in the Library window under
 **Meetings…** (owner only; also `#view=meetings` and the Today tile):
 
-- **Record this computer** (the Windows app): your microphone and the computer's sound, so a Zoom,
-  Teams or Meet call on this PC is captured without a bot joining it.
+- **Record this computer** (the Windows and Mac apps): your microphone and the computer's sound, so a Zoom,
+  Teams or Meet call on this computer is captured without a bot joining it.
 - **A meeting room** in Sara, for people in the same room (or on another call with a Sara device on
   speaker).
 - **Notes from a recording**: a recorded call or meeting (WAV, MP3, M4A, MP4, WebM, OGG), for example
@@ -35,7 +35,7 @@ Joining a Discord voice channel herself is not built yet; see [Discord voice](#d
   Only give her recordings of people who agreed.
 - **End and write the notes** stops every microphone; the transcript says she stopped listening.
 
-## Record this computer (Windows app)
+## Record this computer (Windows and Mac apps)
 
 In the Windows app, **Meetings… → Record this computer** records the default microphone (left
 channel) and everything the computer plays (right channel, Windows WASAPI loopback) as a 16 kHz
@@ -45,13 +45,17 @@ shows the line to say (*"I'm recording this call so my assistant can take notes.
 Sara says it out loud when the recording starts; say it on the call yourself, since your microphone
 is what the others hear. **Stop and write the notes** hands the file to the page, which sends it to
 your Sara server in parts and asks the app to delete its copy (leftovers are deleted after a week).
-The Mac app and phones don't record this way yet; use a recording or a room there.
+**On a Mac** (U2.7) it is the same card: the microphone (left) and the Mac's own sound through
+ScreenCaptureKit (right; the Sara app's own sound is left out) in `~/Library/Application Support/<app>/meetings`.
+macOS asks once for the microphone and once for **Screen & System Audio Recording** (System Settings → Privacy
+& Security). Without that second permission only your microphone is recorded and the card says how to allow
+it. Phones don't record this way; use a recording or a room there.
 
 ## Who said what
 
 Lines are named **Speaker 1**, **Speaker 2**… and carry their time in the recording.
 
-- A recording from the Windows app is split **by channel**: you (the microphone) are Speaker 1,
+- A recording from the Windows or Mac app is split **by channel**: you (the microphone) are Speaker 1,
   everyone on the call (the computer's sound) is Speaker 2. Crosstalk goes to the louder side.
 - Any other recording is split **by pauses**: turns are cut at pauses and grouped into at most two
   voices by their pitch. Two similar voices stay Speaker 1. It's best effort, with no cloud service.
@@ -124,7 +128,7 @@ press it, and each item is added once.
 | The transcript | In her own database on your server, with the meeting, until you delete the meeting. Never sent to chat apps. |
 | The notes | A document in her Library. |
 | Audit rows | `meeting.start`, `meeting.join`, `meeting.file`, `meeting.end`, `meeting.notes`, `meeting.todos`, `meeting.recording` (a download or the first play), `meeting.rename`, `meeting.draft` (send, save, dismiss), `meeting.prefs`, `meeting.delete`; ids only, never the words. |
-| The Windows app's recording | In the app's data folder (`meetings\rec-*.wav`) until the page has sent it, then deleted; leftovers after a week. |
+| The Windows or Mac app's recording | In the app's data folder (`meetings\rec-*.wav`; on a Mac `Application Support/<app>/meetings`) until the page has sent it, then deleted; leftovers after a week. |
 
 **Delete this meeting** removes the transcript and the recording (not the Library notes). Under a legal
 hold it is refused. Sara keeps the last 50 finished meetings and forgets older ones.
@@ -167,6 +171,11 @@ Range playback, static UI and desktop checks).
 - Windows app: `desktop/windows/src/meeting-rec.cpp` (WASAPI capture + loopback), bridge message
   `meetingRec` (`start`, `status`, `stop`, `discard`) in `main.cpp`; the file returns as a WebView2
   file handle (`{meetingFile:true}` → `sara-meeting-file` event).
+- Mac app: `desktop/mac/Sources/MeetingRec.swift` (AVAudioEngine microphone + ScreenCaptureKit audio, the same
+  16 kHz stereo mix), bridge `meetingRec` (`start`, `status`, `stop`, `discard`, `read`) in `AppU2.swift`. WebKit
+  can't hand a page a file handle, so the page gets a file-like object (`window.__saraMeetingFile`) whose
+  slices it reads from the app in 1 MiB base64 pieces by a one-time token; the page reads each ten-minute part
+  only when it sends it.
 
 - Server: `src/meetings.ts` (`Meetings`, tables `meetings` and `meeting_lines`; `splitWav`,
   `addressed`, `parseNotes`), routes `src/routes/meetings.ts` (`/api/meetings…`), policy pin

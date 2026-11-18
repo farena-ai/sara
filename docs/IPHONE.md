@@ -15,7 +15,7 @@ that need no store at all:
 | | Installed web app on iPhone | Shortcuts |
 |---|---|---|
 | Notifications | Yes, after *Turn on for this device* (tap it in the Home Screen app) | — |
-| Badge on the icon | Yes: approvals and inbox cards waiting for you | — |
+| Badge on the icon | Yes: approvals, inbox cards and errands waiting for you, plus unread Messages | — |
 | Buttons on notifications (Approve, Snooze) | No (iOS doesn't show them): a tap opens the item in Sara | — |
 | Share sheet | No (iOS has no share target for web apps) | **Share to Sara** |
 | Siri | No | **Ask Sara** ("Hey Siri, Ask Sara") |
@@ -85,6 +85,17 @@ To stop sharing: open the link in Shortcuts → the shortcut → Stop Sharing, a
 source: it is not submitted to the App Store or TestFlight (owner decision: the app was denied
 before; ship what works without the store). Building it needs a Mac with Xcode; it can't be built
 on the Windows development PC.
+
+## On the phone itself (3.19+, U2.10)
+
+- **Connect the Sara phone app** (Settings → Connections → Phone and notifications) speaks to the
+  device it is shown on: on an iPhone it says to add Sara to the Home Screen (or that she is already
+  there), never "Get the Sara app on your Android phone"; its code button says *Show a code for another
+  phone*. On a computer it shows Google Play for Android and one line for iPhone.
+- The newer screens (goals, errands, trips, meetings, Messages, research, the document studio, Ask
+  everything, Make it sound human, People, Team, Try these and Settings) give every button and field at
+  least 44 px to tap on a touch screen. Ask everything and Make it sound human fill the screen and keep
+  clear of the notch and the home indicator. Email and calendar fits a 375 px iPhone (SE/mini).
 
 ## Not verified on a real iPhone
 

@@ -6,7 +6,9 @@
 //     this computer, Tailscale on the phone, then Sara tests the address herself.
 //   - reachLine(): one plain line for Health.
 // The server decides the address (src/reach.ts): never 127.0.0.1 for another device.
+import { isStandalone } from './ios-web.js';
 import { serverText, t } from './naming.js';
+import { phoneKind } from './pair-link.js';
 
 const ANDROID_APP = 'https://play.google.com/store/apps/details?id=com.backstagecoding.sara';
 
@@ -53,12 +55,30 @@ export function initReach(d) {
   globalThis.document?.addEventListener('sara:open-away', () => deps.openAway());
 }
 
-/** Where to get the phone app: Google Play, or the download page. */
-function getTheApp() {
-  const p = el('p', 'small rch-get');
-  p.append(el('strong', '', t('1. Get the Sara app on your Android phone:')), ' ', link(ANDROID_APP, t('Sara on Google Play')));
-  // 3.3.0: no direct APK link until a release carries one (GitHub releases have none; Play is the route).
-  return [p];
+/**
+ * U2.10: where to get the phone app, worded for the device that shows this card. On an iPhone
+ * (Safari or the Home Screen web app) there is no Android line: Sara is a Home Screen app there.
+ * On Android: Google Play. On a computer: both phones. Plain data, so the tests can read it.
+ */
+export function appLines({ ua = '', maxTouchPoints = 0, standalone = false } = {}) {
+  const android = { strong: t('1. Get the Sara app on your Android phone:'), link: [ANDROID_APP, t('Sara on Google Play')] };
+  const kind = phoneKind(ua, maxTouchPoints);
+  if (kind === 'ios') {
+    if (standalone) return [{ strong: t('Sara is already on your Home Screen.'), text: t('Notifications and the app badge work when you open her from there.') }];
+    return [{ strong: t('1. On this iPhone, add Sara to your Home Screen:'), text: t('in Safari, tap Share, then Add to Home Screen, and open Sara from there. Notifications and the app badge only work that way.') }];
+  }
+  if (kind === 'android') return [android];
+  return [android, { strong: t('On an iPhone:'), text: t('no app to install. Scan the code in step 2, sign in in Safari, then tap Share → Add to Home Screen.') }];
+}
+// 3.3.0: no direct APK link until a release carries one (GitHub releases have none; Play is the route).
+function appStep() {
+  return appLines({ ua: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, standalone: isStandalone() }).map((l) => {
+    const p = el('p', 'small rch-get');
+    p.append(el('strong', '', l.strong), ' ');
+    if (l.link) p.append(link(l.link[0], l.link[1]));
+    if (l.text) p.append(l.text);
+    return p;
+  });
 }
 
 /** The plain words for where the address works. */
@@ -79,9 +99,10 @@ export async function renderPhoneConnect(host) {
   host.hidden = false;
   const card = el('section', 'rch-card');
   card.append(el('h3', '', t('Connect the Sara phone app')));
-  card.append(...getTheApp());
+  card.append(...appStep());
   const step2 = el('div', 'rch-step2');
-  const go = button(t('2. Show the code to scan'), 'primary', async (b) => {
+  const onIphone = phoneKind(navigator.userAgent, navigator.maxTouchPoints) === 'ios';
+  const go = button(onIphone ? t('2. Show a code for another phone') : t('2. Show the code to scan'), 'primary', async (b) => {
     b.disabled = true;
     try {
       await showPairCode(step2);

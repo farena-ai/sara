@@ -225,6 +225,8 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
   func show() {
     guard let app else { return }
     if app.server == nil { return app.showWindow() }  // nothing to ask yet: the window sets her up
+    // U2.7: what was selected in the app in front, before the panel takes the front (QuickContext.swift).
+    if !wantShow && !visible { _ = QuickContext.capture(selection: QuickContext.selectionOn) }
     ensure()
     guard ready, let panel, let web else { wantShow = true; return }
     wantShow = false
@@ -234,7 +236,8 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     panel.makeKeyAndOrderFront(nil)
     panel.makeFirstResponder(web)
     let theme = Shell.isDay ? "day" : "night"
-    web.evaluateJavaScript("window.saraQuick&&saraQuick.show({theme:'\(theme)',solid:false,shortcut:'\(shortcutTaken ? "" : shortcut?.label ?? "")'})")
+    let ctx = (try? JSONSerialization.data(withJSONObject: QuickContext.last.json)).flatMap { String(data: $0, encoding: .utf8) } ?? "null"
+    web.evaluateJavaScript("window.saraQuick&&saraQuick.show({theme:'\(theme)',solid:false,shortcut:'\(shortcutTaken ? "" : shortcut?.label ?? "")',context:\(ctx)})")
   }
 
   func hide() {
@@ -333,6 +336,12 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     case "wake":
       // C17: Hey Sara (Wake.swift): the claim, her speaking, the end, and the 60 s config poll.
       app.wakeFromQuick(body)
+    case "window":
+      // U2.7: "This window": one picture of the window that was in front.
+      QuickContext.picture { [weak self] r in
+        let json = (try? JSONSerialization.data(withJSONObject: r)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
+        self?.web?.evaluateJavaScript("window.saraQuick&&saraQuick.picture(\(json))")
+      }
     case "reminder":
       app.notifyReminder(conv: body["conv"] as? String ?? "", rid: body["rid"] as? String ?? "", text: body["text"] as? String ?? "")
     default: break
@@ -528,8 +537,16 @@ extension AppDelegate {
     off.representedObject = "off"
     off.state = q.shortcutId == "off" ? .on : .off
     m.addItem(off)
+    // U2.7: quick ask brings the text selected in the app in front (needs Accessibility; on by default).
+    m.addItem(.separator())
+    let sel = NSMenuItem(title: "Include selected text", action: #selector(toggleQuickSelection), keyEquivalent: "")
+    sel.target = self
+    sel.state = QuickContext.selectionOn ? .on : .off
+    m.addItem(sel)
     return m
   }
+
+  @objc func toggleQuickSelection() { prefs.set(!QuickContext.selectionOn, forKey: "quickAskSelection") }
 
   @objc func askFromMenu() { quick?.show() }
   @objc func pickShortcut(_ item: NSMenuItem) { _ = quick?.setShortcut(item.representedObject as? String ?? "") }

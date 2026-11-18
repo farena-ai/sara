@@ -14,6 +14,7 @@ import { applyBring, BRING_SOURCE_NAME, BringError, type BringPlan, type BringRe
 import { createCompanionDir, newCompanionPersona, retireCompanionDir } from '../companions.ts';
 import { galleryEntry, galleryLine, galleryList, NoBrainError } from '../gallery.ts';
 import { as400, AVATAR_TYPES, fromPhoneApp, HttpError, MAX_AVATAR, MAX_CHARACTER, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
+import { trOwner } from '../i18n.ts';
 import { expressionFor, leansPlayful, moodLabel } from '../inner.ts';
 import { cleanMeta, isAdultOutfit, LOOK_STYLES, type LookMeta, outfitPrompt, OUTFITS, PARTS, PLACES } from '../look.ts';
 import { localDate } from '../memory-worker.ts';
@@ -21,6 +22,7 @@ import { privateLocalOn } from '../net-guard.ts';
 import { fillNames, scrubPersona } from '../packs/scrub.ts';
 import { loadPersona, type Persona, SAFETY_BOUNDARIES, validatePersona, withOwnPronouns } from '../persona.ts';
 import { talksHere } from '../private-local.ts';
+import { badgeCount } from '../shortcuts.ts';
 import { detectMinorSexualContent } from '../safety.ts';
 import { adultModeOn, type Settings } from '../settings.ts';
 import { appearanceFor, DEFAULT_LOOK_IDS, DEFAULT_LOOKS, defaultLookFor, toDefaultLookSetting } from '../default-look.ts';
@@ -514,7 +516,13 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       });
     }
     if (a === 'phone' && b === 'inbox' && method === 'GET') {
-      const after = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('after') ?? 0) || 0;
+      const q = new URL(req.url ?? '/', 'http://x').searchParams;
+      const after = Number(q.get('after') ?? 0) || 0;
+      // U2.9: Messages notices for the Android app (the cursor is a row number; no pmAfter = an older app).
+      const pm = app.messages?.phoneNotices(Math.max(0, Number(q.get('pmAfter')) || 0));
+      const hide = app.push?.settings.preview === false;
+      const people = q.has('pmAfter') ? (pm?.items ?? []).map((p) => (hide ? { ...p, text: trOwner('Open the app to see it.', app.settings.get()) } : p)) : undefined;
+      const extra = { pmLatest: pm?.latest ?? 0, badge: opts.demo ? 0 : badgeCount(ctx.active, app), ...(people ? { people } : {}) };
       const rows = app.store.db
         .prepare(
           "SELECT m.id, m.conversation_id, m.content, m.created_at, m.meta FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.id > ? AND (m.meta LIKE '%\"proactive\"%' OR m.meta LIKE '%\"reminder\"%' OR m.meta LIKE '%\"job\"%' OR m.meta LIKE '%\"briefing\"%' OR m.meta LIKE '%\"background\"%') ORDER BY m.id DESC LIMIT 5",
@@ -522,7 +530,7 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         .all(after) as { id: number; conversation_id: string; content: string; created_at: string; meta: string | null }[];
       const latest = (app.store.db.prepare('SELECT MAX(id) AS n FROM messages').get() as { n: number | null }).n ?? 0;
       const kind = (meta: string | null) => (meta?.includes('"reminder"') ? 'reminder' : meta?.includes('"job"') ? 'job' : 'message');
-      return send(res, 200, { latest, name: app.persona.name, messages: rows.reverse().map((r) => ({ id: r.id, conversationId: r.conversation_id, text: r.content.slice(0, 500), at: r.created_at, kind: kind(r.meta) })) });
+      return send(res, 200, { latest, ...extra, name: app.persona.name, messages: rows.reverse().map((r) => ({ id: r.id, conversationId: r.conversation_id, text: r.content.slice(0, 500), at: r.created_at, kind: kind(r.meta) })) });
     }
 
     if (a === 'sara' && b === 'state' && method === 'GET') {

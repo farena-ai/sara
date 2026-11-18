@@ -3443,7 +3443,6 @@
 "Add another server to this app and switch between them without signing out. Notifications, the microphone and files you pick go to the one in use.": "Añade otro servidor a esta app y cambia entre ellos sin cerrar sesión. Las notificaciones, el micrófono y los archivos que elijas van al que está en uso.",
 "Add another server to this app (with a code or the QR code from Add a phone or computer) and switch between them. Notifications come from all of them.": "Añade otro servidor a esta app (con un código o el código QR de Añadir un teléfono u ordenador) y cambia entre ellos. Las notificaciones llegan de todos.",
 "Remove {name} from this app? It signs out of that server only; its conversations stay on it.": "¿Quitar {name} de esta app? Solo cierra la sesión en ese servidor; sus conversaciones siguen en él.",
-"{name} (the server in use) can use this computer: notifications, the microphone in calls and the files you pick. They follow the server you switch to, one at a time.": "{name} (el servidor en uso) puede usar este ordenador: notificaciones, el micrófono en las llamadas y los archivos que elijas. Siguen al servidor al que cambies, de uno en uno.",
 "Notifications come from every server here; tapping one opens the right one. The microphone, camera and location go only to the one in use ({name}).": "Las notificaciones llegan de todos los servidores de aquí; al tocar una se abre el correcto. El micrófono, la cámara y la ubicación van solo al que está en uso ({name}).",
 "Mute": "Silenciar",
 "Camera": "Cámara",
@@ -18892,5 +18891,16 @@
 "Turn on “Let me send results to the developer” first.": "Activa primero «Permitirme enviar los resultados al desarrollador».",
 "Try at least one item first.": "Prueba al menos una primero.",
 "No such item.": "No existe esa prueba.",
-"Pick Worked, Didn’t work or Skip.": "Elige Funcionó, No funcionó u Omitir."
+"Pick Worked, Didn’t work or Skip.": "Elige Funcionó, No funcionó u Omitir.",
+"Sara is already on your Home Screen.": "Sara ya está en tu pantalla de inicio.",
+"Notifications and the app badge work when you open her from there.": "Las notificaciones y el globo de la app funcionan cuando la abres desde allí.",
+"1. On this iPhone, add Sara to your Home Screen:": "1. En este iPhone, añade Sara a tu pantalla de inicio:",
+"in Safari, tap Share, then Add to Home Screen, and open Sara from there. Notifications and the app badge only work that way.": "en Safari, toca Compartir, luego Añadir a pantalla de inicio, y abre Sara desde allí. Las notificaciones y el globo de la app solo funcionan así.",
+"On an iPhone:": "En un iPhone:",
+"no app to install. Scan the code in step 2, sign in in Safari, then tap Share → Add to Home Screen.": "no hay que instalar nada. Escanea el código del paso 2, inicia sesión en Safari y toca Compartir → Añadir a pantalla de inicio.",
+"2. Show a code for another phone": "2. Mostrar un código para otro teléfono",
+"The microphone could not start. Check System Settings → Privacy & Security → Microphone.": "No se pudo iniciar el micrófono. Revisa Ajustes del Sistema → Privacidad y seguridad → Micrófono.",
+"Only your microphone is being recorded. To include the call’s sound, allow Sara in System Settings → Privacy & Security → Screen & System Audio Recording, then start again.": "Solo se está grabando tu micrófono. Para incluir el sonido de la llamada, permite Sara en Ajustes del Sistema → Privacidad y seguridad → Grabación de pantalla y audio del sistema, y vuelve a empezar.",
+"Only your microphone is being recorded: the sound of this computer could not be captured.": "Solo se está grabando tu micrófono: no se pudo capturar el sonido de este ordenador.",
+"{name} (the server in use) can use this computer: the microphone in calls and the files you pick. They follow the server you switch to. Message notifications come from every server here.": "{name} (el servidor en uso) puede usar este equipo: el micrófono en las llamadas y los archivos que elijas. Siguen al servidor al que cambies. Los avisos de mensajes llegan de todos los servidores de aquí."
 }

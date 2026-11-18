@@ -178,6 +178,7 @@ import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './
 import { initMemoryMap } from './memory-map.js';
 import { choiceCard } from './choice-card.js';
 import { initRepair, loadRepair, saveRepair } from './repair.js';
+import { installPhoneSave } from './phone-save.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -6869,6 +6870,7 @@ async function loadJobs() {
 // ---------- the phone apps (Android: Phase 14, iPhone: Phase 17) ----------
 // Store rules (Phase 19): adult mode is a web-browser setting, so the apps don't show it.
 if (/\bSaraPhone\/\d/.test(navigator.userAgent)) document.body.classList.add('in-app');
+installPhoneSave(); // U2.9: <a download> in the Android app goes to its bridge
 // Inside the phone app, notifications come from the app itself, and it can place the widget.
 if (window.SaraPhone) {
   const ios = window.SaraPhone.platform === 'ios';
@@ -15030,6 +15032,14 @@ async function renderServers() {
   const cur = list.find((x) => x.active) ?? list[0];
   $('#server-btn').hidden = list.length < 2;
   if (cur) $('#server-btn-name').textContent = `${cur.emoji ? `${cur.emoji} ` : ''}${cur.name}`;
+  // U2.11: unread messages on the other servers, on the switch button.
+  const others = list.filter((x) => !x.active).reduce((n, x) => n + (x.unread > 0 ? x.unread : 0), 0);
+  const sc = $('#server-btn-count');
+  if (sc) {
+    sc.hidden = !others;
+    sc.textContent = others > 99 ? '99+' : String(others || '');
+    if (others) sc.setAttribute('aria-label', t('{n} unread', { n: others }));
+  }
   const ul = $('#servers-list');
   ul.replaceChildren(
     ...list.map((x) => {
@@ -15037,6 +15047,11 @@ async function renderServers() {
       const who = el('span', '', `${x.emoji ? `${x.emoji} ` : ''}${x.name}`);
       const where = el('span', 'muted small', x.host ?? '');
       if (x.host) where.title = x.host; // the whole address when a phone shortens it
+      if (x.unread > 0) {
+        const pill = el('span', 'srv-count', x.unread > 99 ? '99+' : String(x.unread));
+        pill.setAttribute('aria-label', t('{n} unread', { n: x.unread }));
+        who.append(' ', pill);
+      }
       li.append(who, where);
       if (x.active) li.append(el('span', 'badge', t('In use')));
       else li.append(btn(t('Switch'), async () => {
@@ -15070,7 +15085,7 @@ async function renderServers() {
   );
   if (cur) {
     $('#servers-computer').textContent = nativeServersApi().kind === 'desktop'
-      ? t('{name} (the server in use) can use this computer: notifications, the microphone in calls and the files you pick. They follow the server you switch to, one at a time.', { name: cur.name })
+      ? t('{name} (the server in use) can use this computer: the microphone in calls and the files you pick. They follow the server you switch to. Message notifications come from every server here.', { name: cur.name })
       : t('Notifications come from every server here; tapping one opens the right one. The microphone, camera and location go only to the one in use ({name}).', { name: cur.name });
   }
 }

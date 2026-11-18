@@ -466,6 +466,26 @@ export class Messenger {
     }
     return { unread, community };
   }
+  /**
+   * U2.9: incoming messages after the `after` cursor (a row number) that notify in full (one-to-one,
+   * mentions, communities on Everything), unread only, oldest first; for the Android app's own check.
+   */
+  phoneNotices(after: number, limit = 5): { latest: number; items: { chat: string; id: string; kind: ChatRow['kind']; title: string; from: string; mention: boolean; text: string; at: string }[] } {
+    const latest = (this.#db.prepare('SELECT MAX(rowid) AS n FROM pm_messages WHERE mine = 0').get() as { n: number | null }).n ?? 0;
+    const def = this.settings().communityNotify;
+    const rows = this.#db.prepare('SELECT rowid AS n, * FROM pm_messages WHERE mine = 0 AND deleted = 0 AND seen = 0 AND rowid > ? ORDER BY rowid DESC LIMIT 50').all(after) as Record<string, unknown>[];
+    const items = [];
+    for (const r of rows) {
+      const c = this.chat(String(r.chat));
+      if (!c || this.#hidden(c.id).includes(String(r.author_id))) continue;
+      const mention = Boolean(r.mention);
+      if (notifyRoute({ kind: c.kind, muted: c.muted, blocked: c.blocked, level: c.notify ?? def, mention }) !== 'full') continue;
+      const v = this.#view(r);
+      items.push({ chat: c.id, id: v.id, kind: c.kind, title: c.title, from: v.author, mention, text: v.text ? clip(v.text, 300) : v.file ? `📎 ${v.file.name}` : '', at: v.at });
+      if (items.length >= limit) break;
+    }
+    return { latest, items: items.reverse() };
+  }
   patchChat(id: string, v: Record<string, unknown>): ChatRow {
     const c = this.chat(id);
     if (!c) throw new MsgError(404, en('Not found'));

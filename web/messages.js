@@ -3,7 +3,7 @@
 // when the owner presses "Ask Sara about this" (it opens a new chat with the text in the box, unsent).
 import { t } from './naming.js';
 import { initSupport, loadSupport, supportRows, supportStrip } from './support.js';
-import { addNotice, countText, noticeCount, noticeTitle, parseShown, pendingNotices, remember, withCount } from './msg-notice.js';
+import { addNotice, countText, desktopBadge, noticeCount, noticeTitle, parseShown, pendingNotices, remember, withCount } from './msg-notice.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, notify?: (title: string, body: string) => void, askHer?: (text: string) => void, confirm?: (text: string) => Promise<boolean> } | null} */
 let ctx = null;
@@ -18,6 +18,7 @@ let prefs = { popup: true, sound: false, communityNotify: 'mentions' };
 // MSGPOP: the notices on the top card (newest first), the badge count, and the per-message memory.
 let notices = [];
 let badgeN = 0;
+let sentBadge = -1; // U2.8: the count the Windows app shows on its taskbar button
 let wantChime = false;
 const SHOWN_KEY = 'sara.msgs.shown';
 
@@ -139,6 +140,12 @@ function paintBadge(n) {
   badgeN = n;
   paintTitle();
   if (changed) ctx?.badge?.();
+  // U2.8: the same count on the Windows taskbar button and the Mac app's Dock icon (0 when the popup is off).
+  if (desktopBadge(n, prefs) !== sentBadge) {
+    sentBadge = desktopBadge(n, prefs);
+    window.SaraDesktop?.badge?.(sentBadge);
+    window.SaraDesktop?.call?.('badge', { n: sentBadge })?.catch?.(() => {});
+  }
 }
 // The tab title keeps its "(n) " prefix whoever sets the title next (activity, her name, help).
 let titleWatch = null;

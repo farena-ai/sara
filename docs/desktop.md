@@ -56,7 +56,9 @@ profile; Mac: its own WebKit data store), and switch without signing out: the tr
 once there are two. *Add a Sara…* replaces *Connect to a different Sara…* (which used to sign out
 of the old server); *Remove* signs out of one server only. The server used before 1.8 becomes the
 first in the list, still signed in. Notifications, the microphone and files you pick go to the
-server in use only, and the desktop apps notify for that server only. Details for every app:
+server in use only, and the desktop apps notify for that server only (U2.11: the Windows app also
+counts and announces new messages on the other servers, and shows the total unread messages on its
+taskbar button). Details for every app:
 [SERVERS.md](SERVERS.md).
 
 ## Two ways to use the apps (Phase 55)
@@ -1026,11 +1028,16 @@ Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in 
 - **The pill:** `SaraVoicePill`, a no-activate topmost window above the notification area, shows
   *Listening…* / *Listening · let go to send* / *Thinking…* / *Speaking · click to stop* while her voice
   state is active and quick ask isn't in front. A click stops her speaking (or shows quick ask).
-- **Mac:** not done yet. The page part is shared and degrades cleanly (no context → no chips, no picture
-  button). Cheap next steps: `AXUIElementCopyAttributeValue(kAXSelectedTextAttribute)` on the focused
-  element (needs the Accessibility permission; no pasteboard fallback without it), `CGWindowListCreateImage`
-  / ScreenCaptureKit for the window (Screen Recording permission), and Carbon's `kEventHotKeyReleased`
-  for push-to-talk; pass `context` in `saraQuick.show` and answer `{a:'window'}` like Windows.
+- **Mac (U2.7, `desktop/mac/Sources/QuickContext.swift`):** selected text and this window. When the shortcut
+  is pressed the focused element of the app in front is asked for `kAXSelectedTextAttribute` (Accessibility
+  permission, the one her hands use; without it nothing is read and there is no copy-and-paste fallback);
+  never a password field (`AXSecureTextField`), never Sara's own windows, never a window her hands' rules hide
+  (`HandsScreen.blockedKind`); masked, at most 8,000 characters, never logged. The context goes in
+  `saraQuick.show({context})`; `{a:'window'}` takes one picture of that window with `HandsScreen.shot`
+  (ScreenCaptureKit, secure fields boxed out; macOS 14+ and Screen Recording) and answers
+  `saraQuick.picture`. Menu bar → *Quick ask shortcut ▸ Include selected text* (`quickAskSelection`, on).
+  Not on the Mac yet: push-to-talk (held shortcut), the voice pill, *Speak her replies*, and reading a
+  selection inside Sara's own window.
 - **Checked on Windows 11 (test build, throwaway server with a fake model and fake speech API):** text
   selected in Notepad became the chip through UI Automation; with `SARA_QA_FORCE_COPY=1` (test builds
   only) the Ctrl+C path read it and the clipboard (text, a bitmap and a private format) came back
@@ -1104,11 +1111,36 @@ and CDP's `Input.dispatchDragEvent` with real file paths for the drops.
 
 ## Record a meeting on this PC (S2)
 
-Library → Meetings → **Record this computer** (Windows app only) records the default microphone
+Library → Meetings → **Record this computer** (Windows app; the Mac app since U2.7, below) records the default microphone
 and the computer's own sound (WASAPI loopback) into `meetings\rec-*.wav` in the app's data folder,
 after the consent tick and notice. Stop hands the file to the page as a read-only handle; the page
 sends it to the server in parts and the app deletes it (leftovers after a week). Source:
 `src/meeting-rec.cpp`, bridge message `meetingRec` in `main.cpp`. See [MEETINGS.md](MEETINGS.md).
+
+## The Mac app catches up (U2.7, U2.8)
+
+What the Mac app already had from N5 (see *The Mac app's PC tools (N5)* and *How the app updates*): its own
+signed-notice self-update (CryptoKit Ed25519, safe Sara.app swap with rollback, `AppUpdate.swift`), your tabs,
+read-only files, approved `zsh` commands and `c.open`, and Save to this Mac. U2 adds (`AppU2.swift`,
+`MeetingRec.swift`, `QuickContext.swift`):
+
+- **Dock badge (U2.8):** the page calls `SaraDesktop.badge(n)` with the sidebar Messages pill's number (one-to-one
+  unread plus community mentions, `src/messages.ts`; plain community posts never count) each time it paints it;
+  the shim sends it only when it changes, and the app sets `NSApp.dockTile.badgeLabel` (`99+` above 99, none at
+  0). A new page in the main window (another server, signed out, a reload) clears it until that page says
+  otherwise. Household members' pages have no Messages count, so no badge.
+- **Record this computer (U2.7):** see *Record a meeting on this PC* and [MEETINGS.md](MEETINGS.md). The
+  microphone via AVAudioEngine, the Mac's sound via ScreenCaptureKit (`capturesAudio`,
+  `excludesCurrentProcessAudio`), mixed like Windows (16 kHz, mic left, computer right, the mic is the clock).
+  The page reads the finished file from the app in 1 MiB pieces by a one-time token (`window.__saraMeetingFile`).
+- **Quick ask with the selected text and this window (U2.7):** see *Quick ask anywhere*.
+- **Checks:** `Sara --self-check` now also checks the Dock labels, the resampler, the mix, the 3-hour cap, the
+  WAV header and quick ask's text rules (121 checks in all, 13 new). `test/u2-mac.test.ts` checks the bridge contract and runs
+  the Mac shims in a sandbox (the badge only on change, the recording read back in pieces). Checked on the Mac
+  (macOS 27.2, a DEBUG test app with its own bundle id against a throwaway server): the real page's
+  `SaraDesktop` is the Mac one with `badge` and `meetingRec`; the Dock showed 7, 99+, nothing and 3; a read
+  with a wrong token and a stray stop were refused. The live recording itself needs a person at the Mac
+  (the microphone and Screen & System Audio Recording prompts): see docs/OWNER_CHECKS.md.
 
 ## Linux hands (CU8 implementation draft)
 

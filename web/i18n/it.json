@@ -3452,7 +3452,6 @@
 "Add another server to this app and switch between them without signing out. Notifications, the microphone and files you pick go to the one in use.": "Aggiungi un altro server a questa app e passa dall'uno all'altro senza disconnetterti. Notifiche, microfono e file scelti vanno a quello in uso.",
 "Add another server to this app (with a code or the QR code from Add a phone or computer) and switch between them. Notifications come from all of them.": "Aggiungi un altro server a questa app (con un codice o il QR code di Aggiungi un telefono o computer) e passa dall'uno all'altro. Le notifiche arrivano da tutti.",
 "Remove {name} from this app? It signs out of that server only; its conversations stay on it.": "Rimuovere {name} da questa app? Si disconnette solo da quel server; le conversazioni restano lì.",
-"{name} (the server in use) can use this computer: notifications, the microphone in calls and the files you pick. They follow the server you switch to, one at a time.": "{name} (il server in uso) può usare questo computer: notifiche, il microfono nelle chiamate e i file che scegli. Seguono il server a cui passi, uno alla volta.",
 "Notifications come from every server here; tapping one opens the right one. The microphone, camera and location go only to the one in use ({name}).": "Le notifiche arrivano da tutti i server qui; toccarne una apre quello giusto. Microfono, fotocamera e posizione vanno solo a quello in uso ({name}).",
 "Mute": "Muto",
 "Camera": "Fotocamera",
@@ -18901,5 +18900,16 @@
 "Turn on “Let me send results to the developer” first.": "Attiva prima «Permettimi di inviare i risultati allo sviluppatore».",
 "Try at least one item first.": "Prova prima almeno una voce.",
 "No such item.": "Questa voce non esiste.",
-"Pick Worked, Didn’t work or Skip.": "Scegli Ha funzionato, Non ha funzionato o Salta."
+"Pick Worked, Didn’t work or Skip.": "Scegli Ha funzionato, Non ha funzionato o Salta.",
+"Sara is already on your Home Screen.": "Sara è già nella tua schermata Home.",
+"Notifications and the app badge work when you open her from there.": "Le notifiche e il badge dell’app funzionano quando la apri da lì.",
+"1. On this iPhone, add Sara to your Home Screen:": "1. Su questo iPhone, aggiungi Sara alla schermata Home:",
+"in Safari, tap Share, then Add to Home Screen, and open Sara from there. Notifications and the app badge only work that way.": "in Safari, tocca Condividi, poi Aggiungi alla schermata Home, e apri Sara da lì. Notifiche e badge dell’app funzionano solo così.",
+"On an iPhone:": "Su un iPhone:",
+"no app to install. Scan the code in step 2, sign in in Safari, then tap Share → Add to Home Screen.": "niente da installare. Scansiona il codice del passo 2, accedi in Safari e tocca Condividi → Aggiungi alla schermata Home.",
+"2. Show a code for another phone": "2. Mostra un codice per un altro telefono",
+"The microphone could not start. Check System Settings → Privacy & Security → Microphone.": "Non è stato possibile avviare il microfono. Controlla Impostazioni di Sistema → Privacy e sicurezza → Microfono.",
+"Only your microphone is being recorded. To include the call’s sound, allow Sara in System Settings → Privacy & Security → Screen & System Audio Recording, then start again.": "Viene registrato solo il tuo microfono. Per includere l’audio della chiamata, consenti Sara in Impostazioni di Sistema → Privacy e sicurezza → Registrazione schermo e audio di sistema, poi ricomincia.",
+"Only your microphone is being recorded: the sound of this computer could not be captured.": "Viene registrato solo il tuo microfono: non è stato possibile catturare l’audio di questo computer.",
+"{name} (the server in use) can use this computer: the microphone in calls and the files you pick. They follow the server you switch to. Message notifications come from every server here.": "{name} (il server in uso) può usare questo computer: il microfono nelle chiamate e i file che scegli. Seguono il server a cui passi. Le notifiche dei messaggi arrivano da tutti i server qui."
 }

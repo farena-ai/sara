@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## The apps catch up, in 3.20.0
+
+Unread message counts on the Windows taskbar and the Mac Dock. The Windows app counts and announces new messages
+from every saved server and switches to the right one when you click. The Mac app records calls (microphone plus
+the call's sound) for meeting notes and can include selected text in a quick ask. The Android app gets one-to-one
+message notifications even when closed, quiet community notices and file saves. On iPhone, the wording, the icon
+badge (errands included) and tap targets on the new screens are fixed.
+
 ## Proven on real models, Try these, and steadier releases, in 3.19.0
 
 A 40-task run on a real local model (39 of 40 passed every check), end-to-end checks for every kind of mail and

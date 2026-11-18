@@ -25,4 +25,7 @@ dialog#ask-all { width: min(860px, calc(100vw - 24px)); max-height: min(88vh, 90
 #ask-all .ask-mark { background: var(--accent-soft); color: inherit; border-radius: 3px; box-shadow: inset 0 -2px 0 var(--accent-solid); padding: 0 1px; }
 @media (max-width: 720px) {
   dialog#ask-all:not(#_) { inset: 0; width: 100vw; height: auto; max-width: none; max-height: none; border-radius: 0; margin: 0; }
+  /* U2.10: full screen on an iPhone: below the status bar / notch and above the home indicator. */
+  dialog#ask-all:not(#_) { padding-top: calc(16px + var(--safe-t)); padding-bottom: calc(16px + var(--safe-b)); }
+  dialog#ask-all:not(#_) > .dialog-x { top: calc(10px + var(--safe-t)); }
 }

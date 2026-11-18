@@ -127,4 +127,12 @@
     <string name="widget_talk">Parler</string>
     <string name="widget_next">Ensuite : %1$s</string>
     <string name="widget_watches">%1$d surveillé(s)</string>
+    <!-- U2.9: Messages from people and communities; saving files from the page -->
+    <string name="channel_people">Messages de personnes</string>
+    <string name="channel_community">Messages des communautés</string>
+    <string name="notify_mentioned">On vous a mentionné dans %1$s</string>
+    <string name="file_saved">Enregistré dans Download/Sara.</string>
+    <string name="file_failed">Impossible d\'enregistrer le fichier.</string>
+    <string name="file_needs_android10">L\'enregistrement de fichiers nécessite Android 10 ou plus récent.</string>
+    <string name="file_too_big">Ce fichier est trop volumineux pour être enregistré ici. Ouvrez Sara dans votre navigateur pour l\'enregistrer.</string>
 </resources>

@@ -1509,6 +1509,10 @@ body.private-local .pl-card { border-color: var(--accent); }
   .server-btn span { display: inline-block; max-width: 5em; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 }
 .servers-list li > span:first-child { font-weight: 600; }
+/* U2.11: unread messages per server (the ⇄ list and the switch button). */
+.srv-count { display: inline-block; min-width: 18px; margin-left: 6px; padding: 0 6px; border-radius: 999px; background: var(--accent-solid); color: var(--on-accent); font: 600 11px/18px var(--font-ui); text-align: center; vertical-align: middle; }
+.srv-count[hidden] { display: none; }
+.server-btn span.srv-count { max-width: none; overflow: visible; }
 .servers-list .badge { font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--accent); color: var(--accent-2); }
 .servers-list li > span.muted { flex: 1; min-width: 8em; }
 /* On a phone: the name and address on one line, the badge and buttons together on the next. */

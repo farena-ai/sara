@@ -58,7 +58,10 @@ public class InboxJob extends JobService {
         if (MainActivity.DEMO_SERVER.equals(p.url)) return;
         long after = inUse ? Net.prefs(c).getLong("lastId", p.lastId) : p.lastId;
         try {
-            Net.Response r = Net.get(c, p.url + "/api/phone/inbox?after=" + after);
+            // U2.9: Messages from people too (cursor per saved server; -1 = first check, start from now).
+            android.content.SharedPreferences pm = c.getSharedPreferences("sara-pm", Context.MODE_PRIVATE);
+            long pmAfter = pm.getLong(p.id, -1);
+            Net.Response r = Net.get(c, p.url + "/api/phone/inbox?after=" + after + "&pmAfter=" + Math.max(0, pmAfter));
             if (r.status != 200) return;
             JSONObject j = new JSONObject(r.text());
             long latest = j.optLong("latest", after);
@@ -75,6 +78,15 @@ public class InboxJob extends JobService {
                 }
             }
             Servers.setLastId(c, p.id, Math.max(after, latest));
+            JSONArray people = j.optJSONArray("people");
+            if (pmAfter >= 0 && people != null && !(inUse && MainActivity.visible)) {
+                int badge = j.optInt("badge", 0);
+                for (int i = 0; i < people.length(); i++) {
+                    JSONObject m = people.getJSONObject(i);
+                    Notify.person(c, p.id, m.optString("chat"), m.optString("id"), m.optString("kind"), m.optString("title"), m.optString("from"), m.optBoolean("mention"), m.optString("text"), badge, several ? Servers.host(p.url) : null);
+                }
+            }
+            if (j.has("pmLatest")) pm.edit().putLong(p.id, Math.max(pmAfter, j.optLong("pmLatest", 0))).apply();
         } catch (Exception ignored) {
             // offline: try next time
         }

@@ -127,4 +127,12 @@
     <string name="widget_talk">Falar</string>
     <string name="widget_next">Próximo: %1$s</string>
     <string name="widget_watches">%1$d observando</string>
+    <!-- U2.9: Messages from people and communities; saving files from the page -->
+    <string name="channel_people">Mensagens de pessoas</string>
+    <string name="channel_community">Mensagens de comunidades</string>
+    <string name="notify_mentioned">Você foi mencionado em %1$s</string>
+    <string name="file_saved">Salvo em Download/Sara.</string>
+    <string name="file_failed">Não foi possível salvar o arquivo.</string>
+    <string name="file_needs_android10">Para salvar arquivos você precisa do Android 10 ou mais recente.</string>
+    <string name="file_too_big">O arquivo é grande demais para salvar aqui. Abra a Sara no navegador para salvá-lo.</string>
 </resources>

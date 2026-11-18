@@ -146,6 +146,11 @@ public class LiveInbox extends Service {
             if (Places.on(this)) Places.syncAsync(this);
             return;
         }
+        // U2.9: a person wrote (the Messages page): the app's own check shows it (cursor, quiet rules, badge).
+        if ("pm".equals(event)) {
+            if (data.contains("\"notice\":true") && !MainActivity.visible) new Thread(() -> InboxJob.check(this)).start();
+            return;
+        }
         // Phase 31: another companion on the same server called or wrote.
         if ("other".equals(event)) {
             other(data);

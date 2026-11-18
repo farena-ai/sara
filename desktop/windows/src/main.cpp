@@ -58,6 +58,7 @@
 #include "wake.h"
 #include "save-files.h"
 #include "meeting-rec.h"
+#include "server-counts.h"  // U2.8/U2.11: the taskbar count, every server's unread
 #include <wtsapi32.h>
 #include <memory>
 #include <thread>
@@ -99,6 +100,8 @@ static const UINT_PTR kHandsNetTimer = 9;        // a short wait after a network
 // The app updates itself (src/app-update.cpp, docs/desktop.md → How the app updates).
 static const UINT WM_APP_UPDATE = WM_APP + 30;    // the updater's status changed (from its thread)
 static const UINT_PTR kUpdateTimer = 30;          // every minute: due checks, quiet-moment installs
+static const UINT WM_APP_COUNTS = WM_APP + 31;    // U2.11: a server not in use answered (or gave up)
+static const UINT_PTR kCountsTimer = 31, kCountsGiveUpTimer = 32;  // U2.11: ask the others every 2 min
 static const int kHotkeyId = 1;                 // the quick-ask shortcut (RegisterHotKey)
 enum MenuId {
   ID_OPEN = 100, ID_LOGIN, ID_QUIT, ID_CHANGE, ID_SETTINGS, ID_HELP, ID_ASK, ID_HEADER, ID_SHORTCUT_OFF, ID_SENDTO, ID_HANDS_STOP, ID_HANDS_OFF, ID_HANDS_RESUME, ID_HANDS_LOG, ID_HANDS_STATUS, ID_APP_UPDATE,
@@ -435,8 +438,11 @@ static std::wstring profileFor(const std::wstring& url) {
 }
 static void updateTrayTip();
 static void handsSync();
+// U2.11: a server just left: its next count is a baseline (what its page showed is not told again).
+static std::set<std::wstring> g_countsQuiet;
 /** Makes it the one in use (the address is also kept in "server", as before 1.8). */
 static void activate(const std::wstring& id) {
+  if (!g_profile.empty() && g_profile != id) g_countsQuiet.insert(g_profile);
   Profile p = loadProfile(id);
   p.lastUsed = (long long)time(nullptr);
   saveProfile(p);
@@ -459,6 +465,14 @@ static void migrateProfiles() {
   setProfileIds({L"s1"});
   setIni(L"servers", L"active", L"s1");
 }
+// U2.11: each saved server's unread messages, the same count as its sidebar pill (the one in use:
+// its page's 'badge' message; the others: the counts poller below). The taskbar shows the sum.
+static std::map<std::wstring, int> g_unread;
+static int unreadOf(const std::wstring& id) {
+  auto it = g_unread.find(id);
+  return it == g_unread.end() ? 0 : it->second;
+}
+static void applyBadge();
 static void forgetProfile(const std::wstring& id) {
   auto ids = profileIds();
   std::vector<std::wstring> keep;
@@ -467,13 +481,16 @@ static void forgetProfile(const std::wstring& id) {
   setProfileIds(keep);
   WritePrivateProfileStringW((L"server." + id).c_str(), nullptr, nullptr, iniPath().c_str());
   if (id == g_profile) sarahands::stop();  // Phase 87: its hands token went with it
+  g_unread.erase(id);  // U2.11: its count leaves the taskbar sum
+  applyBadge();
 }
 static std::wstring serversJson() {
   std::wstring out = L"{\"servers\":[";
   bool first = true;
   for (auto& p : profiles()) {
     out += (first ? L"" : L",") + std::wstring(L"{\"id\":\"") + jsonEscape(p.id) + L"\",\"name\":\"" + jsonEscape(p.name) + L"\",\"host\":\"" + jsonEscape(hostOfUrl(p.url)) +
-           L"\",\"emoji\":\"" + jsonEscape(p.emoji) + L"\",\"active\":" + (p.id == g_profile ? L"true" : L"false") + L"}";
+           L"\",\"emoji\":\"" + jsonEscape(p.emoji) + L"\",\"active\":" + (p.id == g_profile ? L"true" : L"false") +
+           L",\"unread\":" + std::to_wstring(unreadOf(p.id)) + L"}";
     first = false;
   }
   return out + L"]}";
@@ -2506,6 +2523,7 @@ static std::map<std::wstring, std::wstring> toastArgs(const std::wstring& s) {
   return out;
 }
 
+static void openView(const wchar_t* view);
 /** One click on a toast. Returns false when it has to wait for the quick-ask page. */
 static bool handleToast(const std::wstring& args) {
   auto kv = toastArgs(args);
@@ -2540,8 +2558,13 @@ static bool handleToast(const std::wstring& args) {
     return true;  // it went off already; the toast is gone
   }
   // The toast itself / Open in Sara: her window with that conversation (switching to its server).
+  bool msgs = kv[L"v"] == L"msgs";  // U2.11: a message on a server not in use: its Messages
   if (!p.empty() && !here && !loadProfile(p).url.empty()) {
-    postSwitch(p, conv.empty() ? L"/" : L"/#c=" + conv);
+    postSwitch(p, msgs ? L"/#view=msgs" : conv.empty() ? L"/" : L"/#c=" + conv);
+    return true;
+  }
+  if (msgs) {
+    openView(L"msgs");
     return true;
   }
   showWindow();
@@ -2554,6 +2577,186 @@ static void runToastQueue() {
     if (!handleToast(args)) later.push_back(args);
   g_toastQueue = later;
 }
+
+// ---------- U2.8: the message count on the taskbar button ----------
+// A small round count (1–9, 9+) drawn now and laid over the taskbar button (ITaskbarList3), with
+// "3 unread messages" for screen readers; gone at 0. The count is every saved server's unread
+// messages added up; each page sends 0 when the person turned the Messages popup off.
+static UINT g_taskbarCreatedMsg = 0;
+static ComPtr<ITaskbarList3> g_taskbar;
+static int g_badgeShown = -1;
+static void applyBadge() {
+  if (!g_wnd) return;
+  int n = saracounts::total(g_unread);
+  if (!g_taskbar) {
+    if (FAILED(CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&g_taskbar))) || FAILED(g_taskbar->HrInit())) {
+      g_taskbar.Reset();
+      return;
+    }
+  }
+  if (n == g_badgeShown) return;
+  if (n <= 0) {
+    g_taskbar->SetOverlayIcon(g_wnd, nullptr, L"");
+  } else {
+    HICON icon = saracounts::makeBadgeIcon(n, GetSystemMetricsForDpi(SM_CXSMICON, windowDpi()));
+    if (!icon) return;
+    std::wstring desc = saracounts::badgeDescription(n);
+    g_taskbar->SetOverlayIcon(g_wnd, icon, desc.c_str());
+    DestroyIcon(icon);
+  }
+  g_badgeShown = n;
+  logLine(L"badge: " + std::to_wstring(n));
+}
+
+// ---------- U2.11: counts from the servers not in use ----------
+// Every 2 minutes, one server at a time: a hidden web view in THAT server's own WebView2 profile
+// (so its own sign-in, and no other server's cookie) opens <server>/__sara_desktop/counts, a page
+// this app answers itself; it asks /api/messages and posts the count back. The web view is closed
+// after each ask. A new unread message there: a toast that opens that server's Messages.
+static const wchar_t* kCountsPath = L"/__sara_desktop/counts";
+static HWND g_pollWnd = nullptr;
+static ComPtr<ICoreWebView2Controller> g_pollCtl;
+static ComPtr<ICoreWebView2> g_pollWeb;
+static std::wstring g_pollId, g_pollUrl;
+static std::vector<std::wstring> g_pollQueue;
+static void pollNext();
+static void pollFinish() {
+  KillTimer(g_wnd, kCountsGiveUpTimer);
+  if (g_pollCtl) g_pollCtl->Close();
+  g_pollCtl.Reset();
+  g_pollWeb.Reset();
+  g_pollId.clear();
+  g_pollUrl.clear();
+  pollNext();
+}
+static void pollOthers() {
+  if (!g_env || !g_pollId.empty() || !g_pollQueue.empty()) return;
+  for (auto& p : profiles())
+    if (p.id != g_profile) g_pollQueue.push_back(p.id);
+  pollNext();
+}
+/** One server's answer: its count (and the toast for a message not told yet). */
+static void onCounts(const std::wstring& id, std::map<std::wstring, std::wstring>& m) {
+  Profile p = loadProfile(id);
+  if (p.url.empty() || id == g_profile) return;
+  int n = m[L"error"].empty() ? _wtoi(m[L"unread"].c_str()) : 0;
+  if (n < 0) n = 0;
+  bool changed = n != unreadOf(id);
+  g_unread[id] = n;
+  std::wstring key = m[L"key"].substr(0, 200), sec = L"server." + id;
+  bool quiet = g_countsQuiet.erase(id) > 0;  // its page was on screen until now
+  if (n > 0 && !key.empty() && key != getIni(sec, L"told")) {
+    setIni(sec, L"told", key);
+    if (!quiet && prefOn(L"notifications", true)) {
+      std::wstring title = m[L"title"].empty() ? L"New message" : m[L"title"];
+      std::wstring body = m[L"body"].empty() ? L"New message" : m[L"body"];
+      std::wstring launch = L"a=open&p=" + plainId(id) + L"&v=msgs";
+      std::wstring x = L"<toast launch=\"" + saratoast::xml(launch) + L"\"><visual><binding template=\"ToastGeneric\"><text>" + saratoast::xml(clip(title, 120)) + L"</text><text>" +
+                       saratoast::xml(clip(body, 400)) + L"</text><text placement=\"attribution\">" + saratoast::xml(clip(L"On " + p.name, 80)) + L"</text></binding></visual></toast>";
+      if (!(g_toastOk && saratoast::show(x, toastTag(L"o", id), L"msg"))) trayBalloon(clip(title, 60) + L" (" + clip(p.name, 40) + L")", clip(body, 200));
+      logLine(L"counts: told a new message on " + id);
+    }
+  }
+  if (changed) {
+    applyBadge();
+    updateTrayTip();
+    if (g_web) g_web->ExecuteScript(L"window.saraServersChanged&&saraServersChanged()", nullptr);
+  }
+}
+static void pollNext() {
+  while (!g_pollQueue.empty() && g_pollId.empty()) {
+    std::wstring id = g_pollQueue.front();
+    g_pollQueue.erase(g_pollQueue.begin());
+    Profile p = loadProfile(id);
+    if (p.url.empty() || id == g_profile || !g_env) continue;
+    g_pollId = id;
+    g_pollUrl = p.url;
+    if (!g_pollWnd) g_pollWnd = CreateWindowExW(WS_EX_TOOLWINDOW, L"STATIC", L"", WS_POPUP, 0, 0, 1, 1, nullptr, nullptr, g_inst, nullptr);
+    SetTimer(g_wnd, kCountsGiveUpTimer, 20000, nullptr);
+    auto done = Callback<ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>([id](HRESULT r, ICoreWebView2Controller* ctl) -> HRESULT {
+      if (FAILED(r) || !ctl || id != g_pollId) {
+        if (ctl) ctl->Close();
+        if (id == g_pollId) PostMessageW(g_wnd, WM_APP_COUNTS, 0, 0);
+        return S_OK;
+      }
+      g_pollCtl = ctl;
+      g_pollCtl->put_IsVisible(FALSE);
+      g_pollCtl->get_CoreWebView2(&g_pollWeb);
+      std::wstring page = g_pollUrl + kCountsPath;
+      ComPtr<ICoreWebView2_22> w22;
+      if (SUCCEEDED(g_pollWeb.As(&w22))) w22->AddWebResourceRequestedFilterWithRequestSourceKinds((page + L"*").c_str(), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL, COREWEBVIEW2_WEB_RESOURCE_REQUEST_SOURCE_KINDS_ALL);
+      else g_pollWeb->AddWebResourceRequestedFilter((page + L"*").c_str(), COREWEBVIEW2_WEB_RESOURCE_CONTEXT_ALL);
+      g_pollWeb->add_WebResourceRequested(Callback<ICoreWebView2WebResourceRequestedEventHandler>([](ICoreWebView2*, ICoreWebView2WebResourceRequestedEventArgs* a) -> HRESULT {
+        ComPtr<ICoreWebView2WebResourceRequest> req;
+        a->get_Request(&req);
+        LPWSTR uri = nullptr;
+        req->get_Uri(&uri);
+        std::wstring u = uri ? uri : L"";
+        CoTaskMemFree(uri);
+        if (g_pollUrl.empty() || u.rfind(g_pollUrl + kCountsPath, 0) != 0) return S_OK;
+        std::string html = saracounts::countsPageHtml();
+        ComPtr<IStream> body;
+        body.Attach(SHCreateMemStream(reinterpret_cast<const BYTE*>(html.data()), (UINT)html.size()));
+        ComPtr<ICoreWebView2WebResourceResponse> resp;
+        if (g_env && SUCCEEDED(g_env->CreateWebResourceResponse(body.Get(), 200, L"OK", saracounts::countsPageHeaders(), &resp))) a->put_Response(resp.Get());
+        return S_OK;
+      }).Get(), nullptr);
+      // Only that page ever loads here; nothing opens windows.
+      g_pollWeb->add_NavigationStarting(Callback<ICoreWebView2NavigationStartingEventHandler>([](ICoreWebView2*, ICoreWebView2NavigationStartingEventArgs* a) -> HRESULT {
+        LPWSTR uri = nullptr;
+        a->get_Uri(&uri);
+        std::wstring u = uri ? uri : L"";
+        CoTaskMemFree(uri);
+        if (g_pollUrl.empty() || u.rfind(g_pollUrl + kCountsPath, 0) != 0) a->put_Cancel(TRUE);
+        return S_OK;
+      }).Get(), nullptr);
+      g_pollWeb->add_NewWindowRequested(Callback<ICoreWebView2NewWindowRequestedEventHandler>([](ICoreWebView2*, ICoreWebView2NewWindowRequestedEventArgs* a) -> HRESULT {
+        a->put_Handled(TRUE);
+        return S_OK;
+      }).Get(), nullptr);
+      g_pollWeb->add_WebMessageReceived(Callback<ICoreWebView2WebMessageReceivedEventHandler>([id](ICoreWebView2*, ICoreWebView2WebMessageReceivedEventArgs* a) -> HRESULT {
+        LPWSTR json = nullptr, src = nullptr;
+        a->get_WebMessageAsJson(&json);
+        a->get_Source(&src);
+        std::wstring j = json ? json : L"", s = src ? src : L"";
+        CoTaskMemFree(json);
+        CoTaskMemFree(src);
+        if (id != g_pollId || g_pollUrl.empty() || s.rfind(g_pollUrl + kCountsPath, 0) != 0) return S_OK;
+        auto m = parseFlatJson(j);
+        if (m[L"m"] == L"counts") onCounts(id, m);
+        PostMessageW(g_wnd, WM_APP_COUNTS, 0, 0);  // closed from the message loop, not inside its own event
+        return S_OK;
+      }).Get(), nullptr);
+      // Her service worker answers every navigation on her address with its own fetch (see ensureQuickAsk).
+      std::wstring target = page;
+      auto go = [target](HRESULT, LPCWSTR) -> HRESULT {
+        if (g_pollWeb) g_pollWeb->Navigate(target.c_str());
+        return S_OK;
+      };
+      HRESULT hr = g_pollWeb->CallDevToolsProtocolMethod(L"Network.enable", L"{}", Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>([go](HRESULT, LPCWSTR) -> HRESULT {
+                                                           if (!g_pollWeb || FAILED(g_pollWeb->CallDevToolsProtocolMethod(L"Network.setBypassServiceWorker", L"{\"bypass\":true}",
+                                                                                                                         Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>(go).Get())))
+                                                             go(E_FAIL, nullptr);
+                                                           return S_OK;
+                                                         }).Get());
+      if (FAILED(hr)) g_pollWeb->Navigate(page.c_str());
+      return S_OK;
+    });
+    // Its own profile (s1: the default one, as for the main window), so its own sign-in.
+    ComPtr<ICoreWebView2Environment10> env10;
+    if (id != L"s1" && SUCCEEDED(g_env.As(&env10))) {
+      ComPtr<ICoreWebView2ControllerOptions> opts;
+      if (SUCCEEDED(env10->CreateCoreWebView2ControllerOptions(&opts))) {
+        opts->put_ProfileName((L"sara-" + id).c_str());
+        if (FAILED(env10->CreateCoreWebView2ControllerWithOptions(g_pollWnd, opts.Get(), done.Get()))) PostMessageW(g_wnd, WM_APP_COUNTS, 0, 0);
+        return;
+      }
+    }
+    if (FAILED(g_env->CreateCoreWebView2Controller(g_pollWnd, done.Get()))) PostMessageW(g_wnd, WM_APP_COUNTS, 0, 0);
+    return;
+  }
+}
+// ---------- U2.11 end ----------
 
 /** Menu text: '&' would underline the next letter. */
 static std::wstring menuText(const std::wstring& s) {
@@ -3147,7 +3350,7 @@ static void trayMenu() {
   HMENU saras = CreatePopupMenu();
   auto list = profiles();
   for (size_t i = 0; i < list.size() && i < 50; i++)
-    AppendMenuW(saras, MF_STRING | (list[i].id == g_profile ? MF_CHECKED : 0), ID_SERVER0 + i, serverLabel(list[i]).c_str());
+    AppendMenuW(saras, MF_STRING | (list[i].id == g_profile ? MF_CHECKED : 0), ID_SERVER0 + i, (serverLabel(list[i]) + saracounts::menuCount(unreadOf(list[i].id))).c_str());
   if (!list.empty()) AppendMenuW(saras, MF_SEPARATOR, 0, nullptr);
   AppendMenuW(saras, MF_STRING, ID_CHANGE, L"Add a Sara…");
   AppendMenuW(m, MF_POPUP, (UINT_PTR)saras, L"Your Saras");
@@ -3811,6 +4014,13 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
     return reply(id, g_mica ? L"\"mica\"" : L"\"solid\"");
   }
   if (kind == L"getPrefs") return reply(id, prefsJson());
+  // U2.8: the sidebar pill's count (0 with the Messages popup off) for the taskbar button.
+  if (kind == L"badge") {
+    int n = _wtoi(m[L"n"].c_str());
+    if (!g_profile.empty()) g_unread[g_profile] = n < 0 ? 0 : n;
+    applyBadge();
+    return reply(id, L"true");
+  }
   // The app's own updates (status, check, Update now / Later, by itself; the server's version and Update it).
   if (kind == L"appUpdate") return onAppUpdateCall(id, m);
   if (kind.rfind(L"save", 0) == 0) return sarasave::onCall(kind, id, m);  // Save to my PC (save-files.cpp)
@@ -4285,6 +4495,13 @@ static LRESULT customFrameHitTest(HWND h, WPARAM wp, LPARAM lp) {
 }
 
 static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
+  // U2.8: the taskbar button was (re)made (Explorer restarted): lay the count on it again.
+  if (g_taskbarCreatedMsg && msg == g_taskbarCreatedMsg) {
+    g_taskbar.Reset();
+    g_badgeShown = -1;
+    applyBadge();
+    return 0;
+  }
   if (g_customFrame) {
     LRESULT r = 0;
     if (DwmDefWindowProc(h, msg, wp, lp, &r)) return r;  // the caption buttons
@@ -4444,6 +4661,14 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       saratoast::unregisterActivator();
       KillTimer(h, kNowTimer);
       KillTimer(h, kUpdateTimer);
+      KillTimer(h, kCountsTimer);
+      KillTimer(h, kCountsGiveUpTimer);
+      g_pollQueue.clear();
+      if (g_pollCtl) g_pollCtl->Close();
+      g_pollCtl.Reset();
+      g_pollWeb.Reset();
+      if (g_pollWnd) DestroyWindow(g_pollWnd);
+      if (g_taskbar) g_taskbar->SetOverlayIcon(h, nullptr, L"");
       closeQuickAskWebView();
       if (g_qa) DestroyWindow(g_qa);
       Shell_NotifyIconW(NIM_DELETE, &g_tray);
@@ -4468,6 +4693,9 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       return 0;
     case WM_APP_UPDATE:
       onUpdateChanged();
+      return 0;
+    case WM_APP_COUNTS:
+      pollFinish();  // U2.11: the next server not in use
       return 0;
     case WM_APP_TOAST:
       runToastQueue();  // Phase 75 stage 3: clicks on her toasts
@@ -4512,6 +4740,14 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
       if (wp == kRemoveTimer) finishRemove();
       if (wp == kNowTimer) refreshNow();
       if (wp == kUpdateTimer) updateTick();
+      if (wp == kCountsTimer) {
+        SetTimer(h, kCountsTimer, testNumber(L"SARA_TEST_COUNTS_MS", 120000), nullptr);
+        pollOthers();
+      }
+      if (wp == kCountsGiveUpTimer && !g_pollId.empty()) {
+        logLine(L"counts: " + g_pollId + L" didn't answer");
+        pollFinish();
+      }
       if (wp == kPttTimer) pttTick();  // push-to-talk: the talk shortcut let go / Esc
       if (wp == kWakeTryTimer) {
         // Phase 126: Try it: 20 seconds of listening, the labels heard, nothing asked.
@@ -4796,6 +5032,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   wc.hbrBackground = g_bgBrush;
   wc.lpszClassName = kWindowClass;
   RegisterClassExW(&wc);
+  g_taskbarCreatedMsg = RegisterWindowMessageW(L"TaskbarButtonCreated");  // U2.8
 
   int x = CW_USEDEFAULT, y = CW_USEDEFAULT, w = 1100, hgt = 780;
   bool maximized = false;
@@ -4823,6 +5060,8 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start), "Now" every 45 s.
   registerShortcut(true);
   SetTimer(g_wnd, kNowTimer, 45000, nullptr);
+  // U2.11: the first ask of the other servers a little after start, then every 2 minutes.
+  SetTimer(g_wnd, kCountsTimer, testNumber(L"SARA_TEST_COUNTS_FIRST_MS", 15000), nullptr);
   // Phase 126: the talk shortcut, the screen-lock pause and Hey Sara as it was left (off by default).
   registerTalkShortcut();
   WTSRegisterSessionNotification(g_wnd, NOTIFY_FOR_THIS_SESSION);

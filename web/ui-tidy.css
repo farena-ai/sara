@@ -212,6 +212,23 @@ body.demo .side-dest:is([data-dest="planner"], [data-dest="memory"], [data-dest=
   .sb-photo-acts .linkish { min-height: 36px; }
 }
 
+/* ---------- U2.10: the screens added since 3.15 on a phone: 44 px targets (Apple's minimum) ----------
+   Goals, errands, trips, meetings, Messages, the Library (research, document studio), Ask everything,
+   Make it sound human, People, Team, Try these and Settings. Small "?" tips keep their look and get a
+   bigger invisible hit area (in Settings the "i" glyph is centred in it); checkboxes inside a row are reached through the 44 px row. */
+@media (pointer: coarse) {
+  :is(#goals, #errands, #trips, #meetings, #msgs, #library, #ask-all, #hz-view, #memory, #team, #try-these, #settings, .choice-card) :is(button, select, summary, input:not([type=checkbox], [type=radio], [type=range], [type=color], [type=file])):not(.tip, .sc-link, .linkish, .dialog-x):not(#_):not(#_) { min-height: 44px; }
+  :is(#goals, #errands, #trips, #meetings, #msgs, #library, #ask-all, #hz-view, #memory, #team, #try-these, #settings) label.row:not(#_):not(#_) { min-height: 44px; }
+  dialog .dialog-x:not(#_):not(#_):not(#_) { min-width: 44px; min-height: 44px; }
+  :is(#goals, #errands, #trips, #meetings, #msgs, #library, #ask-all, #hz-view, #memory, #team, #try-these, #settings) .tip:not(#_) { position: relative; }
+  :is(#goals, #errands, #trips, #meetings, #msgs, #library, #ask-all, #hz-view, #memory, #team, #try-these, #settings) .tip:not(#_)::before { position: absolute; inset: -14px; display: grid; place-items: center; }
+  :is(#goals, #errands, #trips, #meetings, #msgs, #library, #ask-all, #hz-view, #memory, #team, #try-these) .tip:not(#_)::before { content: ""; }
+  #settings .sc-link:not(#_) { min-height: 32px; }
+  #team .dlg-more:not(#_):not(#_) { min-height: 44px; }
+  #lib-doc-studio button:not(#_):not(#_) { min-width: 44px; }
+  #goals .gl-m-box:not(#_):not(#_), #library #dstu-template-on:not(#_):not(#_) { width: 24px; height: 24px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .side-more .side-chev, .sng-chev, .tool-group > summary::after { transition: none; }
 }

@@ -3454,7 +3454,6 @@
 "Add another server to this app and switch between them without signing out. Notifications, the microphone and files you pick go to the one in use.": "Ajoutez un autre serveur à cette app et passez de l'un à l'autre sans vous déconnecter. Les notifications, le micro et les fichiers choisis vont à celui en cours.",
 "Add another server to this app (with a code or the QR code from Add a phone or computer) and switch between them. Notifications come from all of them.": "Ajoutez un autre serveur à cette app (avec un code ou le QR code d'Ajouter un téléphone ou un ordinateur) et passez de l'un à l'autre. Les notifications viennent de tous.",
 "Remove {name} from this app? It signs out of that server only; its conversations stay on it.": "Retirer {name} de cette app ? Seule la connexion à ce serveur est fermée ; ses conversations y restent.",
-"{name} (the server in use) can use this computer: notifications, the microphone in calls and the files you pick. They follow the server you switch to, one at a time.": "{name} (le serveur en cours) peut utiliser cet ordinateur : notifications, micro pendant les appels et fichiers que vous choisissez. Ils suivent le serveur choisi, un à la fois.",
 "Notifications come from every server here; tapping one opens the right one. The microphone, camera and location go only to the one in use ({name}).": "Les notifications viennent de tous les serveurs d'ici ; en toucher une ouvre le bon. Le micro, l'appareil photo et la position ne vont qu'à celui en cours ({name}).",
 "Mute": "Couper le micro",
 "Camera": "Caméra",
@@ -18903,5 +18902,16 @@
 "Turn on “Let me send results to the developer” first.": "Activez d’abord « Me permettre d’envoyer les résultats au développeur ».",
 "Try at least one item first.": "Essayez d’abord au moins un élément.",
 "No such item.": "Cet élément n’existe pas.",
-"Pick Worked, Didn’t work or Skip.": "Choisissez A marché, N’a pas marché ou Passer."
+"Pick Worked, Didn’t work or Skip.": "Choisissez A marché, N’a pas marché ou Passer.",
+"Sara is already on your Home Screen.": "Sara est déjà sur votre écran d’accueil.",
+"Notifications and the app badge work when you open her from there.": "Les notifications et la pastille de l’app fonctionnent quand vous l’ouvrez depuis là.",
+"1. On this iPhone, add Sara to your Home Screen:": "1. Sur cet iPhone, ajoutez Sara à l’écran d’accueil :",
+"in Safari, tap Share, then Add to Home Screen, and open Sara from there. Notifications and the app badge only work that way.": "dans Safari, touchez Partager, puis Sur l’écran d’accueil, et ouvrez Sara depuis là. Les notifications et la pastille de l’app ne marchent que comme ça.",
+"On an iPhone:": "Sur un iPhone :",
+"no app to install. Scan the code in step 2, sign in in Safari, then tap Share → Add to Home Screen.": "rien à installer. Scannez le code de l’étape 2, connectez-vous dans Safari, puis touchez Partager → Sur l’écran d’accueil.",
+"2. Show a code for another phone": "2. Afficher un code pour un autre téléphone",
+"The microphone could not start. Check System Settings → Privacy & Security → Microphone.": "Le micro n’a pas pu démarrer. Vérifiez Réglages Système → Confidentialité et sécurité → Micro.",
+"Only your microphone is being recorded. To include the call’s sound, allow Sara in System Settings → Privacy & Security → Screen & System Audio Recording, then start again.": "Seul votre micro est enregistré. Pour inclure le son de l’appel, autorisez Sara dans Réglages Système → Confidentialité et sécurité → Enregistrement de l’écran et de l’audio du système, puis recommencez.",
+"Only your microphone is being recorded: the sound of this computer could not be captured.": "Seul votre micro est enregistré : le son de cet ordinateur n’a pas pu être capté.",
+"{name} (the server in use) can use this computer: the microphone in calls and the files you pick. They follow the server you switch to. Message notifications come from every server here.": "{name} (le serveur utilisé) peut utiliser cet ordinateur : le micro pendant les appels et les fichiers que vous choisissez. Ils suivent le serveur vers lequel vous basculez. Les notifications de messages arrivent de tous les serveurs ajoutés ici."
 }

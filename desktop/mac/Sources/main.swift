@@ -147,6 +147,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     config.mediaTypesRequiringUserActionForPlayback = []
     config.userContentController.addScriptMessageHandler(self, contentWorld: .page, name: "sara")
     config.userContentController.addUserScript(WKUserScript(source: shim, injectionTime: .atDocumentStart, forMainFrameOnly: true))
+    // U2: the Dock badge and Record this computer (AppU2.swift).
+    config.userContentController.addUserScript(WKUserScript(source: u2Shim, injectionTime: .atDocumentStart, forMainFrameOnly: true))
     // Phase 75: window.saraShell and <html class="shell-mac"> before any page script (Shell.swift).
     config.userContentController.addUserScript(WKUserScript(source: shellScript(), injectionTime: .atDocumentStart, forMainFrameOnly: true))
     let old = web
@@ -708,7 +710,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
       replyHandler(Servers.json(), nil)
     default:
       // N5: picked folders, save to this Mac, the app's own updates (AppN5.swift).
-      if !n5Call(kind, body, replyHandler) { replyHandler(nil, "Unknown") }
+      // U2: the Dock badge, Record this computer (AppU2.swift).
+      if !n5Call(kind, body, replyHandler) && !u2Call(kind, body, replyHandler) { replyHandler(nil, "Unknown") }
     }
   }
 

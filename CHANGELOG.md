@@ -5,8 +5,41 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.20.0 (2026-11-18): the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices
+
 ## 3.19.0 (2026-11-18): proven on real models, Try these, steadier releases
 
+- Fixed (iPhone): "Connect the Sara phone app" no longer tells an iPhone to get the Android app from
+  Google Play. On an iPhone it explains Add to Home Screen (or says Sara is already there); on a computer
+  it shows both phones.
+- Fixed (iPhone and other installed apps): errands waiting on you now count in the number on Sara's
+  icon, in each notification's badge and in the Shortcuts widget's "Waiting for you" line.
+- Fixed (phones): on the screens added since 3.15 every button, field and "?" is at least 44 px to tap;
+  Ask everything and Make it sound human keep clear of the iPhone notch and home indicator; Email and
+  calendar no longer runs past the right edge of a small iPhone.
+- Android app (new build, not on Google Play yet): messages from people in Messages now come as phone
+  notifications, also when the app is closed. One-to-one messages pop up under "Messages from people";
+  a community mention (or a community set to Everything) comes quietly under "Community messages"; plain
+  community posts stay inside Messages. Tapping one opens Messages. The notifications carry the app's
+  badge number. See docs/ANDROID.md.
+- Android app: download links and exports in the app (Messages attachments, policy and template
+  exports, backups) now save to Download/Sara instead of doing nothing.
+- New in the Mac app: the **Dock icon shows your unread messages** (the same number as the Messages count
+  in the sidebar: one-to-one messages and mentions).
+- New in the Mac app: **Record this computer** in Library → Meetings records your microphone and the
+  Mac's own sound (Zoom, Teams, Meet), so you are Speaker 1 and the call Speaker 2, like the Windows app.
+  macOS asks once for the microphone and once for Screen & System Audio Recording; without the second
+  only your microphone is recorded and the card says how to allow it.
+- New in the Mac app: **quick ask brings the text you selected** in the app in front (needs the
+  Accessibility permission; never a password field) and can add **a picture of that window**. Menu bar →
+  Quick ask shortcut → Include selected text turns it off.
+- New in the Windows app: **the number of unread messages on Sara's taskbar button** (a small red count,
+  1–9, then 9+), the same count as the Messages pill in the sidebar. It goes away when you have read them,
+  and a server whose Messages popup is off adds nothing.
+- New in the Windows app: **messages from all your Saras.** With several servers in the app, the ones not
+  in use are asked for new messages every couple of minutes (each with its own sign-in). Your Saras (⇄ and
+  the tray menu) shows each server's unread count, a new message brings a notification naming the server,
+  and clicking it switches to that server's Messages. The taskbar count adds all servers up.
 - Fixed: on Teams, Matrix, Signal and iMessage the live progress message could keep its stop button
   (or miss a step) when the chat app was slow to post it: a change that arrives while the message is
   still being sent now waits for it, in order (Slack already did this).

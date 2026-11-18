@@ -74,6 +74,13 @@ export const noticeCount = (list) => list.reduce((n, x) => n + (x.unread || 1), 
 /** A count for a pill: 1…99, then 99+. */
 export const countText = (n) => (n > 99 ? '99+' : String(n));
 
+/** U2.8: the Windows taskbar count: the sidebar pill's count, 0 when the person turned the popup off. */
+export function desktopBadge(n, prefs = {}) {
+  if (prefs?.popup === false) return 0;
+  const v = Math.floor(Number(n));
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
 /** The tab title with an "(n) " prefix while there are unread messages (any old prefix replaced). */
 export function withCount(title, n) {
   const base = String(title || '').replace(/^\(\d+\+?\) /, '');

@@ -53,8 +53,8 @@ export function shortAnswer(text: string, maxSentences = 2, maxChars = 320): str
   return out || plain.slice(0, maxChars);
 }
 
-/** Approvals waiting in her running turns plus inbox cards waiting for a yes: the app badge's number. */
-export function waitingCount(active: ReadonlyMap<string, { approvals: ReadonlyMap<string, unknown> }>, app: Pick<AppContext, 'inbox'>): number {
+/** Approvals waiting in her running turns, inbox cards waiting for a yes and (U2.10) errands waiting on you: the app badge's number. */
+export function waitingCount(active: ReadonlyMap<string, { approvals: ReadonlyMap<string, unknown> }>, app: Pick<AppContext, 'inbox' | 'errands'>): number {
   let n = 0;
   for (const t of active.values()) n += t.approvals.size;
   try {
@@ -62,11 +62,16 @@ export function waitingCount(active: ReadonlyMap<string, { approvals: ReadonlyMa
   } catch {
     /* no inbox here */
   }
+  try {
+    n += app.errands?.waitingOnYou?.() ?? 0;
+  } catch {
+    /* errands closed */
+  }
   return n;
 }
 
 /** MSGPOP: the installed app's badge: what waits for an OK plus unread Messages (one-to-one, mentions). */
-export function badgeCount(active: ReadonlyMap<string, { approvals: ReadonlyMap<string, unknown> }>, app: Pick<AppContext, 'inbox' | 'messages'>): number {
+export function badgeCount(active: ReadonlyMap<string, { approvals: ReadonlyMap<string, unknown> }>, app: Pick<AppContext, 'inbox' | 'messages' | 'errands'>): number {
   let n = waitingCount(active, app);
   try {
     n += app.messages?.unread() ?? 0;

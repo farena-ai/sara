@@ -444,6 +444,10 @@ CREATE TABLE IF NOT EXISTS errands (
     const rows = this.#db.prepare(`SELECT * FROM errands ${o.open ? "WHERE status NOT IN ('done', 'stopped')" : ''} ORDER BY id DESC`).all() as Row[];
     return rows.map((r) => this.#row(r));
   }
+  /** U2.10: how many errands wait on the person (the app badge counts them). */
+  waitingOnYou(): number {
+    return Number((this.#db.prepare("SELECT COUNT(*) AS n FROM errands WHERE status = 'waiting_you'").get() as { n: number }).n);
+  }
   get(id: number): Errand | undefined {
     const r = this.#db.prepare('SELECT * FROM errands WHERE id = ?').get(id) as Row | undefined;
     return r ? this.#row(r) : undefined;

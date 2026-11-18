@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Privacy & system → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.19.0, [Proven on real models, Try these, steadier releases](https://github.com/farena-ai/sara/releases/tag/v3.19.0). Real-model task runs on a local model, account and two-server checks, a Windows install matrix, a guided Try these checklist, and eight bugs those checks found, fixed. [See what changed](#whats-new)
+> **Status:** 3.20.0, [The apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices](https://github.com/farena-ai/sara/releases/tag/v3.20.0). Message counts on the Windows taskbar and Mac Dock, notices from every server in the Windows app, Record this computer and quick ask on the Mac, Android message notifications and file saves, iPhone fixes. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.20.0](https://github.com/farena-ai/sara/releases/tag/v3.20.0)** | **[The apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices](docs/desktop.md)** — Unread counts on the taskbar and Dock; the Windows app counts and announces messages from every saved server; the Mac records calls and reads selected text for quick ask; Android gets one-to-one and quiet community notifications and saves files; iPhone wording, badge and tap targets fixed. |
 | **[3.19.0](https://github.com/farena-ai/sara/releases/tag/v3.19.0)** | **[Proven on real models, Try these, steadier releases](docs/TRY_THESE.md)** — A 40-task real-model run (39/40 on a local model), end-to-end checks for every mail kind and for linked servers, a Windows install/update matrix, Help → Try these with results you can send, and timing-safe tests. |
 | **[3.18.2](https://github.com/farena-ai/sara/releases/tag/v3.18.2)** | **[Several Google accounts from either mail page, approved code fixes on servers](docs/MAIL_ACCOUNTS.md)** — Add as many Google, Gmail, Outlook and other accounts as you like from either mail page; signing in to another Google address adds it; Linux server installs take approved, tested code fixes through a locked-down helper. |
 | **[3.18.1](https://github.com/farena-ai/sara/releases/tag/v3.18.1)** | **[Message notices you can't miss, one Windows install, second mailboxes kept](docs/MESSAGES.md)** — New one-to-one messages show a card in front of you (also after reopening); Windows updates land on the existing install and remove a duplicate; a second mailbox no longer replaces the first. |
 | **[3.18.0](https://github.com/farena-ai/sara/releases/tag/v3.18.0)** | **[Self-repair, friends fixing friends, quieter communities](docs/SELF_REPAIR.md)** — Self-repair from health checks and errors with automatic undo; grow new skills; tested code fixes with rollback where the install allows; ask a linked friend's Sara to fix your server with your approval; popups for messages and quiet community counts. |
 | **[3.17.0](https://github.com/farena-ai/sara/releases/tag/v3.17.0)** | **[Documents end to end, agent teams, support link, alerts where you want](docs/AGENT_TEAMS.md)** — Fill templates and draft from past documents with sources; revise with real tracked changes; get a ready-to-sign PDF; run a team of helpers on a big job; let a friend's Sara look at redacted health and logs; send alerts to the project you choose. |
-| **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Writing that sounds human, meetings, keeping in touch, trips](docs/WRITING_STYLE.md)** — Rewrite documents and reports in plain language; record or upload meetings for transcripts, decisions and drafted follow-ups; see who waits for your reply and what you promised; trips from booking emails with alerts and rebooking options. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.15.0 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.16.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Writing that sounds human, meetings, keeping in touch, trips](docs/WRITING_STYLE.md)** — Rewrite documents and reports in plain language; record or upload meetings for transcripts, decisions and drafted follow-ups; see who waits for your reply and what you promised; trips from booking emails with alerts and rebooking options. |
 | **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Choices to tap, goals, research, ask anything, private messages](docs/CHOICES.md)** — Pick-an-answer buttons in the app, Telegram and Discord; goals with milestones and nudges; research from the web and your files to Word/PDF; ask across mail, files, chats and calendars; linked-server messages and communities the agents never see. |
 | **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Saved documents count as saved](docs/DOCUMENTS.md)** — Making a document, filling a form, invoices, exports and Docs/Sheets/Excel edits now count as proof that it was saved. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[All your accounts together, and her own icon](docs/MAIL_ACCOUNTS.md)** — Calendars from Google, Outlook, iCloud, Fastmail and Yahoo labeled by account; the app icon, browser tab and notifications use her own picture. |

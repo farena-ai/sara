@@ -3454,7 +3454,6 @@
 "Add another server to this app and switch between them without signing out. Notifications, the microphone and files you pick go to the one in use.": "Füge dieser App einen weiteren Server hinzu und wechsle ohne Abmelden. Benachrichtigungen, Mikrofon und gewählte Dateien gehen an den gerade genutzten.",
 "Add another server to this app (with a code or the QR code from Add a phone or computer) and switch between them. Notifications come from all of them.": "Füge dieser App einen weiteren Server hinzu (mit einem Code oder dem QR-Code aus „Telefon oder Computer hinzufügen“) und wechsle zwischen ihnen. Benachrichtigungen kommen von allen.",
 "Remove {name} from this app? It signs out of that server only; its conversations stay on it.": "{name} aus dieser App entfernen? Nur bei diesem Server wird abgemeldet; seine Unterhaltungen bleiben dort.",
-"{name} (the server in use) can use this computer: notifications, the microphone in calls and the files you pick. They follow the server you switch to, one at a time.": "{name} (der genutzte Server) kann diesen Computer nutzen: Benachrichtigungen, das Mikrofon bei Anrufen und die Dateien, die du wählst. Das folgt dem Server, zu dem du wechselst, immer nur einem.",
 "Notifications come from every server here; tapping one opens the right one. The microphone, camera and location go only to the one in use ({name}).": "Benachrichtigungen kommen von jedem Server hier; Antippen öffnet den richtigen. Mikrofon, Kamera und Standort gehen nur an den gerade genutzten ({name}).",
 "Mute": "Stumm",
 "Camera": "Kamera",
@@ -18903,5 +18902,16 @@
 "Turn on “Let me send results to the developer” first.": "Schalte zuerst „Ergebnisse an den Entwickler senden können“ ein.",
 "Try at least one item first.": "Probier zuerst mindestens eine aus.",
 "No such item.": "Diese Probe gibt es nicht.",
-"Pick Worked, Didn’t work or Skip.": "Wähle Hat geklappt, Hat nicht geklappt oder Überspringen."
+"Pick Worked, Didn’t work or Skip.": "Wähle Hat geklappt, Hat nicht geklappt oder Überspringen.",
+"Sara is already on your Home Screen.": "Sara ist schon auf deinem Home-Bildschirm.",
+"Notifications and the app badge work when you open her from there.": "Mitteilungen und das App-Kennzeichen funktionieren, wenn du sie von dort öffnest.",
+"1. On this iPhone, add Sara to your Home Screen:": "1. Füge Sara auf diesem iPhone zum Home-Bildschirm hinzu:",
+"in Safari, tap Share, then Add to Home Screen, and open Sara from there. Notifications and the app badge only work that way.": "tippe in Safari auf Teilen, dann auf Zum Home-Bildschirm, und öffne Sara von dort. Mitteilungen und das App-Kennzeichen gehen nur so.",
+"On an iPhone:": "Auf einem iPhone:",
+"no app to install. Scan the code in step 2, sign in in Safari, then tap Share → Add to Home Screen.": "nichts zu installieren. Scanne den Code aus Schritt 2, melde dich in Safari an und tippe auf Teilen → Zum Home-Bildschirm.",
+"2. Show a code for another phone": "2. Code für ein anderes Telefon zeigen",
+"The microphone could not start. Check System Settings → Privacy & Security → Microphone.": "Das Mikrofon konnte nicht starten. Prüfe Systemeinstellungen → Datenschutz & Sicherheit → Mikrofon.",
+"Only your microphone is being recorded. To include the call’s sound, allow Sara in System Settings → Privacy & Security → Screen & System Audio Recording, then start again.": "Nur dein Mikrofon wird aufgenommen. Um den Ton des Anrufs einzuschließen, erlaube Sara unter Systemeinstellungen → Datenschutz & Sicherheit → Bildschirm- & Systemaudioaufnahme und starte neu.",
+"Only your microphone is being recorded: the sound of this computer could not be captured.": "Nur dein Mikrofon wird aufgenommen: Der Ton dieses Computers konnte nicht erfasst werden.",
+"{name} (the server in use) can use this computer: the microphone in calls and the files you pick. They follow the server you switch to. Message notifications come from every server here.": "{name} (der Server in Gebrauch) darf diesen Computer nutzen: das Mikrofon bei Anrufen und die Dateien, die du auswählst. Sie folgen dem Server, zu dem du wechselst. Benachrichtigungen über Nachrichten kommen von jedem Server hier."
 }

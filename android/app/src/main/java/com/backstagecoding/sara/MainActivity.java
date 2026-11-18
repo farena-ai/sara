@@ -150,7 +150,8 @@ public class MainActivity extends Activity {
             switchTo(from, intent);
             return;
         }
-        if (web != null && conv != null) web.loadUrl(Net.server(this) + "/#c=" + Uri.encode(conv));
+        if (web != null && notifyPath(intent) != null) web.loadUrl(Net.server(this) + notifyPath(intent));
+        else if (web != null && conv != null) web.loadUrl(Net.server(this) + "/#c=" + Uri.encode(conv));
     }
 
     /** Phase 68: shows another saved server; every server keeps its sign-in. */
@@ -677,6 +678,11 @@ public class MainActivity extends Activity {
         });
 
         web.addJavascriptInterface(new Bridge(), "SaraPhone");
+        // U2.9: a download the page didn't hand to SaraPhone.saveFile (a reply sent as an attachment).
+        web.setDownloadListener((url, ua, disposition, mime, length) -> {
+            String here = Net.server(this);
+            if (here != null && Net.sameOrigin(here, url)) new Bridge().saveFile(url, android.webkit.URLUtil.guessFileName(url, disposition, mime));
+        });
         CallService.listener = this::callEvent;
         // No white flash: the web view and the strips under the bars start in the page's theme.
         web.setBackgroundColor(look.bg);
@@ -708,10 +714,18 @@ public class MainActivity extends Activity {
         InboxJob.schedule(this);
     }
 
+    /** U2.9: a page inside the app from our own notifications (Messages); only "/#…" addresses. */
+    static String notifyPath(Intent intent) {
+        String path = intent == null ? null : intent.getStringExtra("path");
+        return path != null && path.startsWith("/#") ? path : null;
+    }
+
     private static String pairPath(Intent intent) {
         String conv = intent == null ? null : intent.getStringExtra("conv");
         String pair = intent == null ? null : intent.getStringExtra("pair");
         boolean demo = intent != null && intent.getBooleanExtra("demo", false);
+        String path = notifyPath(intent);
+        if (path != null) return path;
         return pair != null ? "/pair#" + Uri.encode(pair) : demo ? "/?demo=1" : conv != null ? "/#c=" + Uri.encode(conv) : "/";
     }
 
@@ -1420,6 +1434,29 @@ public class MainActivity extends Activity {
         });
     }
 
+
+    /** U2.9: writes one file to Download/Sara (Android 10+, no storage permission needed); a string id to show. */
+    int saveDownload(String name, String type, byte[] bytes) throws java.io.IOException {
+        if (Build.VERSION.SDK_INT < 29) return R.string.file_needs_android10;
+        String file = name == null ? "" : name.replaceAll("[\\\\/:*?\"<>|\\p{Cntrl}]", "").trim();
+        if (file.isEmpty() || file.equals(".") || file.equals("..")) file = "Sara file";
+        android.content.ContentValues v = new android.content.ContentValues();
+        v.put(android.provider.MediaStore.Downloads.DISPLAY_NAME, file);
+        v.put(android.provider.MediaStore.Downloads.MIME_TYPE, type == null || type.isEmpty() ? "application/octet-stream" : type);
+        v.put(android.provider.MediaStore.Downloads.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS + "/Sara");
+        Uri out = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+        if (out == null) throw new java.io.IOException("no space");
+        try (java.io.OutputStream os = getContentResolver().openOutputStream(out)) {
+            if (os == null) throw new java.io.IOException("no stream");
+            os.write(bytes);
+        }
+        return R.string.file_saved;
+    }
+
+    private void toast(int res) {
+        runOnUiThread(() -> Toast.makeText(this, res, Toast.LENGTH_LONG).show());
+    }
+
     /** What the web app can ask the phone app to do (only Sara's own pages load in this window). */
     final class Bridge {
         /** From the app's own look script (LOOK_JS): the page's theme and edge colours. */
@@ -1683,6 +1720,45 @@ public class MainActivity extends Activity {
                 }
                 String m = msg;
                 runOnUiThread(() -> Toast.makeText(c, m, Toast.LENGTH_SHORT).show());
+            }).start();
+        }
+
+        /** U2.9: a file from this server (a Messages attachment, an export) into Download/Sara, with the app's sign-in. */
+        @JavascriptInterface
+        public void saveFile(String url, String name) {
+            Context c = MainActivity.this;
+            String server = Net.server(c);
+            if (server == null || !Net.sameOrigin(server, url)) return;
+            new Thread(() -> {
+                try {
+                    Net.Response r = Net.get(c, url);
+                    if (r.status != 200) throw new java.io.IOException("HTTP " + r.status);
+                    String ext = android.webkit.MimeTypeMap.getFileExtensionFromUrl(name == null ? "" : name.replace(' ', '_'));
+                    String type = android.webkit.MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext == null ? "" : ext.toLowerCase(java.util.Locale.ROOT));
+                    toast(saveDownload(name, type, r.body));
+                } catch (Exception e) {
+                    toast(R.string.file_failed);
+                }
+            }).start();
+        }
+
+        /** U2.9: a file the page made itself (blob: or data: exports), handed over as base64. */
+        @JavascriptInterface
+        public void saveData(String base64, String name, String type) {
+            if ("too-big".equals(type)) {
+                toast(R.string.file_too_big);
+                return;
+            }
+            if (base64 == null || base64.isEmpty()) {
+                toast(R.string.file_failed);
+                return;
+            }
+            new Thread(() -> {
+                try {
+                    toast(saveDownload(name, type, android.util.Base64.decode(base64, android.util.Base64.DEFAULT)));
+                } catch (Exception e) {
+                    toast(R.string.file_failed);
+                }
             }).start();
         }
 

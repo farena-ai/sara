@@ -130,4 +130,12 @@
     <string name="hey_paused_mic">Another app is using the microphone.</string>
     <string name="hey_heard_you">Heard you</string>
     <string name="hey_pack">Getting the speech model from your server…</string>
+    <!-- U2.9: Messages from people and communities; saving files from the page -->
+    <string name="channel_people">Messages from people</string>
+    <string name="channel_community">Community messages</string>
+    <string name="notify_mentioned">You were mentioned in %1$s</string>
+    <string name="file_saved">Saved to Download/Sara.</string>
+    <string name="file_failed">Couldn\'t save the file.</string>
+    <string name="file_needs_android10">Saving files needs Android 10 or newer.</string>
+    <string name="file_too_big">That file is too big to save here. Open Sara in your browser to save it.</string>
 </resources>

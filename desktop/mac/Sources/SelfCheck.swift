@@ -27,10 +27,45 @@ enum SelfCheck {
     files()
     saves()
     tabs(live: a.contains("--live-tabs"))
+    u2()
     let failed = checks.filter { $0["ok"] as? Bool != true }.count
     let result: [String: Any] = ["app": appVersion, "passed": checks.count - failed, "failed": failed, "checks": checks]
     if let d = try? JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys]), let t = String(data: d, encoding: .utf8) { print(t) }
     return failed == 0 ? 0 : 1
+  }
+
+  // MARK: U2.7 / U2.8: the Dock badge, the meeting recording's mix, quick ask's text
+  static func u2() {
+    ok("dock: no badge at 0 or below", DockBadge.label(0) == nil && DockBadge.label(-3) == nil)
+    ok("dock: the count, 99+ above 99", DockBadge.label(1) == "1" && DockBadge.label(99) == "99" && DockBadge.label(100) == "99+")
+    // 48 kHz → 16 kHz: a third of the samples, a steady level stays steady, across buffers.
+    var rs = RecResampler(from: 48000)
+    var out: [Float] = []
+    for _ in 0..<10 { out += rs.push([Float](repeating: 0.5, count: 480)) }
+    ok("recording: 48 kHz becomes 16 kHz", abs(out.count - 1600) <= 2, ["n": out.count])
+    ok("recording: a steady level stays steady", out.dropFirst().allSatisfy { abs($0 - 0.5) < 0.0001 })
+    var up = RecResampler(from: 8000)
+    let u = up.push([0, 1, 0, 1])
+    ok("recording: 8 kHz is doubled", u.count == 6 && abs(u[1] - 0.5) < 0.0001, ["n": u.count])
+    // The mix: mic left, computer right, silence when the computer sent nothing, drift trimmed.
+    let mix = RecMix()
+    mix.pushSys([0.25, 0.25])
+    let d = mix.pushMic([0.5, 0.5, 0.5])
+    let s = d.withUnsafeBytes { Array($0.bindMemory(to: Int16.self)) }
+    ok("recording: mic left, computer right, then silence", s == [16384, 8192, 16384, 8192, 16384, 0], ["got": s.map { Int($0) }])
+    mix.pushSys([Float](repeating: 0.1, count: 20000))
+    ok("recording: a computer queue over a second drifts back", mix.sys.count == RecMix.rate / 4, ["n": mix.sys.count])
+    ok("recording: clipping and NaN are safe", RecMix.s16(4) == 32767 && RecMix.s16(-4) == -32768 && RecMix.s16(.nan) == 0)
+    let capped = RecMix()
+    capped.frames = RecMix.rate * RecMix.maxSeconds - 2
+    ok("recording: at most 3 hours", capped.pushMic([0.1, 0.1, 0.1, 0.1]).count == 8)
+    let h = RecMix.header(dataBytes: 64000)
+    let u32 = { (o: Int) in h.subdata(in: o..<(o + 4)).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) } }
+    ok("recording: a 16 kHz stereo 16-bit WAV header", h.count == 44 && String(data: h.prefix(4), encoding: .ascii) == "RIFF" && u32(24) == 16000 && u32(40) == 64000 && h[22] == 2 && h[34] == 16)
+    // Quick ask: selected text is trimmed, capped at 8,000 characters and key-shaped text masked.
+    let long = QuickContext.clean("  " + String(repeating: "a", count: 9000) + "  ")
+    ok("quick ask: at most 8,000 characters", long.count == 8000)
+    ok("quick ask: key-shaped text is masked", !QuickContext.clean("my key \(fakeKey) here").contains(fakeKey))
   }
 
   // MARK: the signed notice

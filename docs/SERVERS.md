@@ -50,6 +50,15 @@ in the list, still signed in.
   server and clears its sign-in here.
 - **Rename:** **⇄** → **Rename**.
 - On a Mac with macOS 13, the app keeps one server (several need macOS 14).
+- **Windows: messages from every server (U2.11).** The app asks each server not in use for its unread
+  messages about every 2 minutes, with that server's own sign-in (a hidden web view in its own profile,
+  closed after each ask). The ⇄ list and the tray's *Your Saras ▸* show each server's count, the ⇄ button
+  the other servers' total, and a new message there brings a notification that names the server;
+  clicking it switches to that server's Messages. Approvals and reminders still come from the server in use.
+- **Windows: the count on the taskbar button (U2.8).** A small red count (1–9, then 9+) over Sara's
+  taskbar button: unread messages on all your servers together, the same count as the sidebar pill.
+  It goes away at 0, screen readers hear "3 unread messages", and a server whose Messages popup is
+  turned off (Settings → Messages) adds nothing.
 
 ### Phone apps (Android, iPhone)
 
@@ -104,7 +113,8 @@ can use on your computer is what an app sends it while you use it, and that alwa
 
 Never two servers at once: switching moves all of it to the server you pick. (Decision: one at a
 time, no switch to allow more; the desktop notification path is the page's, so desktop apps notify
-for the server in use only.)
+for the server in use only. Since U2.11 the Windows app also tells you about new messages on the
+others: only their counts and the newest message line, asked with each server's own sign-in.)
 
 ## For developers
 
