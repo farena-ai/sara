@@ -99,6 +99,8 @@ CREATE TABLE IF NOT EXISTS activity (n INTEGER PRIMARY KEY AUTOINCREMENT, share 
 const clip = (s: unknown, n: number) => String(s ?? '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n);
 const sha256 = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
 const SHA_RE = /^[a-f0-9]{64}$/;
+/** U5.33: share and item ids another server chooses end up in the owner page's links: plain id characters only. */
+const PEER_ID = /^[A-Za-z0-9_:.-]{1,64}$/;
 const bad = (why: string, status = 400) => new SupportError(status, why);
 /** Last writer wins: a higher version, then a later time, then the larger name (the same answer on both sides). */
 export function newer(a: { version: number; at: string; by: string }, b: { version: number; at: string; by: string }): boolean {
@@ -447,7 +449,7 @@ export class SharedProjects {
   /** One verified peer request (the route checked the signature). Returns the reply body or throws SupportError. */
   received(linkId: string, name: string, op: string, b: Record<string, unknown>): Record<string, unknown> {
     const share = clip(b.share, 64);
-    if (!share) throw bad('bad request');
+    if (!share || !PEER_ID.test(share)) throw bad('bad request');
     const r = this.#row(share);
     if (op === 'invite') {
       if (r && r.side === 'host') throw bad('bad request');
@@ -631,7 +633,7 @@ function cleanEvents(v: unknown): (SpEvent & { bytes?: Buffer })[] {
     const kind = String(o.kind) as ItemKind;
     const item = clip(o.item, 64);
     const version = Number(o.version);
-    if (!(kind in KIND_OF) || !item || !Number.isInteger(version) || version < 1 || !Number.isFinite(Date.parse(String(o.at)))) throw bad('bad request');
+    if (!(kind in KIND_OF) || !PEER_ID.test(item) || !Number.isInteger(version) || version < 1 || !Number.isFinite(Date.parse(String(o.at)))) throw bad('bad request');
     const sha = typeof o.sha === 'string' && SHA_RE.test(o.sha) ? o.sha : null;
     const bytes = typeof o.data === 'string' && sha ? Buffer.from(o.data, 'base64') : undefined;
     if (bytes && bytes.length > SP_FILE_MAX) throw bad('too big');

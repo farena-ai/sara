@@ -314,6 +314,8 @@ export async function startTalk() {
     onLines: renderLines,
   });
   renderLines([]);
+  // U5: load the local hearing and voice now, so her first answer doesn't wait for the models.
+  Promise.resolve(ctx.api('/voice/warm', { method: 'POST' })).catch(() => {});
   status(t('Starting…'));
   dlg.showModal();
   $('#tm-mute').setAttribute('aria-pressed', 'false');

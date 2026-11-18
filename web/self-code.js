@@ -8,6 +8,9 @@ const $ = (s) => document.querySelector(s);
 /** @type {((path: string, o?: object) => Promise<any>) | null} */
 let api = null;
 let timer = 0;
+/** U5.30: app.js's passkey / two-step / token prompt (confirmProof). */
+let proof = null;
+let swTimer = 0;
 
 const STATUS = {
   working: 'Being prepared',
@@ -30,6 +33,14 @@ export function initSelfCode(c) {
   api = c.api;
   $('#cc-go')?.addEventListener('click', () => void prepare());
   for (const id of ['#cc-cap', '#cc-minutes']) $(id)?.addEventListener('change', () => void saveCaps());
+  proof = c.proof ?? null;
+  $('#cc-sw-on')?.addEventListener('change', () => void flip($('#cc-sw-on').checked));
+  $('#cc-sw-go')?.addEventListener('click', () => void flip(true, { typed: $('#cc-sw-typed').value }));
+  $('#cc-sw-typed')?.addEventListener('keydown', (e) => e.key === 'Enter' && (e.preventDefault(), void flip(true, { typed: $('#cc-sw-typed').value })));
+  $('#cc-sw-cancel')?.addEventListener('click', () => {
+    $('#cc-sw-confirm').hidden = true;
+    void loadSelfCode();
+  });
   const page = document.querySelector('.settings-page[data-page="dh-updates"]');
   if (page) new MutationObserver(() => !page.hidden && void loadSelfCode()).observe(page, { attributes: true, attributeFilter: ['hidden'] });
 }
@@ -64,6 +75,7 @@ export async function loadSelfCode() {
     return;
   }
   host.hidden = false;
+  drawSwitch(st.helper);
   const why = $('#cc-why');
   why.hidden = st.available;
   if (!st.available) why.textContent = `${t(st.why ?? 'She cannot change her own code on this install.')} ${t('To tell the developers about a problem: Settings → Privacy & system → Reports.')}`;
@@ -80,6 +92,55 @@ export async function loadSelfCode() {
   list.replaceChildren(...(shown.length ? shown.map(card) : [el('p', 'muted small', t('No code changes yet.'))]));
   clearTimeout(timer);
   if (shown.some((c) => BUSY.has(c.status))) timer = setTimeout(() => void loadSelfCode(), 5000);
+}
+
+// U5.30: the switch for the root helper. She only writes a request; root re-checks it and answers.
+const WHO = () => ({ owner: t('you, from this page'), admin: t("the server's administrator"), install: t('the installer') });
+function drawSwitch(h) {
+  const box = $('#cc-switch');
+  if (!box) return;
+  box.hidden = !h;
+  clearTimeout(swTimer);
+  if (!h) return;
+  $('#cc-sw-state').textContent = h.on ? t('Code changes on this server: on.') : t('Code changes on this server: off.');
+  const who = h.locked ? t("Only the server's administrator can turn them on: they locked this switch. Turning them off still works.") : t("You can turn them on or off here; the server's administrator can too, or lock this switch.");
+  const when = h.by && h.at ? ` ${t('Last changed by {who} on {date}.', { who: WHO()[h.by] ?? h.by, date: new Date(h.at).toLocaleString() })}` : '';
+  $('#cc-sw-who').textContent = who + when;
+  const tick = $('#cc-sw-on');
+  tick.checked = h.pending ? h.pending === 'on' : h.on;
+  tick.disabled = Boolean(h.pending) || (!h.on && h.locked);
+  const msg = $('#cc-sw-msg');
+  if (h.pending) {
+    msg.textContent = t("Waiting for the server's helper to take it…");
+    swTimer = setTimeout(() => void loadSelfCode(), 3000);
+  } else if (h.last?.state === 'refused') msg.textContent = t('The helper refused the last request: {message}', { message: h.last.message });
+  else msg.textContent = '';
+}
+
+async function flip(on, extra = {}) {
+  const box = $('#cc-sw-confirm');
+  const send = (body) => api('/self-code/helper', { method: 'POST', body: { on, ...body } });
+  try {
+    try {
+      await send(extra);
+    } catch (e) {
+      if (!on || e.status !== 403 || !e.data?.confirm) throw e;
+      if (e.data.confirm === 'typed') {
+        // No passkey or two-step sign-in here: she asks you to type ON.
+        box.hidden = false;
+        if (extra.typed !== undefined) $('#cc-sw-msg').textContent = t('Type ON to confirm.');
+        $('#cc-sw-typed').focus();
+        return;
+      }
+      if (!proof) throw e;
+      await send(await proof());
+    }
+    box.hidden = true;
+    $('#cc-sw-typed').value = '';
+  } catch (e) {
+    if (e?.name !== t('Cancelled')) alert(e.message);
+  }
+  await loadSelfCode();
 }
 
 async function saveCaps() {

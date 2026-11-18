@@ -264,10 +264,10 @@ const refuseTarget = (code: TargetRefusal, message: string): never => {
  * every request. Returns the parsed URL or throws with the reason (`code`: a TargetRefusal).
  * E6: `what` names the request in the messages (default an outgoing webhook; 'feed' for Read together).
  */
-export async function checkPublicTarget(target: string, opts: { allowLoopback?: boolean; lookup?: (host: string) => Promise<string[]>; what?: 'webhook' | 'feed' } = {}): Promise<URL> {
+export async function checkPublicTarget(target: string, opts: { allowLoopback?: boolean; allowHttp?: boolean; lookup?: (host: string) => Promise<string[]>; what?: 'webhook' | 'feed' | 'page' } = {}): Promise<URL> {
   const feed = opts.what === 'feed';
-  const label = feed ? 'feed' : 'outgoing webhook';
-  const only = feed ? 'Sara only opens feeds at public addresses' : 'Sara only sends webhooks to public addresses';
+  const label = feed ? 'feed' : opts.what === 'page' ? 'web page' : 'outgoing webhook';
+  const only = feed ? 'Sara only opens feeds at public addresses' : opts.what === 'page' ? 'Sara only opens pages at public addresses' : 'Sara only sends webhooks to public addresses';
   const u = toUrl(target);
   if (!u) refuseTarget('invalid', 'That address is not valid.');
   const url = u!;
@@ -277,7 +277,7 @@ export async function checkPublicTarget(target: string, opts: { allowLoopback?: 
     checkOutbound(url, label);
     return url;
   }
-  if (url.protocol !== 'https:') refuseTarget('https', 'Use an https:// address.');
+  if (url.protocol !== 'https:' && !(opts.allowHttp && url.protocol === 'http:')) refuseTarget('https', 'Use an https:// address.');
   let host = url.hostname;
   if (host.startsWith('[') && host.endsWith(']')) host = host.slice(1, -1);
   if (isPrivateAddress(host) || host === 'localhost' || host.endsWith('.localhost') || host.endsWith('.local') || host.endsWith('.internal')) refuseTarget('private', `${only} (not this computer, the home network or Tailscale).`);
@@ -294,6 +294,61 @@ export async function checkPublicTarget(target: string, opts: { allowLoopback?: 
   }
   checkOutbound(url, label);
   return url;
+}
+
+/**
+ * U5.33 (docs/SECURITY_REVIEW_U5.md): GET a page at an address someone typed (a calendar link, a
+ * recipe page): public addresses only (checkPublicTarget on the address and on every redirect hop,
+ * never followed blindly), at most `maxBytes` read (default 3 MB), a time limit. netFetch alone
+ * checks nothing outside private local mode, so these reads go through here.
+ */
+export async function publicGet(
+  target: string,
+  o: { accept?: string; maxBytes?: number; /** Past maxBytes: stop reading and keep the start (instead of refusing). */ cut?: boolean; timeoutMs?: number; allowHttp?: boolean; lookup?: (host: string) => Promise<string[]>; fetch?: (url: string, init: RequestInit) => Promise<Response>; signal?: AbortSignal } = {},
+): Promise<{ text: string; url: string }> {
+  const max = o.maxBytes ?? 3_000_000;
+  const signal = o.signal ? AbortSignal.any([o.signal, AbortSignal.timeout(o.timeoutMs ?? 20_000)]) : AbortSignal.timeout(o.timeoutMs ?? 20_000);
+  const send = o.fetch ?? ((u: string, i: RequestInit) => netFetch(u, i));
+  const check = (u: string) => checkPublicTarget(u, { what: 'page', ...(o.allowHttp ? { allowHttp: true } : {}), ...(o.lookup ? { lookup: o.lookup } : {}) });
+  let url = await check(target);
+  for (let hop = 0; ; hop++) {
+    const res = await send(url.href, { redirect: 'manual', signal, headers: { accept: o.accept ?? '*/*' } });
+    const location = res.status >= 300 && res.status < 400 ? res.headers.get('location') : null;
+    if (location) {
+      await res.body?.cancel().catch(() => {});
+      if (hop >= 5) throw Object.assign(new Error('Too many redirects.'), { code: 'redirects' });
+      url = await check(new URL(location, url).href);
+      continue;
+    }
+    if (!res.ok) {
+      await res.body?.cancel().catch(() => {});
+      throw Object.assign(new Error(`The page answered ${res.status}.`), { code: 'status', status: res.status });
+    }
+    const declared = Number(res.headers.get('content-length'));
+    const tooLarge = () => Object.assign(new Error('The page is too large.'), { code: 'too-large' });
+    if (!o.cut && Number.isFinite(declared) && declared > max) {
+      await res.body?.cancel().catch(() => {});
+      throw tooLarge();
+    }
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    if (res.body) {
+      const reader = res.body.getReader();
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > max) {
+          await reader.cancel().catch(() => {});
+          if (!o.cut) throw tooLarge();
+          chunks.push(value.subarray(0, value.byteLength - (size - max)));
+          break;
+        }
+        chunks.push(value);
+      }
+    }
+    return { text: Buffer.concat(chunks).toString('utf8'), url: url.href };
+  }
 }
 
 const guardedGlobal = (input: string | URL | Request, init?: RequestInit): Promise<Response> => netFetch(input, init);

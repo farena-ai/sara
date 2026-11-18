@@ -31,3 +31,5 @@ and prefer local or free models.
 | U4.28 | Local pictures and video: ComfyUI edits (mask, extend, upscale, background, restyle), short clips with installed models, versions in the Library (built: [PICTURES.md](../PICTURES.md)) | U4 |
 | U4.26 | Shared projects between linked friends: viewer/contributor, notes/to-dos/files/chats, signed sync with catch-up and conflict copies (built: [SHARED_PROJECTS.md](../SHARED_PROJECTS.md)) | U4 |
 | U5.30-34 | Settings switch for server code changes; monthly test restore; "what changed" page; security review of links/passes/helper; server dashboard | U5 |
+| U5.30 | Settings switch for server code changes: status line, request words `selfcode-on`/`selfcode-off`, owner re-auth for ON, `sara selfcode lock` (built: [SELF_CODE.md](../SELF_CODE.md)) | U5 |
+| U5.34 | Server dashboard in Health: this server + linked servers with a help pass (built: [DASHBOARD.md](../DASHBOARD.md)) | U5 |

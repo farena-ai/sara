@@ -171,6 +171,13 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         });
         return send(res, 202, { job: j });
       }
+      // U5 (docs/VOICE_FIRST.md): Talk opened: load the local hearing and voice now, not on the first words.
+      if (b === 'warm' && method === 'POST') {
+        const v = cfg();
+        const local = app.voice && (v.stt === 'local' || v.tts === 'local');
+        if (local) void app.voice!.warm(v.localVoice).catch(() => undefined);
+        return send(res, 202, { warming: Boolean(local) });
+      }
       if (!b && method === 'PUT') {
         const body = await readJson(req);
         const cur = cfg();

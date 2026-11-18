@@ -79,10 +79,35 @@ sudo sara selfcode            # list the changes in place and the parked ones
 sudo sara selfcode revert 12  # take change #12 out (restart, health check, back if she isn't healthy)
 sudo sara selfcode off        # turn code changes off entirely: the helper refuses every request
 sudo sara selfcode on         # turn them back on (she still asks you on every change)
+sudo sara selfcode lock       # U5.30: only the admin can turn them on (the owner's switch can still turn them off)
 sudo sara selfcode reapply    # put them back after running install.sh by hand (sara update does it itself)
 ```
 
 Turning it off keeps the changes already in place (revert them one by one if you want them gone).
+
+### The switch in Settings (U5.30)
+
+On a Linux server install, **Settings → Privacy & system → Updates → Code changes** starts with a
+status line and a switch:
+
+- **Code changes on this server: on / off**, who can change it (you here, or only the server's
+  administrator when they locked it) and who changed it last.
+- **Allow code changes on this server.** Turning it **off** always works. Turning it **on** asks you to
+  confirm it's you: your passkey or the current two-step code when you set one up, otherwise you type
+  **ON**. It is refused when the administrator ran `sudo sara selfcode lock`.
+
+Sara never flips it herself. She writes a request (`<data>/self-code/switch-request.json`: this
+instance, `on`/`off`, an approval id, the time) and the word `selfcode-on` or `selfcode-off` in
+`update-request`, the same file the `<name>-updater` unit already watches. Root then checks again:
+OFF is always honored; ON is refused when locked, without the root-owned checkout, or when the request
+is for another instance, has another word, no approval id, or is older than 15 minutes (the checkout's
+own `src/self-code-root.ts switch`). Root writes the marker (`selfcode.json` with `on`, `locked`, `by`,
+`at`) and its answer (`selfcode/switch.json`), which the page shows (a refusal with its reason).
+
+```sh
+sudo sara selfcode lock      # the owner can no longer turn it ON from Settings (OFF still works)
+sudo sara selfcode unlock    # the switch in Settings works both ways again
+```
 
 ### What she never changes
 
@@ -138,6 +163,16 @@ change's row); her in-app re-apply after an update is skipped there, `sara updat
 branch of `/opt/sara-src`, because several instances can share one checkout and must never get each
 other's changes. The approval id is a consistency check written by her own process; the hard limits
 are root's own rules, the off switch and the health rollback.
+
+**U5.30 switch.** `SelfCode.helper()` reads the marker, a waiting `switch-request.json` and root's
+`switch.json`; `askSwitch(on)` writes the request (refuses ON when locked or when another request
+waits). `POST /api/self-code/helper {on, typed | code | token | passkey}`: ON needs
+`ctx.confirmIdentity` (passkey or two-step code, or the owner token) when a passkey or two-step
+sign-in exists, else `typed: "ON"`. Root side: `sc_switch_request on|off` in `deploy/lib-selfcode.sh`
+(started by `deploy/sara web-request`, whose word filter now allows `-`), `sc_cmd lock|unlock`
+(`/etc/<name>/selfcode-locked`). Tests: `test/u5-selfcode-switch.test.ts` (root's request check,
+OFF/ON through the fake-root harness, lock refuses ON and keeps OFF, stale/other-instance/mismatched
+requests refused, the wiring, SelfCode state and the route's re-auth).
 
 **Routes:** `/api/self-code` (GET status, POST request, PUT settings; `/:id` GET card with diff,
 `/apply`, `/undo`, `/discard`, `/report` GET preview / POST `{send:true}`), owner only, apply and undo

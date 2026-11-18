@@ -84,6 +84,7 @@ test('the store: the address in the vault only, read again after 15 minutes, a f
     const vault = new Map<string, string>();
     const v = { get: (k: string) => vault.get(k), set: (k: string, x: string) => void vault.set(k, x), delete: (k: string) => void vault.delete(k) };
     const links = new CalendarLinks(v, join(dir, 'calendar-links.json'));
+    links.lookup = async () => ['93.184.215.14']; // U5.33: names resolve to a public address in tests
     let now = Date.parse('2026-11-16T12:00:00Z');
     links.now = () => now;
     let reads = 0;
@@ -133,6 +134,7 @@ test('the routes: add, list (never the address), remove', async () => {
   const vault = new Map<string, string>();
   const links = new CalendarLinks({ get: (k) => vault.get(k), set: (k, x) => void vault.set(k, x), delete: (k) => void vault.delete(k) }, join(dir, 'calendar-links.json'));
   links.fetch = async () => new Response(ICS, { status: 200 });
+  links.lookup = async () => ['93.184.215.14']; // U5.33: names resolve to a public address in tests
   app.mailAccounts = { member: false, list: () => [], default: () => undefined, view: () => ({}), calendarLinks: links } as never;
   const auth = new OwnerAuth(dir);
   const token = auth.newToken!;

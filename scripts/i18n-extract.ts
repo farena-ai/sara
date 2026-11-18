@@ -174,6 +174,12 @@ export function fromRoutines(dir = join(ROOT, 'templates', 'routines')): string[
   return out.map(norm).filter((x) => x && wanted(x));
 }
 
+/** U5.32: release titles and highlight lines from web/whats-new.json. */
+export function fromWhatsNew(json: string): string[] {
+  const j = JSON.parse(json) as { releases?: { title?: string; items?: { text?: string }[] }[] };
+  return (j.releases ?? []).flatMap((r) => [r.title ?? '', ...(r.items ?? []).map((i) => i.text ?? '')]).map(norm).filter((x) => x && wanted(x));
+}
+
 /** Tip texts and page summaries from tips.json. */
 export function fromTips(json: string): string[] {
   const j = JSON.parse(json) as { tips?: Record<string, [string, string]>; pages?: Record<string, [string, string]> };
@@ -194,6 +200,9 @@ export function allKeys(): Map<string, string> {
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');
   add(fromRoutines(), 'templates/routines');
+  // U5.32: the What's new highlights and release titles (web/whats-new.json, built from CHANGELOG.md).
+  const newsPath = join(ROOT, 'web', 'whats-new.json');
+  if (existsSync(newsPath)) add(fromWhatsNew(readFileSync(newsPath, 'utf8')), 'whats-new.json');
   add(fromHelp(readFileSync(join(ROOT, 'web', 'help.html'), 'utf8')), 'help.html');
   for (const f of serverFiles()) add(fromServer(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   // Extra keys a module asks for by list (see web/i18n/_extra.json): words built from data, e.g. memory kinds.

@@ -1,7 +1,7 @@
 // U4.21 (docs/FAMILY.md "Home and family planner"): the planner's routes under /api/family (the
 // member route `family`, audited; never the demo). Parents change the plan; everyone reads it; a
 // person's private events and own likes/allergies are theirs (parents see everyone's allergies).
-// Pages and iCal links are fetched through netFetch, never in private local mode.
+// Pages and iCal links are fetched through publicGet (public addresses only, U5.33), never in private local mode.
 //   GET    /api/family/week?start=YYYY-MM-DD        {week, prefs, recipes, pending, settings, rotas}
 //   PUT    /api/family/meals/:day                   {title?, recipeId?, ingredients?, note?} · DELETE
 //   POST   /api/family/meals/shopping               {start, listId?}  (into a grocery list)
@@ -18,12 +18,13 @@ import type { FamilyAccess } from '../family.ts';
 import { eventsFromIcs, eventsFromText, planOf, recipeFromHtml, weekStartOf, type FoundEvent } from '../family-plan.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { en } from '../i18n.ts';
-import { netFetch, privateLocalOn } from '../net-guard.ts';
+import { privateLocalOn, publicGet } from '../net-guard.ts';
 import type { AppContext } from '../chat.ts';
 import { NEXT } from './context.ts';
 
 const MAX_PAGE = 3_000_000;
-async function fetchText(raw: string, T: (s: string) => string): Promise<string> {
+/** A recipe page or a calendar file by its address. U5.33: public addresses only (every redirect checked), at most 3 MB. */
+export async function fetchPageText(raw: string, T: (s: string) => string): Promise<string> {
   if (privateLocalOn()) throw new HttpError(409, T(en('Private local mode is on: paste the text instead.')));
   let url: URL;
   try {
@@ -36,15 +37,13 @@ async function fetchText(raw: string, T: (s: string) => string): Promise<string>
     }
   }
   if (!/^https?:$/.test(url.protocol)) throw new HttpError(400, T(en('That doesn’t look like a web address.')));
-  let res: Response;
   try {
-    res = await netFetch(url, { headers: { accept: 'text/html,text/calendar,*/*' }, signal: AbortSignal.timeout(20_000) });
-  } catch {
+    return (await publicGet(url.href, { accept: 'text/html,text/calendar,*/*', maxBytes: MAX_PAGE, cut: true, timeoutMs: 20_000 })).text;
+  } catch (err) {
+    const code = (err as { code?: string }).code;
+    if (code === 'private' || code === 'private-name' || code === 'https' || code === 'userinfo' || code === 'invalid') throw new HttpError(400, T(en('Sara only opens pages at public addresses (not this computer or the home network).')));
     throw new HttpError(502, T(en('That page didn’t answer.')));
   }
-  if (!res.ok) throw new HttpError(502, T(en('That page didn’t answer.')));
-  const text = await res.text();
-  return text.slice(0, MAX_PAGE);
 }
 
 export async function familyPlanRoutes(app: AppContext, f: FamilyAccess, T: (s: string) => string, req: IncomingMessage, res: ServerResponse, method: string, parts: string[]): Promise<unknown> {
@@ -86,7 +85,7 @@ export async function familyPlanRoutes(app: AppContext, f: FamilyAccess, T: (s: 
       const body = await readJson(req);
       if (!f.store.isParent(me)) throw new HttpError(403, T(en('Only a parent can do that.')));
       if (typeof body.url === 'string' && body.url.trim()) {
-        const parsed = recipeFromHtml(await fetchText(body.url.trim(), T));
+        const parsed = recipeFromHtml(await fetchPageText(body.url.trim(), T));
         if (!parsed) throw new HttpError(422, T(en('That page has no recipe I can read. Paste the recipe text instead.')));
         return send(res, 200, { recipe: plan.addRecipe(me, { title: body.title, parsed, source: body.url.trim() }) });
       }
@@ -119,7 +118,7 @@ export async function familyPlanRoutes(app: AppContext, f: FamilyAccess, T: (s: 
       const now = app.now();
       if (typeof body.ics === 'string' && body.ics.includes('BEGIN:VCALENDAR')) found = eventsFromIcs(body.ics.slice(0, MAX_PAGE), now, tz);
       else if (typeof body.url === 'string' && body.url.trim()) {
-        const text = await fetchText(body.url.trim(), T);
+        const text = await fetchPageText(body.url.trim(), T);
         if (!text.includes('BEGIN:VCALENDAR')) throw new HttpError(422, T(en('That calendar link didn’t answer like a calendar.')));
         found = eventsFromIcs(text, now, tz);
       } else if (body.libraryId !== undefined) found = eventsFromText(libText(body.libraryId), now);

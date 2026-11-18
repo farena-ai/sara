@@ -7,6 +7,7 @@ import { dirname, join, posix, relative, sep } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { constants } from 'node:buffer';
+import { createHash } from 'node:crypto';
 
 export const BACKUP_FORMAT = 'sara-backup';
 export const BACKUP_VERSION = 1;
@@ -26,7 +27,13 @@ export interface BackupManifest {
   saraVersion: string;
   files: number;
   includesWorkspaces: boolean;
+  /** U5.31: rows of key tables in the main database right when it was copied (a test restore compares). */
+  counts?: Record<string, number>;
 }
+/** U5.31: the last entry of a backup, a sha256 per file (left out of the restore itself). */
+export const BACKUP_SUMS = 'sara-backup-sums.json';
+/** Key tables a test restore counts. */
+export const COUNTED_TABLES = ['conversations', 'messages', 'memories'] as const;
 
 interface Entry {
   path: string;
@@ -143,6 +150,7 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
   const files = refs.filter((e) => includeWorkspaces || !/(^|\/)workspaces\//.test(e.path));
   const dbs = ['sara.db'];
   const snaps: string[] = [];
+  let counts: Record<string, number> | undefined;
   const cdir = join(dataDir, 'companions');
   if (existsSync(cdir)) for (const n of readdirSync(cdir)) if (existsSync(join(cdir, n, 'sara.db'))) dbs.push(`companions/${n}/sara.db`);
   const mdir = join(dataDir, 'members');
@@ -164,6 +172,10 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
     try {
       db.exec('PRAGMA busy_timeout = 5000');
       db.prepare('VACUUM INTO ?').run(snap);
+      if (i === 0) {
+        counts = {};
+        for (const t of COUNTED_TABLES) counts[t] = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t) ? Number((db.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n) : 0;
+      }
     } finally {
       db.close();
     }
@@ -177,6 +189,7 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
     saraVersion: opts.saraVersion ?? 'unknown',
     files: files.length,
     includesWorkspaces: includeWorkspaces,
+    ...(counts ? { counts } : {}),
   };
   // Written one file at a time (each its own gzip member; a .tar.gz may hold several), so a big
   // data folder never has to fit in memory at once.
@@ -187,6 +200,7 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
   const tmp = direct ? outFile : `${outFile}.partial`;
   const mtime = Math.floor(Date.now() / 1000);
   const fd = openSync(tmp, 'w', 0o600);
+  const sums: Record<string, string> = {};
   try {
     writeSync(fd, gzipSync(tarEntry({ path: 'sara-backup.json', data: Buffer.from(JSON.stringify(manifest, null, 2)), mode: 0o600 }, mtime)));
     for (const f of files) {
@@ -197,7 +211,9 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
         continue; // removed while the backup ran
       }
       writeSync(fd, gzipSync(tarEntry({ path: f.path, data, mode: f.mode }, mtime)));
+      sums[f.path] = createHash('sha256').update(data).digest('hex');
     }
+    writeSync(fd, gzipSync(tarEntry({ path: BACKUP_SUMS, data: Buffer.from(JSON.stringify(sums)), mode: 0o600 }, mtime)));
     writeSync(fd, gzipSync(Buffer.alloc(1024)));
   } catch (err) {
     closeSync(fd);
@@ -217,7 +233,7 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
 }
 
 /** Reads and checks a backup without writing anything. */
-export function inspectBackup(file: string): { manifest: BackupManifest; entries: Entry[] } {
+export function inspectBackup(file: string): { manifest: BackupManifest; entries: Entry[]; sums?: Record<string, string> } {
   let tar: Buffer;
   const packed = readFileSync(file);
   // A real backup unpacks to a few times its size; a file built to unpack to far more (planted in
@@ -239,7 +255,14 @@ export function inspectBackup(file: string): { manifest: BackupManifest; entries
     const norm = posix.normalize(e.path);
     if (norm.startsWith('../') || norm === '..' || posix.isAbsolute(norm) || /^[a-zA-Z]:/.test(norm) || norm.includes('\\')) throw new Error(`Unsafe path in backup: ${e.path}`);
   }
-  return { manifest, entries: entries.filter((e) => e.path !== 'sara-backup.json') };
+  let sums: Record<string, string> | undefined;
+  const s = entries.find((e) => e.path === BACKUP_SUMS);
+  try {
+    if (s) sums = JSON.parse(s.data.toString()) as Record<string, string>;
+  } catch {
+    sums = undefined; // an unreadable list: the test restore says so (no hashes to check)
+  }
+  return { manifest, entries: entries.filter((e) => e.path !== 'sara-backup.json' && e.path !== BACKUP_SUMS), ...(sums ? { sums } : {}) };
 }
 
 /**
@@ -259,9 +282,9 @@ function assertPersonalEntries(entries: Entry[]): void {
     return path === 'BUSINESS_BACKUP.json' || path === 'business/business.db' || path === 'profile.json' && entry.data.toString().includes('business');
   })) throw new Error('Business archives cannot restore into a personal profile.');
 }
-export function restoreBackup(file: string, dataDir: string, now = new Date()): { manifest: BackupManifest; movedTo: string } {
+export function restoreBackup(file: string, dataDir: string, now = new Date()): { manifest: BackupManifest; movedTo: string; sums?: Record<string, string> } {
   assertPersonalRestoreArchive(file);
-  const { manifest, entries } = inspectBackup(file);
+  const { manifest, entries, sums } = inspectBackup(file);
   assertPersonalEntries(entries);
   mkdirSync(dataDir, { recursive: true });
   const aside = join(dataDir, `before-restore-${now.toISOString().replace(/[:.]/g, '-')}`);
@@ -288,7 +311,7 @@ export function restoreBackup(file: string, dataDir: string, now = new Date()): 
     rmSync(aside, { recursive: true, force: true });
     throw new Error(`The restore couldn't finish (${(err as Error).message}), so the data from before it was put back. Nothing was lost.`);
   }
-  return { manifest, movedTo: aside };
+  return { manifest, movedTo: aside, ...(sums ? { sums } : {}) };
 }
 
 // ---- automatic daily backups -----------------------------------------------------

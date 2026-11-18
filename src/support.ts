@@ -24,6 +24,18 @@ const SKEW_MS = 5 * 60_000;
 const NOTE_CHARS = 1000;
 const LOG_KEEP = 500;
 
+/** U5.33: signed peer calls a link may make a minute, per scope (support, repair, sproj, market). */
+export const PEER_PER_MINUTE = 120;
+/** Counts one call; false when the link is over PEER_PER_MINUTE this minute. */
+export function peerRate(m: Map<string, { min: number; n: number }>, key: string, nowMs: number): boolean {
+  const minute = Math.floor(nowMs / 60_000);
+  const r = m.get(key);
+  if (r && r.min === minute && r.n >= PEER_PER_MINUTE) return false;
+  m.set(key, r && r.min === minute ? { min: minute, n: r.n + 1 } : { min: minute, n: 1 });
+  if (m.size > 2000) for (const [k, v] of m) if (v.min !== minute) m.delete(k);
+  return true;
+}
+
 export class SupportError extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
@@ -164,6 +176,7 @@ CREATE TABLE IF NOT EXISTS sp_seen (id TEXT PRIMARY KEY, at TEXT NOT NULL);
 
 export class SupportLink {
   readonly #db: DatabaseSync;
+  readonly #rate = new Map<string, { min: number; n: number }>();
   readonly #m: Messenger;
   readonly #now: () => Date;
   #closed = false;
@@ -346,6 +359,8 @@ export class SupportLink {
       ok = false;
     }
     if (!ok) throw unsigned;
+    // U5.33: a linked server that floods (help, fix, recipe or shared-project calls) is slowed down.
+    if (!peerRate(this.#rate, `${scope}:${linkId}`, this.#now().getTime())) throw new SupportError(429, 'slow down');
     let id = '';
     try {
       id = String((JSON.parse(body) as { id?: unknown }).id ?? '');

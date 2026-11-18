@@ -18,6 +18,8 @@
 SC_DIR="$STATUS_DIR/selfcode"
 SC_MARK="$STATUS_DIR/selfcode.json"
 SC_OFF="${SC_OFF:-/etc/$NAME/selfcode-off}"
+# U5.30: `sudo <name> selfcode lock`: the owner can no longer turn it ON from Settings (OFF always works).
+SC_LOCK="${SC_LOCK:-/etc/$NAME/selfcode-locked}"
 
 sc_p() { printf '%s' "$1"; }
 sc_read_user() { runuser -u "$NAME" -- head -c "$2" -- "$1"; }
@@ -40,6 +42,7 @@ sc_node() {
   "$NODE_BIN" --disable-warning=ExperimentalWarning "$(sc_p "$src/src/self-code-root.ts")" "$@"
 }
 sc_on() { [[ ! -e "$SC_OFF" ]]; }
+sc_locked() { [[ -e "$SC_LOCK" ]]; }
 # The reason in the node part's JSON answer (or the start of whatever it printed).
 sc_reason() {
   local r
@@ -54,20 +57,72 @@ sc_dirs() {
   chgrp "$NAME" "$SC_DIR" "$SC_DIR/queue" "$SC_DIR/parked" "$SC_DIR/results" 2>/dev/null || true
 }
 
-# What Sara reads to know the helper is here and on (written by install.sh, `selfcode on|off`).
+# What Sara reads to know the helper is here and on (written by install.sh, `selfcode on|off|lock`, and the
+# switch in Settings). sc_marker [BY]: who changed it last (admin, owner); without BY the last one stays.
 sc_marker() {
-  local src on=true tmp
+  local src on=true locked=false by=${1:-} at tmp
   src="$(sc_src || true)"
   sc_on || on=false
   [[ -n "$src" ]] || on=false
+  sc_locked && locked=true
+  if [[ -n "$by" ]]; then
+    at="$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+  else
+    by="$(sed -n 's/.*"by":"\([a-z]*\)".*/\1/p' "$SC_MARK" 2>/dev/null | head -1 || true)"
+    at="$(sed -n 's/.*"at":"\([0-9TZ:.-]*\)".*/\1/p' "$SC_MARK" 2>/dev/null | head -1 || true)"
+    [[ -n "$by" ]] || by=install
+  fi
   sc_mkdir 750 "$STATUS_DIR"
   chgrp "$NAME" "$STATUS_DIR" 2>/dev/null || true
   sc_dirs
   tmp="$(mktemp "$STATUS_DIR/.selfcode.XXXXXX")"
-  printf '{"helper":1,"on":%s,"src":"%s"}\n' "$on" "$(sc_json "$src")" > "$tmp"
+  printf '{"helper":1,"on":%s,"locked":%s,"by":"%s","at":"%s","src":"%s"}\n' "$on" "$locked" "$by" "$at" "$(sc_json "$src")" > "$tmp"
   chgrp "$NAME" "$tmp" 2>/dev/null || true
   chmod 640 "$tmp"
   mv -f "$tmp" "$SC_MARK"
+}
+
+# sc_switch_result WANT STATE MESSAGE: the answer the Settings switch shows.
+sc_switch_result() {
+  local tmp
+  sc_dirs
+  tmp="$(mktemp "$SC_DIR/.s.XXXXXX")"
+  printf '{"want":"%s","state":"%s","message":"%s","at":"%s"}\n' "$1" "$2" "$(sc_json "$3")" "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)" > "$tmp"
+  chgrp "$NAME" "$tmp" 2>/dev/null || true
+  chmod 640 "$tmp"
+  mv -f "$tmp" "$SC_DIR/switch.json"
+  log "Code-change switch from Settings ($1): $2. $3"
+}
+
+# U5.30: started by <name>-updater.service for the words selfcode-on / selfcode-off (Settings → Updates →
+# Code changes). OFF is always honored. ON is refused when the admin locked it, and root checks the request
+# itself (this instance, the same word, an approval id, made in the last 15 minutes) with the checkout's
+# own rules; Sara checked the owner's passkey, two-step code or typed confirmation before writing it.
+sc_switch_request() {
+  local want=$1 rq="$DATA_DIR/self-code/switch-request.json" tmp src out
+  sc_dirs
+  tmp="$(mktemp -d "$SC_DIR/tmp/sw.XXXXXX")"
+  sc_read_user "$rq" 4097 > "$tmp/request.json" 2>/dev/null || true
+  sc_user_rm "$rq"
+  if [[ "$want" == off ]]; then
+    rm -rf -- "$tmp"
+    sc_mkdir 755 "$(dirname "$SC_OFF")"
+    : > "$SC_OFF"
+    sc_marker owner
+    sc_switch_result off done "Code changes from Sara were turned off from Settings."
+    return 0
+  fi
+  if sc_locked; then rm -rf -- "$tmp"; sc_switch_result on refused "The server's administrator locked this switch (sudo $NAME selfcode unlock)."; return 1; fi
+  if ! src="$(sc_src)"; then rm -rf -- "$tmp"; sc_switch_result on refused "This server has no root-owned source checkout, so code changes can't be turned on."; return 1; fi
+  if ! out="$(sc_node "$src" switch --instance "$NAME" --want on --request "$(sc_p "$tmp/request.json")" 2>&1)"; then
+    rm -rf -- "$tmp"
+    sc_switch_result on refused "The helper refused it: $(sc_reason "$out")"
+    return 1
+  fi
+  rm -rf -- "$tmp"
+  rm -f -- "$SC_OFF"
+  sc_marker owner
+  sc_switch_result on done "Code changes from Sara were turned on from Settings (she still asks on every change)."
 }
 
 # sc_result ID KIND STATE MESSAGE [APPROVAL]: the outcome Sara shows on the card.
@@ -211,11 +266,12 @@ sc_reapply() {
   return 1
 }
 
-# sudo <name> selfcode list | revert <id> | off | on
+# sudo <name> selfcode list | revert <id> | off | on | lock | unlock
 sc_cmd() {
   case "${1:-list}" in
     list)
       log "Code changes from Sara on this server: $(sc_on && echo on || echo "off (sudo $NAME selfcode on)")"
+      if sc_locked; then log "The switch in Settings is locked: only the administrator can turn it on (sudo $NAME selfcode unlock)."; else log "The owner can turn it on or off in Settings → Privacy & system → Updates (sudo $NAME selfcode lock stops that)."; fi
       local f any=0
       for f in "$SC_DIR"/queue/*.patch "$SC_DIR"/parked/*.patch; do
         [[ -f "$f" ]] || continue
@@ -231,14 +287,25 @@ sc_cmd() {
     off)
       sc_mkdir 755 "$(dirname "$SC_OFF")"
       : > "$SC_OFF"
-      sc_marker
+      sc_marker admin
       log "Code changes from Sara are off: the helper refuses every request. Applied ones stay (sudo $NAME selfcode revert <id> takes one out)."
       ;;
     on)
       rm -f -- "$SC_OFF"
-      sc_marker
+      sc_marker admin
       if sc_src >/dev/null; then log "Code changes from Sara are on (she still asks you on every change)."; else warn "Turned on, but there is no root-owned source checkout, so she can't use it."; fi
       ;;
-    *) die "Usage: sudo $NAME selfcode list | revert <id> | off | on" ;;
+    lock)
+      sc_mkdir 755 "$(dirname "$SC_LOCK")"
+      : > "$SC_LOCK"
+      sc_marker admin
+      log "Locked: the owner can no longer turn code changes on from Settings (turning them off still works)."
+      ;;
+    unlock)
+      rm -f -- "$SC_LOCK"
+      sc_marker admin
+      log "Unlocked: the owner can turn code changes on or off in Settings → Privacy & system → Updates."
+      ;;
+    *) die "Usage: sudo $NAME selfcode list | revert <id> | off | on | lock | unlock" ;;
   esac
 }

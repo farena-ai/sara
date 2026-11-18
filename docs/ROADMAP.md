@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Security review, test restores, What's new, a server dashboard and faster voice, in 3.24.0
+
+A security review of everything other servers, web pages and links can reach found seven problems and fixed
+them, each with a test (docs/SECURITY_REVIEW_U5.md). Each month Sara restores her newest backup into a
+throwaway copy and checks it. After each update a plain-words What's new page shows what changed. The owner
+can switch server code changes in Settings and see every server on one dashboard. On Linux servers her local
+hearing and voice stay loaded, so her first word comes about 0.4 s after you stop talking.
+
 ## Talk with Sara, shared projects, a marketplace, a picture studio and a business pack, in 3.23.0
 
 Talk with Sara is a hands-free voice mode: talk over her to interrupt, answer approval cards by voice (never

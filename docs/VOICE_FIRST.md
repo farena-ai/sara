@@ -89,7 +89,45 @@ and local Piper `hfc_female`. Five turns after a warm-up (`scratch/u4voice/laten
   Her real answer starts after 2.3–3.2 s.
 - The model is no longer the bottleneck. Hearing and her voice each start a new sherpa-onnx process
   that loads its model on every call (about 0.8–1.2 s each).
-- **Next step:** keep the engines loaded. sherpa-onnx ships `sherpa-onnx-offline-websocket-server` for
-  hearing (that should save about 1 s). Her voice needs a resident process too. Both fit behind
-  `LocalVoiceEngine`.
+- U5 (below) keeps the engines loaded: same PC, same models, **0.42 s** median with qwen3.5:9b.
 - Cloud engines were not measured: no paid services were used.
+
+## Engines stay loaded (U5)
+
+The local hearing (Parakeet) and her local voice (Piper/Kokoro) now stay in memory between calls, so
+neither reloads its model for every sentence.
+
+- **How:** `deploy/voice/sara-voice-worker.c` is a ~120-line program on the sherpa-onnx C API (the same
+  library the voice tools use). One process per model: one for hearing, one per voice (at most two voices
+  kept). Sara talks to it over stdin/stdout, one job per line (`src/voice-warm.ts`, `WarmWorker`), so
+  nothing listens on the network. (The stock `sherpa-onnx-offline-websocket-server` was tried first and
+  dropped: it always binds `0.0.0.0` and has no voice side.)
+- **When:** started on first use, or when Talk opens (`POST /api/voice/warm`). Stopped after the idle
+  time: **Settings → Sara → Voice → Talk with Sara → Keep hearing and voice loaded** (Off, 10 minutes
+  (default), 30 minutes, 1 hour; owner only, for the whole server). Off frees the memory right away.
+- **Safety nets:** jobs run one at a time per worker; a job that takes over 60 s kills the worker; a crash
+  fails only that job and the next one starts a fresh worker; three failures within 5 minutes pause the
+  worker for 10 minutes; it won't start with less than 512 MB free; it restarts after 2000 jobs. **Any**
+  worker trouble falls back to the old one-shot tools, so voice keeps working.
+- **Where the helper comes from:** `deploy/install-voice.sh` (Linux) builds it when a C compiler is
+  there (`cc`); without one, Sara uses the one-shot tools as before. `sara voice install` on Windows and
+  macOS does not build it yet (no compiler on those machines): until a release ships a prebuilt helper,
+  those servers keep the one-shot path. Build by hand: `cc -O2 -o <sherpa>/bin/sara-voice-worker
+  deploy/voice/sara-voice-worker.c -I<sherpa>/include -L<sherpa>/lib -lsherpa-onnx-c-api` (on Windows,
+  MSVC `cl /O2 /MD … sherpa-onnx-c-api.lib`). It must be built against the same sherpa-onnx release.
+- **Memory (this PC):** about 190 MB for hearing and 110–150 MB for the Piper voice while loaded.
+- **Not done:** partial transcripts while you speak. The installed Parakeet model is offline-only; that
+  needs a streaming (online) model, which isn't installed.
+
+### Measured (this PC, 2026-11-18, `scripts/voice-latency.ts`, 5 turns after a warm-up, two runs each)
+
+| Model | Path | Hearing | First sentence | Her voice (1st sentence) | Total, median (best–worst) |
+| --- | --- | --- | --- | --- | --- |
+| qwen3.5:9b | one-shot (before) | 0.81–0.92 s | 0.27–0.51 s | 0.68–1.0 s | **1.93 s / 1.98 s** (1.81–2.32) |
+| qwen3.5:9b | loaded (U5) | 0.03–0.04 s | 0.26–0.36 s | 0.03–0.11 s | **0.36 s / 0.42 s** (0.33–0.55) |
+| gemma4:12b | one-shot (before) | 0.87–1.4 s | 0.82–1.1 s | 0.68–1.0 s | **2.80 s** (2.39–3.15) |
+| gemma4:12b | loaded (U5) | 0.03–0.04 s | 0.86–5.9 s | 0.03–0.25 s | **1.03 s** (0.95–6.14; the worst is the model) |
+
+The engines' own time is now under 0.15 s per turn; what's left is the model. Loading both takes about
+1–1.6 s, which happens while Talk opens. The one-shot numbers are lower than in U4.24 (1.9 vs 2.5 s)
+because the PC was quieter; both rows here were run back to back.

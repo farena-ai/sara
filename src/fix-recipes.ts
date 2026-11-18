@@ -123,6 +123,15 @@ export function matchProblem(r: Recipe, problems: readonly Problem[]): Problem |
 
 const bad = () => new SupportError(400, en('That fix recipe is not valid.'));
 /** The receiver checks the shape itself (and drops anything else). */
+/** U5.33: received recipes kept waiting per link (older ones are used, dismissed or replaced first). */
+export const RECIPES_KEPT = 50;
+/**
+ * U5.33: what a friend's code recipe may never change: the code that checks links, passes, peers and
+ * outside content (and the server wiring and turn rules around it). Her own code changes still can,
+ * with the owner's OK; a patch that came from another server cannot.
+ */
+export const PEER_BOUNDARY = /^src\/((routes|tools)\/)?(support|remote-repair|fix-recipes|messages|shared-projects|market|extension|a2a|a2a-client|share|hooks|webhooks)\.ts$|^src\/(server|chat|other-apps|http|device-flow)\.ts$/i;
+
 export function cleanRecipe(x: unknown): Recipe {
   const o = (x && typeof x === 'object' ? x : {}) as Record<string, unknown>;
   const version = String(o.version ?? '');
@@ -147,7 +156,7 @@ export function cleanRecipe(x: unknown): Recipe {
     } catch {
       throw bad();
     }
-    if (!files.length) throw bad();
+    if (!files.length || files.some((f) => PEER_BOUNDARY.test(f))) throw bad();
     const checks = Array.isArray(o.checks) ? checksOf({ steps: o.checks as never }) : [];
     return { v: 1, kind: 'code', version, at, patch, files, checks };
   }
@@ -282,6 +291,9 @@ export class FixRecipes {
   /** Peer op (signature already checked): store it; tell the owner only when it fits a problem here now. */
   async received(link: string, name: string, body: unknown): Promise<void> {
     const r = cleanRecipe(body);
+    // U5.33: a friend can't fill the disk or the notices with recipes: at most RECIPES_KEPT waiting per link.
+    const waiting = (this.#db.prepare("SELECT COUNT(*) AS n FROM fix_recipes WHERE side = 'in' AND link = ? AND status = 'new'").get(link) as { n: number }).n;
+    if (waiting >= RECIPES_KEPT) throw new SupportError(429, 'slow down');
     const id = randomUUID();
     const res = this.#db.prepare('INSERT OR IGNORE INTO fix_recipes (id, side, link, peer, key, recipe, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(id, 'in', link, name, keyOf(r), JSON.stringify(r), 'new', this.#now().toISOString());
     if (!res.changes) return;

@@ -5,6 +5,43 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.24.0 (2026-11-18): Security review, backup test restores, What's new, server dashboard, faster voice
+
+- Security: a review of the parts other servers, web pages and links can reach (U5.33,
+  docs/SECURITY_REVIEW_U5.md), with fixes. Calendar links and recipe or calendar pages by address now
+  open only public addresses (never this computer or the home network, also after a redirect) and
+  read at most a few MB. After Sara reads a friend's shared-project items or another server's help or
+  fix report, and when the browser extension sends a page, anything that would change something asks
+  you first (reading still works). Signed calls from a linked server are rate limited, a friend can
+  keep at most 50 fix recipes waiting, and a friend's code recipe may not change the code that guards
+  links and passes. Ids from other servers are checked and encoded in the page, and the Android app's
+  "Open in browser" opens only your own server's address.
+- New: a monthly **test restore** that proves backups work (U5.31, docs/BACKUPS.md). Once a month, at a
+  quiet hour, Sara restores the newest backup (and, if you want, the newest off-server copy) into a
+  throwaway folder, checks every database, the chat and memory counts against the counts at backup
+  time, every file against the backup's own hash list and that the vault opens, then deletes the copy.
+  Your live data isn't touched and no value is read out. Results (passed, failed or skipped with the
+  reason and how long it took) are in Settings → Privacy & system → Backups → Test restores, with a
+  switch to turn it off and **Test a restore now**. A failure sends you a notification and shows up as
+  a self-repair problem; it is skipped when there isn't enough free disk space. Backups now record
+  those counts and a hash per file.
+- New: **What's new** after each update (U5.32, docs/WHATS_NEW.md). The first time you open Sara after
+  an update, a short page lists what changed in each release since the version you last saw, in plain
+  words, with Show me to open the place it lives and, for the owner, Try it to jump to the matching
+  Try these check. Got it closes it for good; Help → What's new shows it again any time, and "Show this
+  after each update" turns the automatic page off. Household members see only what they can use; kid
+  mode never shows it. The page is built from this changelog when Sara is built and is translated into
+  all five languages (the build checks fail when a highlight has no translation).
+- Faster voice replies (U5, docs/VOICE_FIRST.md): her own hearing and voice on the server now stay
+  loaded between sentences instead of loading the model every time, so with a local model she starts
+  answering out loud in about 0.4 s instead of about 2 s (measured on a desktop PC). They load when you
+  open Talk, stay loaded for 10 minutes by default (Settings → Sara → Voice → Talk with Sara → Keep
+  hearing and voice loaded: Off, 10 or 30 minutes, 1 hour) and fall back to the old way on any problem.
+  Linux servers get it from `deploy/install-voice.sh` when a C compiler is installed; Windows and Mac
+  servers keep the old way for now.
+- Settings → Privacy & system → Updates → Code changes: on a Linux server, a status line (on or off, who can change it) and a switch for server code changes. Turning it off always works; turning it on asks you to confirm it's you (passkey or two-step code, else typing ON) and is refused when the administrator ran `sudo sara selfcode lock`. The root helper checks every request again (U5.30, docs/SELF_CODE.md).
+- Settings → Privacy & system → Health: a server dashboard with health, versions (server and apps), disk space, memory and processor load, backup age, recent errors, open self-repair problems and pending updates, for this server and each linked server that gave you a help pass, colored by state, with Refresh and links to the details (U5.34, docs/DASHBOARD.md).
+
 ## 3.23.0 (2026-11-18): Talk with Sara, shared projects, marketplace, picture studio, business pack
 
 - New: a **Business** place in the sidebar (U4.29, docs/BUSINESS_PACK.md) that brings clients, time,

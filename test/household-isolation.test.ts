@@ -285,7 +285,9 @@ const OWNER_ONLY = ['repair', 'market', 'shared-projects', 'phone-calls', 'quali
   // owner's "Let household members use computer use" is off (the default, as here).
   'hands', 'computer',
   // U4.28: picture editing and short video with ComfyUI (the owner's ComfyUI and tool server).
-  'media'];
+  'media',
+  // U5.34: the server dashboard (this server and linked servers with a help pass).
+  'dashboard'];
 /**
  * Owner-only paths inside a member family (Phase 83: time-travel in `runs`; a member's run view
  * stays read-only). Each must answer a member 403 ownerOnly.

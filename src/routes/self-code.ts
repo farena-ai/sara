@@ -1,6 +1,7 @@
 // T3 (docs/SELF_CODE.md): her own code changes, the owner's only (members, kid mode and the demo: 403).
 //   GET    /api/self-code                  {available, kind, why, mode, cap, minutes, permission, fullUntil, version, changes}
 //   PUT    /api/self-code/settings         {capUsd?, minutes?}
+//   POST   /api/self-code/helper           {on, typed? | code? | passkey?}  U5.30: ask root to turn code changes on/off
 //   POST   /api/self-code                  {request} → 202 {change}   prepare a change (background)
 //   GET    /api/self-code/:id              the change with its diff (the approval card)
 //   POST   /api/self-code/:id/apply        Approve: snapshot, apply, restart, health check (rollback by itself)
@@ -38,6 +39,19 @@ export function createSelfCodeRoutes(ctx: RouteCtx): RouteHandler {
         app.settings.update({ selfCode: { capUsd: clean.capUsd, minutes: clean.minutes } } as never);
         audit({ action: 'self-code.settings', role: 'owner', outcome: 'ok', keys: Object.keys(body).filter((k) => k === 'capUsd' || k === 'minutes') });
         return send(res, 200, sc.status());
+      }
+      // U5.30: the switch for the root helper (Linux server installs). OFF always; ON needs proof it's the
+      // owner: a passkey or the two-step code when one is set up, else the typed word ON. Root re-checks.
+      if (b === 'helper' && !c && method === 'POST') {
+        const on = body.on === true;
+        if (on) {
+          if (sc.helper()?.locked) throw new SelfCodeError(409, en("The server's administrator locked this switch: only they can turn code changes on (sudo sara selfcode unlock)."));
+          if (ctx.auth.twoStepOn || ctx.auth.passkeys().length) ctx.confirmIdentity(req, body, { passkey: true });
+          else if (String(body.typed ?? '').trim().toUpperCase() !== 'ON') throw new HttpError(403, en('Type ON to confirm.'), { confirm: 'typed' });
+        }
+        const helper = sc.askSwitch(on);
+        audit({ action: 'self-code.switch', role: 'owner', outcome: 'ok', content: on ? 'on' : 'off' });
+        return send(res, 200, { helper });
       }
       const id = Number(b);
       if (!Number.isInteger(id) || id <= 0) throw new HttpError(404, 'Not found');

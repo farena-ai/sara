@@ -548,6 +548,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'talk',
   // R2: their own guided setup, sample space and starter pack (src/routes/get-started.ts)
   'get-started',
+  // U5.32: their own What's new after an update (members' subset; src/routes/whats-new.ts)
+  'whats-new',
   // talking
   // R4: their own iPhone Shortcuts tokens (src/routes/shortcuts.ts; the iCloud links are the owner's)
   'shortcuts',

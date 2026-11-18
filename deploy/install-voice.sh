@@ -76,6 +76,16 @@ $(i=0; for v in "1|Bella (US)" "3|Sarah (US)" "2|Nicole (US)" "4|Sky (US)" "0|De
   ]
 }
 EOF
+# U5: the loaded-engine helper (deploy/voice/sara-voice-worker.c) keeps hearing and her voice in
+# memory between calls. Optional: without a C compiler Sara loads the model on every call instead.
+WORKER_SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/voice/sara-voice-worker.c"
+if command -v cc >/dev/null 2>&1 && [[ -f "$WORKER_SRC" ]]; then
+  if cc -O2 -o "$VOICE_DIR/$SHERPA/bin/sara-voice-worker" "$WORKER_SRC" -I"$VOICE_DIR/$SHERPA/include" -L"$VOICE_DIR/$SHERPA/lib" -lsherpa-onnx-c-api -Wl,-rpath,"$VOICE_DIR/$SHERPA/lib" 2>/dev/null; then
+    log "Built the loaded-engine helper (faster voice replies)."
+  else
+    log "Could not build the loaded-engine helper; voice still works, a little slower."
+  fi
+fi
 chown -R root:root "$VOICE_DIR"
 chmod -R a+rX "$VOICE_DIR"
 

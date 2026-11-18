@@ -285,6 +285,12 @@ export async function detectProblems(env: RepairEnv, o: { deep?: boolean; db?: b
     if (def !== undefined && !r.ok(def, s)) continue;
     add({ id: `setting:${r.path}`, level: 1, severity: 'medium', text: en('The setting {path} has a value that can’t work ({value}).'), params: { path: r.path, value: JSON.stringify(v ?? null).slice(0, 60) }, evidence: [`now ${JSON.stringify(v ?? null).slice(0, 120)}`, `default ${JSON.stringify(def ?? null)}`], fix: en('Put it back to its default.'), fixable: true });
   }
+  // U5.31: the newest finished test restore of a source (src/restore-test.ts) failed.
+  {
+    const hist = ((s as { restoreTest?: { history?: { at: string; result: string; source: string; step?: string; params?: { error?: unknown } }[] } }).restoreTest?.history ?? []).filter((r) => r.result !== 'skipped');
+    const bad = ['local', 'offsite'].map((src) => hist.find((r) => r.source === src)).find((r) => r?.result === 'failed');
+    if (bad) add({ id: 'backup:restore-test', area: en('Backups'), level: 1, severity: 'high', text: bad.source === 'offsite' ? en('The off-server copy did not pass its test restore.') : en('The newest backup did not pass its test restore.'), evidence: [`${bad.at} ${bad.step ?? ''} ${String(bad.params?.error ?? '')}`.trim().slice(0, 300)], fix: en('Make a new backup, then press Test a restore now. If it fails again, keep the older backups and ask for help.'), page: 'dh-backups', fixable: false });
+  }
   // Desktop and phone apps whose own update failed.
   for (const a of (await safe(() => env.apps?.list() ?? [])) ?? []) {
     if (a.state === 'failed') add({ id: `app:${a.id}`, level: 1, severity: 'medium', text: en('{label} {version}: its last update failed.'), params: { label: a.label, version: a.version }, evidence: ['update state: failed'], fix: a.canAsk ? en('Ask the app to install again with its own updater (it keeps the previous version and goes back by itself if the new one fails).') : undefined, page: 'dh-devices', fixable: a.canAsk });

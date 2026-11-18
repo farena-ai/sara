@@ -7,12 +7,13 @@
 // The live server only spawns `node src/restore-drill.ts <backup> <workdir>` and reads one JSON
 // line, so a large restore never blocks its event loop.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statfsSync, statSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statfsSync, statSync } from 'node:fs';
 import { createServer } from 'node:net';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
-import { listBackups, restoreBackup } from './backup.ts';
+import { COUNTED_TABLES, listBackups, restoreBackup } from './backup.ts';
 import { netFetch } from './net-guard.ts';
 import { Vault } from './vault.ts';
 
@@ -34,7 +35,10 @@ export interface DrillRecord {
   /** R7: files written by the restore, and how many the backup's manifest lists. */
   files?: number;
   filesExpected?: number;
-  /** Where a failed drill stopped: find | space | restore | files | databases | vault | boot | drill. */
+  /** U5.31: files whose sha256 matched the backup's own list, and the row counts taken at backup time. */
+  hashed?: number;
+  countsAtBackup?: Record<string, number>;
+  /** Where a failed drill stopped: find | space | restore | files | hashes | databases | counts | vault | boot | drill. */
   step?: string;
   error?: string;
 }
@@ -131,7 +135,12 @@ async function bootCopy(data: string): Promise<number> {
 }
 
 /** The drill itself (runs in the child process). */
-export async function drillCopy(backup: string, work: string, now: Date): Promise<DrillRecord> {
+/** U5.31: a restored count may differ from the count at backup time by this much (rows written while it was copied). */
+export function countsAgree(atBackup: number, restored: number): boolean {
+  return Math.abs(atBackup - restored) <= Math.max(2, Math.ceil(atBackup * 0.01));
+}
+
+export async function drillCopy(backup: string, work: string, now: Date, o: { boot?: boolean } = {}): Promise<DrillRecord> {
   const name = backup.split(/[\\/]/).pop()!;
   const t0 = performance.now();
   const r: DrillRecord = { at: now.toISOString(), ok: false, backup: name };
@@ -148,10 +157,14 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
     const data = join(work, 'data');
     let madeAt: string;
     let listed: number;
+    let sums: Record<string, string> | undefined;
     try {
-      const m = restoreBackup(backup, data, now).manifest;
+      const restored = restoreBackup(backup, data, now);
+      const m = restored.manifest;
       madeAt = m.createdAt;
       listed = m.files;
+      sums = restored.sums;
+      if (m.counts) r.countsAtBackup = m.counts;
     } catch (err) {
       throw new Step('restore', (err as Error).message.slice(0, 300));
     }
@@ -160,6 +173,22 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
     r.files = filesIn(data);
     r.filesExpected = listed;
     if (r.files !== listed) throw new Step('files', `The copy has ${r.files} files, but the backup lists ${listed}.`);
+    // U5.31: every file is byte for byte what was backed up (older backups have no list: skipped).
+    if (sums) {
+      let hashed = 0;
+      for (const [rel, want] of Object.entries(sums)) {
+        const full = join(data, ...rel.split('/'));
+        let got = '';
+        try {
+          got = createHash('sha256').update(readFileSync(full)).digest('hex');
+        } catch {
+          throw new Step('hashes', `A file the backup lists did not come back (${rel.slice(0, 120)}).`);
+        }
+        if (got !== want) throw new Step('hashes', `A file in it is not what was backed up (${rel.slice(0, 120)}).`);
+        hashed++;
+      }
+      r.hashed = hashed;
+    }
     r.dataLossHours = Math.max(0, Math.round(((now.getTime() - Date.parse(madeAt)) / 3600_000) * 10) / 10);
     r.restoreMs = Math.round(performance.now() - t0);
     const main = join(data, 'sara.db');
@@ -176,13 +205,16 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
       try {
         const check = String((db.prepare('PRAGMA integrity_check').get() as { integrity_check: string }).integrity_check);
         if (check !== 'ok') throw new Step('databases', `A database in it is damaged (${file.slice(data.length + 1)}: ${check.slice(0, 120)}).`);
-        if (file === main) for (const t of ['conversations', 'messages', 'memories']) counts[t] = hasTable(db, t) ? Number((db.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n) : 0;
+        if (file === main) for (const t of COUNTED_TABLES) counts[t] = hasTable(db, t) ? Number((db.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n) : 0;
       } finally {
         db.close();
       }
     }
     r.counts = counts;
     r.databases = dbs.length;
+    for (const [t, n] of Object.entries(r.countsAtBackup ?? {})) {
+      if (!countsAgree(n, counts[t] ?? 0)) throw new Step('counts', `The copy has ${counts[t] ?? 0} ${t}, but there were ${n} when the backup was made.`);
+    }
     try {
       // Opening the vault proves the key that came with the copy (or SARA_MASTER_KEY) still fits.
       // Only the number of entries is kept, never a name or a value.
@@ -191,7 +223,7 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
     } catch (err) {
       throw new Step('vault', `The vault does not open with this copy's key: ${(err as Error).message.slice(0, 200)}`);
     }
-    r.bootMs = await bootCopy(data);
+    if (o.boot !== false) r.bootMs = await bootCopy(data);
     r.totalMs = Math.round(performance.now() - t0);
     r.ok = true;
   } catch (err) {
@@ -206,15 +238,17 @@ export async function drillCopy(backup: string, work: string, now: Date): Promis
  * Runs one drill on the newest backup in <root>/backups. Never throws: a failure is a record.
  * The work folder is removed afterwards even when the child process died.
  */
-export async function runRestoreDrill(o: { rootDir: string; now: Date; timeoutMs?: number }): Promise<DrillRecord> {
+export async function runRestoreDrill(o: { rootDir: string; now: Date; timeoutMs?: number; /** U5.31: this backup file instead of the newest local one. */ file?: string; /** U5.31: false = checks only, the copy is not started. */ boot?: boolean }): Promise<DrillRecord> {
   const at = o.now.toISOString();
-  const newest = listBackups(o.rootDir)[0];
+  const newest = o.file ? { name: o.file.split(/[\\/]/).pop()! } : listBackups(o.rootDir)[0];
   if (!newest) return { at, ok: false, step: 'find', error: 'There is no backup on this computer yet.' };
   const tmpRoot = join(o.rootDir, 'tmp');
   mkdirSync(tmpRoot, { recursive: true, mode: 0o700 });
   const work = mkdtempSync(join(tmpRoot, DRILL_DIR_PREFIX));
   try {
-    const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', SELF, join(o.rootDir, 'backups', newest.name), work, at], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    const args = ['--disable-warning=ExperimentalWarning', SELF, o.file ?? join(o.rootDir, 'backups', newest.name), work, at];
+    if (o.boot === false) args.push('--no-boot');
+    const child = spawn(process.execPath, args, { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     let out = '';
     let err = '';
     child.stdout!.on('data', (d: Buffer) => (out += d.toString()));
@@ -238,9 +272,9 @@ export async function runRestoreDrill(o: { rootDir: string; now: Date; timeoutMs
   }
 }
 
-// `node src/restore-drill.ts <backup> <workdir> [iso time]`: one JSON line on stdout.
+// `node src/restore-drill.ts <backup> <workdir> [iso time] [--no-boot]`: one JSON line on stdout.
 if (process.argv[1] && resolve(process.argv[1]) === SELF) {
-  const [backup, work, when] = process.argv.slice(2);
-  const rec = await drillCopy(backup!, work!, when ? new Date(when) : new Date());
+  const [backup, work, when, flag] = process.argv.slice(2);
+  const rec = await drillCopy(backup!, work!, when ? new Date(when) : new Date(), { boot: flag !== '--no-boot' });
   process.stdout.write(`${JSON.stringify(rec)}\n`);
 }

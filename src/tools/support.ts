@@ -4,7 +4,7 @@
 //                    looks wrong. Asks the owner once per pass; later looks on the same pass don't ask.
 //   support_propose  sends a proposed change (allowlisted settings, or a plain instruction). Always asks;
 //                    the other owner still has to approve it on their side before anything changes.
-import type { AppContext } from '../chat.ts';
+import { untrustedPeer, type AppContext } from '../chat.ts';
 import { fill } from '../i18n.ts';
 import { SUPPORT_ALLOW, supportFindings, supportOf, SupportError, type SupportLink } from '../support.ts';
 import type { Tool } from './types.ts';
@@ -67,9 +67,9 @@ export function createSupportTools(appOf: () => AppContext): Tool[] {
         `Default model: ${rep.models?.default?.provider ?? '?'} / ${rep.models?.default?.model ?? '?'}; fallbacks: ${(rep.models?.fallbacks ?? []).map((x: any) => `${x.providerId}/${x.model}`).join(', ') || 'none'}; wait before fallback: ${rep.models?.fallbackAfterSec ?? '?'} s.`,
         `Recent turn errors: ${(rep.errors?.turns ?? []).slice(0, 5).map((x: any) => `${x.kind}: ${x.message}`).join(' | ') || 'none'}.`,
         `Last log lines (redacted):\n${(rep.log ?? []).slice(-15).join('\n') || '(none)'}`,
-        `You can only suggest changes (support_propose): ${Object.keys(SUPPORT_ALLOW).join(', ')}, or a plain instruction. ${p.name} approves or denies each one.`,
       ];
-      return lines.join('\n\n');
+      // U5.33: the report comes from the other server: fenced as untrusted data, never instructions.
+      return `${untrustedPeer(p.name, lines.join('\n\n'), 'friend:')}\n\nYou can only suggest changes (support_propose): ${Object.keys(SUPPORT_ALLOW).join(', ')}, or a plain instruction. ${p.name} approves or denies each one.`;
     },
   };
   const propose: Tool = {

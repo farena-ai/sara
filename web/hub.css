@@ -57,6 +57,21 @@ dialog#try-these:not(#_) { width: min(680px, 96vw); }
 .ochk-group > p { margin: 0 0 6px; }
 .ochk-item { display: grid; gap: 6px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-1); min-width: 0; }
 .ochk-item[data-result="worked"] { border-color: var(--success); }
+.ochk-item.ochk-focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+/* U5.32: What's new (web/whats-new.js) */
+.wn-list { display: grid; gap: 12px; max-height: 60vh; overflow: auto; margin-top: 8px; padding-inline-end: 4px; }
+.wn-release h3 { margin: 4px 0 0; }
+.wn-rtitle { margin: 0 0 6px; }
+.wn-rtitle::first-letter { text-transform: uppercase; }
+.wn-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.wn-item { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-1); min-width: 0; }
+.wn-text { margin: 0; color: var(--text-1); overflow-wrap: anywhere; }
+.wn-chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); white-space: nowrap; }
+.wn-chip-fixed { background: var(--success-soft); color: var(--success); }
+.wn-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#whats-new label.wn-auto { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+#whats-new label.wn-auto input { width: 20px; height: 20px; flex: none; }
+.wn-actions { display: flex; justify-content: flex-end; margin: 10px 0 0; }
 .ochk-item[data-result="failed"] { border-color: var(--warn); }
 .ochk-item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ochk-item-head strong { color: var(--text-1); margin-inline-end: auto; overflow-wrap: anywhere; }

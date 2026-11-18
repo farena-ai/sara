@@ -923,6 +923,8 @@ export class Messenger {
   async #receive(l: LinkRow, ev: Ev): Promise<void> {
     const s = (k: string, n = 64) => clip(ev[k], n);
     if (['dm', 'edit', 'del', 'c.post', 'c.edit', 'c.del', 'c.msg', 'c.report'].includes(ev.type) && !s('mid')) throw new MsgError(400, 'bad event');
+    // U5.33: ids the other side chooses end up in the owner page's links: plain id characters only.
+    for (const k of ['mid', 'authorId']) if (ev[k] !== undefined && !PEER_ID.test(String(ev[k]))) throw new MsgError(400, 'bad event');
     const text = () => String(ev.text ?? '').slice(0, MSG.textChars);
     const file = () => (ev.file && typeof ev.file === 'object' ? fileFrom(ev.file as FileIn) : null);
     const at = () => (typeof ev.at === 'string' && Number.isFinite(Date.parse(ev.at)) ? new Date(Math.min(Date.parse(ev.at), this.#now().getTime())).toISOString() : this.#iso());
@@ -1050,6 +1052,9 @@ export class Messenger {
     if (route === 'full') this.onNotify?.(from, text, c.id, { kind: c.kind, mention });
   }
 }
+
+/** U5.33: the shape of an id another server chooses (message ids are UUIDs; author ids are link ids). */
+const PEER_ID = /^[A-Za-z0-9_-]{1,64}$/;
 
 function chatRow(r: Record<string, unknown>): ChatRow {
   return {

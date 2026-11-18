@@ -2,6 +2,8 @@
 
 One page for people deciding whether to run Sara for a household or a small business. Details are in
 the linked documents. To report a vulnerability, see [SECURITY.md](../SECURITY.md).
+The latest review of the links, passes and outside-facing parts is
+[SECURITY_REVIEW_U5.md](SECURITY_REVIEW_U5.md).
 
 ## Where the data lives
 

@@ -36,6 +36,7 @@ import { MailOrganizer } from './mail/organize.ts';
 import { WeeklyWorker } from './weekly.ts';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { copyOffsite, offsiteTestDue, testOffsite } from './offsite-run.ts';
+import { restoreTestDue, runRestoreTest } from './restore-test.ts';
 import { formatDoctor, runDoctor } from './doctor.ts';
 import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } from './safety-check.ts';
 import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.ts';
@@ -139,6 +140,7 @@ import { InnerStore } from './inner.ts';
 import { LifeStore, LifeWorker } from './life.ts';
 import { Agenda, createAgendaTools } from './agenda.ts';
 import { LocalVoiceEngine } from './voice.ts';
+import { cleanTalk } from './talk.ts';
 import { TelegramBridge } from './bridges/telegram.ts';
 import { ApnsSender } from './apns.ts';
 import { PushService } from './push.ts';
@@ -654,7 +656,8 @@ const voiceDir = resolve(process.env.SARA_VOICE_DIR ?? (process.platform === 'li
 setLocalVoiceDir(voiceDir);
 // Phase 126: the English word list for custom Hey Sara phrases (one copy for every space on this server).
 setWakeLexiconDir(join(dataDir, 'voice', 'wake-lexicon'));
-const voice = new LocalVoiceEngine(voiceDir, dataDir);
+// U5: the engines stay loaded for the owner's "keep loaded" minutes (Settings → Voice → Talk with Sara).
+const voice = new LocalVoiceEngine(voiceDir, dataDir, { warm: { idleMs: () => cleanTalk(settings.get().voice?.talk).keepLoaded * 60_000 } });
 const companions = new CompanionManager(dataDir);
 // Phase 98 (ST3, docs/PLUGINS.md): the owner's plugins (one manager for the server; enabled per
 // companion; never in household members' spaces, never on the demo). Its tables live in the owner's
@@ -1983,6 +1986,8 @@ function backupTick(): Promise<void> {
         if (r.ok) console.log(`Off-server test restore: ok (${r.name}: ${r.detail})`);
         else console.warn(`Off-server test restore failed: ${r.error}`);
       }
+      // U5.31: the monthly test restore at a quiet hour (src/restore-test.ts).
+      if (restoreTestDue(mainApp, dataDir)) for (const r of await runRestoreTest(mainApp, { rootDir: dataDir })) console.log(`Test restore (${r.source}): ${r.result}${r.step ? ` at ${r.step}` : ''}`);
       sweepUndo(mainApp);
       const deps = (mainApp as AppContext & { safetyDeps?: () => SafetyDeps }).safetyDeps?.();
       if (deps) await weeklySafetyTick(deps);
@@ -2163,6 +2168,7 @@ server.listen(port, host, () => {
 let shuttingDown = false;
 async function shutdown(): Promise<void> {
   lspEngine.stopAll();
+  voice.stopWorkers();
   if (shuttingDown) return;
   shuttingDown = true;
   for (const c of companions.all()) await c.stop();

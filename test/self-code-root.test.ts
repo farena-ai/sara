@@ -265,7 +265,7 @@ test('rootapply: installInfo turns level 3 on for a server install with the help
   assert.deepEqual([s.kind, s.level3, s.mode, s.from], ['server', true, 'root-helper', '/opt/sara-src']);
   const off = installInfo({ root: '/opt/sara', platform: 'linux', exists: (p) => p === '/usr/local/bin/sara', writable: () => false, helper: marker(false) });
   assert.deepEqual([off.kind, off.level3], ['server', false]);
-  assert.match(off.why!, /administrator turned/);
+  assert.match(off.why!, /are off on this server.*switch above/);
   const none = installInfo({ root: '/opt/sara', platform: 'linux', exists: (p) => p === '/usr/local/bin/sara', writable: () => false, helper: () => undefined });
   assert.equal(none.level3, false);
 });

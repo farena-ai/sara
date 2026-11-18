@@ -628,7 +628,7 @@ function bubble(chat, m) {
   else {
     if (m.text) b.append(el('p', 'msgs-text', m.text));
     if (m.file) {
-      const url = `/api/messages/chats/${chat.id}/m/${m.id}/file`;
+      const url = `/api/messages/chats/${encodeURIComponent(chat.id)}/m/${encodeURIComponent(m.id)}/file`;
       if (m.file.type.startsWith('image/')) {
         const img = el('img', 'msgs-img');
         img.src = url;
@@ -651,14 +651,14 @@ function bubble(chat, m) {
     if (m.mine) {
       acts.append(btn(t('Edit'), 'linkish small', () => void editMsg(chat, m)), btn(t('Delete'), 'linkish small', async () => {
         if (!(await ask(t('Delete this message for everyone?')))) return;
-        await ctx.api(`/messages/chats/${chat.id}/m/${m.id}`, { method: 'DELETE' }).catch((err) => say(err.message));
+        await ctx.api(`/messages/chats/${encodeURIComponent(chat.id)}/m/${encodeURIComponent(m.id)}`, { method: 'DELETE' }).catch((err) => say(err.message));
         await loadChat(chat.id);
       }));
     } else if (chat.kind === 'community' && chat.role !== 'host') {
       acts.append(btn(t('Report'), 'linkish small', async () => {
         const why = window.prompt(t('Why are you reporting it? (the community’s creator sees this)')) ?? null;
         if (why === null) return;
-        await ctx.api(`/messages/chats/${chat.id}/m/${m.id}/report`, { method: 'POST', body: { why } }).then(() => say(t('Reported to the creator.')), (err) => say(err.message));
+        await ctx.api(`/messages/chats/${encodeURIComponent(chat.id)}/m/${encodeURIComponent(m.id)}/report`, { method: 'POST', body: { why } }).then(() => say(t('Reported to the creator.')), (err) => say(err.message));
       }));
     }
     // Forwarding to her is a choice: a new chat opens with the text in the box, not sent.
@@ -670,7 +670,7 @@ function bubble(chat, m) {
 async function editMsg(chat, m) {
   const text = window.prompt(t('Edit your message'), m.text);
   if (text === null || !text.trim()) return;
-  await ctx.api(`/messages/chats/${chat.id}/m/${m.id}`, { method: 'PATCH', body: { text } }).catch((err) => say(err.message));
+  await ctx.api(`/messages/chats/${encodeURIComponent(chat.id)}/m/${encodeURIComponent(m.id)}`, { method: 'PATCH', body: { text } }).catch((err) => say(err.message));
   await loadChat(chat.id);
 }
 function composer(chat) {

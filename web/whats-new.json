@@ -1,0 +1,263 @@
+{
+ "format": "sara-whats-new/1",
+ "releases": [
+  {
+   "version": "3.24.0",
+   "date": "2026-11-18",
+   "title": "Security review, backup test restores, What's new, server dashboard, faster voice",
+   "items": [
+    {
+     "id": "3-24-0-a-monthly-test-restore-that",
+     "kind": "new",
+     "text": "A monthly test restore that proves backups work."
+    },
+    {
+     "id": "3-24-0-whats-new-after-each-update",
+     "kind": "new",
+     "text": "What's new after each update. The first time you open Sara after an update, a short page lists what changed in each release since the version you last saw.",
+     "owner": true
+    }
+   ]
+  },
+  {
+   "version": "3.23.0",
+   "date": "2026-11-18",
+   "title": "Talk with Sara, shared projects, marketplace, picture studio, business pack",
+   "items": [
+    {
+     "id": "3-23-0-a-business-place-in-the",
+     "kind": "new",
+     "text": "A Business place in the sidebar that brings clients, time, invoices and quotes together.",
+     "link": "#view=business",
+     "owner": true
+    },
+    {
+     "id": "3-23-0-picture-editing-and-short-video",
+     "kind": "new",
+     "text": "Picture editing and short video on your own computer with ComfyUI.",
+     "link": "#view=library",
+     "owner": true
+    },
+    {
+     "id": "3-23-0-shared-projects-between-linked-friends",
+     "kind": "new",
+     "text": "Shared projects between linked friends. On a project page, Shared with friends invites one or more friends whose Sara is linked under Messages, as Can view or Can edit.",
+     "link": "#view=shared",
+     "owner": true
+    },
+    {
+     "id": "3-23-0-shared-by-friends-a-community",
+     "kind": "new",
+     "text": "Shared by friends, a community marketplace. In a Messages community or with a linked friend, share skills, templates, automations.",
+     "link": "#view=addons",
+     "owner": true
+    },
+    {
+     "id": "3-23-0-talk-with-sara-one-button",
+     "kind": "new",
+     "text": "Talk with Sara. One button next to the message box starts a hands-free conversation in the browser, the desktop apps and the phone web app: she listens all the time.",
+     "link": "#view=settings:her-voice"
+    }
+   ]
+  },
+  {
+   "version": "3.22.1",
+   "date": "2026-11-18",
+   "title": "Settings and the new windows open again",
+   "items": [
+    {
+     "id": "3-22-1-in-3220-settings-health-family",
+     "kind": "fixed",
+     "text": "In 3.22.0, Settings, Health, Family and every window after Money opened empty.",
+     "link": "#view=money"
+    }
+   ]
+  },
+  {
+   "version": "3.22.0",
+   "date": "2026-11-18",
+   "title": "Money, family planner, health log, study cards, browser extension",
+   "items": [
+    {
+     "id": "3-22-0-sara-in-your-browser-an",
+     "kind": "new",
+     "text": "Sara in your browser. An extension for Chrome, Edge and Firefox that pairs with your own Sara by a short code.",
+     "link": "#view=settings:dh-devices"
+    },
+    {
+     "id": "3-22-0-a-money-place-in-the",
+     "kind": "new",
+     "text": "A Money place in the sidebar (tracking only: Sara never logs in to a bank, pays, transfers or cancels anything; the page says so).",
+     "link": "#view=money"
+    },
+    {
+     "id": "3-22-0-a-home-and-family-planner",
+     "kind": "new",
+     "text": "A home and family planner in Family. Meals is a week of dinners: pick a saved family recipe or type one.",
+     "link": "#view=family"
+    },
+    {
+     "id": "3-22-0-chores-can-take-turns-a",
+     "kind": "new",
+     "text": "Chores can take turns. A chore moves to the next person once a week, and each person with chores left gets one reminder a day, never during their quiet hours.",
+     "link": "#view=family"
+    },
+    {
+     "id": "3-22-0-health-a-private-health-log",
+     "kind": "new",
+     "text": "Health, a private health log of your own. Medicines with dose reminders, Taken/Skipped and a refill estimate; appointments with questions to ask.",
+     "link": "#view=health"
+    },
+    {
+     "id": "3-22-0-a-learning-coach-from-any",
+     "kind": "new",
+     "text": "A learning coach. From any Library document, one of its chapters or text you paste, Sara makes a study set: flashcards, fill-in-the-blank cards.",
+     "link": "#view=study"
+    }
+   ]
+  },
+  {
+   "version": "3.21.0",
+   "date": "2026-11-18",
+   "title": "smarter: six languages, voices apart, Word comments, team recipes",
+   "items": [
+    {
+     "id": "3-21-0-promises-clause-checklists-and-travel",
+     "kind": "new",
+     "text": "Promises, clause checklists and travel emails in Spanish, French, German, Brazilian Portuguese and Italian, not just English."
+    },
+    {
+     "id": "3-21-0-free-flight-status-without-a",
+     "kind": "new",
+     "text": "Free flight status without a key. The Trips page can use OpenSky Network (no sign-up), which shows whether your plane is in the air, on the ground or landed.",
+     "link": "#view=trips"
+    },
+    {
+     "id": "3-21-0-tracked-changes-everywhere-in-a",
+     "kind": "new",
+     "text": "Tracked changes everywhere in a Word file. When she revises a Word document, changes in the header, footer, footnotes, endnotes and text boxes are tracked too.",
+     "link": "#view=library"
+    },
+    {
+     "id": "3-21-0-team-recipes-after-a-team",
+     "kind": "new",
+     "text": "Team recipes. After a team run finishes, \"Save as a team recipe\" keeps its plan.",
+     "link": "#view=team",
+     "owner": true
+    },
+    {
+     "id": "3-21-0-ask-about-anything-also-searches",
+     "kind": "new",
+     "text": "Ask about anything also searches your meetings (what was said, with the time in the recording, and the notes), trips.",
+     "link": "#view=meetings"
+    },
+    {
+     "id": "3-21-0-share-fixes-that-worked-under",
+     "kind": "new",
+     "text": "Share fixes that worked. Under Settings → Privacy & system → Health → Self-repair you can let a fix that worked.",
+     "link": "#view=settings:dh-health",
+     "owner": true
+    }
+   ]
+  },
+  {
+   "version": "3.20.0",
+   "date": "2026-11-18",
+   "title": "the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices",
+   "items": [
+    {
+     "id": "3-20-0-connect-the-sara-phone-app",
+     "kind": "fixed",
+     "text": "\"Connect the Sara phone app\" no longer tells an iPhone to get the Android app from Google Play.",
+     "link": "#view=settings:co-phone",
+     "owner": true
+    },
+    {
+     "id": "3-20-0-errands-waiting-on-you-now",
+     "kind": "fixed",
+     "text": "Errands waiting on you now count in the number on Sara's icon, in each notification's badge and in the Shortcuts widget's \"Waiting for you\" line."
+    },
+    {
+     "id": "3-20-0-on-the-screens-added-since",
+     "kind": "fixed",
+     "text": "On the screens added since 3.15 every button, field and \"?\" is at least 44 px to tap.",
+     "link": "#view=today"
+    }
+   ]
+  },
+  {
+   "version": "3.19.0",
+   "date": "2026-11-18",
+   "title": "proven on real models, Try these, steadier releases",
+   "items": [
+    {
+     "id": "3-19-0-live-checks-you-can-run",
+     "kind": "new",
+     "text": "Live checks you can run yourself. A throwaway Sara goes through every mail and calendar kind."
+    },
+    {
+     "id": "3-19-0-a-windows-install-and-update",
+     "kind": "new",
+     "text": "A Windows install and update matrix you can run on a PC: fresh install, the app updating itself, reinstall, downgrade, a manual Setup run."
+    },
+    {
+     "id": "3-19-0-try-these-a-guided-checklist",
+     "kind": "new",
+     "text": "Try these, a guided checklist for the owner. Help → Try these lists about 30 short checks of what is new since 3.15 (newest release first), each with a few steps.",
+     "link": "#view=try",
+     "owner": true
+    },
+    {
+     "id": "3-19-0-on-teams-matrix-signal-and",
+     "kind": "fixed",
+     "text": "On Teams, Matrix, Signal and iMessage the live progress message could keep its stop button (or miss a step) when the chat app was slow to post it."
+    },
+    {
+     "id": "3-19-0-code-mode-scripts-no-longer",
+     "kind": "fixed",
+     "text": "Code mode scripts no longer lose script time while their sandbox process is starting, so short scripts aren't stopped as \"too long\" on a busy computer."
+    },
+    {
+     "id": "3-19-0-put-my-stock-alerts-in",
+     "kind": "fixed",
+     "text": "\"Put my stock alerts in the Stock Alerts project\" could send the alerts to the chat you asked in instead of making the project."
+    }
+   ]
+  },
+  {
+   "version": "3.18.2",
+   "date": "2026-11-17",
+   "title": "several Google accounts from either mail page, approved code fixes on servers",
+   "items": [
+    {
+     "id": "3-18-2-asking-her-add-another-email",
+     "kind": "new",
+     "text": "Asking her \"add another email account\" or \"connect my other Gmail\" shows a card with your accounts and a + Add an account button that opens the choices.",
+     "try": [
+      "google-ask"
+     ]
+    },
+    {
+     "id": "3-18-2-code-changes-on-linux-servers",
+     "kind": "new",
+     "text": "Code changes on Linux servers. On a server install (install.sh), Sara can now fix her own code too, still only after you press Approve.",
+     "link": "#view=settings:dh-updates",
+     "owner": true,
+     "try": [
+      "code-change"
+     ]
+    },
+    {
+     "id": "3-18-2-adding-several-google-accounts-works",
+     "kind": "fixed",
+     "text": "Adding several Google accounts works from every page and never replaces one.",
+     "link": "#view=settings:ab-mail",
+     "owner": true,
+     "try": [
+      "google-several"
+     ]
+    }
+   ]
+  }
+ ]
+}

@@ -29,6 +29,7 @@
 #   sara selfcode [list]     code changes Sara made (owner-approved) that are in place or parked
 #   sara selfcode revert <id>   take one out (restart and health check; back if she isn't healthy)
 #   sara selfcode off | on   turn her code changes off entirely (the helper refuses) or on again
+#   sara selfcode lock | unlock   lock: the owner can't turn them on from Settings (off always works)
 #   sara selfcode reapply    put the changes back after running install.sh by hand
 #   sara version
 #
@@ -419,7 +420,7 @@ case "${1:-help}" in
     rf="$DATA_DIR/update-request"
     req=""
     # Only a plain file sara wrote: never follow a symlink she might have planted.
-    if [[ -f "$rf" && ! -L "$rf" ]]; then req="$(head -c 16 -- "$rf" 2>/dev/null | tr -cd 'a-z' || true)"; fi
+    if [[ -f "$rf" && ! -L "$rf" ]]; then req="$(head -c 16 -- "$rf" 2>/dev/null | tr -cd 'a-z-' || true)"; fi
     # Say it started before the request file goes, so Settings never sees a gap with the old status.
     case "$req" in
       check) write_status checking "Checking for updates…" ;;
@@ -431,6 +432,9 @@ case "${1:-help}" in
       update) do_update ;;
       # rootapply: one owner-approved code change (or its undo); the helper checks everything itself.
       selfcode) if load_selfcode; then sc_web_request || true; else log "No code-change helper here; update first."; fi ;;
+      # U5.30: the switch in Settings → Updates → Code changes (the helper re-checks ON itself; OFF always works).
+      selfcode-on) if load_selfcode; then sc_switch_request on || true; else log "No code-change helper here; update first."; fi ;;
+      selfcode-off) if load_selfcode; then sc_switch_request off || true; else log "No code-change helper here; update first."; fi ;;
       *) log "Ignored an unknown request: '$req'" ;;
     esac
     ;;

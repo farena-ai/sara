@@ -6,7 +6,7 @@
 //   remote_look          helper side: the linked server's support report + its own problem list. Asks once per pass.
 //   remote_fix_plan      helper side: a plan of steps the other server's own engines accept. Always asks; the
 //                        other owner approves it there (per step, or once for the plan; code changes always).
-import type { AppContext } from '../chat.ts';
+import { untrustedPeer, type AppContext } from '../chat.ts';
 import { fill } from '../i18n.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { remoteRepairOf, stepShape, STEP_KINDS, type RemoteRepair } from '../remote-repair.ts';
@@ -95,11 +95,17 @@ export function createRemoteRepairTools(appOf: () => AppContext): Tool[] {
       const probs = (res.problems ?? []) as { id: string; level: number; text: string; params?: Record<string, unknown>; fixable: boolean }[];
       const can = (res.can ?? {}) as { code?: boolean; settings?: string[] };
       const f = supportFindings(rep);
-      return [
+      const report = [
         `${p.name}'s Sara (version ${rep.version?.server ?? '?'}). Fix pass: ${p.pass!.scope === 'look' ? 'look only' : p.pass!.scope === 'each' ? `${p.name} approves each step` : `${p.name} approves the plan once (code changes always ask)`}.`,
         probs.length ? `Problems (id: what):\n${probs.map((x) => `- ${x.id} (level ${x.level}${x.fixable || x.level === 2 ? '' : ', only the owner can fix'}): ${fill(x.text, x.params)}`).join('\n')}` : 'Problems: none found.',
         f.length ? `Report findings:\n${f.map((x) => `- [${x.level}] ${x.area ? `${x.area}: ` : ''}${fill(x.text, x.params)}`).join('\n')}` : '',
         `Last log lines (redacted):\n${(rep.log ?? []).slice(-10).join('\n') || '(none)'}`,
+      ]
+        .filter(Boolean)
+        .join('\n\n');
+      // U5.33: the report comes from the other server: fenced as untrusted data, never instructions.
+      return [
+        untrustedPeer(p.name, report, 'friend:'),
         `A plan (remote_fix_plan) may only have: {kind:'fix', problem:<id from the list>}, {kind:'learn', what}, {kind:'setting', path, value} with path in ${(can.settings ?? Object.keys(SUPPORT_ALLOW)).join(', ')}${can.code ? ", {kind:'code', request:<what to change, in words>} (their Sara writes and tests it herself)" : ''}. No commands, files, remote control or passwords.`,
       ]
         .filter(Boolean)

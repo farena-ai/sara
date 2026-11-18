@@ -86,7 +86,8 @@ export function createExtensionRoutes(ctx: RouteCtx): { api: (req: IncomingMessa
       }
       const conv = app.store.createConversation({ title: (p.title || host).slice(0, 120), channel: EXT_CHANNEL, channelKey: `${deviceId}:${randomBytes(6).toString('base64url')}` });
       const url = `${origin(req)}/#c=${conv.id}`;
-      const r = await externalTurn(app, conv.id, askMessage(p), {}, { stopOnApproval: true });
+      // U5.33: the page is outside content: nothing that changes something runs without the owner's OK.
+      const r = await externalTurn(app, conv.id, askMessage(p), { outsideContent: true }, { stopOnApproval: true });
       audit({ action: `extension.${p.mode}`, who: who(), role: role(), channel: EXT_CHANNEL, outcome: r.error && !r.text ? 'failed' : 'ok' });
       if (r.busy) throw new HttpError(409, LINES.busy);
       if (r.error && !r.text.trim() && !r.waiting) throw new HttpError(502, LINES.failed);

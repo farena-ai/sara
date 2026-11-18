@@ -124,7 +124,8 @@ function render() {
   $('#try-send-when').textContent = view.sentAt ? t('Last sent {when} as {ticket}.', { when: new Date(view.sentAt).toLocaleString(), ticket: view.ticket }) : '';
 }
 
-export async function openTryThese() {
+/** `focus`: a Try these id to scroll to (What's new → Try it). */
+export async function openTryThese(focus) {
   const d = $('#try-these');
   if (!d.open) d.showModal();
   status('');
@@ -132,6 +133,11 @@ export async function openTryThese() {
   try {
     view = await api('/owner-checks');
     render();
+    const spot = focus ? [...$('#try-list').querySelectorAll('.ochk-item')].find((n) => n.dataset.id === focus) : null;
+    if (spot) {
+      spot.classList.add('ochk-focus');
+      spot.scrollIntoView({ block: 'center' });
+    }
     const fresh = view.items.filter((i) => i.new).map((i) => i.id);
     // Seen once the list was shown: they stay marked New until the next time it opens.
     if (fresh.length) void api('/owner-checks/seen', { method: 'POST', body: { ids: fresh } }).catch(() => {});

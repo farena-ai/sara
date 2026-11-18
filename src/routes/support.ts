@@ -7,6 +7,7 @@
 //   POST   /api/support/propose               {link, changes?: [{path, value}], note?} → {proposal}
 //   POST   /api/support/proposals/:id         {approve} helped: OK or no (nothing changes without it)
 // Peer: POST /msg/v1/support/{pass|revoke|look|propose|answer}, signed (src/support.ts).
+import { cpus, freemem, loadavg, totalmem } from 'node:os';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { appInstallView, AppInstalls } from '../app-installs.ts';
 import { audit } from '../audit-trail.ts';
@@ -76,7 +77,7 @@ function deep(v: unknown, f: (s: string) => string): unknown {
 }
 
 /** The support report: read-only, cheap, redacted. Never chats, memories, files, mail, messages or medical. */
-export async function supportReport(ctx: RouteCtx): Promise<Record<string, unknown>> {
+export async function supportReport(ctx: RouteCtx, o: { selfTest?: boolean } = {}): Promise<Record<string, unknown>> {
   const { app } = ctx;
   const sc = supportScrubber(ctx);
   const s = app.settings.get();
@@ -89,7 +90,8 @@ export async function supportReport(ctx: RouteCtx): Promise<Record<string, unkno
     health = { error: String((err as Error)?.message ?? err) };
   }
   let selfTest: unknown[] = [];
-  try {
+  // U5.34: the dashboard reads this server's own report without the (slower) self-test.
+  if (o.selfTest !== false) try {
     // No consent flags: nothing is written (no draft, no event, no notification).
     selfTest = await Promise.race([runSelfTest(selfTestDepsOf(ctx), {}), new Promise<never>((_, rej) => setTimeout(() => rej(new Error('timeout')), 25_000).unref())]);
     selfTest = (selfTest as Record<string, unknown>[]).map((l) => ({ id: l.id, area: l.area, status: l.status, text: l.text, ...(l.params ? { params: l.params } : {}), ...(l.fix ? { fix: l.fix } : {}) }));
@@ -135,6 +137,10 @@ export async function supportReport(ctx: RouteCtx): Promise<Record<string, unkno
   } catch {
     apps = [];
   }
+  // U5.34: memory and processor load from the operating system (no load average on Windows), and how
+  // many self-repair problems are open: numbers only.
+  const system = { platform: process.platform, cpus: cpus().length, load: process.platform === 'win32' ? null : loadavg(), memTotal: totalmem(), memFree: freemem(), rss: process.memoryUsage().rss };
+  const repair = app.repair ? { open: app.repair.problems().length, checkedAt: app.repair.checkedAt() } : null;
   const report = {
     at: app.now().toISOString(),
     version: { server: version, revision: ctx.info?.revision ?? null, node: process.version, update },
@@ -145,6 +151,8 @@ export async function supportReport(ctx: RouteCtx): Promise<Record<string, unkno
     settings: { values, shape, providers: providerList },
     models: { default: { provider: s.defaultProviderId ?? null, model: s.defaultModel ?? null }, fallbacks: s.defaultFallbacks ?? [], fallbackAfterSec: s.fallbackAfterSec ?? 60, autoJobs: s.autoJobs ?? [], trouble: providers },
     apps,
+    system,
+    repair,
   };
   // The last wall: every string in the report through the scrubber once more.
   return deep(report, sc.text) as Record<string, unknown>;

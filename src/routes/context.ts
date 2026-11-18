@@ -62,6 +62,8 @@ export interface RouteCtx {
   isAuthed: (req: IncomingMessage) => boolean;
   /** C15: throws 428 (with a code) when a remote device asks for a sensitive action not approved yet. */
   askFirst: (req: IncomingMessage, action: import('../device-approval.ts').SensitiveAction) => void;
+  /** U5.30: proof it's really the owner (token, two-step code, or a passkey when `passkey`); throws 403/429. */
+  confirmIdentity: (req: IncomingMessage, body: Record<string, unknown>, opt?: { passkey?: boolean }) => void;
   /** Phase 57 / C3: an approval card for a change another app (or an MCP App) asked for. */
   requestApproval: (conversationId: string, name: string, summary: string, args: Record<string, unknown>, run: () => Promise<string>, onDone?: (r: { ok: boolean; status: string; text: string }) => void) => void;
   offApp: AppContext;

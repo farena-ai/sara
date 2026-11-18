@@ -13,6 +13,7 @@ import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node
 import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { FOR_APP, spokenText } from './spoken.ts';
+import { WarmWorker, type WarmState } from './voice-warm.ts';
 
 export type SttEngine = 'off' | 'local' | 'openai';
 export type TtsEngine = 'off' | 'local' | 'openai' | 'elevenlabs' | 'xai';
@@ -172,6 +173,17 @@ class Semaphore {
   }
 }
 
+/**
+ * U5: keep the engines loaded (src/voice-warm.ts). `idleMs` is read on every job (0 = one-shot only);
+ * `worker` replaces the command prefix of deploy/voice/sara-voice-worker (tests: a fake engine).
+ */
+export interface WarmConfig {
+  idleMs: () => number;
+  worker?: string[];
+  env?: NodeJS.ProcessEnv;
+  minFreeMb?: number;
+}
+
 export class LocalVoiceEngine {
   readonly dir: string;
   manifest: VoiceManifest | undefined;
@@ -179,8 +191,10 @@ export class LocalVoiceEngine {
   readonly #run: Runner;
   readonly #jobs: Semaphore;
   readonly #threads: number;
+  readonly #warm: WarmConfig | undefined;
+  readonly #workers = new Map<string, WarmWorker>();
 
-  constructor(dir: string, dataDir: string, opts: { runner?: Runner; parallel?: number; threads?: number } = {}) {
+  constructor(dir: string, dataDir: string, opts: { runner?: Runner; parallel?: number; threads?: number; warm?: WarmConfig } = {}) {
     this.dir = dir;
     const file = join(dir, 'voice.json');
     this.manifest = existsSync(file) ? (JSON.parse(readFileSync(file, 'utf8')) as VoiceManifest) : undefined;
@@ -189,6 +203,64 @@ export class LocalVoiceEngine {
     this.#jobs = new Semaphore(opts.parallel ?? 2);
     // Two jobs at once (the next sentence is made while one plays), half the cores between them.
     this.#threads = opts.threads ?? Math.min(4, Math.max(2, Math.floor(availableParallelism() / 4)));
+    this.#warm = opts.warm;
+  }
+
+  // ---- U5: loaded workers (one for hearing, one per voice; at most two voices kept) ----
+
+  /** The worker command prefix, or undefined when keep-loaded is off or the helper isn't installed. */
+  #workerCmd(): string[] | undefined {
+    if (!this.#warm || !this.manifest) return undefined;
+    if (this.#warm.idleMs() <= 0) {
+      if (this.#workers.size) this.stopWorkers(); // switched off: free the memory now
+      return undefined;
+    }
+    if (this.#warm.worker) return this.#warm.worker;
+    const bin = this.#bin('sara-voice-worker');
+    return existsSync(bin) ? [bin] : undefined;
+  }
+
+  #worker(key: string, args: string[]): WarmWorker | undefined {
+    const cmd = this.#workerCmd();
+    if (!cmd) return undefined;
+    let w = this.#workers.get(key);
+    if (!w) {
+      const voices = [...this.#workers.keys()].filter((k) => k.startsWith('tts:'));
+      if (key.startsWith('tts:') && voices.length >= 2) {
+        this.#workers.get(voices[0])!.stop();
+        this.#workers.delete(voices[0]);
+      }
+      const warm = this.#warm!;
+      w = new WarmWorker(() => ({ cmd: cmd[0], args: [...cmd.slice(1), ...args], env: { ...this.#env(), ...warm.env } }), { idleMs: warm.idleMs, ...(warm.minFreeMb !== undefined ? { minFreeMb: warm.minFreeMb } : {}) });
+      this.#workers.set(key, w);
+    }
+    return w;
+  }
+
+  #sttWorker(): WarmWorker | undefined {
+    const stt = this.manifest?.stt;
+    return stt ? this.#worker('stt', ['stt', this.#abs(stt.model), this.#abs(stt.tokens), String(this.#threads)]) : undefined;
+  }
+
+  #ttsWorker(v: VoiceModel): WarmWorker | undefined {
+    return this.#worker(`tts:${v.id}`, ['tts', v.kind === 'kokoro' ? 'kokoro' : 'vits', this.#abs(v.model), this.#abs(v.tokens), this.#abs(v.dataDir), v.voices ? this.#abs(v.voices) : '-', String(this.#threads)]);
+  }
+
+  /** Loads hearing and the voice now (Talk opened). Never throws; true when something is loading. */
+  async warm(voiceId?: string): Promise<boolean> {
+    const v = this.manifest?.voices.find((x) => x.id === voiceId) ?? this.manifest?.voices[0];
+    const ws = [this.#sttWorker(), v ? this.#ttsWorker(v) : undefined].filter((w): w is WarmWorker => Boolean(w));
+    await Promise.all(ws.map((w) => w.start().catch(() => undefined)));
+    return ws.length > 0;
+  }
+
+  workerStates(): Record<string, WarmState> {
+    return Object.fromEntries([...this.#workers].map(([k, w]) => [k, w.state]));
+  }
+
+  stopWorkers(): void {
+    for (const w of this.#workers.values()) w.stop();
+    this.#workers.clear();
   }
 
   /** Phase 126 part C: reads voice.json again (after `sara voice install` or the Settings button). */
@@ -214,7 +286,7 @@ export class LocalVoiceEngine {
   };
   #env = (): NodeJS.ProcessEnv => {
     const lib = join(this.#abs(this.manifest!.sherpa), 'lib');
-    if (process.platform === 'win32') return { PATH: `${join(this.#abs(this.manifest!.sherpa), 'bin')};${process.env.PATH ?? ''}`, SystemRoot: process.env.SystemRoot ?? 'C:\\Windows', TEMP: this.#tmp, TMP: this.#tmp, USERPROFILE: this.#tmp };
+    if (process.platform === 'win32') return { PATH: `${join(this.#abs(this.manifest!.sherpa), 'bin')};${lib};${process.env.PATH ?? ''}`, SystemRoot: process.env.SystemRoot ?? 'C:\\Windows', TEMP: this.#tmp, TMP: this.#tmp, USERPROFILE: this.#tmp };
     return { PATH: process.env.PATH ?? '/usr/bin:/bin', LD_LIBRARY_PATH: lib, ...(process.platform === 'darwin' ? { DYLD_LIBRARY_PATH: lib } : {}), HOME: this.#tmp };
   };
 
@@ -230,6 +302,14 @@ export class LocalVoiceEngine {
     const file = this.#tmpFile('wav');
     writeFileSync(file, wav, { mode: 0o600 });
     try {
+      const w = this.#sttWorker();
+      if (w) {
+        try {
+          return (await w.ask(file)).trim();
+        } catch {
+          // U5: any worker trouble: the one-shot tool below
+        }
+      }
       const r = await this.#jobs.run(() =>
         this.#run(this.#bin('sherpa-onnx-offline'), [`--nemo-ctc-model=${this.#abs(stt.model)}`, `--tokens=${this.#abs(stt.tokens)}`, `--num-threads=${this.#threads}`, file], this.#env(), 60_000),
       );
@@ -251,9 +331,19 @@ export class LocalVoiceEngine {
         ? [`--kokoro-model=${this.#abs(v.model)}`, `--kokoro-voices=${this.#abs(v.voices!)}`, `--kokoro-tokens=${this.#abs(v.tokens)}`, `--kokoro-data-dir=${this.#abs(v.dataDir)}`, `--sid=${v.sid ?? 0}`]
         : [`--vits-model=${this.#abs(v.model)}`, `--vits-tokens=${this.#abs(v.tokens)}`, `--vits-data-dir=${this.#abs(v.dataDir)}`];
     // Speed: sherpa takes a length scale (inverse of speed).
-    const lengthScale = (1 / Math.min(1.6, Math.max(0.6, speed))).toFixed(2);
+    const clamped = Math.min(1.6, Math.max(0.6, speed));
+    const lengthScale = (1 / clamped).toFixed(2);
     args.push(`--num-threads=${this.#threads}`, `--output-filename=${out}`, v.kind === 'kokoro' ? `--kokoro-length-scale=${lengthScale}` : `--vits-length-scale=${lengthScale}`, text);
     try {
+      const w = this.#ttsWorker(v);
+      if (w) {
+        try {
+          await w.ask(`${v.kind === 'kokoro' ? (v.sid ?? 0) : 0}\t${clamped.toFixed(2)}\t${out}\t${text.replace(/[\t\r\n]+/g, ' ')}`);
+          if (existsSync(out)) return { data: readFileSync(out), type: 'audio/wav' };
+        } catch {
+          // U5: any worker trouble: the one-shot tool below
+        }
+      }
       const r = await this.#jobs.run(() => this.#run(this.#bin('sherpa-onnx-offline-tts'), args, this.#env(), 120_000));
       if (r.code !== 0 || !existsSync(out)) throw new VoiceError(`Text-to-speech failed (exit ${r.code}).`);
       return { data: readFileSync(out), type: 'audio/wav' };

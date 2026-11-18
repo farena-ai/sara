@@ -12,7 +12,7 @@ import { en } from './i18n.ts';
 import { eventsFromIcs, parseIcs } from './mail/caldav.ts';
 import type { CalSource } from './mail/calendars.ts';
 import type { CalendarEventOut } from './mail/types.ts';
-import { netFetch } from './net-guard.ts';
+import { netFetch, publicGet } from './net-guard.ts';
 
 export const CAL_LINK = { max: 10, refreshMs: 15 * 60_000, maxBytes: 5_000_000, maxEvents: 5000 } as const;
 export const CAL_LINK_LINES = [en('Give the calendar a name.'), en('That is not a calendar link. Copy the address that ends in .ics (or starts with webcal://).'), en('You have the most calendar links this keeps.'), en('That calendar link didn’t answer like a calendar.'), en('Calendar link not found.')];
@@ -42,7 +42,7 @@ interface Vaultish {
   delete(name: string): void;
 }
 
-/** webcal:// → https://; only http(s) addresses on public hosts (netFetch refuses the rest). */
+/** webcal:// → https://; only http(s) addresses (the read itself refuses non-public hosts: publicGet, U5.33). */
 export function linkUrl(raw: string): URL {
   const s = String(raw ?? '').trim().replace(/^webcals?:\/\//i, 'https://');
   let u: URL;
@@ -180,6 +180,8 @@ export class CalendarLinks {
   readonly #inflight = new Map<string, Promise<string>>();
   now = (): number => Date.now();
   fetch: (url: string, init: RequestInit) => Promise<Response> = (u, i) => netFetch(u, i);
+  /** U5.33: how a host name is resolved before the public-address check (tests replace it). */
+  lookup: ((host: string) => Promise<string[]>) | undefined = undefined;
 
   readonly vault: Vaultish;
   readonly file: string;
@@ -237,14 +239,15 @@ export class CalendarLinks {
   }
 
   async #read(url: string, signal?: AbortSignal): Promise<string> {
-    let r: Response;
+    // U5.33: public addresses only (every redirect hop checked), at most CAL_LINK.maxBytes read.
+    let text: string;
     try {
-      r = await this.fetch(url, { headers: { accept: 'text/calendar, text/plain;q=0.5' }, redirect: 'follow', ...(signal ? { signal } : {}) });
-    } catch {
+      text = (await publicGet(url, { accept: 'text/calendar, text/plain;q=0.5', allowHttp: true, maxBytes: CAL_LINK.maxBytes, cut: true, fetch: (u, i) => this.fetch(u, i), ...(this.lookup ? { lookup: this.lookup } : {}), ...(signal ? { signal } : {}) })).text;
+    } catch (err) {
+      const code = (err as { code?: string }).code;
+      if (code === 'private' || code === 'private-name' || code === 'https' || code === 'userinfo' || code === 'invalid') throw new CalLinkError(400, 'Sara only reads calendar links at public addresses (not this computer, the home network or Tailscale).');
       throw new CalLinkError(502, 'That calendar link didn’t answer like a calendar.');
     }
-    if (!r.ok) throw new CalLinkError(502, 'That calendar link didn’t answer like a calendar.');
-    const text = (await r.text()).slice(0, CAL_LINK.maxBytes);
     if (!/BEGIN:VCALENDAR/i.test(text)) throw new CalLinkError(502, 'That calendar link didn’t answer like a calendar.');
     return text;
   }

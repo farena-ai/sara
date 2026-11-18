@@ -40,6 +40,9 @@ backup was, which is what a restore now would lose. It is kept on the page, and 
 the audit trail (`readiness.drill`). Only one drill runs at a time. It needs free space for about
 twice the backup. The off-computer copy keeps its own weekly test restore (Backups).
 
+Besides this drill, Sara tests a restore by herself once a month (checks only, the copy is not
+started): see [BACKUPS.md](BACKUPS.md).
+
 ## Interrupted work
 
 Open this page after a restart or uncertain send. Recovery never

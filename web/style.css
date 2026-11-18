@@ -251,6 +251,10 @@ button.danger { background: var(--danger-fill); color: var(--on-danger); }
 /* Health + backups */
 ul.health, ul.backups { list-style: none; padding: 0; margin: 4px 0 8px; font-size: 13px; }
 ul.health li, ul.backups li { padding: 3px 0; }
+/* U5.31: test restore results (web/restore-test.js). */
+ul.rtst-list li { display: block; border-top: 1px solid var(--hairline); padding: 6px 0; }
+ul.rtst-list li.rtst-failed strong { color: var(--danger); }
+ul.rtst-list li.rtst-skipped strong { color: var(--warn); }
 ul.health .mark { display: inline-block; width: 18px; font-weight: 700; }
 ul.health li.ok .mark { color: var(--success); }
 ul.health li.bad .mark { color: var(--warn); }
@@ -2447,6 +2451,39 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 .cc-preview pre { white-space: pre-wrap; overflow-wrap: anywhere; }
 .cc-tick { display: flex; align-items: center; gap: 6px; }
 .cc-tick input { width: 18px; height: 18px; margin: 0; }
+/* U5.34: the server dashboard (web/dashboard.js). */
+.dash-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.dash-host > p { margin: 0; }
+.dash-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 10px; }
+.dash-card { border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; background: var(--surface-2); padding: 8px 12px; min-width: 0; }
+.dash-card[data-state="ok"] { border-left-color: var(--success); }
+.dash-card[data-state="warn"] { border-left-color: var(--warn); }
+.dash-card[data-state="bad"] { border-left-color: var(--danger); }
+.dash-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dash-name { overflow-wrap: anywhere; }
+.dash-card p { margin: 2px 0 6px; }
+.dash-pill { flex: none; font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.dash-pill.dash-ok { color: var(--success); border-color: var(--success); }
+.dash-pill.dash-warn { color: var(--warn); border-color: var(--warn); }
+.dash-pill.dash-bad { color: var(--danger); border-color: var(--danger); }
+.dash-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.dash-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 32px; font-size: 13px; }
+.dash-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); }
+.dash-row.dash-ok .dash-dot { background: var(--success); }
+.dash-row.dash-warn .dash-dot { background: var(--warn); }
+.dash-row.dash-bad .dash-dot { background: var(--danger); }
+.dash-row.dash-unknown .dash-dot { background: transparent; border: 2px solid var(--muted); box-sizing: border-box; }
+.dash-text { min-width: 0; overflow-wrap: anywhere; }
+.dash-label { font-weight: 600; }
+.dash-apps { display: block; font-size: 12px; }
+.dash-error { color: var(--danger); }
+#settings .dash-go:not(#_) { padding: 2px 10px; min-height: 28px; }
+/* U5.30: the switch for the root helper. */
+.cc-switch { border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); padding: 8px 12px; min-width: 0; }
+.cc-switch p { margin: 4px 0; overflow-wrap: anywhere; }
+.cc-sw-confirm { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 6px 0; }
+.cc-sw-confirm .cc-field { margin: 0; }
+.cc-sw-confirm input { width: 8em; }
 @media (max-width: 720px) { .cc-caps { grid-template-columns: minmax(0, 1fr); } }
 
 /* U4.23 (docs/LEARNING.md): Library → Study and its Today tile (web/study.js). */

@@ -111,6 +111,7 @@ import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-chec
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
 import { initSelfCode } from './self-code.js';
+import { initDashboard, loadDashboard } from './dashboard.js';
 import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
 import { initDataRights } from './data-rights.js';
 import { initMemberTools } from './member-tools.js';
@@ -129,6 +130,7 @@ import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { initTalk, syncTalkButton, talkEvent, talkOn, talkWake } from './talk.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
 import { initOwnerChecks, openTryThese } from './owner-checks.js';
+import { initWhatsNew, openWhatsNew } from './whats-new.js';
 import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
@@ -166,6 +168,7 @@ import { createOperations } from './operations.js';
 import { createMonitoring } from './monitoring.js';
 import { createSecretSources } from './secret-sources.js';
 import { createReadiness } from './readiness.js';
+import { createRestoreTest } from './restore-test.js';
 import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { initSaveChip, initTocSpy } from './settings-look.js';
@@ -384,6 +387,7 @@ async function boot() {
     hubReady = true;
     initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
     initOwnerChecks({ demo: Boolean(session.demo), ask: askInChat });
+    void initWhatsNew({ demo: Boolean(session.demo), member: session.role === 'member', queue: firstRun, tryIt: (id) => openTryThese(id) });
     initStore({ demo: Boolean(session.demo) });
     initGetMore();
 initPacks({ current: () => state.companions?.companions.find((c) => c.current)?.id ?? 'main', refresh: () => void renderCompanionsPage().catch(() => undefined) });
@@ -5585,6 +5589,7 @@ async function loadVoice() {
   $('#talk-fillers').checked = v.talk?.fillers !== false;
   $('#talk-voice-ok').checked = v.talk?.approveByVoice !== false;
   $('#talk-goodbye').checked = v.talk?.goodbye !== false;
+  $('#talk-keep').value = String(v.talk?.keepLoaded ?? 10);
   voice.sample = d.expressiveSample;
   $('#v-calls').value = v.calls ?? 'live';
   $('#v-look-every').value = String(v.video?.lookEvery ?? 10);
@@ -5765,7 +5770,7 @@ async function saveVoice() {
     expressive: $('#v-expressive').value,
     tone: $('#v-tone').value,
     followMood: $('#v-mood').checked,
-    talk: { fillers: $('#talk-fillers').checked, approveByVoice: $('#talk-voice-ok').checked, goodbye: $('#talk-goodbye').checked },
+    talk: { fillers: $('#talk-fillers').checked, approveByVoice: $('#talk-voice-ok').checked, goodbye: $('#talk-goodbye').checked, keepLoaded: Number($('#talk-keep').value) },
     openai: { baseUrl: $('#v-oa-url').value.trim(), sttModel: $('#v-oa-stt').value.trim(), ttsModel: $('#v-oa-tts').value.trim(), ttsVoice: $('#v-oa-voice').value.trim() },
     elevenlabs: { voiceId: $('#v-el-voice').value.trim(), model: $('#v-el-model').value.trim() },
     xai: { voiceId: $('#v-xai-voice').value || 'eve', language: $('#v-xai-lang').value },
@@ -6826,7 +6831,10 @@ function renderBackups(d) {
   );
   if (!d.backups.length) $('#bk-list').append(emptyState({ tag: 'li', icon: 'archive', text: t('No backups yet.'), why: t('She makes one every night by herself.'), action: { label: t('Back up now'), run: () => $('#bk-now').click() } }));
 }
+// U5.31: Backups → Test restores (web/restore-test.js).
+const restoreTest = createRestoreTest({ api });
 async function loadBackups() {
+  void restoreTest.load();
   try {
     renderBackups(await api('/backups'));
   } catch {
@@ -9129,6 +9137,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
   if (shown.has('dh-quality')) void loadQuality();
   // ROADMAP_T: Self-repair on the Health page (web/repair.js).
+  if (pick === 'dh-health' && typeof loadDashboard === 'function' && !isMember()) void loadDashboard(); // U5.34
   if (pick === 'dh-health' && typeof loadRepair === 'function' && !isMember()) {
     initRepair();
     void loadRepair();
@@ -10103,7 +10112,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), shared: () => void openSettings('co-phone') };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone') };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10909,7 +10918,8 @@ initSafetyCheck({ api, el, openSettings: (page) => void openSettings(page) });
 initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 // EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
 initSharing({ api, el });
-initSelfCode({ api });
+initSelfCode({ api, proof: () => confirmProof() });
+initDashboard({ api }); // U5.34
 // EC17: Retention and legal hold (web/data-rights.js).
 initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 // R7: Settings → Household → People on this server → Tools for household members (web/member-tools.js).

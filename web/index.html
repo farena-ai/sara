@@ -844,6 +844,7 @@
       <p class="muted small">She knows her own settings. Ask in any chat, for example “what does jealousy do?” or “which model should I use for pictures?”; she explains and gives you a link to the right page.</p>
       <h3>Problems and ideas</h3>
       <div class="pick-cards" role="list">
+        <button id="help-whatsnew" type="button" class="pick-card"><strong>What's new</strong><span class="muted small">What changed in the latest updates, in plain words, with a link to each place.</span></button>
         <button id="help-try" type="button" class="pick-card" data-owner-only><strong>Try these</strong><span class="muted small">Short checks of what is new: try each one and mark how it went.</span></button>
         <button id="help-report" type="button" class="pick-card"><strong>Report a problem</strong><span class="muted small">Tell the people who make Sara what went wrong. You see everything before it's sent.</span></button>
         <button id="help-suggest" type="button" class="pick-card"><strong>Suggest something</strong><span class="muted small">An idea or a feature you'd like.</span></button>
@@ -3075,6 +3076,7 @@
       <label class="row"><input id="talk-fillers" type="checkbox" checked> Short “Mm-hm” while she thinks <button type="button" class="tip" data-tip="When she hasn't started answering yet, she says a short line so you know she heard you.">?</button></label>
       <label class="row"><input id="talk-voice-ok" type="checkbox" checked> Answer her cards by saying yes or no <button type="button" class="tip" data-tip="The card stays on screen while you talk. Money, passwords and her hands on the computer always need a tap.">?</button></label>
       <label class="row"><input id="talk-goodbye" type="checkbox" checked> Saying “goodbye” ends the talk <button type="button" class="tip" data-tip="Only &quot;goodbye&quot; on its own (or &quot;thanks, bye&quot;) ends it; inside a longer request it is just words to her.">?</button></label>
+      <label class="row" data-owner-only>Keep hearing and voice loaded <button type="button" class="tip" data-tip="Her own hearing and voice on this server stay in memory after you talk, so she answers about a second sooner. Off loads them for every sentence and frees the memory.">?</button> <select id="talk-keep"><option value="0">Off</option><option value="10" selected>10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
       <!-- S2 (docs/MEETINGS.md): meeting recordings (web/meetings.js loadMeetingPrefs). -->
       <h3 data-owner-only>Meetings <button type="button" class="tip" data-tip="How Sara records and hears your meetings (Library → Meetings).">?</button></h3>
       <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
@@ -5073,6 +5075,12 @@
         <img id="access-qr" class="pair-qr" alt="QR code with the address to open on your phone" hidden>
         <p id="access-qr-how" class="muted small qr-how" hidden>Scan with your phone's camera, then tap Open in the Sara app.</p>
       </div>
+      <!-- U5.34: the server dashboard (web/dashboard.js, docs/DASHBOARD.md). -->
+      <h3 id="dash-head">Server dashboard <button type="button" class="tip" data-tip="This server and each linked server whose owner gave you a help pass: health, versions, disk, memory, load, backups, errors, repairs and updates. Green fine, amber soon, red needs you.">?</button></h3>
+      <div id="dash-host" class="dash-host" data-nodirty data-noauto>
+        <p class="actions-left"><button id="dash-refresh" type="button" class="ghost">Refresh</button> <span id="dash-status" class="muted small" role="status"></span></p>
+        <div id="dash-cards" class="dash-cards"></div>
+      </div>
       <h3>Check everything <button type="button" class="tip" data-tip="One click checks what real use needs: mail, calendar, phone notifications, the desktop app, Mac tabs, the inbox helper, automations and Auto. Ticked tests write something and remove it again.">?</button></h3>
       <p class="small selftest-consent"><label><input type="checkbox" id="selftest-draft" data-nodirty data-noauto> Make and remove a test draft</label> <label><input type="checkbox" id="selftest-event" data-nodirty data-noauto> Add and remove a test event</label> <label><input type="checkbox" id="selftest-push" data-nodirty data-noauto> Send a test notification</label></p>
       <p class="small"><button id="selftest-run" type="button">Check everything</button> <button id="selftest-copy" type="button" class="ghost small" hidden>Copy the results</button> <button id="selftest-report" type="button" class="ghost small" hidden>Send in a problem report</button> <span id="selftest-status" class="muted small" role="status"></span></p>
@@ -5271,6 +5279,13 @@
       <label class="row"><input id="bk-auto" type="checkbox"> Back up automatically every day, keep <input id="bk-keep" type="number" min="1" max="60" class="tiny" aria-label="Days of backups to keep"> days</label>
       <p class="small"><button id="bk-now" type="button" class="ghost">Back up now</button> <span id="bk-status" class="muted"></span></p>
       <ul id="bk-list" class="backups"></ul>
+      <!-- U5.31 (docs/BACKUPS.md): the monthly test restore (web/restore-test.js). -->
+      <h3>Test restores <button type="button" class="tip" data-tip="A backup only counts once it has been restored. Once a month, at a quiet hour, Sara restores the newest one into a throwaway folder, checks it and deletes it.">?</button></h3>
+      <p class="muted small">Sara restores the newest backup into a throwaway folder, checks every database, the number of chats and memories, every file against the backup's own list and that the vault opens, then deletes the copy. Your live data isn't touched and nothing is read out.</p>
+      <label class="row"><input id="rtst-on" type="checkbox" data-noauto data-nodirty> Test a restore every month</label>
+      <label class="row" id="rtst-offsite-row" hidden><input id="rtst-offsite" type="checkbox" data-noauto data-nodirty> Also test the newest off-server copy</label>
+      <p class="small"><button id="rtst-now" type="button" class="ghost">Test a restore now</button> <span id="rtst-status" class="muted small" role="status"></span></p>
+      <ul id="rtst-list" class="backups rtst-list"></ul>
       <h3>Off-server copy</h3>
       <p class="muted small">If this server dies, backups on it die too. Sara can put an encrypted copy of each daily backup somewhere else. It's encrypted with your passphrase: keep the passphrase in your password manager, because without it the copies can't be opened.</p>
       <label>Copy backups to
@@ -5426,6 +5441,17 @@
       <!-- T3: her own code changes (web/self-code.js, docs/SELF_CODE.md). -->
       <h3 id="cc-head">Code changes <button type="button" class="tip" data-tip="She can fix her own code: in a separate copy, tested, shown on one card. Nothing changes until you approve it; if she doesn't start properly, she goes back by herself.">?</button></h3>
       <div id="cc-host" class="cc-host" data-nodirty data-noauto>
+        <!-- U5.30: the switch for the root helper (Linux server installs; web/self-code.js). -->
+        <div id="cc-switch" class="cc-switch" hidden>
+          <p class="small" role="status"><strong id="cc-sw-state"></strong> <span id="cc-sw-who" class="muted"></span></p>
+          <p class="small"><label class="cc-tick"><input type="checkbox" id="cc-sw-on" data-nodirty data-noauto> Allow code changes on this server</label></p>
+          <div id="cc-sw-confirm" class="cc-sw-confirm" hidden>
+            <label class="cc-field" for="cc-sw-typed">Type ON to turn them on</label>
+            <input id="cc-sw-typed" type="text" autocomplete="off" spellcheck="false" maxlength="8">
+            <button id="cc-sw-go" type="button">Turn on</button> <button id="cc-sw-cancel" type="button" class="ghost">Cancel</button>
+          </div>
+          <p id="cc-sw-msg" class="muted small" role="status"></p>
+        </div>
         <p id="cc-why" class="muted small" hidden></p>
         <div id="cc-new" hidden>
           <label class="cc-field" for="cc-request">What should she fix? <button type="button" class="tip" data-tip="Say what is broken or what to change, with any error text. She never changes her safety layer, limits, kid mode, approvals, audit trail or vault.">?</button></label>
@@ -5702,6 +5728,16 @@
       <pre id="try-preview-box" class="ochk-preview small" hidden></pre>
       <p id="try-send-when" class="muted small"></p>
       <p id="try-status" class="small" role="status"></p>
+    </div>
+  </dialog>
+  <!-- U5.32 (docs/WHATS_NEW.md): What's new after an update, and Help → What's new (web/whats-new.js) -->
+  <dialog id="whats-new" class="small-dialog" aria-labelledby="wn-title">
+    <div class="settings-body hub-sheet wn-sheet">
+      <h2 id="wn-title">What's new</h2>
+      <p id="wn-lead" class="muted small"></p>
+      <div id="wn-list" class="wn-list"></div>
+      <label class="row wn-auto"><input id="wn-auto" type="checkbox" checked> Show this after each update <button type="button" class="tip" data-tip="On: after Sara updates, this page opens once the next time you open her. Off: only from Help → What's new.">?</button></label>
+      <p class="wn-actions"><button id="wn-ok" type="button">Got it</button></p>
     </div>
   </dialog>
   <dialog id="hub-mine" class="small-dialog" aria-labelledby="hub-mine-title">

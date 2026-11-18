@@ -24,7 +24,7 @@
 
 **Update:** on a Linux server `sudo sara update` (backs up first, rolls back if she doesn't answer) · Docker: `sudo git pull && sudo docker compose up -d --build` · Windows and Mac apps: Settings → Privacy & system → Updates · Android: Google Play. [Upgrading](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.23.0, [Talk with Sara, shared projects, marketplace, picture studio, business pack](https://github.com/farena-ai/sara/releases/tag/v3.23.0). Hands-free voice mode, projects shared with linked friends, a checked marketplace for skills and recipes, local picture editing and short video with ComfyUI, and time tracking with invoices and a client link. [See what changed](#whats-new)
+> **Status:** 3.24.0, [Security review, backup test restores, What's new, server dashboard, faster voice](https://github.com/farena-ai/sara/releases/tag/v3.24.0). A security review of everything other servers and web pages can reach, with 7 fixes; a monthly test restore that proves backups work; a plain-words What's new page; a server dashboard; and local voice that stays loaded. [See what changed](#whats-new)
 >
 > Windows installer: unsigned ([SmartScreen guidance](docs/INSTALL.md)). The macOS release process requires signed and notarized downloads; each build is qualified separately. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [home-screen web app](docs/PHONE.md).
 
@@ -164,20 +164,21 @@ Recent releases · 6 November 2026. [Full changelog](CHANGELOG.md) · [All downl
 
 | Release | What changed for you |
 |---|---|
+| **[3.24.0](https://github.com/farena-ai/sara/releases/tag/v3.24.0)** | **[Security review, backup test restores, What's new, server dashboard, faster voice](docs/SECURITY_REVIEW_U5.md)** — Security review with 7 fixes; monthly automatic test restores; What's new after each update; a Settings switch for server code changes; a server dashboard; first spoken word about 0.4 s after you stop talking on Linux servers. |
 | **[3.23.0](https://github.com/farena-ai/sara/releases/tag/v3.23.0)** | **[Talk with Sara, shared projects, marketplace, picture studio, business pack](docs/VOICE_FIRST.md)** — Talk hands-free and answer cards by voice; share notes, to-dos and files with a friend's Sara; share skills, automations and team recipes in a community; paint-to-edit, extend, upscale and short clips on your own GPU; timers, invoices emailed after you approve, a read-only client portal and bookkeeping exports. |
 | **[3.22.1](https://github.com/farena-ai/sara/releases/tag/v3.22.1)** | **[Settings and the new windows open again](docs/MONEY.md)** — Settings, Health, Family and every window after Money open again; a test now checks every window in the page is closed. |
 | **[3.22.0](https://github.com/farena-ai/sara/releases/tag/v3.22.0)** | **[Money, family planner, health log, study cards, browser extension](docs/MONEY.md)** — Bank exports become budgets, bills and subscriptions (never pays); plan the week's dinners into the grocery list; medicines, appointments and readings kept private; study sets with spaced review and kid coaching; ask about a page, save it or fill a form after you approve. |
 | **[3.21.0](https://github.com/farena-ai/sara/releases/tag/v3.21.0)** | **[Smarter: six languages, voices apart, Word comments, team recipes](docs/LANGUAGES_TEXT.md)** — Readers for promises, clauses and bookings in es/fr/de/pt-BR/it; OpenSky flight status (opt-in, free); local voice-print speaker separation; Word revisions in headers, footers, notes and text boxes plus comments and tracked moves; save and reuse team recipes; Ask about anything covers meetings, trips, documents, research and goals; opt-in shared fixes. |
 | **[3.20.0](https://github.com/farena-ai/sara/releases/tag/v3.20.0)** | **[The apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices](docs/desktop.md)** — Unread counts on the taskbar and Dock; the Windows app counts and announces messages from every saved server; the Mac records calls and reads selected text for quick ask; Android gets one-to-one and quiet community notifications and saves files; iPhone wording, badge and tap targets fixed. |
-| **[3.19.0](https://github.com/farena-ai/sara/releases/tag/v3.19.0)** | **[Proven on real models, Try these, steadier releases](docs/TRY_THESE.md)** — A 40-task real-model run (39/40 on a local model), end-to-end checks for every mail kind and for linked servers, a Windows install/update matrix, Help → Try these with results you can send, and timing-safe tests. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Earlier 2.6x releases</b>: 3.18.2 back to 2.61.5</summary>
+<summary><b>Earlier 2.6x releases</b>: 3.19.0 back to 2.61.5</summary>
 
 | Release | What changed for you |
 |---|---|
+| **[3.19.0](https://github.com/farena-ai/sara/releases/tag/v3.19.0)** | **[Proven on real models, Try these, steadier releases](docs/TRY_THESE.md)** — A 40-task real-model run (39/40 on a local model), end-to-end checks for every mail kind and for linked servers, a Windows install/update matrix, Help → Try these with results you can send, and timing-safe tests. |
 | **[3.18.2](https://github.com/farena-ai/sara/releases/tag/v3.18.2)** | **[Several Google accounts from either mail page, approved code fixes on servers](docs/MAIL_ACCOUNTS.md)** — Add as many Google, Gmail, Outlook and other accounts as you like from either mail page; signing in to another Google address adds it; Linux server installs take approved, tested code fixes through a locked-down helper. |
 | **[3.18.1](https://github.com/farena-ai/sara/releases/tag/v3.18.1)** | **[Message notices you can't miss, one Windows install, second mailboxes kept](docs/MESSAGES.md)** — New one-to-one messages show a card in front of you (also after reopening); Windows updates land on the existing install and remove a duplicate; a second mailbox no longer replaces the first. |
 | **[3.18.0](https://github.com/farena-ai/sara/releases/tag/v3.18.0)** | **[Self-repair, friends fixing friends, quieter communities](docs/SELF_REPAIR.md)** — Self-repair from health checks and errors with automatic undo; grow new skills; tested code fixes with rollback where the install allows; ask a linked friend's Sara to fix your server with your approval; popups for messages and quiet community counts. |

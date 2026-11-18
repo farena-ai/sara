@@ -1519,9 +1519,15 @@ public class MainActivity extends Activity {
         /** ADULTAPPS: opens a page of THIS server in the phone's browser (Adult mode is turned on there). */
         @JavascriptInterface
         public void openInBrowser(String url) {
-            Uri u = Uri.parse(url == null ? "" : url);
-            String host = Uri.parse(Net.server(MainActivity.this)).getHost();
-            if (host == null || !host.equals(u.getHost()) || !("https".equals(u.getScheme()) || "http".equals(u.getScheme()))) return;
+            // U5.33: only this server: the same scheme, host and port, no user part, no backslash (a
+            // browser reads "\" as "/", so "https://evil\@server/" would open evil).
+            String raw = url == null ? "" : url;
+            if (raw.indexOf('\\') >= 0 || raw.indexOf('@') >= 0) return;
+            Uri u = Uri.parse(raw);
+            Uri s = Uri.parse(Net.server(MainActivity.this));
+            String host = s.getHost();
+            if (host == null || s.getScheme() == null || !host.equals(u.getHost()) || !s.getScheme().equals(u.getScheme()) || u.getUserInfo() != null) return;
+            if (!("https".equals(u.getScheme()) || "http".equals(u.getScheme())) || s.getPort() != u.getPort()) return;
             runOnUiThread(() -> {
                 try {
                     startActivity(new Intent(Intent.ACTION_VIEW, u));

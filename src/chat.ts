@@ -1306,6 +1306,12 @@ export interface TurnOptions {
    * own asks first, and the card says why.
    */
   untrusted?: boolean;
+  /**
+   * U5.33: this message carries outside content the owner pointed at (a web page from the browser
+   * extension): from the start, every tool that changes something asks, as after a peer's answer;
+   * read-only tools still run.
+   */
+  outsideContent?: boolean;
   /** Phase 44: documents shared with this message (kept in her library or read once here). */
   docs?: import('./library/intake.ts').SharedDoc[];
   /**
@@ -1485,7 +1491,8 @@ function birthdaysNote(people: AppContext['people'], today: string): string | un
 }
 
 /** Phase 100: tools whose result is another agent's words, and the read-only tools that still run on their own after one. */
-const PEER_ANSWER_TOOLS = new Set(['a2a_send', 'a2a_reply', 'a2a_status']);
+// U5.33: a friend's shared-project items and the other server's help/fix report are peer words too.
+const PEER_ANSWER_TOOLS = new Set(['a2a_send', 'a2a_reply', 'a2a_status', 'shared_project_read', 'support_look', 'remote_look']);
 const READ_AFTER_PEER = new Set(['a2a_agents', 'a2a_status', 'a2a_cancel', 'web_search', 'recall', 'memory_search', 'search_conversations', 'read_file', 'list_files', 'weather', 'get_time']);
 
 /** Phase 100: the asker's words for the model, wrapped as untrusted text (STAPLES §2.1.4). */
@@ -1494,7 +1501,7 @@ export function untrustedPeer(label: string, text: string, source = ''): string 
   const body = text.replace(/<\/?untrusted\b[^>]*>/gi, '').replace(/<\/?(system|instructions?)>/gi, '');
   // Phase 102 (ST7): a webhook's payload is labelled as the webhook's, never as an agent's.
   // C4: an event trigger's event (mail, chat message, delivery, tool-server event) is labelled as an event.
-  return `<untrusted source="${source.startsWith('webhook:') ? 'webhook' : source.startsWith('trigger:') ? 'event' : 'agent'} ${name}">\n${body}\n</untrusted>`;
+  return `<untrusted source="${source.startsWith('webhook:') ? 'webhook' : source.startsWith('trigger:') ? 'event' : source.startsWith('friend:') ? 'friend' : 'agent'} ${name}">\n${body}\n</untrusted>`;
 }
 
 /** Phase 100: the note that tells her who is asking and what the asker's words are. */
@@ -2758,7 +2765,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // Phase 100 (STAPLES §8.3): after another agent's answer reached her in this turn, every tool that
   // changes something asks the owner for the rest of the turn, so a peer's words can't run anything
   // the owner hasn't seen (peer output is untrusted tool output).
-  let peerAnswered = false;
+  let peerAnswered = Boolean(opts.outsideContent);
   // Phase 79 (harness M4): the turn's budget (Settings → Budgets: coding chats 200k tokens / 40
   // steps by default, everyday chats off), or the explicit "Continue with N more". The meter is a
   // set of TurnHooks fed by the run recorder's sums; near a limit it steps down the ladder (quick

@@ -10,15 +10,24 @@ export interface TalkPrefs {
   approveByVoice: boolean;
   /** Saying "goodbye" (alone) ends the talk. */
   goodbye: boolean;
+  /** U5: minutes the local hearing and voice engines stay loaded after use (0 = load per call). Owner's setting, server-wide. */
+  keepLoaded: number;
 }
 
-export const TALK_DEFAULTS: TalkPrefs = { fillers: true, approveByVoice: true, goodbye: true };
+export const KEEP_LOADED = [0, 10, 30, 60] as const;
+export const TALK_DEFAULTS: TalkPrefs = { fillers: true, approveByVoice: true, goodbye: true, keepLoaded: 10 };
 
 /** Saved prefs with the defaults; anything not a boolean falls back to the default (true). */
 export function cleanTalk(v: unknown): TalkPrefs {
   const o = v && typeof v === 'object' ? (v as Record<string, unknown>) : {};
   const b = (x: unknown, d: boolean) => (x === undefined ? d : x !== false);
-  return { fillers: b(o.fillers, TALK_DEFAULTS.fillers), approveByVoice: b(o.approveByVoice, TALK_DEFAULTS.approveByVoice), goodbye: b(o.goodbye, TALK_DEFAULTS.goodbye) };
+  const keep = Number(o.keepLoaded);
+  return {
+    fillers: b(o.fillers, TALK_DEFAULTS.fillers),
+    approveByVoice: b(o.approveByVoice, TALK_DEFAULTS.approveByVoice),
+    goodbye: b(o.goodbye, TALK_DEFAULTS.goodbye),
+    keepLoaded: o.keepLoaded !== undefined && o.keepLoaded !== '' && (KEEP_LOADED as readonly number[]).includes(keep) ? keep : TALK_DEFAULTS.keepLoaded,
+  };
 }
 
 /** Her instruction on a talk turn: everything she writes is spoken right away, sentence by sentence. */

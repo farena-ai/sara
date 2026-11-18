@@ -59,6 +59,22 @@ export interface InstallInfo {
 export interface HelperState {
   on: boolean;
   src: string;
+  /** U5.30: `sudo sara selfcode lock`: the owner can't turn it ON from Settings (OFF always works). */
+  locked?: boolean;
+  /** Who changed it last (admin, owner, install) and when. */
+  by?: string;
+  at?: string;
+}
+/** U5.30: the switch in Settings → Updates → Code changes, as the page shows it. */
+export interface HelperView {
+  on: boolean;
+  locked: boolean;
+  by: string | null;
+  at: string | null;
+  /** A request written and not taken by root yet. */
+  pending: 'on' | 'off' | null;
+  /** Root's last answer to the switch (done or refused, with its reason). */
+  last: { want: string; state: string; message: string; at: string } | null;
 }
 const instanceOf = (env: NodeJS.ProcessEnv) => (/^[a-z][a-z0-9-]{1,31}$/.test(env.SARA_INSTANCE ?? '') ? env.SARA_INSTANCE! : 'sara');
 export const helperDirOf = (env: NodeJS.ProcessEnv = process.env): string => `/var/lib/${instanceOf(env)}-updater`;
@@ -66,7 +82,12 @@ export const helperDirOf = (env: NodeJS.ProcessEnv = process.env): string => `/v
 export function readHelper(dir: string): HelperState | undefined {
   try {
     const j = JSON.parse(readFileSync(join(dir, 'selfcode.json'), 'utf8')) as Record<string, unknown>;
-    return j.helper === 1 ? { on: j.on === true, src: typeof j.src === 'string' ? j.src : '' } : undefined;
+    if (j.helper !== 1) return undefined;
+    const h: HelperState = { on: j.on === true, src: typeof j.src === 'string' ? j.src : '' };
+    if (typeof j.locked === 'boolean') h.locked = j.locked;
+    if (typeof j.by === 'string' && /^[a-z]{1,16}$/.test(j.by)) h.by = j.by;
+    if (typeof j.at === 'string' && Number.isFinite(Date.parse(j.at))) h.at = j.at;
+    return h;
   } catch {
     return undefined;
   }
@@ -104,7 +125,7 @@ export function installInfo(o: { root: string; env?: NodeJS.ProcessEnv; platform
     // rootapply: the root helper applies an approved change to the read-only copy (deploy/lib-selfcode.sh).
     const h = (o.helper ?? (() => readHelper(helperDirOf(env))))();
     if (h?.on && h.src) return { kind: 'server', level3: true, root: o.root, git: false, mode: 'root-helper', from: h.src };
-    if (h) return no('server', en("The server's administrator turned off code changes from Sara. On the server, sudo sara selfcode on turns them back on. She can send the problem to the Sara developers instead."));
+    if (h) return no('server', en("Code changes from Sara are off on this server. The switch above turns them back on (unless the administrator locked it; on the server: sudo sara selfcode on). She can send the problem to the Sara developers instead."));
   }
   if (ch === 'installer') return no('server', en('This server runs her from a read-only copy that the installer made (only sudo sara update changes it), so she cannot change her own code here. She can send the problem to the Sara developers instead.'));
   if (!writable(o.root) || !writable(join(o.root, 'src'))) return no('source', en("Her source folder isn't writable by the account she runs as, so she cannot change her own code here. She can send the problem to the Sara developers instead."));
@@ -618,11 +639,52 @@ export class SelfCode {
     }
   }
 
-  status(): { available: boolean; kind: InstallKind; why: string | null; mode: string; cap: number; minutes: number; permission: string; fullUntil: string | null; version: string; changes: CodeChange[] } {
+  status(): { available: boolean; kind: InstallKind; why: string | null; mode: string; cap: number; minutes: number; permission: string; fullUntil: string | null; version: string; changes: CodeChange[]; helper: HelperView | null } {
     const i = this.info();
     if (i.mode === 'root-helper') this.#finishHelper();
     const s = this.settings();
-    return { available: i.level3, kind: i.kind, why: i.why ?? null, mode: i.mode, cap: s.capUsd, minutes: s.minutes, permission: s.permission, fullUntil: s.fullUntil, version: this.#version(), changes: this.list() };
+    return { available: i.level3, kind: i.kind, why: i.why ?? null, mode: i.mode, cap: s.capUsd, minutes: s.minutes, permission: s.permission, fullUntil: s.fullUntil, version: this.#version(), changes: this.list(), helper: this.helper() ?? null };
+  }
+
+  /** U5.30: the root helper's switch (undefined where there is no helper: not a Linux server install). */
+  helper(): HelperView | undefined {
+    const h = readHelper(this.#helperDir());
+    if (!h) return undefined;
+    let pending: HelperView['pending'] = null;
+    try {
+      const want = (JSON.parse(readFileSync(join(this.#dir, 'switch-request.json'), 'utf8')) as { want?: string }).want;
+      if (want === 'on' || want === 'off') pending = want;
+    } catch {
+      /* none waiting */
+    }
+    let last: HelperView['last'] = null;
+    try {
+      const r = JSON.parse(readFileSync(join(this.#helperDir(), 'selfcode', 'switch.json'), 'utf8')) as Record<string, unknown>;
+      if (typeof r.state === 'string' && typeof r.at === 'string') last = { want: String(r.want ?? ''), state: r.state, message: String(r.message ?? '').slice(0, 300), at: r.at };
+    } catch {
+      /* no answer yet */
+    }
+    return { on: h.on, locked: h.locked === true, by: h.by ?? null, at: h.at ?? null, pending, last };
+  }
+
+  /**
+   * U5.30: asks the root helper to turn code changes on or off (the updater unit's request word
+   * `selfcode-on` / `selfcode-off`). She never flips it herself; root re-checks and answers. The route
+   * checks the owner's re-auth before an ON; a locked switch refuses ON here and again in root.
+   */
+  askSwitch(on: boolean): HelperView {
+    const h = this.helper();
+    if (!h) throw new SelfCodeError(409, en('This server has no code-change helper to switch.'));
+    if (on && h.locked) throw new SelfCodeError(409, en("The server's administrator locked this switch: only they can turn code changes on (sudo sara selfcode unlock)."));
+    const signal = join(this.#d.dataDir, 'update-request');
+    if (existsSync(signal) || h.pending) throw new SelfCodeError(409, en('An update or another code change is waiting on this server. Try again in a minute.'));
+    const approval = randomUUID();
+    mkdirSync(this.#dir, { recursive: true });
+    const request = { v: 1, instance: this.#d.instance ?? instanceOf(process.env), want: on ? 'on' : 'off', approval, at: this.#now().toISOString() };
+    writeFileSync(join(this.#dir, 'switch-request.json'), `${JSON.stringify(request)}\n`, { mode: 0o600 });
+    writeFileSync(signal, `selfcode-${request.want}\n`, { mode: 0o600 });
+    this.#audit('switch', 'pending', undefined, `turn code changes ${request.want} (root helper, approval ${approval})`);
+    return this.helper()!;
   }
 
   #assertAvailable(): InstallInfo {

@@ -17,6 +17,14 @@
       "Off by default: reminders only say it is time for a dose, so a locked screen shows no medicine names. Turn on to see the name and dose.",
       "what-sara-knows"
     ],
+    "cc-sw-on": [
+      "On: she may apply a code change after you approve it. Turning on asks you to confirm it's you; turning off always works. The server's administrator can lock it.",
+      "care"
+    ],
+    "cc-sw-typed": [
+      "Type ON (in capitals or not) to confirm. With a passkey or two-step sign-in set up, she asks for that instead.",
+      "care"
+    ],
     "cc-request": [
       "Say what is broken or what to change, with any error text. She never changes her safety layer, limits, kid mode, approvals, audit trail or vault.",
       "care"
@@ -975,6 +983,14 @@
     ],
     "bk-auto": [
       "Make a backup every day by itself.",
+      "care"
+    ],
+    "rtst-on": [
+      "Once a month, at a quiet hour, restore the newest backup into a throwaway folder and check it. Turn it off only if you test restores yourself.",
+      "care"
+    ],
+    "rtst-offsite": [
+      "Also download the newest off-server copy, unlock it with your passphrase and check it the same way.",
       "care"
     ],
     "bk-keep": [

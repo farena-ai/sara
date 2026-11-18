@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { PUBLIC_MCP_INVESTIGATIONS } from '../addons/discovery.ts';
 import { PUBLIC_DEVELOPER_CONNECTIONS } from '../addons/developer-connections.ts';
+import { restoreTestRunning, restoreTestSummary, runRestoreTest, setRestoreTest } from '../restore-test.ts';
 import { createBackupAsync } from '../backup-async.ts';
 
 const activeBackupFiles = new Set<string>();
@@ -502,6 +503,21 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'content-disposition': `attachment; filename="sara-log-${app.now().toISOString().slice(0, 10)}.txt"`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
         return void res.end(log ? log.text() : '');
       }
+    }
+    if (a === 'backups' && b === 'restore-test' && !c) {
+      // U5.31: the monthly test restore (src/restore-test.ts). POST = Test a restore now (202).
+      if (method === 'GET') return send(res, 200, restoreTestSummary(app, rootDir));
+      if (method === 'PUT') {
+        setRestoreTest(app, await readJson(req));
+        return send(res, 200, restoreTestSummary(app, rootDir));
+      }
+      if (method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        if (restoreTestRunning(rootDir)) throw new HttpError(409, 'A test restore is already running.');
+        void runRestoreTest(app, { rootDir, by: 'owner' });
+        return send(res, 202, { ...restoreTestSummary(app, rootDir), running: true });
+      }
+      throw new HttpError(405, 'Method not allowed');
     }
     if (a === 'backups' && b === 'offsite') {
       const view = () => {

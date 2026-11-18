@@ -229,12 +229,12 @@ function itemRow(it, id, mayEdit, act) {
     cb.type = 'checkbox';
     cb.checked = it.done;
     cb.disabled = !mayEdit;
-    cb.addEventListener('change', act(() => api(`/shared-projects/${id}/items/${it.id}`, { method: 'PATCH', body: { done: cb.checked } })));
+    cb.addEventListener('change', act(() => api(`/shared-projects/${encodeURIComponent(id)}/items/${encodeURIComponent(it.id)}`, { method: 'PATCH', body: { done: cb.checked } })));
     lab.append(cb, el('span', '', it.title), by);
     row.append(lab);
   } else if (it.kind === 'file') {
     const a = el('a', '', it.title);
-    a.href = `/api/shared-projects/${id}/items/${it.id}/file`;
+    a.href = `/api/shared-projects/${encodeURIComponent(id)}/items/${encodeURIComponent(it.id)}/file`;
     a.download = it.title;
     const main = el('span', 'shp-main');
     main.append(a, by);
@@ -252,7 +252,7 @@ function itemRow(it, id, mayEdit, act) {
         ta.value = it.body;
         ta.rows = 5;
         ta.setAttribute('aria-label', it.title);
-        const save = btn(t('Save'), 'small', act(() => api(`/shared-projects/${id}/items/${it.id}`, { method: 'PATCH', body: { body: ta.value } })));
+        const save = btn(t('Save'), 'small', act(() => api(`/shared-projects/${encodeURIComponent(id)}/items/${encodeURIComponent(it.id)}`, { method: 'PATCH', body: { body: ta.value } })));
         body.replaceWith(ta);
         ed.replaceWith(save);
       });
@@ -261,7 +261,7 @@ function itemRow(it, id, mayEdit, act) {
     row.append(el('span', 'shp-kind', it.kind === 'chat' ? t('Chat') : t('Note')), det);
   }
   if (mayEdit) {
-    const del = btn('✕', 'ghost small shp-del', act(async () => { if (confirm(t('Remove {title} for everyone?', { title: it.title }))) await api(`/shared-projects/${id}/items/${it.id}`, { method: 'DELETE' }); }));
+    const del = btn('✕', 'ghost small shp-del', act(async () => { if (confirm(t('Remove {title} for everyone?', { title: it.title }))) await api(`/shared-projects/${encodeURIComponent(id)}/items/${encodeURIComponent(it.id)}`, { method: 'DELETE' }); }));
     del.title = t('Remove');
     del.setAttribute('aria-label', t('Remove'));
     row.append(del);

@@ -48,6 +48,33 @@ export function readRequest(text: string, instance: string): RootRequest | strin
   return { v: 1, instance, id: j.id as number, kind: j.kind, approval: j.approval, ...(j.kind === 'apply' ? { sha256: j.sha256 as string } : {}) };
 }
 
+/** U5.30: the owner's switch request from Settings (`switch-request.json`), as root accepts it. */
+export interface SwitchRequest {
+  v: 1;
+  instance: string;
+  want: 'on' | 'off';
+  approval: string;
+  at: string;
+}
+/** A switch request is good for 15 minutes (root runs it within seconds of the request word). */
+export const SWITCH_TTL_MS = 15 * 60_000;
+export function readSwitch(text: string, instance: string, want: string, now: number = Date.now()): SwitchRequest | string {
+  let j: Record<string, unknown>;
+  try {
+    j = JSON.parse(text) as Record<string, unknown>;
+  } catch {
+    return 'the request is not valid JSON';
+  }
+  if (!j || typeof j !== 'object' || j.v !== 1) return 'the request has an unknown format';
+  if (j.instance !== instance) return `the request is for another Sara (${String(j.instance).slice(0, 40)}), not ${instance}`;
+  if (want !== 'on' && want !== 'off') return 'the request asks for something the helper does not do';
+  if (j.want !== want) return 'the request does not match the word the updater got';
+  if (typeof j.approval !== 'string' || !/^[A-Za-z0-9_-]{16,80}$/.test(j.approval)) return 'the request has no owner approval';
+  const at = typeof j.at === 'string' ? Date.parse(j.at) : NaN;
+  if (!Number.isFinite(at) || now - at > SWITCH_TTL_MS || at - now > 2 * 60_000) return 'the request is too old (or from the future): turn it on again in Settings';
+  return { v: 1, instance, want, approval: j.approval, at: new Date(at).toISOString() };
+}
+
 /** No link anywhere on the way from `base` to `base/path` (root never writes through one). */
 function plainPath(base: string, path: string): boolean {
   let at = base;
@@ -182,6 +209,10 @@ function main(argv: string[]): Out {
       return applyInstalled({ patch: text(arg('patch'), MAX_PATCH), app: real(arg('app')), snap: arg('snap'), reverse: cmd === 'reverse' });
     case 'restore':
       return restore(real(arg('app')), arg('snap'));
+    case 'switch': {
+      const r = readSwitch(text(arg('request'), 4096), arg('instance'), arg('want'));
+      return typeof r === 'string' ? no(r) : { ok: true, want: r.want, approval: r.approval };
+    }
     default:
       return no('unknown command');
   }

@@ -25,6 +25,7 @@ import { en } from './i18n.ts';
 import type { Messenger } from './messages.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { KEY_SHAPED, Redactor } from './redact.ts';
+import { peerRate } from './support.ts';
 import { HARD_LIMIT_TOOL } from './team-runs.ts';
 
 export const MARKET = { titleChars: 80, descChars: 600, payloadChars: 32_000, bodyChars: 24_000, tools: 20, settings: 20, commentChars: 300, whyChars: 300, listings: 200, comments: 20, skewMs: 5 * 60_000 } as const;
@@ -223,6 +224,7 @@ export interface Place {
 
 export class Market {
   readonly #db: DatabaseSync;
+  readonly #rate = new Map<string, { min: number; n: number }>();
   readonly #m: Messenger;
   readonly #now: () => Date;
   readonly deps: MarketDeps;
@@ -407,6 +409,8 @@ export class Market {
       ok = false;
     }
     if (!ok) throw unsigned;
+    // U5.33: a linked server that floods the marketplace is slowed down.
+    if (!peerRate(this.#rate, `market:${link}`, this.#now().getTime())) throw new MarketError(429, 'slow down');
     let id = '';
     try {
       id = String((JSON.parse(body) as { id?: unknown }).id ?? '');

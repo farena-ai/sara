@@ -102,6 +102,7 @@ import { createSharedProjectRoutes, handleSharedProjectPeer } from './routes/sha
 import { createMarketRoutes, handleMarketPeer } from './routes/market.ts';
 import { createRepairRoutes } from './routes/repair.ts';
 import { createSelfCodeRoutes } from './routes/self-code.ts';
+import { createDashboardRoutes } from './routes/dashboard.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
 import { createLearnRoutes } from './routes/learn.ts';
@@ -164,6 +165,7 @@ import { PROXY_BLOCKED_MESSAGE } from './hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector, serveMoveInFile } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
 import { createOwnerCheckRoutes } from './routes/owner-checks.ts';
+import { createWhatsNewRoutes } from './routes/whats-new.ts';
 import { createStoreRoutes } from './routes/store.ts';
 import { createSpendRoutes } from './routes/spend.ts';
 import { createPrereqRoutes } from './routes/prereqs.ts';
@@ -952,6 +954,37 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (u.protocol !== 'https:' && u.hostname !== 'localhost' && u.hostname !== '127.0.0.1') throw new HttpError(400, 'Passkeys need a secure (https) address.');
     return { origin: u.origin, rpId: u.hostname };
   };
+  /**
+   * Security review: proof it's really the owner (the token, the current two-step code, or a passkey
+   * assertion where allowed), not only a session cookie. U5.30: route files get it through the ctx.
+   */
+  const confirmIdentityFor = (req: IncomingMessage, body: Record<string, unknown>, opt: { passkey?: boolean } = {}) => {
+    const ip = clientIp(req, opts.trustProxy);
+    if (limiter.blocked(ip)) throw new HttpError(429, 'Too many attempts. Try again later.');
+    let ok = false;
+    // A passkey assertion made just now for this purpose (where the route allows one).
+    const pk = body.passkey as Record<string, unknown> | undefined;
+    if (opt.passkey && pk && typeof pk === 'object') {
+      const id = String(pk.id ?? '');
+      const key = auth.passkey(id);
+      try {
+        if (!key) throw new Error('unknown passkey');
+        const count = verifyAssertion(
+          { id, clientDataJSON: String(pk.clientDataJSON ?? ''), authenticatorData: String(pk.authenticatorData ?? ''), signature: String(pk.signature ?? '') },
+          key,
+          { challenge: takeChallenge(clientChallenge(pk.clientDataJSON), 'confirm'), ...passkeySite(req) },
+        );
+        auth.usedPasskey(id, count);
+        ok = true;
+      } catch {
+        ok = false;
+      }
+    } else ok = auth.twoStepOn ? auth.checkTwoStep(String(body.code ?? '')) : auth.verifyToken(String(body.token ?? ''));
+    if (!ok) {
+      limiter.fail(ip);
+      throw new HttpError(403, auth.twoStepOn ? 'Enter the current code from your authenticator app to confirm.' : opts.member ? en('Enter your member token to confirm.') : 'Enter your owner token to confirm.', { confirm: auth.twoStepOn ? 'code' : 'token' });
+    }
+  };
   // Phase 23: updates from Settings.
   // Phase 31: the server's own folder (each companion's app.dataDir is her own folder).
   const rootDir = app.rootDir ?? app.dataDir;
@@ -1007,6 +1040,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     demoAccepted,
     isAuthed,
     askFirst: (req, action) => gate.askFirst(req, action),
+    confirmIdentity: confirmIdentityFor,
     offApp,
     requestApproval,
   };
@@ -1058,6 +1092,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const repairRoutes = createRepairRoutes(ctx);
   // T3: her own code changes, the owner's only (src/routes/self-code.ts; docs/SELF_CODE.md).
   const selfCodeRoutes = createSelfCodeRoutes(ctx);
+  const dashboardRoutes = createDashboardRoutes(ctx);
   // E1: Settings → Data sources and the live-data watches, each person's own (src/routes/data-sources.ts).
   const dataSourceRoutes = createDataSourceRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
@@ -1159,6 +1194,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const hubRoutes = createHubRoutes(ctx);
   // U1.5: Help → Try these, the owner's checklist (src/routes/owner-checks.ts).
   const ownerCheckRoutes = createOwnerCheckRoutes(ctx);
+  // U5.32: What's new after an update (src/routes/whats-new.ts).
+  const whatsNewRoutes = createWhatsNewRoutes(ctx);
   // Phase 124: the Sara Store's reader (src/routes/store.ts).
   const storeRoutes = createStoreRoutes(ctx);
   // PRQ: the programs add-ons need and *Install it for me* (src/routes/prereqs.ts).
@@ -1647,6 +1684,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await marketRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await repairRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await selfCodeRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await dashboardRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1701,6 +1739,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await ownerCheckRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await whatsNewRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await storeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await prereqRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await packRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1740,33 +1779,7 @@ export function createSaraServer(opts: ServerOptions): Server {
      * cookie (which could have been taken from an unlocked device): the owner token, or the
      * current code when two-step sign-in is on.
      */
-    const confirmIdentity = (body: Record<string, unknown>, opt: { passkey?: boolean } = {}) => {
-      const ip = clientIp(req, opts.trustProxy);
-      if (limiter.blocked(ip)) throw new HttpError(429, 'Too many attempts. Try again later.');
-      let ok = false;
-      // A passkey assertion made just now for this purpose (where the route allows one).
-      const pk = body.passkey as Record<string, unknown> | undefined;
-      if (opt.passkey && pk && typeof pk === 'object') {
-        const id = String(pk.id ?? '');
-        const key = auth.passkey(id);
-        try {
-          if (!key) throw new Error('unknown passkey');
-          const count = verifyAssertion(
-            { id, clientDataJSON: String(pk.clientDataJSON ?? ''), authenticatorData: String(pk.authenticatorData ?? ''), signature: String(pk.signature ?? '') },
-            key,
-            { challenge: takeChallenge(clientChallenge(pk.clientDataJSON), 'confirm'), ...passkeySite(req) },
-          );
-          auth.usedPasskey(id, count);
-          ok = true;
-        } catch {
-          ok = false;
-        }
-      } else ok = auth.twoStepOn ? auth.checkTwoStep(String(body.code ?? '')) : auth.verifyToken(String(body.token ?? ''));
-      if (!ok) {
-        limiter.fail(ip);
-        throw new HttpError(403, auth.twoStepOn ? 'Enter the current code from your authenticator app to confirm.' : opts.member ? en('Enter your member token to confirm.') : 'Enter your owner token to confirm.', { confirm: auth.twoStepOn ? 'code' : 'token' });
-      }
-    };
+    const confirmIdentity = (body: Record<string, unknown>, opt: { passkey?: boolean } = {}) => confirmIdentityFor(req, body, opt);
     // ---------- Phase 71: household mode (docs/HOUSEHOLD.md) ----------
     if (a === 'household') {
       if (opts.demo) throw new HttpError(403, 'Not available in the demo.');
