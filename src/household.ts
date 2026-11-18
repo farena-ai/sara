@@ -605,6 +605,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'facts',
   // N3: their own inbox helper (suggestions from their own mailboxes; src/routes/inbox.ts)
   'inbox',
+  // V1.2: their own Waiting on you list (src/routes/waiting.ts; their space's own stores)
+  'waiting',
   // N7: their own timer and work tiles (src/routes/work.ts; their space's own store.db)
   'work',
   // U4.29: their own Business place (src/routes/bizpack.ts; their space's own store.db)

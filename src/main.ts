@@ -259,6 +259,7 @@ import { SESSION_COOKIE } from './auth.ts';
 import { HomeSso } from './home-sso.ts';
 import { ssoPeople } from './routes/sso.ts';
 import { Evals } from './evals.ts';
+import { CostAutopilot } from './cost-autopilot.ts';
 import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberSettings, memberDirs, memberOfToken, memberUsage, memberVault, PairRegistry, peekJson, type MemberRecord, type ModelPick } from './household.ts';
 import type { Vault as VaultT } from './vault.ts';
 import { AlexaService } from './alexa.ts';
@@ -1423,6 +1424,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   }
   // Phase 84 (harness M9): the eval loop (owner's companions; members have no coding history to replay).
   if (!isMember) app.evals = new Evals(app);
+  // V1.5: Cost autopilot, a quality bar per job (tries cheaper models with the eval loop).
+  if (app.evals) app.costAutopilot = new CostAutopilot(app);
   // Phase 97 (ST2): skills she learns (offers after repeated asks or step chains, fixes, M9 checks).
   // Every person's own space learns from their own conversations only; the demo never learns.
   if (!isDemo) app.learning = new SkillLearner(app);
@@ -2023,7 +2026,10 @@ function householdSweep(): void {
 // Phase 84: "Re-check monthly" for evals. OFF by default (the owner's explicit yes in Settings);
 // when on, it runs only when nobody has talked to her for 20 minutes, within its own token budget.
 const evalTimer = setInterval(() => guard('evals', () => {
-  for (const c of ownerSpace.companions.all()) c.app.evals?.tick();
+  for (const c of ownerSpace.companions.all()) {
+    c.app.evals?.tick();
+    c.app.costAutopilot?.tick();
+  }
 }), 3600_000);
 evalTimer.unref();
 

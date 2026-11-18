@@ -12,8 +12,16 @@ Open **Settings → Privacy & system → Move in and export → Move in from ano
 
 - **Old assistant on this computer.** Sara looks for it by herself and shows, for example,
   *Found Hermes Agent on this computer — Memories: 10 · Skills: 17 · Past chats: 107*. Press
-  **Bring her over**. Sara packs a read-only copy (a few seconds; a progress line shows how far she
-  is), then shows what comes over. Press **Import**. That's it.
+  **Bring everything**. Sara packs a read-only copy (a few seconds; a progress line shows how far she
+  is), then shows one review: *Everything she brings* counts her personality, notes, past chats,
+  skills, scheduled jobs, settings, hooks and plugins. Every card that is safe to decide is already
+  decided (her first personality draft, settings, hooks and plugins without a warning); cards with
+  a warning wait for you. Change anything you like, then press **Import** once. Nothing is saved
+  before that.
+- **Your ChatGPT or Claude history too.** In the same review, *Also bring a ChatGPT or Claude export*
+  takes the `.zip` they email you: the chats come in archived, and saved memories, custom
+  instructions and Claude project instructions and files become notes. The same **Import** brings
+  both. Choose **A ChatGPT or Claude export** on the first screen to bring an export alone.
 - **Old assistant on another computer.** Choose **On another computer**. Sara shows one line for
   Windows, Mac or Linux. Copy it, paste it into a terminal on the old computer (PowerShell on
   Windows, Terminal on a Mac) and press Enter. This page waits and moves on by itself when her
@@ -25,6 +33,15 @@ Open **Settings → Privacy & system → Move in and export → Move in from ano
 Sara looks only where an assistant keeps her companion (memories, skills, chats, schedules,
 settings) and names everything else she leaves alone (programs, caches, browser data, logs,
 backups) without opening it. Passwords and keys are never copied.
+
+## Your first evening
+
+After the import Sara shows **Your first evening together**: three things that make her feel at
+home (the model she answers with and any old model keys to paste, her voice, and the chat apps you
+used to text the old agent, each with an **Open** button), then *Still to do* (cards you didn't
+decide, keys, schedules to set up by hand) and *Skipped, and why*: every kind of thing that did not
+come in, with the reason (secrets, logs, copies, pictures in chats, tool steps, notes longer than 2000
+characters…). Nothing on the list changes by itself.
 
 ## By hand (step by step)
 

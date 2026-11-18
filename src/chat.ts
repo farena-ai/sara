@@ -369,6 +369,8 @@ export interface AppContext {
   usage?: import('./usage.ts').UsageStore;
   /** Phase 84: the eval loop (src/evals.ts; owner's companions only). */
   evals?: import('./evals.ts').Evals;
+  /** V1.5: Cost autopilot (owner companions with the eval loop; src/cost-autopilot.ts). */
+  costAutopilot?: import('./cost-autopilot.ts').CostAutopilot;
   /** Phase 78: run snapshots (per companion; unset off the record and in bare test apps). */
   runs?: import('./runs.ts').RunStore;
   /** Phase 85 (harness M10): run signatures, lessons and trigger weights (src/triggers.ts). */

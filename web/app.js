@@ -49,6 +49,7 @@ import { hookNotice, initHooks, loadHooks } from './hooks.js';
 import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
 import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
+import { initWaiting, loadWaiting, openWaiting } from './waiting.js';
 import { initGoals, loadGoals, openGoals, renderGoalsTile } from './long-goals.js';
 import { initStudy, loadStudyPrefs, openStudy, renderStudyTile } from './study.js';
 import { initMediaStudio, loadMediaSettings } from './media-studio.js';
@@ -122,6 +123,7 @@ import { applyBadge, isStandalone, pushPossible } from './ios-web.js';
 import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
 import { initSpend, priceText, refreshSaverBadge, spendLines } from './spend.js';
+import { initCostAutopilot } from './cost-autopilot.js';
 import { initTrustReport } from './trust-report.js';
 import { checksCard, checksChip, initRefs, loadPreciseSettings, refChipsSent, savePreciseSettings } from './refs.js';
 import { askAside, guardLine, initBusy, refreshPending, renderPending, sayingFold, sendBusy, setBusy, setBusyDefault, steerBubble, typedBusy } from './busy.js';
@@ -175,6 +177,7 @@ import { renderProjectCheckpoint } from './project-checkpoints.js';
 import { projectNowOpen } from './project-now.js';
 import { initSaveChip, initTocSpy } from './settings-look.js';
 import { buildServices, tileCaption, tileMark } from './settings-services.js';
+import { drawWhere } from './where-text.js';
 import { buildOverview } from './settings-overview.js';
 import { buildSettingsHome, buildSettingsNav, clearSettingsSearch, initSettingsNav, matchSettings, OLD_TABS, openGroupOf, paintCrumbs, paintElsewhere, paintSettingsResults, restoreSettingsOrder, setGroupOpen, settingsOrderOf, settingsPages } from './settings-nav.js';
 import { closeOpenDialogs, initTours, offerFirstTour, queueTourOffer, runTour, tourFromHash } from './tours.js';
@@ -1779,6 +1782,7 @@ initToday({
   openSettings: (page) => openSettings(page),
   ask: askInChat,
   openCard: (boardId, ref) => openCardOnBoard(boardId, ref),
+  openWaiting: () => (closeToday({ focus: false }), void openWaiting()),
   // Phase 103: Today's "Her plans" tile (web/agenda.js).
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
@@ -4773,6 +4777,7 @@ function autoWords() {
   return {
     talking: t('talking'),
     'tools and long tasks': t('tools and long tasks'),
+    'cheaper and good enough on your past tasks': t('cheaper and good enough on your past tasks'),
     pictures: t('pictures'),
     'web research': t('web research'),
     'can use tools': t('can use tools'),
@@ -9287,7 +9292,7 @@ function showServices(opts = {}) {
   $('#settings-home').hidden = true;
   $('#settings-overview').hidden = true;
   const box = $('#settings-services');
-  const draw = () => buildServices(box, settingsPages().filter((p) => p.dataset.tile), settingsOrderOf, {
+  const drawTiles = () => buildServices(box, settingsPages().filter((p) => p.dataset.tile), settingsOrderOf, {
     t,
     facts: SERVICE_FACTS,
     filter: servicesFilter,
@@ -9298,6 +9303,8 @@ function showServices(opts = {}) {
     },
     open: (id) => showSettingsTab(id, { focus: true }),
   });
+  // V1.3: Where do you text? (web/where-text.js) above the tiles.
+  const draw = () => (drawTiles(), servicesFilter === 'all' && drawWhere(box, { t, api, facts: SERVICE_FACTS, open: (id) => showSettingsTab(id, { focus: true }), member: isMember() }));
   draw();
   box.hidden = false;
   for (const b of document.querySelectorAll('#settings-nav-list [data-page]')) b.setAttribute('aria-current', String(b.dataset.page === 'co-services'));
@@ -9323,7 +9330,7 @@ function showServices(opts = {}) {
 async function refreshServiceFacts() {
   if (isMember()) return false;
   const get = (p) => api(p).catch(() => null);
-  const [tg, dc, gh, gg, ha, sp, ws, ds, ml, ag, hk, oa] = await Promise.all(['/bridges/telegram', '/bridges/discord', '/github', '/google', '/home', '/spotify', '/search', '/data-sources', '/mail/accounts', '/agents', '/hooks', '/other-apps'].map(get));
+  const [tg, dc, gh, gg, ha, sp, ws, ds, ml, ag, hk, oa, wh] = await Promise.all(['/bridges/telegram', '/bridges/discord', '/github', '/google', '/home', '/spotify', '/search', '/data-sources', '/mail/accounts', '/agents', '/hooks', '/other-apps', '/plugins/where'].map(get));
   const on = (line = t('Connected')) => ({ state: 'on', line });
   const warn = (line) => ({ state: 'warn', line });
   const bridge = (b) => (!b ? null : b.error && b.hasToken ? warn(t('Can’t connect')) : b.running || (b.enabled && b.hasToken) ? on(b.bot?.username ? `${t('Connected')} · @${b.bot.username}` : t('Connected')) : null);
@@ -9341,6 +9348,8 @@ async function refreshServiceFacts() {
     'co-hooks': hk?.hooks?.length ? on(`${t('On')} · ${hk.hooks.length}`) : null,
     'co-apps': oa?.keys?.length ? on(`${t('On')} · ${oa.keys.length}`) : null,
   };
+  // V1.3: the plugin chat apps (Matrix, iMessage, …) from the picker's state.
+  for (const a of wh?.apps ?? []) if (a.plugin && a.installed) next[a.page] = a.linked && a.running ? on() : warn(t('Started'));
   const before = JSON.stringify(SERVICE_FACTS);
   for (const [k, v] of Object.entries(next)) {
     if (v) SERVICE_FACTS[k] = v;
@@ -10125,7 +10134,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone') };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10944,6 +10953,8 @@ initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });
 // C8: spend limits, Token Saver and its badge (web/spend.js).
 initSpend({ api, el, isMember });
+// V1.5: Cost autopilot (web/cost-autopilot.js).
+initCostAutopilot({ api, el });
 // EC25: Settings → Household → Trust report (web/trust-report.js).
 initTrustReport({ api, el });
 // Phase 120: the @ menu and chips; who may use references here is decided again by the server.
@@ -12557,6 +12568,18 @@ initErrands({
     void openConversation(id);
   },
 });
+// V1.2 (docs/WAITING.md): Waiting on you, one queue.
+initWaiting({
+  api,
+  el,
+  openConversation: (id) => void openConversation(id),
+  openCard: (boardId, ref) => openCardOnBoard(boardId, ref),
+  openErrands: () => void openErrands(),
+  openToday: () => void openToday(),
+  openPlanner: () => $('#open-planner').click(),
+  ask: askInChat,
+});
+$('#wq-refresh')?.addEventListener('click', () => void loadWaiting());
 // R8 (docs/FAMILY.md): the Family page.
 initFamily({
   api,

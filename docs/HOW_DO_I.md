@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 232 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 233 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -543,6 +543,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick the model in that job's row.
 2. Press Test to see its speed and an answer.
+
+**How do I let Auto use cheaper models when they are good enough?**
+
+1. Under Cost autopilot, set a job to Good enough.
+2. Press Try now, or wait: she tries once a week.
+3. Changed your mind? Press Undo.
 
 ### Providers and plans
 

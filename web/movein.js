@@ -47,7 +47,7 @@ const fmtDate = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { ye
 const size = (n) => (n >= 1024 ** 3 ? `${(n / 1024 ** 3).toFixed(1)} GB` : n >= 1024 ** 2 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 let helpers = { copyText: async () => {}, openConversation: () => {}, showSettingsTab: () => {} };
-let state = { watching: false, overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false, trans: null, transPoll: 0 };
+let state = { everything: false, bring: null, history: null, watching: false, overview: null, bundle: null, preview: null, choices: null, paused: false, uploading: null, poll: 0, cards: null, cardPoll: 0, localOnly: true, editing: {}, drafts: {}, cardBusy: false, trans: null, transPoll: 0 };
 
 const SECTION_NAME = {
   persona: () => t('Personality'),
@@ -204,6 +204,9 @@ function startOver() {
   state.bundle = null;
   state.choices = null;
   state.preview = null;
+  state.everything = false;
+  state.bring = null;
+  state.history = null;
   wiz.fresh = true;
   work();
   void renderStart();
@@ -228,9 +231,13 @@ async function renderStart() {
     const c = el('section', 'mi-card mi-found');
     const who = a.name ? `${a.name} (${AGENT_LABEL[a.kind]})` : AGENT_LABEL[a.kind];
     c.append(el('h4', '', t('Found {who} on this computer', { who })), el('p', 'mi-found-counts', countsLine(a.counts, t)), el('p', 'muted small', t('In {where}. Nothing there is changed: Sara only reads a copy.', { where: a.where })));
-    const go = btn(t('Bring her over'), 'primary mi-big', async (b) => {
+    c.append(el('p', 'muted small', t('Personality, notes, chats, skills, jobs, settings, hooks and plugins: one review, then one Import.')));
+    const go = btn(t('Bring everything'), 'primary mi-big', async (b) => {
       b.disabled = true;
       try {
+        // V1.1: every safe card is decided for her; the review still comes before anything is saved.
+        state.everything = true;
+        state.bring = null;
         const r = await api('/movein/local/collect', { method: 'POST', body: { key: a.key } });
         state.bundle = r.id;
         wiz.fresh = false;
@@ -255,6 +262,10 @@ async function renderStart() {
       easyMode(false);
       box.replaceChildren(backRow());
       setStep('file');
+    }),
+    bigChoice(t('A ChatGPT or Claude export'), t('The .zip they email you: chats, saved memories, custom instructions and project knowledge in one review.'), () => {
+      // Easy mode stays on: the agent wizard's steps have nothing to do with an export.
+      box.replaceChildren(backRow(), exportCard(true));
     }),
   );
   q.append(row);
@@ -569,6 +580,32 @@ async function refresh() {
     await renderDone(pv);
     return;
   }
+  if (state.everything && !state.bring) {
+    // Wait while she still reads store cards or a hook: deciding them now would miss some.
+    if (pv.stores?.busy || pv.translations?.busy) {
+      work(progressCard(t('Sorting what she brought…'), false));
+      state.poll = setTimeout(() => void refresh(), 1200);
+      return;
+    }
+    try {
+      const r = await api(`/movein/bundles/${enc(state.bundle)}/everything`, { method: 'POST', body: {} });
+      state.bring = r.bring;
+      state.choices = { ...r.choices, persona: { ...(r.choices.persona ?? {}), decided: true } };
+      state.preview = r.preview;
+      renderPreview(r.preview);
+      return;
+    } catch (err) {
+      if (/still/i.test(err.message)) {
+        state.poll = setTimeout(() => void refresh(), 1500);
+        return;
+      }
+      state.everything = false;
+      state.choices ??= defaults(pv);
+      renderPreview(pv);
+      $('#mi-note').textContent = err.message;
+      return;
+    }
+  }
   state.choices ??= defaults(pv);
   renderPreview(pv);
 }
@@ -657,7 +694,17 @@ function renderPreview(pv) {
     her.append(l);
   }
   head.append(her);
+  if (!state.bring && pv.state === 'ready') {
+    const all = el('p', 'mi-nav');
+    all.append(btn(t('Bring everything'), 'ghost small', async () => {
+      state.everything = true;
+      state.bring = null;
+      await refresh();
+    }), tip(t('Decides every card that is safe to decide (settings, hooks and plugins without a warning) and picks her first personality draft. You still look it over before Import.')));
+    head.append(all);
+  }
   root.append(planCard(pv), head);
+  if (state.bring) root.append(bringCard(state.bring));
   if (pv.persona) root.append(personaCard(pv));
   if (pv.stores?.cards) root.append(storesBox(pv));
   for (const key of ['memories', 'profile', 'people', 'conversations', 'skills', 'schedules', 'tasks', 'board', 'agenda', 'reflections']) {
@@ -669,12 +716,14 @@ function renderPreview(pv) {
   if (Object.values(pv.held).some((n) => n > 0)) root.append(heldCard(pv));
   if (pv.sections.later?.list?.length) root.append(laterCard(pv.sections.later.list));
   root.append(leftCard(pv.leftBehind));
+  root.append(exportCard(false));
   const go = el('div', 'mi-actions');
   const personaPending = pv.persona && !pv.persona.refused && pv.persona.drafts.length && ch.herPast && ch.persona?.decided !== true;
   const imp = btn(t('Import'), 'primary', async (b) => {
     b.disabled = true;
     try {
-      await api(`/movein/bundles/${enc(state.bundle)}/import`, { method: 'POST', body: { choices: ch } });
+      await api(`/movein/bundles/${enc(state.bundle)}/import`, { method: 'POST', body: { choices: ch, ...(state.history?.id ? { history: state.history.id } : {}) } });
+      state.history = null;
       // Her name, picture line and companion list follow when the batch is done (see refresh).
       state.watching = true;
       await refresh();
@@ -926,6 +975,8 @@ async function renderDone(pv) {
   const c = el('section', 'mi-card mi-done');
   c.append(el('h4', '', b?.state === 'partial' ? t('Stopped part way') : t('Moved in')));
   if (b?.report) c.append(reportView(b.report, b.id));
+  const ev = b ? await api(`/movein/batches/${enc(b.id)}/evening`).catch(() => null) : null;
+  if (ev) c.append(eveningCard(ev));
   const acts = el('div', 'mi-actions');
   if (b) {
     const dl = el('a', 'button ghost', t('Download the report'));
@@ -1783,5 +1834,151 @@ function codeCard(cd) {
     }
   }), tip(t('Her model reads the code as untrusted text (your own hardware only, unless you allowed other models for the store cards). Every claim must quote the code.')));
   c.append(acts);
+  return c;
+}
+
+// ---------------------------------------------------------------------------------------------
+// V1.1 (docs/design/V1MOVEIN.md): Bring everything, a ChatGPT/Claude export in the same review, and
+// the first-evening checklist.
+// ---------------------------------------------------------------------------------------------
+const BRING_NAME = {
+  persona: () => t('Personality'), notes: () => t('Notes'), chats: () => t('Past chats'), skills: () => t('Skills'), jobs: () => t('Scheduled jobs'),
+  tasks: () => t('Tasks'), people: () => t('People'), board: () => t('Board cards'), settings: () => t('Settings'), hooks: () => t('Hooks'), plugins: () => t('Plugins'),
+};
+
+/** What "Bring everything" brings, counted from the source (each kind still has its card below). */
+function bringCard(b) {
+  const c = el('section', 'mi-card mi-bring');
+  const h = el('h4', '', t('Everything she brings'));
+  h.append(tip(t('Counted from the old agent. Settings, hooks and plugins without a warning are decided for you; the cards below still show each one and you can change any of them.')));
+  c.append(h);
+  const ul = el('ul', 'mi-bring-list');
+  for (const [k, name] of Object.entries(BRING_NAME)) {
+    if (!b[k]) continue;
+    const li = el('li', 'mi-bring-item');
+    li.append(el('span', 'mi-bring-n', String(b[k])), el('span', '', name()));
+    ul.append(li);
+  }
+  c.append(ul);
+  if (b.undecided) c.append(el('p', 'muted small', t('Cards with a warning wait for you ({n}): they come in only if you confirm them.', { n: b.undecided })));
+  return c;
+}
+
+function histLine(h) {
+  const n = h.notes ?? {};
+  const line = t('{name}: {chats} chats, {memories} saved memories, {instructions} custom instructions, {projects} project notes.', { name: h.name, chats: h.conversations, memories: n.memories ?? 0, instructions: n.instructions ?? 0, projects: n.projects ?? 0 });
+  return h.already ? `${line} ${t('{n} chats are already here and will be skipped.', { n: h.already })}` : line;
+}
+
+/** A ChatGPT/Claude export: in the move-in review (alone = false) or on its own (alone = true). */
+function exportCard(alone) {
+  const c = el('section', 'mi-card mi-export');
+  const h = el('h4', '', alone ? t('Bring a ChatGPT or Claude export') : t('Also bring a ChatGPT or Claude export'));
+  h.append(tip(t('The .zip from ChatGPT (Data controls → Export) or Claude (Privacy → Export data). Chats come in archived; memories, instructions and project files become notes.')));
+  c.append(h);
+  const line = el('p', 'small mi-export-line', state.history ? histLine(state.history) : alone ? t('Choose the .zip they emailed you. Nothing is saved before you press Import.') : t('Optional. It comes in with the same Import.'));
+  const input = el('input');
+  input.type = 'file';
+  input.accept = '.zip,application/zip,.json,application/json';
+  input.hidden = true;
+  input.dataset.noauto = '';
+  const acts = el('div', 'mi-actions');
+  input.addEventListener('change', async () => {
+    const f = input.files?.[0];
+    input.value = '';
+    if (!f) return;
+    line.textContent = t('Reading {name}… (a big export takes a minute)', { name: f.name });
+    try {
+      state.history = await api('/history-import/preview', { method: 'POST', raw: f });
+      // Re-draw from state (the review may have been re-drawn while the file was read).
+      if (alone) c.replaceWith(exportCard(true));
+      else if (state.preview) renderPreview(state.preview);
+    } catch (err) {
+      line.textContent = err.message;
+    }
+  });
+  acts.append(btn(state.history ? t('Choose another export') : t('Choose the export (.zip)'), 'ghost small', () => input.click()));
+  if (state.history) acts.append(btn(t('Leave it out'), 'ghost small', () => {
+    state.history = null;
+    if (!alone && state.preview) renderPreview(state.preview);
+    else c.replaceWith(exportCard(alone));
+  }));
+  if (alone && state.history) {
+    acts.prepend(btn(t('Import'), 'primary', async (b) => {
+      b.disabled = true;
+      try {
+        await api('/history-import/run', { method: 'POST', body: { id: state.history.id, options: { learn: true } } });
+        state.history = null;
+        const ev = await api('/movein/evening');
+        const done = el('section', 'mi-card mi-done');
+        done.append(el('h4', '', t('Moved in')), eveningCard(ev));
+        c.replaceWith(done);
+      } catch (err) {
+        b.disabled = false;
+        line.textContent = err.message;
+      }
+    }));
+  }
+  c.append(line, input, acts);
+  return c;
+}
+
+const EV_NAME = { model: () => t('Her model'), voice: () => t('Her voice'), bridges: () => t('Where you text her') };
+const EXPORT_WHY = {
+  system: () => t('System prompts and hidden instruction blocks inside chats: her own instructions replace them.'),
+  tool: () => t('Tool, browsing and code-runner steps: what was said is kept, the machinery is not.'),
+  hidden: () => t('Hidden, reasoning or empty messages: they were not shown in the old app either.'),
+  images: () => t('Pictures in chats: the message says a picture was there; the picture stays in the export.'),
+  attachments: () => t('Attached files: the message names them; add the ones you need to the Library.'),
+  emptyConversations: () => t('Chats with nothing from you in them.'),
+  clipped: () => t('Notes longer than 2000 characters: the first part is kept; add the whole file to the Library if you need it.'),
+  already: () => t('Chats that were already here from an earlier import.'),
+};
+
+function eveningText(it) {
+  const p = it.params ?? {};
+  if (it.key === 'model') {
+    const base = p.provider ? t('She answers with {provider}.', { provider: p.provider }) : t('Pick the model she answers with.');
+    return p.keys ? `${base} ${t('{n} old model services came across with empty keys: paste yours to use them.', { n: p.keys })}` : base;
+  }
+  if (it.key === 'voice') return it.done ? t('Her voice is on.') : p.old ? t('Her old voice came across: switch voice on to hear her.') : t('Give her a voice, or skip it: she can stay text only.');
+  if (!p.apps) return t('The old agent used no chat apps. Connect one if you want to text her.');
+  return it.done ? t('Connected again on {apps}.', { apps: p.apps }) : t('You texted the old agent on {apps}. Reconnect {missing} so she answers there (stop the old bot first).', { apps: p.apps, missing: p.missing });
+}
+
+/** The first evening: model, voice, chat apps, then what is still to do and what was skipped (with why). */
+function eveningCard(ev) {
+  const c = el('section', 'mi-card mi-evening');
+  const h = el('h4', '', t('Your first evening together'));
+  h.append(tip(t('Three things that make her feel at home, then everything that did not come in and why. Nothing here changes by itself.')));
+  c.append(h);
+  if (ev.history) c.append(el('p', 'muted small', t('From {name}: {chats} chats and {notes} notes.', { name: ev.history.name, chats: ev.history.conversations, notes: ev.history.notes })));
+  const ul = el('ul', 'mi-ev-list');
+  for (const it of ev.items) {
+    const li = el('li', `mi-ev-item${it.done ? ' mi-ev-done' : ''}`);
+    li.append(el('span', 'mi-ev-mark', it.done ? '✓' : '○'), el('strong', '', EV_NAME[it.key]?.() ?? it.key), el('span', 'small mi-ev-text', eveningText(it)));
+    const go = it.page && !it.done ? pageButton(it.page, t('Open')) : null;
+    if (go) li.append(go);
+    ul.append(li);
+  }
+  c.append(ul);
+  const list = (title, rows, cls) => {
+    if (!rows?.length) return;
+    const d = el('div', `mi-ev-more ${cls}`);
+    d.append(el('h5', '', `${title} (${rows.length})`));
+    const l = el('ul', 'small');
+    for (const x of rows) {
+      const k = /^(chatgpt|claude)-(.+)$/.exec(x.kind);
+      const why = k && EXPORT_WHY[k[2]] ? EXPORT_WHY[k[2]]() : x.why;
+      const li = el('li', '');
+      li.append(el('span', 'mi-bring-n', String(x.count)), el('span', '', ` ${why}`));
+      l.append(li);
+    }
+    d.append(l);
+    c.append(d);
+  };
+  list(t('Still to do'), ev.todo, 'mi-ev-todo');
+  list(t('Skipped, and why'), ev.skipped, 'mi-ev-skip');
+  if (!ev.todo?.length && !ev.skipped?.length) c.append(el('p', 'muted small', t('Nothing was skipped.')));
   return c;
 }

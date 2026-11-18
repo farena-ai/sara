@@ -42,6 +42,8 @@ export interface SkipCounts {
   attachments: number;
   /** Conversations with no messages from you. */
   emptyConversations: number;
+  /** V1.1: notes (project files, long memories) longer than a note: the first part is kept. */
+  clipped?: number;
 }
 
 export const noSkips = (): SkipCounts => ({ system: 0, tool: 0, hidden: 0, images: 0, attachments: 0, emptyConversations: 0 });
@@ -50,6 +52,10 @@ export interface ParsedExport {
   source: HistorySource;
   conversations: ImportedConversation[];
   skipped: SkipCounts;
+  /** V1.1: saved memories, custom instructions, project knowledge (src/history-import/notes.ts). */
+  notes?: import('./notes.ts').ExportNote[];
+  /** V1.1: memories the model wrote inside chats (ChatGPT "bio" messages), for notes.ts. */
+  bio?: string[];
 }
 
 /** A time from an export (seconds since 1970, milliseconds, or an ISO string) as ISO, or undefined. */

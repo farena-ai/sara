@@ -69,3 +69,33 @@ node scripts/bench-tasks.ts --tier projects --mode raw --model <m>
 4. `node scripts/bench-tasks.ts --mode verify --only <nn-name>` must say `OK`.
 
 JavaScript tasks use only Node's built-in test runner; Python tasks only the standard library.
+
+## The same tasks through other harnesses (V1.4)
+
+[`scripts/bench-compare.ts`](../scripts/bench-compare.ts) runs these tasks through agent CLIs that
+you installed yourself (your own keys and settings), grades them with the same hidden tests, and
+builds the results page [docs/results/index.html](../docs/results/index.html) (one file, no
+scripts, works offline, light and dark).
+
+```sh
+node scripts/bench-compare.ts --mode verify     # no model: tasks solvable + a fake harness grades right; lists the CLIs it finds
+node scripts/bench-compare.ts                   # every harness found on PATH (+ Sara when Ollama answers), then the page
+node scripts/bench-compare.ts --harness aider   # one harness; `sara` = her own agent loop
+node scripts/bench-compare.ts --page            # rebuild the page from docs/results only
+```
+
+A harness is only a command line: presets for Claude Code, Codex CLI and Aider (check the flags
+against your version's `--help`); add or override any in `evals/harnesses.json`:
+
+```json
+[{ "id": "my-agent", "label": "My agent", "command": ["my-agent", "--task-file", "{promptFile}"],
+   "version": ["my-agent", "--version"], "model": "the model it is set to" }]
+```
+
+Placeholders: `{prompt}`, `{promptFile}`, `{workspace}`, `{node}`, `{python}`; `"stdin": true`
+pipes the task in. On Windows, npm CLIs are `.cmd` shims: give them the task by `{promptFile}` or
+stdin (a multi-line `{prompt}` is refused). Each task runs once in a throwaway copy outside the
+repository with the tier's time limit (`--timeout`), and nothing is sandboxed, so only list CLIs
+you trust. Running a cloud CLI uses your own account and may cost money; the script never signs
+up for anything and never publishes. Raw rows: `evals/results/<date>-compare-<tier>-<id>.json`
+(private); public summaries without replies or folder names: `docs/results/compare-<tier>-<id>.json`.

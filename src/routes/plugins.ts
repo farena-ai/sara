@@ -56,6 +56,7 @@ import * as matrix from '../plugins/matrix-setup.ts';
 import * as slack from '../plugins/slack-setup.ts';
 import * as teams from '../plugins/teams-setup.ts';
 import * as imessage from '../plugins/imessage-setup.ts';
+import { whereRoute } from '../plugins/where-text.ts';
 import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
 import { en } from '../i18n.ts';
@@ -89,6 +90,8 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
     }
 
     if (b === 'builtin' && !c && method === 'GET') return send(res, 200, { builtin: pm.builtinList() });
+    // V1.3: Where do you text? (src/plugins/where-text.ts).
+    if (b === 'where' && !d) return send(res, 200, await whereRoute(app, pm, method, c, method === 'POST' ? await readJson(req) : {}));
     if (b === 'candidates' && parts.length === 2) {
       if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
       return send(res, 200, { candidates: pm.candidateList(), packs: PUBLIC_GUIDED_PACKS });

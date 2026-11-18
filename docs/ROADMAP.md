@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Bring everything, Waiting on you, Where do you text? and cost autopilot, in 3.26.0
+
+Moving in from Hermes, OpenClaw, ChatGPT or Claude is one button and one review, with a first-evening checklist
+of what was skipped and why. Everything waiting on your answer is one list; on a phone, swipe to approve (never
+money or passwords). A picker sets up the app you text in and sends a test. Each job can have a quality bar, and
+Sara moves it to a cheaper model only when that model does as well on past tasks, with Undo. An open benchmark
+page runs the same coding tasks through other agent tools you installed.
+
 ## Sign in with your own provider, faster voice on Windows and Mac, a store-ready extension, in 3.25.0
 
 Any server can now offer sign-in through an OpenID Connect provider (authentik, Keycloak, Pocket ID, Authelia,

@@ -55,6 +55,8 @@ turns ✓ only when Sara has checked it.
 8. **Test**: checks BlueBubbles, the password, Messages, the Apple ID, the doorbell or polling and the
    link. It sends nothing to anyone.
 
+Not sure which app to use? Start at **Where do you text?** ([Where do you text?](WHERE_DO_YOU_TEXT.md)). Once set up, **Send me a test** there sends one message into your own linked chat.
+
 ## How messages reach her (the doorbell)
 
 BlueBubbles' webhooks are **not signed**, so Sara never trusts what they say. When BlueBubbles rings

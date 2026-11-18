@@ -320,5 +320,16 @@ export function spendLimitHit(app: AppContext): boolean {
 /** Auto's chain for a job here and now (empty when nothing connected fits). */
 export function autoChain(app: AppContext, job: AutoJob, o: { private?: boolean } = {}): AutoPick[] {
   const localOnly = Boolean(o.private) || privateLocalOn();
-  return autoChoose(autoCandidates(app), job, { localOnly, spendHit: spendLimitHit(app) });
+  const cands = autoCandidates(app);
+  const opts = { localOnly, spendHit: spendLimitHit(app) };
+  const picks = autoChoose(cands, job, opts);
+  // V1.5 (src/cost-autopilot.ts): a job moved down to a cheaper model that passed its trial gets
+  // that model first and Auto's own pick as its backup, when it may be used here (private chats
+  // and the spend limit filter it like any other model).
+  const mv = app.costAutopilot?.moveFor(job);
+  const c = mv && cands.find((x) => x.providerId === mv.providerId && x.model === mv.model);
+  const r = c && scoreCandidate(c, job, opts);
+  if (!c || !r) return picks;
+  const first: AutoPick = { providerId: c.providerId, provider: c.provider, model: c.model, score: r.score, why: `Auto for ${JOB_WORD[job]}: cheaper and good enough on your past tasks.` };
+  return [first, ...picks.filter((p) => p.providerId !== c.providerId || p.model !== c.model)].slice(0, AUTO_CHAIN);
 }

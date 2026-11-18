@@ -888,7 +888,7 @@ export function renderNeeds(d) {
     const ok = icon('check');
     if (ok) p.append(ok);
     p.append(el('span', '', t('Nothing needs you right now.')));
-    body.replaceChildren(p);
+    body.replaceChildren(p, ...waitingLink());
     return;
   }
   const ul = el('ul', 'td-needs-list');
@@ -896,7 +896,12 @@ export function renderNeeds(d) {
   // A phone shows the top three (§7.1); See all opens the rest in place.
   const n = form === 'phone' ? 3 : ROWS[sizeOf('td-needs')];
   draw(n);
-  body.replaceChildren(ul, ...seeAll(items, n, draw));
+  body.replaceChildren(ul, ...seeAll(items, n, draw), ...waitingLink());
+}
+/** V1.2: the whole queue (errands, inbox cards, mail to answer too) in its own view. */
+function waitingLink() {
+  if (!ctx.openWaiting || ctx.demo?.()) return [];
+  return [btn('ghost small td-wq-all', t('Everything waiting on you'), () => ctx.openWaiting())];
 }
 /** 3.3.0: the Today banner: her own trouble in her words, one Fix it (the first notice; the rest are in Needs you). */
 function renderTrouble(d) {

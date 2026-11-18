@@ -2,6 +2,40 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.26.0",
+   "date": "2026-11-18",
+   "title": "Bring everything, Waiting on you, Where do you text?, cost autopilot",
+   "items": [
+    {
+     "id": "3-26-0-benchmark-page-saras-original-coding",
+     "kind": "new",
+     "text": "Benchmark page: Sara's original coding tasks can now run through other agent CLIs you installed yourself."
+    },
+    {
+     "id": "3-26-0-cost-autopilot-settings-models-usage",
+     "kind": "new",
+     "text": "Cost autopilot (Settings → Models & usage → Which model does what): a quality bar per job (talking, coding and long tasks, web research). *Best* never switches."
+    },
+    {
+     "id": "3-26-0-where-do-you-text-a",
+     "kind": "new",
+     "text": "Where do you text?: a picker at the top of Settings → Connections → Apps and services.",
+     "link": "#view=msgs",
+     "owner": true
+    },
+    {
+     "id": "3-26-0-waiting-on-you-one-list",
+     "kind": "new",
+     "text": "Waiting on you, one list: everything that needs your answer."
+    },
+    {
+     "id": "3-26-0-move-in-with-one-button",
+     "kind": "new",
+     "text": "Move in with one button: each old agent Sara finds on this computer has Bring everything: one review that counts her personality, notes, chats, skills, scheduled jobs."
+    }
+   ]
+  },
+  {
    "version": "3.25.0",
    "date": "2026-11-18",
    "title": "Sign in with your provider, faster voice on Windows, store-ready extension",
@@ -257,51 +291,6 @@
      "kind": "fixed",
      "text": "On the screens added since 3.15 every button, field and \"?\" is at least 44 px to tap.",
      "link": "#view=today"
-    }
-   ]
-  },
-  {
-   "version": "3.19.0",
-   "date": "2026-11-18",
-   "title": "proven on real models, Try these, steadier releases",
-   "items": [
-    {
-     "id": "3-19-0-live-checks-you-can-run",
-     "kind": "new",
-     "text": "Live checks you can run yourself. A throwaway Sara goes through every mail and calendar kind."
-    },
-    {
-     "id": "3-19-0-a-windows-install-and-update",
-     "kind": "new",
-     "text": "A Windows install and update matrix you can run on a PC: fresh install, the app updating itself, reinstall, downgrade, a manual Setup run."
-    },
-    {
-     "id": "3-19-0-try-these-a-guided-checklist",
-     "kind": "new",
-     "text": "Try these, a guided checklist for the owner. Help → Try these lists about 30 short checks of what is new since 3.15 (newest release first), each with a few steps.",
-     "link": "#view=try",
-     "owner": true,
-     "try": [
-      "try-these-report"
-     ]
-    },
-    {
-     "id": "3-19-0-on-teams-matrix-signal-and",
-     "kind": "fixed",
-     "text": "On Teams, Matrix, Signal and iMessage the live progress message could keep its stop button (or miss a step) when the chat app was slow to post it."
-    },
-    {
-     "id": "3-19-0-code-mode-scripts-no-longer",
-     "kind": "fixed",
-     "text": "Code mode scripts no longer lose script time while their sandbox process is starting, so short scripts aren't stopped as \"too long\" on a busy computer."
-    },
-    {
-     "id": "3-19-0-put-my-stock-alerts-in",
-     "kind": "fixed",
-     "text": "\"Put my stock alerts in the Stock Alerts project\" could send the alerts to the chat you asked in instead of making the project.",
-     "try": [
-      "stock-project"
-     ]
     }
    ]
   }

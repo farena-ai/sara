@@ -14,7 +14,9 @@
 //   GET    /api/movein/bundles/:id              its state, then the preview
 //   POST   /api/movein/bundles/:id/preview      the preview for the owner's choices (held categories…)
 //   GET    /api/movein/bundles/:id/section/:s   every item of one section
-//   POST   /api/movein/bundles/:id/import       Import = one batch
+//   POST   /api/movein/bundles/:id/import       Import = one batch (V1.1: + {history} an export previewed in the same review)
+//   POST   /api/movein/bundles/:id/everything   V1.1 Bring everything: safe cards decided, choices + counts per kind
+//   GET    /api/movein/batches/:id/evening      V1.1 the first-evening checklist · GET /api/movein/evening (an export alone)
 //   POST   /api/movein/bundles/:id/stop         Stop (the batch is marked partial; Undo still works)
 //   DELETE /api/movein/bundles/:id              Delete the bundle now
 //   GET    /api/movein/bundles/:id/cards        MI2: custom-store mapping cards (+ skipped tables, cost)
@@ -45,6 +47,7 @@ import { BundleError } from '../movein/bundle.ts';
 import { COLLECTOR_PATH, MoveIn } from '../movein/index.ts';
 import { findLocalAgents, goPs1, goSh, NODE_COLLECTOR_PATH, oneLine, publicAgent, type System } from '../movein/local.ts';
 import { reportMarkdown } from '../movein/report.ts';
+import { HistoryImporter } from '../history-import/index.ts';
 import type { ImportChoices } from '../movein/batch.ts';
 import { CATEGORIES, SECTIONS, type Section } from '../movein/types.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -199,6 +202,8 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ...code, since: new Date().toISOString(), origin, reachable: Boolean(reach.address), system, line: oneLine(origin, code.code, system as System), lines: Object.fromEntries((['windows', 'mac', 'linux'] as const).map((s) => [s, oneLine(origin, code.code, s)])), reach: { away: reach.away, kind: reach.kind } });
       }
       if (b === 'code' && !c && method === 'POST') return send(res, 200, mi.mintCode());
+      // V1.1: the first-evening checklist for an export brought in alone (no bundle).
+      if (b === 'evening' && !c && method === 'GET') return send(res, 200, mi.evening());
       if (b === 'uploads') {
         if (!c && method === 'POST') {
           const body = await readJson(req, 4096);
@@ -222,9 +227,16 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
           return send(res, 200, { items: mi.section(c, e as Section) });
         }
         if (d === 'import' && method === 'POST') {
-          const s = await mi.start(c, choicesOf(await readJson(req, 64 * 1024)));
-          return send(res, 202, { id: s.id, state: s.state, line: s.line });
+          const body = await readJson(req, 64 * 1024);
+          const choices = choicesOf(body);
+          // V1.1: a ChatGPT/Claude export previewed in the same review comes in with the same press.
+          const hist = typeof body.history === 'string' && body.history ? body.history : '';
+          if (hist && !(app.historyImport ??= new HistoryImporter(() => app)).hasPreview(hist)) throw new HttpError(400, 'That export preview has expired. Choose the export again.');
+          const s = await mi.start(c, choices);
+          if (hist) mi.alsoHistory(c, hist, { learn: choices.learn !== false });
+          return send(res, 202, { id: s.id, state: s.state, line: s.line, history: Boolean(hist) });
         }
+        if (d === 'everything' && method === 'POST') return send(res, 200, mi.everything(c));
         if (d === 'stop' && method === 'POST') {
           mi.stop(c);
           return send(res, 200, { ok: true });
@@ -310,6 +322,7 @@ export function createMoveInRoutes(ctx: RouteCtx): RouteHandler {
             throw new HttpError(400, (err as Error).message);
           }
         }
+        if (d === 'evening' && method === 'GET') return send(res, 200, mi.evening(c));
         if (d === 'undo' && method === 'GET') return send(res, 200, mi.undoPreview(c));
         if (d === 'undo' && method === 'POST') {
           const body = await readJson(req, 4096);

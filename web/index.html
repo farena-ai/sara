@@ -3374,6 +3374,12 @@
         <label class="inline">Switch after <select id="jobs-after"><option value="30">30 seconds</option><option value="60">1 minute</option><option value="120">2 minutes</option></select> <button type="button" class="tip" data-tip="How long to wait for a model's first word before the next one takes over. Big models on your own computer can take a while to load the first time.">?</button></label>
       </details>
       <p class="muted small">Pictures she makes: <a href="#" data-goto="her-pictures">Pictures from her</a>. Hearing you and her voice: <a href="#" data-goto="her-voice">Voice</a>.</p>
+      <!-- V1.5: Cost autopilot, a quality bar per job (web/cost-autopilot.js). -->
+      <h3 id="cap-box">Cost autopilot <button type="button" class="tip" data-tip="Good enough: for a job on Auto, she tries a cheaper model (one on this computer first) on your past tasks and switches only when it does as well. Best: no switching.">?</button></h3>
+      <p class="muted small">Private chats only ever use models on this computer. Every switch has an Undo.</p>
+      <p id="cap-saved" class="cap-saved" role="status"></p>
+      <div id="cap-jobs" class="cap-jobs" data-nodirty data-noauto></div>
+      <p id="cap-status" class="muted small" role="status"></p>
         </section>
         <section class="settings-page" data-page="models-subs" data-group="Models & usage" data-title="Subscriptions" data-host="models-providers" data-owner-only hidden>
       <p class="muted small page-lead">Use a subscription you already pay for instead of an API key. Each one shows up as a model provider once you're signed in.</p>
@@ -5572,6 +5578,7 @@
       </div>
       <p id="usage-lead" class="usage-lead"></p>
       <p id="usage-total" class="small muted" role="status"></p>
+      <p id="cap-usage-saved" class="small cap-good" hidden></p>
       <div id="usage-companions-box" hidden>
         <h3>By companion</h3>
         <ul id="usage-companions" class="usage-list"></ul>
@@ -5775,6 +5782,16 @@
       <div id="wn-list" class="wn-list"></div>
       <label class="row wn-auto"><input id="wn-auto" type="checkbox" checked> Show this after each update <button type="button" class="tip" data-tip="On: after Sara updates, this page opens once the next time you open her. Off: only from Help → What's new.">?</button></label>
       <p class="wn-actions"><button id="wn-ok" type="button">Got it</button></p>
+    </div>
+  </dialog>
+  <!-- V1.2 (docs/WAITING.md): Waiting on you, one queue (web/waiting.js) -->
+  <dialog id="waiting" class="small-dialog" aria-labelledby="wq-title">
+    <div class="settings-body wq-sheet">
+      <h2 id="wq-title">Waiting on you</h2>
+      <p class="muted small">Everything that needs your answer, urgent first, then oldest. Open a row for its own card. On a phone, swipe right to say yes where one tap is enough, left for Later.</p>
+      <p class="wq-head"><span id="wq-count" class="muted small"></span> <button id="wq-refresh" type="button" class="ghost small">Refresh</button></p>
+      <p id="wq-status" class="muted small" role="status"></p>
+      <ul id="wq-list" class="wq-list"></ul>
     </div>
   </dialog>
   <dialog id="hub-mine" class="small-dialog" aria-labelledby="hub-mine-title">

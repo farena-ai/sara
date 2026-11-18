@@ -500,6 +500,16 @@
     "Pick the model in that job's row.",
     "Press Test to see its speed and an answer."
    ]
+  },
+  {
+   "id": "cost",
+   "q": "How do I let Auto use cheaper models when they are good enough?",
+   "steps": [
+    "Under Cost autopilot, set a job to Good enough.",
+    "Press Try now, or wait: she tries once a week.",
+    "Changed your mind? Press Undo."
+   ],
+   "show": "#cap-box"
   }
  ],
  "models-providers": [

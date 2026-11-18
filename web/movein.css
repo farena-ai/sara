@@ -195,3 +195,17 @@
 .mi-trans-wrap > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 600; }
 .mi-trans-wrap[open] > summary { margin-bottom: var(--s-2); }
 .mi-far { margin: 0; padding: var(--s-2); border-radius: var(--r-card); background: var(--warn-soft); border: 1px solid var(--warn); }
+
+/* V1.1: Bring everything, an export in the same review, the first-evening checklist. */
+.mi-bring { border-color: var(--accent-solid); background: var(--accent-soft); }
+.mi-bring-list { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.mi-bring-item { display: inline-flex; align-items: baseline; gap: var(--s-1); padding: var(--s-1) var(--s-2); border-radius: var(--r-card); background: var(--surface-1); border: 1px solid var(--hairline-strong); }
+.mi-bring-n { font-weight: 700; font-variant-numeric: tabular-nums; }
+.mi-export-line { margin: var(--s-1) 0; overflow-wrap: anywhere; }
+.mi-ev-list { list-style: none; margin: var(--s-2) 0; padding: 0; display: grid; gap: var(--s-2); }
+.mi-ev-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-1) var(--s-2); padding: var(--s-2); border-radius: var(--r-card); background: var(--surface-2); }
+.mi-ev-item .mi-ev-text { flex: 1 1 16rem; min-width: 0; color: var(--text-2); overflow-wrap: anywhere; }
+.mi-ev-mark { width: 1.2em; text-align: center; color: var(--warn); font-weight: 700; }
+.mi-ev-done .mi-ev-mark { color: var(--success); }
+.mi-ev-more h5 { margin: var(--s-3) 0 var(--s-1); }
+.mi-ev-more ul { margin: 0; padding-left: var(--s-3); display: grid; gap: var(--s-1); overflow-wrap: anywhere; }

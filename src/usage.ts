@@ -266,6 +266,20 @@ export class UsageStore {
     return { calls: Number(r.calls), input, output, cached: Number(r.cached), tokens: input + output, usd: Math.round(Number(r.usd) * 1e6) / 1e6, unpriced: Number(r.unpriced), billing: String(r.billing ?? '').split(',').filter(Boolean) as Billing[] };
   }
 
+  /** V1.5 (cost autopilot): one model's calls for some purposes between two times (inclusive). */
+  between(sinceIso: string, untilIso: string, providerId: string, model: string, purposes: string[]): { input: number; output: number; cached: number; usd: number } {
+    if (!purposes.length) return { input: 0, output: 0, cached: 0, usd: 0 };
+    const sql = `SELECT COALESCE(SUM(input),0) AS input, COALESCE(SUM(output),0) AS output, COALESCE(SUM(cached),0) AS cached, COALESCE(SUM(usd),0) AS usd FROM usage WHERE at >= ? AND at <= ? AND provider_id = ? AND model = ? AND purpose IN (${purposes.map(() => '?').join(', ')})`;
+    // Calls an eval replay made (a cost trial's own runs) are not everyday use.
+    let r: Row;
+    try {
+      r = this.#db.prepare(`${sql} AND (run_id IS NULL OR run_id NOT IN (SELECT run_id FROM eval_runs WHERE run_id IS NOT NULL))`).get(sinceIso, untilIso, providerId, model, ...purposes) as Row;
+    } catch {
+      r = this.#db.prepare(sql).get(sinceIso, untilIso, providerId, model, ...purposes) as Row;
+    }
+    return { input: Number(r.input), output: Number(r.output), cached: Number(r.cached), usd: Number(r.usd) };
+  }
+
   forConversation(id: string): UsageTotals {
     return this.#totals('conversation_id = ?', [id]);
   }

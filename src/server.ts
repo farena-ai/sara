@@ -94,6 +94,7 @@ import { createDocStudioRoutes } from './routes/doc-studio.ts';
 import { createPhoneCallRoutes, phoneUpgrade, phoneWebhook } from './routes/phone-calls.ts';
 import { createFamilyRoutes } from './routes/family.ts';
 import { createInboxRoutes } from './routes/inbox.ts';
+import { createWaitingRoutes } from './routes/waiting.ts';
 import { createWatchRoutes } from './routes/watches.ts';
 import { createMessagesRoutes } from './routes/messages.ts';
 import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
@@ -1087,6 +1088,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const familyRoutes = createFamilyRoutes(ctx);
   // N3: from your inbox, each person's own (src/routes/inbox.ts).
   const inboxRoutes = createInboxRoutes(ctx);
+  const waitingRoutes = createWaitingRoutes(ctx);
   // E4: file/log watches, the owner's only (src/routes/watches.ts).
   const watchRoutes = createWatchRoutes(ctx);
   // S9a: private messages between linked servers' owners (src/routes/messages.ts; docs/MESSAGES.md).
@@ -1691,6 +1693,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await bookingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await familyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await inboxRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await waitingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await watchRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await messagesRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await supportRoutes(req, res, method, parts)) !== NEXT) return;

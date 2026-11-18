@@ -5,6 +5,43 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.26.0 (2026-11-18): Bring everything, Waiting on you, Where do you text?, cost autopilot
+
+- New: Benchmark page: Sara's original coding tasks can now run through other agent CLIs you installed
+  yourself (presets for Claude Code, Codex CLI and Aider, or any command line in evals/harnesses.json),
+  graded by the same hidden tests; `node scripts/bench-compare.ts` reruns everything it finds and
+  builds a one-file results page (docs/results/index.html) with model, date and exact command per
+  row, every run listed, readable offline on a phone or desktop, light or dark. `--mode verify` checks
+  the tasks and proves the grading with a fake harness, without any model.
+- New: Cost autopilot (Settings → Models & usage → Which model does what): a quality bar per job (talking,
+  coding and long tasks, web research). *Best* never switches; *Good enough* lets Auto try the next
+  cheaper connected model (one on this computer first) on 8 of your past tasks with the eval loop and
+  switch only when it does as well. Every switch has an Undo, and "saved $X this month" shows there and
+  on Usage and costs. Private chats still only use models on this computer (docs/design/V1COST.md).
+- New: Where do you text?: a picker at the top of Settings → Connections → Apps and services. Pick your phone
+  and the app you already text in (Messages on iPhone, WhatsApp, Signal, Telegram, Discord, Matrix,
+  Slack, Teams, email). Sara shows what it needs, opens that app's setup with defaults filled in (a
+  suggested Matrix ID, the tested BlueBubbles address), and once it is set up offers Check (each plugin's
+  own checks as plain lines) and Send me a test (one message into your own linked chat; Matrix, iMessage,
+  WhatsApp). iMessage gets "Is my Mac reachable?" before anything is added: one BlueBubbles ping, no
+  password, local network only. The Matrix and iMessage tiles now show Connected / Started. The Matrix and
+  iMessage plugins are 1.1.0 (the test message). docs/WHERE_DO_YOU_TEXT.md.
+- New: Waiting on you, one list: everything that needs your answer (her approvals, team steps, device
+  sign-ins, her board questions, errands, inbox cards, overdue to-dos, failed chats, mail to answer),
+  urgent first then oldest, each row opening its own card. Open it from Today's Needs you or
+  `/#view=waiting`. Later puts a row off until tomorrow (the same as Today's Not today). On a phone,
+  swipe right for a one-tap yes where the card allows one, left for Later; money and passwords never go
+  by a swipe. Each household member sees only their own (docs/WAITING.md).
+- New: Move in with one button (V1.1): each old agent Sara finds on this computer has **Bring everything**:
+  one review that counts her personality, notes, chats, skills, scheduled jobs, settings, hooks and
+  plugins, with every safe card already decided (hooks still never run; cards with a warning wait for
+  you), then one Import. A ChatGPT or Claude export can join the same review: saved memories, custom
+  instructions and Claude project knowledge now come in as notes too (before, only the chats did).
+  Hermes Agent settings that were only listed (hearing, helpers, memory, routing, checkpoints, tools,
+  quick commands and more) now say which Sara place does the same thing. After the import, **Your
+  first evening together** lists the model, voice and chat apps to check and every kind of thing that
+  was skipped, with the reason (docs/MOVE_IN_GUIDE.md).
+
 ## 3.25.0 (2026-11-18): Sign in with your provider, faster voice on Windows, store-ready extension
 
 - Docs: ROADMAP_V checked against what Sara already has (docs/design/VAUDIT.md: each item marked

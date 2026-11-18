@@ -22,6 +22,7 @@ import { suggestModel } from '../../web/model-suggest.js';
 import { modelFitness } from '../model-fitness.ts';
 import { AUTO_JOBS, autoChain, autoOn, newInstallAuto } from '../auto-route.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { ReplayError } from '../replay.ts';
 import { autoWebSearch } from '../web-search-auto.ts';
 
 /**
@@ -252,6 +253,31 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'fitness' && method === 'GET') return send(res, 200, { fitness: (await modelFitness(app)) ?? null, autoChat: autoOn(app.settings.get(), 'chat') });
       // N1: what Auto would pick for each job here and now, with the reason (read only).
       if (b === 'auto' && method === 'GET') return send(res, 200, { on: app.settings.get().autoJobs ?? [], jobs: AUTO_JOBS.map((job) => ({ job, picks: autoChain(app, job).map((p) => ({ providerId: p.providerId, provider: p.provider, model: p.model, why: p.why })) })) });
+      // V1.5: Cost autopilot (src/cost-autopilot.ts): the quality bar per job, try, undo, saved $.
+      if (b === 'cost') {
+        const ca = app.costAutopilot;
+        if (!ca) throw new HttpError(404, 'Not available here.');
+        const asHttp = (err: unknown): never => {
+          if (err instanceof ReplayError) throw new HttpError(err.status, err.key, err.params ? { params: err.params } : undefined);
+          throw err;
+        };
+        try {
+          if (!c && method === 'GET') return send(res, 200, ca.view());
+          if (!c && method === 'PUT') {
+            const body = await readJson(req);
+            ca.setBar(body.job, body.bar);
+            return send(res, 200, ca.view());
+          }
+          if ((c === 'try' || c === 'undo') && method === 'POST') {
+            const body = await readJson(req);
+            if (c === 'undo') ca.undo(body.job);
+            else await ca.tryJob(body.job);
+            return send(res, 200, ca.view());
+          }
+        } catch (err) {
+          asHttp(err);
+        }
+      }
       if (b === 'recommend' && method === 'GET') {
         const s = app.settings.get();
         const cands = await connectedModels(app);

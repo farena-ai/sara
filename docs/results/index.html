@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Sara benchmark: original repository tasks</title>
+<style>
+:root{--bg:#f7f5f2;--card:#fff;--text:#1d1b19;--muted:#6b645c;--line:#e4ded6;--accent:#2f6f62;--pass:#1f7a46;--fail:#b3261e;--chip:#efeae3;--code:#f1ede7}
+@media (prefers-color-scheme: dark){:root{--bg:#141312;--card:#1d1c1a;--text:#ece8e2;--muted:#a69e94;--line:#34312d;--accent:#7cc4b3;--pass:#6fd19a;--fail:#ff8a80;--chip:#2a2825;--code:#262421}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:1120px;margin:0 auto;padding:32px 20px 64px}
+h1{font-size:1.9rem;line-height:1.2;margin:0 0 8px}
+h2{font-size:1.25rem;margin:36px 0 12px}
+p.lead{color:var(--muted);margin:0 0 20px;max-width:72ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 0;overflow:hidden}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.95rem}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:last-child td{border-bottom:0}
+th{font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:600;white-space:nowrap}
+td.score{font-weight:700;white-space:nowrap}
+td.date,td.model{white-space:nowrap}
+.sub{display:block;color:var(--muted);font-size:.85rem;font-weight:400}
+code{font:.85rem/1.4 ui-monospace,SFMono-Regular,Consolas,monospace;background:var(--code);padding:2px 6px;border-radius:6px;overflow-wrap:break-word}
+.chip{display:inline-block;background:var(--chip);border-radius:999px;padding:1px 10px;font-size:.8rem;color:var(--muted);white-space:nowrap}
+.nw{white-space:nowrap}.none{color:var(--muted)}.ok{color:var(--pass);font-weight:700}.no{color:var(--fail);font-weight:700}
+.grid td,.grid th{text-align:center;white-space:nowrap}.grid th{white-space:normal;min-width:7ch}.grid td:first-child,.grid th:first-child{text-align:left;white-space:normal;min-width:14ch}.grid code{white-space:nowrap}
+ul.plain{padding-left:20px;max-width:80ch}ul.plain li{margin:6px 0}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:12px 14px;overflow-x:auto;font:.85rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}
+footer{margin-top:40px;color:var(--muted);font-size:.85rem}
+a{color:var(--accent)}
+@media (max-width:640px){main{padding:20px 12px 48px}h1{font-size:1.5rem}th,td{padding:8px 10px}
+.stack tr:first-child{display:none}
+.stack tr{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.stack tr:last-child{border-bottom:0}
+.stack td{display:block;padding:0;border:0;min-width:0}
+.stack td.score{grid-column:2;grid-row:1 / span 2;text-align:right}
+.stack td.model,.stack td.set,.stack td.date{grid-column:1;white-space:normal;font-size:.9rem}
+.stack td.model::before{content:"Model: ";color:var(--muted)}
+.stack td.date::before{content:"Date: ";color:var(--muted)}
+.stack td.cmd{grid-column:1 / -1;margin-top:4px}}
+</style>
+</head>
+<body data-built="2026-11-18">
+<main>
+<h1>Sara benchmark: original repository tasks</h1>
+<p class="lead">Small and real-size coding projects written for Sara (a bug spread over modules, a feature from a spec, a refactor that must keep behavior), in JavaScript and Python. Every harness gets the same request in a fresh copy of the project and is graded by the same hidden tests it never sees.</p>
+<div class="card scroll"><table class="stack">
+<tr><th>Harness</th><th>Model</th><th>Set</th><th>Score</th><th>Date</th><th>Re-run</th></tr>
+<tr><td><strong>Same model, no harness</strong><span class="sub">one reply with every file, no tools</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M</td><td class="set"><span class="chip">Repository tasks</span></td><td class="score">12/14<span class="sub">86%, 9.5 min</span><span class="sub">every run: 12/14, 12/14</span></td><td class="date">2026-10-28</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--mode</span> <span class="nw">raw</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code></td></tr>
+<tr><td><strong>Sara</strong><span class="sub">her agent loop: reads, runs the tests, edits</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M</td><td class="set"><span class="chip">Repository tasks</span></td><td class="score">11/14<span class="sub">79%, 11.6 min</span><span class="sub">every run: 11/14, 11/14</span></td><td class="date">2026-10-28</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--mode</span> <span class="nw">agent</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code></td></tr>
+<tr><td><strong>Same model, no harness</strong><span class="sub">one reply with every file, no tools</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M</td><td class="set"><span class="chip">Real-size projects</span></td><td class="score">3/3<span class="sub">100%, 2.6 min</span><span class="sub">every run: 3/3, 3/3</span></td><td class="date">2026-10-28</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">raw</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code></td></tr>
+<tr><td><strong>Sara</strong><span class="sub">her agent loop: reads, runs the tests, edits</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M</td><td class="set"><span class="chip">Real-size projects</span></td><td class="score">3/3<span class="sub">100%, 3.4 min</span><span class="sub">every run: 0/3, 2/3, 3/3</span></td><td class="date">2026-10-28</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">agent</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code></td></tr>
+</table></div>
+<h2>Repository tasks: task by task</h2>
+<div class="card scroll"><table class="grid">
+<tr><th>Task</th><th>Same model, no harness</th><th>Sara</th></tr>
+<tr><td><code>01-cart-totals</code><span class="sub">Cart totals: bugs spread over three modules</span></td><td class="no" aria-label="fail">✗</td><td class="no" aria-label="fail">✗</td></tr>
+<tr><td><code>02-csv-quotes</code><span class="sub">CSV reader: quoted fields</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>03-event-emitter</code><span class="sub">Event emitter: once, off and channels</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>04-slugify-spec</code><span class="sub">Slugs that follow a written spec</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail">✗</td></tr>
+<tr><td><code>05-date-range</code><span class="sub">Dates: an off-by-one and a time-zone bug</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>06-config-merge</code><span class="sub">Config layers: deep merge and environment variables</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>07-refactor-tax</code><span class="sub">Refactor: one home for the tax rules</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>08-router-params</code><span class="sub">URL router: parameters, wildcards and precedence</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>09-lru-cache</code><span class="sub">LRU cache: eviction, stats and memoize</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>10-inventory-cli</code><span class="sub">Command-line tool: output formats and a filter</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>11-py-gradebook</code><span class="sub">Python gradebook: averages, letters and ranking</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>12-py-textstats</code><span class="sub">Python text statistics: tokenizer rules and new functions</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>13-py-ledger-decimal</code><span class="sub">Python ledger: from floats to exact money</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>14-py-ini-spec</code><span class="sub">Python settings-file reader that follows a spec</span></td><td class="no" aria-label="fail">✗</td><td class="no" aria-label="fail">✗</td></tr>
+</table></div>
+<h2>Real-size projects: task by task</h2>
+<div class="card scroll"><table class="grid">
+<tr><th>Task</th><th>Same model, no harness</th><th>Sara</th></tr>
+<tr><td><code>21-notes-api</code><span class="sub">Notes web API: users report three auth problems</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>22-ledger-cli</code><span class="sub">Ledger CLI: regressions after the 1.4 refactor</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>23-units-lib</code><span class="sub">Units library: one registry, three new units</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+</table></div>
+<h2>Exact commands</h2>
+<div class="card scroll"><table class="stack">
+<tr><th>Run</th><th>Command</th></tr>
+<tr><td><strong>Same model, no harness</strong><span class="sub">Repository tasks, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--mode</span> <span class="nw">raw</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
+<tr><td><strong>Sara</strong><span class="sub">Repository tasks, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--mode</span> <span class="nw">agent</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
+<tr><td><strong>Same model, no harness</strong><span class="sub">Real-size projects, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">raw</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
+<tr><td><strong>Sara</strong><span class="sub">Real-size projects, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">agent</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
+</table></div>
+<h2>How it is run</h2>
+<ul class="plain">
+<li>Tasks: <code>bench/tasks</code> and <code>bench/projects</code>, original to this repository. Reference solutions exist only to prove each task is solvable and that its hidden tests fail on the starting code (<code>node scripts/bench-compare.ts --mode verify</code>).</li>
+<li>Other harnesses are the CLIs their users installed, with their own keys and settings; this repository holds only the command line used to call them, never their code. A harness's model is shown when its owner said which one it uses.</li>
+<li>Each task runs once (pass@1) in a throwaway folder outside the repository, with the same time limit for everyone; whatever is left when the time is up is what gets graded.</li>
+<li>Sara's rows use a local model through her normal agent loop; the "no harness" row is the same model answering once with every file, to show what the loop adds.</li>
+<li>Never a better run hiding a worse one: the score is the newest full run, "every run" lists all runs of that day, and all of them are kept in <code>docs/results/*.json</code> (what changed between runs: docs/RESULTS.md).</li>
+</ul>
+<h2>Run it yourself</h2>
+<pre>node scripts/bench-compare.ts --mode verify     # no model: checks tasks and the grading pipeline
+node scripts/bench-compare.ts                   # every harness found on this computer, then this page
+node scripts/bench-compare.ts --harness aider   # one harness (add your own in evals/harnesses.json)
+node scripts/bench-compare.ts --page            # rebuild this page from docs/results (offline)</pre>
+<footer>Built 2026-11-18 from docs/results by <code>scripts/bench-compare.ts</code>. Works offline: one file, no scripts.</footer>
+</main>
+</body>
+</html>

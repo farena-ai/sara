@@ -14,6 +14,7 @@ import { ReadError } from '../library/read.ts';
 import { memorySettings, summarizeConversation } from '../memory-worker.ts';
 import { looksLikeChatGPT, parseChatGPT } from './chatgpt.ts';
 import { looksLikeClaude, parseClaude } from './claude.ts';
+import { exportNotes, type ExportNote } from './notes.ts';
 import { type HistorySource, type ParsedExport, type SkipCounts, SOURCE_CHANNEL, SOURCE_NAME } from './types.ts';
 
 export { SOURCE_CHANNEL, SOURCE_NAME } from './types.ts';
@@ -33,6 +34,9 @@ const CONVERSATIONS_FILE = /(^|\/)conversations(-\d+)?\.jsonl?$/i;
 export function readExport(bytes: Buffer, now: Date): ParsedExport {
   const head = bytes.subarray(0, 64).toString('utf8').trimStart();
   const lists: unknown[] = [];
+  // V1.1: the other files of a zip (memories, custom instructions, projects) for the notes.
+  let zipNames: string[] = [];
+  let readOther: (name: string) => string | undefined = () => undefined;
   const parse = (text: string, jsonl: boolean) => {
     try {
       if (!jsonl) return JSON.parse(text.charCodeAt(0) === 0xfeff ? text.slice(1) : text) as unknown;
@@ -46,6 +50,11 @@ export function readExport(bytes: Buffer, now: Date): ParsedExport {
     lists.push(Array.isArray(v) ? v : (v as { conversations?: unknown }).conversations);
   } else {
     const zip = openZip(bytes, ZIP_LIMITS);
+    zipNames = [...zip.entries.keys()];
+    readOther = (n) => {
+      const e = zip.get(n);
+      return e && e.size <= 64 * 1024 * 1024 ? zip.read(n).toString('utf8') : undefined;
+    };
     const names = [...zip.entries.keys()].filter((n) => CONVERSATIONS_FILE.test(n) && !/__MACOSX\//.test(n)).sort();
     if (!names.length) throw new ReadError('No conversations.json in this file. Upload the .zip that ChatGPT or Claude emailed you (Export data).');
     for (const n of names) {
@@ -55,8 +64,12 @@ export function readExport(bytes: Buffer, now: Date): ParsedExport {
       lists.push(Array.isArray(v) ? v : (v as { conversations?: unknown })?.conversations);
     }
   }
-  if (lists.some(looksLikeChatGPT)) return parseChatGPT(lists, now);
-  if (lists.some(looksLikeClaude)) return parseClaude(lists, now);
+  const withNotes = (p: ParsedExport): ParsedExport => {
+    const { notes, clipped } = exportNotes(p.source, zipNames, readOther, p.bio);
+    return { ...p, notes, skipped: { ...p.skipped, ...(clipped ? { clipped } : {}) } };
+  };
+  if (lists.some(looksLikeChatGPT)) return withNotes(parseChatGPT(lists, now));
+  if (lists.some(looksLikeClaude)) return withNotes(parseClaude(lists, now));
   if (lists.every((l) => Array.isArray(l) && !l.length)) throw new ReadError('This export has no conversations in it.');
   throw new ReadError("This doesn't look like a ChatGPT or Claude export. Upload the .zip from Settings → Data controls → Export (ChatGPT) or Settings → Privacy → Export data (Claude).");
 }
@@ -75,6 +88,8 @@ export interface HistoryPreview {
   to: string | null;
   sampleTitles: string[];
   skipped: SkipCounts;
+  /** V1.1: notes this export brings (saved memories, custom instructions, project knowledge). */
+  notes: { memories: number; instructions: number; projects: number; already: number; samples: string[] };
 }
 
 export interface HistoryStatus {
@@ -138,6 +153,8 @@ export class HistoryImporter {
   #timer: NodeJS.Timeout | undefined;
   #wake: (() => void) | undefined;
   #stopped = false;
+  /** V1.1: what the latest run brought and skipped (the first-evening checklist reads it). */
+  #last: LastRun | undefined;
 
   constructor(app: () => AppContext, opts: { learnGapMs?: number } = {}) {
     this.#app = app;
@@ -208,6 +225,11 @@ export class HistoryImporter {
       to: times.at(-1) ?? null,
       sampleTitles: [...convs].sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1)).slice(0, 6).map((c) => c.title),
       skipped: parsed.skipped,
+      notes: (() => {
+        const list = parsed.notes ?? [];
+        const have = existingNotes(app, channel);
+        return { memories: list.filter((n) => n.kind === 'memory').length, instructions: list.filter((n) => n.kind === 'instructions').length, projects: list.filter((n) => n.kind === 'project').length, already: list.filter((n) => have.has(app.redactor.redact(noteText(n, SOURCE_NAME[parsed.source])))).length, samples: list.slice(0, 4).map((n) => n.text.slice(0, 120)) };
+      })(),
     };
     // Only the newest preview is kept (each holds a whole parsed export in memory).
     this.#previews.clear();
@@ -259,7 +281,7 @@ export class HistoryImporter {
   }
 
   /** Brings the previewed conversations in. Returns when they're stored; learning goes on in the background. */
-  async run(id: string, options: { learn?: boolean; oldestFirst?: boolean } = {}): Promise<HistoryStatus> {
+  async run(id: string, options: { learn?: boolean; oldestFirst?: boolean; notes?: boolean } = {}): Promise<HistoryStatus> {
     const pv = this.#previews.get(id);
     if (!pv) throw new Error('That preview has expired. Upload the export again.');
     if (this.#status.state === 'importing') throw new Error('An import is already running.');
@@ -305,6 +327,10 @@ export class HistoryImporter {
       this.#publish();
       throw err;
     }
+    // V1.1: the export's notes (on by default), on one archived conversation of the same channel, so
+    // "Remove imported history" takes them too.
+    const brought = options.notes !== false ? saveNotes(app, parsed, channel, name) : 0;
+    this.#last = { source: parsed.source, name, conversations: this.#status.imported, already: this.#status.skippedExisting, notes: brought, skipped: { ...parsed.skipped }, at: app.now().toISOString() };
     const memOn = app.memory && memorySettings(app).enabled;
     if (learn && added.length && memOn) {
       const old = this.#queue();
@@ -322,6 +348,11 @@ export class HistoryImporter {
     }
     this.#publish();
     return this.status();
+  }
+
+  /** V1.1: the latest run's counts (this server session only). */
+  lastRun(): LastRun | undefined {
+    return this.#last;
   }
 
   /** Starts (or resumes after a restart) the background learning. */
@@ -524,7 +555,63 @@ export class HistoryImporter {
   }
 
   /** For tests: whether an upload file is still kept. */
+  /** V1.1: is this preview still here (Move in runs it with a bundle)? */
+  hasPreview(id: string): boolean {
+    return this.#previews.has(id);
+  }
+
   hasFile(path: string): boolean {
     return existsSync(path);
   }
+}
+
+/** V1.1: what a run brought, for the first-evening checklist (src/movein/evening.ts). */
+export interface LastRun {
+  source: HistorySource;
+  name: string;
+  conversations: number;
+  already: number;
+  notes: number;
+  skipped: SkipCounts;
+  at: string;
+}
+
+/** The note's words as stored (the export's name in front, so recall knows where it came from). */
+function noteText(n: ExportNote, name: string): string {
+  if (n.kind === 'instructions') return n.about === 'answers' ? `How I want answers (my ${name} custom instructions): ${n.text}` : `About me (from my ${name} custom instructions): ${n.text}`;
+  if (n.kind === 'project') return `From ${name}: ${n.text}`;
+  return n.text;
+}
+
+const NOTES_KEY = 'notes';
+
+function existingNotes(app: AppContext, channel: string): Set<string> {
+  const anchor = app.store.firstChannelConversation(channel, NOTES_KEY);
+  if (!anchor || !app.memory) return new Set();
+  return new Set((app.store.db.prepare('SELECT content FROM memories WHERE conversation_id = ?').all(anchor.id) as { content: string }[]).map((r) => r.content));
+}
+
+/** Saves an export's notes (skipping ones already here); returns how many were added. */
+function saveNotes(app: AppContext, parsed: ParsedExport, channel: string, name: string): number {
+  const list = parsed.notes ?? [];
+  if (!list.length || !app.memory) return 0;
+  const day = app.now().toISOString().slice(0, 10);
+  let anchor = app.store.firstChannelConversation(channel, NOTES_KEY);
+  if (!anchor) {
+    const r = app.store.insertImported({ title: `Notes from ${name}`, channel, channelKey: NOTES_KEY, createdAt: app.now().toISOString(), updatedAt: app.now().toISOString(), archived: true, from: parsed.source, messages: [{ role: 'assistant', content: `Saved memories, custom instructions and project knowledge brought from ${name} on ${day}.`, createdAt: app.now().toISOString() }] });
+    app.memory.setState(r.id, { summarizedThrough: r.lastId, lastError: null });
+    anchor = app.store.firstChannelConversation(channel, NOTES_KEY);
+  }
+  if (!anchor) return 0;
+  const have = existingNotes(app, channel);
+  let n = 0;
+  for (const note of list) {
+    const content = app.redactor.redact(noteText(note, name));
+    if (have.has(content)) continue;
+    have.add(content);
+    app.memory.add({ kind: note.kind === 'instructions' && note.about === 'answers' ? 'self' : 'fact', content, conversationId: anchor.id, sourceMessageId: null, happenedOn: day, evidence: note.from });
+    n++;
+  }
+  if (n) app.events?.publish({ type: 'memory', conversationId: anchor.id });
+  return n;
 }

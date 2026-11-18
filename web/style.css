@@ -1043,6 +1043,17 @@ dialog.ring::backdrop { background: transparent; }
 .cmp-card.won { outline: 2px solid var(--accent); }
 @media (max-width: 700px) { .job-row { grid-template-columns: 1fr; } .job-row .job-hint, .job-row details { grid-column: auto; } }
 .job-row details[hidden] { display: none; }
+/* V1.5: Cost autopilot rows (web/cost-autopilot.js) */
+.cap-saved { font-size: 15px; margin: 4px 0 8px; }
+.cap-jobs { display: grid; gap: 8px; }
+.cap-row { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; display: grid; gap: 4px; min-width: 0; }
+.cap-head { display: flex; gap: 6px; align-items: center; }
+.cap-head .cap-name { min-width: 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; font-size: 14px; font-weight: 600; }
+.cap-head .cap-name select { font-weight: 400; width: auto; }
+.cap-lines p { margin: 0; overflow-wrap: anywhere; }
+.cap-good { color: var(--success); }
+.cap-warn { color: var(--danger); }
+.cap-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 #compare-dialog { width: min(1000px, 94vw); }
 
 /* Phase 39: the team */
@@ -2601,3 +2612,20 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 #login-form .login-sso-adult { display: flex; gap: 8px; align-items: center; justify-content: center; }
 #login-form .login-sso-adult input { width: 18px; height: 18px; }
 .sso-test-done { margin: 20vh auto; max-width: 28em; text-align: center; color: var(--text); font: 16px/1.5 system-ui, sans-serif; }
+/* V1.2 (docs/WAITING.md): Waiting on you, one queue (web/waiting.js) */
+#waiting .wq-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0; }
+#waiting .wq-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+#waiting .wq-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); touch-action: pan-y; transition: transform .15s ease, background .15s ease; }
+#waiting .wq-row.wq-urgent { border-left: 3px solid var(--danger); }
+#waiting .wq-row.wq-go-yes { background: var(--success-soft); }
+#waiting .wq-row.wq-go-later { opacity: .7; }
+#waiting .wq-text { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#waiting .wq-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+#waiting .wq-src { font-size: .78em; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--text-2); }
+#waiting .wq-title { overflow-wrap: anywhere; }
+#waiting .wq-why, #waiting .wq-lock { overflow-wrap: anywhere; }
+#waiting .wq-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+#waiting .wq-acts button { min-height: 36px; }
+#waiting .wq-empty { padding: 12px 0; }
+#waiting .wq-hint { color: var(--danger); font-weight: 600; }
+@media (max-width: 720px) { #waiting .wq-acts button { min-height: 44px; } }

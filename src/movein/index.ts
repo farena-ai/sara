@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath } from 'node:url';
 import { resolveChain, type AppContext } from '../chat.ts';
+import { HistoryImporter } from '../history-import/index.ts';
 import { SOURCE_CHANNEL } from '../history-import/types.ts';
 import { adultModeOn } from '../settings.ts';
 import { batch, batches, earlier, ensureTables, type ImportChoices, type ReportLine, runBatch, type BatchRow, undoBatch, undoPreview } from './batch.ts';
@@ -17,6 +18,7 @@ import { Bundle, BundleError } from './bundle.ts';
 import { type Card, deleteMapping, ensureMappingTable, saveMapping, savedMappings, type SavedMapping, StoreCards } from './cards.ts';
 import { normMapping } from './mapping.ts';
 import { customReader } from './readers/custom.ts';
+import { eveningChecklist, type Evening } from './evening.ts';
 import { rebuildTask } from './report.ts';
 import { Translations } from './translate.ts';
 import { collectArgs, type LocalTarget } from './local.ts';
@@ -75,6 +77,8 @@ interface Session {
   via?: 'local' | 'code' | 'upload';
   /** The child process packing it (same computer). */
   child?: ChildProcess;
+  /** V1.1: a ChatGPT/Claude export brought in the same review (its name once it ran). */
+  history?: { name?: string; error?: string };
 }
 
 interface Code {
@@ -86,6 +90,7 @@ interface Code {
 const hashCode = (c: string) => createHash('sha256').update(c.toLowerCase().replace(/[^a-z]+/g, ' ').trim()).digest();
 
 export class MoveIn {
+  readonly #historyRuns = new Set<Promise<void>>();
   readonly #app: () => AppContext;
   readonly #sessions = new Map<string, Session>();
   readonly #codes: Code[] = [];
@@ -606,6 +611,82 @@ export class MoveIn {
       plan: st.meta('plan') ?? null,
       summary: st.meta('summary') ?? null,
     };
+  }
+
+  /**
+   * V1.1 "Bring everything": decides every card that is safe to decide (settings proposals; hooks and
+   * plugins without a safety flag: they are read as text, never run) and answers the suggested choices
+   * (every section with findings, the first personality draft) with counts per kind. Still a review:
+   * nothing reaches Sara until Import, and every card can still be changed.
+   */
+  everything(id: string): { preview: Record<string, unknown>; choices: ImportChoices; bring: Record<string, number> } {
+    const trans = this.#readyTrans(id);
+    if (trans.busy()) throw new BundleError('She is still reading a hook or plugin. Wait for her to finish.');
+    const v = trans.view();
+    // A chat app that was switched off on the old agent stays undecided (it is not one you used).
+    for (const p of v.config) if (p.state === 'proposed' && p.mode !== 'info' && !(p.kind === 'channel' && /:\s*off\b/.test(p.old))) trans.decideConfig(p.key, 'confirm');
+    for (const c of v.code) if (c.state === 'proposed' && !c.flags.length && c.translation.type !== 'flag') trans.decideCode(c.key, 'confirm');
+    const first = this.preview(id) as { sections: Record<string, { found: number }>; persona: { refused: string | null; drafts: unknown[] } | null };
+    const sections: Partial<Record<Section, boolean>> = {};
+    for (const [k, x] of Object.entries(first.sections)) if (k !== 'later') sections[k as Section] = k !== 'reflections' && x.found > 0;
+    const choices: ImportChoices = { herPast: true, sections, sensitive: {}, learn: true, learnAll: false, persona: first.persona && !first.persona.refused && first.persona.drafts.length ? { use: 0 } : {} };
+    const preview = this.preview(id, choices) as { sections: Record<string, { writes: number; found: number }>; conversations: { count: number }; persona: unknown };
+    const after = trans.view();
+    const sec = preview.sections;
+    const bring = {
+      persona: choices.persona?.use !== undefined ? 1 : 0,
+      notes: (sec.memories?.writes ?? 0) + (sec.profile?.writes ?? 0),
+      chats: preview.conversations.count,
+      skills: sec.skills?.writes ?? 0,
+      jobs: sec.schedules?.found ?? 0,
+      tasks: sec.tasks?.writes ?? 0,
+      people: sec.people?.writes ?? 0,
+      board: sec.board?.writes ?? 0,
+      settings: after.config.length,
+      hooks: after.code.filter((c) => c.kind === 'hook').length,
+      plugins: after.code.filter((c) => c.kind === 'plugin').length,
+      undecided: after.undecided,
+    };
+    return { preview, choices, bring };
+  }
+
+  /** V1.1: run a previewed ChatGPT/Claude export with this bundle's Import (one press, one review). */
+  alsoHistory(id: string, historyId: string, opts: { learn?: boolean } = {}): void {
+    const s = this.#sessions.get(id);
+    if (!s) throw new BundleError('That bundle is gone.');
+    const app = this.#app();
+    const hi = (app.historyImport ??= new HistoryImporter(() => app));
+    if (!hi.hasPreview(historyId)) throw new BundleError('That export preview has expired. Choose the export again.');
+    s.history = {};
+    const run = (async () => {
+      // After the bundle's batch, so her past chats and the export's never race for the store.
+      await this.idle(id);
+      try {
+        const st = await hi.run(historyId, { learn: opts.learn !== false });
+        s.history = { name: st.name ?? hi.lastRun()?.name };
+      } catch (err) {
+        s.history = { error: (err as Error).message };
+      }
+      this.#save(s);
+    })();
+    this.#historyRuns.add(run);
+    void run.finally(() => this.#historyRuns.delete(run));
+  }
+
+  /** Waits for export runs started with a bundle (tests). */
+  async historyIdle(): Promise<void> {
+    while (this.#historyRuns.size) await Promise.all([...this.#historyRuns]);
+  }
+
+  /** V1.1 first evening: the checklist for a move-in (and the export brought with it), or an export alone. */
+  evening(batchId?: string): Evening {
+    const app = this.#app();
+    const last = app.historyImport?.lastRun();
+    if (!batchId) return eveningChecklist(app, null, last);
+    const b = this.batch(batchId);
+    if (!b) throw new BundleError('No such move-in.');
+    const s = [...this.#sessions.values()].find((x) => x.batchId === batchId);
+    return eveningChecklist(app, (b as { report?: unknown }).report as never, s?.history?.name ? last : undefined);
   }
 
   /** Every finding of one section (titles only, for "list ▸"). */

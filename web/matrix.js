@@ -6,6 +6,7 @@
 // summary, Test, her rooms (Answer here, Leave; encrypted ones under *Rooms she can't read*), Log
 // her out. Her password is typed once for *Log her in*, sent once and forgotten.
 import { t } from './naming.js';
+import { takeWhereDefaults } from './where-text.js';
 import { addBuiltin, reviewCard } from './plugins.js';
 import { api, btn, checking, copyRow, diagLine as diagWith, el, enc, field, foldedLine, link, okLine, pathList, setupCard, startFirstParty, stepNav, stepper, testList, tick, tip, useTranslator } from './setup-card.js';
 
@@ -74,7 +75,7 @@ function stepBody(id) {
   if (id === 'login') {
     if (view.me) body.append(okLine(t('Logged in as {mxid} (device {device})', { mxid: view.me, device: 'Sara (bot)' })));
     body.append(
-      field('mx-id', t('Her Matrix ID'), t('Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.'), { value: view.mxid, placeholder: '@sara-frank:matrix.org' }),
+      field('mx-id', t('Her Matrix ID'), t('Her own account, like @sara-frank:matrix.org. Make a separate account for her, not your own.'), { value: view.mxid || takeWhereDefaults('matrix').mxid || '', placeholder: '@sara-frank:matrix.org' }),
       field('mx-pass', t('Her password'), t("Typed once to log her in. Sara sends it to her server once and doesn't keep it anywhere."), { type: 'password' }),
       btn(t('Log her in'), '', async () => {
         checking(out);
@@ -206,6 +207,12 @@ function summary() {
   const row = el('div', 'add-row');
   row.append(
     btn(t('Test'), '', () => test(out)),
+    btn(t('Send me a test'), 'ghost', async (b) => {
+      b.disabled = true;
+      const r = await api('/plugins/where/send-test', { method: 'POST', body: { app: 'matrix' } }).catch((err) => ({ ok: false, error: err.message }));
+      out.replaceChildren(r.ok ? okLine(t('Sent. Look in {app} for a message from her.', { app: 'Element' })) : r.diagnosis ? diagLine(r.diagnosis) : el('p', 'small', r.code === 'NOT_LINKED' ? t('Finish the link step on its page first.') : (r.error ?? t('The message did not go out. Press Test to see why.'))));
+      b.disabled = false;
+    }),
     btn(t('Log her out'), 'ghost', async (b) => {
       if (!confirm(t('Log her out of Matrix? Her login key is ended at her server and removed from Sara.'))) return;
       b.disabled = true;

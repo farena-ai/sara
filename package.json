@@ -1,6 +1,6 @@
 {
   "name": "sara",
-  "version": "3.25.0",
+  "version": "3.26.0",
   "private": true,
   "license": "MIT",
   "description": "Sara — a self-hosted AI companion and assistant for coding, creating and managing things.",
@@ -26,6 +26,7 @@
     "eval:library": "node scripts/eval-library.ts",
     "eval:codemap": "node scripts/eval-codemap.ts",
     "bench:coding": "node scripts/bench-coding.ts",
+    "bench:compare": "node scripts/bench-compare.ts",
     "results:publish": "node scripts/publish-results.ts",
     "docs": "node scripts/build-docs.ts",
     "guide": "node scripts/gen-guide.ts",

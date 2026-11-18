@@ -822,12 +822,22 @@ runner with a scripted fake model: no network, no GPU). Last full run (2026-10-2
 Node 24.20): 639 tests, 632 passed, 0 failed, 7 skipped (the Linux-only sandbox tests, which run on
 a Linux server).
 
+## Other harnesses on the same tasks (V1.4)
+
+The repository tasks and real-size projects can also run through other agent CLIs installed on
+the same computer (their own keys and settings), graded by the same hidden tests; the results page
+[results/index.html](results/index.html) shows every row with model, date and the exact command.
+How to run it and add a harness: [bench/README.md](../bench/README.md#the-same-tasks-through-other-harnesses-v14).
+No other harness has been run for this page yet: the owner decides which of his installed CLIs to
+run (`node scripts/bench-compare.ts --mode verify` lists them).
+
 ## Publishing new results
 
 After re-running any of the scripts above:
 
 ```sh
 node scripts/publish-results.ts   # writes docs/results/*.json and prints the table for this page
+node scripts/bench-compare.ts --page   # rebuilds docs/results/index.html from them
 ```
 
 Keep the table honest: update the date and model with the score, say what changed, and never drop

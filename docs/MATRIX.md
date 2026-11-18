@@ -52,6 +52,8 @@ turns ✓ only when Sara has checked it.
 5. **Test.** Checks her server, her login, the sync, your room (and that it isn't encrypted) and the
    link. It sends nothing to anyone.
 
+Not sure which app to use? Start at **Where do you text?** ([Where do you text?](WHERE_DO_YOU_TEXT.md)). Once set up, **Send me a test** there (and on this page, next to Test) sends one message into your own linked chat.
+
 ## What she does there
 
 - **In your room:** everything your other chats do: commands (`/new`, `/model` …, or with her name

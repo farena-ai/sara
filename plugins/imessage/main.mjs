@@ -483,6 +483,14 @@ async function onCheck(m) {
       await sara.kv.set('mode', 'polling').catch(() => {});
       return { ok: true };
     }
+    if (step === 'send-test') {
+      // V1.3 Send me a test: one text into the chat Sara gives (his linked chat), nothing else.
+      if (!bb.address || !bb.password) return fail('NOT_SET');
+      const chatId = String(m.chatId ?? '');
+      if (!chatId) return fail('NOT_SET');
+      const guid = await post(chatId, String(m.text ?? 'Test from Sara: iMessage works.').slice(0, 500));
+      return { ok: true, messageId: guid };
+    }
     if (step === 'state') {
       return { ok: true, running, refused, version: info.version, os: info.os, privateApi: info.privateApi, account: info.account, handles, doorbellAt: await sara.kv.get('doorbellAt').catch(() => null), mode: (await sara.kv.get('mode').catch(() => null)) ?? null, polling: running && Date.now() - lastPollOk < 120_000, failures, today: pacer.counts() };
     }

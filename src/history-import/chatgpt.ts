@@ -52,10 +52,16 @@ function shownPath(mapping: Obj, current: unknown): string[] {
   return out.reverse();
 }
 
-function readMessage(m: Obj, fallbackTime: string, skipped: SkipCounts): ImportedMessage | undefined {
+function readMessage(m: Obj, fallbackTime: string, skipped: SkipCounts, bio?: string[]): ImportedMessage | undefined {
   const role = String(obj(m.author)?.role ?? '');
   const meta = obj(m.metadata) ?? {};
   const content = obj(m.content) ?? {};
+  // V1.1: a memory the model saved during the chat (the "bio" tool): a note, not a skipped step.
+  if (role === 'assistant' && m.recipient === 'bio' && bio) {
+    const parts = Array.isArray(content.parts) ? content.parts : typeof content.text === 'string' ? [content.text] : [];
+    for (const p of parts) if (typeof p === 'string' && p.trim()) bio.push(p.trim());
+    return undefined;
+  }
   const type = String(content.content_type ?? 'text');
   if (meta.is_visually_hidden_from_conversation === true || type === 'user_editable_context') {
     if (type === 'user_editable_context' || role === 'system') skipped.system++;
@@ -106,6 +112,7 @@ export function parseChatGPT(lists: unknown[], now: Date): ParsedExport {
   const skipped = noSkips();
   const conversations: ImportedConversation[] = [];
   const seen = new Set<string>();
+  const bio: string[] = [];
   for (const list of lists) {
     if (!Array.isArray(list)) continue;
     for (const raw of list) {
@@ -121,7 +128,7 @@ export function parseChatGPT(lists: unknown[], now: Date): ParsedExport {
       for (const id of shownPath(mapping, c.current_node)) {
         const m = obj(obj(mapping[id])?.message);
         if (!m) continue;
-        const msg = readMessage(m, last, skipped);
+        const msg = readMessage(m, last, skipped, bio);
         if (!msg) continue;
         // Keep times in order (regenerated replies can carry an earlier stamp).
         if (msg.createdAt < last) msg.createdAt = last;
@@ -141,5 +148,5 @@ export function parseChatGPT(lists: unknown[], now: Date): ParsedExport {
       });
     }
   }
-  return { source: 'chatgpt', conversations, skipped };
+  return { source: 'chatgpt', conversations, skipped, bio };
 }

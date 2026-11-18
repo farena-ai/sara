@@ -39,6 +39,18 @@ one (Which model does what). *Auto* turns on by itself at 80% of a daily line (t
 limit) and off again below 60% or at midnight. A small *Token Saver* badge shows in the chat header
 while it is on. *Off* (the default) changes nothing.
 
+**Cost autopilot** (Settings → Models & usage → Which model does what → *Cost autopilot*): a quality
+bar per job (talking, coding and long tasks, web research). *Best* (the default) never switches.
+*Good enough*, for a job on Auto: she takes Auto's pick, tries the next cheaper connected model (one
+on this computer first, then a subscription, then a lower known price) on 8 of your past tasks for
+that job with the eval loop, and switches only when it does as well on the quality parts (finished,
+your reaction, tests, the judge; never the cost). Auto then uses the cheaper model first and keeps the
+old one as its backup. It tries by itself at most once a week when you're not chatting, or when you
+press *Try … now*, inside the eval budget. **Undo** puts the job back (that model isn't tried again
+for 60 days); setting the job back to *Best* undoes it too. *Saved $X this month* (also on Usage and
+costs) is what the moved calls would have cost on the old model, minus what they cost. Private chats
+only ever use models on this computer, and a trial never replays a private chat on a cloud model.
+
 **Add-ons that update by themselves** (Get more → My add-ons): off by default; turn it on for all
 your Sara Store plugins or one at a time. After the daily look at the signed Store list, Sara installs
 a newer version, checks that it starts, and puts the old version back by itself if it doesn't; you get

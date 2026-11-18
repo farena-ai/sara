@@ -58,7 +58,7 @@ this form). Phone-number items are parked at the end.
   shown as plain checks. WhatsApp/Signal stay testable against fakes only (live setup parked).
 - Acceptance: picker → configured fake Matrix and fake BlueBubbles round-trip a message in tests.
 
-**V1.4 Open benchmark page** (item 13) · PARTIAL · M
+**V1.4 Open benchmark page** (item 13) · PARTIAL · M · BUILT on hermes/v1bench (docs/design/V1BENCH.md)
 - Exists: `bench/` original tasks, `scripts/bench-tasks.ts`, `scripts/bench-coding.ts`,
   `scripts/publish-results.ts`, docs/RESULTS.md.
 - Build: adapters that run the same tasks through other harnesses the user installed themselves (their

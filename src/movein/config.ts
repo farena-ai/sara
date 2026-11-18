@@ -239,6 +239,35 @@ const KNOBS: [RegExp, string, string][] = [
   [/^(agent|agents|personalit|persona|soul|identity)/i, 'Settings → Sara', 'her'],
 ];
 
+/**
+ * V1.1: Hermes Agent config entries that used to be only listed, each with the Sara place that does
+ * the same thing and how (shown on the card and in the report; never copied, nothing is switched on).
+ */
+const HERMES_KNOBS: Record<string, { lives: string; page: string; why: string }> = {
+  stt: { lives: 'Settings → Sara → Voice → Hearing', page: 'voice', why: 'Sara hears you with her own speech engine: pick "On this computer" or a service under Hearing.' },
+  voice: { lives: 'Settings → Sara → Voice', page: 'voice', why: 'Her voice and hearing are set on the Voice page; the old voice name came across on its own card when Sara has it.' },
+  delegation: { lives: 'Agent teams (ask her to work on it as a team)', page: 'abilities', why: 'Helpers: Sara splits big jobs into an agent team with a checker; ask "do this as a team".' },
+  compression: { lives: 'Settings → Privacy & system → Memory', page: 'memory', why: 'Sara does this differently: she shortens long chats by herself and keeps notes; nothing to set.' },
+  memory: { lives: 'Settings → Privacy & system → Memory', page: 'memory', why: 'Her memory is on by default; the old notes came across as notes.' },
+  honcho: { lives: 'Settings → Privacy & system → Memory', page: 'memory', why: 'Sara keeps her own notes about you on this server instead of an outside memory service.' },
+  session_reset: { lives: 'Settings → Privacy & system → Memory', page: 'memory', why: 'Each chat keeps its thread; type /new in a chat app to start fresh.' },
+  display: { lives: 'Settings → Sara → Look', page: 'look', why: 'Pick her look and the app theme there.' },
+  smart_model_routing: { lives: 'Settings → Models & usage → Which model does what', page: 'models', why: 'Pick a quick model and a main model; Sara uses the quick one for small jobs.' },
+  checkpoints: { lives: 'Coding chats (every change is a commit you can undo)', page: 'abilities', why: 'In coding chats Sara works in a copy and every step can be undone.' },
+  toolsets: { lives: 'Settings → Skills & tools → Tools', page: 'abilities', why: 'Switch tools on or off there; risky ones ask first.' },
+  platform_toolsets: { lives: 'Settings → Skills & tools → Tools', page: 'abilities', why: 'Tools per chat app are set there.' },
+  code_execution: { lives: 'Settings → Skills & tools → Tools', page: 'abilities', why: 'Running code is a tool that asks first, in a sandbox.' },
+  quick_commands: { lives: 'Settings → Skills & tools → Skills', page: 'skills', why: 'Make each one a skill, or just ask her in words.' },
+  security: { lives: 'Settings → Privacy & system', page: 'checkup', why: 'Sara always hides keys and passwords from chats and logs.' },
+  privacy: { lives: 'Settings → Privacy & system', page: 'checkup', why: 'Privacy choices live there.' },
+  browser: { lives: 'Settings → Connections → Apps and services → Web search', page: 'abilities', why: 'Web search and page reading are tools; switch them on there.' },
+  human_delay: { lives: 'Settings → Sara', page: 'her', why: 'She answers as fast as her model does; nothing to set.' },
+  streaming: { lives: 'Settings → Sara → Look', page: 'look', why: 'Replies always stream in Sara.' },
+  cron: { lives: 'Your planner (schedules came across as tasks)', page: 'planner', why: 'Jobs came across as planner tasks and reminders.' },
+  skills: { lives: 'Settings → Skills & tools → Skills', page: 'skills', why: 'Skills came across on their own list.' },
+  personalities: { lives: 'Settings → Sara', page: 'her', why: 'Extra personalities came across as drafts on the personality card.' },
+};
+
 const SKIP_TOP = new Set(['$include', '$schema', 'version', 'meta', 'wizard', 'lastRunVersion']);
 
 export function translateConfig(trees: ConfigTree[], ctx: TranslateContext): Proposal[] {
@@ -259,8 +288,9 @@ export function translateConfig(trees: ConfigTree[], ctx: TranslateContext): Pro
     for (const [k, v] of Object.entries(t.tree)) {
       if (handled.has(`${t.path}#${k}`) || SKIP_TOP.has(k)) continue;
       const knob = KNOBS.find(([re]) => re.test(k));
+      const hk = ctx.kind !== 'openclaw' && Object.prototype.hasOwnProperty.call(HERMES_KNOBS, k) ? HERMES_KNOBS[k] : undefined;
       const names = isObj(v) ? Object.keys(v).slice(0, 6).join(', ') : '';
-      add({ key: `knob:${k}`, kind: 'knob', mode: 'info', title: k, from: `${t.path}#${k}`, old: names ? `${k}: ${names}${isObj(v) && Object.keys(v).length > 6 ? '…' : ''}` : k, lives: knob?.[1] ?? 'Settings', ...(knob ? { page: knob[2] } : {}), why: 'Sara manages this differently.', ...(secretNames(v, k).length ? { secrets: secretNames(v, k).slice(0, 12) } : {}) });
+      add({ key: `knob:${k}`, kind: 'knob', mode: 'info', title: k, from: `${t.path}#${k}`, old: names ? `${k}: ${names}${isObj(v) && Object.keys(v).length > 6 ? '…' : ''}` : k, lives: hk?.lives ?? knob?.[1] ?? 'Settings', ...(hk ? { page: hk.page } : knob ? { page: knob[2] } : {}), why: hk?.why ?? 'Sara manages this differently.', ...(secretNames(v, k).length ? { secrets: secretNames(v, k).slice(0, 12) } : {}) });
     }
   }
   return out;

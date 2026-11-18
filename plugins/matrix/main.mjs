@@ -490,6 +490,14 @@ async function onCheck(m) {
       await cs.setName(me, `${sara.herName || 'Sara'} (AI)`).catch(() => undefined);
       return { ok: true, userId: me, deviceId: String(w.device_id ?? '') };
     }
+    if (step === 'send-test') {
+      // V1.3 Send me a test: one line into the chat Sara gives (his linked room), nothing else.
+      if (!cs.token) return fail('NOT_SET');
+      const roomId = roomOf(String(m.chatId ?? ''));
+      if (!roomId || !rooms.has(roomId)) return fail('NOT_INVITED');
+      const id = await post(roomId, content(String(m.text ?? 'Test from Sara: Matrix works.').slice(0, 500)));
+      return { ok: true, messageId: id };
+    }
     if (step === 'rooms') {
       const list = [...rooms.entries()].map(([id, r]) => ({ id: chatOf(id), name: r.name || 'Matrix room', encrypted: r.encrypted, members: r.members.size, place: r.encrypted ? 'encrypted' : isDm(r) ? 'dm' : 'room' }));
       return { ok: true, me, rooms: list, syncing: running && Date.now() - lastSyncAt < 60_000, tokenGone, mediaMax: uploadMax, lastJoin: await sara.kv.get('lastJoin').catch(() => null) };

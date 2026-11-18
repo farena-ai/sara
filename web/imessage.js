@@ -6,6 +6,7 @@
 // Connected: a summary (basic or Private API, doorbell or polling), Test, who can reach her. The
 // BlueBubbles password goes to the vault and is never shown again; Sara never gives SIP instructions.
 import { t } from './naming.js';
+import { takeWhereDefaults } from './where-text.js';
 import { addBuiltin, reviewCard } from './plugins.js';
 import { api, btn, checking, copyRow, diagLine as diagWith, el, enc, field, foldedLine, link, okLine, pathList, setupCard, startFirstParty, stepNav, stepper, testList, tick, tip, useTranslator } from './setup-card.js';
 
@@ -94,7 +95,7 @@ function stepBody(id) {
   }
   if (id === 'server') {
     body.append(
-      field('im-server', t('BlueBubbles address'), t("Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234."), { value: view.server.address || '127.0.0.1:1234' }),
+      field('im-server', t('BlueBubbles address'), t("Where BlueBubbles runs, with its port. 127.0.0.1:1234 if Sara runs on the same Mac; otherwise the Mac's address on your home network or its Tailscale name, like 192.168.1.20:1234."), { value: view.server.address || takeWhereDefaults('imessage').server || '127.0.0.1:1234' }),
       tick('im-other', t('BlueBubbles runs on another computer on my network'), t('Lets Sara talk to BlueBubbles on another computer at home or on your Tailscale network. Never anything on the internet.'), view.server.onOtherMachine),
     );
     const adv = el('details', 'wa-details');

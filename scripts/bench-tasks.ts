@@ -120,7 +120,7 @@ export function safePath(p: string): string | undefined {
   return !n || n === '.' || n.startsWith('../') || n === '..' || posix.isAbsolute(n) || /^[a-z]:/i.test(n) ? undefined : n;
 }
 
-function copyProject(from: string, to: string): void {
+export function copyProject(from: string, to: string): void {
   mkdirSync(to, { recursive: true });
   for (const f of listFiles(from)) {
     mkdirSync(dirname(join(to, f)), { recursive: true });

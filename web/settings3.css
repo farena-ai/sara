@@ -264,3 +264,36 @@
   :root:not([data-palette="classic"]) #settings .s3-card label:has(> :is(select, input)) > :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { flex: 1 1 100%; width: 100%; margin: 4px 0 0; }
   :root:not([data-palette="classic"]) #settings .settings-pages :is(select, input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"], [type="hidden"])) { height: 40px; min-height: 40px; font-size: 16px; }
 }
+
+/* ---------- V1.3: Where do you text? (web/where-text.js), above the tiles on Apps and services ---------- */
+:root:not([data-palette="classic"]) #settings .wdt-where { display: flex; flex-direction: column; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: var(--s3-radius); background: var(--surface-1); box-shadow: var(--elev-1); }
+:root:not([data-palette="classic"]) #settings .wdt-head { display: flex; align-items: center; gap: 6px; }
+:root:not([data-palette="classic"]) #settings .wdt-head .s3-tiles-head { margin: 0; color: var(--text-1); font: 600 16px/1.3 var(--font-ui); letter-spacing: 0; text-transform: none; }
+:root:not([data-palette="classic"]) #settings .wdt-lead { margin: 0; }
+:root:not([data-palette="classic"]) #settings .wdt-phone { align-self: flex-start; }
+:root:not([data-palette="classic"]) #settings .wdt-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+:root:not([data-palette="classic"]) #settings .wdt-pick { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); box-shadow: none; color: var(--text-1); text-align: left; cursor: pointer; }
+:root:not([data-palette="classic"]) #settings .wdt-pick:hover { border-color: color-mix(in srgb, var(--line) 40%, var(--text-3)); }
+:root:not([data-palette="classic"]) #settings .wdt-pick[aria-expanded="true"] { border-color: var(--accent-solid); background: var(--surface-3); }
+:root:not([data-palette="classic"]) #settings .wdt-pick:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+:root:not([data-palette="classic"]) #settings .wdt-pick .s3-tile-mark { width: 30px; height: 30px; font-size: 12px; }
+:root:not([data-palette="classic"]) #settings .wdt-pick-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+:root:not([data-palette="classic"]) #settings .wdt-pick-name { font: 600 13.5px/1.25 var(--font-ui); overflow-wrap: anywhere; }
+:root:not([data-palette="classic"]) #settings .wdt-pick .s3-tile-line > span:last-child { white-space: normal; }
+:root:not([data-palette="classic"]) #settings .wdt-panel:not([hidden]) { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border-radius: 10px; background: var(--surface-2); }
+:root:not([data-palette="classic"]) #settings .wdt-panel h4 { margin: 0; font: 600 14px/1.3 var(--font-ui); }
+:root:not([data-palette="classic"]) #settings .wdt-panel p { margin: 0; }
+:root:not([data-palette="classic"]) #settings .wdt-note { color: var(--warn); }
+:root:not([data-palette="classic"]) #settings .wdt-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+:root:not([data-palette="classic"]) #settings .wdt-probe { display: flex; flex-direction: column; gap: 6px; max-width: 420px; }
+:root:not([data-palette="classic"]) #settings .wdt-lan { display: flex; align-items: center; gap: 8px; }
+:root:not([data-palette="classic"]) #settings .wdt-lan input { width: 18px; height: 18px; flex: none; }
+:root:not([data-palette="classic"]) #settings .wdt-probe > button { align-self: flex-start; }
+:root:not([data-palette="classic"]) #settings .wdt-ok { color: var(--success); }
+@media (max-width: 720px) {
+  :root:not([data-palette="classic"]) #settings .wdt-where { padding: 12px; }
+  :root:not([data-palette="classic"]) #settings .wdt-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+  :root:not([data-palette="classic"]) #settings .wdt-pick { gap: 8px; min-height: 48px; padding: 6px 8px; }
+  :root:not([data-palette="classic"]) #settings .wdt-pick .s3-tile-mark { width: 26px; height: 26px; font-size: 11px; }
+  :root:not([data-palette="classic"]) #settings .wdt-pick-name { font-size: 13px; }
+}
