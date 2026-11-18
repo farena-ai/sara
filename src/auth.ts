@@ -33,7 +33,7 @@ interface DeviceSession {
    * Phase 87: 'hands' = Sara's hands on a computer (the desktop app's computer-use channel): it only
    * opens the /api/hands WebSocket, never the app's own API (docs/design/COMPUTER_USE.md §3.2).
    */
-  kind?: 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut';
+  kind?: 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut' | 'extension';
   /** R4: what an iPhone Shortcuts token (kind 'shortcut') may do. */
   scopes?: ShortcutScope[];
   /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
@@ -72,7 +72,7 @@ export interface DeviceView {
   createdAt: string;
   lastSeen: string;
   /** Phase 52: 'app' = signed in with a device code and a token (terminal, VS Code). Phase 57: 'api' = an API key for another app. M4: 'home-assistant'. Phase 87: 'hands'. */
-  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut';
+  kind: 'browser' | 'app' | 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut' | 'extension';
   /** R4: an iPhone Shortcuts token's scopes. */
   scopes?: ShortcutScope[];
   /** Phase 100: when an agent's key stops working. */
@@ -440,14 +440,14 @@ export class OwnerAuth {
   }
 
   devices(): DeviceView[] {
-    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' || kind === 'a2a' || kind === 'shortcut' ? kind : tokenHash ? 'app' : 'browser' }));
+    return [...(this.#owner.sessions ?? [])].sort((a, b) => b.lastSeen.localeCompare(a.lastSeen)).map(({ tokenHash, kind, ...d }) => ({ ...d, kind: kind === 'api' || kind === 'home-assistant' || kind === 'hands' || kind === 'a2a' || kind === 'shortcut' || kind === 'extension' ? kind : tokenHash ? 'app' : 'browser' }));
   }
 
   /**
    * Phase 52: a token for an app the owner approved with a device code. It is listed with the
    * other devices (and stops working when signed out there). Only its hash is kept.
    */
-  createDeviceToken(label: string, kind?: 'api' | 'home-assistant'): { token: string; id: string } {
+  createDeviceToken(label: string, kind?: 'api' | 'home-assistant' | 'extension'): { token: string; id: string } {
     const now = this.#now();
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
@@ -493,9 +493,9 @@ export class OwnerAuth {
   }
 
   /** Phase 57: 'api' for an API key, 'app' for a device-code app, 'home-assistant' (M4), 'hands' (Phase 87), undefined for anything else. */
-  deviceKind(id: string): 'api' | 'app' | 'home-assistant' | 'hands' | 'a2a' | undefined {
+  deviceKind(id: string): 'api' | 'app' | 'home-assistant' | 'hands' | 'a2a' | 'extension' | undefined {
     const d = this.#owner.sessions?.find((x) => x.id === id);
-    return !d?.tokenHash || d.kind === 'shortcut' ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' || d.kind === 'a2a' ? d.kind : 'app';
+    return !d?.tokenHash || d.kind === 'shortcut' ? undefined : d.kind === 'api' || d.kind === 'home-assistant' || d.kind === 'hands' || d.kind === 'a2a' || d.kind === 'extension' ? d.kind : 'app';
   }
 
   /**

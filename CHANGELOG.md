@@ -5,9 +5,67 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.22.0 (2026-11-18): Money, family planner, health log, study cards, browser extension
+
+- New: Sara in your browser (U4.25, docs/EXTENSION.md). An extension for Chrome, Edge and Firefox that
+  pairs with your own Sara by a short code (approve it in Settings → Connections → Devices and sign-in,
+  where it is listed and can be signed out). On any page: ask Sara about it (the address, your
+  selection and the page's readable text), summarize it, save it to her Library, or right-click selected
+  text to ask about it; her reply shows in the popup with Continue in Sara. Fill this form proposes
+  values from My details field by field; nothing is typed until you approve, the form is never sent,
+  and passwords, payment cards and codes are never filled. An Off on this site switch, and two switches
+  in Settings (the extension, and its form filling). Data goes only to your paired Sara; private local
+  mode and kid spaces refuse it. Not published to any store: load it unpacked (zips via
+  `node scripts/pack-extension.ts` in outputs/extension/).
+- New: a **Money** place in the sidebar (tracking only: Sara never logs in to a bank, pays, transfers or
+  cancels anything; the page says so). Add your bank or card exports (CSV, Excel, OFX, QFX and now QIF);
+  a CSV with unusual columns asks once which column is which and remembers it for that bank. Files that
+  overlap (October's and November's exports) don't count a purchase twice. See spending by category,
+  six-month trends, budgets with gentle "getting close" and "went past" notes (once each, sent where your
+  Money alerts go), bills due (from your inbox, the ones you add and repeating charges in your
+  transactions, each with a reminder), subscriptions with price changes and free trials ending (also
+  found in your email) and a link to cancel them yourself, and net worth from balances you type in.
+  Change any transaction's category and she remembers it for that merchant; your model can suggest
+  categories if you turn that on (merchant names only). Ask about anything now searches your
+  transactions too. Household members each have their own; children don't get it. Works fully in
+  private local mode.
+- New: a home and family planner in Family. **Meals** is a week of dinners: pick a saved family recipe
+  or type one. Save recipes by pasting them, by giving a recipe page's address, or from a document in
+  your Library. Everyone notes their likes and allergies, and a dinner that clashes with someone's
+  allergy says so ("Allergy: Mia: peanuts"; shellfish covers shrimp). **Add to the grocery list** puts
+  the week's ingredients on your grocery list, added up ("2 lb chicken thighs") and sorted by aisle.
+  You can also ask her to "plan dinners for the week": she reads everyone's allergies first.
+- New: chores can take turns. A chore moves to the next person once a week, and each person with
+  chores left gets one reminder a day, never during their quiet hours. Kids see their chores' points
+  as stars.
+- New: a family **Calendar**. Paste a school letter, pick a school PDF from the Library, or give an
+  iCal link or .ics file: each dated line becomes an event that waits for a parent's OK. Anyone can add
+  an event. **Only me** keeps an event private, so nobody else sees it, not even the owner.
+- New: the Family tile on Today shows tonight's dinner, how many chores are left today and the next
+  family event. Dinner time, reminder time and the rota day are in Settings → Household → Family
+  planner.
+
+- New: **Health**, a private health log of your own ([docs/HEALTH.md](docs/HEALTH.md)). Medicines with
+  dose reminders, Taken/Skipped and a refill estimate; appointments with questions to ask, after-visit
+  notes and Add to calendar; symptoms, mood, sleep and readings with small charts. Quick add by typing or
+  telling her "headache 6/10" or "BP 128/82". Make a doctor summary PDF for any dates. Parents can manage
+  a child's medicine reminders. It is your log, not medical advice.
+- Health stays private: encrypted on this server in your own space, never in her memory, never in
+  support or hub reports or fix recipes, and read only by a local model unless you allow a cloud model
+  (Settings → You → What Sara knows → Health log). Ask about anything includes it only from a private
+  chat, and only when you turn that on.
+- New: **a learning coach**. From any Library document, one of its chapters or text you paste, Sara makes
+  a study set: flashcards, fill-in-the-blank cards, multiple-choice and short-answer questions, and a
+  summary sheet. Study a few cards a day in Library → Study (Again, Hard, Good, Easy space them out) or
+  say "quiz me" in chat, where multiple-choice questions are pick-an-answer cards and short answers get
+  kind feedback. A Study tile on Today shows the cards due, with a daily reminder at the time you pick
+  (Settings → You → Briefing and reminders). Sets export for Anki or as CSV and import back. Making a
+  set costs one model call (local models work; she makes the cards herself if the model can't). For
+  kids: words for their age, a hint before every answer, homework coached and never answered, and
+  parents see titles and counts in Family. See docs/LEARNING.md.
+
 ## 3.21.0 (2026-11-18): smarter: six languages, voices apart, Word comments, team recipes
 
-## 3.20.0 (2026-11-18): the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices
 - New: promises, clause checklists and travel emails in Spanish, French, German, Brazilian Portuguese
   and Italian, not just English. Sara works out which language a text is in and reads it with that
   language's own phrases, dates (day first, month names, 24-hour times) and booking words: "Te envío el
@@ -52,7 +110,7 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
   prepared (and which tests passed), approved, applied, went back or was undone, in the plan, the final
   report and the help log, and gets a notice when it is applied or goes back.
 
-## 3.19.0 (2026-11-18): proven on real models, Try these, steadier releases
+## 3.20.0 (2026-11-18): the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices
 
 - Fixed (iPhone): "Connect the Sara phone app" no longer tells an iPhone to get the Android app from
   Google Play. On an iPhone it explains Add to Home Screen (or says Sara is already there); on a computer
@@ -85,6 +143,9 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
   in use are asked for new messages every couple of minutes (each with its own sign-in). Your Saras (⇄ and
   the tray menu) shows each server's unread count, a new message brings a notification naming the server,
   and clicking it switches to that server's Messages. The taskbar count adds all servers up.
+
+## 3.19.0 (2026-11-18): proven on real models, Try these, steadier releases
+
 - Fixed: on Teams, Matrix, Signal and iMessage the live progress message could keep its stop button
   (or miss a step) when the chat app was slow to post it: a change that arrives while the message is
   still being sent now waits for it, in order (Slack already did this).

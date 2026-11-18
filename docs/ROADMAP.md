@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Money, family planner, health log, study cards and a browser extension, in 3.22.0
+
+A Money place turns bank and card exports into spending by category, budgets, bills due, subscriptions and net
+worth; it only tracks and never logs in to a bank or pays. Family gets a week of dinners that fills the grocery
+list, chores that take turns and a family calendar from school letters. Health is a private, encrypted log of
+medicines, appointments and readings, kept out of memory and reports. Study turns documents into flashcards and
+quizzes with spaced review. A browser extension asks Sara about a page, saves it, or fills a form after you approve.
+
 ## Smarter: six languages, voices apart, Word comments and team recipes, in 3.21.0
 
 Promises in sent mail, contract clause checklists and booking emails are read in Spanish, French, German,

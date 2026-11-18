@@ -85,7 +85,10 @@ import { createRoutineRoutes } from './routes/routines.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
+import { createStudyRoutes } from './routes/study.ts';
 import { createTravelRoutes } from './routes/travel.ts';
+import { createMoneyRoutes } from './routes/money.ts';
+import { createHealthLogRoutes } from './routes/health-log.ts';
 import { createDocStudioRoutes } from './routes/doc-studio.ts';
 import { createPhoneCallRoutes, phoneUpgrade, phoneWebhook } from './routes/phone-calls.ts';
 import { createFamilyRoutes } from './routes/family.ts';
@@ -130,6 +133,8 @@ import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connec
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createExtensionRoutes } from './routes/extension.ts';
+import { extOrigin } from './extension.ts';
 import { createBookingPublic, createBookingRoutes } from './routes/booking.ts';
 import { createMcpAppRoutes } from './routes/mcp-apps.ts';
 import { createEditorRoutes } from './routes/editor.ts';
@@ -451,7 +456,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1026,7 +1031,10 @@ export function createSaraServer(opts: ServerOptions): Server {
   const automationRoutes = createAutomationRoutes(ctx);
   const errandRoutes = createErrandRoutes(ctx);
   const longGoalRoutes = createLongGoalRoutes(ctx);
+  const studyRoutes = createStudyRoutes(ctx);
   const travelRoutes = createTravelRoutes(ctx);
+  const moneyRoutes = createMoneyRoutes(ctx);
+  const healthLogRoutes = createHealthLogRoutes(ctx);
   const docStudioRoutes = createDocStudioRoutes(ctx);
   const phoneCallRoutes = createPhoneCallRoutes(ctx);
   const familyRoutes = createFamilyRoutes(ctx);
@@ -1131,6 +1139,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const herRoutes = createHerRoutes(ctx);
   const voiceRoutes = createVoiceRoutes(ctx);
   const homeAssistantApi = createHomeAssistantApi(ctx);
+  // U4.25: the browser extension (src/routes/extension.ts; docs/EXTENSION.md).
+  const extensionRoutes = createExtensionRoutes(ctx);
   // Phase 87: computer use (src/routes/hands.ts); a Stop pressed on the computer stops the turn here.
   const handsRoutes = createHandsRoutes(ctx);
   // Phase 104: move in from another agent (src/routes/movein.ts); the collector's `send` uses a move-in code.
@@ -1158,7 +1168,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     /** For routes that run before the sign-in check: a JSON request from this site only. */
     const sameSiteOnly = () => {
       if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) throw new HttpError(415, 'Expected application/json');
-      if (!isSameOrigin(req)) throw new HttpError(403, 'Cross-origin request refused.');
+      if (!isSameOrigin(req) && !(a === 'device' && extOrigin(req.headers.origin))) throw new HttpError(403, 'Cross-origin request refused.');
     };
 
     if (a === 'health' && !b && method === 'GET') return send(res, 200, { ok: true });
@@ -1518,6 +1528,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     {
       const devId = deviceTokenOf(req);
       if (devId && auth.deviceKind(devId) === 'home-assistant') return homeAssistantApi(req, res, method, parts, devId);
+      if (devId && auth.deviceKind(devId) === 'extension') return extensionRoutes.api(req, res, method, parts, devId);
     }
     // C15: approving devices and the switch: the web app only (not apps signed in with a device code).
     if (a === 'device-approvals' || a === 'device-approval') {
@@ -1538,7 +1549,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     // Cross-site request guard (in addition to SameSite=Strict cookies).
     // N5b: a share-target navigation arrives with `Origin: null` (no referrer is sent); the session
     // cookie is SameSite=Strict, so another site's form can't sign in here anyway.
-    if (method !== 'GET' && !isSameOrigin(req) && !(a === 'phone' && b === 'share' && req.headers.origin === 'null')) throw new HttpError(403, 'Cross-origin request refused.');
+    // U4.25: the browser extension's own page posts with its chrome-extension:// origin (bearer token only, no cookies).
+    if (method !== 'GET' && !isSameOrigin(req) && !(a === 'phone' && b === 'share' && req.headers.origin === 'null') && !((a === 'ext' || a === 'device') && extOrigin(req.headers.origin) && !cookie)) throw new HttpError(403, 'Cross-origin request refused.');
 
     // Demo (app review): the reviewer code unlocks live calls for this demo session.
     if (a === 'demo' && b === 'call-code' && method === 'POST' && opts.demo) {
@@ -1608,7 +1620,10 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await studyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await travelRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await moneyRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await healthLogRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await docStudioRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await phoneCallRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bookingRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1626,6 +1641,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await myDetailsRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await extensionRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await writingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await factsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1928,7 +1944,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (b === 'whoami' && method === 'GET') {
         const id = deviceTokenOf(req);
         const d = id ? auth.devices().find((x) => x.id === id) : undefined;
-        return send(res, 200, { companion: app.persona.name, device: d ? { id: d.id, label: d.label, scope: d.kind === 'home-assistant' ? 'home-assistant' : 'full' } : null, disclosureAccepted: Boolean(app.settings.get().disclosureAcceptedAt), disclosure: disclosureText(app.persona.name, appLanguage(app.settings.get())) });
+        return send(res, 200, { companion: app.persona.name, device: d ? { id: d.id, label: d.label, scope: d.kind === 'home-assistant' ? 'home-assistant' : d.kind === 'extension' ? 'extension' : 'full' } : null, disclosureAccepted: Boolean(app.settings.get().disclosureAcceptedAt), disclosure: disclosureText(app.persona.name, appLanguage(app.settings.get())) });
       }
       // Approving needs the owner in a browser (or the owner token): an app can't let in another app.
       if (deviceTokenOf(req)) throw new HttpError(403, 'Approve new apps in the web app (Settings → Devices and sign-in).');
@@ -1959,7 +1975,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             if (opts.member || !app.hands) throw new HttpError(403, 'Only the owner can pair Linux hands on this server.');
             return auth.createHandsToken(`Sara's hands on ${name}`);
           }
-          return auth.createDeviceToken(name, scope === 'home-assistant' ? 'home-assistant' : undefined);
+          return auth.createDeviceToken(name, scope === 'home-assistant' ? 'home-assistant' : scope === 'extension' ? 'extension' : undefined);
         });
         if (!r) throw new HttpError(404, 'That request is no longer waiting (it may have expired).');
         app.events?.publish({ type: 'device', pending: deviceFlow.pending().length });

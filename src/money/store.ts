@@ -42,6 +42,12 @@ export function txKey(t: Pick<TxIn, 'date' | 'amountCents' | 'description' | 'ac
   return `${t.date}|${t.amountCents}|${desc}|${t.account.toLowerCase().trim()}|${nth}`;
 }
 
+/** An account for duplicate checks: its last 4 digits when it has them (\"Card …9876\" = \"9876\"), else its folded name. */
+export function acctKey(account: string): string {
+  const d = /(\d{4})\D*$/.exec(account);
+  return d ? `n:${d[1]}` : account.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
 const toTx = (r: Row): Tx => ({ id: Number(r.id), date: String(r.date), description: String(r.description), merchant: String(r.merchant), amountCents: Number(r.amount), account: String(r.account), category: String(r.category) });
 const toBill = (r: Row): Bill => ({
   id: Number(r.id),
@@ -78,7 +84,22 @@ export class MoneyStore {
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, amount INTEGER, repeat TEXT NOT NULL, due_day INTEGER, due_date TEXT,
       autopay INTEGER NOT NULL DEFAULT 0, lead_days INTEGER NOT NULL DEFAULT 3, reminder_id INTEGER, paid_for TEXT, paid_at TEXT,
       done INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS money_state (key TEXT PRIMARY KEY, json TEXT NOT NULL);`);
+    CREATE TABLE IF NOT EXISTS money_state (key TEXT PRIMARY KEY, json TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS money_imports (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, account TEXT NOT NULL, rows INTEGER NOT NULL, added INTEGER NOT NULL,
+      duplicates INTEGER NOT NULL, from_day TEXT, to_day TEXT, at TEXT NOT NULL);`);
+    // U4.20: which import a row came from, and whether its account was only the file's name.
+    for (const col of ['import_id INTEGER', 'acct_guess INTEGER NOT NULL DEFAULT 0']) {
+      try {
+        db.exec(`ALTER TABLE money_tx ADD COLUMN ${col}`);
+      } catch {
+        /* already there */
+      }
+    }
+  }
+
+  get db(): DatabaseSync {
+    return this.#db;
   }
 
   state<T>(key: string): T | undefined {
@@ -129,31 +150,61 @@ export class MoneyStore {
     return (this.#db.prepare('SELECT merchant, category FROM money_rules').all() as Row[]).map((r) => ({ merchant: String(r.merchant), category: String(r.category) }));
   }
 
-  /** Adds the new rows (duplicates of earlier imports are skipped), categorized. */
-  importTransactions(rows: TxIn[]): { added: Tx[]; duplicates: number } {
+  /**
+   * Adds the new rows (duplicates of earlier imports are skipped), categorized. U4.20: overlapping
+   * files: a row is also a duplicate when an earlier import already holds as many rows with the same
+   * day, amount and merchant on the same account (same name or same last 4 digits; an account that
+   * was only a file name matches any), so October's and November's exports may overlap freely.
+   */
+  importTransactions(rows: TxIn[], o: { file?: string; guessed?: boolean } = {}): { added: Tx[]; duplicates: number; importId: number | null } {
     const rules = this.rules();
     const iso = this.#now().toISOString();
     const seen = new Map<string, number>();
+    const loose = new Map<string, number>();
     const added: Tx[] = [];
     let duplicates = 0;
-    const ins = this.#db.prepare('INSERT OR IGNORE INTO money_tx (key, date, description, merchant, amount, account, category, bank_category, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    let importId: number | null = null;
+    const ins = this.#db.prepare('INSERT OR IGNORE INTO money_tx (key, date, description, merchant, amount, account, category, bank_category, created_at, import_id, acct_guess) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+    const near = this.#db.prepare('SELECT account, acct_guess FROM money_tx WHERE date = ? AND amount = ? AND merchant = ? AND (import_id IS NULL OR import_id != ?)');
     this.#db.exec('BEGIN IMMEDIATE');
     try {
+      if (o.file !== undefined) {
+        const dates = rows.map((t) => t.date).sort();
+        importId = Number(this.#db.prepare('INSERT INTO money_imports (name, account, rows, added, duplicates, from_day, to_day, at) VALUES (?, ?, ?, 0, 0, ?, ?, ?)').run(clip(o.file, 120), clip([...new Set(rows.map((t) => t.account))].join(', '), 120), rows.length, dates[0] ?? null, dates.at(-1) ?? null, iso).lastInsertRowid);
+      }
       for (const t of rows) {
         const base = txKey(t, 0);
         const nth = (seen.get(base) ?? 0) + 1;
         seen.set(base, nth);
+        const merchant = merchantKey(t.description);
+        const lk = `${t.date}|${t.amountCents}|${merchant}|${acctKey(t.account)}`;
+        const ln = (loose.get(lk) ?? 0) + 1;
+        loose.set(lk, ln);
+        const earlier = (near.all(t.date, t.amountCents, merchant, importId ?? -1) as Row[]).filter((r) => o.guessed || Number(r.acct_guess) === 1 || acctKey(String(r.account)) === acctKey(t.account)).length;
+        if (earlier >= ln) {
+          duplicates++;
+          continue;
+        }
         const category = categorize(t, rules);
-        const r = ins.run(txKey(t, nth), t.date, clip(t.description, 200), merchantKey(t.description), t.amountCents, clip(t.account, 80), category, clip(t.bankCategory, 60), iso);
-        if (Number(r.changes)) added.push({ id: Number(r.lastInsertRowid), date: t.date, description: clip(t.description, 200), merchant: merchantKey(t.description), amountCents: t.amountCents, account: clip(t.account, 80), category });
+        const r = ins.run(txKey(t, nth), t.date, clip(t.description, 200), merchant, t.amountCents, clip(t.account, 80), category, clip(t.bankCategory, 60), iso, importId, o.guessed ? 1 : 0);
+        if (Number(r.changes)) added.push({ id: Number(r.lastInsertRowid), date: t.date, description: clip(t.description, 200), merchant, amountCents: t.amountCents, account: clip(t.account, 80), category });
         else duplicates++;
       }
+      if (importId !== null) this.#db.prepare('UPDATE money_imports SET added = ?, duplicates = ? WHERE id = ?').run(added.length, duplicates, importId);
       this.#db.exec('COMMIT');
     } catch (err) {
       this.#db.exec('ROLLBACK');
       throw err;
     }
-    return { added, duplicates };
+    return { added, duplicates, importId };
+  }
+
+  imports(limit = 10): { id: number; name: string; account: string; rows: number; added: number; duplicates: number; from: string | null; to: string | null; at: string }[] {
+    return (this.#db.prepare('SELECT * FROM money_imports ORDER BY id DESC LIMIT ?').all(limit) as Row[]).map((r) => ({ id: Number(r.id), name: String(r.name), account: String(r.account), rows: Number(r.rows), added: Number(r.added), duplicates: Number(r.duplicates), from: r.from_day == null ? null : String(r.from_day), to: r.to_day == null ? null : String(r.to_day), at: String(r.at) }));
+  }
+  tx(id: number): Tx | undefined {
+    const r = this.#db.prepare('SELECT * FROM money_tx WHERE id = ?').get(id) as Row | undefined;
+    return r ? toTx(r) : undefined;
   }
 
   transactions(o: { from?: string; to?: string } = {}): Tx[] {

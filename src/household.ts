@@ -549,6 +549,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   // talking
   // R4: their own iPhone Shortcuts tokens (src/routes/shortcuts.ts; the iCloud links are the owner's)
   'shortcuts',
+  // U4.25: their own browser extension (src/routes/extension.ts; its token is their own device)
+  'ext', 'extension',
   'conversations', 'live', 'events', 'approvals', 'uploads', 'video', 'calls', 'voice', 'wake', 'tags', 'find', 'reports',
   // EC11: share links of their own chats (the share routes refuse when the owner turned it off)
   'shares',
@@ -578,8 +580,14 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'errands',
   // S3: their own long-running goals (src/routes/long-goals.ts)
   'goal-plans',
+  // U4.23: their own study sets (src/routes/study.ts)
+  'study',
   // S6: their own trips (src/routes/travel.ts)
   'trips',
+  // U4.20: their own Money place (src/routes/money.ts)
+  'money',
+  // U4.22: their own health log (src/routes/health-log.ts)
+  'health-log',
   // S7: their own templates, tracked changes and signing PDFs (src/routes/doc-studio.ts)
   'doc-studio',
   // R6: their own booking page and accounting export files (src/routes/booking.ts)

@@ -5,6 +5,7 @@
 // (only when a parent allowed it and the owner's search provider has a safe-search switch).
 import type { AppContext } from '../chat.ts';
 import { FamilyError, kidResultOk, kidsOf, money, type FamilyAccess } from '../family.ts';
+import { planOf, weekStartOf } from '../family-plan.ts';
 import { formatResults, runSearch, type SearchConfig } from './search.ts';
 import { ToolError, type Tool } from './types.ts';
 
@@ -116,7 +117,7 @@ export function createFamilyTools(appOf: () => AppContext): Tool[] {
       return `Recorded: paid ${p.name} ${money(row.cents)} (a record only; no money was moved). Balance now ${money(b.balanceCents)}.\nVerified: ledger entry #${row.id} reads back.`;
     },
   };
-  return [choreAdd, choreList, choreDone, balance, pay];
+  return [choreAdd, choreList, choreDone, balance, pay, ...createPlanTools(appOf, has, isParent)];
 }
 
 /** A child's web search: strict safe-search, shops and explicit results left out (src/family.ts). */
@@ -136,4 +137,94 @@ export function createKidSearchTool(appOf: () => AppContext, config: () => Searc
       return formatResults(results);
     },
   };
+}
+
+// U4.21: the planner. meal_plan_get (the week, everyone's likes and allergies, saved recipes: what
+// she needs to plan dinners), meal_plan_set (a parent: dinners for days; allergy clashes come back),
+// meal_shopping (a parent: the week's ingredients into a grocery list, merged by aisle) and
+// family_calendar (anyone, kids too: the family week, dinners and chores).
+function createPlanTools(appOf: () => AppContext, has: () => boolean, isParent: () => boolean): Tool[] {
+  const week = (f: FamilyAccess, start?: unknown) => {
+    const tz = f.tz();
+    const s = typeof start === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(start) ? start : weekStartOf(appOf().now(), tz);
+    return planOf(f.store).week(f.person, s, tz, f.people());
+  };
+  const names = (f: FamilyAccess) => new Map(f.people().map((p) => [p.id, p.name]));
+  const get: Tool = {
+    defaultPermission: 'auto',
+    interruptible: true,
+    isAvailable: () => has() && isParent(),
+    spec: { name: 'meal_plan_get', description: 'The family meal plan for a week (one dinner a day), what each person likes, dislikes and is allergic to, and the saved family recipes. Read it before planning dinners.', parameters: obj({ week: { type: 'string', description: 'Any YYYY-MM-DD in the week (default: this week).' } }) },
+    summarize: () => 'read the meal plan',
+    async run(args) {
+      const f = access(appOf());
+      const plan = planOf(f.store);
+      const w = week(f, args.week);
+      const prefs = plan.prefs(f.person);
+      return [
+        `Week of ${w.start}:`,
+        ...w.days.map((d) => `- ${d.day}: ${d.meal ? d.meal.title + (d.meal.warnings.length ? ` (allergy: ${d.meal.warnings.join('; ')})` : '') : 'no dinner planned'}`),
+        '',
+        'People:',
+        ...f.people().map((p) => {
+          const x = prefs.find((q) => q.person === p.id);
+          return `- ${p.name}${p.child ? ' (kid)' : ''}: ${x ? [x.likes && `likes ${x.likes}`, x.dislikes && `dislikes ${x.dislikes}`, x.allergies && `allergic to ${x.allergies}`].filter(Boolean).join('; ') || 'nothing noted' : 'nothing noted'}`;
+        }),
+        '',
+        `Family recipes: ${plan.recipes().map((r) => `#${r.id} ${r.title}`).join(', ') || 'none saved yet'}`,
+      ].join('\n');
+    },
+  };
+  const set: Tool = {
+    defaultPermission: 'auto',
+    isAvailable: () => has() && isParent(),
+    spec: {
+      name: 'meal_plan_set',
+      description: 'A parent sets dinners on the family meal plan: one per day (YYYY-MM-DD), a title, optionally a saved recipe id or ingredient lines ("1 lb chicken thighs"). Plan around everyone\'s allergies (meal_plan_get). Replies with any allergy clash.',
+      parameters: obj({ dinners: { type: 'array', items: { type: 'object', properties: { day: { type: 'string' }, title: { type: 'string' }, recipe: { type: 'integer' }, ingredients: { type: 'array', items: { type: 'string' } } }, required: ['day'] } } }, ['dinners']),
+    },
+    summarize: (a) => `plan ${Array.isArray(a.dinners) ? a.dinners.length : 0} dinners`,
+    async run(args) {
+      const f = access(appOf());
+      const plan = planOf(f.store);
+      const list = Array.isArray(args.dinners) ? (args.dinners as Record<string, unknown>[]).slice(0, 14) : [];
+      if (!list.length) throw new ToolError('Give at least one dinner: {day, title}.');
+      const lines: string[] = [];
+      for (const d of list) {
+        const r = guard(() => plan.setMeal(f.person, String(d.day ?? ''), { title: d.title, recipeId: d.recipe, ingredients: d.ingredients }, f.people()));
+        lines.push(`- ${r.meal.day}: ${r.meal.title}${r.warnings.length ? ` — allergy warning: ${r.warnings.join('; ')}` : ''}`);
+      }
+      return `Planned ${list.length} dinner${list.length === 1 ? '' : 's'}:\n${lines.join('\n')}\nVerified: they read back from the family meal plan.`;
+    },
+  };
+  const shop: Tool = {
+    defaultPermission: 'auto',
+    isAvailable: () => has() && isParent() && Boolean(appOf().family?.boards),
+    spec: { name: 'meal_shopping', description: 'A parent puts the week\'s planned dinners\' ingredients on the family grocery list (quantities merged, grouped by aisle; nothing is bought).', parameters: obj({ week: { type: 'string', description: 'Any YYYY-MM-DD in the week (default: this week).' } }) },
+    summarize: () => 'add the week\'s ingredients to the grocery list',
+    async run(args) {
+      const f = access(appOf());
+      if (!f.boards) throw new ToolError('Grocery lists are not available here.');
+      const w = week(f, args.week);
+      const plan = planOf(f.store);
+      const lines = plan.shopping(w.start);
+      if (!lines.length) return `No ingredients on the plan for the week of ${w.start}: give the dinners recipes or ingredient lines first.`;
+      const r = guard(() => plan.toGrocery(f.person, w.start, f.boards!, f.people().map((p) => p.id)));
+      return `Added ${r.added} of ${r.lines} items to the grocery list (the rest were already on it):\n${lines.map((l) => `- ${l.title}`).join('\n')}`;
+    },
+  };
+  const cal: Tool = {
+    defaultPermission: 'auto',
+    interruptible: true,
+    isAvailable: has,
+    spec: { name: 'family_calendar', description: 'The family week: each day\'s dinner, family events (school, activities) and chores due. Kids see it too.', parameters: obj({ week: { type: 'string', description: 'Any YYYY-MM-DD in the week (default: this week).' } }) },
+    summarize: () => 'read the family week',
+    async run(args) {
+      const f = access(appOf());
+      const n = names(f);
+      const w = week(f, args.week);
+      return [`Family week of ${w.start}:`, ...w.days.map((d) => `- ${d.day}: ${[d.meal ? `dinner ${d.meal.title}` : '', ...d.events.map((e) => `${e.title}${e.allDay ? '' : ` at ${e.start.slice(11)}`}${e.who !== 'family' ? ' (private)' : ''}`), ...d.chores.map((c) => `chore ${c.title} (${n.get(c.assignee) ?? 'someone'})`)].filter(Boolean).join('; ') || 'nothing'}`)].join('\n');
+    },
+  };
+  return [get, set, shop, cal];
 }

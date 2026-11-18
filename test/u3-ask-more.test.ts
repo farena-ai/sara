@@ -99,7 +99,7 @@ const goal = owner.longGoals!.create({ title: 'Run a half marathon', due: '2027-
 const group = (r: Awaited<ReturnType<typeof askEverything>>, s: string) => r.groups.find((g) => g.source === s)?.items ?? [];
 
 test('U3.19: the new sources are listed after the old ones (old order unchanged)', () => {
-  assert.deepEqual([...ASK_SOURCES], ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals']);
+  assert.deepEqual([...ASK_SOURCES], ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals', 'money', 'health']);
 });
 
 test('U3.19 meetings: transcripts and notes, cited with the meeting and the time in the recording', async () => {

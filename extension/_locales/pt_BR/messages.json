@@ -1,0 +1,155 @@
+{
+ "appName": {
+  "message": "Sara"
+ },
+ "appDesc": {
+  "message": "Pergunte à Sara sobre a página em que você está, salve-a na Biblioteca dela ou deixe que ela preencha um formulário depois da sua aprovação."
+ },
+ "pairIntro": {
+  "message": "Conecte este navegador à sua Sara. Digite o endereço dela; aparece um código curto que você aprova na Sara."
+ },
+ "serverLabel": {
+  "message": "Endereço da Sara"
+ },
+ "serverPlaceholder": {
+  "message": "ex.: https://sara.example.com"
+ },
+ "pair": {
+  "message": "Conectar"
+ },
+ "pairing": {
+  "message": "Pedindo um código à Sara…"
+ },
+ "codeIs": {
+  "message": "Seu código:"
+ },
+ "approveIn": {
+  "message": "Aprove na Sara: Configurações → Conexões → Dispositivos e login, ou na página abaixo."
+ },
+ "openDevices": {
+  "message": "Abrir a página de aprovação"
+ },
+ "waiting": {
+  "message": "Aguardando sua aprovação…"
+ },
+ "paired": {
+  "message": "Conectado."
+ },
+ "unpaired": {
+  "message": "Desconectado. A Sara esqueceu este navegador."
+ },
+ "pairFailed": {
+  "message": "O código não foi aprovado a tempo. Tente de novo."
+ },
+ "permissionDenied": {
+  "message": "O navegador precisa da sua permissão para acessar o endereço da Sara."
+ },
+ "badServer": {
+  "message": "Digite um endereço web, como https://sara.example.com."
+ },
+ "notPaired": {
+  "message": "Ainda não conectado à Sara."
+ },
+ "pairedWith": {
+  "message": "Conectado a $1"
+ },
+ "unpair": {
+  "message": "Desconectar"
+ },
+ "offHere": {
+  "message": "Desligado neste site"
+ },
+ "offHereNote": {
+  "message": "A Sara está desligada neste site: nada dele é enviado. Desmarque a caixa para usá-la aqui."
+ },
+ "notWebPage": {
+  "message": "Esta não é uma página web que a Sara consiga ler."
+ },
+ "privateLocal": {
+  "message": "O modo local privado está ligado na Sara: a extensão espera até ele ser desligado."
+ },
+ "extOff": {
+  "message": "A extensão do navegador está desligada nas Configurações da Sara."
+ },
+ "askPlaceholder": {
+  "message": "Pergunte sobre esta página (ou deixe em branco)"
+ },
+ "ask": {
+  "message": "Perguntar à Sara sobre esta página"
+ },
+ "summarize": {
+  "message": "Resumir"
+ },
+ "savePage": {
+  "message": "Salvar na Biblioteca"
+ },
+ "fillForm": {
+  "message": "Preencher este formulário"
+ },
+ "thinking": {
+  "message": "A Sara está lendo…"
+ },
+ "saving": {
+  "message": "Salvando…"
+ },
+ "saved": {
+  "message": "Salvo na Biblioteca como “$1”."
+ },
+ "openLibrary": {
+  "message": "Abrir na Sara"
+ },
+ "continueInSara": {
+  "message": "Continuar na Sara"
+ },
+ "waitingApproval": {
+  "message": "Ela está aguardando sua aprovação na Sara:"
+ },
+ "readFailed": {
+  "message": "Extensões não podem ler esta página (uma página do navegador ou da loja)."
+ },
+ "fillTitle": {
+  "message": "Preencher com seus dados?"
+ },
+ "fillHow": {
+  "message": "Dos Meus dados na Sara. Desmarque ou altere qualquer campo; nada é digitado até você aprovar, e o formulário nunca é enviado."
+ },
+ "approveFill": {
+  "message": "Aprovar e preencher"
+ },
+ "cancel": {
+  "message": "Cancelar"
+ },
+ "fillSkipped": {
+  "message": "Estes você digita (a Sara nunca preenche senhas, cartões ou códigos): $1"
+ },
+ "fillNone": {
+  "message": "Nenhum campo de formulário nesta página."
+ },
+ "fillNoMatch": {
+  "message": "Nenhum destes campos corresponde aos seus dados."
+ },
+ "noDetails": {
+  "message": "Primeiro adicione seus dados na Sara: Configurações → Você → Meus dados."
+ },
+ "filled": {
+  "message": "$1 campos preenchidos. Confira e envie o formulário você mesmo."
+ },
+ "fillCancelled": {
+  "message": "Nada foi preenchido."
+ },
+ "revoked": {
+  "message": "A Sara não reconhece mais este navegador (ele foi desconectado em Dispositivos). Conecte de novo."
+ },
+ "cantReach": {
+  "message": "A Sara não está acessível agora. Confira o endereço dela e sua conexão."
+ },
+ "errorGeneric": {
+  "message": "Algo deu errado. Tente de novo."
+ },
+ "menuAskSel": {
+  "message": "Perguntar à Sara sobre “%s”"
+ },
+ "menuSave": {
+  "message": "Salvar esta página na Biblioteca da Sara"
+ }
+}

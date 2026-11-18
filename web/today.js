@@ -56,6 +56,7 @@ export const TILES = [
   { id: 'td-shared', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-errands', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   { id: 'td-goals', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  { id: 'td-study', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-people', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   { id: 'td-meetings', section: 'needs', sizes: ['S', 'M'], size: 'S', ownerOnly: true },
   { id: 'td-trips', section: 'needs', sizes: ['S', 'M'], size: 'M' },
@@ -585,7 +586,7 @@ const num = (n) => Number(n ?? 0).toLocaleString(locale());
 const kTok = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
 
 /** 2.8: each tile's small line icon (web/icons.js), beside its title. */
-const TILE_ICON = { 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag', 'td-shared': 'group', 'td-worktime': 'gauge', 'td-errands': 'todo', 'td-goals': 'flag', 'td-people': 'heart', 'td-meetings': 'todo', 'td-trips': 'calendar', 'td-family': 'group' };
+const TILE_ICON = { 'td-study': 'todo', 'td-plans': 'calendar', 'td-board': 'todo', 'td-hooks': 'reminder', 'td-watching': 'reminder', 'td-automations': 'reminder', 'td-inbox': 'mail', 'td-weather': 'weather', 'td-calendar': 'calendar', 'td-agenda': 'planner', 'td-memories': 'memory', 'td-otd': 'moments', 'td-jobs': 'job', 'td-home': 'home', 'td-mail': 'mail', 'td-dates': 'heart', 'td-models': 'sparkle', 'td-setup': 'plus', 'td-needs': 'warn', 'td-projects': 'terminal', 'td-usage': 'gauge', 'td-rooms': 'group', 'td-business': 'todo', 'td-money': 'gauge', 'td-teams': 'flag', 'td-shared': 'group', 'td-worktime': 'gauge', 'td-errands': 'todo', 'td-goals': 'flag', 'td-people': 'heart', 'td-meetings': 'todo', 'td-trips': 'calendar', 'td-family': 'group' };
 function tileIcon(id) {
   const svg = icon(TILE_ICON[id] ?? '');
   if (!svg) return [];
@@ -2099,6 +2100,7 @@ export function renderToday(d, { fmtDue, inDaysWords }) {
   if (has('worktime')) draw('td-worktime', () => renderWorktime(d.worktime));
   if (has('errands')) draw('td-errands', () => ctx.renderErrands?.(d.errands, tileHead));
   if (has('goals')) draw('td-goals', () => ctx.renderGoals?.(d.goals, tileHead));
+  if (has('study')) draw('td-study', () => ctx.renderStudy?.(d.study, tileHead));
   if (has('people')) draw('td-people', () => ctx.renderPeopleDue?.(d.people, tileHead));
   if (has('meetings')) draw('td-meetings', () => ctx.renderMeetings?.(d.meetings, tileHead));
   if (has('trips')) draw('td-trips', () => ctx.renderTrips?.(d.trips, tileHead));

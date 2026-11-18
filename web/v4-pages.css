@@ -88,15 +88,15 @@
 }
 :where(:root:not([data-palette="classic"])) #today #td-ask:hover { filter: brightness(1.08); }
 :where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn,
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) button.ghost:not(.icon, .tip, .tab, .linkish) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) button.ghost:not(.icon, .tip, .tab, .linkish) {
   min-height: 32px; padding: 0 12px; border: 1px solid var(--line); border-radius: var(--v4-r-ctl);
   background: var(--surface-2); color: var(--text-1); font-size: 13px; font-weight: 500; box-shadow: none;
 }
 :where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn { height: 38px; min-height: 0; border-radius: 10px; }
 :where(:root:not([data-palette="classic"])) #today .td-actions .td-hbtn:hover,
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) button.ghost:not(.icon, .tip, .tab, .linkish):hover { background: var(--surface-3); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) button.ghost:not(.icon, .tip, .tab, .linkish):hover { background: var(--surface-3); border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); color: var(--text-1); }
 :where(:root:not([data-palette="classic"])) #today .td-fresh { color: var(--text-3); font-size: 12px; }
-:where(:root:not([data-palette="classic"])) :is(#today, #planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) button:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; box-shadow: 0 0 0 4px var(--accent-soft); }
+:where(:root:not([data-palette="classic"])) :is(#today, #planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) button:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; box-shadow: 0 0 0 4px var(--accent-soft); }
 
 /* ---------- Today: section heads ---------- */
 :where(:root:not([data-palette="classic"])) #today .td-tiles { gap: 24px; }
@@ -223,7 +223,7 @@
 :where(:root:not([data-palette="classic"])) #today.td-ff-phone .td-tile { padding: 12px 14px; }
 
 /* ---------- the places: Planner, Memory, Library, Scrapbook, Moments, Your story, Team, Findings, Evals ---------- */
-:where(:root:not([data-palette="classic"])) :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals, dialog#errands, dialog#goals, #trips, dialog#family, dialog#msgs) {
+:where(:root:not([data-palette="classic"])) :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals, dialog#errands, dialog#goals, #trips, #money, #health, #trips, dialog#family, dialog#msgs) {
   border: 1px solid color-mix(in srgb, var(--line) 60%, var(--text-3));
   border-radius: 18px;
   background: radial-gradient(700px 220px at 0 0, var(--acc-haze), transparent 70%), color-mix(in srgb, var(--surface-1) 96%, transparent);
@@ -232,56 +232,56 @@
   box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft), 0 30px 80px -40px var(--acc-glow);
 }
 /* Day: white pages, the accent only as a faint corner light (no pink or blue wash over the page). */
-:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals, dialog#errands, dialog#goals, #trips, dialog#family, dialog#msgs) { background: radial-gradient(600px 160px at 0 0, color-mix(in srgb, var(--accent-solid) 5%, transparent), transparent 70%), var(--surface-1); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs)::backdrop { background: color-mix(in srgb, var(--surface-0) 55%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(dialog#planner, dialog#memory, dialog#library, dialog#scrapbook, dialog#moments, dialog#story, dialog#team, dialog#findings, dialog#evals, dialog#errands, dialog#goals, #trips, #money, #health, #trips, dialog#family, dialog#msgs) { background: radial-gradient(600px 160px at 0 0, color-mix(in srgb, var(--accent-solid) 5%, transparent), transparent 70%), var(--surface-1); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs)::backdrop { background: color-mix(in srgb, var(--surface-0) 55%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
 /* The page head: a clear title with an accent mark, the explanation quieter under it. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) .settings-body h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; color: var(--text-1); font: 600 20px/1.25 var(--font-ui); letter-spacing: -.015em; }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) .settings-body h2::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px var(--acc-glow); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) .settings-body > :is(p.muted, section > p.muted):first-of-type { color: var(--text-2); font-size: 13px; line-height: 1.55; }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .settings-body h3 { color: var(--text-2); font: var(--v4-label); letter-spacing: .07em; text-transform: uppercase; }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .muted { color: var(--text-3); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) .settings-body h2 { display: flex; align-items: center; gap: 10px; margin: 0 0 4px; color: var(--text-1); font: 600 20px/1.25 var(--font-ui); letter-spacing: -.015em; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) .settings-body h2::before { content: ""; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-solid); box-shadow: 0 0 0 3px var(--accent-soft), 0 0 12px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) .settings-body > :is(p.muted, section > p.muted):first-of-type { color: var(--text-2); font-size: 13px; line-height: 1.55; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .settings-body h3 { color: var(--text-2); font: var(--v4-label); letter-spacing: .07em; text-transform: uppercase; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .muted { color: var(--text-3); }
 
 /* Tabs: a V4 segmented control (the picked one in the accent, softly lit). */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .tabs {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .tabs {
   display: flex; flex-wrap: wrap; gap: 2px; width: fit-content; max-width: 100%; margin: 8px 0 12px; padding: 3px;
   border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2);
 }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .tabs .tab {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .tabs .tab {
   height: 30px; min-height: 0; padding: 0 12px; border: 1px solid transparent; border-radius: 8px;
   background: none; color: var(--text-2); font-size: 13px; font-weight: 500; box-shadow: none;
 }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .tabs .tab:hover { background: var(--surface-3); color: var(--text-1); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) .tabs .tab:is(.active, [aria-selected="true"]) { border-color: var(--acc-line); background: var(--accent-soft); color: var(--text-1); box-shadow: 0 0 14px -6px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .tabs .tab:hover { background: var(--surface-3); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) .tabs .tab:is(.active, [aria-selected="true"]) { border-color: var(--acc-line); background: var(--accent-soft); color: var(--text-1); box-shadow: 0 0 14px -6px var(--acc-glow); }
 
 /* Inputs: one height, quiet fills, the accent focus glow (v4.css). */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) {
   min-height: 34px; border: 1px solid var(--line); border-radius: var(--v4-r-ctl); background: var(--surface-0); color: var(--text-1); font-size: 13.5px; box-shadow: none;
 }
-:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { background: var(--surface-2); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(input, select, textarea):focus-visible { border-color: var(--accent-solid); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) input:is([type="checkbox"], [type="radio"]) { accent-color: var(--accent-solid); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { background: var(--surface-2); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(input, select, textarea):focus-visible { border-color: var(--accent-solid); outline: none; box-shadow: 0 0 0 3px var(--accent-soft), 0 0 18px -6px var(--acc-glow); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) input:is([type="checkbox"], [type="radio"]) { accent-color: var(--accent-solid); }
 /* The main action of a row or a page (Add, Add documents, Run…): the V4 primary. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.add-row > button:not(.ghost), .file-button, button.primary, .ev-run, .actions > button:not(.ghost, .danger, .linkish)) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.add-row > button:not(.ghost), .file-button, button.primary, .ev-run, .actions > button:not(.ghost, .danger, .linkish)) {
   min-height: 34px; padding: 0 14px; border: 0; border-radius: var(--v4-r-ctl); background: var(--btn-fill); color: var(--on-btn); font-weight: 600;
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent-solid) 30%, transparent) inset, 0 6px 20px -8px var(--acc-glow);
 }
 /* The close button of a place: a small round icon, not a pink ring. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.dialog-x, .close-x, [data-close]) { border: 1px solid var(--line); border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: none; outline-color: var(--accent-solid); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.dialog-x, .close-x, [data-close]) { border: 1px solid var(--line); border-radius: 50%; background: var(--surface-2); color: var(--text-2); box-shadow: none; outline-color: var(--accent-solid); }
 
 /* Lists: rows on a quiet surface with hairlines (to-dos, documents, notes, findings, team rows…). */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) {
   border: 1px solid var(--line); border-radius: 11px; background: var(--surface-2); box-shadow: none;
   transition: border-color var(--dur-2, .2s) var(--ease-std, ease), box-shadow var(--dur-2, .2s);
 }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item):hover { border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); box-shadow: 0 10px 26px -20px var(--acc-glow); }
-:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) { background: var(--surface-1); box-shadow: 0 1px 2px color-mix(in srgb, var(--text-1) 5%, transparent); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item):hover { border-color: color-mix(in srgb, var(--line) 50%, var(--text-3)); box-shadow: 0 10px 26px -20px var(--acc-glow); }
+:where(:root:not([data-palette="classic"]))[data-theme="light"] :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.item, .lib-item, .rt-row, .fd-row, .ev-row, .mem-item, .story-item, .sb-item) { background: var(--surface-1); box-shadow: 0 1px 2px color-mix(in srgb, var(--text-1) 5%, transparent); }
 /* Tables (Evals, usage, findings): V4 heads and hairlines, tabular numbers. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) table { border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-variant-numeric: tabular-nums; }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) th { background: var(--surface-2); color: var(--text-3); font: var(--v4-label); letter-spacing: .06em; text-transform: uppercase; text-align: left; }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) :is(th, td) { padding: 8px 10px; border-bottom: 1px solid var(--line); }
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs, #settings) tr:last-child > td { border-bottom: 0; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) table { border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) th { background: var(--surface-2); color: var(--text-3); font: var(--v4-label); letter-spacing: .06em; text-transform: uppercase; text-align: left; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) :is(th, td) { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs, #settings) tr:last-child > td { border-bottom: 0; }
 /* Empty states: a quiet dashed panel instead of a lone grey line. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.empty, .lib-empty, .is-empty:not(.team-cols), #lib-summary:not(:empty), .ev-empty, .fd-empty) {
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.empty, .lib-empty, .is-empty:not(.team-cols), #lib-summary:not(:empty), .ev-empty, .fd-empty) {
   padding: 16px; border: 1px dashed color-mix(in srgb, var(--line) 40%, var(--text-3)); border-radius: 12px; background: color-mix(in srgb, var(--surface-2) 60%, transparent); color: var(--text-3); text-align: center;
 }
 /* Library: the drop zone as a V4 panel. */
@@ -301,7 +301,7 @@
 /* Fresh pass: the words and controls inside those cards keep off the card edge. */
 :where(:root:not([data-palette="classic"])) #evals :is(.ev-new, .ev-past) { padding: 14px 16px; }
 /* "How do I…?" bars inside the places. */
-:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #family, #msgs) :is(.howto, details.howto) { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); box-shadow: none; }
+:where(:root:not([data-palette="classic"])) :is(#planner, #memory, #library, #scrapbook, #moments, #story, #team, #findings, #evals, #errands, #goals, #trips, #money, #health, #trips, #family, #msgs) :is(.howto, details.howto) { border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); box-shadow: none; }
 
 /* ---------- Settings: the same page head, tabs and buttons ---------- */
 :where(:root:not([data-palette="classic"])) dialog#settings { border: 1px solid color-mix(in srgb, var(--line) 60%, var(--text-3)); border-radius: 18px; box-shadow: var(--elev-3), 0 0 0 1px var(--accent-soft), 0 30px 80px -40px var(--acc-glow); }

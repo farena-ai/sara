@@ -38,8 +38,9 @@ interface Entry {
  * 'hands' is a separate device capability, never an app/API credential: the signed-in browser
  * shows its computer-control warning and requires fresh identity proof before issuing it.
  */
-export type DeviceScope = 'full' | 'home-assistant' | 'hands';
-export const cleanScope = (v: unknown): DeviceScope => (v === 'hands' ? 'hands' : v === 'home-assistant' ? 'home-assistant' : 'full');
+export type DeviceScope = 'full' | 'home-assistant' | 'hands' | 'extension';
+/** U4.25: 'extension' = the browser extension: only /api/ext/* (src/routes/extension.ts). */
+export const cleanScope = (v: unknown): DeviceScope => (v === 'hands' ? 'hands' : v === 'home-assistant' ? 'home-assistant' : v === 'extension' ? 'extension' : 'full');
 
 export interface PendingView {
   code: string;

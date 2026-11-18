@@ -18,7 +18,7 @@ import { ownerEvidenceConversation } from './owner-evidence.ts';
 import type { Conversation } from './store.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 
-export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'reminders' | 'briefing';
+export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing';
 export type Where = 'origin' | 'chat' | 'project' | 'dedicated' | 'apps';
 export const WHERES: readonly Where[] = ['origin', 'chat', 'project', 'dedicated', 'apps'];
 export type AppKind = 'telegram' | 'discord';
@@ -53,6 +53,7 @@ export const FEEDS: readonly { id: Feed; title: string; words: RegExp; items: bo
   { id: 'goals', title: en('Goals'), words: /\bgoals?\b/i, items: true, origin: en('Its own chat') },
   { id: 'travel', title: en('Travel'), words: /\b(travel|trips?|flights?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'inbox', title: en('From your inbox'), words: /\b(inbox helper|from (my|your) inbox|bills?|packages?)\b/i, items: false, origin: en('Its own chat') },
+  { id: 'money', title: en('Money'), words: /\b(money|budgets?|spending|subscriptions?|free trials?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'reminders', title: en('Reminders'), words: /\breminders?\b/i, items: false, keepsChat: true },
   { id: 'briefing', title: en('Morning briefing'), words: /\b(briefing|mornings?)\b/i, items: false, keepsChat: true, origin: en('Your latest chat') },
 ];

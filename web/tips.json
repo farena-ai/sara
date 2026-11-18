@@ -1,6 +1,22 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "hs-cloud": [
+      "Off by default: only a local model on this server may read your Health log. Turn on to let a cloud model read it too. Logging works either way.",
+      "what-sara-knows"
+    ],
+    "hs-ask": [
+      "Off by default. When on, Ask about anything also searches your Health log, but only when you ask from a private chat.",
+      "what-sara-knows"
+    ],
+    "hs-remind": [
+      "A notice on your phone at each dose time you set for a medicine. Mark it taken or skipped on the Health page.",
+      "what-sara-knows"
+    ],
+    "hs-names": [
+      "Off by default: reminders only say it is time for a dose, so a locked screen shows no medicine names. Turn on to see the name and dose.",
+      "what-sara-knows"
+    ],
     "cc-request": [
       "Say what is broken or what to change, with any error text. She never changes her safety layer, limits, kid mode, approvals, audit trail or vault.",
       "care"
@@ -60,6 +76,14 @@
     "ds-key-thesportsdb": [
       "Optional: your own TheSportsDB key. Without one Sara uses its free test key.",
       "data"
+    ],
+    "bx-on": [
+      "Off: the extension in every browser stops reading and sending pages until you turn this on again. To remove one extension only, sign it out in the list below.",
+      "signin"
+    ],
+    "bx-forms": [
+      "Fill this form proposes values from My details; you approve each field in the extension before anything is typed. Passwords, cards and codes are never filled.",
+      "signin"
     ],
     "offline-keep": [
       "On in the Sara apps and installed web apps, off in a plain browser tab (it may be a shared computer). Turning it off deletes this device's copy at once.",
@@ -527,6 +551,22 @@
     ],
     "rv-time": [
       "The time the weekly review arrives.",
+      "planner"
+    ],
+    "sy-remind": [
+      "Once a day, when study cards are due, she reminds you (and the Today tile shows how many). Nothing is sent on days with no cards due.",
+      "planner"
+    ],
+    "sy-remind-at": [
+      "The time the study reminder arrives, for example after school or before bed.",
+      "planner"
+    ],
+    "sy-new": [
+      "How many cards you have never seen come up each day. Fewer keeps daily study short; cards you already studied still come back when due.",
+      "planner"
+    ],
+    "sy-max": [
+      "The most cards she makes for one new set (5 to 60). Each set takes one model call on a capped amount of text, so this also caps the cost.",
       "planner"
     ],
     "md-home-phone": [

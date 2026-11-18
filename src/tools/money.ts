@@ -10,7 +10,8 @@ import { privateLocalOn } from '../net-guard.ts';
 import { fmtMoney, toCents } from '../biz/money.ts';
 import { localDay } from '../biz/store.ts';
 import { addMonths, cleanBudgetCategory, findSubscriptions, merchantKey, monthPeriod, summarize, type Period } from '../money/budget.ts';
-import { billStatus, newLimitWarnings, notifyLimits, refreshBills, scheduleBill, usDay, valueNow } from '../money/core.ts';
+import { billStatus, refreshBills, scheduleBill, usDay, valueNow } from '../money/core.ts';
+import { budgetAlerts } from '../money/hub.ts';
 import { holdingsFromText, MoneyParseError, readHoldings, readTransactions } from '../money/parse.ts';
 import { moneyStore, type Bill, type BillRepeat } from '../money/store.ts';
 import { whenText } from './data.ts';
@@ -34,7 +35,7 @@ function ownChat(app: AppContext, ctx: ToolContext) {
 }
 
 function fileOf(app: AppContext, ctx: ToolContext, q: string): { name: string; bytes: Buffer } {
-  const doc = findDoc(app, ctx.conversationId, q, /\.(csv|tsv|xlsx|xlsm|ofx|qfx|qbo|txt|pdf)$/i);
+  const doc = findDoc(app, ctx.conversationId, q, /\.(csv|tsv|xlsx|xlsm|ofx|qfx|qbo|qif|txt|pdf)$/i);
   const bytes = app.library!.file(doc);
   if (!bytes) throw new ToolError(`The file ${doc.name} is no longer on the server. Ask them to add it again.`);
   return { name: doc.name, bytes };
@@ -160,7 +161,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
       ...base,
       spec: {
         name: 'budget_import',
-        description: "Load the person's bank or credit-card transactions from their export (CSV, Excel, OFX or QFX in the Library or shared in this chat). Rows already loaded before are skipped (same date, amount, description and account). Each is put in a category (their own corrections first). Then budget_summary or budget_subscriptions.",
+        description: "Load the person's bank or credit-card transactions from their export (CSV, Excel, OFX, QFX or QIF in the Library or shared in this chat). Rows already loaded before are skipped (same date, amount, description and account). Each is put in a category (their own corrections first). Then budget_summary or budget_subscriptions.",
         parameters: obj({ document: { type: 'string', description: 'The export file (its name or Library number).' }, account: { type: 'string', description: 'Optional: a name for the account (e.g. "Chase card"), used when the file has none. Use the same name each time for one account.' } }, ['document']),
       },
       summarize: (a) => `Loading transactions from ${String(a.document ?? '').slice(0, 40)}`,
@@ -175,7 +176,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
           const dates = r.rows.map((x) => x.date).sort();
           const cats = new Map<string, number>();
           for (const t of added) cats.set(t.category, (cats.get(t.category) ?? 0) + 1);
-          const warn = notifyLimits(app, newLimitWarnings(s, today(app)), ctx.conversationId ?? null);
+          const warn = budgetAlerts(app, ctx.conversationId ?? null);
           return [
             `Read ${r.rows.length} transactions from ${f.name} (${usDay(dates[0])} to ${usDay(dates.at(-1)!)}; accounts: ${[...new Set(r.rows.map((x) => x.account))].join(', ')}). Added ${added.length}; ${duplicates} were already loaded.${r.skipped ? ` ${r.skipped} rows weren't transactions (totals, notes) and were skipped.` : ''}${r.flipped ? ' This export wrote charges as positive numbers; they were read as money out.' : ''}`,
             added.length ? `Categories: ${[...cats].sort((x, y) => y[1] - x[1]).map(([c, n]) => `${c} ${n}`).join(', ')}. If one is wrong, budget_category fixes it for that merchant from now on.` : '',
@@ -211,7 +212,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
             sum.changes.length ? `Biggest changes vs ${sum.previous.label}: ${sum.changes.map((c) => `${c.category} ${signed(c.deltaCents)} (${usd(c.previousCents)} → ${usd(c.cents)})`).join('; ')}.` : '',
             sum.topMerchants.length ? `Top merchants: ${sum.topMerchants.map((m) => `${m.merchant} ${usd(m.cents)} (${m.count})`).join('; ')}.` : '',
             sum.coverage ? `Loaded transactions cover ${usDay(sum.coverage.from)} to ${usDay(sum.coverage.to)}${sum.coverage.to < p.to ? ': this period is only partly covered, say so' : ''}.` : '',
-            notifyLimits(app, newLimitWarnings(s, today(app)), ctx.conversationId ?? null),
+            budgetAlerts(app, ctx.conversationId ?? null),
             'Computed by budget_summary from their own bank exports (transfers and card payments left out of spending). Use exactly these numbers.',
           ];
           return lines.filter(Boolean).join('\n');
@@ -282,7 +283,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
           const cents = toCents(a.amount ?? '');
           if (cents === undefined || cents < 0) throw new ToolError('Give the monthly amount, like 400 (0 removes the limit).');
           s.setLimit(category, cents);
-          const warn = notifyLimits(app, newLimitWarnings(s, today(app)), ctx.conversationId ?? null);
+          const warn = budgetAlerts(app, ctx.conversationId ?? null);
           return `${cents ? `Limit for ${category}: ${usd(cents)} a month. She tells them once a month when it's passed (checked when transactions are loaded).` : `Removed the ${category} limit.`}${warn ? `\n${warn}` : ''}`;
         }),
     },

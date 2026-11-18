@@ -25,6 +25,7 @@ import { quietNow } from '../life.ts';
 import { detectKind } from '../library/read.ts';
 import { moneyStore } from '../money/store.ts';
 import { privateLocalOn } from '../net-guard.ts';
+import { observeMoneyMail } from '../money/hub.ts';
 import { zonedParts, zonedToUtc } from '../planner.ts';
 import type { Permission, ToolContext } from '../tools/types.ts';
 import { AUTO_KINDS, classify, findingFromModel, htmlText, senderDomain, senderName, type Finding, type InboxKind, type InboxMail, type PackageStatus } from './classify.ts';
@@ -323,6 +324,12 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
       this.#app.travel?.observe(m, findings);
     } catch (err) {
       console.warn(`travel: ${(err as Error).message}`);
+    }
+    // U4.20 (docs/MONEY.md): free trials ending, price changes and renewals join the Money page.
+    try {
+      observeMoneyMail(this.#app, m);
+    } catch (err) {
+      console.warn(`money: ${(err as Error).message}`);
     }
     for (const f of findings) {
       if (f.kind === 'shipping' && f.tracking && this.#updatePackage(f, m)) {

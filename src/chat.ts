@@ -126,6 +126,7 @@ import { metered } from './usage.ts';
 import { cutOtherSpeakers, GROUP_TOOLS, isGroupChannel, otherLine, ownerLine, stripLeadTag } from './group.ts';
 import { cardFor, type Card } from './cards.ts';
 import { ASK_CHOICE, choiceText, parseChoice, settleChoice, type Choice } from './choices.ts';
+import { takeQuizChoice } from './tools/study.ts';
 import { BOT_WALL_LINE, looksLikeBotWall, WebTurn } from './web-guard.ts';
 /** 3.1.2: tools whose output may be a bot-check page (commands, browsers, MCP browser tools). */
 const BOT_WALL_TOOLS = /^(shell|run_command|browser_read|browser_open|pc_browser_\w+|mcp_.*(browser|playwright|fetch|navigate|snapshot).*)$/i;
@@ -279,6 +280,8 @@ export interface AppContext {
   errands?: import('./errands.ts').Errands;
   /** S3: long-running goals above errands (src/long-goals.ts), on the reminder tick. */
   longGoals?: import('./long-goals.ts').LongGoals;
+  /** U4.23: study sets and spaced repetition (src/study.ts), each space's own. */
+  study?: import('./study.ts').Study;
   /** S4: relationship memory on the People cards (src/people-ties.ts), on the reminder tick. */
   peopleTies?: import('./people-ties.ts').PeopleTies;
   /** R5: phone calls in and out (docs/PHONE_CALLS.md), switched off until the owner sets them up. */
@@ -1461,7 +1464,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'health_log', 'health_read']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
@@ -4381,6 +4384,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (call.name === ASK_CHOICE && done.status === 'ok') {
         const c = parseChoice(call.arguments);
         if (!('error' in c)) asked ??= c;
+      }
+      // U4.23: a multiple-choice study card is asked the same way.
+      if (call.name === 'study_quiz' && done.status === 'ok') {
+        const q = takeQuizChoice(call.arguments);
+        if (q) asked ??= q;
       }
     }
     if (asked) {

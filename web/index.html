@@ -225,6 +225,8 @@
           <div class="side-dest" data-dest="errands"><button class="side-go" id="open-errands" type="button" title="Errands: goals she takes care of from start to finish, and what she needs from you"><i class="ic" data-icon="todo"></i><span>Errands</span></button></div>
           <div class="side-dest" data-dest="goals"><button class="side-go" id="open-goals" type="button" title="Goals: bigger things you want done over days or weeks, with milestones, progress and a weekly summary"><i class="ic" data-icon="flag"></i><span>Goals</span></button></div>
           <div class="side-dest" data-dest="trips"><button class="side-go" id="open-trips" type="button" title="Trips: bookings from your email as one timeline, flight alerts and packing lists"><i class="ic" data-icon="calendar"></i><span>Trips</span></button></div>
+          <div class="side-dest" data-dest="money"><button class="side-go" id="open-money" type="button" title="Money: spending by category, budgets, bills, subscriptions and net worth from your bank exports (tracking only)"><i class="ic" data-icon="gauge"></i><span>Money</span></button></div>
+          <div class="side-dest" data-dest="health"><button class="side-go" id="open-health" type="button" title="Health: your private log of medicines, appointments, symptoms and readings"><i class="ic" data-icon="heart"></i><span>Health</span></button></div>
           <div class="side-dest" data-dest="family"><button class="side-go" id="open-family" type="button" title="Family: chores and allowance, grocery lists, kid-safe mode"><i class="ic" data-icon="group"></i><span>Family</span></button></div>
           <div class="side-dest" data-dest="msgs" data-owner-only><button class="side-go" id="open-msgs" type="button" data-owner-only title="Messages: private chats with the owners of linked servers (Sara never reads them)"><i class="ic" data-icon="chat"></i><span>Messages</span><i id="msgs-dot" class="side-dot side-count" hidden></i></button></div>
           <div class="side-dest" data-dest="memory"><button class="side-go" id="open-memory" type="button" title="What she remembers (Alt+M)"><i class="ic" data-icon="memory"></i><span>Memory</span></button></div>
@@ -524,6 +526,7 @@
                 <section class="today-card td-tile" id="td-shared" hidden tabindex="0" aria-labelledby="td-shared-h"><div class="td-tile-head"><h3 id="td-shared-h">Shared with you</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-errands" hidden tabindex="0" aria-labelledby="td-errands-h"><div class="td-tile-head"><h3 id="td-errands-h">Errands</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-goals" hidden tabindex="0" aria-labelledby="td-goals-h"><div class="td-tile-head"><h3 id="td-goals-h">Goals</h3></div><div class="td-body"></div></section>
+                <section class="today-card td-tile" id="td-study" hidden tabindex="0" aria-labelledby="td-study-h"><div class="td-tile-head"><h3 id="td-study-h">Study</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-people" hidden tabindex="0" aria-labelledby="td-people-h"><div class="td-tile-head"><h3 id="td-people-h">People</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-meetings" hidden tabindex="0" aria-labelledby="td-meetings-h"><div class="td-tile-head"><h3 id="td-meetings-h">Meetings</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-trips" hidden tabindex="0" aria-labelledby="td-trips-h"><div class="td-tile-head"><h3 id="td-trips-h">Trips</h3></div><div class="td-body"></div></section>
@@ -1567,13 +1570,106 @@
       </div>
     </form>
   </dialog>
+  <!-- U4.20 (docs/MONEY.md): Money (bank exports, budgets, bills, subscriptions, net worth; tracking only) -->
+  <dialog id="money" aria-label="Money">
+    <form method="dialog" class="settings-body money">
+      <h2>Money</h2>
+      <p class="muted small">Your bank and card exports become spending by category, trends, budgets, bills due, subscriptions and net worth. Everything stays on this server.</p>
+      <p class="mn-only small"><strong id="mn-only">Tracking only: Sara never logs in to a bank, pays, transfers or cancels anything.</strong></p>
+      <p id="mn-status" class="muted small" role="status"></p>
+      <h3>Add a bank or card export <button type="button" class="tip" data-tip="Download a CSV, OFX, QFX, QIF or Excel export from your bank’s website. Rows already loaded from an overlapping file are skipped.">?</button></h3>
+      <div class="mn-import" data-nodirty data-noauto>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="A file from your bank or card. A CSV with unusual columns asks once which column is which and remembers it for that bank.">?</button></span><input id="mn-file" type="file" accept=".csv,.tsv,.xlsx,.ofx,.qfx,.qbo,.qif" aria-label="Bank or card export file"></div>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="Optional: a name like Chase card. Use the same name each time for one account; files without one are matched by their dates and amounts.">?</button></span><input id="mn-account" type="text" autocomplete="off" placeholder="Account name (optional)" aria-label="Account name"> <button id="mn-import-go" type="button" class="small">Add file</button></div>
+        <div id="mn-map" class="mn-map" hidden></div>
+      </div>
+      <div class="mn-monthbar"><button id="mn-prev" type="button" class="ghost small" aria-label="Previous month">‹</button><strong id="mn-label"></strong><button id="mn-next" type="button" class="ghost small" aria-label="Next month">›</button></div>
+      <h3>Spending by category</h3>
+      <div id="mn-month"></div>
+      <h3>Trends</h3>
+      <div id="mn-trends"></div>
+      <h3>Budgets <button type="button" class="tip" data-tip="A monthly amount per category. She tells you gently once when one gets close and once when it goes past, where Money alerts go.">?</button></h3>
+      <div id="mn-budgets" class="mn-set" data-nodirty data-noauto></div>
+      <h3>Bills due <button type="button" class="tip" data-tip="Bills from your inbox and the ones you add, plus repeating charges found in your transactions. Each tracked bill gets a Planner reminder. She never pays anything.">?</button></h3>
+      <div id="mn-bills" class="mn-set" data-nodirty data-noauto></div>
+      <h3>Subscriptions <button type="button" class="tip" data-tip="Repeating charges and subscription emails: price changes and free trials ending, with a link to cancel it yourself. She never cancels anything.">?</button></h3>
+      <div id="mn-subs"></div>
+      <h3>Net worth <button type="button" class="tip" data-tip="Balances you type in (accounts, home, car, loans) plus your investments’ last checked value. She never reads them from a bank.">?</button></h3>
+      <div id="mn-net"></div>
+      <div class="mn-row mn-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="Add an account, a home or a car as an asset, or a loan or card balance as a debt. Change the amount any time.">?</button></span><input id="mn-bal-name" type="text" autocomplete="off" placeholder="Name, like Savings" aria-label="Balance name"> <select id="mn-bal-kind" aria-label="Asset or debt"><option value="asset">Asset</option><option value="debt">Debt</option></select> <input id="mn-bal-amount" type="text" inputmode="decimal" placeholder="Amount" aria-label="Balance amount"> <button id="mn-bal-add" type="button" class="small">Add balance</button></div>
+      <h3>Categories <button type="button" class="tip" data-tip="Your own rules: a merchant always goes in a category. Changing a transaction’s category makes a rule. No model is needed.">?</button></h3>
+      <div id="mn-rules" class="mn-set" data-nodirty data-noauto></div>
+      <h3>Transactions</h3>
+      <div id="mn-tx" class="mn-set" data-nodirty data-noauto></div>
+      <h3>Money settings <button type="button" class="tip" data-tip="How she tells you about budgets, trials and price changes. Where they go: Settings, Automations, Where alerts go, Money.">?</button></h3>
+      <div class="mn-set" data-nodirty data-noauto>
+        <label class="mn-check"><input id="mn-gentle" type="checkbox"> Gentle alerts about budgets, trials and price changes <button type="button" class="tip" data-tip="Each one once: a budget getting close, a budget going past, a free trial ending soon, a price change. Off: nothing is posted.">?</button></label>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="How much of a budget is used before she says it is getting close. Going past a budget is told either way.">?</button></span><span>Getting close at</span> <select id="mn-near" aria-label="Getting close at"><option value="0">Never</option><option value="50">50%</option><option value="70">70%</option><option value="80">80%</option><option value="90">90%</option></select></div>
+        <label class="mn-check"><input id="mn-suggest" type="checkbox"> Let my model suggest categories <button type="button" class="tip" data-tip="Off by default. On: a Suggest button sends merchant names (never amounts) to your model; you accept each one.">?</button></label>
+  <!-- U4.22 (docs/HEALTH.md): Health, a private local log (medicines, appointments, symptoms, readings) -->
+  <dialog id="health" aria-label="Health">
+    <form method="dialog" class="settings-body health">
+      <h2>Health</h2>
+      <p id="hl-banner" class="hl-banner small" role="note">Your own log, not medical advice. Ask a doctor or pharmacist about anything here.</p>
+      <p class="muted small">Private to you: kept encrypted on this server, out of her memory, reports and cloud models. <button id="hl-privacy" type="button" class="linkish small">Privacy settings</button></p>
+      <div class="add-row hl-quickrow" data-nodirty>
+        <span class="hl-tipwrap"><button type="button" class="tip" data-tip="Type a reading as you would say it: headache 6/10, mood 7/10, slept 7h, BP 128/82, weight 172 lb, glucose 104. You can also tell her in a chat.">?</button></span>
+        <input id="hl-quick" maxlength="80" placeholder="headache 6/10 · BP 128/82 · slept 7h" aria-label="Quick add">
+        <button id="hl-quick-go" type="button" class="small">Log it</button>
+      </div>
+      <p id="hl-status" class="muted small" role="status"></p>
+      <h3 id="hl-due-h" hidden>Doses due</h3>
+      <div id="hl-due" class="hl-list"></div>
+      <h3>Medicines <button type="button" class="tip" data-tip="She reminds you at each time (24-hour, like 08:00, 20:00). With the number on hand she estimates when to refill. Mark each dose taken or skipped.">?</button></h3>
+      <div id="hl-meds" class="hl-list"></div>
+      <div class="add-row hl-form" data-nodirty>
+        <input id="hl-med-name" maxlength="80" placeholder="Medicine" aria-label="Medicine">
+        <input id="hl-med-dose" maxlength="60" placeholder="Dose (10 mg)" aria-label="Dose">
+        <input id="hl-med-times" maxlength="60" placeholder="Times (08:00, 20:00)" aria-label="Times">
+        <input id="hl-med-supply" type="number" min="0" max="9999" placeholder="On hand" aria-label="How many on hand">
+        <button id="hl-med-add" type="button" class="small">Add</button>
+      </div>
+      <h3>Readings and symptoms <button type="button" class="tip" data-tip="The last 90 days. Each reading with a number gets a small chart of its last 30 values. Charts show what you logged, nothing more.">?</button></h3>
+      <div id="hl-charts" class="hl-charts"></div>
+      <div id="hl-entries" class="hl-list"></div>
+      <h3>Appointments <button type="button" class="tip" data-tip="Keep questions to ask and what the doctor said. Add to calendar downloads a file for your own calendar app; nothing is sent anywhere.">?</button></h3>
+      <div id="hl-appts" class="hl-list"></div>
+      <div class="add-row hl-form" data-nodirty>
+        <input id="hl-appt-title" maxlength="120" placeholder="Appointment (Dr. Lee checkup)" aria-label="Appointment">
+        <input id="hl-appt-when" type="datetime-local" aria-label="When">
+        <input id="hl-appt-where" maxlength="200" placeholder="Where" aria-label="Where">
+        <button id="hl-appt-add" type="button" class="small">Add</button>
+      </div>
+      <h3>Doctor summary <button type="button" class="tip" data-tip="A PDF of your medicines, doses, readings and appointments for the dates you pick, to bring to a visit. It is a log, not a diagnosis.">?</button></h3>
+      <div class="add-row hl-form" data-nodirty>
+        <input id="hl-from" type="date" aria-label="From">
+        <input id="hl-to" type="date" aria-label="To">
+        <button id="hl-pdf" type="button" class="small">Make PDF</button>
+      </div>
+      <div id="hl-kids" hidden>
+        <h3>A child&#39;s medicines <button type="button" class="tip" data-tip="As a parent you add and remove a child's medicines and reminders, and see their doses. Their own notes and symptoms stay theirs.">?</button></h3>
+        <div class="add-row hl-form" data-nodirty><select id="hl-kid" aria-label="Child"></select></div>
+        <div id="hl-kid-meds" class="hl-list"></div>
+        <div class="add-row hl-form" data-nodirty>
+          <span class="hl-tipwrap"><button type="button" class="tip" data-tip="She reminds you at each time (24-hour, like 08:00, 20:00). With the number on hand she estimates when to refill. Mark each dose taken or skipped.">?</button></span>
+          <input id="hl-kid-name" maxlength="80" placeholder="Medicine" aria-label="Medicine">
+          <input id="hl-kid-dose" maxlength="60" placeholder="Dose (5 ml)" aria-label="Dose">
+          <input id="hl-kid-times" maxlength="60" placeholder="Times (07:30)" aria-label="Times">
+          <input id="hl-kid-supply" type="number" min="0" max="9999" placeholder="On hand" aria-label="How many on hand">
+          <button id="hl-kid-add" type="button" class="small">Add</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
   <!-- R8 (docs/FAMILY.md): Family (chores and allowance, grocery lists, kid-safe mode) -->
   <dialog id="family" aria-label="Family">
     <form method="dialog" class="settings-body family">
       <h2>Family</h2>
-      <p class="muted small">Chores and allowance, grocery lists everyone at home can tick off, and kid-safe mode for your kids. Sara never moves money: payouts are a record.</p>
+      <p class="muted small">Chores and allowance, the week's dinners and the family calendar, grocery lists everyone at home can tick off, and kid-safe mode for your kids. Sara never moves money: payouts are a record.</p>
       <div class="fam-tabs" role="group" aria-label="Family">
         <button type="button" class="ghost small" data-tab="chores">Chores</button>
+        <button type="button" class="ghost small" data-tab="meals">Meals</button>
+        <button type="button" class="ghost small" data-tab="calendar">Calendar</button>
         <button type="button" class="ghost small" data-tab="money">Allowance</button>
         <button type="button" class="ghost small" data-tab="grocery">Groceries</button>
         <button type="button" class="ghost small" data-tab="kids">Kids</button>
@@ -1844,6 +1940,7 @@
           <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
           <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
           <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
+          <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
         <div class="lib-tools" data-nodirty>
@@ -1872,6 +1969,12 @@
         <p><button id="lib-r-back" type="button" class="ghost small">← All documents</button></p>
         <h2>Research a question <button type="button" class="tip" data-tip="A plan you approve or edit, then she searches and reads. Write the report now stops reading early; Stop still gives a report of what was found and what is missing.">?</button></h2>
         <div id="lib-r-body" class="rs-body" data-nodirty></div>
+      </section>
+      <!-- U4.23 (docs/LEARNING.md): study sets, quizzes and spaced repetition (web/study.js). -->
+      <section id="lib-study" hidden>
+        <p><button id="lib-s-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Study <button type="button" class="tip" data-tip="Make cards from your documents or notes, then study a few each day. Again brings a card back soon; Good and Easy space it out. Export for Anki or as CSV any time.">?</button></h2>
+        <div id="lib-s-body" class="sy-body" data-nodirty></div>
       </section>
       <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
       <section id="lib-meetings" hidden>
@@ -3362,6 +3465,15 @@
       <h3>Yearly look back</h3>
       <p class="muted small">On the anniversary of your first message, she writes a look back at your year together from Your story (milestones, promises, projects, moments) and sends it like her other messages, outside quiet hours. You can also ask for one any time on the Your story page.</p>
       <label class="row"><input id="story-yearly" type="checkbox"> Send me a look back on our anniversary</label>
+      <h3>Study cards</h3>
+      <p class="muted small">Your study sets live in Library → Study. When cards are due, she reminds you once a day at this time; the Today tile shows how many.</p>
+      <label class="row"><input id="sy-remind" type="checkbox" checked data-nodirty data-noauto> Remind me when study cards are due</label>
+      <div class="row-grid">
+        <label>Time <input id="sy-remind-at" type="time" value="16:00" data-nodirty data-noauto></label>
+        <label>New cards a day <input id="sy-new" type="number" min="0" max="200" value="20" data-nodirty data-noauto></label>
+        <label>Cards per new set <input id="sy-max" type="number" min="5" max="60" value="20" data-nodirty data-noauto></label>
+      </div>
+      <p id="sy-prefs-status" class="muted small" role="status"></p>
 </section>
         <section class="settings-page" data-page="you-leave-by" data-group="You" data-title="Leave-by reminders" data-host="you-briefing" hidden>
       <p class="muted small page-lead">For events on your Google Calendar that have an address, Sara works out how long it takes to get there from home and texts you when it's time to leave. Online meetings and events without an address are skipped. Addresses and routes come from OpenStreetMap (free, no account); travel times don't include traffic, so add a little extra time.</p>
@@ -3513,6 +3625,14 @@
       <h3>What she knows <button type="button" class="tip" data-tip="Health facts, a passport and anything from a private chat are marked Private. Edit changes her memory too; Delete removes it; Not true forgets it for good.">?</button></h3>
       <div id="wsk-list" data-nodirty data-noauto></div>
       <p id="wsk-status" class="muted small" role="status"></p>
+      <h3>Health log <button type="button" class="tip" data-tip="Your Health log is encrypted on this server and kept out of memory and reports. These switches decide who else may read it.">?</button></h3>
+      <div class="hs-box" data-nodirty data-noauto>
+        <label class="row"><input id="hs-cloud" type="checkbox"> Let a cloud model read my health log</label>
+        <label class="row"><input id="hs-ask" type="checkbox"> Include health when I ask from a private chat</label>
+        <label class="row"><input id="hs-remind" type="checkbox"> Dose reminders on my phone</label>
+        <label class="row"><input id="hs-names" type="checkbox"> Show the medicine name in reminders</label>
+        <p id="hs-state" class="muted small" role="status"></p>
+      </div>
         </section>
         <section class="settings-page" data-page="you-adult" data-group="You" data-title="Adult mode" hidden>
       <p id="adult-state" class="small" role="status"></p>
@@ -4983,6 +5103,13 @@
       </div>
       <div id="ts-off-row" class="add-row" hidden><label>Current code <input id="ts-off-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" data-nodirty></label><button id="ts-stop" type="button" class="ghost">Turn off</button></div>
       <p id="ts-status" class="small" role="status"></p>
+      <h3 id="bx-h">Browser extension <button type="button" class="tip" data-tip="Sara's extension for Chrome, Edge and Firefox: ask about the page you are on, save it to the Library, fill a form after you approve. Pair it with the code it shows.">?</button></h3>
+      <div id="bx-box" class="bx-box" data-nodirty data-noauto>
+        <label class="row"><input id="bx-on" type="checkbox"> Let the browser extension send pages to Sara</label>
+        <label class="row"><input id="bx-forms" type="checkbox"> Let it fill forms from My details after you approve</label>
+        <p class="muted small">It never fills passwords, payment cards or codes, and never sends a form. Install steps: docs/EXTENSION.md.</p>
+        <p id="bx-status" class="muted small" role="status"></p>
+      </div>
 </section>
         <section class="settings-page" data-page="dh-backups" data-group="Privacy & system" data-title="Backups" data-owner-only hidden>
       <p class="muted small">A backup has everything needed to rebuild Sara on a new server, including your keys, so keep downloaded copies private. Restore one where she runs with <code data-admin="restore">sudo sara restore &lt;file&gt;</code>.</p>
@@ -5301,6 +5428,14 @@
       <p id="hh-none" class="muted small">Nobody else uses this server yet.</p>
       <div id="hh-members" class="hh-members" data-noauto data-nodirty></div>
       <!-- R7: tool rules for household members (web/member-tools.js, src/member-tools.ts). -->
+      <h3>Family planner <button type="button" class="tip" data-tip="Shared by everyone at home: when dinner is, when chore reminders go out, and the day a chore rota moves on. Meals and the family calendar are in Family.">?</button></h3>
+      <div id="fpl-settings" class="fpl-settings" data-nodirty data-noauto>
+        <label class="row">Dinner is at <button type="button" class="tip" data-tip="Shown with tonight's dinner on Today and in Family.">?</button> <input id="fpl-dinner" type="time"></label>
+        <label class="row"><input id="fpl-remind" type="checkbox"> Remind people of chores left <button type="button" class="tip" data-tip="Each person with chores left gets one reminder a day on their phone, never in their own quiet hours.">?</button></label>
+        <label class="row">Chore reminders at <button type="button" class="tip" data-tip="The time of day the chore reminder goes out (your time zone).">?</button> <input id="fpl-remind-at" type="time"></label>
+        <label class="row">Rota moves on <button type="button" class="tip" data-tip="Chores set to take turns move to the next person once a week, on this day.">?</button> <select id="fpl-rota-day"></select></label>
+        <p id="fpl-set-status" class="muted small" role="status"></p>
+      </div>
       <h3>Tools for household members <button type="button" class="tip" data-tip="What their companions may do with tools. Sara checks these rules on the server before every step, so a member cannot get around them from an app or a hand-made request.">?</button></h3>
       <div id="hmt-box" class="mt-box" data-noauto data-nodirty>
         <label class="row">Rules for <select id="hmt-who"><option value="">Everyone</option></select> <button type="button" class="tip" data-tip="Everyone sets the rules for all members. Pick one person to give them their own rules; what you leave on Same as everyone follows Everyone.">?</button></label>

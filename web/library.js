@@ -367,6 +367,8 @@ function showHome() {
   closeResearch();
   closeLearned();
   closeMeetings();
+  const study = $('#lib-study');
+  if (study) study.hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();

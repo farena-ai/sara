@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { en, trOwner } from './i18n.ts';
 import { zonedParts, zonedToUtc } from './planner.ts';
+import { familyPlanTick } from './family-plan.ts';
 import { detectCrisis, detectExplicit } from './safety.ts';
 import type { AppContext } from './chat.ts';
 import type { SharedBoardStore } from './shared-boards.ts';
@@ -81,7 +82,7 @@ export function inBedtime(p: ChildProfile, now: Date, tz?: string): boolean {
  * Route families a child may not use at all, and those they may only read. Anything not listed
  * keeps the member rules (src/household.ts memberRouteCheck runs first).
  */
-const CHILD_DENIED: ReadonlySet<string> = new Set(['hands', 'computer', 'mail', 'inbox', 'errands', 'shares', 'other-apps', 'alexa', 'shortcuts', 'automations', 'decisions', 'mentions', 'scrapbook-share']);
+const CHILD_DENIED: ReadonlySet<string> = new Set(['hands', 'computer', 'mail', 'inbox', 'errands', 'shares', 'other-apps', 'alexa', 'shortcuts', 'ext', 'extension', 'automations', 'decisions', 'mentions', 'scrapbook-share', 'money']);
 const CHILD_READ_ONLY: ReadonlySet<string> = new Set(['adult', 'persona', 'character', 'companions', 'gallery', 'groups', 'look', 'skills', 'sara', 'working-style', 'push-test']);
 /** Talking routes that bedtime and the daily limit stop (reading old chats still works). */
 const TALK = (a: string, method: string, parts: string[]) => (a === 'conversations' && method === 'POST' && (parts[2] === 'messages' || parts[2] === 'regenerate' || parts[2] === 'continue')) || a === 'live' || a === 'calls' || a === 'video';
@@ -113,6 +114,8 @@ export function childRouteCheck(kidId: string, p: ChildProfile, method: string, 
   const refuse = { status: 403, message: en('A parent turned this off for you.') };
   if (CHILD_DENIED.has(a)) return refuse;
   if (CHILD_READ_ONLY.has(a) && method !== 'GET') return refuse;
+  // U4.22: a child reads their medicines and marks doses; a parent manages the rest.
+  if (a === 'health-log' && method !== 'GET' && parts[1] !== 'doses') return refuse;
   // Settings: a parent sets them (adult mode, models and her character stay off; the app's look is kept in the browser).
   if (a === 'settings' && method !== 'GET') return refuse;
   if (a === 'household' && parts[2] === 'delete') return refuse;
@@ -129,7 +132,7 @@ export function childSettings<T extends Record<string, unknown>>(s: T): T {
 }
 
 /** The only tools a child's companion offers (an allowlist: new tools stay off for kids until listed). */
-export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'ask_choice', 'ask_everything', 'humanize_text']);
+export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'family_calendar', 'study_make', 'study_list', 'study_quiz', 'study_answer', 'ask_choice', 'ask_everything', 'humanize_text']);
 
 /**
  * Gates a child's tool registry: everything outside KID_TOOLS is unavailable while they are a child
@@ -252,6 +255,7 @@ CREATE TABLE IF NOT EXISTS allowance_ledger (
   points INTEGER NOT NULL DEFAULT 0, note TEXT NOT NULL DEFAULT '', mark_id INTEGER, by TEXT NOT NULL, at TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS family_parents (person TEXT PRIMARY KEY);
+CREATE TABLE IF NOT EXISTS kid_study (kid TEXT NOT NULL, set_id INTEGER NOT NULL, title TEXT NOT NULL, cards INTEGER NOT NULL, learned INTEGER NOT NULL, due INTEGER NOT NULL, reviewed INTEGER NOT NULL, day TEXT NOT NULL, PRIMARY KEY (kid, set_id));
 CREATE TABLE IF NOT EXISTS kid_topics (kid TEXT NOT NULL, day TEXT NOT NULL, topic TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (kid, day, topic));
 CREATE TABLE IF NOT EXISTS kid_minutes (kid TEXT NOT NULL, day TEXT NOT NULL, block INTEGER NOT NULL, PRIMARY KEY (kid, day, block));
 CREATE TABLE IF NOT EXISTS grocery_lists (board_id TEXT PRIMARY KEY, created_by TEXT NOT NULL, created_at TEXT NOT NULL);
@@ -296,7 +300,7 @@ export function nextDue(dueIso: string, repeat: ChoreRepeat, from: Date, tz?: st
 export const AISLES: { id: string; name: string; re: RegExp }[] = [
   { id: 'produce', name: en('Produce'), re: /\b(apple|banana|orange|lemon|lime|grape|berr|strawberr|blueberr|melon|lettuce|salad|spinach|kale|tomato|potato|onion|garlic|carrot|celery|pepper|cucumber|broccoli|avocado|mushroom|fruit|veg|herb|cilantro|basil|corn|zucchini|peach|pear)\w*/i },
   { id: 'bakery', name: en('Bakery'), re: /\b(bread|bagel|bun|roll|tortilla|muffin|croissant|cake|pita|baguette)s?\b/i },
-  { id: 'dairy', name: en('Dairy and eggs'), re: /\b(milk|cheese|yogurt|yoghurt|butter|cream|egg|eggs|sour cream|cottage)\b/i },
+  { id: 'dairy', name: en('Dairy and eggs'), re: /\b(milk|cheese|yogurt|yoghurt|butter|cream|egg|eggs|sour cream|cottage)\b(?<!peanut butter)/i },
   { id: 'meat', name: en('Meat and fish'), re: /\b(chicken|beef|pork|turkey|ham|bacon|sausage|steak|ground|fish|salmon|tuna|shrimp|meat|lamb|hot dog)s?\b/i },
   { id: 'frozen', name: en('Frozen'), re: /\b(frozen|ice cream|pizza|popsicle|waffles)\b/i },
   { id: 'pantry', name: en('Pantry'), re: /\b(rice|pasta|noodle|cereal|oat|oatmeal|flour|sugar|salt|oil|vinegar|sauce|soup|beans|can|canned|peanut butter|jam|honey|spice|coffee|tea|baking)s?\b/i },
@@ -585,6 +589,19 @@ export class FamilyStore {
     return { days: out };
   }
 
+  /** U4.23 (docs/LEARNING.md): a kid's study sets, titles and counts only (never the cards). */
+  noteStudy(kid: string, day: string, sets: { set: number; title: string; cards: number; learned: number; due: number; reviewedToday: number }[]): void {
+    this.db.prepare('DELETE FROM kid_study WHERE kid = ?').run(kid);
+    const put = this.db.prepare('INSERT INTO kid_study (kid, set_id, title, cards, learned, due, reviewed, day) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const s of sets.slice(0, 50)) put.run(kid, s.set, clip(s.title, 120), s.cards, s.learned, s.due, s.reviewedToday, day);
+    this.#emit(this.parents(), 'study');
+  }
+  study(by: string, kid: string, at: Date = this.#now(), tz?: string): { title: string; cards: number; learned: number; due: number; reviewedToday: number; day: string }[] {
+    this.#mustParent(by);
+    const today = localDay(at, tz);
+    return (this.db.prepare('SELECT title, cards, learned, due, reviewed, day FROM kid_study WHERE kid = ? ORDER BY set_id DESC').all(kid) as { title: string; cards: number; learned: number; due: number; reviewed: number; day: string }[]).map((r) => ({ title: r.title, cards: Number(r.cards), learned: Number(r.learned), due: Number(r.due), reviewedToday: r.day === today ? Number(r.reviewed) : 0, day: r.day }));
+  }
+
   // ---------------------------------------------------------------- weekly summary and Today
   /** The week in chores and money, per kid (for the parents' Sunday summary). */
   weekly(kids: { id: string; name: string }[], at: Date): { kid: string; name: string; done: number; approved: number; waiting: number; earnedCents: number; points: number; paidCents: number; balanceCents: number }[] {
@@ -688,6 +705,12 @@ export interface FamilyAccess {
   setChild?: (id: string, child: unknown) => void;
   /** Tells the parents (their phones and the Family chat line); quiet hours apply there. */
   notifyParents?: (title: string, body: string) => void;
+  /** U4.21: tells one person (their phones); the caller checks quietFor first. */
+  notifyPerson?: (person: string, title: string, body: string) => void;
+  /** U4.21: true while it is that person's quiet hours (their own settings). */
+  quietFor?: (person: string) => boolean;
+  /** U4.22: a person's own folder ('owner' or a member id), for a parent managing a child's medicines. */
+  spaceDirOf?: (id: string) => string | undefined;
 }
 export const kidsOf = (f: FamilyAccess): FamilyPerson[] => f.people().filter((p) => p.child);
 
@@ -723,5 +746,10 @@ export function familyTick(app: AppContext, now: Date): void {
     if (text) f.notifyParents?.(en('This week in chores'), text);
   } catch (err) {
     console.warn(`family: weekly summary failed: ${(err as Error).message}`);
+  }
+  try {
+    familyPlanTick(f, now);
+  } catch (err) {
+    console.warn(`family: planner tick failed: ${(err as Error).message}`);
   }
 }

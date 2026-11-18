@@ -21,6 +21,8 @@ import { AGE_BANDS, AISLES, cheapestLine, CHORE_REPEATS, FamilyError, KID_MINUTE
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { en, trOwner } from '../i18n.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { planOf } from '../family-plan.ts';
+import { familyPlanRoutes } from './family-plan.ts';
 
 const MAX_PHOTO_BODY = 6 * 1024 * 1024;
 const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
@@ -71,9 +73,13 @@ export function createFamilyRoutes(ctx: RouteCtx): RouteHandler {
         recent: f.store.marks(me, { limit: 20 }).filter((m) => m.status !== 'waiting'),
         grocery: groceryLists(),
         groceryInvites: groceryInvites(),
+        plan: { settings: planOf(f.store).settings(), pending: planOf(f.store).pending(me).length, rotas: parent ? planOf(f.store).rotas() : {} },
         options: { repeats: CHORE_REPEATS, bands: AGE_BANDS, minutes: KID_MINUTES, aisles: [...AISLES, OTHER_AISLE].map((x) => ({ id: x.id, name: x.name })) },
       });
     }
+
+    // U4.21: the planner (meals, recipes, likes and allergies, rota, family calendar).
+    if ((await wrap(() => familyPlanRoutes(app, f, T, req, res, method, parts))) !== NEXT) return;
 
     // ------------------------------------------------------------ chores
     if (b === 'chores') {
@@ -124,7 +130,7 @@ export function createFamilyRoutes(ctx: RouteCtx): RouteHandler {
       if (!known().includes(c)) throw new HttpError(404, T(en('No such person.')));
       if (!d && method === 'GET') {
         if (!parent && c !== me) throw new HttpError(403, T(en('Only a parent can see that.')));
-        return send(res, 200, { kid: kidView(c), ledger: await wrap(() => f.store.ledger(me, c, 50)), ...(parent ? { activity: f.store.activity(me, c, app.now(), tz) } : {}) });
+        return send(res, 200, { kid: kidView(c), ledger: await wrap(() => f.store.ledger(me, c, 50)), ...(parent ? { activity: f.store.activity(me, c, app.now(), tz), study: f.store.study(me, c, app.now(), tz) } : {}) });
       }
       if (d === 'pay' && !e && method === 'POST') {
         const body = await readJson(req);

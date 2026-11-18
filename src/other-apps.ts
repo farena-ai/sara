@@ -100,6 +100,8 @@ export function callerOf(req: IncomingMessage, auth: OwnerAuth): Caller | undefi
   if (kind === 'hands') return undefined;
   // Phase 100: an agent's key (A2A) only works on /a2a, never on /v1 or /mcp.
   if (kind === 'a2a') return undefined;
+  // U4.25: the browser extension's token only reaches /api/ext/*.
+  if (kind === 'extension') return undefined;
   return { id, label: auth.deviceLabelOf(id) ?? DEFAULT_APP_NAME, kind };
 }
 

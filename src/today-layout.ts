@@ -39,6 +39,8 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-errands', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   // S3: Goals (active long-running goals, progress and next step); shown only while one is active.
   { id: 'td-goals', section: 'needs', sizes: ['S', 'M'], size: 'M' },
+  // U4.23: Study (cards due today); shown only while cards are due.
+  { id: 'td-study', section: 'needs', sizes: ['S', 'M'], size: 'S' },
   // S4: People (waiting replies, promises, dates, keep in touch); shown only while someone needs you.
   { id: 'td-people', section: 'needs', sizes: ['S', 'M'], size: 'M' },
   // S2: Meetings (action items due this week, follow-up emails waiting); shown only then.

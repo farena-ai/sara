@@ -10,6 +10,37 @@ import { readTable, toDate } from '../table-query.ts';
 
 export class MoneyParseError extends Error {}
 
+/** U4.20: a CSV whose columns weren't recognized: the person maps them once (saved per bank). */
+export class MappingNeeded extends MoneyParseError {
+  readonly columns: string[];
+  readonly sample: string[][];
+  readonly sig: string;
+  constructor(columns: string[], sample: string[][], sig: string) {
+    super('Which column is which? This export has columns I did not recognize.');
+    this.columns = columns;
+    this.sample = sample;
+    this.sig = sig;
+  }
+}
+
+/** U4.20: the person's own column choice for one bank's CSV layout (column numbers, 0-based). */
+export interface CsvMapping {
+  date: number;
+  description: number;
+  amount?: number;
+  debit?: number;
+  credit?: number;
+  category?: number;
+  account?: number;
+  /** Charges are written as positive numbers (many card exports). */
+  flip?: boolean;
+  /** The person's name for the bank (shown in the Money page). */
+  bank?: string;
+}
+
+/** A layout's signature: its header cells, folded (the same bank's next export has the same one). */
+export const headerSig = (row: string[]): string => row.map(headKey).join('|');
+
 export interface HoldingIn {
   account: string;
   symbol: string;
@@ -183,10 +214,27 @@ const isoOf = (raw: string): string | undefined => {
   return t === null ? undefined : new Date(t).toISOString().slice(0, 10);
 };
 
-/** Transactions from a bank or card export's rows. */
-export function transactionsFromGrid(grid: string[][], defaultAccount: string): { rows: TxIn[]; skipped: number; flipped: boolean } {
-  const h = findHeader(grid, TX_COLS, (m) => m.date !== undefined && m.description !== undefined && (m.amount !== undefined || m.debit !== undefined || m.credit !== undefined));
-  if (!h) throw new MoneyParseError('No transactions table found: I need Date, Description and Amount (or Debit and Credit) columns.');
+/** Transactions from a bank or card export's rows. `maps`: the person's saved column choices by layout. */
+export function transactionsFromGrid(grid: string[][], defaultAccount: string, maps: Record<string, CsvMapping> = {}, mapping?: CsvMapping): { rows: TxIn[]; skipped: number; flipped: boolean; sig?: string } {
+  // The person's mapping wins: one given now (for the first non-empty row), else a saved one whose layout is here.
+  let own: { at: number; map: ColMap<keyof typeof TX_COLS>; flip?: boolean; sig: string } | undefined;
+  for (let i = 0; i < Math.min(grid.length, 40); i++) {
+    const row = grid[i];
+    if (!row.some((c) => String(c ?? '').trim())) continue;
+    const sig = headerSig(row);
+    const m = mapping ?? maps[sig];
+    if (m) {
+      own = { at: i, map: { date: m.date, description: m.description, amount: m.amount, debit: m.debit, credit: m.credit, category: m.category, account: m.account }, flip: m.flip, sig };
+      break;
+    }
+    if (mapping) break;
+  }
+  const h = own ?? findHeader(grid, TX_COLS, (m) => m.date !== undefined && m.description !== undefined && (m.amount !== undefined || m.debit !== undefined || m.credit !== undefined));
+  if (!h) {
+    const at = grid.findIndex((r) => r.filter((c) => String(c ?? '').trim()).length >= 2);
+    if (at >= 0) throw new MappingNeeded(grid[at].map((c) => String(c ?? '').trim()), grid.slice(at + 1, at + 4).map((r) => r.map((c) => String(c ?? '').trim().slice(0, 40))), headerSig(grid[at]));
+    throw new MoneyParseError('No transactions table found: I need Date, Description and Amount (or Debit and Credit) columns.');
+  }
   const m = h.map;
   const rows: TxIn[] = [];
   let skipped = 0;
@@ -208,6 +256,10 @@ export function transactionsFromGrid(grid: string[][], defaultAccount: string): 
     rows.push({ date, description: description.slice(0, 200), amountCents: amount, account: cellAt(r, m.account) || defaultAccount, bankCategory: cellAt(r, m.category) });
   }
   if (!rows.length) throw new MoneyParseError('The table had the right columns but no transaction rows.');
+  if (own?.flip) {
+    for (const x of rows) x.amountCents = -x.amountCents;
+    return { rows, skipped, flipped: true, sig: own.sig };
+  }
   // Some card exports (American Express and others) write charges as positive numbers. When most
   // amounts are positive and the payments to the card are negative, flip the signs.
   let flipped = false;
@@ -219,7 +271,49 @@ export function transactionsFromGrid(grid: string[][], defaultAccount: string): 
       flipped = true;
     }
   }
-  return { rows, skipped, flipped };
+  return { rows, skipped, flipped, ...(own ? { sig: own.sig } : {}) };
+}
+
+/**
+ * U4.20: QIF (Quicken Interchange Format): `!Type:Bank|CCard|Cash` blocks of D (date), T or U
+ * (amount), P (payee), M (memo), L (category) lines, each transaction ending with `^`. US dates,
+ * also Quicken's `11/ 2'26` short years.
+ */
+export function transactionsFromQif(text: string, defaultAccount: string): { rows: TxIn[]; skipped: number; flipped: boolean } {
+  if (!/^\s*!Type:/im.test(text) && !/^\^\s*$/m.test(text)) throw new MoneyParseError("This isn't a QIF file.");
+  const rows: TxIn[] = [];
+  let skipped = 0;
+  let cur: Record<string, string> = {};
+  let invest = false;
+  const flush = () => {
+    if (!Object.keys(cur).length) return;
+    const rawDay = (cur.D ?? '').replace(/\s+/g, '').replace(/'(\d{2})$/, (_m, y: string) => `/20${y}`).replace(/'/g, '/');
+    const md = /^(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})$/.exec(rawDay);
+    const date = md ? `${md[3].length === 2 ? `20${md[3]}` : md[3]}-${md[1].padStart(2, '0')}-${md[2].padStart(2, '0')}` : isoOf(rawDay);
+    const amount = toCents(cur.T ?? cur.U ?? '');
+    const description = (cur.P || cur.M || '').replace(/\s+/g, ' ').trim();
+    if (invest || !date || amount === undefined || amount === 0 || !description) skipped++;
+    else rows.push({ date, description: description.slice(0, 200), amountCents: amount, account: defaultAccount, bankCategory: (cur.L ?? '').replace(/^\[|\]$/g, '').slice(0, 60) });
+    cur = {};
+  };
+  for (const raw of text.split(/\r?\n/)) {
+    const line = raw.trimEnd();
+    if (!line) continue;
+    if (line.startsWith('!')) {
+      flush();
+      if (/^!Type:/i.test(line)) invest = /^!Type:(Invst|Port)/i.test(line);
+      continue;
+    }
+    if (line.startsWith('^')) {
+      flush();
+      continue;
+    }
+    const k = line[0];
+    if (!(k in cur)) cur[k] = line.slice(1).trim();
+  }
+  flush();
+  if (!rows.length) throw new MoneyParseError('No transactions in this QIF file.');
+  return { rows, skipped, flipped: false };
 }
 
 const ofxTag = (block: string, tag: string): string => {
@@ -252,13 +346,14 @@ export function transactionsFromOfx(text: string, defaultAccount: string): { row
   return { rows, skipped, flipped: false };
 }
 
-/** A bank export's bytes → transactions (CSV, TSV, Excel, OFX, QFX). */
-export function readTransactions(name: string, bytes: Buffer, account?: string): { rows: TxIn[]; skipped: number; flipped: boolean } {
+/** A bank export's bytes → transactions (CSV, TSV, Excel, OFX, QFX, QIF). */
+export function readTransactions(name: string, bytes: Buffer, account?: string, maps: Record<string, CsvMapping> = {}, mapping?: CsvMapping): { rows: TxIn[]; skipped: number; flipped: boolean; sig?: string } {
   const acct = (account ?? '').trim() || name.replace(/\.[a-z0-9]+$/i, '').slice(0, 60);
   const head = bytes.subarray(0, 4096).toString('latin1');
   if (/\.(ofx|qfx|qbo)$/i.test(name) || /OFXHEADER|<OFX>/i.test(head)) return transactionsFromOfx(decodeText(bytes), acct);
+  if (/\.qif$/i.test(name) || /^\s*!Type:/i.test(head)) return transactionsFromQif(decodeText(bytes), acct);
   if (/\.pdf$/i.test(name)) throw new MoneyParseError('PDF statements are not read for budgets: download the CSV, Excel or OFX/QFX export from the bank\'s website (usually under Download or Export).');
-  return transactionsFromGrid(gridOf(name, bytes), acct);
+  return transactionsFromGrid(gridOf(name, bytes), acct, maps, mapping);
 }
 
 /** A positions export's bytes → holdings. */

@@ -19,6 +19,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { isLoopbackHost, netFetch, outboundAllowed, privateLocalOn } from './net-guard.ts';
+import { hideHealth } from './health-terms.ts';
 
 /** The hub's address (SARA_HUB_URL overrides it: tests and self-hosted hubs). */
 export const HUB_DEFAULT = 'https://backstagecoding.com/sara/hub';
@@ -460,7 +461,8 @@ const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
  * internet addresses. Over-scrubbing is fine here; leaking is not.
  */
 export function scrubText(text: string, redact: (s: string) => string, o: { homes?: string[]; dirs?: string[] } = {}): string {
-  let s = redact(String(text ?? ''));
+  // U4.22: the person's health words and readings never leave (docs/HEALTH.md).
+  let s = hideHealth(redact(String(text ?? '')));
   s = s.replace(/\b(?:sk|rk|pk|whsec)_(?:live|test)_[A-Za-z0-9]{6,}/g, '[REDACTED]');
   s = s.replace(/\bsara_[a-z]+\.[\w.-]{12,}/g, '[REDACTED]');
   s = s.replace(/\b(?=[A-Za-z0-9_-]*\d)(?=[A-Za-z0-9_-]*[A-Za-z])[A-Za-z0-9_-]{32,}\b/g, '[REDACTED]');

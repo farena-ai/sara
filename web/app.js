@@ -38,6 +38,7 @@ import { loadMailAccounts } from './mail-accounts.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
+import { loadBrowserExt } from './browser-ext.js';
 import { dateCard, initFacts, loadFacts } from './facts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
@@ -46,10 +47,13 @@ import { initEventTriggers, loadEventTriggers } from './event-triggers.js';
 import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomationsForm } from './automations.js';
 import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
 import { initGoals, loadGoals, openGoals, renderGoalsTile } from './long-goals.js';
+import { initStudy, loadStudyPrefs, openStudy, renderStudyTile } from './study.js';
 import { loadMeetingPrefs, openMeetingsView, renderMeetingsTile } from './meetings.js';
 import { initTrips, loadTrips, openTrips, renderTripsTile } from './trips.js';
+import { initMoney, openMoney } from './money.js';
+import { initHealth, loadHealthSettings, openHealth } from './health.js';
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
-import { initFamily, loadFamily, openFamily, renderFamilyTile } from './family.js';
+import { initFamily, loadFamily, loadPlanSettings, openFamily, renderFamilyTile } from './family.js';
 import { initMessages, messagesChanged, messagesReconnected, openMessages, refreshMessagesBadge } from './messages.js';
 import { initInboxHelper, loadInboxHelper, renderInboxTile } from './inbox-helper.js';
 import { initWorkApps, loadWorkApps } from './workapps.js';
@@ -1761,6 +1765,7 @@ initToday({
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
   renderErrands: (part, head) => renderErrandsTile(part, head),
   renderGoals: (part, head) => renderGoalsTile(part, head),
+  renderStudy: (part, head) => renderStudyTile(part, head),
   renderPeopleDue: (part, head) => renderPeopleDueTile(part, head, () => (peopleShowAttention(), openMemory({ tab: 'people' }))),
   renderMeetings: (part, head) => renderMeetingsTile(part, head),
   renderTrips: (part, head) => renderTripsTile(part, head),
@@ -9063,10 +9068,13 @@ function showSettingsTab(page, opts = {}) {
   // 3.3.0: reach Sara from the phone and away from home (web/reach.js).
   if (pick === 'dh-devices') void renderAway($('#reach-away'));
   if (pick === 'dh-devices') showOfflineSettings();
+  // U4.25: the browser extension's switches (web/browser-ext.js).
+  if (pick === 'dh-devices' && typeof loadBrowserExt === 'function') void loadBrowserExt();
   if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
   // R5: Phone calls (co-phone) and Discord's voice channel (co-discord), owner only (web/phone-calls.js).
   if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();
   if (pick === 'dh-safety') void loadSafetyCheck();
+  if (pick === 'you-briefing' && typeof loadStudyPrefs === 'function') void loadStudyPrefs();
   if (shown.has('dh-quality')) void loadQuality();
   // ROADMAP_T: Self-repair on the Health page (web/repair.js).
   if (pick === 'dh-health' && typeof loadRepair === 'function' && !isMember()) {
@@ -9115,6 +9123,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-precise') void loadPreciseSettings();
   if (shown.has('ab-when')) void loadWhenSettings();
   if (pick === 'you-automations') void loadAutomations();
+  // U4.22: Health log switches (web/health.js).
+  if (pick === 'you-knows' && typeof loadHealthSettings === 'function') void loadHealthSettings();
   if (pick === 'co-pickup') void loadPickupSettings();
   if (shown.has('co-continuity')) void Promise.all([loadSessionContinuitySettings(), loadSceneSettings()]);
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
@@ -9130,6 +9140,7 @@ function showSettingsTab(page, opts = {}) {
   if (shown.has('dh-movein')) void loadMoveIn();
   if (pick === 'models-local') void loadLocalModels();
   if (pick === 'household') void loadHousehold();
+  if (pick === 'household' && typeof loadPlanSettings === 'function') void loadPlanSettings();
   if (pick === 'account') void loadAccount();
   if (pick === 'dh-privacy') {
     void loadPrivacy();
@@ -10040,7 +10051,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -12510,12 +12521,25 @@ $('#open-errands').addEventListener('click', () => {
   void openErrands();
 });
 // S3 (docs/GOALS.md): the Goals page.
+// U4.22 (docs/HEALTH.md): the Health place.
+initHealth({ api, el, showSettingsTab });
+$('#open-health').addEventListener('click', () => {
+  closeSidebar();
+  void openHealth();
+});
 // S6 (docs/TRAVEL.md): the Trips page.
 initTrips({ api, el });
 $('#open-trips').addEventListener('click', () => {
   closeSidebar();
   void openTrips();
 });
+// U4.20 (docs/MONEY.md): the Money place.
+initMoney({ api, el });
+$('#open-money').addEventListener('click', () => {
+  closeSidebar();
+  void openMoney();
+});
+initStudy();
 initGoals({
   api,
   el,
@@ -13896,7 +13920,7 @@ async function loadDevices() {
       const when = key
         ? `${t('made {date}', { date: new Date(d.createdAt).toLocaleDateString() })} · ${keyUse(d)}`
         : `${t('signed in {date}', { date: new Date(d.createdAt).toLocaleDateString() })} · ${t('last used {date}', { date: new Date(d.lastSeen).toLocaleString() })}`;
-      li.append(el('strong', '', d.label), el('span', 'muted small', `${d.kind === 'app' ? ` · ${t('app (device code)')}` : d.kind === 'shortcut' ? ` · ${t('iPhone Shortcuts')}` : key ? ` · ${t('API key for another app')}` : ''} · ${when}${d.current ? ` · ${t('this device')}` : ''}`));
+      li.append(el('strong', '', d.label), el('span', 'muted small', `${d.kind === 'app' ? ` · ${t('app (device code)')}` : d.kind === 'extension' ? ` · ${t('browser extension')}` : d.kind === 'shortcut' ? ` · ${t('iPhone Shortcuts')}` : key ? ` · ${t('API key for another app')}` : ''} · ${when}${d.current ? ` · ${t('this device')}` : ''}`));
       if (!d.current) {
         const out = el('button', 'ghost small', key ? t('Remove') : t('Sign out'));
         out.type = 'button';

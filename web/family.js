@@ -5,6 +5,9 @@
 // (the owner turns on kid-safe mode per member: age band, bedtime, daily time, safe search; parents
 // see each kid's topics and minutes, never their words). Nothing here calls a model.
 import { t } from './naming.js';
+import { calendarTab, initFamilyPlan, loadPlanSettings, mealsTab, resetWeek, rotaControl, stars, todayLines } from './family-plan.js';
+
+export { loadPlanSettings };
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, refreshToday?: () => void } | null} */
 let ctx = null;
@@ -16,9 +19,12 @@ let shopStore = '';
 
 export function initFamily(c) {
   ctx = c;
+  initFamilyPlan({ api: c.api, el: c.el, say: (m) => say(m), data: () => data, rerender: () => render() });
   for (const b of document.querySelectorAll('#family .fam-tabs button')) b.addEventListener('click', () => {
     tab = b.dataset.tab;
     render();
+    document.querySelector('#family .settings-body')?.scrollTo?.(0, 0);
+    document.querySelector('#family')?.scrollTo?.(0, 0);
   });
 }
 const $ = (s) => document.querySelector(s);
@@ -79,6 +85,7 @@ export async function openFamily() {
 export async function loadFamily() {
   try {
     data = await ctx.api('/family');
+    resetWeek();
   } catch (err) {
     say(err.message);
     return;
@@ -100,6 +107,8 @@ function render() {
   if (tab === 'money') body.append(...moneyTab());
   if (tab === 'grocery') void groceryTab(body);
   if (tab === 'kids') body.append(...kidsTab());
+  if (tab === 'meals') void mealsTab(body);
+  if (tab === 'calendar') void calendarTab(body);
 }
 
 // ---------------------------------------------------------------- chores
@@ -149,6 +158,8 @@ function choresTab() {
     out.push(list);
   }
   const chores = data.me.parent ? data.chores : data.chores.filter((c) => c.assignee === data.me.person);
+  const mine = data.kids.find((k) => k.id === data.me.person);
+  if (data.me.child && mine?.points) out.push(el('p', 'fpl-stars fpl-star-total', t('You have {stars} stars', { stars: stars(mine.points) })));
   out.push(el('h3', 'fam-h', data.me.parent ? t('Chores') : t('My chores')));
   if (!chores.length) out.push(el('p', 'muted small', data.me.parent ? t('No chores yet. Add one above, or ask her: “add a chore for Mia: feed the cat every day, $1”.') : t('No chores for you right now.')));
   const list = el('ul', 'fam-list');
@@ -156,6 +167,9 @@ function choresTab() {
     const li = el('li', `fam-row${c.active ? '' : ' fam-off'}`);
     const text = el('div', 'fam-main');
     text.append(el('strong', '', c.title), el('span', 'muted small', ` · ${data.me.parent ? `${nameOf(c.assignee)} · ` : ''}${REPEAT()[c.repeat]} · ${c.active ? t('due {when}', { when: when(c.dueAt) }) : t('paused')} · ${worth(c)}`));
+    // U4.21: a kid sees what a chore is worth as stars; a parent can make it take turns.
+    if (data.me.child && c.points) text.append(el('span', 'fpl-stars', ` ${stars(c.points)}`));
+    if (data.me.parent && c.active) text.append(rotaControl(c, () => void loadFamily()));
     li.append(text);
     const acts = el('div', 'fam-acts');
     if (c.active && (c.assignee === data.me.person || data.me.parent)) acts.append(doneButton(c));
@@ -397,7 +411,10 @@ function kidsTab() {
             ul.append(el('li', 'small', `${new Date(`${d.day}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · ${t('{n} min', { n: d.minutes })} · ${d.topics.map((x) => `${TOPIC()[x.topic] ?? x.topic} (${x.n})`).join(', ')}`));
           }
           if (!ul.children.length) ul.append(el('li', 'muted small', t('Nothing this week.')));
-          show.replaceWith(el('p', 'muted small', t('Topics only, never their words.')), ul);
+          // U4.23 (docs/LEARNING.md): their study sets, titles and counts only.
+          const sl = el('ul', 'fam-ledger');
+          for (const s of r.study ?? []) sl.append(el('li', 'small', `${s.title} · ${t('{learned} of {cards} learned · {due} due', { learned: s.learned, cards: s.cards, due: s.due })} · ${t('{n} studied today', { n: s.reviewedToday })}`));
+          show.replaceWith(el('p', 'muted small', t('Topics only, never their words.')), ul, ...(sl.children.length ? [el('p', 'muted small', t('Study sets (titles and counts, never the cards)')), sl] : []));
         } catch (err) {
           say(err.message);
         }
@@ -436,7 +453,7 @@ export function renderFamilyTile(p, tileHead) {
       }
       parts.push(el('p', 'small fam-tile-h', t('Waiting for your OK')), ul);
     }
-    parts.push(el('p', 'small muted', p.kids.map((k) => `${k.name} ${money(k.balanceCents)}`).join(' · ')));
+    if (p.kids.length) parts.push(el('p', 'small muted', p.kids.map((k) => `${k.name} ${money(k.balanceCents)}`).join(' · ')));
     if (p.due.length) parts.push(el('p', 'small muted', t('Due today: {list}', { list: p.due.map((c) => `${c.title} (${name(c.assignee)})`).join(', ') })));
   } else {
     const ul = el('ul', 'td-biz fam-tile');
@@ -449,6 +466,7 @@ export function renderFamilyTile(p, tileHead) {
     if (p.waiting.length) parts.push(el('p', 'small muted', t('{n} waiting for a parent’s OK', { n: p.waiting.length })));
     if (p.balance) parts.push(el('p', 'small', t('Your allowance: {money}', { money: money(p.balance.balanceCents) })));
   }
+  parts.unshift(...todayLines(p.plan));
   parts.push(btn(t('Open Family'), 'ghost small', () => void openFamily()));
   tile.querySelector('.td-body').replaceChildren(...parts);
 }

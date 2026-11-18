@@ -36,7 +36,7 @@ export function tileTitle(id) {
     'td-calendar': t('Your day'), 'td-weather': t('Weather'), 'td-dates': t('Coming up'), 'td-needs': t('Needs you'), 'td-mail': t('Mail'),
     'td-memories': t('She remembered'), 'td-otd': t('Moments'), 'td-plans': t('Her plans'), 'td-rooms': t('Rooms'), 'td-jobs': t('Running now'),
     'td-board': t('On the board'), 'td-projects': t('Coding projects'), 'td-usage': t('Usage today'), 'td-business': t('Money and replies'), 'td-money': t('Money'), 'td-home': t('Home'), 'td-models': t('Model changes'),
-    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-automations': t('Automations'), 'td-inbox': t('From your inbox'), 'td-teams': t('My teams'), 'td-shared': t('Shared with you'), 'td-worktime': t('Clients and hours'), 'td-errands': t('Errands'), 'td-goals': t('Goals'), 'td-people': t('People'), 'td-family': t('Family'), 'td-agenda': t('Planner'), 'td-meetings': t('Meetings'), 'td-trips': t('Trips'), 'td-setup': t('Add to your day'),
+    'td-hooks': t('From your webhooks'), 'td-watching': t('Watching'), 'td-automations': t('Automations'), 'td-inbox': t('From your inbox'), 'td-teams': t('My teams'), 'td-shared': t('Shared with you'), 'td-worktime': t('Clients and hours'), 'td-errands': t('Errands'), 'td-goals': t('Goals'), 'td-study': t('Study'), 'td-people': t('People'), 'td-family': t('Family'), 'td-agenda': t('Planner'), 'td-meetings': t('Meetings'), 'td-trips': t('Trips'), 'td-setup': t('Add to your day'),
   };
   return words[id] ?? id;
 }
@@ -67,6 +67,7 @@ export function tileTip(id) {
     'td-watching': t('Your “tell me when” watches on prices, games and odds, with the last value she saw.'),
     'td-automations': t('Shown only when an automation failed, waits for your OK, or runs today.'),
     'td-errands': t('Goals she is taking care of, the ones waiting on you first. Shows while an errand is open.'),
+    'td-study': t('Study cards due today, per set. Shows while cards are due.'),
     'td-goals': t('Your goals over days: progress, the next step and any new plan she proposes. Shows while a goal is active.'),
     'td-people': t('People who need you: replies they wait for, promises you made, dates and friends to get in touch with. Shows while someone needs you.'),
     'td-meetings': t('Action items from your meetings due this week, and follow-up emails waiting for you. Shows only then.'),

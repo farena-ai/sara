@@ -44,6 +44,8 @@ import { createAutomationTools } from './tools/automations.ts';
 import { Errands } from './errands.ts';
 import { createErrandTools } from './tools/errands.ts';
 import { LongGoals } from './long-goals.ts';
+import { Study } from './study.ts';
+import { createStudyTools } from './tools/study.ts';
 import { createLongGoalTools } from './tools/long-goals.ts';
 import { PhoneCalls } from './phone-calls.ts';
 import { createPhoneCallTools } from './tools/phone-calls.ts';
@@ -54,6 +56,8 @@ import { createAccountingTool } from './workapps/accounting.ts';
 import { bookingFor } from './workapps/booking.ts';
 import { FamilyStore, gateKidTools, setFamilyRuntime, type FamilyAccess } from './family.ts';
 import { createFamilyTools, createKidSearchTool } from './tools/family.ts';
+import { inQuiet } from './family-plan.ts';
+import { zonedParts } from './planner.ts';
 import { SAFE_SEARCH_PROVIDERS } from './tools/search.ts';
 import { createMyDetailsTool } from './tools/my-details.ts';
 import { createFactsTools } from './tools/facts.ts';
@@ -63,6 +67,7 @@ import { InboxHelper } from './inbox/helper.ts';
 import { createInboxTools } from './tools/inbox.ts';
 import { Travel } from './travel.ts';
 import { createTravelTools } from './tools/travel.ts';
+import { createHealthTools } from './tools/health-log.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -879,6 +884,14 @@ function familyAccess(space: Space): FamilyAccess | undefined {
     notifyParents: (title, body) => {
       for (const p of familyStore.parents()) void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', 'family-weekly').catch(() => undefined);
     },
+    // U4.21: chore reminders per person, never in that person's own quiet hours.
+    notifyPerson: (p, title, body) => void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', 'family-chores').catch(() => undefined),
+    quietFor: (p) => {
+      const q = spaceOf(p)?.companions.main.app.settings.get().proactive;
+      return inQuiet(zonedParts(new Date(), settings.get().timeZone || undefined).h, q?.quietStart ?? 22, q?.quietEnd ?? 9);
+    },
+    // U4.22: whose folder a health log is in (a parent manages a child's medicines there).
+    spaceDirOf: (id: string) => (id === 'owner' ? dataDir : household.members().some((m) => m.id === id) ? household.dirOf(id) : undefined),
   };
 }
 // Sign-in registries shared by every space (codes are made or approved by a signed-in person).
@@ -1613,6 +1626,9 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // S3 (docs/GOALS.md): long-running goals above errands, each space's own (members too).
     app.longGoals = new LongGoals(app, store.db);
     for (const t of createLongGoalTools(() => app)) tools.add(t);
+    // U4.23 (docs/LEARNING.md): the learning coach, each space's own (members and kids too).
+    app.study = new Study(app, store.db);
+    for (const t of createStudyTools(() => app)) tools.add(t);
     // R5 (docs/PHONE_CALLS.md): phone calls, the owner's only; ready but switched off until set up.
     if (!isMember) {
       app.phoneCalls = new PhoneCalls(app, store.db);
@@ -1637,6 +1653,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // S6 (docs/TRAVEL.md): trips from booking mail, each space's own (members' trips stay theirs).
     app.travel = new Travel(app, store.db);
     for (const t of createTravelTools(() => app)) tools.add(t);
+    // U4.22 (docs/HEALTH.md): the private health log, each person's own (kids: KID_TOOLS keeps these off).
+    for (const t of createHealthTools(() => app)) tools.add(t);
   }
   if (!isMember) for (const t of createReviewTools(() => app)) tools.add(t);
   if (!isMember) tools.add(createIssueTool(() => app));

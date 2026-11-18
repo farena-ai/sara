@@ -12,9 +12,9 @@ const $ = (s) => document.querySelector(s);
 /** @type {null | { api: Function, el: Function, openChat: Function, openFile: Function, openPlanner: Function, showPerson: Function, openLibrary: Function, askInChat: Function }} */
 let ctx = null;
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
-const SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals'];
-const LABEL = () => ({ mail: t('Emails'), files: t('Files'), chats: t('Chats'), calendar: t('Calendar'), notes: t('Notes'), lists: t('Lists'), contacts: t('Contacts'), meetings: t('Meetings'), trips: t('Trips'), documents: t('Documents'), research: t('Research'), goals: t('Goals') });
-const ICON = { mail: 'mail', files: 'library', chats: 'chat', calendar: 'calendar', notes: 'note', lists: 'check', contacts: 'team', meetings: 'captions', trips: 'compass', documents: 'file', research: 'flask', goals: 'target' };
+const SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals', 'money', 'health'];
+const LABEL = () => ({ mail: t('Emails'), files: t('Files'), chats: t('Chats'), calendar: t('Calendar'), notes: t('Notes'), lists: t('Lists'), contacts: t('Contacts'), meetings: t('Meetings'), trips: t('Trips'), documents: t('Documents'), research: t('Research'), goals: t('Goals'), money: t('Money', 'Goals') , health: t('Health') });
+const ICON = { mail: 'mail', files: 'library', chats: 'chat', calendar: 'calendar', notes: 'note', lists: 'check', contacts: 'team', meetings: 'captions', trips: 'compass', documents: 'file', research: 'flask', goals: 'target', money: 'gauge', health: 'heart'};
 let last = null;
 let seq = 0;
 
@@ -168,6 +168,8 @@ function answerText(h) {
       return t('Your research “{title}”: {quote}', { title: h.title, quote });
     case 'goals':
       return t('Your goal “{title}”: {quote}', { title: h.title, quote: h.quote });
+    case 'health':
+      return t('In your Health log: {quote}', { quote: h.quote });
     default:
       return quote;
   }
@@ -236,6 +238,8 @@ async function openHit(h) {
   if (o.kind === 'meeting') return void (await import('./meetings.js')).openMeetingsView(o.id, o.line);
   if (o.kind === 'trip') return void (await import('./trips.js')).openTrips(o.id, o.booking);
   if (o.kind === 'goal') return void (await import('./long-goals.js')).openGoals(o.id);
+  if (o.kind === 'money') return void (await import('./money.js')).openMoney(o);
+  if (o.kind === 'health') return void (await import('./health.js')).openHealth();
   if (o.kind === 'research') {
     await ctx.openLibrary();
     return void (await import('./research.js')).openResearch(o.id);

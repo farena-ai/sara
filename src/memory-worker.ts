@@ -14,6 +14,7 @@ import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
 import { fold } from './people.ts';
 import { maskCardsAndSsn } from './facts.ts';
+import { withoutHealth } from './health-terms.ts';
 
 export interface MemorySettings {
   enabled: boolean;
@@ -259,7 +260,8 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   const other = importedOther(conv);
   /** Another assistant's line in imported history: never evidence for anything. */
   const theirs = (m: StoredMessage) => m.role === 'assistant' && ((typeof m.meta?.importedFrom === 'string' && m.meta.herPast !== true) || Boolean(m.meta?.groupFrom));
-  const usable = all.filter((m) => !isForgotten(m));
+  // U4.22: health log exchanges never become memories (docs/HEALTH.md).
+  const usable = withoutHealth(all.filter((m) => !isForgotten(m)));
   if (!usable.some((m) => m.role === 'user')) {
     if (all.length) mem.setState(conversationId, { summarizedThrough: all.at(-1)!.id, lastError: null });
     return { factIds: [], droppedFacts: 0, through: all.at(-1)?.id ?? state.summarizedThrough };

@@ -176,6 +176,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^errand_\w+$/, 'errands', 'errands'],
   // S3: long-running goals (docs/GOALS.md).
   [/^goal_(create|status|update)$/, 'goals', 'goals over days'],
+  // U4.23: the learning coach (docs/LEARNING.md).
+  [/^study_(make|list|quiz|answer)$/, 'study', 'study cards and quizzes'],
   // S2: meeting notes (docs/MEETINGS.md).
   [/^meeting_(list|summarize)$/, 'meetings', 'meeting notes'],
   // R5: phone calls in her own voice (docs/PHONE_CALLS.md).
@@ -183,13 +185,15 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // R6: Google Docs/Sheets, Word/Excel online, Slack/Teams actions, accounting exports (docs/WORK_APPS.md).
   [/^(gdoc_|gsheet_|excel_|word_|slack_|teams_post$|accounting_export$)/, 'workapps', 'work apps'],
   // R8: chores and allowance; a child's safe search (docs/FAMILY.md).
-  [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search)$/, 'family', 'chores and allowance'],
+  [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search|meal_plan_(get|set)|meal_shopping|family_calendar)$/, 'family', 'chores, allowance and the family planner'],
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
   [/^my_details_get$/, 'details', 'my details'],
   // N6: what she knows about their world (facts with sources; forget one).
   [/^(facts_list|fact_forget)$/, 'facts', 'what she knows'],
   // S6: the travel assistant (docs/TRAVEL.md).
   [/^trip_(list|status)$/, 'travel', 'trips and flights'],
+  // U4.22: the private health log (docs/HEALTH.md).
+  [/^health_(log|read)$/, 'health', 'health log'],
   // N3: from your inbox (packages, trips, suggestions, filing rules).
   [/^(packages_list|trips_list|inbox_suggestions|inbox_file_rule)$/, 'inbox', 'from your inbox'],
   [/^analyze_table$/, 'tables', 'spreadsheet totals'],
@@ -336,7 +340,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'documento do google', 'planilha', 'canal', 'publique no', 'meu status', 'contabilidade', 'contador', 'exportar faturas',
     'documento google', 'foglio di calcolo', 'foglio google', 'canale', 'pubblica in', 'il mio stato', 'contabilita', 'commercialista', 'esportare fatture'],
   // R8 (docs/FAMILY.md): chores, allowance, and a child's safe search.
-  family: ['chore', 'my chores', 'add a chore', 'allowance', 'pocket money', 'points', 'paid out', 'pay out', 'i did the', 'i finished', 'mark it done', 'how much money do i have', 'my balance', 'homework', 'search for', 'look up',
+  family: ['dinners', 'dinner plan', 'meal plan', 'plan meals', 'for dinner', 'family calendar', 'family week', 'cenas', 'diners', 'repas de la semaine', 'abendessen', 'jantares', 'cene', 'chore', 'my chores', 'add a chore', 'allowance', 'pocket money', 'points', 'paid out', 'pay out', 'i did the', 'i finished', 'mark it done', 'how much money do i have', 'my balance', 'homework', 'search for', 'look up',
     'tarea de casa', 'quehaceres', 'mesada', 'paga semanal', 'puntos', 'ya termine', 'cuanto dinero tengo', 'deberes', 'buscar',
     'corvee', 'corvees', 'argent de poche', 'points', 'j ai fini', 'combien j ai', 'devoirs', 'chercher',
     'hausarbeit', 'hausarbeiten', 'taschengeld', 'punkte', 'ich bin fertig', 'wie viel geld habe ich', 'hausaufgaben', 'suchen',
@@ -344,6 +348,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'faccenda', 'faccende', 'paghetta', 'punti', 'ho finito', 'quanti soldi ho', 'compiti', 'cercare'],
   // S3 (docs/GOALS.md): long-running goals over days or weeks.
   meetings: ['meeting', 'meetings', 'the meeting', 'meeting notes', 'action items', 'the call', 'reunion', 'reuniones', 'acta', 'reunion de', 'compte rendu', 'besprechung', 'protokoll', 'sitzung', 'reuniao', 'reunioes', 'ata da reuniao', 'riunione', 'riunioni', 'verbale'],
+  // U4.23 (docs/LEARNING.md): study sets, flashcards and quizzes.
+  study: ['study', 'studying', 'flashcards', 'flash cards', 'flashcard', 'quiz me', 'quiz', 'test me', 'revise', 'revision', 'exam', 'study set', 'cards due', 'learn this', 'memorize',
+    'estudiar', 'tarjetas', 'examen', 'repasar', 'cuestionario',
+    'etudier', 'reviser', 'fiches', 'interro', 'questionnaire',
+    'lernen', 'karteikarten', 'abfragen', 'prufung', 'wiederholen',
+    'estudar', 'cartoes', 'revisar', 'prova',
+    'studiare', 'ripassare', 'interrogami', 'esame', 'schede'],
   goals: ['my goal', 'my goals', 'a goal', 'goal', 'goals', 'milestone', 'milestones', 'by december', 'by january', 'by the end of', 'over the next', 'weeks', 'on track', 'weekly summary', 'progress',
     'mi meta', 'mis metas', 'mi objetivo', 'objetivo', 'meta', 'hito', 'progreso',
     'mon objectif', 'mes objectifs', 'objectif', 'etape', 'progres',
@@ -376,6 +387,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'cosa sai di me', 'la mia franchigia', 'la mia polizza', 'il mio contratto d affitto', 'quando scade', 'scade', 'rinnovo', 'garanzia', 'ricorda che', 'dimentica che'],
   // N3 (docs/INBOX_HELPER.md): packages, trips, what came in by email (six languages, folded).
   // S6 (docs/TRAVEL.md): trips, flights and their status.
+  // U4.22 (docs/HEALTH.md): the private health log (six languages, folded).
+  health: ['health', 'my health', 'health log', 'headache', 'migraine', 'pain', 'symptom', 'symptoms', 'mood', 'slept', 'sleep', 'blood pressure', 'bp', 'weight', 'glucose', 'blood sugar', 'pulse', 'heart rate', 'temperature', 'fever', 'medicine', 'medicines', 'medication', 'meds', 'pill', 'pills', 'dose', 'refill', 'took my', 'skipped my', 'doctor', 'appointment',
+    'salud', 'dolor de cabeza', 'dolor', 'sintoma', 'presion', 'peso', 'medicina', 'medicamento', 'pastilla', 'dosis', 'medico', 'cita',
+    'sante', 'mal de tete', 'douleur', 'symptome', 'tension', 'poids', 'medicament', 'comprime', 'medecin', 'rendez-vous',
+    'gesundheit', 'kopfschmerzen', 'schmerzen', 'symptom', 'blutdruck', 'gewicht', 'medikament', 'tablette', 'dosis', 'arzt', 'termin',
+    'saude', 'dor de cabeca', 'dor', 'sintoma', 'pressao', 'remedio', 'comprimido', 'dose', 'consulta',
+    'salute', 'mal di testa', 'dolore', 'sintomo', 'pressione', 'farmaco', 'pillola', 'dose', 'visita'],
   travel: ['trip', 'trips', 'my trip', 'flight', 'flights', 'my flight', 'itinerary', 'travel', 'gate', 'delayed', 'delay', 'cancelled', 'check in', 'boarding', 'hotel', 'rental car', 'packing',
     'viaje', 'vuelo', 'vuelos', 'itinerario', 'puerta de embarque', 'retrasado', 'cancelado', 'equipaje',
     'voyage', 'vol', 'vols', 'itineraire', 'porte', 'retarde', 'annule', 'bagages',

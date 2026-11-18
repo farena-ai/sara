@@ -1,4 +1,4 @@
-# Money: portfolio, budget and bills (E3)
+# Money: portfolio, budget and bills (E3) and the Money place (U4.20)
 
 Part of the everyday-assistant track ([design/EVERYDAY.md](design/EVERYDAY.md)). Sara reads your own
 brokerage and bank exports and works out the numbers in code. It is information and math, not
@@ -42,3 +42,35 @@ came from and when. For the owner and every household member, each in their own 
   fixtures in `test/fixtures/e3/`, dedupe, categories and corrections, subscriptions, summary math,
   limits, bills and reminders, the mail watch with a fake reader, valuation with fake quotes, the
   briefing line, Today, household isolation, private chats, persona, the lean picker).
+
+## The Money place (U4.20)
+
+A sidebar place (`#view=money`, sidebar **Money**) on top of E3's store and math. **Tracking only**:
+nothing here logs in to a bank, pays, transfers or cancels anything, and the page says so at the top.
+No network: it all works in private local mode ("Nothing leaves this computer").
+
+### One-page design
+
+| Part | What it does | Where |
+|---|---|---|
+| Import | `POST /api/money/import {name, data (base64), account?, mapping?}`. CSV/TSV/Excel/OFX/QFX/QIF. A CSV whose header isn't recognized answers `needMapping` with its columns and 3 sample rows; the page asks Date / Description / Amount (or Money out / Money in), a bank name and "charges are positive". The mapping is saved per layout (the folded header cells, `csv_maps` in `money_state`) and used by later files of that layout without asking. Every file is logged in `money_imports`. | `parse.ts` (`transactionsFromQif`, `MappingNeeded`, `headerSig`), `hub.ts` `importFile` |
+| Duplicates across files | A row is a duplicate when an earlier import already holds as many rows with the same day, amount and merchant on the same account: the same name, the same last 4 digits ("Card …9876" = "9876"), or any account when one side's account was only the file name. Two equal coffees on one day in one file both count. | `store.ts` `importTransactions`, `acctKey` |
+| Categories | E3's order (the person's rules, a keyword table, the bank's column, the sign). Changing a transaction's category (`PATCH /api/money/tx/:id`) is a rule for its merchant and moves its other rows; rules are listed and editable. Optional model suggestions (off by default): `POST /api/money/suggest` sends merchant names only (never amounts) and the person accepts each. | `hub.ts` `suggestCategories` |
+| Month and trends | E3's `summarize` for the month (‹ › to move), and six months of spending per category. | `hub.ts` `trends` |
+| Budgets | E3 limits. Gentle alerts on the **Money** alert feed (Settings → Automations → Where alerts go, or `alerts_route`): "getting close" once a month at the chosen share (default 80%) and "went past" once a month (E3's warning, also a phone notification). Off with *Gentle alerts*. | `hub.ts` `budgetAlerts` (also used by `budget_import` / `budget_limit`) |
+| Bills due | E3 bills (inbox bills already land there through the inbox helper's `bill_add`) plus repeating charges found in transactions that aren't tracked yet; *Track with a reminder* adds one (the cycle already charged counts as paid). Mark paid / Stop tracking. | `hub.ts` `billsDue`, routes |
+| Subscriptions | Repeating charges that are subscriptions (category, yearly, or a known service) with **price changes** (latest amount vs the one before) and a **How to cancel** link (a known account page, else a web search link). From mail: the inbox helper passes each new mail to `observeMoneyMail` (free trial ending, price change, renewal); a trial ending gets a Planner reminder two days before and one gentle alert. She never cancels. | `hub.ts` `subscriptionsOf`, `priceChanges`, `observeMoneyMail` (`money_mailsubs`) |
+| Net worth | Balances the person types (asset or debt, `money_balances`) plus the portfolio's last checked value; one snapshot per day (`money_networth`). | `hub.ts` `netWorth` |
+| Ask about anything | Source `money`: transactions by merchant words or an amount ("42.10"); opens the Money place at the row. Each space's own store, so household members stay apart; children skip it (their tool allowlist has no money tool). | `ask-everything.ts` `money` |
+| Who | Owner and household members (`money` in `MEMBER_ROUTES`, each space's own store); children are refused (`CHILD_DENIED`); not on the demo; changes get an audit row. | routes `src/routes/money.ts` |
+
+Settings live on the page itself (a **Money settings** section with tips): *Gentle alerts*, *Getting
+close at* (never, 50-90%), *Let my model suggest categories*.
+
+Limits: mail subscription reading is English-only for now; how-to-cancel links for unknown services are
+a web search link; QIF investment accounts are skipped; PDFs are still not read.
+
+Tests: `test/u4-money.test.ts` (QIF, mapping saved and reused, overlapping files and last-4 digits, rules
+and suggestions, trends and gentle alerts on the Money feed, bills due, price changes and cancel links,
+mail trials and price changes, net worth history, Ask source with members and kids, routes and page,
+private local mode).

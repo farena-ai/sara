@@ -6,6 +6,7 @@ import { familyTick } from './family.ts';
 import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
+import { healthTick } from './health-log.ts';
 
 const LATE_MS = 5 * 60_000;
 
@@ -70,6 +71,8 @@ export class ReminderScheduler {
     this.#app.errands?.due(now);
     // S3: long-running goals check progress, nudge, propose new plans and send weekly summaries on the same tick.
     this.#app.longGoals?.due(now);
+    // U4.23: one "cards due" reminder a day at the chosen time.
+    this.#app.study?.due(now);
     // S4: last contact, waiting replies and promises from mail, calendars and rooms (at most every 30 minutes).
     void this.#app.peopleTies?.due(now);
     // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
@@ -78,6 +81,8 @@ export class ReminderScheduler {
     (this.#app.mailAccounts as { calendarLinks?: { tick(): void } } | undefined)?.calendarLinks?.tick();
     // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).
     familyTick(this.#app, now);
+    // U4.22: medicine dose reminders (only where a health log exists).
+    healthTick(this.#app, now);
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
     this.#app.inbox?.due(now);
     // S6: travel: check-in, leave-by and flight status alerts on the same tick.

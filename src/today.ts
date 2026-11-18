@@ -19,6 +19,7 @@ import { en } from './i18n.ts';
 import { getLayout, recordMail, type TodayPrefs } from './today-layout.ts';
 import { allEvents, calendarSources } from './mail/calendars.ts';
 import type { GoogleAccount } from './google.ts';
+import { planOf } from './family-plan.ts';
 
 export interface TodayEvent {
   id: string;
@@ -89,12 +90,14 @@ export interface Today {
   trips?: ReturnType<import('./travel.ts').Travel['todayTile']>;
   /** S3: active long-running goals (progress, next step; a waiting new plan first; none: no tile). */
   goals?: ReturnType<import('./long-goals.ts').LongGoals['todayTile']>;
+  /** U4.23: study cards due today (none due: no tile). */
+  study?: ReturnType<import('./study.ts').Study['todayTile']>;
   /** S4: people who need you (waiting replies, promises, dates, keep in touch; none: no tile). */
   people?: ReturnType<import('./people-ties.ts').PeopleTies['todayTile']>;
   /** S2: action items due this week and follow-up emails waiting (none: no tile). */
   meetings?: ReturnType<import('./meetings.ts').Meetings['todayTile']>;
   /** R8: Family: a parent's approvals and kids' balances, or a kid's own chores and balance. */
-  family?: NonNullable<ReturnType<import('./family.ts').FamilyStore['todayTile']>> & { names: Record<string, string> };
+  family?: NonNullable<ReturnType<import('./family.ts').FamilyStore['todayTile']>> & { names: Record<string, string>; plan?: ReturnType<import('./family-plan.ts').FamilyPlan['today']> };
   /** N3: from your inbox (suggestion cards, done-on-its-own lines, packages, trips; none: no tile). */
   inbox?: NonNullable<ReturnType<import('./inbox/helper.ts').InboxHelper['todayTile']>> & { docs?: import('./facts.ts').DateSuggestion[] };
   /** E4: My teams (next game, last result, live score), only when following a team. */
@@ -116,7 +119,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'people', 'family', 'meetings', 'trips', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'study', 'people', 'family', 'meetings', 'trips', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -579,6 +582,12 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       if (tile) out.goals = tile;
       meta('goals');
     },
+    study: () => {
+      // U4.23: a tile only while study cards are due.
+      const tile = demo ? undefined : app.study?.todayTile();
+      if (tile) out.study = tile;
+      meta('study');
+    },
     people: () => {
       // S4: a tile only while someone needs you (birthdays stay on the Dates tile).
       const tile = demo ? undefined : app.peopleTies?.todayTile();
@@ -601,7 +610,10 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       // R8: chores and allowance (none set up: no tile).
       const f = demo ? undefined : app.family;
       const tile = f?.store.todayTile(f.person, f.people().filter((p) => p.child), app.now(), f.tz());
-      if (f && tile) out.family = { ...tile, names: Object.fromEntries(f.people().map((p) => [p.id, p.name])) };
+      // U4.21 Family Today: tonight's dinner, chores left, the next family event (also without chores).
+      const plan = f ? planOf(f.store).today(f.person, app.now(), f.tz()) : undefined;
+      const base = tile ?? (plan && (plan.dinner || plan.nextEvent || plan.choresLeft) ? { role: f!.store.isParent(f!.person) ? ('parent' as const) : ('kid' as const), waiting: [], due: [], kids: [] } : undefined);
+      if (f && base) out.family = { ...base, names: Object.fromEntries(f.people().map((p) => [p.id, p.name])), ...(plan ? { plan } : {}) };
       meta('family');
     },
     inbox: () => {

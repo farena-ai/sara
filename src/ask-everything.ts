@@ -27,11 +27,14 @@ import { messageText, type GmailPart } from './google.ts';
 import { allEvents, calendarSources } from './mail/calendars.ts';
 import { emptyTerms, type SearchTerms } from './mail/search.ts';
 import { UNTRUSTED } from './mail/types.ts';
+import { moneyStore } from './money/store.ts';
 import { privateLocalOn } from './net-guard.ts';
+import { healthFor, HealthLog } from './health-log.ts';
+import { healthMessage } from './health-terms.ts';
 import { turnSpaceSql, type SpaceSql } from './recall.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 
-export const ASK_SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals'] as const;
+export const ASK_SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals', 'money', 'health'] as const;
 export type AskSource = (typeof ASK_SOURCES)[number];
 
 /** Where a hit opens, at the spot. */
@@ -49,7 +52,10 @@ export type AskOpen =
   | { kind: 'meeting'; id: number; line?: number; t?: number }
   | { kind: 'trip'; id: number; booking?: number }
   | { kind: 'research'; id: number }
-  | { kind: 'goal'; id: number };
+  | { kind: 'goal'; id: number }
+  | { kind: 'money'; tx: number }
+  /** U4.22: the person's own Health log (only from a private chat with "include health" on). */
+  | { kind: 'health' };
 
 export interface AskHit {
   source: AskSource;
@@ -137,9 +143,26 @@ export function bestQuote(text: string, words: string[], width = 240): string {
 }
 
 /** The tool each source rides on, for a child's allowlist. */
-const SOURCE_TOOL: Record<AskSource, string> = { mail: 'mail_search', files: 'library', chats: 'recall', calendar: 'calendar_events', notes: 'note', lists: 'todo', contacts: 'person_lookup', meetings: 'meeting_notes', trips: 'trips', documents: 'doc_from_template', research: 'research_start', goals: 'goal_plan' };
+const SOURCE_TOOL: Record<AskSource, string> = { mail: 'mail_search', files: 'library', chats: 'recall', calendar: 'calendar_events', notes: 'note', lists: 'todo', contacts: 'person_lookup', meetings: 'meeting_notes', trips: 'trips', documents: 'doc_from_template', research: 'research_start', goals: 'goal_plan', money: 'budget_summary', health: 'health_read'};
 
 type Ctx = { app: AppContext; words: string[]; q: string; limit: number; signal: AbortSignal; space?: SpaceSql; conversationId?: string };
+
+/** A chat row that logged or answered health (its own mark, or the person's message before it). */
+function healthRow(app: AppContext, r: { id: number; conversation_id: string; role: string }): boolean {
+  const get = (sql: string, ...a: (string | number)[]) => app.store.db.prepare(sql).get(...a) as { role: string; meta: string | null } | undefined;
+  const meta = (row: { meta: string | null } | undefined) => {
+    try {
+      return row?.meta ? (JSON.parse(row.meta) as Record<string, unknown>) : undefined;
+    } catch {
+      return undefined;
+    }
+  };
+  const own = get('SELECT role, meta FROM messages WHERE id = ?', r.id);
+  if (own && healthMessage({ role: own.role, meta: meta(own) })) return true;
+  if (r.role === 'user') return false;
+  const asked = get("SELECT role, meta FROM messages WHERE conversation_id = ? AND role = 'user' AND id < ? ORDER BY id DESC LIMIT 1", r.conversation_id, r.id);
+  return Boolean(asked && healthMessage({ role: asked.role, meta: meta(asked) }));
+}
 
 function chats(c: Ctx): AskHit[] {
   const { app, words } = c;
@@ -156,6 +179,8 @@ function chats(c: Ctx): AskHit[] {
   return rows
     // The chat asking now, and the person's own bare questions, hold no answer.
     // Her earlier cited answers ([n]) would only cite this search back to itself.
+    // U4.22: a health log exchange never shows (the message that logged, and her reply to it).
+    .filter((r) => !healthRow(app, r))
     .filter((r) => r.conversation_id !== c.conversationId && !(r.role === 'user' && r.content.trim().length <= 200 && /\?\s*$/.test(r.content)) && !(r.role === 'assistant' && /\[\d+\]/.test(r.content)))
     .map((r): AskHit => ({ source: 'chats', title: r.title, quote: bestQuote(r.content.replace(/[*_`#>~]+/g, ''), words), where: r.role === 'user' ? 'you' : 'her', when: r.created_at, open: { kind: 'chat', conversationId: r.conversation_id, messageId: Number(r.id) }, score: scoreOf(r.content, words) }))
     .sort(rank)
@@ -315,6 +340,26 @@ function research(c: Ctx): AskHit[] {
   return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
 }
 
+/**
+ * U4.20 money: the person's own transactions (this space's store, so members stay apart), by
+ * merchant words or an amount ("42.10", "$6.75"). Local data only.
+ */
+function money(c: Ctx): AskHit[] {
+  const s = moneyStore(c.app);
+  const amounts = new Set([...c.q.matchAll(/\$?(\d{1,7}[.,]\d{2})\b/g)].map((m) => Math.round(Number(m[1].replace(',', '.')) * 100)));
+  const words = c.words.filter((w) => !/^\d/.test(w));
+  const out: AskHit[] = [];
+  for (const t of s.transactions()) {
+    const amt = Math.abs(t.amountCents);
+    const byAmount = amounts.has(amt);
+    const score = byAmount ? 1 : words.length ? scoreOf(`${t.description}\n${t.merchant}\n${t.category}`, words) : 0;
+    if (score <= 0) continue;
+    const money = `${t.amountCents < 0 ? '-' : ''}$${(amt / 100).toFixed(2)}`;
+    out.push({ source: 'money', title: t.merchant || t.description, quote: `${t.date} · ${t.description} · ${money}`, where: [t.account, t.category].filter(Boolean).join(' · '), when: t.date, open: { kind: 'money', tx: t.id }, score });
+  }
+  return out.sort(rank).slice(0, c.limit);
+}
+
 /** S3 goals: the goal and its steps. */
 function goals(c: Ctx): AskHit[] {
   const out: AskHit[] = [];
@@ -423,7 +468,17 @@ function rank(a: AskHit, b: AskHit): number {
   return b.score - a.score || String(b.when ?? '').localeCompare(String(a.when ?? ''));
 }
 
-const RUN: Record<AskSource, (c: Ctx) => AskHit[] | Promise<AskHit[]>> = { mail, files, chats, calendar, notes, lists, contacts, meetings, trips, documents, research, goals };
+/** U4.22: the person's Health log (askAllowed lets it in only from a private chat with "include health" on). */
+function health(c: Ctx): AskHit[] {
+  return healthFor(c.app)
+    .search(c.words)
+    .map((h): AskHit => ({ source: 'health', title: h.title, quote: h.quote, when: h.when, open: { kind: 'health' }, score: scoreOf(`${h.title}\n${h.quote}`, c.words) }))
+    .filter((h) => h.score > 0)
+    .sort(rank)
+    .slice(0, c.limit);
+}
+
+const RUN: Record<AskSource, (c: Ctx) => AskHit[] | Promise<AskHit[]>> = { mail, files, chats, calendar, notes, lists, contacts, meetings, trips, documents, research, goals, money, health };
 
 /** Which sources this person may ask here, and why the others are skipped. */
 export function askAllowed(app: AppContext, opts: { conversationId?: string } = {}): { allowed: AskSource[]; skipped: { source: AskSource; why: string }[] } {
@@ -433,6 +488,8 @@ export function askAllowed(app: AppContext, opts: { conversationId?: string } = 
   const conv = opts.conversationId ? app.store.getConversation(opts.conversationId) : undefined;
   const offServer = privateLocalOn() || Boolean(conv?.private);
   const allowed = ASK_SOURCES.filter((s) => {
+    // U4.22: health only from a private chat with "include health" on (never named otherwise).
+    if (s === 'health') return Boolean(conv?.private) && !kid && HealthLog.exists(app) && healthFor(app).settings().includeInAsk;
     if (kid && !KID_TOOLS.has(SOURCE_TOOL[s])) return void skipped.push({ source: s, why: 'A parent decides what is searched here.' });
     if (offServer && (s === 'mail' || s === 'calendar')) return void skipped.push({ source: s, why: conv?.private ? 'Not in a private chat: mail and calendars are on other servers.' : 'Private local mode: mail and calendars are on other servers.' });
     return true;
@@ -475,7 +532,7 @@ export async function askEverything(app: AppContext, q: string, opts: AskOptions
 
 const day = (iso?: string) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : '');
 
-const LABEL: Record<AskSource, string> = { mail: 'Emails', files: 'Files', chats: 'Chats', calendar: 'Calendar', notes: 'Notes', lists: 'Lists', contacts: 'Contacts', meetings: 'Meetings', trips: 'Trips', documents: 'Documents', research: 'Research', goals: 'Goals' };
+const LABEL: Record<AskSource, string> = { mail: 'Emails', files: 'Files', chats: 'Chats', calendar: 'Calendar', notes: 'Notes', lists: 'Lists', contacts: 'Contacts', meetings: 'Meetings', trips: 'Trips', documents: 'Documents', research: 'Research', goals: 'Goals', money: 'Money', health: 'Health'};
 
 /** The tool's text: numbered sources she cites as [n]. */
 export function formatAsk(r: AskResult): string {
@@ -498,7 +555,7 @@ export function createAskEverythingTool(getApp: () => AppContext): Tool {
     spec: {
       name: 'ask_everything',
       description:
-        "Search the person's whole life at once: their emails (every mailbox), files (library documents with page numbers, workspace files), past chats, calendars, notes, to-do and shared lists, contacts (card notes, promises, last contact), meetings (what was said, with the time, and the notes), trips (bookings), documents (templates, drafts, clause checklists), research reports and goals. Use it for questions like \"when is my lease renewal due?\" or \"what did Dan say about the trip?\" when the answer could be anywhere. Returns numbered quotes; cite them as [n] in the answer.",
+        "Search the person's whole life at once: their emails (every mailbox), files (library documents with page numbers, workspace files), past chats, calendars, notes, to-do and shared lists, contacts (card notes, promises, last contact), meetings (what was said, with the time, and the notes), trips (bookings), documents (templates, drafts, clause checklists), research reports, goals and money (bank and card transactions by merchant or amount). Use it for questions like \"when is my lease renewal due?\" or \"what did Dan say about the trip?\" when the answer could be anywhere. Returns numbered quotes; cite them as [n] in the answer.",
       parameters: {
         type: 'object',
         properties: {

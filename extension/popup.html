@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sara</title>
+  <link rel="stylesheet" href="popup.css">
+  <script type="module" src="popup.js"></script>
+</head>
+<body>
+  <header class="top">
+    <img src="icons/icon32.png" alt="" width="24" height="24">
+    <strong id="who">Sara</strong>
+    <span id="site" class="muted"></span>
+  </header>
+
+  <section id="pair-view" hidden>
+    <p data-t="pairIntro"></p>
+    <label class="field"><span data-t="serverLabel"></span>
+      <input id="server" type="url" autocomplete="url" spellcheck="false">
+    </label>
+    <p><button id="pair" class="primary" type="button" data-t="pair"></button></p>
+    <div id="code-box" hidden>
+      <p data-t="codeIs"></p>
+      <p id="code" class="code"></p>
+      <p class="small" data-t="approveIn"></p>
+      <p><a id="open-device" href="#" target="_blank" rel="noopener" data-t="openDevices"></a></p>
+      <p class="muted small" data-t="waiting"></p>
+    </div>
+  </section>
+
+  <section id="main-view" hidden>
+    <label class="switch"><input id="site-off" type="checkbox"> <span data-t="offHere"></span></label>
+    <p id="off-note" class="note" hidden></p>
+    <div id="actions">
+      <textarea id="question" rows="2" maxlength="2000"></textarea>
+      <div class="row">
+        <button id="ask" class="primary" type="button" data-t="ask"></button>
+        <button id="summarize" type="button" data-t="summarize"></button>
+      </div>
+      <div class="row">
+        <button id="save" type="button" data-t="savePage"></button>
+        <button id="fill" type="button" data-t="fillForm"></button>
+      </div>
+    </div>
+    <div id="out" class="out" hidden>
+      <p id="notice" class="notice" hidden></p>
+      <div id="reply" class="reply"></div>
+      <p><a id="cont" href="#" target="_blank" rel="noopener" data-t="continueInSara"></a></p>
+    </div>
+    <div id="fill-card" class="card" hidden>
+      <p><strong data-t="fillTitle"></strong></p>
+      <p class="muted small" data-t="fillHow"></p>
+      <ul id="fill-list" class="fills"></ul>
+      <p id="fill-skipped" class="muted small" hidden></p>
+      <div class="row">
+        <button id="fill-ok" class="primary" type="button" data-t="approveFill"></button>
+        <button id="fill-no" type="button" data-t="cancel"></button>
+      </div>
+    </div>
+  </section>
+
+  <p id="status" class="status" role="status" aria-live="polite"></p>
+
+  <footer id="foot" class="foot" hidden>
+    <span id="paired" class="muted small"></span>
+    <button id="unpair" class="link" type="button" data-t="unpair"></button>
+  </footer>
+</body>
+</html>

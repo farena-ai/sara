@@ -1,0 +1,155 @@
+{
+ "appName": {
+  "message": "Sara"
+ },
+ "appDesc": {
+  "message": "Frag Sara zur aktuellen Seite, speichere sie in ihrer Bibliothek oder lass sie ein Formular ausfüllen, nachdem du zugestimmt hast."
+ },
+ "pairIntro": {
+  "message": "Verbinde diesen Browser mit deiner Sara. Gib ihre Adresse ein; sie zeigt einen kurzen Code, den du in Sara bestätigst."
+ },
+ "serverLabel": {
+  "message": "Adresse von Sara"
+ },
+ "serverPlaceholder": {
+  "message": "z. B. https://sara.example.com"
+ },
+ "pair": {
+  "message": "Verbinden"
+ },
+ "pairing": {
+  "message": "Sara wird nach einem Code gefragt …"
+ },
+ "codeIs": {
+  "message": "Dein Code:"
+ },
+ "approveIn": {
+  "message": "Bestätige ihn in Sara: Einstellungen → Verbindungen → Geräte und Anmeldung, oder auf der Seite unten."
+ },
+ "openDevices": {
+  "message": "Bestätigungsseite öffnen"
+ },
+ "waiting": {
+  "message": "Warte auf deine Zustimmung …"
+ },
+ "paired": {
+  "message": "Verbunden."
+ },
+ "unpaired": {
+  "message": "Getrennt. Sara hat diesen Browser vergessen."
+ },
+ "pairFailed": {
+  "message": "Der Code wurde nicht rechtzeitig bestätigt. Versuch es noch einmal."
+ },
+ "permissionDenied": {
+  "message": "Der Browser braucht deine Erlaubnis, um Saras Adresse zu erreichen."
+ },
+ "badServer": {
+  "message": "Gib eine Webadresse ein, etwa https://sara.example.com."
+ },
+ "notPaired": {
+  "message": "Noch nicht mit Sara verbunden."
+ },
+ "pairedWith": {
+  "message": "Verbunden mit $1"
+ },
+ "unpair": {
+  "message": "Trennen"
+ },
+ "offHere": {
+  "message": "Auf dieser Website aus"
+ },
+ "offHereNote": {
+  "message": "Sara ist auf dieser Website aus: Von hier wird nichts gesendet. Entferne den Haken, um sie hier zu nutzen."
+ },
+ "notWebPage": {
+  "message": "Diese Seite kann Sara nicht lesen."
+ },
+ "privateLocal": {
+  "message": "Der private lokale Modus ist in Sara an: Die Erweiterung wartet, bis er aus ist."
+ },
+ "extOff": {
+  "message": "Die Browser-Erweiterung ist in Saras Einstellungen ausgeschaltet."
+ },
+ "askPlaceholder": {
+  "message": "Frag etwas zu dieser Seite (oder leer lassen)"
+ },
+ "ask": {
+  "message": "Sara zu dieser Seite fragen"
+ },
+ "summarize": {
+  "message": "Zusammenfassen"
+ },
+ "savePage": {
+  "message": "In der Bibliothek speichern"
+ },
+ "fillForm": {
+  "message": "Formular ausfüllen"
+ },
+ "thinking": {
+  "message": "Sara liest …"
+ },
+ "saving": {
+  "message": "Wird gespeichert …"
+ },
+ "saved": {
+  "message": "In der Bibliothek gespeichert als „$1“."
+ },
+ "openLibrary": {
+  "message": "In Sara öffnen"
+ },
+ "continueInSara": {
+  "message": "In Sara weitermachen"
+ },
+ "waitingApproval": {
+  "message": "Sie wartet in Sara auf deine Zustimmung:"
+ },
+ "readFailed": {
+  "message": "Erweiterungen dürfen diese Seite nicht lesen (eine Browser- oder Store-Seite)."
+ },
+ "fillTitle": {
+  "message": "Mit deinen Angaben ausfüllen?"
+ },
+ "fillHow": {
+  "message": "Aus „Meine Angaben“ in Sara. Entferne Haken oder ändere Felder; erst nach deiner Zustimmung wird etwas eingetragen, und das Formular wird nie abgeschickt."
+ },
+ "approveFill": {
+  "message": "Zustimmen und ausfüllen"
+ },
+ "cancel": {
+  "message": "Abbrechen"
+ },
+ "fillSkipped": {
+  "message": "Diese gibst du selbst ein (Sara füllt nie Passwörter, Karten oder Codes aus): $1"
+ },
+ "fillNone": {
+  "message": "Auf dieser Seite gibt es keine Formularfelder."
+ },
+ "fillNoMatch": {
+  "message": "Keines dieser Felder passt zu deinen Angaben."
+ },
+ "noDetails": {
+  "message": "Trag zuerst deine Angaben in Sara ein: Einstellungen → Du → Meine Angaben."
+ },
+ "filled": {
+  "message": "$1 Felder ausgefüllt. Prüfe sie und schick das Formular selbst ab."
+ },
+ "fillCancelled": {
+  "message": "Es wurde nichts ausgefüllt."
+ },
+ "revoked": {
+  "message": "Sara kennt diesen Browser nicht mehr (er wurde unter Geräte getrennt). Verbinde ihn neu."
+ },
+ "cantReach": {
+  "message": "Sara ist gerade nicht erreichbar. Prüf ihre Adresse und deine Verbindung."
+ },
+ "errorGeneric": {
+  "message": "Etwas ist schiefgelaufen. Versuch es noch einmal."
+ },
+ "menuAskSel": {
+  "message": "Sara zu „%s“ fragen"
+ },
+ "menuSave": {
+  "message": "Diese Seite in Saras Bibliothek speichern"
+ }
+}

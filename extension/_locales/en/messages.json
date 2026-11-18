@@ -1,0 +1,155 @@
+{
+ "appName": {
+  "message": "Sara"
+ },
+ "appDesc": {
+  "message": "Ask Sara about the page you are on, save it to her Library, or let her fill a form after you approve it."
+ },
+ "pairIntro": {
+  "message": "Connect this browser to your Sara. Type her address; she shows a short code you approve in Sara."
+ },
+ "serverLabel": {
+  "message": "Sara’s address"
+ },
+ "serverPlaceholder": {
+  "message": "e.g. https://sara.example.com"
+ },
+ "pair": {
+  "message": "Connect"
+ },
+ "pairing": {
+  "message": "Asking Sara for a code…"
+ },
+ "codeIs": {
+  "message": "Your code:"
+ },
+ "approveIn": {
+  "message": "Approve it in Sara: Settings → Connections → Devices and sign-in, or on the page below."
+ },
+ "openDevices": {
+  "message": "Open the approval page"
+ },
+ "waiting": {
+  "message": "Waiting for your OK…"
+ },
+ "paired": {
+  "message": "Connected."
+ },
+ "unpaired": {
+  "message": "Disconnected. Sara forgot this browser."
+ },
+ "pairFailed": {
+  "message": "The code was not approved in time. Try again."
+ },
+ "permissionDenied": {
+  "message": "The browser needs your permission to reach Sara’s address."
+ },
+ "badServer": {
+  "message": "Type a web address, like https://sara.example.com."
+ },
+ "notPaired": {
+  "message": "Not connected to Sara yet."
+ },
+ "pairedWith": {
+  "message": "Connected to $1"
+ },
+ "unpair": {
+  "message": "Disconnect"
+ },
+ "offHere": {
+  "message": "Off on this site"
+ },
+ "offHereNote": {
+  "message": "Sara is off on this site: nothing from it is sent. Untick the box to use her here."
+ },
+ "notWebPage": {
+  "message": "This is not a web page Sara can read."
+ },
+ "privateLocal": {
+  "message": "Private local mode is on in Sara: the extension waits until it is off."
+ },
+ "extOff": {
+  "message": "The browser extension is turned off in Sara’s Settings."
+ },
+ "askPlaceholder": {
+  "message": "Ask about this page (or leave empty)"
+ },
+ "ask": {
+  "message": "Ask Sara about this page"
+ },
+ "summarize": {
+  "message": "Summarize"
+ },
+ "savePage": {
+  "message": "Save page to Library"
+ },
+ "fillForm": {
+  "message": "Fill this form"
+ },
+ "thinking": {
+  "message": "Sara is reading…"
+ },
+ "saving": {
+  "message": "Saving…"
+ },
+ "saved": {
+  "message": "Saved to the Library as “$1”."
+ },
+ "openLibrary": {
+  "message": "Open it in Sara"
+ },
+ "continueInSara": {
+  "message": "Continue in Sara"
+ },
+ "waitingApproval": {
+  "message": "She is waiting for your OK in Sara:"
+ },
+ "readFailed": {
+  "message": "This page can’t be read by extensions (a browser or store page)."
+ },
+ "fillTitle": {
+  "message": "Fill with your details?"
+ },
+ "fillHow": {
+  "message": "From My details in Sara. Untick or change any field; nothing is typed until you approve, and the form is never sent."
+ },
+ "approveFill": {
+  "message": "Approve and fill"
+ },
+ "cancel": {
+  "message": "Cancel"
+ },
+ "fillSkipped": {
+  "message": "You type these yourself (Sara never fills passwords, cards or codes): $1"
+ },
+ "fillNone": {
+  "message": "No form fields found on this page."
+ },
+ "fillNoMatch": {
+  "message": "None of these fields match your details."
+ },
+ "noDetails": {
+  "message": "Add your details in Sara first: Settings → You → My details."
+ },
+ "filled": {
+  "message": "Filled $1 fields. Check them, then send the form yourself."
+ },
+ "fillCancelled": {
+  "message": "Nothing was filled."
+ },
+ "revoked": {
+  "message": "Sara no longer knows this browser (it was disconnected in Devices). Connect it again."
+ },
+ "cantReach": {
+  "message": "Sara can’t be reached right now. Check her address and your connection."
+ },
+ "errorGeneric": {
+  "message": "Something went wrong. Try again."
+ },
+ "menuAskSel": {
+  "message": "Ask Sara about “%s”"
+ },
+ "menuSave": {
+  "message": "Save this page to Sara’s Library"
+ }
+}
