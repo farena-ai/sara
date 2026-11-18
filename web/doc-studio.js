@@ -153,11 +153,21 @@ function reviewCard(info, box) {
     box.append(card);
     return;
   }
-  card.append(el('p', 'small muted', t('{n} changes', { n: info.revisions.length })));
+  // A move is listed once, where the text went (its old place is the matching moveFrom).
+  const shown = info.revisions.filter((r) => r.type !== 'moveFrom' || !info.revisions.some((x) => x.type === 'moveTo' && x.text === r.text));
+  card.append(el('p', 'small muted', t('{n} changes', { n: shown.length })));
   const list = el('ul', 'dstu-revs');
-  const revs = info.revisions.slice(0, 120);
+  const revs = shown.slice(0, 120);
   for (let i = 0; i < revs.length; i++) {
     const r = revs[i];
+    const place = WHERE()[r.where];
+    if (r.type === 'moveTo' || r.type === 'moveFrom') {
+      const li = el('li', 'dstu-rev dstu-move');
+      li.append(el('span', 'dstu-kind', r.type === 'moveTo' ? t('Moved') : t('Moved away')), ' ', el('span', '', r.text));
+      li.append(el('div', 'small muted', [r.author || t('Someone'), when(r.date), place].filter(Boolean).join(' · ')));
+      list.append(li);
+      continue;
+    }
     // A removal right before an addition in the same sentence is one change: “30” → “15”.
     const next = revs[i + 1];
     const pair = r.type === 'del' && next?.type === 'ins' && next.context === r.context && next.author === r.author;
@@ -166,7 +176,7 @@ function reviewCard(info, box) {
       li.append(el('span', 'dstu-kind', t('Changed')), ' ', el('del', '', r.text), ' → ', el('ins', '', next.text));
       i++;
     } else li.append(el('span', 'dstu-kind', r.type === 'ins' ? t('Added') : t('Removed')), ' ', el(r.type === 'ins' ? 'ins' : 'del', '', r.text));
-    li.append(el('div', 'small muted', `${r.author || t('Someone')} · ${when(r.date)}`));
+    li.append(el('div', 'small muted', [r.author || t('Someone'), when(r.date), place].filter(Boolean).join(' · ')));
     if (r.context && r.context !== r.text) li.append(el('div', 'small muted dstu-ctx', `“${r.context.slice(0, 220)}”`));
     list.append(li);
   }
@@ -185,6 +195,27 @@ function reviewCard(info, box) {
   const row = el('div', 'actions-left');
   row.append(btn(t('Accept all'), 'ghost small', act('accept')), btn(t('Reject all'), 'ghost small', act('reject')));
   card.append(row, status);
+  box.append(card);
+}
+
+const WHERE = () => ({ header: t('Header'), footer: t('Footer'), footnote: t('Footnote'), endnote: t('Endnote'), textbox: t('Text box'), comment: t('Comment') });
+
+function commentsCard(info, box) {
+  if (!info.docx || !info.comments?.length) return;
+  const card = el('div', 'dstu-card');
+  const head = el('p', 'dstu-sub');
+  head.append(el('strong', '', t('Comments')), tip(t('Notes in the margin, from her or anyone, each with the words it is about. Answer or resolve them in Word (Review tab); Accept all and Reject all leave comments alone.')));
+  card.append(head);
+  card.append(el('p', 'small muted', t('{n} comments', { n: info.comments.length })));
+  const list = el('ul', 'dstu-revs');
+  for (const c of info.comments.slice(0, 120)) {
+    const li = el('li', 'dstu-rev dstu-note');
+    li.append(el('span', 'dstu-kind', t('Comment')), ' ', el('span', '', c.text));
+    li.append(el('div', 'small muted', `${c.author || t('Someone')} · ${when(c.date)}`));
+    if (c.anchor) li.append(el('div', 'small muted dstu-ctx', `“${c.anchor.slice(0, 220)}”`));
+    list.append(li);
+  }
+  card.append(list);
   box.append(card);
 }
 
@@ -275,6 +306,7 @@ export async function showDocStudio(d, o = {}) {
   body.replaceChildren();
   templateCard(info, body);
   reviewCard(info, body);
+  commentsCard(info, body);
   checklistCard(info, body);
   signCard(info, body);
 }

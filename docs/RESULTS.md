@@ -23,6 +23,7 @@ replies stay out of the repository).
 | Library: answers from documents, with the source | qwen3.8 27B (local) | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model>` |
 | Library with meaning search | qwen3.8 27B (local) + nomic-embed-text | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model> --embed nomic-embed-text` |
 | Code map: "where is…?" questions on Sara's own code | qwen3.8 27B (local) + nomic-embed-text | **8/8** with code tools, **8/8** without | 2026-10-27 | `node scripts/eval-codemap.ts --embed nomic-embed-text` |
+| Speakers in meetings: 3 generated voices, 52 s, 13 lines (U3.13) | none (local ERes2Net voice prints, CPU) | **3 speakers, 13/13 lines, 97.5%** of speech time right (pauses + pitch before: 2 speakers, 8/13, 66.8%) | 2026-11-18 | `node scripts/eval-speakers.ts` (Windows) |
 
 Full model name: `qwen3.8:27b-mtp-q4_K_M` on Ollama. Summaries: [humaneval-agent](results/humaneval-agent.json),
 [humaneval-raw](results/humaneval-raw.json), [tasks-agent](results/tasks-agent.json),
@@ -829,3 +830,25 @@ node scripts/publish-results.ts   # writes docs/results/*.json and prints the ta
 
 Keep the table honest: update the date and model with the score, say what changed, and never drop
 a worse run to keep a better number.
+
+## Speakers in meetings
+
+U3.13 ([design](design/U3SPEAK.md)). `node scripts/eval-speakers.ts --out docs/results/speakers.json` on
+Windows installs the real speaker add-on (the pinned npm sherpa-onnx add-on + the 3D-Speaker ERes2Net
+model, ~35 MB), then builds a meeting from three text-to-speech voices: Windows' SAPI **David** (male),
+SAPI **Zira** (female) and **Piper hfc_female** (a second female voice, a different engine). 13 lines,
+52 s, gaps of 0.15–1.2 s: three hand-overs are shorter than the 0.6 s pause, so they fall inside one turn.
+Scored on 0.1 s steps inside each spoken line, each true voice mapped to a different label.
+
+| Method | Speakers found | Speech time right | Lines right | Time |
+|---|---|---|---|---|
+| S2 pauses + pitch (before) | 2 | 66.8% | 8/13 | instant |
+| U3.13 voice prints | **3** | **97.5%** | **13/13** | 1.6 s (CPU) |
+
+- One voice alone (all 13 lines by David): **1** speaker (no false split).
+- A 9.6-minute part (the meeting 11 times): 13 s on the CPU, 3 speakers.
+- Through a throwaway Sara with real local hearing (Parakeet) the same file uploaded over the API gave
+  13 lines, each with the right Speaker 1/2/3, in 18–31 s from upload to notes.
+- The clustering line (0.45 cosine) is not critical on this clip: 0.35–0.65 all give 3 speakers.
+- Honest limits: synthetic voices are cleaner and more different than people around one laptop
+  microphone; no room noise, no crosstalk, English only. Not measured on real meetings yet.

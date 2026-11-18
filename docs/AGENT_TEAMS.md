@@ -51,6 +51,30 @@ queued and it is told so. At the end one card lists every queued action (who ask
 Untick any you don't want, then **Do the ticked actions**, or **Do none**. Each action is checked again
 against your current settings before it runs.
 
+## Team recipes (use a team again)
+
+After a run finishes, **Save as a team recipe** (on the run in Team → Team runs) keeps the plan's
+shape under a name, e.g. *Product comparison*:
+
+| Kept | Never kept |
+|---|---|
+| the helpers (kind, name, instructions), models (**Auto** unless you pinned one), tools, budgets, *May use the computer* | findings, reports, receipts, queued actions, the log, the result |
+| the parts and what each waits for; the checker's rules (its instructions) | the job text itself: it becomes **{job}** |
+| the result type (message, Word, PDF, Markdown) | anything that looks like a key or password (redacted) |
+
+**Team recipes** on the Team runs page: **Run** (type the new job; the plan is proposed and still
+waits for your one OK), **Edit** (name, what it is for, and the same plan editor), **Duplicate**,
+**Export** (a `.sara-team.json` file to share later), **Delete**, and **Import a recipe**.
+
+In a chat: *"Use my product comparison team to compare three robot vacuums."* She calls `team_run`
+with `recipe: "product comparison"`; the name is matched by its words. No such recipe: she gets the
+list of your recipes and asks which one.
+
+An imported recipe is checked like her own proposals: tools this server doesn't have and never-offered
+tools are dropped, *May use the computer* is unticked, a pinned model this server doesn't know
+becomes Auto. A recipe used in a private chat follows the private rules (local models, no outside
+tools).
+
 ## Private and local
 
 In a private chat, or with *Nothing leaves this computer* on, helpers use models on this computer only
@@ -84,6 +108,11 @@ At most two runs work at once.
   (estimated tokens where the model reports none).
 - **Risks:** estimated tokens are rough for models that don't report usage; a helper may still write a
   draft file in the workspace (drafts are allowed); run records interleave steps from parallel helpers.
+- **U3.16 recipes:** `src/team-recipes.ts` (`TeamRecipes` on `TeamRuns.recipes`, table `team_recipes`,
+  one JSON plan per row). Saving, editing, importing and using all go through `cleanRunPlan`, so a
+  recipe can never hold a hard-limit tool; the job text is swapped for `{job}` and every text goes
+  through the redactor. `propose(conv, goal, {recipe})` skips the planning model. Routes under
+  `/api/team-runs/recipes` (same owner-only, audited group). Tests: `test/u3-team-recipes.test.ts`.
 - **Tests:** `test/s8-team-runs.test.ts` (scripted model: plan + hard limits, private, parallelism and
   dependency order, scratchpad, checker loop 1 and 2 rounds, single final approval with an unticked
   action, budget stop, pause/stop, document result) and `test/s8-team-runs-routes.test.ts` (routes,

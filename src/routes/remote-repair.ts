@@ -11,10 +11,17 @@
 //   POST   /api/remote-repair/plans/:id/steps/:n       {approve} helped: OK for one step
 //   POST   /api/remote-repair/plans/:id/steps/:n/undo  helped
 //   POST   /api/remote-repair/plans/:id/stop           either side
-// Peer: POST /msg/v1/repair/{request|accept|decline|revoke|look|plan|stop|status}, signed with scope 'repair'.
+// U3.17 fix recipes (src/fix-recipes.ts):
+//   GET    /api/remote-repair/recipes                  {in, sent, share}  in: only the ones that fit a problem here
+//   POST   /api/remote-repair/recipes/:id/accept       → {recipe}   her own engine runs it (T1 fix / T3 adopt)
+//   POST   /api/remote-repair/recipes/:id/dismiss
+//   GET    /api/remote-repair/recipes/:id/report       → {preview}  exactly what the Sara developers would get
+//   POST   /api/remote-repair/recipes/:id/report       → {ticket}
+// Peer: POST /msg/v1/repair/{request|accept|decline|revoke|look|plan|stop|status|recipe}, signed with scope 'repair'.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { audit } from '../audit-trail.ts';
 import { HttpError, readJson, send } from '../http.ts';
+import { fixRecipesOf } from '../fix-recipes.ts';
 import { remoteRepairOf, REPAIR_SCOPES } from '../remote-repair.ts';
 import { SUPPORT_HOURS, supportFindings, SupportError } from '../support.ts';
 import { readPeerBody, supportReport } from './support.ts';
@@ -53,6 +60,15 @@ export function createRemoteRepairRoutes(ctx: RouteCtx): RouteHandler {
         const report = (r.report ?? {}) as Record<string, unknown>;
         return send(res, 200, { peer: peer.name, scope: pass.scope, report, findings: supportFindings(report), problems: r.problems ?? [], can: r.can ?? {} });
       }
+      if (b === 'recipes') {
+        const fr = fixRecipesOf(app);
+        if (!fr) throw new SupportError(403, 'Only the owner of this server can use this.');
+        if (!c && method === 'GET') return send(res, 200, { ...(await fr.list()), share: fr.share(), friends: rr.support.peers() });
+        if (c && d === 'accept' && method === 'POST') return send(res, 200, { recipe: await fr.accept(c) });
+        if (c && d === 'dismiss' && method === 'POST') return (fr.dismiss(c), send(res, 200, { ok: true }));
+        if (c && d === 'report' && method === 'GET') return send(res, 200, { preview: fr.preview(c) });
+        if (c && d === 'report' && method === 'POST') return send(res, 200, await fr.report(c));
+      }
       if (b === 'plans' && !c && method === 'POST') return send(res, 200, { plan: await rr.send(String(body.link ?? ''), body.steps, body.note) });
       if (b === 'plans' && c && d === 'approve' && method === 'POST') return send(res, 200, { plan: await rr.approvePlan(c, body.approve === true) });
       if (b === 'plans' && c && d === 'stop' && method === 'POST') return send(res, 200, { plan: await rr.stop(c) });
@@ -65,7 +81,7 @@ export function createRemoteRepairRoutes(ctx: RouteCtx): RouteHandler {
   };
 }
 
-const OPS = ['request', 'accept', 'decline', 'revoke', 'look', 'plan', 'stop', 'status'];
+const OPS = ['request', 'accept', 'decline', 'revoke', 'look', 'plan', 'stop', 'status', 'recipe'];
 
 /** POST /msg/v1/repair/<op> from the other linked server (mounted in server.ts for the owner only). */
 export async function handleRepairPeer(ctx: RouteCtx, req: IncomingMessage, res: ServerResponse, path: string): Promise<void> {
@@ -92,6 +108,12 @@ export async function handleRepairPeer(ctx: RouteCtx, req: IncomingMessage, res:
     if (op === 'accept' || op === 'decline') return (rr.answered(linkId, name, b, op === 'accept'), reply(200, { ok: true }));
     if (op === 'revoke') return (rr.heldRevoked(linkId, name, b), reply(200, { ok: true }));
     if (op === 'status') return (rr.statusIn(linkId, name, b), reply(200, { ok: true }));
+    // U3.17: a fix recipe needs no fix pass (it only becomes a proposal here); private local mode refuses it.
+    if (op === 'recipe') {
+      if (rr.deps.privateLocal()) return reply(403, { error: 'Private local mode is on there.' });
+      await fixRecipesOf(ctx.app)?.received(linkId, name, b);
+      return reply(200, { ok: true });
+    }
     // look, plan and stop need a fix pass this owner gave on this link, accepted and still valid.
     if (rr.deps.privateLocal()) {
       audit({ action: `remote-repair.${op}`, who: who(name), role: 'system', channel: 'repair-link', outcome: 'refused' });

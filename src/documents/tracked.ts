@@ -4,7 +4,12 @@
 // here is shared with template filling (src/documents/placeholders.ts): a paragraph's plain runs
 // become characters that remember the run they came from, an edit changes the characters, and the
 // paragraph is written back with each run's own formatting. Anything that isn't plain text (fields,
-// hyperlinks, pictures, earlier revisions) stays exactly as it was and can't be cut through.
+// pictures, earlier revisions) stays exactly as it was and can't be cut through; a hyperlink's runs are
+// edited inside the link and a simple field (page number, date) is kept whole.
+// U3.15: every story part is revised (headers, footers, footnotes, endnotes, comments; text boxes in
+// any of them, both the drawing and its VML copy), Word comments can be left instead of an edit, and
+// a paragraph can be moved as a tracked move (w:moveFrom / w:moveTo with named ranges).
+import { readRels } from '../library/ooxml.ts';
 import { attr, findAll, kid, kids, parseXml, textOf, type XmlChild, type XmlElement } from '../library/xml.ts';
 import { openZip, type Zip } from '../library/zip.ts';
 import { cloneEl, element, repack, serializeXml, xmlSafe } from './ooxml-edit.ts';
@@ -20,12 +25,17 @@ interface CharItem {
   /** Index of the run it came from (its formatting); -1 for none. */
   src: number;
   mark: Mark;
+  /** Index into `boxes` when it is inside a hyperlink. */
+  box?: number;
 }
 interface OpaqueItem {
   t: 'o';
   el: XmlElement;
   /** Shows as OPAQUE in the paragraph's text (false: takes no room, like a bookmark). */
   visible: boolean;
+  /** A simple field: a tracked edit may go through it (its own text is kept as it is). */
+  keep?: boolean;
+  box?: number;
 }
 type Item = CharItem | OpaqueItem;
 export interface ParaModel {
@@ -33,6 +43,8 @@ export interface ParaModel {
   items: Item[];
   /** The run each character came from (cloned rPr is taken from here). */
   runs: XmlElement[];
+  /** Hyperlinks whose runs became characters (written back as one link per stretch). */
+  boxes: XmlElement[];
 }
 
 const ZERO_WIDTH = new Set(['bookmarkStart', 'bookmarkEnd', 'proofErr', 'permStart', 'permEnd', 'commentRangeStart', 'commentRangeEnd', 'del', 'moveFrom', 'moveFromRangeStart', 'moveFromRangeEnd', 'moveToRangeStart', 'moveToRangeEnd']);
@@ -42,28 +54,44 @@ function plainRun(r: XmlElement): boolean {
   return r.children.every((c) => (typeof c === 'string' ? !c.trim() : ['rPr', 't', 'tab', 'lastRenderedPageBreak'].includes(c.local)));
 }
 
+/** A hyperlink with only plain runs (and bookmarks and the like) can be edited inside. */
+const openLink = (c: XmlElement): boolean => c.local === 'hyperlink' && c.children.some((k) => typeof k !== 'string' && k.local === 'r') && c.children.every((k) => (typeof k === 'string' ? !k.trim() : (k.local === 'r' && plainRun(k)) || ZERO_WIDTH.has(k.local)));
+
 export function paraModel(p: XmlElement): ParaModel {
   const items: Item[] = [];
   const runs: XmlElement[] = [];
-  for (const c of p.children) {
-    if (typeof c === 'string') continue;
-    if (c.local === 'pPr') continue;
+  const boxes: XmlElement[] = [];
+  const add = (c: XmlElement, box?: number) => {
     if (c.local === 'r' && plainRun(c)) {
       const src = runs.push(c) - 1;
       for (const k of c.children) {
         if (typeof k === 'string') continue;
-        if (k.local === 't') for (const ch of textOf(k)) items.push({ t: 'c', ch, src, mark: undefined });
-        else if (k.local === 'tab') items.push({ t: 'c', ch: '\t', src, mark: undefined });
+        if (k.local === 't') for (const ch of textOf(k)) items.push({ t: 'c', ch, src, mark: undefined, ...(box !== undefined ? { box } : {}) });
+        else if (k.local === 'tab') items.push({ t: 'c', ch: '\t', src, mark: undefined, ...(box !== undefined ? { box } : {}) });
       }
+      return;
+    }
+    const visible = !ZERO_WIDTH.has(c.local) && textOf(c).length > 0;
+    items.push({ t: 'o', el: c, visible, ...(c.local === 'fldSimple' && visible ? { keep: true } : {}), ...(box !== undefined ? { box } : {}) });
+  };
+  for (const c of p.children) {
+    if (typeof c === 'string') continue;
+    if (c.local === 'pPr') continue;
+    if (openLink(c)) {
+      const box = boxes.push(c) - 1;
+      for (const k of c.children) if (typeof k !== 'string') add(k, box);
       continue;
     }
-    items.push({ t: 'o', el: c, visible: !ZERO_WIDTH.has(c.local) && textOf(c).length > 0 });
+    add(c);
   }
-  return { p, items, runs };
+  return { p, items, runs, boxes };
 }
 
-/** The paragraph's text as the edits see it (OPAQUE for each non-text element). */
-export function modelText(m: ParaModel): { text: string; at: number[] } {
+/**
+ * The paragraph's text as the edits see it (OPAQUE for each non-text element). With `fields`, a
+ * simple field shows its own text (each of its characters points at the field).
+ */
+export function modelText(m: ParaModel, fields = false): { text: string; at: number[] } {
   let text = '';
   const at: number[] = [];
   m.items.forEach((it, i) => {
@@ -72,6 +100,13 @@ export function modelText(m: ParaModel): { text: string; at: number[] } {
       text += it.ch;
       at.push(i);
     } else if (it.visible) {
+      if (fields && it.keep) {
+        for (const ch of textOf(it.el)) {
+          text += ch === OPAQUE ? ' ' : ch;
+          at.push(i);
+        }
+        return;
+      }
       text += OPAQUE;
       at.push(i);
     }
@@ -91,18 +126,21 @@ export interface Revisor {
  * New characters take the formatting of the first replaced character (or the one before).
  */
 export function editModel(m: ParaModel, start: number, end: number, text: string, track: boolean): void {
-  const { text: vis, at } = modelText(m);
-  if (vis.slice(start, end).includes(OPAQUE)) throw new DocError('That text runs through a field, link or picture, so it can\'t be changed here.');
+  const { text: vis, at } = modelText(m, track);
+  if (vis.slice(start, end).includes(OPAQUE)) throw new DocError('That text runs through a picture, a complex field or an earlier tracked change, so it can\'t be changed here.');
   const firstIdx = start < at.length ? at[start] : m.items.length;
-  const pick = (i: number): number => {
+  // Where new characters come from: the run (formatting) and hyperlink of the character there, or
+  // the nearest one before (or after).
+  const pick = (i: number): { src: number; box?: number } => {
+    const of = (it: CharItem) => ({ src: it.src, ...(it.box !== undefined ? { box: it.box } : {}) });
     const it = m.items[i];
-    if (it && it.t === 'c') return it.src;
-    for (let k = i - 1; k >= 0; k--) if (m.items[k].t === 'c') return (m.items[k] as CharItem).src;
-    for (let k = i + 1; k < m.items.length; k++) if (m.items[k].t === 'c') return (m.items[k] as CharItem).src;
-    return -1;
+    if (it && it.t === 'c') return of(it);
+    for (let k = i - 1; k >= 0; k--) if (m.items[k].t === 'c') return of(m.items[k] as CharItem);
+    for (let k = i + 1; k < m.items.length; k++) if (m.items[k].t === 'c') return of(m.items[k] as CharItem);
+    return { src: -1 };
   };
-  const src = pick(firstIdx);
-  const chars = (s: string, mark: Mark, from = src): CharItem[] => [...s.replace(/\r?\n/g, ' ')].map((ch) => ({ t: 'c', ch, src: from, mark }));
+  const origin = pick(firstIdx);
+  const chars = (s: string, mark: Mark, from = origin): CharItem[] => [...s.replace(/\r?\n/g, ' ').replaceAll(OPAQUE, '')].map((ch) => ({ t: 'c', ch, mark, ...from }));
   if (!track) {
     // Untracked: the range goes (zero-width items inside it stay), the new text takes its place.
     const span = new Set(at.slice(start, end));
@@ -132,16 +170,19 @@ export function editModel(m: ParaModel, start: number, end: number, text: string
   let cursor = lo;
   for (const op of ops) {
     if (op.kind === 'ins') {
-      out.push(...chars(op.text, 'ins', oi < end ? (m.items[at[oi]] as CharItem).src : src));
+      out.push(...chars(op.text, 'ins', oi < end ? pick(at[oi]) : origin));
       continue;
     }
     for (let k = 0; k < op.text.length; k++) {
-      const idx = at[oi];
+      const idx = at[oi++];
+      // A field's later characters (the field itself is already placed).
+      if (idx < cursor) continue;
       between(cursor, idx);
-      const it = m.items[idx] as CharItem;
-      out.push(op.kind === 'del' ? { ...it, mark: it.mark === 'ins' ? it.mark : 'del' } : it);
+      const it = m.items[idx];
+      // A field is never deleted: it stays as it is.
+      if (it.t === 'o') out.push(it);
+      else out.push(op.kind === 'del' ? { ...it, mark: it.mark === 'ins' ? it.mark : 'del' } : it);
       cursor = idx + 1;
-      oi++;
     }
   }
   between(cursor, hi);
@@ -212,24 +253,37 @@ export function writeModel(m: ParaModel, rev?: Revisor): void {
   const out: XmlChild[] = pPr ? [pPr] : [];
   const like = m.p;
   let i = 0;
-  while (i < m.items.length) {
+  // One item (or a stretch of characters from one run with one mark) into `into`.
+  const emit = (into: XmlChild[]) => {
     const it = m.items[i];
     if (it.t === 'o') {
-      out.push(it.el);
+      into.push(it.el);
       i++;
-      continue;
+      return;
     }
     let s = '';
-    const { src, mark } = it;
+    const { src, mark, box } = it;
     while (i < m.items.length) {
       const c = m.items[i];
-      if (c.t !== 'c' || c.src !== src || c.mark !== mark) break;
+      if (c.t !== 'c' || c.src !== src || c.mark !== mark || c.box !== box) break;
       s += c.ch;
       i++;
     }
     const run = runFor(like, m.runs[src], s, mark === 'del');
-    if (mark && rev) out.push(element(like, mark, { 'w:id': String(rev.next()), 'w:author': rev.author, 'w:date': rev.date }, [run]));
-    else out.push(run);
+    if (mark && rev) into.push(element(like, mark, { 'w:id': String(rev.next()), 'w:author': rev.author, 'w:date': rev.date }, [run]));
+    else into.push(run);
+  };
+  while (i < m.items.length) {
+    const box = m.items[i].box;
+    if (box === undefined) {
+      emit(out);
+      continue;
+    }
+    // A stretch inside one hyperlink: the link element again around it (same r:id, same style).
+    const link = m.boxes[box];
+    const inner: XmlChild[] = [];
+    while (i < m.items.length && m.items[i].box === box) emit(inner);
+    out.push({ ...link, attrs: { ...link.attrs }, children: inner });
   }
   m.p.children = out;
 }
@@ -246,7 +300,7 @@ function runFor(like: XmlElement, from: XmlElement | undefined, text: string, de
 }
 
 /** Marks a paragraph's own mark (its end) inserted or deleted, so accepting/rejecting joins cleanly. */
-function markParagraph(p: XmlElement, kind: 'ins' | 'del', rev: Revisor): void {
+function markParagraph(p: XmlElement, kind: 'ins' | 'del' | 'moveFrom' | 'moveTo', rev: Revisor): void {
   let pPr = kid(p, 'pPr');
   if (!pPr) {
     pPr = element(p, 'pPr');
@@ -307,12 +361,31 @@ export function findIn(texts: string[], needle: string): [number, number, number
 
 // ---------------------------------------------------------------- the package
 
+/** Where a paragraph is: the body or another story part, or a text box in one of them. */
+export type Where = 'body' | 'header' | 'footer' | 'footnote' | 'endnote' | 'comment' | 'textbox';
+export interface Story {
+  path: string;
+  kind: Exclude<Where, 'textbox'>;
+  root: XmlElement;
+}
+export interface Para {
+  p: XmlElement;
+  story: Story;
+  where: Where;
+  /** The same text box paragraph in the VML copy (mc:Fallback), edited alongside. */
+  twin?: XmlElement;
+}
+
 export interface DocxParts {
   zip: Zip;
   main: string;
   doc: XmlElement;
   paras: XmlElement[];
+  /** The main document first, then headers, footers, footnotes, endnotes and comments. */
+  stories: Story[];
 }
+
+const REL_KIND: Record<string, Story['kind']> = { header: 'header', footer: 'footer', footnotes: 'footnote', endnotes: 'endnote', comments: 'comment' };
 
 export function openDocx(bytes: Buffer): DocxParts {
   let zip: Zip;
@@ -328,8 +401,52 @@ export function openDocx(bytes: Buffer): DocxParts {
   const xml = zip.text(main);
   if (!xml) throw new DocError('That Word file has no document part.');
   const doc = parseXml(xml);
-  return { zip, main, doc, paras: findAll(doc, 'p') };
+  const stories: Story[] = [{ path: main, kind: 'body', root: doc }];
+  const seen = new Set([main]);
+  const rels = [...readRels(zip, main).values()].map((r) => ({ ...r, kind: REL_KIND[r.type.slice(r.type.lastIndexOf('/') + 1)] })).filter((r) => r.kind);
+  rels.sort((x, y) => Object.values(REL_KIND).indexOf(x.kind) - Object.values(REL_KIND).indexOf(y.kind) || x.target.localeCompare(y.target, 'en', { numeric: true }));
+  for (const r of rels) {
+    if (seen.has(r.target)) continue;
+    seen.add(r.target);
+    const x = zip.text(r.target);
+    if (x) stories.push({ path: r.target, kind: r.kind, root: parseXml(x) });
+  }
+  return { zip, main, doc, paras: findAll(doc, 'p'), stories };
 }
+
+/** Every paragraph in every story, in order; text box paragraphs once (their VML copy as `twin`). */
+export function storyParas(stories: Story[]): Para[] {
+  const out: Para[] = [];
+  for (const story of stories) {
+    const walk = (el: XmlElement, box: boolean, list: Para[]) => {
+      for (const c of el.children) {
+        if (typeof c === 'string') continue;
+        if (c.local === 'AlternateContent') {
+          // A drawing (Choice) and its older copy (Fallback): pair their paragraphs when they match.
+          const choice: Para[] = [];
+          const fallback: Para[] = [];
+          for (const k of kids(c)) {
+            if (k.local === 'Choice') walk(k, box, choice);
+            else if (k.local === 'Fallback') walk(k, box, fallback);
+          }
+          const same = choice.length === fallback.length && choice.every((x, i) => modelText(paraModel(x.p), true).text === modelText(paraModel(fallback[i].p), true).text);
+          choice.forEach((x, i) => list.push(same && x.where === 'textbox' ? { ...x, twin: fallback[i].p } : x));
+          continue;
+        }
+        if (c.local === 'p') {
+          list.push({ p: c, story, where: box ? 'textbox' : story.kind });
+          walk(c, box, list);
+          continue;
+        }
+        walk(c, box || c.local === 'txbxContent', list);
+      }
+    };
+    walk(story.root, false, out);
+  }
+  return out;
+}
+
+const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
 
 const BEFORE_TRACK = new Set(['writeProtection', 'view', 'zoom', 'removePersonalInformation', 'removeDateAndTime', 'doNotDisplayPageBoundaries', 'displayBackgroundShape', 'printPostScriptOverText', 'printFractionalCharacterWidth', 'printFormsData', 'embedTrueTypeFonts', 'embedSystemFonts', 'saveSubsetFonts', 'saveFormsData', 'mirrorMargins', 'alignBordersAndEdges', 'bordersDoNotSurroundHeader', 'bordersDoNotSurroundFooter', 'gutterAtTop', 'hideSpellingErrors', 'hideGrammaticalErrors', 'activeWritingStyle', 'proofState', 'formsDesign', 'attachedTemplate', 'linkStyles', 'stylePaneFormatFilter', 'stylePaneSortMethod', 'documentType', 'mailMerge', 'revisionView']);
 
@@ -365,9 +482,31 @@ function trackSettings(zip: Zip, main: string, changed: Map<string, string | Buf
   if (!ct.includes(`/${path}"`)) changed.set('[Content_Types].xml', ct.replace(/<\/Types>\s*$/, `<Override PartName="/${path}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`));
 }
 
+/** The relationship (and part, and content type) for a part the main document doesn't have yet. */
+function addPart(zip: Zip, main: string, changed: Map<string, string | Buffer>, o: { file: string; rel: string; type: string; xml: string }): string {
+  const dir = main.includes('/') ? main.slice(0, main.lastIndexOf('/') + 1) : '';
+  const relsPath = `${dir}_rels/${main.slice(dir.length)}.rels`;
+  const rels = (changed.get(relsPath) as string | undefined) ?? zip.text(relsPath);
+  const path = `${dir}${o.file}`;
+  changed.set(path, o.xml);
+  let id = 'rIdSara1';
+  for (let n = 1; rels?.includes(`Id="${id}"`); n++) id = `rIdSara${n}`;
+  const rel = `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${o.rel}" Target="${o.file}"/>`;
+  changed.set(relsPath, rels ? rels.replace(/<\/Relationships>\s*$/, `${rel}</Relationships>`) : `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rel}</Relationships>`);
+  const ct = (changed.get('[Content_Types].xml') as string | undefined) ?? zip.text('[Content_Types].xml') ?? '';
+  if (!ct.includes(`"/${path}"`)) changed.set('[Content_Types].xml', ct.replace(/<\/Types>\s*$/, `<Override PartName="/${path}" ContentType="${o.type}"/></Types>`));
+  return path;
+}
+
 // ---------------------------------------------------------------- revising
 
-export type Change = { find: string; replace: string } | { after: string; insert: string } | { deleteParagraph: string };
+export type Change =
+  | { find: string; replace: string; all?: boolean }
+  | { after: string; insert: string }
+  | { deleteParagraph: string }
+  | { comment: string; on: string }
+  | { move: string; after: string }
+  | { move: string; before: string };
 export interface ChangeResult {
   change: string;
   status: 'done' | 'not_found' | 'ambiguous' | 'invalid';
@@ -376,105 +515,368 @@ export interface ChangeResult {
 
 /** The model's changes, checked. */
 export function changesOf(v: unknown): Change[] {
-  if (!Array.isArray(v) || !v.length) throw new DocError('changes is a list: [{"find": "old words", "replace": "new words"}], [{"after": "words in a paragraph", "insert": "a new paragraph"}] or [{"deleteParagraph": "words in it"}].');
+  if (!Array.isArray(v) || !v.length) throw new DocError('changes is a list: [{"find": "old words", "replace": "new words"}], [{"after": "words in a paragraph", "insert": "a new paragraph"}], [{"deleteParagraph": "words in it"}], [{"comment": "a note", "on": "words it is about"}] or [{"move": "words in a paragraph", "after": "words in the paragraph it goes after"}].');
   if (v.length > 200) throw new DocError('Up to 200 changes at a time.');
   return v.map((c) => {
     const o = (c ?? {}) as Record<string, unknown>;
     const s = (k: string) => (typeof o[k] === 'string' ? xmlSafe(o[k] as string).slice(0, 8000) : undefined);
-    if (s('find') !== undefined && (s('replace') !== undefined || o.delete === true)) return { find: s('find')!, replace: s('replace') ?? '' };
+    if (s('find') !== undefined && (s('replace') !== undefined || o.delete === true)) return { find: s('find')!, replace: s('replace') ?? '', ...(o.all === true ? { all: true } : {}) };
+    if (s('comment') !== undefined) {
+      if (!s('comment')!.trim() || !s('on')?.trim()) throw new DocError('A comment is {"comment": "the note", "on": "the exact words it is about"}.');
+      return { comment: s('comment')!.trim(), on: s('on')! };
+    }
+    if (s('move') !== undefined) {
+      if (s('after') !== undefined) return { move: s('move')!, after: s('after')! };
+      if (s('before') !== undefined) return { move: s('move')!, before: s('before')! };
+      throw new DocError('A move is {"move": "words in the paragraph", "after": "words in the paragraph it goes after"} (or "before").');
+    }
     if (s('after') !== undefined && s('insert') !== undefined) return { after: s('after')!, insert: s('insert')! };
     if (s('deleteParagraph') !== undefined) return { deleteParagraph: s('deleteParagraph')! };
-    throw new DocError('Each change is {"find", "replace"}, {"after", "insert"} or {"deleteParagraph"}.');
+    throw new DocError('Each change is {"find", "replace"}, {"after", "insert"}, {"deleteParagraph"}, {"comment", "on"} or {"move", "after"}.');
   });
 }
 
-const label = (c: Change) => ('find' in c ? `“${c.find.slice(0, 60)}” → “${c.replace.slice(0, 60)}”` : 'after' in c ? `new paragraph after “${c.after.slice(0, 60)}”` : `delete the paragraph “${c.deleteParagraph.slice(0, 60)}”`);
+const cut = (s: string) => s.slice(0, 60);
+const label = (c: Change) =>
+  'find' in c
+    ? `“${cut(c.find)}” → “${cut(c.replace)}”`
+    : 'comment' in c
+      ? `comment on “${cut(c.on)}”: ${cut(c.comment)}`
+      : 'move' in c
+        ? `move “${cut(c.move)}” ${'after' in c ? `after “${cut(c.after)}”` : `before “${cut((c as { before: string }).before)}”`}`
+        : 'after' in c
+          ? `new paragraph after “${cut(c.after)}”`
+          : `delete the paragraph “${cut(c.deleteParagraph)}”`;
+
+const NOTE: Record<Where, string> = { body: '', header: ' (in the header)', footer: ' (in the footer)', footnote: ' (in a footnote)', endnote: ' (in an endnote)', comment: ' (in a comment)', textbox: ' (in a text box)' };
 
 /**
- * A copy of the Word file with each change written as a tracked revision (author, date). Changes
- * whose text isn't found exactly once are reported, not guessed.
+ * A copy of the Word file with each change written as a tracked revision (author, date) in whichever
+ * part it is (body, header, footer, footnote, endnote, text box, comment), a comment, or a tracked
+ * move. Changes whose text isn't found exactly once are reported, not guessed.
  */
-export function reviseDocx(bytes: Buffer, changes: Change[], o: { date: Date; author?: string }): { data: Buffer; applied: ChangeResult[]; revisions: number } {
+export function reviseDocx(bytes: Buffer, changes: Change[], o: { date: Date; author?: string }): { data: Buffer; applied: ChangeResult[]; revisions: number; comments: number } {
   const d = openDocx(bytes);
-  const xml = d.zip.text(d.main) ?? '';
-  let id = Math.max(100, ...[...xml.matchAll(/w:id="(\d+)"/g)].map((m) => Number(m[1])).filter((n) => n < 2 ** 31 - 1000)) + 1;
+  // Ids are unique across every part (Word repairs a file otherwise).
+  const all = d.zip.all.filter((e) => /\.xml$/i.test(e.name) && !e.name.includes('_rels')).map((e) => d.zip.text(e.name) ?? '').join('');
+  let id = Math.max(100, ...[...all.matchAll(/w:id="(\d+)"/g)].map((m) => Number(m[1])).filter((n) => n < 2 ** 31 - 1000)) + 1;
   let made = 0;
-  const rev: Revisor = { author: (o.author ?? 'Sara').slice(0, 60), date: o.date.toISOString().replace(/\.\d{3}Z$/, 'Z'), next: () => (made++, id++) };
+  const author = (o.author ?? 'Sara').slice(0, 60);
+  const rev: Revisor = { author, date: o.date.toISOString().replace(/\.\d{3}Z$/, 'Z'), next: () => (made++, id++) };
+  const dirty = new Set<Story>();
+  const notes: { id: number; text: string }[] = [];
   const applied: ChangeResult[] = [];
+  const editPara = (p: XmlElement, spans: [number, number][], text: string) => {
+    const m = paraModel(p);
+    for (const [s, e] of [...spans].sort((x, y) => y[0] - x[0])) editModel(m, s, e, text, true);
+    writeModel(m, rev);
+  };
   for (const c of changes) {
-    const models = d.paras.map((p) => paraModel(p));
-    const texts = models.map((m) => modelText(m).text);
-    const needle = 'find' in c ? c.find : 'after' in c ? c.after : c.deleteParagraph;
-    const hits = findIn(texts, needle);
+    const paras = storyParas(d.stories);
+    const texts = paras.map((x) => modelText(paraModel(x.p), true).text);
+    // The body, notes, headers and footers first; a comment's own words only when nothing else has them.
+    const search = (needle: string, ok: (x: Para) => boolean = () => true) => {
+      const hits = findIn(texts, needle).filter(([pi]) => ok(paras[pi]));
+      const main = hits.filter(([pi]) => paras[pi].where !== 'comment');
+      return main.length ? main : hits;
+    };
+    const needle = 'find' in c ? c.find : 'comment' in c ? c.on : 'move' in c ? c.move : 'after' in c ? c.after : c.deleteParagraph;
+    const hits = 'comment' in c ? search(needle, (x) => x.where === 'body' || x.where === 'footnote' || x.where === 'endnote') : 'move' in c ? search(needle, (x) => x.where === 'body') : search(needle);
     if (!hits.length) {
-      applied.push({ change: label(c), status: 'not_found', detail: 'Those words are not in the document (word for word).' });
+      applied.push({ change: label(c), status: 'not_found', detail: 'comment' in c && search(needle).length ? 'Comments can be left on the body and notes, not headers, footers or text boxes.' : 'Those words are not in the document (word for word).' });
       continue;
     }
-    const paras = new Set(hits.map((h) => h[0]));
-    if ('find' in c ? hits.length > 1 : paras.size > 1) {
-      applied.push({ change: label(c), status: 'ambiguous', detail: `Those words are in ${hits.length} places; quote more of the sentence.` });
+    const inParas = new Set(hits.map((h) => h[0]));
+    if (('find' in c ? hits.length > 1 && !c.all : 'comment' in c ? hits.length > 1 : inParas.size > 1)) {
+      const where = [...new Set(hits.map(([pi]) => paras[pi].where))].map((w) => (w === 'body' ? 'the body' : `the ${w === 'textbox' ? 'text box' : w}`));
+      applied.push({ change: label(c), status: 'ambiguous', detail: `Those words are in ${hits.length} places (${where.join(', ')}); quote more of the sentence${'find' in c ? ', or ask to change every one' : ''}.` });
       continue;
     }
     const [pi, s, e] = hits[0];
-    const m = models[pi];
+    const at = paras[pi];
+    const before = made;
     try {
       if ('find' in c) {
-        editModel(m, s, e, c.replace, true);
-        writeModel(m, rev);
-      } else if ('after' in c) {
-        let at = m.p;
-        for (const line of c.insert.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)) {
-          const np = element(m.p, 'p');
-          const pPr = kid(m.p, 'pPr');
-          if (pPr) np.children.push(cloneEl({ ...pPr, children: pPr.children.filter((k) => typeof k === 'string' || (k.local !== 'rPr' && k.local !== 'sectPr' && k.local !== 'pPrChange')) }));
-          const firstRun = m.runs[0];
-          np.children.push(element(m.p, 'ins', { 'w:id': String(rev.next()), 'w:author': rev.author, 'w:date': rev.date }, [runFor(m.p, firstRun, line, false)]));
-          markParagraph(np, 'ins', rev);
-          insertAfter(d.doc, at, np);
-          at = np;
+        const by = new Map<number, [number, number][]>();
+        for (const [hp, hs, he] of hits) by.set(hp, [...(by.get(hp) ?? []), [hs, he]]);
+        for (const [hp, spans] of by) {
+          const x = paras[hp];
+          editPara(x.p, spans, c.replace);
+          if (x.twin) editPara(x.twin, spans, c.replace);
+          dirty.add(x.story);
         }
-      } else {
-        for (const it of m.items) if (it.t === 'c' && it.mark !== 'ins') it.mark = 'del';
-        writeModel(m, rev);
-        // Runs that aren't plain text (fields, links) are left; the paragraph's text is deleted.
-        markParagraph(m.p, 'del', rev);
+        applied.push({ change: label(c), status: 'done', ...(hits.length > 1 ? { detail: `Changed in ${hits.length} places.` } : paras[pi].where !== 'body' ? { detail: `Changed${NOTE[paras[pi].where]}.` } : {}) });
+        continue;
       }
-      applied.push({ change: label(c), status: 'done' });
+      if ('comment' in c) {
+        const cid = id++;
+        anchorComment(at.p, s, e, cid);
+        notes.push({ id: cid, text: c.comment });
+        dirty.add(at.story);
+      } else if ('move' in c) {
+        const to = 'after' in c ? c.after : c.before;
+        const th = search(to, (x) => x.where === 'body' && x.story === at.story);
+        if (!th.length) throw new DocError(`“${cut(to)}” is not in the document (word for word).`);
+        if (new Set(th.map((h) => h[0])).size > 1) throw new DocError(`“${cut(to)}” is in ${th.length} places; quote more of that paragraph.`);
+        moveParagraph(at, paras[th[0][0]].p, 'after' in c ? 'after' : 'before', rev);
+        dirty.add(at.story);
+      } else if ('after' in c) {
+        const add = (target: XmlElement) => {
+          let ref = target;
+          for (const line of c.insert.split(/\r?\n/).map((x) => x.trim()).filter(Boolean)) {
+            const np = element(target, 'p');
+            const pPr = kid(target, 'pPr');
+            if (pPr) np.children.push(cloneEl({ ...pPr, children: pPr.children.filter((k) => typeof k === 'string' || (k.local !== 'rPr' && k.local !== 'sectPr' && k.local !== 'pPrChange')) }));
+            const firstRun = paraModel(target).runs[0];
+            np.children.push(element(target, 'ins', { 'w:id': String(rev.next()), 'w:author': rev.author, 'w:date': rev.date }, [runFor(target, firstRun, line, false)]));
+            markParagraph(np, 'ins', rev);
+            insertAfter(at.story.root, ref, np);
+            ref = np;
+          }
+        };
+        add(at.p);
+        if (at.twin) add(at.twin);
+        dirty.add(at.story);
+      } else {
+        const del = (target: XmlElement) => {
+          const m = paraModel(target);
+          for (const it of m.items) if (it.t === 'c' && it.mark !== 'ins') it.mark = 'del';
+          writeModel(m, rev);
+          // Runs that aren't plain text (fields, pictures) are left; the paragraph's text is deleted.
+          markParagraph(target, 'del', rev);
+        };
+        del(at.p);
+        if (at.twin) del(at.twin);
+        dirty.add(at.story);
+      }
+      applied.push({ change: label(c), status: 'done', ...(at.where !== 'body' && made > before ? { detail: `Changed${NOTE[at.where]}.` } : {}) });
     } catch (err) {
       applied.push({ change: label(c), status: 'invalid', detail: (err as Error).message });
     }
   }
   const changed = new Map<string, string | Buffer>();
-  if (made) {
-    changed.set(d.main, serializeXml(d.doc));
-    trackSettings(d.zip, d.main, changed);
-  }
-  return { data: made ? repack(d.zip, changed) : bytes, applied, revisions: made };
+  for (const st of d.stories) if (dirty.has(st)) changed.set(st.path, serializeXml(st.root));
+  if (made) trackSettings(d.zip, d.main, changed);
+  if (notes.length) addComments(d, changed, notes, rev, all);
+  return { data: changed.size ? repack(d.zip, changed) : bytes, applied, revisions: made, comments: notes.length };
 }
 
-function insertAfter(root: XmlElement, ref: XmlElement, el: XmlElement): boolean {
+function insertAfter(root: XmlElement, ref: XmlElement, el: XmlElement, before = false): boolean {
   for (const c of root.children) {
     if (typeof c === 'string') continue;
     const i = c.children.indexOf(ref);
     if (i >= 0) {
-      c.children.splice(i + 1, 0, el);
+      c.children.splice(before ? i : i + 1, 0, el);
       return true;
     }
-    if (insertAfter(c, ref, el)) return true;
+    if (insertAfter(c, ref, el, before)) return true;
   }
   return false;
+}
+
+// ---------------------------------------------------------------- comments
+
+/** commentRangeStart / End around text[s, e) and the reference run after it (inside a link when the words are). */
+function anchorComment(p: XmlElement, s: number, e: number, cid: number): void {
+  const m = paraModel(p);
+  const { at } = modelText(m, true);
+  const lo = at[s];
+  const hi = at[e - 1] + 1;
+  const boxAt = (i: number) => m.items[i]?.box;
+  const mk = (local: string, box: number | undefined, children: XmlChild[] = []): OpaqueItem => ({ t: 'o', el: element(p, local, { 'w:id': String(cid) }, children), visible: false, ...(box !== undefined ? { box } : {}) });
+  const endBox = boxAt(hi - 1);
+  const ref: OpaqueItem = { t: 'o', el: element(p, 'r', {}, [element(p, 'commentReference', { 'w:id': String(cid) })]), visible: false, ...(endBox !== undefined ? { box: endBox } : {}) };
+  m.items.splice(hi, 0, mk('commentRangeEnd', endBox), ref);
+  m.items.splice(lo, 0, mk('commentRangeStart', boxAt(lo)));
+  writeModel(m);
+}
+
+/** An 8-digit hex id below 0x80000000 not used anywhere in the file. */
+function hexIds(all: string): () => string {
+  const used = new Set([...all.matchAll(/(?:paraId|textId|durableId)="([0-9A-Fa-f]{8})"/g)].map((m) => m[1].toUpperCase()));
+  let n = 0x5a000000 + (used.size * 7919) % 0x100000;
+  return () => {
+    let h: string;
+    do h = (n++).toString(16).toUpperCase().padStart(8, '0');
+    while (used.has(h));
+    used.add(h);
+    return h;
+  };
+}
+
+/** The comments part (made when missing), plus commentsExtended / commentsIds / commentsExtensible entries when the file has those parts. */
+function addComments(d: DocxParts, changed: Map<string, string | Buffer>, notes: { id: number; text: string }[], rev: Revisor, all: string): void {
+  const rels = readRels(d.zip, d.main);
+  const relOf = (t: string) => [...rels.values()].find((r) => r.type.endsWith(`/${t}`))?.target;
+  const hex = hexIds(all);
+  const initials = rev.author.split(/\s+/).map((w) => w[0] ?? '').join('').slice(0, 4).toUpperCase() || 'S';
+  const paraIds: { id: number; para: string; durable: string }[] = [];
+  const xmlOf = notes.map((n) => {
+    const lines = n.text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+    const ps = lines.map((line, i) => {
+      const para = hex();
+      if (i === lines.length - 1) paraIds.push({ id: n.id, para, durable: hex() });
+      const esc = xmlSafe(line).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return `<w:p w14:paraId="${para}" w14:textId="77777777">${i === 0 ? '<w:r><w:annotationRef/></w:r>' : ''}<w:r><w:t xml:space="preserve">${esc}</w:t></w:r></w:p>`;
+    });
+    return `<w:comment w:id="${n.id}" w:author="${attrEsc(rev.author)}" w:date="${rev.date}" w:initials="${attrEsc(initials)}">${ps.join('')}</w:comment>`;
+  });
+  const cpath = relOf('comments');
+  const existing = cpath ? ((changed.get(cpath) as string | undefined) ?? d.zip.text(cpath)) : undefined;
+  if (cpath && existing) {
+    let x = existing;
+    // w14 (paragraph ids) on the root when it isn't declared yet.
+    x = x.replace(/<((?:\w+:)?comments)\b([^>]*)>/, (whole, name: string, at: string) => (/xmlns:w14=/.test(at) ? whole : `<${name}${at} xmlns:w14="${W14}">`));
+    const prefix = /<(\w+):comments\b/.exec(x)?.[1];
+    const body = prefix && prefix !== 'w' ? xmlOf.map((s) => s.replace(/<(\/?)w:/g, `<$1${prefix}:`).replace(/ w:/g, ` ${prefix}:`)) : xmlOf;
+    changed.set(cpath, x.replace(/<\/((?:\w+:)?comments)>\s*$/, `${body.join('')}</$1>`));
+  } else {
+    const xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<w:comments xmlns:w="${W_NS}" xmlns:w14="${W14}" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="w14">${xmlOf.join('')}</w:comments>`;
+    addPart(d.zip, d.main, changed, { file: 'comments.xml', rel: 'comments', type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.comments+xml', xml });
+  }
+  const append = (rel: string, root: string, entry: (x: (typeof paraIds)[number], pre: string) => string) => {
+    const path = relOf(rel);
+    const xml = path ? ((changed.get(path) as string | undefined) ?? d.zip.text(path)) : undefined;
+    if (!path || !xml) return;
+    const pre = new RegExp(`<(\\w+):${root}\\b`).exec(xml)?.[1];
+    if (!pre) return;
+    changed.set(path, xml.replace(new RegExp(`</${pre}:${root}>\\s*$`), `${paraIds.map((x) => entry(x, pre)).join('')}</${pre}:${root}>`).replace(new RegExp(`<${pre}:${root}\\b([^>]*)/>\\s*$`), (_w, a: string) => `<${pre}:${root}${a}>${paraIds.map((x) => entry(x, pre)).join('')}</${pre}:${root}>`));
+  };
+  append('commentsExtended', 'commentsEx', (x, pre) => `<${pre}:commentEx ${pre}:paraId="${x.para}" ${pre}:done="0"/>`);
+  append('commentsIds', 'commentsIds', (x, pre) => `<${pre}:commentId ${pre}:paraId="${x.para}" ${pre}:durableId="${x.durable}"/>`);
+  append('commentsExtensible', 'commentsExtensible', (x, pre) => `<${pre}:commentExtensible ${pre}:durableId="${x.durable}" ${pre}:dateUtc="${rev.date}"/>`);
+}
+
+const attrEsc = (s: string) => xmlSafe(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+export interface DocComment {
+  id: string;
+  author: string;
+  date: string;
+  text: string;
+  /** The words it is about. */
+  anchor: string;
+}
+
+/** Every comment in the file, in order, with the words each is about. */
+export function listComments(bytes: Buffer): DocComment[] {
+  const d = openDocx(bytes);
+  const st = d.stories.find((x) => x.kind === 'comment');
+  if (!st) return [];
+  const anchors = new Map<string, string>();
+  const open = new Set<string>();
+  const walk = (el: XmlElement) => {
+    for (const c of el.children) {
+      if (typeof c === 'string') continue;
+      if (c.local === 'commentRangeStart') open.add(attr(c, 'id') ?? '');
+      else if (c.local === 'commentRangeEnd') open.delete(attr(c, 'id') ?? '');
+      else if (c.local === 't' || c.local === 'tab') for (const k of open) anchors.set(k, (anchors.get(k) ?? '') + (c.local === 'tab' ? '\t' : textOf(c)));
+      else if (c.local === 'del' || c.local === 'moveFrom' || c.local === 'delText' || c.local === 'instrText' || c.local === 'Fallback') continue;
+      else {
+        walk(c);
+        if (c.local === 'p') for (const k of open) anchors.set(k, `${anchors.get(k) ?? ''} `);
+      }
+    }
+  };
+  for (const s of d.stories) if (s.kind !== 'comment') walk(s.root);
+  return findAll(st.root, 'comment').map((c) => {
+    const cid = attr(c, 'id') ?? '';
+    return {
+      id: cid,
+      author: attr(c, 'author') ?? '',
+      date: attr(c, 'date') ?? '',
+      text: findAll(c, 'p').map((p) => accepted(p).trim()).filter(Boolean).join('\n'),
+      anchor: (anchors.get(cid) ?? '').replace(/\s+/g, ' ').trim(),
+    };
+  });
+}
+
+// ---------------------------------------------------------------- moves
+
+const RUN_LEVEL = new Set(['r', 'customXml', 'smartTag', 'sdt']);
+
+/** Wraps a paragraph's runs in w:moveFrom / w:moveTo (inside links and simple fields too), between named range marks. */
+function wrapMove(p: XmlElement, kind: 'moveFrom' | 'moveTo', name: string, rev: Revisor): void {
+  const range = rev.next();
+  const mark = () => element(p, kind, { 'w:id': String(rev.next()), 'w:author': rev.author, 'w:date': rev.date }, []);
+  const wrap = (el: XmlElement) => {
+    const out: XmlChild[] = [];
+    let cur: XmlElement | undefined;
+    for (const c of el.children) {
+      if (typeof c === 'string') continue;
+      if (c.local === 'pPr') {
+        out.push(c);
+        continue;
+      }
+      if (RUN_LEVEL.has(c.local)) {
+        if (!cur) out.push((cur = mark()));
+        cur.children.push(c);
+        continue;
+      }
+      cur = undefined;
+      if (c.local === 'hyperlink' || c.local === 'fldSimple') wrap(c);
+      out.push(c);
+    }
+    el.children = out;
+  };
+  wrap(p);
+  const pPr = kid(p, 'pPr');
+  const at = pPr ? p.children.indexOf(pPr) + 1 : 0;
+  p.children.splice(at, 0, element(p, `${kind}RangeStart`, { 'w:id': String(range), 'w:author': rev.author, 'w:date': rev.date, 'w:name': name }));
+  p.children.push(element(p, `${kind}RangeEnd`, { 'w:id': String(range) }));
+  markParagraph(p, kind, rev);
+}
+
+function moveParagraph(from: Para, target: XmlElement, where: 'after' | 'before', rev: Revisor): void {
+  const p = from.p;
+  if (p === target) throw new DocError('A paragraph can\'t move next to itself.');
+  const has = (local: string) => findAll(p, local).length > 0;
+  if (['ins', 'del', 'moveFrom', 'moveTo'].some(has)) throw new DocError('That paragraph already has tracked changes; accept or reject them first.');
+  if (['footnoteReference', 'endnoteReference', 'commentReference', 'commentRangeStart', 'txbxContent', 'fldChar'].some(has)) throw new DocError('That paragraph has a footnote, comment, text box or field in it; move it in Word.');
+  if (kid(kid(p, 'pPr'), 'sectPr')) throw new DocError('That paragraph ends a section; move it in Word.');
+  const parent = (root: XmlElement, el: XmlElement): XmlElement | undefined => {
+    for (const c of root.children) {
+      if (typeof c === 'string') continue;
+      if (c.children.includes(el)) return c;
+      const f = parent(c, el);
+      if (f) return f;
+    }
+    return undefined;
+  };
+  const pp = parent(from.story.root, p);
+  const tp = parent(from.story.root, target);
+  if (!pp || !tp) throw new DocError('That paragraph can\'t be moved here.');
+  const sib = (el: XmlElement, list: XmlElement, step: number) => {
+    const ks = kids(list);
+    return ks[ks.indexOf(el) + step];
+  };
+  if (pp === tp && sib(p, pp, where === 'after' ? -1 : 1) === target) throw new DocError('That paragraph is already there.');
+  const copy = cloneEl(p);
+  const strip = (el: XmlElement) => {
+    el.children = el.children.filter((c) => typeof c === 'string' || !['bookmarkStart', 'bookmarkEnd', 'proofErr'].includes(c.local));
+    for (const c of el.children) if (typeof c !== 'string') strip(c);
+  };
+  strip(copy);
+  const cpPr = kid(copy, 'pPr');
+  if (cpPr) cpPr.children = cpPr.children.filter((k) => typeof k === 'string' || k.local !== 'sectPr');
+  const name = `move${rev.next()}`;
+  wrapMove(p, 'moveFrom', name, rev);
+  wrapMove(copy, 'moveTo', name, rev);
+  insertAfter(from.story.root, target, copy, where === 'before');
 }
 
 // ---------------------------------------------------------------- reading revisions back
 
 export interface Revision {
   id: string;
-  type: 'ins' | 'del';
+  type: 'ins' | 'del' | 'moveFrom' | 'moveTo';
   author: string;
   date: string;
   text: string;
   /** The paragraph as it reads with every change accepted. */
   context: string;
+  /** Which part it is in. */
+  where: Where;
 }
 
 const accepted = (el: XmlElement): string => {
@@ -483,103 +885,125 @@ const accepted = (el: XmlElement): string => {
     if (typeof c === 'string') continue;
     if (c.local === 't') s += textOf(c);
     else if (c.local === 'tab') s += '\t';
-    else if (c.local === 'del' || c.local === 'delText' || c.local === 'pPr' || c.local === 'rPr' || c.local === 'instrText') continue;
+    else if (c.local === 'del' || c.local === 'moveFrom' || c.local === 'delText' || c.local === 'pPr' || c.local === 'rPr' || c.local === 'instrText' || c.local === 'txbxContent' || c.local === 'Fallback') continue;
     else s += accepted(c);
   }
   return s;
 };
 
-/** Every tracked insertion and deletion in the document body, in order (adjacent pieces joined). */
+const REV = new Set(['ins', 'del', 'moveFrom', 'moveTo']);
+const SILENT = new Set(['pPr', 'bookmarkStart', 'bookmarkEnd', 'proofErr', 'moveFromRangeStart', 'moveFromRangeEnd', 'moveToRangeStart', 'moveToRangeEnd', 'commentRangeStart', 'commentRangeEnd']);
+const INTO = new Set(['hyperlink', 'fldSimple', 'smartTag', 'customXml', 'sdt', 'sdtContent']);
+
+/** Every tracked insertion, deletion and move in every part, in order (adjacent pieces joined). */
 export function listRevisions(bytes: Buffer): Revision[] {
   const d = openDocx(bytes);
   const out: Revision[] = [];
-  for (const p of d.paras) {
+  for (const { p, where } of storyParas(d.stories)) {
     const context = accepted(p).replace(/\s+/g, ' ').trim();
     let last: Revision | undefined;
-    let lastEl: XmlElement | undefined;
-    for (const c of p.children) {
-      if (typeof c === 'string') continue;
-      if (c.local !== 'ins' && c.local !== 'del') {
-        if (c.local !== 'pPr' && !(c.local === 'bookmarkStart' || c.local === 'bookmarkEnd' || c.local === 'proofErr')) last = undefined;
-        continue;
+    const walk = (el: XmlElement) => {
+      for (const c of el.children) {
+        if (typeof c === 'string') continue;
+        if (INTO.has(c.local)) {
+          walk(c);
+          continue;
+        }
+        if (!REV.has(c.local)) {
+          if (!SILENT.has(c.local)) last = undefined;
+          continue;
+        }
+        const type = c.local as Revision['type'];
+        const text = type === 'del' ? findAll(c, 'delText').map((x) => textOf(x)).join('') : type === 'moveFrom' ? findAll(c, 't').map((x) => textOf(x)).join('') : accepted(c);
+        const author = attr(c, 'author') ?? '';
+        const date = attr(c, 'date') ?? '';
+        if (last && last.type === type && last.author === author && last.date === date) last.text += text;
+        else {
+          last = { id: attr(c, 'id') ?? '', type, author, date, text, context, where };
+          out.push(last);
+        }
       }
-      const type = c.local as 'ins' | 'del';
-      const text = type === 'del' ? findAll(c, 'delText').map((x) => textOf(x)).join('') : accepted(c);
-      const author = attr(c, 'author') ?? '';
-      const date = attr(c, 'date') ?? '';
-      if (last && lastEl && last.type === type && last.author === author && last.date === date) last.text += text;
-      else {
-        last = { id: attr(c, 'id') ?? '', type, author, date, text, context };
-        out.push(last);
-      }
-      lastEl = c;
-    }
+    };
+    walk(p);
   }
   return out.filter((r) => r.text.length);
 }
 
-/** True when the file still has tracked changes (body text or paragraph marks). */
+/** True when the file still has tracked changes (any part: text or paragraph marks). */
 export function hasRevisions(bytes: Buffer): boolean {
   const d = openDocx(bytes);
-  const xml = d.zip.text(d.main) ?? '';
-  return /<w:(ins|del|moveFrom|moveTo)\b/.test(xml);
+  return d.stories.some((s) => /<w:(ins|del|moveFrom|moveTo)\b/.test(d.zip.text(s.path) ?? ''));
 }
 
+const RANGE = new Set(['moveFromRangeStart', 'moveFromRangeEnd', 'moveToRangeStart', 'moveToRangeEnd']);
+
 /**
- * Accepts (or rejects) every tracked change in the body: insertions kept (or dropped), deletions
- * dropped (or kept as text). A paragraph left with no text by it is removed.
+ * Accepts (or rejects) every tracked change in every part: insertions kept (or dropped), deletions
+ * dropped (or kept as text), moves made (or undone). A paragraph left with no text by it is removed.
+ * Comments stay (as in Word).
  */
 export function resolveAll(bytes: Buffer, how: 'accept' | 'reject'): { data: Buffer; resolved: number } {
   const d = openDocx(bytes);
   let resolved = 0;
-  const drop = how === 'accept' ? 'del' : 'ins';
-  const keep = how === 'accept' ? 'ins' : 'del';
-  const gone = new Set<XmlElement>();
-  const walk = (el: XmlElement) => {
-    const out: XmlChild[] = [];
-    for (const c of el.children) {
-      if (typeof c === 'string') {
-        out.push(c);
-        continue;
-      }
-      if (c.local === drop || c.local === (how === 'accept' ? 'moveFrom' : 'moveTo')) {
-        resolved++;
-        // A paragraph mark marked this way: the paragraph goes when nothing is left in it.
-        if (el.local === 'rPr') gone.add(el);
-        continue;
-      }
-      if (c.local === keep || c.local === (how === 'accept' ? 'moveTo' : 'moveFrom')) {
-        resolved++;
-        if (el.local === 'rPr') continue;
+  const drop = new Set(how === 'accept' ? ['del', 'moveFrom'] : ['ins', 'moveTo']);
+  const keep = new Set(how === 'accept' ? ['ins', 'moveTo'] : ['del', 'moveFrom']);
+  const changed = new Map<string, string | Buffer>();
+  for (const st of d.stories) {
+    let here = 0;
+    const gone = new Set<XmlElement>();
+    const walk = (el: XmlElement) => {
+      const out: XmlChild[] = [];
+      for (const c of el.children) {
+        if (typeof c === 'string') {
+          out.push(c);
+          continue;
+        }
+        if (RANGE.has(c.local)) {
+          here++;
+          continue;
+        }
+        if (drop.has(c.local)) {
+          resolved++;
+          here++;
+          // A paragraph mark marked this way: the paragraph goes when nothing is left in it.
+          if (el.local === 'rPr') gone.add(el);
+          continue;
+        }
+        if (keep.has(c.local)) {
+          resolved++;
+          here++;
+          if (el.local === 'rPr') continue;
+          walk(c);
+          for (const k of c.children) {
+            if (typeof k !== 'string' && k.local === 'r') for (const t of k.children) if (typeof t !== 'string' && t.local === 'delText') t.name = t.name.replace(/delText$/, 't'), (t.local = 't');
+            out.push(k);
+          }
+          continue;
+        }
         walk(c);
-        for (const k of c.children) {
-          if (typeof k !== 'string' && k.local === 'r') for (const t of k.children) if (typeof t !== 'string' && t.local === 'delText') t.name = t.name.replace(/delText$/, 't'), (t.local = 't');
-          out.push(k);
-        }
-        continue;
+        out.push(c);
       }
-      walk(c);
-      out.push(c);
-    }
-    el.children = out;
-  };
-  walk(d.doc);
-  if (gone.size) {
-    const prune = (el: XmlElement) => {
-      el.children = el.children.filter((c) => {
-        if (typeof c === 'string') return true;
-        if (c.local === 'p') {
-          const rPr = kid(kid(c, 'pPr'), 'rPr');
-          if (rPr && gone.has(rPr) && !textOf({ ...c, children: c.children.filter((k) => typeof k === 'string' || k.local !== 'pPr') }).trim() && !findAll(c, 'drawing').length) return false;
-        }
-        prune(c);
-        return true;
-      });
+      el.children = out;
     };
-    prune(d.doc);
+    walk(st.root);
+    if (gone.size) {
+      const prune = (el: XmlElement) => {
+        el.children = el.children.filter((c) => {
+          if (typeof c === 'string') return true;
+          if (c.local === 'p') {
+            const rPr = kid(kid(c, 'pPr'), 'rPr');
+            if (rPr && gone.has(rPr) && !textOf({ ...c, children: c.children.filter((k) => typeof k === 'string' || k.local !== 'pPr') }).trim() && !findAll(c, 'drawing').length) return false;
+          }
+          prune(c);
+          return true;
+        });
+      };
+      prune(st.root);
+    }
+    if (here) changed.set(st.path, serializeXml(st.root));
   }
   if (!resolved) return { data: bytes, resolved: 0 };
-  return { data: repack(d.zip, new Map([[d.main, serializeXml(d.doc)]])), resolved };
+  return { data: repack(d.zip, changed), resolved };
 }
 
 /**

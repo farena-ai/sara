@@ -73,8 +73,11 @@ test('s2 routes: upload in parts, rename, drafts, recording with Range, prefs', 
   assert.equal(part.status, 206);
   assert.equal(part.bytes.length, 100);
   assert.equal((await json(`/api/meetings/${id}/drafts/0`, 'POST', { action: 'send' })).status, 404, 'no draft without a calendar event');
-  assert.deepEqual((await json('/api/meetings')).body.prefs, { remind: true, cloud: false });
+  assert.deepEqual((await json('/api/meetings')).body.prefs, { remind: true, cloud: false, speakers: true });
   assert.equal((await json('/api/meetings/upload', 'POST', { title: 'x', parts: 1 })).status, 400, 'consent required');
+  // U3.13: no speaker add-on wired on this server: shown as none, and its actions say so.
+  assert.equal((await json('/api/meetings')).body.speakerAddon, null);
+  assert.equal((await json('/api/meetings/speaker-addon', 'POST', { action: 'install' })).status, 404);
 });
 
 const web = (f: string) => readFileSync(join(ROOT, 'web', f), 'utf8');

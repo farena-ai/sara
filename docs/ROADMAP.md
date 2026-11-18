@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Smarter: six languages, voices apart, Word comments and team recipes, in 3.21.0
+
+Promises in sent mail, contract clause checklists and booking emails are read in Spanish, French, German,
+Portuguese and Italian as well as English. Free flight status from OpenSky (opt-in; position and landed only).
+Meetings tell up to 8 voices apart with a small local add-on. Word revisions now reach headers, footers, notes and
+text boxes, with comments and tracked moves. Finished team runs can be saved as recipes and reused by name, Ask
+about anything also searches meetings, trips, documents, research and goals, and fixes that worked can be shared
+with linked friends who have the same problem (off by default).
+
 ## The apps catch up, in 3.20.0
 
 Unread message counts on the Windows taskbar and the Mac Dock. The Windows app counts and announces new messages

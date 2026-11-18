@@ -7,6 +7,10 @@
 //    they really differ, else one voice).
 // The turns are then cut out of the recording (mono WAV) and heard one by one. Never perfect: two
 // similar voices stay "Speaker 1", crosstalk goes to the louder side; the person can rename labels.
+// U3.13 (docs/design/U3SPEAK.md): with the speaker add-on, uploads and mono recordings are told apart
+// by voice prints instead (diarizeByVoice, up to 8 speakers); without it, the pauses way above.
+import { clusterVoices, segmentsOf, windowsOf, type Merge } from './speaker-cluster.ts';
+
 export interface Pcm {
   rate: number;
   ch: Float32Array[];
@@ -196,6 +200,68 @@ function tidy(segs: Segment[], total: number): Segment[] {
   return capped.map((s) => ({ start: Math.max(0, s.start - PAD_SEC), end: Math.min(total, s.end + PAD_SEC), speaker: s.speaker }));
 }
 
+/** All channels mixed to one. */
+function monoOf(p: Pcm): Float32Array {
+  if (p.ch.length === 1) return p.ch[0];
+  const m = new Float32Array(p.ch[0].length);
+  for (const c of p.ch) for (let i = 0; i < m.length; i++) m[i] += c[i] / p.ch.length;
+  return m;
+}
+/** Speech turns, pause to pause (0.6 s of quiet), of the mixed recording. */
+export function speechTurns(p: Pcm): { mono: Float32Array; turns: Segment[] } {
+  const mono = monoOf(p);
+  const rms = frameRms(mono, p.rate);
+  const thr = threshold(rms);
+  const labels = new Int8Array(rms.length).fill(-1);
+  for (let f = 0; f < labels.length; f++) if (rms[f] > thr) labels[f] = 0;
+  return { mono, turns: runs(labels) };
+}
+/** The samples at 16 kHz (linear interpolation; what voice-print models expect). */
+export function to16k(x: Float32Array, rate: number): Float32Array {
+  if (rate === 16000) return x;
+  const n = Math.floor((x.length * 16000) / rate);
+  const out = new Float32Array(n);
+  const step = rate / 16000;
+  for (let i = 0; i < n; i++) {
+    const at = i * step;
+    const a = Math.floor(at);
+    const f = at - a;
+    out[i] = x[a] * (1 - f) + (x[Math.min(x.length - 1, a + 1)] ?? 0) * f;
+  }
+  return out;
+}
+
+export interface VoiceDiarized {
+  mode: 'voices';
+  segments: Segment[];
+  /** Each speaker's voice print (unit length), kept so later parts of one upload keep the numbers. */
+  centers: number[][];
+  /** Voices kept as one (sounded alike, or more than 8 speakers), for the notice. */
+  merges: Merge[];
+}
+/** Most windows per part (a 10-minute part of nonstop talk at the normal step is about 800). */
+const MAX_WINDOWS = 1200;
+
+/**
+ * U3.13: speakers by voice print. Turns (pauses) are cut into 1.5 s windows, each gets a voice print
+ * from the add-on, the prints are grouped (src/speaker-cluster.ts), and a change of voice inside a
+ * turn starts a new segment. Throws when the add-on fails (the caller falls back to diarize()).
+ */
+export async function diarizeByVoice(p: Pcm, prints: (samples: Float32Array, windows: [number, number][]) => Promise<number[][]>, prior: number[][] = []): Promise<VoiceDiarized> {
+  const total = pcmSeconds(p);
+  const { mono, turns } = speechTurns(p);
+  if (!turns.length) return { mode: 'voices', segments: [], centers: prior, merges: [] };
+  const speech = turns.reduce((s, t) => s + t.end - t.start, 0);
+  const hop = Math.max(0.75, speech / MAX_WINDOWS);
+  const all = windowsOf(turns, Math.max(1.5, hop * 2), hop);
+  const got = await prints(to16k(mono, p.rate), all.map((w) => [w.start, w.end]));
+  const keep = all.map((_, i) => i).filter((i) => (got[i]?.length ?? 0) > 0);
+  if (!keep.length) throw new Error('No voice prints.');
+  const windows = keep.map((i) => all[i]);
+  const c = clusterVoices(keep.map((i) => got[i]), windows, prior);
+  return { mode: 'voices', segments: tidy(segmentsOf(windows, c.labels), total), centers: c.centers, merges: c.merges };
+}
+
 export function diarize(p: Pcm, opts: { byChannel: boolean; centers?: number[] }): Diarized {
   const total = pcmSeconds(p);
   if (opts.byChannel && p.ch.length >= 2) {
@@ -208,16 +274,7 @@ export function diarize(p: Pcm, opts: { byChannel: boolean; centers?: number[] }
     }
     return { mode: 'channel', segments: tidy(runs(labels), total), centers: [] };
   }
-  const mono = p.ch.length === 1 ? p.ch[0] : (() => {
-    const m = new Float32Array(p.ch[0].length);
-    for (const c of p.ch) for (let i = 0; i < m.length; i++) m[i] += c[i] / p.ch.length;
-    return m;
-  })();
-  const rms = frameRms(mono, p.rate);
-  const thr = threshold(rms);
-  const labels = new Int8Array(rms.length).fill(-1);
-  for (let f = 0; f < labels.length; f++) if (rms[f] > thr) labels[f] = 0;
-  const turns = runs(labels);
+  const { mono, turns } = speechTurns(p);
   const logs = turns.map((s) => {
     const hz = pitch(mono, p.rate, s.start, s.end);
     return hz > 0 ? Math.log(hz) : 0;

@@ -496,6 +496,8 @@ export interface SelfCodeDeps {
   /** rootapply: the root helper's folder (default /var/lib/<instance>-updater) and this instance's name. */
   helperDir?: string;
   instance?: string;
+  /** U3.17/U3.18: every status change (remote repair reports it to the helper; fix recipes share applied ones). */
+  onStatus?: (c: CodeChange) => void;
 }
 
 export class SelfCodeError extends Error {
@@ -607,6 +609,13 @@ export class SelfCode {
     if (f.appliedAt !== undefined) add('applied_at', f.appliedAt);
     if (f.ticket !== undefined) add('ticket', f.ticket);
     this.#d.db.prepare(`UPDATE self_code_changes SET ${sets.join(', ')} WHERE id = ?`).run(...args, id);
+    if (f.status && this.#d.onStatus) {
+      try {
+        this.#d.onStatus(this.get(id)!);
+      } catch (err) {
+        console.warn(`self-code: status hook: ${(err as Error).message}`);
+      }
+    }
   }
 
   status(): { available: boolean; kind: InstallKind; why: string | null; mode: string; cap: number; minutes: number; permission: string; fullUntil: string | null; version: string; changes: CodeChange[] } {
@@ -781,6 +790,71 @@ export class SelfCode {
       return end('failed', en('Preparing the change failed: {why}'), { why: String((err as Error).message).split('\n')[0]!.slice(0, 300) });
     } finally {
       clearTimeout(timer);
+      try {
+        if (existsSync(wd)) removeWorkdir(this.#d.root, wd);
+      } catch {
+        /* left for the next run */
+      }
+    }
+  }
+
+  /** U3.17: does a shared patch fit her code as it is now (the same lines, not applied yet)? */
+  fits(patch: string): boolean {
+    try {
+      return Boolean(patch) && applyPatchTo(this.#d.root, patch, { dryRun: true }).ok && !isApplied(this.#d.root, patch);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * U3.17: a code fix shared by a linked friend's Sara. Her own rules first (protected paths, weaker
+   * tests), then her own checks in a copy; it becomes an ordinary prepared change that waits for the
+   * owner's Apply (snapshot, restart, health check, rollback, Undo) like any other. Nothing is applied here.
+   */
+  adopt(request: string, patch: string): CodeChange {
+    this.#assertAvailable();
+    const id = this.#insert(request);
+    try {
+      this.#recheck(patch);
+      if (!this.fits(patch)) throw new SelfCodeError(409, en('Her code changed since this was prepared, so it no longer fits. Ask her again.'));
+    } catch (err) {
+      this.#set(id, { status: 'refused', note: (err as Error).message });
+      this.#audit('adopt', 'refused', id, (err as Error).message);
+      return this.get(id)!;
+    }
+    const p = this.#adopt(id, patch).finally(() => this.#running.delete(id));
+    this.#running.set(id, p);
+    return this.get(id)!;
+  }
+  async #adopt(id: number, patch: string): Promise<CodeChange> {
+    const info = this.info();
+    const wd = join(this.#dir, 'work', String(id));
+    const files = patchPaths(patch);
+    try {
+      if (existsSync(wd)) removeWorkdir(this.#d.root, wd);
+      makeWorkdir(this.#d.root, wd, { git: info.git, ...(info.from ? { from: info.from } : {}) });
+      if (!applyPatchTo(wd, patch).ok) {
+        this.#set(id, { status: 'failed', note: en('Her code changed since this was prepared, so it no longer fits. Ask her again.') });
+        return this.get(id)!;
+      }
+      const deadline = Date.now() + this.settings().minutes * 60_000;
+      const report = await (this.#d.checks ?? ((d, c, dl) => runChecks(d, c, dl)))(wd, files, deadline);
+      if (!report.ok) {
+        this.#set(id, { status: 'failed', note: en("The change didn't pass the checks, so it isn't offered."), files, checks: report });
+        this.#audit('adopt', 'failed', id);
+        return this.get(id)!;
+      }
+      mkdirSync(join(this.#dir, 'patches'), { recursive: true });
+      writeFileSync(this.#patchFile(id), patch);
+      this.#set(id, { status: 'proposed', note: null, summary: this.get(id)!.request, files, checks: report });
+      this.#audit('adopt', 'ok', id);
+      this.#d.notify?.(`Code change #${id} is ready for your OK: ${this.get(id)!.request}`);
+      return this.get(id)!;
+    } catch (err) {
+      this.#set(id, { status: 'failed', note: en('Preparing the change failed: {why}'), params: { why: String((err as Error).message).split('\n')[0]!.slice(0, 300) } });
+      return this.get(id)!;
+    } finally {
       try {
         if (existsSync(wd)) removeWorkdir(this.#d.root, wd);
       } catch {

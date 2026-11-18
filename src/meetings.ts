@@ -26,7 +26,8 @@ import { en, trOwner } from './i18n.ts';
 import { anyHold, LegalHoldError } from './legal-hold.ts';
 import { complete } from './life.ts';
 import { allEvents, calendarSources, type LabeledEvent } from './mail/calendars.ts';
-import { cutWav, diarize, pcmSeconds, readPcm } from './meeting-audio.ts';
+import { cutWav, diarize, diarizeByVoice, pcmSeconds, readPcm } from './meeting-audio.ts';
+import type { SpeakerEngine } from './speaker-addon.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { parseWhen, type Task } from './planner.ts';
 import { policy } from './policy-profile.ts';
@@ -76,6 +77,8 @@ export interface MeetingEvent {
 export interface MeetingsOptions {
   /** Calendar events between two times (all accounts); tests pass a fake. */
   events?: (from: Date, to: Date) => Promise<(Pick<LabeledEvent, 'id' | 'title' | 'start' | 'end' | 'allDay' | 'attendees' | 'account'>)[]>;
+  /** U3.13: the speaker add-on (src/speaker-addon.ts): speakers by voice print; tests pass a fake. */
+  speakers?: SpeakerEngine;
 }
 
 export type MeetingStatus = 'live' | 'hearing' | 'ended' | 'writing' | 'done' | 'failed';
@@ -306,10 +309,25 @@ export class Meetings {
     return null;
   }
 
-  /** S2: Settings → Voice → Meetings (remind me to tell everyone; let a cloud engine hear meetings). */
-  prefs(): { remind: boolean; cloud: boolean } {
-    const p = (this.#app.settings.get() as { meetings?: { remind?: unknown; cloud?: unknown } }).meetings ?? {};
-    return { remind: p.remind !== false, cloud: p.cloud === true };
+  /** S2: Settings → Voice → Meetings (remind me to tell everyone; let a cloud engine hear meetings; U3.13 better speaker separation). */
+  prefs(): { remind: boolean; cloud: boolean; speakers: boolean } {
+    const p = (this.#app.settings.get() as { meetings?: { remind?: unknown; cloud?: unknown; speakers?: unknown } }).meetings ?? {};
+    return { remind: p.remind !== false, cloud: p.cloud === true, speakers: p.speakers !== false };
+  }
+  /** U3.13: the speaker add-on's state (null: this server has none). */
+  speakerAddon(): (ReturnType<SpeakerEngine['status']> & { on: boolean }) | null {
+    const e = this.#opts.speakers;
+    return e ? { ...e.status(), on: this.prefs().speakers } : null;
+  }
+  /** U3.13: Settings → Download now / Remove. */
+  speakerAddonAction(action: unknown): ReturnType<Meetings['speakerAddon']> {
+    const e = this.#opts.speakers;
+    if (!e) throw new MeetingError(404, en('This server has no speaker add-on.'));
+    if (action === 'install') e.ensure();
+    else if (action === 'remove') e.remove();
+    else throw new MeetingError(400, en('Unknown action.'));
+    audit({ action: `meeting.speakers.${action}`, role: 'owner', channel: 'web' });
+    return this.speakerAddon();
   }
   #cloudRefusal(): string {
     return this.#t(en('Meetings are heard on this computer unless you allow a cloud engine (Grok voice or a speech API): Settings → Voice → Meetings.'));
@@ -586,9 +604,36 @@ export class Meetings {
       throw new MeetingError(400, en('That is not a WAV file Sara can read.'));
     }
     const offset = Number((this.#db.prepare('SELECT seconds FROM meetings WHERE id = ?').get(id) as Row).seconds) || 0;
-    const voices = JSON.parse(String((this.#db.prepare('SELECT voices FROM meetings WHERE id = ?').get(id) as Row).voices || '[]')) as number[];
-    const d = diarize(pcm, { byChannel: m.channels === 'speakers', centers: voices });
+    const stored = JSON.parse(String((this.#db.prepare('SELECT voices FROM meetings WHERE id = ?').get(id) as Row).voices || '[]')) as number[] | { prints: number[][] };
     const label = (n: number) => this.#t(en('Speaker {n}'), { n: n + 1 });
+    const notice = (text: string, t: number) => this.#line(id, 'notice', this.#app.persona.name, text, t);
+    // U3.13: by voice print when the add-on is ready (never for the desktop app's stereo, never
+    // switching ways in the middle of one upload); else S2's channel or pauses-and-pitch way.
+    let d: { segments: { start: number; end: number; speaker: number }[]; centers: number[] | { prints: number[][] } } | undefined;
+    const pitchSoFar = Array.isArray(stored) && stored.length > 0;
+    const engine = m.channels !== 'speakers' && !pitchSoFar && this.prefs().speakers ? this.#opts.speakers : undefined;
+    const state = engine?.status().state;
+    if (engine && state === 'ready') {
+      try {
+        const v = await diarizeByVoice(pcm, (x, w) => engine.prints(x, w), Array.isArray(stored) ? [] : stored.prints);
+        if (Array.isArray(stored)) notice(this.#t(en('Speakers are told apart by their voices, on this computer (up to 8). Rename them with the names above the transcript.')), offset);
+        const said = new Set<string>();
+        for (const g of v.merges) {
+          const text = g.why === 'too-many' ? this.#t(en('More than 8 voices: extra voices were added to the most alike speaker, {who}.'), { who: label(g.into) }) : this.#t(en('{who} may be two people with very alike voices, kept as one. Rename the speaker if you know who it was.'), { who: label(g.into) });
+          if (!said.has(text)) said.add(text), notice(text, offset);
+        }
+        d = { segments: v.segments, centers: { prints: v.centers.map((c) => c.map((x) => Math.round(x * 1e4) / 1e4)) } };
+      } catch {
+        notice(this.#t(en('The speaker add-on stopped, so this part was split by pauses and pitch (at most two voices).')), offset);
+      }
+    } else if (engine && (state === 'missing' || state === 'installing' || state === 'failed') && Array.isArray(stored)) {
+      engine.ensure();
+      if (engine.status().state === 'installing') notice(this.#t(en('Better speaker separation is downloading (about {mb} MB). This recording is split by pauses and pitch (at most two voices); the next one uses it.'), { mb: engine.status().mb }), offset);
+    }
+    if (!d) {
+      const p = diarize(pcm, { byChannel: m.channels === 'speakers', centers: Array.isArray(stored) ? stored : [] });
+      d = { segments: p.segments, centers: p.centers };
+    }
     const say = (speaker: string, words: string, t: number) => {
       if (words) this.#line(id, 'said', speaker, detectMinorSexualContent(words) ? this.#t(en('(Left out by the safety check.)')) : words, t);
     };

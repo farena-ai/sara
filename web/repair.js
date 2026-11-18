@@ -1,6 +1,9 @@
 // ROADMAP_T T1/T2 (docs/SELF_REPAIR.md): Settings → Privacy & system → Health → Self-repair.
 // The permission ("small fixes on her own" or "ask me first"), the 24-hour full permission, problems now
 // (Fix / Learn a skill / Not now / Open), and what she fixed (steps, Undo while it can be undone).
+// U3.17: "Share fixes that worked" (off by default; the ticked linked friends), fixes friends shared that fit a
+// problem here (Use it runs her own engine: T1 fix or a T3 change she tests; nothing runs by itself), what
+// she shared, and "Send to the Sara developers" with the exact scrubbed preview first.
 import { t } from './naming.js';
 
 const $ = (s) => globalThis.document?.querySelector(s);
@@ -131,6 +134,124 @@ function paint() {
   }
 }
 
+// ---- U3.17: fixes shared between linked friends -------------------------------------------------------
+let shared = null;
+async function shareAct(fn, busy) {
+  say(busy);
+  try {
+    await fn();
+    say('');
+  } catch (err) {
+    say(err.message);
+  }
+  await loadShared();
+}
+async function loadShared() {
+  const box = $('#repair-share-view');
+  const row = $('#repair-share-row');
+  if (!box) return;
+  try {
+    shared = await api('/remote-repair/recipes');
+  } catch {
+    shared = null;
+  }
+  if (row) row.hidden = !shared;
+  paintShared();
+}
+function devButton(r) {
+  const out = el('div', 'rp-dev');
+  const b = btn(t('Send to the Sara developers'), 'ghost small', async () => {
+    try {
+      const { preview } = await api(`/remote-repair/recipes/${r.id}/report`);
+      const pre = el('pre', 'rp-preview small', `${preview.title}\n\n${preview.body}${preview.diagnostics?.error ? `\n\n${preview.diagnostics.error}` : ''}`);
+      const send = btn(t('Send this'), 'small', () => shareAct(async () => {
+        const res = await api(`/remote-repair/recipes/${r.id}/report`, { method: 'POST', body: {} });
+        say(t('Sent. Ticket {ticket}.', { ticket: res.ticket }));
+      }, t('Sending…')));
+      out.replaceChildren(el('p', 'small muted', t('Exactly this is sent (private things removed):')), pre, send, btn(t('Cancel'), 'ghost small', () => out.replaceChildren(b)));
+    } catch (err) {
+      say(err.message);
+    }
+  });
+  if (r.ticket) out.append(el('span', 'muted small', t('Sent to the Sara developers ({ticket}).', { ticket: r.ticket })));
+  else out.append(b);
+  return out;
+}
+function recipeLine(r) {
+  if (r.kind === 'code') return t('A code change to {files}', { files: (r.files ?? []).join(', ') });
+  return r.text ? t(r.text, r.params ?? {}) : r.problem;
+}
+function paintShared() {
+  const box = $('#repair-share-view');
+  const on = $('#repair-share');
+  if (!box) return;
+  box.replaceChildren();
+  if (!shared) return;
+  if (on) {
+    on.checked = Boolean(shared.share?.on);
+    on.dataset.loaded = '1';
+  }
+  const friends = shared.friends ?? [];
+  if (shared.share?.on) {
+    if (!friends.length) box.append(el('p', 'small muted', t('Link a friend’s Sara under Messages first.')));
+    else {
+      const fs = el('fieldset', 'rp-friends');
+      fs.append(el('legend', 'small', t('Share with')));
+      for (const f of friends) {
+        const lab = el('label', 'small rp-friend');
+        const cb = el('input');
+        cb.type = 'checkbox';
+        cb.checked = (shared.share.links ?? []).includes(f.id);
+        cb.addEventListener('change', () => {
+          const links = friends.filter((x) => (x.id === f.id ? cb.checked : (shared.share.links ?? []).includes(x.id))).map((x) => x.id);
+          shareAct(() => api('/repair/settings', { method: 'PUT', body: { shareLinks: links } }), '');
+        });
+        lab.append(cb, document.createTextNode(` ${f.name}`));
+        fs.append(lab);
+      }
+      box.append(fs);
+    }
+  }
+  const ins = shared.in ?? [];
+  if (ins.length) {
+    box.append(el('p', 'small rp-sub', t('Fixes friends shared')));
+    const ul = el('ul', 'health rp-list');
+    for (const r of ins) {
+      const li = el('li', r.status === 'used' ? 'ok' : 'warn');
+      li.append(el('span', 'mark', r.status === 'used' ? '✓' : '+'));
+      const body = el('span', 'rp-body');
+      body.append(el('strong', '', t('From {name}’s Sara', { name: r.peer })), document.createTextNode(recipeLine(r)));
+      const meta = [t('worked on version {version}', { version: r.version })];
+      if (r.checks?.length) meta.push(r.checks.map((c) => `${c.name} ${c.skipped ? t('skipped') : c.ok ? t('passed') : t('failed')}`).join(', '));
+      body.append(el('span', 'muted small rp-fix', meta.join(' · ')));
+      const row = el('span', 'rp-acts');
+      if (r.status === 'new') {
+        row.append(btn(r.kind === 'code' ? t('Prepare and test it here') : t('Fix it the same way'), 'small', () => shareAct(() => api(`/remote-repair/recipes/${r.id}/accept`, { method: 'POST', body: {} }).then(() => loadRepair()), t('Fixing…'))));
+        row.append(btn(t('Not now'), 'ghost small', () => shareAct(() => api(`/remote-repair/recipes/${r.id}/dismiss`, { method: 'POST', body: {} }), '')));
+        body.append(el('span', 'muted small rp-fix', r.kind === 'code' ? t('Your Sara checks it against her own rules and runs her tests; then it waits for your OK under Updates → Code changes.') : t('Your Sara runs her own fix for this problem, with a copy first and Undo.')));
+      } else if (r.change) body.append(el('span', 'muted small rp-fix', t('Code change #{id}: see Updates → Code changes.', { id: r.change })));
+      else body.append(el('span', 'muted small rp-fix', t('Done: see What she fixed (Undo is there).')));
+      body.append(row, devButton(r));
+      li.append(body);
+      ul.append(li);
+    }
+    box.append(ul);
+  }
+  const sent = shared.sent ?? [];
+  if (sent.length) {
+    const d = el('details', 'rp-steps');
+    d.append(el('summary', 'small', t('Fixes you shared ({n})', { n: sent.length })));
+    const ul = el('ul', 'small rp-sent');
+    for (const r of sent.slice(0, 20)) {
+      const li = el('li', '', t('{what}: shared with {name}', { what: r.kind === 'code' ? (r.files ?? []).join(', ') : r.problem, name: r.peer }));
+      li.append(devButton(r));
+      ul.append(li);
+    }
+    d.append(ul);
+    box.append(d);
+  }
+}
+
 /** Loader: Settings → Privacy & system → Health. */
 export async function loadRepair() {
   if (!$('#repair-view')) return;
@@ -140,6 +261,7 @@ export async function loadRepair() {
   } catch {
     say(t('Not available'));
   }
+  await loadShared();
 }
 
 /** Saver (the permission select; the 24-hour switch saves at once). */
@@ -157,4 +279,5 @@ export function initRepair() {
   $('#repair-check')?.addEventListener('click', () => act(() => api('/repair/check', { method: 'POST', body: { deep: true } }), t('Checking everything…')));
   $('#repair-fix-all')?.addEventListener('click', () => act(() => api('/repair/fix', { method: 'POST', body: { problem: 'everything' } }), t('Fixing…')));
   $('#repair-full')?.addEventListener('change', (e) => act(() => api('/repair/settings', { method: 'PUT', body: { full: e.target.checked } }), ''));
+  $('#repair-share')?.addEventListener('change', (e) => shareAct(() => api('/repair/settings', { method: 'PUT', body: { share: e.target.checked } }), ''));
 }

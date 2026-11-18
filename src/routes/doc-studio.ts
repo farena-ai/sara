@@ -12,7 +12,7 @@ import { DocError, keepMade, madeDocs } from '../documents/make.ts';
 import { detectPlaceholders, fillDocxPlaceholders } from '../documents/placeholders.ts';
 import { docxToMarkdown, makeSignPdf, signersOf } from '../documents/sign.ts';
 import { docTemplates, docText } from '../documents/templates.ts';
-import { listRevisions, resolveAll } from '../documents/tracked.ts';
+import { listComments, listRevisions, resolveAll } from '../documents/tracked.ts';
 import type { DocSpec } from '../documents/spec.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import type { LibraryDoc } from '../library/store.ts';
@@ -67,9 +67,12 @@ export function createDocStudioRoutes(ctx: RouteCtx): RouteHandler {
       const tpl = store.get(doc.id);
       const type = tpl?.type ?? guessDocType(doc.name, text);
       let revisions: ReturnType<typeof listRevisions> = [];
+      let comments: ReturnType<typeof listComments> = [];
       if (docx) {
         try {
-          revisions = listRevisions(fileOf()).slice(0, 300);
+          const bytes = fileOf();
+          revisions = listRevisions(bytes).slice(0, 300);
+          comments = listComments(bytes).slice(0, 200);
         } catch {
           revisions = [];
         }
@@ -83,6 +86,7 @@ export function createDocStudioRoutes(ctx: RouteCtx): RouteHandler {
         template: tpl ?? null,
         placeholders: (tpl?.placeholders ?? detectPlaceholders(text)).filter((p) => p.kind !== 'signature'),
         revisions,
+        comments,
         checklist: text.trim() ? clauseChecklist(text, type) : null,
       });
     }

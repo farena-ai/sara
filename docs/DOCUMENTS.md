@@ -122,8 +122,22 @@ that document is refused.
 **Tracked changes.** When she revises a Word file, each change is a real Word revision by "Sara" with
 the date, word by word (only the words that change are marked). Open it in Word → **Review** to accept
 or reject each one; Track Changes is switched on in the file so your own edits are tracked too. The
-Library shows the same list (*Changed 30 → 15*, *Added*, *Removed*, who and when), with **Accept all**
-and **Reject all**. Every revision is a new version; the earlier ones are kept.
+Library shows the same list (*Changed 30 → 15*, *Added*, *Removed*, *Moved*, who and when, and where:
+Header, Footer, Footnote, Endnote, Text box), with **Accept all** and **Reject all** (every part of the
+file). Every revision is a new version; the earlier ones are kept.
+
+- **Everywhere in the file:** the body, headers, footers, footnotes, endnotes and text boxes (a text box
+  is stored twice in a Word file, for new and old Word; both copies get the change). When the words are
+  in more than one place she says where and asks you to quote more, or changes every place if you ask.
+- **Links and fields:** an edit through a link keeps the link (new words inside it stay linked); a field
+  such as a page number or date is never cut: its own value stays as it is.
+- **Comments:** *"Add a comment asking about the payment terms."* She leaves a Word comment by "Sara" on
+  the exact words instead of changing them. Comments go on the body and notes (Word has none in headers,
+  footers or text boxes). Accept all and Reject all leave comments alone, as Word does.
+- **Moving a paragraph:** *"Move the termination paragraph after the title."* Word shows it as a move
+  (green double underline where it went, strike-through where it was); accepting keeps it in the new
+  place, rejecting puts it back. A paragraph with a footnote, a comment, a text box or a complex field in
+  it is moved in Word instead.
 
 **Clause checklist.** For each kind of document, the usual clauses, each marked **present** (with the
 sentence quoted and where it is), **missing**, or **unusual** (with why):
@@ -150,15 +164,15 @@ changes left. If either fails, no PDF is made and she says what to fix (or makes
 | Piece | What it does |
 |---|---|
 | `src/documents/placeholders.ts` | Finds blanks in text (`detectPlaceholders`), fills text (`fillText`) and Word files in place (`fillDocxPlaceholders`: body, headers, footers). |
-| `src/documents/tracked.ts` | The paragraph model shared with filling: plain runs become characters that remember their run; edits keep each run's formatting; fields, links and earlier revisions are never cut. `reviseDocx` (find/replace word by word with an LCS diff, insert a paragraph, delete a paragraph; `w:ins`/`w:del` with `w:author`, `w:date`, unique `w:id`; paragraph marks too; `w:trackRevisions` in settings), `listRevisions`, `resolveAll` (accept/reject all), `addClauses`. |
+| `src/documents/tracked.ts` | The paragraph model shared with filling: plain runs become characters that remember their run (and hyperlink); edits keep each run's formatting; a hyperlink is rewritten around each stretch of its characters (same `r:id`), a `w:fldSimple` is kept whole, pictures, complex fields and earlier revisions are never cut. `openDocx` lists the story parts (main document, then `header*`/`footer*`, footnotes, endnotes, comments from the main part's rels) and `storyParas` every paragraph with where it is (`txbxContent` = text box; the `mc:Fallback` VML copy is paired as `twin` and edited alongside). `reviseDocx` (find/replace word by word with an LCS diff, `all` for every place, insert a paragraph, delete a paragraph, `comment`/`on`, `move`/`after`\|`before`; `w:ins`/`w:del`/`w:moveFrom`/`w:moveTo` with `w:author`, `w:date`, one id counter unique across every part; paragraph marks too; `w:trackRevisions` in settings; comments: `w:commentRangeStart`/`End` + a `w:commentReference` run, `comments.xml` made with its rel and content type when missing, `w14:paraId` entries added to `commentsExtended`/`commentsIds`/`commentsExtensible` when the file has them; moves: `moveFromRangeStart`/`moveToRangeStart` with one `w:name`), `listRevisions` (with `where`), `listComments` (with the anchored words), `resolveAll` (accept/reject all in every part; move range marks dropped), `addClauses`. |
 | `src/documents/clauses.ts` | `clauseChecklist(text, type)` per kind, reusing the E6 contract reader's sentences, places and flags (`src/biz/contracts.ts`); `guessDocType`. |
 | `src/documents/sign.ts` | `docxToMarkdown` (changes accepted) and `makeSignPdf`: the Ready to sign check, then the existing PDF maker with `spec.sign` (signature blocks: `/FT /Sig` and `/FT /Tx` widgets, an `/AcroForm`, appearance streams for filled names), read back with `readPdfForm`. |
 | `src/documents/templates.ts` | `doc_templates` table (per space), `pastClauses` (the person's own clause wording by kind, with its document), `quoteIn` (word-for-word check). |
 | `src/tools/doc-studio.ts` | Tools `doc_from_template`, `doc_revise`, `doc_checklist` (read-only), `doc_to_sign`; a document named in words means its newest version. Files are kept as made documents with `spec.edited` (never remade by `make_document`). |
 | `src/routes/doc-studio.ts`, `web/doc-studio.js` | `/api/doc-studio/…` (member route group `doc-studio`) and the Library panel. |
 
-Not done: comments (`w:comment`) and moved text, revising headers/footers and text boxes with tracked
-changes, real digital signatures (the fields are empty for the signer's own tool), legal-language
+Not done: replies to comments and marking them done, moving several paragraphs or part of one as one
+move, edits through complex fields (`w:fldChar`), real digital signatures (the fields are empty for the signer's own tool), legal-language
 checks beyond wording.
 
 ## Reading documents

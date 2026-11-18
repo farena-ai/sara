@@ -29,3 +29,5 @@ dialog#ask-all { width: min(860px, calc(100vw - 24px)); max-height: min(88vh, 90
   dialog#ask-all:not(#_) { padding-top: calc(16px + var(--safe-t)); padding-bottom: calc(16px + var(--safe-b)); }
   dialog#ask-all:not(#_) > .dialog-x { top: calc(10px + var(--safe-t)); }
 }
+/* U3.19: the item an Ask hit opened (a meeting line, a trip booking, a goal). */
+.ask-spot { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 6px; }

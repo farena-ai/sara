@@ -33,16 +33,28 @@ for the airport, tells you about delays, gate changes and cancellations, and lis
 
 ## Flight status sources
 
-No flight status source is free without a key, so status is **off** by default. The Trips page →
-Flight status has a provider slot:
+Status is **off** by default: nothing is asked until you pick a source. The Trips page → Flight status
+has a provider slot:
 
+- **OpenSky Network** (U3.14; opensky-network.org, free, no key, no account): live positions from public
+  ADS-B receivers. Shows only **in the air / on the ground / landed** and where the plane is: no gate,
+  delay or cancellation, and not every flight is covered (the page and `trip_status` say so). Its terms
+  allow personal and non-profit use; commercial use needs OpenSky's consent, so a business should use its
+  own AirLabs key instead. Anonymous use has 400 credits a day per address; one call costs 1-4 by area,
+  so Sara asks only from an hour before departure to an hour after arrival, with a box around the two
+  airports (the whole world only across the date line), and only for 88 airlines whose callsign
+  prefix it knows (LH400 → DLH400). Before departure it says "on the ground"; once airborne "in the air";
+  on the ground near the destination after departure "landed".
 - **AirLabs** (airlabs.co, free plan): sign up yourself, paste your API key, choose AirLabs. The key is
   stored in this space's vault (`data:airlabs`), never in chats, logs or the page. Sara checks only flights
   leaving in the next 36 hours: every 30 minutes, every 10 minutes in the last 6 hours, at most 3 checks
   per tick. Its answer is the flight's current or next run; another day's run is ignored.
 - Without a source you still get the timeline, check-in and leave-by alerts.
 
-No paid source is used, and none is signed up for you.
+No paid source is used, and none is signed up for you. Researched and not used (U3.14): FlightAware
+AeroAPI and AeroDataBox (keys with quotas and a card or paid tiers), airport/airline JSON feeds (no
+general, documented, free-to-reuse feed; each covers one airport), OpenSky's `/flights/*` endpoints (only
+yesterday's flights, refreshed at night).
 
 ## Design (one page)
 
@@ -77,6 +89,12 @@ Routes: `GET /api/trips`, `PUT /api/trips/settings`, `GET|PATCH|DELETE /api/trip
 clock).
 
 ## Limits
+
+- OpenSky (U3.14) was checked once by hand against the live anonymous API (see the handoff); tests use
+  recorded answers only. Callsigns that differ from the flight number (some airlines use letters, e.g.
+  BAW12A) are not found; positions can lag or be missing over oceans.
+- U3.12: booking mails in Spanish, French, German, Brazilian Portuguese and Italian are read with their
+  own words (docs/LANGUAGES_TEXT.md).
 
 - The AirLabs adapter follows its documented v9 `flight` and `schedules` answers; it was not run against
   the live service (no key on the build machine).

@@ -130,6 +130,7 @@ function wordRunText(el: XmlElement, out: string[], boxes: XmlElement[]): void {
         break;
       }
       case 'del':
+      case 'moveFrom': // moved text shows where it went (w:moveTo), as with every change accepted
       case 'delText':
       case 'instrText':
       case 'pPr':

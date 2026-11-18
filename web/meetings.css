@@ -29,7 +29,7 @@
 .ms-added { color: var(--accent); }
 /* S2: times, search, speakers, playback, drafts, the desktop recorder, the Today tile. */
 .ms-line { grid-template-columns: 52px minmax(70px, max-content) 1fr; align-items: baseline; }
-.ms-time { min-height: 28px; padding: 0 6px; font-variant-numeric: tabular-nums; justify-self: start; }
+.ms-time { min-height: 28px; padding: 0 6px; font-variant-numeric: tabular-nums; justify-self: start; white-space: nowrap; }
 .ms-audio { width: 100%; }
 .ms-tools .ms-field input[type="search"] { width: 100%; max-width: 100%; }
 .ms-speakers { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }

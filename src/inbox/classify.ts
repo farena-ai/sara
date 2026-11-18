@@ -8,6 +8,8 @@
 
 import { schoolFindings } from './school.ts';
 
+import { detectLang, type TextLang } from '../lang-text.ts';
+import { findDateIn, travelIn } from './travel-i18n.ts';
 export const INBOX_KINDS = ['bill', 'receipt', 'shipping', 'trip', 'appointment', 'invoice_paid', 'file', 'school'] as const;
 export type InboxKind = (typeof INBOX_KINDS)[number];
 /** Kinds that may run on their own once the person turns on "do it for me" (filing has its rules). */
@@ -144,7 +146,9 @@ export function amountOf(s: string): string | undefined {
  * "November 20, 2026", "Nov 20", "Fri, Nov 20 at 3:30 PM", "11/20/2026", "2026-11-20 14:05".
  * A date without a year is the next one on or after `now` (in the mail's own words, local time).
  */
-export function findDate(text: string, now: Date): { day: string; time?: string } | undefined {
+export function findDate(text: string, now: Date, lang: TextLang = 'en'): { day: string; time?: string } | undefined {
+  // U3.12: other languages write the day first, with their own month names and 24-hour times.
+  if (lang !== 'en') return findDateIn(text, now, lang);
   const s = text.replace(/\s+/g, ' ');
   const year = now.getUTCFullYear();
   const pick = (y: number | undefined, mo: number, d: number): string | undefined => {
@@ -483,7 +487,11 @@ export function classify(m: InboxMail, now: Date): { findings: Finding[]; unclea
   const ld = fromJsonLd(jsonLd(m.html));
   // R8: school mail (newsletters too) is read for its dates before the other rules skip newsletters.
   const school = ld.length ? [] : schoolFindings(m, now);
-  const findings = ld.length ? ld : school.length ? school : fromRules(m, text.slice(0, 40_000), now);
+  // U3.12: bookings in a mail written in Spanish, French, German, Portuguese or Italian use that
+  // language's words only (src/inbox/travel-i18n.ts).
+  const lang = ld.length || school.length ? 'en' : detectLang(`${m.subject}\n${text.slice(0, 3000)}`);
+  const local = lang === 'en' ? [] : travelIn(m.subject, text.slice(0, 40_000), now, lang, senderName(m.from));
+  const findings = ld.length ? ld : school.length ? school : local.length ? local : fromRules(m, text.slice(0, 40_000), now);
   return { findings, unclear: !findings.length && looksUnclear(m, text) };
 }
 

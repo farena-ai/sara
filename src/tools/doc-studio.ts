@@ -178,12 +178,12 @@ export function createDocStudioTools(getApp: () => AppContext): Tool[] {
     spec: {
       name: 'doc_revise',
       description:
-        "Revise a Word document (.docx) with real tracked changes: each change is written as a Word revision by Sara with the date, so the person can Accept or Reject it in Word (Review tab) or in the app. changes: [{\"find\": \"exact words now in it\", \"replace\": \"new words\"}], [{\"after\": \"words in a paragraph\", \"insert\": \"a new paragraph after it\"}], [{\"deleteParagraph\": \"words in the paragraph\"}]. Quote enough words to be unique. resolve: \"accept\" or \"reject\" applies or drops every tracked change (when they decide). Makes a new version; the earlier one is kept.",
+        "Revise a Word document (.docx) with real tracked changes: each change is written as a Word revision by Sara with the date (body, headers, footers, footnotes, text boxes), so the person can Accept or Reject it in Word (Review tab) or in the app. changes: [{\"find\": \"exact words now in it\", \"replace\": \"new words\"}] (add \"all\": true to change every place), [{\"after\": \"words in a paragraph\", \"insert\": \"a new paragraph after it\"}], [{\"deleteParagraph\": \"words in the paragraph\"}], [{\"comment\": \"a note or question\", \"on\": \"exact words it is about\"}] (a Word comment instead of an edit), [{\"move\": \"words in a paragraph\", \"after\": \"words in the paragraph it goes after\"}] (or \"before\"; a tracked move). Quote enough words to be unique. resolve: \"accept\" or \"reject\" applies or drops every tracked change (when they decide). Makes a new version; the earlier one is kept.",
       parameters: {
         type: 'object',
         properties: {
           document: { type: 'string', description: 'The Word document: its name or Library number.' },
-          changes: { type: 'array', items: { type: 'object' }, description: 'The changes (find/replace, after/insert, deleteParagraph).' },
+          changes: { type: 'array', items: { type: 'object' }, description: 'The changes (find/replace, after/insert, deleteParagraph, comment/on, move/after).' },
           resolve: { type: 'string', enum: ['accept', 'reject'], description: 'Optional: accept or reject every tracked change in it instead.' },
         },
         required: ['document'],
@@ -208,11 +208,12 @@ export function createDocStudioTools(getApp: () => AppContext): Tool[] {
       const res = wrapDoc(() => reviseDocx(bytes, changes, { date: e.app.now() }));
       const bad = res.applied.filter((a) => a.status !== 'done');
       const badText = bad.length ? `\nNot changed:\n${bad.map((b) => `- ${b.change}: ${b.detail ?? b.status}`).join('\n')}` : '';
-      if (!res.revisions) return `No tracked changes were made in “${doc.name}”.${badText}\nQuote the words exactly as the document has them and try again.`;
+      if (!res.revisions && !res.comments) return `No tracked changes were made in “${doc.name}”.${badText}\nQuote the words exactly as the document has them and try again.`;
       const spec: DocSpec = { format: 'docx', title, template: 'plain', content: docxToMarkdown(res.data), edited: { kind: 'tracked', fromId: doc.id, fromName: doc.name } };
       const done = res.applied.filter((a) => a.status === 'done');
       const saved = keepAndShare(e, ctx, spec, res.data, doc);
-      return `Wrote ${done.length} tracked ${done.length === 1 ? 'change' : 'changes'} (${listRevisions(res.data).length} revision marks, author Sara, ${e.app.now().toISOString().slice(0, 10)}):\n${done.map((d) => `- ${d.change}`).join('\n')}${badText}\n${saved} In Word: Review → Accept or Reject each change; the Library's Review view shows them too.`;
+      const notes = res.comments ? ` and ${res.comments} ${res.comments === 1 ? 'comment' : 'comments'}` : '';
+      return `Wrote ${done.length - res.comments} tracked ${done.length - res.comments === 1 ? 'change' : 'changes'}${notes} (${listRevisions(res.data).length} revision marks, author Sara, ${e.app.now().toISOString().slice(0, 10)}):\n${done.map((d) => `- ${d.change}${d.detail ? ` ${d.detail}` : ''}`).join('\n')}${badText}\n${saved} In Word: Review → Accept or Reject each change (comments are in the margin); the Library's Review view shows them too.`;
     },
   };
 

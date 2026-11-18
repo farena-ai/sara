@@ -116,6 +116,10 @@ export class MadeDocs {
   versions(family: number): MadeDoc[] {
     return (this.#db.prepare('SELECT * FROM made_docs WHERE family = ? ORDER BY version').all(family) as Row[]).map(toMade);
   }
+  /** U3.19: the newest version of each made document, newest first (Ask about anything). */
+  recent(limit = 200): MadeDoc[] {
+    return (this.#db.prepare('SELECT * FROM made_docs WHERE id IN (SELECT MAX(id) FROM made_docs GROUP BY family) ORDER BY id DESC LIMIT ?').all(limit) as Row[]).map(toMade);
+  }
   /** S7: the made document whose file is this Library document (its newest version). */
   byLibrary(libraryId: number): MadeDoc | undefined {
     const r = this.#db.prepare('SELECT * FROM made_docs WHERE library_id = ? ORDER BY id DESC LIMIT 1').get(libraryId) as Row | undefined;

@@ -172,7 +172,7 @@ test('s2 hearing: local first, a cloud engine only when allowed for meetings', (
   const local = rig(t);
   local.app.settings.update({ voice: { stt: 'openai', tts: 'local', openai: { baseUrl: 'https://api.openai.com/v1' } } } as never);
   assert.equal(local.meetings.refusal(), null, 'a hearing engine on this computer is used first');
-  assert.deepEqual(local.meetings.prefs(), { remind: true, cloud: false });
+  assert.deepEqual(local.meetings.prefs(), { remind: true, cloud: false, speakers: true });
 });
 
 test('s2 Today tile and tools: action items due, meeting_list and meeting_summarize only read', async (t) => {

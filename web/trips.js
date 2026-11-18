@@ -34,6 +34,8 @@ function statusWords(st) {
   if (st.state === 'cancelled') bits.push(t('Cancelled'));
   else if (st.state === 'diverted') bits.push(t('Diverted'));
   else if (st.state === 'landed') bits.push(t('Landed'));
+  // U3.14: a position-only source (OpenSky) says where the plane is, never "on time".
+  else if (st.position) bits.push(st.position.onGround ? t('On the ground') : t('In the air'));
   else if ((st.depDelayMin ?? 0) >= 15) bits.push(t('Delayed {n} min', { n: st.depDelayMin }));
   else bits.push(t('On time'));
   if (st.depGate) bits.push(t('Gate {gate}', { gate: st.depGate }));
@@ -60,9 +62,19 @@ export function initTrips(c) {
   for (const [id, key] of [['#tp-alerts', 'alerts'], ['#tp-checkin', 'checkin'], ['#tp-leaveby', 'leaveBy']]) $(id)?.addEventListener('change', (e) => void save({ [key]: e.target.checked }));
 }
 
-export async function openTrips() {
+/** U3.19: an Ask hit opened here: the item outlined and scrolled into view. */
+function spot(node) {
+  if (!node) return;
+  node.classList.add('ask-spot');
+  node.scrollIntoView?.({ block: 'center' });
+  setTimeout(() => node.classList.remove('ask-spot'), 4000);
+}
+
+/** Opens Trips; from an Ask hit, at the trip (and its booking). */
+export async function openTrips(id, booking) {
   await loadTrips();
   if (!$('#trips').open) $('#trips').showModal();
+  if (id) spot($(`#tp-list [data-booking="${Number(booking)}"]`) ?? $(`#tp-list [data-trip="${Number(id)}"]`));
 }
 
 export async function loadTrips() {
@@ -93,12 +105,15 @@ function paintSettings() {
   for (const [id, v] of [['#tp-alerts', s.alerts], ['#tp-checkin', s.checkin], ['#tp-leaveby', s.leaveBy]]) if ($(id)) $(id).checked = v;
   const k = $('#tp-key-row');
   if (k) k.hidden = s.provider !== 'airlabs';
+  const note = $('#tp-src-note');
+  if (note) note.hidden = s.provider !== 'opensky';
   const has = $('#tp-key-state');
   if (has) has.textContent = s.hasKey ? t('A key is saved.') : t('No key saved yet.');
 }
 
 function bookingRow(b) {
   const li = el('li', `tp-b tp-${b.kind}`);
+  li.dataset.booking = String(b.id);
   const top = el('div', 'tp-b-top');
   top.append(el('span', 'tp-kind', KIND_WORDS()[b.kind] ?? b.kind), el('strong', 'tp-b-title', b.title));
   if (b.status) top.append(el('span', `er-chip tp-chip tp-st-${b.status.state}${(b.status.depDelayMin ?? 0) >= 15 ? ' tp-late' : ''}`, statusWords(b.status)));
@@ -132,6 +147,7 @@ function bookingRow(b) {
 
 function card(trip) {
   const c = el('section', 'tp-card');
+  c.dataset.trip = String(trip.id);
   const head = el('div', 'tp-head');
   head.append(el('strong', 'tp-title', trip.title), el('span', 'muted small', trip.dates));
   const ol = el('ol', 'tp-line');

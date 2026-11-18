@@ -11,6 +11,10 @@
 //                  the change with its own model and caps; only the request text crosses). Level 3 always asks.
 //                  Live `status` events go back to Sam after every step; Stop (either side) ends after the
 //                  current step and undoes nothing; Undo stays offered for each undoable step.
+//                  U3.18: a code step does not end at "handed over": its whole T3 life (preparing → prepared
+//                  with test names/results → approved → applied / rolled back / undone, or not prepared,
+//                  discarded, parked) goes back as signed status events; the help logs on both sides record
+//                  each phase and the final report says how the code change ended.
 // Wire: POST /msg/v1/repair/<op>, signed like S9b with the scope word 'repair' (a 'support' signature never
 // passes here, nor the other way round). Owner only: members, kid mode and the demo have no Messenger.
 import { randomUUID } from 'node:crypto';
@@ -22,7 +26,8 @@ import { en, fill } from './i18n.ts';
 import type { Messenger } from './messages.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { neverTouch, recordRepair, type Problem, type Repair, type RepairRun } from './repair.ts';
-import { selfCodeOf } from './self-code.ts';
+import { fixRecipesOf } from './fix-recipes.ts';
+import { selfCodeOf, type ChangeStatus, type CodeChange } from './self-code.ts';
 import type { Settings } from './settings.ts';
 import { cleanChange, patchFor, SUPPORT_ALLOW, SUPPORT_HOURS, SupportError, supportOf, valueAt, type SupportLink } from './support.ts';
 
@@ -32,6 +37,65 @@ export const STEP_KINDS = ['fix', 'learn', 'setting', 'code'] as const;
 export const MAX_STEPS = 10;
 const TEXT = 1000;
 const FINAL = new Set(['done', 'failed', 'declined', 'skipped', 'refused']);
+
+/** U3.18: where a code-change step is in its life on the helped server. */
+export const CODE_PHASES = ['preparing', 'prepared', 'not-prepared', 'approved', 'applied', 'failed', 'rolledback', 'undone', 'discarded', 'parked'] as const;
+export type CodePhase = (typeof CODE_PHASES)[number];
+export interface CodeView {
+  phase: CodePhase;
+  /** Test names with pass/fail only (never their output). */
+  checks?: { name: string; ok: boolean; skipped?: boolean }[];
+  events: { at: string; phase: CodePhase }[];
+}
+/** A T3 change status as a phase (a failure after the owner's OK is "failed", before it "not prepared"). */
+export function codePhase(s: ChangeStatus, prev?: CodePhase): CodePhase {
+  switch (s) {
+    case 'working':
+      return 'preparing';
+    case 'proposed':
+      return 'prepared';
+    case 'refused':
+    case 'stopped':
+      return prev === 'approved' ? 'failed' : 'not-prepared';
+    case 'failed':
+      return prev === 'approved' || prev === 'applied' ? 'failed' : 'not-prepared';
+    case 'applying':
+      return 'approved';
+    case 'applied':
+    case 'undoing':
+      return 'applied';
+    default:
+      return s;
+  }
+}
+const CODE_TEXT: Record<CodePhase, string> = {
+  preparing: en('Code change #{id} is still being prepared.'),
+  prepared: en('Code change #{id} was prepared and tested; it waits for the owner’s OK.'),
+  'not-prepared': en('Code change #{id} was not prepared.'),
+  approved: en('Code change #{id} was approved and is being applied.'),
+  applied: en('Code change #{id} was applied.'),
+  failed: en('Code change #{id} did not work.'),
+  rolledback: en('Code change #{id} went back: she did not start properly with it.'),
+  undone: en('Code change #{id} was undone.'),
+  discarded: en('Code change #{id} was discarded.'),
+  parked: en('Code change #{id} was parked after an update.'),
+};
+/** The helper is told about these (the others show in the plan view). */
+const CODE_NOTICE: Partial<Record<CodePhase, string>> = {
+  'not-prepared': en('The code change from your fix plan was not prepared on their Sara.'),
+  applied: en('The code change from your fix plan was applied on their Sara.'),
+  rolledback: en('The code change from your fix plan went back: their Sara did not start properly with it.'),
+  undone: en('The code change from your fix plan was undone on their Sara.'),
+};
+const checkList = (c: unknown) => (Array.isArray(c) ? c : []).slice(0, 8).map((x: Record<string, unknown>) => ({ name: clip(x?.name, 20), ok: Boolean(x?.ok), ...(x?.skipped ? { skipped: true } : {}) }));
+/** The code part of a status event, as the helper keeps it. */
+function cleanCode(x: unknown): CodeView | undefined {
+  const o = (x && typeof x === 'object' ? x : undefined) as Record<string, unknown> | undefined;
+  if (!o || !CODE_PHASES.includes(o.phase as CodePhase)) return undefined;
+  const events = (Array.isArray(o.events) ? o.events : []).slice(-20).filter((e: Record<string, unknown>) => CODE_PHASES.includes(e?.phase as CodePhase)).map((e: Record<string, unknown>) => ({ at: clip(e.at, 40), phase: e.phase as CodePhase }));
+  return { phase: o.phase as CodePhase, ...(o.checks ? { checks: checkList(o.checks) } : {}), events };
+}
+const codeLog = (id: number | undefined, c: CodeView) => `#${id ?? '?'} ${c.phase}${c.phase === 'prepared' && c.checks?.length ? ` (${c.checks.map((k) => `${k.name} ${k.skipped ? 'skipped' : k.ok ? 'ok' : 'failed'}`).join(', ')})` : ''}`;
 
 export type StepStatus = 'waiting' | 'ready' | 'running' | 'done' | 'failed' | 'declined' | 'skipped' | 'refused';
 export interface PlanStep {
@@ -55,6 +119,7 @@ export interface StepView extends PlanStep {
   undoable: boolean;
   undone: boolean;
   change?: number;
+  code?: CodeView;
 }
 export interface FixPassView {
   id: string;
@@ -90,7 +155,7 @@ export interface PlanView {
 /** What the helped side's engines are (the real server's, or a test's). */
 export interface HelpedDeps {
   repair(): Repair | undefined;
-  selfCode(): { start(request: string): { id: number } } | undefined;
+  selfCode(): { start(request: string): { id: number; status?: ChangeStatus }; get?(id: number): CodeChange | undefined } | undefined;
   settings: { get(): Settings; update(p: Partial<Settings>): unknown };
   record(run: Omit<RepairRun, 'id' | 'at' | 'undone'>): RepairRun | undefined;
   privateLocal(): boolean;
@@ -369,6 +434,7 @@ export class RemoteRepair {
     return r ? this.#planView(r) : undefined;
   }
   plans(): PlanView[] {
+    this.sync();
     return (this.#db.prepare('SELECT * FROM rr_plans ORDER BY created_at DESC, rowid DESC LIMIT 30').all() as Record<string, unknown>[]).map((r) => this.#planView(r));
   }
   #save(p: PlanView): void {
@@ -553,7 +619,8 @@ export class RemoteRepair {
       const sc = this.deps.selfCode();
       if (!sc) return { status: 'refused', detail: en('This install can’t change its own code.') };
       const ch = sc.start(s.request!);
-      return { status: 'done', change: ch.id, detail: en('Prepared as code change #{id}: your Sara writes and tests it herself, then it waits for your OK under Updates → Code changes.'), detailParams: { id: ch.id } };
+      const phase = codePhase(ch.status ?? 'working');
+      return { status: 'done', change: ch.id, code: { phase, events: [{ at: this.#iso(), phase }] }, detail: en('Prepared as code change #{id}: your Sara writes and tests it herself, then it waits for your OK under Updates → Code changes.'), detailParams: { id: ch.id } };
     } catch (err) {
       return { status: err instanceof SupportError && err.status === 400 ? 'refused' : 'failed', detail: en('It did not work: {why}'), detailParams: { why: clip((err as Error).message, 200) } };
     }
@@ -573,7 +640,47 @@ export class RemoteRepair {
   async #emit(p: PlanView): Promise<void> {
     this.#changed(p.link);
     if (p.side !== 'in') return;
-    await this.#track(this.#sp.call(p.link, 'status', { plan: p.peerId, status: p.status, reason: p.reason, steps: p.steps.map(({ n, kind, title, params, status, detail, detailParams, undoable, undone, change }) => ({ n, kind, title, params, status, detail, detailParams, undoable, undone, change })) }, 'repair').catch(() => null));
+    // One plan's events go out in order (each carries the whole state, so the last one wins).
+    const prev = this.#sending.get(p.id) ?? Promise.resolve();
+    const send = prev.then(() => (this.#closed ? null : this.#sp.call(p.link, 'status', { plan: p.peerId, status: p.status, reason: p.reason, steps: p.steps.map(({ n, kind, title, params, status, detail, detailParams, undoable, undone, change, code }) => ({ n, kind, title, params, status, detail, detailParams, undoable, undone, change, code })) }, 'repair').catch(() => null)));
+    this.#sending.set(p.id, send);
+    void send.finally(() => this.#sending.get(p.id) === send && this.#sending.delete(p.id));
+    await this.#track(send);
+  }
+  readonly #sending = new Map<string, Promise<unknown>>();
+
+  // ---- U3.18: a code step's life ------------------------------------------------------------------------
+  /** T3 told us a change moved (SelfCode's onStatus): the plan step that asked for it follows and tells the helper. */
+  codeChanged(c: Pick<CodeChange, 'id' | 'status' | 'checks'>): void {
+    if (this.#closed) return;
+    const rows = this.#db.prepare("SELECT * FROM rr_plans WHERE side = 'in' AND steps LIKE ?").all(`%"change":${Number(c.id)}%`) as Record<string, unknown>[];
+    for (const r of rows) {
+      const p = this.#planView(r);
+      const s = p.steps.find((x) => x.kind === 'code' && x.change === c.id);
+      if (!s) continue;
+      const phase = codePhase(c.status, s.code?.phase);
+      const checks = c.checks?.steps?.length ? checkList(c.checks.steps) : s.code?.checks;
+      if (s.code?.phase === phase) continue;
+      s.code = { phase, ...(checks ? { checks } : {}), events: [...(s.code?.events ?? []), { at: this.#iso(), phase }].slice(-20) };
+      if (['stopped', 'done', 'failed'].includes(p.status)) p.report = reportOf(p, 'helped');
+      this.#save(p);
+      this.#log(p.link, p.peer, 'helped', 'code', codeLog(c.id, s.code));
+      this.#audit('code', { outcome: ['not-prepared', 'failed', 'rolledback'].includes(phase) ? 'failed' : 'ok', target: `code:${c.id}`, content: phase });
+      void this.#emit(p);
+    }
+  }
+  /** Catch up after a restart (the hook was not there while a change went live or back). */
+  sync(): void {
+    const sc = this.deps.selfCode();
+    if (!sc?.get || this.#closed) return;
+    const rows = this.#db.prepare("SELECT steps FROM rr_plans WHERE side = 'in' AND steps LIKE '%\"code\":{%'").all() as { steps: string }[];
+    for (const r of rows) {
+      for (const s of JSON.parse(r.steps) as StepView[]) {
+        if (s.kind !== 'code' || !s.change || ['undone', 'discarded'].includes(s.code?.phase ?? '')) continue;
+        const c = sc.get(s.change);
+        if (c && codePhase(c.status, s.code?.phase) !== s.code?.phase) this.codeChanged(c);
+      }
+    }
   }
 
   // ---- the helper's side -------------------------------------------------------------------------------
@@ -603,9 +710,18 @@ export class RemoteRepair {
     const status = String(b.status) as PlanView['status'];
     if (!['waiting', 'running', 'stopping', 'stopped', 'done', 'failed'].includes(status) || !Array.isArray(b.steps)) throw bad('bad status');
     const was = p.status;
+    const before = p.steps;
     p.status = status;
     p.reason = clip(b.reason, 300);
-    p.steps = (b.steps as Record<string, unknown>[]).slice(0, MAX_STEPS).map((s, n) => ({ n, kind: String(s.kind) as StepView['kind'], title: clip(s.title, 300), ...(s.params && typeof s.params === 'object' ? { params: s.params as Record<string, string> } : {}), status: String(s.status) as StepStatus, ...(s.detail ? { detail: clip(s.detail, 300) } : {}), ...(s.detailParams && typeof s.detailParams === 'object' ? { detailParams: s.detailParams as Record<string, string> } : {}), undoable: Boolean(s.undoable), undone: Boolean(s.undone), ...(s.change ? { change: Number(s.change) } : {}) }));
+    p.steps = (b.steps as Record<string, unknown>[]).slice(0, MAX_STEPS).map((s, n) => ({ n, kind: String(s.kind) as StepView['kind'], title: clip(s.title, 300), ...(s.params && typeof s.params === 'object' ? { params: s.params as Record<string, string> } : {}), status: String(s.status) as StepStatus, ...(s.detail ? { detail: clip(s.detail, 300) } : {}), ...(s.detailParams && typeof s.detailParams === 'object' ? { detailParams: s.detailParams as Record<string, string> } : {}), undoable: Boolean(s.undoable), undone: Boolean(s.undone), ...(s.change ? { change: Number(s.change) } : {}), ...(cleanCode(s.code) ? { code: cleanCode(s.code) } : {}) }));
+    // U3.18: each new phase of a code step goes into the help log; the big ones are a notice.
+    for (const s of p.steps) {
+      if (!s.code) continue;
+      const seen = before.find((x) => x.n === s.n)?.code?.events.length ?? 0;
+      for (const e of s.code.events.slice(seen)) this.#log(link, name, 'helper', 'code', codeLog(s.change, { ...s.code, phase: e.phase }));
+      const had = before.find((x) => x.n === s.n)?.code?.phase;
+      if (had !== s.code.phase && CODE_NOTICE[s.code.phase]) this.#m.onNotify?.(name, `${CODE_NOTICE[s.code.phase]} ${fill(CODE_TEXT[s.code.phase], { id: s.change ?? '?' })}`, link);
+    }
     const final = ['stopped', 'done', 'failed'].includes(status);
     if (final) p.report = reportOf(p, 'helper');
     this.#save(p);
@@ -628,7 +744,8 @@ export function reportOf(p: PlanView, side: 'helped' | 'helper'): string {
   ].filter(Boolean);
   const end = p.status === 'stopped' ? ` ${p.reason || en('Stopped.')}` : '';
   const undo = side === 'helped' && p.steps.some((s) => s.undoable && !s.undone) ? ` ${en('You can undo each step in Messages.')}` : '';
-  return `${parts.join(', ')}.${end}${undo}`;
+  const code = p.steps.filter((s) => s.kind === 'code' && s.code).map((s) => ` ${fill(CODE_TEXT[s.code!.phase], { id: s.change ?? '?' })}`).join('');
+  return `${parts.join(', ')}.${end}${code}${undo}`;
 }
 
 const cache = new WeakMap<Messenger, RemoteRepair>();
@@ -655,6 +772,13 @@ export function remoteRepairOf(app: AppContext): RemoteRepair | undefined {
       notify: (title, body, link) => m.onNotify?.(title, body, link),
     };
     cache.set(m, (r = new RemoteRepair({ dataDir: app.dataDir, messenger: m, support: sp, now: () => app.now(), deps })));
+    fixRecipesOf(app);
   }
   return r;
+}
+
+/** U3.17/U3.18: SelfCode's onStatus (main.ts): the plan step that asked for it, and sharing an applied fix. */
+export function onCodeStatus(app: AppContext, c: CodeChange): void {
+  remoteRepairOf(app)?.codeChanged(c);
+  fixRecipesOf(app)?.shareCode(c);
 }

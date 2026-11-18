@@ -36,9 +36,19 @@ export function initGoals(c) {
   });
 }
 
-export async function openGoals() {
+/** U3.19: an Ask hit opened here: the item outlined and scrolled into view. */
+function spot(node) {
+  if (!node) return;
+  node.classList.add('ask-spot');
+  node.scrollIntoView?.({ block: 'center' });
+  setTimeout(() => node.classList.remove('ask-spot'), 4000);
+}
+
+/** Opens Goals; from an Ask hit, at the goal. */
+export async function openGoals(id) {
   await loadGoals();
   if (!$('#goals').open) $('#goals').showModal();
+  if (id) spot($(`#gl-list [data-goal="${Number(id)}"]`));
 }
 
 export async function loadGoals() {

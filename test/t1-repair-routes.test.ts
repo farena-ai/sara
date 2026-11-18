@@ -85,7 +85,7 @@ test('T1 routes: the permission setting and the 24-hour full permission (expires
   assert.equal(v.settings.fullOn, false, 'runs out after 24 hours');
   v = await req('PUT', '/api/repair/settings', { full: false });
   assert.equal(v.settings.fullUntil, null);
-  assert.deepEqual(app.settings.get().repair, { permission: 'ask', fullUntil: null });
+  assert.deepEqual(app.settings.get().repair, { permission: 'ask', fullUntil: null, share: false, shareLinks: [] });
 });
 
 test('T1 tools: repair_status reads; repair_fix runs alone in auto1, asks in ask mode, always asks to grow', async (t) => {

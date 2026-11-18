@@ -1209,6 +1209,7 @@
     <form method="dialog" class="settings-body">
       <h2 id="ask-title">Ask about anything in your life</h2>
       <p class="muted small">One question across your emails, files, chats, calendars, notes, lists and contacts. Every answer line names where it came from; tap it to open the source. Private chats are never searched.</p>
+      <p class="muted small ask-more">Also your meetings (with the time it was said), trips, documents, research reports and goals.</p>
       <div class="ask-row"><input id="ask-q" type="search" placeholder="When is my lease renewal due?" autocomplete="off" aria-label="Ask about anything in your life"><button id="ask-go" type="button">Ask</button></div>
       <div id="ask-sources" class="ask-sources" role="group" aria-label="Where to look"></div>
       <p id="ask-status" class="muted small" role="status"></p>
@@ -1555,9 +1556,10 @@
       <p class="muted small">Bookings she finds in your email (flights, hotels, rental cars, trains, event tickets) become one timeline per trip, with times in each place’s time zone. She reminds you to check in, says when to leave for the airport and tells you about delays, gate changes and cancellations. She never books, changes or pays for anything.</p>
       <p id="tp-status" class="muted small" role="status"></p>
       <div id="tp-list" class="tp-list"></div>
-      <h3>Flight status <button type="button" class="tip" data-tip="Flight status comes from a source you turn on. None is free without a key, so it starts off; check-in and leave-by reminders work without one.">?</button></h3>
+      <h3>Flight status <button type="button" class="tip" data-tip="Flight status comes from a source you turn on, so it starts off. Check-in and leave-by reminders work without one.">?</button></h3>
       <div class="tp-set" data-nodirty data-noauto>
-        <div class="tp-row"><button type="button" class="tip" data-tip="AirLabs has a free plan: sign up at airlabs.co, copy your API key and save it here. She checks only flights leaving within 36 hours.">?</button><span>Source</span> <select id="tp-provider" aria-label="Flight status source"><option value="off">Off</option><option value="airlabs">AirLabs (your own free key)</option></select></div>
+        <div class="tp-row"><button type="button" class="tip" data-tip="OpenSky: free, no key, position only (in the air or landed). AirLabs: gates and delays with your own free key from airlabs.co. She checks flights leaving within 36 hours.">?</button><span>Source</span> <select id="tp-provider" aria-label="Flight status source"><option value="off">Off</option><option value="opensky">OpenSky Network (free, no key, position only)</option><option value="airlabs">AirLabs (your own free key)</option></select></div>
+        <p id="tp-src-note" class="muted small" hidden>OpenSky shows only whether the plane is in the air or on the ground, from public receivers: no gate, delay or cancellation, and not every flight is covered. Free for personal use.</p>
         <div id="tp-key-row" class="tp-row" hidden><button type="button" class="tip" data-tip="The key is kept in this server’s vault, never in chats or logs. Save an empty box to remove it.">?</button><input id="tp-key" type="password" autocomplete="off" placeholder="AirLabs API key" aria-label="AirLabs API key"> <button id="tp-key-save" type="button" class="small">Save key</button> <span id="tp-key-state" class="muted small"></span></div>
         <label class="tp-check"><input id="tp-alerts" type="checkbox"> Delays, gate changes and cancellations on your phone <button type="button" class="tip" data-tip="Delays of 15 minutes or more, gate changes, diversions and cancellations, with rebooking options. Close to departure they come even in quiet hours.">?</button></label>
         <label class="tp-check"><input id="tp-checkin" type="checkbox"> Check-in reminder 24 hours before <button type="button" class="tip" data-tip="A reminder when check-in opens, 24 hours before each flight, with a link to the airline.">?</button></label>
@@ -2854,6 +2856,8 @@
       <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
         <label class="row"><input id="meet-remind" type="checkbox"> Remind me to tell everyone <button type="button" class="tip" data-tip="Before a recording starts she shows, and says out loud, a line asking everyone on the call to agree.">?</button></label>
         <label class="row"><input id="meet-cloud" type="checkbox"> Let a cloud engine hear meetings <button type="button" class="tip" data-tip="Off: meetings are heard only by the hearing engine on this computer. On: your Speech API or Grok voice may hear them when there is no local engine.">?</button></label>
+        <label class="row"><input id="meet-speakers" type="checkbox"> Better speaker separation <button type="button" class="tip" data-tip="Tells up to 8 voices apart in uploads and one-microphone recordings, on this computer. A free add-on (about 40 MB) downloads the first time a meeting needs it. Off or not there yet: speakers are split by pauses and pitch (two at most).">?</button></label>
+        <p id="meet-speakers-row" class="small" hidden><span id="meet-speakers-status" class="muted small" role="status"></span> <button id="meet-speakers-get" type="button" class="ghost small">Download now</button> <button id="meet-speakers-remove" type="button" class="ghost small">Remove</button></p>
         <p id="meet-prefs-note" class="muted small" role="status"></p>
       </div>
         </section>
@@ -4808,6 +4812,8 @@
       <p class="small"><label><input type="checkbox" id="repair-full" data-nodirty data-noauto> Full permission for 24 hours <button type="button" class="tip" data-tip="One OK covers every step of a bigger repair for 24 hours. She never changes safety, limits, kid mode, approvals, the audit trail or her own permission.">?</button></label> <span id="repair-full-until" class="muted small"></span></p>
       <p class="small"><button id="repair-check" type="button">Check now</button> <button id="repair-fix-all" type="button" class="ghost">Fix what she can</button> <span id="repair-status" class="muted small" role="status"></span></p>
       <div id="repair-view" class="rp-view" data-nodirty data-noauto></div>
+      <p id="repair-share-row" class="small" hidden><label><input type="checkbox" id="repair-share" data-nodirty data-noauto> Share fixes that worked <button type="button" class="tip" data-tip="Off by default. A fix that worked here goes to the linked friends you tick: the kind of problem and the fix, never your data. Their Sara asks them before using it.">?</button></label></p>
+      <div id="repair-share-view" class="rp-view" data-nodirty data-noauto></div>
       <h3>Run history <button type="button" class="tip" data-tip="Each reply, background job and team task keeps a record of its steps: the model, what went into the prompt, the tools and their results, files touched, tokens and cost. Open it with Show the run under a reply. Secrets are hidden in it.">?</button></h3>
       <p class="small"><label>Keep runs <select id="runs-keep"><option value="30">for 30 days</option><option value="90" selected>for 90 days</option><option value="365">for a year</option><option value="0">until deleted</option></select></label> <span id="runs-stats" class="muted small"></span></p>
       <p class="small"><button id="runs-delete" type="button" class="small danger">Delete run history</button> <span class="muted small">Chats, memories and files stay; only the step records go.</span></p>

@@ -26,6 +26,29 @@ const SCOPES = () => ({ look: t('Look only'), each: t('Look and fix, with my OK 
 const STATUS = () => ({ waiting: t('Waiting for OK'), ready: t('Approved'), running: t('Running…'), done: t('Done'), failed: t('Did not work'), declined: t('Declined'), skipped: t('Not run'), refused: t('Refused') });
 const PLAN = () => ({ waiting: t('Waiting for OK'), running: t('Running…'), stopping: t('Stopping after this step…'), stopped: t('Stopped'), done: t('Finished'), failed: t('Did not work') });
 const scopeText = (s) => SCOPES()[s] ?? s;
+// U3.18: a code step's life on the helped server (signed status events), and the report's plain line for it.
+const PHASE = () => ({ preparing: t('Being prepared'), prepared: t('Prepared and tested'), 'not-prepared': t('Not prepared'), approved: t('Approved'), applied: t('Applied'), failed: t('Did not work'), rolledback: t('Went back'), undone: t('Undone'), discarded: t('Discarded'), parked: t('Parked') });
+const CODE_LINE = () => ({
+  preparing: t('Code change #{id} is still being prepared.'),
+  prepared: t('Code change #{id} was prepared and tested; it waits for the owner’s OK.'),
+  'not-prepared': t('Code change #{id} was not prepared.'),
+  approved: t('Code change #{id} was approved and is being applied.'),
+  applied: t('Code change #{id} was applied.'),
+  failed: t('Code change #{id} did not work.'),
+  rolledback: t('Code change #{id} went back: she did not start properly with it.'),
+  undone: t('Code change #{id} was undone.'),
+  discarded: t('Code change #{id} was discarded.'),
+  parked: t('Code change #{id} was parked after an update.'),
+});
+function codeBox(s) {
+  const box = el('div', 'rr-code');
+  const head = el('p', 'small');
+  head.append(el('span', `rr-badge rr-ph-${s.code.phase}`, PHASE()[s.code.phase] ?? s.code.phase), document.createTextNode(` ${t('Code change #{id}', { id: s.change ?? '?' })}`));
+  box.append(head);
+  if (s.code.checks?.length) box.append(el('p', 'small muted', `${t('Tests:')} ${s.code.checks.map((c) => `${c.name} ${c.skipped ? t('skipped') : c.ok ? t('passed') : t('failed')}`).join(', ')}`));
+  if (s.code.events?.length > 1) box.append(el('p', 'small muted', s.code.events.map((e) => `${PHASE()[e.phase] ?? e.phase} ${when(e.at)}`).join(' → ')));
+  return box;
+}
 const call = (path, o) => ctx.api(`/remote-repair${path}`, o);
 const act = (fn, ok) => async () => {
   try {
@@ -77,6 +100,10 @@ export function remoteLogText(r) {
       return t('You undid step {detail}.', { detail: r.detail });
     case 'repair-done':
       return t('A fix plan ended ({detail}).', { detail: r.detail });
+    case 'repair-code':
+      return t('Code change {detail}', { detail: r.detail });
+    case 'repair-recipe':
+      return mine ? t('A fix shared by {name}: {detail}', { name: n, detail: r.detail }) : t('A fix you shared with {name}: {detail}', { name: n, detail: r.detail });
     default:
       return undefined;
   }
@@ -220,8 +247,9 @@ function planCard(p, name) {
     const head = el('div', 'rr-step-head');
     head.append(el('span', 'rr-step-title', stepText(s)), el('span', 'rr-badge', s.undone ? t('Undone') : (STATUS()[s.status] ?? s.status)));
     li.append(head);
-    if (s.kind === 'code') li.append(el('p', 'small muted', t('Code change: always asks you on its own; your Sara writes and tests it herself.')));
-    if (s.detail) li.append(el('p', 'small', t(s.detail, named(s.detailParams))));
+    if (s.kind === 'code' && s.code) li.append(codeBox(s));
+    else if (s.kind === 'code') li.append(el('p', 'small muted', t('Code change: always asks you on its own; your Sara writes and tests it herself.')));
+    if (s.detail && !(s.kind === 'code' && s.code)) li.append(el('p', 'small', t(s.detail, named(s.detailParams))));
     const a = el('div', 'msgs-acts');
     if (helped && s.status === 'waiting' && ['waiting', 'running'].includes(p.status) && (p.scope === 'each' || s.kind === 'code')) a.append(btn(t('Approve'), 'small', act(() => call(`/plans/${p.id}/steps/${s.n}`, { method: 'POST', body: { approve: true } }))), btn(t('Decline'), 'ghost small', act(() => call(`/plans/${p.id}/steps/${s.n}`, { method: 'POST', body: { approve: false } }))));
     if (helped && s.undoable && !s.undone) a.append(btn(t('Undo'), 'ghost small', act(() => call(`/plans/${p.id}/steps/${s.n}/undo`, { method: 'POST', body: {} }), t('Undone.'))));
@@ -240,7 +268,8 @@ function reportLine(p, name) {
   if (n('declined')) parts.push(t('{n} declined', { n: n('declined') }));
   if (n('skipped')) parts.push(t('{n} not run', { n: n('skipped') }));
   const tail = p.side === 'in' && p.steps.some((s) => s.undoable && !s.undone) ? ` ${t('You can undo each step above.')}` : '';
-  return `${p.side === 'in' ? t('{name}’s fix:', { name }) : t('Your fix:')} ${parts.join(', ')}.${tail}`;
+  const code = p.steps.filter((s) => s.kind === 'code' && s.code).map((s) => ` ${(CODE_LINE()[s.code.phase] ?? '').replace('{id}', s.change ?? '?')}`).join('');
+  return `${p.side === 'in' ? t('{name}’s fix:', { name }) : t('Your fix:')} ${parts.join(', ')}.${code}${tail}`;
 }
 
 /** Helper: "Look and fix <name>'s Sara": problems, a plan editor, Send. */

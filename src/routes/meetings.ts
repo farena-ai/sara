@@ -50,7 +50,7 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
     if (!b) {
       if (method === 'GET') {
         const why = m.refusal();
-        return send(res, 200, { meetings: m.list(), ready: !why, why, prefs: m.prefs(), limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
+        return send(res, 200, { meetings: m.list(), ready: !why, why, prefs: m.prefs(), speakerAddon: m.speakerAddon(), limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
       }
       if (method === 'POST') {
         const body = await readJson(req);
@@ -61,11 +61,16 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
     if (b === 'prefs' && !c && method === 'PUT') {
       const body = await readJson(req);
       const cur = m.prefs();
-      const next = { remind: typeof body.remind === 'boolean' ? body.remind : cur.remind, cloud: typeof body.cloud === 'boolean' ? body.cloud : cur.cloud };
+      const next = { remind: typeof body.remind === 'boolean' ? body.remind : cur.remind, cloud: typeof body.cloud === 'boolean' ? body.cloud : cur.cloud, speakers: typeof body.speakers === 'boolean' ? body.speakers : cur.speakers };
       const s = app.settings.get() as { meetings?: object };
       app.settings.update({ meetings: { ...s.meetings, ...next } } as never);
       audit({ action: 'meeting.prefs', role: 'owner', channel: 'web', keys: Object.keys(next).filter((k) => next[k as keyof typeof next] !== cur[k as keyof typeof cur]) });
       return send(res, 200, { prefs: m.prefs() });
+    }
+    // U3.13: the speaker add-on (Download now / Remove; GET /meetings shows its state).
+    if (b === 'speaker-addon' && !c && method === 'POST') {
+      const body = await readJson(req);
+      return send(res, 200, { speakerAddon: await wrap(async () => m.speakerAddonAction(body.action)) });
     }
     if (b === 'upload' && !c && method === 'POST') {
       const body = await readJson(req);

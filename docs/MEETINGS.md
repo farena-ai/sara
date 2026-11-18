@@ -57,8 +57,19 @@ Lines are named **Speaker 1**, **Speaker 2**… and carry their time in the reco
 
 - A recording from the Windows or Mac app is split **by channel**: you (the microphone) are Speaker 1,
   everyone on the call (the computer's sound) is Speaker 2. Crosstalk goes to the louder side.
-- Any other recording is split **by pauses**: turns are cut at pauses and grouped into at most two
-  voices by their pitch. Two similar voices stay Speaker 1. It's best effort, with no cloud service.
+- Any other recording (an upload, one microphone) is split **by voice** when *Better speaker
+  separation* is on (Settings → Voice → Meetings, on by default): a free add-on (about 40 MB, downloaded
+  the first time a meeting needs it) makes a voice print of every second and a half of speech on this
+  computer, and Sara groups the prints into up to **8 speakers**. A new voice in a later part of a long
+  upload gets the next number; a voice already heard keeps its number. A change of speaker without a
+  pause is caught too.
+- When two people sound very alike they may be kept as one speaker: a line in the transcript says so,
+  and you rename the speaker if you know who it was. More than 8 voices: the extra ones join the most
+  alike speaker (also said in the transcript).
+- Without the add-on (switched off, still downloading, not available on the system, *Nothing leaves
+  this computer* on before it was downloaded, or it stopped) the recording is split **by pauses**: turns
+  are cut at pauses and grouped into at most two voices by their pitch. Two similar voices stay
+  Speaker 1. *Download now* and *Remove* are next to the switch. Details: [design](design/U3SPEAK.md).
 - **Rename** a speaker (*Dana*) and every line follows, and so does an action item owned by that
   label.
 - **Search the transcript** filters the lines; when the recording is kept, press a line's time to

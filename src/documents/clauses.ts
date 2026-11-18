@@ -3,7 +3,9 @@
 // section); a clause that reads unusually (automatic renewal, unlimited liability, a late fee above
 // 1.5% a month) is flagged with the reason. Reuses the E6 contract reader (src/biz/contracts.ts) for
 // sentences, places and flags. Information, not legal advice: every result says so.
-import { CHECKLIST, sentencesOf, whereOf, type Sentence } from '../biz/contracts.ts';
+import { CHECKLIST, flagRe as flagIn, rateIn, sentencesOf, whereOf, type Sentence } from '../biz/contracts.ts';
+import { clearLang, detectLang, words, type TextLang } from '../lang-text.ts';
+import { CLAUSES, dateRe, KIND_WORDS, type ClauseId, type OtherLang } from './clauses-i18n.ts';
 
 export const DOC_TYPES = ['contract', 'nda', 'sow', 'proposal', 'letter', 'invoice'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
@@ -20,7 +22,6 @@ interface Rule {
 }
 
 const flagRe = (id: string) => CHECKLIST.find((c) => c.id === id)!.re;
-const RATE = /(\d+(?:\.\d+)?)\s*%\s*(?:per|a|each|every)?\s*(month|monthly|annum|annual(?:ly)?|year|yearly)?/i;
 
 const R = {
   parties: { id: 'parties', label: 'Parties', re: /\b(?:by and )?between\s+.{2,160}?\s+and\s+\S|\bparties\b.{0,40}\bare\b/i },
@@ -35,16 +36,7 @@ const R = {
     label: 'Payment',
     re: /\b(shall pay|will pay|agrees to pay|payment|fees?\b|invoices?\b|compensation|price)\b/i,
     unusual: (_s: Sentence, all: Sentence[]) => {
-      for (const x of all) {
-        if (!/\b(late|interest|overdue|past due)\b/i.test(x.text)) continue;
-        const m = RATE.exec(x.text);
-        if (!m) continue;
-        const pct = Number(m[1]);
-        const unit = m[2] ?? (/per month|monthly/i.test(x.text) ? 'month' : /annum|annual|per year/i.test(x.text) ? 'year' : '');
-        const monthly = /month/i.test(unit) ? pct : /annum|annual|year/i.test(unit) ? pct / 12 : undefined;
-        if (monthly !== undefined && monthly > 1.5) return `The late fee (${m[0].trim()}) is about ${Math.round(monthly * 100) / 100}% a month, above the usual 1.5%: “${x.text.slice(0, 200)}”`;
-      }
-      return undefined;
+      return lateFee(all, /\b(late|interest|overdue|past due)\b/i);
     },
   },
   termination: { id: 'termination', label: 'Termination', re: /\bterminat\w*/i },
@@ -74,6 +66,28 @@ const R = {
   pay_how: { id: 'pay_how', label: 'How to pay', re: /\b(bank transfer|wire|ach|routing|iban|check payable|pay online|paypal|payment instructions)\b/i },
 } satisfies Record<string, Rule>;
 
+/** A late fee above 1.5% a month among the sentences (U3.12: the units in every language). */
+function lateFee(all: Sentence[], late: RegExp): string | undefined {
+  for (const x of all) {
+    if (!late.test(x.text)) continue;
+    const m = rateIn(x.text).find((r) => r.monthly !== undefined);
+    if (m && m.monthly! > 1.5) return `The late fee (${m.value}) is about ${Math.round(m.monthly! * 100) / 100}% a month, above the usual 1.5%: “${x.text.slice(0, 200)}”`;
+  }
+  return undefined;
+}
+
+/** U3.12: the same rule in another language (its wording; the same labels and checks). */
+function ruleIn(rule: Rule, lang: OtherLang): Rule {
+  const L = CLAUSES[lang];
+  const re = rule.id === 'date' ? dateRe(lang) : L[rule.id as ClauseId];
+  const unusual: Rule['unusual'] =
+    rule.id === 'term' ? (s) => (L.auto_renewal.test(s.text) ? 'It renews automatically unless someone gives notice in time.' : undefined)
+    : rule.id === 'payment' ? (_s, all) => lateFee(all, L.late)
+    : rule.id === 'liability_cap' ? (s) => (L.unlimited_liability.test(s.text) ? 'Liability is not limited.' : undefined)
+    : undefined;
+  return { id: rule.id, label: rule.label, re, ...(unusual ? { unusual } : {}) };
+}
+
 const LISTS: Record<DocType, Rule[]> = {
   contract: [R.parties, R.term, R.payment, R.termination, R.liability_cap, R.indemnity, R.confidentiality, R.ip, R.governing_law, R.signatures],
   nda: [R.parties, R.term, R.confidentiality, R.exclusions, R.termination, R.governing_law, R.signatures],
@@ -87,15 +101,22 @@ const LISTS: Record<DocType, Rule[]> = {
 export function guessDocType(name: string, text: string): DocType {
   const head = `${name}\n${text.slice(0, 600)}`;
   const n = name.replace(/\.[a-z0-9]+$/i, '');
+  // U3.12: English words, plus the words of the text's own language. A bare title ("Rechnung
+  // Nr. 14") has no language of its own yet: then each language's title words are tried.
+  const lang = clearLang(text.slice(0, 2000)) ?? 'en';
+  const K = lang === 'en' ? undefined : KIND_WORDS[lang as OtherLang];
+  const titles = K ? [K] : Object.values(KIND_WORDS);
+  const has = (en: RegExp, kind: keyof (typeof KIND_WORDS)['es'], s: string) => en.test(s) || titles.some((k) => words(k[kind]).test(s));
   const test = (s: string): DocType | undefined =>
-    /\b(nda|non-?disclosure|confidentiality agreement)\b/i.test(s) ? 'nda'
-    : /\b(sow|statement of work)\b/i.test(s) ? 'sow'
-    : /\b(proposal|quotation|estimate)\b/i.test(s) ? 'proposal'
-    : /\binvoice\b/i.test(s) ? 'invoice'
-    : /\b(agreement|contract|msa|lease|terms of service)\b/i.test(s) ? 'contract'
-    : /\bletter\b/i.test(s) ? 'letter'
+    has(/\b(nda|non-?disclosure|confidentiality agreement)\b/i, 'nda', s) ? 'nda'
+    : has(/\b(sow|statement of work)\b/i, 'sow', s) ? 'sow'
+    : has(/\b(proposal|quotation|estimate)\b/i, 'proposal', s) ? 'proposal'
+    : has(/\binvoice\b/i, 'invoice', s) ? 'invoice'
+    : has(/\b(agreement|contract|msa|lease|terms of service)\b/i, 'contract', s) ? 'contract'
+    : has(/\bletter\b/i, 'letter', s) ? 'letter'
     : undefined;
-  return test(n) ?? test(head) ?? (/^\s*(dear|to whom)\b/im.test(text.slice(0, 800)) ? 'letter' : 'contract');
+  const greet = K ? CLAUSES[lang as OtherLang].greeting : /^(dear|to whom)\b/i;
+  return test(n) ?? test(head) ?? (text.slice(0, 800).split('\n').some((l) => greet.test(l.trim())) ? 'letter' : 'contract');
 }
 
 export const isDocType = (v: unknown): v is DocType => (DOC_TYPES as readonly string[]).includes(String(v));
@@ -122,13 +143,16 @@ export interface Checklist {
 /** The checklist for a document's text (the Library's text, with its page markers). */
 export function clauseChecklist(text: string, type: DocType): Checklist {
   const ss = sentencesOf(text);
+  const lang: TextLang = detectLang(text);
+  const rules = lang === 'en' ? LISTS[type] : LISTS[type].map((r) => ruleIn(r, lang));
+  const capRe = rules.find((r) => r.id === 'liability_cap')?.re ?? R.liability_cap.re;
   // A line that is only a heading ("Scope:") still counts with what follows it.
   const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
   const items: ChecklistItem[] = [];
-  for (const rule of LISTS[type]) {
+  for (const rule of rules) {
     // A real sentence beats a bare heading ("Payment") as the quote.
     // A liability cap measured in "the fees paid" is not the payment terms (U1.1 real-model run).
-    const found = ss.filter((s) => rule.re.test(s.text) && !(rule.id === 'payment' && R.liability_cap.re.test(s.text))).sort((a, b) => Number(b.text.split(/\s+/).length > 4) - Number(a.text.split(/\s+/).length > 4));
+    const found = ss.filter((s) => rule.re.test(s.text) && !(rule.id === 'payment' && capRe.test(s.text))).sort((a, b) => Number(b.text.split(/\s+/).length > 4) - Number(a.text.split(/\s+/).length > 4));
     let hit = found[0];
     let note: string | undefined;
     if (rule.unusual) {
@@ -155,7 +179,8 @@ export function clauseChecklist(text: string, type: DocType): Checklist {
   if (type === 'contract' || type === 'sow' || type === 'nda') {
     for (const id of ['non_compete', 'exclusivity', 'unilateral_changes', 'arbitration'] as const) {
       const c = CHECKLIST.find((x) => x.id === id)!;
-      const s = ss.find((x) => c.re.test(x.text));
+      const re = flagIn(id, lang);
+      const s = ss.find((x) => re.test(x.text));
       if (s) others.push({ label: c.label, quote: s.text.slice(0, 400), where: whereOf(s) });
     }
   }

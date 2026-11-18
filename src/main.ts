@@ -120,6 +120,7 @@ import { runAutoUpdates } from './addon-autoupdate.ts';
 import { storeAutoUpdateDeps } from './routes/store.ts';
 import { Meetings } from './meetings.ts';
 import { createMeetingTools } from './tools/meetings.ts';
+import { SpeakerAddon } from './speaker-addon.ts';
 import { Crews } from './crews.ts';
 import { Workers } from './workers.ts';
 import { broadcastEvent, EventTriggers, mcpEventOf, registerTriggers, subscribeWanted } from './event-triggers.ts';
@@ -224,6 +225,8 @@ import { supportOf } from './support.ts';
 import { createSupportTools } from './tools/support.ts';
 import { createRemoteRepairTools } from './tools/remote-repair.ts';
 import { repairOf } from './repair-env.ts';
+import { fixRecipesOf } from './fix-recipes.ts';
+import { onCodeStatus } from './remote-repair.ts';
 import { createRepairTools } from './tools/repair.ts';
 import { readyAt, SelfCode, selfCodeOf, selfCodeSettings, setSelfCode } from './self-code.ts';
 import { codingModel, createSelfCodeTools } from './tools/self-code.ts';
@@ -1293,7 +1296,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // C6: learn a topic; a run that was working before the restart starts again.
     app.learnTopics = new Learning(app, store.db);
     // EC19: meeting rooms and notes; a room live before the restart is ended (notes can be written).
-    app.meetings = new Meetings(app, store.db);
+    // U3.13: speakers by voice print with the speaker add-on (downloaded on first use; docs/design/U3SPEAK.md).
+    app.meetings = new Meetings(app, store.db, { speakers: new SpeakerAddon(join(dataDir, 'speaker-addon')) });
     // S2: meeting_list / meeting_summarize (read only).
     for (const t of createMeetingTools(() => app)) app.tools.add(t);
     const g = app.goals.startupSweep();
@@ -1695,6 +1699,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       hub: () => app.hub,
       notify: (text) => void app.push?.notifyOwner('Code changes', text, '', 'self-code').catch(() => {}),
       ready: () => readyAt(port),
+      onStatus: (c) => onCodeStatus(app, c), // U3.17/U3.18: remote plan results, shared fixes
     });
     setSelfCode(app, sc);
     for (const t of createSelfCodeTools(() => selfCodeOf(app))) tools.add(t);
@@ -1711,6 +1716,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       const sup = supportOf(app);
       if (sup) sup.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
+      fixRecipesOf(app); // U3.17: fixes that worked are offered from the start (when the owner allows it)
       messenger.onNotify = (title, body, chat) => {
         app.events?.publish({ type: 'pm', chat, notice: true }); // T4: the open pages show a popup card (ids only).
         const push = app.push;

@@ -3,6 +3,8 @@
 // person edits it and approves it once; then each helper's progress, the cost so far, Pause and
 // Stop show live; the scratchpad keeps findings with their sources; at the end ONE card lists every
 // outside action (send, post, buy, computer use) for a single OK. Nothing here calls a model itself.
+// U3.16: Team recipes: a finished run's plan saved for next time ({job} where the job text was);
+// run, edit, duplicate, export/import as JSON, delete.
 import { t } from './naming.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => Promise<void>, openTeam?: () => Promise<void> } | null} */
@@ -10,6 +12,9 @@ let ctx = null;
 let data = null;
 let openId = null;
 let draft = null;
+/** U3.16: the recipe being edited ({id, plan, name, description}) and the one with its Run box open. */
+let recipeEdit = null;
+let recipeRun = null;
 const cards = new Map();
 
 export function initTeamRuns(c) {
@@ -62,7 +67,7 @@ export async function loadTeamRuns() {
     host.replaceChildren(el('p', 'muted small', e.status === 403 ? t('Only the owner of this server can use this.') : e.message));
     return;
   }
-  const rows = [newRow()];
+  const rows = [newRow(), recipesBox()];
   if (!data.runs.length) rows.push(el('p', 'muted small', t('No team runs yet. Describe a big job and she proposes a plan for you to check.')));
   for (const r of data.runs) rows.push(runRow(r));
   host.replaceChildren(...rows);
@@ -144,6 +149,7 @@ function detail(r) {
     acts.append(a);
   }
   acts.append(btn(t('Open the chat'), 'ghost small', () => void openChat(r.conversationId)));
+  if (!['running', 'paused'].includes(r.status)) acts.append(btn(t('Save as a team recipe'), 'ghost small', () => void saveRecipe(r)));
   box.append(acts);
   if (r.notes.length) {
     const pad = el('details', 'trn-pad');
@@ -189,11 +195,11 @@ function finalCard(r) {
 }
 
 /** The plan as she proposed it: every helper, model, tool and budget, editable before the one OK. */
-function planEditor(r) {
-  draft ??= structuredClone(r.plan);
-  const p = draft;
+function planEditor(r, rec = null) {
+  if (!rec) draft ??= structuredClone(r.plan);
+  const p = rec ? rec.plan : draft;
   const form = el('div', 'rt-form trn-plan');
-  const redraw = () => form.replaceWith(planEditor(r));
+  const redraw = () => form.replaceWith(planEditor(r, rec));
   const total = () => p.roles.reduce((n, x) => n + Number(x.budget.tokens) * Math.max(1, p.steps.filter((s) => s.role === x.id).length), 0);
   const sum = el('p', 'small trn-sum');
   const drawSum = () => (sum.textContent = t('Budget up front: about {tokens} tokens and {minutes} minutes in all.', { tokens: words(total()), minutes: Math.min(240, p.roles.reduce((n, x) => n + Number(x.budget.minutes), 0)) }));
@@ -302,6 +308,22 @@ function planEditor(r) {
   parts.append(tip(t('Parts that wait for nothing run at the same time (up to 3). A part starts when everything it waits for is done. The checker can send the draft back twice at most.')));
   form.append(parts);
   const acts = el('div', 'rt-more-acts');
+  if (rec) {
+    acts.append(
+      btn(t('Save'), 'primary small', async () => {
+        try {
+          await ctx.api(`/team-runs/recipes/${rec.id}`, { method: 'PUT', body: { name: rec.name, description: rec.description, plan: rec.plan } });
+          recipeEdit = null;
+        } catch (e) {
+          alert(e.message);
+        }
+        await loadTeamRuns();
+      }),
+      btn(t('Cancel'), 'ghost small', () => ((recipeEdit = null), void loadTeamRuns())),
+    );
+    form.append(acts);
+    return form;
+  }
   acts.append(
     btn(t('Approve and start'), 'primary small', async () => {
       try {
@@ -317,6 +339,114 @@ function planEditor(r) {
   );
   form.append(acts);
   return form;
+}
+
+// ---------------------------------------------------------------- U3.16: team recipes
+
+async function saveRecipe(r) {
+  const name = prompt(t('A name for this team recipe, e.g. “Product comparison”:'), '');
+  if (!name?.trim()) return;
+  try {
+    await ctx.api(`/team-runs/${r.id}/recipe`, { method: 'POST', body: { name: name.trim() } });
+  } catch (e) {
+    alert(e.message);
+  }
+  await loadTeamRuns();
+}
+
+async function recipeAct(path, method = 'POST', body = {}) {
+  try {
+    const r = await ctx.api(`/team-runs/recipes/${path}`, { method, body });
+    await loadTeamRuns();
+    return r;
+  } catch (e) {
+    alert(e.message);
+    return null;
+  }
+}
+
+function recipesBox() {
+  const box = el('section', 'trn-recipes');
+  const head = el('div', 'rt-row-head');
+  head.append(el('strong', '', t('Team recipes')), tip(t('A finished run’s plan kept for next time: its helpers, models, tools, budgets, parts and checks, never its results. Run one with a new job; the plan still waits for your OK.')));
+  box.append(head);
+  const recipes = data.recipes ?? [];
+  if (!recipes.length) box.append(el('p', 'muted small', t('No recipes yet. After a run finishes, use Save as a team recipe.')));
+  for (const rec of recipes) box.append(recipeRow(rec));
+  const file = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json', hidden: true });
+  file.addEventListener('change', async () => {
+    const f = file.files?.[0];
+    if (!f) return;
+    let json;
+    try {
+      json = JSON.parse(await f.text());
+    } catch {
+      return alert(t('This is not a Sara team recipe.'));
+    }
+    await recipeAct('import', 'POST', { recipe: json });
+  });
+  box.append(acts1(btn(t('Import a recipe'), 'ghost small', () => file.click()), file));
+  return box;
+}
+
+function recipeRow(rec) {
+  const row = el('div', 'rt-row trn-recipe');
+  const head = el('div', 'rt-row-head');
+  head.append(el('span', 'rt-title', rec.name));
+  row.append(head, el('div', 'rt-when muted small', [rec.description, t('{helpers} helpers, {parts} parts', { helpers: rec.plan.roles.length, parts: rec.plan.steps.length })].filter(Boolean).join(' · ')));
+  if (recipeEdit?.id === rec.id) {
+    const form = el('div', 'rt-form trn-recipe-edit');
+    const name = Object.assign(document.createElement('input'), { type: 'text', value: recipeEdit.name, maxLength: 60 });
+    name.setAttribute('aria-label', t('Name'));
+    name.addEventListener('input', () => (recipeEdit.name = name.value));
+    const desc = Object.assign(document.createElement('input'), { type: 'text', value: recipeEdit.description, maxLength: 300, placeholder: t('What it is for (optional)') });
+    desc.setAttribute('aria-label', t('What it is for (optional)'));
+    desc.addEventListener('input', () => (recipeEdit.description = desc.value));
+    form.append(name, desc, el('p', 'muted small', t('Where the job text goes, the recipe says {placeholder}.', { placeholder: '{job}' })), planEditor(null, recipeEdit));
+    row.append(form);
+    return row;
+  }
+  if (recipeRun === rec.id) {
+    const form = el('div', 'rt-form');
+    const goal = Object.assign(document.createElement('textarea'), { rows: 2, maxLength: 4000, placeholder: t('The job for this team, e.g. Compare three robot vacuums') });
+    goal.setAttribute('aria-label', t('The job'));
+    form.append(goal, acts1(
+      btn(t('Plan it'), 'primary small', async () => {
+        const r = await recipeAct(`${rec.id}/run`, 'POST', { goal: goal.value });
+        if (r?.run) {
+          recipeRun = null;
+          openId = r.run.id;
+          draft = null;
+          await loadTeamRuns();
+        }
+      }),
+      btn(t('Cancel'), 'ghost small', () => ((recipeRun = null), void loadTeamRuns())),
+    ));
+    row.append(form);
+    setTimeout(() => goal.focus(), 0);
+    return row;
+  }
+  row.append(acts1(
+    btn(t('Run'), 'primary small', () => ((recipeRun = rec.id), void loadTeamRuns())),
+    btn(t('Edit'), 'ghost small', () => ((recipeEdit = structuredClone(rec)), void loadTeamRuns())),
+    btn(t('Duplicate'), 'ghost small', () => void recipeAct(`${rec.id}/duplicate`)),
+    btn(t('Export'), 'ghost small', () => void exportRecipe(rec)),
+    btn(t('Delete'), 'ghost small danger', () => confirm(t('Delete the team recipe “{name}”?', { name: rec.name })) && void recipeAct(String(rec.id), 'DELETE')),
+  ));
+  return row;
+}
+
+async function exportRecipe(rec) {
+  try {
+    const json = await ctx.api(`/team-runs/recipes/${rec.id}/export`);
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }));
+    a.download = `${rec.name.replace(/[^\p{L}\p{N} _-]+/gu, '').trim() || 'team-recipe'}.sara-team.json`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) {
+    alert(e.message);
+  }
 }
 
 async function openChat(id) {
@@ -374,6 +504,6 @@ export function onTeamRunEvent(ev) {
     soon = null;
     for (const id of due) void paintCard(id);
     due.clear();
-    if ($('#team')?.open && !draft) void loadTeamRuns();
+    if ($('#team')?.open && !draft && !recipeEdit && recipeRun === null) void loadTeamRuns();
   }, 500);
 }

@@ -5,7 +5,52 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.21.0 (2026-11-18): smarter: six languages, voices apart, Word comments, team recipes
+
 ## 3.20.0 (2026-11-18): the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices
+- New: promises, clause checklists and travel emails in Spanish, French, German, Brazilian Portuguese
+  and Italian, not just English. Sara works out which language a text is in and reads it with that
+  language's own phrases, dates (day first, month names, 24-hour times) and booking words: "Te envío el
+  informe el viernes" becomes a promise due Friday, a German contract's "Haftungsbegrenzung" ticks the
+  liability cap, and an Iberia, Lufthansa or Trenitalia confirmation becomes a trip.
+- New: free flight status without a key. The Trips page can use OpenSky Network (no sign-up), which shows
+  whether your plane is in the air, on the ground or landed. It has no gates, delays or cancellations;
+  the page says so. It stays off until you pick it, and AirLabs with your own key is still there.
+- New: tracked changes everywhere in a Word file. When she revises a Word document, changes in the
+  **header, footer, footnotes, endnotes and text boxes** are tracked too (same author and date), and an
+  edit that runs through a **link or a page-number field** keeps the link and the field instead of being
+  refused. Ask for every place at once ("change it everywhere") when the words are in more than one part.
+- New: **comments in Word**. Ask "add a comment asking about the payment terms" and she leaves a note in
+  the margin on those words instead of changing them.
+- New: **moved paragraphs** are tracked as a move in Word (Review shows "Moved"), so accepting puts the
+  paragraph in its new place and rejecting puts it back.
+- The Library's review panel shows where each change is (Header, Footer, Footnote, Text box), moves, and
+  every comment with the words it is about. Accept all and Reject all cover every part of the file.
+- Meetings: better speaker separation on this computer. Uploads and one-microphone recordings are now
+  told apart by voice, up to 8 speakers (was: at most two, by pauses and pitch), and a change of speaker
+  without a pause is caught. A free add-on (about 40 MB) downloads the first time a meeting needs it;
+  Settings → Voice → Meetings has the switch, *Download now* and *Remove*. When two voices sound alike and
+  are kept as one, the transcript says so; speakers stay renamable. Without the add-on, the old way is
+  used. On a generated 3-voice meeting: 13/13 lines right (8/13 before).
+- Fixed: the Meetings switches in Settings → Voice (remind me, cloud engine) showed unticked until the
+  Meetings page had been opened.
+- New: team recipes. After a team run finishes, "Save as a team recipe" keeps its plan (helpers,
+  models, tools, budgets, parts and checks, never its results or anything secret) under a name. Team →
+  Team runs lists them: Run one with a new job (the plan still waits for your OK), Edit, Duplicate,
+  Export as a file, Import, Delete. In a chat: "use my product comparison team to compare …".
+- New: Ask about anything also searches your meetings (what was said, with the time in the recording,
+  and the notes), trips, contract/proposal templates and drafts with their clause checklists, research
+  reports and goals; contacts also show promises and when you were last in touch. Each answer opens
+  the exact item: the meeting at the line, the trip at the booking, the goal. Private chats stay out.
+- New (opt-in): Share fixes that worked. Under Settings → Privacy & system → Health → Self-repair you can
+  let a fix that worked (a small fix, a learned skill, or a code change you applied) be offered to the
+  linked friends you tick. Only the kind of problem and the fix travel, never your data. Their Sara shows
+  it only when she has the same problem on a compatible version, and nothing runs without their OK: she
+  uses her own fix (with Undo), or tests a shared code change against her own rules first. Off by default.
+  You can also send such a fix to the Sara developers after seeing exactly what goes.
+- Remote repair: a code change in a friend's fix plan now reports back. The helper sees when it was
+  prepared (and which tests passed), approved, applied, went back or was undone, in the plan, the final
+  report and the help log, and gets a notice when it is applied or goes back.
 
 ## 3.19.0 (2026-11-18): proven on real models, Try these, steadier releases
 

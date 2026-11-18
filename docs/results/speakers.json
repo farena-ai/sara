@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-18",
+  "clipSec": 52.3,
+  "voices": "SAPI David, SAPI Zira, Piper hfc_female",
+  "model": "3dspeaker_speech_eres2net_sv_en_voxceleb_16k (CPU)",
+  "pauseAndPitch": {
+    "speakers": 2,
+    "timeline": 66.8,
+    "lines": "8/13"
+  },
+  "voicePrints": {
+    "speakers": 3,
+    "timeline": 97.5,
+    "lines": "13/13",
+    "ms": 1577
+  },
+  "oneVoiceSpeakers": 1,
+  "tenMinutePart": {
+    "minutes": 9.6,
+    "ms": 13224,
+    "speakers": 3
+  }
+}

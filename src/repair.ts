@@ -21,13 +21,17 @@ export interface RepairSettings {
   permission: RepairPermission;
   /** "Full permission for 24 hours": until then one approval covers a whole multi-step repair (ISO or null). */
   fullUntil: string | null;
+  /** U3.17 "Share fixes that worked" (off by default) and the linked friends (link ids) it goes to. */
+  share: boolean;
+  shareLinks: string[];
 }
 export const FULL_HOURS = 24;
 export function repairSettings(s: { repair?: unknown } | undefined): RepairSettings {
   const r = (s?.repair ?? {}) as Record<string, unknown>;
   const permission = REPAIR_PERMISSIONS.includes(r.permission as RepairPermission) ? (r.permission as RepairPermission) : 'auto1';
   const fullUntil = typeof r.fullUntil === 'string' && Number.isFinite(Date.parse(r.fullUntil)) ? r.fullUntil : null;
-  return { permission, fullUntil };
+  const shareLinks = Array.isArray(r.shareLinks) ? [...new Set(r.shareLinks.filter((x): x is string => typeof x === 'string' && /^[\w-]{1,80}$/.test(x)))].slice(0, 50) : [];
+  return { permission, fullUntil, share: r.share === true, shareLinks };
 }
 /** The 24-hour switch is on (and not expired) at `now`. */
 export function fullOn(s: { repair?: unknown } | undefined, now: Date): boolean {
@@ -47,6 +51,8 @@ export function neverTouch(path: string): boolean {
   return NEVER.test(path) || /vault|secret|password|token|apiKey/i.test(path);
 }
 export class RepairRefused extends Error {}
+/** U3.17: told about every fix that worked (src/fix-recipes.ts offers it to friends when the owner allows it). */
+export const repairFixed = new Set<(rep: Repair, run: RepairRun, p: Problem) => void>();
 
 // ---- what she finds -------------------------------------------------------------------------------------
 export type Severity = 'low' | 'medium' | 'high';
@@ -416,7 +422,17 @@ export class Repair {
       }
       const p = this.#find(id);
       if (!p) continue;
-      out.push(p.level === 2 ? await this.#grow(p, o.by) : await this.#fixOne(p, o.by));
+      const run = p.level === 2 ? await this.#grow(p, o.by) : await this.#fixOne(p, o.by);
+      out.push(run);
+      if (run.result === 'fixed' || run.result === 'applied') {
+        for (const f of repairFixed) {
+          try {
+            f(this, run, p);
+          } catch (err) {
+            console.warn(`self-repair: ${(err as Error).message}`);
+          }
+        }
+      }
     }
     if (o.learn) out.push(await this.learn(o.learn, o.by));
     if (ids.length) await this.detect();

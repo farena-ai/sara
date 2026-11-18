@@ -21,7 +21,7 @@ let timer = null;
 let lastLine = 0;
 let room = null;
 let notesShown = '';
-let prefs = { remind: true, cloud: false };
+let prefs = { remind: true, cloud: false, speakers: true };
 const PART_SEC = 600;
 const REC_KEY = 'sara.meetingRec';
 
@@ -234,6 +234,7 @@ function past(list) {
 function lineRow(l) {
   const li = el('li', l.kind === 'notice' ? 'ms-line ms-notice-line' : l.kind === 'sara' ? 'ms-line ms-sara' : 'ms-line');
   li.dataset.speaker = l.kind === 'said' ? l.speaker : '';
+  li.dataset.n = String(l.n);
   const when = typeof l.t === 'number' && l.kind !== 'notice' ? btn(clock(l.t), 'ms-time ghost small', () => playFrom(l.t)) : el('span', 'ms-time muted small', '');
   if (typeof l.t === 'number' && l.kind !== 'notice') when.setAttribute('aria-label', t('Play from {time}', { time: clock(l.t) }));
   li.append(when, el('span', 'ms-who', l.speaker), el('span', 'ms-said', l.text));
@@ -747,14 +748,28 @@ globalThis.addEventListener?.('sara-meeting-file', async (e) => {
 
 // ---------------------------------------------------------------- S2: Today tile, prefs, the view
 
-/** Opens Library → Meetings from anywhere (Today, #view=meetings). */
-export async function openMeetingsView(id) {
+/** U3.19: an Ask hit opened here: the item outlined and scrolled into view. */
+function spot(node) {
+  if (!node) return;
+  node.classList.add('ask-spot');
+  node.scrollIntoView?.({ block: 'center' });
+  setTimeout(() => node.classList.remove('ask-spot'), 4000);
+}
+
+/** Opens Library → Meetings from anywhere (Today, #view=meetings, an Ask hit at a transcript line). */
+export async function openMeetingsView(id, line) {
   const { openLibrary } = await import('./library.js');
   await openLibrary();
   await openMeetings();
   if (id) {
     meetingId = id;
     await render();
+    // The transcript lines arrive with the first poll: wait for the quoted one (up to 4 s).
+    for (let k = 0; line && k < 27; k++) {
+      const li = document.querySelector(`.ms-meeting .ms-line[data-n="${Number(line)}"]`);
+      if (li) return spot(li);
+      await new Promise((r) => setTimeout(r, 150));
+    }
   }
 }
 
@@ -784,13 +799,23 @@ export async function loadMeetingPrefs() {
     prefs = r.prefs ?? prefs;
     $('#meet-remind').checked = prefs.remind;
     $('#meet-cloud').checked = prefs.cloud;
+    $('#meet-speakers').checked = prefs.speakers !== false;
+    drawSpeakerAddon(r.speakerAddon);
   } catch {
     box.hidden = true;
     return;
   }
   if (box.dataset.wired) return;
   box.dataset.wired = '1';
-  for (const [id, key] of [['#meet-remind', 'remind'], ['#meet-cloud', 'cloud']])
+  for (const [btn, action] of [['#meet-speakers-get', 'install'], ['#meet-speakers-remove', 'remove']])
+    $(btn).addEventListener('click', async () => {
+      try {
+        drawSpeakerAddon((await api('/meetings/speaker-addon', { method: 'POST', body: { action } })).speakerAddon);
+      } catch (err) {
+        $('#meet-prefs-note').textContent = err.message;
+      }
+    });
+  for (const [id, key] of [['#meet-remind', 'remind'], ['#meet-cloud', 'cloud'], ['#meet-speakers', 'speakers']])
     $(id).addEventListener('change', async (e) => {
       try {
         prefs = (await api('/meetings/prefs', { method: 'PUT', body: { [key]: e.target.checked } })).prefs;
@@ -799,4 +824,29 @@ export async function loadMeetingPrefs() {
         $('#meet-prefs-note').textContent = err.message;
       }
     });
+}
+
+/** U3.13: the speaker add-on's state under "Better speaker separation" (polled while it downloads). */
+let saTimer = 0;
+function drawSpeakerAddon(sa) {
+  const row = $('#meet-speakers-row');
+  if (!row) return;
+  row.hidden = !sa;
+  if (!sa) return;
+  const text = {
+    ready: t('Ready on this computer.'),
+    missing: t('Not downloaded yet (about {mb} MB). It downloads the first time a meeting needs it.', { mb: sa.mb }),
+    installing: t('Downloading (about {mb} MB)…', { mb: sa.mb }),
+    failed: t('Could not download it: {error}', { error: sa.error || '' }),
+    unsupported: t('Not available on this system: speakers are split by pauses and pitch.'),
+  }[sa.state];
+  $('#meet-speakers-status').textContent = text || '';
+  $('#meet-speakers-get').hidden = !['missing', 'failed'].includes(sa.state);
+  $('#meet-speakers-remove').hidden = sa.state !== 'ready';
+  clearTimeout(saTimer);
+  if (sa.state === 'installing')
+    saTimer = setTimeout(async () => {
+      if (!row.isConnected || row.closest('[hidden]')) return;
+      drawSpeakerAddon((await api('/meetings').catch(() => ({}))).speakerAddon);
+    }, 2000);
 }

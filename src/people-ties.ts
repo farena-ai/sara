@@ -14,6 +14,7 @@
 // its own database, so household members never see each other's.
 import type { AppContext } from './chat.ts';
 import { en } from './i18n.ts';
+import { dayMonthRe, detectLang, monthNumber, WEEKDAY_NAMES, words, type TextLang } from './lang-text.ts';
 import { allEvents, calendarSources } from './mail/calendars.ts';
 import type { SearchTerms } from './mail/search.ts';
 import { localDate } from './memory-worker.ts';
@@ -123,9 +124,112 @@ function dueOf(s: string, today: string): string | null {
   return null;
 }
 
+// U3.12: promises in Spanish, French, German, Brazilian Portuguese and Italian. Each language has its
+// own first-person "I will" phrases, its no-promise words and its day words; a text uses only the
+// phrases of the language it is written in.
+type Other = Exclude<TextLang, 'en'>;
+interface PromiseWords { re: RegExp; not: RegExp; today: RegExp; after: RegExp; tomorrow: RegExp; week: RegExp; nextWeek: RegExp; inDays: RegExp; next: RegExp; reply: RegExp }
+const NUM_WORDS: Record<string, number> = { dos: 2, deux: 2, zwei: 2, dois: 2, due: 2, tres: 3, trois: 3, drei: 3, três: 3, tre: 3 };
+const PROMISE_WORDS: Record<Other, PromiseWords> = {
+  es: {
+    re: words('(?:te|le|les|os)\\s+(?:lo\\s+|la\\s+|los\\s+|las\\s+)?(?:envío|envio|mando|paso|llamo|escribo|confirmo|aviso|reenvío|devuelvo|preparo)|voy\\s+a\\s+(?:enviar|mandar|llamar|escribir|revisar|confirmar|preparar|pagar|reservar|terminar|reenviar|mirar|comprobar)\\p{L}*|(?:enviaré|mandaré|llamaré|escribiré|revisaré|confirmaré|prepararé|pagaré|reservaré|terminaré|reenviaré|comprobaré)|me\\s+encargo\\s+de|prometo\\s+\\p{L}+|yo\\s+(?:envío|mando|llamo|reviso|preparo)'),
+    not: words('no|nunca|jamás|si|quizás|quizá|tal\\s+vez|a\\s+lo\\s+mejor|puede\\s+que'),
+    today: words('hoy|esta\\s+(?:tarde|noche|mañana)'),
+    after: words('pasado\\s+mañana'),
+    tomorrow: words('mañana'),
+    week: words('esta\\s+semana|antes\\s+del?\\s+fin(?:al)?\\s+de\\s+(?:la\\s+)?semana'),
+    nextWeek: words('la\\s+semana\\s+que\\s+viene|la\\s+próxima\\s+semana|la\\s+semana\\s+próxima'),
+    inDays: words('en\\s+(\\d{1,2}|dos|tres)\\s+días'),
+    next: words('próximo|que\\s+viene'),
+    reply: /\n(?:El .{5,160}escribió:|-{2,} ?Mensaje original ?-{2,}|De: .+\n(?:Enviado|Fecha): )/,
+  },
+  fr: {
+    re: words("je\\s+(?:vous\\s+|te\\s+|t['’]|lui\\s+|leur\\s+)?(?:l['’]|le\\s+|la\\s+|les\\s+)?(?:enverrai|envoie|envoierai|appellerai|appelle|rappelle|rappellerai|écrirai|transmettrai|transmets|vérifierai|confirmerai|préparerai|paierai|réserverai|finirai|ferai\\s+suivre|relirai|occupe)|je\\s+vais\\s+(?:vous\\s+|te\\s+|t['’]|lui\\s+)?(?:l['’]|le\\s+|la\\s+|les\\s+)?(?:envoyer|appeler|rappeler|écrire|transmettre|vérifier|confirmer|préparer|payer|réserver|finir|relire|faire\\s+suivre|regarder)|je\\s+m['’]en\\s+occupe|je\\s+promets\\s+de"),
+    not: words("ne|n['’]|pas|jamais|si|peut-être|peut\\s+être"),
+    today: words("aujourd['’]hui|ce\\s+soir|cet\\s+après-midi|ce\\s+matin"),
+    after: words('après-demain'),
+    tomorrow: words('demain'),
+    week: words('cette\\s+semaine|(?:d[\'’]ici\\s+la|avant\\s+la)\\s+fin\\s+de\\s+(?:la\\s+)?semaine'),
+    nextWeek: words('la\\s+semaine\\s+prochaine'),
+    inDays: words('dans\\s+(\\d{1,2}|deux|trois)\\s+jours'),
+    next: words('prochain'),
+    reply: /\n(?:Le .{5,160}a écrit ?:|-{2,} ?Message d'origine ?-{2,}|De ?: .+\n(?:Envoyé|Date) ?: )/,
+  },
+  de: {
+    re: words('ich\\s+(?:schicke|sende|rufe|schreibe|melde|kümmere|prüfe|bestätige|bezahle|überweise|buche|leite|bringe|erledige|kläre|reiche)|ich\\s+werde(?=[^.!?]{0,80}?(?<![\\p{L}])(?:schicken|senden|zuschicken|anrufen|zurückrufen|schreiben|melden|prüfen|bestätigen|bezahlen|überweisen|buchen|weiterleiten|vorbereiten|fertigstellen|kümmern|erledigen|mitbringen|klären|nachreichen)(?![\\p{L}]))|ich\\s+verspreche'),
+    not: words('nicht|nichts|nie|niemals|kein\\p{L}*|wenn|falls|vielleicht|eventuell'),
+    today: words('heute(?:\\s+(?:abend|nachmittag|morgen))?'),
+    after: words('übermorgen'),
+    tomorrow: words('morgen'),
+    week: words('diese\\s+woche|bis\\s+ende\\s+der\\s+woche'),
+    nextWeek: words('nächste\\s+woche|kommende\\s+woche'),
+    inDays: words('in\\s+(\\d{1,2}|zwei|drei)\\s+tagen'),
+    next: words('nächsten?'),
+    reply: /\n(?:Am .{5,160}schrieb.{0,80}:|-{2,} ?Ursprüngliche Nachricht ?-{2,}|Von: .+\n(?:Gesendet|Datum): )/,
+  },
+  pt: {
+    re: words('vou\\s+(?:te\\s+|lhe\\s+|lhes\\s+)?(?:enviar|mandar|ligar|escrever|encaminhar|revisar|confirmar|preparar|pagar|reservar|terminar|verificar|passar)|(?:eu\\s+)?(?:te|lhe|lhes)\\s+(?:envio|mando|ligo|escrevo|passo|encaminho|confirmo|aviso)|eu\\s+(?:envio|mando|ligo|escrevo|reviso|preparo|pago|confirmo|verifico|encaminho)|(?:enviarei|mandarei|ligarei|escreverei|revisarei|confirmarei|prepararei|pagarei|reservarei|terminarei|encaminharei)|deixa\\s+comigo|prometo\\s+\\p{L}+'),
+    not: words('não|nunca|jamais|se|talvez|quem\\s+sabe'),
+    today: words('hoje(?:\\s+à\\s+(?:noite|tarde))?'),
+    after: words('depois\\s+de\\s+amanhã'),
+    tomorrow: words('amanhã'),
+    week: words('esta\\s+semana|essa\\s+semana|até\\s+o\\s+fim\\s+da\\s+semana'),
+    nextWeek: words('semana\\s+que\\s+vem|próxima\\s+semana'),
+    inDays: words('em\\s+(\\d{1,2}|dois|duas|três)\\s+dias'),
+    next: words('próxim[ao]|que\\s+vem'),
+    reply: /\n(?:Em .{5,160}escreveu:|-{2,} ?Mensagem original ?-{2,}|De: .+\n(?:Enviado|Data): )/,
+  },
+  it: {
+    re: words("(?:te\\s+lo|te\\s+la|ti|le|gli|vi)\\s+(?:mando|invio|chiamo|scrivo|giro|richiamo|confermo|preparo|inoltro)|(?:manderò|invierò|chiamerò|richiamerò|scriverò|controllerò|confermerò|preparerò|pagherò|prenoterò|finirò|girerò|inoltrerò|farò\\s+sapere)|ci\\s+penso\\s+io|me\\s+ne\\s+occupo\\s+io|prometto\\s+di|io\\s+(?:mando|invio|chiamo|preparo|controllo)"),
+    not: words('non|mai|se|forse|magari'),
+    today: words('oggi|stasera|stamattina|oggi\\s+pomeriggio'),
+    after: words('dopodomani'),
+    tomorrow: words('domani'),
+    week: words('questa\\s+settimana|entro\\s+(?:la\\s+)?fine\\s+settimana'),
+    nextWeek: words('la\\s+settimana\\s+prossima|la\\s+prossima\\s+settimana'),
+    inDays: words('(?:tra|fra)\\s+(\\d{1,2}|due|tre)\\s+giorni'),
+    next: words('prossim[oa]'),
+    reply: /\n(?:Il giorno .{5,160}ha scritto:|-{2,} ?Messaggio originale ?-{2,}|Da: .+\n(?:Inviato|Data): )/,
+  },
+};
+
+/** The due day in another language (day words, weekdays, "3 de diciembre", 03/12). */
+function dueOfIn(s: string, today: string, lang: Other): string | null {
+  const w = PROMISE_WORDS[lang];
+  if (w.today.test(s)) return today;
+  if (w.after.test(s)) return addDays(today, 2);
+  // "esta mañana" is this morning (today); "por la mañana" alone is no day.
+  if (w.tomorrow.test(s.replace(words('(?:por|de|a)\\s+la\\s+mañana|heute\\s+morgen|morgen\\s+früh', 'giu'), (x) => (/früh/i.test(x) ? 'morgen' : '')))) return addDays(today, 1);
+  if (w.week.test(s)) return addDays(today, (5 - weekday(today) + 7) % 7);
+  if (w.nextWeek.test(s)) return addDays(today, 7);
+  const inN = w.inDays.exec(s);
+  if (inN) return addDays(today, NUM_WORDS[inN[1]!.toLowerCase()] ?? Number(inN[1]));
+  const names = WEEKDAY_NAMES[lang];
+  const wd = words(names.flat().join('|')).exec(s);
+  if (wd) {
+    const idx = names.findIndex((n) => n.includes(wd[0].toLowerCase()));
+    let d = (idx - weekday(today) + 7) % 7;
+    if (d === 0 && w.next.test(s)) d = 7;
+    return addDays(today, d);
+  }
+  const y = Number(today.slice(0, 4));
+  const ymd = (mo: number, d: number): string | null => {
+    if (!(mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return null;
+    let at = `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    if (at < today) at = `${y + 1}${at.slice(4)}`;
+    return Number.isNaN(Date.parse(at)) ? null : at;
+  };
+  const dm = dayMonthRe(lang);
+  const md = dm.exec(s);
+  if (md) return ymd(monthNumber(md[2]!, lang), Number(md[1]));
+  const num = /(?<![\d./])(\d{1,2})[./](\d{1,2})(?![\d]|[./]\d)/.exec(s);
+  if (num) return ymd(Number(num[2]), Number(num[1]));
+  return null;
+}
+
 /** The owner's own words only: quoted replies and signatures go first. */
-function ownPart(text: string): string {
-  const head = text.split(/\n(?:On .{5,160}wrote:|-{2,} ?Original Message ?-{2,}|From: .+\n(?:Sent|Date): )/)[0];
+function ownPart(text: string, lang: TextLang = 'en'): string {
+  const head = text.split(lang === 'en' ? /\n(?:On .{5,160}wrote:|-{2,} ?Original Message ?-{2,}|From: .+\n(?:Sent|Date): )/ : PROMISE_WORDS[lang].reply)[0];
   return head
     .split('\n')
     .filter((l) => !/^\s*>/.test(l))
@@ -136,9 +240,20 @@ function ownPart(text: string): string {
 export function findPromises(text: string, at: string, timeZone?: string): { text: string; due: string | null }[] {
   const today = localDate(at, timeZone);
   const out: { text: string; due: string | null }[] = [];
-  for (const raw of ownPart(text).split(/(?<=[.!?])\s+|\n+/)) {
+  const lang = detectLang(text.slice(0, 2000));
+  // "bis zum 3. Dezember": a day number's dot ends no sentence (other languages).
+  for (const raw of ownPart(text, lang).split(lang === 'en' ? /(?<=[.!?])\s+|\n+/ : /(?<=[.!?])(?<!(?<![\d.])\d{1,2}\.)\s+|\n+/)) {
     const s = raw.replace(/\s+/g, ' ').trim();
-    if (s.length < 8 || /\?\s*$/.test(s)) continue;
+    if (s.length < 8 || /\?\s*$/.test(s) || /^¿/.test(s)) continue;
+    if (lang !== 'en') {
+      // U3.12: the language's own phrases; a no-promise word before or just after makes it none.
+      const w = PROMISE_WORDS[lang];
+      const m = w.re.exec(s);
+      if (!m || w.not.test(s.slice(0, m.index + m[0].length + 24))) continue;
+      const said = s.slice(m.index).replace(/[.!\s]+$/, '');
+      out.push({ text: said.length > PROMISE_TEXT ? `${said.slice(0, PROMISE_TEXT - 1)}…` : said, due: dueOfIn(said, today, lang) ?? dueOfIn(s, today, lang) });
+      continue;
+    }
     const m = PROMISE_RE.exec(s);
     if (!m) continue;
     // A "won't"/"never"/"if you" before or in the promise makes it no promise.

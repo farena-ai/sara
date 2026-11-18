@@ -51,13 +51,18 @@ never-list (safety, limits, kid mode, approvals, audit, permissions).
 | Pass | Helped side is the one that checks: `look`, `plan`, `stop` need an *accepted*, unexpired, unrevoked pass that this owner gave on that link (403 otherwise, audited), and private local mode off. The help pass (S9b) and the fix pass are separate rows and separate scopes. |
 | Plan check | Helper: shape only (`stepShape`). Helped: `validate` against its own engines: a `fix` id must be on its current problem list (level 2, or level 1 and fixable), never a never-list setting; `setting` through `cleanChange` (allowlist + its own providers, ranges); `code` only when its T3 is available. One bad step refuses the whole plan (400 with the step's reason). Max 10 steps. |
 | Runner | Steps run in order on the helped server. Scope *each*: every step `waiting` until its OK; *pass*: one plan OK, `code` steps still `waiting`. Before each step the pass is checked again (expired/revoked → the plan stops, the rest `skipped`). `fix`/`learn` → `Repair.fix`/`learn` with `by: link:<helper>` (snapshot, verify, auto-undo exactly as local); `setting` → re-checked `cleanChange`, written, `recordRepair` row with a `{path, value}` snapshot so `Repair.undo` can put it back; `code` → `selfCode.start(request)` (her own model/caps/tests; the T3 card asks to apply). Stop marks `stopping`; the runner ends after the current step. |
-| Status | After every change the helped side sends a signed `status` (plan id, status, steps without request bodies); the helper's copy updates and its page reloads via SSE. Final status → report + notice on both. |
+| Status | After every change the helped side sends a signed `status` (plan id, status, steps without request bodies); the helper's copy updates and its page reloads via SSE. Final status → report + notice on both. Sends for one plan go out in order (each carries the whole state). |
+| Code results (U3.18) | A `code` step keeps `change` (the T3 id) and `code: {phase, checks, events}`. SelfCode's `onStatus` → `onCodeStatus(app, c)` → `RemoteRepair.codeChanged`: phases `preparing → prepared` (test names + pass/fail, never output) `→ approved → applied / rolledback / failed`, or `not-prepared`, `undone`, `discarded`, `parked` (`codePhase`). Each new phase: helped help log (`repair-code`), audit `remote-repair.code`, a signed `status` (also after the plan ended). The helper logs each new event, updates its report (`reportOf` adds "Code change #n was applied." …) and gets a notice for not prepared / applied / went back / undone. `sync()` (on every plan list read) catches up phases missed across a restart. Tests: `test/u3-repair-results.test.ts`. |
 
 ## Limits and gaps
 
 - Never tried across two real machines or over the internet; loopback only (like S9a/S9b).
-- A code change step is "done" when Hank's Sara has started preparing it; applying it is Hank's separate
-  OK on the T3 card (its result is not sent back to the helper).
+- A code change step is "done" when Hank's Sara has started preparing it (the plan does not wait days for
+  his OK); since U3.18 its whole life after that (prepared with test results, approved, applied, went back,
+  undone) still reaches the helper as status events, the plan view, the report and both help logs. Undoing
+  it stays on Hank's Updates → Code changes.
+- Fixes that worked can also travel without a fix pass, as opt-in "fix recipes" (U3.17, see SELF_REPAIR.md):
+  they only become proposals on the other server.
 - Undo is the T1 undo: settings, model switches, add-on off/on and learned skills; stopped jobs, cleared
   caches or database work can't come back (as for local repairs).
 - Steps after a stop are marked *Not run*; a new plan is needed to continue.

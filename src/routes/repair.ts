@@ -13,6 +13,7 @@ import { HttpError, readJson, send } from '../http.ts';
 import { en } from '../i18n.ts';
 import { FULL_HOURS, fullOn, REPAIR_PERMISSIONS, repairSettings, RepairRefused, type Repair } from '../repair.ts';
 import { repairOf } from '../repair-env.ts';
+import { fixRecipesOf } from '../fix-recipes.ts';
 import { runSelfTest } from '../self-test.ts';
 import { selfTestDepsOf } from './self-test.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -73,6 +74,14 @@ export function createRepairRoutes(ctx: RouteCtx): RouteHandler {
         }
         if (body.full === true) next.fullUntil = new Date(app.now().getTime() + FULL_HOURS * 3_600_000).toISOString();
         if (body.full === false) next.fullUntil = null;
+        // U3.17 "Share fixes that worked": off by default; only linked friends (direct links) can be picked.
+        if (body.share !== undefined) next.share = body.share === true;
+        if (body.shareLinks !== undefined) {
+          const known = new Set((app.messages?.links() ?? []).filter((l) => l.kind === 'direct').map((l) => l.id));
+          if (!Array.isArray(body.shareLinks) || !body.shareLinks.every((x) => typeof x === 'string' && known.has(x))) throw new HttpError(400, en('Pick linked friends from the list.'));
+          next.shareLinks = [...new Set(body.shareLinks as string[])];
+        }
+        fixRecipesOf(app);
         // Only the person changes this, here; the engine never writes repair.* (src/repair.ts NEVER).
         app.settings.update({ repair: next });
         return send(res, 200, view(rep));

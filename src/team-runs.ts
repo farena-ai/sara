@@ -22,6 +22,7 @@ import { complete } from './life.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { interruptible } from './pending.ts';
 import { SAFETY_BOUNDARIES } from './persona.ts';
+import { TeamRecipes } from './team-recipes.ts';
 import { onThisComputer } from './private-local.ts';
 import type { ChatMessage, ToolCall } from './providers/types.ts';
 import { checkClaims, type Receipt } from './receipts.ts';
@@ -296,10 +297,13 @@ export class TeamRuns {
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
   readonly #live = new Map<number, Live>();
+  /** U3.16: saved team recipes (the plan's shape, {job} for the job text). */
+  readonly recipes: TeamRecipes;
 
   constructor(app: AppContext, db: DatabaseSync) {
     this.#app = app;
     this.#db = db;
+    this.recipes = new TeamRecipes(app, db);
     db.exec(`
 CREATE TABLE IF NOT EXISTS team_runs (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -382,7 +386,7 @@ CREATE INDEX IF NOT EXISTS team_runs_conv ON team_runs(conversation_id, id);
   }
 
   /** She proposes the plan. Nothing runs until the person approves it. */
-  async propose(conversationId: string, goal: string, o: { deliver?: 'document' | 'message'; format?: string } = {}): Promise<TeamRun> {
+  async propose(conversationId: string, goal: string, o: { deliver?: 'document' | 'message'; format?: string; recipe?: number } = {}): Promise<TeamRun> {
     const app = this.#app;
     const conv = app.store.getConversation(conversationId);
     if (!conv) throw new TeamRunError(404, en('No such conversation.'));
@@ -390,22 +394,27 @@ CREATE INDEX IF NOT EXISTS team_runs_conv ON team_runs(conversation_id, id);
     const g = goal.trim();
     if (g.length < 8 || g.length > 4000) throw new TeamRunError(400, en('Describe the job in 8 to 4000 characters.'));
     const priv = this.#private(conversationId);
+    // U3.16: from a recipe: its plan with {job} filled, no planning call; still approved once.
+    const fromRecipe = o.recipe === undefined ? undefined : cleanRunPlan(app, this.recipes.planFor(o.recipe, g), { private: priv, goal: g });
     const perms = app.settings.get().toolPermissions;
     const tools = app.tools.list().filter((t) => (!t.isAvailable || t.isAvailable()) && !HARD_LIMIT_TOOL(t.spec.name, t) && app.tools.permission(t.spec.name, perms) !== 'never' && !t.spec.name.startsWith('pc_') && !(priv && OFFSERVER_TOOL(t.spec.name)));
     const prompt = `You plan a team run for a big job. The job from ${app.settings.get().ownerName?.trim() || 'the owner'}:\n"""${g}"""\n\nTools helpers may have: ${tools.map((t) => t.spec.name).join(', ')}.\nRoles: researcher (finds facts with sources), drafter (writes the deliverable from the findings), checker (checks every claim against the sources), or custom (say what it does).\n\nSplit the job into 2 to 6 parts. Parts that don't need each other's results run at the same time; \"after\" lists the parts a part must wait for. Usually: one or more research parts, then a draft after them, then a check after the draft. Give each role only the tools it needs. Sending, posting or buying is queued for one final approval at the end.\nReturn ONLY JSON: {"roles":[{"id":"r","name":"Researcher","kind":"researcher","instructions":"…","tools":["web_search"]}],"steps":[{"id":"s1","role":"r","title":"…","instructions":"…","after":[]}],"deliver":{"kind":"document|message","format":"docx|pdf|md","title":"…"}}`;
-    let text = '';
-    try {
-      text = await complete(app, { ...conv, providerId: null, model: null }, [{ role: 'user', content: prompt }], 1800, 'planning');
-    } catch (err) {
-      console.warn(`team runs: planning model failed: ${(err as Error).message}`);
-    }
     let plan: RunPlan;
-    try {
-      const j = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as Record<string, unknown>;
-      if (o.deliver) j.deliver = { ...((j.deliver as object) ?? {}), kind: o.deliver, ...(o.format ? { format: o.format } : {}) };
-      plan = cleanRunPlan(app, j, { private: priv, fromModel: true, goal: g });
-    } catch {
-      plan = cleanRunPlan(app, standardPlan(g, o), { private: priv, fromModel: true, goal: g });
+    if (fromRecipe) plan = fromRecipe;
+    else {
+      let text = '';
+      try {
+        text = await complete(app, { ...conv, providerId: null, model: null }, [{ role: 'user', content: prompt }], 1800, 'planning');
+      } catch (err) {
+        console.warn(`team runs: planning model failed: ${(err as Error).message}`);
+      }
+      try {
+        const j = JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1)) as Record<string, unknown>;
+        if (o.deliver) j.deliver = { ...((j.deliver as object) ?? {}), kind: o.deliver, ...(o.format ? { format: o.format } : {}) };
+        plan = cleanRunPlan(app, j, { private: priv, fromModel: true, goal: g });
+      } catch {
+        plan = cleanRunPlan(app, standardPlan(g, o), { private: priv, fromModel: true, goal: g });
+      }
     }
     const now = app.now().toISOString();
     const steps: RunStep[] = plan.steps.map((s) => ({ ...s, status: 'waiting', report: null, receipts: [], tokens: 0, usd: 0, runs: 0, startedAt: null, endedAt: null }));
@@ -876,16 +885,22 @@ export function createTeamRunTools(app: () => AppContext): Tool[] {
     spec: {
       name: 'team_run',
       description:
-        'Propose a team run for a big job that splits well (research several things at once, write it up, check it): you plan roles (researcher, drafter, checker or custom), each with its model, tools and budget; the person edits and approves the plan once on its card, helpers work in parallel, a checker checks the claims against the sources, and one deliverable (a document or a message) comes back. Sending, posting or buying waits for one final approval. For code, use team_task; for small things, do them yourself.',
-      parameters: { type: 'object', properties: { goal: { type: 'string', description: 'The whole job: what to find, write or decide, and what the result should be.' }, deliver: { type: 'string', enum: ['document', 'message'], description: 'A document (Word, PDF, Markdown…) or a message here.' }, format: { type: 'string', enum: [...FORMATS], description: 'For a document (default docx).' } }, required: ['goal'] },
+        'Propose a team run for a big job that splits well (research several things at once, write it up, check it): you plan roles (researcher, drafter, checker or custom), each with its model, tools and budget; the person edits and approves the plan once on its card, helpers work in parallel, a checker checks the claims against the sources, and one deliverable (a document or a message) comes back. Sending, posting or buying waits for one final approval. For code, use team_task; for small things, do them yourself. When the person names one of their saved team recipes (\"use my product comparison team\"), pass its name as recipe: the plan comes from it.',
+      parameters: { type: 'object', properties: { goal: { type: 'string', description: 'The whole job: what to find, write or decide, and what the result should be.' }, recipe: { type: 'string', description: 'The name of a saved team recipe to start from (optional).' }, deliver: { type: 'string', enum: ['document', 'message'], description: 'A document (Word, PDF, Markdown…) or a message here.' }, format: { type: 'string', enum: [...FORMATS], description: 'For a document (default docx).' } }, required: ['goal'] },
     },
     isAvailable: () => Boolean(app().teamRuns),
     summarize: (a) => `Team run: ${clip(String(a.goal ?? ''), 160)}`,
     async run(args, ctx) {
       const a = app();
       if (!a.teamRuns || !ctx.conversationId) throw new Error('Team runs need a conversation.');
-      const run = await a.teamRuns.propose(ctx.conversationId, String(args.goal ?? ''), { ...(args.deliver === 'document' || args.deliver === 'message' ? { deliver: args.deliver } : {}), ...(typeof args.format === 'string' ? { format: args.format } : {}) });
-      return `Team run #${run.id} proposed: ${run.plan.roles.length} helpers, ${run.plan.steps.length} parts, a budget of about ${run.plan.limits.tokens.toLocaleString('en-US')} tokens. The plan is on its card in this chat: the person edits it and approves it once; nothing runs before that. Don't describe results before the run ends.`;
+      const wanted = typeof args.recipe === 'string' && args.recipe.trim() ? args.recipe.trim() : '';
+      const recipe = wanted ? a.teamRuns.recipes.find(wanted) : undefined;
+      if (wanted && !recipe) {
+        const names = a.teamRuns.recipes.list().map((r) => `“${r.name}”`);
+        throw new Error(names.length ? `No team recipe called “${clip(wanted, 60)}”. The saved recipes: ${names.join(', ')}. Ask which one they mean.` : 'There are no saved team recipes yet. Plan the run without one.');
+      }
+      const run = await a.teamRuns.propose(ctx.conversationId, String(args.goal ?? ''), { ...(args.deliver === 'document' || args.deliver === 'message' ? { deliver: args.deliver } : {}), ...(typeof args.format === 'string' ? { format: args.format } : {}), ...(recipe ? { recipe: recipe.id } : {}) });
+      return `Team run #${run.id} proposed${recipe ? ` from your recipe “${recipe.name}”` : ''}: ${run.plan.roles.length} helpers, ${run.plan.steps.length} parts, a budget of about ${run.plan.limits.tokens.toLocaleString('en-US')} tokens. The plan is on its card in this chat: the person edits it and approves it once; nothing runs before that. Don't describe results before the run ends.`;
     },
   };
   return [propose];

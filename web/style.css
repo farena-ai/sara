@@ -1204,6 +1204,8 @@ p:has(> #dc-status:empty):not(:has(> button:not([hidden]))) { display: none; }
 .dstu-ins { border-left-color: var(--success); }
 .dstu-del { border-left-color: var(--danger); }
 .dstu-chg { border-left-color: var(--warn); }
+.dstu-move { border-left-color: var(--accent); }
+.dstu-note { border-left-color: var(--muted); }
 .dstu-rev ins, .dstu-rev del { overflow-wrap: anywhere; }
 .dstu-card > p:empty, .dstu-card > div:empty { display: none; }
 .dstu-present { border-left-color: var(--success); }
@@ -2268,15 +2270,30 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 .fam-tile .fam-big, #family .fam-big { font-weight: 650; }
 .fam-tile-h { margin: 0; color: var(--accent-solid); }
 /* ROADMAP_T: Self-repair on Settings → Privacy & system → Health (web/repair.js). */
-#repair-view .rp-list li { display: flex; gap: 6px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
-#repair-view .rp-list li:last-child { border-bottom: 0; }
-#repair-view .rp-body { display: grid; gap: 3px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
-#repair-view .rp-body > strong { font-size: 12px; text-transform: none; }
-#repair-view .rp-fix { display: block; }
-#repair-view .rp-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
-#repair-view .rp-sub { margin: 10px 0 0; font-weight: 600; }
-#repair-view .rp-steps summary { cursor: pointer; color: var(--muted); }
-#repair-view .rp-steps ol { margin: 4px 0 0; padding-left: 18px; }
+:is(#repair-view, #repair-share-view) .rp-list li { display: flex; gap: 6px; align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--line); }
+:is(#repair-view, #repair-share-view) .rp-list li:last-child { border-bottom: 0; }
+:is(#repair-view, #repair-share-view) .rp-body { display: grid; gap: 3px; min-width: 0; flex: 1; overflow-wrap: anywhere; }
+:is(#repair-view, #repair-share-view) .rp-body > strong { font-size: 12px; text-transform: none; }
+:is(#repair-view, #repair-share-view) .rp-fix { display: block; }
+:is(#repair-view, #repair-share-view) .rp-acts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 2px; }
+:is(#repair-view, #repair-share-view) .rp-sub { margin: 10px 0 0; font-weight: 600; }
+:is(#repair-view, #repair-share-view) .rp-steps summary { cursor: pointer; color: var(--muted); }
+:is(#repair-view, #repair-share-view) .rp-steps ol { margin: 4px 0 0; padding-left: 18px; }
+/* U3.17: fixes shared between linked friends (web/repair.js). */
+#repair-share-view .rp-friends { border: 0; padding: 0; margin: 4px 0 6px; display: flex; flex-wrap: wrap; gap: 4px 14px; min-width: 0; }
+#repair-share-view .rp-friends legend { padding: 0; margin-bottom: 2px; color: var(--muted); }
+#repair-share-view .rp-friend { display: inline-flex; align-items: center; gap: 6px; }
+#repair-share-view .rp-friend input { width: auto; margin: 0; }
+#repair-share-view .rp-dev { display: grid; gap: 4px; min-width: 0; }
+#repair-share-view .rp-dev > button { justify-self: start; }
+#repair-share-view .rp-preview { width: 100%; min-width: 0; box-sizing: border-box; max-height: 16em; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; padding: 6px 8px; border-radius: 6px; background: var(--surface-1); color: var(--text-1); }
+#repair-share-view .rp-sent { margin: 4px 0 0; padding-left: 18px; display: grid; gap: 4px; }
+/* U3.18: a code step's life in a fix plan (web/remote-repair.js). */
+#msgs .rr-code { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+#msgs .rr-code p { margin: 0; }
+#msgs .rr-code .rr-badge { display: inline-block; }
+#msgs .rr-code :is(.rr-ph-applied, .rr-ph-prepared) { color: var(--text-1); background: var(--accent-soft); }
+#msgs .rr-code :is(.rr-ph-not-prepared, .rr-ph-failed, .rr-ph-rolledback) { color: var(--danger, var(--text-1)); }
 
 /* T3: Settings → Updates → Code changes (web/self-code.js). */
 .cc-host { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }

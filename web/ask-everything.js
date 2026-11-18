@@ -3,6 +3,8 @@
 // whose lines cite numbered sources [n], then the hits grouped by source. Each hit opens at the
 // spot: a chat at the message, a library document at its page, a workspace file at the line, an
 // email in full here with the quote marked, an event's details, the planner, a person's card.
+// U3.19: also meetings (at the transcript line), trips (at the booking), documents (templates,
+// drafts and clause checklists in the Library), research reports and goals.
 import { paintIcons } from './icons.js';
 import { t } from './naming.js';
 
@@ -10,9 +12,9 @@ const $ = (s) => document.querySelector(s);
 /** @type {null | { api: Function, el: Function, openChat: Function, openFile: Function, openPlanner: Function, showPerson: Function, openLibrary: Function, askInChat: Function }} */
 let ctx = null;
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
-const SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts'];
-const LABEL = () => ({ mail: t('Emails'), files: t('Files'), chats: t('Chats'), calendar: t('Calendar'), notes: t('Notes'), lists: t('Lists'), contacts: t('Contacts') });
-const ICON = { mail: 'mail', files: 'library', chats: 'chat', calendar: 'calendar', notes: 'note', lists: 'check', contacts: 'team' };
+const SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals'];
+const LABEL = () => ({ mail: t('Emails'), files: t('Files'), chats: t('Chats'), calendar: t('Calendar'), notes: t('Notes'), lists: t('Lists'), contacts: t('Contacts'), meetings: t('Meetings'), trips: t('Trips'), documents: t('Documents'), research: t('Research'), goals: t('Goals') });
+const ICON = { mail: 'mail', files: 'library', chats: 'chat', calendar: 'calendar', notes: 'note', lists: 'check', contacts: 'team', meetings: 'captions', trips: 'compass', documents: 'file', research: 'flask', goals: 'target' };
 let last = null;
 let seq = 0;
 
@@ -155,7 +157,17 @@ function answerText(h) {
     case 'lists':
       return t('On your list: {title}', { title: h.title }) + (h.where ? ` (${whereText(h)})` : '');
     case 'contacts':
-      return `${h.title}${h.where ? `, ${h.where}` : ''}: ${quote}`;
+      return `${h.title}${h.where ? `, ${whereText(h)}` : ''}: ${quote}`;
+    case 'meetings':
+      return h.open.line ? t('In the meeting “{title}”, {where}: {quote}', { title: h.title, where: whereText(h), quote }) : t('The notes of “{title}”: {quote}', { title: h.title, quote });
+    case 'trips':
+      return t('Your trip “{title}”: {quote}', { title: h.title, quote: h.quote });
+    case 'documents':
+      return `${h.title} (${whereText(h)}): ${h.quote}`;
+    case 'research':
+      return t('Your research “{title}”: {quote}', { title: h.title, quote });
+    case 'goals':
+      return t('Your goal “{title}”: {quote}', { title: h.title, quote: h.quote });
     default:
       return quote;
   }
@@ -171,7 +183,26 @@ function citeChip(h) {
 function whereText(h) {
   if (h.source === 'chats') return h.where === 'you' ? t('You') : h.where === 'her' ? t('She') : h.where;
   if (h.source === 'lists') return (h.where ?? '').replace(/^to-do\b/, t('To-do')).replace(/\bdone\b/, t('Done'));
+  if (h.source === 'meetings' && h.where === 'notes') return t('Notes');
+  if (h.source === 'contacts' || h.source === 'documents' || h.source === 'research' || h.source === 'goals' || h.source === 'trips') return localWhere(h.where ?? '');
   return h.where;
+}
+
+/** U3.19: the server's English where-words (promise, due, draft, template…) in the person's language. */
+function localWhere(w) {
+  const words = { promise: t('promise'), draft: t('draft'), report: t('report'), active: t('active'), paused: t('paused'), done: t('done'), stopped: t('stopped'), flight: t('flight'), hotel: t('hotel'), car: t('car'), train: t('train'), event: t('event') };
+  return w
+    .split(' · ')
+    .map((p) => {
+      let m;
+      if ((m = /^last contact (\S+)$/.exec(p))) return t('last contact {date}', { date: day(m[1]) });
+      if ((m = /^due (\S+)$/.exec(p))) return t('due {date}', { date: day(m[1]) });
+      if ((m = /^(\d+) of (\d+) steps done$/.exec(p))) return t('{done} of {n} steps done', { done: m[1], n: m[2] });
+      if ((m = /^(\d+) sources$/.exec(p))) return t('{n} sources', { n: m[1] });
+      if ((m = /^clause checklist$/.exec(p))) return t('clause checklist');
+      return words[p] ?? p;
+    })
+    .join(' · ');
 }
 
 function hitRow(h) {
@@ -202,6 +233,13 @@ async function openHit(h) {
   if (o.kind === 'task') return void ctx.openPlanner('tasks');
   if (o.kind === 'list') return void ctx.openPlanner('board');
   if (o.kind === 'person') return void ctx.showPerson(o.id);
+  if (o.kind === 'meeting') return void (await import('./meetings.js')).openMeetingsView(o.id, o.line);
+  if (o.kind === 'trip') return void (await import('./trips.js')).openTrips(o.id, o.booking);
+  if (o.kind === 'goal') return void (await import('./long-goals.js')).openGoals(o.id);
+  if (o.kind === 'research') {
+    await ctx.openLibrary();
+    return void (await import('./research.js')).openResearch(o.id);
+  }
 }
 
 async function openMail(h) {

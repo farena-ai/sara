@@ -306,7 +306,7 @@ test('T1 a settings fix that makes health worse is put back by itself', async ()
 
 test('T1 permissions: auto1 runs level 1 on its own and reports after; ask never does; 24 hours then expires', async () => {
   const f = fake();
-  assert.deepEqual(repairSettings(f.settings()), { permission: 'auto1', fullUntil: null }, 'auto1 by default');
+  assert.deepEqual(repairSettings(f.settings()), { permission: 'auto1', fullUntil: null, share: false, shareLinks: [] }, 'auto1 by default (U3.17: sharing off)');
   f.set({ fallbackAfterSec: 5000 });
   f.rep.due(f.clock.now);
   await f.rep.idle();

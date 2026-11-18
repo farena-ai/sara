@@ -10,9 +10,19 @@
 // forgotten messages, other companions' and adult-channel chats never show; off the record nothing
 // is searched; a child only gets the sources their tool allowlist (KID_TOOLS) already covers; in a
 // private chat or Private local mode mail and calendars (which ask servers elsewhere) stay unread.
+//
+// U3.19: also meetings (S2 transcripts and notes, cited with the time in the recording), trips (S6
+// bookings), documents (S7 templates, drafts and their clause checklists), research reports (S1) and
+// goals (S3); contacts also cover the S4 promises and last contact. Each keeps its feature's rules:
+// meetings and research are the owner's only (a member's space has none), trips, goals and documents
+// are each space's own, a child skips them all, anything made in a private, adult or other-person
+// chat stays out (as those chats do), and a private People card shows only in a private chat.
 import type { AppContext } from './chat.ts';
 import { KID_TOOLS } from './family.ts';
 import { findFiles } from './find.ts';
+import { clauseChecklist, DOC_TYPE_LABEL, guessDocType } from './documents/clauses.ts';
+import { FORMAT_LABEL, madeDocs } from './documents/make.ts';
+import { docTemplates } from './documents/templates.ts';
 import { messageText, type GmailPart } from './google.ts';
 import { allEvents, calendarSources } from './mail/calendars.ts';
 import { emptyTerms, type SearchTerms } from './mail/search.ts';
@@ -21,7 +31,7 @@ import { privateLocalOn } from './net-guard.ts';
 import { turnSpaceSql, type SpaceSql } from './recall.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 
-export const ASK_SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts'] as const;
+export const ASK_SOURCES = ['mail', 'files', 'chats', 'calendar', 'notes', 'lists', 'contacts', 'meetings', 'trips', 'documents', 'research', 'goals'] as const;
 export type AskSource = (typeof ASK_SOURCES)[number];
 
 /** Where a hit opens, at the spot. */
@@ -34,7 +44,12 @@ export type AskOpen =
   | { kind: 'note'; id: number }
   | { kind: 'task'; id: number }
   | { kind: 'list'; board: string; card: string }
-  | { kind: 'person'; id: number };
+  | { kind: 'person'; id: number }
+  /** U3.19: a meeting, at a transcript line (its number and seconds into the recording) or its notes. */
+  | { kind: 'meeting'; id: number; line?: number; t?: number }
+  | { kind: 'trip'; id: number; booking?: number }
+  | { kind: 'research'; id: number }
+  | { kind: 'goal'; id: number };
 
 export interface AskHit {
   source: AskSource;
@@ -122,7 +137,7 @@ export function bestQuote(text: string, words: string[], width = 240): string {
 }
 
 /** The tool each source rides on, for a child's allowlist. */
-const SOURCE_TOOL: Record<AskSource, string> = { mail: 'mail_search', files: 'library', chats: 'recall', calendar: 'calendar_events', notes: 'note', lists: 'todo', contacts: 'person_lookup' };
+const SOURCE_TOOL: Record<AskSource, string> = { mail: 'mail_search', files: 'library', chats: 'recall', calendar: 'calendar_events', notes: 'note', lists: 'todo', contacts: 'person_lookup', meetings: 'meeting_notes', trips: 'trips', documents: 'doc_from_template', research: 'research_start', goals: 'goal_plan' };
 
 type Ctx = { app: AppContext; words: string[]; q: string; limit: number; signal: AbortSignal; space?: SpaceSql; conversationId?: string };
 
@@ -179,15 +194,138 @@ function lists(c: Ctx): AskHit[] {
 }
 
 function contacts(c: Ctx): AskHit[] {
-  return (c.app.people?.list({ status: 'active', limit: 2000 }) ?? [])
-    .filter((p) => !p.private)
-    .map((p): AskHit => {
-      const blob = [p.name, p.fullName, ...(p.aliases ?? []), p.relation, p.notes].filter(Boolean).join('\n');
-      return { source: 'contacts', title: p.fullName || p.name, quote: p.notes ? bestQuote(p.notes, c.words) : p.relation || p.name, where: p.relation || undefined, open: { kind: 'person', id: p.id }, score: scoreOf(blob, c.words) };
-    })
-    .filter((h) => h.score > 0)
-    .sort(rank)
-    .slice(0, c.limit);
+  // U3.19: a private card (learned in a private chat, or marked) only when asking in a private chat.
+  const inPrivate = Boolean(c.conversationId && c.app.store.getConversation(c.conversationId)?.private);
+  const ties = c.app.peopleTies;
+  const people = (c.app.people?.list({ status: 'active', limit: 2000 }) ?? []).filter((p) => inPrivate || !p.private);
+  const byId = new Map(people.map((p) => [p.id, p]));
+  const hits = people.map((p): AskHit => {
+    const blob = [p.name, p.fullName, ...(p.aliases ?? []), p.relation, p.notes].filter(Boolean).join('\n');
+    const last = ties?.lastContact(p.id);
+    return { source: 'contacts', title: p.fullName || p.name, quote: p.notes ? bestQuote(p.notes, c.words) : p.relation || p.name, where: [p.relation, last ? `last contact ${last.slice(0, 10)}` : ''].filter(Boolean).join(' · ') || undefined, open: { kind: 'person', id: p.id }, score: scoreOf(blob, c.words) };
+  });
+  // S4 promises on the cards (what was promised to or by them), open ones and ones waiting for an OK.
+  for (const pr of ties?.promises({ status: 'active' }) ?? []) {
+    const p = byId.get(pr.personId);
+    if (!p) continue;
+    hits.push({ source: 'contacts', title: p.fullName || p.name, quote: pr.text, where: ['promise', pr.due ? `due ${pr.due}` : ''].filter(Boolean).join(' · '), when: pr.createdAt, open: { kind: 'person', id: p.id }, score: scoreOf(`${p.name}\n${p.fullName ?? ''}\n${pr.text}`, c.words) });
+  }
+  return hits.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
+}
+
+/** A chat whose things stay out of Ask (as its messages do): private, adult, someone else's, A2A. */
+function hiddenChat(c: Ctx, id: string | null | undefined): boolean {
+  if (!id || id === c.conversationId) return false;
+  const conv = c.app.store.getConversation(id);
+  return Boolean(conv && (conv.private || conv.partner || conv.channel.endsWith('-nsfw') || conv.channel === 'a2a'));
+}
+
+/** Seconds into a recording as 12:05 or 1:02:05. */
+export function clockOf(sec: number): string {
+  const s = Math.max(0, Math.floor(sec));
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = String(s % 60).padStart(2, '0');
+  return hh ? `${hh}:${String(mm).padStart(2, '0')}:${ss}` : `${mm}:${ss}`;
+}
+
+/** S2 meetings: what was said (cited with the speaker and the time) and the written notes. */
+function meetings(c: Ctx): AskHit[] {
+  const { app, words } = c;
+  if (!app.meetings || !words.length) return [];
+  const db = app.store.db;
+  const titles = new Map((db.prepare('SELECT id, title, notes, created_at FROM meetings ORDER BY id DESC LIMIT 500').all() as { id: number; title: string; notes: string | null; created_at: string }[]).map((m) => [Number(m.id), m]));
+  const like = words.map(() => 'instr(lower(text), ?) > 0').join(' OR ');
+  const rows = db.prepare(`SELECT meeting_id, n, speaker, text, t FROM meeting_lines WHERE kind = 'said' AND (${like}) ORDER BY meeting_id DESC, n LIMIT 400`).all(...words) as { meeting_id: number; n: number; speaker: string; text: string; t: number | null }[];
+  const out: AskHit[] = [];
+  for (const r of rows) {
+    const m = titles.get(Number(r.meeting_id));
+    if (!m) continue;
+    const t = r.t === null || r.t === undefined ? undefined : Math.round(Number(r.t) * 10) / 10;
+    out.push({ source: 'meetings', title: m.title, quote: bestQuote(r.text, words), where: [r.speaker, t === undefined ? '' : clockOf(t)].filter(Boolean).join(' · '), when: m.created_at, open: { kind: 'meeting', id: Number(r.meeting_id), line: Number(r.n), ...(t === undefined ? {} : { t }) }, score: scoreOf(`${m.title}\n${r.speaker}\n${r.text}`, words) });
+  }
+  for (const m of titles.values()) {
+    if (!m.notes) continue;
+    let n: { summary?: string; decisions?: string[]; actions?: { task: string; owner?: string }[]; questions?: string[] };
+    try {
+      n = JSON.parse(m.notes) as typeof n;
+    } catch {
+      continue;
+    }
+    const parts = [n.summary ?? '', ...(n.decisions ?? []), ...(n.actions ?? []).map((a) => `${a.task}${a.owner ? ` (${a.owner})` : ''}`), ...(n.questions ?? [])].filter(Boolean).map((x) => x.replace(/[.!?]?\s*$/, '.'));
+    const text = parts.join(' ');
+    // The notes rank just under a transcript line that says the same.
+    out.push({ source: 'meetings', title: m.title, quote: bestQuote(text, words), where: 'notes', when: m.created_at, open: { kind: 'meeting', id: Number(m.id) }, score: scoreOf(`${m.title}\n${text}`, words) * 0.95 });
+  }
+  return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
+}
+
+/** S6 trips: each booking on a trip's timeline. */
+function trips(c: Ctx): AskHit[] {
+  const tr = c.app.travel;
+  if (!tr) return [];
+  const out: AskHit[] = [];
+  for (const t of tr.trips({ all: true })) {
+    for (const b of t.bookings) {
+      const blob = [t.title, b.title, b.number, b.airline, b.confirmation, b.from, b.to, b.place, b.kind].filter(Boolean).join('\n');
+      const quote = [b.title, b.when, b.confirmation ? `confirmation ${b.confirmation}` : ''].filter(Boolean).join(' · ');
+      out.push({ source: 'trips', title: t.title, quote: quote.includes(b.number ?? '') ? quote : `${b.number} · ${quote}`, where: [b.kind, t.dates].filter(Boolean).join(' · '), when: b.startsAt, open: { kind: 'trip', id: t.id, booking: b.id }, score: scoreOf(blob, c.words) });
+    }
+  }
+  return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
+}
+
+/** S7 documents: templates (with what they fill in), drafts she made, and their clause checklists. */
+function documents(c: Ctx): AskHit[] {
+  const { app, words } = c;
+  const lib = app.library;
+  if (!lib) return [];
+  const out: AskHit[] = [];
+  for (const tpl of docTemplates(app).list()) {
+    const d = lib.get(tpl.libraryId);
+    if (!d || hiddenChat(c, d.conversationId)) continue;
+    const fills = tpl.placeholders.filter((p) => p.kind !== 'signature').map((p) => p.label);
+    const label = DOC_TYPE_LABEL[tpl.type] ?? tpl.type;
+    out.push({ source: 'documents', title: d.name, quote: fills.length ? `Fills in: ${fills.slice(0, 12).join(', ')}` : `${label} template`, where: `${label} template`, when: tpl.createdAt, open: { kind: 'library', docId: d.id }, score: scoreOf(`${d.name}\n${label} template\n${fills.join('\n')}`, words) });
+  }
+  for (const m of madeDocs(app).recent(200)) {
+    if (!m.libraryId || hiddenChat(c, m.conversationId) || !lib.get(m.libraryId)) continue;
+    const content = String(m.spec?.content ?? '').replace(/[*_`#>~]+/g, '');
+    out.push({ source: 'documents', title: m.title, quote: bestQuote(content || m.title, words), where: `${FORMAT_LABEL[m.format] ?? m.format} · draft${m.version > 1 ? ` v${m.version}` : ''}`, when: m.createdAt, open: { kind: 'library', docId: m.libraryId }, score: scoreOf(`${m.title}\n${content}`, words) });
+    // Its clause checklist (the same check doc_checklist runs), one line per clause the question names.
+    if (!content) continue;
+    const type = guessDocType(m.title, content);
+    for (const it of clauseChecklist(content, type).items) {
+      const s = scoreOf(`${m.title}\n${it.label}`, words);
+      if (!words.some((w) => fold(it.label).includes(fold(w)))) continue;
+      out.push({ source: 'documents', title: m.title, quote: `${it.label}: ${it.status === 'missing' ? 'missing' : it.quote ? `“${clip(it.quote, 160)}”` : it.status}`, where: `clause checklist · ${DOC_TYPE_LABEL[type]}`, when: m.createdAt, open: { kind: 'library', docId: m.libraryId }, score: s + 0.01 });
+    }
+  }
+  return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
+}
+
+/** S1 research reports (the owner's). */
+function research(c: Ctx): AskHit[] {
+  const out: AskHit[] = [];
+  for (const r of c.app.research?.list() ?? []) {
+    if (!r.report || hiddenChat(c, r.conversationId)) continue;
+    const read = r.sources.filter((s) => s.status === 'read').length;
+    out.push({ source: 'research', title: r.question, quote: bestQuote(r.report.replace(/[*_`#>~]+/g, '').replace(/\s*\[\d{1,3}\]/g, ''), c.words), where: `report${read ? ` · ${read} sources` : ''}`, when: r.updatedAt, open: { kind: 'research', id: r.id }, score: scoreOf(`${r.question}\n${r.report}`, c.words) });
+  }
+  return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
+}
+
+/** S3 goals: the goal and its steps. */
+function goals(c: Ctx): AskHit[] {
+  const out: AskHit[] = [];
+  for (const g of c.app.longGoals?.list() ?? []) {
+    if (hiddenChat(c, g.conversationId)) continue;
+    const steps = g.milestones.map((m) => `${m.text}${m.due ? ` (by ${m.due})` : ''}${m.status === 'done' ? ' (done)' : ''}`);
+    const best = steps.map((s) => [s, scoreOf(s, c.words)] as const).sort((a, b) => b[1] - a[1])[0];
+    const done = g.milestones.filter((m) => m.status === 'done').length;
+    out.push({ source: 'goals', title: g.title, quote: best && best[1] > 0 ? best[0] : g.title, where: [g.status, g.due ? `due ${g.due}` : '', `${done} of ${g.milestones.length} steps done`].filter(Boolean).join(' · '), when: g.updatedAt, open: { kind: 'goal', id: g.id }, score: scoreOf(`${g.title}\n${steps.join('\n')}`, c.words) });
+  }
+  return out.filter((h) => h.score > 0).sort(rank).slice(0, c.limit);
 }
 
 async function files(c: Ctx): Promise<AskHit[]> {
@@ -285,7 +423,7 @@ function rank(a: AskHit, b: AskHit): number {
   return b.score - a.score || String(b.when ?? '').localeCompare(String(a.when ?? ''));
 }
 
-const RUN: Record<AskSource, (c: Ctx) => AskHit[] | Promise<AskHit[]>> = { mail, files, chats, calendar, notes, lists, contacts };
+const RUN: Record<AskSource, (c: Ctx) => AskHit[] | Promise<AskHit[]>> = { mail, files, chats, calendar, notes, lists, contacts, meetings, trips, documents, research, goals };
 
 /** Which sources this person may ask here, and why the others are skipped. */
 export function askAllowed(app: AppContext, opts: { conversationId?: string } = {}): { allowed: AskSource[]; skipped: { source: AskSource; why: string }[] } {
@@ -337,7 +475,7 @@ export async function askEverything(app: AppContext, q: string, opts: AskOptions
 
 const day = (iso?: string) => (iso && /^\d{4}-\d{2}-\d{2}/.test(iso) ? iso.slice(0, 10) : '');
 
-const LABEL: Record<AskSource, string> = { mail: 'Emails', files: 'Files', chats: 'Chats', calendar: 'Calendar', notes: 'Notes', lists: 'Lists', contacts: 'Contacts' };
+const LABEL: Record<AskSource, string> = { mail: 'Emails', files: 'Files', chats: 'Chats', calendar: 'Calendar', notes: 'Notes', lists: 'Lists', contacts: 'Contacts', meetings: 'Meetings', trips: 'Trips', documents: 'Documents', research: 'Research', goals: 'Goals' };
 
 /** The tool's text: numbered sources she cites as [n]. */
 export function formatAsk(r: AskResult): string {
@@ -360,7 +498,7 @@ export function createAskEverythingTool(getApp: () => AppContext): Tool {
     spec: {
       name: 'ask_everything',
       description:
-        "Search the person's whole life at once: their emails (every mailbox), files (library documents with page numbers, workspace files), past chats, calendars, notes, to-do and shared lists, and contacts. Use it for questions like \"when is my lease renewal due?\" or \"what did Dan say about the trip?\" when the answer could be anywhere. Returns numbered quotes; cite them as [n] in the answer.",
+        "Search the person's whole life at once: their emails (every mailbox), files (library documents with page numbers, workspace files), past chats, calendars, notes, to-do and shared lists, contacts (card notes, promises, last contact), meetings (what was said, with the time, and the notes), trips (bookings), documents (templates, drafts, clause checklists), research reports and goals. Use it for questions like \"when is my lease renewal due?\" or \"what did Dan say about the trip?\" when the answer could be anywhere. Returns numbered quotes; cite them as [n] in the answer.",
       parameters: {
         type: 'object',
         properties: {

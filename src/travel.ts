@@ -35,8 +35,19 @@ export interface FlightStatus {
   depGate?: string;
   depTerminal?: string;
   arrGate?: string;
+  /** U3.14: where the plane is (OpenSky: live position, no gate or delay). */
+  position?: { lat: number; lon: number; altM?: number; onGround: boolean };
+  /** What this source cannot tell (shown next to its status). */
+  limits?: string;
   source: string;
   at: string;
+}
+/** What a source may need besides the flight number: the booking's airports and times (ISO instants). */
+export interface FlightContext {
+  from?: string;
+  to?: string;
+  departsAt?: string;
+  arrivesAt?: string | null;
 }
 export interface NextFlight {
   flight: string;
@@ -48,7 +59,7 @@ export interface NextFlight {
 export interface FlightStatusSource {
   id: string;
   label: string;
-  status(flight: string, date: string, signal?: AbortSignal): Promise<FlightStatus | undefined>;
+  status(flight: string, date: string, signal?: AbortSignal, ctx?: FlightContext): Promise<FlightStatus | undefined>;
   nextFlights?(from: string, to: string, after: Date, signal?: AbortSignal): Promise<NextFlight[]>;
 }
 export interface Forecast {
@@ -58,7 +69,7 @@ export interface Forecast {
   snow: boolean;
 }
 export interface TravelSettings {
-  provider: 'off' | 'airlabs';
+  provider: 'off' | 'airlabs' | 'opensky';
   alerts: boolean;
   checkin: boolean;
   leaveBy: boolean;
@@ -211,6 +222,72 @@ export function airlabsSource(key: string, fetchImpl: FetchLike = netFetch): Fli
   };
 }
 
+// ------------------------------------------------------------ U3.14: OpenSky Network (free, no key)
+
+/** Airline IATA code → ICAO callsign prefix (OpenSky knows flights by callsign: LH400 → DLH400). */
+export const AIRLINE_ICAO: Record<string, string> = {
+  AA: 'AAL', UA: 'UAL', DL: 'DAL', WN: 'SWA', B6: 'JBU', AS: 'ASA', NK: 'NKS', F9: 'FFT', HA: 'HAL', G4: 'AAY', SY: 'SCX', AC: 'ACA', WS: 'WJA', PD: 'POE', AM: 'AMX', Y4: 'VOI', VB: 'VIV',
+  BA: 'BAW', VS: 'VIR', EI: 'EIN', U2: 'EZY', FR: 'RYR', W6: 'WZZ', LS: 'EXS', LH: 'DLH', EW: 'EWG', DE: 'CFG', LX: 'SWR', OS: 'AUA', SN: 'BEL', AF: 'AFR', KL: 'KLM', HV: 'TRA', TO: 'TVF',
+  IB: 'IBE', UX: 'AEA', VY: 'VLG', I2: 'IBS', TP: 'TAP', AZ: 'ITY', SK: 'SAS', AY: 'FIN', DY: 'NOZ', D8: 'IBK', LO: 'LOT', OK: 'CSA', A3: 'AEE', TK: 'THY', PC: 'PGT', LG: 'LGL',
+  EK: 'UAE', QR: 'QTR', EY: 'ETD', SV: 'SVA', MS: 'MSR', RJ: 'RJA', ET: 'ETH', KQ: 'KQA', SA: 'SAA', AT: 'RAM', AI: 'AIC', '6E': 'IGO',
+  LA: 'LAN', JJ: 'TAM', G3: 'GLO', AD: 'AZU', AV: 'AVA', CM: 'CMP', AR: 'ARG', H2: 'SKU',
+  QF: 'QFA', VA: 'VOZ', NZ: 'ANZ', SQ: 'SIA', CX: 'CPA', JL: 'JAL', NH: 'ANA', KE: 'KAL', OZ: 'AAR', CI: 'CAL', BR: 'EVA', TG: 'THA', MH: 'MAS', GA: 'GIA', PR: 'PAL', CA: 'CCA', MU: 'CES', CZ: 'CSN',
+};
+/** "LH 0400" → "DLH400"; undefined when the airline is not in the list. */
+export function callsignOf(flight: string): string | undefined {
+  const m = /^\s*([A-Z]{2}|[A-Z]\d|\d[A-Z])\s*0*(\d{1,4})\s*$/i.exec(flight);
+  const icao = m ? AIRLINE_ICAO[m[1]!.toUpperCase()] : undefined;
+  return icao ? `${icao}${m![2]}` : undefined;
+}
+export const OPENSKY_LIMITS = 'OpenSky Network shows only whether the plane is in the air or on the ground, from public ADS-B receivers: no gate, delay or cancellation, and not every flight is covered.';
+
+/**
+ * OpenSky Network (opensky-network.org): free live aircraft positions, anonymous (no sign-up, no
+ * key), for personal and non-profit use (its FAQ; commercial use needs their consent). 400 credits a
+ * day per address: one call costs 1-4 by area, so it is asked only from an hour before departure
+ * until an hour after arrival, for a box around the two airports.
+ */
+export function openskySource(fetchImpl: FetchLike = netFetch, now: () => Date = () => new Date()): FlightStatusSource {
+  return {
+    id: 'opensky',
+    label: 'OpenSky Network',
+    async status(flight, _date, signal, ctx) {
+      const callsign = callsignOf(flight);
+      const dep = ctx?.departsAt ? Date.parse(ctx.departsAt) : NaN;
+      if (!callsign || Number.isNaN(dep)) return undefined;
+      const arr = ctx?.arrivesAt ? Date.parse(ctx.arrivesAt) : dep + 14 * HOUR;
+      const t = now().getTime();
+      if (t < dep - HOUR || t > arr + HOUR) return undefined;
+      const a = airportOf(ctx?.from);
+      const b = airportOf(ctx?.to);
+      const q = new URLSearchParams();
+      const pts = [a, b].filter((x): x is NonNullable<typeof a> => Boolean(x));
+      // A box around both airports (fewer credits); none across the date line or without airports.
+      if (pts.length && Math.max(...pts.map((p) => p.lon)) - Math.min(...pts.map((p) => p.lon)) < 180) {
+        const pad = pts.length === 1 ? 5 : 2;
+        q.set('lamin', String(Math.max(-90, Math.min(...pts.map((p) => p.lat)) - pad)));
+        q.set('lomin', String(Math.max(-180, Math.min(...pts.map((p) => p.lon)) - pad)));
+        q.set('lamax', String(Math.min(90, Math.max(...pts.map((p) => p.lat)) + pad)));
+        q.set('lomax', String(Math.min(180, Math.max(...pts.map((p) => p.lon)) + pad)));
+      }
+      const res = await fetchImpl(`https://opensky-network.org/api/states/all${q.size ? `?${q}` : ''}`, { signal: signal ?? AbortSignal.timeout(20_000) });
+      if (!res.ok) throw new Error(`OpenSky HTTP ${res.status}`);
+      const j = (await res.json()) as { states?: unknown[][] | null };
+      const row = (j.states ?? []).find((s) => Array.isArray(s) && String(s[1] ?? '').trim().toUpperCase() === callsign);
+      if (!row) return undefined;
+      const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+      const lon = num(row[5]);
+      const lat = num(row[6]);
+      if (lat === undefined || lon === undefined) return undefined;
+      const onGround = row[8] === true;
+      const alt = num(row[13]) ?? num(row[7]);
+      const nearDest = b ? Math.hypot(b.lat - lat, b.lon - lon) < 0.5 : false;
+      const state: FlightStatus['state'] = !onGround ? 'active' : nearDest && t > dep + 30 * 60_000 ? 'landed' : 'scheduled';
+      return { state, position: { lat, lon, ...(alt !== undefined && !onGround ? { altM: Math.round(alt) } : {}), onGround }, limits: OPENSKY_LIMITS, source: 'OpenSky Network', at: new Date(t).toISOString() };
+    },
+  };
+}
+
 /** Today's-or-later forecast for the trip's days (Open-Meteo, free, no key; the briefing's weather source). */
 async function openMeteo(place: { lat: number; lon: number }, from: string, to: string, fetchImpl: FetchLike): Promise<Forecast | undefined> {
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${place.lat}&longitude=${place.lon}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,snowfall_sum&timezone=auto&start_date=${from}&end_date=${to}`;
@@ -270,12 +347,12 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
 
   settings(): TravelSettings {
     const s = (this.#get('settings') ?? {}) as Partial<TravelSettings>;
-    return { provider: s.provider === 'airlabs' ? 'airlabs' : 'off', alerts: s.alerts !== false, checkin: s.checkin !== false, leaveBy: s.leaveBy !== false, hasKey: Boolean(this.#app.vault?.get('data:airlabs')) };
+    return { provider: s.provider === 'airlabs' || s.provider === 'opensky' ? s.provider : 'off', alerts: s.alerts !== false, checkin: s.checkin !== false, leaveBy: s.leaveBy !== false, hasKey: Boolean(this.#app.vault?.get('data:airlabs')) };
   }
   setSettings(patch: Record<string, unknown>): TravelSettings {
     const cur = this.settings();
     const next = { provider: cur.provider, alerts: cur.alerts, checkin: cur.checkin, leaveBy: cur.leaveBy };
-    if (patch.provider === 'off' || patch.provider === 'airlabs') next.provider = patch.provider;
+    if (patch.provider === 'off' || patch.provider === 'airlabs' || patch.provider === 'opensky') next.provider = patch.provider;
     for (const k of ['alerts', 'checkin', 'leaveBy'] as const) if (typeof patch[k] === 'boolean') next[k] = patch[k] as boolean;
     if (typeof patch.key === 'string') {
       const k = patch.key.trim();
@@ -288,6 +365,7 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
   }
   #source(): FlightStatusSource | undefined {
     if (this.#o.source) return this.#o.source;
+    if (this.settings().provider === 'opensky') return openskySource(this.#o.fetch ?? netFetch);
     const key = this.settings().provider === 'airlabs' ? this.#app.vault?.get('data:airlabs') : undefined;
     return key ? airlabsSource(key, this.#o.fetch ?? netFetch) : undefined;
   }
@@ -581,7 +659,7 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
 
   /** One status check: compare with the last one; changes are said (and pushed). */
   async #check(b: BookingView, source: FlightStatusSource, now: Date, sent: Sent): Promise<string | undefined> {
-    const st = await source.status(b.number ?? b.title, b.start.slice(0, 10), AbortSignal.timeout(20_000)).catch(() => undefined);
+    const st = await source.status(b.number ?? b.title, b.start.slice(0, 10), AbortSignal.timeout(20_000), { from: b.from, to: b.to, departsAt: b.startsAt, arrivesAt: b.endsAt }).catch(() => undefined);
     this.#db.prepare('UPDATE travel_bookings SET checked_at = ? WHERE id = ?').run(now.toISOString(), b.id);
     if (!st) return undefined;
     const prev = this.#statusOf(b.id);
@@ -774,6 +852,8 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
     if (st.state === 'cancelled') bits.push(this.#T(en('cancelled')));
     else if (st.state === 'diverted') bits.push(this.#T(en('diverted')));
     else if (st.state === 'landed') bits.push(this.#T(en('landed')));
+    // U3.14: a position-only source says where the plane is, never "on time".
+    else if (st.position) bits.push(st.position.onGround ? this.#T(en('on the ground')) : this.#T(en('in the air')));
     else if ((st.depDelayMin ?? 0) >= TRAVEL.delayAlertMin) bits.push(this.#T(en('delayed {n} min'), { n: st.depDelayMin }));
     else bits.push(this.#T(en('on time')));
     if (st.depGate) bits.push(this.#T(en('gate {gate}'), { gate: st.depGate }));
@@ -786,7 +866,7 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
   }
   statusText(t: TripView): string {
     const lines = t.bookings.map((b) => `- ${b.kind}${b.kind === 'flight' && b.airline ? ` (${b.airline})` : ''}: ${b.title} · ${b.when}${b.end && b.endsAt ? ` → ${fmtWhen(new Date(b.endsAt), b.kind === 'flight' && airportOf(b.to) ? airportOf(b.to)!.tz : b.tz)}` : ''}${b.place && b.kind !== 'flight' ? ` · ${b.place}` : ''}${b.confirmation ? ` · confirmation ${b.confirmation}` : ''}${b.status ? ` · ${this.#statusLine(b.status)}` : ''}${b.rebook?.length ? `\n  Rebooking options: ${b.rebook.map((o) => o.label).join('; ')}` : ''}`);
-    const src = this.#source() ? '' : '\n(Flight status is off: the person can turn on a source on the Trips page.)';
+    const src = !this.#source() ? '\n(Flight status is off: the person can turn on a source on the Trips page.)' : this.settings().provider === 'opensky' && !this.#o.source ? `\n(Flight status: ${OPENSKY_LIMITS})` : '';
     return `Trip #${t.id} “${t.title}” · ${t.dates}\n${lines.join('\n')}${t.packing ? `\nPacking list: ${t.packing.name}` : ''}${src}\nShe never books, changes or pays for travel.`;
   }
 
