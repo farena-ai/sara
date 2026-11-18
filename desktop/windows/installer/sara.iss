@@ -42,6 +42,10 @@
   #define AppAumid "BackstageCoding.Sara.Test"
   #define AppToastClsid "06518AB6-E425-4C52-A92F-FB52BE7867E6"
   #define AppSendTo "Sara (test).lnk"
+  ; U1.3: "on this computer" test installs keep their server data and sign-in start apart too.
+  #define AppUserData "{localappdata}\SaraUpdTest\server-data"
+  #define AppAllData "{commonappdata}\SaraUpdTest"
+  #define AppRunName "Sara update test server"
 #else
   #define AppGuid "6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17"
   #define AppTitle "Sara"
@@ -50,6 +54,9 @@
   #define AppAumid "BackstageCoding.Sara"
   #define AppToastClsid "57448757-B168-47CE-9852-892129855C82"
   #define AppSendTo "Sara.lnk"
+  #define AppUserData "{localappdata}\Sara\data"
+  #define AppAllData "{commonappdata}\Sara"
+  #define AppRunName "Sara server"
 #endif
 
 [Setup]
@@ -116,7 +123,7 @@ Name: "{autoprograms}\{#AppTitle}"; Filename: "{app}\Sara.exe"; Comment: "Sara, 
 
 [Registry]
 ; "Only while I'm signed in": her server starts when this user signs in.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Sara server"; ValueData: """{app}\SaraService.exe"" --run"; Flags: uninsdeletevalue; Check: (not IsAdminInstallMode) and (not IsRemote)
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppRunName}"; ValueData: """{app}\SaraService.exe"" --run"; Flags: uninsdeletevalue; Check: (not IsAdminInstallMode) and (not IsRemote)
 ; Phase 75 stage 3: what the app registers for its notifications (per user, when it runs) goes on uninstall.
 Root: HKCU; Subkey: "Software\Classes\AppUserModelId\{#AppAumid}"; Flags: uninsdeletekey dontcreatekey
 Root: HKCU; Subkey: "Software\Classes\CLSID\{{{#AppToastClsid}}"; Flags: uninsdeletekey dontcreatekey
@@ -532,8 +539,8 @@ function DataDir: String;
 begin
   Result := ExpandConstant('{param:DATA|}');
   if Result <> '' then exit;
-  if IsAdminInstallMode then Result := ExpandConstant('{commonappdata}\Sara')
-  else Result := ExpandConstant('{localappdata}\Sara\data');
+  if IsAdminInstallMode then Result := ExpandConstant('{#AppAllData}')
+  else Result := ExpandConstant('{#AppUserData}');
 end;
 
 // ---------- Tailscale ----------

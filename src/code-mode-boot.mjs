@@ -44,6 +44,8 @@ const sandboxConsole = Object.freeze({ log, info: log, warn: log, error: log, de
 
 function start(m) {
   tag = String(m.tag);
+  // U1.6: script time starts now (this process's own start, slow on a busy machine, is not hers).
+  send({ type: 'ready' });
   const callTool = (name) => (args = {}) =>
     new Promise((resolve, reject) => {
       const id = ++seq;

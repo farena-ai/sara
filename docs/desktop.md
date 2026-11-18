@@ -161,6 +161,8 @@ updated it, so an app could stay on an old version for months while its server m
   `SARA_UPDATE_ASSET_BASE` (an `http://127.0.0.1:<port>/` test server) and `SARA_UPDATE_KEY` (a test
   public key); release builds don't contain these. `test/app-update-native.test.ts` checks the
   native notice check against notices Node signed (build `desktop/windows/build-test` first).
+  The whole install/update/uninstall matrix on a real PC: `node scripts/check-windows-install.ts`
+  (docs/CHECKS.md → Windows install and update matrix).
 
 ## One Sara in Settings → Apps (3.18.x, HANKFIX)
 

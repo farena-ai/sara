@@ -205,6 +205,8 @@ export class CodeRun {
   #outstanding = 0;
   #calls = 0;
   #active = 0;
+  /** The boot's ready line came: script time counts from here, not from the process start (U1.6). */
+  #ready = false;
   #last = Date.now();
   readonly #started = Date.now();
   #logs: string[] = [];
@@ -260,7 +262,7 @@ export class CodeRun {
 
   #tick(): void {
     const now = Date.now();
-    if (this.#outstanding === 0) this.#active += now - this.#last;
+    if (this.#ready && this.#outstanding === 0) this.#active += now - this.#last;
     this.#last = now;
     if (this.#active > this.#lim.scriptMs) this.#end('timeout', `The script ran longer than ${this.#lim.scriptMs / 1000} s and was stopped.`);
     else if (now - this.#started > this.#lim.wallMs) this.#end('timeout', `The script took longer than ${Math.round(this.#lim.wallMs / 1000)} s in all and was stopped.`);
@@ -283,7 +285,10 @@ export class CodeRun {
       } catch {
         continue;
       }
-      if (m.type === 'call' && typeof m.id === 'number') {
+      if (m.type === 'ready') {
+        this.#ready = true;
+        this.#last = Date.now();
+      } else if (m.type === 'call' && typeof m.id === 'number') {
         if (this.#calls >= this.#lim.maxCalls) return this.#end('calls', `The script made more than ${this.#lim.maxCalls} tool calls and was stopped.`);
         this.#calls++;
         this.#outstanding++;

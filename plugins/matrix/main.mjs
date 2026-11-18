@@ -324,7 +324,17 @@ function content(text, o = {}) {
 
 const progressText = (text) => (/^✅/.test(String(text).trim()) ? String(text) : `${text}\n\n${STOP_HINT}`);
 
-async function onSend(m) {
+/** An edit can come while its message is still being posted: it waits for that post (U1.6). */
+const posting = new Map(); // progress ref → the post in flight
+function onSend(m) {
+  const p = sendNow(m);
+  if (!m.ref) return p;
+  const q = p.catch(() => {}).finally(() => posting.get(m.ref) === q && posting.delete(m.ref));
+  posting.set(m.ref, q);
+  return p;
+}
+
+async function sendNow(m) {
   const chatId = String(m.chatId);
   const roomId = roomOf(chatId);
   const started = m.started === true;
@@ -361,6 +371,7 @@ async function onSend(m) {
 
 /** The progress message (§6.8): `m.replace` with `m.new_content` and a `* ` fallback body. */
 async function onEdit(m) {
+  await posting.get(m.ref);
   const roomId = roomOf(String(m.chatId));
   const target = refs.get(m.ref);
   if (!target) return;

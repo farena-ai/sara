@@ -120,6 +120,7 @@ import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.j
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
+import { initOwnerChecks, openTryThese } from './owner-checks.js';
 import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
 import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
@@ -372,6 +373,7 @@ async function boot() {
   if (!hubReady) {
     hubReady = true;
     initHub({ demo: Boolean(session.demo), openSettings, queue: firstRun });
+    initOwnerChecks({ demo: Boolean(session.demo), ask: askInChat });
     initStore({ demo: Boolean(session.demo) });
     initGetMore();
 initPacks({ current: () => state.companions?.companions.find((c) => c.current)?.id ?? 'main', refresh: () => void renderCompanionsPage().catch(() => undefined) });
@@ -10036,7 +10038,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), addons: () => $('#open-addons').click() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;

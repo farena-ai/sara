@@ -78,6 +78,16 @@ test('script time cap: a busy loop is stopped, time waiting for a tool (an appro
   assert.equal(w.result, 'after the wait');
 });
 
+test('script time starts when her script does: starting the script process (slow under load) does not count', async () => {
+  // The child Node takes far longer than 40 ms to start; before the boot's ready line that start was
+  // counted as script time, so a busy machine timed out short scripts.
+  const r = await runScript({ code: 'return 1;', tools: [], limits: { scriptMs: 40, wallMs: 60_000 } }, async () => ok(''));
+  assert.equal(r.ok, true, r.error);
+  assert.equal(r.result, '1');
+  const b = await runScript({ code: 'for (;;) {}', tools: [], limits: { scriptMs: 40, wallMs: 60_000 } }, async () => ok(''));
+  assert.equal(b.reason, 'timeout', 'a busy script is still stopped');
+});
+
 test('memory cap: a script that keeps allocating is stopped', async () => {
   const r = await runScript({ code: 'const keep = []; for (;;) keep.push(new Array(1e6).fill(Math.random()));', tools: [], limits: { scriptMs: 20_000, wallMs: 30_000, heapMb: 32 } }, async () => ok(''));
   assert.equal(r.ok, false);

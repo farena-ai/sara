@@ -267,7 +267,17 @@ const quoteOf = (messageId) => {
   return author && Number(ts) ? { quoteTimestamp: Number(ts), quoteAuthor: author } : undefined;
 };
 
-async function onSend(m) {
+/** An edit can come while its message is still being posted: it waits for that post (U1.6). */
+const posting = new Map(); // progress ref → the post in flight
+function onSend(m) {
+  const p = sendNow(m);
+  if (!m.ref) return p;
+  const q = p.catch(() => {}).finally(() => posting.get(m.ref) === q && posting.delete(m.ref));
+  posting.set(m.ref, q);
+  return p;
+}
+
+async function sendNow(m) {
   const chatId = String(m.chatId);
   if (m.files?.length) {
     // Her pictures and files: the chunks follow as bridge.file; one send with data URIs when they're all in.
@@ -298,6 +308,7 @@ async function onFile(m) {
 }
 
 async function onEdit(m) {
+  await posting.get(m.ref);
   const r = refs.get(m.ref);
   if (!r || !rpc) return;
   // Signal allows 10 edits a message within 24 h; Sara's budget (editLimit 9) keeps one spare.

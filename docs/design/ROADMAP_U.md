@@ -1,0 +1,23 @@
+# ROADMAP_U: prove it, apps catch up, smarter, new features, trust
+
+Owner (2026-11-17): "go and build" on the suggested Roadmap U. Order: U1 (prove everything works for real),
+U2 (apps catch up), then U3/U4 picks; U5 items slot into any release. Free services only; no paid or metered
+services, no CI/GitHub Actions or hosted schedules (standing rule). Real-model runs are on demand with a cost cap
+and prefer local or free models.
+
+| # | Item | Wave |
+|---|---|---|
+| U1.1 | Real-model task runs: ~40 scripted real tasks against a throwaway Sara with real models, scored, report | U1 |
+| U1.2 | Live mail/calendar checks against owner-provided test accounts (skipped when none), plus loopback fakes | U1 |
+| U1.3 | Windows install/update/reinstall/scope/uninstall matrix with the TestInstall build | U1 |
+| U1.4 | Two-server pair checks: messages, communities, help and fix passes, alerts across | U1 |
+| U1.5 | Guided owner checklist in the app ("Try these"), results filed as a report | U1 |
+| U1.6 | Fix flaky tests (ec7-teams, windows-installer stdin, s10 Telegram ordering) and the 7 developer tsc errors | U1 |
+| U2.7 | Mac app parity: self-update, Record this computer, computer-use tools, Save to my PC, quick-ask | U2 |
+| U2.8 | Message count on the Windows taskbar and Mac Dock icon | U2 |
+| U2.9 | New Android build: Open in browser bridge, new screens since 3.1 (Play release stays held) | U2 |
+| U2.10 | iPhone web app fixes: wording, errands badge, phone layout review of new screens | U2 |
+| U2.11 | One desktop app for several servers | U2 |
+| U3.12-19 | Promises/checklists/travel in 6 languages; better meeting speakers locally; free flight status; tracked changes in headers/footers/comments; team recipes; fleet-learned repairs (opt-in); remote repair results back; Ask everything covers meetings/trips/people/documents | U3 |
+| U4.20-29 | Money hub (tracking only); home and family planner; private local health log; learning coach; voice-first; browser extension; shared projects between friends; community marketplace; local pictures/video; business pack | U4 |
+| U5.30-34 | Settings switch for server code changes; monthly test restore; "what changed" page; security review of links/passes/helper; server dashboard | U5 |

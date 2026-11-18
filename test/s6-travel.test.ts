@@ -292,6 +292,8 @@ test('S6 tools: trip_list and trip_status read (interruptible), lean family trav
   assert.match(st, /SK1452 ORD → DEN · Fri, Nov 20, 8:05 AM CST/);
   assert.match(st, /confirmation QX7P2L/);
   assert.match(st, /gate B7/);
+  // U1.1 real-model run: without the airline's name the model guessed one ("Lufthansa SK1452").
+  assert.match(st, /- flight \(Skyway Air\): SK1452/);
   assert.ok(FAMILY_WORDS.travel?.includes('flight'));
 });
 

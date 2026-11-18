@@ -12,5 +12,5 @@
     "types": ["node"],
     "skipLibCheck": true
   },
-  "include": ["src", "test", "scripts", "clients/cli", "clients/mcp", "examples"]
+  "include": ["src", "test", "scripts", "clients/cli", "clients/mcp", "examples", "tools/*/*.ts"]
 }

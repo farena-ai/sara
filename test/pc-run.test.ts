@@ -64,7 +64,7 @@ async function env(opts: { member?: boolean } = {}): Promise<Env> {
   });
   return { app, token, base, hub, conv, events };
 }
-const until = async (fn: () => boolean, ms = 8000) => {
+const until = async (fn: () => boolean, ms = 30_000) => {
   const end = Date.now() + ms;
   while (!fn()) {
     if (Date.now() > end) throw new Error('timed out waiting');
@@ -218,21 +218,23 @@ test('output cap and masking: the computer and the server both cap and mask; not
   assert.ok(live <= RUN_LIMITS.liveChars, String(live));
 });
 
-test('timeout and Stop kill the whole process tree (a real shell on this computer)', { timeout: 60_000 }, async () => {
+test('timeout and Stop kill the whole process tree (a real shell on this computer)', { timeout: 300_000 }, async () => {
   const e = await env();
   await device(e, { exec: spawnRun, answer: 'once' });
   const win = process.platform === 'win32';
   // A timeout: the shell and its child end.
   const t0 = Date.now();
-  const out = await call(e, 'pc_run', win ? { command: 'Start-Sleep 30', timeout: 5 } : { command: 'sleep 30', timeout: 5 });
+  // The command would run 10 minutes: ending well before that is the timeout's kill, even when a
+  // loaded machine takes many seconds to start PowerShell (a fixed 20 s bound flaked under load).
+  const out = await call(e, 'pc_run', win ? { command: 'Start-Sleep 600', timeout: 5 } : { command: 'sleep 600', timeout: 5 });
   assert.match(out, /Timed out after 5 s on Alex PC/);
-  assert.ok(Date.now() - t0 < 20_000);
+  assert.ok(Date.now() - t0 < 120_000, `ended by the timeout (${Date.now() - t0} ms)`);
   assert.equal((cardFor({ name: 'pc_run', args: {}, status: 'ok', output: out }) as { outcome: string }).outcome, 'timeout');
   // Stop (the turn's Stop): a grandchild that would outlive a plain kill is gone too.
   const ac = new AbortController();
-  const cmd = win ? `$p = Start-Process -PassThru -WindowStyle Hidden powershell -ArgumentList '-NoProfile','-Command','Start-Sleep 60'; "child=$($p.Id)"; Start-Sleep 60` : 'sleep 60 & echo "child=$!"; sleep 60';
-  const p = call(e, 'pc_run', { command: cmd, timeout: 120 }, ac.signal);
-  await until(() => e.events.some((x) => /child=\d+/.test(String(x.chunk ?? ''))), 20_000);
+  const cmd = win ? `$p = Start-Process -PassThru -WindowStyle Hidden powershell -ArgumentList '-NoProfile','-Command','Start-Sleep 600'; "child=$($p.Id)"; Start-Sleep 600` : 'sleep 600 & echo "child=$!"; sleep 600';
+  const p = call(e, 'pc_run', { command: cmd, timeout: 900 }, ac.signal);
+  await until(() => e.events.some((x) => /child=\d+/.test(String(x.chunk ?? ''))), 120_000);
   const pid = Number(/child=(\d+)/.exec(e.events.map((x) => String(x.chunk ?? '')).join(''))![1]);
   ac.abort();
   const stopped = await p;
@@ -244,7 +246,7 @@ test('timeout and Stop kill the whole process tree (a real shell on this compute
     } catch {
       return true;
     }
-  }, 10_000);
+  }, 60_000);
 });
 
 test('Stop on the computer (Ctrl+Alt+Esc there) ends a running command', async () => {

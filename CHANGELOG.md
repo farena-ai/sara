@@ -5,6 +5,51 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.19.0 (2026-11-18): proven on real models, Try these, steadier releases
+
+- Fixed: on Teams, Matrix, Signal and iMessage the live progress message could keep its stop button
+  (or miss a step) when the chat app was slow to post it: a change that arrives while the message is
+  still being sent now waits for it, in order (Slack already did this).
+- Fixed: code mode scripts no longer lose script time while their sandbox process is starting, so
+  short scripts aren't stopped as "too long" on a busy computer. The total time cap is unchanged.
+- Developers: seven tests that failed only under load now wait for what they check instead of a fixed
+  time (ec7-teams, windows-installer, s10-choices, ec21-runner, pc-run, phase118; phase114c had no
+  timing dependency), and `npm run typecheck` also checks the developer tools' own scripts.
+- New for developers: **real-model task runs** (`node scripts/eval-real.ts`, docs/REAL_RUNS.md). 40 everyday
+  tasks run through real chat turns and tools on throwaway Saras with a real local model, checked by code
+  and scored by a second local model; time and tokens per task, a cost cap, resumable, a report.
+- Fixed (found by the real runs): "Put my stock alerts in the Stock Alerts project" could send the alerts
+  to the chat you asked in instead of making the project. Saying yes to "Make it" now always makes it.
+- Fixed: "make this sound more human", "less robotic" and "sounds like AI" now offer the humanize tool,
+  so the facts lock protects your numbers and names.
+- Fixed: the contract checklist no longer counts a liability cap that mentions "the fees paid" as the
+  payment clause.
+- Fixed: trip details name the airline on each flight, so she no longer guesses one.
+- New: **live checks you can run yourself** (`node scripts/check-accounts.ts`, `node scripts/check-pair.ts`,
+  see docs/CHECKS.md). A throwaway Sara goes through every mail and calendar kind (two Gmails, app
+  passwords, Outlook, CalDAV, calendar links, default and combined inbox, removing), on stand-ins always
+  and on your own test accounts when you put them in `.secrets/test-accounts.json`; two throwaway linked
+  servers go through messages, communities, retention, help and fix passes and unlinking. Each writes a
+  report to `outputs/checks/`.
+- Fixed: removing a second Google account in Settings now also forgets its choices (left out of the
+  combined inbox, its calendars, default), so an account added later doesn't inherit them.
+- Fixed: after adding a calendar event, her confirmation showed the wrong time when the server runs in
+  another time zone than yours (the event itself was right).
+- New (for developers): **a Windows install and update matrix you can run on a PC**
+  (`node scripts/check-windows-install.ts`, docs/CHECKS.md): fresh install, the app updating itself,
+  reinstall, downgrade, a manual Setup run, a stale old entry and both uninstalls, with the test build only;
+  the all-users cases in `scripts/check-windows-install-admin.ps1` for an administrator.
+- Fixed: the test build of Setup, installed with her server on this computer, used the real Sara's data
+  folders and sign-in start entry; it has its own now.
+- Added: **Try these**, a guided checklist for the owner. Help → Try these lists about 30 short checks of
+  what is new since 3.15 (newest release first), each with a few steps, a Take me there button that opens
+  the right page or starts the chat for you, and what you should see. Mark each Worked, Didn't work or Skip
+  and add a note; progress shows how many you tried, and items added by an update are marked New. When
+  something didn't work, Ask Sara to fix it opens a chat asking her to check herself and fix it. Export
+  your results as Markdown, or tick *Let me send results to the developer* (off by default) to send them
+  as one report: Preview shows exactly what goes, with keys, emails and folder names removed, and it
+  shows in My reports. See docs/TRY_THESE.md.
+
 ## 3.18.2 (2026-11-17): several Google accounts from either mail page, approved code fixes on servers
 
 - Fixed: **adding several Google accounts works from every page and never replaces one.** Settings →

@@ -154,6 +154,7 @@ import { createHandsRoutes, createHandsUpgrade } from './routes/hands.ts';
 import { PROXY_BLOCKED_MESSAGE } from './hands.ts';
 import { createMoveInPublic, createMoveInRoutes, serveCollector, serveMoveInFile } from './routes/movein.ts';
 import { createHubRoutes } from './routes/hub.ts';
+import { createOwnerCheckRoutes } from './routes/owner-checks.ts';
 import { createStoreRoutes } from './routes/store.ts';
 import { createSpendRoutes } from './routes/spend.ts';
 import { createPrereqRoutes } from './routes/prereqs.ts';
@@ -1137,6 +1138,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const moveInPublic = createMoveInPublic(ctx);
   // Phase 113: the daily check-in's settings, Report a problem and My reports (src/routes/hub.ts).
   const hubRoutes = createHubRoutes(ctx);
+  // U1.5: Help → Try these, the owner's checklist (src/routes/owner-checks.ts).
+  const ownerCheckRoutes = createOwnerCheckRoutes(ctx);
   // Phase 124: the Sara Store's reader (src/routes/store.ts).
   const storeRoutes = createStoreRoutes(ctx);
   // PRQ: the programs add-ons need and *Install it for me* (src/routes/prereqs.ts).
@@ -1668,6 +1671,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await roomRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await peopleRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await hubRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await ownerCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await storeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await prereqRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await packRoutes(req, res, method, parts)) !== NEXT) return;

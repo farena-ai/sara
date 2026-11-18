@@ -365,7 +365,17 @@ async function post(chatId, text, o = {}) {
   return guid;
 }
 
-async function onSend(m) {
+/** An edit can come while its message is still being posted: it waits for that post (U1.6). */
+const posting = new Map(); // progress ref → the post in flight
+function onSend(m) {
+  const p = sendNow(m);
+  if (!m.ref) return p;
+  const q = p.catch(() => {}).finally(() => posting.get(m.ref) === q && posting.delete(m.ref));
+  posting.set(m.ref, q);
+  return p;
+}
+
+async function sendNow(m) {
   const chatId = String(m.chatId);
   const started = m.started === true;
   try {
@@ -397,6 +407,7 @@ async function onSend(m) {
 
 /** The progress message (Private API only, §4.7): edits within Apple's 15 minutes; after that, none. */
 async function onEdit(m) {
+  await posting.get(m.ref);
   const r = refs.get(m.ref);
   if (!r || !info.privateApi || Date.now() - r.at > EDIT_WINDOW_MS) return;
   await bb.edit(r.guid, flatten(String(m.text ?? '')).slice(0, 2_000)).catch((err) => sara.log(`an edit failed: ${err?.message ?? err}`, 'warn'));

@@ -229,6 +229,16 @@ test('chat-app extras: buttons for the owner DM replace the list; plain bridges 
 // bridges against fake servers
 // ---------------------------------------------------------------------------------------------
 
+/** Waits for a condition with a generous bounded deadline (the suite runs these under heavy load). */
+async function waitFor<T>(f: () => T | undefined | false, ms = 30_000): Promise<T | undefined> {
+  const end = Date.now() + ms;
+  for (let v = f(); ; v = f()) {
+    if (v) return v;
+    if (Date.now() > end) return undefined;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+}
+
 const fakeTgToken = () => `${'7'.repeat(9)}:${'test'.repeat(4)}`;
 async function fakeTelegram(token: string) {
   const sent: { method: string; body: Record<string, unknown> }[] = [];
@@ -259,32 +269,35 @@ test('telegram: inline keyboard instead of the list; a tap runs her turn with th
   let uid = 1;
   app.script.push([call('c1', ASK_CHOICE, ARGS)]);
   await bridge.handle({ update_id: uid++, message: { message_id: 50, chat: { id: OWNER, type: 'private' }, from: { id: OWNER, first_name: 'Alex' }, text: 'when should I book the dentist?' } });
-  const msgs = tg.sent.filter((s) => s.method === 'sendMessage' && s.body.chat_id === OWNER);
-  assert.ok(!msgs.some((s) => /Reply with a number/.test(String(s.body.text))), 'no numbered list where buttons show');
-  const card = msgs.find((s) => (s.body.reply_markup as { inline_keyboard?: unknown[] } | undefined)?.inline_keyboard?.length)!;
+  const msgs = () => tg.sent.filter((s) => s.method === 'sendMessage' && s.body.chat_id === OWNER);
+  const card = (await waitFor(() => msgs().find((s) => (s.body.reply_markup as { inline_keyboard?: unknown[] } | undefined)?.inline_keyboard?.length)))!;
+  assert.ok(card, 'the card with buttons');
+  assert.ok(!msgs().some((s) => /Reply with a number/.test(String(s.body.text))), 'no numbered list where buttons show');
   assert.equal(card.body.text, 'Which day works for the dentist?');
   const kb = (card.body.reply_markup as { inline_keyboard: { text: string; callback_data: string }[][] }).inline_keyboard;
   assert.deepEqual(kb.map((r) => r[0].text), ['Thursday 2 PM (recommended)', 'Tuesday 9 AM', 'Friday 11 AM', 'Other, type it out']);
   // Someone else taps: refused, nothing sent as a message.
   await bridge.handle({ update_id: uid++, callback_query: { id: 'q0', from: { id: 555, first_name: 'X' }, data: kb[2][0].callback_data, message: { message_id: 60, chat: { id: OWNER, type: 'private' } } } } as never);
   // Find the refusal itself (under load another call, e.g. a typing notice, can land after it).
-  let refusal: { body: Record<string, unknown> } | undefined;
-  for (let i = 0; i < 100 && !(refusal = tg.sent.find((s) => /Only the owner/.test(String(s.body.text)))); i++) await new Promise((r) => setTimeout(r, 20));
+  const refusal = await waitFor(() => tg.sent.find((s) => /Only the owner/.test(String(s.body.text))));
   assert.ok(refusal, 'someone else gets "Only the owner…"');
   // He taps Friday: the card shows his pick, his message is "Friday 11 AM", she answers.
   app.script.push(text('Friday it is.'));
   await bridge.handle({ update_id: uid++, callback_query: { id: 'q1', from: { id: OWNER, first_name: 'Alex' }, data: kb[2][0].callback_data, message: { message_id: 60, chat: { id: OWNER, type: 'private' } } } } as never);
   const conv = app.store.findChannelConversation('telegram', String(OWNER))!;
-  for (let i = 0; i < 100 && app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content !== 'Friday it is.'; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content === 'Friday it is.');
   assert.equal(app.store.messages(conv.id).findLast((m) => m.role === 'user')!.content, 'Friday 11 AM');
   assert.equal(app.store.messages(conv.id).findLast((m) => m.role === 'assistant')!.content, 'Friday it is.');
-  const edit = tg.sent.find((s) => s.method === 'editMessageText' && s.body.message_id === 60)!;
+  const edit = (await waitFor(() => tg.sent.find((s) => s.method === 'editMessageText' && s.body.message_id === 60)))!;
+  assert.ok(edit, 'the card shows his pick');
   assert.match(String(edit.body.text), /Which day works for the dentist\?\n✓ Friday 11 AM/);
   // A second tap on the old card: no longer waiting, no new turn.
   const before = app.requests.length;
+  const answered = tg.sent.filter((s) => s.method === 'answerCallbackQuery').length;
   await bridge.handle({ update_id: uid++, callback_query: { id: 'q2', from: { id: OWNER, first_name: 'Alex' }, data: kb[0][0].callback_data, message: { message_id: 60, chat: { id: OWNER, type: 'private' } } } } as never);
   assert.equal(app.requests.length, before);
-  assert.match(String(tg.sent.filter((s) => s.method === 'answerCallbackQuery').at(-1)!.body.text), /No longer waiting/);
+  const late = await waitFor(() => tg.sent.filter((s) => s.method === 'answerCallbackQuery')[answered]);
+  assert.match(String(late?.body.text), /No longer waiting/);
 });
 
 test('telegram multi-select: taps toggle ✓ in place, Send sends them as one message', async (t) => {
@@ -303,18 +316,22 @@ test('telegram multi-select: taps toggle ✓ in place, Send sends them as one me
   let uid = 1;
   app.script.push([call('c1', ASK_CHOICE, { question: 'Toppings?', options: ['cheese', 'olives', 'ham'], multi: true })], text('x'));
   await bridge.handle({ update_id: uid++, message: { message_id: 50, chat: { id: OWNER, type: 'private' }, from: { id: OWNER, first_name: 'Alex' }, text: 'pizza?' } });
-  const card = tg.sent.find((s) => s.method === 'sendMessage' && (s.body.reply_markup as { inline_keyboard?: unknown[] } | undefined)?.inline_keyboard?.length)!;
+  const card = (await waitFor(() => tg.sent.find((s) => s.method === 'sendMessage' && (s.body.reply_markup as { inline_keyboard?: unknown[] } | undefined)?.inline_keyboard?.length)))!;
+  assert.ok(card, 'the card with buttons');
   const kb = (card.body.reply_markup as { inline_keyboard: { text: string; callback_data: string }[][] }).inline_keyboard;
   assert.deepEqual(kb.map((r) => r[0].text), ['cheese', 'olives', 'ham', 'Other, type it out', 'Send']);
   const tap = async (data: string) => bridge.handle({ update_id: uid++, callback_query: { id: `q${uid}`, from: { id: OWNER, first_name: 'Alex' }, data, message: { message_id: 61, chat: { id: OWNER, type: 'private' } } } } as never);
+  const edits0 = tg.sent.filter((s) => s.method === 'editMessageReplyMarkup').length;
   await tap(kb[0][0].callback_data);
   await tap(kb[2][0].callback_data);
-  const marks = tg.sent.filter((s) => s.method === 'editMessageReplyMarkup').at(-1)!;
+  // Both taps' edits, in the order he tapped (the second is the state he sees).
+  const marks = (await waitFor(() => tg.sent.filter((s) => s.method === 'editMessageReplyMarkup')[edits0 + 1]))!;
+  assert.ok(marks, 'each tap edits the card');
   assert.deepEqual((marks.body.reply_markup as { inline_keyboard: { text: string }[][] }).inline_keyboard.map((r) => r[0].text).slice(0, 3), ['✓ cheese', 'olives', '✓ ham']);
   app.script.push(text('Cheese and ham, got it.'));
   await tap(kb[4][0].callback_data);
   const conv = app.store.findChannelConversation('telegram', String(OWNER))!;
-  for (let i = 0; i < 100 && app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content !== 'Cheese and ham, got it.'; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content === 'Cheese and ham, got it.');
   assert.equal(app.store.messages(conv.id).findLast((m) => m.role === 'user')!.content, 'cheese, ham');
 });
 
@@ -346,9 +363,10 @@ test('discord: buttons (components) for the owner DM; a press runs her turn with
   });
   app.script.push([call('c1', ASK_CHOICE, ARGS)]);
   await bridge.handleMessage({ id: '1', channel_id: 'dm1', author: OWNER, content: 'when should I book the dentist?' } as never);
-  const posts = sent.filter((s) => s.method === 'POST' && s.path === '/channels/dm1/messages');
-  assert.ok(!posts.some((s) => /Reply with a number/.test(String(s.body.content))));
-  const card = posts.find((s) => Array.isArray(s.body.components) && (s.body.components as unknown[]).length)!;
+  const posts = () => sent.filter((s) => s.method === 'POST' && s.path === '/channels/dm1/messages');
+  const card = (await waitFor(() => posts().find((s) => Array.isArray(s.body.components) && (s.body.components as unknown[]).length)))!;
+  assert.ok(card, 'the card with buttons');
+  assert.ok(!posts().some((s) => /Reply with a number/.test(String(s.body.content))));
   assert.equal(card.body.content, 'Which day works for the dentist?');
   const buttons = (card.body.components as { components: { label: string; custom_id: string; style: number }[] }[]).flatMap((r) => r.components);
   assert.deepEqual(buttons.map((b) => b.label), ['Thursday 2 PM (recommended)', 'Tuesday 9 AM', 'Friday 11 AM', 'Other, type it out']);
@@ -356,9 +374,10 @@ test('discord: buttons (components) for the owner DM; a press runs her turn with
   app.script.push(text('Tuesday then.'));
   sock!.onmessage!(JSON.stringify({ op: 0, t: 'INTERACTION_CREATE', s: 3, d: { id: 'i1', token: 'tok', type: 3, channel_id: 'dm1', user: OWNER, message: { id: '77' }, data: { custom_id: buttons[1].custom_id } } }));
   const conv = app.store.findChannelConversation('discord', 'dm1')!;
-  for (let i = 0; i < 150 && app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content !== 'Tuesday then.'; i++) await new Promise((r) => setTimeout(r, 20));
+  await waitFor(() => app.store.messages(conv.id).findLast((m) => m.role === 'assistant')?.content === 'Tuesday then.');
   assert.equal(app.store.messages(conv.id).findLast((m) => m.role === 'user')!.content, 'Tuesday 9 AM');
-  const cb = sent.find((s) => s.path.startsWith('/interactions/i1/'))!;
+  const cb = (await waitFor(() => sent.find((s) => s.path.startsWith('/interactions/i1/'))))!;
+  assert.ok(cb, 'the press is answered');
   assert.equal(cb.body.type, 7, 'the card is updated in place');
   assert.match(String((cb.body.data as { content: string }).content), /✓ Tuesday 9 AM/);
 });

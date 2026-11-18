@@ -392,3 +392,16 @@ test('S7 routes: template mark + fill form, review list, accept all, ready to si
     cleanup();
   }
 });
+
+// U1.1 real-model run: a liability cap that mentions "the fees paid" was also offered as the Payment
+// clause, so a template fill could reuse the liability sentence as payment terms.
+test('S7 checklist: a liability cap that mentions fees is not the payment clause', () => {
+  const text = 'This Services Agreement is made between Globex Inc and Northwind Studio LLC.\nLimitation of liability\nProvider\'s total liability under this Agreement shall not exceed the fees paid in the twelve months before the claim.';
+  const items = clauseChecklist(text, 'contract').items;
+  const pay = items.find((i) => i.id === 'payment')!;
+  const cap = items.find((i) => i.id === 'liability_cap')!;
+  assert.equal(cap.status, 'present', 'the liability cap is found');
+  assert.equal(pay.status, 'missing', `payment should be missing, got: ${pay.quote ?? ''}`);
+  const both = clauseChecklist(`${text}\nClient shall pay the fee within 30 days of each invoice.`, 'contract').items.find((i) => i.id === 'payment')!;
+  assert.ok(both.status === 'present' && /within 30 days/.test(both.quote ?? ''), 'a real payment sentence is still found');
+});

@@ -436,6 +436,14 @@ test('the progress card: edited in place with ⏹; his ⏹ stops the turn; the �
   assert.ok(await until(() => stopped), '⏹ stopped the turn');
   run.send({ v: 1, type: 'bridge.edit', bridge: 'teams', chatId: DM, ref: 'p-9', text: '✅ Done: 2 steps' });
   assert.ok(await until(() => r.ms.updates.some((u: Any) => /Done/.test(u.attachments[0].content.body[0].text) && !u.attachments[0].content.actions)), 'the summary has no button');
+  // An edit that arrives while its card is still being posted waits for it (it was dropped under load).
+  run.send({ v: 1, type: 'bridge.send', bridge: 'teams', chatId: DM, ref: 'p-10', text: 'Working… step A' });
+  run.send({ v: 1, type: 'bridge.edit', bridge: 'teams', chatId: DM, ref: 'p-10', text: 'Working… step B' });
+  run.send({ v: 1, type: 'bridge.edit', bridge: 'teams', chatId: DM, ref: 'p-10', text: '✅ Done: A and B' });
+  const progA = () => r.ms.sentTo(DM).find((p: Any) => /step A/.test(String(p.attachments?.[0]?.content?.body?.[0]?.text)));
+  assert.ok(await until(() => Boolean(progA()) && r.ms.updates.some((u: Any) => u.id === progA().id && /A and B/.test(u.attachments[0].content.body[0].text))), 'the early edits reach the card');
+  const mine = r.ms.updates.filter((u: Any) => u.id === progA().id).map((u: Any) => u.attachments[0].content.body[0].text);
+  assert.deepEqual(mine, ['Working… step B', '✅ Done: A and B'], 'in the order sent');
 });
 
 test('pace and token errors: a 429 is waited out; a 401 refetches the token; an expired secret stops in plain words; removal leaves no secret or hook', async (t) => {

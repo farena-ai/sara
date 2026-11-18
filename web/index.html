@@ -839,6 +839,7 @@
       <p class="muted small">She knows her own settings. Ask in any chat, for example “what does jealousy do?” or “which model should I use for pictures?”; she explains and gives you a link to the right page.</p>
       <h3>Problems and ideas</h3>
       <div class="pick-cards" role="list">
+        <button id="help-try" type="button" class="pick-card" data-owner-only><strong>Try these</strong><span class="muted small">Short checks of what is new: try each one and mark how it went.</span></button>
         <button id="help-report" type="button" class="pick-card"><strong>Report a problem</strong><span class="muted small">Tell the people who make Sara what went wrong. You see everything before it's sent.</span></button>
         <button id="help-suggest" type="button" class="pick-card"><strong>Suggest something</strong><span class="muted small">An idea or a feature you'd like.</span></button>
         <button id="help-mine" type="button" class="pick-card"><strong>My reports</strong><span class="muted small">What you sent, its status and our replies.</span></button>
@@ -5390,6 +5391,22 @@
       <p id="hub-report-status" class="small" role="status"></p>
       <div class="actions"><button id="hub-report-cancel" type="button" class="ghost">Cancel</button><button id="hub-report-send" type="button">Send</button></div>
     </form>
+  </dialog>
+  <!-- U1.5 (docs/TRY_THESE.md): Help → Try these, the owner's checklist (web/owner-checks.js) -->
+  <dialog id="try-these" class="small-dialog" aria-labelledby="try-these-title">
+    <div class="settings-body hub-sheet ochk-sheet">
+      <h2 id="try-these-title">Try these</h2>
+      <p class="muted small">Short checks of what is new in Sara, newest first. Try one, then mark Worked, Didn’t work or Skip. Nothing is sent unless you press Send.</p>
+      <p id="try-progress" class="small" role="status"></p>
+      <progress id="try-bar" value="0" max="1"></progress>
+      <div id="try-list" class="ochk-list"></div>
+      <h3>Your results</h3>
+      <label class="row ochk-send-on"><button type="button" class="tip" data-tip="Off by default. On: Send results to the developer becomes available. It sends one report with what you tried, each result and your notes, with keys, emails and folder names removed.">?</button> <input id="try-send-on" type="checkbox"> Let me send results to the developer</label>
+      <p class="ochk-actions"><button id="try-preview" type="button" class="ghost small">Preview what is sent</button> <button id="try-send" type="button" class="small" disabled>Send results to the developer</button> <a id="try-export" class="small" href="/api/owner-checks/export" download>Export as Markdown</a></p>
+      <pre id="try-preview-box" class="ochk-preview small" hidden></pre>
+      <p id="try-send-when" class="muted small"></p>
+      <p id="try-status" class="small" role="status"></p>
+    </div>
   </dialog>
   <dialog id="hub-mine" class="small-dialog" aria-labelledby="hub-mine-title">
     <div class="settings-body hub-sheet">

@@ -249,7 +249,17 @@ function convFor(m) {
   return chat;
 }
 
-async function onSend(m) {
+/** An edit can come while its message is still being posted: it waits for that post (U1.6). */
+const posting = new Map(); // progress ref → the post in flight
+function onSend(m) {
+  const p = sendNow(m);
+  if (!m.ref) return p;
+  const q = p.catch(() => {}).finally(() => posting.get(m.ref) === q && posting.delete(m.ref));
+  posting.set(m.ref, q);
+  return p;
+}
+
+async function sendNow(m) {
   const chat = String(m.chatId);
   const started = m.started === true;
   const conv = convFor(m);
@@ -283,6 +293,7 @@ async function onSend(m) {
 
 /** The progress message: the same card updated in place, keeping ⏹ until the ✅ summary. */
 async function onEdit(m) {
+  await posting.get(m.ref);
   const t = refs.get(m.ref);
   if (!t) return;
   const text = String(m.text ?? '');

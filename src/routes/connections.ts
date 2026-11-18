@@ -606,7 +606,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       if (!b && method === 'GET') return send(res, 200, { ...g.status(), redirect, ...(gl ? { accounts: gl.list().map((x) => ({ id: x.id, email: x.email ?? null, gmail: x.gmail, calendar: x.calendar, docs: x.docs })) } : {}) });
       if (b === 'accounts' && c && method === 'DELETE' && gl) {
         try {
-          await gl.remove(c);
+          // U1.2: through the mailbox list when there is one, so its combined-view choices and the default go too.
+          await (app.mailAccounts && /^google:\d+$/.test(c) ? app.mailAccounts.remove(c) : gl.remove(c));
         } catch (err) {
           throw as400(err);
         }

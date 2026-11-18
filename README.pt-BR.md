@@ -24,7 +24,7 @@
 
 **Atualizar:** num servidor Linux, `sudo sara update` (faz backup antes e volta atrás se ela não responder) · Docker: `sudo git pull && sudo docker compose up -d --build` · apps de Windows e Mac: Configurações → Dados e saúde → Atualizações · Android: Google Play. [Como atualizar](docs/INSTALL.md#upgrading).
 
-> **Status:** 3.18.2, [Várias contas Google em qualquer página de e-mail, correções de código aprovadas em servidores](https://github.com/farena-ai/sara/releases/tag/v3.18.2). Uma lista de contas com + Adicionar uma conta nas duas páginas de e-mail, outro endereço Google sempre é adicionado, e instalações em servidor podem aplicar correções de código aprovadas com reversão. [Veja as novidades](#novidades)
+> **Status:** 3.19.0, [Comprovada com modelos reais, Experimente, versões mais estáveis](https://github.com/farena-ai/sara/releases/tag/v3.19.0). Tarefas reais em um modelo local, verificações de contas e de dois servidores, uma matriz de instalação no Windows, a lista guiada Experimente e oito bugs encontrados e corrigidos. [Veja as novidades](#novidades)
 >
 > Instalador Windows: sem assinatura ([guia do SmartScreen](docs/INSTALL.md)). O processo de publicação do macOS exige downloads assinados e notarizados; cada compilação é verificada separadamente. Android: [Google Play](https://play.google.com/store/apps/details?id=com.backstagecoding.sara). iPhone: [app web na tela inicial](docs/PHONE.md).
 
@@ -167,20 +167,21 @@ Versões recentes · 6 de novembro de 2026. [Histórico completo](CHANGELOG.md) 
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.19.0](https://github.com/farena-ai/sara/releases/tag/v3.19.0)** | **[Comprovada com modelos reais, Experimente, versões mais estáveis](docs/TRY_THESE.md)** — Uma rodada de 40 tarefas com um modelo real (39/40 em um modelo local), verificações completas de cada tipo de e-mail e de servidores vinculados, uma matriz de instalação e atualização no Windows, Ajuda → Experimente com resultados que você pode enviar, e testes sem dependência de tempo. |
 | **[3.18.2](https://github.com/farena-ai/sara/releases/tag/v3.18.2)** | **[Várias contas Google em qualquer página de e-mail, correções de código aprovadas em servidores](docs/MAIL_ACCOUNTS.md)** — Adicione quantas contas Google, Gmail, Outlook e outras quiser em qualquer página de e-mail; entrar com outro endereço Google o adiciona; servidores Linux aplicam correções de código aprovadas e testadas por meio de um ajudante restrito. |
 | **[3.18.1](https://github.com/farena-ai/sara/releases/tag/v3.18.1)** | **[Avisos de mensagem impossíveis de perder, uma só instalação no Windows, caixas extras mantidas](docs/MESSAGES.md)** — Mensagens novas um a um mostram um cartão na sua frente (também ao reabrir); atualizações do Windows vão para a instalação existente e removem a duplicada; uma segunda caixa não substitui mais a primeira. |
 | **[3.18.0](https://github.com/farena-ai/sara/releases/tag/v3.18.0)** | **[Autorreparo, amigos ajudando amigos, comunidades mais tranquilas](docs/SELF_REPAIR.md)** — Autorreparo a partir de verificações e erros com desfazer automático; aprende novas habilidades; correções de código testadas com reversão quando a instalação permite; peça à Sara de um amigo vinculado para consertar seu servidor com sua aprovação; avisos para mensagens e contadores discretos para comunidades. |
 | **[3.17.0](https://github.com/farena-ai/sara/releases/tag/v3.17.0)** | **[Documentos de ponta a ponta, equipes de agentes, link de suporte, alertas onde você quiser](docs/AGENT_TEAMS.md)** — Preencha modelos e redija a partir de documentos anteriores com fontes; revise com controle de alterações real; receba um PDF pronto para assinar; coloque uma equipe de ajudantes em um trabalho grande; deixe a Sara de um amigo ver a saúde e registros com dados ocultos; mande alertas para o projeto que você escolher. |
 | **[3.16.0](https://github.com/farena-ai/sara/releases/tag/v3.16.0)** | **[Textos que soam humanos, reuniões, manter contato, viagens](docs/WRITING_STYLE.md)** — Reescreve documentos e relatórios em linguagem simples; grave ou envie reuniões para transcrição, decisões e follow-ups redigidos; veja quem espera sua resposta e o que você prometeu; viagens a partir de e-mails de reserva com alertas e opções de remarcação. |
-| **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Opções para tocar, metas, pesquisa, pergunte tudo, mensagens privadas](docs/CHOICES.md)** — Botões de resposta no app, Telegram e Discord; metas com marcos e lembretes; pesquisa na web e nos seus arquivos para Word/PDF; perguntas sobre e-mails, arquivos, chats e agendas; mensagens e comunidades entre servidores que os agentes nunca veem. |
 
 <!-- sara:recent-releases:end -->
 
 <details>
-<summary><b>Versões 2.6x anteriores</b>: da 3.14.1 até a 2.61.5</summary>
+<summary><b>Versões 2.6x anteriores</b>: da 3.15.0 até a 2.61.5</summary>
 
 | Versão | O que muda para você |
 |---|---|
+| **[3.15.0](https://github.com/farena-ai/sara/releases/tag/v3.15.0)** | **[Opções para tocar, metas, pesquisa, pergunte tudo, mensagens privadas](docs/CHOICES.md)** — Botões de resposta no app, Telegram e Discord; metas com marcos e lembretes; pesquisa na web e nos seus arquivos para Word/PDF; perguntas sobre e-mails, arquivos, chats e agendas; mensagens e comunidades entre servidores que os agentes nunca veem. |
 | **[3.14.1](https://github.com/farena-ai/sara/releases/tag/v3.14.1)** | **[Documentos salvos contam como salvos](docs/DOCUMENTS.md)** — Criar um documento, preencher um formulário, faturas, exportações e edições no Docs/Sheets/Excel agora contam como prova de que foi salvo. |
 | **[3.14.0](https://github.com/farena-ai/sara/releases/tag/v3.14.0)** | **[Todas as suas contas juntas e o ícone dela](docs/MAIL_ACCOUNTS.md)** — Agendas do Google, Outlook, iCloud, Fastmail e Yahoo marcadas por conta; o ícone do app, a aba e as notificações usam a imagem dela. |
 | **[3.13.1](https://github.com/farena-ai/sara/releases/tag/v3.13.1)** | **[As fotos dela com ComfyUI, enviadas para onde você escolher](docs/PHOTOS.md)** — Nova opção Enviar as fotos dela para: um chat só para as fotos dela, um dos seus chats, um chat de projeto e/ou Telegram e Discord. |

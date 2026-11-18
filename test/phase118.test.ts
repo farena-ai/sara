@@ -27,7 +27,9 @@ import { call, makeApp, ROOT, tempDir, text, type TestApp } from './helpers.ts';
 const SARA_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const START = new Date('2026-11-01T15:00:00Z');
 
-async function until<T>(f: () => T | undefined | false | null | Promise<T | undefined | false | null>, ms = 20_000): Promise<T> {
+// Generous and bounded (U1.6): a goal round runs `npm test` as its check, and on a loaded machine a few
+// rounds of npm took longer than the old 20 s. Only the wait grows; every state is still asserted.
+async function until<T>(f: () => T | undefined | false | null | Promise<T | undefined | false | null>, ms = 120_000): Promise<T> {
   const end = Date.now() + ms;
   for (;;) {
     const v = await f();

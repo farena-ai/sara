@@ -49,8 +49,42 @@
 .hub-reply-box button { min-height: 44px; }
 .msg.error .hub-report-this { min-height: 44px; padding: 0 4px; }
 
+/* U1.5 (docs/TRY_THESE.md): Help → Try these (web/owner-checks.js) */
+dialog#try-these:not(#_) { width: min(680px, 96vw); }
+#try-bar { width: 100%; height: 8px; accent-color: var(--accent-text); }
+.ochk-list { display: grid; gap: 14px; max-height: 58vh; overflow: auto; margin-top: 10px; padding-inline-end: 4px; }
+.ochk-group h3 { margin: 6px 0 0; }
+.ochk-group > p { margin: 0 0 6px; }
+.ochk-item { display: grid; gap: 6px; padding: 10px 12px; margin-bottom: 8px; border: 1px solid var(--hairline-strong); border-radius: 12px; background: var(--surface-1); min-width: 0; }
+.ochk-item[data-result="worked"] { border-color: var(--success); }
+.ochk-item[data-result="failed"] { border-color: var(--warn); }
+.ochk-item-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ochk-item-head strong { color: var(--text-1); margin-inline-end: auto; overflow-wrap: anywhere; }
+.ochk-chip { font-size: 0.78rem; padding: 1px 8px; border-radius: 999px; background: var(--surface-2); }
+.ochk-new { background: var(--accent-soft); color: var(--accent-text); }
+.ochk-worked { background: var(--success-soft); color: var(--success); }
+.ochk-failed { background: var(--warn-soft); color: var(--warn); }
+.ochk-steps { margin: 0; padding-inline-start: 20px; }
+.ochk-steps li { margin: 2px 0; overflow-wrap: anywhere; }
+.ochk-ask { margin: 0; padding: 6px 10px; border-inline-start: 3px solid var(--accent-text); background: var(--surface-2); border-radius: 6px; font-style: italic; overflow-wrap: anywhere; }
+.ochk-expect { margin: 0; overflow-wrap: anywhere; }
+.ochk-picks { display: flex; flex-wrap: wrap; gap: 6px; }
+.ochk-picks button { min-height: 40px; }
+.ochk-picks button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent-text); }
+.ochk-go { margin-inline-end: auto; }
+.hub-sheet textarea.ochk-note { width: 100%; box-sizing: border-box; min-height: 44px; }
+.ochk-fix { justify-self: start; min-height: 40px; }
+.hub-sheet label.ochk-send-on { flex-wrap: nowrap; }
+.hub-sheet label.ochk-send-on input { width: 22px; height: 22px; flex: 0 0 auto; }
+.ochk-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ochk-actions button { min-height: 40px; }
+.ochk-preview { max-height: 30vh; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+
 @media (max-width: 640px) {
   .hub-note { bottom: calc(76px + var(--safe-b)); }
   .hub-banner { bottom: calc(136px + var(--safe-b)); }
   .hub-reply-box { flex-direction: column; align-items: stretch; }
+  .ochk-list { max-height: none; overflow: visible; padding-inline-end: 0; }
+  .ochk-go { flex: 1 0 100%; }
+  .ochk-picks button:not(.ochk-go) { flex: 1 1 0; }
 }

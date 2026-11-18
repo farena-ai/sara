@@ -278,3 +278,16 @@ test('S11 UI: the button on made documents and research reports, the side-by-sid
   const doc = readFileSync(join(ROOT, 'docs', 'WRITING_STYLE.md'), 'utf8');
   assert.ok(!/evad|evasion|bypass/i.test(doc.replace(/not (built|sold|framed)[^.]*\./gi, '')), 'not framed as detector evasion');
 });
+
+// U1.1 real-model run: "Make this sound more human" (no document word in the message) never offered
+// humanize_text, so the model rewrote by hand with no facts lock.
+test('S11 lean picker: everyday phrasings offer humanize_text', async (t) => {
+  const { planFor } = await import('../src/lean.ts');
+  const app = rig(t);
+  app.tools.add(createHumanizeTool(() => app));
+  app.settings.update({ lean: { tools: { mode: 'always' } } } as never);
+  for (const say of ['Make this sound more human, but keep every fact: Dear Ms. Rivera, the heater is broken.', 'Can you make this less robotic? We met on May 2.', 'This sounds too much like AI, fix the wording: hello team.', 'humanize this: hi']) {
+    const conv = app.store.createConversation({});
+    assert.ok(planFor(app, conv, say).offered.has('humanize_text'), say);
+  }
+});

@@ -320,7 +320,7 @@ export function matchProject(app: AppContext, name: string): { id: number; name:
 export type Resolved = { dest: Partial<Dest> & { where?: Where }; app?: AppKind } | { missingProject: string } | { error: string };
 
 /** "Stock Alerts" / "here" / "telegram" / "a chat of its own" / "where I set it up" → a destination. */
-export function resolveTo(app: AppContext, to: string, here?: string): Resolved {
+export function resolveTo(app: AppContext, to: string, here?: string, o: { project?: boolean } = {}): Resolved {
   const w = fold(to);
   if (!w) return { error: 'Say where: a project, one of your chats, here, Telegram or Discord.' };
   if (/^(telegram|discord)$/.test(w)) return { dest: {}, app: w as AppKind };
@@ -328,9 +328,11 @@ export function resolveTo(app: AppContext, to: string, here?: string): Resolved 
   if (/^(origin|where (it was|they were|i) set (it |them )?up|where (it was|they were) made|as before|default)$/.test(w)) return { dest: { where: 'origin' } };
   if (/^(dedicated|(a |its |their )?(own )?chat (of|for) (its|their) own|a chat just for (it|them)|own chat)$/.test(w)) return { dest: { where: 'dedicated' } };
   if (/^(apps?( only)?|only (my )?(chat )?apps|nowhere|notifications? only)$/.test(w)) return { dest: { where: 'apps' } };
-  const project = /\bproject\b/.test(w);
+  // `o.project`: they already said yes to making a project (create_project), so a chat never wins.
+  const project = o.project === true || /\bproject\b/.test(w);
   const p = matchProject(app, to);
-  const chat = ownerWebChats(app, 200).map((c) => ({ ...c, s: similar(c.title, to.replace(/\bchat\b/gi, ' ')) })).filter((c) => c.s >= 2).sort((a, b) => b.s - a.s)[0];
+  // The chat she is asked in is "here", never a by-name match: its title is often the request itself (U1.1).
+  const chat = ownerWebChats(app, 200).filter((c) => c.id !== here).map((c) => ({ ...c, s: similar(c.title, to.replace(/\bchat\b/gi, ' ')) })).filter((c) => c.s >= 2).sort((a, b) => b.s - a.s)[0];
   if (p && (project || !chat || similar(p.name, to) >= chat.s)) return { dest: { where: 'project', projectId: p.id } };
   if (chat && !project) return { dest: { where: 'chat', conversationId: chat.id } };
   return { missingProject: String(to).replace(/\b(the|my)\b/gi, ' ').replace(/\bproject\b/gi, ' ').replace(/\s+/g, ' ').trim().slice(0, 80) };
@@ -370,7 +372,7 @@ export function createAlertTools(getApp: () => AppContext): Tool[] {
         const item = a.item ? String(a.item).trim() : '';
         const feed = item ? feedOfItem(app, item) : matchFeed(String(a.feed ?? ''));
         if (!feed) throw new ToolError(item ? `There is no item ${item}. Use watch_list or the Automations page keys (live:12, auto:3).` : `Which kind? One of: ${FEEDS.map((f) => f.id).join(', ')}.`);
-        let r = resolveTo(app, String(a.to ?? ''), ctx.conversationId);
+        let r = resolveTo(app, String(a.to ?? ''), ctx.conversationId, { project: a.create_project === true });
         if ('missingProject' in r) {
           if (a.create_project !== true || !app.planner) return `There is no project called “${r.missingProject}”. Ask them with ask_choice: “Make a project “${r.missingProject}” for these?” (options: Make it, Pick another place). If they say yes, call alerts_route again with create_project true.`;
           const id = app.planner.projectId(r.missingProject)!;

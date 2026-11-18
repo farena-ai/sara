@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Proven on real models, Try these, and steadier releases, in 3.19.0
+
+A 40-task run on a real local model (39 of 40 passed every check), end-to-end checks for every kind of mail and
+calendar account and for two linked servers, and a Windows install and update matrix. They found eight bugs, now
+fixed: alerts to a named project, the humanizer for plain requests, a contract clause mix-up, flight airlines,
+a removed Google account's leftover settings, calendar times across time zones, a test install sharing data,
+and lost progress edits on slow chat apps. Help → Try these walks you through the newest features.
+
 ## Fixes in 3.18.2
 
 Both mail pages show one list of every account with + Add an account; signing in to a different Google address

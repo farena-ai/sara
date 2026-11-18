@@ -785,7 +785,7 @@ CREATE INDEX IF NOT EXISTS travel_bookings_trip ON travel_bookings(trip_id);`);
     return trips.map((t) => `Trip #${t.id} “${t.title}” · ${t.dates} · ${t.bookings.length} booking${t.bookings.length === 1 ? '' : 's'}: ${t.bookings.map((b) => b.title).join('; ')}`).join('\n');
   }
   statusText(t: TripView): string {
-    const lines = t.bookings.map((b) => `- ${b.kind}: ${b.title} · ${b.when}${b.end && b.endsAt ? ` → ${fmtWhen(new Date(b.endsAt), b.kind === 'flight' && airportOf(b.to) ? airportOf(b.to)!.tz : b.tz)}` : ''}${b.place && b.kind !== 'flight' ? ` · ${b.place}` : ''}${b.confirmation ? ` · confirmation ${b.confirmation}` : ''}${b.status ? ` · ${this.#statusLine(b.status)}` : ''}${b.rebook?.length ? `\n  Rebooking options: ${b.rebook.map((o) => o.label).join('; ')}` : ''}`);
+    const lines = t.bookings.map((b) => `- ${b.kind}${b.kind === 'flight' && b.airline ? ` (${b.airline})` : ''}: ${b.title} · ${b.when}${b.end && b.endsAt ? ` → ${fmtWhen(new Date(b.endsAt), b.kind === 'flight' && airportOf(b.to) ? airportOf(b.to)!.tz : b.tz)}` : ''}${b.place && b.kind !== 'flight' ? ` · ${b.place}` : ''}${b.confirmation ? ` · confirmation ${b.confirmation}` : ''}${b.status ? ` · ${this.#statusLine(b.status)}` : ''}${b.rebook?.length ? `\n  Rebooking options: ${b.rebook.map((o) => o.label).join('; ')}` : ''}`);
     const src = this.#source() ? '' : '\n(Flight status is off: the person can turn on a source on the Trips page.)';
     return `Trip #${t.id} “${t.title}” · ${t.dates}\n${lines.join('\n')}${t.packing ? `\nPacking list: ${t.packing.name}` : ''}${src}\nShe never books, changes or pays for travel.`;
   }

@@ -19,6 +19,7 @@ replies stay out of the repository).
 | Memory across sessions (recall, no inventing, forgetting) | qwen3.8 27B (local) | **11/12** checks | 2026-10-27 | `node scripts/eval-memory.ts --model <model>` |
 | Memory ranking: the note that should come first (40 notes, 20 messages, no model) | none (code only) | **19/20** | 2026-10-30 | `node scripts/eval-memory.ts --rank` |
 | Plan check: planned tool calls vs. stored decisions, stop / flag / none (no model) | none (code only) | stops: precision / recall **1.00 / 1.00** on both sets; exact **35/35** (development) and **11/12** (held out) | 2026-10-30 | `node scripts/eval-contradict.ts` |
+| Real-model task runs: 40 everyday tasks through real chat turns and tools (U1.1) | qwen3.8 27B (local), judge `qwen3.5:9b` | **39/40** tasks pass every check (33/39 before the 4 fixes below), judge **4.92/5** | 2026-11-17 | `node scripts/eval-real.ts` |
 | Library: answers from documents, with the source | qwen3.8 27B (local) | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model>` |
 | Library with meaning search | qwen3.8 27B (local) + nomic-embed-text | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model> --embed nomic-embed-text` |
 | Code map: "where is…?" questions on Sara's own code | qwen3.8 27B (local) + nomic-embed-text | **8/8** with code tools, **8/8** without | 2026-10-27 | `node scripts/eval-codemap.ts --embed nomic-embed-text` |
@@ -771,6 +772,45 @@ plain file tools and once with the code-map tools added. Both scored **8 of 8** 
 second run of the "with" half the same day scored 7 of 8. With a capable model, plain search
 already answers these questions, so the code tools show up as a different way of getting there,
 not a higher score; harder multi-step questions are needed to measure the difference.
+
+## Real-model task runs (U1.1)
+
+`node scripts/eval-real.ts` ([how it works](REAL_RUNS.md)) runs 40 tasks on throwaway in-process Saras with
+fixture mail, calendar, web, booking mails, a recorded meeting, contracts, a fake Google and two linked servers,
+and the real model for every turn. Code checks each task first (tool called and ran ok, rows and files exist,
+facts unchanged, nothing private across servers, no refusal); then `qwen3.5:9b` scores it 1-5 with a reason.
+One model is loaded at a time (all turns, then the judge). Summary with every task:
+[2026-11-17-real-runs](results/2026-11-17-real-runs.md).
+
+| Run (2026-11-17, Sara 3.18.2 + this branch) | Checks | Judge | Time | Tokens in / out |
+|---|---|---|---|---|
+| Run 1, before fixes (39 tasks) | **33/39** | 4.72/5 | 13.9 min | 1,060,352 / 56,806 |
+| Run 2, after the alert, humanize and clause fixes (40 tasks; alertdest and s8-team rerun after two check fixes in the eval) | **39/40** | 4.92/5 | 12.5 min | 1,005,661 / 38,373 |
+
+Covered: chat (5), memory across chats, reminders/to-dos/notes, calendar read and add, S10 choice card and the
+pick, S1 research (Library + fixture web, plan approved, report with sources), S3 goals (create, update,
+status), S5 ask everything (and the private chat stays out), S11 humanize (facts lock), S2 meeting summary,
+S4 promises and who is due, S6 trips and flight status, S7 template fill → tracked revise → checklist → signing
+PDF, docclaim (make_document saved to the Library, no false "not checked"), S8 a small team run, T1 fix
+yourself, T3 a code fix in a tiny source tree (the test passes after), alert destinations, connecting another
+Gmail, listing accounts, S9b support look between two servers (nothing private leaked), T5 fix-pass request and
+a fix plan received by the other server.
+
+What the runs found, and what happened:
+
+| Found | Kind | Done |
+|---|---|---|
+| "Put my stock alerts in the Stock Alerts project": the model sent `to: "Stock Alerts"`; the chat she was asked in (auto-titled with the request) matched by name, so alerts went to that chat and "Make it" never made the project | product bug | fixed + test (alertdest) |
+| "Make this sound more human" did not offer `humanize_text` (only "sound human" did), so she rewrote by hand without the facts lock (the facts happened to survive) | product bug | fixed + test (s11-humanize) |
+| The contract checklist counted "liability … shall not exceed the fees paid" as the Payment clause, and offered it for reuse as payment terms | product bug | fixed + test (s7-documents) |
+| `trip_status` showed `SK1452` without the airline; the model called it "Lufthansa" | product gap | fixed + test (s6-travel); after run 2 |
+| "I ran 8 miles today, log it" went to a running-log note instead of `goal_update` (both runs) | model choice | [BACKLOG](BACKLOG.md) |
+| The ready-to-sign gate stopped on open tracked changes; she asked before accepting them | correct behavior | the eval now answers "accept them" |
+| Two failed checks were the eval's own (a goal check too strict, a team result read from the wrong place) | eval bug | fixed in the script |
+
+Limits: one run per task is a sample, not a rate; the judge is a small local model (it once called a correct
+reply a failure for calling the right tool); the calendar is a fixture tool pair, not the Google/IMAP calendar
+code; times include the first model load.
 
 ## The everyday test suite
 

@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
+import { createServer, type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { adminHelp } from '../src/platform.ts';
@@ -92,32 +93,42 @@ test('web: no Linux-only admin commands left without the system-aware hint', () 
   assert.match(app, /applyAdminHelp\(s\.admin\)/);
 });
 
-test('the service host stops her cleanly by closing her stdin (SARA_STOP_ON_STDIN_END)', async (t) => {
+test('the service host stops her cleanly by closing her stdin (SARA_STOP_ON_STDIN_END)', { timeout: 240_000 }, async (t) => {
   const tmp = tempDir();
   const data = tmp.dir;
-  const port = 30000 + Math.floor(Math.random() * 20000);
+  // A port the OS just handed out (not a random guess that may be taken), and her own banner as the
+  // readiness signal: a health answer from some other server on that port can't pass for hers.
+  const port = await new Promise<number>((r) => {
+    const s = createServer().listen(0, '127.0.0.1', () => {
+      const p = (s.address() as AddressInfo).port;
+      s.close(() => r(p));
+    });
+  });
   const child = spawn(process.execPath, ['--disable-warning=ExperimentalWarning', join(ROOT, 'src', 'main.ts')], {
     cwd: ROOT,
     env: { ...process.env, SARA_DATA: data, SARA_PORT: String(port), SARA_HOST: '127.0.0.1', SARA_STOP_ON_STDIN_END: '1' },
-    stdio: ['pipe', 'ignore', 'pipe'],
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
   t.after(() => {
     child.kill();
     tmp.cleanup();
   });
-  let up = false;
-  // Generous: on a loaded machine (the whole suite running) her start can take a while.
-  for (let i = 0; i < 240 && !up; i++) {
-    up = await fetch(`http://127.0.0.1:${port}/api/health`).then((r) => r.ok, () => false);
-    if (!up) await new Promise((r) => setTimeout(r, 250));
-  }
-  assert.ok(up, 'she answered');
+  // Both pipes are read: an unread pipe that fills up would stall her start.
+  let output = '';
+  child.stdout!.on('data', (b) => (output += String(b)));
+  child.stderr!.on('data', (b) => (output += String(b)));
+  const exited = new Promise<number | null>((r) => child.once('exit', (code) => r(code)));
+  // Generous: on a loaded machine (the whole suite running) her start can take well over a minute.
+  const deadline = Date.now() + 180_000;
+  const banner = `Sara is listening on http://127.0.0.1:${port} (data: `;
+  while (!output.includes(banner) && child.exitCode === null && Date.now() < deadline) await new Promise((r) => setTimeout(r, 100));
+  assert.ok(output.includes(banner), `she started: ${output.slice(-2000)}`);
+  assert.equal((await fetch(`http://127.0.0.1:${port}/api/health`)).ok, true, 'she answered');
   assert.ok(existsSync(join(data, 'first-token.txt')), 'the installer can show the first token from her data folder');
   const started = Date.now();
-  const exited = new Promise<number | null>((r) => child.once('exit', (code) => r(code)));
   child.stdin!.end();
   const code = await exited;
-  assert.equal(code, 0, 'a clean exit, not a kill');
+  assert.equal(code, 0, `a clean exit, not a kill: ${output.slice(-2000)}`);
   assert.ok(Date.now() - started < 10_000, 'within the service host\'s 20 s');
 });
 
@@ -187,7 +198,7 @@ test('installer: remote mode installs only the app (no server, Node, service, PA
   }
   assert.ok(files.some((l) => /\\Sara\.exe"; DestDir: "\{app\}"; Flags: ignoreversion$/.test(l)), 'the app in both modes');
   for (const f of ['SaraService.exe"; DestDir', 'node\\node.exe', 'bin\\sara.cmd', 'server\\*']) assert.ok(files.some((l) => l.includes(f) && l.endsWith('Check: not IsRemote')), f);
-  assert.match(section(iss, 'Registry'), /"Sara server".*Check: \(not IsAdminInstallMode\) and \(not IsRemote\)/);
+  assert.match(section(iss, 'Registry'), /"\{#AppRunName\}".*Check: \(not IsAdminInstallMode\) and \(not IsRemote\)/);
   assert.match(section(iss, 'Run'), /Parameters: "\{code:OpenParams\}"/);
   const code = iss.slice(iss.indexOf('[Code]'));
   // The post-install step returns before the server setup (sara.env, service, PATH, firewall).

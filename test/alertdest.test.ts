@@ -211,3 +211,22 @@ test('alertdest: Settings route lists feeds with where they post, sets a feed or
   assert.equal((await call('PUT', '/alerts', { feed: 'reminders', dest: { where: 'apps', telegram: true } })).status, 400);
   assert.equal((await call('PUT', '/alerts', { feed: 'nope', dest: { where: 'origin' } })).status, 404);
 });
+
+// U1.1 real-model run: the model passed to:"Stock Alerts" (no word "project"); the chat it was asked in,
+// auto-titled "Put my stock alerts in the Stock Alerts project", matched by title, so the alerts went to
+// that chat and "Make it" (create_project) never made the project.
+test('alertdest: the chat she is asked in is not a by-name match; create_project always makes the project', async (t) => {
+  const r = rig(t);
+  r.w.add({ kind: 'price', symbol: 'AAPL', when: 'above', value: 400, conversationId: r.chat.id });
+  const here = r.app.store.createConversation({ channel: 'web', title: 'Put my stock alerts in the Stock Alerts project' });
+  r.app.store.addMessage(here.id, 'user', 'Put my stock alerts in the Stock Alerts project');
+  assert.deepEqual(resolveTo(r.app, 'Stock Alerts', here.id), { missingProject: 'Stock Alerts' });
+  const ask = await r.tool.run({ feed: 'stocks', to: 'Stock Alerts' }, r.ctx(here.id));
+  assert.match(ask, /no project called “Stock Alerts”/);
+  const other = r.app.store.createConversation({ channel: 'web', title: 'Stock alerts talk' });
+  r.app.store.addMessage(other.id, 'user', 'hi');
+  await r.tool.run({ feed: 'stocks', to: 'Stock Alerts', create_project: true }, r.ctx(here.id));
+  const pid = matchProject(r.app, 'Stock Alerts')?.id;
+  assert.ok(pid, 'the project was made');
+  assert.deepEqual(destFor(r.app, 'stocks'), { where: 'project', projectId: pid });
+});

@@ -127,7 +127,8 @@ export function clauseChecklist(text: string, type: DocType): Checklist {
   const items: ChecklistItem[] = [];
   for (const rule of LISTS[type]) {
     // A real sentence beats a bare heading ("Payment") as the quote.
-    const found = ss.filter((s) => rule.re.test(s.text)).sort((a, b) => Number(b.text.split(/\s+/).length > 4) - Number(a.text.split(/\s+/).length > 4));
+    // A liability cap measured in "the fees paid" is not the payment terms (U1.1 real-model run).
+    const found = ss.filter((s) => rule.re.test(s.text) && !(rule.id === 'payment' && R.liability_cap.re.test(s.text))).sort((a, b) => Number(b.text.split(/\s+/).length > 4) - Number(a.text.split(/\s+/).length > 4));
     let hit = found[0];
     let note: string | undefined;
     if (rule.unusual) {
