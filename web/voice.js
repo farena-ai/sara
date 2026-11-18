@@ -46,6 +46,38 @@ const rms = (f) => {
   return Math.sqrt(s / f.length);
 };
 
+/**
+ * U4.24 (docs/VOICE_FIRST.md): a small WebRTC-style speech check on top of the energy VAD. Every
+ * ~30 ms window is judged by its zero-crossing rate: a voice sits between steady mains hum (almost no
+ * crossings) and hiss/fan/keyboard noise (crossings at nearly every sample). push(frame) returns the
+ * newest window's verdict (true until the first window is complete). No model, no download.
+ */
+export class SpeechGate {
+  constructor(rate = 48000, windowMs = 30) {
+    this.size = Math.max(64, Math.round((rate * windowMs) / 1000));
+    this.rate = rate;
+    this.n = 0;
+    this.cross = 0;
+    this.last = 0;
+    this.voiced = true;
+  }
+
+  push(frame) {
+    for (let i = 0; i < frame.length; i++) {
+      const x = frame[i];
+      if ((x >= 0) !== (this.last >= 0)) this.cross++;
+      this.last = x;
+      if (++this.n >= this.size) {
+        // Crossings per second: ~100–3500 for a voice (pitch plus formants), far more for hiss.
+        const hz = (this.cross / this.n) * this.rate;
+        this.voiced = hz > 120 && hz < 4500;
+        this.n = this.cross = 0;
+      }
+    }
+    return this.voiced;
+  }
+}
+
 /** Microphone capture. onFrame(frame, level) is called for every ~3 ms block. */
 export class Mic {
   constructor() {
@@ -213,8 +245,9 @@ export class Speaker {
  * what you said, and lets you interrupt her by talking over her.
  */
 export class Call {
-  constructor({ mic, speaker, transcribe, onUtterance, onInterrupt, onStatus }) {
-    Object.assign(this, { mic, speaker, transcribe, onUtterance, onInterrupt, onStatus });
+  constructor({ mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech }) {
+    // U4.24: isSpeech(frame) (a SpeechGate) keeps loud non-speech from starting an utterance.
+    Object.assign(this, { mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech });
     this.active = false;
     this.floor = 0.008;
     this.speechMs = 0;
@@ -252,7 +285,8 @@ export class Call {
     if (!this.inUtterance && level < this.floor * 2) this.floor = this.floor * 0.995 + level * 0.005;
     const talkingOver = this.speaker.speaking;
     const threshold = Math.max(0.012, this.floor * 3) * (talkingOver ? 2.2 : 1);
-    if (level > threshold) {
+    const voiced = this.isSpeech ? this.isSpeech(f) : true;
+    if (level > threshold && voiced) {
       this.speechMs += ms;
       this.silenceMs = 0;
     } else {

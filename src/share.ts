@@ -36,6 +36,8 @@ export interface ShareSnapshot {
   messages: ShareMessage[];
   /** What was left out or hidden (shown in the preview). */
   hidden: { tools: number; pictures: number; scrubbed: number };
+  /** U4.29: a client portal page instead of a conversation (src/biz/portal.ts). */
+  portal?: import('./biz/portal.ts').PortalData;
 }
 export interface SharePicture {
   mime: string;

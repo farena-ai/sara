@@ -238,7 +238,7 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
       const cur = view();
       const next: WakeSettings = { ...(app.settings.get().wake ?? {}) };
       if (body.talksIn !== undefined) next.talksIn = TALKS_IN.includes(body.talksIn) ? body.talksIn : cur.talksIn;
-      if (body.starts !== undefined) next.starts = body.starts === 'call' ? 'call' : 'question';
+      if (body.starts !== undefined) next.starts = body.starts === 'call' || body.starts === 'talk' ? body.starts : 'question';
       if (body.followUpSeconds !== undefined) next.followUpSeconds = body.followUpSeconds === 5 || body.followUpSeconds === 8 ? body.followUpSeconds : 0;
       if (body.sensitivity !== undefined) next.sensitivity = cleanSensitivity(body.sensitivity);
       if (body.quietHours !== undefined) next.quietHours = body.quietHours === true;
@@ -539,6 +539,11 @@ export function createWakeRoutes(ctx: RouteCtx): RouteHandler {
     if (needsOk && !reply) reply = 'She needs your OK in Sara.';
     if (reply) spoken.push({ kind: 'reply', text: reply });
     if (more) open = true;
+    // U4.24: Hey Sara set to start Talk with Sara: the app window opens it in this conversation (web/talk.js talkWake).
+    if (view().starts === 'talk' && !failed) {
+      open = true;
+      app.events?.publish({ type: 'wake', device: String(sid ?? ''), state: 'on', talk: convId });
+    }
     return send(res, 200, { heard, conversationId: convId, companionId, spoken, open, ...(needsOk ? { needsOk: true } : {}), ...(more ? { more: true } : {}), ...(failed && !reply ? { error: failed } : {}) });
   }
 }

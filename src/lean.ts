@@ -133,6 +133,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(person_|people_|promise_)/, 'people', 'people'],
   // S9b: the support link (look at a linked Sara with a help pass, suggest a fix).
   [/^(support_(look|propose)|remote_(help_request|look|fix_plan))$/, 'support', 'helping another Sara'],
+  // U4.26: a shared project's items (read inside that project's chats only).
+  [/^shared_project_read$/, 'sharedproj', 'shared projects'],
   // ROADMAP_T: self-repair (check yourself, fix what is broken, learn to do something).
   [/^repair_(status|fix)$/, 'repair', 'fixing herself'],
   // T3: changing her own code (src/tools/self-code.ts).
@@ -178,6 +180,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^goal_(create|status|update)$/, 'goals', 'goals over days'],
   // U4.23: the learning coach (docs/LEARNING.md).
   [/^study_(make|list|quiz|answer)$/, 'study', 'study cards and quizzes'],
+  // U4.28: picture editing and short video with ComfyUI (docs/PICTURES.md).
+  [/^(picture_edit|video_make)$/, 'media', 'picture editing and video'],
   // S2: meeting notes (docs/MEETINGS.md).
   [/^meeting_(list|summarize)$/, 'meetings', 'meeting notes'],
   // R5: phone calls in her own voice (docs/PHONE_CALLS.md).
@@ -290,6 +294,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   repair: ['fix yourself', 'repair yourself', 'is broken', 's broken', 'not working', 'doesnt work', 'doesn t work', 'stopped working', 'check yourself', 'self repair', 'learn to', 'arreglate', 'no funciona', 'esta roto', 'repare toi', 'ne marche pas', 'ne fonctionne pas', 'reparier dich', 'funktioniert nicht', 'ist kaputt', 'conserte se', 'nao funciona', 'esta quebrado', 'aggiustati', 'non funziona', 'e rotto'],
+  sharedproj: ['shared project', 'shared notes', 'shared files', 'shared to do', 'proyecto compartido', 'notas compartidas', 'projet partage', 'notes partagees', 'geteiltes projekt', 'gemeinsames projekt', 'geteilte notizen', 'projeto compartilhado', 'notas compartilhadas', 'progetto condiviso', 'note condivise'],
   support: ['help pass', 'fix pass', 'have sara fix', 'fix it remotely', 'pase de arreglo', 'pass de réparation', 'reparaturpass', 'passe de conserto', 'pass di riparazione', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],
   selfcode: ['your code', 'your own code', 'your source code', 'change your code', 'fix your code', 'tu codigo', 'tu propio codigo', 'ton code', 'votre code', 'ton propre code', 'deinen code', 'dein code', 'deinen eigenen code', 'seu codigo', 'seu proprio codigo', 'il tuo codice', 'tuo codice'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa',
@@ -348,6 +353,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'faccenda', 'faccende', 'paghetta', 'punti', 'ho finito', 'quanti soldi ho', 'compiti', 'cercare'],
   // S3 (docs/GOALS.md): long-running goals over days or weeks.
   meetings: ['meeting', 'meetings', 'the meeting', 'meeting notes', 'action items', 'the call', 'reunion', 'reuniones', 'acta', 'reunion de', 'compte rendu', 'besprechung', 'protokoll', 'sitzung', 'reuniao', 'reunioes', 'ata da reuniao', 'riunione', 'riunioni', 'verbale'],
+  // U4.28 (docs/PICTURES.md): picture editing and short video with ComfyUI.
+  media: ['edit the picture', 'edit this picture', 'edit the photo', 'edit this photo', 'remove the', 'erase the', 'upscale', 'make it 4k', '4k', 'higher resolution', 'background', 'outpaint', 'extend the picture', 'extend the photo', 'watercolor', 'in the style of', 'restyle', 'video', 'clip', 'animate', 'make a video',
+    'editar la foto', 'editar la imagen', 'quita', 'quitar', 'borra', 'fondo', 'ampliar', 'video corto', 'animar',
+    'retouche', 'retoucher', 'enleve', 'efface', 'arriere plan', 'agrandir', 'video courte', 'animer',
+    'bild bearbeiten', 'foto bearbeiten', 'entferne', 'hintergrund', 'hochskalieren', 'kurzes video', 'animieren',
+    'editar a foto', 'editar a imagem', 'remova', 'apague', 'fundo', 'aumentar', 'video curto',
+    'modifica la foto', 'rimuovi', 'cancella', 'sfondo', 'ingrandisci', 'video breve', 'animare'],
   // U4.23 (docs/LEARNING.md): study sets, flashcards and quizzes.
   study: ['study', 'studying', 'flashcards', 'flash cards', 'flashcard', 'quiz me', 'quiz', 'test me', 'revise', 'revision', 'exam', 'study set', 'cards due', 'learn this', 'memorize',
     'estudiar', 'tarjetas', 'examen', 'repasar', 'cuestionario',
@@ -874,7 +886,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign|invoice_send)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

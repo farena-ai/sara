@@ -6,11 +6,11 @@ import { bizStore, type Invoice } from '../biz/store.ts';
 import { timeOf } from '../tools/work.ts';
 import { str, ToolError, type Tool } from '../tools/types.ts';
 
-export const ACCOUNTING_FORMATS = ['quickbooks', 'xero', 'generic'] as const;
+export const ACCOUNTING_FORMATS = ['quickbooks', 'xero', 'wave', 'generic'] as const;
 export type AccountingFormat = (typeof ACCOUNTING_FORMATS)[number];
-export const ACCOUNTING_PARTS = ['invoices', 'expenses', 'time', 'all'] as const;
+export const ACCOUNTING_PARTS = ['invoices', 'expenses', 'time', 'summary', 'all'] as const;
 export type AccountingPart = (typeof ACCOUNTING_PARTS)[number];
-export const FORMAT_NAME: Record<AccountingFormat, string> = { quickbooks: 'QuickBooks Online', xero: 'Xero', generic: 'generic CSV' };
+export const FORMAT_NAME: Record<AccountingFormat, string> = { quickbooks: 'QuickBooks Online', xero: 'Xero', wave: 'Wave (bank statement CSV)', generic: 'generic CSV' };
 
 /** One CSV line: quoted when needed; text that a spreadsheet would run as a formula gets a leading '. */
 export function csvLine(cells: (string | number)[]): string {
@@ -56,7 +56,9 @@ export interface ExportFile {
 export function accountingCsv(app: AppContext, o: ExportOpts): ExportFile {
   if (!DAY.test(o.from) || !DAY.test(o.to)) throw new ToolError('Use dates like 2026-11-01.');
   if (o.from > o.to) throw new ToolError('The start date must be before the end date.');
-  if (!(ACCOUNTING_FORMATS as readonly string[]).includes(o.format)) throw new ToolError('The format is quickbooks, xero or generic.');
+  if (!(ACCOUNTING_FORMATS as readonly string[]).includes(o.format)) throw new ToolError('The format is quickbooks, xero, wave or generic.');
+  if (o.what === 'summary') return summaryCsv(app, o);
+  if (o.format === 'wave') return waveCsv(app, o);
   if (o.what === 'all' && o.format !== 'generic') throw new ToolError('QuickBooks and Xero take invoices, expenses and time as separate files.');
   const biz = bizStore(app);
   const inRange = (d: string) => d >= o.from && d <= o.to;
@@ -113,9 +115,41 @@ export function accountingCsv(app: AppContext, o: ExportOpts): ExportFile {
   return { name: `${o.format}-${o.what}-${o.from}-to-${o.to}.csv`, csv: `${out.join('\r\n')}\r\n`, rows };
 }
 
-/** The files one export makes: generic is one file, QuickBooks and Xero one per part. */
+/** U4.29: income and expenses by category for the period (invoices issued, not void; tax apart). */
+function summaryCsv(app: AppContext, o: ExportOpts): ExportFile {
+  const biz = bizStore(app);
+  const rows = new Map<string, { type: string; cat: string; amount: number; tax: number; n: number; cur: string }>();
+  const add = (type: string, cat: string, amount: number, tax: number, cur: string) => {
+    const k = `${type}|${cat}|${cur}`;
+    const r = rows.get(k) ?? { type, cat, amount: 0, tax: 0, n: 0, cur };
+    r.amount += amount;
+    r.tax += tax;
+    r.n++;
+    rows.set(k, r);
+  };
+  for (const i of biz.invoices()) if (i.kind === 'invoice' && i.status !== 'void' && i.issued >= o.from && i.issued <= o.to) add('income', 'Sales', i.subtotalCents, i.taxCents, i.currency);
+  for (const e of biz.expenses({ from: o.from, to: o.to })) add('expense', e.category || 'Other', e.totalCents, e.taxCents, e.currency);
+  const list = [...rows.values()].sort((a, b) => (a.type === b.type ? a.cat.localeCompare(b.cat) : a.type === 'income' ? -1 : 1));
+  const out = [csvLine(['Type', 'Category', 'Amount', 'Tax', 'Count', 'Currency']), ...list.map((r) => csvLine([r.type, r.cat, money(r.amount), money(r.tax), r.n, r.cur]))];
+  return { name: `summary-${o.from}-to-${o.to}.csv`, csv: `${out.join('\r\n')}\r\n`, rows: list.length };
+}
+
+/** U4.29: Wave's (and most bank-statement importers') 3-column CSV: money in positive, out negative. */
+function waveCsv(app: AppContext, o: ExportOpts): ExportFile {
+  const biz = bizStore(app);
+  const lines: [string, string, number][] = [];
+  if (o.what === 'invoices' || o.what === 'all') for (const i of biz.invoices()) if (i.kind === 'invoice' && i.status !== 'void' && i.issued >= o.from && i.issued <= o.to) lines.push([i.issued, `${i.number} ${i.clientName}`, i.totalCents]);
+  if (o.what === 'expenses' || o.what === 'all') for (const e of biz.expenses({ from: o.from, to: o.to })) lines.push([e.date, [e.vendor, e.category, e.note].filter(Boolean).join(' - '), -e.totalCents]);
+  if (o.what === 'time') throw new ToolError('Wave takes money only: export time as generic, QuickBooks or Xero.');
+  lines.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const out = [csvLine(['Date', 'Description', 'Amount']), ...lines.map((l) => csvLine([l[0], l[1], money(l[2])]))];
+  return { name: `wave-${o.what}-${o.from}-to-${o.to}.csv`, csv: `${out.join('\r\n')}\r\n`, rows: lines.length };
+}
+
+/** The files one export makes: generic and Wave are one file, QuickBooks and Xero one per part. */
 export function accountingFiles(app: AppContext, o: Omit<ExportOpts, 'what'> & { what?: AccountingPart }): ExportFile[] {
   const what = o.what ?? 'all';
+  if (what === 'summary' || o.format === 'wave') return [accountingCsv(app, { ...o, what })];
   if (o.format === 'generic') return [accountingCsv(app, { ...o, what })];
   const parts: AccountingPart[] = what === 'all' ? ['invoices', 'expenses', 'time'] : [what];
   return parts.map((p) => accountingCsv(app, { ...o, what: p }));

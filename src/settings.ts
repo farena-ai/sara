@@ -75,6 +75,8 @@ export interface Settings {
   mcpServers?: McpServerConfig[];
   /** Pictures from Sara (Phase 9). */
   photos?: Partial<PhotoSettings>;
+  /** U4.28: picture editing and short video through ComfyUI (src/media-studio.ts). */
+  media?: import('./media-studio.ts').MediaPrefs;
   /** ALERTDEST: where her alerts and results go, per feed and per item (src/destinations.ts). */
   alerts?: import('./destinations.ts').AlertSettings;
   /** Phase 36: her closet (dress automatically, work hours, own scenarios, picked scenario). */

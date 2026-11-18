@@ -83,7 +83,7 @@ export interface RunOpts {
 }
 
 /** Runs one registered (MCP) tool and keeps any picture it returns. */
-async function runTool(d: EngineDeps, name: string, args: Record<string, unknown>, o: RunOpts): Promise<{ text: string; images: Buffer[] }> {
+export async function runTool(d: EngineDeps, name: string, args: Record<string, unknown>, o: RunOpts): Promise<{ text: string; images: Buffer[] }> {
   const tool = d.tools?.get(name);
   if (!tool || (tool.isAvailable && !tool.isAvailable())) throw new ToolError(`The picture tool ${name} isn't connected right now.`);
   const perm = d.tools!.permission(name);
@@ -160,7 +160,7 @@ const EMPTY_RUN = 'ComfyUI finished but the workflow saved no picture: check it 
  * Reads one get_history answer: the JSON of older tool servers, or the markdown of comfyui-mcp
  * (`**Status**: success | Completed: true`, `- Node 10: images → **sub/x.png (type=output)**`).
  */
-export function readComfyHistory(text: string): ComfyRun {
+export function readComfyHistory(text: string, files: RegExp = IMAGE_FILE): ComfyRun {
   const t = String(text ?? '');
   // Markdown (comfyui-mcp 0.5x).
   const status = /\*\*Status\*\*:\s*([\w-]+)\s*\|\s*Completed:\s*(\w+)/i.exec(t);
@@ -172,7 +172,7 @@ export function readComfyHistory(text: string): ComfyRun {
     for (const m of t.matchAll(/^\s*-\s*Node\s+[^:]+:\s*(?:images|videos|video|gifs)\s*→\s*\*\*(.+?)\*\*\s*$/gim)) {
       for (const part of m[1].split(/,\s+/)) {
         const f = /^(.+?)(?:\s+\(type=(output|temp|input)\))?$/.exec(part.trim());
-        if (f && IMAGE_FILE.test(f[1])) return { state: 'done', file: f[1], ...(f[2] ? { type: f[2] } : {}) };
+        if (f && files.test(f[1])) return { state: 'done', file: f[1], ...(f[2] ? { type: f[2] } : {}) };
       }
     }
     if (status && (status[1].toLowerCase() === 'success' || status[2].toLowerCase() === 'true')) return { state: 'error', reason: EMPTY_RUN };
@@ -184,7 +184,7 @@ export function readComfyHistory(text: string): ComfyRun {
     return { state: 'error', reason: (msg ?? t).slice(0, 300) };
   }
   if (/execution_interrupted/i.test(t)) return { state: 'error', reason: 'it was stopped in ComfyUI.' };
-  const m = /"filename"\s*:\s*"([^"]+\.(?:png|jpe?g|webp))"(?:[^}]*?"subfolder"\s*:\s*"([^"]*)")?(?:[^}]*?"type"\s*:\s*"(output|temp|input)")?/i.exec(t);
+  const m = [...t.matchAll(/"filename"\s*:\s*"([^"]+\.\w{2,5})"(?:[^}]*?"subfolder"\s*:\s*"([^"]*)")?(?:[^}]*?"type"\s*:\s*"(output|temp|input)")?/gi)].find((x) => files.test(x[1]));
   if (m) return { state: 'done', file: m[2] ? `${m[2]}/${m[1]}` : m[1], ...(m[3] ? { type: m[3] } : {}) };
   if (/"status_str"\s*:\s*"success"|"completed"\s*:\s*true/i.test(t)) return { state: 'error', reason: EMPTY_RUN };
   return { state: 'pending' };

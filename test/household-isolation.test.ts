@@ -260,7 +260,7 @@ function routeFamilies(): Map<string, Set<string>> {
   return fam;
 }
 /** Owner-only route families (a member gets 403 ownerOnly). Every family must be in one of the two lists. */
-const OWNER_ONLY = ['repair', 'phone-calls', 'quality', 'worktrees', 'coding-depth', 'device-approvals', 'device-approval', 'audit', 'data-rights', 'readiness', 'isolation', 'secrets', 'lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'spotify', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'team-runs', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
+const OWNER_ONLY = ['repair', 'market', 'shared-projects', 'phone-calls', 'quality', 'worktrees', 'coding-depth', 'device-approvals', 'device-approval', 'audit', 'data-rights', 'readiness', 'isolation', 'secrets', 'lean', 'pickup', 'backups', 'update', 'doctor', 'logs', 'status', 'health', 'access', 'private-local', 'local-models', 'subscriptions', 'mcp', 'bridges', 'chats', 'github', 'github-watch', 'google', 'spotify', 'home', 'ssh', 'workspaces', 'jobs', 'previews', 'team', 'team-runs', 'codemap', 'code-projects', 'starters', 'recipes', 'history-import', 'import', 'model-jobs', 'tools', 'search', 'desktop-apps', 'claim', 'demo', 'public', 'login', 'telegram', 'discord', 'budgets', 'sandbox', 'security-pass', 'findings', 'threat-model', 'evals', 'redteam',
   // Phase 98 (ST3): plugins: install, enable, settings, update, rollback, remove, log, calls (owner only).
   'plugins',
   // Phase 102 (ST7): webhooks: list, make, change, rotate, test, log, enable, remove (owner only).
@@ -283,7 +283,9 @@ const OWNER_ONLY = ['repair', 'phone-calls', 'quality', 'worktrees', 'coding-dep
   'packs',
   // Phase 87: computer use. Member routes in src/household.ts, but answered 403 ownerOnly while the
   // owner's "Let household members use computer use" is off (the default, as here).
-  'hands', 'computer'];
+  'hands', 'computer',
+  // U4.28: picture editing and short video with ComfyUI (the owner's ComfyUI and tool server).
+  'media'];
 /**
  * Owner-only paths inside a member family (Phase 83: time-travel in `runs`; a member's run view
  * stays read-only). Each must answer a member 403 ownerOnly.

@@ -39,6 +39,7 @@ import { loadBusinessDetails, saveBusinessDetails } from './business-details.js'
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
 import { loadBrowserExt } from './browser-ext.js';
+import { initMarket, loadMarket } from './market.js';
 import { dateCard, initFacts, loadFacts } from './facts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
 import { initAgents, loadAgents } from './agents.js';
@@ -48,9 +49,11 @@ import { initAutomations, loadAutomations, renderAutomationsTile, wireAutomation
 import { initErrands, loadErrands, openErrands, renderErrandsTile } from './errands.js';
 import { initGoals, loadGoals, openGoals, renderGoalsTile } from './long-goals.js';
 import { initStudy, loadStudyPrefs, openStudy, renderStudyTile } from './study.js';
+import { initMediaStudio, loadMediaSettings } from './media-studio.js';
 import { loadMeetingPrefs, openMeetingsView, renderMeetingsTile } from './meetings.js';
 import { initTrips, loadTrips, openTrips, renderTripsTile } from './trips.js';
 import { initMoney, openMoney } from './money.js';
+import { initBizPack, openBizPack } from './bizpack.js';
 import { initHealth, loadHealthSettings, openHealth } from './health.js';
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
 import { initFamily, loadFamily, loadPlanSettings, openFamily, renderFamilyTile } from './family.js';
@@ -123,6 +126,7 @@ import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
+import { initTalk, syncTalkButton, talkEvent, talkOn, talkWake } from './talk.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
 import { initOwnerChecks, openTryThese } from './owner-checks.js';
 import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
@@ -182,6 +186,7 @@ import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './
 import { initMemoryMap } from './memory-map.js';
 import { choiceCard } from './choice-card.js';
 import { initRepair, loadRepair, saveRepair } from './repair.js';
+import { initSharedProjects, loadSharedSettings, renderProjectShare, sharedChanged } from './shared-projects.js';
 import { installPhoneSave } from './phone-save.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
@@ -1491,6 +1496,7 @@ const sidebarUI = initSidebar({ main: $('#main'), sidebar: $('#sidebar'), toggle
 // The sidebar's places: pinned ones, the rest under More (web/nav.js).
 initNav();
 initTidy();
+initSharedProjects({ openProject: (id) => { $('#settings')?.close(); void openProjectPage(id); } }); // U4.26
 // docs/PERFORMANCE.md: html.modal-open while a window is open (the background rests; no page-wide :has()).
 watchModal();
 void loadHowto().then(() => mountViewHowtos(t));
@@ -2717,6 +2723,7 @@ async function send(text) {
   // N5b: in car mode she answers short and spoken, without computer use or long tasks.
   const car = carOn() ? (touchCar(), { car: true }) : {};
   const body = { content: text, ...(photos.length ? { images: photos } : {}), ...(docs.length ? { docs: docs.map((d) => d.id) } : {}), ...frame, ...car };
+  if (talkOn()) body.talk = true;
   if (videoView.active && voice.call?.active) videoView.you(text, true);
   return runStream(`/conversations/${state.currentId}/messages`, body, userBubble);
 }
@@ -2955,6 +2962,7 @@ async function runStream(path, body, userBubble) {
         const dataLine = block.split('\n').find((l) => l.startsWith('data: '));
         if (!dataLine) continue;
         const ev = JSON.parse(dataLine.slice(6));
+        talkEvent(ev);
         if (ev.type === 'speaker') {
           if (voiceOn()) speaker.flush();
           endReply();
@@ -3194,6 +3202,7 @@ async function runStream(path, body, userBubble) {
     dropBuilding();
     callApprovals.settle();
     if (voiceOn()) speaker.flush();
+    talkEvent({ type: 'end' });
     if (videoView.active && voice.call?.active) videoView.herDone();
     // A typed reply finishes typing before the chat is redrawn (stopping shows it all at once).
     if (!controller.signal.aborted) await Promise.all([typedOut(reply), typedOut(pendingTyped)]);
@@ -4025,9 +4034,10 @@ const TOOL_WORDS = {
 // UI cleanup: each tool with a plain name, an icon, a sentence on what it lets her do and its raw
 // name in small print; grouped by topic, each group with a summary and "Set all to".
 /** R6: work-app changes whose card text is her diff (old → new, + added lines). */
-const WORKAPP_CARD = /^(gdoc_(append|replace_text)|gsheet_(update_range|append_rows)|excel_update_range|word_fill|slack_(post|react|status|remind)|teams_post)$/;
+const WORKAPP_CARD = /^(gdoc_(append|replace_text)|gsheet_(update_range|append_rows)|excel_update_range|word_fill|slack_(post|react|status|remind)|teams_post|invoice_send)$/;
 const TOOL_NAME = {
   alerts_route: 'Choose where alerts go',
+  invoice_send: 'Email an invoice',
   repair_fix: 'Fix herself', repair_status: 'Check what is wrong',
   list_dir: 'See her files', read_file: 'Read files', write_file: 'Write files', edit_file: 'Edit files', search: 'Search her files',
   code_map: 'Code overview', code_find: 'Find code', code_refs: 'Where code is used', code_deps: 'How files connect',
@@ -5045,7 +5055,7 @@ const speaker = new Speaker(async (text, who) => {
   const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json', ...(who ? { 'x-sara-companion': who } : {}) }, body: JSON.stringify({ text }) });
   return res.ok ? res.blob() : null;
 });
-const voiceOn = () => localStorage.getItem('sara.speak') === '1' || Boolean(voice.call?.active);
+const voiceOn = () => localStorage.getItem('sara.speak') === '1' || Boolean(voice.call?.active) || talkOn();
 
 /** 3.3.0: the first tap on the mic before her voice is set up: one plain offer in the chat. */
 function offerVoiceSetup() {
@@ -5094,6 +5104,8 @@ async function initVoice() {
   voice.callShown = (micOk && (voice.live || (canHear && canSpeak))) || (voice.nativeCalls && voice.live);
   voice.webMic = micOk;
   syncCallButton();
+  // U4.24: Talk with Sara needs hearing and her voice in this page (web/talk.js).
+  syncTalkButton(micOk && canHear && canSpeak);
   $('#call').title = voice.live ? t('Live call: just talk, interrupt any time ({engineName})', { engineName }) : t('Hands-free call: just talk, interrupt her any time');
   $('#v-calls-note').textContent = live.available
     ? t('Live calls talk back instantly and handle interruptions, using {engineName}. Classic calls use the voice and hearing chosen above, and can use her tools.', { engineName })
@@ -5278,6 +5290,37 @@ const callApprovals = new CallApprovals({
   release: (card) => {
     if (card.closest?.('#vc-approvals')) card.remove();
   },
+});
+// U4.24 (docs/VOICE_FIRST.md): Talk with Sara, the voice-first mode (web/talk.js).
+initTalk({
+  api,
+  speaker,
+  transcribe,
+  speak: async (text) => {
+    const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text }) });
+    return res.ok ? res.blob() : null;
+  },
+  send: (text) => send(text),
+  stopTurn: () => {
+    if (state.streaming && state.currentId) void fetch(`/api/conversations/${state.currentId}/stop`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }).catch(() => {});
+  },
+  idle: async () => {
+    while (state.streaming) await new Promise((r) => setTimeout(r, 100));
+  },
+  conversation: () => state.currentId,
+  open: (id) => void openConversation(id),
+  voiceCfg: () => voice.cfg,
+  name: () => currentIdentity().name || t('Sara'),
+  ready: () => {
+    if (voice.call?.active || voice.liveCall) return t('End the call first.');
+    const v = voice.cfg?.settings;
+    if (!v || voice.canHear === false) return t('To talk out loud, she needs her voice set up first. It takes about a minute.');
+    if (voice.cfg?.privateLocal && (v.stt !== 'local' || v.tts !== 'local')) return t('Nothing leaves this computer is on: Talk with Sara needs hearing and her voice on this server (Settings → Sara → Voice).');
+    return '';
+  },
+  notice: (text) => append(bubble('notice', text)),
+  cardFor: (id) => document.querySelector(`#messages .approval[data-call="${CSS.escape(id)}"]`),
+  putBack: (card) => $('#messages').append(card),
 });
 /** Opens the video call screen for the call going on (or about to). */
 function openVideo() {
@@ -5539,6 +5582,9 @@ async function loadVoice() {
   $('#v-expressive').value = v.expressive ?? 'subtle';
   $('#v-tone').value = v.tone ?? 'natural';
   $('#v-mood').checked = v.followMood !== false;
+  $('#talk-fillers').checked = v.talk?.fillers !== false;
+  $('#talk-voice-ok').checked = v.talk?.approveByVoice !== false;
+  $('#talk-goodbye').checked = v.talk?.goodbye !== false;
   voice.sample = d.expressiveSample;
   $('#v-calls').value = v.calls ?? 'live';
   $('#v-look-every').value = String(v.video?.lookEvery ?? 10);
@@ -5719,6 +5765,7 @@ async function saveVoice() {
     expressive: $('#v-expressive').value,
     tone: $('#v-tone').value,
     followMood: $('#v-mood').checked,
+    talk: { fillers: $('#talk-fillers').checked, approveByVoice: $('#talk-voice-ok').checked, goodbye: $('#talk-goodbye').checked },
     openai: { baseUrl: $('#v-oa-url').value.trim(), sttModel: $('#v-oa-stt').value.trim(), ttsModel: $('#v-oa-tts').value.trim(), ttsVoice: $('#v-oa-voice').value.trim() },
     elevenlabs: { voiceId: $('#v-el-voice').value.trim(), model: $('#v-el-model').value.trim() },
     xai: { voiceId: $('#v-xai-voice').value || 'eve', language: $('#v-xai-lang').value },
@@ -7444,7 +7491,7 @@ function startEvents() {
   // Phase 104: a move-in's upload, check, read or import moved on.
   es.addEventListener('movein', (e) => moveInEvent(JSON.parse(e.data)));
   // S9a: a private-messages chat changed (its id only).
-  es.addEventListener('pm', (e) => (({ chat, notice }) => messagesChanged(chat, notice))(JSON.parse(e.data)));
+  es.addEventListener('pm', (e) => (({ chat, notice }) => (String(chat).startsWith('sproj:') ? sharedChanged() : messagesChanged(chat, notice)))(JSON.parse(e.data)));
   // MSGPOP: (re)connected: messages that came while the stream was down get the notice card.
   es.addEventListener('open', () => messagesReconnected());
   // Phase 111 (TD1): a part of Today changed (Mail after a Gmail clean-up, Needs you, Running now…): only that part reloads.
@@ -7483,7 +7530,7 @@ function startEvents() {
   // Phase 101 (ST6): people cards changed (her memory worker, another tab): the open People page follows.
   es.addEventListener('people', () => peopleEvent());
   // Phase 126: a Hey Sara device switched on, off or paused (no text): the open Hey Sara page follows.
-  es.addEventListener('wake', () => wakeEvent());
+  es.addEventListener('wake', (e) => (wakeEvent(), talkWake(JSON.parse(e.data))));
   // Phase 118: a goal or a repeat changed (the chip, Planner → Repeats).
   es.addEventListener('goal', (e) => persistEvent('goal', JSON.parse(e.data)));
   es.addEventListener('loop', (e) => persistEvent('loop', JSON.parse(e.data)));
@@ -9074,7 +9121,12 @@ function showSettingsTab(page, opts = {}) {
   // R5: Phone calls (co-phone) and Discord's voice channel (co-discord), owner only (web/phone-calls.js).
   if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();
   if (pick === 'dh-safety') void loadSafetyCheck();
+  // U4.27: Shared by friends (web/market.js), under Get more.
+  if (pick === 'ab-store' && typeof loadMarket === 'function') void loadMarket();
   if (pick === 'you-briefing' && typeof loadStudyPrefs === 'function') void loadStudyPrefs();
+  // U4.28: Editing and short video (web/media-studio.js), owner only.
+  if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
+  if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
   if (shown.has('dh-quality')) void loadQuality();
   // ROADMAP_T: Self-repair on the Health page (web/repair.js).
   if (pick === 'dh-health' && typeof loadRepair === 'function' && !isMember()) {
@@ -10051,7 +10103,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), shared: () => void openSettings('co-phone') };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10794,6 +10846,7 @@ async function openProjectPage(id) {
         : [el('p', 'muted small', t('The workspace is empty.'))]),
     );
   }
+  void renderProjectShare(d.project, d.conversations); // U4.26: Shared with friends
   if (!$('#project-page').open) $('#project-page').showModal();
 }
 function taskRow(tk) {
@@ -12539,7 +12592,15 @@ $('#open-money').addEventListener('click', () => {
   closeSidebar();
   void openMoney();
 });
+// U4.29 (docs/BUSINESS_PACK.md): the Business place.
+initBizPack({ api, el, ask: (text) => askInChat(text) });
+$('#open-bizpack').addEventListener('click', () => {
+  closeSidebar();
+  void openBizPack();
+});
 initStudy();
+initMediaStudio();
+initMarket();
 initGoals({
   api,
   el,

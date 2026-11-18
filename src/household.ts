@@ -544,6 +544,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'app-updates',
   // R5: car mode's spoken "approve" for their own cards (src/routes/phone-calls.ts)
   'car',
+  // U4.24: Talk with Sara's spoken yes/no for their own cards (same route file)
+  'talk',
   // R2: their own guided setup, sample space and starter pack (src/routes/get-started.ts)
   'get-started',
   // talking
@@ -603,6 +605,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'inbox',
   // N7: their own timer and work tiles (src/routes/work.ts; their space's own store.db)
   'work',
+  // U4.29: their own Business place (src/routes/bizpack.ts; their space's own store.db)
+  'bizpack',
   // Phase 99 (ST4): their own boards, and shared boards they are a member of (src/routes/board.ts)
   'boards', 'columns',
   // library

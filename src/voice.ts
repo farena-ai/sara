@@ -43,6 +43,8 @@ export interface VoiceSettings {
   followMood?: boolean;
   /** Phase 69: video calls: how often she looks at your camera (seconds, 0 = when you ask) and pictures per call. */
   video?: Partial<import('./video.ts').VideoSettings>;
+  /** U4.24: Talk with Sara (fillers, approve by voice, goodbye ends). */
+  talk?: import('./talk.ts').TalkPrefs;
 }
 
 /**

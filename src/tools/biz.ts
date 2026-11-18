@@ -162,9 +162,21 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
       const client = clientOf(app, args);
       const items = itemsOf(args);
       const biz = store().details();
+      // U4.29: a known client's terms, email and address fill what the call left out.
+      const known = (() => {
+        try {
+          return clientStoreOf(bizDb(app), app.now).find(client.name, client.email);
+        } catch {
+          return undefined;
+        }
+      })();
+      if (known) {
+        if (!client.email && known.email) client.email = known.email;
+        if (!client.address && known.address) client.address = known.address;
+      }
       const taxRate = args.tax_rate === undefined || args.tax_rate === null || args.tax_rate === '' ? biz.taxRatePct : Number(args.tax_rate);
       if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 50) throw new ToolError('tax_rate is a percent between 0 and 50 (8.25 for 8.25%).');
-      const dueDays = args.due_days === undefined || args.due_days === null || args.due_days === '' ? biz.dueDays : Math.round(Number(args.due_days));
+      const dueDays = args.due_days === undefined || args.due_days === null || args.due_days === '' ? (known?.termsDays ?? biz.dueDays) : Math.round(Number(args.due_days));
       if (!Number.isFinite(dueDays) || dueDays < 0 || dueDays > 365) throw new ToolError('due_days is a number of days (0 to 365).');
       const notes = String(args.notes ?? '').slice(0, 2000);
       if (minorSexualMatch(`${client.name}\n${notes}\n${items.map((i) => i.desc).join('\n')}`, { fromHer: true })) throw new ToolError("I won't make that.");

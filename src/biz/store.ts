@@ -68,9 +68,12 @@ export interface BusinessDetails {
   /** Default tax rate in % and payment terms in days. */
   taxRatePct: number;
   dueDays: number;
+  /** U4.29: how tracked time is rounded (minutes per step, to the nearest or up). */
+  timeStep: number;
+  timeRound: 'nearest' | 'up';
 }
 
-export const DEFAULT_DETAILS: BusinessDetails = { name: '', address: '', email: '', phone: '', taxId: '', logoDocId: null, payment: '', currency: 'USD', taxRatePct: 0, dueDays: 30 };
+export const DEFAULT_DETAILS: BusinessDetails = { name: '', address: '', email: '', phone: '', taxId: '', logoDocId: null, payment: '', currency: 'USD', taxRatePct: 0, dueDays: 30, timeStep: 6, timeRound: 'nearest' };
 export const CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'MXN', 'BRL', 'CHF', 'JPY', 'INR'] as const;
 export const EXPENSE_CATEGORIES = ['Meals', 'Travel', 'Lodging', 'Fuel', 'Office supplies', 'Software', 'Equipment', 'Phone and internet', 'Advertising', 'Professional services', 'Shipping', 'Other'] as const;
 
@@ -188,6 +191,8 @@ export class BizStore {
       currency: has('currency') && (CURRENCIES as readonly string[]).includes(String(input.currency)) ? String(input.currency) : cur.currency,
       taxRatePct: has('taxRatePct') ? roundRate(num(input.taxRatePct, 0, 50, cur.taxRatePct)) : cur.taxRatePct,
       dueDays: has('dueDays') ? Math.round(num(input.dueDays, 0, 365, cur.dueDays)) : cur.dueDays,
+      timeStep: has('timeStep') && [6, 15, 30, 60].includes(Number(input.timeStep)) ? Number(input.timeStep) : cur.timeStep,
+      timeRound: has('timeRound') && (input.timeRound === 'up' || input.timeRound === 'nearest') ? input.timeRound : cur.timeRound,
     };
     this.#db.prepare('INSERT INTO biz_details (id, json) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET json = excluded.json').run(JSON.stringify(next));
     return next;

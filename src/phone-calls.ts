@@ -21,7 +21,7 @@ import { cheapCall } from './cheap.ts';
 import type { AppContext, ChatEvent } from './chat.ts';
 import { en, trOwner } from './i18n.ts';
 import { privateLocalOn } from './net-guard.ts';
-import { phoneMayApprove } from './phone-actions.ts';
+import { voiceMayApprove } from './phone-actions.ts';
 import { audioToUlaw, FRAME_BYTES, frameLevel, frames, ulawToWav } from './phone-audio.ts';
 import { speechOf } from './speech.ts';
 import { e164, PROVIDERS, sameNumber, TelephonyError, TwilioProvider, type CallInfo, type Credentials, type ProviderId, type TelephonyProvider } from './telephony.ts';
@@ -777,7 +777,7 @@ export class PhoneCalls {
         if (pending) {
           const w = approvalWord(heard);
           if (!w) return settle({ say: T(en('Say approve or no.')) });
-          if (!phoneMayApprove(pending)) return settle({ say: T(en('That one needs you at the computer: approve it there.')) });
+          if (!voiceMayApprove(pending)) return settle({ say: T(en('That one needs you at the computer: approve it there.')) });
           app.approvals.decide(pending.approvalId, w === 'approve');
           pending = null;
           return; // the turn goes on; its end (or the next card) answers

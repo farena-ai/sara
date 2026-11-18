@@ -23,6 +23,10 @@ export interface Client {
   nextDate: string | null;
   /** Hourly rate for billed time, cents (0: not set). */
   rateCents: number;
+  /** U4.29: payment terms in days for their invoices (null: the business default). */
+  termsDays: number | null;
+  address: string;
+  phone: string;
   personId: number | null;
   stageAt: string;
   createdAt: string;
@@ -59,6 +63,9 @@ const toClient = (r: Row): Client => ({
   nextStep: String(r.next_step),
   nextDate: r.next_date == null ? null : String(r.next_date),
   rateCents: Number(r.rate_cents),
+  termsDays: r.terms_days == null ? null : Number(r.terms_days),
+  address: String(r.address ?? ''),
+  phone: String(r.phone ?? ''),
   personId: r.person_id == null ? null : Number(r.person_id),
   stageAt: String(r.stage_at),
   createdAt: String(r.created_at),
@@ -75,6 +82,9 @@ export class ClientStore {
       value_cents INTEGER NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT 'USD', next_step TEXT NOT NULL DEFAULT '', next_date TEXT,
       rate_cents INTEGER NOT NULL DEFAULT 0, person_id INTEGER, stage_at TEXT NOT NULL, created_at TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS work_client_moves (id INTEGER PRIMARY KEY AUTOINCREMENT, client_id INTEGER NOT NULL, at TEXT NOT NULL, from_stage TEXT, to_stage TEXT NOT NULL, why TEXT NOT NULL DEFAULT '');`);
+    // U4.29: terms, address and phone (added to older databases in place).
+    const have = new Set((db.prepare('PRAGMA table_info(work_clients)').all() as Row[]).map((r) => String(r.name)));
+    for (const [col, def] of [['terms_days', 'INTEGER'], ['address', "TEXT NOT NULL DEFAULT ''"], ['phone', "TEXT NOT NULL DEFAULT ''"]] as const) if (!have.has(col)) db.exec(`ALTER TABLE work_clients ADD COLUMN ${col} ${def}`);
   }
 
   list(): Client[] {
@@ -99,7 +109,7 @@ export class ClientStore {
     const part = f.length >= 3 ? all.filter((c) => foldName(c.name).includes(f)) : [];
     return part.length === 1 ? part[0] : undefined;
   }
-  add(c: { name: string; email?: string; stage?: Stage; valueCents?: number; currency?: string; nextStep?: string; nextDate?: string | null; rateCents?: number; personId?: number | null }, why = 'added'): Client {
+  add(c: { name: string; email?: string; stage?: Stage; valueCents?: number; currency?: string; nextStep?: string; nextDate?: string | null; rateCents?: number; personId?: number | null; termsDays?: number | null; address?: string; phone?: string }, why = 'added'): Client {
     const name = clip(c.name, 160);
     if (!name) throw new Error('Give the client a name.');
     if (this.find(name, c.email)) throw new Error(`“${name}” is already a client.`);
@@ -111,9 +121,10 @@ export class ClientStore {
         .run(name, clip(c.email, 200), stage, Math.max(0, Math.round(c.valueCents ?? 0)), c.currency ?? 'USD', clip(c.nextStep, 300), c.nextDate ?? null, Math.max(0, Math.round(c.rateCents ?? 0)), c.personId ?? null, ts, ts).lastInsertRowid,
     );
     this.#move(id, null, stage, why);
+    if (c.termsDays !== undefined || c.address !== undefined || c.phone !== undefined) this.update(id, { termsDays: c.termsDays, address: c.address, phone: c.phone });
     return this.get(id)!;
   }
-  update(id: number, patch: { name?: string; email?: string; valueCents?: number; currency?: string; nextStep?: string; nextDate?: string | null; rateCents?: number; personId?: number | null }): Client | undefined {
+  update(id: number, patch: { name?: string; email?: string; valueCents?: number; currency?: string; nextStep?: string; nextDate?: string | null; rateCents?: number; personId?: number | null; termsDays?: number | null; address?: string; phone?: string }): Client | undefined {
     const cur = this.get(id);
     if (!cur) return undefined;
     const cols: Record<string, unknown> = {};
@@ -125,6 +136,9 @@ export class ClientStore {
     if (patch.nextDate !== undefined) cols.next_date = patch.nextDate;
     if (patch.rateCents !== undefined) cols.rate_cents = Math.max(0, Math.round(patch.rateCents));
     if (patch.personId !== undefined) cols.person_id = patch.personId;
+    if (patch.termsDays !== undefined) cols.terms_days = patch.termsDays === null || !Number.isFinite(Number(patch.termsDays)) ? null : Math.min(365, Math.max(0, Math.round(Number(patch.termsDays))));
+    if (patch.address !== undefined) cols.address = String(patch.address ?? '').replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, ' ').trim().slice(0, 400);
+    if (patch.phone !== undefined) cols.phone = clip(patch.phone, 60);
     const keys = Object.keys(cols);
     if (keys.length) this.#db.prepare(`UPDATE work_clients SET ${keys.map((k) => `${k} = ?`).join(', ')} WHERE id = ?`).run(...(keys.map((k) => cols[k]) as never[]), id);
     return this.get(id);

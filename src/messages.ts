@@ -268,6 +268,16 @@ export class Messenger {
       return undefined;
     }
   }
+  /** U4.27: any link's other side, with its kind ('direct' | 'member' = I joined | 'host' = they joined mine) and community. */
+  linkInfo(linkId: string): { id: string; url: string; key: KeyObject; name: string; kind: string; community: string | null } | undefined {
+    const l = this.#link(linkId);
+    if (!l) return undefined;
+    try {
+      return { id: l.id, url: l.peer_url, key: pubKey(l.peer_key), name: l.peer_name, kind: l.kind, community: l.community };
+    } catch {
+      return undefined;
+    }
+  }
   checkpoint(): void {
     this.#db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
   }

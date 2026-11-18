@@ -5,6 +5,62 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.23.0 (2026-11-18): Talk with Sara, shared projects, marketplace, picture studio, business pack
+
+- New: a **Business** place in the sidebar (U4.29, docs/BUSINESS_PACK.md) that brings clients, time,
+  invoices and quotes together. Start and stop a timer in the page or by chat, add time by hand, and pick
+  how time is rounded (6, 15 or 30 minutes or an hour, to the nearest or always up; Settings → You →
+  Business details). Clients keep an email, hourly rate, payment terms, phone and address; their terms
+  and address go on their invoices. Invoice a client's unbilled hours with one click (expenses can be
+  added at cost from chat), turn a quote into an invoice, mark invoices sent or paid (reminders as
+  before), and "Email it": Sara shows the exact email with the PDF attached and sends it only after you
+  press Allow. Make a read-only, expiring link for a client with their invoices, the PDFs and how to pay
+  (no client accounts; revoke any time). Add business expenses by hand or from your bank rows in Money,
+  and download a CSV for the period by category, or in QuickBooks, Xero or Wave columns. She never
+  charges a card or takes a payment.
+- New: picture editing and short video on your own computer with ComfyUI (U4.28, docs/PICTURES.md).
+  Library → Pictures and video, or Edit picture… on any Library picture: paint over a part and change
+  or remove it, extend the edges, upscale (2×, 4× or 4K), remove the background, or change the style
+  with a "how much may change" slider. Every result is a new Library item with its versions kept
+  (before/after slider, the original never changes). Short clips (2, 3 or 5 seconds) from words or from
+  a picture, only with video models already installed (Wan 2.1, LTX-Video 0.9, or a video workflow you
+  saved in ComfyUI); nothing is ever downloaded, and anything missing is explained. Jobs show their
+  progress and can be cancelled. In chat: "remove the person on the left", "make it 4k", "make a short
+  video of …". Same picture rules as before: none of it in kid mode, explicit only with adult mode on,
+  never a sexual edit of a real photo, never minors; with "Nothing leaves this computer" on, ComfyUI
+  must be on this computer. Owner only. Settings → Pictures from her → Editing and short video.
+- New: shared projects between linked friends (U4.26, docs/SHARED_PROJECTS.md). On a project page,
+  Shared with friends invites one or more friends whose Sara is linked under Messages, as Can view or
+  Can edit, and picks what is shared: notes, to-dos, files (up to 2 MB, from your computer or the
+  Library) and, off by default, chats of that project (never private or adult ones). Your friend
+  accepts in Settings → Connections → Phone and notifications → Shared projects and gets the project
+  in their own list. Changes go both ways over the signed link, catch up after either server was
+  offline, and the last change wins; a file changed on both sides at once keeps the other edit as a
+  conflict copy. An Activity list says who did what; notices are quiet by default (a count), or one
+  notice per batch of changes. Remove a friend, stop sharing, or leave any time: the copy stops
+  updating. Sara reads the shared items only when you ask inside that project's chats, from her own
+  copy; the other server can only send shared items, never read anything else or make your Sara act.
+  Owner only; private local mode pauses it.
+- New: Shared by friends, a community marketplace (U4.27, docs/MARKETPLACE.md). In a Messages community
+  or with a linked friend, share skills, templates, automations, team recipes and links to Store add-ons
+  from Settings → Skills & tools → Get more. Each listing shows its description, version, author, the
+  tools and settings it needs, ratings and comments. Before anything is installed your Sara checks it
+  itself (content hash, no secrets, no hard-limit tools, no protected settings, size limits, tools it
+  has) and shows exactly what installing does; skills start on trial and automations start paused.
+  New versions send a notice and never apply themselves. Report a listing and the community's owner
+  can remove it. Nothing executable is shared, and private local mode keeps it all at home.
+- New: **Talk with Sara** (U4.24, docs/VOICE_FIRST.md). One button next to the message box starts a
+  hands-free conversation in the browser, the desktop apps and the phone web app: she listens all the
+  time, answers out loud sentence by sentence, shows a live transcript, and stops when you talk over her.
+  If she is still quiet 0.7 s after you stop talking, she says a short "Mm-hm" so you know she heard
+  you. A card that needs your OK moves onto the talk panel, and "yes" or "no" answers it. Money,
+  passwords, sign-ins and her hands on the computer always need a tap; that rule now also covers car
+  mode and phone calls. Say "goodbye" or press End to finish. Talk turns skip the model's private
+  thinking (on this PC the first sentence came in about 1 s instead of 3 to 22 s with gemma4:12b).
+  Settings → Sara → Voice → Talk with Sara has three switches. Hey Sara can start a talk. With Nothing
+  leaves this computer on, it needs hearing and her voice on this server. A speech check keeps hum and
+  keyboard noise from starting an utterance.
+
 ## 3.22.1 (2026-11-18): Settings and the new windows open again
 
 - Fixed: in 3.22.0, Settings, Health, Family and every window after Money opened empty (the Money window

@@ -37,9 +37,33 @@ const RESERVED = -1;
 export function roundHours(minutes: number): number {
   return Math.max(0, Math.floor(minutes / 6 + 0.5 + 1e-9)) / 10;
 }
-/** Adds hours without float dust (each entry is a multiple of 0.1). */
+/** Adds hours without float dust (each entry is a multiple of 0.1 or 0.25). */
 export function sumHours(xs: number[]): number {
-  return Math.round(xs.reduce((n, x) => n + Math.round(x * 10), 0)) / 10;
+  return Math.round(xs.reduce((n, x) => n + Math.round(x * 100), 0)) / 100;
+}
+/** U4.29: the rounding rule (Settings → You → Business details): a step in minutes, to the nearest or up. */
+export const TIME_STEPS = [6, 15, 30, 60] as const;
+export const TIME_ROUNDS = ['nearest', 'up'] as const;
+export interface TimeRule {
+  step: number;
+  round: (typeof TIME_ROUNDS)[number];
+}
+export const DEFAULT_RULE: TimeRule = { step: 6, round: 'nearest' };
+/** Minutes → hours by a rule (the default is roundHours: 6 minutes, halves up). */
+export function roundBy(minutes: number, rule: TimeRule): number {
+  const step = (TIME_STEPS as readonly number[]).includes(rule.step) ? rule.step : 6;
+  const n = rule.round === 'up' ? Math.ceil(Math.max(0, minutes) / step - 1e-9) : Math.floor(Math.max(0, minutes) / step + 0.5 + 1e-9);
+  return Math.round(n * step * 100 / 60) / 100;
+}
+/** The rule saved with the business details in the same store.db (default when none). */
+export function timeRuleOf(db: DatabaseSync): TimeRule {
+  try {
+    const r = db.prepare('SELECT json FROM biz_details WHERE id = 1').get() as { json?: string } | undefined;
+    const j = r?.json ? (JSON.parse(r.json) as { timeStep?: number; timeRound?: string }) : {};
+    return { step: (TIME_STEPS as readonly number[]).includes(Number(j.timeStep)) ? Number(j.timeStep) : 6, round: j.timeRound === 'up' ? 'up' : 'nearest' };
+  } catch {
+    return DEFAULT_RULE;
+  }
 }
 export function localDayOf(at: Date, tz?: string): string {
   const p = zonedParts(at, tz);
@@ -97,7 +121,7 @@ export class TimeStore {
   }
   /** Hours so far on the running timer (rounded like a stopped one). */
   runningHours(e: TimeEntry, at = this.#now()): number {
-    return roundHours((at.getTime() - Date.parse(e.start!)) / 60_000);
+    return roundBy((at.getTime() - Date.parse(e.start!)) / 60_000, timeRuleOf(this.#db));
   }
 
   /** Starts a timer; a timer that was running stops first (returned as `stopped`). */
@@ -148,12 +172,12 @@ export class TimeStore {
       if (clash.length) throw new Error(`That overlaps time already logged (${clash.map((c) => `#${c.id} ${c.client || c.project || 'work'} ${c.day}`).join(', ')}). Change the times or remove that entry first.`);
       start = s.toISOString();
       end = e.toISOString();
-      hours = roundHours(minutes);
+      hours = roundBy(minutes, timeRuleOf(this.#db));
     } else {
       const h = Number(o.hours);
       if (!Number.isFinite(h) || h <= 0 || h > 24) throw new Error('Give hours between 0 and 24 (like 2 or 1.5), or a start and end time.');
-      hours = roundHours(h * 60);
-      if (hours <= 0) throw new Error('That rounds to 0 hours (time is kept in tenths of an hour).');
+      hours = roundBy(h * 60, timeRuleOf(this.#db));
+      if (hours <= 0) throw new Error('That rounds to 0 hours (see the rounding rule in Settings → You → Business details).');
     }
     const id = Number(
       this.#db

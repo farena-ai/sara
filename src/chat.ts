@@ -4,6 +4,7 @@ import { toolAlias } from './tool-alias.ts';
 import { kidNote, kidTurn } from './family.ts';
 import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
+import { talkNote } from './talk.ts';
 import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
@@ -282,6 +283,8 @@ export interface AppContext {
   longGoals?: import('./long-goals.ts').LongGoals;
   /** U4.23: study sets and spaced repetition (src/study.ts), each space's own. */
   study?: import('./study.ts').Study;
+  /** U4.28: picture editing and short video through ComfyUI (src/media-studio.ts), the owner's. */
+  media?: import('./media-studio.ts').MediaStudio;
   /** S4: relationship memory on the People cards (src/people-ties.ts), on the reminder tick. */
   peopleTies?: import('./people-ties.ts').PeopleTies;
   /** R5: phone calls in and out (docs/PHONE_CALLS.md), switched off until the owner sets them up. */
@@ -990,7 +993,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 /** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name === 'invoice_send' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -1324,6 +1327,8 @@ export interface TurnOptions {
   quickModel?: boolean;
   /** N5b: car mode (the page's switch): short spoken answers, no computer use or long tasks. */
   car?: boolean;
+  /** U4.24: Talk with Sara (the page's voice-first mode): short spoken answers, tools as usual. */
+  talk?: boolean;
   /** R5: the owner is talking with her on a phone call: short spoken answers, the car-mode tool limits. */
   phoneCall?: boolean;
   /** R4: "Ask Sara" from Siri or an Apple Shortcut: at most two short sentences, read aloud or shown in a small box. */
@@ -1464,7 +1469,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'health_log', 'health_read']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'health_log', 'health_read', 'shared_project_read']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
@@ -2116,6 +2121,7 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
   if (opts.group) safetyNotes.push(opts.group.note);
   // N5b: car mode: two spoken sentences, nothing to read, her newest messages ready to read aloud.
   if (opts.car && !conv.partner) safetyNotes.push(carNote(app.settings.get().ownerName?.trim() || 'the owner', carUnread(app), carErrandLines(app)));
+  if (opts.talk && !opts.car && !opts.phoneCall && !conv.partner) safetyNotes.push(talkNote(app.settings.get().ownerName?.trim() || 'the owner'));
   if (opts.phoneCall && !opts.car && !conv.partner) safetyNotes.push(phoneCallNote(app.settings.get().ownerName?.trim() || 'the owner'));
   // R4: Ask Sara (Siri, Shortcuts): a short answer that fits a spoken reply.
   if (opts.siri && !opts.car && !conv.partner) safetyNotes.push(siriNote(app.settings.get().ownerName?.trim() || 'the owner'));
@@ -3431,6 +3437,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       callThink = 'none';
       thinkOffNext = false;
     }
+    // U4.24: on a talk turn she answers out loud at once: no private thinking first (docs/VOICE_FIRST.md latency).
+    if (opts.talk) callThink = 'none';
 
     // Hooks and budget approval are complete. A lease covers only a real provider step.
     try { currentScope(); } catch (err) {

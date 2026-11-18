@@ -35,7 +35,7 @@ async function api(path, opts = {}) {
 export const DOC_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'epub', 'html', 'htm', 'md', 'markdown', 'txt', 'text', 'csv', 'tsv', 'json', 'log', 'rtf'];
 export const isDocFile = (f) => !f.type.startsWith('image/') && (DOC_EXTS.includes((f.name.split('.').pop() ?? '').toLowerCase()) || /pdf|word|sheet|presentation|epub|text\/|csv|html/.test(f.type));
 
-const KIND_ICON = { pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙', epub: '📖', html: '🌐', markdown: '📝', text: '📄', csv: '📊', image: '🖼️' };
+const KIND_ICON = { pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙', epub: '📖', html: '🌐', markdown: '📝', text: '📄', csv: '📊', image: '🖼️', video: '🎞️' };
 const sizeText = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 /**
@@ -309,6 +309,12 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   $('#lib-doc-keep').hidden = d.keep;
   // E5: Read together (text and Markdown documents she keeps).
   $('#lib-doc-together').hidden = !(d.keep && !d.readOnly && d.status === 'ready' && ['text', 'markdown'].includes(d.kind));
+  // U4.28: Edit picture… (web/media-studio.js).
+  const edit = $('#lib-doc-edit');
+  if (edit) {
+    edit.hidden = d.kind !== 'image' || d.status !== 'ready';
+    edit.dataset.id = String(d.id);
+  }
   currentDoc = d;
   $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
   // S7: contracts, proposals and letters (templates, tracked changes, clauses, ready to sign).
@@ -369,6 +375,8 @@ function showHome() {
   closeMeetings();
   const study = $('#lib-study');
   if (study) study.hidden = true;
+  const media = $('#lib-media');
+  if (media) media.hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();

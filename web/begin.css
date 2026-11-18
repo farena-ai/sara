@@ -312,6 +312,32 @@ dialog#car-mode:not(#_) { position: fixed; width: auto; max-width: none; height:
 .car-status { margin: 0; min-height: 1.6em; font-size: 1.25rem; text-align: center; color: var(--text-1); }
 .car-note { margin: 0; max-width: 32em; text-align: center; font-size: 0.95rem; color: var(--text-2); }
 
+/* U4.24 (web/talk.js, docs/VOICE_FIRST.md): Talk with Sara. A calm panel with the live transcript;
+   full screen on a phone. :not(#_) outranks the phone's "dialogs sit above the bottom bar" rule. */
+dialog#talk-mode:not(#_) { width: min(640px, calc(100vw - 32px)); max-width: none; height: min(78vh, 760px); max-height: none; padding: 20px; border: 1px solid var(--line); border-radius: var(--r-lg, 16px); background: var(--surface-1, var(--surface-0)); color: var(--text-1); }
+.talk-mode[open] { display: flex; flex-direction: column; gap: 12px; }
+.tm-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tm-head h2 { margin: 0; font-size: 1.25rem; }
+.tm-status { font-size: 1rem; color: var(--accent); font-weight: 600; }
+.tm-lines { flex: 1; min-height: 0; overflow-y: auto; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.tm-line { max-width: 85%; padding: 8px 12px; border-radius: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+.tm-line strong { display: block; font-size: 0.78rem; color: var(--text-2); font-weight: 600; }
+.tm-you { align-self: flex-end; background: var(--accent-soft); }
+.tm-her { align-self: flex-start; background: var(--surface-2, var(--surface-0)); border: 1px solid var(--line); }
+.tm-note { align-self: center; max-width: 100%; font-size: 0.9rem; color: var(--text-2); text-align: center; }
+.tm-approvals:empty { display: none; }
+.tm-approvals { max-height: 40%; overflow-y: auto; }
+.tm-hint { margin: 0; }
+.tm-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.tm-actions button { min-height: 44px; padding: 0 20px; }
+#talk-btn.active { color: var(--accent); }
+/* A phone's composer has room for four buttons: with Talk there, video calls start from the call screen. */
+@media (max-width: 480px) { #video-call-btn:has(~ #talk-btn:not([hidden])) { display: none; } }
+@media (max-width: 720px) {
+  dialog#talk-mode:not(#_) { position: fixed; inset: 0; width: auto; height: auto; margin: 0; border: 0; border-radius: 0; padding: calc(var(--safe-t) + 14px) 16px calc(var(--safe-b) + 14px); }
+  .tm-actions button { flex: 1; }
+}
+
 /* EC4/EC5 (web/governance.js): the audit trail, the policy page, and "Set by your admin". */
 .au-filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 200px), 1fr)); gap: var(--s-2) var(--s-3); margin: var(--s-2) 0; }
 .au-filters label { display: flex; flex-direction: column; gap: 4px; }

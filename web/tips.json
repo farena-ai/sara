@@ -553,6 +553,38 @@
       "The time the weekly review arrives.",
       "planner"
     ],
+    "mk-place": [
+      "Each community has one shelf, kept by its owner. A linked friend's shelf holds what you two share with each other.",
+      "plugins"
+    ],
+    "mk-kind": [
+      "Skills and templates arrive on trial, automations arrive paused, Store add-ons are only a link to the Store's own review card.",
+      "plugins"
+    ],
+    "mk-item": [
+      "One of your own skills, automations or team recipes. Your saved keys and settings are never part of it.",
+      "plugins"
+    ],
+    "mk-title": [
+      "A template's name, or the add-on's id as the Store shows it (for example weather).",
+      "plugins"
+    ],
+    "mk-text": [
+      "The prompt or workflow in plain words. It becomes a skill on trial for whoever installs it.",
+      "plugins"
+    ],
+    "mk-version": [
+      "Like 1.0.0. Share again with a new number to send an update: people who installed it are told and choose whether to take it.",
+      "plugins"
+    ],
+    "mk-desc": [
+      "What it does and when it helps, in a sentence or two. Others see it before they install.",
+      "plugins"
+    ],
+    "mk-tools": [
+      "Tool names it needs, separated by commas (for example web_search). Each receiving Sara checks that it has them; hard-limit tools are refused.",
+      "plugins"
+    ],
     "sy-remind": [
       "Once a day, when study cards are due, she reminds you (and the Today tile shows how many). Nothing is sent on days with no cards due.",
       "planner"
@@ -655,6 +687,14 @@
     ],
     "biz-tax": [
       "Tax added to new invoices, in percent (8.25 for 8.25%). Use 0 if you don't charge tax. You can still give a different rate for one invoice.",
+      "business"
+    ],
+    "biz-time-step": [
+      "How tracked time is rounded when an entry ends: to 6, 15 or 30 minutes, or a whole hour. Invoices, reports and time sheets all use the rounded hours.",
+      "business"
+    ],
+    "biz-time-round": [
+      "To the nearest step (7 minutes becomes 6), or always up to the next step (7 minutes becomes 15 with 15-minute steps).",
       "business"
     ],
     "biz-due": [

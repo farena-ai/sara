@@ -11,6 +11,7 @@ import { isGroupChannel } from '../group.ts';
 import { as400, cookies, HttpError, readJson, readRaw, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
 import { OPENAI_LIVE_MODELS, OPENAI_LIVE_VOICES } from '../live.ts';
+import { cleanTalk } from '../talk.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { localVoiceInstallable, localVoiceMissing, localVoiceSupported } from '../platform.ts';
 import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall } from '../voice-install.ts';
@@ -194,6 +195,8 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
           expressive: pick(body.expressive, ['off', 'subtle', 'lively'] as const, cur.expressive ?? 'subtle'),
           tone: pick(body.tone, ['natural', 'warm', 'bright', 'calm'] as const, cur.tone ?? 'natural'),
           followMood: body.followMood === undefined ? cur.followMood !== false : Boolean(body.followMood),
+          // U4.24: Talk with Sara prefs.
+          talk: cleanTalk(body.talk === undefined ? cur.talk : { ...cleanTalk(cur.talk), ...(body.talk as object) }),
           // Phase 69: how often she looks at your camera on video calls, and how many pictures per call.
           video: (() => {
             try {

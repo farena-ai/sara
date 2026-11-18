@@ -169,7 +169,7 @@ export interface WakePhrase {
 export interface WakeSettings {
   phrases?: WakePhrase[];
   talksIn?: TalksIn;
-  starts?: 'question' | 'call';
+  starts?: 'question' | 'call' | 'talk';
   followUpSeconds?: 0 | 5 | 8;
   sensitivity?: Sensitivity;
   /** C17: never listen for the phrase in the quiet hours (Settings → Calls from her); off by default. */
@@ -179,7 +179,7 @@ export const TALKS_IN: readonly TalksIn[] = ['own', 'open', 'new'];
 export interface WakeView {
   phrases: WakePhrase[];
   talksIn: TalksIn;
-  starts: 'question' | 'call';
+  starts: 'question' | 'call' | 'talk';
   followUpSeconds: 0 | 5 | 8;
   sensitivity: Sensitivity;
   quietHours: boolean;
@@ -190,7 +190,7 @@ export function wakeView(s: WakeSettings | undefined, fallback: () => WakePhrase
   return {
     phrases,
     talksIn: TALKS_IN.includes(s?.talksIn as TalksIn) ? (s!.talksIn as TalksIn) : 'own',
-    starts: s?.starts === 'call' ? 'call' : 'question',
+    starts: s?.starts === 'call' || s?.starts === 'talk' ? s.starts : 'question',
     followUpSeconds: s?.followUpSeconds === 5 || s?.followUpSeconds === 8 ? s.followUpSeconds : 0,
     sensitivity: cleanSensitivity(s?.sensitivity),
     quietHours: s?.quietHours === true,

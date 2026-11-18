@@ -1,5 +1,8 @@
 # Business workspaces
 
+> Looking for invoices, clients, time tracking and the client portal in your own Sara? That is the
+> business pack: [BUSINESS_PACK.md](BUSINESS_PACK.md). This page is about the separate business-workspace instance.
+
 **Business workspaces in Sara 2.64.0.** Business mode is optional and runs as a separate instance
 of Sara. Its engineering qualification does not replace acceptance on your actual installation.
 Installation operators should use the [configuration and recovery handbook](BUSINESS_OPERATIONS.md).

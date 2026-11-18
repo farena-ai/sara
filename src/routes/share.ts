@@ -13,6 +13,7 @@ import { policy } from '../policy-profile.ts';
 import { buildSnapshot, DEFAULT_EXPIRY, SHARE_EXPIRY, shareRefusal, shares, type ShareExpiry, type ShareOptions, type ShareSnapshot } from '../share.ts';
 import type { ServerOptions } from '../server.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { portalHtml } from '../biz/portal.ts';
 
 const optionsOf = (body: Record<string, unknown>): ShareOptions => ({ tools: body.tools === true, pictures: body.pictures === true });
 
@@ -171,7 +172,8 @@ export function createSharePublic(o: { opts: ServerOptions; ownerLang: () => Lan
     if (!open) return gone();
     if (open.first) audit({ action: 'share.view', target: `share:${open.share.id}`, role: 'system', who: 'visitor', channel: 'web' });
     res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', ...PUBLIC_HEADERS });
-    res.end(method === 'HEAD' ? undefined : render(open.share.snapshot, open.share.expiresAt, lang, `/s/${token}`));
+    const snap = open.share.snapshot;
+    res.end(method === 'HEAD' ? undefined : snap.portal ? page(lang, snap.portal.client, portalHtml(snap.portal, open.share.expiresAt, lang, `/s/${token}`)) : render(snap, open.share.expiresAt, lang, `/s/${token}`));
     return true;
   };
 }

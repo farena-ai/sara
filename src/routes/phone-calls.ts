@@ -20,6 +20,7 @@ import { discordVoiceStatus, saveDiscordVoice, DISCORD_VOICE_LINES } from '../di
 import { HttpError, readJson, readRaw, send } from '../http.ts';
 import { en, trOwner } from '../i18n.ts';
 import { PhoneCallError, phoneCallsFor } from '../phone-calls.ts';
+import { cleanTalk } from '../talk.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -51,13 +52,21 @@ export function createPhoneCallRoutes(ctx: RouteCtx): RouteHandler {
   };
   return async (req, res, method, parts) => {
     const [a, b, c, d] = parts;
-    if (a === 'car') {
+    // U4.24: Talk with Sara answers a card by voice the same way, if the person allows it.
+    if (a === 'car' || a === 'talk') {
       if (b !== 'answer' || method !== 'POST') throw new HttpError(404, 'Not found');
       const body = await readJson(req);
+      if (a === 'talk') {
+        if (ctx.opts.member && ctx.opts.member.record()?.limits?.voice === false) throw new HttpError(403, T(en('Voice is off for you on this Sara.')));
+        if (!cleanTalk(app.settings.get().voice?.talk).approveByVoice) {
+          const line = T(en('Tap Approve or Decline on the card.'));
+          return send(res, 409, { ok: false, line, error: line });
+        }
+      }
       const conv = String(body.conversationId ?? '');
       if (!conv || !app.store.getConversation(conv)) throw new HttpError(404, T(en('Nothing is waiting for your OK.')));
       const r = voiceAnswer(app, ctx.active, conv, body.approved === true);
-      return send(res, r.ok ? 200 : r.pcOnly ? 403 : 409, { ...r, line: T(r.line), ...(r.ok ? {} : { error: T(r.line) }) });
+      return send(res, r.ok ? 200 : r.pcOnly || r.tapOnly ? 403 : 409, { ...r, line: T(r.line), ...(r.ok ? {} : { error: T(r.line) }) });
     }
     if (a !== 'phone-calls') return NEXT;
     if (ctx.opts.demo || ctx.opts.member) {

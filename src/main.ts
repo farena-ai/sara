@@ -46,6 +46,8 @@ import { createErrandTools } from './tools/errands.ts';
 import { LongGoals } from './long-goals.ts';
 import { Study } from './study.ts';
 import { createStudyTools } from './tools/study.ts';
+import { MediaStudio } from './media-studio.ts';
+import { createMediaTools } from './tools/media.ts';
 import { createLongGoalTools } from './tools/long-goals.ts';
 import { PhoneCalls } from './phone-calls.ts';
 import { createPhoneCallTools } from './tools/phone-calls.ts';
@@ -208,6 +210,7 @@ import { createSendFileTool } from './tools/send-file.ts';
 import { createFillDocumentTool } from './tools/fill-document.ts';
 import { createDocStudioTools } from './tools/doc-studio.ts';
 import { createBizTools } from './tools/biz.ts';
+import { createBizPackTools } from './tools/bizpack.ts';
 import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
@@ -229,6 +232,8 @@ import { Messenger } from './messages.ts';
 import { supportOf } from './support.ts';
 import { createSupportTools } from './tools/support.ts';
 import { createRemoteRepairTools } from './tools/remote-repair.ts';
+import { createSharedProjectTools } from './tools/shared-projects.ts';
+import { sharedProjectsOf } from './shared-projects.ts';
 import { repairOf } from './repair-env.ts';
 import { fixRecipesOf } from './fix-recipes.ts';
 import { onCodeStatus } from './remote-repair.ts';
@@ -1149,6 +1154,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isDemo) for (const t of createFactsTools(() => app)) tools.add(t);
   // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
   if (!isDemo) for (const t of createBizTools(() => app)) tools.add(t);
+  // U4.29 (docs/BUSINESS_PACK.md): quote → invoice, email an invoice after the person's OK.
+  if (!isDemo) for (const t of createBizPackTools(() => app)) tools.add(t);
   // R6 (docs/WORK_APPS.md): QuickBooks / Xero / generic CSV files (files only, no accounting API).
   if (!isDemo) tools.add(createAccountingTool(() => app));
   // N7 (docs/WORK_AND_TEAMS.md): shared lists, clients and time tracking (each person's own space; never the demo).
@@ -1629,6 +1636,11 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // U4.23 (docs/LEARNING.md): the learning coach, each space's own (members and kids too).
     app.study = new Study(app, store.db);
     for (const t of createStudyTools(() => app)) tools.add(t);
+    // U4.28 (docs/PICTURES.md): picture editing and short video with the owner's ComfyUI (owner only).
+    if (!isMember) {
+      app.media = new MediaStudio(app, store.db);
+      for (const t of createMediaTools(() => app)) tools.add(t);
+    }
     // R5 (docs/PHONE_CALLS.md): phone calls, the owner's only; ready but switched off until set up.
     if (!isMember) {
       app.phoneCalls = new PhoneCalls(app, store.db);
@@ -1730,10 +1742,17 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // S9b: the support link's tools (look with a help pass, suggest a fix); the owner's companions only.
     for (const t of createSupportTools(() => app)) tools.add(t);
     for (const t of createRemoteRepairTools(() => app)) tools.add(t); // T5: fix passes (docs/REMOTE_REPAIR.md)
+    for (const t of createSharedProjectTools(() => app)) tools.add(t); // U4.26 (docs/SHARED_PROJECTS.md)
     if (main) {
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       const sup = supportOf(app);
       if (sup) sup.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
+      // U4.26: shared projects reload the open pages; a push only when that share's notices are "all".
+      const shp = sharedProjectsOf(app);
+      if (shp) {
+        shp.onChange = (id) => app.events?.publish({ type: 'pm', chat: `sproj:${id}` });
+        shp.onNotice = (title, body, id) => void app.push?.sendAll({ title, body: app.push.settings.preview ? body.slice(0, 180) : trOwner('Open the app to see it.', app.settings.get()), url: '/#view=shared', tag: `sproj-${id}` }).catch(() => undefined);
+      }
       fixRecipesOf(app); // U3.17: fixes that worked are offered from the start (when the owner allows it)
       messenger.onNotify = (title, body, chat) => {
         app.events?.publish({ type: 'pm', chat, notice: true }); // T4: the open pages show a popup card (ids only).

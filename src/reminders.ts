@@ -7,6 +7,7 @@ import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
 import { healthTick } from './health-log.ts';
+import { SharedProjects, sharedProjectsOf } from './shared-projects.ts';
 
 const LATE_MS = 5 * 60_000;
 
@@ -77,6 +78,8 @@ export class ReminderScheduler {
     void this.#app.peopleTies?.due(now);
     // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
     void this.#app.messages?.due(now).catch(() => undefined);
+    // U4.26: shared projects send what the friends have not acknowledged yet (offline catch-up).
+    if (SharedProjects.exists(this.#app)) void sharedProjectsOf(this.#app)?.due(now).catch(() => undefined);
     // HANDSFREE 3a: calendars added by link are read again every 15 minutes (in the background).
     (this.#app.mailAccounts as { calendarLinks?: { tick(): void } } | undefined)?.calendarLinks?.tick();
     // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).

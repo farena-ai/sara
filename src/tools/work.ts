@@ -9,6 +9,7 @@ import { DocError, FORMAT_LABEL, imagesOf, keepMade, renderDocument } from '../d
 import { cleanSpec, MIME, type DocFormat } from '../documents/spec.ts';
 import { usDate } from '../biz/invoices.ts';
 import { fmtMoney, toCents } from '../biz/money.ts';
+import { billedExpenses, billExpenses } from '../biz/pack.ts';
 import { bizStore } from '../biz/store.ts';
 import { formatLocal, parseWhen, zonedParts } from '../planner.ts';
 import { fold } from '../people.ts';
@@ -479,7 +480,7 @@ function timeInvoiceTool(getApp: () => AppContext): Tool {
     spec: {
       name: 'time_invoice',
       description: "\"Invoice my hours for <client>\": makes an invoice (invoice_make's engine and numbering) from that client's unbilled tracked time, one line per project (hours × the client's hourly rate), and marks those entries billed so they are never billed twice. rate sets (and saves) the client's hourly rate when none is set. through limits it to time up to a date.",
-      parameters: obj({ client: { type: 'string' }, rate: { type: 'number' }, through: { type: 'string' }, format: { type: 'string', enum: ['pdf', 'docx', 'both'] }, template: { type: 'string' } }, ['client']),
+      parameters: obj({ client: { type: 'string' }, rate: { type: 'number' }, through: { type: 'string' }, format: { type: 'string', enum: ['pdf', 'docx', 'both'] }, template: { type: 'string' }, expenses: { type: 'array', items: { type: 'number' }, description: 'U4.29: expense ids (expense_report lists them) to bill at cost on the same invoice; each is billed once.' } }, ['client']),
     },
     defaultPermission: 'auto',
     summarize: (a) => `Invoice hours for ${String(a.client ?? '?')}`,
@@ -503,7 +504,16 @@ function timeInvoiceTool(getApp: () => AppContext): Tool {
       const entries = ts.unbilled((e) => e.clientId === cid || (e.clientId === null && foldName(e.client) === cname), through);
       const run = ts.running();
       const runNote = run && (run.clientId === cid || foldName(run.client) === cname) ? ' A timer for this client is still running and is not on it; stop it and invoice again for that time.' : '';
-      if (!entries.length) return `No unbilled time for ${c.name}.${runNote}`;
+      // U4.29: expenses billed at cost on the same invoice, each only once.
+      const billed = billedExpenses(app);
+      const exp = (Array.isArray(args.expenses) ? args.expenses : []).map((x) => {
+        const e = bizStore(app).expense(Number(x));
+        if (!e) throw new ToolError(`There is no expense #${String(x)}.`);
+        const on = billed.get(e.id);
+        if (on !== undefined) throw new ToolError(`Expense #${e.id} (${e.vendor}) is already billed on ${bizStore(app).invoice(on)?.number ?? `invoice #${on}`}.`);
+        return e;
+      });
+      if (!entries.length && !exp.length) return `No unbilled time for ${c.name}.${runNote}`;
       // Hold them first, so two invoices made at once can never take the same hours.
       const ids = entries.map((e) => e.id);
       if (ts.reserve(ids) !== ids.length) {
@@ -517,6 +527,7 @@ function timeInvoiceTool(getApp: () => AppContext): Tool {
         const span = days[0] === days.at(-1) ? usDate(days[0]!) : `${usDate(days[0]!)} – ${usDate(days.at(-1)!)}`;
         return { desc: `${project} (hours, ${span})`, qty: sumHours(xs.map((x) => x.hours!)), unit_price: (c!.rateCents / 100).toFixed(2) };
       });
+      for (const e of exp) items.push({ desc: `Expense: ${e.vendor} (${usDate(e.date)})`, qty: 1, unit_price: (e.totalCents / 100).toFixed(2) });
       const notes = `Hours: ${entries.map((e) => `${usDate(e.day)} ${e.hours!.toFixed(1)} h${e.project ? ` ${e.project}` : ''}${e.note ? ` (${e.note})` : ''}`).join('; ')}`.slice(0, 1900);
       const make = createBizTools(getApp).find((t) => t.spec.name === 'invoice_make')!;
       const store = bizStore(app);
@@ -530,6 +541,7 @@ function timeInvoiceTool(getApp: () => AppContext): Tool {
       }
       const inv = store.invoices().find((i) => i.id > lastId && i.kind === 'invoice');
       ts.settle(ids, inv ? inv.id : null);
+      if (inv && exp.length) billExpenses(app, exp.map((e) => e.id), inv.id);
       const total = sumHours(entries.map((e) => e.hours!));
       return `${out}\nBilled ${hrs(total)} of tracked time (${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}) at ${fmtMoney(c.rateCents, inv?.currency ?? c.currency)}/h on ${inv?.number ?? 'the invoice'}; those entries are marked billed and won't be billed again (voiding the invoice frees them).${runNote}`;
     },

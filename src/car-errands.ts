@@ -6,7 +6,7 @@
 import type { AppContext } from './chat.ts';
 import type { Errand } from './errands.ts';
 import { en } from './i18n.ts';
-import { phoneMayApprove } from './phone-actions.ts';
+import { voiceMayApprove, VOICE_NEVER_TOOL } from './phone-actions.ts';
 
 /** One open errand in a short spoken line (English for her note; she says it in the person's language). */
 export function errandLine(e: Errand): string {
@@ -41,6 +41,7 @@ export function phoneCallNote(owner: string): string {
 export const CAR_LINES = {
   nothing: en('Nothing is waiting for your OK.'),
   pcOnly: en('That one needs you at the computer: approve it there.'),
+  tapOnly: en('Money and passwords are never approved by voice: tap the card.'),
   approved: en('Approved.'),
   declined: en('Declined.'),
 } as const;
@@ -49,12 +50,14 @@ export const CAR_LINES = {
  * "approve" / "no" said in car mode: answers the newest card waiting in this conversation, when a
  * phone may answer it. PC-only cards stay; English lines (the route translates).
  */
-export function voiceAnswer(app: AppContext, active: Map<string, { approvals: Map<string, unknown> }>, conversationId: string, approved: boolean): { ok: boolean; line: string; pcOnly?: boolean } {
+export function voiceAnswer(app: AppContext, active: Map<string, { approvals: Map<string, unknown> }>, conversationId: string, approved: boolean): { ok: boolean; line: string; pcOnly?: boolean; tapOnly?: boolean } {
   const turn = active.get(conversationId);
-  const cards = turn ? ([...turn.approvals.values()] as Parameters<typeof phoneMayApprove>[0][] & { approvalId?: string }[]) : [];
-  const card = cards[cards.length - 1] as (Parameters<typeof phoneMayApprove>[0] & { approvalId?: string }) | undefined;
+  const cards = turn ? ([...turn.approvals.values()] as Parameters<typeof voiceMayApprove>[0][] & { approvalId?: string }[]) : [];
+  const card = cards[cards.length - 1] as (Parameters<typeof voiceMayApprove>[0] & { approvalId?: string }) | undefined;
   if (!card?.approvalId) return { ok: false, line: CAR_LINES.nothing };
-  if (!phoneMayApprove(card)) return { ok: false, line: CAR_LINES.pcOnly, pcOnly: true };
+  // U4.24: money and passwords never by voice (a tap on the card still works).
+  if (VOICE_NEVER_TOOL(card.name)) return { ok: false, line: CAR_LINES.tapOnly, tapOnly: true };
+  if (!voiceMayApprove(card)) return { ok: false, line: CAR_LINES.pcOnly, pcOnly: true };
   if (!app.approvals.decide(card.approvalId, approved)) return { ok: false, line: CAR_LINES.nothing };
   return { ok: true, line: approved ? CAR_LINES.approved : CAR_LINES.declined };
 }

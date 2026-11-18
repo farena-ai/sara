@@ -24,6 +24,8 @@ export async function loadBusinessDetails() {
   $('#biz-payment').value = d.payment ?? '';
   $('#biz-tax').value = String(d.taxRatePct ?? 0);
   $('#biz-due').value = String(d.dueDays ?? 30);
+  if ($('#biz-time-step')) $('#biz-time-step').value = String(d.timeStep ?? 6);
+  if ($('#biz-time-round')) $('#biz-time-round').value = d.timeRound ?? 'nearest';
   const cur = $('#biz-currency');
   cur.replaceChildren(...r.currencies.map((c) => Object.assign(el('option', '', c), { value: c })));
   cur.value = d.currency ?? 'USD';
@@ -48,6 +50,7 @@ export async function saveBusinessDetails() {
       taxRatePct: Number($('#biz-tax').value || 0),
       dueDays: Number($('#biz-due').value || 30),
       logoDocId: $('#biz-logo').value ? Number($('#biz-logo').value) : null,
+      ...($('#biz-time-step') ? { timeStep: Number($('#biz-time-step').value), timeRound: $('#biz-time-round').value } : {}),
     },
   });
   $('#biz-tax').value = String(r.details.taxRatePct);

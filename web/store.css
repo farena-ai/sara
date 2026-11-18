@@ -125,6 +125,28 @@
 .prq-name { min-width: 9em; font-weight: 600; }
 .prq-row button, .prq-need button { min-height: 44px; }
 
+/* U4.27: Shared by friends (web/market.js), under Get more. */
+#settings label.mk-field:not(#_) { display: flex; flex-direction: column; align-items: stretch; justify-content: flex-start; text-align: start; gap: 4px; margin: 8px 0; min-width: 0; }
+#settings .mk-field:not(#_) :is(select, input, textarea) { width: 100%; max-width: none; min-height: 44px; box-sizing: border-box; margin: 0; }
+#settings .mk-field:not(#_) .tip { align-self: flex-start; }
+.mk-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); gap: 10px; margin: 8px 0; }
+.mk-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: var(--surface-2); min-width: 0; overflow-wrap: anywhere; }
+.mk-card p { margin: 4px 0; }
+.mk-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.mk-kind { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.mk-comment { color: var(--muted); font-style: italic; }
+.mk-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.mk-actions button { min-height: 36px; width: auto; }
+.mk-review { border: 1px solid var(--accent, var(--border)); border-radius: 12px; padding: 10px 12px; margin: 8px 0; overflow-wrap: anywhere; }
+.mk-review ul { margin: 6px 0; padding-left: 1.2em; }
+.mk-bad { color: var(--danger); }
+.mk-ok { color: var(--success, var(--text)); }
+.mk-hash { font-family: var(--font-mono, monospace); }
+.mk-installed { display: flex; flex-direction: column; gap: 6px; margin: 6px 0; }
+.mk-inst { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; overflow-wrap: anywhere; }
+.mk-inst button { width: auto; min-height: 36px; }
+.mk-update { color: var(--warn); font-weight: 600; }
+
 /* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
    Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
    specificity: each ties the rule it replaces and wins by coming later); decoration by
@@ -154,3 +176,4 @@
 :where(:root:not([data-palette="classic"])) .sto-icon { border-radius: var(--r-2); }
 :where(:root:not([data-palette="classic"])) :is(.stp-shot, .stp-msg) { border-radius: var(--r-3); }
 :where(:root:not([data-palette="classic"])) .stp-cmd { border-radius: var(--r-2); font-family: var(--font-mono); font-size: 12px; }
+

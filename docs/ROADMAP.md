@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Talk with Sara, shared projects, a marketplace, a picture studio and a business pack, in 3.23.0
+
+Talk with Sara is a hands-free voice mode: talk over her to interrupt, answer approval cards by voice (never
+for money or passwords). Projects can be shared with linked friends as viewer or contributor, synced over the
+link. Communities can share skills, automations and team recipes, checked before install. Pictures can be
+edited and short clips made with ComfyUI on your own computer. The business pack adds timers, invoices emailed
+only after you approve, a read-only client link and bookkeeping exports.
+
 ## Fixes in 3.22.1
 
 Settings, Health, Family and every window after Money open again: the Money window was missing its closing

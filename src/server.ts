@@ -86,6 +86,7 @@ import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
 import { createStudyRoutes } from './routes/study.ts';
+import { createMediaRoutes } from './routes/media.ts';
 import { createTravelRoutes } from './routes/travel.ts';
 import { createMoneyRoutes } from './routes/money.ts';
 import { createHealthLogRoutes } from './routes/health-log.ts';
@@ -97,6 +98,8 @@ import { createWatchRoutes } from './routes/watches.ts';
 import { createMessagesRoutes } from './routes/messages.ts';
 import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
 import { createRemoteRepairRoutes, handleRepairPeer } from './routes/remote-repair.ts';
+import { createSharedProjectRoutes, handleSharedProjectPeer } from './routes/shared-projects.ts';
+import { createMarketRoutes, handleMarketPeer } from './routes/market.ts';
 import { createRepairRoutes } from './routes/repair.ts';
 import { createSelfCodeRoutes } from './routes/self-code.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
@@ -106,6 +109,7 @@ import { learnAskCommand } from './learn.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { createMeetingRoutes } from './routes/meetings.ts';
 import { createBizRoutes } from './routes/biz.ts';
+import { createBizPackRoutes } from './routes/bizpack.ts';
 import { createMyDetailsRoutes } from './routes/my-details.ts';
 import { createWritingRoutes } from './routes/writing.ts';
 import { createFactsRoutes } from './routes/facts.ts';
@@ -456,7 +460,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1032,6 +1036,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const errandRoutes = createErrandRoutes(ctx);
   const longGoalRoutes = createLongGoalRoutes(ctx);
   const studyRoutes = createStudyRoutes(ctx);
+  const mediaRoutes = createMediaRoutes(ctx);
   const travelRoutes = createTravelRoutes(ctx);
   const moneyRoutes = createMoneyRoutes(ctx);
   const healthLogRoutes = createHealthLogRoutes(ctx);
@@ -1047,6 +1052,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // S9b: the support link on top of a messages link (src/routes/support.ts; docs/SUPPORT_LINK.md).
   const supportRoutes = createSupportRoutes(ctx);
   const remoteRepairRoutes = createRemoteRepairRoutes(ctx); // T5: fix passes (docs/REMOTE_REPAIR.md)
+  const sharedProjectRoutes = createSharedProjectRoutes(ctx); // U4.26 (docs/SHARED_PROJECTS.md)
+  const marketRoutes = createMarketRoutes(ctx); // U4.27: the community marketplace (docs/MARKETPLACE.md)
   // ROADMAP_T: self-repair (src/routes/repair.ts; docs/SELF_REPAIR.md), owner only.
   const repairRoutes = createRepairRoutes(ctx);
   // T3: her own code changes, the owner's only (src/routes/self-code.ts; docs/SELF_CODE.md).
@@ -1061,6 +1068,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const meetingRoutes = createMeetingRoutes(ctx);
   // E6: Settings → Business details, each person's own (src/routes/biz.ts).
   const bizRoutes = createBizRoutes(ctx);
+  // U4.29: the Business place, each person's own (src/routes/bizpack.ts).
+  const bizPackRoutes = createBizPackRoutes(ctx);
   // N4: Settings → You → My details, each person's own (src/routes/my-details.ts).
   const myDetailsRoutes = createMyDetailsRoutes(ctx);
   // S11: Write like a person, each person's own (src/routes/writing.ts).
@@ -1621,6 +1630,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await studyRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await mediaRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await travelRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await moneyRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await healthLogRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1633,6 +1643,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await messagesRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await supportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await remoteRepairRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await sharedProjectRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await marketRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await repairRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await selfCodeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
@@ -1640,6 +1652,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await bizPackRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await myDetailsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await extensionRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await writingRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2552,10 +2565,10 @@ export function createSaraServer(opts: ServerOptions): Server {
               if (active.has(b)) throw new HttpError(409, me('Sara is still working on this conversation. Wait for her or press Stop.'), { errorKey: 'Sara is still working on this conversation. Wait for her or press Stop.' });
               handedOff = true;
               const release = keyHeld;
-              void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...keyOpts, ...(body.car === true ? { car: true } : {}) }).finally(() => release?.());
+              void runBackground(b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...keyOpts, ...(body.car === true ? { car: true } : {}), ...(body.talk === true ? { talk: true } : {}) }).finally(() => release?.());
               return send(res, 202, { ok: true });
             }
-            return await streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts, ...keyOpts, ...(body.car === true ? { car: true } : {}) });
+            return await streamChat(req, res, b, content, { ...(images.length ? { images } : {}), ...(docs.length ? { docs } : {}), ...liveFrame, ...editorOpts, ...keyOpts, ...(body.car === true ? { car: true } : {}), ...(body.talk === true ? { talk: true } : {}) });
           } finally {
             if (!handedOff) keyHeld?.();
           }
@@ -2645,8 +2658,14 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/msg/v1/support/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleSupportPeer(ctx, req, res, url.pathname);
       }
+      if (url.pathname.startsWith('/msg/v1/market/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleMarketPeer(ctx, req, res, url.pathname);
+      }
       if (url.pathname.startsWith('/msg/v1/repair/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleRepairPeer(ctx, req, res, url.pathname);
+      }
+      if (url.pathname.startsWith('/msg/v1/sproj/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleSharedProjectPeer(ctx, req, res, url.pathname);
       }
       if (url.pathname.startsWith('/msg/v1/')) {
         if (app.messages && !opts.member && !opts.demo) return await app.messages.handlePeer(req, res, url.pathname);

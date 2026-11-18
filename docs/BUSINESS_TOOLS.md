@@ -37,4 +37,6 @@ and reads no mail by itself.
   default and template invoices, follow-up filtering on fixture threads, a fixture contract, receipts,
   duplicates, report totals, action items, the lean picker in six languages).
 
+U4.29 ([BUSINESS_PACK.md](BUSINESS_PACK.md)): the Business place; `invoice_send` emails an invoice with its PDF attached after the person approves the exact email on the card; `invoice_from_quote`; client terms and address fill invoices; expenses can be billed at cost with hours.
+
 N7: making a quote or invoice and marking it accepted, paid or void moves the client pipeline and frees billed hours on void; `follow_ups` also lists clients' due next steps (docs/WORK_AND_TEAMS.md).

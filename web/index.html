@@ -226,6 +226,7 @@
           <div class="side-dest" data-dest="goals"><button class="side-go" id="open-goals" type="button" title="Goals: bigger things you want done over days or weeks, with milestones, progress and a weekly summary"><i class="ic" data-icon="flag"></i><span>Goals</span></button></div>
           <div class="side-dest" data-dest="trips"><button class="side-go" id="open-trips" type="button" title="Trips: bookings from your email as one timeline, flight alerts and packing lists"><i class="ic" data-icon="calendar"></i><span>Trips</span></button></div>
           <div class="side-dest" data-dest="money"><button class="side-go" id="open-money" type="button" title="Money: spending by category, budgets, bills, subscriptions and net worth from your bank exports (tracking only)"><i class="ic" data-icon="gauge"></i><span>Money</span></button></div>
+          <div class="side-dest" data-dest="bizpack"><button class="side-go" id="open-bizpack" type="button" title="Business: clients, time, invoices and quotes, expenses, a page for each client and a bookkeeping export"><i class="ic" data-icon="job"></i><span>Business</span></button></div>
           <div class="side-dest" data-dest="health"><button class="side-go" id="open-health" type="button" title="Health: your private log of medicines, appointments, symptoms and readings"><i class="ic" data-icon="heart"></i><span>Health</span></button></div>
           <div class="side-dest" data-dest="family"><button class="side-go" id="open-family" type="button" title="Family: chores and allowance, grocery lists, kid-safe mode"><i class="ic" data-icon="group"></i><span>Family</span></button></div>
           <div class="side-dest" data-dest="msgs" data-owner-only><button class="side-go" id="open-msgs" type="button" data-owner-only title="Messages: private chats with the owners of linked servers (Sara never reads them)"><i class="ic" data-icon="chat"></i><span>Messages</span><i id="msgs-dot" class="side-dot side-count" hidden></i></button></div>
@@ -438,6 +439,7 @@
         <input id="attach-photo-file" type="file" accept="image/*" multiple hidden>
         <button id="call" class="ghost icon" type="button" title="Hands-free call: just talk, interrupt her any time" hidden><i class="ic" data-icon="phone"></i></button>
         <button id="video-call-btn" class="ghost icon" type="button" title="Video call: see her full size as you talk" hidden><i class="ic" data-icon="video"></i></button>
+        <button id="talk-btn" class="ghost icon" type="button" title="Talk with Sara: hands-free, with a live transcript" aria-label="Talk with Sara" hidden><i class="ic" data-icon="chat"></i></button>
         <button id="mic" class="ghost icon" type="button" title="Talk (click to start, click again to send)" hidden><i class="ic" data-icon="mic"></i></button>
         <button id="send" type="submit" aria-label="Send"><i class="ic" data-icon="send"></i><span id="send-label" class="send-label" hidden></span></button>
         <div class="send-more-wrap">
@@ -911,6 +913,56 @@
     <button id="car-talk" class="car-talk" type="button" aria-pressed="false" autofocus><i class="ic" data-icon="mic"></i><span id="car-talk-label">Talk</span></button>
     <p id="car-status" class="car-status" aria-live="polite"></p>
     <p class="car-note">Short spoken answers only. Ask “read my messages” to hear what’s new. It turns off after 2 hours without use.</p>
+  </dialog>
+  <!-- U4.28 (docs/PICTURES.md): the picture editor (mask brush, before/after, versions; web/media-studio.js). -->
+  <dialog id="mx-editor" class="mx-editor" aria-labelledby="mx-title">
+    <h2 id="mx-title">Edit picture</h2>
+    <div class="mx-layout">
+      <div class="mx-stage" id="mx-stage">
+        <img id="mx-before" alt="Before">
+        <div id="mx-after-wrap" class="mx-after-wrap" hidden><img id="mx-after" alt="After"></div>
+        <canvas id="mx-mask" class="mx-mask" aria-label="Paint over the part to change"></canvas>
+      </div>
+      <div class="mx-side" data-nodirty data-noauto>
+        <label>What to do <button type="button" class="tip" data-tip="Paint a part to change or remove it, add more around the edges, make it bigger, take the background away, or redraw it in another style.">?</button> <select id="mx-op">
+          <option value="inpaint">Paint over a part and change it</option>
+          <option value="outpaint">Extend the edges</option>
+          <option value="upscale">Upscale (bigger, sharper)</option>
+          <option value="background">Remove the background</option>
+          <option value="restyle">Change the style</option>
+        </select></label>
+        <p id="mx-op-note" class="muted small"></p>
+        <div id="mx-f-brush" class="mx-field">
+          <label>Brush size <button type="button" class="tip" data-tip="How wide the brush paints. Paint a little past the edges of what you want changed.">?</button> <input id="mx-brush" type="range" min="8" max="160" value="48"></label>
+          <button id="mx-clear" type="button" class="ghost small">Clear the paint</button>
+        </div>
+        <label id="mx-f-prompt" class="mx-field">Describe it <button type="button" class="tip" data-tip="What should be there instead, or the new style. For a removal, leave it empty.">?</button> <input id="mx-prompt" type="text" maxlength="1000" placeholder="Leave empty to just remove what you painted"></label>
+        <label id="mx-f-strength" class="mx-field">How much may change <button type="button" class="tip" data-tip="Low keeps the picture close to the original; high lets the new style redraw most of it.">?</button> <input id="mx-strength" type="range" min="0.1" max="0.9" step="0.05" value="0.5"></label>
+        <label id="mx-f-pad" class="mx-field">Extend <button type="button" class="tip" data-tip="Which side gets more picture. She continues the scene there.">?</button> <select id="mx-pad">
+          <option value="right">To the right</option><option value="left">To the left</option><option value="top">At the top</option><option value="bottom">At the bottom</option><option value="all">On every side</option>
+        </select></label>
+        <label id="mx-f-scale" class="mx-field">Size <button type="button" class="tip" data-tip="With an upscale model in ComfyUI it adds detail; without one it is a plain resize.">?</button> <select id="mx-scale"><option value="2x">2 times bigger</option><option value="4x">4 times bigger</option><option value="4k">4K (3840 wide)</option></select></label>
+        <p class="mx-actions"><button id="mx-go" type="button">Make it</button> <button id="mx-cancel" type="button" class="ghost small" hidden>Cancel</button></p>
+        <p id="mx-state" class="muted small" role="status" aria-live="polite"></p>
+        <label id="mx-f-compare" class="mx-field" hidden>Before and after <button type="button" class="tip" data-tip="Slide to compare the new version with the picture it came from.">?</button> <input id="mx-compare" type="range" min="0" max="100" value="50"></label>
+        <h3>Versions</h3>
+        <div id="mx-versions" class="mx-versions"></div>
+      </div>
+    </div>
+  </dialog>
+  <!-- U4.24 (docs/VOICE_FIRST.md): Talk with Sara, the voice-first mode (web/talk.js). -->
+  <dialog id="talk-mode" class="talk-mode" aria-labelledby="tm-title" data-nox>
+    <div class="tm-head">
+      <h2 id="tm-title">Talk with Sara</h2>
+      <span id="tm-status" class="tm-status" role="status">Listening…</span>
+    </div>
+    <ol id="tm-lines" class="tm-lines" aria-live="polite" aria-label="What you both said"></ol>
+    <div id="tm-approvals" class="tm-approvals"></div>
+    <p class="tm-hint muted small">Just talk. Talking over her stops her. Say “goodbye” or press End to finish.</p>
+    <div class="tm-actions">
+      <button id="tm-mute" type="button" class="ghost" aria-pressed="false">Mute</button>
+      <button id="tm-end" type="button">End</button>
+    </div>
   </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
     <div class="settings-body">
@@ -1570,6 +1622,43 @@
       </div>
     </form>
   </dialog>
+  <!-- U4.29 (docs/BUSINESS_PACK.md): Business (clients, time, invoices and quotes, expenses, client portal, bookkeeping export) -->
+  <dialog id="bizpack" aria-label="Business">
+    <form method="dialog" class="settings-body bizpack">
+      <h2>Business</h2>
+      <p class="muted small">Clients, tracked time, invoices and quotes, expenses and a read-only page for each client. Your details and how you get paid: Settings → You → Business details.</p>
+      <p class="bp-only small"><strong>She never charges a card or takes a payment: your invoices say how to pay you.</strong></p>
+      <p id="bp-status" class="muted small" role="status"></p>
+      <h3>Timer <button type="button" class="tip" data-tip="One timer at a time: starting another stops the first. You can also say “start a timer for Rivera” in chat. Time is rounded by your rule in Business details.">?</button></h3>
+      <div class="bp-set" data-nodirty data-noauto>
+        <p id="bp-running" class="bp-running" hidden></p>
+        <div class="bp-row"><span><button type="button" class="tip" data-tip="Pick a client from the list or type a new name. Project and note are optional and show on invoices and time sheets.">?</button></span><input id="bp-t-client" type="text" list="bp-clients" autocomplete="off" placeholder="Client" aria-label="Client"> <input id="bp-t-project" type="text" autocomplete="off" placeholder="Project (optional)" aria-label="Project"> <button id="bp-t-start" type="button" class="small">Start</button> <button id="bp-t-stop" type="button" class="ghost small" hidden>Stop</button></div>
+        <datalist id="bp-clients"></datalist>
+      </div>
+      <h3>Add time <button type="button" class="tip" data-tip="Time you worked without the timer: a number of hours on a day, or a start and end time. Times may not overlap.">?</button></h3>
+      <div class="bp-row bp-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="The day it counts on, the hours (like 1.5) or a start and end time, and the client.">?</button></span><input id="bp-h-day" type="date" aria-label="Day"> <input id="bp-h-hours" type="text" inputmode="decimal" placeholder="Hours" aria-label="Hours"> <input id="bp-h-client" type="text" list="bp-clients" autocomplete="off" placeholder="Client" aria-label="Client"> <input id="bp-h-project" type="text" autocomplete="off" placeholder="Project (optional)" aria-label="Project"> <button id="bp-h-add" type="button" class="small">Add time</button></div>
+      <div id="bp-entries"></div>
+      <h3>Clients <button type="button" class="tip" data-tip="Who you work for: email, hourly rate and payment terms. Their terms and address go on their invoices; unbilled hours become an invoice with one click.">?</button></h3>
+      <div id="bp-clist"></div>
+      <div class="bp-form bp-set" data-nodirty data-noauto>
+        <div class="bp-row"><span><button type="button" class="tip" data-tip="The client's name as it goes on invoices, and the email invoices are sent to.">?</button></span><input id="bp-c-name" type="text" autocomplete="off" placeholder="Client name" aria-label="Client name"> <input id="bp-c-email" type="email" autocomplete="off" placeholder="Email" aria-label="Email"></div>
+        <div class="bp-row"><span><button type="button" class="tip" data-tip="Hourly rate for tracked time, and days until their invoices are due (empty: your usual terms).">?</button></span><input id="bp-c-rate" type="text" inputmode="decimal" placeholder="Hourly rate" aria-label="Hourly rate"> <input id="bp-c-terms" type="number" min="0" max="365" placeholder="Terms (days)" aria-label="Payment terms in days"> <input id="bp-c-phone" type="text" autocomplete="off" placeholder="Phone" aria-label="Phone"></div>
+        <div class="bp-row"><span><button type="button" class="tip" data-tip="The billing address printed on their invoices.">?</button></span><input id="bp-c-address" type="text" autocomplete="off" placeholder="Address" aria-label="Address"> <button id="bp-c-save" type="button" class="small">Add client</button> <button id="bp-c-new" type="button" class="ghost small" hidden>New client</button></div>
+      </div>
+      <h3>Invoices and quotes <button type="button" class="tip" data-tip="Ask her “make an invoice for…” or “a quote for…”. Mark them sent or paid here; she reminds you before they are due. Email it asks you to approve the exact email first.">?</button></h3>
+      <div id="bp-invoices"></div>
+      <h3>Expenses <button type="button" class="tip" data-tip="Business costs by category, for the bookkeeping export. Rows from your bank exports in Money can be added with one click.">?</button></h3>
+      <div class="bp-row bp-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="Who you paid, how much, the category and the day.">?</button></span><input id="bp-e-vendor" type="text" autocomplete="off" placeholder="Paid to" aria-label="Paid to"> <input id="bp-e-total" type="text" inputmode="decimal" placeholder="Amount" aria-label="Amount"> <select id="bp-e-cat" aria-label="Category"></select> <input id="bp-e-date" type="date" aria-label="Day"> <button id="bp-e-add" type="button" class="small">Add expense</button></div>
+      <div id="bp-expenses"></div>
+      <div id="bp-money"></div>
+      <h3>Client portal <button type="button" class="tip" data-tip="A read-only link for one client: their sent invoices and quotes with the files, and how to pay. No account needed. It stops working when it expires or when you revoke it.">?</button></h3>
+      <div class="bp-row bp-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="The page is a copy made now: make a new link after you send or mark more invoices.">?</button></span><select id="bp-p-client" aria-label="Client"></select> <select id="bp-p-exp" aria-label="Link expires"><option value="7d">7 days</option><option value="30d" selected>30 days</option><option value="1d">1 day</option></select> <button id="bp-p-make" type="button" class="small">Make link</button></div>
+      <p id="bp-p-link" class="bp-link" hidden></p>
+      <div id="bp-portals"></div>
+      <h3>Bookkeeping export <button type="button" class="tip" data-tip="A CSV for your accountant or app: income and expenses by category, or rows in QuickBooks, Xero or Wave columns. Nothing is sent anywhere.">?</button></h3>
+      <div class="bp-row bp-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="The period, the layout and what to include. QuickBooks and Xero take invoices, expenses and time as separate files.">?</button></span><input id="bp-x-from" type="date" aria-label="From"> <input id="bp-x-to" type="date" aria-label="To"> <select id="bp-x-format" aria-label="Layout"><option value="generic">Summary or generic CSV</option><option value="quickbooks">QuickBooks Online</option><option value="xero">Xero</option><option value="wave">Wave</option></select> <select id="bp-x-what" aria-label="What"><option value="summary">By category</option><option value="invoices">Invoices</option><option value="expenses">Expenses</option><option value="time">Time</option><option value="all">Everything</option></select> <button id="bp-x-go" type="button" class="small">Download CSV</button></div>
+    </form>
+  </dialog>
   <!-- U4.20 (docs/MONEY.md): Money (bank exports, budgets, bills, subscriptions, net worth; tracking only) -->
   <dialog id="money" aria-label="Money">
     <form method="dialog" class="settings-body money">
@@ -1943,6 +2032,7 @@
           <p class="small"><button id="lib-feed-together" type="button" class="ghost small" title="Opens a public RSS or Atom feed above your chat so you can share one of its items with her." data-owner-only>Read a feed together</button></p>
           <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
           <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
+          <p class="small"><button id="lib-media-open" type="button" class="ghost small" data-owner-only>Pictures and video…</button> <button type="button" class="tip" data-tip="Edit your pictures and make short clips with ComfyUI on this computer: paint over what to change, extend, upscale, remove the background or restyle. Results and versions stay here." data-owner-only>?</button></p>
           <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
@@ -1974,6 +2064,24 @@
         <div id="lib-r-body" class="rs-body" data-nodirty></div>
       </section>
       <!-- U4.23 (docs/LEARNING.md): study sets, quizzes and spaced repetition (web/study.js). -->
+      <!-- U4.28 (docs/PICTURES.md): pictures and short video made with ComfyUI (web/media-studio.js). -->
+      <section id="lib-media" hidden>
+        <p><button id="lib-mx-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Pictures and video <button type="button" class="tip" data-tip="Made with ComfyUI on this computer: nothing is uploaded anywhere. Only models already installed are used; nothing is downloaded on its own.">?</button></h2>
+        <p id="mx-status" class="muted small" role="status"></p>
+        <div id="mx-caps" class="mx-caps"></div>
+        <h3>Make a short video</h3>
+        <label for="mx-v-prompt">What the clip shows <button type="button" class="tip" data-tip="The subject, what moves, the camera and the setting. Short clips work best with one simple motion.">?</button></label>
+        <textarea id="mx-v-prompt" rows="3" maxlength="1200" placeholder="Waves rolling onto a beach at sunset, slow camera pan"></textarea>
+        <div class="mx-row">
+          <label>Start from <button type="button" class="tip" data-tip="Words only, or a Library picture the clip starts from. Never a sexual clip from a real photo.">?</button> <select id="mx-v-start"><option value="">Words only</option></select></label>
+          <label>Length <button type="button" class="tip" data-tip="Longer clips take more time and memory on your graphics card.">?</button> <select id="mx-v-seconds"><option value="2">2 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option></select></label>
+          <button id="mx-v-go" type="button">Make the clip</button>
+        </div>
+        <div id="mx-jobs" class="mx-jobs" aria-live="polite"></div>
+        <h3>Your pictures and clips</h3>
+        <div id="mx-items" class="mx-items"></div>
+      </section>
       <section id="lib-study" hidden>
         <p><button id="lib-s-back" type="button" class="ghost small">← All documents</button></p>
         <h2>Study <button type="button" class="tip" data-tip="Make cards from your documents or notes, then study a few each day. Again brings a card back soon; Good and Easy space it out. Export for Anki or as CSV any time.">?</button></h2>
@@ -2011,6 +2119,7 @@
           <a id="lib-doc-download" class="button ghost small" href="#" download>Download</a>
           <a id="lib-doc-pdf" class="button ghost small" href="#" target="_blank" rel="noopener" hidden>Open the PDF</a>
           <button id="lib-doc-keep" type="button" class="ghost small" hidden>Keep in her library</button>
+          <button id="lib-doc-edit" type="button" class="ghost small" data-owner-only hidden>Edit picture…</button>
           <button id="lib-doc-together" type="button" class="ghost small" title="Opens it above your chat so you can share a passage with her, or let her follow your place." hidden>Read together</button>
           <button type="button" class="ghost small tidy-more-btn" aria-label="More actions" title="More actions">⋯</button>
           <span class="tidy-overflow">
@@ -2223,6 +2332,10 @@
           <h3>Notes</h3>
           <div class="add-row"><input id="pp-note" aria-label="Write a quick note" placeholder="Write a quick note"><button id="pp-note-add" type="button">Add</button></div>
           <div id="pp-notes" class="pp-list"></div>
+        </section>
+        <section id="pp-shared-box" hidden>
+          <h3>Shared with friends <button type="button" class="tip" data-tip="Share this project with a friend whose Sara is linked under Messages: you pick what they see and if they may change it. Their Sara never reads anything else of yours.">?</button></h3>
+          <div id="pp-shared" class="pp-list shp" data-nodirty data-noauto></div>
         </section>
         <section>
           <h3>Previews <button type="button" class="tip" data-tip="Links to web apps she is running in this workspace. They open beside the chat, close when the app's job stops, and end after 12 hours.">?</button></h3>
@@ -2957,6 +3070,11 @@
         </div>
         <label>ElevenLabs key <input id="v-el-key" type="password" autocomplete="off" placeholder="leave empty to keep"></label>
       </details>
+      <!-- U4.24 (docs/VOICE_FIRST.md): Talk with Sara (saved with the voice settings). -->
+      <h3>Talk with Sara <button type="button" class="tip" data-tip="The talk button next to the message box: a hands-free conversation with a live transcript. It uses the hearing and voice chosen above.">?</button></h3>
+      <label class="row"><input id="talk-fillers" type="checkbox" checked> Short “Mm-hm” while she thinks <button type="button" class="tip" data-tip="When she hasn't started answering yet, she says a short line so you know she heard you.">?</button></label>
+      <label class="row"><input id="talk-voice-ok" type="checkbox" checked> Answer her cards by saying yes or no <button type="button" class="tip" data-tip="The card stays on screen while you talk. Money, passwords and her hands on the computer always need a tap.">?</button></label>
+      <label class="row"><input id="talk-goodbye" type="checkbox" checked> Saying “goodbye” ends the talk <button type="button" class="tip" data-tip="Only &quot;goodbye&quot; on its own (or &quot;thanks, bye&quot;) ends it; inside a longer request it is just words to her.">?</button></label>
       <!-- S2 (docs/MEETINGS.md): meeting recordings (web/meetings.js loadMeetingPrefs). -->
       <h3 data-owner-only>Meetings <button type="button" class="tip" data-tip="How Sara records and hears your meetings (Library → Meetings).">?</button></h3>
       <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
@@ -3011,7 +3129,7 @@
         <strong class="wk-head">When she wakes</strong>
         <div class="wk-row">
           <label>She answers in <button type="button" class="tip" data-tip="Her “Hey Sara” conversation keeps all your spoken questions together. Or use the one open on this device, or a new one each time.">?</button> <select id="wk-talks"><option value="own">Her “Hey Sara” conversation</option><option value="open">The conversation open on the device</option><option value="new">A new conversation each time</option></select></label>
-          <label>The phrase starts <button type="button" class="tip" data-tip="One question: you ask, she answers, she goes back to listening. A live call: a full voice call starts, until you hang up (needs live calls).">?</button> <select id="wk-starts"><option value="question">One question</option><option value="call">A live call</option></select></label>
+          <label>The phrase starts <button type="button" class="tip" data-tip="One question: you ask, she answers, she goes back to listening. A live call: a full voice call starts, until you hang up (needs live calls).">?</button> <select id="wk-starts"><option value="question">One question</option><option value="call">A live call</option><option value="talk">Talk with Sara</option></select></label>
           <label>Keep listening after her answer <button type="button" class="tip" data-tip="Listens a few seconds more for a follow-up without her name. The dot stays bright while it does. Off by default.">?</button> <select id="wk-follow"><option value="0">Off</option><option value="5">5 seconds</option><option value="8">8 seconds</option></select></label>
           <label class="row"><input id="wk-quiet" type="checkbox"> Never in my quiet hours <button type="button" class="tip" data-tip="Her phrase doesn’t wake her during your quiet hours (Settings → Calls from her), on every device. Pressing Talk still works. Off by default.">?</button></label>
         </div>
@@ -3109,6 +3227,14 @@
         <p class="small"><button id="ph-own-test" type="button" data-noauto>Send one now</button> <span id="ph-own-status" class="muted small" role="status"></span></p>
       </div>
       <div id="ph-taken" class="ph-taken"></div>
+      <h3 data-owner-only>Editing and short video <button type="button" class="tip" data-tip="Edit Library pictures and make short clips with ComfyUI on this computer (Library → Pictures and video). It uses the ComfyUI tool server and only models already installed.">?</button></h3>
+      <div id="mx-settings" class="mx-settings" data-nodirty data-noauto data-owner-only>
+        <p id="mx-s-status" class="muted small" role="status"></p>
+        <label>Model for picture edits <button type="button" class="tip" data-tip="The picture model (checkpoint) ComfyUI paints, extends and restyles with. Only models already installed are listed.">?</button> <select id="mx-s-ckpt"></select></label>
+        <label>Video recipe <button type="button" class="tip" data-tip="Automatic uses a built-in recipe for the video model you have (Wan 2.1 or LTX-Video). Or pick a video workflow you saved inside ComfyUI.">?</button> <select id="mx-s-video"><option value="">Automatic</option></select></label>
+        <label>Clip length <button type="button" class="tip" data-tip="How long new clips are. Longer clips take more time and memory on your graphics card.">?</button> <select id="mx-s-seconds"><option value="2">2 seconds</option><option value="3">3 seconds</option><option value="5">5 seconds</option></select></label>
+        <p class="small"><button id="mx-s-check" type="button" class="ghost small">Check ComfyUI again</button></p>
+      </div>
         </section>
         <section class="settings-page" data-page="models-local" data-group="Models & usage" data-title="On this computer" data-owner-only hidden>
       <p class="muted small page-lead">Run her model on this computer, and if you like, keep everything here: nothing goes to the internet.</p>
@@ -3504,6 +3630,8 @@
         <label>Currency <select id="biz-currency"></select></label>
         <label>Tax rate (%) <input id="biz-tax" type="number" min="0" max="50" step="0.01" value="0"></label>
         <label>Due in (days) <input id="biz-due" type="number" min="0" max="365" step="1" value="30"></label>
+        <label>Round time to <select id="biz-time-step"><option value="6">6 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
+        <label>Rounding <select id="biz-time-round"><option value="nearest">To the nearest</option><option value="up">Always up</option></select></label>
       </div>
       <p id="biz-status" class="muted small" role="status"></p>
       <!-- R6 (docs/WORK_APPS.md): the booking page and the accounting export (web/workapps.js). -->
@@ -3670,6 +3798,28 @@
       </div>
       <div id="sto-view" class="sto-view" role="tabpanel" hidden></div>
       <p id="sto-status" class="muted small" role="status"></p>
+      <h3>Shared by friends <button type="button" class="tip" data-tip="Skills, templates, automations, team recipes and Store links that people in your communities or linked friends share. Your Sara checks each one before anything is installed.">?</button></h3>
+      <p id="mk-empty" class="muted small">Join a community or link with a friend in Messages to see what they share.</p>
+      <div id="mk-browse" data-nodirty data-noauto>
+      <label class="mk-field">Shelf <button type="button" class="tip" data-tip="Each community has one shelf, kept by its owner. A linked friend's shelf holds what you two share with each other.">?</button><select id="mk-place"></select></label>
+      <div id="mk-list" class="mk-list"></div>
+      <div id="mk-review" class="mk-review" role="status" hidden></div>
+      </div>
+      <h3>Share something <button type="button" class="tip" data-tip="Only text and definitions cross: a skill's text, an automation's steps, a team plan, a Store link. Secrets, files and code never do; your Sara checks before sending.">?</button></h3>
+      <div id="mk-share-box" data-nodirty data-noauto>
+      <label class="mk-field">What <button type="button" class="tip" data-tip="Skills and templates arrive on trial, automations arrive paused, Store add-ons are only a link to the Store's own review card.">?</button><select id="mk-kind"><option value="skill">Skill</option><option value="template">Template</option><option value="automation">Automation</option><option value="team">Team recipe</option><option value="addon">Store add-on</option></select></label>
+      <label class="mk-field" id="mk-item-row">Which one <button type="button" class="tip" data-tip="One of your own skills, automations or team recipes. Your saved keys and settings are never part of it.">?</button><select id="mk-item"></select></label>
+      <label class="mk-field" id="mk-title-row" hidden>Name <button type="button" class="tip" data-tip="A template's name, or the add-on's id as the Store shows it (for example weather).">?</button><input id="mk-title" type="text" maxlength="80" autocomplete="off"></label>
+      <label class="mk-field" id="mk-text-row" hidden>Template text <button type="button" class="tip" data-tip="The prompt or workflow in plain words. It becomes a skill on trial for whoever installs it.">?</button><textarea id="mk-text" rows="4" maxlength="24000"></textarea></label>
+      <label class="mk-field">Version <button type="button" class="tip" data-tip="Like 1.0.0. Share again with a new number to send an update: people who installed it are told and choose whether to take it.">?</button><input id="mk-version" type="text" value="1.0.0" maxlength="20" autocomplete="off"></label>
+      <label class="mk-field">Description <button type="button" class="tip" data-tip="What it does and when it helps, in a sentence or two. Others see it before they install.">?</button><textarea id="mk-desc" rows="2" maxlength="600"></textarea></label>
+      <label class="mk-field">Tools it uses <button type="button" class="tip" data-tip="Tool names it needs, separated by commas (for example web_search). Each receiving Sara checks that it has them; hard-limit tools are refused.">?</button><input id="mk-tools" type="text" maxlength="400" autocomplete="off"></label>
+      <div class="add-row"><span><button type="button" class="tip" data-tip="Your Sara checks it first (no secrets, no hard-limit tools, size), then puts it on the shelf you picked above.">?</button></span><button id="mk-share" type="button">Share</button></div>
+      <p id="mk-status" class="muted small" role="status"></p>
+      </div>
+      <h3>Installed from friends <button type="button" class="tip" data-tip="What you installed from a shelf. When a new version is out you get a notice; it never applies itself.">?</button></h3>
+      <div id="mk-installed" class="mk-installed"></div>
+      <div id="mk-reports" class="mk-installed" hidden></div>
         </section>
         <section class="settings-page" data-page="ab-tools" data-group="Skills & tools" data-title="Tools and approvals" data-owner-only hidden>
       <p id="sandbox-status" class="muted"></p>
@@ -4368,6 +4518,8 @@
           <div id="tel-calls" class="list tel-calls"></div>
         </div>
       </div>
+      <h3 data-owner-only>Shared projects <button type="button" class="tip" data-tip="Projects you share with friends whose Sara is linked under Messages, and their invitations. Accept one to get it in your projects; leave or stop sharing any time.">?</button></h3>
+      <div id="shp-list" class="list shp" data-owner-only data-nodirty data-noauto></div>
         </section>
         <section class="settings-page" data-page="co-shortcuts" data-group="Connections" data-title="iPhone Shortcuts" data-host="co-phone" hidden>
       <p class="muted small page-lead">Share to Sara from any app's Share button and ask her with Siri, on an iPhone, without an app from the App Store. Apple Shortcuts does it with a token for each iPhone. <button type="button" class="tip" data-tip="A token works only for these shortcuts: sharing into your Library and a chat, asking her, and the widget lines. It can't open your chats, settings or files. Remove it here and its shortcuts stop at once.">?</button></p>

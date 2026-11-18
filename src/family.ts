@@ -82,7 +82,7 @@ export function inBedtime(p: ChildProfile, now: Date, tz?: string): boolean {
  * Route families a child may not use at all, and those they may only read. Anything not listed
  * keeps the member rules (src/household.ts memberRouteCheck runs first).
  */
-const CHILD_DENIED: ReadonlySet<string> = new Set(['hands', 'computer', 'mail', 'inbox', 'errands', 'shares', 'other-apps', 'alexa', 'shortcuts', 'ext', 'extension', 'automations', 'decisions', 'mentions', 'scrapbook-share', 'money']);
+const CHILD_DENIED: ReadonlySet<string> = new Set(['hands', 'computer', 'mail', 'inbox', 'errands', 'shares', 'other-apps', 'alexa', 'shortcuts', 'ext', 'extension', 'automations', 'decisions', 'mentions', 'scrapbook-share', 'money', 'bizpack']);
 const CHILD_READ_ONLY: ReadonlySet<string> = new Set(['adult', 'persona', 'character', 'companions', 'gallery', 'groups', 'look', 'skills', 'sara', 'working-style', 'push-test']);
 /** Talking routes that bedtime and the daily limit stop (reading old chats still works). */
 const TALK = (a: string, method: string, parts: string[]) => (a === 'conversations' && method === 'POST' && (parts[2] === 'messages' || parts[2] === 'regenerate' || parts[2] === 'continue')) || a === 'live' || a === 'calls' || a === 'video';

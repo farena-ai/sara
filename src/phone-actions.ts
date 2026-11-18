@@ -163,6 +163,18 @@ export interface ApprovalShape {
   untrusted?: boolean;
 }
 
+/**
+ * U4.24 (docs/VOICE_FIRST.md): never answered by a spoken yes, anywhere (Talk with Sara, car mode,
+ * phone calls): money and passwords/sign-ins. A tap on the card (or a phone notification, where
+ * phoneMayApprove allows it) still works. web/talk.js voiceMayAnswer mirrors this (tested).
+ */
+export const VOICE_NEVER_TOOL = (name: string): boolean => /(?:^|_)(?:pay|payment|purchase|buy|checkout|wallet|transfer|password|passkey|vault|secret|credential|login|signin|otp|two_step)(?:_|$)|password/.test(name);
+
+/** A card a spoken yes/no may answer: the phone rule plus the voice hard limits. */
+export function voiceMayApprove(ev: ApprovalShape): boolean {
+  return phoneMayApprove(ev) && !VOICE_NEVER_TOOL(ev.name);
+}
+
 /** A plain card about a non-computer tool: Approve/Decline may come from the notification. */
 export function phoneMayApprove(ev: ApprovalShape): boolean {
   if (PC_ONLY_TOOL(ev.name)) return false;
