@@ -29,22 +29,26 @@ Sara** and nothing else. On the page you are on:
 
 ## Install (unpacked; nothing is published)
 
-The extension is **not published** to any store. Publishing is the owner's decision: the Chrome Web Store
-charges a registration fee; the Edge Add-ons and Firefox Add-ons stores are free but need an account.
+The extension is **not published** to any store yet. Everything the Chrome Web Store, Edge Add-ons and
+Firefox Add-ons ask for (zips, texts in six languages, permission justifications, data disclosures,
+pictures, step-by-step) is ready in [STORE_LISTINGS.md](STORE_LISTINGS.md); the privacy policy is
+[EXTENSION_PRIVACY.md](EXTENSION_PRIVACY.md). Uploading is the owner's step.
 
 Build the zips (optional; you can also load the `extension/` folder directly):
 
     node scripts/pack-extension.ts
 
-They land in `outputs/extension/` (`sara-extension-chrome-edge-<version>.zip`,
-`sara-extension-firefox-<version>.zip`).
+They land in `outputs/extension/` (`sara-chrome-<version>.zip`, `sara-edge-<version>.zip`,
+`sara-firefox-<version>.zip`, `sara-extension-source-<version>.zip`, and `listing/` texts); the version
+is Sara's, from `package.json`.
 
 **Chrome / Edge:** open `chrome://extensions` (Edge: `edge://extensions`), switch on **Developer mode**,
-click **Load unpacked** and pick the `extension/` folder (or an unzipped copy of the chrome-edge zip).
+click **Load unpacked** and pick the `extension/` folder (or an unzipped copy of the chrome or edge zip).
 
 **Firefox:** open `about:debugging#/runtime/this-firefox`, click **Load Temporary Add-on…** and pick
 `manifest.json` inside an unzipped copy of the firefox zip. A temporary add-on is removed when Firefox
-closes; a permanent install needs a signed add-on (Mozilla signs for free, an owner decision).
+closes; a permanent install needs a signed add-on (Mozilla signs listed add-ons for free). Firefox 140 or
+newer (its built-in data consent screen lists what the extension sends: page content and the page address).
 
 ## Pair it
 

@@ -3,7 +3,7 @@
   "message": "Sara"
  },
  "appDesc": {
-  "message": "Demandez à Sara ce qu’elle pense de la page, enregistrez-la dans sa Bibliothèque ou laissez-la remplir un formulaire après votre accord."
+  "message": "Interrogez Sara sur la page, enregistrez-la dans sa Bibliothèque ou laissez-la remplir un formulaire après votre accord."
  },
  "pairIntro": {
   "message": "Reliez ce navigateur à votre Sara. Tapez son adresse ; un code court s’affiche, à approuver dans Sara."
@@ -151,5 +151,11 @@
  },
  "menuSave": {
   "message": "Enregistrer cette page dans la Bibliothèque de Sara"
+ },
+ "extName": {
+  "message": "Sara : votre propre IA dans le navigateur"
+ },
+ "storeDescription": {
+  "message": "Sara est une compagne IA personnelle que vous faites tourner sur votre propre serveur ou PC. Cette extension relie votre navigateur à VOTRE Sara, et à rien d'autre.\n\nSur la page où vous êtes :\n• Demander à Sara : elle lit le texte de la page et répond dans la fenêtre de l'extension. Poursuivez la discussion dans Sara en un clic.\n• Résumer : un court résumé de la page.\n• Enregistrer dans la Bibliothèque : le texte et l'adresse de la page sont gardés dans sa Bibliothèque comme document.\n• Remplir ce formulaire : Sara propose des valeurs tirées de Mes informations. Vous voyez chaque champ, décochez ou modifiez ce que vous voulez, puis vous validez. Rien n'est saisi avant votre accord et le formulaire n'est jamais envoyé à votre place.\n• Clic droit sur un texte sélectionné pour poser une question, ou sur une page pour l'enregistrer.\n• Désactivée sur ce site : un interrupteur, et rien de ce site n'est lu ni envoyé.\n\nConfidentialité et sécurité :\n• Les données vont uniquement au serveur Sara que vous associez. Pas de statistiques, pas de publicité, pas d'autres serveurs, pas de code distant.\n• Une page n'est lue que lorsque vous cliquez. Rien ne tourne en arrière-plan.\n• Jamais remplis : mots de passe, cartes de paiement, codes à usage unique et numéros d'identité.\n• L'association utilise un code court que vous validez dans Sara. Déconnectez dans la fenêtre de l'extension, ou déconnectez-la dans Sara, et son accès prend fin aussitôt.\n\nIl vous faut un serveur Sara (gratuit et open source). En savoir plus et l'installer : https://github.com/farena-ai/sara"
  }
 }

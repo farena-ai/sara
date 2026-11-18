@@ -14,7 +14,7 @@ import { OPENAI_LIVE_MODELS, OPENAI_LIVE_VOICES } from '../live.ts';
 import { cleanTalk } from '../talk.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { localVoiceInstallable, localVoiceMissing, localVoiceSupported } from '../platform.ts';
-import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall } from '../voice-install.ts';
+import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall, STREAM_MB } from '../voice-install.ts';
 import type { Conversation as VideoConv } from '../store.ts';
 import { cameraState, type CameraTarget, checkFrame, FRAME_MAX_BYTES, modelSees, parseVideoSettings, VideoError, videoSettings } from '../video.ts';
 import { DEFAULT_VOICE, openaiSpeak, speechText, VOICE_VAULT, VoiceError, type VoiceSettings, xaiSpeak, xaiVoices } from '../voice.ts';
@@ -135,6 +135,18 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
       const cfg = (): VoiceSettings => {
         return speech.settings();
       };
+      const streamingView = () => {
+        const ready = app.voice?.streamingReady() ?? false;
+        const v = cfg();
+        return {
+          installed: Boolean(app.voice?.manifest?.online),
+          ready,
+          on: ready && v.stt === 'local' && cleanTalk(v.talk).hearing === 'streaming',
+          installable: !opts.member && localVoiceInstallable(),
+          linux: process.platform === 'linux',
+          mb: STREAM_MB,
+        };
+      };
       if (!b && method === 'GET') {
         return send(res, 200, {
           settings: cfg(),
@@ -150,6 +162,8 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
           openaiLive: { voices: OPENAI_LIVE_VOICES, models: OPENAI_LIVE_MODELS },
           // Phase 126 part C: her own hearing and voices on a Windows or Mac server (owner only).
           install: { installable: !opts.member && localVoiceInstallable() && !(app.voice?.available.stt && app.voice?.available.tts), mb: INSTALL_MB, job: installJob() },
+          // V0.2: words-as-you-speak hearing (the optional streaming model; on when Talk's hearing is "streaming").
+          streaming: streamingView(),
         });
       }
       // Phase 126 part C (WAKE.md §7): Install hearing and voices on this computer (≈ 650 MB, checked before use).
@@ -163,19 +177,26 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         if (privateLocalOn()) throw new HttpError(409, 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
         if (!app.voice) throw new HttpError(503, 'Voice isn’t ready yet.');
         const voiceEngine = app.voice;
-        const j = startInstall(voiceEngine.dir, () => {
-          voiceEngine.reload();
-          const v = cfg();
-          const patch = engineAfterInstall(v);
-          if (Object.keys(patch).length) app.settings.update({ voice: { ...(app.settings.get().voice ?? {}), ...patch } as VoiceSettings });
-        });
+        // V0.2: {streaming: true} adds the streaming hearing model (and whatever else is missing).
+        const streaming = Boolean(((await readJson(req).catch(() => ({}))) as { streaming?: unknown }).streaming);
+        const j = startInstall(
+          voiceEngine.dir,
+          () => {
+            voiceEngine.reload();
+            const v = cfg();
+            const patch = engineAfterInstall(v);
+            const talk = streaming ? { talk: { ...cleanTalk(v.talk), hearing: 'streaming' as const } } : {};
+            if (Object.keys(patch).length || streaming) app.settings.update({ voice: { ...(app.settings.get().voice ?? {}), ...patch, ...talk } as VoiceSettings });
+          },
+          streaming ? { streaming: 'add' } : {},
+        );
         return send(res, 202, { job: j });
       }
       // U5 (docs/VOICE_FIRST.md): Talk opened: load the local hearing and voice now, not on the first words.
       if (b === 'warm' && method === 'POST') {
         const v = cfg();
         const local = app.voice && (v.stt === 'local' || v.tts === 'local');
-        if (local) void app.voice!.warm(v.localVoice).catch(() => undefined);
+        if (local) void app.voice!.warm(v.localVoice, { streaming: v.stt === 'local' && cleanTalk(v.talk).hearing === 'streaming' }).catch(() => undefined);
         return send(res, 202, { warming: Boolean(local) });
       }
       if (!b && method === 'PUT') {
@@ -278,6 +299,19 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         const key = await xaiKey().catch(() => undefined);
         if (!key) return send(res, 200, { voices: [] });
         return send(res, 200, { voices: await xaiVoices(key).catch(() => []) });
+      }
+      // V0.2 (docs/VOICE_FIRST.md "Words as you speak"): one piece of a live utterance, 16 kHz mono
+      // 16-bit PCM; `end=1` finishes it. 409 + fallback: the page sends the whole recording instead.
+      if (b === 'stream' && method === 'POST') {
+        const u = new URL(req.url ?? '/', 'http://x');
+        const audio = await readRaw(req, 2 * 1024 * 1024);
+        if (!streamingView().on) throw new HttpError(409, 'Streaming hearing is off.', { fallback: true });
+        try {
+          return send(res, 200, await app.voice!.hear(u.searchParams.get('id') ?? '', audio, u.searchParams.get('end') === '1'));
+        } catch (err) {
+          if (err instanceof VoiceError) throw new HttpError(409, err.message, { fallback: true });
+          throw err;
+        }
       }
       if (b === 'transcribe' && method === 'POST') {
         const audio = await readRaw(req, 15 * 1024 * 1024);

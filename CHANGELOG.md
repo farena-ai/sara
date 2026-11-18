@@ -5,6 +5,57 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.25.0 (2026-11-18): Sign in with your provider, faster voice on Windows, store-ready extension
+
+- Docs: ROADMAP_V checked against what Sara already has (docs/design/VAUDIT.md: each item marked
+  exists, partial or new, with the files) and rewritten into seven waves of five builder tasks, with
+  eight new ideas and the phone-number items parked (docs/design/ROADMAP_V.md).
+- Browser extension ready for the Chrome Web Store, Edge Add-ons and Firefox Add-ons (not published yet):
+  `node scripts/pack-extension.ts` now makes one zip per store plus a source zip for Firefox review, with
+  Sara's version; the Firefox build declares its data use for Firefox's own consent screen (passes Mozilla's
+  web-ext lint cleanly); store name and long description in six languages; shorter summaries that fit
+  Chrome's 132-character limit (French, Portuguese and Italian were too long); a privacy policy
+  (docs/EXTENSION_PRIVACY.md) and every store form answer, permission reason and picture in
+  docs/STORE_LISTINGS.md.
+- Developer SDK ready for npm as `@farena-ai/sara-sdk` (not published yet): public package settings,
+  links to the public repository, examples shipped in the package, and the owner's publishing steps in
+  docs/NPM_PUBLISH.md.
+- Try these has checks for every release from 3.19 to 3.24 (test restores, What's new, Talk with Sara,
+  Business, shared projects, the marketplace, picture editing, Money, Family, Health, study cards, the
+  browser extension, free flight status, Word comments, team recipes, the taskbar count and more), so
+  What's new shows Try it on every release (V0.3, docs/TRY_THESE.md).
+- Settings → Privacy & system → Health → Readiness: the Restore drill row also counts the monthly test
+  restores. A recent passed test restore makes it Ready, a newer failed one says so and opens Backups,
+  and a drill line adds how many test restores passed in the last 30 days (V0.4).
+- Stock prices come from Nasdaq first (no key, the exchange's own prices for US stocks and ETFs), with
+  Yahoo Finance right behind it for indexes, other markets and anything Nasdaq can't answer; each answer
+  names where it came from. Yahoo, Stooq, Finnhub and Alpha Vantage stay as choices (V0.10, docs/DATA.md).
+- Trips: Rename on a trip card edits its name in place; an empty name gives back hers (V0.10).
+- Library: documents kept more than once show a line with Keep one of each; one copy stays, with what
+  she learned from it and its collection (V0.10, docs/LIBRARY.md).
+- Windows: when Azure signing is set up, Inno Setup signs Setup and its uninstaller through the same
+  sign.sh; unsigned builds are unchanged (V0.6, docs/ops/WINDOWS_SIGNING.md).
+- Fixed: stopping Sara (the Windows service closing her input) could wait for a backup tick's test
+  restore or weekly check; the stop now skips that maintenance, waits at most 5 s for a running tick and
+  always ends within 15 s, under the service host's 20 s (V0.6).
+- Developers: `node scripts/whats-new.ts` prints exactly what to translate (lines ready to append per
+  language), and `--prune [--dry-run]` drops translations of highlights that left the 8-release window,
+  never a key something else uses (V0.5, docs/WHATS_NEW.md).
+- New: **Sign in with your provider** (OpenID Connect) on every server, not only business mode
+  (V0.8, docs/SIGN_IN_SSO.md). Settings → Connections → Devices and sign-in: pick authentik, Keycloak,
+  Pocket ID, Authelia, Google, Microsoft Entra ID, Okta or another provider, follow its 3–4 steps, paste
+  the redirect URL Sara shows, say who is who by email or group, then Check the provider and Test
+  sign-in (a new window that signs nobody in). Optional owner/member/kid groups, a preview of who maps
+  to whom, and new members from an allow-list (off by default, adults only). Your token, passkeys and
+  pairing codes always keep working. Business company sign-in gains the self-hosted presets too.
+- Voice: the loaded-engine helper now ships with the Windows installer and the Mac app (built by the
+  release against the pinned sherpa-onnx), so Windows and Mac servers answer by voice about a second
+  sooner too; the voice install puts it next to the sherpa tools (V0.1).
+- Voice: words as you speak in Talk with Sara (V0.2). An optional streaming hearing model (free, about
+  105 MB) shows your words while you talk and ends your turn a little sooner. Settings → Sara → Voice →
+  Talk with Sara → Hearing while you talk, or `sara voice install --streaming`
+  (`install-voice.sh --streaming` on Linux). Whole sentences stay the default.
+
 ## 3.24.0 (2026-11-18): Security review, backup test restores, What's new, server dashboard, faster voice
 
 - Security: a review of the parts other servers, web pages and links can reach (U5.33,

@@ -151,5 +151,11 @@
  },
  "menuSave": {
   "message": "Save this page to Sara’s Library"
+ },
+ "extName": {
+  "message": "Sara: your own AI in the browser"
+ },
+ "storeDescription": {
+  "message": "Sara is a personal AI companion that you run on your own server or PC. This extension connects your browser to YOUR Sara, and to nothing else.\n\nOn the page you are on:\n• Ask Sara about this page: she reads the page's text and answers in the popup. Continue the chat in Sara with one click.\n• Summarize: a short summary of the page.\n• Save page to Library: the page's text and address are kept in her Library as a document.\n• Fill this form: Sara proposes values from My details. You see every field, untick or change any, then approve. Nothing is typed before you approve, and the form is never sent for you.\n• Right-click selected text to ask about it, or right-click a page to save it.\n• Off on this site: one switch, and nothing from that site is read or sent.\n\nPrivacy and safety:\n• Data goes only to the Sara server you pair with. No analytics, no ads, no other servers, no remote code.\n• A page is read only when you click. Nothing runs in the background.\n• Never filled: passwords, payment cards, one-time codes and ID numbers.\n• Pairing uses a short code you approve inside Sara. Disconnect in the popup, or sign it out in Sara, and its access ends at once.\n\nYou need a Sara server (free and open source). Learn more and set one up at https://github.com/farena-ai/sara"
  }
 }

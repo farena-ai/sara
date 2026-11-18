@@ -1,5 +1,6 @@
 // U1.5 (docs/TRY_THESE.md): "Try these", a guided owner checklist inside the app. A short curated
-// list of plain "try this" items drawn from the newest docs/OWNER_CHECKS.md (3.15-3.18.2), each with
+// list of plain "try this" items drawn from the newest docs/OWNER_CHECKS.md (3.15-3.18.2) and, since
+// V0.3, the CHANGELOG of 3.19-3.24 (so What's new "Try it" has a check for every release), each with
 // 1-3 steps, a deep link that opens the exact place (a `#view=` hash or a prefilled chat message),
 // and what you should see. The owner marks each Worked / Didn't work / Skip with an optional note;
 // results live in <data>/owner-checks.json. The owner can export them as Markdown or, once they turn
@@ -26,9 +27,37 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.24.0
+  { id: 'restore-now', release: '3.24.0', title: en('Test a restore now'), steps: [en('Find Test restores on this page.'), en('Press Test a restore now.')], view: '#view=settings:dh-backups', expect: en('After a minute or two a Passed row with how long it took. Your chats and files are not changed.') },
+  { id: 'whats-new-help', release: '3.24.0', title: en('What’s new any time'), steps: [en('Open What’s new on this page.'), en('Press Show me on one of its lines.')], view: '#view=help', expect: en('Each release since the version you last saw, in plain words, and Show me opens the place it lives.') },
+  // 3.23.0
+  { id: 'talk-hands-free', release: '3.23.0', title: en('Talk with Sara hands-free'), steps: [en('Check that Talk with Sara is turned on here.'), en('Press Talk with Sara next to the message box, ask something, then talk over her answer.')], view: '#view=settings:her-voice', expect: en('She answers out loud sentence by sentence with a live transcript, and stops when you talk over her.') },
+  { id: 'business-invoice', release: '3.23.0', title: en('Invoice a client’s hours'), steps: [en('In Business, add a client with an hourly rate.'), en('Start and stop the timer, then invoice the unbilled hours.')], view: '#view=business', expect: en('An invoice with the client’s terms and a PDF. Email it shows the exact email before anything is sent.') },
+  { id: 'shared-project', release: '3.23.0', title: en('Share a project with a friend'), steps: [en('On a project page, press Shared with friends.'), en('Invite a linked friend as Can edit, then add a to-do.')], view: '#view=shared', expect: en('Your friend accepts and sees the to-do, and their changes show up on your side too.') },
+  { id: 'market-share', release: '3.23.0', title: en('Share a skill with friends'), steps: [en('Under Shared by friends, share a skill to a community.'), en('On a friend’s Sara, open the listing and install it.')], view: '#view=addons', expect: en('Before installing, the listing says exactly what it does, and the skill starts on trial.') },
+  { id: 'picture-edit', release: '3.23.0', title: en('Edit a picture on your computer'), steps: [en('With ComfyUI running, open a picture in the Library.'), en('Press Edit picture… and upscale it 2×.')], view: '#view=library', expect: en('A new Library item with a before/after slider. The original picture is unchanged.') },
+  // 3.22.1
+  { id: 'windows-open', release: '3.22.1', title: en('Every window opens'), steps: [en('Open Money, then Settings, Health and Family.')], view: '#view=money', expect: en('Each window shows its own content. None of them is empty.') },
+  // 3.22.0
+  { id: 'extension-pair', release: '3.22.0', title: en('Pair the browser extension'), steps: [en('Load the extension in Chrome, Edge or Firefox.'), en('Approve its short code on this page.')], view: '#view=settings:dh-devices', expect: en('The extension is listed here, and Ask Sara about this page answers in its popup.') },
+  { id: 'money-import', release: '3.22.0', title: en('Add your bank exports'), steps: [en('In Money, add a CSV or OFX export from your bank.'), en('Add the next month’s export too.')], view: '#view=money', expect: en('Spending by category, and a purchase in both files is counted once.') },
+  { id: 'family-meals', release: '3.22.0', title: en('Plan a week of dinners'), steps: [en('In Family → Meals, pick a dinner for each night.'), en('Press Add to the grocery list.')], view: '#view=family', expect: en('The ingredients are added up and sorted by aisle. A dinner that clashes with an allergy says so.') },
+  { id: 'health-medicine', release: '3.22.0', title: en('A medicine reminder'), steps: [en('In Health, add a medicine with a dose time.'), en('When the reminder comes, press Taken.')], view: '#view=health', expect: en('The dose is logged as Taken and the refill estimate counts it.') },
+  { id: 'study-set', release: '3.22.0', title: en('Make study cards'), steps: [en('Make a study set from a Library document.'), en('Study a few cards with Again, Hard, Good or Easy.')], view: '#view=study', expect: en('Flashcards and questions from that document. Cards you knew come back on later days.') },
+  // 3.21.0
+  { id: 'flight-free', release: '3.21.0', title: en('Free flight status'), steps: [en('Under flight status, pick OpenSky Network.'), en('Open a trip with a flight today.')], view: '#view=trips', expect: en('Whether the plane is in the air, on the ground or landed, without a key.') },
+  { id: 'word-comment', release: '3.21.0', title: en('A comment in Word'), steps: [en('Have a Word contract in the Library, then send this message.')], ask: en('Add a comment to my contract asking about the payment terms'), expect: en('A note in the margin on those words. The words themselves are unchanged.') },
+  { id: 'team-recipe', release: '3.21.0', title: en('Save a team recipe'), steps: [en('After a team run finishes, press Save as a team recipe.'), en('Run the recipe again with a new job.')], view: '#view=team', expect: en('The plan comes back with the same helpers and still waits for your OK.') },
+  { id: 'ask-meeting', release: '3.21.0', title: en('Ask about a meeting'), steps: [en('Record or upload a meeting.'), en('Ask about anything: what was decided in that meeting?')], view: '#view=meetings', expect: en('An answer with a source that opens the meeting at the line where it was said.') },
+  // 3.20.0
+  { id: 'phone-connect', release: '3.20.0', title: en('Connect an iPhone'), steps: [en('Open this page on an iPhone in Safari.')], view: '#view=settings:co-phone', expect: en('It explains Add to Home Screen and never sends you to Google Play.') },
+  { id: 'taskbar-count', release: '3.20.0', title: en('Unread count on the taskbar'), steps: [en('In the Windows app, have a linked friend send you a message.'), en('Read it in Messages.')], view: '#view=settings:desktop-app', expect: en('A small red number on Sara’s taskbar button that goes away once you read it.') },
+  // 3.19.0
+  { id: 'try-these-report', release: '3.19.0', title: en('Mark a check and export'), steps: [en('Mark one item here Worked and add a note.'), en('Press Export as Markdown.')], view: '#view=try', expect: en('The progress counts it, and the file lists it with your note.') },
+  { id: 'stock-project', release: '3.19.0', title: en('Alerts into a new project'), steps: [en('Send this message in a new chat.'), en('Say yes when she offers to make the project.')], ask: en('Put my stock alerts in a project called Stock Alerts'), expect: en('A Stock Alerts project is made and the alerts go there, not to this chat.') },
   // 3.18.2
   { id: 'google-several', release: '3.18.2', title: en('Add a second Google account'), steps: [en('Press + Add an account and pick Google account.'), en('Sign in with a different Google address.')], view: '#view=settings:ab-mail', expect: en('Both accounts are listed with their own address. The first one is still there.') },
   { id: 'google-ask', release: '3.18.2', title: en('Ask her for another mail account'), steps: [en('Send this message in a new chat.')], ask: en('Add another email account'), expect: en('A card with your accounts and a + Add an account button.') },

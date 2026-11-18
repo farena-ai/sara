@@ -14,6 +14,7 @@ import { availableParallelism } from 'node:os';
 import { join } from 'node:path';
 import { FOR_APP, spokenText } from './spoken.ts';
 import { WarmWorker, type WarmState } from './voice-warm.ts';
+import { placeWorker } from './voice-install.ts';
 
 export type SttEngine = 'off' | 'local' | 'openai';
 export type TtsEngine = 'off' | 'local' | 'openai' | 'elevenlabs' | 'xai';
@@ -80,6 +81,8 @@ export interface VoiceManifest {
   sherpa: string;
   stt?: { kind: 'nemo-ctc'; model: string; tokens: string };
   voices: VoiceModel[];
+  /** V0.2: the optional streaming hearing model (words as you speak; `sara voice install --streaming`). */
+  online?: { kind: 'transducer'; encoder: string; decoder: string; joiner: string; tokens: string };
 }
 export interface VoiceModel {
   id: string;
@@ -182,7 +185,16 @@ export interface WarmConfig {
   worker?: string[];
   env?: NodeJS.ProcessEnv;
   minFreeMb?: number;
+  /** V0.1: where the release's prebuilt helper is (default: this server's own folder). */
+  helperRoot?: string;
 }
+
+/** V0.2: the streaming worker stays at least this long after a stream, even with keep-loaded Off. */
+const STREAM_IDLE_MS = 2 * 60_000;
+/** V0.2: half a second of 16 kHz 16-bit audio per worker line. */
+const STREAM_PIECE = 16_000;
+/** V0.2: seconds of quiet after words that end a turn (measured in docs/RESULTS.md). */
+const STREAM_END = '0.5';
 
 export class LocalVoiceEngine {
   readonly dir: string;
@@ -209,19 +221,30 @@ export class LocalVoiceEngine {
   // ---- U5: loaded workers (one for hearing, one per voice; at most two voices kept) ----
 
   /** The worker command prefix, or undefined when keep-loaded is off or the helper isn't installed. */
-  #workerCmd(): string[] | undefined {
+  #workerCmd(streaming = false): string[] | undefined {
     if (!this.#warm || !this.manifest) return undefined;
-    if (this.#warm.idleMs() <= 0) {
-      if (this.#workers.size) this.stopWorkers(); // switched off: free the memory now
+    if (this.#warm.idleMs() <= 0 && !streaming) {
+      for (const [k, w] of this.#workers) if (k !== 'online') (w.stop(), this.#workers.delete(k)); // switched off: free the memory now
       return undefined;
     }
     if (this.#warm.worker) return this.#warm.worker;
     const bin = this.#bin('sara-voice-worker');
-    return existsSync(bin) ? [bin] : undefined;
+    if (!existsSync(bin) && !this.#placed) {
+      // V0.1: Windows and Mac servers get the release's prebuilt helper, copied in once.
+      this.#placed = true;
+      try {
+        placeWorker(this.dir, this.manifest.sherpa, { root: this.#warm.helperRoot });
+      } catch {
+        // one-shot tools then
+      }
+    }
+    return existsSync(this.#bin('sara-voice-worker')) ? [this.#bin('sara-voice-worker')] : undefined;
   }
+  #placed = false;
 
   #worker(key: string, args: string[]): WarmWorker | undefined {
-    const cmd = this.#workerCmd();
+    const streaming = key === 'online';
+    const cmd = this.#workerCmd(streaming);
     if (!cmd) return undefined;
     let w = this.#workers.get(key);
     if (!w) {
@@ -231,7 +254,8 @@ export class LocalVoiceEngine {
         this.#workers.delete(voices[0]);
       }
       const warm = this.#warm!;
-      w = new WarmWorker(() => ({ cmd: cmd[0], args: [...cmd.slice(1), ...args], env: { ...this.#env(), ...warm.env } }), { idleMs: warm.idleMs, ...(warm.minFreeMb !== undefined ? { minFreeMb: warm.minFreeMb } : {}) });
+      const idleMs = streaming ? () => Math.max(warm.idleMs(), STREAM_IDLE_MS) : warm.idleMs;
+      w = new WarmWorker(() => ({ cmd: cmd[0], args: [...cmd.slice(1), ...args], env: { ...this.#env(), ...warm.env } }), { idleMs, ...(warm.minFreeMb !== undefined ? { minFreeMb: warm.minFreeMb } : {}) });
       this.#workers.set(key, w);
     }
     return w;
@@ -246,10 +270,47 @@ export class LocalVoiceEngine {
     return this.#worker(`tts:${v.id}`, ['tts', v.kind === 'kokoro' ? 'kokoro' : 'vits', this.#abs(v.model), this.#abs(v.tokens), this.#abs(v.dataDir), v.voices ? this.#abs(v.voices) : '-', String(this.#threads)]);
   }
 
+  #onlineWorker(): WarmWorker | undefined {
+    const o = this.manifest?.online;
+    // Rule 2: this much quiet after words is the end of the turn (the page waits 0.9 s without it).
+    return o ? this.#worker('online', ['online', this.#abs(o.encoder), this.#abs(o.decoder), this.#abs(o.joiner), this.#abs(o.tokens), String(this.#threads), process.env.SARA_TEST_STREAM_END ?? STREAM_END]) : undefined;
+  }
+
+  /** V0.2: true when words-as-you-speak hearing can run here (model installed and the helper present). */
+  streamingReady(): boolean {
+    return Boolean(this.manifest?.online && this.#workerCmd(true));
+  }
+
+  /**
+   * V0.2: feeds one piece of a live utterance (16 kHz mono 16-bit PCM) to the streaming model; `end`
+   * finishes it. Returns the words so far and whether the model heard the end of the turn. Throws a
+   * VoiceError on any trouble (the page then sends the whole recording as before).
+   */
+  async hear(id: string, pcm: Buffer, end: boolean): Promise<{ text: string; endpoint: boolean; loaded: boolean }> {
+    if (!/^[\w-]{1,40}$/.test(id)) throw new VoiceError('Bad stream id.');
+    const w = this.manifest?.online ? this.#onlineWorker() : undefined;
+    if (!w) throw new VoiceError('Streaming hearing is not installed here.');
+    let last = '0 ';
+    try {
+      const n = pcm.length - (pcm.length % 2);
+      const pieces = Math.max(1, Math.ceil(n / STREAM_PIECE));
+      for (let i = 0; i < pieces; i++) {
+        const b64 = pcm.subarray(i * STREAM_PIECE, Math.min(n, (i + 1) * STREAM_PIECE)).toString('base64') || '-';
+        last = await w.ask(`${end && i === pieces - 1 ? 'e' : 'a'} ${id} ${b64}`, 15_000);
+      }
+    } catch (err) {
+      throw new VoiceError(`Streaming hearing failed (${(err as Error).message}).`);
+    }
+    const m = /^([01]) ?([\s\S]*)$/.exec(last);
+    // `loaded`: the whole-sentence model is in memory, so the page re-hears the recording with it
+    // (~0.05 s, more accurate than the streaming words; docs/RESULTS.md) and shows these only as partials.
+    return { text: (m?.[2] ?? '').trim(), endpoint: m?.[1] === '1', loaded: this.#workers.get('stt')?.state === 'ready' };
+  }
+
   /** Loads hearing and the voice now (Talk opened). Never throws; true when something is loading. */
-  async warm(voiceId?: string): Promise<boolean> {
+  async warm(voiceId?: string, opts: { streaming?: boolean } = {}): Promise<boolean> {
     const v = this.manifest?.voices.find((x) => x.id === voiceId) ?? this.manifest?.voices[0];
-    const ws = [this.#sttWorker(), v ? this.#ttsWorker(v) : undefined].filter((w): w is WarmWorker => Boolean(w));
+    const ws = [this.#sttWorker(), v ? this.#ttsWorker(v) : undefined, opts.streaming ? this.#onlineWorker() : undefined].filter((w): w is WarmWorker => Boolean(w));
     await Promise.all(ws.map((w) => w.start().catch(() => undefined)));
     return ws.length > 0;
   }

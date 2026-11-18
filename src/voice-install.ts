@@ -8,8 +8,9 @@
 // Linux keeps the shell script (one Linux path): `sara voice install` there only says so.
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { basename, dirname, isAbsolute, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { netFetch, privateLocalOn } from './net-guard.ts';
@@ -43,6 +44,59 @@ export const SHERPA_BUNDLES: Record<string, InstallItem> = {
 /** About 650 MB in all (shown before the install starts). */
 export const INSTALL_MB = 650;
 
+/**
+ * V0.2 (docs/VOICE_FIRST.md "Words as you speak"): the optional streaming hearing model, NVIDIA's
+ * NeMo FastConformer transducer (CC-BY-4.0, English, 80 ms look-ahead, int8), the same pin as
+ * deploy/install-voice.sh. SHA-256 = GitHub's asset digest, matched by the downloaded file 2026-11-18.
+ */
+export const STREAM_MODEL: InstallItem = { path: 'asr-models/sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8.tar.bz2', sha256: '7bd33a914e93370a1ba9c2066d9e841bdcad8613fa2a00537c1ae15d851a14d8', size: 102_813_625 };
+export const STREAM_MB = 105;
+const STREAM_DIR = 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8';
+
+// ---- V0.1: the loaded-engine helper, prebuilt by the release (Windows and Mac have no compiler) ----
+
+/** The repo / installed server folder (…/server on Windows, Contents/Resources/server on a Mac). */
+export const SERVER_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+/** Which prebuilt helper fits this system (undefined: none is shipped; Linux builds its own). */
+export function workerTarget(platform: NodeJS.Platform = process.platform, arch: string = process.arch): string | undefined {
+  if (platform === 'win32') return arch === 'x64' ? 'win32-x64' : undefined;
+  if (platform === 'darwin') return 'darwin-universal';
+  return undefined;
+}
+
+/**
+ * The shipped helper for this sherpa bundle: `<root>/voice-helper/sherpa-onnx-<version>/<target>/`,
+ * built by desktop/windows/build-voice-helper.sh or desktop/mac/build.sh against that release (the
+ * C config structs change between releases, so another version never uses it).
+ */
+export function shippedWorker(root: string, sherpa: string, platform: NodeJS.Platform = process.platform, arch: string = process.arch): string | undefined {
+  const version = /^sherpa-onnx-(v\d+\.\d+\.\d+)-/.exec(basename(sherpa))?.[1];
+  const target = workerTarget(platform, arch);
+  if (!version || !target) return undefined;
+  const file = join(root, 'voice-helper', `sherpa-onnx-${version}`, target, platform === 'win32' ? 'sara-voice-worker.exe' : 'sara-voice-worker');
+  return existsSync(file) ? file : undefined;
+}
+
+/**
+ * Copies the shipped helper next to the sherpa tools (`<sherpa>/bin`), where it finds the bundle's own
+ * libraries: on Windows the exe's folder is searched before System32, which has an older
+ * onnxruntime.dll; on a Mac its rpath is @executable_path/../lib. 'current' when it's already there.
+ */
+export function placeWorker(voiceDir: string, sherpa: string, opts: { root?: string; platform?: NodeJS.Platform; arch?: string } = {}): 'placed' | 'current' | 'none' {
+  const platform = opts.platform ?? process.platform;
+  const src = shippedWorker(opts.root ?? SERVER_ROOT, sherpa, platform, opts.arch);
+  // voice.json names the bundle folder (installs) or gives an absolute path (hand-made setups).
+  const bin = join(isAbsolute(sherpa) || /^[A-Za-z]:/.test(sherpa) ? sherpa : join(voiceDir, sherpa), 'bin');
+  if (!src || !existsSync(bin)) return 'none';
+  const dest = join(bin, platform === 'win32' ? 'sara-voice-worker.exe' : 'sara-voice-worker');
+  const same = existsSync(dest) && statSync(dest).size === statSync(src).size && readFileSync(dest).equals(readFileSync(src));
+  if (same) return 'current';
+  copyFileSync(src, `${dest}.part`);
+  renameSync(`${dest}.part`, dest);
+  return 'placed';
+}
+
 export class VoiceInstallError extends Error {
   readonly code: 'private' | 'checksum' | 'contents' | 'download' | 'unpack' | 'platform' | 'cancelled';
   constructor(code: VoiceInstallError['code'], message: string) {
@@ -55,13 +109,16 @@ const nameOf = (item: InstallItem) => item.path.split('/').at(-1)!;
 const dirOf = (item: InstallItem) => nameOf(item).replace(/\.tar\.bz2$/, '');
 
 /** What this system installs (undefined: not this way; Linux has the shell script). */
-export function installItems(platform: NodeJS.Platform = process.platform, arch: string = process.arch): InstallItem[] | undefined {
+export function installItems(platform: NodeJS.Platform = process.platform, arch: string = process.arch, opts: { streaming?: 'add' | 'only' } = {}): InstallItem[] | undefined {
   const bundle = platform === 'win32' ? SHERPA_BUNDLES[`win32-${arch === 'arm64' ? 'arm64' : 'x64'}`] : platform === 'darwin' ? SHERPA_BUNDLES['darwin-any'] : undefined;
-  return bundle ? [bundle, ...VOICE_MODELS] : undefined;
+  if (!bundle) return undefined;
+  // V0.2: 'only' = just the streaming model (the rest is installed); 'add' = everything plus it.
+  if (opts.streaming === 'only') return [STREAM_MODEL];
+  return opts.streaming === 'add' ? [bundle, ...VOICE_MODELS, STREAM_MODEL] : [bundle, ...VOICE_MODELS];
 }
 
 /** voice.json exactly as deploy/install-voice.sh writes it (the bundle folder name is the only difference). */
-export function voiceManifest(sherpa: string): VoiceManifest {
+export function voiceManifest(sherpa: string, opts: { online?: boolean } = {}): VoiceManifest {
   const P = 'sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8';
   const K = 'kokoro-en-v0_19';
   const V = 'vits-piper-en_US-hfc_female-medium';
@@ -73,6 +130,8 @@ export function voiceManifest(sherpa: string): VoiceManifest {
       ...kokoro.map(([sid, label]) => ({ id: `kokoro:${sid}`, label: `${label}, natural`, kind: 'kokoro' as const, model: `${K}/model.onnx`, voices: `${K}/voices.bin`, tokens: `${K}/tokens.txt`, dataDir: `${K}/espeak-ng-data`, sid })),
       { id: 'piper:hfc_female', label: 'Piper (US), fast', kind: 'vits' as const, model: `${V}/en_US-hfc_female-medium.onnx`, tokens: `${V}/tokens.txt`, dataDir: `${V}/espeak-ng-data` },
     ],
+    // V0.2: the streaming hearing model, when it's installed.
+    ...(opts.online ? { online: { kind: 'transducer' as const, encoder: `${STREAM_DIR}/encoder.int8.onnx`, decoder: `${STREAM_DIR}/decoder.int8.onnx`, joiner: `${STREAM_DIR}/joiner.int8.onnx`, tokens: `${STREAM_DIR}/tokens.txt` } } : {}),
   };
 }
 
@@ -136,9 +195,15 @@ export async function downloadPinned(url: string, sha256: string, dest: string, 
  * Installs her hearing and voices into `voiceDir`. Items already there are skipped (as the shell
  * script does). Returns what was installed.
  */
-export async function installVoice(voiceDir: string, opts: { platform?: NodeJS.Platform; arch?: string; fetch?: typeof fetch; untar?: Untar; signal?: AbortSignal; onProgress?: (p: Progress) => void } = {}): Promise<{ installed: string[]; manifest: VoiceManifest }> {
-  const items = installItems(opts.platform, opts.arch);
-  if (!items) throw new VoiceInstallError('platform', 'On Linux use: sudo ./deploy/install-voice.sh');
+export async function installVoice(
+  voiceDir: string,
+  opts: { platform?: NodeJS.Platform; arch?: string; fetch?: typeof fetch; untar?: Untar; signal?: AbortSignal; onProgress?: (p: Progress) => void; streaming?: 'add' | 'only'; items?: InstallItem[]; helperRoot?: string } = {},
+): Promise<{ installed: string[]; manifest: VoiceManifest }> {
+  const all = installItems(opts.platform, opts.arch);
+  // V0.2: 'only' needs the rest to be there already; otherwise everything is installed with it.
+  const haveRest = Boolean(all?.every((i) => existsSync(join(voiceDir, dirOf(i)))));
+  const items = opts.items ?? installItems(opts.platform, opts.arch, opts.streaming ? { streaming: opts.streaming === 'only' && haveRest ? 'only' : 'add' } : {});
+  if (!all || !items) throw new VoiceInstallError('platform', 'On Linux use: sudo ./deploy/install-voice.sh');
   if (privateLocalOn()) throw new VoiceInstallError('private', 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
   const untar = opts.untar ?? runTar(systemTar(opts.platform));
   mkdirSync(voiceDir, { recursive: true });
@@ -172,8 +237,15 @@ export async function installVoice(voiceDir: string, opts: { platform?: NodeJS.P
     rmSync(part, { recursive: true, force: true });
     rmSync(dl, { recursive: true, force: true });
   }
-  const manifest = voiceManifest(dirOf(items[0]));
+  const sherpa = dirOf(all[0]);
+  const manifest = voiceManifest(sherpa, { online: existsSync(join(voiceDir, STREAM_DIR)) });
   writeFileSync(join(voiceDir, 'voice.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  // V0.1: the prebuilt loaded-engine helper goes next to the sherpa tools (never fatal).
+  try {
+    placeWorker(voiceDir, sherpa, { root: opts.helperRoot, platform: opts.platform, arch: opts.arch });
+  } catch {
+    // voice still works, one model load per call
+  }
   return { installed, manifest };
 }
 
@@ -186,12 +258,13 @@ export function engineAfterInstall(v: { stt: string; tts: string }): { stt?: 'lo
 export async function runVoiceCli(args: string[], opts: { platform?: NodeJS.Platform; voiceDir: string; log?: (s: string) => void; install?: typeof installVoice; afterInstall?: () => void }): Promise<number> {
   const log = opts.log ?? ((s: string) => console.log(s));
   const platform = opts.platform ?? process.platform;
-  if (args[0] !== 'install') {
-    log('Usage: sara voice install   (her own hearing and voices on this computer, about 650 MB)');
+  const streaming = args.includes('--streaming');
+  if (args[0] !== 'install' || args.slice(1).some((a) => a !== '--streaming')) {
+    log(`Usage: sara voice install [--streaming]   (her own hearing and voices on this computer, about 650 MB; --streaming adds words-as-you-speak hearing, about ${STREAM_MB} MB)`);
     return args.length ? 2 : 0;
   }
   if (platform === 'linux') {
-    log('Use: sudo ./deploy/install-voice.sh');
+    log(streaming ? 'Use: sudo ./deploy/install-voice.sh --streaming' : 'Use: sudo ./deploy/install-voice.sh');
     return 0;
   }
   if (privateLocalOn()) {
@@ -203,6 +276,7 @@ export async function runVoiceCli(args: string[], opts: { platform?: NodeJS.Plat
   try {
     const r = await (opts.install ?? installVoice)(opts.voiceDir, {
       platform,
+      ...(streaming ? { streaming: 'add' as const } : {}),
       onProgress: (p) => {
         const line = `${p.index + 1}/${p.of} ${p.item}${p.total ? ` ${Math.floor((p.bytes / p.total) * 100)} %` : ''}`;
         if (line !== last && (p.bytes === p.total || /0 %$/.test(line))) log(line);

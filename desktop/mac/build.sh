@@ -115,6 +115,20 @@ done
 # Phase 87: the shared page agent (her testing browser reads pages with it too).
 mkdir -p "$S/desktop/shared" && cp "$ROOT/desktop/shared/page-agent.js" "$S/desktop/shared/"
 cp "$ROOT/package.json" "$ROOT/LICENSE" "$S/"
+# V0.1 (docs/VOICE_FIRST.md "Engines stay loaded"): the loaded-engine voice helper, prebuilt (a Mac
+# server has no compiler), one universal binary against the SAME sherpa-onnx bundle the voice install
+# downloads (src/voice-install.ts SHERPA_BUNDLES['darwin-any']; the C structs change between releases).
+# `sara voice install` copies it into <sherpa>/bin, where @executable_path/../lib finds the libraries.
+SHERPA_VOICE=sherpa-onnx-v1.13.8-osx-universal2-shared
+SHERPA_VOICE_SHA=2249f97f10df7d828af1b0d10e3d1eeaa2198b60b9a999a7ed853c150181ccfd
+VT="$CACHE/$SHERPA_VOICE.tar.bz2"
+[ -f "$VT" ] || { curl -fsSL "https://github.com/k2-fsa/sherpa-onnx/releases/download/v1.13.8/$SHERPA_VOICE.tar.bz2" -o "$VT.part" && mv "$VT.part" "$VT"; }
+echo "$SHERPA_VOICE_SHA  $VT" | shasum -a 256 -c --quiet - || { rm -f "$VT"; echo "Voice bundle checksum mismatch." >&2; exit 1; }
+tar xjf "$VT" -C build "$SHERPA_VOICE/include" "$SHERPA_VOICE/lib"
+VH="$S/voice-helper/sherpa-onnx-v1.13.8/darwin-universal"
+mkdir -p "$VH"
+clang -O2 -arch arm64 -arch x86_64 -mmacosx-version-min=13.0 -o "$VH/sara-voice-worker" "$ROOT/deploy/voice/sara-voice-worker.c" -I"build/$SHERPA_VOICE/include" -L"build/$SHERPA_VOICE/lib" -lsherpa-onnx-c-api -Wl,-rpath,@executable_path/../lib
+lipo -info "$VH/sara-voice-worker"
 find "$S" -name '.DS_Store' -delete
 
 # A signing keychain of its own (made once, see docs/desktop.md) is unlocked for the build.
@@ -136,6 +150,8 @@ while IFS= read -r f; do
   if file -b "$f" | grep -q Mach-O; then codesign "${SIGN[@]}" "$f"; fi
 done < <(find "$N/lib" -type f -perm -u+x)
 codesign "${SIGN[@]}" --entitlements node.entitlements "$N/bin/node"
+# V0.1: the voice helper loads the downloaded sherpa libraries next to it, so library validation is off for it alone.
+codesign "${SIGN[@]}" --entitlements voice-helper.entitlements "$S/voice-helper/sherpa-onnx-v1.13.8/darwin-universal/sara-voice-worker"
 # C17: the Hey Sara engine, signed with the same identity (library validation then allows it).
 for f in "$APP"/Frameworks/*.dylib; do codesign "${SIGN[@]}" "$f"; done
 codesign "${SIGN[@]}" --entitlements Sara.entitlements build/Sara.app

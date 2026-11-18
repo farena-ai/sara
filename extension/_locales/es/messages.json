@@ -151,5 +151,11 @@
  },
  "menuSave": {
   "message": "Guardar esta página en la Biblioteca de Sara"
+ },
+ "extName": {
+  "message": "Sara: tu propia IA en el navegador"
+ },
+ "storeDescription": {
+  "message": "Sara es una compañera de IA personal que ejecutas en tu propio servidor o PC. Esta extensión conecta tu navegador con TU Sara, y con nada más.\n\nEn la página en la que estás:\n• Pregunta a Sara por esta página: lee el texto de la página y responde en la ventana emergente. Sigue la conversación en Sara con un clic.\n• Resumir: un resumen breve de la página.\n• Guardar en la Biblioteca: el texto y la dirección de la página se guardan en su Biblioteca como documento.\n• Rellenar este formulario: Sara propone valores de Mis datos. Ves cada campo, desmarca o cambia lo que quieras y luego apruebas. No se escribe nada antes de tu aprobación y el formulario nunca se envía por ti.\n• Clic derecho en un texto seleccionado para preguntar por él, o en una página para guardarla.\n• Desactivada en este sitio: un interruptor, y nada de ese sitio se lee ni se envía.\n\nPrivacidad y seguridad:\n• Los datos van solo al servidor de Sara que emparejas. Sin analítica, sin anuncios, sin otros servidores, sin código remoto.\n• Una página se lee solo cuando haces clic. Nada se ejecuta en segundo plano.\n• Nunca se rellenan: contraseñas, tarjetas de pago, códigos de un solo uso ni números de identificación.\n• El emparejamiento usa un código corto que apruebas dentro de Sara. Desconecta en la ventana emergente, o cierra su sesión en Sara, y su acceso termina al instante.\n\nNecesitas un servidor de Sara (gratuito y de código abierto). Más información e instalación en https://github.com/farena-ai/sara"
  }
 }

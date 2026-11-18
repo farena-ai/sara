@@ -117,6 +117,8 @@ export function firstSentence(body: string): string {
 
 /** Where a highlight lives, by its words (first rule wins). `owner`: members can't use it. */
 export const LINK_RULES: { re: RegExp; link: string; owner?: boolean }[] = [
+  // V0.3: before the Health rule (a test restore's line names Health → Self-repair).
+  { re: /\btest restores?\b/i, link: '#view=settings:dh-backups', owner: true },
   { re: /\bBusiness\b/, link: '#view=business', owner: true },
   { re: /\bMoney\b|\bbank\b/i, link: '#view=money' },
   { re: /\bself-repair\b|\bfixes that worked\b|\bfix(?:es)? (?:itself|herself)\b|\bfix yourself\b/i, link: '#view=settings:dh-health', owner: true },

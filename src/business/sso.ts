@@ -14,7 +14,9 @@ import type { BusinessControlStore } from './store.ts';
 import type { BusinessIdentity, BusinessPrincipal } from './types.ts';
 import { OidcClient, OidcError, issuerAllowed, type OidcClaims } from './oidc.ts';
 
-export type SsoPreset = 'entra' | 'google' | 'okta' | 'generic';
+export type SsoPreset = 'entra' | 'google' | 'okta' | 'generic' | 'authentik' | 'keycloak' | 'pocketid' | 'authelia';
+/** V0.8: self-hosted presets; Authelia and Pocket ID send groups only for the groups scope. */
+const SSO_PRESETS: readonly SsoPreset[] = ['entra', 'google', 'okta', 'generic', 'authentik', 'keycloak', 'pocketid', 'authelia'];
 export interface SsoConfig {
   enabled: boolean; preset: SsoPreset; issuer: string; clientId: string; allowedDomains: string[];
   groupClaim: string; adminGroups: string[]; memberGroups: string[]; jit: boolean; enforce: boolean;
@@ -96,7 +98,7 @@ export class BusinessSso {
     if (this.#client?.key !== key) {
       const google = config.preset === 'google';
       this.#client = { key, client: new OidcClient({ issuer: config.issuer, clientId: config.clientId, clientSecret: secret, redirectUri: this.redirectUrl, privateLocal: this.#privateLocal,
-        scope: google ? 'openid email profile' : 'openid email profile offline_access', params: google ? { access_type: 'offline', prompt: 'consent' } : {}, ...(this.#fetch ? { fetch: this.#fetch } : {}) }) };
+        scope: google ? 'openid email profile' : `openid email profile offline_access${config.preset === 'authelia' || config.preset === 'pocketid' ? ' groups' : ''}`, params: google ? { access_type: 'offline', prompt: 'consent' } : {}, ...(this.#fetch ? { fetch: this.#fetch } : {}) }) };
     }
     return this.#client.client;
   }
@@ -117,7 +119,7 @@ export class BusinessSso {
     const next: SsoConfig = { ...before };
     const bool = (name: 'enabled' | 'jit' | 'enforce') => { if (input[name] !== undefined) { if (typeof input[name] !== 'boolean') throw new BusinessAccessError(400); next[name] = input[name]; } };
     bool('enabled'); bool('jit'); bool('enforce');
-    if (input.preset !== undefined) { if (!['entra', 'google', 'okta', 'generic'].includes(String(input.preset))) throw new BusinessAccessError(400); next.preset = input.preset as SsoPreset; }
+    if (input.preset !== undefined) { if (!SSO_PRESETS.includes(input.preset as SsoPreset)) throw new BusinessAccessError(400); next.preset = input.preset as SsoPreset; }
     if (input.issuer !== undefined) { if (input.issuer !== '' && (!plain(input.issuer, 512) || !issuerAllowed(input.issuer, this.#privateLocal))) throw new BusinessAccessError(400); next.issuer = String(input.issuer); }
     if (input.clientId !== undefined) { if (input.clientId !== '' && !plain(input.clientId, 256)) throw new BusinessAccessError(400); next.clientId = String(input.clientId); }
     if (input.allowedDomains !== undefined) next.allowedDomains = list(input.allowedDomains, 50, d => /^(?=.{3,253}$)[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(d)).map(d => d.toLowerCase());

@@ -200,7 +200,7 @@ test('the classic call takes an optional speech gate: loud non-speech never star
 
 test('talk prefs, the talk note and Hey Sara starting a talk', () => {
   assert.deepEqual(cleanTalk(undefined), TALK_DEFAULTS);
-  assert.deepEqual(cleanTalk({ fillers: false, approveByVoice: 'yes', goodbye: false }), { fillers: false, approveByVoice: true, goodbye: false, keepLoaded: 10 });
+  assert.deepEqual(cleanTalk({ fillers: false, approveByVoice: 'yes', goodbye: false }), { fillers: false, approveByVoice: true, goodbye: false, keepLoaded: 10, hearing: 'whole' });
   const note = talkNote('Alex');
   assert.match(note, /spoken/);
   assert.match(note, /no lists, tables, markdown/);

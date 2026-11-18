@@ -106,6 +106,8 @@
       </details>
       <button type="submit">Sign in</button>
       <button id="login-passkey" type="button" class="ghost" hidden>Sign in with a passkey</button>
+      <button id="login-sso" type="button" class="ghost" hidden>Sign in with your provider</button>
+      <label id="login-sso-adult" class="row small login-sso-adult" hidden><input id="login-sso-18" type="checkbox"> I'm 18 or older (needed the first time) <button type="button" class="tip" data-tip="This server can make you an account the first time you sign in with your provider. Accounts are for people 18 or older.">?</button></label>
       <button id="demo-start" type="button" class="ghost" hidden>Try the demo (no sign-in)</button>
       <p id="demo-note" class="muted small" hidden>This is Sara's demo server: conversations aren't saved and disappear after a few hours. Please don't share personal information.</p>
       <p id="login-paircode" class="small" hidden><a href="/pair">Have a code from Settings → Connections → Devices and sign-in? Sign in with it</a></p>
@@ -3077,6 +3079,8 @@
       <label class="row"><input id="talk-voice-ok" type="checkbox" checked> Answer her cards by saying yes or no <button type="button" class="tip" data-tip="The card stays on screen while you talk. Money, passwords and her hands on the computer always need a tap.">?</button></label>
       <label class="row"><input id="talk-goodbye" type="checkbox" checked> Saying “goodbye” ends the talk <button type="button" class="tip" data-tip="Only &quot;goodbye&quot; on its own (or &quot;thanks, bye&quot;) ends it; inside a longer request it is just words to her.">?</button></label>
       <label class="row" data-owner-only>Keep hearing and voice loaded <button type="button" class="tip" data-tip="Her own hearing and voice on this server stay in memory after you talk, so she answers about a second sooner. Off loads them for every sentence and frees the memory.">?</button> <select id="talk-keep"><option value="0">Off</option><option value="10" selected>10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
+      <label class="row" data-owner-only>Hearing while you talk <button type="button" class="tip" data-tip="Words as you speak shows what she hears while you talk and ends your turn a little sooner, with a streaming hearing model on this server. Whole sentences hears each sentence when you stop.">?</button> <select id="talk-hearing"><option value="whole" selected>Whole sentences</option><option value="streaming">Words as you speak</option></select></label>
+      <p id="talk-stream-row" class="small" data-owner-only hidden><button id="talk-stream-get" type="button" class="ghost">Add words-as-you-speak hearing</button> <button type="button" class="tip" data-tip="Downloads the streaming hearing model for Talk with Sara (about 105 MB). Checked before use; what you say stays on this server.">?</button> <span id="talk-stream-status" class="muted small" role="status"></span></p>
       <!-- S2 (docs/MEETINGS.md): meeting recordings (web/meetings.js loadMeetingPrefs). -->
       <h3 data-owner-only>Meetings <button type="button" class="tip" data-tip="How Sara records and hears your meetings (Library → Meetings).">?</button></h3>
       <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
@@ -5266,6 +5270,39 @@
       </div>
       <div id="ts-off-row" class="add-row" hidden><label>Current code <input id="ts-off-code" inputmode="numeric" maxlength="6" autocomplete="one-time-code" data-nodirty></label><button id="ts-stop" type="button" class="ghost">Turn off</button></div>
       <p id="ts-status" class="small" role="status"></p>
+      <h3 id="sso-h" data-owner-only>Sign in with your provider <button type="button" class="tip" data-tip="OpenID Connect: people sign in with an account you already run or use (authentik, Keycloak, Pocket ID, Authelia, Google, Microsoft). Your token and passkeys always keep working.">?</button></h3>
+      <div id="sso-box" class="sso-box" data-owner-only data-nodirty data-noauto>
+        <p class="muted small">Your owner token and passkeys always keep working, so a broken provider never locks you out.</p>
+        <label class="row">Provider <button type="button" class="tip" data-tip="Picks the issuer pattern and the steps to follow at your provider. Other covers any OpenID Connect provider.">?</button> <select id="sso-preset"></select></label>
+        <ol id="sso-steps" class="sso-steps small"></ol>
+        <p class="small sso-redirect-row">Redirect URL to paste at the provider: <code id="sso-redirect" data-raw></code> <button id="sso-copy" type="button" class="ghost small">Copy</button></p>
+        <label class="row">Issuer URL <input id="sso-issuer" maxlength="512" autocomplete="off" spellcheck="false"> <button type="button" class="tip" data-tip="The provider's address for this app, exactly as it shows it (Sara reads /.well-known/openid-configuration there). https only, except on this computer.">?</button></label>
+        <label class="row">Client ID <input id="sso-client" maxlength="256" autocomplete="off" spellcheck="false"> <button type="button" class="tip" data-tip="The ID of the client or application you made at the provider.">?</button></label>
+        <label class="row">Client secret <input id="sso-secret" type="password" maxlength="4096" autocomplete="new-password"> <button type="button" class="tip" data-tip="Kept in Sara's encrypted vault and never shown again. Leave empty to keep the saved one.">?</button></label>
+        <label class="row">Button text <input id="sso-label" maxlength="40" placeholder="e.g. Family login"> <button type="button" class="tip" data-tip="What the sign-in page button says after &quot;Sign in with&quot;. Empty: &quot;Sign in with your provider&quot;.">?</button></label>
+        <p class="small"><strong>Who is who</strong> <button type="button" class="tip" data-tip="For each person, the emails (verified by the provider) or groups that are them. Nobody signs in as the owner unless you add them here or in an owner group.">?</button></p>
+        <div id="sso-people" class="sso-people"></div>
+        <details class="sso-more">
+          <summary class="small">Groups, new members and clock</summary>
+          <label class="row">Group claim <input id="sso-claim" maxlength="64" spellcheck="false"> <button type="button" class="tip" data-tip="The ID token field that lists a person's groups. Most providers use groups; Entra can send roles.">?</button></label>
+          <label class="row">Owner groups <input id="sso-rg-owner" maxlength="1200" placeholder="e.g. admins"> <button type="button" class="tip" data-tip="Anyone in one of these groups signs in as the owner. Leave empty unless only you are in it.">?</button></label>
+          <label class="row">Member groups <input id="sso-rg-member" maxlength="1200" placeholder="e.g. family"> <button type="button" class="tip" data-tip="When set, a member signs in only while in one of these groups (removing them at the provider stops new sign-ins).">?</button></label>
+          <label class="row">Kid groups <input id="sso-rg-kid" maxlength="1200" placeholder="e.g. kids"> <button type="button" class="tip" data-tip="When set, a child account signs in only while in one of these groups. Kids are never made automatically.">?</button></label>
+          <label class="row"><input id="sso-jit" type="checkbox"> Make a new member the first time an allowed person signs in <button type="button" class="tip" data-tip="Off by default. On: someone not here yet who is on the list below gets a member account at their first sign-in.">?</button></label>
+          <label class="row"><input id="sso-jit-adults" type="checkbox"> Everyone on this list is 18 or older <button type="button" class="tip" data-tip="Needed for new members. Children join with an invite from a parent or guardian.">?</button></label>
+          <label class="row">Allowed emails <input id="sso-jit-emails" maxlength="4000" placeholder="e.g. name@example.com"> <button type="button" class="tip" data-tip="Emails that may get a new member account (comma separated).">?</button></label>
+          <label class="row">Allowed groups <input id="sso-jit-groups" maxlength="1200" placeholder="e.g. family"> <button type="button" class="tip" data-tip="Anyone in these groups may get a new member account.">?</button></label>
+          <label class="row">Clock difference allowed (seconds) <input id="sso-skew" type="number" min="0" max="300" step="5"> <button type="button" class="tip" data-tip="How far this server's clock and the provider's may differ when checking an ID token's times. 60 is a good default.">?</button></label>
+        </details>
+        <p class="small"><strong>Preview</strong> <span class="muted">Uses the saved rules.</span></p>
+        <label class="row small">Email <input id="sso-pv-email" maxlength="254" placeholder="name@example.com"> <button type="button" class="tip" data-tip="Type an email (and groups) to see who that person would sign in as.">?</button></label>
+        <label class="row small">Groups <input id="sso-pv-groups" maxlength="1200" placeholder="e.g. family, kids"> <button type="button" class="tip" data-tip="The groups the provider would send, comma separated.">?</button></label>
+        <p id="sso-pv-out" class="small" role="status"></p>
+        <label class="row"><input id="sso-on" type="checkbox"> Show the button on the sign-in page <button type="button" class="tip" data-tip="Turn it on after Test sign-in worked. Off: nobody can sign in with the provider; the token and passkeys still work.">?</button></label>
+        <p class="actions-left"><button id="sso-save" type="button" class="small">Save</button> <button id="sso-check" type="button" class="ghost small">Check the provider</button> <button id="sso-test" type="button" class="ghost small">Test sign-in</button></p>
+        <p id="sso-status" class="muted small" role="status"></p>
+        <p id="sso-test-result" class="small" role="status"></p>
+      </div>
       <h3 id="bx-h">Browser extension <button type="button" class="tip" data-tip="Sara's extension for Chrome, Edge and Firefox: ask about the page you are on, save it to the Library, fill a form after you approve. Pair it with the code it shows.">?</button></h3>
       <div id="bx-box" class="bx-box" data-nodirty data-noauto>
         <label class="row"><input id="bx-on" type="checkbox"> Let the browser extension send pages to Sara</label>

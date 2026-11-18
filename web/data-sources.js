@@ -19,6 +19,7 @@ export function initDataSources(c) {
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
 
 const PROVIDER_WORDS = {
+  "No key. The exchange's own prices for US stocks and ETFs; anything else comes from Yahoo Finance.": () => t("No key. The exchange's own prices for US stocks and ETFs; anything else comes from Yahoo Finance."),
   'No key. Prices can be delayed up to 15 minutes.': () => t('No key. Prices can be delayed up to 15 minutes.'),
   'No key. End-of-day and delayed prices.': () => t('No key. End-of-day and delayed prices.'),
   'Free key: 60 requests a minute, US stocks.': () => t('Free key: 60 requests a minute, US stocks.'),

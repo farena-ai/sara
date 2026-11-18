@@ -26,8 +26,18 @@ words, with a link to the place each change lives.
 - **Translations:** every highlight and release title is an i18n key; `i18n-extract` reads the file,
   so the usual "0 missing" gate fails until the 5 languages have it, and
   `node scripts/whats-new.ts --check` fails when the file is stale or a highlight has no translation
-  (test/u5-whats-new.test.ts runs both). At release: rename Unreleased, run the script, translate what
-  `i18n-extract --missing es` lists.
+  (test/u5-whats-new.test.ts runs both).
+- **Release chores (V0.5), all in `scripts/whats-new.ts`:** rename Unreleased, then
+  1. `node scripts/whats-new.ts` writes the file and prints what to translate: each new highlight with
+     the languages that lack it, then per language the `"key": "",` lines ready to append before the
+     last `}` of `web/i18n/<lang>.json`;
+  2. `node scripts/whats-new.ts --prune` (try `--dry-run` first) drops the translations of highlights
+     that fell off the 8-release window (compared with the file before the run and the committed one),
+     never a key anything else in Sara still uses (`i18n-extract`'s full key list), so the
+     "translations nobody uses" gate stays green;
+  3. `node scripts/whats-new.ts --check` must pass. test/v0-whats-new-prune.test.ts covers it.
+- **Try these (V0.3):** every release from 3.15 on has at least one check in `src/owner-checks.ts`, so
+  each release's What's new shows Try it for the owner; a new release adds one or two checks.
 - **Run time:** `GET /api/whats-new` per person (`<data>/whats-new.json`: `seen`, `auto`). The first
   look on a new install only remembers the version. After an update `show` is true once with the
   releases since `seen`; closing the page (Got it, ✕, Esc) posts `/api/whats-new/seen`. "Show this after

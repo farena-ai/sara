@@ -8,7 +8,7 @@
 // TalkSession has no DOM use (unit-tested in Node with fakes); initTalk wires the page.
 import { approvalCommand } from './car-mode.js';
 import { t } from './naming.js';
-import { Call, Mic, SpeechGate } from './voice.js';
+import { Call, StreamHearing, Mic, SpeechGate } from './voice.js';
 
 /** No word from her this long after you spoke: a filler line plays. */
 export const FILLER_AFTER_MS = 700;
@@ -249,6 +249,13 @@ export function syncTalkButton(show) {
   if (b) b.hidden = !show;
 }
 
+/** V0.2: one piece of a live utterance to the streaming hearing model (web/voice.js StreamHearing). */
+async function postStream(id, bytes, end) {
+  const res = await fetch(`/api/voice/stream?id=${encodeURIComponent(id)}${end ? '&end=1' : ''}`, { method: 'POST', headers: { 'content-type': 'audio/L16' }, body: bytes });
+  if (!res.ok) throw new Error(`stream ${res.status}`);
+  return res.json();
+}
+
 function status(text) {
   const s = $('#tm-status');
   if (s) s.textContent = text;
@@ -328,6 +335,13 @@ export async function startTalk() {
     speaker: ctx.speaker,
     transcribe: ctx.transcribe,
     isSpeech: (f) => (gate ??= new SpeechGate(mic.ctx?.sampleRate ?? 48000)).push(f),
+    // V0.2: words as you speak (Settings → Voice → Talk with Sara → Hearing while you talk).
+    stream: ctx.voiceCfg()?.streaming?.on ? () => new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000) : undefined,
+    onPartial: (words) => {
+      // The newest words only, so a long sentence never squeezes the header.
+      const shown = words.length > 60 ? `…${words.slice(-60).replace(/^\S*\s/, '')}` : words;
+      if (!call?.muted) status(`“${shown}…”`);
+    },
     onUtterance: async (text) => {
       if (!session) return;
       // A yes/no for the waiting card (or goodbye) answers without stopping the turn that waits.

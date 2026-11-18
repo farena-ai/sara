@@ -960,6 +960,18 @@ export class LibraryStore {
       }));
   }
 
+  /**
+   * V0.10: the same file kept more than once in her library (added before uploads were matched by hash,
+   * or through another way in). Per group: every id (oldest first), a name, and the copy to keep: one
+   * she learned from, else one she read, else the oldest.
+   */
+  duplicates(): { ids: number[]; name: string; keep: number }[] {
+    const rows = this.db.prepare(`SELECT id, sha, name, status, learn FROM library_docs d WHERE keep = 1 AND status != 'failed' AND NOT ${ARCHIVE_SQL} AND sha IN (SELECT sha FROM library_docs d WHERE keep = 1 AND status != 'failed' AND NOT ${ARCHIVE_SQL} GROUP BY sha HAVING COUNT(*) > 1) ORDER BY id`).all() as { id: number; sha: string; name: string; status: string; learn: string }[];
+    const groups = new Map<string, typeof rows>();
+    for (const r of rows) groups.set(r.sha, [...(groups.get(r.sha) ?? []), r]);
+    return [...groups.values()].map((g) => ({ ids: g.map((r) => Number(r.id)), name: g[0].name, keep: Number((g.find((r) => r.learn === 'done') ?? g.find((r) => r.status === 'ready') ?? g[0]).id) }));
+  }
+
   /** Removes a document, its passages and (if nothing else uses it) the original file. */
   delete(id: number): boolean {
     assertNotHeld(this.db);

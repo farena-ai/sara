@@ -1149,6 +1149,8 @@ p:has(> #dc-status:empty):not(:has(> button:not([hidden]))) { display: none; }
 .lib-tools input { width: 100%; }
 .lib-list { display: grid; gap: 8px; margin-top: 6px; }
 .lib-card { display: flex; gap: 12px; align-items: flex-start; text-align: left; width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: inherit; font: inherit; cursor: pointer; }
+/* V0.10: the same document kept twice (web/library.js showDuplicates). */
+.lib-dups { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; justify-content: space-between; margin: 6px 0; padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: var(--text-1); }
 .lib-card:hover { border-color: var(--accent); }
 .lib-icon { font-size: 22px; line-height: 1.2; }
 .lib-card-body { display: grid; gap: 2px; min-width: 0; }
@@ -2064,6 +2066,8 @@ progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-rad
 #trips .tp-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 8px; }
 #trips .tp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; justify-content: space-between; }
 #trips .tp-title { font-size: 15px; font-weight: 650; color: var(--text-1); overflow-wrap: anywhere; }
+#trips .tp-rename-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; }
+#trips .tp-rename { flex: 1 1 140px; min-width: 0; }
 #trips .tp-line { margin: 0; padding: 0 0 0 14px; list-style: none; display: grid; gap: 8px; border-left: 2px solid color-mix(in srgb, var(--accent-solid) 35%, transparent); }
 #trips .tp-b { display: grid; gap: 2px; min-width: 0; }
 #trips .tp-b-top { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
@@ -2583,3 +2587,17 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 .shp .shp-activity summary { cursor: pointer; }
 .shp .shp-activity > div { padding: 2px 0; overflow-wrap: anywhere; }
 #shp-list .shp-person { padding: 6px 0; border-bottom: 1px solid var(--line); }
+
+/* V0.8: Sign in with your provider (Settings → Devices and sign-in) */
+#sso-box .sso-steps { margin: 4px 0 10px; padding-left: 1.6em; list-style: decimal outside; color: var(--muted); }
+#sso-box .sso-steps li { margin: 3px 0; overflow-wrap: anywhere; }
+#sso-box .sso-steps code, #sso-box .sso-redirect-row code { overflow-wrap: anywhere; word-break: break-all; }
+#sso-box .sso-people { display: grid; gap: 8px; margin: 6px 0 10px; }
+#sso-box .sso-person { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; }
+#sso-box .sso-person-head { margin: 0 0 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
+#sso-box .sso-person label.row input { flex: 1; min-width: 0; }
+#sso-box .sso-more { margin: 8px 0; }
+#sso-box #sso-test-result { overflow-wrap: anywhere; }
+#login-form .login-sso-adult { display: flex; gap: 8px; align-items: center; justify-content: center; }
+#login-form .login-sso-adult input { width: 18px; height: 18px; }
+.sso-test-done { margin: 20vh auto; max-width: 28em; text-align: center; color: var(--text); font: 16px/1.5 system-ui, sans-serif; }

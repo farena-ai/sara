@@ -113,3 +113,18 @@ test('build-installer signs the exes before packing and the installer after; shi
   const doc = readFileSync(join(ROOT, 'docs', 'ops', 'WINDOWS_SIGNING.md'), 'utf8');
   for (const s of ['Microsoft.ArtifactSigning.Client', 'az login', 'CertificateProfileName', 'metadata.json', 'signtool verify /pa']) assert.ok(doc.includes(s), s);
 });
+
+test('V0.6 the Inno uninstaller is signed too: SignTool + SignedUninstaller only when signing is set up', () => {
+  const iss = readFileSync(join(ROOT, 'desktop', 'windows', 'installer', 'sara.iss'), 'utf8');
+  const setup = iss.slice(iss.indexOf('[Setup]'), iss.indexOf('\n[', iss.indexOf('[Setup]') + 1));
+  // Guarded: without /DSignTool ISCC builds an unsigned Setup exactly as before.
+  assert.match(setup, /#ifdef SignTool\r?\nSignTool=\{#SignTool\}\r?\nSignedUninstaller=yes\r?\n#endif/);
+  const b = readFileSync(join(ROOT, 'desktop', 'windows', 'build-installer.sh'), 'utf8');
+  // The same Azure path: Inno calls sign.sh for Setup and its uninstaller ($f = the file, quoted by Inno).
+  assert.match(b, /if bash "\$HERE\/sign\.sh" --check/);
+  assert.ok(b.includes(String.raw`ISS_SIGN=(/DSignTool=sarasign "/Ssarasign=\$q$(winpath "$(command -v bash)")\$q \$q$(winpath "$HERE/sign.sh")\$q \$f")`), 'the sign tool runs sign.sh');
+  assert.match(b, /"\$ISCC" \/Q [^\n]*"\$\{ISS_SIGN\[@\]\}"/, 'ISCC gets the sign tool');
+  // Inno already signed Setup when signing is on; unsigned builds still say so after packing.
+  assert.match(b, /if \[\[ \$\{#ISS_SIGN\[@\]\} == 0 \]\]; then bash "\$HERE\/sign\.sh" "\$OUT\/Sara-Setup-\$VERSION\.exe"; fi/);
+  assert.match(readFileSync(join(ROOT, 'docs', 'ops', 'WINDOWS_SIGNING.md'), 'utf8'), /uninstaller/i);
+});

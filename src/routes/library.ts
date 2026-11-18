@@ -265,6 +265,30 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
         if (!from || !to) throw new HttpError(400, 'Bad request');
         return send(res, 200, { renamed: lib.renameCollection(from, to) });
       }
+      // V0.10: the same document kept twice: one copy of each stays (with what she learned from it and
+      // the collection the others were in); the notes learned from the extra copies were the same notes.
+      if (b === 'duplicates' && !c && method === 'POST') {
+        await readJson(req).catch(() => ({}));
+        let removed = 0;
+        const groups = lib.duplicates();
+        for (const g of groups) {
+          const keep = lib.get(g.keep)!;
+          for (const id of g.ids.filter((x) => x !== g.keep)) {
+            const extra = lib.get(id);
+            if (!extra) continue;
+            if (extra.collection && !lib.get(keep.id)!.collection) lib.setCollection(keep.id, extra.collection);
+            if (app.memory) for (const m of app.memory.fromDoc(id)) {
+              app.memory.delete(m.id);
+              app.vectors?.forget(m.id);
+            }
+            if (lib.job(id)) cancelJob(app, lib, id);
+            if (lib.delete(id)) removed++;
+            app.events?.publish({ type: 'library', id });
+          }
+        }
+        if (removed) app.events?.publish({ type: 'memory', conversationId: '' });
+        return send(res, 200, { removed, groups: groups.length });
+      }
       if (!b && method === 'GET' && q.get('collection')) {
         archivesAllowed();
         return send(res, 200, { docs: lib.list({ collection: q.get('collection')! }).map(docView) });
@@ -275,6 +299,7 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, {
           docs: lib.list().map(docView),
           counts,
+          duplicates: lib.duplicates(),
           meaning: t ? { model: t.model, indexed: lib.vectorCount(t.model), total: counts.passages, error: lib.vectorError ?? null } : null,
           shared: app.settings.get().companionLibrary === 'shared',
           maxBytes,

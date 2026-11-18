@@ -324,3 +324,45 @@ export function renderVoiceInstall(v) {
     });
   }
 }
+
+/** V0.2: Settings → Voice → Talk with Sara: add the streaming hearing model (words as you speak). */
+export function renderStreamInstall(v) {
+  const row = $('#talk-stream-row');
+  const st = v?.streaming;
+  if (!row || !st) return;
+  const s = $('#talk-stream-status');
+  const b = $('#talk-stream-get');
+  const j = v.install?.job;
+  const running = j?.state === 'running';
+  row.hidden = st.ready && !running;
+  b.hidden = st.linux || (st.installed && !running) || !st.installable;
+  b.disabled = running;
+  s.textContent = running
+    ? t('Installing… {n} of {of}: {pct} %', { n: String((j.progress?.index ?? 0) + 1), of: String(j.progress?.of ?? 1), pct: String(j.progress?.total ? Math.floor((j.progress.bytes / j.progress.total) * 100) : 0) })
+    : st.linux && !st.installed
+      ? t('On Linux run: sudo ./deploy/install-voice.sh --streaming')
+      : st.installed
+        ? t('Needs the loaded-engine helper: update Sara, or on Linux run install-voice.sh again.')
+        : j?.state === 'failed'
+          ? (j.error ?? '')
+          : t('About {mb} MB.', { mb: String(st.mb ?? 105) });
+  if (!b.dataset.wired) {
+    b.dataset.wired = '1';
+    b.addEventListener('click', async () => {
+      if (!window.confirm(t('Download the streaming hearing model (about {mb} MB)? Every file is checked before use.', { mb: String(st.mb ?? 105) }))) return;
+      try {
+        await api('/voice/install', { method: 'POST', body: { streaming: true } });
+      } catch (err) {
+        s.textContent = err.message;
+        return;
+      }
+      const poll = async () => {
+        const nv = await api('/voice').catch(() => null);
+        renderStreamInstall(nv);
+        if (nv?.install?.job?.state === 'running') setTimeout(poll, 2000);
+        else if (nv?.streaming?.ready) $('#talk-hearing').value = 'streaming';
+      };
+      void poll();
+    });
+  }
+}

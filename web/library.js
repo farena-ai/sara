@@ -207,8 +207,39 @@ async function loadList() {
     }),
   );
   if (!c.docs) $('#lib-list').replaceChildren(emptyState('library', t('Nothing here yet. Add a document to get started.')));
+  showDuplicates(r.duplicates ?? []);
   // Still reading or learning: look again shortly.
   if (r.docs.some((d) => ['waiting', 'reading'].includes(d.status) || ['waiting', 'learning'].includes(d.learn) || (jobRunning(d.job) && !d.job.paused && !d.job.needs))) scheduleRefresh();
+}
+
+/** V0.10: the same document kept more than once: a line above the list with one tap to keep one of each. */
+function showDuplicates(groups) {
+  let row = $('#lib-dups');
+  if (!groups.length) {
+    row?.remove();
+    return;
+  }
+  if (!row) {
+    row = el('div', 'lib-dups');
+    row.id = 'lib-dups';
+    row.setAttribute('role', 'status');
+    $('#lib-list').before(row);
+  }
+  const n = groups.reduce((sum, g) => sum + g.ids.length - 1, 0);
+  const tidy = el('button', 'ghost small', t('Keep one of each'));
+  tidy.type = 'button';
+  tidy.addEventListener('click', async () => {
+    if (!confirm(t('Remove the extra copies? One of each stays, with what she learned from it.'))) return;
+    tidy.disabled = true;
+    try {
+      const r = await api('/library/duplicates', { method: 'POST', body: {} });
+      $('#lib-summary').textContent = t('Removed {n} extra copies.', { n: r.removed });
+    } catch (err) {
+      $('#lib-summary').textContent = err.message;
+    }
+    void loadList();
+  });
+  row.replaceChildren(el('span', 'small', t('{n} documents are in the Library more than once.', { n })), tidy);
 }
 
 let refreshTimer = 0;

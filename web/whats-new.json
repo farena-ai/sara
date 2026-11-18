@@ -2,6 +2,25 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.25.0",
+   "date": "2026-11-18",
+   "title": "Sign in with your provider, faster voice on Windows, store-ready extension",
+   "items": [
+    {
+     "id": "3-25-0-sign-in-with-your-provider",
+     "kind": "new",
+     "text": "Sign in with your provider (OpenID Connect) on every server, not only business mode."
+    },
+    {
+     "id": "3-25-0-stopping-sara-the-windows-service",
+     "kind": "fixed",
+     "text": "Stopping Sara (the Windows service closing her input) could wait for a backup tick's test restore or weekly check; the stop now skips that maintenance.",
+     "link": "#view=settings:dh-backups",
+     "owner": true
+    }
+   ]
+  },
+  {
    "version": "3.24.0",
    "date": "2026-11-18",
    "title": "Security review, backup test restores, What's new, server dashboard, faster voice",
@@ -9,13 +28,21 @@
     {
      "id": "3-24-0-a-monthly-test-restore-that",
      "kind": "new",
-     "text": "A monthly test restore that proves backups work."
+     "text": "A monthly test restore that proves backups work.",
+     "link": "#view=settings:dh-backups",
+     "owner": true,
+     "try": [
+      "restore-now"
+     ]
     },
     {
      "id": "3-24-0-whats-new-after-each-update",
      "kind": "new",
      "text": "What's new after each update. The first time you open Sara after an update, a short page lists what changed in each release since the version you last saw.",
-     "owner": true
+     "owner": true,
+     "try": [
+      "whats-new-help"
+     ]
     }
    ]
   },
@@ -29,34 +56,49 @@
      "kind": "new",
      "text": "A Business place in the sidebar that brings clients, time, invoices and quotes together.",
      "link": "#view=business",
-     "owner": true
+     "owner": true,
+     "try": [
+      "business-invoice"
+     ]
     },
     {
      "id": "3-23-0-picture-editing-and-short-video",
      "kind": "new",
      "text": "Picture editing and short video on your own computer with ComfyUI.",
      "link": "#view=library",
-     "owner": true
+     "owner": true,
+     "try": [
+      "picture-edit"
+     ]
     },
     {
      "id": "3-23-0-shared-projects-between-linked-friends",
      "kind": "new",
      "text": "Shared projects between linked friends. On a project page, Shared with friends invites one or more friends whose Sara is linked under Messages, as Can view or Can edit.",
      "link": "#view=shared",
-     "owner": true
+     "owner": true,
+     "try": [
+      "shared-project"
+     ]
     },
     {
      "id": "3-23-0-shared-by-friends-a-community",
      "kind": "new",
      "text": "Shared by friends, a community marketplace. In a Messages community or with a linked friend, share skills, templates, automations.",
      "link": "#view=addons",
-     "owner": true
+     "owner": true,
+     "try": [
+      "market-share"
+     ]
     },
     {
      "id": "3-23-0-talk-with-sara-one-button",
      "kind": "new",
      "text": "Talk with Sara. One button next to the message box starts a hands-free conversation in the browser, the desktop apps and the phone web app: she listens all the time.",
-     "link": "#view=settings:her-voice"
+     "link": "#view=settings:her-voice",
+     "try": [
+      "talk-hands-free"
+     ]
     }
    ]
   },
@@ -69,7 +111,10 @@
      "id": "3-22-1-in-3220-settings-health-family",
      "kind": "fixed",
      "text": "In 3.22.0, Settings, Health, Family and every window after Money opened empty.",
-     "link": "#view=money"
+     "link": "#view=money",
+     "try": [
+      "windows-open"
+     ]
     }
    ]
   },
@@ -82,37 +127,55 @@
      "id": "3-22-0-sara-in-your-browser-an",
      "kind": "new",
      "text": "Sara in your browser. An extension for Chrome, Edge and Firefox that pairs with your own Sara by a short code.",
-     "link": "#view=settings:dh-devices"
+     "link": "#view=settings:dh-devices",
+     "try": [
+      "extension-pair"
+     ]
     },
     {
      "id": "3-22-0-a-money-place-in-the",
      "kind": "new",
      "text": "A Money place in the sidebar (tracking only: Sara never logs in to a bank, pays, transfers or cancels anything; the page says so).",
-     "link": "#view=money"
+     "link": "#view=money",
+     "try": [
+      "money-import"
+     ]
     },
     {
      "id": "3-22-0-a-home-and-family-planner",
      "kind": "new",
      "text": "A home and family planner in Family. Meals is a week of dinners: pick a saved family recipe or type one.",
-     "link": "#view=family"
+     "link": "#view=family",
+     "try": [
+      "family-meals"
+     ]
     },
     {
      "id": "3-22-0-chores-can-take-turns-a",
      "kind": "new",
      "text": "Chores can take turns. A chore moves to the next person once a week, and each person with chores left gets one reminder a day, never during their quiet hours.",
-     "link": "#view=family"
+     "link": "#view=family",
+     "try": [
+      "family-meals"
+     ]
     },
     {
      "id": "3-22-0-health-a-private-health-log",
      "kind": "new",
      "text": "Health, a private health log of your own. Medicines with dose reminders, Taken/Skipped and a refill estimate; appointments with questions to ask.",
-     "link": "#view=health"
+     "link": "#view=health",
+     "try": [
+      "health-medicine"
+     ]
     },
     {
      "id": "3-22-0-a-learning-coach-from-any",
      "kind": "new",
      "text": "A learning coach. From any Library document, one of its chapters or text you paste, Sara makes a study set: flashcards, fill-in-the-blank cards.",
-     "link": "#view=study"
+     "link": "#view=study",
+     "try": [
+      "study-set"
+     ]
     }
    ]
   },
@@ -130,7 +193,10 @@
      "id": "3-21-0-free-flight-status-without-a",
      "kind": "new",
      "text": "Free flight status without a key. The Trips page can use OpenSky Network (no sign-up), which shows whether your plane is in the air, on the ground or landed.",
-     "link": "#view=trips"
+     "link": "#view=trips",
+     "try": [
+      "flight-free"
+     ]
     },
     {
      "id": "3-21-0-tracked-changes-everywhere-in-a",
@@ -143,13 +209,19 @@
      "kind": "new",
      "text": "Team recipes. After a team run finishes, \"Save as a team recipe\" keeps its plan.",
      "link": "#view=team",
-     "owner": true
+     "owner": true,
+     "try": [
+      "team-recipe"
+     ]
     },
     {
      "id": "3-21-0-ask-about-anything-also-searches",
      "kind": "new",
      "text": "Ask about anything also searches your meetings (what was said, with the time in the recording, and the notes), trips.",
-     "link": "#view=meetings"
+     "link": "#view=meetings",
+     "try": [
+      "ask-meeting"
+     ]
     },
     {
      "id": "3-21-0-share-fixes-that-worked-under",
@@ -170,7 +242,10 @@
      "kind": "fixed",
      "text": "\"Connect the Sara phone app\" no longer tells an iPhone to get the Android app from Google Play.",
      "link": "#view=settings:co-phone",
-     "owner": true
+     "owner": true,
+     "try": [
+      "phone-connect"
+     ]
     },
     {
      "id": "3-20-0-errands-waiting-on-you-now",
@@ -205,7 +280,10 @@
      "kind": "new",
      "text": "Try these, a guided checklist for the owner. Help → Try these lists about 30 short checks of what is new since 3.15 (newest release first), each with a few steps.",
      "link": "#view=try",
-     "owner": true
+     "owner": true,
+     "try": [
+      "try-these-report"
+     ]
     },
     {
      "id": "3-19-0-on-teams-matrix-signal-and",
@@ -220,41 +298,9 @@
     {
      "id": "3-19-0-put-my-stock-alerts-in",
      "kind": "fixed",
-     "text": "\"Put my stock alerts in the Stock Alerts project\" could send the alerts to the chat you asked in instead of making the project."
-    }
-   ]
-  },
-  {
-   "version": "3.18.2",
-   "date": "2026-11-17",
-   "title": "several Google accounts from either mail page, approved code fixes on servers",
-   "items": [
-    {
-     "id": "3-18-2-asking-her-add-another-email",
-     "kind": "new",
-     "text": "Asking her \"add another email account\" or \"connect my other Gmail\" shows a card with your accounts and a + Add an account button that opens the choices.",
+     "text": "\"Put my stock alerts in the Stock Alerts project\" could send the alerts to the chat you asked in instead of making the project.",
      "try": [
-      "google-ask"
-     ]
-    },
-    {
-     "id": "3-18-2-code-changes-on-linux-servers",
-     "kind": "new",
-     "text": "Code changes on Linux servers. On a server install (install.sh), Sara can now fix her own code too, still only after you press Approve.",
-     "link": "#view=settings:dh-updates",
-     "owner": true,
-     "try": [
-      "code-change"
-     ]
-    },
-    {
-     "id": "3-18-2-adding-several-google-accounts-works",
-     "kind": "fixed",
-     "text": "Adding several Google accounts works from every page and never replaces one.",
-     "link": "#view=settings:ab-mail",
-     "owner": true,
-     "try": [
-      "google-several"
+      "stock-project"
      ]
     }
    ]

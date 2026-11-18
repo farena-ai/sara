@@ -112,7 +112,8 @@ test('e1 odds math: implied probability and the no-vig (fair) probability', () =
 // ---------------------------------------------------------------- the service: cache, batching, errors, quota
 
 test('e1 quotes: several symbols in one request, cached 60 s, then asked again', async () => {
-  const { d, urls, clock } = ds((u) => (u.includes('finance.yahoo.com') ? { body: sparkFor({ AAPL: 110, MSFT: 95, NVDA: 100 }) } : undefined));
+  // V0.10: Nasdaq is the default now (test/v0-backlog); Yahoo's own batching is checked with Yahoo picked.
+  const { d, urls, clock } = ds((u) => (u.includes('finance.yahoo.com') ? { body: sparkFor({ AAPL: 110, MSFT: 95, NVDA: 100 }) } : undefined), { choices: { quote: 'yahoo' } });
   const r = await d.quotes(['aapl', 'MSFT', '$NVDA']);
   assert.equal(urls.length, 1, 'one batched request');
   assert.match(urls[0], /symbols=AAPL,MSFT,NVDA/);
@@ -223,7 +224,7 @@ function rig(t: import('node:test').TestContext, route: Route) {
   const pushes: { title: string; text: string }[] = [];
   app.push = { notifyOwner: async (title: string, text: string) => void pushes.push({ title, text }) } as never;
   const net = fakeFetch(route);
-  app.dataSources = new DataSources({ choices: () => ({}), keys: { get: (n) => (n === 'data:theoddsapi' ? 'k-test' : undefined) }, fetch: net.f, now: () => clock.now.getTime() });
+  app.dataSources = new DataSources({ choices: () => ({ quote: 'yahoo' }), keys: { get: (n) => (n === 'data:theoddsapi' ? 'k-test' : undefined) }, fetch: net.f, now: () => clock.now.getTime() });
   const w = new LiveWatches(app, app.store.db);
   app.liveWatches = w;
   const conv = app.store.createConversation({ title: 'Chat' });
@@ -447,7 +448,7 @@ test('e1 route: /api/data-sources saves choices and keys (never returned), tests
   };
   const g = await api('GET', '/data-sources');
   assert.equal(g.status, 200);
-  assert.deepEqual(g.body.kinds.map((k: { kind: string; provider: string }) => `${k.kind}:${k.provider}`), ['quote:yahoo', 'sports:espn', 'odds:theoddsapi']);
+  assert.deepEqual(g.body.kinds.map((k: { kind: string; provider: string }) => `${k.kind}:${k.provider}`), ['quote:nasdaq', 'sports:espn', 'odds:theoddsapi']);
   const put = await api('PUT', '/data-sources', { providers: { odds: 'theoddsapi' }, keys: { theoddsapi: 'secret-odds-key-1' } });
   assert.equal(put.status, 200);
   assert.equal(r.app.vault.get('data:theoddsapi'), 'secret-odds-key-1');

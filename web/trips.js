@@ -154,6 +154,7 @@ function card(trip) {
   for (const b of trip.bookings) ol.append(bookingRow(b));
   const actions = el('div', 'tp-actions');
   const flights = trip.bookings.some((b) => b.kind === 'flight');
+  actions.append(btn(t('Rename'), 'ghost small', () => renameTrip(trip, head)));
   actions.append(btn(t('Add to calendar'), 'ghost small', () => void act(trip.id, 'calendar', (r) => r.text)));
   actions.append(btn(trip.packing ? t('Packing list made') : t('Packing list'), 'ghost small', () => void act(trip.id, 'packing', (r) => t('Packing list “{name}”: {n} things, on your shared lists in the Planner.', { name: r.packing.name, n: r.packing.items.length }))));
   if (flights) actions.append(btn(t('Check flights now'), 'ghost small', () => void act(trip.id, 'check', () => (data?.settings?.provider === 'off' ? t('Flight status is off. Pick a source below.') : t('Checked.')))));
@@ -172,6 +173,41 @@ function card(trip) {
   if (trip.packing) c.append(el('p', 'muted small tp-pack', t('Packing list “{name}”: {n} things, on your shared lists in the Planner.', { name: trip.packing.name, n: trip.packing.items.length })));
   c.append(actions);
   return c;
+}
+
+/** V0.10: rename a trip in place (the route existed since S6); an empty name gives back her own. */
+function renameTrip(trip, head) {
+  const input = el('input', 'tp-rename');
+  input.type = 'text';
+  input.value = trip.title;
+  input.maxLength = 120;
+  input.setAttribute('aria-label', t('Trip name'));
+  input.placeholder = t('Leave it empty to go back to the name she gave it.');
+  const save = btn(t('Save'), 'small', async () => {
+    save.disabled = true;
+    try {
+      await ctx.api(`/trips/${trip.id}`, { method: 'PATCH', body: { title: input.value } });
+      say(t('Renamed.'));
+      await loadTrips();
+    } catch (err) {
+      save.disabled = false;
+      say(err.message);
+    }
+  });
+  const cancel = btn(t('Cancel'), 'ghost small', () => render());
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') save.click();
+    else if (e.key === 'Escape') {
+      e.preventDefault();
+      e.stopPropagation();
+      render();
+    }
+  });
+  const row = el('div', 'tp-rename-row');
+  row.append(input, save, cancel);
+  head.replaceChildren(row);
+  input.focus();
+  input.select();
 }
 
 function render() {

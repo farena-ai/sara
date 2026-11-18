@@ -3,7 +3,7 @@
   "message": "Sara"
  },
  "appDesc": {
-  "message": "Chiedi a Sara della pagina che stai guardando, salvala nella sua Biblioteca o lascia che compili un modulo dopo la tua approvazione."
+  "message": "Chiedi a Sara della pagina che stai guardando, salvala nella sua Biblioteca o falle compilare un modulo dopo il tuo ok."
  },
  "pairIntro": {
   "message": "Collega questo browser alla tua Sara. Scrivi il suo indirizzo; comparirà un codice breve da approvare in Sara."
@@ -151,5 +151,11 @@
  },
  "menuSave": {
   "message": "Salva questa pagina nella Biblioteca di Sara"
+ },
+ "extName": {
+  "message": "Sara: la tua IA nel browser"
+ },
+ "storeDescription": {
+  "message": "Sara è una compagna IA personale che fai girare sul tuo server o PC. Questa estensione collega il tuo browser alla TUA Sara, e a nient'altro.\n\nSulla pagina che stai guardando:\n• Chiedi a Sara di questa pagina: legge il testo della pagina e risponde nella finestra dell'estensione. Continua la chat in Sara con un clic.\n• Riassumi: un breve riassunto della pagina.\n• Salva nella Biblioteca: il testo e l'indirizzo della pagina restano nella sua Biblioteca come documento.\n• Compila questo modulo: Sara propone valori dai Miei dati. Vedi ogni campo, togli la spunta o cambia ciò che vuoi, poi approvi. Nulla viene scritto prima della tua approvazione e il modulo non viene mai inviato al posto tuo.\n• Clic destro su un testo selezionato per chiedere di quello, o su una pagina per salvarla.\n• Spenta su questo sito: un interruttore, e nulla di quel sito viene letto o inviato.\n\nPrivacy e sicurezza:\n• I dati vanno solo al server di Sara che colleghi. Niente statistiche, niente pubblicità, niente altri server, niente codice remoto.\n• Una pagina viene letta solo quando fai clic. Nulla gira in background.\n• Mai compilati: password, carte di pagamento, codici monouso e numeri di documenti.\n• Il collegamento usa un codice breve che approvi dentro Sara. Scollega nella finestra dell'estensione, o disconnettila in Sara, e l'accesso finisce subito.\n\nTi serve un server di Sara (gratuito e open source). Scopri di più e installalo su https://github.com/farena-ai/sara"
  }
 }

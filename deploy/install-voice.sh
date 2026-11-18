@@ -6,6 +6,8 @@
 #   sudo ./deploy/install-voice.sh            # ~650 MB download, ~1.3 GB on disk
 #   sudo ./deploy/install-voice.sh --instance work   # another Sara on this server: the voice files
 #                                             # are shared, only that instance's settings change
+#   sudo ./deploy/install-voice.sh --streaming       # also words-as-you-speak hearing for Talk (V0.2,
+#                                             # NeMo streaming FastConformer, ~105 MB more)
 #
 # Engines: Parakeet 110M (English speech-to-text), Kokoro v0.19 (natural voices, ~0.7x real time
 # on an 8-core Xeon), Piper "hfc_female" (fast fallback voice, ~15x real time).
@@ -14,10 +16,12 @@ set -euo pipefail
 VOICE_DIR="${SARA_VOICE_DIR:-/opt/sara-voice}"
 # Several Saras on one server: --instance NAME (or SARA_INSTANCE) picks whose settings to update.
 INSTANCE="${SARA_INSTANCE:-sara}"
+STREAMING=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance) INSTANCE="${2:-}"; shift 2 ;;
     --instance=*) INSTANCE="${1#*=}"; shift ;;
+    --streaming) STREAMING=1; shift ;;
     *) printf 'Unknown option: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
@@ -35,6 +39,9 @@ ITEMS=(
   "tts-models/kokoro-en-v0_19.tar.bz2|912804855a04745fa77a30be545b3f9a5d15c4d66db00b88cbcd4921df605ac7"
   "tts-models/vits-piper-en_US-hfc_female-medium.tar.bz2|3fffdceb0c65bd9415a085d09c3cb88cc82f9d74a6ca453f8ce7fc5eaee81ff8"
 )
+# V0.2: the optional streaming hearing model (same pin as src/voice-install.ts STREAM_MODEL).
+STREAM_DIR=sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8
+[[ $STREAMING -eq 1 ]] && ITEMS+=("asr-models/$STREAM_DIR.tar.bz2|7bd33a914e93370a1ba9c2066d9e841bdcad8613fa2a00537c1ae15d851a14d8")
 
 log() { printf '\033[1;35m[sara-voice]\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31m[sara-voice]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -73,7 +80,7 @@ $(i=0; for v in "1|Bella (US)" "3|Sarah (US)" "2|Nicole (US)" "4|Sky (US)" "0|De
     printf '    { "id": "kokoro:%s", "label": "%s, natural", "kind": "kokoro", "model": "kokoro-en-v0_19/model.onnx", "voices": "kokoro-en-v0_19/voices.bin", "tokens": "kokoro-en-v0_19/tokens.txt", "dataDir": "kokoro-en-v0_19/espeak-ng-data", "sid": %s }' "$sid" "$label" "$sid"
   done),
     { "id": "piper:hfc_female", "label": "Piper (US), fast", "kind": "vits", "model": "vits-piper-en_US-hfc_female-medium/en_US-hfc_female-medium.onnx", "tokens": "vits-piper-en_US-hfc_female-medium/tokens.txt", "dataDir": "vits-piper-en_US-hfc_female-medium/espeak-ng-data" }
-  ]
+  ]$([[ -d "$VOICE_DIR/$STREAM_DIR" ]] && printf ',\n  "online": { "kind": "transducer", "encoder": "%s/encoder.int8.onnx", "decoder": "%s/decoder.int8.onnx", "joiner": "%s/joiner.int8.onnx", "tokens": "%s/tokens.txt" }' "$STREAM_DIR" "$STREAM_DIR" "$STREAM_DIR" "$STREAM_DIR")
 }
 EOF
 # U5: the loaded-engine helper (deploy/voice/sara-voice-worker.c) keeps hearing and her voice in
@@ -112,4 +119,5 @@ if [[ -f "$ENV_FILE" ]]; then
   fi
 fi
 if systemctl is-active --quiet "$INSTANCE" 2>/dev/null; then systemctl restart "$INSTANCE"; log "Restarted $INSTANCE."; fi
+[[ $STREAMING -eq 1 ]] && log "Streaming hearing installed: Settings → Sara → Voice → Talk with Sara → Hearing while you talk."
 log "Done. Pick her voice in Settings → Voice."

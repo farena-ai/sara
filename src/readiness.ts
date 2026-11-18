@@ -14,6 +14,7 @@ import type { CheckStatus, SafetyDeps } from './safety-check.ts';
 import { runSafetyCheck } from './safety-check.ts';
 import type { OperationsMonitor } from './operations.ts';
 import type { DrillRecord } from './restore-drill.ts';
+import type { RestoreTestRow } from './restore-test.ts';
 
 export type AreaStatus = 'ready' | 'attention' | 'not-ready';
 export type AreaFix = { open: string } | { command: string } | { action: 'drill' | 'probe' | 'recovery' };
@@ -43,6 +44,8 @@ type SafetyRow = { status: CheckStatus; line: string; accepted?: boolean; fixes:
 export interface ReadinessFacts {
   backups: { count: number; newestAt: string | null; newestName: string | null; auto: boolean };
   drill: DrillRecord | undefined;
+  /** V0.4: the monthly test restores (settings.restoreTest.history, newest first); optional for older callers. */
+  restoreTests?: Pick<RestoreTestRow, 'at' | 'result' | 'source' | 'step' | 'durationMs'>[];
   offsiteTest: { at: string; ok: boolean } | undefined;
   diskFreeBytes: number | null;
   model: { configured: boolean; probe?: { at: string; ok: boolean; error?: string } };
@@ -80,15 +83,26 @@ export function readinessReport(f: ReadinessFacts, now: Date): ReadinessReport {
     else if (hours >= BACKUP_FRESH_HOURS) areas.push({ id: 'backups', status: 'attention', reason: 'old', params: { hours, n: b.count }, fix });
     else areas.push({ id: 'backups', status: 'ready', reason: 'ok', params: { hours, n: b.count }, fix });
   }
-  // The last proven restore.
+  // The last proven restore: the newest of the restore drill and the monthly test restores (V0.4,
+  // src/restore-test.ts: a real restore into a throwaway folder with every check, only no boot).
   {
     const d = f.drill;
     const offsiteOk = f.offsiteTest?.ok === true;
     const fix = { action: 'drill' as const };
-    if (!d) areas.push({ id: 'drill', status: 'not-ready', reason: 'never', params: { offsiteOk }, fix });
+    const tests = (f.restoreTests ?? []).filter((r) => r.result !== 'skipped' && Number.isFinite(Date.parse(r.at)));
+    const test = tests.reduce<(typeof tests)[number] | undefined>((a, b) => (!a || Date.parse(b.at) > Date.parse(a.at) ? b : a), undefined);
+    const daysOf = (at: string) => Math.floor((t - Date.parse(at)) / 86_400_000);
+    const n = tests.filter((r) => r.result === 'passed' && daysOf(r.at) <= DRILL_FRESH_DAYS).length;
+    if (test && (!d || Date.parse(test.at) > Date.parse(d.at))) {
+      const days = daysOf(test.at);
+      const params = { days, seconds: Math.round((test.durationMs ?? 0) / 100) / 10, n, offsiteOk, source: test.source };
+      if (test.result === 'failed') areas.push({ id: 'drill', status: 'not-ready', reason: 'test-failed', params: { ...params, step: test.step ?? '' }, fix: { open: 'settings:dh-backups' } });
+      else if (days > DRILL_FRESH_DAYS) areas.push({ id: 'drill', status: 'attention', reason: 'test-stale', params, fix });
+      else areas.push({ id: 'drill', status: 'ready', reason: 'test-ok', params, fix });
+    } else if (!d) areas.push({ id: 'drill', status: 'not-ready', reason: 'never', params: { offsiteOk }, fix });
     else {
-      const days = Math.floor((t - Date.parse(d.at)) / 86_400_000);
-      const params = { days, seconds: Math.round((d.totalMs ?? 0) / 100) / 10, lossHours: d.dataLossHours ?? null, offsiteOk };
+      const days = daysOf(d.at);
+      const params = { days, seconds: Math.round((d.totalMs ?? 0) / 100) / 10, lossHours: d.dataLossHours ?? null, offsiteOk, ...(f.restoreTests ? { n } : {}) };
       if (!d.ok) areas.push({ id: 'drill', status: 'not-ready', reason: 'failed', params: { ...params, error: d.error ?? '' }, fix });
       else if (days > DRILL_FRESH_DAYS) areas.push({ id: 'drill', status: 'attention', reason: 'stale', params, fix });
       else areas.push({ id: 'drill', status: 'ready', reason: 'ok', params, fix });
@@ -245,6 +259,7 @@ export async function gatherReadiness(d: ReadinessDeps, o: { probe?: boolean } =
   return {
     backups,
     drill,
+    restoreTests: ((s as { restoreTest?: { history?: RestoreTestRow[] } }).restoreTest?.history ?? []).slice(0, 24),
     offsiteTest: lt ? { at: lt.at, ok: lt.ok } : undefined,
     diskFreeBytes,
     model: { configured, ...(probe ? { probe } : {}) },

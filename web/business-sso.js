@@ -1,11 +1,16 @@
 // EC2: Company sign-in (OpenID Connect) settings for organization administrators.
 import { t, attachTips } from './business-i18n.js';
+import { SSO_ISSUERS, ssoPresetName, ssoSteps } from './sso-presets.js';
+
+// V0.8: the self-hosted providers share their steps with Settings on every server (web/sso-presets.js).
+const SELF_HOSTED = ['authentik', 'keycloak', 'pocketid', 'authelia'];
 
 const element = (tag, text) => { const node = document.createElement(tag); if (text !== undefined) node.textContent = text; return node; };
 // Product names stay as they are in every language.
-const PRESETS = () => [['entra', 'Microsoft Entra ID'], ['google', 'Google Workspace'], ['okta', 'Okta'], ['generic', t('Other OpenID Connect provider (Keycloak, Authentik)')]];
-const ISSUERS = { entra: 'https://login.microsoftonline.com/TENANT-ID/v2.0', google: 'https://accounts.google.com', okta: 'https://YOUR-ORG.okta.com', generic: 'https://HOST/realms/REALM' };
+const PRESETS = () => [['entra', 'Microsoft Entra ID'], ['google', 'Google Workspace'], ['okta', 'Okta'], ...SELF_HOSTED.map(id => [id, ssoPresetName(id, t)]), ['generic', t('Other OpenID Connect provider (Keycloak, Authentik)')]];
+const ISSUERS = { entra: 'https://login.microsoftonline.com/TENANT-ID/v2.0', google: 'https://accounts.google.com', okta: 'https://YOUR-ORG.okta.com', generic: 'https://HOST/realms/REALM', ...Object.fromEntries(SELF_HOSTED.map(id => [id, SSO_ISSUERS[id]])) };
 const STEPS = () => ({
+  ...Object.fromEntries(SELF_HOSTED.map(id => [id, ssoSteps(id, t)])),
   entra: [
     [t('In the Microsoft Entra admin center open App registrations, choose New registration, pick the Web platform and paste the redirect URL above.')],
     [t('Copy the Application (client) ID. Under Certificates & secrets create a client secret and copy its value.')],

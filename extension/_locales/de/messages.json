@@ -151,5 +151,11 @@
  },
  "menuSave": {
   "message": "Diese Seite in Saras Bibliothek speichern"
+ },
+ "extName": {
+  "message": "Sara: deine eigene KI im Browser"
+ },
+ "storeDescription": {
+  "message": "Sara ist eine persönliche KI-Begleiterin, die du auf deinem eigenen Server oder PC betreibst. Diese Erweiterung verbindet deinen Browser mit DEINER Sara und mit nichts anderem.\n\nAuf der Seite, auf der du gerade bist:\n• Sara zu dieser Seite fragen: Sie liest den Text der Seite und antwortet im Popup. Mit einem Klick geht das Gespräch in Sara weiter.\n• Zusammenfassen: eine kurze Zusammenfassung der Seite.\n• In der Bibliothek speichern: Text und Adresse der Seite werden als Dokument in ihrer Bibliothek gespeichert.\n• Dieses Formular ausfüllen: Sara schlägt Werte aus Meine Angaben vor. Du siehst jedes Feld, entfernst Häkchen oder änderst Werte und gibst dann frei. Vor deiner Freigabe wird nichts eingetragen, und das Formular wird nie für dich abgeschickt.\n• Rechtsklick auf markierten Text, um danach zu fragen, oder auf eine Seite, um sie zu speichern.\n• Auf dieser Website aus: ein Schalter, und von dieser Website wird nichts gelesen oder gesendet.\n\nDatenschutz und Sicherheit:\n• Daten gehen nur an den Sara-Server, mit dem du die Erweiterung verbindest. Keine Analyse, keine Werbung, keine anderen Server, kein nachgeladener Code.\n• Eine Seite wird nur gelesen, wenn du klickst. Im Hintergrund läuft nichts.\n• Nie ausgefüllt: Passwörter, Zahlungskarten, Einmalcodes und Ausweisnummern.\n• Die Verbindung läuft über einen kurzen Code, den du in Sara bestätigst. Trenne sie im Popup oder melde sie in Sara ab, und ihr Zugriff endet sofort.\n\nDu brauchst einen Sara-Server (kostenlos und quelloffen). Mehr dazu und Einrichtung unter https://github.com/farena-ai/sara"
  }
 }

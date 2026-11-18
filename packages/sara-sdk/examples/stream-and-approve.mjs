@@ -1,13 +1,13 @@
 // Example: stream Sara's reply and answer her approval cards.
 //
-//   npm run build            (once, in packages/sara-sdk)
+//   npm install @farena-ai/sara-sdk   (or, in packages/sara-sdk: npm run build)
 //   SARA_SERVER=https://sara.example.com node examples/stream-and-approve.mjs
 //
 // Without SARA_TOKEN it signs in with a device code first (approve the code in Sara) and prints
 // the token to keep. SARA_MESSAGE is what to say; SARA_CONVERSATION reuses a conversation;
 // SARA_APPROVE=yes|no answers every card without asking (otherwise it asks on the terminal).
 import { createInterface } from 'node:readline/promises';
-import { Sara } from '../dist/index.js';
+import { Sara } from '@farena-ai/sara-sdk';
 
 const env = process.env;
 const sara = new Sara({ server: env.SARA_SERVER ?? 'http://127.0.0.1:3000', token: env.SARA_TOKEN });

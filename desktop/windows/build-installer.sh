@@ -89,13 +89,23 @@ if [[ -d "$ROOT/.git" || -f "$ROOT/.git" ]]; then
   REV="$(git -C "$(winpath "$ROOT")" rev-parse --short HEAD)"
   printf '%s\n' "$REV" > "$STAGE/server/REVISION"
 fi
+# V0.1: the loaded-engine voice helper, prebuilt (Windows servers have no compiler); the voice install
+# copies it next to the sherpa tools. A failed build only costs speed: voice then loads per call.
+if bash "$HERE/build-voice-helper.sh" "$STAGE/server/voice-helper"; then HELPER=("$STAGE"/server/voice-helper/*/win32-x64/sara-voice-worker.exe); else HELPER=(); echo "(voice helper not built: voice loads per call)" >&2; fi
 # R1: sign the app and the service host before Inno Setup packs them (node.exe is already signed by OpenJS).
-bash "$HERE/sign.sh" "$STAGE/Sara.exe" "$STAGE/SaraService.exe"
+bash "$HERE/sign.sh" "$STAGE/Sara.exe" "$STAGE/SaraService.exe" "${HELPER[@]}"
 # Batch files want Windows line endings.
 sed 's/\r$//; s/$/\r/' "$HERE/installer/sara.cmd" > "$STAGE/bin/sara.cmd"
 
 # 5. The installer
-"$ISCC" /Q "/DAppVersion=$VERSION" "/DStage=$(winpath "$STAGE")" "${ISS_EXTRA[@]}" "/O$(winpath "$OUT")" "$(winpath "$HERE/installer/sara.iss")"
-bash "$HERE/sign.sh" "$OUT/Sara-Setup-$VERSION.exe"
+# V0.6: with Azure signing set up, Inno Setup signs Setup AND its uninstaller (unins000.exe, which it
+# writes itself and can only sign while compiling) through the same sign.sh; $f is the file, $q a quote.
+# Without signing ISCC gets no sign tool and builds unsigned exactly as before (sign.sh says so below).
+ISS_SIGN=()
+if bash "$HERE/sign.sh" --check >/dev/null 2>&1; then
+  ISS_SIGN=(/DSignTool=sarasign "/Ssarasign=\$q$(winpath "$(command -v bash)")\$q \$q$(winpath "$HERE/sign.sh")\$q \$f")
+fi
+"$ISCC" /Q "/DAppVersion=$VERSION" "/DStage=$(winpath "$STAGE")" "${ISS_EXTRA[@]}" "${ISS_SIGN[@]}" "/O$(winpath "$OUT")" "$(winpath "$HERE/installer/sara.iss")"
+if [[ ${#ISS_SIGN[@]} == 0 ]]; then bash "$HERE/sign.sh" "$OUT/Sara-Setup-$VERSION.exe"; fi
 ls -la "$OUT/Sara-Setup-$VERSION.exe"
 sha256sum "$OUT/Sara-Setup-$VERSION.exe"

@@ -32,6 +32,8 @@ the phone web app: it is the same page everywhere.
 | Short "Mm-hm" while she thinks | on | the filler line |
 | Answer her cards by saying yes or no | on | off: every card needs a tap |
 | Saying "goodbye" ends the talk | on | off: only End stops it |
+| Keep hearing and voice loaded (owner) | 10 minutes | U5: engines stay in memory between calls |
+| Hearing while you talk (owner) | Whole sentences | V0.2: **Words as you speak** shows what she hears while you talk and ends your turn a little sooner (needs the streaming model: **Add words-as-you-speak hearing**, about 105 MB) |
 
 Hearing and her voice are the ones chosen above on the same page: on this server (sherpa-onnx Parakeet
 and Piper/Kokoro) or a speech service (speech API, ElevenLabs, Grok voice). **Hey Sara → The phrase
@@ -109,15 +111,22 @@ neither reloads its model for every sentence.
   fails only that job and the next one starts a fresh worker; three failures within 5 minutes pause the
   worker for 10 minutes; it won't start with less than 512 MB free; it restarts after 2000 jobs. **Any**
   worker trouble falls back to the old one-shot tools, so voice keeps working.
-- **Where the helper comes from:** `deploy/install-voice.sh` (Linux) builds it when a C compiler is
-  there (`cc`); without one, Sara uses the one-shot tools as before. `sara voice install` on Windows and
-  macOS does not build it yet (no compiler on those machines): until a release ships a prebuilt helper,
-  those servers keep the one-shot path. Build by hand: `cc -O2 -o <sherpa>/bin/sara-voice-worker
+- **Where the helper comes from (V0.1):** Windows and Mac servers have no compiler, so the release builds
+  it: `desktop/windows/build-voice-helper.sh` (MSVC from the Build Tools, called by
+  `build-installer.sh`, signed with the app) and `desktop/mac/build.sh` (clang, one universal arm64 +
+  x86_64 binary, rpath `@executable_path/../lib`, signed with library validation off for this helper
+  alone: `voice-helper.entitlements`). Both link the pinned sherpa-onnx v1.13.8 bundle (same SHA-256 as
+  `src/voice-install.ts`) and ship it as `server/voice-helper/sherpa-onnx-v1.13.8/<win32-x64 |
+  darwin-universal>/`. `sara voice install` (and Settings → Voice → Install) copies it into
+  `<sherpa>/bin`; a server that already has her voice copies it in on the first loaded job. It must
+  sit there: on Windows the exe's own folder is searched before System32, which has an older
+  `onnxruntime.dll` ("API version 28 is not available"). Windows on Arm gets no helper yet (one-shot
+  path). Linux: `deploy/install-voice.sh` builds it when a C compiler is there (`cc`); without one, Sara
+  uses the one-shot tools as before. Build by hand: `cc -O2 -o <sherpa>/bin/sara-voice-worker
   deploy/voice/sara-voice-worker.c -I<sherpa>/include -L<sherpa>/lib -lsherpa-onnx-c-api` (on Windows,
   MSVC `cl /O2 /MD … sherpa-onnx-c-api.lib`). It must be built against the same sherpa-onnx release.
 - **Memory (this PC):** about 190 MB for hearing and 110–150 MB for the Piper voice while loaded.
-- **Not done:** partial transcripts while you speak. The installed Parakeet model is offline-only; that
-  needs a streaming (online) model, which isn't installed.
+- Partial words while you speak: see "Words as you speak (V0.2)" below.
 
 ### Measured (this PC, 2026-11-18, `scripts/voice-latency.ts`, 5 turns after a warm-up, two runs each)
 
@@ -131,3 +140,45 @@ neither reloads its model for every sentence.
 The engines' own time is now under 0.15 s per turn; what's left is the model. Loading both takes about
 1–1.6 s, which happens while Talk opens. The one-shot numbers are lower than in U4.24 (1.9 vs 2.5 s)
 because the PC was quieter; both rows here were run back to back.
+
+## Words as you speak (V0.2)
+
+Optional streaming hearing for Talk with Sara: your words appear at the top of the Talk window while you
+speak, and the turn ends when the model hears you finish instead of after a fixed 0.9 s of quiet.
+
+- **Model:** NVIDIA NeMo FastConformer streaming transducer, English, 80 ms look-ahead, int8
+  (`sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8`, CC-BY-4.0, ~105 MB, pinned
+  SHA-256). Free; nothing you say leaves the server.
+- **Install:** Settings → Sara → Voice → Talk with Sara → **Add words-as-you-speak hearing** (Windows,
+  Mac), `sara voice install --streaming`, or on Linux `sudo ./deploy/install-voice.sh --streaming`.
+  It adds `online` to `voice.json`; then **Hearing while you talk → Words as you speak** (set for you
+  after the button's install).
+- **How:** the page sends each ~0.25 s of the utterance (16 kHz 16-bit PCM) to
+  `POST /api/voice/stream?id=<utterance>[&end=1]`; the helper's `online` mode (same
+  `sara-voice-worker`, up to 8 streams) answers the words so far and whether the model heard the end of
+  the turn (0.5 s of quiet after words). The page ends the turn at that endpoint once its own meter has
+  heard 0.3 s of quiet, else after 0.9 s as before.
+- **Which words are sent:** when the whole-sentence model (Parakeet) is loaded, it hears the recording
+  again (~0.05 s) and its words are sent: they are more accurate (below); the streaming words were the
+  live preview. Without it loaded, the streaming words are sent.
+- **Fallbacks:** no streaming model, no helper, a stream error or `409` → the page sends the whole
+  recording to `/api/voice/transcribe` as before. The streaming worker stays at least 2 minutes after
+  a stream, also with Keep loaded Off (a stream needs a resident process).
+
+### Measured (this PC, 2026-11-18, `SARA_VOICE_DIR=<dir> node scripts/voice-latency.ts hearing 7`)
+
+Seven sentences read by the Piper voice, after a warm-up; "end → text" = the page's wait after your
+last word plus the hearing time. CPU, engines loaded.
+
+| Endpoint rule | Whole sentences | Words as you speak | Words as you speak + Parakeet's words | Endpoints hit | Word errors whole / streaming |
+| --- | --- | --- | --- | --- | --- |
+| 0.4 s | 0.95 s | 0.79 s | 0.84 s | 7/7 | 0 % / 11 % |
+| **0.5 s (shipped)** | 0.95 s | 0.79 s | **0.83 s** | 5/7 | 3 % / 8 % |
+| 0.6 s | 0.94 s | 0.94 s | 0.93 s | 3/7 | 0 % / 15 % |
+
+- Honest summary: turns end **about 0.1 s sooner** (0.83 vs 0.95 s); the bigger win is seeing your words
+  while you talk. The streaming model makes more mistakes ("to morrow", "earn the lights") than
+  Parakeet, which is why Parakeet's words are sent when it's loaded. A piece of 0.25 s takes ~40 ms to
+  hear; loading the streaming model ~1.1 s.
+- 0.4 s ended every turn sooner but would also cut people off at short mid-sentence pauses; 0.5 s
+  was kept.

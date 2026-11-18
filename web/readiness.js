@@ -55,7 +55,11 @@ export function areaLine(a) {
     case 'drill:never': return p.offsiteOk ? t('No restore drill yet. The off-computer copy passed its own test restore.') : t('No restore has been proven yet.');
     case 'drill:failed': return t('The last restore drill failed: {error}', p);
     case 'drill:stale': return t('The last restore drill passed {days} days ago.', p);
-    case 'drill:ok': return p.lossHours === null || p.lossHours === undefined ? t('Restored and started in {seconds} s, {days} day(s) ago.', p) : t('Restored and started in {seconds} s, {days} day(s) ago. Restoring that backup now would lose {lossHours} h.', p);
+    case 'drill:ok': return withTests(p, p.lossHours === null || p.lossHours === undefined ? t('Restored and started in {seconds} s, {days} day(s) ago.', p) : t('Restored and started in {seconds} s, {days} day(s) ago. Restoring that backup now would lose {lossHours} h.', p));
+    // V0.4: the monthly test restores count as proof too (Settings → Backups → Test restores).
+    case 'drill:test-ok': return p.source === 'offsite' ? t('The monthly test restore of the off-server copy passed {days} day(s) ago (checked in {seconds} s).', p) : t('The monthly test restore passed {days} day(s) ago (checked in {seconds} s).', p);
+    case 'drill:test-failed': return t('The last monthly test restore failed. Backups → Test restores shows where.');
+    case 'drill:test-stale': return t('The last monthly test restore passed {days} days ago.', p);
     case 'disk:unknown': return t("Free space can't be read here.");
     case 'disk:low': return t('Only {gb} GB free.', p);
     case 'disk:ok': return t('{gb} GB free.', p);
@@ -83,6 +87,9 @@ export function verdictLine(r) {
   if (r.verdict === 'attention') return t('Ready, with {n} thing(s) to look at.', { n: r.counts.attention });
   return t('Not ready yet: {n} thing(s) to fix first.', { n: r.counts['not-ready'] });
 }
+
+/** A drill line plus the monthly test restores that passed in the last 30 days. */
+const withTests = (p, line) => (p.n ? `${line} ${t('Monthly test restores passed in the last 30 days: {n}.', p)}` : line);
 
 /** The last drill in words (pure). */
 export function drillLine(d) {

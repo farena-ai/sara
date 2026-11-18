@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Sign in with your own provider, faster voice on Windows and Mac, a store-ready extension, in 3.25.0
+
+Any server can now offer sign-in through an OpenID Connect provider (authentik, Keycloak, Pocket ID, Authelia,
+Google, Microsoft Entra, Okta), with step-by-step presets and a Test sign-in button; the owner's own sign-in
+always keeps working. Her local hearing and voice stay loaded on Windows and Mac servers too, and an optional
+streaming model shows your words while you talk. The browser extension is packaged for Chrome, Edge and
+Firefox, and every release in What's new has a Try it.
+
 ## Security review, test restores, What's new, a server dashboard and faster voice, in 3.24.0
 
 A security review of everything other servers, web pages and links can reach found seven problems and fixed

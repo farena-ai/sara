@@ -42,6 +42,13 @@ A file is never held in memory on the way in:
 (nginx's `client_max_body_size 20m` from [INSTALL.md](INSTALL.md) works; Apache and Caddy have no
 small default limit). Nothing else needs changing for big files.
 
+**The same document twice.** An upload of a file she already keeps is matched by its hash and not
+added again. Copies kept from before that, or through another way in, show a line above the list:
+*N documents are in the Library more than once* with **Keep one of each**. One copy of each stays (one
+she learned from, else one she read, else the oldest), it takes over a collection the others were in,
+and the notes learned from the extra copies go (they were the same notes). `GET /api/library` lists them
+(`duplicates`), `POST /api/library/duplicates` tidies them.
+
 ## Reading a long document
 
 PDFs are read **page by page, from the file on disk**, in a background job that keeps its state in

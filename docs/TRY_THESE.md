@@ -5,7 +5,10 @@ demo never see it. A direct link: `/#view=try`.
 
 ## What you see
 
-- About 30 short checks of what is new in Sara 3.15 to 3.18.2: choices to tap, goals, research, ask
+- About 50 short checks of what is new since Sara 3.15 (V0.3 added 3.19 to 3.24: test restores, What's
+  new, Talk with Sara, Business, shared projects, the marketplace, picture editing, Money, Family,
+  Health, study cards, the browser extension, free flight status, Word comments, team recipes, the
+  taskbar count, an iPhone connection, alerts into a project). Older ones: choices to tap, goals, research, ask
   about anything, Messages (link, cards, communities, pictures), make it sound human, meetings, People
   that need attention, trips, documents (template, tracked changes, ready to sign), agent teams, help
   passes, self-repair Check now, where alerts go, Adult mode in the apps, several Google accounts, one

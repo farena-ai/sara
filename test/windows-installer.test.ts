@@ -132,6 +132,21 @@ test('the service host stops her cleanly by closing her stdin (SARA_STOP_ON_STDI
   assert.ok(Date.now() - started < 10_000, 'within the service host\'s 20 s');
 });
 
+test('V0.6 a stop under load never waits on backup maintenance: bounded tick wait, a whole-stop watchdog under the service host\'s 20 s', () => {
+  // The stdin test timed out under a loaded full suite: a start that takes ~2 minutes meets the first
+  // backup tick (2 minutes after start), and the stop waited for its maintenance (test restore,
+  // weekly safety check) before even arming the 5 s exit.
+  const main = readFileSync(join(ROOT, 'src', 'main.ts'), 'utf8');
+  const stop = main.slice(main.indexOf('async function shutdown(): Promise<void> {'));
+  const head = stop.slice(0, stop.indexOf('for (const c of companions.all()) await c.stop();'));
+  assert.match(head, /setTimeout\(\(\) => process\.exit\(0\), STOP_WATCHDOG_MS\)\.unref\(\);/, 'the watchdog is armed before any await');
+  assert.match(main, /const STOP_WATCHDOG_MS = 15_000;/);
+  assert.match(stop, /await Promise\.race\(\[backupTickRunning, new Promise\(\(r\) => setTimeout\(r, 5000\)\.unref\(\)\)\]\);/, 'a running tick is waited for 5 s at most');
+  assert.ok(stop.indexOf('await beginBackupShutdown();') > 0, 'snapshots still finish (their own drain)');
+  const tick = main.slice(main.indexOf('function backupTick(): Promise<void> {'), main.indexOf('const backupTimer = setInterval('));
+  assert.match(tick, /if \(shuttingDown\) return;\s*\n\s*\/\/ Reuse the hourly maintenance tick/, 'no maintenance once a stop began');
+});
+
 test('installer files: pinned downloads, every question and silent switch, data kept by default', () => {
   const dir = join(ROOT, 'desktop', 'windows');
   const build = readFileSync(join(dir, 'build-installer.sh'), 'utf8');

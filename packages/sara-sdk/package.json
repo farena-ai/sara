@@ -1,8 +1,18 @@
 {
-  "name": "sara-sdk",
+  "name": "@farena-ai/sara-sdk",
   "version": "0.1.0",
   "description": "A small, dependency-free TypeScript client for Sara's HTTP API: device sign-in, streamed chat, approvals, files, the OpenAI-compatible /v1 and webhook verification.",
   "license": "MIT",
+  "author": "farena-ai",
+  "homepage": "https://github.com/farena-ai/sara/tree/main/packages/sara-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/farena-ai/sara/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/farena-ai/sara.git",
+    "directory": "packages/sara-sdk"
+  },
   "type": "module",
   "engines": {
     "node": ">=18"
@@ -13,20 +23,31 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "files": [
-    "dist/"
+    "dist/",
+    "examples/"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "prepack": "tsc -p tsconfig.json"
+    "prepack": "tsc -p tsconfig.json",
+    "prepublishOnly": "tsc -p tsconfig.json"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/farena-ai/FrankWeather.git",
-    "directory": "packages/sara-sdk"
-  },
-  "keywords": ["sara", "ai", "companion", "assistant", "sdk", "client"]
+  "keywords": [
+    "sara",
+    "ai",
+    "companion",
+    "assistant",
+    "sdk",
+    "client",
+    "self-hosted",
+    "openai-compatible",
+    "webhooks"
+  ]
 }

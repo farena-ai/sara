@@ -241,13 +241,102 @@ export class Speaker {
 }
 
 /**
+ * V0.2 (docs/VOICE_FIRST.md "Words as you speak"): sends a live utterance to the streaming hearing
+ * model in ~0.25 s pieces (16 kHz 16-bit PCM, one piece in flight at a time) while you speak.
+ * post(id, bytes, end) → { text, endpoint }. `text` holds the words so far, `endpoint` is true once
+ * the model heard the end of the turn. Any error marks it failed: finish() then returns null and the
+ * caller sends the whole recording as before.
+ */
+export class StreamHearing {
+  constructor(post, rate) {
+    this.post = post;
+    this.rate = rate;
+    this.id = `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+    this.buf = [];
+    this.n = 0;
+    this.text = '';
+    this.endpoint = false;
+    this.failed = false;
+    this.chain = Promise.resolve();
+    this.onPartial = null;
+  }
+
+  /** The pre-roll frames already recorded when the utterance started. */
+  begin(frames) {
+    for (const f of frames) this.add(f);
+  }
+
+  add(frame) {
+    if (this.failed) return;
+    this.buf.push(frame.slice());
+    this.n += frame.length;
+    if (this.n >= this.rate / 4 && !this.busy) this.#send(false);
+  }
+
+  #take() {
+    const all = new Float32Array(this.n);
+    let o = 0;
+    for (const c of this.buf) {
+      all.set(c, o);
+      o += c.length;
+    }
+    this.buf = [];
+    this.n = 0;
+    const f = resample(all, this.rate);
+    const pcm = new Int16Array(f.length);
+    for (let i = 0; i < f.length; i++) {
+      const x = Math.max(-1, Math.min(1, f[i]));
+      pcm[i] = Math.round(x < 0 ? x * 0x8000 : x * 0x7fff);
+    }
+    return new Uint8Array(pcm.buffer);
+  }
+
+  #send(end) {
+    const bytes = this.#take();
+    this.busy = true;
+    this.chain = this.chain.then(async () => {
+      if (this.failed) return;
+      try {
+        const r = await this.post(this.id, bytes, end);
+        this.text = String(r?.text ?? '');
+        this.endpoint = Boolean(r?.endpoint);
+        this.loaded = Boolean(r?.loaded);
+        if (!end && this.text) this.onPartial?.(this.text);
+      } catch {
+        this.failed = true;
+      } finally {
+        this.busy = false;
+        // Audio that came in while this piece was on its way goes next.
+        if (!end && !this.failed && this.n >= this.rate / 4) this.#send(false);
+      }
+    });
+    return this.chain;
+  }
+
+  /** Sends the rest and ends the stream: the final words, or null when streaming failed. */
+  async finish() {
+    await this.chain;
+    if (this.failed) return null;
+    await this.#send(true);
+    await this.chain;
+    return this.failed ? null : this.text;
+  }
+
+  cancel() {
+    this.failed = true;
+  }
+}
+
+/**
  * Hands-free conversation: listens continuously, detects when you start and stop talking, sends
  * what you said, and lets you interrupt her by talking over her.
  */
 export class Call {
-  constructor({ mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech }) {
+  constructor({ mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech, stream, onPartial }) {
     // U4.24: isSpeech(frame) (a SpeechGate) keeps loud non-speech from starting an utterance.
-    Object.assign(this, { mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech });
+    // V0.2: stream() → a StreamHearing (or null) per utterance; onPartial(words) while you speak.
+    Object.assign(this, { mic, speaker, transcribe, onUtterance, onInterrupt, onStatus, isSpeech, stream, onPartial });
+    this.hearing = null;
     this.active = false;
     this.floor = 0.008;
     this.speechMs = 0;
@@ -302,25 +391,54 @@ export class Call {
           this.onInterrupt?.();
         }
         this.onStatus?.('hearing');
+        // V0.2: words as you speak (the pre-roll first).
+        const h = this.stream?.() ?? null;
+        if (h) {
+          h.onPartial = (words) => this.inUtterance && this.onPartial?.(words);
+          h.begin(this.mic.chunks);
+        }
+        this.hearing = h;
       }
-    } else if (this.silenceMs >= 900 || this.mic.chunks.length > 30 * 375) {
-      this.inUtterance = false;
-      this.speechMs = 0;
-      const wav = this.mic.stop(400);
-      this.mic.start();
-      if (wav) void this.#send(wav);
-      else this.onStatus?.('listening');
+    } else {
+      this.hearing?.add(f);
+      // V0.2: the streaming model heard the end of the turn: a shorter wait than the 0.9 s silence.
+      const heardEnd = this.hearing && !this.hearing.failed && this.hearing.endpoint && this.hearing.text && this.silenceMs >= 300;
+      if (heardEnd || this.silenceMs >= 900 || this.mic.chunks.length > 30 * 375) {
+        this.inUtterance = false;
+        this.speechMs = 0;
+        const h = this.hearing;
+        this.hearing = null;
+        const wav = this.mic.stop(400);
+        this.mic.start();
+        if (wav) void this.#send(wav, h);
+        else {
+          h?.cancel();
+          this.onStatus?.('listening');
+        }
+      }
     }
   }
 
-  async #send(wav) {
+  async #send(wav, hearing = null) {
     // Busy only while turning your words into text. Her reply isn't awaited here, so you can talk
     // over her while she answers (that interrupts her, and what you said is sent next).
     this.busy = true;
     this.onStatus?.('thinking');
     let text = '';
     try {
-      text = (await this.transcribe(wav)).trim();
+      // V0.2: the streaming words when they came through; else the whole recording as before.
+      if (hearing && !hearing.failed && hearing.loaded) {
+        // The whole-sentence model is loaded: it hears the recording again in ~0.05 s and gets more
+        // words right; the streaming words were the live preview (and the fallback).
+        void hearing.finish();
+        text = (await this.transcribe(wav).catch(() => '')).trim() || hearing.text.trim();
+      } else {
+        // At the model's endpoint its words are final already: no wait for the stream to close.
+        const atEnd = hearing && !hearing.failed && hearing.endpoint && hearing.text ? hearing.text : null;
+        if (atEnd) void hearing.finish();
+        const streamed = atEnd ?? (hearing ? await hearing.finish() : null);
+        text = streamed?.trim() ? streamed.trim() : (await this.transcribe(wav)).trim();
+      }
     } catch {
       text = '';
     } finally {

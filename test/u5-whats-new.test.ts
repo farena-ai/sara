@@ -182,3 +182,19 @@ test('U5.32.7 the page wiring: the card, Help → What\'s new, #view=whats-new, 
   assert.match(read('scripts/i18n-extract.ts'), /whats-new\.json/);
   assert.match(read('docs/WHATS_NEW.md'), /U5\.32/);
 });
+
+test('V0.3 every shipped release has a Try it for the owner, and each Try these release is in What\'s new or older', () => {
+  const shipped = JSON.parse(read('web/whats-new.json')) as WhatsNewData;
+  const fromChecks = new Set(CHECKS.map((c) => c.release));
+  for (const r of shipped.releases) {
+    if (!fromChecks.has(r.version)) continue;
+    assert.ok(r.items.some((i) => i.try?.length), `${r.version}: no highlight has a Try it`);
+  }
+  for (const v of ['3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0']) assert.ok(fromChecks.has(v), `Try these has nothing from ${v}`);
+  // The test restore and What's new lines now have a place to open.
+  const r324 = shipped.releases.find((r) => r.version === '3.24.0');
+  if (r324) {
+    assert.equal(r324.items.find((i) => /test restore/i.test(i.text))?.link, '#view=settings:dh-backups');
+    assert.deepEqual(r324.items.find((i) => /What's new/.test(i.text))?.try, ['whats-new-help']);
+  }
+});

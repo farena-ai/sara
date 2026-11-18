@@ -139,3 +139,37 @@ test('EC28 monitoring: audit trail broken → not ready; metrics off → attenti
   assert.equal(area(f, 'monitoring').status, 'not-ready');
   assert.deepEqual(area(f, 'monitoring').fix, { open: 'settings:dh-audit' });
 });
+
+test('V0.4 the Restore drill row also counts the monthly test restores (src/restore-test.ts)', () => {
+  const f = good();
+  const row = (h: number, result: 'passed' | 'failed' | 'skipped', extra: object = {}) => ({ at: hoursAgo(h), result, source: 'local' as const, reason: 'x', durationMs: 4200, by: 'schedule' as const, ...extra });
+  // No drill, but a monthly test restore passed 3 days ago: ready, said as a test restore.
+  f.drill = undefined;
+  f.restoreTests = [row(72, 'passed')];
+  assert.equal(area(f, 'drill').status, 'ready');
+  assert.equal(area(f, 'drill').reason, 'test-ok');
+  assert.deepEqual(area(f, 'drill').params, { days: 3, seconds: 4.2, n: 1, offsiteOk: false, source: 'local' });
+  // A skip is no proof either way (not enough disk space): the passed row still speaks.
+  f.restoreTests = [row(1, 'skipped'), row(72, 'passed')];
+  assert.equal(area(f, 'drill').reason, 'test-ok');
+  // The newest proof wins: a newer failed test restore after an old good drill → not ready, open Backups.
+  f.drill = { at: hoursAgo(24 * 10), ok: true, totalMs: 9000, dataLossHours: 6 };
+  f.restoreTests = [row(2, 'failed', { step: 'hashes' })];
+  assert.equal(area(f, 'drill').status, 'not-ready');
+  assert.equal(area(f, 'drill').reason, 'test-failed');
+  assert.equal(area(f, 'drill').params?.step, 'hashes');
+  assert.deepEqual(area(f, 'drill').fix, { open: 'settings:dh-backups' });
+  // A newer good drill: the drill line, with how many test restores passed in the window.
+  f.drill = { at: hoursAgo(24), ok: true, totalMs: 9000, dataLossHours: 6 };
+  f.restoreTests = [row(48, 'passed'), row(24 * 20, 'passed'), row(24 * 40, 'passed')];
+  assert.equal(area(f, 'drill').reason, 'ok');
+  assert.equal(area(f, 'drill').params?.n, 2);
+  // Both older than the window: attention, said as a test restore when that is the newest.
+  f.drill = { at: hoursAgo(24 * 60), ok: true, totalMs: 9000, dataLossHours: 6 };
+  f.restoreTests = [row(24 * (DRILL_FRESH_DAYS + 2), 'passed')];
+  assert.equal(area(f, 'drill').status, 'attention');
+  assert.equal(area(f, 'drill').reason, 'test-stale');
+  // Without the field (older callers) nothing changes.
+  delete f.restoreTests;
+  assert.equal(area(f, 'drill').reason, 'stale');
+});

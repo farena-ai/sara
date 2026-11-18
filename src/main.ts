@@ -256,6 +256,8 @@ import { actTokenSpace } from './phone-actions.ts';
 import { createServer, type IncomingMessage } from 'node:http';
 import { DeviceFlow } from './device-flow.ts';
 import { SESSION_COOKIE } from './auth.ts';
+import { HomeSso } from './home-sso.ts';
+import { ssoPeople } from './routes/sso.ts';
 import { Evals } from './evals.ts';
 import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberSettings, memberDirs, memberOfToken, memberUsage, memberVault, PairRegistry, peekJson, type MemberRecord, type ModelPick } from './household.ts';
 import type { Vault as VaultT } from './vault.ts';
@@ -979,8 +981,11 @@ const alexa = new AlexaService({
     return sp.companions.get(link.companion)?.app;
   },
 });
+// V0.8: OpenID Connect sign-in, one for the whole server (the owner's settings, every space's sign-out).
+const homeSso = new HomeSso({ dataDir, vault, people: () => ssoPeople(settings.get().ownerName ?? '', household), privateLocal: () => privateLocal.get().on });
 const serverOpts = {
   auth,
+  sso: homeSso,
   alexa,
   claim,
   info,
@@ -1931,6 +1936,7 @@ const householdHooks: HouseholdHooks = {
   },
   deleteNow: deleteMemberSpace,
   signOutAll: (id) => void memberSpaces.get(id)?.auth.signOut('others'),
+  sessionFor: (id, label) => (household.get(id)?.status === 'active' ? memberSpaces.get(id)?.auth.createSession(label) : undefined),
 };
 
 companions.build = (id, dir) => buildCompanion(ownerSpace, id, dir);
@@ -1979,6 +1985,8 @@ function backupTick(): Promise<void> {
         } catch (err) { console.warn(`Off-server copy failed: ${(err as Error).message}`); }
       }
     } catch (err) { console.warn(`Automatic backup failed: ${(err as Error).message}`); }
+    // V0.6: a stop that began during the snapshot skips the maintenance (it can take minutes).
+    if (shuttingDown) return;
     // Reuse the hourly maintenance tick; await offsite work so ticks never overlap it.
     try {
       if (offsiteTestDue(mainApp)) {
@@ -2166,11 +2174,14 @@ server.listen(port, host, () => {
 });
 
 let shuttingDown = false;
+/** V0.6: the whole stop ends within this, under the Windows service host's 20 s (it kills after that). */
+const STOP_WATCHDOG_MS = 15_000;
 async function shutdown(): Promise<void> {
   lspEngine.stopAll();
   voice.stopWorkers();
   if (shuttingDown) return;
   shuttingDown = true;
+  setTimeout(() => process.exit(0), STOP_WATCHDOG_MS).unref();
   for (const c of companions.all()) await c.stop();
   for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) await c.stop().catch(() => {});
   // Phase 87: the computers' connections close (their apps reconnect when Sara is back).
@@ -2184,7 +2195,8 @@ async function shutdown(): Promise<void> {
   healthHistory?.stop();
   hubPinger?.stop();
   clearInterval(backupTimer);
-  await backupTickRunning;
+  // A running tick's snapshot is drained by beginBackupShutdown below; its maintenance stops at shuttingDown.
+  await Promise.race([backupTickRunning, new Promise((r) => setTimeout(r, 5000).unref())]);
   bridges?.telegram?.stop();
   bridges?.discord?.stop();
   mcp.stopAll();

@@ -31,6 +31,9 @@ for the airport, tells you about delays, gate changes and cancellations, and lis
 - **In chat**: `trip_list` (your trips) and `trip_status` (one trip in order, with a fresh status check
   for flights in the next 48 hours). Both only read.
 
+**Rename a trip:** Rename on a trip card turns the title into a text box (Enter saves, Esc cancels);
+leaving it empty gives back the name she made from the bookings (`PATCH /api/trips/:id {title}`).
+
 ## Flight status sources
 
 Status is **off** by default: nothing is asked until you pick a source. The Trips page → Flight status

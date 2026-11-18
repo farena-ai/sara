@@ -139,6 +139,8 @@ import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
 import { createExtensionRoutes } from './routes/extension.ts';
+import { ssoOwnerRoute, ssoPeople, ssoPublicRoute } from './routes/sso.ts';
+import { HomeSso } from './home-sso.ts';
 import { extOrigin } from './extension.ts';
 import { createBookingPublic, createBookingRoutes } from './routes/booking.ts';
 import { createMcpAppRoutes } from './routes/mcp-apps.ts';
@@ -252,6 +254,8 @@ export interface ServerOptions extends UsageReportOptions {
   spaceId?: string;
   /** Phase 71: whether anyone on this server has a passkey (the sign-in page offers passkey sign-in). */
   anyPasskeys?: () => boolean;
+  /** V0.8: OpenID Connect sign-in shared by every space (src/home-sso.ts; made here when absent). */
+  sso?: HomeSso;
   /** Phase 72: her Alexa skill, shared by every space (main.ts routes each linked Alexa to its person). */
   alexa?: AlexaService;
 }
@@ -283,6 +287,8 @@ export interface HouseholdHooks {
   deleteNow: (id: string) => Promise<void>;
   /** Signs a member out everywhere (suspend, remove). */
   signOutAll: (id: string) => void;
+  /** V0.8: a new session in a member's space (OpenID Connect sign-in mapped to them). */
+  sessionFor?: (id: string, label: string) => { value: string; maxAgeSeconds: number; id: string } | undefined;
 }
 
 /** A soft square picture with a companion's initial (until she has a look of her own). */
@@ -370,6 +376,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const cookieFor = (req: IncomingMessage) => (value: string, maxAge: number) =>
     `${SESSION_COOKIE}=${encodeURIComponent(value)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${opts.secureCookies || isHttps(req) ? '; Secure' : ''}`;
 
+  // V0.8: OpenID Connect sign-in (never in the demo; a member's space only signs its own sessions out).
+  const homeSso = opts.demo ? undefined : (opts.sso ?? (opts.member ? undefined : new HomeSso({ dataDir: app.dataDir, vault: app.vault, people: () => ssoPeople(app.settings.get().ownerName ?? '', opts.household?.store), privateLocal: privateLocalOn })));
   // C15: approve a new device from chat (src/device-gate.ts).
   const gate = createDeviceGate({ app, auth, demo: Boolean(opts.demo), member: Boolean(opts.member), ...(opts.trustProxy ? { trustProxy: opts.trustProxy } : {}) });
 
@@ -457,12 +465,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   const DEMO_WRITES = new Set(['conversations', 'disclosure', 'logout', 'demo', 'reports', 'boards']);
   /** Security review: routes an app signed in with a device code may not use (sign-in settings, devices, approving apps). */
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
-  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'team-runs', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools']);
+  const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'team-runs', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools', 'sso']);
   /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'sso', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -1362,6 +1370,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       return send(res, 200, { ok: true, token });
     }
 
+    // V0.8: OpenID Connect sign-in (src/routes/sso.ts); the owner token and passkeys stay as they are.
+    const ssoDeps = () => ({ sso: homeSso!, auth, gate, limiter, ...(opts.household ? { household: opts.household } : {}), cookie: cookieFor, isHttps, secureCookies: Boolean(opts.secureCookies), ip: (r: IncomingMessage) => clientIp(r, opts.trustProxy), sameSiteOnly });
+    if (a === 'sso' && homeSso && !opts.member && (b === 'callback' || b === 'start' || b === 'finish') && (await ssoPublicRoute(ssoDeps(), req, res, method, b))) return;
     // Phase 24: passkey sign-in (no token, no code: the passkey checks it's you).
     if (a === 'passkey' && (b === 'signin-options' || b === 'signin') && method === 'POST') {
       const ip = clientIp(req, opts.trustProxy);
@@ -1417,7 +1428,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       const id = auth.sessionId(cookies(req)[SESSION_COOKIE]);
       if (id) auth.signOut(id);
       res.setHeader('set-cookie', cookie('', 0));
-      return send(res, 200, { ok: true });
+      // V0.8: a session that came from the provider also offers the provider's own sign-out page.
+      const endSession = await homeSso?.signedOut(spaceId, id).catch(() => undefined);
+      return send(res, 200, { ok: true, ...(endSession ? { endSession } : {}) });
     }
 
     if (a === 'session' && method === 'GET') {
@@ -1435,6 +1448,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         })() : {}),
         // Phase 24: the sign-in page offers "Sign in with a passkey" when one exists.
         ...(!authed && !opts.demo && (opts.anyPasskeys?.() ?? auth.passkeys().length > 0) ? { passkeys: true } : {}),
+        // V0.8: "Sign in with <provider>" when OpenID Connect sign-in is on.
+        ...(!authed && homeSso && !opts.member && homeSso.status().enabled ? { sso: homeSso.status() } : {}),
         // Phase 71: who is signed in (the owner, or a household member and their account's state).
         ...(authed && !opts.demo ? (opts.member ? { role: 'member', member: (({ name, status, deleteAfter, limits }) => ({ name, status, deleteAfter: deleteAfter ?? null, voice: limits.voice, pictures: limits.pictures }))(opts.member.record() ?? ({ name: '', status: 'suspended', limits: { voice: false, pictures: false } } as unknown as MemberRecord)) } : { role: 'owner', ...(opts.household ? { household: true } : {}) }) : {}),
         // Phase 59: a new server that can be set up in the browser (only while nobody has signed in).
@@ -1886,6 +1901,7 @@ export function createSaraServer(opts: ServerOptions): Server {
 
     // Phase 24: passkeys and two-step sign-in (Settings → Devices and sign-in).
     if (a === 'security' && !b && method === 'GET') return send(res, 200, { passkeys: auth.passkeys(), twoStep: auth.twoStepOn });
+    if (a === 'sso' && homeSso && !opts.member && (await ssoOwnerRoute({ ...ssoDeps(), askFirst: () => gate.askFirst(req, 'password') }, req, res, method, b))) return;
     // Security review: a passkey can confirm it's you (approving an app's device code).
     if (a === 'passkey' && b === 'confirm-options' && method === 'POST') {
       if (opts.demo) throw new HttpError(403, 'Not in the demo.');

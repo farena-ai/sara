@@ -20,8 +20,8 @@ const FACTS: HubFacts = { version: '3.18.2', channel: 'source', os: 'windows', a
 const html = readFileSync(join(ROOT, 'web', 'index.html'), 'utf8');
 const appJs = readFileSync(join(ROOT, 'web', 'app.js'), 'utf8');
 
-test('U1.5.1 the curated list: ~30 short items from 3.15-3.18.2, 1-3 steps, a working deep link, what you should see', () => {
-  assert.ok(CHECKS.length >= 28 && CHECKS.length <= 34, `${CHECKS.length} items`);
+test('U1.5.1 the curated list: short items from 3.15 on (V0.3: 3.19-3.24 too), 1-3 steps, a working deep link, what you should see', () => {
+  assert.ok(CHECKS.length >= 28 && CHECKS.length <= 60, `${CHECKS.length} items`);
   assert.equal(new Set(CHECKS.map((c) => c.id)).size, CHECKS.length, 'unique ids');
   const views = /const VIEWS = \{([^\n]+)\};/.exec(appJs)?.[1] ?? '';
   for (const c of CHECKS) {

@@ -39,6 +39,8 @@ import { loadBusinessDetails, saveBusinessDetails } from './business-details.js'
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
 import { loadBrowserExt } from './browser-ext.js';
+import { loadSso } from './sso-settings.js';
+import { paintSsoLogin, ssoAfterLogout, ssoReturn } from './sso-signin.js';
 import { initMarket, loadMarket } from './market.js';
 import { dateCard, initFacts, loadFacts } from './facts.js';
 import { renderTelegramSetup } from './telegram-setup.js';
@@ -126,7 +128,7 @@ import { askAside, guardLine, initBusy, refreshPending, renderPending, sayingFol
 import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
-import { loadWakePage, renderVoiceInstall, wakeEvent } from './wake.js';
+import { loadWakePage, renderStreamInstall, renderVoiceInstall, wakeEvent } from './wake.js';
 import { initTalk, syncTalkButton, talkEvent, talkOn, talkWake } from './talk.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
 import { initOwnerChecks, openTryThese } from './owner-checks.js';
@@ -282,6 +284,13 @@ async function boot() {
   $('#login-help').hidden = Boolean(session.demo);
   $('#demo-bar').hidden = !session.demo;
   $('#login-passkey').hidden = !(session.passkeys && passkeysWork());
+  // V0.8: OpenID Connect sign-in (button, and the return from the provider).
+  paintSsoLogin(session);
+  if (/[?&]sso(-test)?=/.test(location.search)) {
+    const back = await ssoReturn({ waitOnSignIn });
+    if (back === 'stop') return;
+    if (back === 'again') return boot();
+  }
   if (session.demo) $('#login-intro').textContent = t('Have a sign-in token (for example for app review)? Enter it here. Or just try the demo.');
   if (!session.authenticated && session.demo && /[?&]demo=1/.test(location.search)) {
     await api('/demo/start', { method: 'POST', body: {} }).catch(() => {});
@@ -549,7 +558,8 @@ $('#demo-start').addEventListener('click', async () => {
 $('#logout').addEventListener('click', async () => {
   // Feature 4: signing out deletes this device's offline copy and outbox.
   await offlineSignOut();
-  await api('/logout', { method: 'POST', body: {} });
+  const out = await api('/logout', { method: 'POST', body: {} });
+  if (ssoAfterLogout(out)) return;
   show('login');
 });
 
@@ -5590,6 +5600,7 @@ async function loadVoice() {
   $('#talk-voice-ok').checked = v.talk?.approveByVoice !== false;
   $('#talk-goodbye').checked = v.talk?.goodbye !== false;
   $('#talk-keep').value = String(v.talk?.keepLoaded ?? 10);
+  $('#talk-hearing').value = v.talk?.hearing === 'streaming' ? 'streaming' : 'whole';
   voice.sample = d.expressiveSample;
   $('#v-calls').value = v.calls ?? 'live';
   $('#v-look-every').value = String(v.video?.lookEvery ?? 10);
@@ -5633,6 +5644,7 @@ async function loadVoice() {
   renderVoicePicker(d);
   // Phase 126 part C: Install hearing and voices on this computer (Windows and Mac servers).
   renderVoiceInstall(d);
+  renderStreamInstall(d);
   $('#v-local').textContent = d.local.stt || d.local.tts
     ? `${d.local.stt ? t('On this server: hearing installed, voices: {n}.', { n: d.voices.length }) : t('On this server: hearing not installed, voices: {n}.', { n: d.voices.length })} ${t('Nothing leaves your server.')}`
     : d.localSupported === false
@@ -5770,7 +5782,7 @@ async function saveVoice() {
     expressive: $('#v-expressive').value,
     tone: $('#v-tone').value,
     followMood: $('#v-mood').checked,
-    talk: { fillers: $('#talk-fillers').checked, approveByVoice: $('#talk-voice-ok').checked, goodbye: $('#talk-goodbye').checked, keepLoaded: Number($('#talk-keep').value) },
+    talk: { fillers: $('#talk-fillers').checked, approveByVoice: $('#talk-voice-ok').checked, goodbye: $('#talk-goodbye').checked, keepLoaded: Number($('#talk-keep').value), hearing: $('#talk-hearing').value },
     openai: { baseUrl: $('#v-oa-url').value.trim(), sttModel: $('#v-oa-stt').value.trim(), ttsModel: $('#v-oa-tts').value.trim(), ttsVoice: $('#v-oa-voice').value.trim() },
     elevenlabs: { voiceId: $('#v-el-voice').value.trim(), model: $('#v-el-model').value.trim() },
     xai: { voiceId: $('#v-xai-voice').value || 'eve', language: $('#v-xai-lang').value },
@@ -9125,6 +9137,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'dh-devices') showOfflineSettings();
   // U4.25: the browser extension's switches (web/browser-ext.js).
   if (pick === 'dh-devices' && typeof loadBrowserExt === 'function') void loadBrowserExt();
+  if (pick === 'dh-devices' && typeof loadSso === 'function') void loadSso();
   if (pick === 'co-phone' && !inPhoneApp(navigator.userAgent)) void renderPhoneConnect($('#reach-phone'));
   // R5: Phone calls (co-phone) and Discord's voice channel (co-discord), owner only (web/phone-calls.js).
   if ((pick === 'co-phone' || pick === 'co-discord') && !isMember()) void loadPhoneCalls();

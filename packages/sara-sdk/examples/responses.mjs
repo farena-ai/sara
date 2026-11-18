@@ -1,11 +1,11 @@
 // Example: talk to Sara through Open Responses (/v1/responses) and continue with previous_response_id.
 //
-//   npm run build            (once, in packages/sara-sdk)
+//   npm install @farena-ai/sara-sdk   (or, in packages/sara-sdk: npm run build)
 //   SARA_SERVER=https://sara.example.com SARA_KEY=sara_dev.… node examples/responses.mjs
 //
 // SARA_KEY is an API key from Settings → Connections → Other apps. Any Open Responses client (the
 // official `openai` package's responses.create with baseURL `<server>/v1`) works the same way.
-import { Sara } from '../dist/index.js';
+import { Sara } from '@farena-ai/sara-sdk';
 
 const env = process.env;
 const sara = new Sara({ server: env.SARA_SERVER ?? 'http://127.0.0.1:3000', token: env.SARA_KEY });

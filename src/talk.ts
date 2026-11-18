@@ -12,10 +12,12 @@ export interface TalkPrefs {
   goodbye: boolean;
   /** U5: minutes the local hearing and voice engines stay loaded after use (0 = load per call). Owner's setting, server-wide. */
   keepLoaded: number;
+  /** V0.2: 'streaming' shows your words while you speak (the streaming hearing model); 'whole' hears each sentence when you stop. */
+  hearing: 'whole' | 'streaming';
 }
 
 export const KEEP_LOADED = [0, 10, 30, 60] as const;
-export const TALK_DEFAULTS: TalkPrefs = { fillers: true, approveByVoice: true, goodbye: true, keepLoaded: 10 };
+export const TALK_DEFAULTS: TalkPrefs = { fillers: true, approveByVoice: true, goodbye: true, keepLoaded: 10, hearing: 'whole' };
 
 /** Saved prefs with the defaults; anything not a boolean falls back to the default (true). */
 export function cleanTalk(v: unknown): TalkPrefs {
@@ -27,6 +29,7 @@ export function cleanTalk(v: unknown): TalkPrefs {
     approveByVoice: b(o.approveByVoice, TALK_DEFAULTS.approveByVoice),
     goodbye: b(o.goodbye, TALK_DEFAULTS.goodbye),
     keepLoaded: o.keepLoaded !== undefined && o.keepLoaded !== '' && (KEEP_LOADED as readonly number[]).includes(keep) ? keep : TALK_DEFAULTS.keepLoaded,
+    hearing: o.hearing === 'streaming' ? 'streaming' : 'whole',
   };
 }
 

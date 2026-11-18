@@ -45,7 +45,7 @@ after(() => {
   cleanup();
 });
 
-test('it builds with tsc to dist (ESM + types) and npm pack ships only dist, README and LICENSE', { skip: NO_TSC }, () => {
+test('it builds with tsc to dist (ESM + types) and npm pack ships only dist, examples, README and LICENSE', { skip: NO_TSC }, () => {
   rmSync(join(PKG, 'dist'), { recursive: true, force: true });
   execFileSync(NODE, [join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc'), '-p', join(PKG, 'tsconfig.json')], { stdio: 'pipe' });
   for (const f of ['index.js', 'index.d.ts', 'routes.js', 'webhooks.js']) assert.ok(existsSync(join(PKG, 'dist', f)), f);
@@ -57,7 +57,7 @@ test('it builds with tsc to dist (ESM + types) and npm pack ships only dist, REA
   const npmCli = join(NODE, '..', 'node_modules', 'npm', 'bin', 'npm-cli.js');
   const packed = JSON.parse(execFileSync(NODE, [npmCli, 'pack', '--dry-run', '--json', '--ignore-scripts'], { cwd: PKG, encoding: 'utf8' })) as { files: { path: string }[] }[];
   const files = packed[0].files.map((f) => f.path).sort();
-  assert.ok(files.every((f) => f.startsWith('dist/') || ['LICENSE', 'README.md', 'package.json'].includes(f)), files.join(', '));
+  assert.ok(files.every((f) => /^(dist|examples)\//.test(f) || ['LICENSE', 'README.md', 'package.json'].includes(f)), files.join(', '));
   assert.ok(files.includes('dist/index.d.ts'));
 });
 

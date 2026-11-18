@@ -26,6 +26,9 @@ export interface ProviderInfo {
 }
 
 export const PROVIDERS: readonly ProviderInfo[] = [
+  // V0.10: the exchange's own keyless quotes first (US stocks and ETFs); indexes, other markets and anything
+  // Nasdaq can't answer come from Yahoo Finance behind it.
+  { id: 'nasdaq', kind: 'quote', label: 'Nasdaq', needsKey: false, free: "No key. The exchange's own prices for US stocks and ETFs; anything else comes from Yahoo Finance." },
   { id: 'yahoo', kind: 'quote', label: 'Yahoo Finance', needsKey: false, free: 'No key. Prices can be delayed up to 15 minutes.' },
   { id: 'stooq', kind: 'quote', label: 'Stooq', needsKey: false, free: 'No key. End-of-day and delayed prices.' },
   { id: 'finnhub', kind: 'quote', label: 'Finnhub', needsKey: true, keyUrl: 'https://finnhub.io/register', free: 'Free key: 60 requests a minute, US stocks.' },
@@ -34,7 +37,7 @@ export const PROVIDERS: readonly ProviderInfo[] = [
   { id: 'thesportsdb', kind: 'sports', label: 'TheSportsDB', needsKey: false, keyOptional: true, keyUrl: 'https://www.thesportsdb.com/pricing', free: 'Free test key built in (team results and next games).' },
   { id: 'theoddsapi', kind: 'odds', label: 'The Odds API', needsKey: true, keyUrl: 'https://the-odds-api.com/#get-access', free: 'Free key: 500 credits a month (one market in one region is one credit).' },
 ];
-export const DEFAULT_PROVIDER: Record<DataKind, string> = { quote: 'yahoo', sports: 'espn', odds: 'theoddsapi' };
+export const DEFAULT_PROVIDER: Record<DataKind, string> = { quote: 'nasdaq', sports: 'espn', odds: 'theoddsapi' };
 export const providerInfo = (id: string): ProviderInfo | undefined => PROVIDERS.find((p) => p.id === id);
 export const dataVaultKey = (provider: string): string => `data:${provider}`;
 
@@ -303,6 +306,24 @@ export function parseYahooSpark(json: unknown, fetchedAt: string): QuoteResult {
     quotes.push({ symbol: String(m.symbol ?? r.symbol).toUpperCase(), ...(typeof m.longName === 'string' || typeof m.shortName === 'string' ? { name: String(m.longName ?? m.shortName) } : {}), price, change: change === null ? null : round(change), changePct: prev ? round(((price - prev) / prev) * 100) : null, ...(typeof m.currency === 'string' ? { currency: m.currency } : {}), source: 'Yahoo Finance', at: t ? new Date(t * 1000).toISOString() : fetchedAt, fetchedAt });
   }
   return { quotes, missing: [] };
+}
+
+/** Nasdaq's watchlist answer (several symbols, one asset class): "$351.78" prices, "+0.28" changes, ISO trade times. */
+export function parseNasdaqWatchlist(json: unknown, fetchedAt: string): QuoteResult {
+  const j = json as { data?: unknown; status?: { bCodeMessage?: { errorMessage?: string }[] | null } } | null;
+  const num = (v: unknown): number | null => {
+    const n = Number(String(v ?? '').replace(/[$,%+\s]/g, ''));
+    return String(v ?? '').trim() && Number.isFinite(n) ? n : null;
+  };
+  const quotes: Quote[] = [];
+  for (const r of Array.isArray(j?.data) ? (j.data as Record<string, unknown>[]) : []) {
+    const price = num(r.lastSalePrice);
+    if (price === null || !r.symbol) continue;
+    const at = Date.parse(String(r.lastTradeTimestampDateTime ?? ''));
+    quotes.push({ symbol: String(r.symbol).toUpperCase(), ...(typeof r.companyName === 'string' ? { name: r.companyName } : {}), price, change: num(r.netChange), changePct: num(r.percentageChange), currency: 'USD', source: 'Nasdaq', at: Number.isFinite(at) ? new Date(at).toISOString() : fetchedAt, fetchedAt });
+  }
+  const missing = (j?.status?.bCodeMessage ?? []).map((m) => /bad symbol\.\s*(\S+)\s*$/i.exec(String(m?.errorMessage ?? ''))?.[1]?.toUpperCase()).filter((x): x is string => Boolean(x));
+  return { quotes, missing };
 }
 
 /** Stooq's quote CSV (Symbol,Date,Time,Open,High,Low,Close,Volume). Change is from the day's open (Stooq gives no previous close here). */
@@ -656,8 +677,46 @@ export class DataSources {
     return this.#crumb;
   }
 
+  /**
+   * V0.10: Nasdaq's keyless watchlist quotes, one request per asset class (stocks, then ETFs for what is
+   * left); indexes and other markets (^, =, a suffix like .L) and anything Nasdaq can't answer go to
+   * Yahoo Finance in one batch. Nasdaq down or refusing: Yahoo answers everything.
+   */
+  async #nasdaqQuotes(p: ProviderInfo, symbols: string[]): Promise<QuoteResult> {
+    const fetchedAt = () => new Date(this.#now()).toISOString();
+    const quotes: Quote[] = [];
+    let left = symbols.filter((s) => /^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z])?$/.test(s));
+    const direct = symbols.filter((s) => !left.includes(s));
+    try {
+      for (const cls of ['stocks', 'etf']) {
+        if (!left.length) break;
+        const { body } = await this.#get(p, `https://api.nasdaq.com/api/quote/watchlist?${left.map((s) => `symbol=${encodeURIComponent(s.replace('-', '.'))}%7C${cls}`).join('&')}`);
+        const got = parseNasdaqWatchlist(this.#json(p, body), fetchedAt());
+        const bySym = new Map(got.quotes.map((q) => [q.symbol, q]));
+        for (const s of left) {
+          const q = bySym.get(s.replace('-', '.'));
+          if (q) quotes.push({ ...q, symbol: s });
+        }
+        left = left.filter((s) => !bySym.has(s.replace('-', '.')));
+      }
+    } catch {
+      /* Nasdaq didn't answer: Yahoo Finance gets the rest */
+    }
+    const rest = [...direct, ...left.filter((s) => !quotes.some((q) => q.symbol === s))];
+    if (!rest.length) return { quotes, missing: [] };
+    const yahoo = providerInfo('yahoo') as ProviderInfo;
+    try {
+      const y = await this.#fetchQuotes(yahoo, rest);
+      return { quotes: [...quotes, ...y.quotes], missing: y.missing };
+    } catch (err) {
+      if (quotes.length) return { quotes, missing: [] };
+      throw err;
+    }
+  }
+
   async #fetchQuotes(p: ProviderInfo, symbols: string[]): Promise<QuoteResult> {
     const fetchedAt = () => new Date(this.#now()).toISOString();
+    if (p.id === 'nasdaq') return this.#nasdaqQuotes(p, symbols);
     if (p.id === 'yahoo') {
       const { body } = await this.#get(p, `https://query1.finance.yahoo.com/v7/finance/spark?symbols=${symbols.map(encodeURIComponent).join(',')}&range=1d&interval=1d`);
       return parseYahooSpark(this.#json(p, body), fetchedAt());

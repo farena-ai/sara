@@ -25,6 +25,7 @@ replies stay out of the repository).
 | Code map: "where is…?" questions on Sara's own code | qwen3.8 27B (local) + nomic-embed-text | **8/8** with code tools, **8/8** without | 2026-10-27 | `node scripts/eval-codemap.ts --embed nomic-embed-text` |
 | Speakers in meetings: 3 generated voices, 52 s, 13 lines (U3.13) | none (local ERes2Net voice prints, CPU) | **3 speakers, 13/13 lines, 97.5%** of speech time right (pauses + pitch before: 2 speakers, 8/13, 66.8%) | 2026-11-18 | `node scripts/eval-speakers.ts` (Windows) |
 | Voice reply time: end of your words → first audio of her answer, local hearing + voice (U5 engines stay loaded) | `qwen3.5:9b` / `gemma4:12b` (local) | median **1.93 s → 0.42 s** (qwen) and **2.80 s → 1.03 s** (gemma); hearing 0.85 → 0.04 s, first sentence spoken 0.7 → 0.07 s | 2026-11-18 | `SARA_VOICE_DIR=<dir> node scripts/voice-latency.ts <model> 5 oneshot\|warm` (details: docs/VOICE_FIRST.md) |
+| Talk hearing: end of your words → text, whole sentences vs. words as you speak (V0.2, NeMo streaming 80 ms + Parakeet) | none (local engines, CPU) | median **0.95 s → 0.83 s**; streaming word errors 8 % vs 3 % for Parakeet (so Parakeet's words are sent when it's loaded); endpoint hit 5/7 | 2026-11-18 | `SARA_VOICE_DIR=<dir> node scripts/voice-latency.ts hearing 7` (details: docs/VOICE_FIRST.md) |
 
 Full model name: `qwen3.8:27b-mtp-q4_K_M` on Ollama. Summaries: [humaneval-agent](results/humaneval-agent.json),
 [humaneval-raw](results/humaneval-raw.json), [tasks-agent](results/tasks-agent.json),

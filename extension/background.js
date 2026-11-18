@@ -5,6 +5,7 @@
 import { B, isOff, loadConf, t } from './lib/common.js';
 
 function menus() {
+  if (!B.contextMenus) return; // Firefox for Android has no right-click menus
   B.contextMenus.removeAll(() => {
     B.contextMenus.create({ id: 'sara-ask-selection', title: t('menuAskSel'), contexts: ['selection'] });
     B.contextMenus.create({ id: 'sara-save-page', title: t('menuSave'), contexts: ['page'] });
@@ -13,7 +14,7 @@ function menus() {
 B.runtime.onInstalled.addListener(menus);
 B.runtime.onStartup?.addListener(menus);
 
-B.contextMenus.onClicked.addListener(async (info, tab) => {
+B.contextMenus?.onClicked.addListener(async (info, tab) => {
   if (!tab?.id) return;
   const conf = await loadConf();
   if (isOff(conf.offSites, tab.url)) return; // switched off on this site: the menu does nothing here

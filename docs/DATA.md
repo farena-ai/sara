@@ -8,7 +8,7 @@ trades, never places bets and never calls a bet a sure thing.
 
 | Kind | Default (no key) | Other free choices |
 |---|---|---|
-| Stock prices | Yahoo Finance (can be 15 minutes late) | Stooq (no key), Finnhub (free key, 60 a minute), Alpha Vantage (free key, 25 a day) |
+| Stock prices | Nasdaq (no key; the exchange's own prices for US stocks and ETFs), with Yahoo Finance behind it for indexes, other markets and anything Nasdaq can't answer | Yahoo Finance only (no key, can be 15 minutes late), Stooq (no key), Finnhub (free key, 60 a minute), Alpha Vantage (free key, 25 a day) |
 | Sports | ESPN: scores, schedules, standings | TheSportsDB (free test key built in; per team) |
 | Odds | none | The Odds API (free key: 500 credits a month, one per market) |
 
@@ -22,7 +22,13 @@ trades, never places bets and never calls a bet a sure thing.
   Finance"). A source that doesn't answer, needs a key or is out of free requests is said plainly.
 - Answers are cached: prices 60 seconds, live scores 30 seconds, other sports 10 minutes, odds 5
   minutes.
-- Stooq's free quote address answered "not found" on 2026-11-13, so Yahoo Finance is the default;
+- Since V0.10 (2026-11-18) the default asks Nasdaq first: its public quote answer (the one nasdaq.com's own
+  watchlist uses; no key, no sign-up, several symbols in one request, stocks then ETFs) is the exchange's
+  own data rather than Yahoo's unofficial one. It is not a documented developer API either, so Yahoo
+  Finance stays right behind it: symbols Nasdaq doesn't know (`^`/`=` symbols, other markets) and any
+  Nasdaq failure go to Yahoo in one batch, and each answer names the source it really came from.
+  Finnhub and Alpha Vantage are the documented free APIs (free key).
+- Stooq's free quote address answered "not found" on 2026-11-13, so Yahoo Finance was the default until V0.10;
   Stooq stays as a choice in case it comes back. TheSportsDB retired its old free key "3"; Sara uses
   the current test key "123".
 

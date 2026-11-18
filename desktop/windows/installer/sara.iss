@@ -93,6 +93,12 @@ WizardStyle=modern
 SetupIconFile=..\src\sara.ico
 UninstallDisplayIcon={app}\Sara.exe
 UninstallDisplayName={#AppTitle}
+; V0.6: signed Setup and uninstaller when build-installer.sh passes /DSignTool (Azure signing via
+; desktop/windows/sign.sh); without it the build stays unsigned.
+#ifdef SignTool
+SignTool={#SignTool}
+SignedUninstaller=yes
+#endif
 ChangesEnvironment=yes
 CloseApplications=yes
 RestartApplications=no

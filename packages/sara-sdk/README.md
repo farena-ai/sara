@@ -1,6 +1,6 @@
-# sara-sdk
+# @farena-ai/sara-sdk
 
-A small TypeScript client for [Sara](https://github.com/farena-ai/FrankWeather)'s HTTP API.
+A small TypeScript client for [Sara](https://github.com/farena-ai/sara)'s HTTP API.
 Zero dependencies, ESM, typed. It uses only `fetch`, streams, `TextDecoder` and WebCrypto, so it runs
 in Node 18+, Deno, Bun, workers and browsers.
 
@@ -11,22 +11,34 @@ in Node 18+, Deno, Bun, workers and browsers.
 - The OpenAI-compatible `/v1` (models, chat, streamed chat) with an API key
 - Verify Sara's outgoing **webhooks** (Standard Webhooks signatures)
 
-The REST reference is [`docs/API.md`](../../docs/API.md) (generated from this package's route table).
+The REST reference is [`docs/API.md`](https://github.com/farena-ai/sara/blob/main/docs/API.md) (generated from this package's route table).
 
 ## Install
 
-From this repository (the package is not on npm yet):
-
 ```sh
-cd packages/sara-sdk
-npm run build        # tsc → dist/
-npm pack             # sara-sdk-0.1.0.tgz, then: npm install ./sara-sdk-0.1.0.tgz
+npm install @farena-ai/sara-sdk
 ```
+
+Or from a checkout of the Sara repository: `cd packages/sara-sdk && npm run build && npm pack`, then
+`npm install ./farena-ai-sara-sdk-<version>.tgz` in your project.
+
+## Quick start
+
+```ts
+import { Sara } from '@farena-ai/sara-sdk';
+
+const sara = new Sara({ server: 'https://sara.example.com', token: process.env.SARA_TOKEN });
+const conv = await sara.conversations.create({ title: 'Hello from my app' });
+const r = await sara.reply(conv.id, 'What is on my list today?');
+console.log(r.text);
+```
+
+The token is a device token (below) or an API key from Settings → Connections → Other apps.
 
 ## Sign in
 
 ```ts
-import { Sara } from 'sara-sdk';
+import { Sara } from '@farena-ai/sara-sdk';
 
 const sara = new Sara({ server: 'https://sara.example.com' });
 const token = await sara.auth.signIn({
@@ -69,8 +81,11 @@ tools set to ask still ask, tools that are off stay off, and an admin's policy c
 A full example is [`examples/stream-and-approve.mjs`](examples/stream-and-approve.mjs):
 
 ```sh
-SARA_SERVER=https://sara.example.com SARA_MESSAGE="Save a note: buy milk" node examples/stream-and-approve.mjs
+SARA_SERVER=https://sara.example.com SARA_MESSAGE="Save a note: buy milk" node node_modules/@farena-ai/sara-sdk/examples/stream-and-approve.mjs
 ```
+
+The examples ship in the package (`examples/`); [`examples/responses.mjs`](examples/responses.mjs)
+talks to Sara through Open Responses (`/v1/responses`).
 
 ## Files
 
@@ -97,7 +112,7 @@ for await (const piece of sara.v1.chatStream({ model: 'sara', messages: [{ role:
 Sara signs her outgoing webhook deliveries. Check them with the hook's secret and the **raw** body:
 
 ```ts
-import { verifyWebhook } from 'sara-sdk';
+import { verifyWebhook } from '@farena-ai/sara-sdk';
 
 const raw = await request.text();
 const v = await verifyWebhook({ secret: process.env.SARA_HOOK_SECRET!, headers: request.headers, body: raw });
