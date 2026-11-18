@@ -53,9 +53,9 @@ DLIB="${SARA_SIGN_DLIB:-$DIR/dlib/bin/x64/Azure.CodeSigning.Dlib.dll}"
 
 TOOL="${SARA_SIGNTOOL:-}"
 if [[ -z "$TOOL" ]]; then
-  for d in $(ls -d "/c/Program Files (x86)/Windows Kits/10/bin/10."* 2>/dev/null | sort -rV); do
+  while IFS= read -r d; do
     [[ -f "$d/x64/signtool.exe" ]] && { TOOL="$d/x64/signtool.exe"; break; }
-  done
+  done < <(ls -d "/c/Program Files (x86)/Windows Kits/10/bin/10."* 2>/dev/null | sort -rV)
 fi
 [[ -n "$TOOL" && -f "$TOOL" ]] || die "no signtool.exe: install the Windows SDK signing tools ($HOWTO)"
 

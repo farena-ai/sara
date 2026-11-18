@@ -108,6 +108,11 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Fixes in 3.22.1
+
+Settings, Health, Family and every window after Money open again: the Money window was missing its closing
+tags in 3.22.0. A test now checks that every window in the page is closed.
+
 ## Money, family planner, health log, study cards and a browser extension, in 3.22.0
 
 A Money place turns bank and card exports into spending by category, budgets, bills due, subscriptions and net

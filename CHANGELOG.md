@@ -5,6 +5,12 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.22.1 (2026-11-18): Settings and the new windows open again
+
+- Fixed: in 3.22.0, Settings, Health, Family and every window after Money opened empty (the Money window
+  was missing its closing tags, so the windows after it were hidden inside it). A test now checks that
+  every window in the page is closed.
+
 ## 3.22.0 (2026-11-18): Money, family planner, health log, study cards, browser extension
 
 - New: Sara in your browser (U4.25, docs/EXTENSION.md). An extension for Chrome, Edge and Firefox that
