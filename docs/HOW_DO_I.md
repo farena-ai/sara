@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 233 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 239 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -129,6 +129,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Ask in any chat: "what does the lease say about pets?"
 2. She quotes the part she used.
+
+**How do I scan a paper document?**
+
+1. Press Scan pages…, then Use the camera or Add photos.
+2. Take each page; tap a page to fix its corners.
+3. Press Save to Library: one PDF, read like any document.
+4. Press Remind me next to a date she found.
+
+**How do I keep a voice journal?**
+
+1. Press Journal…, then pick how today was.
+2. Press Record a minute, talk, then Stop and save (or type it).
+3. Only the words are kept unless you tick Keep the recording.
+4. Earlier years' entries for today show under On this day.
 
 ### Scrapbook
 
@@ -441,9 +455,15 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I get a reminder before a renewal or expiry date?**
 
-1. Add the document to the Library.
-2. Look under From your documents here or on Today.
-3. Press Remind me to add a reminder before the date.
+1. Add the document to the Library, snap a photo of the card, or type it in under Renewals and paperwork.
+2. Find it in the list, soonest first.
+3. Press Remind me: the reminder lands 30 days before the date.
+
+**How do I start renewing my passport or a policy?**
+
+1. Find it under Renewals and paperwork on this page.
+2. Press Start a renewal errand: she plans it on the Errands page.
+3. Press Start there. She fills the form, stops before Submit and asks before paying.
 
 ### My details
 
@@ -511,6 +531,20 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Open Planner → Reminders → When it comes up.
 2. Press Forget next to one; Done lists the ones that already came up.
 3. Or type /when for the list and /when forget 1.
+
+### Car and house upkeep
+
+**How do I get reminded about oil changes, filters and smoke alarms?**
+
+1. Type your car (or pick one from My details) and press Add the car schedule, or press Add the home schedule.
+2. Each job shows its next due date, soonest first.
+3. A reminder comes at 9 AM on the day. Type the odometer now and then so jobs by miles stay right.
+
+**How do I log a service or book one?**
+
+1. Press Done today on the job, or Log with details for the date, miles and cost.
+2. The next due date and its reminder move on.
+3. Press Book it and she finds places near you and asks before booking. Receipts from Money show up here to log with one tap.
 
 ## Settings → Models & usage
 
@@ -689,6 +723,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Type the Home Assistant address.
 2. Paste a long-lived access token.
 3. Press Save and test.
+
+**How do I start a Home Assistant scene by voice?**
+
+1. Connect Home Assistant (Find it for me fills in the address).
+2. Under Say it to start, switch the scene on and keep or change its words.
+3. Press Save voice routines, then say the words in Talk with Sara.
 
 **How do I let her notice when I get home?**
 

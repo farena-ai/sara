@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Life autopilot: renewals, purchases, home, audio briefing, scanning, upkeep, gifts and more, in 3.27.0
+
+Passport, license, registration and insurance dates join one Renewals list with reminders and a renewal errand.
+Receipts from mail or photos become Purchases with return-by dates and a return errand. Home Assistant is found
+on the network and its scenes run by voice (locks and alarms always ask for a tap). The morning briefing can be
+spoken by the local voice, with a private podcast link. Scan pages turns camera photos into one straightened PDF.
+Car and house upkeep, gift ideas and card text, a Maybe cancel list for subscriptions, an encrypted one-minute
+voice journal, and Find a time with a linked friend (only busy times cross) round it out.
+
 ## Bring everything, Waiting on you, Where do you text? and cost autopilot, in 3.26.0
 
 Moving in from Hermes, OpenClaw, ChatGPT or Claude is one button and one review, with a first-evening checklist

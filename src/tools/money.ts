@@ -12,6 +12,7 @@ import { localDay } from '../biz/store.ts';
 import { addMonths, cleanBudgetCategory, findSubscriptions, merchantKey, monthPeriod, summarize, type Period } from '../money/budget.ts';
 import { billStatus, refreshBills, scheduleBill, usDay, valueNow } from '../money/core.ts';
 import { budgetAlerts } from '../money/hub.ts';
+import { trimLines } from '../money/trim.ts';
 import { holdingsFromText, MoneyParseError, readHoldings, readTransactions } from '../money/parse.ts';
 import { moneyStore, type Bill, type BillRepeat } from '../money/store.ts';
 import { whenText } from './data.ts';
@@ -245,7 +246,7 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
       interruptible: true,
       spec: {
         name: 'budget_subscriptions',
-        description: "Find the person's recurring charges in their loaded transactions (the same merchant, about the same amount, every week, month or year): amount, how often, the next expected date and the yearly cost. Any can become a bill with a reminder (bill_add with subscription).",
+        description: "Find the person's recurring charges in their loaded transactions (the same merchant, about the same amount, every week, month or year): amount, how often, the next expected date and the yearly cost. Any can become a bill with a reminder (bill_add with subscription). Also lists Maybe cancel: subscriptions worth a second look (unused, price went up, two of the same kind, trial ending), from transactions and subscription email.",
         parameters: obj({}),
       },
       summarize: () => 'Finding subscriptions',
@@ -254,12 +255,14 @@ export function createMoneyTools(getApp: () => AppContext): Tool[] {
           const app = getApp();
           ownChat(app, ctx);
           const s = moneyStore(app);
-          if (!s.hasTransactions()) return 'No transactions yet: budget_import their bank or card export first (a few months shows monthly charges; a year or more shows yearly ones).';
+          // V2.8 (docs/TRIM.md): the Maybe cancel list (also from subscription mail) rides along.
+          const trim = trimLines(app);
+          if (!s.hasTransactions()) return ['No transactions yet: budget_import their bank or card export first (a few months shows monthly charges; a year or more shows yearly ones).', trim].filter(Boolean).join('\n');
           const subs = findSubscriptions(s.transactions(), today(app));
-          if (!subs.length) return 'No recurring charges found in the loaded transactions (at least two charges of about the same amount a week, a month or a year apart are needed).';
+          if (!subs.length) return ['No recurring charges found in the loaded transactions (at least two charges of about the same amount a week, a month or a year apart are needed).', trim].filter(Boolean).join('\n');
           const active = subs.filter((x) => !x.maybeStopped);
           const total = active.reduce((n, x) => n + x.yearlyCents, 0);
-          return `${subs.length} recurring charge${subs.length === 1 ? '' : 's'}; the ${active.length} still running cost ${usd(total)} a year:\n${subs.map((x) => `- ${x.merchant}: ${usd(x.amountCents)} every ${x.every} (${x.count} charges, last ${usDay(x.last)}) · next expected ${usDay(x.next)} · ${usd(x.yearlyCents)} a year${x.maybeStopped ? ' · no charge since, may have stopped' : ''}`).join('\n')}\nWorked out by budget_subscriptions from their transactions; the next dates are expectations, not facts.`;
+          return `${subs.length} recurring charge${subs.length === 1 ? '' : 's'}; the ${active.length} still running cost ${usd(total)} a year:\n${subs.map((x) => `- ${x.merchant}: ${usd(x.amountCents)} every ${x.every} (${x.count} charges, last ${usDay(x.last)}) · next expected ${usDay(x.next)} · ${usd(x.yearlyCents)} a year${x.maybeStopped ? ' · no charge since, may have stopped' : ''}`).join('\n')}\nWorked out by budget_subscriptions from their transactions; the next dates are expectations, not facts.${trim ? `\n${trim}` : ''}`;
         }),
     },
     {

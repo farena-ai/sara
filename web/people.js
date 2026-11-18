@@ -9,6 +9,7 @@ import { serverText, t } from './naming.js';
 import { proposalCard } from './proposal-card.js';
 import { emptyState } from './tidy.js';
 import { attentionView, tiesApi, tiesSection } from './people-ties.js';
+import { giftsSection } from './gifts.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -532,6 +533,8 @@ function renderCard() {
   parts.push(knows);
   // S4: keeping in touch (last contact, cadence, addresses, dates, promises).
   if (d.ties) parts.push(tiesSection(p, d.ties, () => openPerson(p.id, { keep: true })));
+  // V2.7: gifts and occasions (web/gifts.js; private cards show a short note only).
+  if (p.status === 'active') parts.push(giftsSection(p));
   // Phase 110 (CH4, §7.8): the rooms she knows this person from, with his two switches per room.
   if (d.rooms?.length) {
     const sec = el('section', 'ppl-sec ppl-rooms');

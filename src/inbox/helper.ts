@@ -26,6 +26,9 @@ import { detectKind } from '../library/read.ts';
 import { moneyStore } from '../money/store.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { observeMoneyMail } from '../money/hub.ts';
+import { takeRenewalMail } from '../renewals.ts';
+import { observePurchaseMail } from '../money/purchases.ts';
+import { observeTrimMail } from '../money/trim.ts';
 import { zonedParts, zonedToUtc } from '../planner.ts';
 import type { Permission, ToolContext } from '../tools/types.ts';
 import { AUTO_KINDS, classify, findingFromModel, htmlText, senderDomain, senderName, type Finding, type InboxKind, type InboxMail, type PackageStatus } from './classify.ts';
@@ -326,10 +329,29 @@ CREATE TABLE IF NOT EXISTS inbox_rules (
       console.warn(`travel: ${(err as Error).message}`);
     }
     // U4.20 (docs/MONEY.md): free trials ending, price changes and renewals join the Money page.
+    let subscription = false;
     try {
-      observeMoneyMail(this.#app, m);
+      subscription = observeMoneyMail(this.#app, m);
     } catch (err) {
       console.warn(`money: ${(err as Error).message}`);
+    }
+    // V2.1 (docs/RENEWALS.md): a policy, registration or license renewing joins Renewals and paperwork.
+    try {
+      takeRenewalMail(this.#app, m, subscription);
+    } catch (err) {
+      console.warn(`renewals: ${(err as Error).message}`);
+    }
+    // V2.2 (docs/PURCHASES.md): a receipt joins Money → Purchases with its return-by date.
+    try {
+      observePurchaseMail(this.#app, m, findings);
+    } catch (err) {
+      console.warn(`purchases: ${(err as Error).message}`);
+    }
+    // V2.8 (docs/TRIM.md): "we miss you" mail and subscription receipts feed Money → Maybe cancel.
+    try {
+      observeTrimMail(this.#app, m);
+    } catch (err) {
+      console.warn(`trim: ${(err as Error).message}`);
     }
     for (const f of findings) {
       if (f.kind === 'shipping' && f.tracking && this.#updatePackage(f, m)) {

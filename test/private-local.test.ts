@@ -127,6 +127,7 @@ const ALLOWED: Record<string, string> = {
   'src/self-code.ts': 'T3 code changes: only her own /api/health(/ready) and the smoke start of her working copy on 127.0.0.1',
   'src/self-code-runner.ts': 'T3 restart runner (a separate process while Sara restarts): only her own /api/health and /api/health/ready',
   'src/plugins/where-text.ts': 'V1.3 BlueBubbles reachability: one GET /api/v1/ping without the password, loopback (or the home network with the switch) only, after outboundAllowed()',
+  'src/home-discover.ts': 'V2.3 Find Home Assistant: one mDNS question (no token, nothing else) to the home network, after outboundAllowed() (none in private local mode)',
   'src/plugins/net.ts': "Phase 117 plugin socket broker: hosts only from the owner's plugin settings, refused in private local mode (assertOnline) and checked with checkOutbound() before connecting",
 };
 

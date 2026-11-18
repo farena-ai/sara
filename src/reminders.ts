@@ -3,6 +3,8 @@
 // a reminder never lands between a tool call and its result.
 import { alertApps, alertPlace } from './destinations.ts';
 import { familyTick } from './family.ts';
+import { giftsTick } from './gifts.ts';
+import { trimTick } from './money/trim.ts';
 import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
@@ -76,6 +78,8 @@ export class ReminderScheduler {
     this.#app.study?.due(now);
     // S4: last contact, waiting replies and promises from mail, calendars and rooms (at most every 30 minutes).
     void this.#app.peopleTies?.due(now);
+    // V2.7: gift reminders ahead of birthdays and yearly dates on People cards.
+    giftsTick(this.#app, now);
     // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
     void this.#app.messages?.due(now).catch(() => undefined);
     // U4.26: shared projects send what the friends have not acknowledged yet (offline catch-up).
@@ -86,6 +90,12 @@ export class ReminderScheduler {
     familyTick(this.#app, now);
     // U4.22: medicine dose reminders (only where a health log exists).
     healthTick(this.#app, now);
+    // V2.8 (docs/TRIM.md): the monthly "maybe cancel" note (once a month, where Money alerts go).
+    try {
+      trimTick(this.#app, now);
+    } catch (err) {
+      console.warn(`trim: ${(err as Error).message}`);
+    }
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
     this.#app.inbox?.due(now);
     // S6: travel: check-in, leave-by and flight status alerts on the same tick.

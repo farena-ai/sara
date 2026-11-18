@@ -10,6 +10,7 @@ import { CIRCLES, FACT_CATEGORIES, type FactCategory, type Person, type PersonFa
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { keepRoom, roomName } from '../bridges/keepup.ts';
 import { peopleTiesRoute } from './people-ties.ts';
+import { peopleGiftsRoute } from './people-gifts.ts';
 
 const PHOTO_MAX = 3 * 1024 * 1024;
 
@@ -136,6 +137,8 @@ export function createPeopleRoutes(ctx: RouteCtx): RouteHandler {
     }
     // S4: keeping in touch (attention, promises, per-card ties; src/routes/people-ties.ts).
     if (a === 'people' && (await peopleTiesRoute(ctx, req, res, method, parts))) return;
+    // V2.7: gifts and occasions (src/routes/people-gifts.ts).
+    if (a === 'people' && (await peopleGiftsRoute(ctx, req, res, method, parts))) return;
     const p = person(b);
     if (!c && method === 'GET') return send(res, 200, full(p, new URL(req.url ?? '/', 'http://x').searchParams.get('sensitive') === '1'));
     if (!c && method === 'PUT') {

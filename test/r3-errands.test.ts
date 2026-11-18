@@ -72,7 +72,7 @@ test('R3 templates: words in six languages pick the plan; a model plan is cleane
   assert.equal(templateFor('write a complaint letter to the landlord')?.id, 'dispute');
   assert.equal(templateFor('get quotes from 3 contractors for a fence')?.id, 'quotes');
   assert.equal(templateFor('what is the weather'), undefined);
-  assert.equal(TEMPLATES.length, 5);
+  assert.equal(TEMPLATES.length, 7, 'V2.1 added renew, V2.2 added return');
   const p = planFor('refund the Acme charge', { facts: { merchant: 'Acme Store' } });
   assert.equal(p.template, 'refund');
   assert.deepEqual(p.steps.map((s) => s.kind), ['research', 'research', 'message', 'wait']);

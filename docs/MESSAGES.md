@@ -66,6 +66,21 @@ support report and suggest fixes that you approve one by one. See [SUPPORT_LINK.
 A **fix pass** (T5) goes further: the other owner's Sara sends a plan your Sara checks and runs herself,
 with your OK. See [REMOTE_REPAIR.md](REMOTE_REPAIR.md).
 
+## Find a time with a friend (V2.10)
+- Open a one-to-one chat with a linked friend and press **Find a time with {name}**: say what it is,
+  how long (15 min to 2 hours), when in the day (daytime 9–5, evening 5–9, any time 9–9) and how
+  many days ahead. Or ask her in chat: "find a time with Sam for coffee next week".
+- Your friend gets a card: **Share my free/busy** or **Not now**. Nothing is read from their calendar
+  before they say yes.
+- Only busy blocks cross (rounded to 15 minutes, all-day events left out): never titles, places or who
+  else is there. Your own busy times never leave your server; your Sara works out the 3 times.
+  Each person's part of the day is on their own clock, so a friend in another time zone is never
+  offered a time in their night.
+- Both of you tap the time that suits you. When you both picked the same one it is agreed and goes in
+  both planners as a to-do at that time ("Coffee with Sam"). Either of you can call it off.
+- If the other server is offline, the button says so: try again later (there is no queue yet).
+- Design: docs/design/V2SCHEDULE.md.
+
 ## Limits and gaps
 
 - The hub is not used for discovery (optional in the roadmap): people exchange codes themselves.

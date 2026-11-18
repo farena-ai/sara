@@ -3,19 +3,38 @@
 //   GET    /api/my-details    {details, updatedAt, leaveStoreTab}
 //   PUT    /api/my-details    {…details, leaveStoreTab?} → {details, leaveStoreTab}   (400 {error, field} on a refused value)
 //   DELETE /api/my-details    forget them all
+// V2.6 (docs/UPKEEP.md): Car and house upkeep, a section of the same page (src/upkeep.ts)
+//   GET    /api/my-details/upkeep                    {cars, items, found, odometer, table}
+//   POST   /api/my-details/upkeep/setup|add|miles|skip {…}  → {ok, added?, item?}
+//   POST   /api/my-details/upkeep/:id/log|remind|book|remove {…} → {ok, item?, errand?}
 import { HttpError, readJson, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
 import { DetailError, myDetailsFor } from '../my-details.ts';
+import { upkeepAction, UpkeepError, upkeepList, UPKEEP_VERBS, type UpkeepVerb } from '../upkeep.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createMyDetailsRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
   return async (req, res, method, parts) => {
-    const [a, b] = parts;
-    if (a !== 'my-details' || b !== undefined) return NEXT;
+    const [a, b, c, d] = parts;
+    if (a !== 'my-details' || (b !== undefined && b !== 'upkeep')) return NEXT;
     if (ctx.opts.demo) {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
       throw new HttpError(403, 'Not on the demo.');
+    }
+    if (b === 'upkeep') {
+      if (c === undefined && method === 'GET') return send(res, 200, upkeepList(app));
+      if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
+      const verb = (d ?? c) as UpkeepVerb;
+      const byId = d !== undefined;
+      if (!UPKEEP_VERBS.includes(verb) || byId !== ['log', 'remind', 'book', 'remove'].includes(verb) || (byId && !/^\d+$/.test(c!))) throw new HttpError(404, 'Not found');
+      const body = ((await readJson(req).catch(() => ({}))) ?? {}) as Record<string, unknown>;
+      try {
+        return send(res, 200, upkeepAction(app, verb, byId ? { ...body, id: Number(c) } : body));
+      } catch (err) {
+        if (err instanceof UpkeepError) return send(res, err.status, { error: trOwner(err.message, app.settings.get()) });
+        throw err;
+      }
     }
     const store = app.myDetails ?? myDetailsFor(app.store.db);
     if (method === 'GET') return send(res, 200, { details: store.get(), updatedAt: store.updatedAt(), leaveStoreTab: store.leaveStoreTab() });

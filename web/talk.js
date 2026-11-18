@@ -27,8 +27,17 @@ export function goodbyeCommand(text) {
 // mirrored for what she says; the server decides (test/u4-voice-first.test.ts keeps them equal).
 const PC_ONLY = /^(pc_|browser_|computer_|hands_|desktop_)/;
 const NEVER = /(?:^|_)(?:pay|payment|purchase|buy|checkout|wallet|transfer|password|passkey|vault|secret|credential|login|signin|otp|two_step)(?:_|$)|password/;
+// V2.3: a home_control card that locks, unlocks or touches an alarm (src/home-voice.ts homeTapOnly) wants a tap.
+const HOME_SENSITIVE = /(^|[^a-z])(garage|gates?|doors?|locks?|unlock|alarms?|siren|security|safe|vault)([^a-z]|$)/i;
+function homeTapOnly(ev) {
+  if (ev?.name !== 'home_control') return false;
+  const id = String(ev.args?.entity_id ?? '');
+  const domain = id.split('.')[0];
+  if (domain === 'lock' || domain === 'alarm_control_panel' || ['lock', 'unlock'].includes(String(ev.args?.action ?? ''))) return true;
+  return HOME_SENSITIVE.test(id.replace(/[._]/g, ' '));
+}
 export function voiceMayAnswer(ev) {
-  if (!ev?.name || PC_ONLY.test(ev.name) || NEVER.test(ev.name)) return false;
+  if (!ev?.name || PC_ONLY.test(ev.name) || NEVER.test(ev.name) || homeTapOnly(ev)) return false;
   return !(ev.computer || ev.contradiction || ev.sandbox || ev.sandboxFirst || ev.advisory || ev.redteam || ev.spend || ev.price || ev.untrusted);
 }
 

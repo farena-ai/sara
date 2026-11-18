@@ -5,11 +5,13 @@
 // adds a reminder. "Ask your documents" answers from every Library file with checked quotes.
 import { t } from './naming.js';
 import { api } from './setup-card.js';
+import { initRenewals, loadRenewals } from './renewals.js';
 
 const $ = (sel) => document.querySelector(sel);
 let hooks = {};
 export function initFacts(h) {
   hooks = h ?? {};
+  initRenewals(hooks);
 }
 
 const el = (tag, cls, text) => {
@@ -151,11 +153,14 @@ export async function loadFacts() {
     host.replaceChildren(el('p', 'muted small', e.message));
     return;
   }
+  void loadRenewals();
   const sug = $('#wsk-suggest');
   if (sug) {
-    sug.hidden = !r.suggestions.length;
+    // V2.1: renewal and expiry dates are in Renewals and paperwork on this page; due dates stay here.
+    const due = $('#rnw-list') ? r.suggestions.filter((s) => s.dateKind === 'due') : r.suggestions;
+    sug.hidden = !due.length;
     const list = el('ul', 'ih-cards');
-    list.append(...r.suggestions.map((s) => dateCard(s)));
+    list.append(...due.map((s) => dateCard(s)));
     $('#wsk-suggest-list').replaceChildren(list);
   }
   if (!r.facts.length) {

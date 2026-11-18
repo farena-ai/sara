@@ -180,7 +180,12 @@ const DATE_LABELS: [RegExp, DateKind | 'by-type'][] = [
   [/\b(?:lease (?:ends|end date|terminates|expires)|term (?:of this lease )?(?:ends|will end)|and ends on|ends on|end date|ending on)\b/i, 'by-type'],
   [/\bwarranty (?:ends|period ends|expires|is valid until)\b/i, 'warranty_end'],
   [/\bpolicy (?:period|term)\b/i, 'renewal'],
+  // V2.1: cards (a license or ID photo) print "EXP 03/14/2029".
+  [/\b(?:EXP|Exp)\b\.?/, 'by-type'],
 ];
+
+/** Mail whose plain "expires" date is about paperwork (not a shop offer). */
+const RENEWABLE = /\b(?:registration|licen[cs]e|passport|policy|insurance|membership|warranty|permit|id card|visa|tags?)\b/i;
 
 const DATE_LABEL_TEXT: Record<DateKind, string> = {
   renewal: 'Renewal date',
@@ -394,6 +399,20 @@ CREATE TABLE IF NOT EXISTS world_doc_facts (
 CREATE INDEX IF NOT EXISTS world_doc_facts_doc ON world_doc_facts(doc_id);
 CREATE TABLE IF NOT EXISTS world_doc_scans (doc_id INTEGER PRIMARY KEY, read_at TEXT, facts INTEGER NOT NULL DEFAULT 0);
 CREATE TABLE IF NOT EXISTS world_rejected (norm TEXT PRIMARY KEY, at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS world_renewals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  source TEXT NOT NULL,
+  ref TEXT UNIQUE,
+  what TEXT NOT NULL,
+  title TEXT NOT NULL,
+  on_date TEXT NOT NULL,
+  date_kind TEXT NOT NULL,
+  quote TEXT,
+  sender TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS world_renewal_marks (key TEXT PRIMARY KEY, reminder_id INTEGER, days_before INTEGER, hidden INTEGER NOT NULL DEFAULT 0, errand_id INTEGER);
 `;
 
 type Row = Record<string, string | number | null>;
@@ -650,8 +669,17 @@ export class WorldFacts {
       if (r) return { suggestion: s, reminder: { id: r.id, text: r.text, dueAt: r.dueAt } };
     }
     const days = Math.max(0, Math.min(365, Math.round(Number(daysBefore ?? s.daysBefore))));
+    const when = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(`${s.date}T12:00:00Z`));
+    const text = `${s.label}: ${when} (${s.name}${s.page ? `, page ${s.page}` : ''})`;
+    const r = planner.addReminder({ text, dueAt: this.remindAt(s.date, days).toISOString() });
+    this.db.prepare("UPDATE world_doc_facts SET suggest = 'accepted', reminder_id = ?, days_before = ? WHERE id = ?").run(r.id, days, id);
+    return { suggestion: { ...s, status: 'accepted', reminderId: r.id, daysBefore: days }, reminder: { id: r.id, text: r.text, dueAt: r.dueAt } };
+  }
+
+  /** 9:00 local `days` days before an ISO date (tomorrow 9:00 if that has passed). */
+  remindAt(date: string, days: number): Date {
     const tz = this.#app.settings.get().timeZone;
-    const [y, m, d] = s.date.split('-').map(Number);
+    const [y, m, d] = date.split('-').map(Number);
     const day = new Date(Date.UTC(y, m - 1, d) - days * 86_400_000);
     let due = zonedToUtc(day.getUTCFullYear(), day.getUTCMonth() + 1, day.getUTCDate(), 9, 0, tz);
     if (due.getTime() <= this.#now().getTime()) {
@@ -659,11 +687,53 @@ export class WorldFacts {
       const [ty, tm, td] = localDate(t, tz).split('-').map(Number);
       due = zonedToUtc(ty, tm, td, 9, 0, tz);
     }
-    const when = new Intl.DateTimeFormat('en-US', { timeZone: 'UTC', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date(`${s.date}T12:00:00Z`));
-    const text = `${s.label}: ${when} (${s.name}${s.page ? `, page ${s.page}` : ''})`;
-    const r = planner.addReminder({ text, dueAt: due.toISOString() });
-    this.db.prepare("UPDATE world_doc_facts SET suggest = 'accepted', reminder_id = ?, days_before = ? WHERE id = ?").run(r.id, days, id);
-    return { suggestion: { ...s, status: 'accepted', reminderId: r.id, daysBefore: days }, reminder: { id: r.id, text: r.text, dueAt: r.dueAt } };
+    return due;
+  }
+
+  // ---------------------------------------------------------------- V2.1 renewals (src/renewals.ts)
+
+  /**
+   * A new email about a renewal or an expiry (a policy renewing, a registration or license expiring,
+   * a warranty ending): read by the same rules as a document, kept once per mail with its line.
+   * Bills (due dates) and shop offers are not renewals. Returns how many dates were kept.
+   */
+  observeMail(m: { account: string; id: string; from: string; subject: string; text?: string }): number {
+    const ref = `${m.account}|${m.id}`;
+    if (this.db.prepare('SELECT 1 FROM world_renewals WHERE ref = ?').get(ref)) return 0;
+    const body = `${m.subject}\n${m.text ?? ''}`.slice(0, 8000);
+    const today = this.#today();
+    const found = extractFacts({ name: m.subject }, [{ text: body, page: null, place: '' }]).filter(
+      (e) => e.date && e.dateKind && e.dateKind !== 'due' && e.date > today && (e.dateKind !== 'expiry' || RENEWABLE.test(body)),
+    );
+    const e = found[0];
+    if (!e?.date || !e.dateKind) return 0;
+    const sender = (/^\s*"?([^"<]+?)"?\s*</.exec(m.from)?.[1] ?? m.from).trim().slice(0, 80);
+    this.db.prepare('INSERT INTO world_renewals (source, ref, what, title, on_date, date_kind, quote, sender, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run('mail', ref, '', String(m.subject).slice(0, 160), e.date, e.dateKind, e.quote, sender, this.#now().toISOString());
+    return 1;
+  }
+
+  /** A row the person typed in (or kept from a photo). */
+  addRenewal(r: { what: string; title: string; date: string; kind: DateKind }): number {
+    return Number(this.db.prepare('INSERT INTO world_renewals (source, ref, what, title, on_date, date_kind, created_at) VALUES (?, NULL, ?, ?, ?, ?, ?)').run('you', r.what, r.title, r.date, r.kind, this.#now().toISOString()).lastInsertRowid);
+  }
+
+  renewalRows(): { id: number; source: 'mail' | 'you'; ref: string | null; what: string; title: string; date: string; kind: DateKind; quote: string | null; sender: string | null }[] {
+    return (this.db.prepare("SELECT * FROM world_renewals WHERE status = 'active' ORDER BY on_date, id").all() as Row[]).map((r) => ({ id: Number(r.id), source: r.source === 'mail' ? 'mail' : 'you', ref: (r.ref as string | null) ?? null, what: String(r.what), title: String(r.title), date: String(r.on_date), kind: (DATE_KINDS as readonly string[]).includes(String(r.date_kind)) ? (r.date_kind as DateKind) : 'expiry', quote: (r.quote as string | null) ?? null, sender: (r.sender as string | null) ?? null }));
+  }
+
+  removeRenewal(id: number): boolean {
+    return Number(this.db.prepare("UPDATE world_renewals SET status = 'deleted' WHERE id = ? AND status = 'active'").run(id).changes) > 0;
+  }
+
+  renewalMarks(): Map<string, { reminderId: number | null; daysBefore: number | null; hidden: boolean; errandId: number | null }> {
+    return new Map((this.db.prepare('SELECT * FROM world_renewal_marks').all() as Row[]).map((r) => [String(r.key), { reminderId: r.reminder_id == null ? null : Number(r.reminder_id), daysBefore: r.days_before == null ? null : Number(r.days_before), hidden: Boolean(r.hidden), errandId: r.errand_id == null ? null : Number(r.errand_id) }]));
+  }
+
+  markRenewal(key: string, v: { reminderId?: number; daysBefore?: number; hidden?: boolean; errandId?: number }): void {
+    this.db.prepare('INSERT INTO world_renewal_marks (key) VALUES (?) ON CONFLICT(key) DO NOTHING').run(key);
+    if (v.reminderId !== undefined) this.db.prepare('UPDATE world_renewal_marks SET reminder_id = ?, days_before = ? WHERE key = ?').run(v.reminderId, v.daysBefore ?? null, key);
+    if (v.hidden !== undefined) this.db.prepare('UPDATE world_renewal_marks SET hidden = ? WHERE key = ?').run(v.hidden ? 1 : 0, key);
+    if (v.errandId !== undefined) this.db.prepare('UPDATE world_renewal_marks SET errand_id = ? WHERE key = ?').run(v.errandId, key);
   }
 
   dismiss(id: number): void {

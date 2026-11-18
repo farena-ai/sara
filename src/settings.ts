@@ -239,7 +239,7 @@ export interface Settings {
   /** Phase 26: what may make her call you. */
   calls?: Partial<import('./calls.ts').CallRules>;
   /** Phase 29: the owner's Home Assistant address (the access token is in the vault). */
-  home?: { url: string };
+  home?: { url: string; voice?: { id: string; say: string }[] };
   /** Phase 31: companions share the first one's planner (default) or each keeps her own. */
   companionPlanner?: 'shared' | 'separate';
   /** Phase 44: one library per companion (default) or one shared by all. */

@@ -77,7 +77,7 @@ const WAS_S3 = new Set(['Her', 'Models', 'Chat apps', 'Add-ons', 'Coding', 'Data
 // A merged page follows its host; tile pages follow the group's own pages in tile order.
 const SETTINGS_ORDER = [
   'her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-work',
-  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-automations', 'you-details', 'you-business', 'you-knows', 'you-adult',
+  'you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-automations', 'you-details', 'you-upkeep', 'you-business', 'you-knows', 'you-adult',
   'models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local', 'dh-usage', 'ab-budgets',
   // Connections: the tiles of Apps and services first (search breaks ties in this order: "tailscale"
   // finds WhatsApp and Matrix before Devices), then the group's own pages. 3.0.3: Devices and sign-in

@@ -23,6 +23,8 @@ export interface ReviewSettings {
   time: string;
   /** Local date of the last review sent. */
   lastDay?: string;
+  /** V2.4: also send the weekly life review (people, health log, money, moments; src/life-review.ts). */
+  life?: boolean;
 }
 export const DEFAULT_REVIEW: ReviewSettings = { enabled: false, day: 0, time: '18:00' };
 const DAY_MS = 86_400_000;
@@ -152,7 +154,9 @@ export class ReviewWorker {
     }
     this.#running = true;
     try {
-      return (await this.send()).text;
+      const out = (await this.send()).text;
+      if (cfg.life) await import('./life-review.ts').then((m) => m.sendLifeReview(app)).catch((err: Error) => console.warn(`life review: ${err.message}`));
+      return out;
     } finally {
       this.#running = false;
     }

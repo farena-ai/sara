@@ -192,6 +192,45 @@
 #settings #wsk-suggest-list .ih-cards { margin-bottom: var(--s-2); }
 .wsk-card .ih-head { flex-wrap: wrap; }
 .wsk-card .ih-main { white-space: normal; overflow: visible; text-overflow: clip; }
+/* V2.1 Renewals and paperwork (web/renewals.js) */
+#settings .rnw-rows { display: grid; gap: var(--s-2); margin: 0 0 var(--s-3); padding: 0; list-style: none; }
+#settings .rnw-row { display: grid; gap: 4px; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); min-width: 0; }
+#settings .rnw-row.soon { border-color: var(--accent-line); }
+#settings .rnw-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); overflow-wrap: anywhere; }
+#settings .rnw-title { font-weight: 600; }
+#settings .rnw-what { padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--text-2); }
+#settings .rnw-row.soon .rnw-when { color: var(--accent); font-weight: 600; }
+#settings .rnw-src { overflow-wrap: anywhere; }
+#settings .rnw-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+#settings .rnw-add { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: flex-end; margin: var(--s-2) 0; }
+#settings .rnw-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 160px; min-width: 0; font-size: var(--fs-13); }
+#settings .rnw-field .tip { align-self: flex-start; }
+#settings .rnw-field :is(input, select) { width: 100%; min-width: 0; }
+#settings .rnw-photo { margin: var(--s-2) 0; }
+/* V2.6 (docs/UPKEEP.md): Settings → You → My details → Car and house upkeep (web/upkeep.js). */
+#settings .upk-rows { display: grid; gap: var(--s-2); margin: 0 0 var(--s-3); padding: 0; list-style: none; }
+#settings .upk-row { display: grid; gap: 4px; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); min-width: 0; }
+#settings .upk-row.soon { border-color: var(--accent-line); }
+#settings .upk-row.soon .upk-when { color: var(--accent); font-weight: 600; }
+#settings .upk-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2); overflow-wrap: anywhere; }
+#settings .upk-title { font-weight: 600; }
+#settings .upk-car { padding: 0 6px; border-radius: var(--r-pill); background: var(--surface-2); }
+#settings .upk-meta, #settings .upk-why { overflow-wrap: anywhere; }
+#settings .upk-acts, #settings .upk-log { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+#settings .upk-log input { flex: 1 1 110px; min-width: 0; width: auto; }
+#settings .upk-hist ul { margin: 4px 0 0; padding-left: 1.2em; }
+#settings .upk-hist { display: block; margin: 0; padding: 0; border: 0; background: none; }
+#settings :is(.upk-hist, .upk-later) > summary { width: fit-content; line-height: 32px; cursor: pointer; }
+#settings .upk-found-head { font-weight: 600; margin: var(--s-2) 0; }
+#settings .upk-setup { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; margin: var(--s-2) 0; }
+#settings .upk-field { display: inline-flex; align-items: center; gap: 6px; flex: 1 1 220px; min-width: 0; }
+#settings .upk-field.upk-num { flex: 0 1 190px; }
+#settings .upk-field :is(input, select) { flex: 1 1 auto; min-width: 0; width: auto; }
+#settings .upk-field > .small { white-space: nowrap; }
+#settings .upk-row.late .upk-when { color: var(--danger); }
+#settings .upk-later-li { list-style: none; }
+#settings .upk-later > summary { cursor: pointer; padding: var(--s-1) 0; color: var(--text-2); }
+#settings .upk-later > .upk-rows { margin-top: var(--s-2); }
 
 /* S4 (docs/PEOPLE.md "Keeping in touch"): needs attention, the card's ties section, Today's tile. */
 .ppl-ties-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
@@ -227,3 +266,18 @@
 #memory .pt-add input { width: auto; margin: 0; }
 #memory .pt-add input[type="date"] { flex: 0 0 auto; }
 #memory .pt-add > button { flex: none; }
+
+/* V2.7 (docs/design/GIFTS.md): Gifts and occasions on a person's card (web/gifts.js). */
+.gf-sec .gf-occ, .gf-sec .gf-list { list-style: none; margin: 0 0 var(--s-2); padding: 0; display: grid; gap: var(--s-1, 4px); }
+.gf-sec .gf-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4, 16px); }
+#memory .gf-sec .gf-budget input { flex: 0 1 120px; max-width: 140px; }
+.gf-sec .gf-remind { display: flex; align-items: center; gap: var(--s-2); margin: 0; }
+.gf-sec .gf-remind input { width: 22px; flex: none; }
+.gf-sec .gf-ideas, .gf-sec .gf-card { display: grid; gap: var(--s-2); margin-top: var(--s-3, 12px); justify-items: start; }
+.gf-sec .gf-list { width: 100%; margin: 0; }
+.gf-sec .gf-idea { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--s-2) 0; border-top: 1px solid var(--line); }
+.gf-sec .gf-idea-text { display: flex; flex-wrap: wrap; gap: 0 var(--s-1, 4px); flex: 1 1 260px; min-width: 0; }
+.gf-sec .gf-why { flex-basis: 100%; }
+.gf-sec .gf-head { display: inline-flex; align-items: center; gap: var(--s-1, 4px); }
+.gf-sec .gf-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+#memory .gf-sec .gf-card textarea { width: 100%; max-width: 560px; box-sizing: border-box; margin: 0; }

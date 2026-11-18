@@ -12,6 +12,7 @@
 //    files go to the Library, a new chat opens with a ready message (a receipt photo suggests an expense).
 //  - Car mode: short spoken answers, no computer use or long tasks, read messages on request.
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
+import { homeTapOnly } from './home-voice.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { en } from './i18n.ts';
 import type { Vault } from './vault.ts';
@@ -152,6 +153,8 @@ export const PC_ONLY_TOOL = (name: string): boolean => /^(pc_|browser_|computer_
 
 export interface ApprovalShape {
   name: string;
+  /** V2.3: the call's arguments (home_control locks and alarms want a tap). */
+  args?: Record<string, unknown>;
   computer?: unknown;
   contradiction?: unknown;
   sandbox?: unknown;
@@ -172,7 +175,7 @@ export const VOICE_NEVER_TOOL = (name: string): boolean => /(?:^|_)(?:pay|paymen
 
 /** A card a spoken yes/no may answer: the phone rule plus the voice hard limits. */
 export function voiceMayApprove(ev: ApprovalShape): boolean {
-  return phoneMayApprove(ev) && !VOICE_NEVER_TOOL(ev.name);
+  return phoneMayApprove(ev) && !VOICE_NEVER_TOOL(ev.name) && !homeTapOnly(ev);
 }
 
 /** A plain card about a non-computer tool: Approve/Decline may come from the notification. */

@@ -2,6 +2,47 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.27.0",
+   "date": "2026-11-18",
+   "title": "Renewals, purchases, Home Assistant scenes, audio briefing, scan pages, upkeep, gifts",
+   "items": [
+    {
+     "id": "3-27-0-car-and-house-upkeep-settings",
+     "kind": "new",
+     "text": "Car and house upkeep (Settings → You → My details → Car and house upkeep): add the usual schedule for a car."
+    },
+    {
+     "id": "3-27-0-gifts-and-occasions-each-people",
+     "kind": "new",
+     "text": "Gifts and occasions: each People card now shows the next birthday and yearly dates, a gift budget, gift ideas from what she knows.",
+     "link": "#view=money"
+    },
+    {
+     "id": "3-27-0-one-minute-voice-journal-library-journal",
+     "kind": "new",
+     "text": "One-minute voice journal: Library → Journal. Pick how today was, press Record a minute and talk (or type it), and the entry is saved with its mood."
+    },
+    {
+     "id": "3-27-0-find-a-time-with-a",
+     "kind": "new",
+     "text": "Find a time with a friend: in a one-to-one Messages chat (or by asking her, \"find a time with Sam for coffee\").",
+     "link": "#view=msgs",
+     "owner": true
+    },
+    {
+     "id": "3-27-0-snap-and-file-library-scan",
+     "kind": "new",
+     "text": "Snap and file: Library → Scan pages takes pages with the phone or computer camera (or photos you already have), finds the paper's edges."
+    },
+    {
+     "id": "3-27-0-morning-briefing-as-audio-settings",
+     "kind": "new",
+     "text": "Morning briefing as audio (Settings → You → Briefing and reminders → Listen to your briefing).",
+     "owner": true
+    }
+   ]
+  },
+  {
    "version": "3.26.0",
    "date": "2026-11-18",
    "title": "Bring everything, Waiting on you, Where do you text?, cost autopilot",
@@ -263,34 +304,6 @@
      "text": "Share fixes that worked. Under Settings → Privacy & system → Health → Self-repair you can let a fix that worked.",
      "link": "#view=settings:dh-health",
      "owner": true
-    }
-   ]
-  },
-  {
-   "version": "3.20.0",
-   "date": "2026-11-18",
-   "title": "the apps catch up: Dock and taskbar counts, Mac meeting recording, Android notices",
-   "items": [
-    {
-     "id": "3-20-0-connect-the-sara-phone-app",
-     "kind": "fixed",
-     "text": "\"Connect the Sara phone app\" no longer tells an iPhone to get the Android app from Google Play.",
-     "link": "#view=settings:co-phone",
-     "owner": true,
-     "try": [
-      "phone-connect"
-     ]
-    },
-    {
-     "id": "3-20-0-errands-waiting-on-you-now",
-     "kind": "fixed",
-     "text": "Errands waiting on you now count in the number on Sara's icon, in each notification's badge and in the Shortcuts widget's \"Waiting for you\" line."
-    },
-    {
-     "id": "3-20-0-on-the-screens-added-since",
-     "kind": "fixed",
-     "text": "On the screens added since 3.15 every button, field and \"?\" is at least 44 px to tap.",
-     "link": "#view=today"
     }
    ]
   }

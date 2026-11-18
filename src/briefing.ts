@@ -30,6 +30,10 @@ export interface BriefingSettings {
   units?: 'F' | 'C';
   /** Local date of the last briefing sent (one per day). */
   lastDay?: string;
+  /** V2.4: also speak it into an audio file in the Library (docs/BRIEFING_AUDIO.md). */
+  audio?: boolean;
+  /** V2.4: 'local' = the voice on this computer (default); 'chosen' = the Settings → Voice engine (may be a cloud service). */
+  audioVoice?: 'local' | 'chosen';
 }
 
 export const DEFAULT_BRIEFING: BriefingSettings = { enabled: false, time: '07:30' };
@@ -145,6 +149,8 @@ export class BriefingWorker {
   #timer: NodeJS.Timeout | undefined;
   #running = false;
   #inflight: Promise<string> | undefined;
+  /** V2.4: the audio recording of the last briefing, while it is being made (tests await it). */
+  audioDone: Promise<unknown> | undefined;
 
   constructor(app: AppContext, fetchImpl: FetchLike = netFetch) {
     this.#app = app;
@@ -264,6 +270,9 @@ ${facts.agenda || '(nothing due)'}${facts.calendar ? `\nCalendar today:\n${facts
     app.settings.update({ briefing: { ...briefingSettings(app), lastDay: today } });
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
     alertApps(app, place, msg.content, false);
+    // V2.4: the same briefing spoken into the Library (in the background; the message never waits).
+    const cfgNow = briefingSettings(app);
+    if (cfgNow.audio) this.audioDone = import('./briefing-audio.ts').then((m) => m.makeBriefingAudio(app, msg.content, today, cfgNow.audioVoice ?? 'local')).catch((err: Error) => console.warn(`briefing: audio failed: ${err.message}`));
     // Phase 26: a briefing call, if the owner wants one: she goes over it on the phone.
     if (app.calls?.wants('briefing')) app.calls.ring({ kind: 'briefing', reason: 'Your morning briefing', brief: msg.content, conversationId: conv.id });
     return msg.content;

@@ -2115,6 +2115,10 @@ progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-rad
 #money .mn-row input[type="number"] { width: 72px; flex: 0 0 auto; }
 #money .mn-row input[type="file"] { flex: 1 1 200px; min-width: 0; max-width: 100%; }
 #money .mn-check { display: flex; align-items: center; gap: 8px; margin: 6px 0; }
+/* V2.2 Purchases (docs/PURCHASES.md) */
+#money .mn-row input[type="date"] { flex: 1 1 150px; min-width: 0; }
+#money .pu-lbl { min-width: 5.5em; }
+#money .pu-item .pu-when { flex-basis: 100%; }
 #money .mn-check input { width: 18px; height: 18px; flex: 0 0 auto; }
 #money .mn-map { display: grid; gap: 6px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); }
 #money .mn-map-row { display: flex; align-items: center; gap: 8px; }
@@ -2309,6 +2313,17 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #msgs .sup-logtext { max-height: 220px; overflow: auto; margin: 4px 0 0; padding: 8px; border-radius: 8px; background: var(--surface-1); font: 11px/1.45 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
 /* T5 (web/remote-repair.js, docs/REMOTE_REPAIR.md): fix passes, plans and live progress in a one-to-one chat. */
 #msgs .rr-strip { display: grid; gap: 6px; }
+/* V2.10 (web/friend-time.js, docs/design/V2SCHEDULE.md): find a time with a linked friend. */
+#msgs .ft-strip { display: grid; gap: 6px; }
+#msgs .sup-strip:has(.ft-card) { max-height: 62vh; }
+#msgs .ft-times { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+#msgs .ft-card > button { justify-self: start; }
+#msgs .ft-slot { display: grid; gap: 2px; justify-items: start; }
+#msgs .ft-time.ft-mine { outline: 2px solid var(--accent-line); outline-offset: 1px; }
+#msgs .ft-agreed { color: var(--text-1); font-weight: 600; }
+#msgs-panel .ft-what { width: 100%; min-width: 0; }
+#msgs-panel .ft-form-row { display: flex; flex-wrap: wrap; gap: 6px; }
+#msgs-panel .ft-form-row select { flex: 1 1 120px; min-width: 0; width: auto; }
 #msgs .sup-strip:has(.rr-card) { max-height: 62vh; }
 #msgs .rr-chip { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--accent-line); background: var(--accent-soft); color: var(--text-1); font-size: 13px; overflow-wrap: anywhere; }
 #msgs .rr-card fieldset + fieldset { margin-top: 2px; }
@@ -2525,6 +2540,61 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #lib-study .sy-choice { text-align: left; white-space: normal; }
 #lib-study .sy-summary { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 #lib-study .danger-text { color: var(--error); }
+/* V2.5 Snap and file (web/scan.js). */
+#lib-scan .snap-take { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 12px; }
+#lib-scan .snap-take label.row { display: inline-flex; align-items: center; gap: 6px; }
+#lib-scan .snap-take label.row input { width: 20px; }
+#lib-scan .snap-live { display: grid; gap: 8px; margin: 0 0 12px; }
+#lib-scan .snap-live video { width: 100%; max-height: 60vh; object-fit: contain; border-radius: 12px; background: var(--surface-2); }
+#lib-scan .snap-live-bar { display: flex; gap: 10px; justify-content: center; }
+#lib-scan .snap-pages { list-style: none; margin: 0 0 12px; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(156px, 1fr)); gap: 10px; }
+#lib-scan .snap-page { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+#lib-scan .snap-open { padding: 0; border: 0; background: transparent; cursor: zoom-in; display: block; min-height: 44px; }
+#lib-scan .snap-thumb { display: block; width: 100%; height: 160px; object-fit: contain; border-radius: 8px; background: var(--surface-1, var(--surface-2)); }
+#lib-scan .snap-tools { display: flex; align-items: center; gap: 2px; }
+#lib-scan .snap-tools > span { flex: 1 1 auto; white-space: nowrap; }
+#lib-scan .snap-tools button { min-width: 32px; min-height: 32px; padding: 2px 6px; }
+#lib-scan .snap-tools button:disabled { visibility: hidden; }
+#lib-scan .snap-edit { display: grid; gap: 8px; margin: 0 0 12px; }
+#lib-scan .snap-edit canvas { width: 100%; max-height: 62vh; object-fit: contain; border-radius: 12px; background: var(--surface-2); touch-action: none; }
+#lib-scan .snap-edit-bar { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+#lib-scan .snap-save { display: grid; gap: 8px; max-width: 520px; }
+#lib-scan .snap-save .snap-name { display: grid; gap: 4px; }
+#lib-scan .snap-save label.row { display: inline-flex; align-items: center; gap: 6px; }
+#lib-scan .snap-save label.row input { width: 20px; }
+#lib-scan .snap-save p { margin: 0; display: flex; align-items: center; gap: 10px; }
+#lib-scan .snap-result { margin-top: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); display: grid; gap: 6px; }
+#lib-scan .snap-result h3 { margin: 6px 0 0; font-size: 1em; }
+#lib-scan .snap-result-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+#lib-scan .snap-result-head strong { overflow-wrap: anywhere; }
+#lib-scan .snap-list { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+#lib-scan .snap-sug { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#lib-scan .snap-text p { margin: 6px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#lib-journal .jr-otd { margin: 8px 0 14px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); display: grid; gap: 6px; }
+#lib-journal .jr-otd h3 { margin: 0; font-size: 1em; }
+#lib-journal .jr-new { display: grid; gap: 10px; max-width: 560px; margin: 6px 0 16px; }
+#lib-journal .jr-new p { margin: 0; }
+#lib-journal .jr-moods { display: flex; flex-wrap: wrap; gap: 6px; }
+#lib-journal .jr-moods button, #lib-journal .jr-entry-moods button { min-height: 36px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text-1); }
+#lib-journal .jr-moods button[aria-checked="true"], #lib-journal .jr-entry-moods button[aria-checked="true"] { border-color: var(--accent-solid); background: var(--accent-solid); color: var(--on-accent); }
+#lib-journal .jr-rec { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+#lib-journal .jr-rec button.on { background: var(--danger-fill); border-color: var(--danger); color: var(--on-accent); }
+#lib-journal .jr-timer { font-variant-numeric: tabular-nums; }
+#lib-journal label.row { display: inline-flex; align-items: center; gap: 6px; }
+#lib-journal label.row input { width: 20px; }
+#lib-journal .jr-type { display: grid; gap: 4px; }
+#lib-journal .jr-type textarea { width: 100%; box-sizing: border-box; }
+#lib-journal .jr-h { margin: 8px 0 6px; }
+#lib-journal .jr-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+#lib-journal .jr-entry { padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); display: grid; gap: 6px; }
+#lib-journal .jr-entry-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+#lib-journal .jr-entry-text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+#lib-journal .jr-entry-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#lib-journal .jr-entry audio { width: 100%; max-width: 420px; height: 36px; }
+#lib-journal .jr-entry textarea { width: 100%; box-sizing: border-box; }
+#lib-journal .jr-entry-moods { display: flex; flex-wrap: wrap; gap: 6px; }
+#lib-journal .jr-entry > .jr-tag { justify-self: start; }
+#lib-journal .jr-tag { display: inline-block; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border); font-size: 0.85em; }
 #td-study .sy-tile { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 4px; }
 #td-study .sy-tile-item { display: flex; justify-content: space-between; gap: 8px; }
 #td-study .sy-tile-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
@@ -2629,3 +2699,14 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 #waiting .wq-empty { padding: 12px 0; }
 #waiting .wq-hint { color: var(--danger); font-weight: 600; }
 @media (max-width: 720px) { #waiting .wq-acts button { min-height: 44px; } }
+/* V2.3 (docs/design/V2HOME.md): Settings → Home Assistant: Find it for me, Say it to start. */
+#settings .ha-find-row { align-items: center; flex-wrap: wrap; gap: 8px; }
+#settings .ha-find-row select { flex: 1 1 220px; min-width: 0; }
+#settings .ha-voice-list { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 6px; }
+#settings .ha-voice-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 4px 10px; align-items: center; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px; }
+#settings .ha-voice-item label.row { margin: 0; min-width: 0; }
+#settings .ha-voice-item label.row span { overflow-wrap: anywhere; }
+#settings .ha-voice-item input[type=text] { width: 100%; min-width: 0; }
+#settings .ha-voice-item input:disabled { opacity: 0.55; }
+#settings .ha-voice-why { grid-column: 1 / -1; }
+@media (max-width: 720px) { #settings .ha-voice-item { grid-template-columns: 1fr; } }

@@ -15,6 +15,9 @@
 //   DELETE /api/money/bills/:id
 //   POST   /api/money/balances               {name, kind: asset|debt, amount}; PATCH/DELETE /api/money/balances/:id
 //   DELETE /api/money/mailsubs/:id           hide a subscription found in mail (and its trial reminder)
+//   V2.2 (docs/PURCHASES.md) Purchases: GET/POST /api/money/purchases, PATCH/DELETE /api/money/purchases/:id,
+//   POST /api/money/purchases/:id/status {status: open|kept|returned}, POST /api/money/purchases/:id/return
+//   (opens a "Start a return" errand), PUT /api/money/purchases/prefs {remind?, days?}
 import { toCents } from '../biz/money.ts';
 import { addDays, localDay } from '../biz/store.ts';
 import { HttpError, readJson, send } from '../http.ts';
@@ -24,6 +27,8 @@ import { billStatus, scheduleBill } from '../money/core.ts';
 import { addBalance, dismissMailSub, forgetMapping, importFile, moneyOverview, MoneyHubError, removeBalance, setPrefs, suggestCategories, updateBalance, budgetAlerts } from '../money/hub.ts';
 import { MoneyParseError } from '../money/parse.ts';
 import { moneyStore } from '../money/store.ts';
+import { trimAction, trimList } from '../money/trim.ts';
+import { addPurchase, purchasesOverview, removePurchase, setPurchasePrefs, setPurchaseStatus, startReturn, updatePurchase } from '../money/purchases.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const MAX_FILE = 8 * 1024 * 1024;
@@ -148,6 +153,35 @@ export function createMoneyRoutes(ctx: RouteCtx): RouteHandler {
       if (c && method === 'DELETE') {
         if (!removeBalance(app, Number(c))) throw new HttpError(404, 'Not found');
         return send(res, 200, { ok: true });
+      }
+    }
+    if (b === 'purchases') {
+      if (!c && method === 'GET') return send(res, 200, purchasesOverview(app));
+      if (!c && method === 'POST') return send(res, 200, await wrap(async () => addPurchase(app, await readJson(req))));
+      if (c === 'prefs' && !d && method === 'PUT') return send(res, 200, await wrap(async () => setPurchasePrefs(app, await readJson(req))));
+      const id = Number(c);
+      if (c && Number.isInteger(id) && id > 0) {
+        const found = <R>(v: R | undefined): R => {
+          if (v === undefined) throw new HttpError(404, T(en('That purchase is not on your list.')));
+          return v;
+        };
+        if (!d && method === 'PATCH') return send(res, 200, found(await wrap(async () => updatePurchase(app, id, await readJson(req)))));
+        if (!d && method === 'DELETE') return send(res, 200, { ok: found(removePurchase(app, id) || undefined) });
+        if (d === 'status' && method === 'POST') return send(res, 200, found(await wrap(async () => setPurchaseStatus(app, id, String((await readJson(req)).status ?? '')))));
+        if (d === 'return' && method === 'POST') {
+          await readJson(req).catch(() => undefined);
+          return send(res, 200, { errand: await wrap(() => startReturn(app, id)) });
+        }
+      }
+    }
+    // V2.8 (docs/TRIM.md): Maybe cancel. GET /api/money/trim, PUT /api/money/trim/prefs {monthly},
+    // POST /api/money/trim/:key/(cancel|keep|unkeep|unused|used) (cancel opens an errand that waits for Start).
+    if (b === 'trim') {
+      if (!c && method === 'GET') return send(res, 200, trimList(app));
+      if (c === 'prefs' && !d && method === 'PUT') return send(res, 200, (await wrap(async () => trimAction(app, '', 'prefs', await readJson(req)))).prefs);
+      if (c && d && method === 'POST' && ['cancel', 'keep', 'unkeep', 'unused', 'used'].includes(d)) {
+        await readJson(req).catch(() => undefined);
+        return send(res, 200, await wrap(async () => trimAction(app, decodeURIComponent(c), d)));
       }
     }
     if (b === 'mailsubs' && c && method === 'DELETE') {

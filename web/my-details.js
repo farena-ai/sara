@@ -4,6 +4,7 @@
 // their own). The server refuses card numbers, SSNs and passwords and says which field.
 import { t } from './naming.js';
 import { api } from './setup-card.js';
+import { loadUpkeep } from './upkeep.js';
 
 const $ = (sel) => document.querySelector(sel);
 const ADDR = { home: 'home', work: 'work', ship: 'shipping' };
@@ -15,6 +16,7 @@ const set = (id, v) => {
 };
 
 export async function loadMyDetails() {
+  void loadUpkeep(); // V2.6: Car and house upkeep, the section under My details
   if (!$('#md-first')) return;
   let r;
   try {

@@ -32,6 +32,8 @@ import { getLayout } from '../today-layout.ts';
 import { ACTION_WORDS, RECONNECT_TEXT } from '../gmail-organize.ts';
 import { sceneAllowed, ENTITY_ID, haCall, switchPlan } from '../home-switch.ts';
 import { cleanHomeUrl, HOME_VAULT, type HaState } from '../tools/home.ts';
+import { discoverHome } from '../home-discover.ts';
+import { cleanVoice, testHome, voiceItems, voiceList } from '../home-voice.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 /** Hardening M4: the channel of the conversations the Home Assistant integration makes. */
@@ -812,6 +814,37 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
       }
       throw new HttpError(404, 'Not found');
     }
+    // V2.3 (docs/design/V2HOME.md): find it on the network, test an address + token without saving, scenes by voice.
+    if (a === 'home' && (b === 'discover' || b === 'test' || b === 'voice') && !c) {
+      if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+      if (b === 'discover' && method === 'GET') return send(res, 200, { found: (await discoverHome()).slice(0, 8) });
+      if (b === 'test' && method === 'POST') {
+        const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+        let url: string;
+        try {
+          url = cleanHomeUrl(String(body.url ?? app.settings.get().home?.url ?? ''));
+        } catch (err) {
+          throw as400(err);
+        }
+        const typed = String(body.token ?? '').trim();
+        const token = typed || (url === app.settings.get().home?.url ? app.vault.get(HOME_VAULT) : undefined);
+        if (!token) throw new HttpError(400, 'Paste a long-lived access token too.');
+        return send(res, 200, await testHome(url, token));
+      }
+      const base = app.settings.get().home?.url;
+      const token = app.vault.get(HOME_VAULT);
+      if (!base || !token) throw new HttpError(400, 'Connect Home Assistant first.');
+      const st = await haCall<HaState[]>(base, token, '/api/states');
+      if (!Array.isArray(st.data)) throw new HttpError(502, 'Couldn’t read the list from Home Assistant.');
+      if (method === 'GET') return send(res, 200, { items: voiceItems(st.data, voiceList(app)) });
+      if (method === 'PUT') {
+        const body = await readJson(req);
+        const voice = cleanVoice(body.items, st.data);
+        if (typeof voice === 'string') throw new HttpError(400, voice);
+        app.settings.update({ home: { url: base, ...(voice.length ? { voice } : {}) } });
+        return send(res, 200, { items: voiceItems(st.data, voice) });
+      }
+    }
     if (a === 'home' && !b) {
       if (method === 'GET') {
         const base = app.settings.get().home?.url;
@@ -839,7 +872,8 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         const token = String(body.token ?? '').trim();
         if (token && !/^[\w.-]{20,1000}$/.test(token)) throw new HttpError(400, 'That does not look like a Home Assistant access token.');
         if (!token && !app.vault.get(HOME_VAULT)) throw new HttpError(400, 'Paste a long-lived access token too.');
-        app.settings.update({ home: { url } });
+        const voice = app.settings.get().home?.voice;
+        app.settings.update({ home: { url, ...(voice?.length ? { voice } : {}) } });
         if (token) app.vault.set(HOME_VAULT, token);
         return send(res, 200, { url, hasToken: true });
       }

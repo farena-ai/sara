@@ -35,7 +35,7 @@ async function api(path, opts = {}) {
 export const DOC_EXTS = ['pdf', 'docx', 'xlsx', 'pptx', 'epub', 'html', 'htm', 'md', 'markdown', 'txt', 'text', 'csv', 'tsv', 'json', 'log', 'rtf'];
 export const isDocFile = (f) => !f.type.startsWith('image/') && (DOC_EXTS.includes((f.name.split('.').pop() ?? '').toLowerCase()) || /pdf|word|sheet|presentation|epub|text\/|csv|html/.test(f.type));
 
-const KIND_ICON = { pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙', epub: '📖', html: '🌐', markdown: '📝', text: '📄', csv: '📊', image: '🖼️', video: '🎞️' };
+const KIND_ICON = { pdf: '📕', docx: '📘', xlsx: '📗', pptx: '📙', epub: '📖', html: '🌐', markdown: '📝', text: '📄', csv: '📊', image: '🖼️', video: '🎞️', audio: '🎧' };
 const sizeText = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 /**
@@ -330,6 +330,13 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
   $('#lib-doc-state').classList.toggle('error', d.status === 'failed');
   $('#lib-doc-warnings').replaceChildren(...(d.warnings ?? []).map((w) => el('li', '', w)));
   $('#lib-doc-download').href = `/api/library/${d.id}/file`;
+  // V2.4: a briefing recording plays here (served with its audio type by the briefing route).
+  const au = $('#lib-doc-audio');
+  if (au) {
+    au.hidden = d.kind !== 'audio';
+    if (d.kind === 'audio') au.src = `/api/briefing/audio/${d.id}`;
+    else au.removeAttribute('src');
+  }
   $('#lib-doc-pdf').hidden = d.kind !== 'pdf' || d.status !== 'ready';
   $('#lib-doc-pdf').href = `/api/library/${d.id}/file?inline=1`;
   showJob(d);
@@ -408,6 +415,10 @@ function showHome() {
   if (study) study.hidden = true;
   const media = $('#lib-media');
   if (media) media.hidden = true;
+  const scan = $('#lib-scan');
+  if (scan) scan.hidden = true;
+  const journal = $('#lib-journal');
+  if (journal) journal.hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();

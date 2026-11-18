@@ -5,6 +5,83 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.27.0 (2026-11-18): Renewals, purchases, Home Assistant scenes, audio briefing, scan pages, upkeep, gifts
+
+- New: Car and house upkeep (Settings → You → My details → Car and house upkeep): add the usual schedule
+  for a car (oil, tires, filters, brakes, wipers, battery; by miles or months, whichever comes first) or
+  for the home (furnace/AC filter, gutters, smoke and CO alarms, water heater, dryer vent), or your own
+  job. Each job shows its next due date and gets a reminder on the day. Done today or Log with details
+  (date, miles, cost) moves the next date on, service receipts from Money → Purchases can be logged in
+  one tap, and Book it starts an errand that finds a place near you and asks before booking. Type the
+  odometer now and then and she works out when jobs by miles fall. In chat: "when is my oil change
+  due?", "I changed the furnace filter today" (docs/UPKEEP.md).
+- New: Gifts and occasions: each People card now shows the next birthday and yearly dates, a gift budget,
+  gift ideas from what she knows (never a private card, private facts or health, money and other
+  sensitive details), Add to shopping list (a to-do on the Planner's Gifts list, due a week before)
+  and a short card text in your own writing style that you copy (she never buys or sends anything).
+  A reminder arrives two weeks before (Settings → You → Briefing and reminders → Gifts and
+  occasions: on/off, days before, default budget). In chat: "gift ideas for Maya" (docs/PEOPLE.md
+  "Gifts and occasions").
+- New: Maybe cancel (Money → Maybe cancel): a list of subscriptions worth a second look, with why each is
+  there: the service's own email says you haven't used it ("we miss you"), or you pressed *Not using
+  it* on a Subscriptions row; the price went up (bank rows or a price-change email); two or more of the
+  same kind (video, music, storage, news, fitness, audiobooks); a free trial ending soon. It reads your
+  bank exports and the subscription email Money already reads, one row per service. *Start a cancel
+  errand* opens Errands → Cancel a subscription, which waits for Start and asks again before the final
+  confirm: nothing is cancelled without your OK. *Keep it* hides a row until something new turns up.
+  Once a month a short note goes where Money alerts go (can be turned off), and chat answers "which
+  subscriptions should I cancel?" from the same list. Subscription receipts no longer show up in
+  Purchases (docs/TRIM.md).
+- New: One-minute voice journal: Library → Journal. Pick how today was, press Record a minute and talk (or
+  type it), and the entry is saved with its mood. Your words are heard on this computer only; the
+  recording is kept only if you tick Keep the recording. Edit or delete any entry; a streak line and
+  On this day show what you wrote on this day in earlier years. Private by default: sealed in your own
+  space, never in chats, memory, Ask or reports (docs/LIBRARY.md "Journal").
+- New: Find a time with a friend: in a one-to-one Messages chat (or by asking her, "find a time with Sam
+  for coffee"), your Sara and your linked friend's Sara swap busy times only, never what the events
+  are, once your friend says yes. She proposes 3 times that are free for both of you, in each
+  person's own part of the day; when you both pick the same one it is agreed and lands in both
+  planners (docs/MESSAGES.md "Find a time with a friend").
+- New: Snap and file: Library → Scan pages takes pages with the phone or computer camera (or photos you
+  already have), finds the paper's edges, straightens each page and lets you fix its corners, turn
+  or reorder pages, then keeps them as one PDF in the Library in one tap. She reads it like any
+  scanned document (local picture model first), and the scan view shows what she read and the dates
+  she found, with Remind me next to each (docs/LIBRARY.md "Scan pages").
+- New: Morning briefing as audio (Settings → You → Briefing and reminders → Listen to your briefing): each
+  briefing can also be read aloud into an audio file in Library → Briefings (with its text; the last
+  two weeks are kept), with a Play briefing button on Today. The voice on this computer is the default,
+  so nothing goes to a cloud voice unless you pick your chosen voice. An optional private podcast link
+  (owner only) lets a podcast app follow your briefings; it works only with its secret link, a new link
+  stops the old one. Next to the weekly review, a weekly life review: people you were in touch with,
+  dates coming up, your health log in counts, what you spent and the moments you kept
+  (docs/BRIEFING_AUDIO.md).
+- New: Home Assistant in one click, scenes by voice (Settings → Connections → Apps and services → Home
+  Assistant): *Find it for me* asks your home network once (mDNS) and fills in the address; *Test token*
+  checks the address and token without saving and shows your home's name and how many scenes and scripts
+  it has. *Say it to start* lists your Home Assistant scenes and scripts: switch one on, keep or change its
+  words, and say them in Talk with Sara, car mode or a call ("Hey Sara, movie night") to run it at once,
+  with no model call. Typed messages never start them. Locks, doors and alarms can't be picked, and a
+  card that locks, unlocks or touches an alarm now wants a tap: a spoken yes no longer answers it
+  (docs/design/V2HOME.md, docs/HOME_ASSISTANT.md).
+- New: Renewals and paperwork (Settings → You → What Sara knows): one list of what needs renewing, soonest
+  first: passport, driver's license, registration, insurance, warranties, subscriptions, a lease. It reads
+  the dates Sara already finds in your Library documents, renewal mail (a policy renewing, a registration
+  or license expiring; shop offers stay out), the Money page's subscription renewals, and rows you type in
+  or add by photo of the card (the photo goes to your Library and is read like any scan). The same date
+  shows once. Each row: Remind me (30 days before, as for document dates), Fill the form (asks her in a
+  chat; she stops before Submit), Start a renewal errand (a new Renew template that waits for your Start
+  on the Errands page), Hide. Cards now read `EXP 03/14/2029`. docs/RENEWALS.md.
+- New: Purchases (Money → Purchases): one list of what you bought, with the store, price, date, the last
+  day to return it and when the warranty ends. Receipt emails join it on their own; *Add a receipt
+  photo* (or a PDF) goes through your Library and joins once it is read; the same receipt by photo and
+  email shows once. Return dates come from the receipt ("return by…", "within 30 days", "final sale"),
+  else the store's usual window (Amazon, Walmart, Target, Best Buy, Costco, Home Depot, Lowe's, Apple,
+  IKEA); each row says where its date came from and *Edit dates* changes it. A reminder comes a few
+  days before a window closes (1-7 days, or off); *Keep it* and *Returned* stop it. *Start a return*
+  opens a new Errands template, "Return something you bought", that finds the receipt and how the store
+  takes returns and drafts the request; nothing is sent without your OK. In chat: "can I still return
+  the headphones?" (docs/PURCHASES.md).
+
 ## 3.26.0 (2026-11-18): Bring everything, Waiting on you, Where do you text?, cost autopilot
 
 - New: Benchmark page: Sara's original coding tasks can now run through other agent CLIs you installed

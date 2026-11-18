@@ -16,6 +16,24 @@ The token is kept in Sara's encrypted vault. Reading states runs on its own; any
 something asks you first, every time. Names in Home Assistant are treated as information only,
 never as instructions to her. See [PRIVACY.md](PRIVACY.md) for what this sends.
 
+### Find it, test it, start scenes by voice (V2.3)
+
+- **Find it for me** (next to the address): Sara asks your home network once where Home Assistant is
+  (mDNS, `_home-assistant._tcp`) and fills in the address. Only that question is sent: no token. Several
+  answers give a picker. Nothing answers? Type the address (another network, a VPN, or mDNS blocked by
+  the router or Docker's network mode). Private local mode skips it.
+- **Test token**: checks the typed address and token without saving them: your home's name, its
+  version and how many scenes and scripts it has, or a plain reason (refused token, unreachable, not
+  Home Assistant). An empty token field tests the saved token.
+- **Say it to start**: your scenes and scripts as voice routines. Switch one on, keep its name or type
+  other words, press *Save voice routines*. In Talk with Sara, car mode or a phone call, say the words
+  ("Hey Sara, movie night", "start movie night", "movie night please"): it runs at once and she says
+  "Movie night is on." No model is asked. Typed messages never start them, and a sentence that only
+  mentions the words ("what should we watch on movie night?") goes to her as usual.
+- **Locks and alarms keep asking**: a scene or script named like a lock, door, garage, gate or alarm
+  can't be picked. When she wants to lock, unlock or change an alarm, the card waits for a tap; a spoken
+  "yes" doesn't answer it.
+
 ## 2. Home Assistant talks to Sara
 
 The **Sara integration for Home Assistant** (in [`integrations/home-assistant/`](../integrations/home-assistant/README.md),

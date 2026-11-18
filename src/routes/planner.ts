@@ -537,6 +537,7 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
           if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(String(body.time))) throw new HttpError(400, 'Time must look like 18:00.');
           next.time = String(body.time);
         }
+        if (body.life !== undefined) next.life = Boolean(body.life);
         app.settings.update({ weeklyReview: next });
         return send(res, 200, await view());
       }
@@ -544,6 +545,12 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         if (!app.review) throw new HttpError(404, 'Not available');
         if (opts.demo) throw new HttpError(403, 'Not in the demo.');
         return send(res, 200, await app.review.send());
+      }
+      // V2.4: the weekly life review now (people, health log, money, moments).
+      if (b === 'life' && method === 'POST') {
+        if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+        const { sendLifeReview } = await import('../life-review.ts');
+        return send(res, 200, await sendLifeReview(app));
       }
     }
     // Phase 20: leave-by reminders.
@@ -574,6 +581,53 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
         app.settings.update({ leaveBy: next });
         return send(res, 200, await view());
       }
+    }
+    if (a === 'briefing' && (b === 'audio' || b === 'feed')) {
+      // V2.4 (docs/BRIEFING_AUDIO.md): the briefing as audio, and its private podcast feed (the owner's only:
+      // the feed is public by token, and the front server sends cookie-less requests to the owner's space).
+      if (opts.demo) throw new HttpError(403, 'Not in the demo.');
+      const m = await import('../briefing-audio.ts');
+      const view = () => {
+        const cfg = briefingSettings(app);
+        const items = m.briefingAudios(app);
+        const st = m.feedState(app);
+        return { settings: { audio: Boolean(cfg.audio), voice: cfg.audioVoice ?? 'local' }, localVoice: Boolean(app.voice?.voices().length), items: items.slice(0, 7), latest: items[0] ?? null, feed: opts.member ? null : { on: Boolean(st?.hash), createdAt: st?.hash ? st.createdAt : null } };
+      };
+      if (b === 'feed') {
+        if (method !== 'POST') return NEXT;
+        if (opts.member) throw new HttpError(403, 'The private podcast link is only for the owner of this server.');
+        const body = await readJson(req);
+        if (!body.on) {
+          m.feedOff(app);
+          return send(res, 200, { on: false });
+        }
+        return send(res, 200, { on: true, path: `/feed/briefing/${m.newFeedToken(app)}` });
+      }
+      if (!c && method === 'GET') return send(res, 200, view());
+      if (!c && method === 'PUT') {
+        const body = await readJson(req);
+        const next = { ...briefingSettings(app) };
+        if (body.audio !== undefined) next.audio = Boolean(body.audio);
+        if (body.voice !== undefined) next.audioVoice = body.voice === 'chosen' ? 'chosen' : 'local';
+        app.settings.update({ briefing: next });
+        return send(res, 200, view());
+      }
+      if (c === 'make' && method === 'POST') {
+        const last = m.lastBriefing(app);
+        if (!last) throw new HttpError(400, 'No briefing yet. Send one first.');
+        try {
+          return send(res, 200, { item: await m.makeBriefingAudio(app, last.text, last.day, briefingSettings(app).audioVoice ?? 'local') });
+        } catch (err) {
+          throw as400(err);
+        }
+      }
+      if (c && /^\d+$/.test(c) && method === 'GET') {
+        const got = m.briefingAudio(app, Number(c));
+        if (!got) throw new HttpError(404, 'Not found');
+        res.writeHead(200, { 'content-type': got.type, 'content-length': String(got.bytes.length), 'cache-control': 'private, no-store', 'x-content-type-options': 'nosniff' });
+        return void res.end(got.bytes);
+      }
+      return NEXT;
     }
     if (a === 'briefing') {
       const tz = app.settings.get().timeZone;

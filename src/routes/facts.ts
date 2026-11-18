@@ -7,7 +7,12 @@
 //   POST   /api/facts/suggestions/:n/accept {daysBefore?}   a planner reminder before the date
 //   POST   /api/facts/suggestions/:n/dismiss
 //   POST   /api/facts/ask {question}                ask your documents: {found, quotes:[{docId,name,page,quote,cite}]}
-import { askDocuments, FACT_GROUPS, factsFor, FactsError } from '../facts.ts';
+//   GET    /api/facts/renewals                      V2.1 {renewals, daysBefore, whats} (docs/RENEWALS.md)
+//   POST   /api/facts/renewals {what, title, date}  add one by hand
+//   POST   /api/facts/renewals/:id/remind|hide|remove|errand
+import { askDocuments, DAYS_BEFORE, FACT_GROUPS, factsFor, FactsError } from '../facts.ts';
+import { ErrandError } from '../errands.ts';
+import { RENEWAL_WHATS, RenewalError, renewalAction, renewalsOf } from '../renewals.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -23,6 +28,14 @@ export function createFactsRoutes(ctx: RouteCtx): RouteHandler {
     const facts = factsFor(app);
     try {
       if (!b && method === 'GET') return send(res, 200, { facts: facts.list(), groups: FACT_GROUPS, suggestions: facts.suggestions() });
+      if (b === 'renewals') {
+        if (!c && method === 'GET') return send(res, 200, { renewals: renewalsOf(app), daysBefore: DAYS_BEFORE, whats: RENEWAL_WHATS });
+        const body = ((await readJson(req).catch(() => ({}))) ?? {}) as Record<string, unknown>;
+        if (!c && method === 'POST') return send(res, 200, renewalAction(app, 'add', body));
+        if (c && !d && method === 'POST') throw new HttpError(404, 'Not found');
+        if (c && (d === 'remind' || d === 'hide' || d === 'remove' || d === 'errand') && method === 'POST') return send(res, 200, renewalAction(app, d, { ...body, id: c }));
+        throw new HttpError(405, 'Method not allowed');
+      }
       if (b === 'ask' && !c && method === 'POST') {
         const body = (await readJson(req)) as { question?: unknown };
         const q = String(body?.question ?? '').trim().slice(0, 500);
@@ -53,7 +66,7 @@ export function createFactsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ok: true });
       }
     } catch (err) {
-      if (err instanceof FactsError) throw new HttpError(err.status, err.message);
+      if (err instanceof FactsError || err instanceof RenewalError || err instanceof ErrandError) throw new HttpError(err.status, err.message);
       throw err;
     }
     throw new HttpError(405, 'Method not allowed');

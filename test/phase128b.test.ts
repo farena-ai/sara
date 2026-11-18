@@ -57,7 +57,7 @@ test('128b.1 N29/SETTINGS3: every page id in SETTINGS_ORDER is in exactly one gr
   assert.deepEqual(GROUPS.map(entries), [9, 8, 5, 5, 10, 7, 7], '51 entries (desktop-app counts; only the desktop app shows it)');
   const want: Record<string, string[]> = {
     Sara: ['her-character', 'her-relationship', 'her-look', 'her-pictures', 'her-voice', 'her-hey', 'her-calls', 'her-companions', 'her-work'],
-    You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-automations', 'you-details', 'you-business', 'you-knows', 'you-adult'],
+    You: ['you-about', 'you-appearance', 'you-briefing', 'you-leave-by', 'ab-when', 'you-automations', 'you-details', 'you-upkeep', 'you-business', 'you-knows', 'you-adult'],
     'Models & usage': ['models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local', 'dh-usage', 'ab-budgets'],
     Connections: ['dh-devices', 'co-phone', 'co-shortcuts', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-whatsapp', 'co-signal', 'co-imessage', 'co-matrix', 'co-slack', 'co-teams', 'co-email', 'co-pickup', 'co-continuity', 'ab-mail', 'ab-google', 'ab-home', 'ab-github', 'co-spotify', 'ab-search', 'ab-data', 'co-apps', 'co-agents', 'co-hooks'],
     'Skills & tools': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-tools', 'ab-library', 'ab-recipes', 'ab-projects', 'ab-precise', 'ab-persist', 'ab-ssh'],
@@ -66,7 +66,7 @@ test('128b.1 N29/SETTINGS3: every page id in SETTINGS_ORDER is in exactly one gr
   for (const [g, ids] of Object.entries(want)) assert.deepEqual([...byGroup.get(g)!].sort(), [...ids].sort(), g);
   // The 11 merges: each host is a real page of the same group and the same audience (owner/member flags).
   const hosts = Object.fromEntries(sections.flatMap((s) => { const m = /data-host="([\w-]+)"/.exec(head(s.id)); return m ? [[s.id, m[1]]] : []; }));
-  assert.deepEqual(Object.keys(hosts).sort(), ['ab-budgets', 'ab-when', 'co-continuity', 'co-shortcuts', 'dh-movein', 'dh-operations', 'dh-quality', 'dh-recovery', 'her-import', 'models-subs', 'you-leave-by']);
+  assert.deepEqual(Object.keys(hosts).sort(), ['ab-budgets', 'ab-when', 'co-continuity', 'co-shortcuts', 'dh-movein', 'dh-operations', 'dh-quality', 'dh-recovery', 'her-import', 'models-subs', 'you-leave-by', 'you-upkeep']);
   const flags = (id: string) => ['data-owner-only', 'data-member-only'].filter((f) => head(id).includes(f)).join();
   for (const [id, host] of Object.entries(hosts)) {
     assert.equal(sections.find((s) => s.id === id)!.group, sections.find((s) => s.id === host)!.group, `${id} → ${host}: same group`);

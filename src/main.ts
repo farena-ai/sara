@@ -63,6 +63,7 @@ import { inQuiet } from './family-plan.ts';
 import { zonedParts } from './planner.ts';
 import { SAFE_SEARCH_PROVIDERS } from './tools/search.ts';
 import { createMyDetailsTool } from './tools/my-details.ts';
+import { createUpkeepTools } from './tools/upkeep.ts';
 import { createFactsTools } from './tools/facts.ts';
 import { resolveAttachments } from './mail/attachments.ts';
 import { myDetailsFor } from './my-details.ts';
@@ -87,6 +88,7 @@ import { PeopleStore } from './people.ts';
 import { mentionToolDeps, wirePeople } from './mentions.ts';
 import { createPeopleTools } from './people-tools.ts';
 import { createPeopleTiesTools, PeopleTies } from './people-ties.ts';
+import { createGiftTools } from './gifts.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
@@ -215,6 +217,7 @@ import { createBizTools } from './tools/biz.ts';
 import { createBizPackTools } from './tools/bizpack.ts';
 import { createWorkTools } from './tools/work.ts';
 import { createMoneyTools } from './tools/money.ts';
+import { createPurchaseTools } from './tools/purchases.ts';
 import { createMakeDocumentTool } from './tools/make-document.ts';
 import { createHumanizeTool } from './tools/humanize.ts';
 import { createDecisionTools } from './decisions.ts';
@@ -236,6 +239,8 @@ import { createSupportTools } from './tools/support.ts';
 import { createRemoteRepairTools } from './tools/remote-repair.ts';
 import { createSharedProjectTools } from './tools/shared-projects.ts';
 import { sharedProjectsOf } from './shared-projects.ts';
+import { createFriendTimeTools } from './tools/friend-time.ts';
+import { friendTimeOf } from './friend-time.ts';
 import { repairOf } from './repair-env.ts';
 import { fixRecipesOf } from './fix-recipes.ts';
 import { onCodeStatus } from './remote-repair.ts';
@@ -1159,6 +1164,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   for (const t of createDocStudioTools(() => app)) tools.add(t);
   // N4 (docs/MY_DETAILS.md): my_details_get, the person's own saved details (each space's own; never the demo).
   if (!isDemo) tools.add(createMyDetailsTool(() => app));
+  // V2.6 (docs/UPKEEP.md): upkeep_list and upkeep_log, car and house upkeep (each space's own; never the demo).
+  if (!isDemo) for (const t of createUpkeepTools(() => app)) tools.add(t);
   // N6 (docs/WHAT_SARA_KNOWS.md): facts_list and fact_forget, the person's own world (never the demo).
   if (!isDemo) for (const t of createFactsTools(() => app)) tools.add(t);
   // E6 (docs/BUSINESS_TOOLS.md): invoices, follow-ups, contracts, expenses, action items (each person's own space).
@@ -1171,6 +1178,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   if (!isDemo) for (const t of createWorkTools(() => app)) tools.add(t);
   // E3 (docs/MONEY.md): portfolio, budget and bills (each person's own space; never the demo).
   if (!isDemo) for (const t of createMoneyTools(() => app)) tools.add(t);
+  // V2.2 (docs/PURCHASES.md): purchases, return windows, warranties, Start a return.
+  if (!isDemo) for (const t of createPurchaseTools(() => app)) tools.add(t);
   // Phase 34: she can adjust her own dials when asked (the owner approves each change).
   tools.add(createTuneTool(() => app));
   // Phase 50: the code map tools and her recipes.
@@ -1294,6 +1303,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // S4 (docs/PEOPLE.md "Keeping in touch"): last contact, promises, dates and nudges on the cards.
     app.peopleTies = new PeopleTies(app);
     for (const t of createPeopleTiesTools(() => app)) tools.add(t);
+    // V2.7: gift ideas and card text from People cards (docs/design/GIFTS.md).
+    for (const t of createGiftTools(() => app)) tools.add(t);
   }
   // Phase 103 (ST8): her own agenda (per companion, in each person's own space; off by default; never the demo).
   if (!isDemo) {
@@ -1754,6 +1765,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createSupportTools(() => app)) tools.add(t);
     for (const t of createRemoteRepairTools(() => app)) tools.add(t); // T5: fix passes (docs/REMOTE_REPAIR.md)
     for (const t of createSharedProjectTools(() => app)) tools.add(t); // U4.26 (docs/SHARED_PROJECTS.md)
+    for (const t of createFriendTimeTools(() => app)) tools.add(t); // V2.10 (docs/design/V2SCHEDULE.md)
     if (main) {
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       const sup = supportOf(app);
@@ -1763,6 +1775,12 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       if (shp) {
         shp.onChange = (id) => app.events?.publish({ type: 'pm', chat: `sproj:${id}` });
         shp.onNotice = (title, body, id) => void app.push?.sendAll({ title, body: app.push.settings.preview ? body.slice(0, 180) : trOwner('Open the app to see it.', app.settings.get()), url: '/#view=shared', tag: `sproj-${id}` }).catch(() => undefined);
+      }
+      // V2.10: friend scheduling reloads the open Messages page; a push when a friend asks or a time is agreed.
+      const fti = friendTimeOf(app);
+      if (fti) {
+        fti.onChange = (id) => app.events?.publish({ type: 'pm', chat: `ftime:${id}` });
+        fti.onNotice = (title, body, id) => void app.push?.sendAll({ title, body: app.push.settings.preview ? body.slice(0, 180) : trOwner('Open the app to see it.', app.settings.get()), url: '/#view=msgs', tag: `ftime-${id}` }).catch(() => undefined);
       }
       fixRecipesOf(app); // U3.17: fixes that worked are offered from the start (when the owner allows it)
       messenger.onNotify = (title, body, chat) => {

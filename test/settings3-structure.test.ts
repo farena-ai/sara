@@ -42,9 +42,9 @@ function open(id: string) {
   return { shown: pages.filter((p) => !p.hidden).map((p) => p.dataset.page), current: nav.filter((b) => b.current === 'true').map((b) => b.dataset.page), stored: stored['sara.settingsPage'], calls };
 }
 
-test('S2: the 11 merged pages open their host with every section of it, the rail marks the host, the old id is remembered', () => {
+test('S2: the 12 merged pages open their host with every section of it, the rail marks the host, the old id is remembered', () => {
   const merged = heads.filter((h) => h.host);
-  assert.equal(merged.length, 11);
+  assert.equal(merged.length, 12); // V2.6 adds you-upkeep (under My details)
   for (const m of merged) {
     const r = open(m.page);
     const parts = heads.filter((h) => h.host === m.host).map((h) => h.page);

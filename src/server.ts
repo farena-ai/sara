@@ -100,6 +100,7 @@ import { createMessagesRoutes } from './routes/messages.ts';
 import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
 import { createRemoteRepairRoutes, handleRepairPeer } from './routes/remote-repair.ts';
 import { createSharedProjectRoutes, handleSharedProjectPeer } from './routes/shared-projects.ts';
+import { createFriendTimeRoutes, handleFriendTimePeer } from './routes/friend-time.ts';
 import { createMarketRoutes, handleMarketPeer } from './routes/market.ts';
 import { createRepairRoutes } from './routes/repair.ts';
 import { createSelfCodeRoutes } from './routes/self-code.ts';
@@ -1097,6 +1098,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const supportRoutes = createSupportRoutes(ctx);
   const remoteRepairRoutes = createRemoteRepairRoutes(ctx); // T5: fix passes (docs/REMOTE_REPAIR.md)
   const sharedProjectRoutes = createSharedProjectRoutes(ctx); // U4.26 (docs/SHARED_PROJECTS.md)
+  const friendTimeRoutes = createFriendTimeRoutes(ctx); // V2.10 (docs/design/V2SCHEDULE.md)
   const marketRoutes = createMarketRoutes(ctx); // U4.27: the community marketplace (docs/MARKETPLACE.md)
   // ROADMAP_T: self-repair (src/routes/repair.ts; docs/SELF_REPAIR.md), owner only.
   const repairRoutes = createRepairRoutes(ctx);
@@ -1699,6 +1701,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await supportRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await remoteRepairRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await sharedProjectRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await friendTimeRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await marketRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await repairRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await selfCodeRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2699,6 +2702,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/msg/v1/sproj/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleSharedProjectPeer(ctx, req, res, url.pathname);
       }
+      if (url.pathname.startsWith('/msg/v1/ftime/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleFriendTimePeer(ctx, req, res, url.pathname);
+      }
       if (url.pathname.startsWith('/msg/v1/')) {
         if (app.messages && !opts.member && !opts.demo) return await app.messages.handlePeer(req, res, url.pathname);
         await readRaw(req, 64 * 1024).catch(() => undefined);
@@ -2730,6 +2736,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
       // R6: a public booking page (no sign-in; off unless its owner turned it on).
       if (url.pathname.startsWith('/book/') && (await bookingPublic(req, res, url.pathname))) return;
+      // V2.4: the private briefing podcast feed (no sign-in; its token is the key; off unless made).
+      if (url.pathname.startsWith('/feed/briefing/') && method === 'GET' && !opts.demo && !opts.member && (await import('./briefing-audio.ts')).serveFeed(app, url.pathname, `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`, res)) return;
       if (url.pathname.startsWith('/api/')) {
         const parts = url.pathname.slice(5).split('/').filter(Boolean).map(safeDecode);
         // EC4: one audit row per sensitive change (who, what, where, outcome; field names, never values).

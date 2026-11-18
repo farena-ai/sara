@@ -5,6 +5,7 @@
 // Both sides see the help log. Nothing here runs anything on either computer.
 import { t } from './naming.js';
 import { initRemoteRepair, loadRemoteRepair, remoteLogText, remoteRows, remoteStrip } from './remote-repair.js';
+import { friendTimeRows, friendTimeStrip, initFriendTime, loadFriendTime } from './friend-time.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, askHer?: (text: string) => void, confirm?: (text: string) => Promise<boolean> } | null} */
 let ctx = null;
@@ -54,6 +55,7 @@ export function initSupport(c, helpers) {
   say = helpers.say;
   panel = helpers.panel;
   initRemoteRepair(c, helpers); // T5: fix passes live in the same strip (docs/REMOTE_REPAIR.md).
+  initFriendTime(c, helpers); // V2.10: find a time with this friend (docs/design/V2SCHEDULE.md).
 }
 
 /** Loads the support state (passes, proposals, log) with the Messages page. */
@@ -61,6 +63,7 @@ export async function loadSupport() {
   if (!ctx) return;
   try {
     await loadRemoteRepair();
+    await loadFriendTime();
     state = await ctx.api('/support');
     names = new Map((state.providers ?? []).map((p) => [p.id, p.label]));
   } catch {
@@ -83,7 +86,7 @@ export function supportRows(open) {
     row.append(btn(t('Open'), 'small', () => open(link)));
     rows.push(row);
   }
-  return [...rows, ...remoteRows(open)];
+  return [...rows, ...remoteRows(open), ...friendTimeRows(open)];
 }
 
 /** The help strip under a one-to-one chat's head (active chats only). */
@@ -91,6 +94,8 @@ export function supportStrip(chat) {
   const box = el('div', 'sup-strip');
   const rr = remoteStrip(chat);
   if (rr.childElementCount) box.append(rr);
+  const ft = friendTimeStrip(chat);
+  if (ft.childElementCount) box.append(ft);
   if (!state || chat.kind !== 'direct' || chat.status !== 'active' || !chat.linkId) return box;
   rr.remove();
   const link = chat.linkId;
@@ -115,6 +120,7 @@ export function supportStrip(chat) {
     line.append(btn(t('Look at {name}’s Sara', { name }), 'small', () => void look(link, name)));
   }
   box.append(line);
+  if (ft.childElementCount) box.append(ft);
   if (h?.note) box.append(el('p', 'small sup-note', t('{name} wrote: {note}', { name, note: h.note })));
   // Setting changes first, plain notes after.
   for (const p of pending(link).sort((x, y) => y.diff.length - x.diff.length)) box.append(card(p));

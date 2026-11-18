@@ -357,7 +357,7 @@ test('S9a: the agents are not involved: messages never reach the model, memory, 
   };
   walk(join(ROOT, 'src'));
   // S9b's support link and T5's remote repair import only the Messenger type (link keys and notices, never a message).
-  assert.deepEqual(users.sort(), ['fix-recipes.ts', 'main.ts', 'market.ts', 'remote-repair.ts', 'routes/messages.ts', 'shared-projects.ts', 'support.ts']);
-  for (const f of ['support.ts', 'remote-repair.ts', 'fix-recipes.ts', 'shared-projects.ts', 'market.ts']) assert.match(readFileSync(join(ROOT, 'src', f), 'utf8'), /import type \{ Messenger \} from '\.\/messages\.ts'/);
+  assert.deepEqual(users.sort(), ['fix-recipes.ts', 'friend-time.ts', 'main.ts', 'market.ts', 'remote-repair.ts', 'routes/messages.ts', 'shared-projects.ts', 'support.ts']);
+  for (const f of ['support.ts', 'remote-repair.ts', 'fix-recipes.ts', 'shared-projects.ts', 'market.ts', 'friend-time.ts']) assert.match(readFileSync(join(ROOT, 'src', f), 'utf8'), /import type \{ Messenger \} from '\.\/messages\.ts'/);
   assert.ok(existsSync(join(a.dir, 'messages.db')), 'its own database file, never sara.db');
 });

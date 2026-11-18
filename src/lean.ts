@@ -135,6 +135,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(support_(look|propose)|remote_(help_request|look|fix_plan))$/, 'support', 'helping another Sara'],
   // U4.26: a shared project's items (read inside that project's chats only).
   [/^shared_project_read$/, 'sharedproj', 'shared projects'],
+  // V2.10: find a time with a linked friend (busy blocks only cross).
+  [/^friend_time$/, 'friendtime', 'finding a time with a friend'],
   // ROADMAP_T: self-repair (check yourself, fix what is broken, learn to do something).
   [/^repair_(status|fix)$/, 'repair', 'fixing herself'],
   // T3: changing her own code (src/tools/self-code.ts).
@@ -191,7 +193,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // R8: chores and allowance; a child's safe search (docs/FAMILY.md).
   [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search|meal_plan_(get|set)|meal_shopping|family_calendar)$/, 'family', 'chores, allowance and the family planner'],
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
-  [/^my_details_get$/, 'details', 'my details'],
+  [/^(my_details_get|upkeep_(list|log))$/, 'details', 'my details and car and house upkeep'],
   // N6: what she knows about their world (facts with sources; forget one).
   [/^(facts_list|fact_forget)$/, 'facts', 'what she knows'],
   // S6: the travel assistant (docs/TRAVEL.md).
@@ -208,7 +210,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // E6: invoices and quotes, follow-ups, contracts, expenses, action items.
   [/^(invoice_\w+|follow_ups|contract_review|expense_\w+|action_items)$/, 'business', 'business and documents'],
   // E3: portfolio, budget and bills.
-  [/^(portfolio_\w+|budget_\w+|bill_\w+)$/, 'money', 'money'],
+  [/^(portfolio_\w+|budget_\w+|bill_\w+|purchases?_\w+)$/, 'money', 'money'],
 ];
 
 const MCP_LABELS: Record<string, string> = { github: 'GitHub', playwright: 'Playwright browser', filesystem: 'files server', files: 'files server', memory: 'memory server', fetch: 'fetch server', everything: 'test server' };
@@ -281,7 +283,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   ssh: ['ssh', 'server', 'servers', 'servidor', 'servidores', 'serveur', 'serveurs', 'servidor', 'server remoto'],
   board: ['board', 'card', 'cards', 'kanban', 'tablero', 'tarjeta', 'tableau', 'carte', 'tafel', 'karte', 'quadro', 'cartao', 'bacheca', 'scheda'],
   google: ['email', 'emails', 'gmail', 'calendar', 'inbox', 'correo', 'calendario', 'courriel', 'calendrier', 'agenda google', 'outlook', 'hotmail', 'yahoo', 'icloud', 'e mail', 'kalender', 'posteingang', 'caixa de entrada', 'posta'],
-  home: ['home assistant', 'lights', 'light', 'thermostat', 'luces', 'lumiere', 'lumieres', 'licht', 'lichter', 'luzes', 'luci', 'termostato'],
+  home: ['home assistant', 'lights', 'light', 'thermostat', 'luces', 'lumiere', 'lumieres', 'licht', 'lichter', 'luzes', 'luci', 'termostato', 'unlock', 'lock the', 'front door', 'garage door', 'cerradura', 'serrure', 'turschloss', 'fechadura', 'serratura'],
   // "look at my browser tabs" means the owner's own computer (computer use), not her testing browser on the server.
   computer: ['web form', 'this form', 'form on this page', 'form in my browser', 'sign up form', 'signup form', 'check in my browser', 'in my browser', 'my details', 'my computer', 'my pc', 'desktop', 'mi ordenador', 'mi computadora', 'mon ordinateur', 'mein computer', 'meu computador', 'il mio computer', 'computer use', 'my laptop', 'my mac', 'my screen', 'my browser', 'my tabs', 'browser tabs', 'open tabs', 'my windows', 'mi navegador', 'mis pestanas', 'mi pantalla', 'mon navigateur', 'mes onglets', 'mon ecran', 'mein browser', 'meine tabs', 'mein bildschirm', 'meu navegador', 'minhas abas', 'minha tela', 'il mio browser', 'le mie schede', 'il mio schermo',
     // 3.4.x: the owner's own open things and files on that computer (pc_my_tabs, pc_files).
@@ -294,12 +296,15 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   repair: ['fix yourself', 'repair yourself', 'is broken', 's broken', 'not working', 'doesnt work', 'doesn t work', 'stopped working', 'check yourself', 'self repair', 'learn to', 'arreglate', 'no funciona', 'esta roto', 'repare toi', 'ne marche pas', 'ne fonctionne pas', 'reparier dich', 'funktioniert nicht', 'ist kaputt', 'conserte se', 'nao funciona', 'esta quebrado', 'aggiustati', 'non funziona', 'e rotto'],
+  friendtime: ['find a time', 'a time with', 'time to meet', 'when can we meet', 'free busy', 'schedule with', 'buscar un hora', 'buscar una hora', 'cuando podemos', 'encontrar un hueco', 'trouver un moment', 'trouver un creneau', 'un creneau avec', 'termin finden', 'einen termin mit', 'zeit finden', 'encontrar um horario', 'marcar com', 'trovare un orario', 'trovare un momento'],
   sharedproj: ['shared project', 'shared notes', 'shared files', 'shared to do', 'proyecto compartido', 'notas compartidas', 'projet partage', 'notes partagees', 'geteiltes projekt', 'gemeinsames projekt', 'geteilte notizen', 'projeto compartilhado', 'notas compartilhadas', 'progetto condiviso', 'note condivise'],
   support: ['help pass', 'fix pass', 'have sara fix', 'fix it remotely', 'pase de arreglo', 'pass de réparation', 'reparaturpass', 'passe de conserto', 'pass di riparazione', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],
   selfcode: ['your code', 'your own code', 'your source code', 'change your code', 'fix your code', 'tu codigo', 'tu propio codigo', 'ton code', 'votre code', 'ton propre code', 'deinen code', 'dein code', 'deinen eigenen code', 'seu codigo', 'seu proprio codigo', 'il tuo codice', 'tuo codice'],
   people: ['person', 'people', 'persona', 'personne', 'pessoa',
     // S4: keeping in touch (promises, waiting replies, who to call), six languages folded.
-    'i promised', 'my promises', 'promised', 'keep in touch', 'get in touch', 'waiting for my reply', 'who needs me', 'who should i call', 'prometi', 'mis promesas', 'he prometido', 'j ai promis', 'mes promesses', 'ich habe versprochen', 'versprochen', 'meine versprechen', 'minhas promessas', 'ho promesso', 'le mie promesse'],
+    'i promised', 'my promises', 'promised', 'keep in touch', 'get in touch', 'waiting for my reply', 'who needs me', 'who should i call', 'prometi', 'mis promesas', 'he prometido', 'j ai promis', 'mes promesses', 'ich habe versprochen', 'versprochen', 'meine versprechen', 'minhas promessas', 'ho promesso', 'le mie promesse',
+    // V2.7: gifts and cards for people (six languages, folded).
+    'gift', 'gifts', 'gift idea', 'gift ideas', 'birthday present', 'birthday card', 'anniversary card', 'regalo', 'regalos', 'ideas de regalo', 'tarjeta de cumpleanos', 'cadeau', 'cadeaux', 'idee cadeau', 'carte d anniversaire', 'geschenk', 'geschenke', 'geschenkidee', 'geburtstagskarte', 'presente de aniversario', 'ideia de presente', 'cartao de aniversario', 'regali', 'idea regalo', 'biglietto di auguri'],
   // E5 (decide, compare): weighing options, in six languages (folded, no accents).
   decisions: ['should i', 'decide', 'decision', 'which is better', 'which one is better', 'compare', 'comparison', 'pros and cons', 'choose between', 'vs', 'versus', 'side by side', 'decidir', 'decision', 'cual es mejor', 'comparar', 'pros y contras', 'elegir entre', 'dois je', 'decider', 'quel est le meilleur', 'comparer', 'avantages et inconvenients', 'choisir entre', 'soll ich', 'entscheiden', 'entscheidung', 'was ist besser', 'vergleichen', 'vor und nachteile', 'wahlen zwischen', 'decisao', 'qual e melhor', 'pros e contras', 'escolher entre', 'decidere', 'decisione', 'quale e meglio', 'confrontare', 'pro e contro', 'scegliere tra'],
   // make_document: documents and files she makes (all six languages, folded, no accents).
@@ -389,7 +394,10 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'mes coordonnees', 'mon adresse', 'ma taille', 'numero de police', 'remplis le formulaire',
     'meine daten', 'meine adresse', 'meine grosse', 'policennummer', 'fulle das formular aus',
     'meus dados', 'meu endereco', 'meu tamanho', 'numero da apolice', 'preencha o formulario',
-    'i miei dati', 'il mio indirizzo', 'la mia taglia', 'numero di polizza', 'compila il modulo'],
+    'i miei dati', 'il mio indirizzo', 'la mia taglia', 'numero di polizza', 'compila il modulo',
+    // V2.6: car and house upkeep (upkeep_list / upkeep_log).
+    'upkeep', 'maintenance', 'oil change', 'tire rotation', 'furnace filter', 'ac filter', 'air filter', 'gutters', 'smoke alarm', 'smoke alarms', 'smoke detector', 'water heater', 'dryer vent', 'odometer', 'mileage',
+    'cambio de aceite', 'mantenimiento', 'vidange', 'entretien', 'olwechsel', 'wartung', 'troca de oleo', 'manutencao', 'cambio olio', 'manutenzione'],
   // N6 (docs/WHAT_SARA_KNOWS.md): what she knows about them, their policies, lease and dates (six languages, folded).
   facts: ['what do you know about me', 'what you know about me', 'about me', 'my deductible', 'my policy', 'my policies', 'my lease', 'my insurance', 'when does', 'expire', 'expires', 'expiry', 'expiration', 'renewal', 'renew', 'warranty', 'remember that', 'forget that', 'not true', 'my documents',
     'que sabes de mi', 'mi deducible', 'mi poliza', 'mi contrato de alquiler', 'cuando vence', 'caduca', 'renovacion', 'garantia', 'recuerda que', 'olvida que',
@@ -422,6 +430,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   'live-watch': ['tell me when', 'alert me', 'let me know when', 'watch', 'notify me when', 'avisame cuando', 'alertame', 'vigila', 'dis moi quand', 'previens moi', 'alerte moi', 'surveille', 'sag mir wann', 'benachrichtige mich', 'beobachte', 'me avise quando', 'me alerte', 'vigie', 'dimmi quando', 'avvisami', 'tieni d occhio'],
   // E3 (docs/MONEY.md): portfolio, budget, subscriptions and bills (six languages, folded).
   money: ['portfolio', 'my stocks', 'stocks', 'holdings', 'investments', 'budget', 'spending', 'spend', 'spent', 'subscriptions', 'subscription', 'bills', 'bill', 'due', 'bank statement', 'bank export', 'transactions',
+    'purchases', 'purchase', 'receipt', 'receipts', 'return window', 'return it', 'can i return', 'start a return', 'warranty', 'i bought', 'compras', 'garantia', 'achats', 'garantie', 'kaufe', 'einkaufe', 'acquisti', 'reso',
     'cartera', 'mis acciones', 'inversiones', 'presupuesto', 'gastos', 'gaste', 'suscripciones', 'facturas', 'vence', 'extracto bancario', 'estado de cuenta',
     'portefeuille', 'mes actions', 'placements', 'budget', 'depenses', 'depense', 'abonnements', 'factures', 'echeance', 'releve bancaire', 'releve de compte',
     'depot', 'meine aktien', 'anlagen', 'budget', 'ausgaben', 'ausgegeben', 'abos', 'abonnements', 'rechnungen', 'fallig', 'kontoauszug',
@@ -886,7 +895,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign|invoice_send)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n);
+  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign|invoice_send)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n) || n === 'friend_time';
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

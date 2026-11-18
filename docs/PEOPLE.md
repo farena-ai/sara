@@ -139,6 +139,28 @@ text is stored, only the sentence of a promise you confirm.
 Risks: promise rules miss other languages and indirect phrasing (gap); a shared mailbox address can
 match the wrong card (edit the addresses). Tests: `test/s4-people.test.ts`.
 
+## Gifts and occasions
+
+Each card has a **Gifts and occasions** part (Memory → People → a person):
+
+- **Next occasions**: the birthday on the card and the yearly dates under Keeping in touch, with how
+  many days are left.
+- **Budget**: ideas over it are left out. Empty uses the default budget in Settings → You →
+  Briefing and reminders → Gifts and occasions.
+- **Suggest gift ideas**: up to five ideas with a short reason and a rough price. She uses only what
+  she may bring up in a normal chat: never a private card, never a private fact, nothing sensitive
+  (health, intimate, money, legal), nothing still unconfirmed and nothing learned in a chat room.
+  **Add to shopping list** puts an idea on the Planner's **Gifts** list, due a week before the day.
+- **Write a card**: a short card text in your own writing style (Settings → You → About you →
+  Writing style), signed with your name. It is a draft you copy; she never sends it.
+- **Remind me … days before**: a reminder before each birthday and yearly date (two weeks by
+  default). On by default for family and partners and for anyone with a budget or ideas; switch it
+  per person here, or for everyone in Settings.
+
+In chat: "gift ideas for Maya under $50" or "write a birthday card for Maya" (tools
+`people_gift_ideas`, `people_gift_card`; never in outside apps or group chats). Private cards
+answer with a short note and no ideas.
+
 ## For developers
 
 | Piece | File |

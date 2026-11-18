@@ -377,7 +377,7 @@ function fromRules(m: InboxMail, text: string, now: Date): Finding[] {
   const tr = trackingIn(all);
   if (tr && /\b(ship|shipped|shipment|tracking|track (your|my) package|deliver|delivery|on (its|the) way|out for delivery|package|parcel)\b/i.test(all)) {
     const eta = dateAfter(all, /\b(arriving|expected (delivery|by|on)|estimated delivery( date)?|delivery date|arrives|will arrive)\b:?/i, now);
-    const order = /\border\s*(?:#|no\.?|number)?:?\s*([A-Z0-9-]{5,30})/i.exec(all)?.[1];
+    const order = /\border\s*(?:#|no\.?|number)?:?\s*((?=[A-Z-]*\d)[A-Z0-9-]{5,30})/i.exec(all)?.[1];
     out.push({ kind: 'shipping', source: 'rules', ref: tr.tracking, ...tr, status: packageStatus(all) ?? 'shipped', vendor: name, ...(eta ? { eta: eta.day } : {}), ...(order ? { order } : {}) });
     return out;
   }
@@ -455,7 +455,7 @@ function fromRules(m: InboxMail, text: string, now: Date): Finding[] {
   if (/\b(receipt|your order|order confirm(ed|ation)|thanks for (your )?(order|purchase)|purchase confirmation|payment received)\b/i.test(subj)) {
     const total = amountOf(/\b(order total|grand total|total( charged| paid)?|amount (charged|paid))\b[^\n]{0,40}/i.exec(all)?.[0] ?? '') ?? amountOf(all);
     if (total) {
-      const order = /\border\s*(?:#|no\.?|number)?:?\s*([A-Z0-9-]{5,30})/i.exec(all)?.[1];
+      const order = /\border\s*(?:#|no\.?|number)?:?\s*((?=[A-Z-]*\d)[A-Z0-9-]{5,30})/i.exec(all)?.[1];
       const items = [...text.matchAll(/^\s*(?:\d+\s*[x×]\s*)?([A-Za-z][^\n$]{2,60}?)\s+\$\d[\d,]*\.\d{2}\s*$/gm)].map((x) => clip(x[1], 60)).filter((x) => !/total|tax|shipping|subtotal|discount/i.test(x)).slice(0, 10);
       const d = findDate(text, now);
       out.push({ kind: 'receipt', source: 'rules', ref: order ?? `${senderDomain(m.from)}|${total}|${m.date.slice(0, 10)}`, vendor: name, amount: total, date: d?.day ?? m.date.slice(0, 10), ...(items.length ? { items } : {}), ...(order ? { order } : {}) });

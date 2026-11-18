@@ -471,7 +471,8 @@
                 <p class="td-mood"><span class="hp-dot" aria-hidden="true"></span><span id="td-her-name" class="td-her-name" data-raw></span> <span id="td-mood-text" class="td-mood-text"></span></p>
                 <div class="today-her"></div>
               </div>
-              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customize</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
+              <p class="td-actions"><button id="td-ask" type="button">Plan my day with her</button> <button id="td-refresh" type="button" class="ghost small td-hbtn"><i class="ic" data-icon="update"></i><span class="td-btn-text">Refresh</span></button> <button id="td-custom-open" type="button" class="ghost small td-hbtn" aria-haspopup="dialog" aria-controls="td-custom"><i class="ic" data-icon="sliders"></i><span class="td-btn-text">Customize</span></button> <button id="td-brief-play" type="button" class="ghost small td-hbtn" aria-pressed="false" title="Play this morning’s briefing" aria-label="Play this morning’s briefing" hidden><i class="ic" data-icon="play"></i><span class="td-btn-text">Play briefing</span></button> <span id="td-fresh" class="td-fresh muted small"></span> <span id="td-status" class="muted small" role="status"></span></p>
+              <audio id="td-brief-audio" preload="none" hidden></audio>
             </div>
             <div class="td-face-wrap">
               <button id="td-face-btn" class="td-face-btn" type="button" aria-label="Her page: her day, mood and character"><img id="td-face" class="td-face" src="/sara-portrait.jpg" alt=""><span class="v4-orb td-orb" data-orb-size="112"></span></button>
@@ -1686,6 +1687,25 @@
       <div id="mn-bills" class="mn-set" data-nodirty data-noauto></div>
       <h3>Subscriptions <button type="button" class="tip" data-tip="Repeating charges and subscription emails: price changes and free trials ending, with a link to cancel it yourself. She never cancels anything.">?</button></h3>
       <div id="mn-subs"></div>
+      <!-- V2.8 (docs/TRIM.md): Maybe cancel, subscriptions worth a second look (web/trim.js) -->
+      <h3>Maybe cancel <button type="button" class="tip" data-tip="Subscriptions worth a second look: your email says you don’t use it, the price went up, two of the same kind, or a free trial ends soon. One tap starts a cancel errand.">?</button></h3>
+      <div class="mn-set" data-nodirty data-noauto>
+        <p id="trm-status" class="muted small" role="status"></p>
+        <div id="trm-list"></div>
+        <label class="mn-check"><input id="trm-monthly" type="checkbox"> Send me this list once a month <button type="button" class="tip" data-tip="On the 1st, a short note where Money alerts go. It never cancels anything: a cancel errand starts only when you tap it.">?</button></label>
+      </div>
+      <!-- V2.2 (docs/PURCHASES.md): Purchases, return windows and warranties (web/purchases.js) -->
+      <h3>Purchases <button type="button" class="tip" data-tip="What you bought, from receipt emails and receipt photos: store, price, the last day to return it and when the warranty ends. Return dates come from the receipt, else the store's usual window.">?</button></h3>
+      <div class="mn-set" data-nodirty data-noauto>
+        <p id="pu-status" class="muted small" role="status"></p>
+        <div id="mn-buys"></div>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="Take a picture of a paper receipt or pick a PDF. It goes to your Library, your picture model reads it and it joins this list with its return date.">?</button></span><label for="pu-photo" class="small">Add a receipt photo</label> <input id="pu-photo" type="file" accept="image/jpeg,image/png,application/pdf" capture="environment"></div>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="Add one by hand. Leave Return by empty and she uses the store's usual window when she knows the store.">?</button></span><input id="pu-item" type="text" autocomplete="off" placeholder="What you bought" aria-label="What you bought"> <input id="pu-store" type="text" autocomplete="off" placeholder="Store" aria-label="Store"> <input id="pu-price" type="text" inputmode="decimal" placeholder="Price" aria-label="Price"></div>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="The day you bought it (empty = today) and, if you know it, the last day to return it.">?</button></span><span class="small pu-lbl">Bought</span> <input id="pu-date" type="date" aria-label="Date bought"></div>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="Optional. Empty: the receipt's words or the store's usual window decide.">?</button></span><span class="small pu-lbl">Return by</span> <input id="pu-return" type="date" aria-label="Return by"> <button id="pu-add" type="button" class="small">Add purchase</button></div>
+        <label class="mn-check"><input id="pu-remind" type="checkbox"> Remind me before a return window closes <button type="button" class="tip" data-tip="A Planner reminder in the morning, a few days before the last day to return. Keep it or Returned on a row stops it.">?</button></label>
+        <div class="mn-row"><span><button type="button" class="tip" data-tip="How many days before the last day to return the reminder comes.">?</button></span><span class="small">Remind me</span> <select id="pu-days" aria-label="Remind me"><option value="1">1 day before</option><option value="2">2 days before</option><option value="3">3 days before</option><option value="5">5 days before</option><option value="7">7 days before</option></select></div>
+      </div>
       <h3>Net worth <button type="button" class="tip" data-tip="Balances you type in (accounts, home, car, loans) plus your investments’ last checked value. She never reads them from a bank.">?</button></h3>
       <div id="mn-net"></div>
       <div class="mn-row mn-set" data-nodirty data-noauto><span><button type="button" class="tip" data-tip="Add an account, a home or a car as an asset, or a loan or card balance as a debt. Change the amount any time.">?</button></span><input id="mn-bal-name" type="text" autocomplete="off" placeholder="Name, like Savings" aria-label="Balance name"> <select id="mn-bal-kind" aria-label="Asset or debt"><option value="asset">Asset</option><option value="debt">Debt</option></select> <input id="mn-bal-amount" type="text" inputmode="decimal" placeholder="Amount" aria-label="Balance amount"> <button id="mn-bal-add" type="button" class="small">Add balance</button></div>
@@ -2036,6 +2056,8 @@
           <p class="small"><button id="lib-research-open" type="button" class="ghost small" data-owner-only>Research a question…</button> <button type="button" class="tip" data-tip="She plans the searches with you, reads public pages, lists every page she read or couldn't read, and writes a report where each sentence links its page. Kept here; downloads as PDF or Word.">?</button></p>
           <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
           <p class="small"><button id="lib-media-open" type="button" class="ghost small" data-owner-only>Pictures and video…</button> <button type="button" class="tip" data-tip="Edit your pictures and make short clips with ComfyUI on this computer: paint over what to change, extend, upscale, remove the background or restyle. Results and versions stay here." data-owner-only>?</button></p>
+          <p class="small"><button id="lib-scan-open" type="button" class="ghost small">Scan pages…</button> <button type="button" class="tip" data-tip="Photograph a letter, a card or a whole contract with your phone or webcam. She crops and straightens each page, keeps one PDF here, reads it and finds dates to remind you of.">?</button></p>
+          <p class="small"><button id="lib-journal-open" type="button" class="ghost small">Journal…</button> <button type="button" class="tip" data-tip="A minute a day: say how your day went (or type it) and tag your mood. Heard on this computer only; just for you, never in chats, memory or reports.">?</button></p>
           <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
@@ -2090,6 +2112,55 @@
         <h2>Study <button type="button" class="tip" data-tip="Make cards from your documents or notes, then study a few each day. Again brings a card back soon; Good and Easy space it out. Export for Anki or as CSV any time.">?</button></h2>
         <div id="lib-s-body" class="sy-body" data-nodirty></div>
       </section>
+      <!-- V2.5 (docs/design/SNAP.md): Snap and file, camera pages → one PDF in the Library (web/scan.js). -->
+      <section id="lib-scan" hidden>
+        <p><button id="lib-sc-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Scan pages <button type="button" class="tip" data-tip="Take a picture of each page. She finds the page edges, straightens it and evens out the light; tap a page to fix its corners. Save keeps one PDF in your library.">?</button></h2>
+        <p class="muted small">Lay each page flat on a darker surface, in good light, and fill most of the picture with it.</p>
+        <div class="snap-take" data-nodirty>
+          <button id="scan-camera" type="button">Use the camera</button>
+          <button type="button" class="file-button ghost" data-pick="scan-file">Add photos</button><input id="scan-file" type="file" accept="image/jpeg,image/png,image/*" multiple hidden>
+          <label class="row small"><input id="scan-auto" type="checkbox" checked> Crop and straighten automatically <button type="button" class="tip" data-tip="On: each new page is cut to the paper's edges and turned straight. Off: the whole photo is kept. You can fix any page's corners either way.">?</button></label>
+        </div>
+        <div id="scan-live" class="snap-live" hidden>
+          <video id="scan-video" playsinline muted aria-label="Camera"></video>
+          <div class="snap-live-bar"><button id="scan-shot" type="button">Take page</button> <button id="scan-live-done" type="button" class="ghost">Done</button></div>
+        </div>
+        <div id="scan-edit" class="snap-edit" hidden>
+          <p class="muted small">Drag the four dots to the corners of the page (or press 1 to 4, then the arrow keys).</p>
+          <canvas id="scan-edit-canvas" tabindex="0" aria-label="Page corners"></canvas>
+          <p class="snap-edit-bar"><button id="scan-edit-ok" type="button">Use these corners</button> <button id="scan-edit-auto" type="button" class="ghost small">Find the page again</button> <button id="scan-edit-whole" type="button" class="ghost small">Whole photo</button> <button id="scan-edit-cancel" type="button" class="ghost small">Cancel</button></p>
+        </div>
+        <ol id="scan-pages" class="snap-pages" aria-label="Pages"></ol>
+        <div class="snap-save" data-nodirty>
+          <label class="snap-name">Name <button type="button" class="tip" data-tip="Optional, for example Car insurance 2027. Left empty, it is called Scan with today's date and time.">?</button> <input id="scan-title" type="text" maxlength="80" placeholder="Scan with today's date"></label>
+          <label class="row small"><input id="scan-learn" type="checkbox" checked> Remember the key points <button type="button" class="tip" data-tip="On: after reading it she keeps its key points in her memory, each with the words it came from. Off: it is only kept and searchable.">?</button></label>
+          <p><button id="scan-save" type="button" disabled>Save to Library</button> <span id="scan-count" class="muted small"></span></p>
+        </div>
+        <p id="scan-status" class="small" role="status"></p>
+        <div id="scan-result" class="snap-result" hidden aria-live="polite"></div>
+      </section>
+      <!-- V2.9 (docs/design/JOURNAL.md): One-minute voice journal (web/journal.js). -->
+      <section id="lib-journal" hidden>
+        <p><button id="jr-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Journal <button type="button" class="tip" data-tip="One short entry a day, spoken or typed, with a mood. Only you see it: it stays sealed in your own space and she never reads it in chats.">?</button></h2>
+        <p id="jr-streak" class="muted small"></p>
+        <div id="jr-otd" class="jr-otd" hidden aria-live="polite"></div>
+        <div class="jr-new" data-nodirty data-noauto>
+          <p class="jr-mood-q small">How was today? <button type="button" class="tip" data-tip="Optional. Pick one before or after you speak; tap it again to clear it. You can change it later on the entry.">?</button></p>
+          <div id="jr-moods" class="jr-moods" role="radiogroup" aria-label="Mood"></div>
+          <div class="jr-rec">
+            <button id="jr-record" type="button">Record a minute</button>
+            <span id="jr-timer" class="jr-timer muted" aria-live="off"></span>
+          </div>
+          <label class="row small"><input id="jr-keep" type="checkbox"> Keep the recording <button type="button" class="tip" data-tip="Off: only the words are kept and the recording is dropped once heard. On: the recording is kept too (sealed) so you can play it back.">?</button></label>
+          <label class="jr-type small">Or type it <button type="button" class="tip" data-tip="For when you can't talk out loud, or hearing isn't set up on this computer. Saved the same way.">?</button> <textarea id="jr-text" rows="3" maxlength="4000" placeholder="A few words about today"></textarea></label>
+          <p><button id="jr-save" type="button" class="ghost">Save entry</button></p>
+          <p id="jr-status" class="small" role="status"></p>
+        </div>
+        <h3 class="jr-h">Entries</h3>
+        <ol id="jr-list" class="jr-list" aria-label="Entries"></ol>
+      </section>
       <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
       <section id="lib-meetings" hidden>
         <p><button id="lib-m-back" type="button" class="ghost small">← All documents</button></p>
@@ -2118,6 +2189,7 @@
           </div>
         </div>
         <ul id="lib-doc-warnings" class="small muted"></ul>
+        <audio id="lib-doc-audio" class="ba-player" controls preload="none" hidden></audio>
         <div class="actions-left" data-nodirty>
           <a id="lib-doc-download" class="button ghost small" href="#" download>Download</a>
           <a id="lib-doc-pdf" class="button ghost small" href="#" target="_blank" rel="noopener" hidden>Open the PDF</a>
@@ -3596,6 +3668,17 @@
         <label>Units <select id="br-units"><option value="F">°F</option><option value="C">°C</option></select></label>
       </div>
       <p class="small"><button id="br-send" type="button" class="ghost">Send one now</button> <span id="br-status" class="muted small"></span></p>
+      <h3>Listen to your briefing <button type="button" class="tip" data-tip="Each briefing is also spoken into an audio file in Library → Briefings, with a play button on Today. The voice on this computer keeps it private.">?</button></h3>
+      <p class="muted small">She reads the briefing aloud into an audio file you can play on Today or in Library → Briefings (the last two weeks are kept). The voice on this computer keeps it on your server; nothing goes to a cloud voice unless you pick your chosen voice.</p>
+      <label class="row"><input id="ba-audio" type="checkbox" data-nodirty data-noauto> Also make each briefing as audio</label>
+      <label>Voice <button type="button" class="tip" data-tip="The voice on this computer (Kokoro or Piper) never leaves your server. Your chosen voice is the one in Settings → Voice, which may be a cloud service you pay for.">?</button> <select id="ba-voice" data-nodirty data-noauto><option value="local">On this computer (private)</option><option value="chosen">My chosen voice (Settings → Voice)</option></select></label>
+      <p class="small"><button id="ba-make" type="button" class="ghost">Make audio of the last briefing</button> <span id="ba-status" class="muted small" role="status"></span></p>
+      <audio id="ba-player" class="ba-player" controls preload="none" hidden></audio>
+      <div id="ba-feed" class="ba-feed" data-owner-only hidden>
+        <p class="small"><button id="ba-feed-on" type="button" class="ghost">Make a private podcast link</button> <button id="ba-feed-off" type="button" class="ghost" hidden>Turn the link off</button> <button type="button" class="tip" data-tip="A podcast app can follow your briefings with this private link. Anyone who has the link can listen, so don't share it. A new link stops the old one.">?</button></p>
+        <div id="ba-feed-row" class="add-row" hidden><label>Podcast link <input id="ba-feed-url" readonly></label> <button id="ba-feed-copy" type="button" class="ghost small">Copy</button></div>
+        <p id="ba-feed-state" class="muted small" role="status"></p>
+      </div>
               <h3>Weekly review</h3>
       <p class="muted small">Once a week she looks back with you: what got done, what's overdue or stalled, and a short plan for next week from your to-dos, reminders and calendar. You can also ask for one any time (Planner → Review my week).</p>
       <label class="row"><input id="rv-enabled" type="checkbox"> Send me a weekly review</label>
@@ -3603,6 +3686,8 @@
         <label>Day <select id="rv-day"><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
         <label>Time <input id="rv-time" type="time" value="18:00"></label>
       </div>
+      <label class="row"><input id="rv-life" type="checkbox" data-nodirty data-noauto> Also send a life review: people, health log, money and moments</label>
+      <p class="small"><button id="rv-life-now" type="button" class="ghost">Life review now</button> <span id="rv-life-status" class="muted small" role="status"></span></p>
       <h3>Yearly look back</h3>
       <p class="muted small">On the anniversary of your first message, she writes a look back at your year together from Your story (milestones, promises, projects, moments) and sends it like her other messages, outside quiet hours. You can also ask for one any time on the Your story page.</p>
       <label class="row"><input id="story-yearly" type="checkbox"> Send me a look back on our anniversary</label>
@@ -3615,6 +3700,15 @@
         <label>Cards per new set <input id="sy-max" type="number" min="5" max="60" value="20" data-nodirty data-noauto></label>
       </div>
       <p id="sy-prefs-status" class="muted small" role="status"></p>
+      <!-- V2.7 (docs/design/GIFTS.md): gift reminders ahead of birthdays and yearly dates (web/gifts.js). -->
+      <h3>Gifts and occasions <button type="button" class="tip" data-tip="Before birthdays and yearly dates on People cards she reminds you to pick a gift and write a card. Ideas and card text are on each person's card.">?</button></h3>
+      <p class="muted small">Ideas use only what she may bring up in a normal chat: never private cards, private facts, or health and money details. She never buys or sends anything.</p>
+      <label class="row"><input id="gift-remind-on" type="checkbox" checked data-nodirty data-noauto> Remind me before birthdays and anniversaries</label>
+      <div class="row-grid">
+        <label>Days before <select id="gift-remind-days" data-nodirty data-noauto><option value="7">1 week</option><option value="14" selected>2 weeks</option><option value="21">3 weeks</option><option value="30">1 month</option></select></label>
+        <label>Default gift budget <input id="gift-budget" type="number" min="0" step="5" placeholder="e.g. 50" data-nodirty data-noauto></label>
+      </div>
+      <p id="gift-prefs-status" class="muted small" role="status"></p>
 </section>
         <section class="settings-page" data-page="you-leave-by" data-group="You" data-title="Leave-by reminders" data-host="you-briefing" hidden>
       <p class="muted small page-lead">For events on your Google Calendar that have an address, Sara works out how long it takes to get there from home and texts you when it's time to leave. Online meetings and events without an address are skipped. Addresses and routes come from OpenStreetMap (free, no account); travel times don't include traffic, so add a little extra time.</p>
@@ -3753,8 +3847,52 @@
       <label class="row"><input id="md-leave-tab" type="checkbox"> Leave the store’s tab open after a check</label>
       <p id="md-status" class="muted small" role="status"></p>
         </section>
+        <!-- V2.6 (docs/UPKEEP.md): Car and house upkeep, shown as a section of My details (web/upkeep.js). -->
+        <section class="settings-page" data-page="you-upkeep" data-group="You" data-title="Car and house upkeep" data-host="you-details" hidden>
+      <p class="muted small page-lead">Oil changes, tire rotations, furnace filters, gutters and smoke alarms. Sara keeps the schedule, reminds you on the day and can book it for you. When a job is done, log it and the next date moves. <a href="/help#my-details" target="_blank" rel="noopener">How upkeep works</a></p>
+      <h3>Coming up <button type="button" class="tip" data-tip="Each job with its next due date, soonest first. Cars go by miles or months, whichever comes first. A Planner reminder comes at 9 AM on the day.">?</button></h3>
+      <div id="upk-box" class="upk-box" data-nodirty data-noauto>
+        <p id="upk-empty" class="muted small" hidden>No schedules yet. Add the usual one for your car or your home below.</p>
+        <div id="upk-found" class="upk-found" hidden></div>
+        <ul id="upk-rows" class="upk-rows"></ul>
+      </div>
+      <h3>Add the usual schedule <button type="button" class="tip" data-tip="Adds the common jobs with usual intervals: oil, tires, filters, brakes for a car; filters, gutters, smoke alarms, water heater for a home. Change or remove any.">?</button></h3>
+      <div class="upk-setup" data-nodirty data-noauto>
+        <span class="upk-field"><span class="small">Car</span> <span><button type="button" class="tip" data-tip="Your cars from My details (make, model, year), or type a name like “Work truck”.">?</button></span> <input id="upk-car" maxlength="60" autocomplete="off" list="upk-cars" aria-label="Car"></span>
+        <datalist id="upk-cars"></datalist>
+        <button id="upk-setup-car" type="button">Add the car schedule</button>
+        <button id="upk-setup-home" type="button" class="ghost">Add the home schedule</button>
+      </div>
+      <h3>Odometer <button type="button" class="tip" data-tip="Type the miles now and then. Sara works out how much you drive and when the next service by miles falls.">?</button></h3>
+      <div class="upk-setup" data-nodirty data-noauto>
+        <span class="upk-field"><span class="small">Miles now</span> <span><button type="button" class="tip" data-tip="The number on the dashboard today, like 42000. It goes with the car in the box above.">?</button></span> <input id="upk-odo-miles" inputmode="numeric" maxlength="9" autocomplete="off" aria-label="Miles now"></span>
+        <button id="upk-odo-save" type="button" class="ghost">Save the miles</button>
+        <span id="upk-odo-note" class="muted small"></span>
+      </div>
+      <h3>Your own job <button type="button" class="tip" data-tip="Anything else on a schedule: a water filter, the chimney, a boat.">?</button></h3>
+      <div class="upk-setup" data-nodirty data-noauto>
+        <span class="upk-field"><span class="small">What</span> <span><button type="button" class="tip" data-tip="A short name, like “Replace the fridge water filter”.">?</button></span> <input id="upk-add-title" maxlength="80" autocomplete="off" aria-label="What"></span>
+        <span class="upk-field"><span class="small">For</span> <span><button type="button" class="tip" data-tip="Your home, or one of your cars (jobs for a car can also go by miles).">?</button></span> <select id="upk-add-for" aria-label="For"><option value="">Home</option></select></span>
+        <span class="upk-field upk-num"><span class="small">Every … months</span> <span><button type="button" class="tip" data-tip="How many months between jobs, like 6.">?</button></span> <input id="upk-add-months" inputmode="numeric" maxlength="2" autocomplete="off" aria-label="Every … months"></span>
+        <span class="upk-field upk-num"><span class="small">or miles</span> <span><button type="button" class="tip" data-tip="For a car: how many miles between jobs, like 7500. Whichever comes first counts.">?</button></span> <input id="upk-add-miles" inputmode="numeric" maxlength="6" autocomplete="off" aria-label="or miles"></span>
+        <button id="upk-add-go" type="button" class="ghost">Add</button>
+      </div>
+      <p id="upk-status" class="muted small" role="status"></p>
+        </section>
         <section class="settings-page" data-page="you-knows" data-group="You" data-title="What Sara knows" hidden>
       <p class="muted small page-lead">What Sara keeps about your world: things you told her and things she read in your Library documents, each with where it came from. Fix anything here; <em>Not true</em> makes her forget it for good. Account and policy numbers keep only their last 4 digits, and card or Social Security numbers are never kept. <a href="/help#what-sara-knows" target="_blank" rel="noopener">How this works</a></p>
+      <h3>Renewals and paperwork <button type="button" class="tip" data-tip="What needs renewing, soonest first: dates from your Library documents, renewal mail, the Money page and rows you add. Each date shows once.">?</button></h3>
+      <div id="rnw-box" data-nodirty data-noauto>
+        <div id="rnw-list"></div>
+        <div class="rnw-add">
+          <label class="rnw-field">What<select id="rnw-what"><option value="">From the name</option><option value="passport">Passport</option><option value="license">Driver’s license</option><option value="registration">Registration</option><option value="insurance">Insurance</option><option value="warranty">Warranty</option><option value="subscription">Subscription</option><option value="lease">Lease</option><option value="other">Other</option></select></label>
+          <label class="rnw-field">Name<input id="rnw-title" type="text" maxlength="120" autocomplete="off" placeholder="Car registration"></label>
+          <label class="rnw-field">Date<input id="rnw-date" type="date"></label>
+          <button id="rnw-add" type="button" class="small">Add</button>
+        </div>
+        <label class="rnw-field rnw-photo">Add by photo of the card<input id="rnw-photo" type="file" accept="image/*" capture="environment"></label>
+        <p id="rnw-status" class="muted small" role="status"></p>
+      </div>
       <div id="wsk-suggest" hidden>
         <h3>From your documents <button type="button" class="tip" data-tip="Renewal, expiry and due dates she found in your documents. Accept adds a reminder before the date (30 days for renewals and expiry, 3 for due dates). Nothing is added unless you accept.">?</button></h3>
         <div id="wsk-suggest-list" data-nodirty data-noauto></div>
@@ -4219,10 +4357,20 @@
         <section class="settings-page" data-page="ab-home" data-group="Connections" data-title="Home Assistant" data-tile="accounts" data-owner-only hidden>
       <p class="muted small page-lead">Let her see and control your home through <strong>Home Assistant</strong>: lights, switches, thermostats, locks, blinds, scenes. She can look on her own; every change asks you first. Your Home Assistant must be reachable from this server (for example your Nabu Casa address, or over Tailscale).</p>
       <label>Home Assistant address <input id="ha-url" placeholder="https://homeassistant.local:8123" autocomplete="off"></label>
+      <!-- V2.3 (docs/design/V2HOME.md): find it on the home network, test the token before saving. -->
+      <div class="add-row ha-find-row"><span><button type="button" class="tip" data-tip="Sara asks your home network once where Home Assistant is and fills in the address. Only that question is sent: no token, nothing saved.">?</button></span><button id="ha-find" type="button" class="ghost">Find it for me</button><select id="ha-found" aria-label="Home Assistant servers found" hidden></select></div>
       <label>Long-lived access token <input id="ha-token" type="password" autocomplete="off" placeholder="not set"></label>
       <p class="muted small">Make one in Home Assistant: click your name (bottom left) → Security → Long-lived access tokens → Create token.</p>
-      <div class="add-row"><button id="ha-save" type="button">Save and test</button><button id="ha-clear" type="button" class="ghost" hidden>Disconnect</button></div>
+      <div class="add-row"><button id="ha-save" type="button">Save and test</button><span><button type="button" class="tip" data-tip="Checks the address and token without saving them: you see your home's name and how many scenes and scripts it has.">?</button></span><button id="ha-test" type="button" class="ghost">Test token</button><button id="ha-clear" type="button" class="ghost" hidden>Disconnect</button></div>
       <p id="ha-status" class="muted small" role="status"></p>
+      <h3>Say it to start <button type="button" class="tip" data-tip="Pick scenes and scripts you can start by voice in Talk with Sara, car mode or a call: say the words and it runs at once. Locks, doors and alarms always ask you.">?</button></h3>
+      <p class="muted small">Your Home Assistant scenes and scripts as voice routines: switch one on, keep or change the words, and say them when you talk with her (“Hey Sara, movie night”). Typed messages never start them.</p>
+      <p id="ha-voice-off" class="muted small" hidden>Connect Home Assistant above first.</p>
+      <div id="ha-voice" data-nodirty data-noauto>
+      <ul id="ha-voice-list" class="ha-voice-list"></ul>
+      <div class="add-row"><button id="ha-voice-save" type="button">Save voice routines</button></div>
+      <p id="ha-voice-status" class="muted small" role="status"></p>
+      </div>
       <h3>Presence</h3>
       <p class="muted small">She can notice when you get home, leave, go to bed or switch the lights on in the morning, and say a short word: a message on your devices, an announcement on a speaker, or both. Off until you switch it on, for this companion. Each kind at most once every few hours, never in the quiet hours of Calls from her.</p>
       <p id="pr-off" class="muted small" hidden>Connect Home Assistant above first.</p>

@@ -393,11 +393,21 @@
    "id": "remind",
    "q": "How do I get a reminder before a renewal or expiry date?",
    "steps": [
-    "Add the document to the Library.",
-    "Look under From your documents here or on Today.",
-    "Press Remind me to add a reminder before the date."
+    "Add the document to the Library, snap a photo of the card, or type it in under Renewals and paperwork.",
+    "Find it in the list, soonest first.",
+    "Press Remind me: the reminder lands 30 days before the date."
    ],
-   "show": "#wsk-list"
+   "show": "#rnw-list"
+  },
+  {
+   "id": "renew",
+   "q": "How do I start renewing my passport or a policy?",
+   "steps": [
+    "Find it under Renewals and paperwork on this page.",
+    "Press Start a renewal errand: she plans it on the Errands page.",
+    "Press Start there. She fills the form, stops before Submit and asks before paying."
+   ],
+   "show": "#rnw-list"
   }
  ],
  "you-details": [
@@ -825,6 +835,16 @@
     "Press Save and test."
    ],
    "show": "#ha-save"
+  },
+  {
+   "id": "voice-scene",
+   "q": "How do I start a Home Assistant scene by voice?",
+   "steps": [
+    "Connect Home Assistant (Find it for me fills in the address).",
+    "Under Say it to start, switch the scene on and keep or change its words.",
+    "Press Save voice routines, then say the words in Talk with Sara."
+   ],
+   "show": "#ha-voice-save"
   },
   {
    "id": "presence",
@@ -2189,6 +2209,28 @@
     "Ask in any chat: \"what does the lease say about pets?\"",
     "She quotes the part she used."
    ]
+  },
+  {
+   "id": "scan",
+   "q": "How do I scan a paper document?",
+   "steps": [
+    "Press Scan pages…, then Use the camera or Add photos.",
+    "Take each page; tap a page to fix its corners.",
+    "Press Save to Library: one PDF, read like any document.",
+    "Press Remind me next to a date she found."
+   ],
+   "show": "#lib-scan-open"
+  },
+  {
+   "id": "journal",
+   "q": "How do I keep a voice journal?",
+   "steps": [
+    "Press Journal…, then pick how today was.",
+    "Press Record a minute, talk, then Stop and save (or type it).",
+    "Only the words are kept unless you tick Keep the recording.",
+    "Earlier years' entries for today show under On this day."
+   ],
+   "show": "#lib-journal-open"
   }
  ],
  "scrapbook": [
@@ -2319,6 +2361,28 @@
     "RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage."
    ],
    "show": "#operations-content"
+  }
+ ],
+ "you-upkeep": [
+  {
+   "id": "schedule",
+   "q": "How do I get reminded about oil changes, filters and smoke alarms?",
+   "steps": [
+    "Type your car (or pick one from My details) and press Add the car schedule, or press Add the home schedule.",
+    "Each job shows its next due date, soonest first.",
+    "A reminder comes at 9 AM on the day. Type the odometer now and then so jobs by miles stay right."
+   ],
+   "show": "#upk-setup-car"
+  },
+  {
+   "id": "log",
+   "q": "How do I log a service or book one?",
+   "steps": [
+    "Press Done today on the job, or Log with details for the date, miles and cost.",
+    "The next due date and its reminder move on.",
+    "Press Book it and she finds places near you and asks before booking. Receipts from Money show up here to log with one tap."
+   ],
+   "show": "#upk-rows"
   }
  ]
 }

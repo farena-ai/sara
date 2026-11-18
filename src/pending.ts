@@ -60,7 +60,7 @@ const READ_ONLY_INTERRUPTIBLE: ReadonlySet<string> = new Set([
   'support_look',
   // ROADMAP_T: self-repair status (docs/SELF_REPAIR.md).
   'repair_status',
-  'list_dir', 'read_file', 'search', 'code_map', 'code_find', 'code_refs', 'code_deps', 'recall', 'search_library', 'library', 'search_memory', 'list_facts', 'facts_list', 'list_notes', 'list_tasks', 'list_recent_conversations', 'read_note', 'get_today', 'settings_guide', 'web_search', 'web_fetch', 'job_status', 'recipe_find', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'mail_search', 'mail_read', 'mail_thread', 'mail_needs_answer', 'mail_accounts', 'mail_add_account', 'mail_folders', 'calendar_events', 'home_status', 'github_list', 'github_read', 'ssh_servers', 'browser_read', 'browser_screenshot', 'find_tools', 'skill_read', 'moments', 'scrapbook',
+  'list_dir', 'read_file', 'search', 'code_map', 'code_find', 'code_refs', 'code_deps', 'recall', 'search_library', 'library', 'search_memory', 'list_facts', 'facts_list', 'upkeep_list', 'list_notes', 'list_tasks', 'list_recent_conversations', 'read_note', 'get_today', 'settings_guide', 'web_search', 'web_fetch', 'job_status', 'recipe_find', 'gmail_search', 'gmail_read', 'gmail_thread', 'gmail_needs_answer', 'mail_search', 'mail_read', 'mail_thread', 'mail_needs_answer', 'mail_accounts', 'mail_add_account', 'mail_folders', 'calendar_events', 'home_status', 'github_list', 'github_read', 'ssh_servers', 'browser_read', 'browser_screenshot', 'find_tools', 'skill_read', 'moments', 'scrapbook',
   // E1: live data and table reads (docs/DATA.md).
   'market_quote', 'sports_scores', 'sports_schedule', 'sports_standings', 'odds_lines', 'watch_list', 'analyze_table',
   // N3: inbox helper reads (docs/INBOX_HELPER.md).

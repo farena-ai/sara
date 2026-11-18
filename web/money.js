@@ -4,6 +4,8 @@
 // a how-to-cancel link), net worth from typed balances, categories the person edits. Tracking only:
 // she never logs in to a bank, pays, transfers or cancels anything.
 import { t } from './naming.js';
+import { initPurchases, loadPurchases } from './purchases.js';
+import { initTrim, loadTrim, markUnused } from './trim.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
 let ctx = null;
@@ -45,6 +47,8 @@ async function call(path, method, body, done) {
 
 export function initMoney(c) {
   ctx = c;
+  initPurchases(c);
+  initTrim(c);
   $('#mn-import-go')?.addEventListener('click', () => void importNow());
   $('#mn-prev')?.addEventListener('click', () => void shiftMonth(-1));
   $('#mn-next')?.addEventListener('click', () => void shiftMonth(1));
@@ -281,7 +285,10 @@ function renderSubs() {
     top.append(el('strong', '', nice(s.merchant)));
     if (s.priceChange) top.append(el('span', 'er-chip mn-chip mn-warn', t('Price went from {from} to {to}', { from: cur(s.priceChange.fromCents), to: cur(s.priceChange.toCents) })));
     if (s.maybeStopped) top.append(el('span', 'er-chip mn-chip', t('Maybe stopped')));
-    li.append(top, el('span', 'muted small', [`${cur(s.amountCents)} ${every[s.every]}`, t('{amount} a year', { amount: cur(s.yearlyCents) }), t('next about {day}', { day: dayText(s.next) })].join(' · ')), cancelA(s.cancel));
+    li.append(top, el('span', 'muted small', [`${cur(s.amountCents)} ${every[s.every]}`, t('{amount} a year', { amount: cur(s.yearlyCents) }), t('next about {day}', { day: dayText(s.next) })].join(' · ')));
+    const acts = el('span', 'mn-acts');
+    acts.append(cancelA(s.cancel), btn(t('Not using it'), 'ghost small', () => void markUnused(nice(s.merchant))));
+    li.append(acts);
     ul.append(li);
   }
   for (const m of data.mailSubs) {
@@ -291,7 +298,7 @@ function renderSubs() {
     top.append(el('strong', '', m.merchant), el('span', `er-chip mn-chip${m.kind === 'renewal' ? '' : ' mn-warn'}`, kind));
     li.append(top, el('span', 'muted small', `${t('From your email')}: ${m.subject}`));
     const acts = el('span', 'mn-acts');
-    acts.append(cancelA(m.cancel), btn(t('Hide'), 'ghost small', () => void call(`/money/mailsubs/${m.id}`, 'DELETE')));
+    acts.append(cancelA(m.cancel), btn(t('Not using it'), 'ghost small', () => void markUnused(m.merchant)), btn(t('Hide'), 'ghost small', () => void call(`/money/mailsubs/${m.id}`, 'DELETE')));
     li.append(acts);
     ul.append(li);
   }
@@ -392,6 +399,8 @@ function render() {
   renderBudgets();
   renderBills();
   renderSubs();
+  void loadTrim();
+  void loadPurchases();
   renderNet();
   renderRules();
   renderTx();

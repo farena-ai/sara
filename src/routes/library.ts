@@ -15,6 +15,8 @@ import { cleanLibraryLimits, type LibraryDoc, libraryLimits, MAX_DOC_BYTES, sha2
 import { bodyToFile, CHUNK_BYTES, diskHasRoom, LibraryUploadError as LibUploadError, LibraryUploads } from '../library/uploads.ts';
 import { madeDocs, madeFile, madePreview } from '../documents/make.ts';
 import { MIME as DOC_MIME } from '../documents/spec.ts';
+import { scanRoute } from '../scan.ts';
+import { journalRoute } from '../journal.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
@@ -159,6 +161,8 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
     }
     // Phase 44: her library (documents she keeps, or reads once for one conversation).
     if (a === 'library') {
+      // V2.9 One-minute voice journal: the person's own sealed book (src/journal.ts), with or without documents.
+      if (b === 'journal') return journalRoute(app, req, res, method, c, parts[3]);
       const lib = app.library;
       if (!lib) throw new HttpError(404, 'The library is not available');
       // E5: `revision` (the first 12 of the sha) lets Read together say which version it shares.
@@ -265,6 +269,8 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
         if (!from || !to) throw new HttpError(400, 'Bad request');
         return send(res, 200, { renamed: lib.renameCollection(from, to) });
       }
+      // V2.5 Snap and file: camera pages → one PDF kept here (src/scan.ts).
+      if (b === 'scan') return scanRoute(app, req, res, method, c, docView);
       // V0.10: the same document kept twice: one copy of each stays (with what she learned from it and
       // the collection the others were in); the notes learned from the extra copies were the same notes.
       if (b === 'duplicates' && !c && method === 'POST') {

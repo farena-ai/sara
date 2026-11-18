@@ -175,6 +175,7 @@ const LETTER = {
   book: 'Hello,\n\nI would like to book {service|an appointment}{when| {when}}. Could you tell me which times you have open and the price?\n\nThank you,\n{owner}',
   dispute: 'Hello {merchant|},\n\nI am writing to make a formal complaint about {about|my recent experience}{order| (order #{order})}{amount|, for {amount}}. {details|}\n\nI would like this put right. Please reply within 14 days with how you will resolve it.\n\nThank you,\n{owner}',
   quotes: 'Hello,\n\nI am looking for a quote for {service|a job}{place| in {place}}. {details|}Could you send me a price and when you could do it?\n\nThank you,\n{owner}',
+  return: 'Hello {merchant|} support,\n\nI would like to return {item|an item} I bought{date| on {date}}{order| (order #{order})}{amount|, for {amount}}. It is within your return window{returnBy| (return by {returnBy})}.\n\nCould you send me a return label, or tell me how to send it back and get my refund?\n\nThank you,\n{owner}',
   follow: 'Hello,\n\nI am following up on my email “{subject}” from {sent}. Could you let me know where this stands?\n\nThank you,\n{owner}',
 };
 const CALL_SCRIPT = 'Hi, this is {owner}. I’m calling about: {goal}. {ask|Could you help me with that, and what are the next steps?}';
@@ -201,6 +202,18 @@ export const TEMPLATES: Template[] = [
       { text: en('Find how to cancel'), kind: 'research', tool: 'web_search', args: { query: 'how to cancel {merchant} subscription' } },
       { text: en('Open the cancel page and fill it (she stops before the final confirm)'), kind: 'form' },
       { text: en('Press the final confirm (only with your OK)'), kind: 'browser', needsOk: true },
+    ],
+  },
+  // V2.1 (docs/RENEWALS.md): started from Settings → You → What Sara knows → Renewals and paperwork.
+  {
+    id: 'renew',
+    name: en('Renew a document or policy'),
+    pitch: en('Finds the official way to renew, fills the renewal form with your details and stops before Submit; sending or paying asks you first.'),
+    words: W('renew|renewal|renovar|renovaci[oó]n|renouvel|erneuer|verl[aä]nger|renova[cç][aã]o|rinnov'),
+    steps: [
+      { text: en('Find the official way to renew'), kind: 'research', tool: 'web_search', args: { query: 'how to renew {what} official site' } },
+      { text: en('Open the renewal form and fill it with your details (she stops before Submit)'), kind: 'form' },
+      { text: en('Submit or pay (only with your OK)'), kind: 'browser', needsOk: true },
     ],
   },
   {
@@ -241,21 +254,36 @@ export const TEMPLATES: Template[] = [
       { text: en('Wait for their answer (follow up after 7 days)'), kind: 'wait', followUpDays: 7 },
     ],
   },
+  // V2.2 (docs/PURCHASES.md): "Start a return" from Money → Purchases.
+  {
+    id: 'return',
+    name: en('Return something you bought'),
+    pitch: en('Finds the receipt and how the store takes returns, drafts a return request for your OK and follows up in 5 days.'),
+    words: W('start a return|return (?:my|the|this|an?) (?:order|item|purchase)|send (?:it|this|them) back|devolver (?:el|la|un|una|o|a) (?:pedido|compra|art[ií]culo|produto)|retourner|zur[uü]ckschicken|r[uü]cksendung|fare (?:il |un )?reso'),
+    steps: [
+      { text: en('Find the receipt in your mail'), kind: 'research', tool: 'mail_search', args: { query: '{merchant} {order|}' } },
+      { text: en('Find how they take returns'), kind: 'research', tool: 'web_search', args: { query: '{merchant} start a return policy support email' } },
+      { text: en('Ask them to start the return'), kind: 'message', to: '{email}', subject: 'Return: {item|my order}{order| (order #{order})}', body: LETTER.return },
+      { text: en('Wait for their answer (follow up after 5 days)'), kind: 'wait', followUpDays: 5 },
+    ],
+  },
 ];
 /** What each template's steps collect from what they read. */
 const COLLECT: Record<string, Fact[][]> = {
   refund: [['amount', 'date', 'order', 'merchant'], ['email', 'phone', 'url']],
   cancel: [['url', 'email', 'phone']],
+  renew: [['url', 'phone', 'email']],
   quotes: [['list'], ['emails', 'list']],
   book: [['list'], []],
   dispute: [['amount', 'date', 'order', 'merchant'], ['email', 'phone', 'url']],
+  return: [['amount', 'date', 'order', 'merchant'], ['email', 'phone', 'url']],
 };
 
 /** The template whose words match the goal (in six languages); the first that matches wins. */
 export function templateFor(goal: string): Template | undefined {
   const g = goal.normalize('NFC');
   // Ordered so the specific asks win over the general "book / find someone to".
-  return ['refund', 'cancel', 'quotes', 'dispute', 'book'].map((id) => TEMPLATES.find((t) => t.id === id)!).find((t) => t.words.test(g));
+  return ['refund', 'cancel', 'renew', 'quotes', 'dispute', 'book', 'return'].map((id) => TEMPLATES.find((t) => t.id === id)!).find((t) => t.words.test(g));
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);

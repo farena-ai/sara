@@ -170,6 +170,41 @@ with their status, what changed at the last refresh and the notes she keeps, wit
 reads a recorded meeting, and writes notes with a summary, decisions and action items; the notes are
 kept here and action items go to the Planner when you add them. See [Meetings](MEETINGS.md).
 
+## Scan pages (snap and file)
+
+Library → **Scan pages…** turns paper into a Library document in one go: a letter, an insurance
+card, a whole contract.
+
+1. Press **Use the camera** (the phone app, a phone browser over https, or a webcam) and **Take
+   page** for each page, then **Done**. Or press **Add photos** to pick pictures you already took
+   (on a phone this also offers the camera).
+2. Each page is cut to the paper's edges and turned straight (switch **Crop and straighten
+   automatically** off to keep whole photos). Tap a page to drag its four corners, or use ↻ to
+   turn it, ← to move it earlier, ✕ to remove it.
+3. Give it a name if you like (otherwise "Scan" with today's date and time) and press **Save to
+   Library**.
+
+The pages become one PDF that she reads like any scanned PDF: with your picture model on this
+computer, or after you say yes to a cloud one (see *Reading a long document*). When she has read
+it, the view shows what she read, the dates she found (an expiry, a renewal, a due date) with
+**Remind me N days before**, and other details such as a policy number (last four digits only).
+The same dates show in Settings → You → What Sara knows and on Today. Scanning the same pages twice
+keeps one copy. Tips: lay the page on a darker surface, in good light, and fill most of the picture.
+
+## Journal (one minute a day)
+
+Library → **Journal…** keeps a short daily entry, just for you.
+
+1. Pick how today was (optional): Great, Good, Okay, Low or Rough day.
+2. Press **Record a minute** and talk; press **Stop and save** (it stops by itself at one minute).
+   Or type it in the box and press **Save entry**.
+3. Only the words are kept. Tick **Keep the recording** to keep the audio too, so you can play it back.
+4. **On this day** shows what you wrote on this day in earlier years (or last month).
+
+Your words are heard by the hearing engine on this computer only, never a cloud service; without one,
+type your entry. The journal is sealed in your own space: it is not a chat, Sara doesn't read it,
+remember it or search it, and household members each have their own. Design: docs/design/JOURNAL.md.
+
 ## Where things are
 
 | What | Where |

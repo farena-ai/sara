@@ -15,7 +15,7 @@ export const SWITCH_DOMAINS: readonly string[] = ['light', 'switch', 'fan', 'inp
 /** Covers that are only about light and shade (never a garage door, gate, door or window). */
 export const SAFE_COVERS: readonly string[] = ['awning', 'blind', 'curtain', 'shade', 'shutter'];
 /** Words that make a device sensitive whatever its kind (a "switch" that opens the garage). */
-const SENSITIVE = /(^|[^a-z])(garage|gates?|doors?|locks?|unlock|alarms?|siren|security|safe|vault)([^a-z]|$)/i;
+export const SENSITIVE = /(^|[^a-z])(garage|gates?|doors?|locks?|unlock|alarms?|siren|security|safe|vault)([^a-z]|$)/i;
 
 /** `ask`: not switchable here (Ask Sara); `unreachable`: Home Assistant can't reach the device. */
 export type SwitchPlan = { ok: true; domain: string; service: string; to: 'on' | 'off' | 'open' | 'closed' } | { ok: false; why: 'ask' | 'unreachable' };

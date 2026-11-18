@@ -5,6 +5,7 @@ import { kidNote, kidTurn } from './family.ts';
 import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
 import { talkNote } from './talk.ts';
+import { homeVoiceTurn } from './home-voice.ts';
 import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
@@ -995,7 +996,8 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 /** E1: tools that reach outside for live data (now or later, for a watch): off in private chats. */
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
-  name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name === 'invoice_send' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_');
+  name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name === 'invoice_send' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_') ||
+  name === 'friend_time';
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -1477,7 +1479,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'health_log', 'health_read', 'shared_project_read']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'people_gift_ideas', 'people_gift_card', 'health_log', 'health_read', 'shared_project_read', 'friend_time']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
@@ -2411,6 +2413,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     store.recordSafetyEvent('kid_safe_block', conv.id);
     const msg = addAssistantMessage(kidStop, { blocked: 'kid_safe' });
     yield { type: 'token', text: kidStop };
+    yield { type: 'done', messageId: msg.id };
+    return;
+  }
+  // V2.3 (docs/design/V2HOME.md): the owner's spoken words naming a Home Assistant scene he picked start it at once.
+  const homeSaid = ownerApp && !opts.resume && !opts.replay && !opts.group ? await homeVoiceTurn(app, text, opts).catch(() => undefined) : undefined;
+  if (homeSaid) {
+    const msg = addAssistantMessage(homeSaid.reply, { homeVoice: homeSaid.id });
+    yield { type: 'token', text: homeSaid.reply };
     yield { type: 'done', messageId: msg.id };
     return;
   }
