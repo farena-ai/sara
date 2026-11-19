@@ -1,5 +1,6 @@
 // Single-owner authentication. A random owner token is generated on first start and shown once
 // in the server log; only its hash is stored. Browser sessions use an HMAC-signed cookie.
+import type { McpScope } from './mcp-scopes.ts';
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,6 +37,8 @@ interface DeviceSession {
   kind?: 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut' | 'extension';
   /** R4: what an iPhone Shortcuts token (kind 'shortcut') may do. */
   scopes?: ShortcutScope[];
+  /** W3.2: what an API key (kind 'api') may use on /mcp; missing = everything (keys made before scopes). */
+  mcpScopes?: McpScope[];
   /** D2: 'watch' = a Shortcuts-kind token paired with a Wear OS watch (docs/WEAR.md). */
   device?: 'watch';
   /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
@@ -490,8 +493,23 @@ export class OwnerAuth {
   }
 
   /** Phase 57: an API key for another app (an OpenAI-compatible app or an MCP app). Shown once. */
-  createApiKey(label: string): { token: string; id: string } {
-    return this.createDeviceToken(label, 'api');
+  createApiKey(label: string, mcpScopes?: readonly McpScope[]): { token: string; id: string } {
+    const k = this.createDeviceToken(label, 'api');
+    // W3.2: a scoped key lists and runs only the /mcp tools in its scopes.
+    if (mcpScopes?.length) {
+      const d = this.#owner.sessions?.find((x) => x.id === k.id);
+      if (d) {
+        d.mcpScopes = [...mcpScopes];
+        this.#save();
+      }
+    }
+    return k;
+  }
+
+  /** W3.2: an API key's /mcp scopes (undefined = everything: a key made before scopes, or not an API key). */
+  apiKeyScopes(id: string): McpScope[] | undefined {
+    const d = this.#owner.sessions?.find((x) => x.id === id && x.kind === 'api');
+    return d?.mcpScopes?.length ? [...d.mcpScopes] : undefined;
   }
 
   /** Phase 57: 'api' for an API key, 'app' for a device-code app, 'home-assistant' (M4), 'hands' (Phase 87), undefined for anything else. */

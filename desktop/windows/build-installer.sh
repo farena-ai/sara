@@ -61,6 +61,8 @@ cp "$BUILD/Release/Sara.exe" "$BUILD/Release/SaraService.exe" "$STAGE/"
 cp "$NODE_DIR/node.exe" "$STAGE/node/"
 cp "$NODE_DIR/LICENSE" "$STAGE/node/LICENSE.txt"
 cp -r "$ROOT/src" "$ROOT/web" "$ROOT/persona" "$ROOT/templates" "$ROOT/skills" "$ROOT/plugins" "$STAGE/server/"
+# W2.5: the how-to clips the help plays (served at /docs/media/, src/help-media.ts).
+mkdir -p "$STAGE/server/docs" && cp -r "$ROOT/docs/media" "$STAGE/server/docs/"
 # V4e: the move-in collector Sara serves (Settings → Data & health → Move in from another agent).
 mkdir -p "$STAGE/server/scripts" && cp "$ROOT/scripts/sara-movein.py" "$STAGE/server/scripts/" && cp "$ROOT/scripts/sara-movein.mjs" "$STAGE/server/scripts/"
 # Local workflow candidates remain untrusted packages, reviewed separately before installation.

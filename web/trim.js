@@ -2,6 +2,7 @@
 // went up, two of the same kind, a free trial ending) with one-tap "Start a cancel errand" (it waits in
 // Errands for Start, and the final confirm asks again), Keep it, and the once-a-month note.
 import { t } from './naming.js';
+import { handleIt } from './handle-it.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
 let ctx = null;
@@ -85,6 +86,7 @@ function render() {
     li.append(el('span', 'muted small', facts.join(' · ')));
     const acts = el('span', 'mn-acts');
     acts.append(
+      btn(t('Handle it'), 'small', () => void handleIt('cancel', r.key)),
       btn(r.errandId ? t('Open the cancel errand') : t('Start a cancel errand'), 'small', async () => {
         const res = r.errandId ? { errand: { id: r.errandId } } : await call(`/money/trim/${key(r.key)}/cancel`, 'POST', {}, t('The cancel errand is ready in Errands. Nothing is cancelled until you start it, and the final confirm asks you again.'));
         if (res?.errand) location.hash = '#view=errands';

@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.34.0
+  { id: 'records-report', release: '3.34.0', title: en('Run a public-records report'), steps: [en('Press Public records report…, enter your own name and city, and run it.')], view: '#view=library', expect: en('A cited report with links and dates, Not found where nothing turned up, and a PDF with NOT FCRA COMPLIANT at the top of every page.') },
+  { id: 'handle-it', release: '3.34.0', title: en('Let her handle a bill'), steps: [en('Open Bills, press Handle it on a bill, read her plan, then press Start.')], view: '#view=money', expect: en('She works through the steps, stops for your OK at sign-in, sending and payment, and never pays by herself.') },
+  { id: 'mcp-catalog', release: '3.34.0', title: en('Add a free tool server'), steps: [en('Press Add on Time in the free tool servers list and read the approval card.')], view: '#view=settings:ab-mcp', expect: en('The card shows the exact command and what it can touch; after Allow and add, its tools are listed with Allow, Ask first and Off.') },
   // 3.33.0
   { id: 'comes-across', release: '3.33.0', title: en('How Sara comes across'), steps: [en('Change her email sign-off or greeting style here and press Play on the preview.')], view: '#view=settings:her-character', expect: en('The preview shows the same sentence as chat, voice, an email line and the receptionist greeting, all in the new style.') },
   { id: 'her-week', release: '3.33.0', title: en('Her weekly check-in'), steps: [en('Press Show me now in Her weekly check-in.')], view: '#view=settings:you-briefing', expect: en('A card with what she did, what failed, what cost money and three ideas you can Accept or Undo.') },

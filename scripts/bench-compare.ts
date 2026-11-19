@@ -407,7 +407,31 @@ ${body}
 `;
 }
 
-export function buildPage(d: { sara: SaraSummary[]; others: CompareSummary[]; real?: RealSummary[]; built: string }): string {
+/** W2.4: the monthly re-check of free local models (src/model-recheck.ts, scripts/model-recheck.ts --publish). */
+export interface RecheckSummary {
+  kind: 'model-recheck';
+  started: string;
+  version: string;
+  command: string;
+  results: { model: string; job: string; passed: number; of: number; at: string; ms: number; failed: string[] }[];
+}
+
+export function recheckSection(r: RecheckSummary | undefined): string {
+  if (!r) return '';
+  const rows = r.results
+    .map((x) => `<tr><td><strong>${esc(x.model)}</strong><span class="sub">${esc(x.job)}</span></td><td class="score">${x.passed}/${x.of}<span class="sub">${(x.ms / 1000).toFixed(1)} s${x.failed.length ? `, missed: ${esc(x.failed.join(', '))}` : ''}</span></td><td class="date">${esc(day(x.at))}</td></tr>`)
+    .join('\n');
+  return `<h2 id="free-models">Free and local models: the monthly re-check</h2>
+<p class="lead">A small check set (follow an instruction, arithmetic, JSON, a small JavaScript function run with no file or network rights, the color of a picture, meaning search) on every model from Sara's free model list that is installed in Ollama on the test computer. Settings → Models &amp; usage → On this computer shows the same marks for your own computer. Sara ${esc(r.version)}, ${esc(day(r.started))}.</p>
+<div class="card scroll"><table class="stack">
+<tr><th>Model</th><th>Score</th><th>Date</th></tr>
+${rows || '<tr><td>No listed model was installed.</td></tr>'}
+</table></div>
+<p class="lead"><code>${cmdHtml(r.command)}</code></p>
+`;
+}
+
+export function buildPage(d: { sara: SaraSummary[]; others: CompareSummary[]; real?: RealSummary[]; recheck?: RecheckSummary; built: string }): string {
   const rows: PageRow[] = [];
   for (const s of d.sara) {
     const tier = tierOf(s);
@@ -470,7 +494,7 @@ ${grids}
 <tr><th>Run</th><th>Command</th></tr>
 ${commands}
 </table></div>
-${realSection(d.real ?? [])}<h2>How it is run</h2>
+${realSection(d.real ?? [])}${recheckSection(d.recheck)}<h2>How it is run</h2>
 <ul class="plain">
 <li>Tasks: <code>bench/tasks</code> and <code>bench/projects</code>, original to this repository. Reference solutions exist only to prove each task is solvable and that its hidden tests fail on the starting code (<code>node scripts/bench-compare.ts --mode verify</code>).</li>
 <li>Other harnesses are the CLIs their users installed, with their own keys and settings; this repository holds only the command line used to call them, never their code. A harness's model is shown when its owner said which one it uses.</li>
@@ -498,7 +522,8 @@ export function pageFromDocs(built: string, dir = DOCS): string {
   const sara = files.filter((f) => /^(tasks|projects)-(agent|raw)\.json$/.test(f)).map((f) => readJson<SaraSummary>(join(dir, f)));
   const others = files.filter((f) => /^compare-(tasks|projects)-[a-z0-9-]+\.json$/.test(f)).map((f) => readJson<CompareSummary>(join(dir, f)));
   const real = files.filter((f) => /^real-runs-[a-z0-9-]+\.json$/.test(f)).map((f) => readJson<RealSummary>(join(dir, f)));
-  return buildPage({ sara, others, real, built });
+  const recheck = files.includes('model-recheck.json') ? readJson<RecheckSummary>(join(dir, 'model-recheck.json')) : undefined;
+  return buildPage({ sara, others, real, ...(recheck ? { recheck } : {}), built });
 }
 
 export function writePage(built = new Date().toISOString().slice(0, 10)): string {

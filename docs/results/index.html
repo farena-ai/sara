@@ -151,6 +151,18 @@ a{color:var(--accent)}
 <tr><td><code>v-time</code><span class="sub">W0.6 time sense</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
 <tr><td><code>v-always</code><span class="sub">W0.7 Always allow</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
 </table></div>
+<h2 id="free-models">Free and local models: the monthly re-check</h2>
+<p class="lead">A small check set (follow an instruction, arithmetic, JSON, a small JavaScript function run with no file or network rights, the color of a picture, meaning search) on every model from Sara's free model list that is installed in Ollama on the test computer. Settings → Models &amp; usage → On this computer shows the same marks for your own computer. Sara 3.31.0, 2026-11-19.</p>
+<div class="card scroll"><table class="stack">
+<tr><th>Model</th><th>Score</th><th>Date</th></tr>
+<tr><td><strong>qwen3.5:9b</strong><span class="sub">chat</span></td><td class="score">3/3<span class="sub">7.6 s</span></td><td class="date">2026-11-19</td></tr>
+<tr><td><strong>gemma4:12b</strong><span class="sub">chat</span></td><td class="score">3/3<span class="sub">8.3 s</span></td><td class="date">2026-11-19</td></tr>
+<tr><td><strong>qwen3.8:27b-mtp-q4_K_M</strong><span class="sub">chat</span></td><td class="score">3/3<span class="sub">13.4 s</span></td><td class="date">2026-11-19</td></tr>
+<tr><td><strong>qwen3.8:27b-mtp-q4_K_M</strong><span class="sub">coding</span></td><td class="score">2/2<span class="sub">0.6 s</span></td><td class="date">2026-11-19</td></tr>
+<tr><td><strong>gemma4:12b</strong><span class="sub">vision</span></td><td class="score">1/1<span class="sub">8.6 s</span></td><td class="date">2026-11-19</td></tr>
+<tr><td><strong>nomic-embed-text:latest</strong><span class="sub">embeddings</span></td><td class="score">1/1<span class="sub">21.4 s</span></td><td class="date">2026-11-19</td></tr>
+</table></div>
+<p class="lead"><code><span class="nw">node</span> <span class="nw">scripts/model-recheck.ts</span> <span class="nw">--publish</span></code></p>
 <h2>How it is run</h2>
 <ul class="plain">
 <li>Tasks: <code>bench/tasks</code> and <code>bench/projects</code>, original to this repository. Reference solutions exist only to prove each task is solvable and that its hidden tests fail on the starting code (<code>node scripts/bench-compare.ts --mode verify</code>).</li>

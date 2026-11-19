@@ -21,6 +21,7 @@ replies stay out of the repository).
 | Plan check: planned tool calls vs. stored decisions, stop / flag / none (no model) | none (code only) | stops: precision / recall **1.00 / 1.00** on both sets; exact **35/35** (development) and **11/12** (held out) | 2026-10-30 | `node scripts/eval-contradict.ts` |
 | Real-model task runs, round 2: the 40 U1 tasks + one per newer feature (W0.1) | qwen3.8 27B (local), judge `qwen3.5:9b` | **52/53** tasks pass every check (**46/53** before the fixes below; the 13 new tasks 8/13 → **13/13**), judge 4.77 → **4.85/5** | 2026-11-19 | `node scripts/eval-real.ts` |
 | Real-model task runs: 40 everyday tasks through real chat turns and tools (U1.1) | qwen3.8 27B (local), judge `qwen3.5:9b` | **39/40** tasks pass every check (33/39 before the 4 fixes below), judge **4.92/5** | 2026-11-17 | `node scripts/eval-real.ts` |
+| Free model list, monthly re-check (W2.4): instruction, sum, JSON, a sandboxed JavaScript function, picture color, meaning search | `qwen3.5:9b`, `gemma4:12b`, `qwen3.8:27b-mtp-q4_K_M`, `nomic-embed-text` (local) | **6/6** model-job pairs pass every probe (talking 3/3 each, coding 2/2, pictures 1/1, meaning search 1/1) | 2026-11-19 | `node scripts/model-recheck.ts --publish` (details: [FREE_MODELS.md](FREE_MODELS.md)) |
 | Library: answers from documents, with the source | qwen3.8 27B (local) | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model>` |
 | Library with meaning search | qwen3.8 27B (local) + nomic-embed-text | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model> --embed nomic-embed-text` |
 | Code map: "where is…?" questions on Sara's own code | qwen3.8 27B (local) + nomic-embed-text | **8/8** with code tools, **8/8** without | 2026-10-27 | `node scripts/eval-codemap.ts --embed nomic-embed-text` |
@@ -35,7 +36,7 @@ Full model name: `qwen3.8:27b-mtp-q4_K_M` on Ollama. Summaries: [humaneval-agent
 [claims-qwen3.5_9b](results/claims-qwen3.5_9b.json), [claims-gemma4_12b](results/claims-gemma4_12b.json),
 [memory](results/memory.json),
 [library](results/library.json), [library-meaning](results/library-meaning.json),
-[codemap](results/codemap.json).
+[codemap](results/codemap.json), [model-recheck](results/model-recheck.json).
 
 ## Setup for these runs
 

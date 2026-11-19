@@ -8,10 +8,12 @@
 //   POST   /api/errands/:id/start · /next · /skip · /stop
 //   POST   /api/errands/:id/approve             {choice?, to?, note?, amount?}
 //   DELETE /api/errands/:id
+//   W4.1 Handle it: /api/errands/handle and /api/errands/:id/handle[/…] (src/routes/handle-it.ts)
 import { ErrandError, errandsFor, TEMPLATES, type ErrandDraft } from '../errands.ts';
 import { HttpError, readJson, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { handleRoute } from './handle-it.ts';
 
 export function createErrandRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
@@ -38,6 +40,7 @@ export function createErrandRoutes(ctx: RouteCtx): RouteHandler {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
       throw new HttpError(404, 'Not found');
     }
+    if (b === 'handle' || c === 'handle') return handleRoute(req, res, method, parts, wrap, app);
     const s = errandsFor(app);
     if (!b && method === 'GET') {
       const errands = s.list();

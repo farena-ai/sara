@@ -125,6 +125,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^(list_dir|read_file|write_file|edit_file|search)$/, 'files', 'files'],
   [/^shell$/, 'shell', 'commands'],
   [/^(web_fetch|web_search|research_start)$/, 'web', 'web'],
+  [/^records_report$/, 'records', 'public records'],
   [/^(todo|note|remind|tasks|add_task|list_tasks|complete_task|update_task|delete_task|add_note|list_notes|read_note|update_note|delete_note)$/, 'planner', 'reminders and notes'],
   [/^(recall|search_memory|remember_fact|list_facts|scrapbook|moments|session_context|session_handoff|scene_canon)$/, 'memory', 'memory'],
   [/^ssh_/, 'ssh', 'SSH servers'],
@@ -294,6 +295,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     // 3.5.x (reach): the screen, its apps, programs, windows and browsers, in six languages.
     'the computer', 'whole computer', 'your computer', 'her computer', 'his computer', 'the pc', 'the laptop', 'the screen', 'whole screen', 'on screen', 'my apps', 'open apps', 'apps that are open', 'programs', 'my programs', 'open programs', 'software', 'open windows', 'browsers', 'my browsers', 'tabs', 'what am i doing', 'what i m doing', 'this app', 'that app', 'this window', 'that window', 'this program', 'notepad', 'use chrome', 'use edge', 'use firefox', 'in chrome', 'in edge', 'in firefox', 'switch to the tab', 'switch tabs',
     'el ordenador', 'la computadora', 'la pantalla', 'ventanas', 'programas', 'aplicaciones', 'pestanas', 'l ordinateur', 'l ecran', 'fenetres', 'logiciels', 'les applications', 'onglets', 'den computer', 'den rechner', 'den bildschirm', 'fenster', 'programme', 'anwendungen', 'o computador', 'a tela', 'janelas', 'aplicativos', 'abas', 'il computer', 'lo schermo', 'finestre', 'programmi', 'applicazioni', 'schede', 'my files', 'my folders', 'my documents', 'my downloads', 'my desktop', 'on my desktop', 'my file', 'mis archivos', 'mis documentos', 'mis descargas', 'mi escritorio', 'mes fichiers', 'mes documents', 'mes telechargements', 'mon bureau', 'meine dateien', 'meine dokumente', 'meine downloads', 'mein desktop', 'meus arquivos', 'meus documentos', 'meus downloads', 'minha area de trabalho', 'i miei file', 'i miei documenti', 'i miei download', 'la mia scrivania'],
+  records: ['public records', 'background check', 'records report', 'find more sources', 'osint', 'look up a person', 'registros publicos', 'antecedentes', 'archives publiques', 'verification d antecedents', 'offentliche register', 'hintergrundprufung', 'registros publicos', 'verificacao de antecedentes', 'registri pubblici', 'controllo dei precedenti'],
   preview: ['preview', 'vista previa', 'apercu', 'vorschau', 'pre visualizacao', 'anteprima'],
   team: ['team', 'equipo', 'equipe', 'squadra'],
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
@@ -912,7 +914,7 @@ export function argErrorHint(tool: Tool, output: string): string {
 export function eligibleFor(app: AppContext, conv: Pick<Conversation, 'private' | 'partner' | 'channel' | 'mode'> & Partial<Pick<Conversation, 'channelKey' | 'id'>>): Tool[] {
   if (conv.partner) return [];
   const s = app.settings.get();
-  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign|invoice_send)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n) || n === 'friend_time';
+  const OFF = (n: string) => n.startsWith('errand_') || n.startsWith('support_') || n.startsWith('remote_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => n.startsWith(p)) || n === 'teams_post' || n === 'phone_call' || n === 'send_file' || n === 'web_fetch' || n === 'web_search' || n === 'find_product' || n === 'stores_near' || n.startsWith('product_watch_') || n === 'delegate_task' || n === 'git_push' || /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare|list_share|task_assign|invoice_send)$/.test(n) || /^(home_|mcp_|gmail_|mail_|calendar_|github_)/.test(n) || n === 'friend_time' || n === 'records_report';
   const work = conv.channel.endsWith('-work');
   let tools = app.tools.enabled(s.toolPermissions).filter((t) => !(conv.private && OFF(t.spec.name)));
   if (!checkpointAllowed(app, conv)) tools = tools.filter(t => t.spec.name !== 'project_checkpoint');

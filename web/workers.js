@@ -5,6 +5,7 @@
 // file; import shows what it may do before anything is made. Nothing here calls a model by itself.
 import { t } from './naming.js';
 import { orbMount } from './orb.js';
+import { initGoals, loadGoals } from './worker-goals.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => Promise<void> } | null} */
 let ctx = null;
@@ -14,6 +15,7 @@ let preview = null;
 
 export function initWorkers(c) {
   ctx = c;
+  initGoals(c);
 }
 const $ = (s) => document.querySelector(s);
 const el = (tag, cls, text) => ctx.el(tag, cls, text);
@@ -73,6 +75,8 @@ export async function loadWorkers() {
   rows.push(failedBox());
   rows.push(reportBox());
   host.replaceChildren(...rows);
+  // W3.4: goals, caps, hand-off chains and this week's plan (web/worker-goals.js).
+  void loadGoals(data.workers);
 }
 
 async function act(path, method = 'POST', body = {}) {

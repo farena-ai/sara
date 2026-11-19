@@ -616,6 +616,16 @@
    "show": "#lm-download"
   },
   {
+   "id": "free",
+   "q": "How do I get a free model for pictures, coding or meaning search?",
+   "steps": [
+    "Find the job under Recommended for this computer.",
+    "Open Why this one to see its size, memory and license.",
+    "Press Download. Her talking model stays as it is."
+   ],
+   "show": "#fm-list"
+  },
+  {
    "id": "space",
    "q": "How do I free up space?",
    "steps": [

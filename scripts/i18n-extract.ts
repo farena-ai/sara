@@ -181,6 +181,12 @@ export function fromWhatsNew(json: string): string[] {
 }
 
 /** Tip texts and page summaries from tips.json. */
+/** W2.4: the free model list's "why" lines and result labels (src/free-models.json, shown by web/free-models.js). */
+export function fromFreeModels(json: string): string[] {
+  const j = JSON.parse(json) as { models?: { why?: string; quality?: { label?: string } }[] };
+  return (j.models ?? []).flatMap((m) => [m.why, m.quality?.label]).filter((x): x is string => Boolean(x));
+}
+
 export function fromTips(json: string): string[] {
   const j = JSON.parse(json) as { tips?: Record<string, [string, string]>; pages?: Record<string, [string, string]> };
   return [...Object.values(j.tips ?? {}), ...Object.values(j.pages ?? {})].map((v) => norm(v[0])).filter(Boolean);
@@ -203,6 +209,7 @@ export function allKeys(): Map<string, string> {
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');
   add(fromRoutines(), 'templates/routines');
+  add(fromFreeModels(readFileSync(join(ROOT, 'src', 'free-models.json'), 'utf8')), 'src/free-models.json');
   // U5.32: the What's new highlights and release titles (web/whats-new.json, built from CHANGELOG.md).
   const newsPath = join(ROOT, 'web', 'whats-new.json');
   if (existsSync(newsPath)) add(fromWhatsNew(readFileSync(newsPath, 'utf8')), 'whats-new.json');

@@ -83,6 +83,23 @@ export function createShareRoutes(ctx: RouteCtx): RouteHandler {
       const body = await readJson(req);
       const expires = String(body.expires ?? DEFAULT_EXPIRY) as ShareExpiry;
       if (!(expires in SHARE_EXPIRY)) throw new HttpError(400, 'Pick an expiry: 1 hour, 1 day, 7 days or 30 days.');
+      // W4.2: a Memory lane story (a frozen copy of the story and its picked photos).
+      if (body.lane !== undefined) {
+        if (!policy().sharingOn) throw policy().refusal('sharing');
+        if (app.member?.child?.()) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+        if (privateLocalOn() && !store().settings().allowPrivate) throw new HttpError(409, 'Private local mode is on: nothing leaves this computer. Allow sharing private chats first.', { refused: true });
+        const { laneShare, LaneError } = await import('../memory-lane.ts');
+        let lane: ReturnType<typeof laneShare>;
+        try {
+          lane = laneShare(app, Number(body.lane));
+        } catch (err) {
+          if (err instanceof LaneError) throw new HttpError(err.status, err.message);
+          throw err;
+        }
+        const made = s.create({ space: spaceId, companion: 'main', conversationId: `lane:${Number(body.lane)}`, expires, options: { tools: false, pictures: true }, snapshot: lane.snapshot, pictures: lane.pictures });
+        audit({ action: 'share.create', target: `share:${made.id}`, keys: [`expires:${expires}`, 'lane'], ...by() });
+        return send(res, 201, { id: made.id, link: `${originOf(req, opts.trustProxy)}/s/${made.token}`, expiresAt: made.expiresAt });
+      }
       const o = optionsOf(body);
       const { cx, snapshot, pictures } = snapshotFor(String(body.conversationId ?? ''), o);
       const made = s.create({ space: spaceId, companion: cx.companionId ?? 'main', conversationId: String(body.conversationId), expires, options: o, snapshot, pictures });

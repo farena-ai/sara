@@ -39,6 +39,7 @@ import { onThisComputer } from '../private-local.ts';
 import { qrSvg } from '../qr.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings, USE_PATHS, type UsePath, usePathOf } from '../settings.ts';
 import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig } from '../tools/mcp.ts';
+import { catalogCard, catalogConfig, catalogDeps, MCP_CATALOG, runnerFound } from '../mcp-catalog.ts';
 import { recipeEdit } from '../store/install.ts';
 import { parseRecipe, type McpRecipe } from '../store/format.ts';
 import { noSandboxNote } from '../tools/sandbox.ts';
@@ -401,6 +402,33 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       return send(res, 200, { investigations: PUBLIC_MCP_INVESTIGATIONS, developer: PUBLIC_DEVELOPER_CONNECTIONS });
     }
     if (a === 'mcp' && b === 'presets' && method === 'GET') return send(res, 200, MCP_PRESETS);
+    // W3.2: popular free MCP servers (src/mcp-catalog.ts): list, approval card (no confirm), install (confirm).
+    if (a === 'mcp' && b === 'catalog' && !c && method === 'GET') {
+      const installed = new Set((app.settings.get().mcpServers ?? []).map((m) => m.name));
+      return send(res, 200, { items: MCP_CATALOG.map((x) => ({ ...x, installed: installed.has(x.id), ready: runnerFound(x.runner) })) });
+    }
+    if (a === 'mcp' && b === 'catalog' && c && !parts[3] && method === 'POST') {
+      const item = MCP_CATALOG.find((x) => x.id === c);
+      if (!item) throw new HttpError(404, 'Not found');
+      const body = await readJson(req);
+      const input = { path: typeof body.path === 'string' ? body.path : undefined, secret: typeof body.secret === 'string' ? body.secret : undefined };
+      let out: ReturnType<typeof catalogConfig>;
+      let card: ReturnType<typeof catalogCard>;
+      try {
+        card = catalogCard(item, input);
+        if (body.confirm !== true) return send(res, 200, { card });
+        out = catalogConfig(item, input);
+      } catch (err) {
+        throw as400(err);
+      }
+      const failed = await catalogDeps.prefetch(item, app.dataDir);
+      if (failed) throw new HttpError(400, 'Could not download {name}: {why}', { params: { name: item.name, why: failed.slice(0, 200) } });
+      app.vault.set(mcpVaultKey(item.id), JSON.stringify({ env: out.env, headers: out.headers }));
+      app.settings.update({ mcpServers: (app.settings.get().mcpServers ?? []).filter((s) => s.name !== item.id).concat(out.cfg) });
+      await app.mcp?.start(out.cfg);
+      const conn = app.mcp?.get(item.id);
+      return send(res, 200, { card, installed: true, status: conn?.status ?? 'stopped', error: conn?.error ?? '', tools: conn?.tools.map((t) => t.name) ?? [] });
+    }
     if (a === 'mcp') {
       // B2: a server the Store installed is edited through its recipe's fields (saved values shown, secrets as saved).
       const recipeOf = (name: string): { item: string; recipe: McpRecipe } | undefined => {

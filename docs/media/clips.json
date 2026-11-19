@@ -1,0 +1,52 @@
+{
+ "models-default/pick": {
+  "file": "howto/models-default-pick.webm",
+  "seconds": 13,
+  "bytes": 50208
+ },
+ "her-character/rename": {
+  "file": "howto/her-character-rename.webm",
+  "seconds": 14,
+  "bytes": 89718
+ },
+ "her-voice/pick": {
+  "file": "howto/her-voice-pick.webm",
+  "seconds": 13,
+  "bytes": 60465
+ },
+ "ab-search/on": {
+  "file": "howto/ab-search-on.webm",
+  "seconds": 13,
+  "bytes": 37501
+ },
+ "ab-google/connect": {
+  "file": "howto/ab-google-connect.webm",
+  "seconds": 11,
+  "bytes": 49830
+ },
+ "co-phone/install": {
+  "file": "howto/co-phone-install.webm",
+  "seconds": 14,
+  "bytes": 53484
+ },
+ "co-phone/push": {
+  "file": "howto/co-phone-push.webm",
+  "seconds": 10,
+  "bytes": 51192
+ },
+ "co-telegram/connect": {
+  "file": "howto/co-telegram-connect.webm",
+  "seconds": 14,
+  "bytes": 51464
+ },
+ "dh-devices/add": {
+  "file": "howto/dh-devices-add.webm",
+  "seconds": 11,
+  "bytes": 54479
+ },
+ "dh-backups/now": {
+  "file": "howto/dh-backups-now.webm",
+  "seconds": 8,
+  "bytes": 52251
+ }
+}

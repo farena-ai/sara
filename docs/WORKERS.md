@@ -64,6 +64,27 @@ go: its own chat by default; change it to a project, one of your chats, Telegram
 Settings → You → Automations → Where alerts go (or ask her: "put my workforce report on Telegram").
 **Show this week** shows the same numbers in place; **Send it now** sends it at once.
 
+## Goals, caps, hand-offs and the weekly plan
+
+Open **Team → Goals and weekly plan** (under Workers that stay).
+
+- **A goal** belongs to a worker and has one simple measure: *finished jobs* or *a number*. A number
+  is something the worker reports by ending a reply with `PROGRESS: 37`, or that you type in with
+  **Edit**. Give it a target and say whether it counts per week (from Monday) or over the whole goal.
+- **A cap** in dollars and/or tokens per goal. When the goal's jobs reach it, they stop and wait, and
+  she asks you once. **Raise the cap** (or wait for next week, for a weekly cap) and they go on. A
+  running job never gets more tokens than are left under the cap.
+- **A chain**: pick up to four workers the work passes to (for example scout → writer → editor). When
+  one finishes, its output becomes the next one's job. Any worker can also hand work to another by
+  ending with `PASS TO <name>: <what to do>`. The goal shows recent hand-offs as one line per chain.
+- **What is blocked** shows why a goal is not moving: at its cap, paused, a paused worker in the
+  chain, an approval or the daily budget waiting, or failed jobs.
+- **The weekly plan**: on the weekly report's day and hour (default Monday 9 AM) the workers propose
+  this week's jobs: each goal's *weekly job*, the `NEXT: <job>` ideas they wrote, or a next step. It is
+  posted where Workforce report alerts go. In one card you change titles, untick what you don't want,
+  add jobs, then **Approve the plan** (or **Skip this week**). Nothing starts before you approve.
+  **Propose a plan now** makes one at once.
+
 ## Hire a worker someone shared
 
 A friend or someone in your community can share a worker (and the workers it leads) in Get more →

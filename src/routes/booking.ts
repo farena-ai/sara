@@ -31,7 +31,7 @@ export function createBookingRoutes(ctx: RouteCtx): RouteHandler {
     }
   };
   return async (req, res, method, parts) => {
-    const [a, b, c, d] = parts;
+    const [a, b, c, d, e] = parts;
     if (a !== 'booking' && a !== 'accounting') return NEXT;
     if (ctx.opts.demo) {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
@@ -54,7 +54,7 @@ export function createBookingRoutes(ctx: RouteCtx): RouteHandler {
       const rview = () => {
         const s = rc.store.settings();
         const base = originOf(req, ctx.opts.trustProxy);
-        return { settings: s, url: `${base}/reception/${s.id}`, embed: `<script src="${base}/reception.js" data-sara="${s.id}" async></script>`, docs: rc.docChoices(), log: rc.store.recent(30), business: rc.business, bookingReady: bookingFor(app).store.settings().windows.length > 0, ...bookingFor(app).connections() };
+        return { settings: s, url: `${base}/reception/${s.id}`, embed: `<script src="${base}/reception.js" data-sara="${s.id}" async></script>`, docs: rc.docChoices(), log: rc.store.recent(30), chats: rc.store.chats(), approved: rc.store.approved(), followups: rc.store.followups(), business: rc.business, bookingReady: bookingFor(app).store.settings().windows.length > 0, ...bookingFor(app).connections() };
       };
       if (!c && method === 'GET') return send(res, 200, rview());
       if (!c && method === 'PUT') {
@@ -66,6 +66,30 @@ export function createBookingRoutes(ctx: RouteCtx): RouteHandler {
           throw err;
         }
         return send(res, 200, rview());
+      }
+      // W3.5: corrections become approved answers; follow-up drafts are sent only on the owner's OK.
+      const rwrap = async (f: () => unknown) => {
+        try {
+          await f();
+        } catch (err) {
+          if (err instanceof ReceptionError) throw new HttpError(err.status, T(err.message));
+          throw err;
+        }
+        return send(res, 200, rview());
+      };
+      if (c === 'correct' && method === 'POST') {
+        const body = await readJson(req);
+        return rwrap(() => rc.correct(body));
+      }
+      if (c === 'approved' && d && method === 'DELETE') {
+        if (!rc.store.forgetApproved(Number(d))) throw new HttpError(404, 'Not found');
+        return send(res, 200, rview());
+      }
+      if (c === 'followups' && d && (e === 'send' || e === 'dismiss') && method === 'POST') {
+        const body = await readJson(req).catch(() => ({}) as Record<string, unknown>);
+        const id = Number(d);
+        if (!Number.isInteger(id) || id <= 0) throw new HttpError(404, 'Not found');
+        return rwrap(() => (e === 'send' ? rc.sendFollowup(id, body) : rc.dismissFollowup(id)));
       }
       if ((c === 'new-id' || c === 'clear-log') && method === 'POST') {
         await readJson(req).catch(() => undefined);

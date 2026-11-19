@@ -16,9 +16,18 @@
 //   GET    /api/workers/report?days=7         {report, text, prefs, postsTo}   V3.3 weekly workforce report
 //   PUT    /api/workers/report/settings       {on, day, hour} → {prefs, postsTo}
 //   POST   /api/workers/report/send           → {conversationId, postsTo}   send it now
+//   GET    /api/workers/goals                 {goals (views: progress, spent vs cap, blocked, chains), plan}   W3.4
+//   POST   /api/workers/goals                 {workerId, title, measure, kind, target, period, capUsd, capTokens, chain, every} → {goal}
+//   PATCH  /api/workers/goals/:id             the same fields, current, state → {goal}
+//   DELETE /api/workers/goals/:id             forget it (its jobs stay with their workers)
+//   POST   /api/workers/goals/:id/jobs        {title, input} → {job}
+//   GET    /api/workers/jobs/:jid/chain       {chain}
+//   POST   /api/workers/plan/propose          → {plan}   the workers' plan for this week, now
+//   POST   /api/workers/plan/decide           {approve, items: [{key, title?, skip?}], add: [{goalId, title}]} → {plan}
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { policy } from '../policy-profile.ts';
 import { teamHelpers } from '../team.ts';
+import { GoalError } from '../worker-goals.ts';
 import { TOOL_GROUPS, WorkerError } from '../workers.ts';
 import { sendWorkforceReport, setWorkforcePrefs, WorkforceError, workforcePostsTo, workforcePrefs, workforceReport, workforceText } from '../workforce.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -29,7 +38,7 @@ export function createWorkerRoutes(ctx: RouteCtx): RouteHandler {
     try {
       return f();
     } catch (err) {
-      if (err instanceof WorkerError) throw new HttpError(err.status, err.message);
+      if (err instanceof WorkerError || err instanceof GoalError) throw new HttpError(err.status, err.message);
       throw err;
     }
   };
@@ -81,6 +90,42 @@ export function createWorkerRoutes(ctx: RouteCtx): RouteHandler {
       }
       throw new HttpError(404, 'Not found');
     }
+    if (b === 'goals') {
+      // W3.4 (docs/design/W3WORKFORCE.md): goals with a measure and a cap, chains, the weekly plan.
+      const gs = wk.goals;
+      if (!c) {
+        if (method === 'GET') return send(res, 200, { goals: gs.views(), plan: gs.plan() ?? null });
+        if (method === 'POST') {
+          const body = await readJson(req);
+          return send(res, 200, { goal: wrap(() => gs.create(body)) });
+        }
+        throw new HttpError(405, 'Method not allowed');
+      }
+      const gid = Number(c);
+      if (!Number.isInteger(gid) || gid <= 0 || !gs.get(gid)) throw new HttpError(404, 'Not found');
+      if (!d && method === 'PATCH') {
+        const body = await readJson(req);
+        const goal = wrap(() => gs.patch(gid, body));
+        wk.tick();
+        return send(res, 200, { goal: gs.get(goal.id) });
+      }
+      if (!d && method === 'DELETE') {
+        gs.remove(gid);
+        return send(res, 200, { ok: true });
+      }
+      if (d === 'jobs' && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, { job: wrap(() => gs.addJob(gid, body)) });
+      }
+      throw new HttpError(404, 'Not found');
+    }
+    if (b === 'plan' && method === 'POST') {
+      const body = await readJson(req).catch(() => ({}));
+      if (c === 'propose') return send(res, 200, { plan: wk.goals.propose() });
+      if (c === 'decide') return send(res, 200, { plan: wrap(() => wk.goals.decidePlan(body)) });
+      throw new HttpError(404, 'Not found');
+    }
+    if (b === 'jobs' && c && d === 'chain' && method === 'GET') return send(res, 200, { chain: wk.goals.chainOf(Number(c)) });
     if (b === 'import' && method === 'POST') {
       const body = await readJson(req);
       if (c === 'preview') return send(res, 200, { preview: wrap(() => wk.previewImport(body.bundle)) });

@@ -12,6 +12,7 @@ import { closeResearch, openResearch } from './research.js';
 import { closeLearned, openLearned } from './learn.js';
 import { closeMeetings, openMeetings } from './meetings.js';
 import { showDocStudio } from './doc-studio.js';
+import { handleIt } from './handle-it.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -353,6 +354,18 @@ async function openDoc(id, { quiet = false, page = 0 } = {}) {
     edit.hidden = d.kind !== 'image' || d.status !== 'ready';
     edit.dataset.id = String(d.id);
   }
+  // W4.1: Handle it on a form (PDF, Word or Excel): she fills a copy with My details, sending asks first.
+  let hb = $('#lib-doc-handle');
+  if (!hb) {
+    hb = el('button', 'ghost small', t('Handle it'));
+    hb.type = 'button';
+    hb.id = 'lib-doc-handle';
+    hb.title = t('She fills a copy with My details and asks before anything is sent.');
+    hb.addEventListener('click', () => void handleIt('form', hb.dataset.id));
+    $('#lib-doc-download').parentElement.append(hb);
+  }
+  hb.dataset.id = String(d.id);
+  hb.hidden = d.status !== 'ready' || Boolean(d.readOnly) || !/\.(pdf|docx|xlsx)$/i.test(d.name);
   currentDoc = d;
   $('#lib-doc-relearn').hidden = !d.keep || d.status !== 'ready' || d.readOnly;
   // S7: contracts, proposals and letters (templates, tracked changes, clauses, ready to sign).
@@ -421,6 +434,8 @@ function showHome() {
   if (journal) journal.hidden = true;
   const myApps = $('#lib-apps');
   if (myApps) myApps.hidden = true;
+  const records = $('#lib-records');
+  if (records) records.hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();

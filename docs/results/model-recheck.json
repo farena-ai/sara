@@ -1,0 +1,62 @@
+{
+  "kind": "model-recheck",
+  "started": "2026-11-19T15:12:58.103Z",
+  "version": "3.31.0",
+  "command": "node scripts/model-recheck.ts --publish",
+  "results": [
+    {
+      "model": "qwen3.5:9b",
+      "job": "chat",
+      "passed": 3,
+      "of": 3,
+      "ms": 7561,
+      "failed": [],
+      "at": "2026-11-19T15:13:05.783Z"
+    },
+    {
+      "model": "gemma4:12b",
+      "job": "chat",
+      "passed": 3,
+      "of": 3,
+      "ms": 8300,
+      "failed": [],
+      "at": "2026-11-19T15:13:14.084Z"
+    },
+    {
+      "model": "qwen3.8:27b-mtp-q4_K_M",
+      "job": "chat",
+      "passed": 3,
+      "of": 3,
+      "ms": 13389,
+      "failed": [],
+      "at": "2026-11-19T15:13:27.473Z"
+    },
+    {
+      "model": "qwen3.8:27b-mtp-q4_K_M",
+      "job": "coding",
+      "passed": 2,
+      "of": 2,
+      "ms": 625,
+      "failed": [],
+      "at": "2026-11-19T15:13:28.098Z"
+    },
+    {
+      "model": "gemma4:12b",
+      "job": "vision",
+      "passed": 1,
+      "of": 1,
+      "ms": 8555,
+      "failed": [],
+      "at": "2026-11-19T15:13:36.653Z"
+    },
+    {
+      "model": "nomic-embed-text:latest",
+      "job": "embeddings",
+      "passed": 1,
+      "of": 1,
+      "ms": 21429,
+      "failed": [],
+      "at": "2026-11-19T15:13:58.082Z"
+    }
+  ]
+}

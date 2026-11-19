@@ -57,6 +57,7 @@ import { initStudy, loadStudyPrefs, openStudy, renderStudyTile } from './study.j
 import { initGiftPrefs, loadGiftPrefs } from './gifts.js';
 import { initScan, openScan } from './scan.js';
 import { initJournal, openJournal } from './journal.js';
+import { initRecords, openRecords } from './records.js';
 import { initMyApps, openMyApps } from './my-apps.js';
 import { initBriefingAudio, loadBriefingAudio } from './briefing-audio.js';
 import { initMediaStudio, loadMediaSettings } from './media-studio.js';
@@ -84,6 +85,7 @@ import { agendaEvent, agendaNotice, agendaWhy, initAgenda, loadAgenda, openHerPl
 import { initPeople, peopleEvent, peopleOnOpen, peopleShowAttention, showPerson } from './people.js';
 import { renderPeopleDueTile } from './people-ties.js';
 import { initOtherApps, keyUse, loadOtherApps } from './other-apps.js';
+import { initMcpCatalog, loadMcpCatalog } from './mcp-catalog.js';
 import { initAlexa, loadAlexa } from './alexa.js';
 import { focusSshServer, initSsh, loadSsh } from './ssh.js';
 import { initSpotify, loadSpotify } from './spotify.js';
@@ -95,11 +97,13 @@ import { initDrop } from './drop.js';
 import { addSaveButtons, autoSaveMade, fillSaveSettings } from './save-to-pc.js';
 import { initImport, loadImport } from './import.js';
 import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-models.js';
+import { loadFreeModels } from './free-models.js';
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
 import { DEVICES_PAGE, devicesPath } from './devices-path.js';
 import { initReach, reachLine, renderAway, renderPhoneConnect } from './reach.js';
 import { STORY_RANGE_KEY, storyRange } from './story-range.js';
+import { initLane, loadLane } from './memory-lane.js';
 import { addToMomentsButton, initMoments, loadMoments, openMoments, renderTodayMoments, renderTodayPhotos } from './moments.js';
 import { closeToday, drawSkeleton, initToday, reloadParts, renderToday, showToday, todayData, todayOpen, todayPartChanged } from './today.js';
 import { editing as todayEditing, initTodayLayout, layoutPrefs, openSheet as openTodayCustomise, saveCollapsed as saveTodayCollapsed, savePrefs, setPrefs as setTodayPrefs, tileMenu, tileTitle } from './today-layout.js';
@@ -151,7 +155,8 @@ import { initOwnerChecks, openTryThese } from './owner-checks.js';
 import { initWhatsNew, openWhatsNew } from './whats-new.js';
 import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
 import { emptyState, initTidy, overflowMenu } from './tidy.js';
-import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos } from './howto.js';
+import { howtoBlock, howtoForStep, loadHowto, mountViewHowtos, showMe } from './howto.js';
+import { initHelpFind } from './help-find.js';
 import { rankElsewhere } from './settings-search.js';
 import { everydayMatches } from './everyday-words.js';
 import { initSlash, loadSlash, slashCommands } from './slash.js';
@@ -8674,6 +8679,9 @@ async function loadMcp() {
   mcpRows();
   // PRQ: the programs add-ons need, and *Install it for me*.
   void loadPrograms();
+  // W3.2: popular free tool servers (web/mcp-catalog.js); a new one refreshes the list above.
+  initMcpCatalog({ onChanged: () => void api('/mcp').then((d) => { renderMcp(d); mcpRows(); }).catch(() => {}) });
+  void loadMcpCatalog();
   await loadMcpDiscovery();
 }
 wirePrograms();
@@ -9276,6 +9284,7 @@ function showSettingsTab(page, opts = {}) {
   if (shown.has('her-import')) void loadImport();
   if (shown.has('dh-movein')) void loadMoveIn();
   if (pick === 'models-local') void loadLocalModels();
+  if (pick === 'models-local' && typeof loadFreeModels === 'function') void loadFreeModels(); // W2.4
   if (pick === 'household') void loadHousehold();
   if (pick === 'household' && typeof loadPlanSettings === 'function') void loadPlanSettings();
   if (pick === 'account') void loadAccount();
@@ -10195,15 +10204,18 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), simple: () => void openSimpleHome(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), simple: () => void openSimpleHome(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting(), records: () => void openRecords() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
   // 2.52.1: her ssh_connect link opens one server's step 3 (/#view=settings:ab-ssh&server=<id>).
   const sshServer = /[#&]server=([a-z0-9]{10})\b/.exec(location.hash)?.[1];
+  // W2.5: help search links open one answer (&howto=<q>) and pulse a control (&show=<id>).
+  const howtoQ = /[#&]howto=([\w-]+)/.exec(location.hash)?.[1] ?? '';
+  const showId = /[#&]show=([\w-]+)/.exec(location.hash)?.[1];
   history.replaceState(null, '', '/');
   if (v === 'settings:ab-ssh' && sshServer) void openSettings('ab-ssh').then(() => focusSshServer(sshServer));
-  else if (v.startsWith('settings')) void openSettings(v.split(':')[1]);
+  else if (v.startsWith('settings')) void openSettings(v.split(':')[1], { howto: howtoQ }).then(() => showId && setTimeout(() => showMe(`#${showId}`), 350));
   // Phase 74: her citations open a document at a page (/#view=library:<id>:<page>).
   else if (/^library:\d+/.test(v)) {
     const [, id, page] = v.split(':');
@@ -10216,6 +10228,8 @@ window.addEventListener('hashchange', openViewFromHash);
 
 // PL2d: the Help window's tours and the tour offer live in tours.js.
 initTours({ openSettings, showSettingsTab, openToday, isMember, openTeam, el, state, firstRun });
+// W2.5: Search help in the Help window (web/help-find.js).
+initHelpFind({ t, lang: currentLang, openSettings, showMe, closeHelp: () => $('#help-menu').open && $('#help-menu').close() });
 /** Phase 113: /#report=bug, /#report=idea and /#reports open the report sheet or My reports (links from /bug in the chat apps). */
 function reportFromHash() {
   if (!hubReady || document.body.classList.contains('demo') || !/^#reports?\b/.test(location.hash)) return false;
@@ -12594,6 +12608,7 @@ async function loadStory() {
     $('#story-to').value = range.to;
   }
   $('#story-lookbacks').replaceChildren(...d.lookbacks.slice(0, 3).map(lookbackCard));
+  void loadLane();
   $('#story-write').disabled = d.running;
   $('#story-status').textContent = d.running ? t('She is writing your look back… you can close this window meanwhile.') : d.error ? `${t("Couldn't write the look back:")} ${d.error}` : '';
   if (d.running && !storyState.polling) storyState.polling = setInterval(() => (!$('#story').open ? (clearInterval(storyState.polling), (storyState.polling = null)) : void loadStory()), 4000);
@@ -12621,6 +12636,7 @@ async function openStory() {
   if (!$('#story').open) $('#story').showModal();
 }
 $('#open-story').addEventListener('click', () => void openStory());
+initLane({ api });
 // Phase 81: findings (every project; filters inside the window).
 initFindings();
 $('#open-findings').addEventListener('click', () => void openFindings());
@@ -12719,6 +12735,7 @@ initStudy();
 initGiftPrefs();
 initScan();
 initJournal();
+initRecords();
 initMyApps();
 initBriefingAudio();
 initMediaStudio();

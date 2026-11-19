@@ -22,6 +22,8 @@ import { BusinessChat } from './chat.ts';
 import { createBusinessWriteRouter } from './write-routes.ts';
 import { BusinessPages } from './pages.ts';
 import { createBusinessPagesRouter } from './page-routes.ts';
+import { BusinessTeam } from './team.ts';
+import { createBusinessTeamRouter } from './team-routes.ts';
 import { envMode } from '../private-local.ts';
 import { BusinessSso } from './sso.ts';
 import { SSO_BINDING_COOKIE, ssoRoutes } from './sso-routes.ts';
@@ -96,6 +98,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
     const writes = createBusinessWriteRouter({ control, chat, documents, models, events: workspaceEvents, body, json });
     const pages = new BusinessPages({ profile: options.profile, control, workspaces });
     const pageRoutes = createBusinessPagesRouter({ control, pages, events: workspaceEvents, body, json });
+    const teamRoutes = createBusinessTeamRouter({ control, team: new BusinessTeam({ control, workspaces }), events: workspaceEvents, body, json });
     const server = createServer((req, res) => {
       res.setHeader('x-content-type-options', 'nosniff');
       res.setHeader('x-frame-options', 'DENY');
@@ -131,7 +134,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (path === '/api/business/org/audit' || path === '/api/business/org/audit.csv' || path === '/api/business/org/audit.json' || BUSINESS_USAGE_PATHS.includes(path)) allowed.add(path);
         if (path === '/api/business/scim/config' || path === '/api/business/scim/token') allowed.add(path);
         if (['/api/business/sso/status', '/api/business/sso/start', '/api/business/sso/config', '/api/business/sso/test', '/api/business/sso/test-result'].includes(path)) allowed.add(path);
-        if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path) && !pageRoutes.matches(path)) return json(res, 404, { error: 'Not found.' });
+        if (!allowed.has(path) && !management.matches(path) && !content.matches(path) && !writes.matches(path) && !pageRoutes.matches(path) && !teamRoutes.matches(path)) return json(res, 404, { error: 'Not found.' });
         if (req.method !== 'GET' && (req.method !== 'POST' || req.headers.origin !== origin)) return json(res, 403, { error: 'Origin denied.' });
         const cookies = (req.headers.cookie ?? '').split(';').map(s => s.trim()).filter(s => s.startsWith(`${BUSINESS_COOKIE}=`));
         const principal = cookies.length === 1 ? auth.principal(cookies[0].slice(BUSINESS_COOKIE.length + 1)) : undefined;
@@ -140,6 +143,7 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
         if (req.headers['x-sara-business-session'] !== undefined && req.headers['x-sara-business-session'] !== principal?.sessionId) return json(res, 409, { error: 'Business session changed.' });
         if (writes.matches(path) && (req.method === 'POST' || path.endsWith('/model-policy'))) return writes.handle(req, res, path, principal);
         if (pageRoutes.matches(path)) return pageRoutes.handle(req, res, path, principal);
+        if (teamRoutes.matches(path)) return teamRoutes.handle(req, res, path, principal);
         if (content.matches(path)) return content.handle(req, res, path, principal);
         if (management.matches(path)) return management.handle(req, res, path, principal);
         if (path === '/api/business/org/audit' && req.method === 'GET') {
@@ -151,8 +155,8 @@ export function createBusinessRuntime(options: { profile: BusinessProfile; origi
           if (!principal || !auth.isPrincipalActive(principal)) return json(res, 401, { error: 'Sign-in required.' });
           const q = new URL(req.url ?? '/', origin).searchParams;
           let out: { body: string; contentType: string; filename: string };
-          try { out = audit.organizationExport(principal, { from: q.get('from'), to: q.get('to'), format: path.endsWith('.csv') ? 'csv' : 'json' }); }
-          catch (error) { return error instanceof BusinessAccessError ? json(res, 403, { error: 'Request denied.' }) : json(res, 400, { error: error instanceof Error && error.message.startsWith('Use dates') ? error.message : 'Request denied.' }); }
+          try { out = audit.organizationExport(principal, { from: q.get('from'), to: q.get('to'), format: path.endsWith('.csv') ? 'csv' : 'json', actor: q.get('actor'), action: q.get('action'), workspaces: q.get('workspaces') === '1' }); }
+          catch (error) { return error instanceof BusinessAccessError ? json(res, 403, { error: 'Request denied.' }) : json(res, 400, { error: error instanceof Error && (error.message.startsWith('Use dates') || error.message === 'Unknown audit filter.') ? error.message : 'Request denied.' }); }
           res.writeHead(200, { 'content-type': out.contentType, 'content-disposition': `attachment; filename="${out.filename}"`, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
           return void res.end(out.body);
         }

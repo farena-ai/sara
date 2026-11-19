@@ -21,6 +21,7 @@ import type { AppContext } from './chat.ts';
 import { localDate } from './memory-worker.ts';
 import { formatLocal, NOTE_TRASH_DAYS, parseWhen, type Priority } from './planner.ts';
 import { appConversation, callerOf, corsAllowed, externalTurn, type KeyLimiter, otherAppsSettings, type Caller } from './other-apps.ts';
+import { scopeAllows } from './mcp-scopes.ts';
 import { sharedWithApps } from './recall.ts';
 import { detectExplicit } from './safety.ts';
 import { adultModeOn } from './settings.ts';
@@ -588,6 +589,51 @@ const TOOLS: ToolDef[] = [
     },
   },
   {
+    name: 'list_reminders',
+    title: 'List reminders',
+    description:
+      "List the owner's upcoming reminders in Sara (timed ones, newest due last), up to 50. Use it to see what Sara will remind the owner about; use add_reminder to set a new one. Returns plain text, one per line: \"- #id <due time> text\" (with the repeat when it repeats), or \"No reminders coming up.\" Read-only.",
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    async run(_args, { app }) {
+      if (!app.planner) return 'The planner is not available.';
+      const tz = app.settings.get().timeZone;
+      const list = app.planner.reminders({ status: 'pending', kind: 'timed', limit: 50 });
+      if (!list.length) return 'No reminders coming up.';
+      return clean(app, list.map((r) => `- #${r.id} ${r.dueAt ? formatLocal(r.dueAt, tz) : ''} ${r.text}${r.repeat && r.repeat !== 'none' ? ` (${r.repeat})` : ''}`.replace(/ {2,}/g, ' ')).join('\n'));
+    },
+  },
+  {
+    name: 'add_reminder',
+    title: 'Add a reminder',
+    description: `Set a reminder in Sara: at the time given she reminds the owner in her app. Use add_task for a to-do without a set time. Returns "Reminder #id set for <time>: text". ${ASKS('remind')}`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        text: { type: 'string', minLength: 1, maxLength: 200, description: 'What to remind about, short. Up to 200 characters.', examples: ['Call the vet'] },
+        when: { type: 'string', minLength: 1, maxLength: 80, description: "When, in words or as a date and time, read in the owner's time zone. A date without an hour means 9:00.", examples: ['tomorrow 9am', 'in 20 minutes', '2026-12-01 14:00'] },
+      },
+      required: ['text', 'when'],
+      additionalProperties: false,
+    },
+    write: true,
+    async run(args, cx) {
+      const planner = cx.app.planner;
+      if (!planner) return 'The planner is not available.';
+      const text = str(args.text, 200);
+      if (!text) throw new RpcError(-32602, 'Say what to remind about.');
+      const s = cx.app.settings.get();
+      const when = str(args.when, 80);
+      const at = when ? parseWhen(when, cx.app.now(), s.timeZone, { dateOnlyHour: 9 }) : null;
+      if (!at) throw new RpcError(-32602, `Couldn't understand the time "${when}".`);
+      const due = formatLocal(at.toISOString(), s.timeZone);
+      return gated(cx, 'remind', 'add_reminder', `Remind: ${text} (${due})`, args, async () => {
+        const r = planner.addReminder({ text, dueAt: at.toISOString() });
+        cx.app.events?.publish({ type: 'planner', what: 'reminders' });
+        return `Reminder #${r.id} set for ${due}: ${r.text}`;
+      });
+    },
+  },
+  {
     name: 'remember_fact',
     title: 'Remember a fact',
     description:
@@ -632,7 +678,7 @@ function knownNote(cx: CallContext, id: unknown) {
 
 /** Old names still accepted by tools/call (not listed). */
 const ALIASES: Record<string, string> = { recent_conversations: 'list_recent_conversations' };
-const PLANNER_TOOLS = new Set(['list_notes', 'read_note', 'list_tasks', 'add_task', 'complete_task', 'update_task', 'delete_task', 'add_note', 'update_note', 'delete_note']);
+const PLANNER_TOOLS = new Set(['list_reminders', 'add_reminder', 'list_notes', 'read_note', 'list_tasks', 'add_task', 'complete_task', 'update_task', 'delete_task', 'add_note', 'update_note', 'delete_note']);
 
 /** Every tool as tools/list shows it (write tools included). Used to keep the stdio bridge's --describe list identical. */
 export function describeTools(): Json[] {
@@ -654,7 +700,7 @@ async function gated(cx: CallContext, tool: string | null, name: string, summary
   const alwaysAsk = rest.length === 2 && rest[0].alwaysAsk;
   const set = tool ? cx.app.tools.permission(tool, cx.app.settings.get().toolPermissions) : 'ask';
   const perm = alwaysAsk && set === 'auto' ? 'ask' : set;
-  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : 'notes'} for ${cx.app.persona.name} (Settings → Skills & tools → Tools and approvals).`;
+  if (perm === 'never') return `The owner has turned off ${tool === 'todo' ? 'to-dos' : tool === 'remind' ? 'reminders' : 'notes'} for ${cx.app.persona.name} (Settings → Skills & tools → Tools and approvals).`;
   if (perm === 'auto') return run();
   if (!cx.deps.requestApproval) return 'This needs the owner’s OK, and approvals aren’t available here.';
   // Changes wait in their own conversation, so ask_sara isn't blocked while the owner decides.
@@ -668,9 +714,10 @@ async function gated(cx: CallContext, tool: string | null, name: string, summary
   return `Waiting for approval in Sara: the owner can allow or decline it in the conversation “${title}”. Nothing is changed until then.`;
 }
 
-function toolsFor(app: AppContext): ToolDef[] {
+function toolsFor(app: AppContext, caller?: Caller): ToolDef[] {
   const s = otherAppsSettings(app.settings.get());
-  return TOOLS.filter((t) => !t.write || s.changes).filter((t) => !PLANNER_TOOLS.has(t.name) || Boolean(app.planner)).filter((t) => t.name !== 'search_library' || Boolean(app.library));
+  // W3.2: a scoped key sees only the tools in its scopes (src/mcp-scopes.ts).
+  return TOOLS.filter((t) => scopeAllows(caller?.scopes, t.name)).filter((t) => !t.write || s.changes).filter((t) => !PLANNER_TOOLS.has(t.name) || Boolean(app.planner)).filter((t) => t.name !== 'search_library' || Boolean(app.library));
 }
 
 const RESOURCES = [
@@ -704,13 +751,14 @@ async function dispatch(msg: RpcRequest, version: string, modern: boolean, cx: C
     case 'ping':
       return done({});
     case 'tools/list':
-      return done({ tools: toolsFor(app).map((t) => toolListing(t)) });
+      return done({ tools: toolsFor(app, cx.caller).map((t) => toolListing(t)) });
     case 'tools/call': {
       const asked = String(params.name ?? '');
       const name = ALIASES[asked] ?? asked;
-      const tool = toolsFor(app).find((t) => t.name === name);
+      const tool = toolsFor(app, cx.caller).find((t) => t.name === name);
       if (!tool) {
         const hidden = TOOLS.find((t) => t.name === name);
+        if (hidden && !scopeAllows(cx.caller.scopes, name)) throw new RpcError(-32602, `${name} is not allowed for this key: the owner can make a key with more scopes in Sara (Settings → Connections → Apps and services → Other apps).`);
         if (hidden?.write) return done({ content: [{ type: 'text', text: `${name} is off: the owner can turn on “Let other apps change things” in Sara (Settings → Connections → Apps and services → Other apps).` }], isError: true });
         throw new RpcError(-32602, `Unknown tool: ${name.slice(0, 60)}`);
       }
@@ -725,13 +773,13 @@ async function dispatch(msg: RpcRequest, version: string, modern: boolean, cx: C
       }
     }
     case 'resources/list':
-      return done({ resources: RESOURCES.filter((r) => toolsFor(app).some((t) => t.name === r.tool)).map(({ tool: _t, ...r }) => r) });
+      return done({ resources: RESOURCES.filter((r) => toolsFor(app, cx.caller).some((t) => t.name === r.tool)).map(({ tool: _t, ...r }) => r) });
     case 'resources/templates/list':
       return done({ resourceTemplates: [] });
     case 'resources/read': {
       const uri = String(params.uri ?? '');
       const r = RESOURCES.find((x) => x.uri === uri);
-      const tool = r && toolsFor(app).find((t) => t.name === r.tool);
+      const tool = r && toolsFor(app, cx.caller).find((t) => t.name === r.tool);
       if (!r || !tool) throw new RpcError(-32602, `Unknown resource: ${uri.slice(0, 80)}`, { uri });
       return done({ contents: [{ uri, mimeType: 'text/plain', text: await tool.run({}, cx) }] });
     }

@@ -434,7 +434,13 @@ export function makePdf(spec: DocSpec, image: ImageLookup): Buffer {
   const numbered = Boolean(spec.sign) || th.pageNumbers === 'always' || (th.pageNumbers === 'many' && pages.length > 1);
   const fieldIds: number[] = [];
   const kids: number[] = [];
+  // W4.6: a notice at the top of every page (public-records reports), shrunk or split to fit.
+  const header = spec.pageHeader ? toAnsi(spec.pageHeader) : '';
+  let hSize = 8.5;
+  while (header && hSize > 6.5 && textWidth(header, 'F2', hSize) > W) hSize -= 0.25;
+  const hLines = !header ? [] : textWidth(header, 'F2', hSize) <= W ? [header] : [header.slice(0, header.lastIndexOf(' ', Math.ceil(header.length / 2))), header.slice(header.lastIndexOf(' ', Math.ceil(header.length / 2)) + 1)];
   pages.forEach((p, i) => {
+    hLines.forEach((l, k) => p.ops.push(`BT /F2 ${n(hSize)} Tf ${color('B91C1C')} rg 1 0 0 1 ${n((PAGE_W - textWidth(l, 'F2', hSize)) / 2)} ${n(PAGE_H - M / 2 + 2 - k * (hSize + 2))} Tm ${pdfString(l)} Tj ET`));
     if (numbered) {
       const label = `${i + 1} / ${pages.length}`;
       p.ops.push(`BT /F1 8.5 Tf ${color(th.muted)} rg 1 0 0 1 ${n((PAGE_W - textWidth(label, 'F1', 8.5)) / 2)} ${n(M / 2)} Tm ${pdfString(label)} Tj ET`);

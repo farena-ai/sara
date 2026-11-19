@@ -1,5 +1,6 @@
-import { initializeAudit, appendAudit, readAudit, type AuditRecord } from './audit.ts';
+import { initializeAudit, appendAudit, readAudit, type AuditRecord, type AuditRow } from './audit.ts';
 import { installPages } from './pages-schema.ts';
+import { installTeamContent } from './team-schema.ts';
 import { closeSync, existsSync, lstatSync, mkdirSync, openSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -68,6 +69,7 @@ export function openWorkspaceDatabase(profile: BusinessProfile, workspaceId: str
     db.exec("CREATE TABLE IF NOT EXISTS content_authorship (kind TEXT NOT NULL CHECK(kind IN ('document','upload','conversation')),resource_id TEXT NOT NULL,actor_id TEXT NOT NULL,PRIMARY KEY(kind,resource_id));");
     initializeAudit(db);
     installPages(db);
+    installTeamContent(db);
     return db;
   } catch (error) { db?.close(); throw error; }
 }
@@ -161,6 +163,19 @@ export class BusinessWorkspaces {
     this.revalidate(context);
     const members = this.#control.database.prepare(`SELECT i.name,m.role FROM workspace_members m JOIN business_identities i ON i.id=m.identity_id JOIN organization_members o ON o.identity_id=i.id WHERE m.workspace_id=? AND m.status='active' AND i.status='active' AND o.status='active' ORDER BY i.name,i.id`).all(context.workspaceId).map(row => ({ name: String(row.name), role: String(row.role) }));
     this.revalidate(context); return { count: members.length, members };
+  }
+  /** W3.3 audit export (organization administrators, checked by the caller): metadata rows of every workspace. */
+  exportAudit(from: number, to: number): AuditRow[] {
+    const out: AuditRow[] = [];
+    for (const row of this.#control.database.prepare('SELECT id FROM workspaces ORDER BY created_at,id').all()) {
+      let db: DatabaseSync | undefined;
+      try {
+        db = openWorkspaceDatabase(this.#profile, String(row.id));
+        for (const r of db.prepare('SELECT id,at,action,actor_id AS actorId,workspace_id AS workspaceId,subject_id AS subjectId,revision FROM business_audit WHERE at>=? AND at<=? ORDER BY id LIMIT 50000').all(from, to)) out.push({ ...r } as unknown as AuditRow);
+      } catch { /* A workspace store that cannot open contributes no rows. */ }
+      finally { db?.close(); }
+    }
+    return out;
   }
   audit(context: WorkspaceContext) { this.#control.policy.revalidateWorkspace(context, 'audit'); return this.#read(context, db => readAudit(db, context.workspaceId)); }
   close(): void { this.#closed = true; }

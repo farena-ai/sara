@@ -3,6 +3,7 @@ import { passkey } from './business-auth.js';
 import { BusinessDrafts } from './business-state.js';
 import { renderManagement, roleName } from './business-admin.js';
 import { createPages } from './business-pages.js';
+import { createTeam } from './business-team.js';
 
 const $ = id => document.getElementById(id);
 let self, drafts, spaces = [], workspace = '', conversation = '', policy = {}, audience, epoch = 0, stream, expiry, screen = 'content';
@@ -159,7 +160,7 @@ async function boot(preserveView = false) {
   $('recovery').hidden = true; $('desk').hidden = false;
   text('organization', self.organization.name || t('Team workspace'));
   text('actor', t('Signed in as {name} · {role}', { name: self.identity.name, role: roleName(self.organization.role) }));
-  $('tab-org').hidden = self.organization.role !== 'orgadmin';
+  $('tab-org').hidden = self.organization.role !== 'orgadmin'; $('tab-team').hidden = false;
   let authorizedSpaces;
   try { authorizedSpaces = await api('/workspaces'); } catch (error) { if (version === epoch && refresh === refreshNonce) unavailable(error); return; }
   if (version !== epoch || refresh !== refreshNonce) return;
@@ -274,8 +275,8 @@ async function loadMessages(toLatest = false) {
 }
 function showPanel(name) {
   managementEpoch++;
-  screen = name; for (const id of ['content', 'documents', 'pages', 'management']) $(id).hidden = id !== name;
-  for (const id of ['content', 'documents', 'pages', 'members', 'org', 'audit']) $(`tab-${id}`).removeAttribute('aria-current');
+  screen = name; for (const id of ['content', 'documents', 'pages', 'team', 'management']) $(id).hidden = id !== name;
+  for (const id of ['content', 'documents', 'pages', 'team', 'members', 'org', 'audit']) $(`tab-${id}`).removeAttribute('aria-current');
   $(`tab-${name === 'management' ? 'members' : name}`).setAttribute('aria-current', 'page');
 }
 async function manage(kind) {
@@ -388,6 +389,9 @@ function askAboutPage(page, prompt) {
   if (!$('draft').disabled) { $('draft').value = prompt; saveDraft(); $('draft').focus(); }
 }
 $('tab-pages').onclick = () => run(openPages);
+// W3.3: the Team tab (roles, team inbox, approvals by role).
+let team;
+$('tab-team').onclick = () => run(async () => { saveDraft(); showPanel('team'); team ||= createTeam({ api, run, host: $('team') }); await team.show(workspace, role()); });
 $('page-context-clear').onclick = () => { contextPages = []; renderPageContext(); };
 for (const kind of ['members', 'org', 'audit']) $(`tab-${kind}`).onclick = () => run(() => manage(kind));
 $('draft').oninput = saveDraft; $('selected-documents').onchange = event => { let count = $('selected-documents').querySelectorAll('input:checked').length; if (count > 8) { event.target.checked = false; count--; notice(t('Choose up to 8 documents.')); } text('document-selection-count', t('Selected documents: {count}/8', { count })); saveDraft(); }; $('acknowledge').onchange = () => { acknowledgedAt = $('acknowledge').checked ? Date.now() : 0; clearTimeout(acknowledgementTimer); if (acknowledgedAt) acknowledgementTimer = setTimeout(updateComposer, 3 * 60 * 60 * 1000); updateComposer(); };

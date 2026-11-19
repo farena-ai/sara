@@ -1003,7 +1003,7 @@ export function visionOnThisComputer(app: AppContext, route: { providerId: strin
 export const LIVE_DATA_TOOL = (name: string): boolean => /^(market_quote|sports_scores|sports_schedule|sports_standings|odds_lines|watch_add|portfolio_show|team_follow|schedule_to_calendar|team_news|odds_compare)$/.test(name);
 export const OFFSERVER_TOOL = (name: string) =>
   name === 'send_file' || name.startsWith('support_') || ['gdoc_', 'gsheet_', 'excel_', 'word_', 'slack_'].some((p) => name.startsWith(p)) || name === 'teams_post' || name === 'web_fetch' || name === 'web_search' || name === 'find_product' || name === 'stores_near' || name.startsWith('product_watch_') || name === 'delegate_task' || name === 'git_push' || name === 'list_share' || name === 'task_assign' || name === 'invoice_send' || name.startsWith('errand_') || name === 'phone_call' || LIVE_DATA_TOOL(name) || name.startsWith('home_') || name.startsWith('mcp_') || name.startsWith('gmail_') || name.startsWith('mail_') || name.startsWith('calendar_') || name.startsWith('github_') ||
-  name === 'friend_time';
+  name === 'records_report' || name === 'friend_time';
 
 /**
  * Size of the conversation history sent to a model whose window isn't known (characters, about 4
@@ -1525,7 +1525,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'people_gift_ideas', 'people_gift_card', 'health_log', 'health_read', 'shared_project_read', 'friend_time']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'people_gift_ideas', 'people_gift_card', 'health_log', 'health_read', 'shared_project_read', 'friend_time', 'records_report']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {

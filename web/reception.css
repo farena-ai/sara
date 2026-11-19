@@ -32,3 +32,8 @@ body.rc-body { margin: 0; background: var(--surface-0); color: var(--text-1); fo
 .rc :is(button, input, textarea):focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
 .rc-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 .rc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* W3.5: payment links under a reply (the owner's own links; opened in a new tab). */
+.rc-links { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; white-space: normal; }
+.rc-links a { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--accent-solid); color: var(--accent-text); background: var(--accent-soft); font-weight: 600; text-decoration: none; }
+.rc-links a:hover { text-decoration: underline; }
+.rc-links a:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }

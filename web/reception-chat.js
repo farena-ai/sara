@@ -1,5 +1,6 @@
 // V3.5 (docs/RECEPTION.md): the website receptionist's chat page (inside the iframe on the owner's site).
 // Replies are drawn as text nodes only (never HTML); the visitor's words go only to this server.
+// W3.5: replies come in the visitor's language; payment links the owner pasted show under the reply.
 const root = document.querySelector('main.rc');
 if (root) {
   const id = root.dataset.id;
@@ -58,6 +59,25 @@ if (root) {
     slotsBox.scrollIntoView({ block: 'start' });
   };
 
+  // W3.5: the owner's payment links (https only), drawn as text links that open in a new tab.
+  const showLinks = (li, links) => {
+    const ul = document.createElement('ul');
+    ul.className = 'rc-links';
+    for (const l of links) {
+      if (!/^https:\/\//.test(String(l.url))) continue;
+      const a = document.createElement('a');
+      a.href = l.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.textContent = l.label;
+      const item = document.createElement('li');
+      item.append(a);
+      ul.append(item);
+    }
+    if (ul.children.length) li.append(ul);
+    li.scrollIntoView({ block: 'end' });
+  };
+
   ask.addEventListener('submit', async (e) => {
     e.preventDefault();
     const text = q.value.trim();
@@ -69,8 +89,9 @@ if (root) {
     try {
       const d = await post('ask', { text, history: history.slice(-8) });
       wait.remove();
-      say('her', d.reply);
+      const li = say('her', d.reply);
       history.push({ role: 'visitor', text }, { role: 'reply', text: d.reply });
+      if (d.links?.length) showLinks(li, d.links);
       if (d.slots) showSlots(d.slots);
     } catch (err) {
       wait.remove();

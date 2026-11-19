@@ -1,4 +1,5 @@
 import { recoveryMode } from './recovery.ts';
+import { installTeamControl } from './team-schema.ts';
 import { appendAudit } from './audit.ts';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
@@ -50,6 +51,7 @@ export class BusinessControlStore {
           OR (scope='workspace' AND workspace_id IS NOT NULL AND role IN ('manager','contributor','viewer') AND issuer_workspace_revision IS NOT NULL))
       );
     `);
+    installTeamControl(this.database);
     if (!recoveryMode(this.database)) this.bootstrapAdministrator();
   }
   /** Synchronous write lock; all authority checks and invariant checks occur inside it. */

@@ -10,6 +10,7 @@ import type { CompanionManager } from './companions.ts';
 import { minorSexualMatch, MINOR_BLOCK_REPLY } from './safety.ts';
 import type { Settings } from './settings.ts';
 import { en, trOwner } from './i18n.ts';
+import type { McpScope } from './mcp-scopes.ts';
 
 /** The name of an API key the owner didn't name (the app shows it in her language). */
 export const DEFAULT_APP_NAME = en('Another app');
@@ -86,6 +87,8 @@ export interface Caller {
   id: string;
   label: string;
   kind: 'api' | 'app' | 'home-assistant';
+  /** W3.2: the key's /mcp scopes (undefined = everything). */
+  scopes?: McpScope[];
 }
 
 /** The API key on a request (Authorization: Bearer sara_dev.…), or undefined. */
@@ -102,7 +105,8 @@ export function callerOf(req: IncomingMessage, auth: OwnerAuth): Caller | undefi
   if (kind === 'a2a') return undefined;
   // U4.25: the browser extension's token only reaches /api/ext/*.
   if (kind === 'extension') return undefined;
-  return { id, label: auth.deviceLabelOf(id) ?? DEFAULT_APP_NAME, kind };
+  const scopes = kind === 'api' ? auth.apiKeyScopes(id) : undefined;
+  return { id, label: auth.deviceLabelOf(id) ?? DEFAULT_APP_NAME, kind, ...(scopes ? { scopes } : {}) };
 }
 
 export const CORS_HEADERS = 'authorization, content-type, x-sara-conversation, x-sara-history, x-sara-companion, mcp-protocol-version, mcp-method, mcp-name, mcp-session-id, last-event-id, openai-organization, openai-project, x-stainless-arch, x-stainless-lang, x-stainless-os, x-stainless-package-version, x-stainless-runtime, x-stainless-runtime-version, x-stainless-retry-count, x-stainless-timeout';

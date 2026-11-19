@@ -1,7 +1,7 @@
 {
   "name": "@farena-ai/sara-sdk",
   "version": "0.1.0",
-  "description": "A small, dependency-free TypeScript client for Sara's HTTP API: device sign-in, streamed chat, approvals, files, the OpenAI-compatible /v1 and webhook verification.",
+  "description": "A small, dependency-free TypeScript client for Sara's HTTP API (device sign-in, streamed chat, approvals, files, the OpenAI-compatible /v1, webhook verification) and the add-on kit (typed tools, pages and settings, a template, a test harness and pack).",
   "license": "MIT",
   "author": "farena-ai",
   "homepage": "https://github.com/farena-ai/sara/tree/main/packages/sara-sdk#readme",
@@ -24,7 +24,14 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
+    "./addon": {
+      "types": "./dist/addon/kit.d.ts",
+      "default": "./dist/addon/kit.js"
+    },
     "./package.json": "./package.json"
+  },
+  "bin": {
+    "sara-addon": "./dist/cli.js"
   },
   "files": [
     "dist/",
@@ -48,6 +55,8 @@
     "client",
     "self-hosted",
     "openai-compatible",
-    "webhooks"
+    "webhooks",
+    "addon",
+    "plugin"
   ]
 }

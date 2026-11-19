@@ -1,7 +1,7 @@
 // V3.5 (docs/RECEPTION.md): the website receptionist's public side (no sign-in).
 //   GET  /reception.js              the loader a website includes (one <script> tag; builds a button + iframe)
 //   GET  /reception/<id>            the chat page inside the iframe (framed only by the owner's sites)
-//   POST /reception/<id>/ask        {text, history, t} → {reply, kind, slots?}
+//   POST /reception/<id>/ask        {text, history, t} → {reply, kind, lang, slots?, links?}
 //   GET  /reception/<id>/slots      → {slots}
 //   POST /reception/<id>/book       {slot, name, email, note, t, website} → {ok, message}
 // The owner's side rides the booking family: /api/booking/reception (src/routes/booking.ts).
@@ -135,7 +135,8 @@ export function createReceptionPublic(o: { opts: ServerOptions; ownerLang: () =>
         .map((h) => (h && typeof h === 'object' ? (h as Record<string, unknown>) : {}))
         .map((h) => ({ role: h.role === 'reply' ? ('reply' as const) : ('visitor' as const), text: String(h.text ?? '').slice(0, RECEPTION.maxTurn) }))
         .filter((h) => h.text.trim());
-      return json(200, await r.ask(text, history, { lang, T }));
+      // W3.5: the reply's language is read from the visitor's words; `chat` groups one page's questions.
+      return json(200, await r.ask(text, history, { lang, chat: r.chatKey(String(body.t ?? '')) }));
     }
     // what === 'book'
     if (!within(books, ip, 5, 60 * 60_000)) return json(429, { error: T(en('Too many requests. Try again later.')) }, { 'retry-after': '600' });

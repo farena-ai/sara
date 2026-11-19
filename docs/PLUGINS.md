@@ -36,6 +36,10 @@ card, or make a step ask the owner; it can never change her rules, her persona, 
 replies, a tool result or a decision. Plugins never see private, partner, group, imported,
 adult-channel (`-nsfw`) or other apps' conversations.
 
+**The easy way: the add-on kit (W3.1).** `sara-addon create my-addon` makes a working plugin folder
+with typed `defineTool` / `defineSetting` / `definePage` / `defineAddon`, tests, a local test harness
+and `sara-addon pack` for the store bundle and its listing. See [ADDON_KIT.md](ADDON_KIT.md).
+
 Examples: [`examples/plugins/hello-hooks`](../examples/plugins/hello-hooks) (a note before each turn,
 a word filter on steps, a footer after replies) and
 [`examples/plugins/weather-alerts`](../examples/plugins/weather-alerts) (a tool with a card, a note,

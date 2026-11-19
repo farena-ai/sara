@@ -421,6 +421,11 @@ export class Booking {
     return `sent from ${a.address} (email ${id})`;
   }
 
+  /** W3.5: an email the owner approved elsewhere (receptionist follow-ups), from the same mailbox. */
+  sendEmail(m: { to: string; subject: string; body: string }): Promise<string> {
+    return this.#sendMail(m);
+  }
+
   /** The person confirmed (or "auto"): the calendar event, then the visitor's email. */
   async confirm(id: number): Promise<BookingRequest> {
     const r = this.store.request(id);

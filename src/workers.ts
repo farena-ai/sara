@@ -20,6 +20,7 @@ import { en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
 import { policy } from './policy-profile.ts';
 import { teamHelpers, type HelperDef } from './team.ts';
+import { WorkerGoals } from './worker-goals.ts';
 import { workforceTick } from './workforce.ts';
 
 export const WORKER = { maxWorkers: 12, maxQueued: 50, backoffMs: [60_000, 5 * 60_000, 30 * 60_000], minJobTokens: 10_000, maxBundle: 12, version: 1 } as const;
@@ -36,7 +37,7 @@ export const TOOL_GROUPS: Record<string, string[]> = {
 const RISKY = new Set(['write_file', 'edit_file', 'shell', 'git', 'delegate_task']);
 
 export type JobStatus = 'queued' | 'running' | 'done' | 'failed' | 'dropped';
-export type AlertReason = 'approval' | 'budget' | 'failing' | 'stopped';
+export type AlertReason = 'approval' | 'budget' | 'failing' | 'stopped' | 'cap';
 export interface Worker {
   id: number;
   name: string;
@@ -69,6 +70,9 @@ export interface WorkerJob {
   replayOf: number | null;
   replayedBy: number | null;
   teamTaskId: number | null;
+  /** W3.4: the goal this job works toward, and the job whose output it was handed (a chain). */
+  goalId: number | null;
+  fromJob: number | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -143,6 +147,8 @@ export class Workers {
   readonly #db: DatabaseSync;
   readonly #o: WorkersOptions;
   readonly #live = new Map<number, { handle: WorkerHandle; done: Promise<void>; why?: 'owner' | 'timeout' }>();
+  /** W3.4 (docs/design/W3WORKFORCE.md): goals, caps per goal, hand-off chains, the weekly plan. */
+  readonly goals: WorkerGoals;
 
   constructor(app: AppContext, db: DatabaseSync, o: WorkersOptions = {}) {
     this.#app = app;
@@ -198,6 +204,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
   sent_at TEXT
 );
 `);
+    this.goals = new WorkerGoals(app, db, this);
     // Durable across a restart: a job that was running goes back in the queue (its try counts).
     const iso = this.#now().toISOString();
     db.prepare("UPDATE worker_jobs SET status = 'queued', attempts = attempts + 1, error = 'interrupted by a restart', started_at = NULL, next_at = NULL WHERE status = 'running'").run();
@@ -231,7 +238,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
   #jobView(r: Row): WorkerJob {
     const n = (k: string) => (r[k] === null ? null : Number(r[k]));
     const s = (k: string) => (r[k] === null ? null : String(r[k]));
-    return { id: Number(r.id), workerId: Number(r.worker_id), title: String(r.title), input: String(r.input), status: String(r.status) as JobStatus, attempts: Number(r.attempts), nextAt: s('next_at'), error: s('error'), result: s('result'), tokens: Number(r.tokens), parentId: n('parent_id'), replayOf: n('replay_of'), replayedBy: n('replayed_by'), teamTaskId: n('team_task_id'), startedAt: s('started_at'), endedAt: s('ended_at'), createdAt: String(r.created_at) };
+    return { id: Number(r.id), workerId: Number(r.worker_id), title: String(r.title), input: String(r.input), status: String(r.status) as JobStatus, attempts: Number(r.attempts), nextAt: s('next_at'), error: s('error'), result: s('result'), tokens: Number(r.tokens), parentId: n('parent_id'), replayOf: n('replay_of'), replayedBy: n('replayed_by'), teamTaskId: n('team_task_id'), goalId: r.goal_id === undefined ? null : n('goal_id'), fromJob: r.from_job === undefined ? null : n('from_job'), startedAt: s('started_at'), endedAt: s('ended_at'), createdAt: String(r.created_at) };
   }
 
   list(): Worker[] {
@@ -311,6 +318,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
       const lines = [base.instructions, `You are ${w.name}, one of the owner's workers.${w.character ? ` Your character: ${w.character}` : ''}`];
       if (w.skills.length) lines.push(`Use these skills when they fit: ${w.skills.join(', ')}.`);
       if (under.length) lines.push(`You lead: ${under.join(', ')}. To hand a part to one of them, end your reply with one line per part: HAND TO <name>: <what to do>.`);
+      lines.push(...this.goals.lines(w));
       return [{ ...base, id: `worker-${w.id}`, name: w.name, blurb: clip(w.character || base.blurb, 160), instructions: lines.join('\n'), tools, custom: true }];
     });
   }
@@ -381,12 +389,13 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
   /** Forgets the worker (its thread and finished jobs stay); its queued jobs are dropped. */
   remove(id: number): boolean {
     this.stop(id);
+    this.goals.workerGone(id);
     this.#db.prepare("UPDATE worker_jobs SET status = 'dropped' WHERE worker_id = ? AND status = 'queued'").run(id);
     this.#db.prepare('UPDATE workers SET lead_id = NULL WHERE lead_id = ?').run(id);
     return Number(this.#db.prepare('DELETE FROM workers WHERE id = ?').run(id).changes) > 0;
   }
 
-  enqueue(workerId: number, body: { title?: unknown; input?: unknown }, o: { parentId?: number; replayOf?: number } = {}): WorkerJob {
+  enqueue(workerId: number, body: { title?: unknown; input?: unknown }, o: { parentId?: number; replayOf?: number; goalId?: number; fromJob?: number } = {}): WorkerJob {
     this.#pinned();
     const w = this.get(workerId);
     if (!w) throw new WorkerError(404, en('Worker not found'));
@@ -395,7 +404,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
     const input = clean(body.input, 6000);
     const queued = Number((this.#db.prepare("SELECT COUNT(*) AS n FROM worker_jobs WHERE worker_id = ? AND status = 'queued'").get(workerId) as { n: number }).n);
     if (queued >= WORKER.maxQueued) throw new WorkerError(409, en('This worker has 50 jobs waiting already.'));
-    const r = this.#db.prepare("INSERT INTO worker_jobs (worker_id, title, input, status, parent_id, replay_of, created_at) VALUES (?, ?, ?, 'queued', ?, ?, ?)").run(workerId, title, input, o.parentId ?? null, o.replayOf ?? null, this.#now().toISOString());
+    const r = this.#db.prepare("INSERT INTO worker_jobs (worker_id, title, input, status, parent_id, replay_of, goal_id, from_job, created_at) VALUES (?, ?, ?, 'queued', ?, ?, ?, ?, ?)").run(workerId, title, input, o.parentId ?? null, o.replayOf ?? null, o.goalId ?? null, o.fromJob ?? null, this.#now().toISOString());
     return this.job(Number(r.lastInsertRowid))!;
   }
 
@@ -404,7 +413,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
     const j = this.job(jobId);
     if (!j) throw new WorkerError(404, en('Job not found'));
     if (j.status !== 'failed') throw new WorkerError(409, en('Only a failed job can be replayed.'));
-    const copy = this.enqueue(j.workerId, { title: j.title, input: j.input }, { replayOf: j.id, ...(j.parentId ? { parentId: j.parentId } : {}) });
+    const copy = this.enqueue(j.workerId, { title: j.title, input: j.input }, { replayOf: j.id, ...(j.parentId ? { parentId: j.parentId } : {}), ...(j.goalId ? { goalId: j.goalId } : {}), ...(j.fromJob ? { fromJob: j.fromJob } : {}) });
     this.#db.prepare('UPDATE worker_jobs SET replayed_by = ? WHERE id = ?').run(copy.id, j.id);
     audit({ action: 'worker.replay', target: `job${j.id}`, role: 'owner', who: 'owner', channel: 'web', outcome: 'ok' });
     return copy;
@@ -440,6 +449,12 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
   tick(now: Date = this.#now()): number {
     void this.#flush();
     if (policy().pins.crews === 'off') return 0;
+    // W3.4: the weekly plan the workers propose, on the same tick.
+    try {
+      this.goals.tick(now);
+    } catch (err) {
+      console.warn(`worker plan: ${(err as Error).message}`);
+    }
     // V3.3 (docs/design/V3WORKFORCE.md): the weekly workforce report, on the same tick.
     try {
       workforceTick(this.#app, now);
@@ -461,10 +476,20 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
     for (const w of this.list()) {
       if (w.state !== 'on') continue;
       if (this.#db.prepare("SELECT 1 FROM worker_jobs WHERE worker_id = ? AND status = 'running'").get(w.id)) continue;
-      const r = this.#db.prepare("SELECT * FROM worker_jobs WHERE worker_id = ? AND status = 'queued' AND (next_at IS NULL OR next_at <= ?) ORDER BY id LIMIT 1").get(w.id, now.toISOString()) as Row | undefined;
+      // W3.4: the first waiting job whose goal is not paused or at its cap (those wait and ask).
+      let r: Row | undefined;
+      let goalLeft = Infinity;
+      for (const c of this.#db.prepare("SELECT * FROM worker_jobs WHERE worker_id = ? AND status = 'queued' AND (next_at IS NULL OR next_at <= ?) ORDER BY id LIMIT 20").all(w.id, now.toISOString()) as Row[]) {
+        const g = this.goals.gate(this.#jobView(c), now);
+        if (!g.ok) continue;
+        r = c;
+        goalLeft = g.tokens ?? Infinity;
+        break;
+      }
       if (!r) continue;
-      const left = w.dailyTokens - this.usedToday(w.id);
-      if (left < WORKER.minJobTokens) {
+      const dayLeft = w.dailyTokens - this.usedToday(w.id);
+      const left = Math.min(dayLeft, goalLeft);
+      if (dayLeft < WORKER.minJobTokens) {
         this.#raise(`budget:w${w.id}:${this.#day(now)}`, w, 'budget', en("{name} reached today's budget; its jobs wait until tomorrow."), {});
         continue;
       }
@@ -527,6 +552,11 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
       this.#db.prepare("UPDATE worker_jobs SET status = 'done', attempts = attempts + 1, result = ?, error = NULL, ended_at = ? WHERE id = ?").run(clip(this.#app.redactor.redact(o.result), 20_000), iso, jobId);
       this.#post(w, `**${job.title}**\n\n${o.result || '(no reply)'}`, { jobId, status: 'done' });
       this.#handOff(w, this.job(jobId)!);
+      try {
+        this.goals.onDone(w, this.job(jobId)!);
+      } catch (err) {
+        console.warn(`workers: goal step failed: ${(err as Error).message}`);
+      }
       this.#bubble(this.job(jobId)!);
       return;
     }
@@ -561,7 +591,7 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
       const to = under.find((x) => x.name.toLowerCase() === m[1].trim().toLowerCase());
       if (!to) continue;
       try {
-        this.enqueue(to.id, { title: m[2].trim(), input: `From ${lead.name}, for "${job.title}".` }, { parentId: job.id });
+        this.enqueue(to.id, { title: m[2].trim(), input: `From ${lead.name}, for "${job.title}".` }, { parentId: job.id, ...(job.goalId ? { goalId: job.goalId } : {}) });
       } catch (err) {
         console.warn(`workers: hand-off to ${to.name} failed: ${(err as Error).message}`);
       }
@@ -582,6 +612,16 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
     const names = new Map(this.list().map((x) => [x.id, x.name]));
     const summary = kids.map((k) => `- ${line(k, names.get(k.workerId) ?? '?')}`).join('\n');
     this.#db.prepare('UPDATE worker_jobs SET result = ? WHERE id = ?').run(clip(`${parent.result ?? ''}\n\nFrom the workers under ${lead.name}:\n${summary}`, 30_000), parent.id);
+  }
+
+  /** W3.4: a post in a worker's chat (hand-off notes). */
+  say(w: Worker, content: string, meta: Record<string, unknown> = {}): void {
+    this.#post(w, content, meta);
+  }
+
+  /** W3.4: one "needs you" alert per key (a goal at its cap). */
+  notify(key: string, w: Worker, reason: AlertReason, text: string, params: Record<string, string | number>): void {
+    this.#raise(key, w, reason, text, params);
   }
 
   /** One alert per key, ever; sent now or after quiet hours. */

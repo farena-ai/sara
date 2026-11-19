@@ -5,6 +5,7 @@
 // Hide. Add by photo of the card: the photo goes to the Library and is read like any document.
 import { t } from './naming.js';
 import { api } from './setup-card.js';
+import { handleIt } from './handle-it.js';
 
 const $ = (sel) => document.querySelector(sel);
 let hooks = {};
@@ -92,7 +93,9 @@ function row(r) {
         }),
       );
   const hide = btn(r.source?.kind === 'you' ? t('Delete') : t('Hide'), 'ghost small', () => void act(`/facts/renewals/${encodeURIComponent(r.id)}/${r.source?.kind === 'you' ? 'remove' : 'hide'}`, {}, () => say(t('Done.'))));
-  acts.append(remind, fill, errand, hide);
+  // W4.1: Handle it = her plan first, then the run with its stops (web/handle-it.js).
+  const handle = btn(t('Handle it'), 'small', () => void handleIt('renewal', r.id));
+  acts.append(handle, remind, fill, errand, hide);
   li.append(acts);
   return li;
 }

@@ -14,7 +14,7 @@ import { makeApp, ROOT, tempDir } from './helpers.ts';
 
 type Tool = { name: string; title?: string; description: string; inputSchema: { type: string; properties: Record<string, { type?: string; description?: string }>; required?: string[] }; annotations: { title?: string; readOnlyHint: boolean; destructiveHint: boolean; idempotentHint: boolean; openWorldHint: boolean } };
 const tools = describeTools() as unknown as Tool[];
-const WRITE = ['add_task', 'complete_task', 'update_task', 'delete_task', 'add_note', 'update_note', 'delete_note', 'remember_fact'];
+const WRITE = ['add_task', 'add_reminder', 'complete_task', 'update_task', 'delete_task', 'add_note', 'update_note', 'delete_note', 'remember_fact'];
 
 /** Presses Allow on the newest waiting approval whose summary matches (in the app's changes conversation). */
 async function allowLatest(summary: RegExp): Promise<void> {

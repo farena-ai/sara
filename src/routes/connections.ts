@@ -941,7 +941,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (a === 'other-apps' && !b) {
       if (opts.demo) throw new HttpError(403, 'Not in the demo.');
-      const view = () => ({ ...otherAppsSettings(app.settings.get()), keys: auth.devices().filter((d) => d.kind === 'api').map(({ id, label, createdAt, lastSeen }) => ({ id, label, createdAt, lastSeen })) });
+      const view = () => ({ ...otherAppsSettings(app.settings.get()), keys: auth.devices().filter((d) => d.kind === 'api').map(({ id, label, createdAt, lastSeen }) => ({ id, label, createdAt, lastSeen, scopes: auth.apiKeyScopes(id) ?? null })) });
       if (method === 'GET') return send(res, 200, view());
       if (method === 'PUT') {
         const body = await readJson(req);

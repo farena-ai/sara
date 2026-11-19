@@ -14,11 +14,27 @@ let loading = null;
 /** Loads web/howto.json once (later calls get the same object). */
 export function loadHowto(fetcher = (u) => fetch(u)) {
   if (data) return Promise.resolve(data);
-  loading ??= fetcher('/howto.json')
-    .then((r) => r.json())
+  loading ??= Promise.all([fetcher('/howto.json'), loadClips(fetcher)])
+    .then(([r]) => r.json())
     .then((d) => (data = d))
     .catch(() => (data = {}));
   return loading;
+}
+// W2.5: short how-to clips for some answers (docs/media/clips.json, served at /docs/media/).
+let clips = {};
+/** Loads the clip list once (no list on this install = no Watch buttons). */
+export function loadClips(fetcher = (u) => fetch(u)) {
+  return fetcher('/docs/media/clips.json')
+    .then((r) => (r.ok ? r.json() : {}))
+    .then((d) => (clips = d ?? {}))
+    .catch(() => (clips = {}));
+}
+/** The clip of one answer ({ file, seconds } or undefined). */
+export function clipFor(page, q) {
+  return clips[`${page}/${q}`];
+}
+export function setClips(d) {
+  clips = d ?? {};
 }
 /** For tests and the guide: use this data instead of fetching it. */
 export function setHowto(d) {
@@ -89,6 +105,19 @@ export function howtoBlock(id, { t = (s) => s, open = '', doc = document, about 
       b.type = 'button';
       b.addEventListener('click', () => showMe(item.show, doc));
       q.append(b);
+    }
+    const clip = clipFor(id, item.id);
+    if (clip) {
+      const w = mk('button', 'linkish small howto-watch', `▶ ${t('Watch it')}`);
+      w.type = 'button';
+      w.addEventListener('click', () => {
+        const had = q.querySelector('video');
+        if (had) return void had.remove();
+        const v = mk('video', 'hf-video');
+        Object.assign(v, { src: `/docs/media/${clip.file}`, controls: true, muted: true, autoplay: true, playsInline: true, loop: true });
+        q.append(v);
+      });
+      q.append(w);
     }
     if (item.id === open) {
       q.open = true;

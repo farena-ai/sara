@@ -76,7 +76,9 @@ test('PL1d: the guide index needs no new translations (titles and questions are 
 test('PL1d: docs/HOW_DO_I.md is generated from howto.json and lists every question', () => {
   const md = read('docs/HOW_DO_I.md');
   const data = howto();
-  assert.equal(md, howtoIndexMd(data, titles()), 'run npm run guide (scripts/gen-guide.ts)');
+  // W2.5: the how-to clips (docs/media/clips.json) are linked under their answers.
+  const clips = existsSync(join(ROOT, 'docs/media/clips.json')) ? JSON.parse(read('docs/media/clips.json')) : {};
+  assert.equal(md, howtoIndexMd(data, titles(), clips), 'run npm run guide (scripts/gen-guide.ts)');
   for (const list of Object.values(data)) for (const q of list) assert.ok(md.includes(`**${q.q}**`), q.q);
 });
 

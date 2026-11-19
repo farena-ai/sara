@@ -2,6 +2,7 @@
 // in the Library and by hand) with the last day to return it, the warranty end, Keep it / Returned /
 // Start a return (an errand that asks before anything is sent), and the return reminder settings.
 import { serverText, t } from './naming.js';
+import { handleIt } from './handle-it.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
 let ctx = null;
@@ -139,6 +140,7 @@ function render() {
     const acts = el('span', 'mn-acts');
     if (p.status === 'open' && p.returnBy && p.daysLeft >= 0) {
       acts.append(
+        btn(t('Handle it'), 'small', () => void handleIt('return', p.id)),
         btn(p.errandId ? t('Open the return') : t('Start a return'), 'small', async () => {
           const r = await call(`/money/purchases/${p.id}/return`, 'POST', {}, t('The return errand is ready in Errands. Nothing is sent until you start it.'));
           if (r?.errand) location.hash = '#view=errands';

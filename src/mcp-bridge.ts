@@ -753,6 +753,65 @@ export const DESCRIBE_TOOLS = [
     }
   },
   {
+    "name": "list_reminders",
+    "title": "List reminders",
+    "description": "List the owner's upcoming reminders in Sara (timed ones, newest due last), up to 50. Use it to see what Sara will remind the owner about; use add_reminder to set a new one. Returns plain text, one per line: \"- #id <due time> text\" (with the repeat when it repeats), or \"No reminders coming up.\" Read-only.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {},
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "List reminders",
+      "readOnlyHint": true,
+      "destructiveHint": false,
+      "idempotentHint": true,
+      "openWorldHint": false
+    }
+  },
+  {
+    "name": "add_reminder",
+    "title": "Add a reminder",
+    "description": "Set a reminder in Sara: at the time given she reminds the owner in her app. Use add_task for a to-do without a set time. Returns \"Reminder #id set for <time>: text\". Only listed when the owner turns on \"Let other apps change things\" in Sara. Follows the owner's approval setting for her remind tool (allowed, ask first, or off): when it asks first, it returns \"Waiting for approval in Sara\" and nothing changes until the owner presses Allow there; when it is off, it returns that it's turned off.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "What to remind about, short. Up to 200 characters.",
+          "examples": [
+            "Call the vet"
+          ]
+        },
+        "when": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "When, in words or as a date and time, read in the owner's time zone. A date without an hour means 9:00.",
+          "examples": [
+            "tomorrow 9am",
+            "in 20 minutes",
+            "2026-12-01 14:00"
+          ]
+        }
+      },
+      "required": [
+        "text",
+        "when"
+      ],
+      "additionalProperties": false
+    },
+    "annotations": {
+      "title": "Add a reminder",
+      "readOnlyHint": false,
+      "destructiveHint": false,
+      "idempotentHint": false,
+      "openWorldHint": false
+    }
+  },
+  {
     "name": "remember_fact",
     "title": "Remember a fact",
     "description": "Ask Sara to remember one fact about the owner in her long-term memory, marked as told by this app. Use it to store something on purpose (ask_sara is for conversation, and she may or may not keep what is said there); use add_note for longer text. Returns \"Remembered (#id): fact\" once the owner allows it. Only listed when the owner turns on \"Let other apps change things\" in Sara, and it always asks first: it returns \"Waiting for approval in Sara\" and nothing is stored until the owner presses Allow there.",
@@ -788,7 +847,7 @@ export const DESCRIBE_TOOLS = [
 const DESCRIBE_VERSIONS = ['2025-11-25', '2025-06-18', '2025-03-26'];
 
 /** Sara's version, for --describe when no package.json is next to this file. Kept equal to package.json by a test. */
-export const SARA_VERSION = '3.33.0';
+export const SARA_VERSION = '3.34.0';
 
 /** Sara's real version: package.json next to the repo when this runs from a checkout, else SARA_VERSION. */
 export function describeVersion(): string {

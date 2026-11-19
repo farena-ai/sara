@@ -27,6 +27,7 @@ import type { FirstClaim } from './claim.ts';
 import { cleanScope, DeviceFlow } from './device-flow.ts';
 import { handleOpenAI } from './openai-api.ts';
 import { handleMcp } from './mcp-server.ts';
+import { cleanScopes, type McpScope } from './mcp-scopes.ts';
 import { AlexaService } from './alexa.ts';
 import { DEFAULT_APP_NAME, KeyLimiter } from './other-apps.ts';
 import { usageLine } from './usage.ts';
@@ -58,6 +59,7 @@ import { summarizeConversation } from './memory-worker.ts';
 import { audit } from './audit-trail.ts';
 import { cleanClientKey, InFlightKeys, messageWithKey, serverIdOf } from './offline-keys.ts';
 import { cleanOfflineAnswer, offlineAnswerAllowed, storeOfflineAnswer } from './offline-answer.ts';
+import { helpMediaExists, helpMediaFile, MEDIA_TYPES } from './help-media.ts';
 import { as400, bodyKeys, clientIp, cookies, fromPhoneApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
@@ -113,6 +115,7 @@ import { createSelfCodeRoutes } from './routes/self-code.ts';
 import { createDashboardRoutes } from './routes/dashboard.ts';
 import { createDataSourceRoutes } from './routes/data-sources.ts';
 import { createResearchRoutes } from './routes/research.ts';
+import { createRecordsRoutes } from './routes/records.ts';
 import { createLearnRoutes } from './routes/learn.ts';
 import { learnAskCommand } from './learn.ts';
 import { webSearchOff } from './web-search-auto.ts';
@@ -482,7 +485,7 @@ export function createSaraServer(opts: ServerOptions): Server {
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
-  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'sso', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market']);
+  const AUDITED = new Set(['support', 'remote-repair', 'repair', 'team-runs', 'messages', 'family', 'booking', 'accounting', 'work', 'inbox', 'login', 'logout', 'sso', 'passkey', 'two-step', 'owner-token', 'pair', 'device', 'devices', 'security', 'claim', 'household', 'settings', 'tools', 'providers', 'subscriptions', 'local-models', 'private-local', 'adult', 'store', 'plugins', 'packs', 'skills', 'mcp', 'search', 'backups', 'export', 'import', 'history-import', 'movein', 'bridges', 'chats', 'alexa', 'agents', 'hooks', 'other-apps', 'hands', 'computer', 'google', 'mail', 'spotify', 'github', 'github-watch', 'ssh', 'home', 'access', 'desktop-apps', 'safety-check', 'sandbox', 'security-pass', 'threat-model', 'redteam', 'budgets', 'precise', 'persist', 'lean', 'operations', 'deliveries', 'companions', 'voice', 'push', 'phone', 'wake', 'audit', 'isolation', 'crews', 'workers', 'triggers', 'automations', 'errands', 'goal-plans', 'money', 'bizpack', 'phone-calls', 'my-details', 'writing', 'facts', 'memory-tidy', 'working-style', 'readiness', 'worktrees', 'coding-depth', 'workspaces', 'app-updates', 'trips', 'data-sources', 'doc-studio', 'extension', 'market', 'records']);
   const VERB: Record<string, string> = { POST: 'do', PUT: 'change', PATCH: 'change', DELETE: 'remove' };
   const auditRequest = (req: IncomingMessage, res: ServerResponse, method: string, parts: string[]) => {
     const dev = deviceTokenOf(req);
@@ -537,6 +540,13 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (isAuthed(req) && !opts.demo) m.icons = MANIFEST_ICONS;
       res.writeHead(200, { 'content-type': 'application/manifest+json', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : JSON.stringify(m));
+    }
+    // W2.5: the how-to clips under docs/media (src/help-media.ts; nothing else from docs/).
+    if (pathname.startsWith('/docs/media/')) {
+      const file = helpMediaFile(webRoot, pathname);
+      if (!helpMediaExists(file)) throw new HttpError(404, 'Not found');
+      res.writeHead(200, { 'content-type': MEDIA_TYPES[file.split('.').pop()!], 'cache-control': 'public, max-age=86400', ...SECURITY_HEADERS });
+      return void (req.method === 'HEAD' ? res.end() : createReadStream(file).pipe(res));
     }
     const rel = pathname === '/' ? 'index.html' : pathname === '/pair' ? 'pair.html' : pathname === '/device' ? 'device.html' : pathname === '/privacy' ? 'privacy.html' : pathname === '/support' ? 'support.html' : pathname === '/help' ? 'help.html' : pathname === '/download' ? 'download.html' : safeDecode(pathname).replace(/^\/+/, '');
     // Phase 31: a companion without a look of her own yet shows her initial, not Sara's face.
@@ -1125,6 +1135,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const dataSourceRoutes = createDataSourceRoutes(ctx);
   // EC6: research runs with a report, the owner's only (src/routes/research.ts).
   const researchRoutes = createResearchRoutes(ctx);
+  // W4.6: public-records reports, the owner's only (src/routes/records.ts).
+  const recordsRoutes = createRecordsRoutes(ctx);
   // C6: learn a topic, the owner's only (src/routes/learn.ts).
   const learnRoutes = createLearnRoutes(ctx);
   // EC19: meeting rooms and meeting notes, the owner's only (src/routes/meetings.ts).
@@ -1731,6 +1743,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await dashboardRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await dataSourceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await researchRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await recordsRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await learnRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await meetingRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await bizRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2098,12 +2111,20 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
     // Phase 57: an API key for another app (shown once). Like letting in an app: prove it's you.
     if (a === 'devices' && b === 'api-key' && !c && method === 'POST') {
+      // W3.2: kids never get a key for other apps (their space has no /v1 or /mcp either).
+      if (opts.member?.record()?.child) throw new HttpError(403, 'A parent turned this off for you.');
       const body = await readJson(req);
       confirmIdentity(body, { passkey: true });
       const label = String(body.label ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60) || DEFAULT_APP_NAME;
+      let scopes: McpScope[] | undefined;
       try {
-        const k = auth.createApiKey(label);
-        return send(res, 200, { key: k.token, id: k.id, label });
+        scopes = cleanScopes(body.scopes);
+      } catch {
+        throw new HttpError(400, 'Pick at least one thing this app may use.');
+      }
+      try {
+        const k = auth.createApiKey(label, scopes);
+        return send(res, 200, { key: k.token, id: k.id, label, scopes: scopes ?? null });
       } catch (err) {
         throw as400(err);
       }
@@ -2757,6 +2778,8 @@ export function createSaraServer(opts: ServerOptions): Server {
       // Phase 57: other apps, with an API key: the OpenAI-compatible API and the MCP server.
       // Phase 71: a paused or leaving member's API keys stop working.
       if (opts.member && (url.pathname === '/v1' || url.pathname.startsWith('/v1/') || url.pathname === '/mcp' || url.pathname === '/mcp/') && opts.member.record()?.status !== 'active') throw new HttpError(403, 'This account is paused on this server.');
+      // W3.2: kids never reach other apps' addresses (OpenAI-compatible /v1 and MCP /mcp).
+      if (opts.member?.record()?.child && (url.pathname === '/v1' || url.pathname.startsWith('/v1/') || url.pathname === '/mcp' || url.pathname === '/mcp/')) throw new HttpError(403, 'A parent turned this off for you.');
       if (url.pathname === '/v1' || url.pathname.startsWith('/v1/')) {
         return await handleOpenAI(req, res, url.pathname, { app, auth, ...(opts.companions ? { companions: opts.companions } : {}), demo: Boolean(opts.demo), limiter: appLimiter });
       }

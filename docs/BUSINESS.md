@@ -168,6 +168,24 @@ account*, *Company sign-in refused*, *Company sign-in ended by the session check
 linked*, with account ids only: no emails, tokens or secrets. In private-local mode the provider must
 be on this computer or the local network.
 
+## Team: roles, team inbox and approvals
+
+The **Team** tab shows your team role and a table of who may do what (design: [W3_TEAM.md](design/W3_TEAM.md)).
+
+- **Owner** set up the instance (the break-glass account) and keeps that role. **Admins** manage
+  people, workspaces, company sign-in, the spend limit and the audit export. **Members** work in the
+  workspaces they were added to. **Guests** only read the workspaces they were added to, whatever
+  their workspace role says, and never see the team inbox or approvals.
+- Admins change roles under *Team roles*. With company sign-in, *Guest groups* (next to administrator
+  and member groups) make people guests at every sign-in; administrator beats member beats guest.
+- **Team inbox** (per workspace): paste a message, assign it to a member of the workspace, and reply as
+  the team. A workspace manager's reply is ready at once; a contributor's reply waits for a manager.
+  Sara does not send mail from business mode: copy the approved reply into your mail, then choose
+  **Mark as sent**.
+- **Approvals**: ask to spend money with what it is for and the amount. Up to the organization's spend
+  limit (default $500, set by admins) a workspace manager decides; over it, an admin who is in the
+  workspace. Nobody decides their own request. Approvals are records; nothing is paid by Sara.
+
 ## Audit export
 
 *Organization administration → Audit export* (organization administrators only): the control audit
@@ -175,6 +193,9 @@ be on this computer or the local network.
 date range (UTC days; empty = everything) as **CSV** or **JSON**. Rows hold ids, names of accounts
 and action names, never message or document content. The JSON has a SHA-256 of its rows. Each
 download is one *audit.export* row. Routes: `GET /api/business/org/audit.csv|.json?from=&to=`.
+**Who** (one person) and **What** (a kind of action, such as the team inbox) narrow the rows
+(`actor=<id>`, `action=<action or its first word>`); **Include workspace activity** adds the team inbox,
+approvals and page rows of every workspace with a `source` column (`workspaces=1`), still without text.
 
 ## Separate-instance startup and identity
 

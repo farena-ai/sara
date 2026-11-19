@@ -12,7 +12,7 @@
     "rewriteRelativeImportExtensions": true,
     "erasableSyntaxOnly": true,
     "verbatimModuleSyntax": true,
-    "types": [],
+    "types": ["node"],
     "skipLibCheck": true
   },
   "include": ["src"]

@@ -23,6 +23,14 @@ async function api(path, opts = {}) {
 }
 
 let helpers = { copyText: async () => {}, confirmProof: async () => ({}) };
+/** W3.2: what a key may use on /mcp (src/mcp-scopes.ts). */
+export const SCOPES = ['ask', 'memory', 'reminders', 'library', 'planner'];
+const SCOPE_WORD = { ask: () => t('Ask her'), memory: () => t('Memory'), reminders: () => t('Reminders'), library: () => t('Library'), planner: () => t('Planner') };
+/** The scopes a key shows in the list (null = a key made before scopes: everything). */
+export function scopeWords(scopes) {
+  return Array.isArray(scopes) && scopes.length < SCOPES.length ? scopes.map((s) => SCOPE_WORD[s]?.() ?? s).join(', ') : t('everything');
+}
+const pickedScopes = () => SCOPES.filter((s) => document.querySelector(`#oa-scope-${s}`)?.checked);
 let shownKey = '';
 
 const origin = () => location.origin;
@@ -62,7 +70,7 @@ function render(v) {
           const li = el('li');
           const name = el('strong', '', k.label === 'Another app' ? t('Another app') : k.label);
           name.dataset.raw = '';
-          li.append(name, el('span', 'muted small', ` · ${t('made {date}', { date: new Date(k.createdAt).toLocaleDateString() })} · ${keyUse(k)} `));
+          li.append(name, el('span', 'muted small', ` · ${t('made {date}', { date: new Date(k.createdAt).toLocaleDateString() })} · ${keyUse(k)} · ${t('may use: {what}', { what: scopeWords(k.scopes) })} `));
           const rm = el('button', 'ghost small', t('Remove'));
           rm.type = 'button';
           rm.addEventListener('click', async () => {
@@ -135,11 +143,16 @@ export function initOtherApps(h) {
       $('#oa-key-status').textContent = t('Give the key the name of the app that will use it (here is a suggestion), then press the button again.');
       return;
     }
+    const scopes = pickedScopes();
+    if (!scopes.length) {
+      $('#oa-key-status').textContent = t('Pick at least one thing this app may use.');
+      return;
+    }
     b.disabled = true;
     try {
       // Like letting in an app: proof it's you (passkey, owner token or two-step code).
       const proof = await helpers.confirmProof();
-      const r = await api('/devices/api-key', { method: 'POST', body: { label: $('#oa-key-label').value.trim(), ...proof } });
+      const r = await api('/devices/api-key', { method: 'POST', body: { label: $('#oa-key-label').value.trim(), ...(scopes.length < SCOPES.length ? { scopes } : {}), ...proof } });
       shownKey = r.key;
       $('#oa-key-value').textContent = r.key;
       $('#oa-key-show').hidden = false;

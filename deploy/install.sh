@@ -241,6 +241,8 @@ for item in src web persona templates skills plugins package.json package-lock.j
   rm -rf "${APP_DIR:?}/$item"
   cp -r "$SRC_DIR/$item" "$APP_DIR/"
 done
+# W2.5: the how-to clips the help plays (served at /docs/media/, src/help-media.ts).
+if [ -d "$SRC_DIR/docs/media" ]; then rm -rf "${APP_DIR:?}/docs/media"; mkdir -p "$APP_DIR/docs"; cp -r "$SRC_DIR/docs/media" "$APP_DIR/docs/"; fi
 # Local workflow candidates remain untrusted packages, reviewed separately before installation.
 CANDIDATE_PLUGINS=(
   daily-briefing meeting-assistant document-desk research-notebook project-handoff weekly-review

@@ -4,6 +4,7 @@
 // a how-to-cancel link), net worth from typed balances, categories the person edits. Tracking only:
 // she never logs in to a bank, pays, transfers or cancels anything.
 import { t } from './naming.js';
+import { handleIt } from './handle-it.js';
 import { initPurchases, loadPurchases } from './purchases.js';
 import { initTrim, loadTrim, markUnused } from './trim.js';
 
@@ -239,7 +240,7 @@ function renderBills() {
     const when = b.days < 0 ? t('was due {day}', { day: dayText(b.due) }) : b.days === 0 ? t('due today') : t('due {day} (in {n} days)', { day: dayText(b.due), n: b.days });
     li.append(el('strong', '', b.name), el('span', `small ${b.days <= 3 && !b.paid ? 'mn-over-t' : 'muted'}`, [b.amountCents === null ? '' : cur(b.amountCents), when, b.autopay ? t('autopay') : '', b.reminder ? t('reminder {n} days before', { n: b.leadDays }) : ''].filter(Boolean).join(' · ')));
     const acts = el('span', 'mn-acts');
-    acts.append(btn(t('Mark paid'), 'ghost small', () => void call(`/money/bills/${b.id}/paid`, 'POST', {}, t('Marked paid.'))), btn(t('Stop tracking'), 'ghost small', () => void call(`/money/bills/${b.id}`, 'DELETE')));
+    acts.append(btn(t('Handle it'), 'small', () => void handleIt('bill', b.id)), btn(t('Mark paid'), 'ghost small', () => void call(`/money/bills/${b.id}/paid`, 'POST', {}, t('Marked paid.'))), btn(t('Stop tracking'), 'ghost small', () => void call(`/money/bills/${b.id}`, 'DELETE')));
     li.append(acts);
     ul.append(li);
   }

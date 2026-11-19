@@ -72,7 +72,7 @@ languages, owner checks held to the end. Each wave is 5 builders. Phone-number i
 - **W3.3 Team workspace.** Business mode with shared projects, roles, shared inbox, approvals by role,
   audit export; SSO groups map to roles.
 - **W3.4 Agent workforce v2.** Workers with goals and KPIs, hand-offs between workers, a weekly plan
-  they propose, and budget caps per goal.
+  they propose, and budget caps per goal. DONE (2026-11-19, [W3WORKFORCE.md](W3WORKFORCE.md)).
 - **W3.5 Receptionist v2.** Multi-language, takes simple payments links you provide, follows up by email
   after your OK, and learns from your corrections.
 

@@ -5,6 +5,82 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.34.0 (2026-11-19): Public records report, Handle it, memory lane, MCP both ways, team workspace
+- New: a public-records report for personal use: she searches free public sources, cites every fact and saves a PDF marked NOT FCRA COMPLIANT on every page (W4.6, docs/RECORDS.md). Library → Public
+  records report (owner only): type a name, address, phone, email or username (plus city and state);
+  she searches free public sources (court, business and property records, news, public profiles),
+  never paid data brokers or sign-in sites, honours robots.txt and never gets around bot checks or
+  paywalls. The report gives every fact with its link, the date seen and a confidence, says "Not
+  found" for empty sections, and downloads as a PDF with "NOT FCRA COMPLIANT - This information can
+  not be used in housing, loan, employment, or other life altering decisions" on every page. People
+  under 18 are refused. Find more sources keeps digging; her list of places to search grows from what
+  worked and can be edited. Every search is kept in the audit log. Also from chat (`records_report`,
+  asks first).
+- New: **Handle it** (W4.1) on a renewal, a return, a bill, a Maybe cancel suggestion and a Library
+  form. She shows her plan first, then runs it with the tools she already has (mail and web search,
+  the form filler, the browser, email) and stops for your OK at sign-in, payment and sending. She
+  never types your passwords and never pays: you press Pay on the site, then "I paid" (a bill is then
+  marked paid in Money). A progress card has Pause/Resume and Stop, the end report lists a receipt
+  for every step, and every step is on the action timeline. Always allow never skips the sign-in or
+  the payment. Guide: docs/HANDLE_IT.md.
+- New: Memory lane in Your story writes "My year 2026" or a trip story from your own photos, journal and moments, with local models only (W4.2, docs/MEMORY_LANE.md). Pick "My year 2026" or a trip (from
+  your bookings or your photo folder's trip albums) and she writes a story from your own photos,
+  journal, moments and trips, with up to 12 picked photos you can leave out one by one. Narrate it
+  with the voice on this computer, save it as a PDF with the photos, or make a 7-day share link (asks
+  first; listed with your other shared links). Only a model on this computer writes it: photos and
+  journal words never go to a cloud model; without a local model she puts it together from your facts
+  in code. Stories are sealed in your own space, so household members each have their own.
+- New: popular free tool servers in one click (W3.2): Settings → Skills & tools → Other programs (MCP)
+  lists free, open-source MCP servers (files in one folder, Git, web pages, SQLite, time, notes graph,
+  step-by-step thinking, Playwright browser, GitHub with your own token), each with its source,
+  license and what it can touch. Add shows exactly what it can do before anything is installed; it
+  gets only the folder you pick and no internet unless it needs it. Tool permissions on its card set
+  Allow / Ask first / Off per tool.
+- New: a team workspace in business mode (W3.3). A **Team** tab with team roles (owner, admin, member,
+  guest) and one table of who may do what; guests only read. Company sign-in can map *guest groups*
+  too. Each workspace gets a team inbox (paste a message, assign it, reply as the team: a contributor's
+  reply waits for a manager) and approvals routed by role (spending over the organization's limit
+  needs an admin in the workspace; nobody approves their own request). The audit export can now be
+  narrowed by who and what and include every workspace's activity, still without any message text.
+  See docs/BUSINESS.md and docs/design/W3_TEAM.md.
+- New: Search help (W2.5). Type a word or a question under Help → Search help, or at the top of the
+  guide, and she finds the answer among every How do I…?, every setting and its tip, the guide and the
+  docs, in English, Spanish, French, German, Brazilian Portuguese and Italian. Show me opens the right
+  Settings page with the answer open and points at the control; anything not translated yet is marked
+  In English. It all runs on your server, with nothing sent anywhere.
+- New: short how-to clips for the ten most asked How do I…? answers. Press Watch it next to an answer.
+- New: goals for your workers (W3.4, Team → Goals and weekly plan). A worker's goal has one simple
+  measure (finished jobs, or a number it reports) and a cap in dollars or tokens; at the cap its jobs
+  stop and she asks you once. A goal can pass work along a chain of workers (one's output becomes the
+  next one's job, shown as one line). Each week the workers propose a plan you change and approve in
+  one card; the goal view shows progress, spend vs cap and what is blocked. Guide: docs/WORKERS.md.
+- New: website receptionist version 2 (W3.5, docs/RECEPTION.md). It answers each visitor in the
+  language they write in (English, Spanish, French, German, Portuguese, Italian), shares the payment
+  links you paste (it never takes a payment or card details), and when a visitor leaves an email it
+  writes a follow-up draft in their language that waits for your Send. Settings → Business details →
+  Receptionist conversations shows each visitor's questions and answers; Wrong? Write the right answer
+  keeps your answer and it is used the next time someone asks the same thing.
+- New: Settings → Models & usage → On this computer → Recommended for this computer (W2.4): a free,
+  local model for each job (talking, coding, pictures, hearing, voice, meaning search, the phone's
+  offline copy) picked for your graphics card or memory, with size, memory, license, Why this one and
+  whether we tested it. One click downloads it (her talking model stays as it is); hearing and voices
+  go to the Voice page. An optional monthly re-check (off by default, this computer only) tests the
+  downloaded ones and updates their Tested marks; `node scripts/model-recheck.ts --publish` puts the
+  same results on the results page. Guide: docs/FREE_MODELS.md.
+- New: the add-on kit in the SDK (W3.1, docs/ADDON_KIT.md). `sara-addon create my-addon` makes a
+  working add-on (a tool, a setting with its ? tip, a page shown as a card, tests) written with typed
+  `defineTool`, `defineSetting`, `definePage` and `defineAddon`; the manifest comes from the code.
+  `sara-addon test` runs the add-on in its own permission-limited process and runs its tests;
+  `--sara <source folder>` runs them in a throwaway Sara with the add-on installed through the real
+  review and install path, and `sara-addon dev` shows that Sara in the browser. `sara-addon pack`
+  writes the store bundle and a listing file and sends nothing (submitting stays `sara submit`).
+  Until the npm package is published it runs from the source folder:
+  `node packages/sara-sdk/src/cli.ts create my-addon`.
+- New: API keys for MCP apps can be limited to what you tick (W3.2): ask her, her memory, reminders,
+  her library, planner. Each key shows what it may use; older keys keep everything. New MCP tools
+  `list_reminders` and `add_reminder`. Children never get a key, and household members' keys reach
+  only their own space.
+
 ## 3.33.0 (2026-11-19): One personality, weekly check-in, easier installs, first ten minutes, host a friend
 
 - New: **How Sara comes across** (Settings → Sara → Name and personality): one personality for chat, her voice,

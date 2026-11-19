@@ -108,6 +108,16 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Do more for you: public records, Handle it, memory lane, MCP both ways, teams, in 3.34.0
+
+A public-records report searches free public sources only (never paid brokers), cites every fact and saves a PDF
+marked NOT FCRA COMPLIANT on every page; its list of places to search grows as it learns. Handle it runs renewals,
+returns, bills and forms end to end and stops for your OK at sign-in, sending and payment (she never pays). Memory
+lane writes your year and your trips from your own photos and journal with local models only. Free MCP tools install
+in one click with an approval card, and other apps can use Sara through scoped keys. Business mode gets a team
+workspace, and help search, model picks for your computer, an add-on kit, agent goals with caps and a smarter
+receptionist round it out.
+
 ## One Sara, round 2, and easier to run: personality, weekly check-in, installs, first run, friends, in 3.33.0
 
 One personality setting drives her chat, voice, email sign-off, receptionist greeting and face. A weekly check-in

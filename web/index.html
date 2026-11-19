@@ -755,6 +755,11 @@
         <h3 id="workers-h">Workers that stay <button type="button" class="tip" data-tip="A worker is a helper (or a crew member) that keeps going: its own name, character and chat, the tools it may use, a daily budget and a queue of jobs it does one at a time. It tells you once when it needs you.">?</button></h3>
         <div id="workers" aria-labelledby="workers-h"></div>
       </section>
+      <!-- W3.4 (docs/design/W3WORKFORCE.md): goals with a measure and a cap, hand-off chains, the weekly plan (web/worker-goals.js). -->
+      <section class="wgoals-box">
+        <h3 id="wgoals-h">Goals and weekly plan <button type="button" class="tip" data-tip="Give workers goals with something to count and a budget cap. At the cap their jobs stop and she asks you. Each week they propose a plan you approve or change in one card.">?</button></h3>
+        <div id="wgoals" aria-labelledby="wgoals-h"></div>
+      </section>
       <details class="jobs-more">
         <summary>Helpers and limits</summary>
         <div id="team-helpers" class="team-helpers"></div>
@@ -833,6 +838,9 @@
     <div class="settings-body help-menu">
       <h2>Help</h2>
       <p class="muted small">Every setting has a <span class="tip-demo">?</span>: hover or tap it for what it does, with an example and a link to the guide.</p>
+      <h3>Search help <button type="button" class="tip" data-tip="Finds answers on this server: the guide, every How do I…?, every setting and the docs. Try a word like backup or voice.">?</button></h3>
+      <input id="hm-q" type="search" autocomplete="off" placeholder="A setting, a question, a word" aria-label="Search help">
+      <div id="hm-hits" class="hf-box" aria-live="polite"></div>
       <h3>Short tours</h3>
       <div class="pick-cards" role="list">
         <button type="button" class="pick-card" data-tour="company"><strong>Companion tour</strong><span class="muted small">Six stops: talking, her panel, Today, Planner, Memory, her settings.</span></button>
@@ -984,6 +992,12 @@
       <button id="tm-interp" type="button" class="ghost" aria-pressed="false" title="Interpreter: two people, two languages">Interpreter</button>
       <button id="tm-mute" type="button" class="ghost" aria-pressed="false">Mute</button>
       <button id="tm-end" type="button">End</button>
+    </div>
+  </dialog>
+  <dialog id="handle-it" class="small-dialog handle-it" aria-labelledby="hi-title">
+    <div class="settings-body">
+      <h2 id="hi-title">Handle it</h2>
+      <div id="hi-body"></div>
     </div>
   </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
@@ -2073,6 +2087,17 @@
     <form method="dialog" class="settings-body story">
       <h2>Your story together</h2>
       <p class="muted small">Your time together in order: milestones, what you decided, promises (kept, open or not kept yet), projects you built, dates that matter and moments from the scrapbook. Click one to open where it came from.</p>
+      <!-- W4.2 (docs/MEMORY_LANE.md): Memory lane, yearly and trip stories (web/memory-lane.js) -->
+      <section class="story-lookback story-lane" data-nodirty>
+        <h3>Memory lane <button type="button" class="tip" data-tip="Stories from your own photos, journal, moments and trips. Only a model on this computer reads them; nothing goes to a cloud model. Kept private unless you make a share link.">?</button></h3>
+        <p class="muted small">Your year, or one trip, told as a story with picked photos. Listen to it, save it as a PDF, or share a private link.</p>
+        <div class="add-row story-range">
+          <label>Story <button type="button" class="tip" data-tip="A year with something in it, or a trip from your bookings or your photo folder.">?</button> <select id="lane-pick"></select></label>
+          <button id="lane-write" type="button">Write it</button>
+        </div>
+        <p id="lane-status" class="muted small" role="status"></p>
+        <div id="lane-list" class="lane-list"></div>
+      </section>
       <section class="story-lookback" data-nodirty>
         <h3>Look back <button type="button" class="tip" data-tip="She writes a warm look back over the dates you pick, using only what is on this page: nothing made up, and quotes only in your own exact words. It is saved in her memory as something she noticed.">?</button></h3>
         <div class="add-row story-range">
@@ -2164,6 +2189,7 @@
           <p class="small"><button id="lib-topics-open" type="button" class="ghost small" data-owner-only>What she has learned…</button> <button type="button" class="tip" data-tip="Point her at a topic or a website: she reads public pages, keeps what she learned with its sources and dates, can refresh it every day, week or month, and answers your questions from it.">?</button></p>
           <p class="small"><button id="lib-media-open" type="button" class="ghost small" data-owner-only>Pictures and video…</button> <button type="button" class="tip" data-tip="Edit your pictures and make short clips with ComfyUI on this computer: paint over what to change, extend, upscale, remove the background or restyle. Results and versions stay here." data-owner-only>?</button></p>
           <p class="small"><button id="lib-scan-open" type="button" class="ghost small">Scan pages…</button> <button type="button" class="tip" data-tip="Photograph a letter, a card or a whole contract with your phone or webcam. She crops and straightens each page, keeps one PDF here, reads it and finds dates to remind you of.">?</button></p>
+          <p class="small"><button id="lib-records-open" type="button" class="ghost small" data-owner-only>Public records report…</button> <button type="button" class="tip" data-tip="For your personal use only: she searches free public sources about an adult and writes a cited report and a PDF. Never paid brokers, never children." data-owner-only>?</button></p>
           <p class="small"><button id="lib-journal-open" type="button" class="ghost small">Journal…</button> <button type="button" class="tip" data-tip="A minute a day: say how your day went (or type it) and tag your mood. Heard on this computer only; just for you, never in chats, memory or reports.">?</button></p>
           <p class="small"><button id="lib-apps-open" type="button" class="ghost small">My apps…</button> <button type="button" class="tip" data-tip="Small web apps she built for you and kept: a tracker, a list, a game. Each keeps its versions (Undo any change) and its own saved data, runs sandboxed on this server, and can be shared by link.">?</button></p>
           <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
@@ -2278,6 +2304,35 @@
         <div id="myap-list" class="myap-list" data-nodirty data-noauto></div>
         <h3>Live views in chats <button type="button" class="tip" data-tip="Checklists, tables and charts she posted in a chat. They update by themselves from their source and run sandboxed, without your Sara sign-in. Remove one to stop it everywhere.">?</button></h3>
         <div id="myap-canvases" class="myap-list" data-nodirty data-noauto></div>
+      </section>
+      <!-- W4.6 (docs/RECORDS.md): public-records report, personal use only (web/records.js). -->
+      <section id="lib-records" hidden>
+        <p><button id="prr-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Public records report <button type="button" class="tip" data-tip="She searches free public sources only: search engines, public profiles, news, free court, property and business records. Every search is kept in your audit log.">?</button></h2>
+        <p class="prr-notice" role="note">NOT FCRA COMPLIANT - This information can not be used in housing, loan, employment, or other life altering decisions</p>
+        <p class="muted small">For your own personal research only. Adults only: she refuses anyone under 18. No paid data brokers, no sign-in-only sites, no getting around site rules.</p>
+        <div id="prr-form" class="prr-form" data-nodirty data-noauto>
+          <label><span class="small">Name <button type="button" class="tip" data-tip="The person's full name. Add a middle initial if you know it.">?</button></span> <input id="prr-name" type="text" maxlength="100" autocomplete="off"></label>
+          <label><span class="small">City <button type="button" class="tip" data-tip="Where they live or lived. Tells apart people with the same name and raises confidence.">?</button></span> <input id="prr-city" type="text" maxlength="60" autocomplete="off"></label>
+          <label><span class="small">State <button type="button" class="tip" data-tip="A US state (IL or Illinois). Also picks the state's own free places to search.">?</button></span> <input id="prr-state" type="text" maxlength="40" autocomplete="off"></label>
+          <label><span class="small">Street address <button type="button" class="tip" data-tip="Optional. A match that shows the same street address counts for more.">?</button></span> <input id="prr-address" type="text" maxlength="160" autocomplete="off"></label>
+          <label><span class="small">Phone <button type="button" class="tip" data-tip="Optional. Searched as written and used to cross-check matches.">?</button></span> <input id="prr-phone" type="tel" maxlength="24" autocomplete="off"></label>
+          <label><span class="small">Email <button type="button" class="tip" data-tip="Optional. Searched as written and used to cross-check matches.">?</button></span> <input id="prr-email" type="email" maxlength="120" autocomplete="off"></label>
+          <label><span class="small">Username <button type="button" class="tip" data-tip="Optional. An online handle; she looks for public profiles that use it.">?</button></span> <input id="prr-username" type="text" maxlength="60" autocomplete="off"></label>
+          <label><span class="small">Age <button type="button" class="tip" data-tip="Optional, approximate. Under 18 is refused.">?</button></span> <input id="prr-age" type="number" min="18" max="120" inputmode="numeric"></label>
+          <p class="prr-go"><button id="prr-start" type="button">Search public records</button></p>
+        </div>
+        <p id="prr-status" class="small" role="status" aria-live="polite"></p>
+        <div id="prr-body" class="prr-body" data-nodirty data-noauto></div>
+        <h3>Places she searches <button type="button" class="tip" data-tip="Her list of free places per record type and region. Sites that worked are added with what they hold; failing or paid ones are marked and skipped. Edit anything.">?</button></h3>
+        <div id="prr-places" class="prr-places" data-nodirty data-noauto></div>
+        <div class="prr-add" data-nodirty data-noauto>
+          <label><span class="small">Site <button type="button" class="tip" data-tip="A free site to search, like courtlistener.com. Paid data brokers are refused.">?</button></span> <input id="prr-p-domain" type="text" maxlength="120" autocomplete="off"></label>
+          <label><span class="small">Record type <button type="button" class="tip" data-tip="What kind of records the site holds.">?</button></span> <select id="prr-p-type"><option value="court">Court records</option><option value="property">Property records</option><option value="business">Business registrations</option><option value="news">News and mentions</option><option value="social">Profiles and social media</option><option value="web">Other public pages</option></select></label>
+          <label><span class="small">Region <button type="button" class="tip" data-tip="Everywhere, the US, or one state like US-IL.">?</button></span> <input id="prr-p-region" type="text" maxlength="5" value="any" autocomplete="off"></label>
+          <label><span class="small">What it holds <button type="button" class="tip" data-tip="A few words she reads when she picks where to search.">?</button></span> <input id="prr-p-holds" type="text" maxlength="200" autocomplete="off"></label>
+          <p><button id="prr-p-add" type="button" class="ghost">Add place</button></p>
+        </div>
       </section>
       <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
       <section id="lib-meetings" hidden>
@@ -3509,6 +3564,13 @@
         <p class="small"><strong>Models on this computer</strong></p>
         <ul id="lm-installed" class="lm-installed"></ul>
       </div>
+      <h3>Recommended for this computer <button type="button" class="tip" data-tip="Free models we suggest for each job on your hardware: size, memory, license and how they did in our own checks. Nothing downloads until you press a button.">?</button></h3>
+      <div id="fm-box" class="fm-box" data-noauto data-nodirty>
+        <p id="fm-version" class="muted small"></p>
+        <div id="fm-list" class="fm-list"></div>
+        <label class="row fm-switch"><input id="fm-recheck-on" type="checkbox"> <span>Re-check downloaded models every month</span> <button type="button" class="tip" data-tip="Once a month, when nobody is talking to her, Sara gives the listed models on this computer a few short tests and updates their Tested marks. Only this computer is used.">?</button></label>
+        <p class="small"><button id="fm-recheck-now" type="button" class="ghost small">Re-check now</button> <span id="fm-recheck-status" class="muted small" role="status"></span></p>
+      </div>
         </section>
         <section class="settings-page" data-page="models-default" data-group="Models & usage" data-title="Default model" hidden>
       <div id="model-empty" class="lean-card" hidden>
@@ -3941,6 +4003,10 @@
       <h3>Website receptionist <button type="button" class="tip" data-tip="A chat for your own website: it answers from documents you pick, offers free times, and every booking waits for your OK.">?</button></h3>
       <p id="rc-status" class="muted small" role="status"></p>
       <div id="rc-box" data-nodirty data-noauto></div>
+      <!-- W3.5 (docs/RECEPTION.md "Version 2"): what visitors asked, follow-up drafts and approved answers (web/receptionist.js). -->
+      <h3>Receptionist conversations <button type="button" class="tip" data-tip="What visitors asked and what it answered. Fix a wrong answer and it uses yours next time; follow-up emails wait here for your OK.">?</button></h3>
+      <p id="rcv-status" class="muted small" role="status"></p>
+      <div id="rcv-box" data-nodirty data-noauto></div>
       <h3>Accounting export <button type="button" class="tip" data-tip="CSV files of your invoices, expenses and time for QuickBooks Online, Xero or any spreadsheet. Files only: nothing is sent to an accounting service.">?</button></h3>
       <div id="wa-acct" data-nodirty data-noauto></div>
         </section>
@@ -4831,6 +4897,9 @@
         <label class="row"><input id="mcp-apps" type="checkbox" checked> <span>Show its apps in the chat <button type="button" class="tip" data-tip="Some tool servers send a small interactive panel with a result (MCP Apps). It runs walled off from Sara: it can't see your data, and anything it asks to change waits for your OK. Turn off to get plain text only.">?</button></span></label>
         <button id="mcp-save" type="button">Save and connect</button>
       </details>
+      <h3>Popular free tool servers <button type="button" class="tip" data-tip="Free, open-source tool servers you can add with one click. Each shows what it can do before you add it; it gets only the folder you pick, and no internet unless it needs it.">?</button></h3>
+      <p class="muted small">Pick one, press Add, read what it can do, then Allow and add. Change what each of its tools may do under Tool permissions.</p>
+      <div id="mcp-catalog" class="mcpc" data-nodirty data-noauto></div>
       <h3>Programs add-ons need</h3>
       <p class="muted small">Some add-ons need a program on the computer where Sara runs. Sara can install a missing one with this system's normal installer, after you approve the exact commands.</p>
       <label class="row">Program installs <select id="prq-installs" data-nodirty><option value="ask">Ask first</option><option value="allowed">Allowed (one click)</option><option value="off">Off</option></select> <button type="button" class="tip" data-tip="Ask first: Sara shows the exact commands and waits for Install. Allowed: Install it for me starts at once (you still see every command). Off: Sara never installs programs. Your admin's policy can tighten this.">?</button></label>
@@ -5228,7 +5297,15 @@
       <p class="small">For chat apps (OpenAI-compatible): <code id="oa-v1"></code> <button id="oa-v1-copy" type="button" class="ghost small">Copy</button></p>
       <p class="small">For MCP apps: <code id="oa-mcp"></code> <button id="oa-mcp-copy" type="button" class="ghost small">Copy</button></p>
       <h3>API keys <button type="button" class="tip" data-tip="A key lets one app talk to her and use what you allow below. It only works for these two addresses, never for the rest of the app. Name it after the app, copy it once, and remove it here when you stop using that app.">?</button></h3>
-      <div class="add-row" data-nodirty><label>Name of the app <input id="oa-key-label" placeholder="e.g. SillyTavern" maxlength="60"></label><button id="oa-key-new" type="button">Create an API key for another app</button></div>
+      <div id="oa-scopes" class="oa-scopes" data-nodirty data-noauto>
+        <p class="small">What a new key may use (MCP apps) <button type="button" class="tip" data-tip="An MCP app with this key sees only the parts you tick. Chat apps (OpenAI-compatible) can always talk to her. Keys made before this choice keep everything.">?</button></p>
+        <label class="row"><input id="oa-scope-ask" type="checkbox" checked> <span>Ask her (chat) <button type="button" class="tip" data-tip="The app can send her a message and get her reply.">?</button></span></label>
+        <label class="row"><input id="oa-scope-memory" type="checkbox" checked> <span>Her memory <button type="button" class="tip" data-tip="Search what she remembers, facts and recent chat titles; with changes on, ask her to remember a fact.">?</button></span></label>
+        <label class="row"><input id="oa-scope-reminders" type="checkbox" checked> <span>Reminders <button type="button" class="tip" data-tip="See upcoming reminders; with changes on, set new ones.">?</button></span></label>
+        <label class="row"><input id="oa-scope-library" type="checkbox" checked> <span>Search her library <button type="button" class="tip" data-tip="Search the documents in her library.">?</button></span></label>
+        <label class="row"><input id="oa-scope-planner" type="checkbox" checked> <span>Planner <button type="button" class="tip" data-tip="Today's agenda, to-dos and notes; adding or changing them needs changes on.">?</button></span></label>
+      </div>
+      <div class="add-row" data-nodirty><label>Name of the app <button type="button" class="tip" data-tip="Name the key after the app that will use it, so you know which key to remove later.">?</button> <input id="oa-key-label" placeholder="e.g. SillyTavern" maxlength="60"></label><button id="oa-key-new" type="button">Create an API key for another app</button></div>
       <div id="oa-key-show" class="tok-new" hidden><p class="small"><strong>The new key</strong> (shown only now; paste it into the app):</p><code id="oa-key-value"></code> <button id="oa-key-copy" type="button" class="ghost small">Copy</button></div>
       <p id="oa-key-status" class="small" role="status"></p>
       <ul id="oa-keys" class="dev-list"></ul>

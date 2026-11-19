@@ -21,6 +21,7 @@ import { addNotToday, getLayout, LayoutError, putLayout, resetLayout, setSeen } 
 import { todayLoaders } from '../today-parts.ts';
 import { workspaceDir } from '../tools/workspace.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { memoryLaneRoute } from './memory-lane.ts';
 
 const SKIP_DIRS = new Set(['.git', 'node_modules', '.venv', '__pycache__', '.cache', 'dist', 'build', '.next']);
 /** Files in a folder (newest first), skipping dependency/VCS folders. */
@@ -486,6 +487,8 @@ export function createPlannerRoutes(ctx: RouteCtx): RouteHandler {
     // Phase 22: weekly review.
     // Phase 53: your story together: the merged timeline, look backs she wrote, write a new one.
     if (a === 'story') {
+      // W4.2: Memory lane (yearly and trip stories; src/routes/memory-lane.ts).
+      if (b === 'lane') return memoryLaneRoute(app, req, res, method, c, parts[3], parts[4]);
       const dateOk = (x: unknown) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) && !Number.isNaN(Date.parse(`${x}T00:00:00Z`)) ? x : undefined);
       if (!b && method === 'GET') {
         const q = new URL(req.url ?? '/', 'http://x').searchParams;

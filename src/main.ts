@@ -37,6 +37,7 @@ import { WeeklyWorker } from './weekly.ts';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { copyOffsite, offsiteTestDue, testOffsite } from './offsite-run.ts';
 import { restoreTestDue, runRestoreTest } from './restore-test.ts';
+import { recheckOf } from './model-recheck.ts';
 import { formatDoctor, runDoctor } from './doctor.ts';
 import { createSafetyReportTool, sweepUndo, weeklySafetyTick, type SafetyDeps } from './safety-check.ts';
 import { createSuggestRoutineTool, routinesFor, ROUTINES_DIR } from './routines.ts';
@@ -127,6 +128,7 @@ import { createSportsTools } from './tools/sports.ts';
 import { createAnalyzeTableTool } from './table-query.ts';
 import { Research } from './research.ts';
 import { createResearchTools } from './tools/research-tool.ts';
+import { createRecordsTools } from './records.ts';
 import { createShoppingTools } from './tools/shopping.ts';
 import { Learning } from './learn.ts';
 import { runAutoUpdates } from './addon-autoupdate.ts';
@@ -1347,6 +1349,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     app.research = new Research(app, store.db);
     // 3.1.2: deep web work from a chat goes to a research run (research_start), not a fetch loop.
     for (const t of createResearchTools(() => app)) tools.add(t);
+    // W4.6: public-records report (personal use only; asks first; never members or kids).
+    for (const t of createRecordsTools(() => app)) tools.add(t);
     // E2: find it near me (find_product, stores_near) and product watches on the reminder tick.
     for (const t of createShoppingTools(app, store.db)) tools.add(t);
     // A run a restart interrupted goes on from its last checkpoint, once the server is up.
@@ -2081,6 +2085,8 @@ const evalTimer = setInterval(() => guard('evals', () => {
     c.app.evals?.tick();
     c.app.costAutopilot?.tick();
   }
+  // W2.4: the monthly re-check of free local models (off by default; src/model-recheck.ts).
+  void recheckOf(ownerSpace.companions.main.app).tick().catch((err: Error) => console.warn(`model re-check: ${err.message}`));
 }), 3600_000);
 evalTimer.unref();
 

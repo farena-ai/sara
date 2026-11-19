@@ -39,3 +39,26 @@ h4 { font-size: 15px; margin: 16px 0 4px; font-weight: 600; color: var(--text-2)
 .howto-q summary:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; border-radius: 4px; }
 .howto-q ol { margin: 0 0 10px; }
 .howto-q:target, h4:target { scroll-margin-top: 16px; }
+
+/* W2.5: help search results (web/help-find.js), shared look on /help and in the Help window. */
+.hf-box:empty { display: none; }
+.hf-list { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 8px; }
+.hf-hit { padding: 10px 12px; border: 1px solid var(--hairline); border-radius: 12px; background: var(--surface-1); min-width: 0; }
+.hf-head { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.hf-kind, .hf-en { font-size: 11px; line-height: 1.4; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--hairline-strong); color: var(--text-2); }
+.hf-en { border-style: dashed; }
+.hf-title { display: block; text-align: left; font-weight: 600; margin: 4px 0 2px; padding: 0; background: none; border: 0; color: var(--accent-text); font: inherit; font-weight: 600; cursor: pointer; overflow-wrap: anywhere; }
+.hf-place { overflow-wrap: anywhere; }
+.hf-text { margin: 4px 0 0; color: var(--text-2); overflow-wrap: anywhere; }
+.hf-acts { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 6px; align-items: center; }
+.hf-video { display: block; width: 100%; max-width: 640px; margin-top: 8px; border-radius: 10px; border: 1px solid var(--hairline); }
+.hf-none { margin: 8px 0 0; }
+
+.help-find { margin: 14px 0 6px; }
+.help-find input[type=search] { width: 100%; box-sizing: border-box; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--hairline-strong); background: var(--surface-1); color: var(--text-1); font: inherit; }
+.help-find input[type=search]:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; }
+.help-find .linkish { background: none; border: 0; padding: 0; color: var(--accent-text); font: inherit; cursor: pointer; text-decoration: underline; }
+.help-find .small { font-size: 14px; }
+.help-doc { margin-top: 10px; padding: 14px 16px; border: 1px solid var(--hairline-strong); border-radius: 14px; background: var(--surface-1); }
+.help-doc h3 { margin: 6px 0 2px; }
+.help-doc .hd-text { white-space: pre-line; }

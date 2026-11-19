@@ -1,5 +1,6 @@
 import { recoveryMode } from './recovery.ts';
 import type { BusinessControlStore } from './store.ts';
+import { teamGuest } from './team-schema.ts';
 import { BUSINESS_UUID, type BusinessPrincipal, type OrganizationMembership, type WorkspaceAction, type WorkspaceContext } from './types.ts';
 
 export class BusinessAccessError extends Error {
@@ -62,6 +63,8 @@ export class BusinessPolicy {
       const workspace = this.#store.workspace(workspaceId);
       const membership = this.#store.workspaceMembership(workspaceId, principal.identityId);
       if (!workspace || workspace.visibility !== 'shared' || workspace.status !== 'active' || !membership || membership.status !== 'active' || !Object.hasOwn(permissions, membership.role) || !permissions[membership.role].includes(action) || !Number.isSafeInteger(membership.revision) || membership.revision < 1 || !Number.isSafeInteger(workspace.policyRevision) || workspace.policyRevision < 1) throw new BusinessAccessError(404);
+      // W3.3: a guest only reads, whatever their workspace grant says.
+      if (organization.role === 'user' && action !== 'read' && teamGuest(this.#store.database, principal.identityId)) throw new BusinessAccessError(404);
       const context: WorkspaceContext = Object.freeze({ principal: Object.freeze({ ...principal }), workspaceId, role: membership.role, authEpoch: principal.authEpoch, organizationRevision: organization.revision, workspaceMembershipRevision: membership.revision, policyRevision: workspace.policyRevision });
       this.#issued.add(context); return context;
     } catch { throw new BusinessAccessError(404); }

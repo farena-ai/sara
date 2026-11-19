@@ -68,7 +68,8 @@ export async function renderSsoSettings({ api, host, run, current }) {
   const claim = field(t('Group claim name'), t('The ID-token claim that lists a person’s groups. Usually groups.'), 'sso-group-claim'); claim.input.maxLength = 64; claim.input.spellcheck = false;
   const admins = field(t('Administrator groups'), t('People in any of these groups become organization administrators. Separate with commas. Your own break-glass account is never changed.'), 'sso-admin-groups', 'textarea');
   const members = field(t('Member groups'), t('People in any of these groups become members. When any group is listed, people in no listed group are refused.'), 'sso-member-groups', 'textarea');
-  for (const area of [admins.input, members.input]) area.rows = 2;
+  const guests = field(t('Guest groups'), t('People in these groups (and in no administrator or member group) become guests: they only read the workspaces they are added to.'), 'sso-guest-groups', 'textarea');
+  for (const area of [admins.input, members.input, guests.input]) area.rows = 2;
   const jit = check(t('Create accounts on first sign-in (just in time)'), t('Off: a new person needs an invitation before the first company sign-in. On: anyone passing the domain and group rules gets an account.'), 'sso-jit');
   const enforce = check(t('Members must use company sign-in'), t('Refuses passkey sign-in for everyone except the break-glass account, so removing someone at your provider removes them here.'), 'sso-enforce');
   const hours = field(t('Session length (hours)'), t('A company sign-in ends after this many hours, from 1 to 168. People then sign in again.'), 'sso-session-hours'); hours.input.type = 'number'; hours.input.min = '1'; hours.input.max = '168';
@@ -76,7 +77,7 @@ export async function renderSsoSettings({ api, host, run, current }) {
 
   const fill = value => {
     enabled.input.checked = value.enabled; preset.input.value = value.preset; issuer.input.value = value.issuer; clientId.input.value = value.clientId; secret.input.value = '';
-    domains.input.value = value.allowedDomains.join(', '); claim.input.value = value.groupClaim; admins.input.value = value.adminGroups.join(', '); members.input.value = value.memberGroups.join(', ');
+    domains.input.value = value.allowedDomains.join(', '); claim.input.value = value.groupClaim; admins.input.value = value.adminGroups.join(', '); members.input.value = value.memberGroups.join(', '); guests.input.value = (value.guestGroups ?? []).join(', ');
     jit.input.checked = value.jit; enforce.input.checked = value.enforce; hours.input.value = String(value.sessionHours); minutes.input.value = String(value.checkMinutes);
     secretState.textContent = value.secretSaved ? t('A client secret is saved. Leave the field empty to keep it.') : t('No client secret saved yet.');
   };
@@ -113,7 +114,7 @@ export async function renderSsoSettings({ api, host, run, current }) {
     const sessionHours = Number(hours.input.value); const checkMinutes = Number(minutes.input.value);
     if (!Number.isInteger(sessionHours) || sessionHours < 1 || sessionHours > 168 || !Number.isInteger(checkMinutes) || checkMinutes < 5 || checkMinutes > 60) { status.textContent = t('Use a session length from 1 to 168 hours and a session check from 5 to 60 minutes.'); return; }
     const value = await api('/sso/config', { enabled: enabled.input.checked, preset: preset.input.value, issuer: issuer.input.value.trim(), clientId: clientId.input.value.trim(), ...(secret.input.value ? { clientSecret: secret.input.value } : {}),
-      allowedDomains: words(domains.input.value), groupClaim: claim.input.value.trim() || 'groups', adminGroups: words(admins.input.value), memberGroups: words(members.input.value), jit: jit.input.checked, enforce: enforce.input.checked, sessionHours, checkMinutes });
+      allowedDomains: words(domains.input.value), groupClaim: claim.input.value.trim() || 'groups', adminGroups: words(admins.input.value), memberGroups: words(members.input.value), guestGroups: words(guests.input.value), jit: jit.input.checked, enforce: enforce.input.checked, sessionHours, checkMinutes });
     if (!current()) return; fill(value); status.textContent = t('Company sign-in saved.');
   }, save); };
   test.onclick = () => run(async () => {
@@ -122,7 +123,7 @@ export async function renderSsoSettings({ api, host, run, current }) {
       : result.reason === 'incomplete' ? t('Save an issuer URL and client ID first.') : result.reason === 'issuer' ? t('The issuer URL does not match what the provider reports. Copy it exactly from the provider.') : t('Sara could not reach the provider’s discovery document or keys. Check the issuer URL and the network.');
   }, test);
   const actions = element('div'); actions.className = 'actions'; actions.append(save, test, trial, trialResult);
-  form.append(enabled.wrapper, preset.wrapper, steps, issuer.wrapper, clientId.wrapper, secret.wrapper, secretState, domains.wrapper, claim.wrapper, admins.wrapper, members.wrapper, jit.wrapper, enforce.wrapper, hours.wrapper, minutes.wrapper, actions, status, testLine);
+  form.append(enabled.wrapper, preset.wrapper, steps, issuer.wrapper, clientId.wrapper, secret.wrapper, secretState, domains.wrapper, claim.wrapper, admins.wrapper, members.wrapper, guests.wrapper, jit.wrapper, enforce.wrapper, hours.wrapper, minutes.wrapper, actions, status, testLine);
   section.append(form, element('p', t('Without refresh tokens from your provider, only the session length applies: a person removed at the provider keeps access until their session ends.')));
   fill(config); showSteps(); host.append(section); attachTips(section);
   // Back from the provider in this tab (/?sso-test=done): show what the test found.

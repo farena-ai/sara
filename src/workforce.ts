@@ -195,15 +195,21 @@ const localParts = (now: Date, tz: string | undefined) => {
  * chosen hour); each slot is sent once. The first look only records the slot, so turning Sara on (or
  * the report) mid-week never sends an old week at once. Idle weeks send nothing.
  */
-export function workforceTick(app: AppContext, now: Date = app.now()): boolean {
-  if (!app.workers || app.member) return false;
+/** The week's slot (a date): the latest chosen report day at or before now, from the chosen hour. W3.4's weekly plan uses it too. */
+export function weekSlot(app: AppContext, now: Date = app.now()): string {
   const prefs = workforcePrefs(app);
   const l = localParts(now, app.settings.get().timeZone);
   let back = (l.weekday - prefs.day + 7) % 7;
   if (back === 0 && l.hour < prefs.hour) back = 7;
   const d = new Date(`${l.date}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() - back);
-  const slot = d.toISOString().slice(0, 10);
+  return d.toISOString().slice(0, 10);
+}
+
+export function workforceTick(app: AppContext, now: Date = app.now()): boolean {
+  if (!app.workers || app.member) return false;
+  const prefs = workforcePrefs(app);
+  const slot = weekSlot(app, now);
   const st = readState(app);
   if (st.lastWeek === slot) return false;
   writeState(app, { ...st, lastWeek: slot });

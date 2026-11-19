@@ -18,6 +18,10 @@ Models**: *Default model*, *Which model does what*, *Subscriptions* and *Model p
 
 ## Running models yourself: how much GPU memory?
 
+Short on time? Settings → Models & usage → On this computer → *Recommended for this computer* picks a
+free model per job (talking, coding, pictures, hearing, voice, meaning search, the phone's offline
+copy) for your hardware, with size, license and our own test results: see [FREE_MODELS.md](FREE_MODELS.md).
+
 A model's size is counted in billions of parameters ("27B"). Ollama usually downloads a 4-bit
 version, which needs roughly **0.6 GB of GPU memory (VRAM) per billion parameters**, plus a few GB
 for the conversation (the "context"). Rough guide:

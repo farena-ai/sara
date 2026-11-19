@@ -61,7 +61,7 @@ export type HubEvent = (
   /** Phase 70: the album "Our moments" changed (photos added, captions written). */
   | { type: 'moments'; added: number; captioned: number }
   /** Phase 53: a look back was written (or failed). */
-  | { type: 'story'; what: 'lookback'; id?: number; error?: string }
+  | { type: 'story'; what: 'lookback' | 'lane'; id?: number; error?: string }
   /** Phase 81: findings changed (a security pass ended, a fix branch moved on, a finding was dismissed). */
   | { type: 'findings'; conversationId: string | null; workspace: string | null; summary?: unknown; findingId?: number }
   /** Phase 84: an eval moved on (a run finished, the judge, the result). */

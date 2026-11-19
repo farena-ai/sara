@@ -21,6 +21,7 @@ import type { AppContext, ChatEvent } from './chat.ts';
 import type { InboxMail } from './inbox/classify.ts';
 import { en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
+import { alwaysAllowOn } from './always-allow.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { ERRAND_SENT } from './receipts.ts';
 import type { Permission, ToolContext } from './tools/types.ts';
@@ -86,6 +87,8 @@ export interface Step {
   waitFor?: 'any' | 'all';
   /** browser: a step that commits (a final confirm) asks first. */
   needsOk?: boolean;
+  /** W4.1: a sign-in on their site: always the person's own (she never types passwords). */
+  signIn?: boolean;
   ask?: string;
   pending?: Pending;
 }
@@ -122,6 +125,8 @@ export interface Errand {
   log: { at: string; text: string }[];
   createdAt: string;
   updatedAt: string;
+  /** W4.1 Handle it: Pause holds the runner (the tick and Next) until Resume. */
+  paused?: boolean;
 }
 export interface StepDraft {
   text?: string;
@@ -138,6 +143,7 @@ export interface StepDraft {
   amount?: number;
   followUpDays?: number;
   needsOk?: boolean;
+  signIn?: boolean;
 }
 export interface ErrandDraft {
   goal: string;
@@ -286,6 +292,8 @@ export function templateFor(goal: string): Template | undefined {
   return ['refund', 'cancel', 'renew', 'quotes', 'dispute', 'book', 'return'].map((id) => TEMPLATES.find((t) => t.id === id)!).find((t) => t.words.test(g));
 }
 
+/** Dollars for the person: whole amounts as they are, cents with two digits ($84.20). */
+const usd = (n: number): string => (Number.isInteger(n) ? `$${n}` : `$${n.toFixed(2)}`);
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 const line = (v: unknown, n: number) => String(v ?? '').replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, ' ').trim().slice(0, n);
 
@@ -302,8 +310,18 @@ function cleanStep(d: StepDraft, collect?: Fact[]): Step | undefined {
   if (typeof d.amount === 'number' && Number.isFinite(d.amount) && d.amount >= 0) s.amount = Math.round(d.amount * 100) / 100;
   if (typeof d.followUpDays === 'number' && d.followUpDays > 0) s.followUpDays = Math.min(30, Math.round(d.followUpDays));
   if (d.needsOk === true) s.needsOk = true;
+  if (d.signIn === true) s.signIn = true;
   return s;
 }
+
+/** W4.1 (src/handle-it.ts): a checked step, with what it collects from what it reads. */
+export function stepOf(d: StepDraft, collect?: string[]): Step | undefined {
+  const known: Fact[] = ['amount', 'date', 'order', 'merchant', 'email', 'emails', 'phone', 'url', 'list'];
+  return cleanStep(d, collect?.filter((c): c is Fact => (known as string[]).includes(c)));
+}
+
+/** W4.1 Handle it: told about each finished step and each end (src/handle-it.ts registers them). */
+export const errandHooks: { step?: (app: AppContext, e: Errand, s: Step) => void; end?: (app: AppContext, e: Errand) => void } = {};
 
 /** A plan for a goal: the model's own steps, else the template's (picked by name or by the goal's words). */
 export function planFor(goal: string, o: { template?: string; steps?: StepDraft[]; facts?: Record<string, unknown> } = {}): { template: string | null; steps: Step[] } {
@@ -396,6 +414,7 @@ interface Data {
   found: Found[];
   replies: Reply[];
   log: { at: string; text: string }[];
+  paused?: boolean;
 }
 
 export class Errands {
@@ -466,6 +485,7 @@ CREATE TABLE IF NOT EXISTS errands (
       summary: r.summary ? String(r.summary) : null,
       createdAt: String(r.created_at),
       updatedAt: String(r.updated_at),
+      ...(d.paused ? { paused: true } : {}),
     };
   }
   list(o: { open?: boolean } = {}): Errand[] {
@@ -486,7 +506,7 @@ CREATE TABLE IF NOT EXISTS errands (
     return e;
   }
   #save(e: Errand): Errand {
-    const data: Data = { steps: e.steps, contacts: e.contacts, facts: e.facts, found: e.found, replies: e.replies, log: e.log.slice(-ERRAND.keepLog) };
+    const data: Data = { steps: e.steps, contacts: e.contacts, facts: e.facts, found: e.found, replies: e.replies, log: e.log.slice(-ERRAND.keepLog), ...(e.paused ? { paused: true } : {}) };
     const cur = e.steps.find((s) => s.status === 'waiting_you');
     e.needs = e.status === 'waiting_you' ? (cur?.ask ?? null) : null;
     this.#db
@@ -609,6 +629,34 @@ CREATE TABLE IF NOT EXISTS errands (
     if (e.status === 'done' || e.status === 'stopped') return e;
     return this.#end(e, 'stopped', why ?? this.#T(en('You stopped it.')));
   }
+  /** W4.1: Pause holds the runner; a waiting card stays but can't be answered until Resume. */
+  pause(id: number): Errand {
+    const e = this.#must(id);
+    if (e.status === 'done' || e.status === 'stopped') throw new ErrandError(409, en('This errand is over.'));
+    if (e.paused) return e;
+    e.paused = true;
+    this.#log(e, 'You paused it.');
+    return this.#save(e);
+  }
+  resume(id: number): Errand {
+    const e = this.#must(id);
+    if (!e.paused) return e;
+    e.paused = false;
+    this.#log(e, 'You resumed it.');
+    return this.#save(e);
+  }
+  /** W4.1: a planned errand's steps replaced by a finer plan (only before it starts). */
+  replan(id: number, steps: Step[], facts: Record<string, string> = {}): Errand {
+    const e = this.#must(id);
+    if (e.status !== 'planning' || !steps.length) return e;
+    e.steps = steps.slice(0, ERRAND.maxSteps);
+    for (const [k, v] of Object.entries(facts)) if (/^\w{1,30}$/.test(k)) e.facts[k] = line(v, 300);
+    return this.#save(e);
+  }
+  /** W4.1: Always allow (W0.7) lets a Handle it errand skip tool and send cards; never sign-in, submit or pay. */
+  #allowAll(e: Errand): boolean {
+    return Boolean(e.facts.handleKind) && alwaysAllowOn(this.#app);
+  }
   remove(id: number): boolean {
     return this.#db.prepare('DELETE FROM errands WHERE id = ?').run(id).changes > 0;
   }
@@ -618,7 +666,9 @@ CREATE TABLE IF NOT EXISTS errands (
     // What came back matters for emails, answers, choices, calls and payments; look-ups just say they were done.
     const done = e.steps.filter((s) => s.status === 'done').map((s) => (s.kind === 'research' || s.kind === 'browser' || !s.result ? s.text : `${s.text}: ${clip(s.result.replace(/\s+/g, ' '), 200)}`));
     const left = e.steps.filter((s) => s.status !== 'done' && s.status !== 'skipped').map((s) => s.text);
-    return [why ?? '', done.length ? `${T(en('Done:'))} ${done.join(' · ')}` : T(en('Nothing was done yet.')), left.length ? `${T(en('Not done:'))} ${left.join(' · ')}` : '', e.spent ? T(en('You paid {amount}.'), { amount: `$${e.spent}` }) : ''].filter(Boolean).join('\n');
+    // W4.1 Handle it reports back with receipts: each finished step's proof line.
+    const receipts = e.facts.handleKind ? e.steps.filter((s) => s.status === 'done' && s.evidence?.line).map((s) => `- ${s.text}: ${clip(s.evidence!.line!, 160)}`) : [];
+    return [why ?? '', done.length ? `${T(en('Done:'))} ${done.join(' · ')}` : T(en('Nothing was done yet.')), left.length ? `${T(en('Not done:'))} ${left.join(' · ')}` : '', e.spent ? T(en('You paid {amount}.'), { amount: usd(e.spent) }) : '', receipts.length ? `${T(en('Receipts:'))}\n${receipts.join('\n')}` : ''].filter(Boolean).join('\n');
   }
   #end(e: Errand, status: 'done' | 'stopped', why?: string): Errand {
     e.status = status;
@@ -629,6 +679,11 @@ CREATE TABLE IF NOT EXISTS errands (
     e.summary = this.summaryOf(e, why);
     this.#log(e, status === 'done' ? 'Done.' : `Stopped: ${why ?? ''}`);
     const saved = this.#save(e);
+    try {
+      errandHooks.end?.(this.#app, saved);
+    } catch {
+      /* the timeline is best effort */
+    }
     const title = status === 'done' ? this.#T(en('Errand done: {goal}'), { goal: clip(e.goal, 60) }) : this.#T(en('Errand stopped: {goal}'), { goal: clip(e.goal, 60) });
     this.#say(saved, `${title}\n${saved.summary}`);
     void this.#push(saved, title, clip(saved.summary ?? '', 300));
@@ -686,6 +741,11 @@ CREATE TABLE IF NOT EXISTS errands (
     delete s.ask;
     if (e.status !== 'stopped') e.status = 'working';
     this.#log(e, `${s.text}: ${clip(result, 200)}`);
+    try {
+      errandHooks.step?.(this.#app, e, s);
+    } catch {
+      /* the timeline is best effort */
+    }
   }
   #you(note?: string): Evidence {
     return { kind: 'you', verified: 'read', line: this.#T(en('Your word: you marked it done.')) + (note ? ` (${clip(note, 120)})` : ''), at: this.#now().toISOString() };
@@ -698,6 +758,7 @@ CREATE TABLE IF NOT EXISTS errands (
     const s = e.steps[i];
     if (e.status === 'done' || e.status === 'stopped') throw new ErrandError(409, en('This errand is over.'));
     if (!s || this.#running.has(id)) throw new ErrandError(409, en('Nothing is waiting for your OK on this errand.'));
+    if (e.paused) throw new ErrandError(409, en('It’s paused. Resume it first.'));
     this.#running.add(id);
     try {
       const T = (x: string, p?: Record<string, unknown>) => this.#T(x, p);
@@ -773,7 +834,7 @@ CREATE TABLE IF NOT EXISTS errands (
         case 'purchase': {
           const amount = typeof body.amount === 'number' && body.amount >= 0 ? body.amount : (s.amount ?? 0);
           e.spent = Math.round((e.spent + amount) * 100) / 100;
-          this.#done(e, s, note ?? (amount ? T(en('You paid {amount}.'), { amount: `$${amount}` }) : T(en('You paid.'))), this.#you(note));
+          this.#done(e, s, note ?? (amount ? T(en('You paid {amount}.'), { amount: usd(amount) }) : T(en('You paid.'))), this.#you(note));
           break;
         }
         case 'call': {
@@ -875,6 +936,7 @@ CREATE TABLE IF NOT EXISTS errands (
         this.#end(e, 'stopped', this.#T(en('The deadline passed ({when}).'), { when: e.deadline }));
         continue;
       }
+      if (e.paused) continue;
       if (e.status === 'working' || e.status === 'waiting_others') {
         const p = this.advance(e.id).catch((err: Error) => console.warn(`errand ${e.id}: ${err.message}`));
         this.#work.add(p);
@@ -900,7 +962,7 @@ CREATE TABLE IF NOT EXISTS errands (
     this.#running.add(id);
     try {
       const e = this.#must(id);
-      if (e.status !== 'working' && e.status !== 'waiting_others') return e;
+      if (e.paused || (e.status !== 'working' && e.status !== 'waiting_others')) return e;
       const i = e.steps.findIndex((s) => s.status === 'todo' || s.status === 'waiting_others');
       if (i < 0) return this.#end(e, 'done');
       await this.#step(e, i);
@@ -921,6 +983,7 @@ CREATE TABLE IF NOT EXISTS errands (
       case 'research':
         return this.#research(e, s, facts, allowed);
       case 'browser':
+        if (s.signIn && !allowed) return this.#wait(e, s, 'confirm', T(en('Sign in at {url} yourself; she never types passwords. Tap OK when you are signed in.'), { url: s.url ?? e.facts.url ?? '—' }));
         if (s.needsOk && !allowed) return this.#wait(e, s, 'browser', T(en('She does this in your browser only with your OK: {step}'), { step: s.text }));
         return this.#task(e, s, `${s.text}${e.facts.url ? ` (${e.facts.url})` : ''}`);
       case 'message':
@@ -952,13 +1015,15 @@ CREATE TABLE IF NOT EXISTS errands (
         return this.#wait(e, s, 'call', `${T(en('Calling is not switched on; here’s the number and what to say:'))} ${phone || T(en('(no number found yet)'))}\n${script}${why}`);
       }
       case 'purchase': {
-        const amount = s.amount ?? 0;
+        const fromFacts = Number(String(e.facts.amount ?? '').replace(/[^\d.]/g, ''));
+        const amount = s.amount ?? (Number.isFinite(fromFacts) && fromFacts > 0 ? Math.round(fromFacts * 100) / 100 : 0);
+        if (amount && s.amount === undefined) s.amount = amount;
         if (e.budget !== null && e.spent + amount > e.budget) {
-          this.#end(e, 'stopped', T(en('This would go over your budget of {budget} ({amount} more), so she stopped.'), { budget: `$${e.budget}`, amount: `$${amount}` }));
+          this.#end(e, 'stopped', T(en('This would go over your budget of {budget} ({amount} more), so she stopped.'), { budget: usd(e.budget), amount: usd(amount) }));
           return;
         }
         const url = s.url ?? e.facts.url ?? '';
-        return this.#wait(e, s, 'purchase', `${T(en('Here’s the page, you pay: {url}'), { url: url || '—' })}${amount ? ` (${T(en('about {amount}'), { amount: `$${amount}` })})` : ''}`);
+        return this.#wait(e, s, 'purchase', `${T(en('Here’s the page, you pay: {url}'), { url: url || '—' })}${amount ? ` (${T(en('about {amount}'), { amount: usd(amount) })})` : ''}`);
       }
       case 'decide':
         return this.#decide(e, s);
@@ -1008,7 +1073,7 @@ CREATE TABLE IF NOT EXISTS errands (
       s.result = T(en('{tool} is turned off (set to never), so she skipped this step.'), { tool: s.tool });
       return;
     }
-    if (perm === 'ask' && !allowed) return this.#wait(e, s, 'tool', T(en('Let her use {tool} for “{step}”?'), { tool: s.tool, step: s.text }));
+    if (perm === 'ask' && !allowed && !this.#allowAll(e)) return this.#wait(e, s, 'tool', T(en('Let her use {tool} for “{step}”?'), { tool: s.tool, step: s.text }));
     try {
       const out = await tool.run(args, this.#ctx(e));
       this.#collect(e, s, out);
@@ -1098,7 +1163,7 @@ CREATE TABLE IF NOT EXISTS errands (
       return this.#wait(e, s, 'address', T(en('Who should this go to? Add their email address.')));
     }
     s.draft = { to, subject: clip(fillIn(s.subject ?? e.goal, facts), 200), body: fillIn(s.body ?? e.goal, facts) };
-    if (e.sendWithoutAsking && this.#tool('mail_send') && this.#permission('mail_send') !== 'never') return this.#send(e, s, s.draft);
+    if ((e.sendWithoutAsking || this.#allowAll(e)) && this.#tool('mail_send') && this.#permission('mail_send') !== 'never') return this.#send(e, s, s.draft);
     this.#wait(e, s, 'send', `${T(en('Send this email to {to}: “{subject}”?'), { to, subject: s.draft.subject })}\n\n${s.draft.body}`);
   }
 
@@ -1186,7 +1251,7 @@ CREATE TABLE IF NOT EXISTS errands (
     if (!to) return;
     const facts = { ...e.facts, owner: this.#app.settings.get().ownerName ?? '', goal: e.goal };
     s.draft = { to, subject: `Re: ${e.facts.subject ?? e.goal}`, body: fillIn(LETTER.follow, facts) };
-    if (e.sendWithoutAsking && this.#tool('mail_send') && this.#permission('mail_send') !== 'never') {
+    if ((e.sendWithoutAsking || this.#allowAll(e)) && this.#tool('mail_send') && this.#permission('mail_send') !== 'never') {
       void this.#send(e, s, s.draft, true);
       return;
     }

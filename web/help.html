@@ -10,6 +10,7 @@
   <link rel="stylesheet" href="/theme.css">
   <link rel="stylesheet" href="/doc.css">
   <script type="module" src="/help-i18n.js"></script>
+  <script type="module" src="/help-search.js"></script>
 </head>
 <body class="help">
 <div class="wrap">
@@ -73,6 +74,7 @@
 <main>
 <h1>Sara help</h1>
 <p class="muted">Short guides for the self-hosted AI companion and assistant. Everything here also works in the phone apps.</p>
+<div id="help-find" class="help-find" role="search"><input id="help-q" type="search" autocomplete="off"><div id="help-hits" class="hf-box" aria-live="polite"></div><div id="help-doc" class="help-doc" hidden></div></div>
 
 <h2 id="beginner">I just installed it, now what?</h2>
 <p>Seven small steps, about ten minutes. Each one is also a card under <em>Getting started</em> on <em>Today</em> that ticks itself off.</p>
@@ -274,6 +276,7 @@
 <details class="howto-q" id="howto-models-subs-out"><summary>How do I sign out of a plan?</summary><ol><li>Press Sign out under that plan.</li></ol></details>
 <h4 id="howto-models-local">On this computer</h4>
 <details class="howto-q" id="howto-models-local-get"><summary>How do I download a model to this computer?</summary><ol><li>Pick one under Model to download (the first fits your computer).</li><li>Press Download this model.</li><li>Use it in Default model when it's done.</li></ol></details>
+<details class="howto-q" id="howto-models-local-free"><summary>How do I get a free model for pictures, coding or meaning search?</summary><ol><li>Find the job under Recommended for this computer.</li><li>Open Why this one to see its size, memory and license.</li><li>Press Download. Her talking model stays as it is.</li></ol></details>
 <details class="howto-q" id="howto-models-local-space"><summary>How do I free up space?</summary><ol><li>Remove a model you don't use from its row.</li><li>Ollama deletes its files.</li></ol></details>
 <h4 id="howto-ab-budgets">Budgets</h4>
 <details class="howto-q" id="howto-ab-budgets-set"><summary>How do I limit what a coding reply may use?</summary><ol><li>Under Coding chats, set Tokens, Steps or a Spending limit.</li><li>She stops and asks when a reply reaches it.</li></ol></details>

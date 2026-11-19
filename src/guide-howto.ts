@@ -105,7 +105,7 @@ export function withHowtoIndex(html: string, data: HowtoData, titles: Record<str
 }
 
 /** docs/HOW_DO_I.md: the same index as a page of the docs site (and readable on GitHub). */
-export function howtoIndexMd(data: HowtoData, titles: Record<string, PageTitle>): string {
+export function howtoIndexMd(data: HowtoData, titles: Record<string, PageTitle>, clips: Record<string, { file: string; seconds: number; bytes?: number }> = {}): string {
   const sections = howtoSections(data, titles);
   const count = sections.reduce((n, s) => n + s.pages.reduce((m, p) => m + p.questions.length, 0), 0);
   let md = '# How do I…?\n\n';
@@ -119,6 +119,9 @@ export function howtoIndexMd(data: HowtoData, titles: Record<string, PageTitle>)
       md += `### ${p.title}\n\n`;
       for (const q of p.questions) {
         md += `**${q.q}**\n\n${q.steps.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\n`;
+        // W2.5: a short clip (docs/media/clips.json) under its answer.
+        const clip = clips[`${p.id}/${q.id}`];
+        if (clip) md += `▶ [Watch it (${clip.seconds} s)](media/${clip.file})\n\n`;
       }
     }
   }

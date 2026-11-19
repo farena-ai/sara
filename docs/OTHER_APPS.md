@@ -28,6 +28,16 @@ first (passkey, owner token or two-step code), like approving an app's sign-in.
 - Keys don't run out; remove one in the same place (or under Connections → Devices and
   sign-in) and the app using it stops working at once.
 - Up to 20 keys. Each key may make 60 requests a minute and run two replies at once.
+- **Scopes** (W3.2): tick what a new key may use on `/mcp` before you create it: **Ask her**
+  (`ask_sara`), **Her memory** (`search_memory`, `list_facts`, `list_recent_conversations`,
+  `remember_fact`), **Reminders** (`list_reminders`, `add_reminder`), **Search her library**
+  (`search_library`) and **Planner** (`get_today`, to-dos and notes). An MCP app with that key lists
+  and runs only those tools; anything else is refused with *"not allowed for this key"*. Each key
+  shows its scopes in the list; to change them, make a new key and remove the old one. Keys made
+  before scopes keep everything. Chat apps on `/v1` can always talk to her.
+- **Household members** make their own keys in their own space: a key reaches only that person's
+  memory, planner and library, never the owner's or another member's. **Children never** get a key,
+  and `/v1` and `/mcp` answer 403 in a child's space.
 
 Use the address you reach her at: your Tailscale address, your own web address, or
 `http://127.0.0.1:7860` on the same computer. The page shows the address the browser is using,
@@ -191,6 +201,7 @@ Read-only by default:
 | `search_library` | Up to 6 passages from documents in her library, with where they are |
 | `list_notes`, `read_note` | Your planner notes (titles with `#id`), and one note in full |
 | `ask_sara` | Sends her a message and returns her reply, in a conversation kept for that app (*"<key name> (MCP)"*) |
+| `list_reminders` | Your upcoming timed reminders with `#id`, up to 50 |
 
 Resources: `sara://today`, `sara://tasks`, `sara://facts`, `sara://conversations`.
 
@@ -214,6 +225,7 @@ history, documents shared in one chat only, and, while Adult mode is off, anythi
 | `add_note` | Saves a note (title, text, project) | `note` |
 | `update_note` | Changes a note's title, whole text or project (the old text is kept as an earlier version) | `note` |
 | `delete_note` | Deletes a note (its last version is kept 30 days, so it can come back) | `note` |
+| `add_reminder` | Sets a timed reminder (text, when) | `remind` |
 | `remember_fact` | Adds a fact about you to her memory | always asks |
 
 They follow her approval rules: the to-do and note tools use the setting of her `todo` and `note`
@@ -332,3 +344,32 @@ left out (the preview says how many). Files are parsed safely: only known fields
 in `chara`, so older apps read it too); *Character card, JSON* saves the V3 JSON. The whole
 Sara character sheet rides along in `data.extensions.sara`, so importing it back into Sara
 restores her exactly.
+
+## Tool servers for her (MCP client): popular free servers
+
+The other direction: programs that give *her* more tools. Settings → Skills & tools → Other programs
+(MCP) → **Popular free tool servers** lists free, open-source servers (`src/mcp-catalog.ts`), each with
+its source repository, license and what it can touch:
+
+| Server | Runs with | Folder | Internet | Source |
+|---|---|---|---|---|
+| Files in one folder | `npx @modelcontextprotocol/server-filesystem` | the folder you pick | off | modelcontextprotocol/servers |
+| Git history of one project | `uvx mcp-server-git` | the project you pick | off | modelcontextprotocol/servers |
+| Read web pages | `uvx mcp-server-fetch` | none | on | modelcontextprotocol/servers |
+| A SQLite database | `uvx mcp-server-sqlite` | the database file's folder | off | modelcontextprotocol/servers-archived |
+| Time and time zones | `uvx mcp-server-time` | none | off | modelcontextprotocol/servers |
+| Notes graph | `npx @modelcontextprotocol/server-memory` | its own folder | off | modelcontextprotocol/servers |
+| Step-by-step thinking | `npx @modelcontextprotocol/server-sequential-thinking` | none | off | modelcontextprotocol/servers |
+| Browser (Playwright) | `npx @playwright/mcp` | its own folder | on | microsoft/playwright-mcp |
+| GitHub | GitHub's remote MCP server with **your own token** | none | on (remote) | github/github-mcp-server |
+
+Every package is pinned to a version. **Add** shows an approval card first: the exact command, the
+one folder it may use, whether it has the internet, and what it can do; nothing is installed until
+**Allow and add**. It then runs in the tool sandbox with only that folder (bubblewrap on Linux, the
+macOS sandbox, the tools user in containers); a server marked "Internet: off" runs with the network
+off (its package is downloaded once, at install, into its own folder). After install, **Tool
+permissions** on its card sets Allow / Ask first / Off per tool (the same choices as Tools and
+approvals). `uvx` servers need [uv](https://docs.astral.sh/uv/) (free) on the computer Sara runs on.
+API: `GET /api/mcp/catalog`, `POST /api/mcp/catalog/<id>` (`{path?, secret?}` = the card;
+`confirm: true` installs).
+

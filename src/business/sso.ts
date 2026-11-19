@@ -13,19 +13,20 @@ import type { BusinessProfile } from './profile.ts';
 import type { BusinessControlStore } from './store.ts';
 import type { BusinessIdentity, BusinessPrincipal } from './types.ts';
 import { OidcClient, OidcError, issuerAllowed, type OidcClaims } from './oidc.ts';
+import { ssoGroupRole, syncTeamGuest } from './team.ts';
 
 export type SsoPreset = 'entra' | 'google' | 'okta' | 'generic' | 'authentik' | 'keycloak' | 'pocketid' | 'authelia';
 /** V0.8: self-hosted presets; Authelia and Pocket ID send groups only for the groups scope. */
 const SSO_PRESETS: readonly SsoPreset[] = ['entra', 'google', 'okta', 'generic', 'authentik', 'keycloak', 'pocketid', 'authelia'];
 export interface SsoConfig {
   enabled: boolean; preset: SsoPreset; issuer: string; clientId: string; allowedDomains: string[];
-  groupClaim: string; adminGroups: string[]; memberGroups: string[]; jit: boolean; enforce: boolean;
+  groupClaim: string; adminGroups: string[]; memberGroups: string[]; guestGroups: string[]; jit: boolean; enforce: boolean;
   sessionHours: number; checkMinutes: number;
 }
 /** Reason codes shown by the sign-in page (`/?sso=<reason>`); never claims or provider text. */
 export type SsoReason = 'denied' | 'state' | 'failed' | 'domain' | 'group' | 'no_account' | 'adult' | 'disabled' | 'invite' | 'unavailable' | 'linked';
 
-const DEFAULTS: SsoConfig = { enabled: false, preset: 'generic', issuer: '', clientId: '', allowedDomains: [], groupClaim: 'groups', adminGroups: [], memberGroups: [], jit: false, enforce: false, sessionHours: 12, checkMinutes: 15 };
+const DEFAULTS: SsoConfig = { enabled: false, preset: 'generic', issuer: '', clientId: '', allowedDomains: [], groupClaim: 'groups', adminGroups: [], memberGroups: [], guestGroups: [], jit: false, enforce: false, sessionHours: 12, checkMinutes: 15 };
 const FIELDS = Object.keys(DEFAULTS);
 const SECRET = 'business-oidc:client-secret';
 const PENDING_MS = 600_000;
@@ -38,8 +39,8 @@ const list = (value: unknown, max: number, each: (item: string) => boolean): str
 
 interface Pending { nonce: string; verifier: string; binding: string; until: number; key: string; code?: string; confirm18: boolean; link?: { identityId: string; authEpoch: number; sessionId: string }; test?: string }
 /** R7: what a Test sign-in found (shown to the administrator who ran it; nobody is signed in or linked). */
-export interface SsoTestResult { at: string; ok: boolean; reason?: SsoReason; role?: 'orgadmin' | 'user'; name?: string; emailDomain?: string; emailVerified?: boolean; groups: string[]; linked: boolean }
-interface Evaluated { ok: true; role?: 'orgadmin' | 'user'; name: string }
+export interface SsoTestResult { at: string; ok: boolean; reason?: SsoReason; role?: 'orgadmin' | 'user'; guest?: boolean; name?: string; emailDomain?: string; emailVerified?: boolean; groups: string[]; linked: boolean }
+interface Evaluated { ok: true; role?: 'orgadmin' | 'user'; guest?: boolean; name: string }
 
 export class BusinessSso {
   readonly #profile: BusinessProfile;
@@ -124,7 +125,7 @@ export class BusinessSso {
     if (input.clientId !== undefined) { if (input.clientId !== '' && !plain(input.clientId, 256)) throw new BusinessAccessError(400); next.clientId = String(input.clientId); }
     if (input.allowedDomains !== undefined) next.allowedDomains = list(input.allowedDomains, 50, d => /^(?=.{3,253}$)[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(d)).map(d => d.toLowerCase());
     if (input.groupClaim !== undefined) { if (typeof input.groupClaim !== 'string' || !/^[A-Za-z0-9_:./-]{1,64}$/.test(input.groupClaim)) throw new BusinessAccessError(400); next.groupClaim = input.groupClaim; }
-    for (const name of ['adminGroups', 'memberGroups'] as const) if (input[name] !== undefined) next[name] = list(input[name], 100, g => plain(g, 256));
+    for (const name of ['adminGroups', 'memberGroups', 'guestGroups'] as const) if (input[name] !== undefined) next[name] = list(input[name], 100, g => plain(g, 256));
     for (const [name, min, max] of [['sessionHours', 1, 168], ['checkMinutes', 5, 60]] as const) if (input[name] !== undefined) {
       if (!Number.isSafeInteger(input[name]) || Number(input[name]) < min || Number(input[name]) > max) throw new BusinessAccessError(400);
       next[name] = Number(input[name]);
@@ -190,15 +191,13 @@ export class BusinessSso {
       const domain = email && /^[^@\s]+@([^@\s]+)$/.exec(email)?.[1]?.toLowerCase();
       if (!domain || claims.email_verified === false || !config.allowedDomains.includes(domain)) return { ok: false, reason: 'domain' };
     }
-    let role: 'orgadmin' | 'user' | undefined;
-    if (config.adminGroups.length || config.memberGroups.length) {
-      const raw = claims[config.groupClaim];
-      const groups = new Set(Array.isArray(raw) ? raw.filter(g => typeof g === 'string') as string[] : typeof raw === 'string' ? [raw] : []);
-      role = config.adminGroups.some(g => groups.has(g)) ? 'orgadmin' : config.memberGroups.some(g => groups.has(g)) ? 'user' : undefined;
-      if (!role) return { ok: false, reason: 'group' };
-    }
+    // W3.3: administrator, member and guest groups map to team roles (src/business/team.ts).
+    const raw = claims[config.groupClaim];
+    const mapped = ssoGroupRole(config, Array.isArray(raw) ? raw.filter(g => typeof g === 'string') as string[] : typeof raw === 'string' ? [raw] : []);
+    if (mapped === undefined) return { ok: false, reason: 'group' };
+    const role = mapped?.role;
     const name = (typeof claims.name === 'string' ? claims.name : email?.split('@')[0] ?? '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 80) || 'Business user';
-    return { ok: true, ...(role ? { role } : {}), name };
+    return { ok: true, ...(role ? { role, guest: mapped!.guest } : {}), name };
   }
 
   #provisionedFor(config: SsoConfig, claims: OidcClaims): string | undefined {
@@ -266,7 +265,7 @@ export class BusinessSso {
       } else return this.#refuse('no_account');
     } catch { return this.#refuse('failed'); }
     const principal = session.principal;
-    if (verdict.role) this.#control.ssoSyncRole(principal.identityId, verdict.role);
+    if (verdict.role) { this.#control.ssoSyncRole(principal.identityId, verdict.role); syncTeamGuest(this.#control, principal.identityId, !!verdict.guest); }
     const now = Date.now();
     this.#control.database.prepare('INSERT INTO business_sso_sessions(identity_id,session_id,auth_epoch,issuer,subject,expires_at,next_check_at) VALUES (?,?,?,?,?,?,?)').run(principal.identityId, principal.sessionId, principal.authEpoch, claims.iss, claims.sub, principal.expiresAt, now + config.checkMinutes * 60_000);
     if (refreshToken) this.#tokens().set(`refresh:${principal.identityId}:${principal.sessionId}`, refreshToken);
@@ -294,7 +293,7 @@ export class BusinessSso {
     const verdict = this.#evaluate(config, claims);
     const domain = email ? /^[^@\s]+@([^@\s]+)$/.exec(email)?.[1]?.toLowerCase() : undefined;
     const base = { groups, linked: this.#link(claims.iss, claims.sub) !== undefined, ...(domain ? { emailDomain: domain } : {}), ...(typeof claims.email_verified === 'boolean' ? { emailVerified: claims.email_verified } : {}) };
-    return verdict.ok ? done({ ok: true, ...(verdict.role ? { role: verdict.role } : {}), name: verdict.name, ...base }) : done({ ok: false, reason: verdict.reason, ...base });
+    return verdict.ok ? done({ ok: true, ...(verdict.role ? { role: verdict.role, ...(verdict.guest ? { guest: true } : {}) } : {}), name: verdict.name, ...base }) : done({ ok: false, reason: verdict.reason, ...base });
   }
   /** The administrator's own last Test sign-in (kept in memory only). */
   testResult(principal: BusinessPrincipal): SsoTestResult | null {
@@ -358,7 +357,7 @@ export class BusinessSso {
         if (result.claims) {
           const verdict = this.#evaluate(config, result.claims);
           if (!verdict.ok) { this.#end(identityId, sessionId, epoch, true); continue; }
-          if (verdict.role) this.#control.ssoSyncRole(identityId, verdict.role);
+          if (verdict.role) { this.#control.ssoSyncRole(identityId, verdict.role); syncTeamGuest(this.#control, identityId, !!verdict.guest); }
         }
         later();
       } catch (error) {

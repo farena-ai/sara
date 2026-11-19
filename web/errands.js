@@ -3,6 +3,7 @@
 // note), Approve step / Skip / Stop / Edit, and the timeline with each step's result and evidence.
 // Only here can the person turn on "send without asking" for one errand. Nothing here calls a model.
 import { t } from './naming.js';
+import { openHandle } from './handle-it.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => void } | null} */
 let ctx = null;
@@ -187,6 +188,8 @@ function card(e) {
     row.append(btn(t('Edit'), 'ghost small', () => (editing.has(e.id) ? editing.delete(e.id) : editing.add(e.id), render())));
     row.append(btn(t('Stop'), 'ghost small danger-text', () => void act(e.id, 'stop')));
   }
+  // W4.1: a Handle it run opens its progress card (Pause/Resume, its stops, receipts).
+  if (e.facts?.handleKind) row.append(btn(e.paused ? t('Paused: open progress') : t('Open progress'), 'ghost small', () => void openHandle(e.id)));
   if (e.conversationId && ctx.openConversation) row.append(btn(t('Open its chat'), 'ghost small', () => ctx.openConversation(e.conversationId)));
   c.append(row);
   if (editing.has(e.id)) c.append(editBox(e));

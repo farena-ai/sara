@@ -48,6 +48,8 @@ COPY templates ./templates
 COPY skills ./skills
 # Phase 117: the plugins that come with Sara (Signal); installed only through their review card.
 COPY plugins ./plugins
+# W2.5: the how-to clips the help plays (served at /docs/media/).
+COPY docs/media ./docs/media
 # Local workflow candidates remain untrusted packages; no catalog authoring data ships here.
 COPY store/plugins/daily-briefing ./store/plugins/daily-briefing
 COPY store/plugins/meeting-assistant ./store/plugins/meeting-assistant

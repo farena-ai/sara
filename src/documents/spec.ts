@@ -75,6 +75,8 @@ export interface DocSpec {
   edited?: { kind: 'template' | 'tracked' | 'sign' | 'draft'; fromId?: number; fromName?: string; clauses?: { topic: string; fromId: number; fromName: string; quote: string }[] };
   /** S7: a PDF made ready to sign: signature, name and date fields for each signer. */
   sign?: { signers: { party: string; name?: string; title?: string }[] };
+  /** W4.6: a line printed at the top of every PDF page (the public-records notice). */
+  pageHeader?: string;
 }
 
 /** A picture from her library or uploads, ready to place. */

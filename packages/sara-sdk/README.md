@@ -132,6 +132,40 @@ Failed calls throw `SaraError` with `status`, `message` (Sara's words) and `code
 Use a device token in browsers only for the person's own app. Sara's `/v1` answers browsers from the
 addresses allowed in Settings → Connections → Other apps → Browser apps that may call her.
 
+## Add-on kit
+
+Make your own Sara add-on (a tool she can use, its settings with ? tips, pages shown as cards),
+test it against a real host and pack it for the Sara Store:
+
+```bash
+npx @farena-ai/sara-sdk create my-addon     # a working add-on folder with tests
+cd my-addon
+npx sara-addon test                          # your add-on in its own permission-limited process
+npx sara-addon test --sara ~/sara            # a throwaway Sara (a checkout) with it installed
+npx sara-addon pack                          # out/my-addon-0.1.0.sarapack.zip + .listing.json
+```
+
+```js
+import { defineAddon, definePage, defineSetting, defineTool } from './sara-addon.mjs';
+
+const greeting = defineSetting({ key: 'greeting', type: 'text', label: 'Greeting', tip: 'The word she starts each hello with.', default: 'Hello' });
+const hello = definePage({ id: 'hello', title: 'Hello', render: (d) => ({ lines: [d.text] }) });
+const greet = defineTool({
+  name: 'greet',
+  description: 'Say hello to someone by name.',
+  parameters: { type: 'object', properties: { name: { type: 'string' } }, required: ['name'] },
+  run: async ({ name }, sara) => {
+    const text = `${sara.settings.greeting}, ${name}!`;
+    return { content: text, card: hello.card({ text }) };
+  },
+});
+export default defineAddon({ id: 'my-addon', name: 'My addon', version: '0.1.0', description: 'Says hello and shows it as a card.', tools: [greet], settings: [greeting], pages: [hello] });
+```
+
+The same typed helpers are importable from `@farena-ai/sara-sdk/addon` for TypeScript projects.
+Packing sends nothing; submitting to the Sara Store is your own step on your Sara (`sara submit`).
+The 10-minute tutorial and the reference: [docs/ADDON_KIT.md](https://github.com/farena-ai/sara/blob/main/docs/ADDON_KIT.md).
+
 ## License
 
 MIT

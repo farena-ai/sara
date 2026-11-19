@@ -59,6 +59,32 @@ Your Sara must be reachable from the internet at the address in the line (Settin
   your documents and rules; **Clear the list** deletes them.
 - Each person's own (a household member's receptionist is theirs). Never on the demo.
 
+## Version 2 (W3.5)
+
+- **Their language.** Each reply is in the language the visitor writes in (English, Spanish, French,
+  German, Brazilian Portuguese, Italian), read from their words in code; a one-word "ok" keeps the
+  language of their earlier lines, and only then the browser's language counts. The quick replies made
+  without a model (greeting, free times, refusals, payment links, thanks) are translated too.
+- **Payment links.** Paste links from your own payment page under **Payment links** (one per line,
+  name first: `Deposit https://…`; https only, up to 10). A visitor who asks how to pay (in any of the
+  six languages) gets those links as buttons, without a model call. It never takes a payment, never asks
+  for card numbers and never makes up a link.
+- **Follow-up emails after your OK.** When a visitor types an email address, it thanks them and writes a
+  follow-up draft in their language from that conversation (the quick model, with the address hidden
+  from it; a plain draft listing their questions when no model answers). One draft per visitor, at most
+  50 waiting. You get a notice; the draft waits in **Receptionist conversations → Follow-up emails
+  waiting for your OK**, where you edit it and press **Send** (from the same mailbox as booking
+  confirmations) or **Dismiss**. Nothing is sent before you press Send.
+- **It learns from your corrections.** **Receptionist conversations** shows each visitor's questions
+  and the answers it gave. **Wrong? Write the right answer** keeps your answer as an *approved answer*:
+  the next visitor who asks the same thing in the same language gets your answer word for word (no model
+  call); in another language the model gets your answer to translate. Approved answers are listed with
+  how often they were used, and **Delete** removes one. Up to 100.
+- Owner routes (same family): `POST /api/booking/reception/correct {log, question?, answer}`,
+  `DELETE /api/booking/reception/approved/<id>`, `POST /api/booking/reception/followups/<id>/send
+  {subject, body}` and `/dismiss`. The view adds `chats`, `approved` and `followups`. Tests:
+  `test/w3-reception.test.ts`; design: [docs/design/W3RECEPTION.md](design/W3RECEPTION.md).
+
 ## For developers
 
 `src/reception.ts` (settings, topic gate, prompt, ask, book), `src/routes/reception.ts` (public

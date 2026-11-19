@@ -62,6 +62,27 @@ export interface McpServerConfig {
   folders?: string[];
   /** C3: show this server's apps (MCP Apps) in the chat. On unless set to false. */
   apps?: boolean;
+  /**
+   * W3.2: false = this server runs without the internet (enforced under bubblewrap and the macOS
+   * sandbox, the no-network settings elsewhere), like private local mode. Missing = network on.
+   */
+  network?: boolean;
+}
+
+/**
+ * W3.2: a network-off npx/uvx server runs from a package cache in its own folder, filled once with
+ * the network when it is installed (src/mcp-catalog.ts prefetch), then read offline. `home` is the
+ * folder as the server sees it ('/workspace' inside bubblewrap).
+ */
+export function mcpCacheEnv(command: string | undefined, home: string): Record<string, string> {
+  if (/^(npx|npm)$/i.test(command ?? '')) return { npm_config_cache: join(home, '.npm-cache') };
+  if (/^(uvx|uv)$/i.test(command ?? '')) return { UV_CACHE_DIR: join(home, '.uv-cache'), UV_TOOL_DIR: join(home, '.uv-tools') };
+  return {};
+}
+
+/** W3.2: whether a server runs with the network off (its own choice, or private local mode). */
+export function mcpNetworkOff(cfg: Pick<McpServerConfig, 'network'>): boolean {
+  return cfg.network === false || privateLocalOn();
 }
 
 /** Secret values for a server, stored in the vault as JSON under mcp:<name>. */
@@ -483,7 +504,7 @@ export class McpConnection {
     try {
       // EC9: under bubblewrap or the macOS sandbox a tool server with network reaches only the
       // allowlist's hosts (the same proxy as commands; refusals are audited as mcp:<name>).
-      const allow = !privateLocalOn() && (opts.sandbox.mode === 'bwrap' || opts.sandbox.mode === 'seatbelt') && this.config.transport !== 'http' ? egressAllowlist() : undefined;
+      const allow = !mcpNetworkOff(this.config) && (opts.sandbox.mode === 'bwrap' || opts.sandbox.mode === 'seatbelt') && this.config.transport !== 'http' ? egressAllowlist() : undefined;
       this.#egress?.close().catch(() => {});
       this.#egress = allow ? await openEgress({ ...opts.sandbox, network: true }, allow, { who: `mcp:${this.config.name}`.slice(0, 60), node: sandboxNode(process.execPath, runtimeMountArgs().length > 0, RUNTIME_MOUNT) }) : undefined;
       this.#transport = this.#makeTransport(secrets, opts);
@@ -533,7 +554,8 @@ export class McpConnection {
       ...secrets.env,
       // Phase 67: private local mode: the add-on gets no network where the sandbox can enforce it
       // (bubblewrap, macOS) and the no-network settings everywhere else (best effort).
-      ...(privateLocalOn() ? PRIVATE_LOCAL_ENV : {}),
+      ...(mcpNetworkOff(c) ? PRIVATE_LOCAL_ENV : {}),
+      ...(c.network === false ? { ...mcpCacheEnv(c.command, opts.sandbox.mode === 'bwrap' ? '/workspace' : home), ...(/^(uvx|uv)$/i.test(c.command) ? { UV_OFFLINE: '1' } : {}) } : {}),
       ...(this.#egress?.env ?? {}),
       ...(pw?.env ?? {}),
     };
@@ -544,7 +566,7 @@ export class McpConnection {
       if (!(baseEnv.PATH ?? '').split(delimiter).includes(own)) baseEnv.PATH = `${own}${delimiter}${baseEnv.PATH ?? ''}`;
     }
     const eg = this.#egress;
-    const net = !privateLocalOn() && !eg;
+    const net = !mcpNetworkOff(c) && !eg;
     if (opts.sandbox.mode === 'bwrap') {
       const cmd = eg?.prefix ? ['/bin/sh', '-c', `${eg.prefix}exec "$@"`, 'sara-mcp', c.command, ...cArgs] : [c.command, ...cArgs];
       return new StdioTransport('bwrap', [...bwrapArgs(home, net, [...mcpBinds(c, opts.dataDir), ...mcpBrowserBinds(), ...(pw?.binds ?? []), ...(eg?.binds ?? [])]), ...cmd], { ...baseEnv, HOME: '/workspace' }, home);
@@ -864,7 +886,7 @@ export function validateMcpConfig(input: Record<string, unknown>, name: string):
   if (!MCP_NAME_RE.test(name)) throw new Error('Server name: lowercase letters, digits and dashes (max 31).');
   const transport = input.transport === 'http' ? 'http' : input.transport === 'stdio' ? 'stdio' : undefined;
   if (!transport) throw new Error('transport must be stdio or http');
-  const cfg: McpServerConfig = { name, transport, enabled: input.enabled !== false, ...(input.apps === false ? { apps: false } : {}) };
+  const cfg: McpServerConfig = { name, transport, enabled: input.enabled !== false, ...(input.apps === false ? { apps: false } : {}), ...(input.network === false ? { network: false } : {}) };
   const folders = Array.isArray(input.folders) ? input.folders.map((f) => String(f).trim()).filter((f) => (isAbsolute(f) || win32.isAbsolute(f)) && !/^([A-Za-z]:)?[\\/]*$/.test(f)).slice(0, 8) : [];
   if (transport === 'http') {
     let u: URL;

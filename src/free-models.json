@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "updated": "2026-11-19",
+  "note": "W2.4 curated free/local models per job (docs/FREE_MODELS.md). minGb = graphics memory (or a Mac's share of memory) the model needs; cpuRamGb = memory to run it on the processor (missing = not suggested without a graphics card). Licenses as published on each model's page on the date above.",
+  "models": [
+    { "id": "chat-qwen3.5-2b", "job": "chat", "name": "Qwen 3.5 2B", "how": "ollama", "pull": "qwen3.5:2b", "minGb": 0, "cpuRamGb": 0, "sizeGb": 2.7, "license": "Apache-2.0", "why": "Small and quick: fine for short chats and memory notes; weak at tools." },
+    { "id": "chat-qwen3.5-4b", "job": "chat", "name": "Qwen 3.5 4B", "how": "ollama", "pull": "qwen3.5:4b", "minGb": 4, "cpuRamGb": 16, "sizeGb": 3.4, "license": "Apache-2.0", "why": "Fine for everyday chat and quick jobs; weak at coding." },
+    { "id": "chat-qwen3.5-9b", "job": "chat", "name": "Qwen 3.5 9B", "how": "ollama", "pull": "qwen3.5:9b", "minGb": 8, "sizeGb": 6.6, "license": "Apache-2.0", "why": "Usable chat and simple tools; also our small judge model in the results.", "quality": { "file": "docs/results/claims-qwen3.5_9b.json", "label": "Claim check judge in six languages" } },
+    { "id": "chat-gemma4-12b", "job": "chat", "name": "Gemma 4 12B", "how": "ollama", "pull": "gemma4:12b", "minGb": 12, "sizeGb": 7.7, "license": "Apache-2.0", "why": "Good chat, decent tools, can see pictures.", "quality": { "file": "docs/results/claims-gemma4_12b.json", "label": "Claim check judge in six languages" } },
+    { "id": "chat-gpt-oss-20b", "job": "chat", "name": "gpt-oss 20B", "how": "ollama", "pull": "gpt-oss:20b", "minGb": 16, "sizeGb": 14, "license": "Apache-2.0", "why": "Good chat and tools." },
+    { "id": "chat-qwen3.8-27b", "job": "chat", "name": "Qwen 3.8 27B", "how": "ollama", "pull": "qwen3.8:27b", "minGb": 24, "sizeGb": 18, "license": "Apache-2.0", "why": "Strong chat, coding and tools: what the published results used.", "quality": { "file": "docs/results/real-runs-2026-11-19-after.json", "label": "Everyday tasks with a real local model", "score": "52/53" } },
+
+    { "id": "code-qwen2.5-coder-7b", "job": "coding", "name": "Qwen 2.5 Coder 7B", "how": "ollama", "pull": "qwen2.5-coder:7b", "minGb": 8, "sizeGb": 4.7, "license": "Apache-2.0", "why": "A small model made for code: fine for edits and explaining code, weaker at long tool chains." },
+    { "id": "code-gpt-oss-20b", "job": "coding", "name": "gpt-oss 20B", "how": "ollama", "pull": "gpt-oss:20b", "minGb": 16, "sizeGb": 14, "license": "Apache-2.0", "why": "Good with tools and commands; a solid coder on a 16 GB card." },
+    { "id": "code-qwen3.8-27b", "job": "coding", "name": "Qwen 3.8 27B", "how": "ollama", "pull": "qwen3.8:27b", "minGb": 24, "sizeGb": 18, "license": "Apache-2.0", "why": "Passed 158 of 164 HumanEval problems in her coding loop on this kind of card.", "quality": { "file": "docs/results/humaneval-agent.json", "label": "HumanEval in her agent loop", "score": "158/164" } },
+
+    { "id": "see-gemma3-4b", "job": "vision", "name": "Gemma 3 4B", "how": "ollama", "pull": "gemma3:4b", "minGb": 4, "sizeGb": 3.3, "license": "Gemma terms", "why": "Small model that can see: names what's in a photo and reads big text." },
+    { "id": "see-qwen2.5vl-7b", "job": "vision", "name": "Qwen 2.5 VL 7B", "how": "ollama", "pull": "qwen2.5vl:7b", "minGb": 8, "sizeGb": 6, "license": "Apache-2.0", "why": "Good at reading text in photos, receipts and screenshots." },
+    { "id": "see-gemma4-12b", "job": "vision", "name": "Gemma 4 12B", "how": "ollama", "pull": "gemma4:12b", "minGb": 12, "sizeGb": 7.7, "license": "Apache-2.0", "why": "Describes photos well and also talks: the photo library uses it on this computer.", "quality": { "file": "docs/results/model-recheck.json", "label": "Monthly re-check on our test computer", "score": "1/1" } },
+
+    { "id": "hear-parakeet", "job": "hearing", "name": "NVIDIA Parakeet TDT 110M", "how": "voice", "sizeGb": 0.1, "ramGb": 1, "license": "CC-BY-4.0", "why": "Fast English hearing on the processor; part of the local voice download.", "quality": { "file": "docs/RESULTS.md", "label": "Talk hearing: word errors and timing" } },
+    { "id": "hear-nemotron", "job": "hearing", "name": "NVIDIA Nemotron 3.5 streaming 0.6B", "how": "voice", "sizeGb": 0.48, "ramGb": 2, "license": "NVIDIA Open Model License", "why": "Words as you speak in English, Spanish, French, German, Portuguese and Italian." },
+
+    { "id": "voice-piper", "job": "voice", "name": "Piper hfc_female", "how": "voice", "sizeGb": 0.06, "ramGb": 1, "license": "MIT (Piper), voice CC-BY-4.0", "why": "Clear, quick voice that runs on any processor; part of the local voice download.", "quality": { "file": "docs/RESULTS.md", "label": "Voice reply time with local hearing and voice" } },
+    { "id": "voice-kokoro", "job": "voice", "name": "Kokoro v0.19", "how": "voice", "sizeGb": 0.33, "ramGb": 2, "license": "Apache-2.0", "why": "A warmer, more natural voice; a little slower on old processors." },
+
+    { "id": "embed-mxbai", "job": "embeddings", "name": "mxbai-embed-large", "how": "ollama", "pull": "mxbai-embed-large", "minGb": 0, "cpuRamGb": 0, "sizeGb": 0.67, "license": "Apache-2.0", "why": "A bigger meaning-search model; a bit better on long notes. Changing it means re-reading your notes once." },
+    { "id": "embed-nomic", "job": "embeddings", "name": "nomic-embed-text", "how": "ollama", "pull": "nomic-embed-text", "minGb": 0, "cpuRamGb": 0, "sizeGb": 0.27, "license": "Apache-2.0", "why": "Tiny and fast: lets memory and the Library find things said in other words.", "quality": { "file": "docs/results/library-meaning.json", "label": "Library questions with meaning search" } },
+
+    { "id": "phone-qwen2.5-0.5b", "job": "phone", "name": "Qwen 2.5 0.5B Instruct (Q4_K_M)", "how": "phone", "sizeGb": 0.4, "ramGb": 1, "license": "Apache-2.0", "why": "The offline copy on your Android phone: short answers when the server can't be reached." }
+  ]
+}

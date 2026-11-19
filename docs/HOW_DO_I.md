@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 250 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 251 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -225,6 +225,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Click anywhere outside the box: it saves by itself.
 3. Her notes about herself follow the new name.
 
+▶ [Watch it (14 s)](media/howto/her-character-rename.webm)
+
 **How do I make her my own?**
 
 1. Press ✨ Create your companion for a guided setup (about 5 minutes).
@@ -271,6 +273,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Choose a voice under Her voice.
 2. Press Preview to hear it.
 3. It saves by itself; voice notes and calls use it.
+
+▶ [Watch it (13 s)](media/howto/her-voice-pick.webm)
 
 **How do I talk to her out loud?**
 
@@ -582,6 +586,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Pick a Model from its list.
 3. Anything without its own model uses this one.
 
+▶ [Watch it (13 s)](media/howto/models-default-pick.webm)
+
 **How do I see new models?**
 
 1. Press ↻ Refresh.
@@ -644,6 +650,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Press Download this model.
 3. Use it in Default model when it's done.
 
+**How do I get a free model for pictures, coding or meaning search?**
+
+1. Find the job under Recommended for this computer.
+2. Open Why this one to see its size, memory and license.
+3. Press Download. Her talking model stays as it is.
+
 **How do I free up space?**
 
 1. Remove a model you don't use from its row.
@@ -683,6 +695,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Paste its API key if it needs one.
 3. Ask her to look something up.
 
+▶ [Watch it (13 s)](media/howto/ab-search-on.webm)
+
 **How do I search without a key?**
 
 1. Pick a service marked Free · no key.
@@ -708,6 +722,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Paste your Google Client ID and secret.
 2. Press Save, then Sign in with Google.
+
+▶ [Watch it (11 s)](media/howto/ab-google-connect.webm)
 
 **How do I add another Google account?**
 
@@ -855,10 +871,14 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Press Install Sara as an app (or Add to Home Screen).
 3. Then turn on notifications.
 
+▶ [Watch it (14 s)](media/howto/co-phone-install.webm)
+
 **How do I get notifications?**
 
 1. Press Turn on for this device.
 2. Press Send a test.
+
+▶ [Watch it (10 s)](media/howto/co-phone-push.webm)
 
 ### This computer
 
@@ -891,6 +911,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press Start and open @BotFather.
 2. Send /newbot and paste the key it gives you.
 3. Press Link my Telegram and send the bot the code.
+
+▶ [Watch it (14 s)](media/howto/co-telegram-connect.webm)
 
 **How do I add her to a group?**
 
@@ -1065,6 +1087,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Press Add a phone or computer.
 2. Scan the code or type it there.
+
+▶ [Watch it (11 s)](media/howto/dh-devices-add.webm)
 
 **How do I lock out a lost device?**
 
@@ -1362,6 +1386,8 @@ them in one place. In the app, open the box and press **Show me** to see the con
 **How do I make a backup now?**
 
 1. Press Back up now.
+
+▶ [Watch it (8 s)](media/howto/dh-backups-now.webm)
 
 **How do I keep a copy somewhere else?**
 

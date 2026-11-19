@@ -21,6 +21,9 @@ import { HOME_VAULT } from '../tools/home.ts';
 import { cleanBudget, cleanPrices, DEFAULT_PRICES, mergeSummaries, priceTable, usageLine } from '../usage.ts';
 import { suggestModel } from '../../web/model-suggest.js';
 import { modelFitness } from '../model-fitness.ts';
+import { firstTenDeps } from '../first-ten.ts';
+import { FREE_MODELS, recommendations } from '../free-models.ts';
+import { recheckOf } from '../model-recheck.ts';
 import { AUTO_JOBS, autoChain, autoOn, newInstallAuto } from '../auto-route.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { ReplayError } from '../replay.ts';
@@ -215,7 +218,25 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           using: app.settings.get().companionModel ?? null,
         });
       }
+      // W2.4 (docs/FREE_MODELS.md): the free model list per job for this computer + the monthly re-check.
+      if (b === 'recommended' && method === 'GET') {
+        const [hw, ollama] = await Promise.all([firstTenDeps.hardware(), firstTenDeps.ollama(root)]);
+        const rc = recheckOf(app).view();
+        return send(res, 200, { version: FREE_MODELS.version, updated: FREE_MODELS.updated, hardware: hw, ollama: { found: ollama.found }, jobs: recommendations(hw, ollama, rc.results), recheck: rc, pull: puller.status() ?? null, privateLocal: privateLocalOn() });
+      }
+      if (b === 'recheck' && method === 'GET') return send(res, 200, recheckOf(app).view());
       if (opts.demo && method !== 'GET') throw new HttpError(403, 'Not available in the demo.');
+      if (b === 'recheck' && method === 'PUT') {
+        const body = await readJson(req);
+        if (typeof body.on !== 'boolean') throw new HttpError(400, 'Say on or off.');
+        recheckOf(app).setOn(body.on);
+        return send(res, 200, recheckOf(app).view());
+      }
+      if (b === 'recheck' && method === 'POST') {
+        const rc = recheckOf(app);
+        void rc.run().catch((err: Error) => console.warn(`model re-check: ${err.message}`));
+        return send(res, 202, rc.view());
+      }
       if (b === 'pull' && method === 'GET') return send(res, 200, { pull: puller.status() ?? null });
       if (b === 'pull' && method === 'POST') {
         const body = await readJson(req);
@@ -223,8 +244,10 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const model = String(body.model ?? '').trim();
         try {
           // A chat model becomes hers when it's done (an embedding model is only downloaded).
+          // W2.4: a download for another job (pictures, coding, meaning search) keeps her talking model.
+          const keep = body.use === false;
           puller.onDone = (m) => {
-            if (!/embed|minilm|bge-|e5-/i.test(m)) useLocalModel(m);
+            if (!keep && !/embed|minilm|bge-|e5-/i.test(m)) useLocalModel(m);
           };
           return send(res, 202, { pull: puller.start(root, model) });
         } catch (err) {
