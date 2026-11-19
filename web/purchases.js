@@ -1,7 +1,7 @@
 // V2.2 (docs/PURCHASES.md): Money → Purchases. What you bought (from receipt emails, receipt photos
 // in the Library and by hand) with the last day to return it, the warranty end, Keep it / Returned /
 // Start a return (an errand that asks before anything is sent), and the return reminder settings.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
 let ctx = null;
@@ -59,7 +59,7 @@ async function addPhoto(input) {
     const name = file.name || 'receipt.jpg';
     const res = await fetch(`/api/library?name=${encodeURIComponent(name)}&keep=1&learn=0`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: file });
     const j = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(j.error || `HTTP ${res.status}`);
+    if (!res.ok) throw new Error(serverText(j, `HTTP ${res.status}`));
     doc = j.doc;
   } catch (err) {
     say(err.message);

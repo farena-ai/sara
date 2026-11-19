@@ -1,6 +1,7 @@
 // Phase 3 "dumb path" memory: dated conversation summaries and a few owner facts, each tied to its
 // source turn, searched with SQLite FTS5 and injected under a small fixed budget. No embeddings, no
 // second model.
+import { dayAge } from './time-sense.ts';
 import { assertNotHeld } from './legal-hold.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
@@ -551,7 +552,8 @@ export function selectMemories(
     const moved = !other && m.conversationId ? opts.movedFrom?.(m.conversationId) : undefined;
     const page = doc && m.sourceDocId !== null ? opts.docPage?.(m.sourceDocId, m.evidence ?? null) : undefined;
     // Phase 76: the note goes AFTER the content, so small models see the same thing first.
-    const line = `- (${m.happenedOn}${tag}${doc ? `, from the document "${doc}"${page ? `, page ${page}, cite: [p. ${page}](/#view=library:${m.sourceDocId}:${page})` : ''} in your library` : ''}${other ? `, learned from their imported ${other} history: that was ${other} talking with them, not you` : ''}${moved ? `, from before the move (on ${moved}): your own past` : ''}) ${m.content.replace(/\s+/g, ' ').trim()}${opts.notes === false ? '' : ` ${bracketNote(p)}`}`;
+    const age = opts.today ? dayAge(m.happenedOn, opts.today) : '';
+    const line = `- (${m.happenedOn}${age ? `, ${age}` : ''}${tag}${doc ? `, from the document "${doc}"${page ? `, page ${page}, cite: [p. ${page}](/#view=library:${m.sourceDocId}:${page})` : ''} in your library` : ''}${other ? `, learned from their imported ${other} history: that was ${other} talking with them, not you` : ''}${moved ? `, from before the move (on ${moved}): your own past` : ''}) ${m.content.replace(/\s+/g, ' ').trim()}${opts.notes === false ? '' : ` ${bracketNote(p)}`}`;
     if (chars + line.length + 1 > opts.budgetChars) continue;
     lines.push(line);
     ids.push(m.id);

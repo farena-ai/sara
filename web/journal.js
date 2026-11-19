@@ -2,7 +2,7 @@
 // (or type), tag a mood, and the entry is kept in your own sealed book (src/journal.ts). Recordings
 // go only to /api/library/journal, which hears them on this computer; never /api/voice/transcribe
 // (that one may use a cloud speech service). "On this day" shows the same day in earlier years.
-import { locale, t } from './naming.js';
+import { locale, serverText, t } from './naming.js';
 import { Mic } from './voice.js';
 
 const $ = (s) => document.querySelector(s);
@@ -35,7 +35,7 @@ async function api(path, opts = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const err = new Error(data.error ? t(data.error) : res.statusText);
+    const err = new Error(serverText(data, res.statusText));
     err.typeInstead = Boolean(data.typeInstead);
     throw err;
   }

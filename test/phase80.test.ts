@@ -813,17 +813,19 @@ test('performance: a 2,000-file repository is copied, run and compared in second
   assert.ok(plain.total < 60_000);
 });
 
-test('Windows: a faked process list never stops a process that was already running', { skip: process.platform !== 'win32' }, async () => {
+test('Windows: a faked process list never stops a process that was already running', { skip: process.platform !== 'win32', timeout: 400_000 }, async () => {
   const { bornSince } = await import('../src/sandbox-run.ts');
   // This test's own runner and its parent were running long before "now".
   assert.deepEqual(await bornSince([process.pid, process.ppid], Date.now()), []);
   const { spawn } = await import('node:child_process');
   const before = Date.now();
-  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 20000)'], { stdio: 'ignore' });
+  const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 600000)'], { stdio: 'ignore' }); // killed in finally
   try {
-    // PL2d (C5): wait until Windows lists the new process (polled, up to 15 s) instead of a fixed 300 ms.
+    // PL2d (C5): wait until Windows lists the new process (polled) instead of a fixed 300 ms. One full
+    // process listing can take many seconds on a loaded PC (W0.4: a 15 s window ran out after one or
+    // two listings under the full suite), so the window is only a hang guard.
     let born: number[] = [];
-    for (const until = Date.now() + 15_000; Date.now() < until; await new Promise((r) => setTimeout(r, 100))) {
+    for (const until = Date.now() + 180_000; Date.now() < until; await new Promise((r) => setTimeout(r, 100))) {
       born = await bornSince([child.pid!], before);
       if (born.length) break;
     }

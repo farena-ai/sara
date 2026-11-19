@@ -1073,7 +1073,8 @@ function reportLine(l) {
   if (map[l.key]) return map[l.key]();
   if (LEFT_NAME[l.key]) return `${LEFT_NAME[l.key]()} · ${l.count}`;
   if (l.key.startsWith('skip-')) return `${t('Skipped in sessions: {what}', { what: l.key.slice(5).replace('-', ' ') })} · ${l.count}`;
-  return l.text;
+  // W0.2: lines with their English template read in the owner's language.
+  return l.tkey ? t(l.tkey, l.params) : t(l.text);
 }
 
 async function undo(batchId) {
@@ -1969,7 +1970,7 @@ function eveningCard(ev) {
     const l = el('ul', 'small');
     for (const x of rows) {
       const k = /^(chatgpt|claude)-(.+)$/.exec(x.kind);
-      const why = k && EXPORT_WHY[k[2]] ? EXPORT_WHY[k[2]]() : x.why;
+      const why = k && EXPORT_WHY[k[2]] ? EXPORT_WHY[k[2]]() : x.parts?.length ? x.parts.map((p) => t(p.key, p.params)).join(' · ') : t(x.why);
       const li = el('li', '');
       li.append(el('span', 'mi-bring-n', String(x.count)), el('span', '', ` ${why}`));
       l.append(li);

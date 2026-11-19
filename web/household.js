@@ -232,11 +232,12 @@ function renderMembers(members, models, options) {
       const l2 = el('label', '', t('Spending a day'));
       l2.append(' ', cost);
       lim.append(l1, l2);
-      for (const [key, label] of [['voice', t('Voice')], ['pictures', t('Pictures from her')]]) {
+      // W0.7: adults may turn on Always allow everything for themselves only when the owner allows it (never kids).
+      for (const [key, label] of [['voice', t('Voice')], ['pictures', t('Pictures from her')], ...(m.child ? [] : [['alwaysAllow', t('May turn on Always allow everything')]])]) {
         const lab = el('label', 'row');
         const cb = el('input');
         cb.type = 'checkbox';
-        cb.checked = m.limits[key];
+        cb.checked = m.limits[key] === true;
         cb.addEventListener('change', () => void save({ [key]: cb.checked }));
         lab.append(cb, ' ', label);
         lim.append(lab);

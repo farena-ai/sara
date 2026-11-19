@@ -59,6 +59,7 @@ import {
   ADULT_OFF_NOTE,
 } from './safety.ts';
 import { elsewhereNote } from './elsewhere.ts';
+import { checkTimeClaims, nowLine, spanShort, stampLabel, type TimeEvent } from './time-sense.ts';
 import { continuityAllowed, continuityForTurn, continuityParallel, SESSION_CONTINUITY_MARK, SessionContinuityError, type SessionContinuity } from './session-continuity.ts';
 import { atWork, memoryGate, nameAt, spaceOf, stampWork, workPinned, workProfile, workProfileNote, workTools } from './work-profile.ts';
 import { acquireSessionStep } from './session-step-gate.ts';
@@ -91,6 +92,7 @@ import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, u
 import type { Redactor } from './redact.ts';
 import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { noteAction, timelineBefore } from './timeline.ts';
+import { alwaysAllowOn, noteAlwaysAllowed } from './always-allow.ts';
 import { secondOpinionOffer } from './second-opinion.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
@@ -1109,8 +1111,47 @@ export function stripOwnTag(text: string, name: string): string {
   return out.trim() ? out : text;
 }
 
-export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string, fold?: { throughId: number; note: string; pinned?: Set<number> }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
+/**
+ * W0.6: the labels for earlier owner messages ("[2:07 PM, 10 min ago]", with ", after 8 h quiet" when
+ * the chat resumed after a pause). The newest owner message gets none: it is this turn's own.
+ */
+/** W0.6: how long it had been quiet before this owner message (ms), or null. */
+export function pauseBefore(messages: StoredMessage[], id: number): number | null {
+  const i = messages.findIndex((m) => m.id === id);
+  if (i <= 0) return null;
+  const prev = messages.slice(0, i).findLast((m) => m.role !== 'notice' && !isForgotten(m));
+  const gap = prev ? Date.parse(messages[i].createdAt) - Date.parse(prev.createdAt) : NaN;
+  return Number.isFinite(gap) && gap > 0 ? gap : null;
+}
+
+export function historyStamps(messages: StoredMessage[], now: Date, timeZone?: string): Map<number, string> {
+  const out = new Map<number, string>();
+  const newest = messages.findLast((m) => m.role === 'user')?.id;
+  let prevAt: number | undefined;
+  for (const m of messages) {
+    if (m.role === 'notice' || isForgotten(m)) continue;
+    const at = Date.parse(m.createdAt);
+    if (m.role === 'user' && m.id !== newest && Number.isFinite(at)) {
+      const gap = prevAt !== undefined && at - prevAt >= 30 * 60_000 ? `after ${spanShort(at - prevAt)} quiet` : undefined;
+      const label = stampLabel(m.createdAt, now, timeZone, gap);
+      if (label) out.set(m.id, label);
+    }
+    if (Number.isFinite(at)) prevAt = at;
+  }
+  return out;
+}
+
+export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string, fold?: { throughId: number; note: string; pinned?: Set<number> }, time?: { now: Date; timeZone?: string }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
   const out: ChatMessage[] = [];
+  // W0.6: earlier owner messages carry their local time and age (and a long pause before them);
+  // the newest one is this turn's (the time is restated after it). A fold says how old its end is.
+  const stamp = time ? historyStamps(messages, time.now, time.timeZone) : undefined;
+  const foldThrough = fold?.throughId;
+  const foldStamp = time && foldThrough !== undefined ? messages.find((m) => m.id === foldThrough) : undefined;
+  if (fold && foldStamp) {
+    const label = stampLabel(foldStamp.createdAt, time!.now, time!.timeZone);
+    if (label) fold = { ...fold, note: `${label.replace('[', '[tidied up through ')} ${fold.note}` };
+  }
   // Phase 123 (LEAN §5.4): a fold stands in for everything up to `throughId` (pinned messages stay
   // in place); its note goes first and counts against the budget like any message.
   if (fold) {
@@ -1154,7 +1195,8 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
       const skillNote = auto?.text ? `\n\n[Note from the app: a skill that fits this message was loaded for you; follow it where it fits:]\n${auto.text}` : '';
       if (auto?.text && auto.name && skillInUse.has(auto.name)) skillBody.set(out.length, auto.text);
       const refs = refsText && Array.isArray(m.meta?.refs) && (m.meta.refs as unknown[]).length ? refsText(m.id, m.id === newestRefs) : '';
-      out.push({ role: 'user', content: (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + (refs ? `\n\n${refs}` : '') + skillNote, ...(images.length ? { images } : {}), ...(m.meta?.steer ? { steer: true } : {}) });
+      const label = stamp?.get(m.id);
+      out.push({ role: 'user', content: (label ? `${label} ` : '') + (group ? ownerLine(group.ownerName, m.content) : m.content) + note + docs + (refs ? `\n\n${refs}` : '') + skillNote, ...(images.length ? { images } : {}), ...(m.meta?.steer ? { steer: true } : {}) });
     }
     else if (m.role === 'assistant' && m.meta?.groupFrom && typeof m.meta.groupFrom === 'object') {
       // Phase 66: another companion's line in a group chat: hers to read, labelled, never as her own.
@@ -3320,7 +3362,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
-      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold);
+      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: app.now(), timeZone: s.timeZone });
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
     const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
     const nowPath = projectNowPath(app, conv, nowGate);
@@ -3329,7 +3371,10 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       projectNowRef = await workspaceRef(nowPath === '.' ? wsDir : join(wsDir, nowPath)).catch((err: Error) => ({ error: String(err.message).slice(0, 200) }));
     }
     const checkpointText = checkpointSection(app, conv, { ...nowGate, ...(nowPath ? { now: projectNowRef } : {}) });
-    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') }];
+    // W0.6: the owner's local date, time and zone (and the pause before his message) restated as the
+    // last thing in her instructions every step (kept with the step's system text, never stored).
+    const timeNow = opts.replay ? '' : `\n\n${nowLine(app.now(), s.timeZone, userMsg ? pauseBefore(store.messages(conv.id), userMsg.id) : null)}`;
+    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') + timeNow }];
     // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
     const projectNow = nowPath ? projectNowSection(app, conv, { ...nowGate, now: projectNowRef }) : undefined;
     if (projectNow) messages.push({ role: 'system', content: projectNow });
@@ -3783,6 +3828,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       reply = untagged;
       yield { type: 'replace', messageId: saved.id, text: untagged };
     }
+    // W0.6: "yesterday" / "earlier today" / "10 minutes ago" about something said in this chat is
+    // checked against the real times and rewritten to the real age (a label she copied is taken off).
+    if (reply.trim() && !opts.replay) {
+      const events: TimeEvent[] = store.messages(conv.id).filter((m) => m.id < saved.id && (m.role === 'user' || m.role === 'assistant') && !isForgotten(m) && m.content.trim()).map((m) => ({ at: m.createdAt, role: m.role as 'user' | 'assistant', text: m.content }));
+      const timed = checkTimeClaims(reply, events, app.now(), s.timeZone);
+      if (timed.text !== reply && timed.text.trim()) {
+        reply = timed.text;
+        store.updateMessageContent(saved.id, reply);
+        if (timed.fixes.length) store.updateMessageMeta(saved.id, { timeFix: timed.fixes });
+        yield { type: 'replace', messageId: saved.id, text: reply };
+      }
+    }
     // Phase 28: her own words get the same minors check as the owner's (patterns, then the
     // optional judge). A failing reply is replaced everywhere and the turn ends (no tools run).
     const herMatch = reply && reply.trim() !== MINOR_BLOCK_REPLY ? minorSexualMatch(reply, ownerApp ? { fromHer: true } : {}) : null;
@@ -3922,7 +3979,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // holds it to someone else asks first (it can only add an ask, never skip one).
       const mentionHeld = permission2 === 'auto' ? outgoingHolds(mentionHits, call.name, call.arguments) : undefined;
       if (mentionHeld) summary = `${personalize(`This mentions your reminder: \"${mentionHeld.reminder.text}\". Send it anyway?`, identityOf(app.persona))} ${summary}`;
-      const permission3 = untrustedAsk || mentionHeld ? 'ask' : permission2;
+      const permission3a = untrustedAsk || mentionHeld ? 'ask' : permission2;
+      // W0.7 (src/always-allow.ts): Always allow everything: the person's own requests run without a card
+      // (never another app's, an outside request's, forwarded text's or a linked server's; never past 'never').
+      const allowAll = !opts.outside && !opts.externalApp && !external && !opts.untrusted && !peerAnswered && !conv.partner && !opts.group && alwaysAllowOn(app);
+      const allowAllSkipped = allowAll && permission3a === 'ask';
+      const permission3 = allowAllSkipped ? 'auto' : permission3a;
       // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
       // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
       const gateWouldAsk = Boolean(!admissionFailure && opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && !opts.editor && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
@@ -4020,7 +4082,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           const redteamCard = pre.redteam?.ask ? pre.redteam : undefined;
           // Phase 80: with an isolated sandbox try, the try's card is the approval; without isolation
           // (Windows copy mode) a tool that asks first still asks before the try.
-          const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk) || (permission === 'ask' && (!gate || gate.askFirst)));
+          // W0.7: with Always allow everything the plan check, advisory, ship gate and plugin cards don't stop it either (spend limits still do).
+          const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || (!allowAll && (Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk))) || (permission === 'ask' && (!gate || gate.askFirst)));
           if (firstCard) {
             const { id, decision } = askCard();
             const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
@@ -4086,7 +4149,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
               console.warn(`sandbox try: ${(err as Error).message}`);
             }
             if (tried) {
-              const verdict = gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
+              const verdict = allowAll ? ({ act: 'allow' } as const) : gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
               if (signal.aborted) {
                 discardSandbox(tried);
                 sbDecision = 'cancelled';
@@ -4347,6 +4410,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (!store.getConversation(conv.id)) return 'end';
       const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(timedOut ? { timedOut: true } : {}), ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
       // V5.1: what she changed goes on the action timeline (src/timeline.ts), with its undo when one exists.
+      // W0.7: one audit row per call that skipped its card because Always allow everything is on.
+      if (ranTool && allowAllSkipped) noteAlwaysAllowed(app, call.name, summary, conv.channel || 'web');
       if (ranTool && status === 'ok' && !opts.replay) noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: conv.id, workspace: conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });

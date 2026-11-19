@@ -21,6 +21,7 @@ import { privateLocalOn } from '../net-guard.ts';
 import { SP_KINDS, SP_OPS, SP_PEER_MAX, SP_ROLES, sharedProjectsOf } from '../shared-projects.ts';
 import { SupportError } from '../support.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { en } from '../i18n.ts';
 
 export function createSharedProjectRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
@@ -96,7 +97,7 @@ export async function handleSharedProjectPeer(ctx: RouteCtx, req: IncomingMessag
   } catch {
     return reply(413, { error: 'too big' });
   }
-  if (privateLocalOn()) return reply(403, { error: 'Private local mode is on there.' });
+  if (privateLocalOn()) return reply(403, { error: en('Private local mode is on there.') });
   try {
     const { linkId, name } = sp.verify(req.headers, op, raw);
     return reply(200, sp.received(linkId, name, op, JSON.parse(raw) as Record<string, unknown>));

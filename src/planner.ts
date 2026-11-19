@@ -1,5 +1,6 @@
 // Phase 3.7: projects, tasks, notes and reminders ("managing things"). Plain SQLite tables plus
 // three small tools for Sara (todo, note, remind). Times are entered in the owner's time zone.
+import { untilShort } from './time-sense.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import { ftsQuery } from './memory.ts';
 import type { Tool } from './tools/types.ts';
@@ -898,14 +899,14 @@ CREATE INDEX IF NOT EXISTS reminder_fires_r ON reminder_fires(reminder_id, at);`
     for (const t of due) {
       const at = new Date(t.dueAt!);
       const when = at < now ? 'OVERDUE, was due' : at <= endOfDay ? 'due today' : 'due';
-      lines.push(`- task #${t.id} "${t.title}"${t.project ? ` (${t.project})` : ''}: ${when} ${formatLocal(t.dueAt!, timeZone)}`);
+      lines.push(`- task #${t.id} "${t.title}"${t.project ? ` (${t.project})` : ''}: ${when} ${formatLocal(t.dueAt!, timeZone)} (${untilShort(t.dueAt!, now)})`);
     }
     const rest = open.length - due.length;
     if (rest > 0) lines.push(`- ${rest} other open task${rest === 1 ? '' : 's'} (use the todo tool to list them)`);
     // Phase 119 (RECALL §4.4 path 1): "when it comes up" reminders never go in here (it reaches every turn with tools).
     for (const r of this.reminders({ status: 'pending', limit: 3, kind: 'timed' })) {
       const pl = r.placeId ? this.place(r.placeId) : undefined;
-      lines.push(`- reminder #${r.id} "${r.text}" ${r.placeId ? `when ${r.placeEvent === 'leave' ? 'leaving' : 'arriving at'} ${pl?.name ?? 'a place'}` : `at ${formatLocal(r.dueAt, timeZone)}`}${r.repeat !== 'none' ? ` (${r.repeat})` : ''}`);
+      lines.push(`- reminder #${r.id} "${r.text}" ${r.placeId ? `when ${r.placeEvent === 'leave' ? 'leaving' : 'arriving at'} ${pl?.name ?? 'a place'}` : `at ${formatLocal(r.dueAt, timeZone)} (${untilShort(r.dueAt, now)})`}${r.repeat !== 'none' ? ` (${r.repeat})` : ''}`);
     }
     return lines.join('\n');
   }

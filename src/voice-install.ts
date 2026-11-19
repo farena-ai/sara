@@ -53,6 +53,18 @@ export const STREAM_MODEL: InstallItem = { path: 'asr-models/sherpa-onnx-nemo-st
 export const STREAM_MB = 105;
 const STREAM_DIR = 'sherpa-onnx-nemo-streaming-fast-conformer-transducer-en-80ms-int8';
 
+/**
+ * W0.3 (docs/VOICE_FIRST.md "Words as you speak in six languages"): the optional multilingual
+ * streaming model, NVIDIA Nemotron 3.5 ASR Streaming 0.6B (NVIDIA Open Model License; 40 locales incl.
+ * es/fr/de/pt/it; int8, 560 ms chunks), exported by sherpa-onnx. One model for every language: the
+ * language is set per stream. SHA-256 = GitHub's asset digest, matched by the downloaded file 2026-11-19.
+ */
+export const MULTI_MODEL: InstallItem = { path: 'asr-models/sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11.tar.bz2', sha256: 'c6bf5e0df765f9d5b43bc9e0536d4b4b3e7d40bdf5ecf13e45f134c51c05ae3a', size: 475_271_763 };
+export const MULTI_MB = 480;
+const MULTI_DIR = 'sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11';
+/** W0.3: what the multilingual model is used for (Sara's six app languages; English keeps the small model when it's there). */
+const MULTI_LANGS = ['en', 'es', 'fr', 'de', 'pt', 'it'];
+
 // ---- V0.1: the loaded-engine helper, prebuilt by the release (Windows and Mac have no compiler) ----
 
 /** The repo / installed server folder (…/server on Windows, Contents/Resources/server on a Mac). */
@@ -109,16 +121,22 @@ const nameOf = (item: InstallItem) => item.path.split('/').at(-1)!;
 const dirOf = (item: InstallItem) => nameOf(item).replace(/\.tar\.bz2$/, '');
 
 /** What this system installs (undefined: not this way; Linux has the shell script). */
-export function installItems(platform: NodeJS.Platform = process.platform, arch: string = process.arch, opts: { streaming?: 'add' | 'only' } = {}): InstallItem[] | undefined {
+export function installItems(platform: NodeJS.Platform = process.platform, arch: string = process.arch, opts: { streaming?: Streaming } = {}): InstallItem[] | undefined {
   const bundle = platform === 'win32' ? SHERPA_BUNDLES[`win32-${arch === 'arm64' ? 'arm64' : 'x64'}`] : platform === 'darwin' ? SHERPA_BUNDLES['darwin-any'] : undefined;
   if (!bundle) return undefined;
   // V0.2: 'only' = just the streaming model (the rest is installed); 'add' = everything plus it.
   if (opts.streaming === 'only') return [STREAM_MODEL];
+  // W0.3: 'languages-only' = just the multilingual streaming model; 'languages' = everything plus it.
+  if (opts.streaming === 'languages-only') return [MULTI_MODEL];
+  if (opts.streaming === 'languages') return [bundle, ...VOICE_MODELS, MULTI_MODEL];
   return opts.streaming === 'add' ? [bundle, ...VOICE_MODELS, STREAM_MODEL] : [bundle, ...VOICE_MODELS];
 }
 
+/** V0.2 + W0.3: which streaming model an install adds ('-only' forms: the rest is installed already). */
+export type Streaming = 'add' | 'only' | 'languages' | 'languages-only';
+
 /** voice.json exactly as deploy/install-voice.sh writes it (the bundle folder name is the only difference). */
-export function voiceManifest(sherpa: string, opts: { online?: boolean } = {}): VoiceManifest {
+export function voiceManifest(sherpa: string, opts: { online?: boolean; multi?: boolean } = {}): VoiceManifest {
   const P = 'sherpa-onnx-nemo-parakeet_tdt_ctc_110m-en-36000-int8';
   const K = 'kokoro-en-v0_19';
   const V = 'vits-piper-en_US-hfc_female-medium';
@@ -132,6 +150,8 @@ export function voiceManifest(sherpa: string, opts: { online?: boolean } = {}): 
     ],
     // V0.2: the streaming hearing model, when it's installed.
     ...(opts.online ? { online: { kind: 'transducer' as const, encoder: `${STREAM_DIR}/encoder.int8.onnx`, decoder: `${STREAM_DIR}/decoder.int8.onnx`, joiner: `${STREAM_DIR}/joiner.int8.onnx`, tokens: `${STREAM_DIR}/tokens.txt` } } : {}),
+    // W0.3: the multilingual streaming model, when it's installed.
+    ...(opts.multi ? { multi: { kind: 'transducer' as const, encoder: `${MULTI_DIR}/encoder.int8.onnx`, decoder: `${MULTI_DIR}/decoder.int8.onnx`, joiner: `${MULTI_DIR}/joiner.int8.onnx`, tokens: `${MULTI_DIR}/tokens.txt`, languages: [...MULTI_LANGS] } } : {}),
   };
 }
 
@@ -197,12 +217,13 @@ export async function downloadPinned(url: string, sha256: string, dest: string, 
  */
 export async function installVoice(
   voiceDir: string,
-  opts: { platform?: NodeJS.Platform; arch?: string; fetch?: typeof fetch; untar?: Untar; signal?: AbortSignal; onProgress?: (p: Progress) => void; streaming?: 'add' | 'only'; items?: InstallItem[]; helperRoot?: string } = {},
+  opts: { platform?: NodeJS.Platform; arch?: string; fetch?: typeof fetch; untar?: Untar; signal?: AbortSignal; onProgress?: (p: Progress) => void; streaming?: Streaming; items?: InstallItem[]; helperRoot?: string } = {},
 ): Promise<{ installed: string[]; manifest: VoiceManifest }> {
   const all = installItems(opts.platform, opts.arch);
   // V0.2: 'only' needs the rest to be there already; otherwise everything is installed with it.
   const haveRest = Boolean(all?.every((i) => existsSync(join(voiceDir, dirOf(i)))));
-  const items = opts.items ?? installItems(opts.platform, opts.arch, opts.streaming ? { streaming: opts.streaming === 'only' && haveRest ? 'only' : 'add' } : {});
+  const lang = opts.streaming === 'languages' || opts.streaming === 'languages-only';
+  const items = opts.items ?? installItems(opts.platform, opts.arch, opts.streaming ? { streaming: lang ? (haveRest ? 'languages-only' : 'languages') : opts.streaming === 'only' && haveRest ? 'only' : 'add' } : {});
   if (!all || !items) throw new VoiceInstallError('platform', 'On Linux use: sudo ./deploy/install-voice.sh');
   if (privateLocalOn()) throw new VoiceInstallError('private', 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
   const untar = opts.untar ?? runTar(systemTar(opts.platform));
@@ -238,7 +259,7 @@ export async function installVoice(
     rmSync(dl, { recursive: true, force: true });
   }
   const sherpa = dirOf(all[0]);
-  const manifest = voiceManifest(sherpa, { online: existsSync(join(voiceDir, STREAM_DIR)) });
+  const manifest = voiceManifest(sherpa, { online: existsSync(join(voiceDir, STREAM_DIR)), multi: existsSync(join(voiceDir, MULTI_DIR)) });
   writeFileSync(join(voiceDir, 'voice.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   // V0.1: the prebuilt loaded-engine helper goes next to the sherpa tools (never fatal).
   try {
@@ -259,12 +280,13 @@ export async function runVoiceCli(args: string[], opts: { platform?: NodeJS.Plat
   const log = opts.log ?? ((s: string) => console.log(s));
   const platform = opts.platform ?? process.platform;
   const streaming = args.includes('--streaming');
-  if (args[0] !== 'install' || args.slice(1).some((a) => a !== '--streaming')) {
-    log(`Usage: sara voice install [--streaming]   (her own hearing and voices on this computer, about 650 MB; --streaming adds words-as-you-speak hearing, about ${STREAM_MB} MB)`);
+  const languages = args.includes('--languages');
+  if (args[0] !== 'install' || args.slice(1).some((a) => a !== '--streaming' && a !== '--languages')) {
+    log(`Usage: sara voice install [--streaming] [--languages]   (her own hearing and voices on this computer, about 650 MB; --streaming adds words-as-you-speak hearing, about ${STREAM_MB} MB; --languages adds it for Spanish, French, German, Portuguese and Italian, about ${MULTI_MB} MB)`);
     return args.length ? 2 : 0;
   }
   if (platform === 'linux') {
-    log(streaming ? 'Use: sudo ./deploy/install-voice.sh --streaming' : 'Use: sudo ./deploy/install-voice.sh');
+    log(`Use: sudo ./deploy/install-voice.sh${streaming ? ' --streaming' : ''}${languages ? ' --languages' : ''}`);
     return 0;
   }
   if (privateLocalOn()) {
@@ -276,7 +298,7 @@ export async function runVoiceCli(args: string[], opts: { platform?: NodeJS.Plat
   try {
     const r = await (opts.install ?? installVoice)(opts.voiceDir, {
       platform,
-      ...(streaming ? { streaming: 'add' as const } : {}),
+      ...(languages ? { streaming: 'languages' as const } : streaming ? { streaming: 'add' as const } : {}),
       onProgress: (p) => {
         const line = `${p.index + 1}/${p.of} ${p.item}${p.total ? ` ${Math.floor((p.bytes / p.total) * 100)} %` : ''}`;
         if (line !== last && (p.bytes === p.total || /0 %$/.test(line))) log(line);

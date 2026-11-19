@@ -30,6 +30,7 @@ import { configTrees, enabledPlugins, keyPaths, presetLabel, reachable, translat
 import { parseAnswer } from './mapping.ts';
 import type { Staging } from './staging.ts';
 import { unsafeLine } from './text.ts';
+import { en, fill } from '../i18n.ts';
 
 /** Where each kind of old agent keeps its hooks and plugins inside the bundle. */
 export const CODE_ROOTS: Record<'hermes' | 'openclaw' | 'custom', { hooks: string[]; plugins: string[] }> = {
@@ -216,6 +217,8 @@ export interface ApplyResult {
 }
 
 const line = (key: string, text: string, extra: Partial<ReportLine> = {}): ReportLine => ({ key, count: 1, text, ...extra });
+/** W0.2: a line from an English template and its values (the app shows it in the owner's language). */
+const kline = (key: string, tkey: string, params: Record<string, string | number>, extra: Partial<ReportLine> = {}): ReportLine => ({ key, count: 1, text: fill(tkey, params), tkey, params, ...extra });
 const sameJson = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function uniqueId(base: string, taken: Set<string>): string {
@@ -283,11 +286,11 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
       continue;
     }
     if (p.state !== 'confirmed') {
-      r.needsYou.push(line('cfg-undecided', `${p.title} (${p.old}): not decided, so nothing changed. Import the bundle again to decide.`, { examples: [shownFrom(p.from)] }));
+      r.needsYou.push(kline('cfg-undecided', en('{title} ({old}): not decided, so nothing changed. Import the bundle again to decide.'), { title: p.title, old: p.old }, { examples: [shownFrom(p.from)] }));
       continue;
     }
     if (p.mode === 'connect') {
-      r.needsYou.push(line(`connect-${p.kind}`, `${p.kind === 'channel' ? 'Reconnect' : 'Connect'} ${p.title}: ${(p.steps ?? []).join(' ')}`, { examples: [shownFrom(p.from)], ...(p.page ? { page: p.page } : {}) } as Partial<ReportLine>));
+      r.needsYou.push(kline(`connect-${p.kind}`, p.kind === 'channel' ? en('Reconnect {title}: {steps}') : en('Connect {title}: {steps}'), { title: p.title, steps: (p.steps ?? []).join(' ') }, { examples: [shownFrom(p.from)], ...(p.page ? { page: p.page } : {}) } as Partial<ReportLine>));
       r.translated.push(line(`tr-${p.kind}`, `${p.title} → ${p.lives} (off until you connect it)`, { examples: [shownFrom(p.from)] }));
       continue;
     }
@@ -298,10 +301,10 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
         r.changes.push({ path: 'providers', provider: cfg.id });
         r.items.push({ kind: 'setting', table: 'settings.providers', id: cfg.id, ref: `${p.from}|${p.key}` });
         r.translated.push(line('tr-provider', `${p.old} → provider "${cfg.label}" in Settings → Models & usage${cfg.defaultModel ? ` (${cfg.defaultModel})` : ''}`, { examples: [shownFrom(p.from)] }));
-        if (p.kind === 'sign-in') r.needsYou.push(line('sign-in', `Sign in to ${cfg.label} with your own account (Settings → Models & usage).`, { page: 'models' } as Partial<ReportLine>));
+        if (p.kind === 'sign-in') r.needsYou.push(kline('sign-in', en('Sign in to {name} with your own account (Settings → Models & usage).'), { name: cfg.label }, { page: 'models' } as Partial<ReportLine>));
         else if (cfg.needsKey) keys.push(cfg.label);
       } catch (err) {
-        r.needsYou.push(line('cfg-failed', `${p.title}: couldn't be added (${(err as Error).message}). Add it by hand in Settings → Models & usage.`));
+        r.needsYou.push(kline('cfg-failed', en("{title}: couldn't be added ({error}). Add it by hand in Settings → Models & usage."), { title: p.title, error: (err as Error).message }));
       }
       continue;
     }
@@ -329,8 +332,8 @@ export function applyTranslations(app: AppContext, config: Proposal[], code: Cod
     }
     r.leftBehind.push(line('cfg-kept', `${p.title}: Sara kept her own setting`, { examples: [shownFrom(p.from)] }));
   }
-  if (keys.length) r.needsYou.unshift(line('keys', `Paste keys: ${[...new Set(keys)].join(', ')} (Settings → Models & usage / Voice). Keys never move with a bundle.`, { count: new Set(keys).size, page: 'models' } as Partial<ReportLine>));
-  if (routes.length) r.needsYou.push(line('routes', `Pick the models for each job once the providers work: ${routes.slice(0, 4).join('; ')} (Settings → Models & usage → Which model does what).`, { count: routes.length, page: 'models' } as Partial<ReportLine>));
+  if (keys.length) r.needsYou.unshift(kline('keys', en('Paste keys: {names} (Settings → Models & usage / Voice). Keys never move with a bundle.'), { names: [...new Set(keys)].join(', ') }, { count: new Set(keys).size, page: 'models' } as Partial<ReportLine>));
+  if (routes.length) r.needsYou.push(kline('routes', en('Pick the models for each job once the providers work: {jobs} (Settings → Models & usage → Which model does what).'), { jobs: routes.slice(0, 4).join('; ') }, { count: routes.length, page: 'models' } as Partial<ReportLine>));
 
   // ---------------- hooks and plugins ----------------
   const perms = { ...(patch.toolPermissions ?? s.toolPermissions ?? {}) };

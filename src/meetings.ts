@@ -34,7 +34,7 @@ import { policy } from './policy-profile.ts';
 import { onThisComputer } from './private-local.ts';
 import { detectMinorSexualContent } from './safety.ts';
 import { speechOf } from './speech.ts';
-import { isWav } from './voice.ts';
+import { hearLang, isWav } from './voice.ts';
 
 export const MEETINGS = {
   maxFileBytes: 100 * 1024 * 1024,
@@ -341,7 +341,8 @@ export class Meetings {
   async #transcribe(audio: Buffer): Promise<string> {
     const v = speechOf(this.#app).settings();
     const wav = isWav(audio);
-    if (wav && this.#localEngine() && v.stt !== 'off') return (await this.#app.voice!.transcribe(audio)).trim();
+    // W0.3: in the owner's language (es/fr/de/pt/it through the multilingual streaming model when installed; captions follow).
+    if (wav && this.#localEngine() && v.stt !== 'off') return (await this.#app.voice!.transcribe(audio, { lang: hearLang(this.#app.settings.get()) })).trim();
     const local = v.stt === 'openai' ? onThisComputer({ kind: 'openai-compatible', baseUrl: v.openai.baseUrl }) : v.stt === 'local' && wav;
     if (!local && v.stt !== 'off' && !this.prefs().cloud) throw new MeetingError(409, this.#cloudRefusal());
     return (await speechOf(this.#app).transcribe(audio)).trim();

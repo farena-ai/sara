@@ -18,7 +18,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { HttpError, readJson, readRaw, send } from './http.ts';
-import { en, trOwner } from './i18n.ts';
+import { en, enf, trOwner } from './i18n.ts';
 import { APP_HEADERS, myAppsFor, MyApps, mySpaceDir } from './my-apps.ts';
 
 export const CANVAS_LIMITS = {
@@ -105,10 +105,10 @@ function cleanSource(s: CanvasPost['source']): CanvasSource {
   if (type === 'app') {
     const app = clip((s as { app?: unknown }).app, 80);
     const key = String((s as { key?: unknown }).key ?? '').trim();
-    if (!app || !/^[A-Za-z0-9._-]{1,64}$/.test(key)) fail('An app source needs the app name and one of its data names (letters, digits, . _ -).');
+    if (!app || !/^[A-Za-z0-9._-]{1,64}$/.test(key)) fail(en('An app source needs the app name and one of its data names (letters, digits, . _ -).'));
     return { type: 'app', app, key };
   }
-  return fail('The source is own (your data), tasks (Planner to-dos) or app (a kept app\'s data).');
+  return fail(en('The source is own (your data), tasks (Planner to-dos) or app (a kept app\'s data).'));
 }
 
 function itemsOf(list: unknown[] | undefined, start: number): { items: CanvasItem[]; next: number } {
@@ -172,14 +172,14 @@ function barsOf(v: unknown, map: ChartMap = {}): CanvasBar[] {
 }
 
 function checkSize(own: Own): void {
-  if ((own.items?.length ?? 0) > CANVAS_LIMITS.items) fail(`A checklist may have at most ${CANVAS_LIMITS.items} items.`);
-  if ((own.rows?.length ?? 0) > CANVAS_LIMITS.rows) fail(`A table may have at most ${CANVAS_LIMITS.rows} rows.`);
-  if (Buffer.byteLength(JSON.stringify(own)) > CANVAS_LIMITS.dataBytes) fail(`That is too much for a live view (at most ${CANVAS_LIMITS.dataBytes / 1024} KB of data).`);
+  if ((own.items?.length ?? 0) > CANVAS_LIMITS.items) fail(enf('A checklist may have at most {n} items.', { n: CANVAS_LIMITS.items }));
+  if ((own.rows?.length ?? 0) > CANVAS_LIMITS.rows) fail(enf('A table may have at most {n} rows.', { n: CANVAS_LIMITS.rows }));
+  if (Buffer.byteLength(JSON.stringify(own)) > CANVAS_LIMITS.dataBytes) fail(enf('That is too much for a live view (at most {n} KB of data).', { n: CANVAS_LIMITS.dataBytes / 1024 }));
 }
 function cleanHtml(v: unknown): string {
   const html = String(v ?? '');
-  if (!html.trim()) fail('An html view needs its page (html).');
-  if (Buffer.byteLength(html) > CANVAS_LIMITS.htmlBytes) fail(`The page is too big (at most ${CANVAS_LIMITS.htmlBytes / 1024} KB).`);
+  if (!html.trim()) fail(en('An html view needs its page (html).'));
+  if (Buffer.byteLength(html) > CANVAS_LIMITS.htmlBytes) fail(enf('The page is too big (at most {n} KB).', { n: CANVAS_LIMITS.htmlBytes / 1024 }));
   return html;
 }
 
@@ -226,7 +226,7 @@ export class CanvasStore {
       if (r) return r;
     }
     const byTitle = (this.#db.prepare('SELECT * FROM canvases ORDER BY id DESC').all() as Row[]).find((r) => r.title.toLowerCase() === s.toLowerCase());
-    return byTitle ?? fail(`There is no live view "${s}". canvas_list shows them.`);
+    return byTitle ?? fail(enf('There is no live view "{name}". canvas_list shows them.', { name: s }));
   }
   #view(r: Row): CanvasView {
     return {
@@ -254,11 +254,11 @@ export class CanvasStore {
 
   post(p: CanvasPost): CanvasView {
     const kind = String(p.kind ?? '') as CanvasKind;
-    if (!CANVAS_KINDS.includes(kind)) fail('A live view is a checklist, table, chart or html page.');
+    if (!CANVAS_KINDS.includes(kind)) fail(en('A live view is a checklist, table, chart or html page.'));
     const title = clip(p.title, CANVAS_LIMITS.title);
-    if (!title) fail('A live view needs a short title.');
+    if (!title) fail(en('A live view needs a short title.'));
     const n = (this.#db.prepare('SELECT COUNT(*) AS c FROM canvases').get() as { c: number }).c;
-    if (Number(n) >= CANVAS_LIMITS.canvases) fail(`At most ${CANVAS_LIMITS.canvases} live views are kept; remove one first.`);
+    if (Number(n) >= CANVAS_LIMITS.canvases) fail(enf('At most {n} live views are kept; remove one first.', { n: CANVAS_LIMITS.canvases }));
     const source = cleanSource(p.source);
     const own: Own = {};
     if (source.type === 'own') {
@@ -285,11 +285,11 @@ export class CanvasStore {
     let html = r.html;
     let changed = false;
     if (patch.title !== undefined) {
-      title = clip(patch.title, CANVAS_LIMITS.title) || fail('A live view needs a short title.');
+      title = clip(patch.title, CANVAS_LIMITS.title) || fail(en('A live view needs a short title.'));
       changed = true;
     }
     const wantsData = ['items', 'add', 'check', 'uncheck', 'remove', 'columns', 'rows', 'bars'].some((k) => (patch as Record<string, unknown>)[k] !== undefined);
-    if (wantsData && source.type !== 'own') fail(source.type === 'tasks' ? 'This view shows Planner to-dos: change the tasks instead (it follows them).' : `This view shows the app "${source.app}": change the app's data instead.`);
+    if (wantsData && source.type !== 'own') fail(source.type === 'tasks' ? en('This view shows Planner to-dos: change the tasks instead (it follows them).') : enf('This view shows the app "{app}": change the app\'s data instead.', { app: source.app }));
     if (r.kind === 'checklist' && wantsData) {
       if (patch.items) Object.assign(own, itemsOf(patch.items, own.next ?? 1));
       if (patch.add) {
@@ -324,7 +324,7 @@ export class CanvasStore {
         changed = true;
       }
     }
-    if (!changed) fail('Nothing to change: give a title, items to add/check/remove, rows, bars, html or data.');
+    if (!changed) fail(en('Nothing to change: give a title, items to add/check/remove, rows, bars, html or data.'));
     checkSize(own);
     this.#db.prepare('UPDATE canvases SET title = ?, own = ?, html = ?, updated = ? WHERE id = ?').run(title, JSON.stringify(own), html, this.#now().toISOString(), id);
     return this.#view(this.#row(id)!);
@@ -336,7 +336,7 @@ export class CanvasStore {
 
   /** What the frame shows now, read fresh from the source, with a short hash of it (`rev`). */
   state(app: AppContext, id: number): Record<string, any> {
-    const r = this.#row(id) ?? fail('There is no such live view.');
+    const r = this.#row(id) ?? fail(en('There is no such live view.'));
     const own = JSON.parse(r.own) as Own;
     const source = JSON.parse(r.source) as CanvasSource;
     const kind = r.kind as CanvasKind;
@@ -380,26 +380,26 @@ export class CanvasStore {
 
   /** A checklist row ticked (or unticked) in the frame. */
   tick(app: AppContext, id: number, item: string, done: boolean): void {
-    const r = this.#row(id) ?? fail('There is no such live view.');
-    if (r.kind !== 'checklist') fail('Only a checklist has rows to tick.');
+    const r = this.#row(id) ?? fail(en('There is no such live view.'));
+    if (r.kind !== 'checklist') fail(en('Only a checklist has rows to tick.'));
     const source = JSON.parse(r.source) as CanvasSource;
-    if (source.type === 'app') fail('This list comes from an app: tick it in the app.');
+    if (source.type === 'app') fail(en('This list comes from an app: tick it in the app.'));
     if (source.type === 'tasks') {
-      const listed = (tasksOf(app, source, this.#now()) ?? []).find((t) => `t${t.id}` === item) ?? fail('That to-do is not on this list.');
+      const listed = (tasksOf(app, source, this.#now()) ?? []).find((t) => `t${t.id}` === item) ?? fail(en('That to-do is not on this list.'));
       app.planner!.updateTask(listed.id, { status: done ? 'done' : 'open' });
       return;
     }
     const own = JSON.parse(r.own) as Own;
-    const it = (own.items ?? []).find((i) => i.id === item) ?? fail('That row is not on this list.');
+    const it = (own.items ?? []).find((i) => i.id === item) ?? fail(en('That row is not on this list.'));
     it.done = done;
     this.#db.prepare('UPDATE canvases SET own = ?, updated = ? WHERE id = ?').run(JSON.stringify(own), this.#now().toISOString(), id);
   }
 
   /** An html view saves its own data (own source only). */
   save(id: number, data: unknown): void {
-    const r = this.#row(id) ?? fail('There is no such live view.');
+    const r = this.#row(id) ?? fail(en('There is no such live view.'));
     const source = JSON.parse(r.source) as CanvasSource;
-    if (r.kind !== 'html' || source.type !== 'own') fail('This live view shows data from somewhere else: it cannot save here.');
+    if (r.kind !== 'html' || source.type !== 'own') fail(en('This live view shows data from somewhere else: it cannot save here.'));
     const own = JSON.parse(r.own) as Own;
     own.data = data ?? null;
     checkSize(own);
@@ -494,7 +494,7 @@ export async function serveCanvas(app: AppContext, req: IncomingMessage, res: Se
     if (rest === '_save' && method === 'POST') {
       const body = await readJson(req, CANVAS_LIMITS.dataBytes + 1024);
       const st = store.state(app, hit.id);
-      if (!st.canSave) return outJson(res, 403, { error: 'This live view shows data from somewhere else: it cannot save here.' });
+      if (!st.canSave) return outJson(res, 403, { error: en('This live view shows data from somewhere else: it cannot save here.') });
       store.save(hit.id, body.data);
       return outJson(res, 200, { ok: true });
     }

@@ -1,7 +1,7 @@
 // V0.8 (docs/SIGN_IN_SSO.md): the sign-in page's "Sign in with <provider>" button and the return from
 // the provider (/?sso=done → POST /api/sso/finish; /?sso=<reason> → a plain sentence). The owner token
 // and passkeys stay on the same page as before.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 import { ssoReasonText } from './sso-settings.js';
 
 const $ = (s) => document.querySelector(s);
@@ -10,7 +10,7 @@ let wired = false;
 async function post(path, body = {}) {
   const r = await fetch('/api/sso/' + path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? String(r.status));
+  if (!r.ok) throw new Error(serverText(d, String(r.status)));
   return d;
 }
 

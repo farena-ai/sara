@@ -9,7 +9,7 @@ import { DEFAULT_TURN_BUDGETS, mergeTurnBudgets, MINUTE_CHOICES, STEP_CHOICES, T
 import { as400, HttpError, readJson, SECURITY_HEADERS, send, validWorkspace } from '../http.ts';
 import { applyBranch, branchInfo, branchRun, compareRuns, discardCopy, ReplayError, runningBranches, useAnswer, type BranchEdits, type BranchEvent } from '../replay.ts';
 import { summaryLine } from '../run-diff.ts';
-import { trOwner } from '../i18n.ts';
+import { en, trOwner } from '../i18n.ts';
 import { checkIssues, cleanWatch, type OpenIssue, openIssues, startFromIssue, watchSettings } from '../issues.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { identityOf } from '../persona.ts';
@@ -589,7 +589,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         let convId = typeof body.conversationId === 'string' ? body.conversationId : '';
         const ws = body.workspace ? validWorkspace(body.workspace) : 'main';
         const project = body.projectId !== undefined && body.projectId !== null ? projectOrThrow(body.projectId) : null;
-        if (!convId) convId = app.store.createConversation({ title: `New project: ${String(body.projectName ?? '').slice(0, 60)}`, mode: 'coding', workspace: ws, projectId: project?.id ?? null }).id;
+        if (!convId) convId = app.store.createConversation({ title: trOwner(en('New project: {name}'), app.settings.get(), { name: String(body.projectName ?? '').slice(0, 60) }), mode: 'coding', workspace: ws, projectId: project?.id ?? null }).id;
         else if (!app.store.getConversation(convId)) throw new HttpError(404, 'Conversation not found');
         try {
           const r = createFromStarter(app, { conversationId: convId, workspace: ws, name: String(body.name ?? ''), project: String(body.projectName ?? '').trim() });
@@ -749,7 +749,7 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
         }
         const meaning = kind === 'meaning' || (!kind && !ident);
         const hits = meaning && maps.target ? await store.findMeaning(maps.target, query, 30) : store.findWords(query, 30);
-        return send(res, 200, { kind: meaning && maps.target ? 'meaning' : 'text', ...(meaning && !maps.target ? { note: "Meaning search isn't set up (Settings → Which model does what → Meaning search), so this is a word search." } : {}), hits: hits.map((h) => ({ path: h.path, line: h.line, name: h.symbol, snippet: h.snippet, by: h.by })) });
+        return send(res, 200, { kind: meaning && maps.target ? 'meaning' : 'text', ...(meaning && !maps.target ? { note: trOwner(en("Meaning search isn't set up (Settings → Which model does what → Meaning search), so this is a word search."), app.settings.get()) } : {}), hits: hits.map((h) => ({ path: h.path, line: h.line, name: h.symbol, snippet: h.snippet, by: h.by })) });
       }
     }
     // Phase 50: her recipes (Settings → Skills & tools → Recipes).

@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
-import { fill } from './i18n.ts';
+import { fill, keyedText } from './i18n.ts';
 import { WORKSPACE_NAME_RE } from './tools/workspace.ts';
 
 /** Requests from Sara's phone apps (their web views add "SaraPhone/<n>" to the user agent). Adult mode is
@@ -88,7 +88,10 @@ export const SECURITY_HEADERS: Record<string, string> = {
 };
 
 export function send(res: ServerResponse, status: number, body: unknown): void {
-  const json = JSON.stringify(body);
+  // W0.2: an error made with enf() carries its template, so the app can translate it.
+  const err = status >= 400 && body && typeof body === 'object' && !Array.isArray(body) ? (body as Record<string, unknown>) : undefined;
+  const keyed = err && typeof err.error === 'string' && !err.errorKey ? keyedText(err.error) : undefined;
+  const json = JSON.stringify(keyed ? { ...err, errorKey: keyed.key, params: { ...keyed.params, ...((err!.params as object) ?? {}) } } : body);
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...SECURITY_HEADERS });
   res.end(json);
 }

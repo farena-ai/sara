@@ -48,6 +48,18 @@ Two ways, depending on where the text ends up:
   so a new server text without translations fails the i18n test like any other string.
 - Write the companion as "Sara" in server keys too: `tr()` swaps the name (and, in English only,
   the pronouns) like the app does.
+- **Errors with values from engines (W0.2):** throw them with `enf('There is no app "{name}".',
+  { name })` instead of a template literal. The text stays English for the model and logs, and
+  `send()` (src/http.ts) finds the template again and adds `errorKey` + `params` to any error body,
+  so routes that pass `err.message` on need no change. Report lines that the page shows later carry
+  `tkey` + `params` (Move-in's `keyedLine`). Plurals are two keys (`1 point differs` /
+  `{n} points differ`), picked in code.
+- **The guard** (`test/w0-i18n.test.ts`) fails on new English the app can't translate: an
+  `error`/`message`/`reason`/`text`… field in `src/routes/*.ts` without translations, an
+  `HttpError` message built with `${…}`, literal English put on the page from `web/*.js`, a web
+  error helper that throws `data.error` raw instead of `serverText(data, …)`, and any text in the
+  desktop quick-ask bubble (`desktop/shared/quick-ask.html`, which loads `/i18n/<lang>.json` itself).
+  Technical or demo-only text goes in its allow-list with a reason.
 
 ## The rules
 

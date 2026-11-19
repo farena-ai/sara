@@ -21,6 +21,8 @@ export interface EveningSkip {
   kind: string;
   count: number;
   why: string;
+  /** W0.2: `why` as English templates and values (one per report line), so the app translates it. */
+  parts?: { key: string; params?: Record<string, string | number> }[];
   examples?: string[];
 }
 export interface Evening {
@@ -56,9 +58,14 @@ function group(lines: ReportLine[]): EveningSkip[] {
     const x = by.get(l.key);
     if (x) {
       x.count += l.count || 1;
-      if (x.why.length < 400 && !x.why.includes(l.text)) x.why = `${x.why} · ${l.text}`;
+      if (x.why.length < 400 && !x.why.includes(l.text)) {
+        x.why = `${x.why} · ${l.text}`;
+        // Every joined line must have its template, or the app shows the English as it is.
+        if (x.parts && l.tkey) x.parts.push({ key: l.tkey, ...(l.params ? { params: l.params } : {}) });
+        else delete x.parts;
+      }
       if (l.examples?.length) x.examples = [...(x.examples ?? []), ...l.examples].slice(0, 4);
-    } else by.set(l.key, { kind: l.key, count: l.count || 1, why: l.text, ...(l.examples?.length ? { examples: l.examples.slice(0, 4) } : {}) });
+    } else by.set(l.key, { kind: l.key, count: l.count || 1, why: l.text, ...(l.tkey ? { parts: [{ key: l.tkey, ...(l.params ? { params: l.params } : {}) }] } : {}), ...(l.examples?.length ? { examples: l.examples.slice(0, 4) } : {}) });
   }
   return [...by.values()];
 }

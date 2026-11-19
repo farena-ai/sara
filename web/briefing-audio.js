@@ -3,7 +3,7 @@
 // podcast link) and "Life review" (weekly, next to the planner review), plus the play button on
 // Today, shown when this morning's recording is ready. Server: src/briefing-audio.ts,
 // src/life-review.ts, routes in src/routes/planner.ts.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 
@@ -15,7 +15,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? t('Something went wrong.'));
+  if (!res.ok) throw new Error(serverText(data, t('Something went wrong.')));
   return data;
 }
 

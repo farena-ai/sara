@@ -130,7 +130,7 @@ export function fromServer(src: string): string[] {
   const out = new Set<string>();
   const q = String.raw`'((?:[^'\\\n]|\\.)*)'|"((?:[^"\\\n]|\\.)*)"`;
   const res = [
-    new RegExp(String.raw`(?<![\w$.])(?:tr|trOwner|en)\(\s*(?:${q})\s*[,)]`, 'g'),
+    new RegExp(String.raw`(?<![\w$.])(?:tr|trOwner|en|enf)\(\s*(?:${q})\s*[,)]`, 'g'),
     new RegExp(String.raw`new HttpError\(\s*\d+\s*,\s*(?:${q})\s*[,)]`, 'g'),
     new RegExp(String.raw`errorKey:\s*(?:${q})`, 'g'),
   ];
@@ -196,6 +196,9 @@ export function allKeys(): Map<string, string> {
   const add = (list: string[], where: string) => { for (const k of list) if (!keys.has(k)) keys.set(k, where); };
   add(fromHtml(readFileSync(join(ROOT, 'web', 'index.html'), 'utf8')), 'index.html');
   add(fromHtml(readFileSync(join(ROOT, 'web', 'business.html'), 'utf8')), 'business.html');
+  // W0.2: the desktop apps' quick-ask window loads the same /i18n/<lang>.json (its page text and t() calls).
+  const quick = readFileSync(join(ROOT, 'desktop', 'shared', 'quick-ask.html'), 'utf8');
+  add([...fromHtml(quick), ...fromJs(quick)], 'desktop/shared/quick-ask.html');
   for (const f of webJsFiles()) add(fromJs(readFileSync(f, 'utf8')), f.slice(ROOT.length + 1).replace(/\\/g, '/'));
   add(fromTips(readFileSync(join(ROOT, 'web', 'tips.json'), 'utf8')), 'tips.json');
   add(fromHowto(readFileSync(join(ROOT, 'web', 'howto.json'), 'utf8')), 'howto.json');

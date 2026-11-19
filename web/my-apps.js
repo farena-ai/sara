@@ -1,7 +1,7 @@
 // V3.1 My apps (docs/MY_APPS.md): Library → My apps. The small web apps she built and kept
 // (src/my-apps.ts): open, look at it here, Undo the last change, go back to any version, share a
 // read-only link, rename or delete. Apps run sandboxed, never with the Sara session.
-import { locale, t } from './naming.js';
+import { locale, serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 const OTHERS = ['#lib-home', '#lib-doc', '#lib-research', '#lib-topics', '#lib-meetings', '#lib-study', '#lib-media', '#lib-scan', '#lib-journal'];
@@ -37,7 +37,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ? t(data.error) : res.statusText);
+  if (!res.ok) throw new Error(serverText(data, res.statusText));
   return data;
 }
 function status(text) {

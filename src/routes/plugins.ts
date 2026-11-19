@@ -59,7 +59,7 @@ import * as imessage from '../plugins/imessage-setup.ts';
 import { whereRoute } from '../plugins/where-text.ts';
 import { linkQr, probeDaemon, SIGNAL } from '../plugins/signal-setup.ts';
 import { bridgeWindowOpen } from '../plugins/bridge-db.ts';
-import { en } from '../i18n.ts';
+import { en, trOwner } from '../i18n.ts';
 import { InstallError, StoreInstaller } from '../store/install.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import type { AppContext } from '../chat.ts';
@@ -215,7 +215,7 @@ export function createPluginRoutes(ctx: RouteCtx): RouteHandler {
         const chat = (pm.settingsView(WA, co).bridge?.ownerChats ?? [])[0];
         if (!chat) throw new HttpError(400, 'Link your WhatsApp first (step 9).');
         if (!bridgeWindowOpen(app, chat)) return send(res, 200, { ok: false, diagnosis: { code: 'WINDOW_CLOSED' } });
-        return send(res, 200, await pm.bridgeCheck(WA, co, { step: 'send-test', chatId: chat, text: 'Test from Sara: WhatsApp works.' }));
+        return send(res, 200, await pm.bridgeCheck(WA, co, { step: 'send-test', chatId: chat, text: trOwner(en('Test from Sara: WhatsApp works.'), app.settings.get()) }));
       }
       if (c === 'unmute') {
         pm.unmute(WA, co, String(body.who ?? ''));

@@ -103,7 +103,7 @@ test('3.3/3.4: FTS retrieval + fixed budget; injected into the prompt; ids recor
   const conv = app.store.createConversation();
   await say(app, conv.id, "what's my dog's name again?", 'Biscuit!');
   const sys = app.requests.at(-1)!.messages[0].content as string;
-  assert.match(sys, /## What you remember from before[\s\S]*\(2026-10-20\) Alex's dog is a beagle named Biscuit/);
+  assert.match(sys, /## What you remember from before[\s\S]*\(2026-10-20(?:, (?:today|yesterday|\d+ \w+ ago))?\) Alex's dog is a beagle named Biscuit/);
   assert.match(sys, /don't deny it happened: say it's fuzzy for you and ask/);
   const last = app.store.messages(conv.id).at(-1)!;
   assert.ok(Array.isArray(last.meta?.memoryIds) && (last.meta!.memoryIds as number[]).length > 0, 'reply records which memories it saw');

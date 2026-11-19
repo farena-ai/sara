@@ -1,6 +1,7 @@
 // Phase 32: she can look through her own past conversations (the real messages, not only her
 // notes): by words, and by time ("yesterday", "last Tuesday", "in March"). Used by the `recall`
 // tool and, automatically, when the owner refers to the past ("remember when…").
+import { ageShort } from './time-sense.ts';
 import type { AppContext } from './chat.ts';
 import { ftsQuery, type MemoryStore } from './memory.ts';
 import { localDate } from './memory-worker.ts';
@@ -167,11 +168,13 @@ const clip = (s: string, n: number) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t;
 };
 
-function localStamp(iso: string, timeZone?: string): string {
+function localStamp(iso: string, timeZone?: string, now?: Date): string {
+  // W0.6: with the time now, how long ago too ("Thu, Nov 19, 2026, 2:07 PM, 10 min ago").
+  const age = now ? `, ${ageShort(now.getTime() - Date.parse(iso))}` : '';
   try {
-    return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso));
+    return new Intl.DateTimeFormat('en-US', { timeZone, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(iso)) + age;
   } catch {
-    return iso.slice(0, 16).replace('T', ' ');
+    return iso.slice(0, 16).replace('T', ' ') + age;
   }
 }
 
@@ -182,7 +185,7 @@ function localStamp(iso: string, timeZone?: string): string {
  */
 export function recallMessages(
   store: Store,
-  opts: { query?: string; span?: Span; exclude?: { conversationId: string; fromId: number }; limit?: number; timeZone?: string; appSafe?: boolean; space?: SpaceSql },
+  opts: { query?: string; span?: Span; exclude?: { conversationId: string; fromId: number }; limit?: number; timeZone?: string; appSafe?: boolean; space?: SpaceSql; now?: Date },
 ): RecallHit[] {
   const limit = opts.limit ?? 5;
   const q = opts.query ? ftsQuery(opts.query) : null;
@@ -242,7 +245,7 @@ export function recallMessages(
     hits.push({
       conversationId: r.conversation_id,
       title: r.title,
-      when: localStamp(r.created_at, opts.timeZone),
+      when: localStamp(r.created_at, opts.timeZone, opts.now),
       ...(from ? { from } : {}),
       // Phase 51: another assistant's replies in imported history are never "you".
       // Phase 66: another companion's line in a group chat is hers, with her name.
@@ -305,7 +308,7 @@ export function lastTimeNote(app: AppContext, currentId: string, owner: string, 
     .prepare(`SELECT id, role, content, meta FROM messages m WHERE conversation_id = ? AND id > ? AND role IN ('user','assistant') AND (meta IS NULL OR meta NOT LIKE '%"forgotten":true%') AND ${NOT_IMPORTED} ORDER BY id DESC LIMIT 8`)
     .all(row.id, through) as { id: number; role: string; content: string; meta: string | null }[]).reverse();
   if (!summary && !tail.length) return undefined;
-  const parts = [`Your last conversation with ${owner} was "${row.title}" (${localStamp(row.last, tz)}).`];
+  const parts = [`Your last conversation with ${owner} was "${row.title}" (${localStamp(row.last, tz, app.now())}).`];
   if (summary) parts.push(`What happened: ${clip(summary.content, 700)}`);
   if (tail.length) parts.push(`${summary ? 'How it ended' : 'How it went'}:\n${tail.map((m) => `  ${m.role === 'user' ? owner : m.meta?.includes('"groupFrom"') ? `${groupFromName(m.meta)} (another AI companion)` : 'You'}: ${clip(m.content, 300)}`).join('\n')}`);
   return parts.join('\n');
@@ -323,9 +326,9 @@ export function autoRecall(app: AppContext, text: string, exclude: { conversatio
   if (!ftsQuery(topic) && !span) return undefined;
   const space = turnSpaceSql(app, exclude.conversationId);
   const allow = spaceAllow(app, exclude.conversationId);
-  const hits = recallMessages(app.store, { query: topic, ...(span ? { span } : {}), exclude, limit: 4, timeZone: tz, appSafe, space });
+  const hits = recallMessages(app.store, { query: topic, ...(span ? { span } : {}), exclude, limit: 4, timeZone: tz, appSafe, space, now: app.now() });
   // Nothing in that time window with those words: try the words alone (dates are often off).
-  const more = !hits.length && span && ftsQuery(topic) ? recallMessages(app.store, { query: topic, exclude, limit: 3, timeZone: tz, appSafe, space }) : [];
+  const more = !hits.length && span && ftsQuery(topic) ? recallMessages(app.store, { query: topic, exclude, limit: 3, timeZone: tz, appSafe, space, now: app.now() }) : [];
   const sums = span && app.memory ? summariesIn(app.memory, span, 3, app.store, appSafe, allow) : [];
   const out: string[] = [];
   if (sums.length) out.push(`Your notes from ${span!.label}:\n${sums.join('\n')}`);
@@ -372,10 +375,10 @@ export function createRecallTool(app: () => AppContext): Tool {
       const exclude = ctx.conversationId ? { conversationId: ctx.conversationId, fromId: 0 } : undefined;
       const space = turnSpaceSql(a, ctx.conversationId);
       const allow = spaceAllow(a, ctx.conversationId);
-      let hits = recallMessages(a.store, { query, ...(span ? { span } : {}), ...(exclude ? { exclude } : {}), limit: 6, timeZone: tz, space });
+      let hits = recallMessages(a.store, { query, ...(span ? { span } : {}), ...(exclude ? { exclude } : {}), limit: 6, timeZone: tz, space, now: a.now() });
       let note = '';
       if (!hits.length && span && query) {
-        hits = recallMessages(a.store, { query, ...(exclude ? { exclude } : {}), limit: 4, timeZone: tz, space });
+        hits = recallMessages(a.store, { query, ...(exclude ? { exclude } : {}), limit: 4, timeZone: tz, space, now: a.now() });
         if (hits.length) note = `Nothing with those words ${span.label}; these are from other times:\n`;
       }
       const sums = span && a.memory ? summariesIn(a.memory, span, 4, a.store, false, allow) : [];

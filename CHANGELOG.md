@@ -5,6 +5,46 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.31.0 (2026-11-19): She knows the time, Always allow, six languages everywhere
+
+- Fixed: the email bridge no longer sends the same reply twice. When the mail server dropped the line while
+  she said goodbye (SMTP QUIT), the email plugin crashed, and on restart it sent the reply again because
+  the outbox file still listed it. QUIT on a closed line now fails quietly, and a mail the server has
+  taken leaves the saved outbox at once (W0.4).
+- Fixed: a command she runs on your computer that goes past its time limit is now always stopped. Before, one failed kill on a busy PC left
+  it running. The Windows kill helpers also have their own time limits now (W0.4).
+- Tests: the suite no longer fails when the PC is busy. business-check, u5-voice-fast and phase80 wait
+  for the thing they check (a worker that is ready, Windows listing a process) instead of a short fixed
+  window, and a fake "stuck" voice engine never answers. No retries and no skips (W0.4).
+- Fixed: Sara now knows exactly when everything was said, so she no longer says "yesterday" about something from 10 minutes ago. Every
+  earlier message now reaches her with its local time and how long ago it was ("2:07 PM, 10 min ago"), a
+  pause shows as "8 h since the last message", and the date, time and time zone are restated at the end
+  of every turn. Memories, reminders, tasks, past-chat lookups and email lists carry their age too, and
+  email times are in your time zone instead of UTC. If a reply still says "yesterday", "earlier today",
+  "last week" or "2 hours ago" about something whose real time is known, the app corrects the words, in
+  six languages (`src/time-sense.ts`, docs/CHATS.md).
+- Fixed: more of what you see reads in your language (Spanish, French, German, Portuguese, Italian):
+  My apps and live view errors with names and numbers in them, the "Still to do" lines of the Move-in
+  checklist, the desktop Quick ask bubble (buttons, hints, offers, her mood), calls on the demo,
+  Home Assistant checks, computer-use and link messages, and the error lines of a dozen more pages.
+- Fixed: a second opinion with one difference says "1 point differs", not "1 points differ".
+- New: words as you speak in Spanish, French, German, Portuguese and Italian. An optional free hearing model
+  (NVIDIA Nemotron 3.5 streaming, ~480 MB, downloaded only when you choose it in Settings → Sara → Voice → Talk
+  with Sara, with `sara voice install --languages`, or with `install-voice.sh --languages` on Linux) shows your
+  words while you talk, in your language. The first word shows ~1 s after you start (English: ~0.7 s). English
+  keeps its small model. Languages without a model hear whole sentences as before. With it installed, whole
+  recordings, meetings, captions and the interpreter in those languages are heard by it too, instead of the
+  English-only model. Measurements in docs/VOICE_FIRST.md.
+- New: Always allow everything (Settings → Connections → Computer use). One switch per person lets
+  every command, desktop, browser and computer action run without an approval card, including the
+  kinds that always asked (payments, account settings, saved logins, destructive commands). Turning
+  it on shows a one-time warning and asks for your password or passkey again; pick 1 hour, 1 day or
+  until you turn it off. A red "Always allow is on" bar with Turn off sits above the chat box, and the
+  Sara app on your computer confirms it once on its own card. Passwords are still never typed,
+  requests from other people and apps still ask, and every action stays on the Action timeline and in
+  the audit trail. Household adults can use it only when the owner allows it for them; kids never.
+  See docs/ALWAYS_ALLOW.md.
+
 ## 3.30.1 (2026-11-19): She knows what she did, second opinion from chat, sharper memory
 
 - Fixed: the Action timeline also lists changes she makes without asking first (a live checklist she posts,

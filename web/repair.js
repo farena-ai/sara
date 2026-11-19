@@ -4,7 +4,7 @@
 // U3.17: "Share fixes that worked" (off by default; the ticked linked friends), fixes friends shared that fit a
 // problem here (Use it runs her own engine: T1 fix or a T3 change she tests; nothing runs by itself), what
 // she shared, and "Send to the Sara developers" with the exact scrubbed preview first.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => globalThis.document?.querySelector(s);
 let state = null;
@@ -12,7 +12,7 @@ let state = null;
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
   return data;
 }
 const el = (tag, cls, text) => {

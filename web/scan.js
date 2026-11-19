@@ -3,7 +3,7 @@
 // straightened (web/scan-math.js; drag the corners to fix it), turned, reordered, then saved in one
 // tap as one PDF in the Library (POST /api/library/scan). The usual reader reads the pages and
 // What Sara knows finds their dates; this view shows both and offers the reminders.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 import { jobText, openLibrary } from './library.js';
 import { findPageQuad, levels, outSize, rotateRgba, skewAngle, toGray, warpQuad } from './scan-math.js';
 
@@ -43,7 +43,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || res.statusText);
+  if (!res.ok) throw new Error(serverText(data, res.statusText));
   return data;
 }
 const status = (s) => {

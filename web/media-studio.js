@@ -2,7 +2,7 @@
 // the local ComfyUI, what can be offered, short clips with progress + cancel, the pictures and clips
 // made), the picture editor (mask brush, extend, upscale, background, restyle with a strength,
 // before/after, versions) and the Settings section under Pictures from her. The owner's only.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 let caps = null;
@@ -26,7 +26,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? t('Something went wrong.'));
+  if (!res.ok) throw new Error(serverText(data, t('Something went wrong.')));
   return data;
 }
 const fileUrl = (id) => `/api/media/file/${id}`;

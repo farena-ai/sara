@@ -27,6 +27,8 @@ export interface NavFacts {
   jobPort: (port: number) => boolean;
   /** HANDSFREE: the person let her finish this task (src/handsfree.ts): no card for a new site. */
   handsFree?: boolean;
+  /** W0.7 (src/always-allow.ts): Always allow everything is on for this person: no card for any site. */
+  allowAll?: boolean;
 }
 
 const LOOPBACK = new Set(['localhost', '127.0.0.1', '[::1]', '::1']);
@@ -69,14 +71,14 @@ export function navigationVerdict(raw: string, facts: NavFacts): Verdict {
     const port = Number(u.port || (u.protocol === 'https:' ? 443 : 80));
     if (facts.jobPort(port)) return { act: 'allow', why: 'one of her jobs listens there' };
     if (facts.granted.has(site)) return { act: 'allow', why: 'allowed in this task' };
-    if (facts.handsFree) return { act: 'allow', why: 'hands-free: she finishes this task' };
+    if (facts.handsFree || facts.allowAll) return { act: 'allow', why: facts.allowAll ? 'always allow everything is on' : 'hands-free: she finishes this task' };
     // The owner gave this exact address ("my app at localhost:5173").
     const named = namedSites(facts.ownerText);
     if (named.has(site) || named.has(`localhost:${port}`) || named.has(`127.0.0.1:${port}`)) return { act: 'allow', why: 'the owner named it' };
     return { act: 'ask', site, why: `a program on this computer (port ${port}) that isn't one of her jobs` };
   }
   if (facts.granted.has(site)) return { act: 'allow', why: 'allowed in this task' };
-  if (facts.handsFree) return { act: 'allow', why: 'hands-free: she finishes this task' };
+  if (facts.handsFree || facts.allowAll) return { act: 'allow', why: facts.allowAll ? 'always allow everything is on' : 'hands-free: she finishes this task' };
   const named = namedSites(facts.ownerText);
   const bare = site.replace(/^www\./, '');
   if (named.has(site) || named.has(bare) || named.has(`www.${bare}`)) return { act: 'allow', why: 'the owner named it' };
@@ -144,6 +146,8 @@ export interface ActFacts {
   handsFree?: boolean;
   /** HANDSFREE: the card may offer "Let her finish this task" (Settings → Computer use → approvals). */
   offerFree?: boolean;
+  /** W0.7: Always allow everything: no card at all (the password and key blocks stay). */
+  allowAll?: boolean;
 }
 export type ActChoice = 'once' | 'task' | 'always' | 'free';
 export type ActVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ActChoice[] } | { act: 'block'; risk: ActRisk; why: string };
@@ -184,6 +188,8 @@ export function actionVerdict(f: ActFacts): ActVerdict {
   const risk = actRisk(f);
   if (f.kind === 'type' && f.target.secret) return { act: 'block', risk, why: 'That is a password field: Sara never types passwords. Hand it to the owner (pc_browser_your_turn) so they type it themselves in the Sara browser, then go on.' };
   if (f.text && looksSecret(f.text)) return { act: 'block', risk, why: 'That text looks like a key or a sign-in token: Sara never types those (and never Sara\u2019s own sign-in).' };
+  // W0.7: the person turned on Always allow everything: payments, account pages and sends run too.
+  if (f.allowAll) return { act: 'allow', risk, why: 'always allow everything is on' };
   if (risk === 'payment') return { act: 'ask', risk, why: 'a payment or purchase (asks every time)', choices: ['once'] };
   const hard = accountHard(f);
   if (hard) return { act: 'ask', risk: 'account', why: 'passwords, two-step sign-in and recovery settings (asks every time)', choices: ['once'] };
@@ -221,6 +227,8 @@ export interface DesktopFacts {
   window?: { app?: string; title?: string };
   /** HANDSFREE: the person let her finish this task (confirmed once on that computer). */
   handsFree?: boolean;
+  /** W0.7: Always allow everything (the password, blocked-window and administrator limits stay). */
+  allowAll?: boolean;
 }
 export type DesktopVerdict = { act: 'allow'; risk: ActRisk; why: string } | { act: 'ask'; risk: ActRisk; why: string; choices: ('once' | 'task' | 'always')[] } | { act: 'block'; risk: ActRisk; why: string };
 const DESKTOP_ACCOUNT_HARD = /password|2fa|two[- ]factor|recovery|passkey|one[- ]time code|verification code|backup code/i;
@@ -264,10 +272,12 @@ export function extensionsWindow(app: string, title: string): boolean {
 }
 /** HANDSFREE: the payment half of SENSITIVE_PAGE (asks every time, even hands-free); the rest asks once per task hands-free. */
 export const PAYMENT_PAGE = /check-?out|payment|billing|\bpay\b|purchase|\bcart\b|\border\b|donat|wallet/i;
-export function ownBrowserPage(title: string, url = '', blocked = '', handsFree = false): { act: 'block' | 'once' | 'level'; why: string } {
+export function ownBrowserPage(title: string, url = '', blocked = '', handsFree = false, allowAll = false): { act: 'block' | 'once' | 'level'; why: string } {
   if (blocked) return { act: 'block', why: `That tab is hidden from you on purpose (${blocked}): never act there.` };
   const internal = browserInternalPage(url);
   if (internal === 'blocked') return { act: 'block', why: 'That is the browser\u2019s own passwords, payment methods or account/sync page: never act there (the owner does that part).' };
+  // W0.7: Always allow everything: payment, account and the browser's own settings pages follow it (no card).
+  if (allowAll) return { act: 'level', why: 'always allow everything is on' };
   if (internal === 'settings') return { act: 'once', why: 'the browser\u2019s own settings page (asks every time)' };
   let path = url;
   try {
@@ -289,6 +299,8 @@ export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
   const extensions = Boolean(f.window && extensionsWindow(f.window.app ?? '', f.window.title ?? ''));
   const removeWord = extensions ? /\b(?:delete|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)|\bremove (?:a |the )?(?:file|folder)s?\b/i : /\b(?:delete|remove|erase|trash|recycle|unlink)\b(?!\s+(?:my |your |this |the )?account\b)/i;
   if (DESKTOP_NEVER.test(words) || removeWord.test(f.target.name ?? '')) return { act: 'block', risk, why: 'The computer refuses that protected desktop action.' };
+  // W0.7: Always allow everything: payments, account settings and removing extensions run without a card.
+  if (f.allowAll) return { act: 'allow', risk, why: 'always allow everything is on' };
   if (extensions && /\bremove\b/i.test(f.target.name ?? '')) return { act: 'ask', risk: 'account', why: 'removing a browser extension (asks every time)', choices: ['once'] };
   if (risk === 'payment' || (risk === 'account' && (!f.handsFree || DESKTOP_ACCOUNT_HARD.test(words)))) return { act: 'ask', risk, why: `${risk === 'payment' ? 'payment or purchase' : 'account or security setting'} (asks once)`, choices: ['once'] };
   if (f.handsFree && f.level !== 'ask') return { act: 'allow', risk, why: 'hands-free: she finishes this task' };
@@ -301,8 +313,11 @@ export function desktopActionVerdict(f: DesktopFacts): DesktopVerdict {
 //   offering to save one (pc_browser_save_login)                    → only when the owner said so in so many words
 //                                                                     (the device's own consent window is the real yes)
 
-/** A saved login is used only after a card, every time (no \"for this task\", no \"always\"). */
-export function loginVerdict(): { act: 'ask'; risk: 'login'; why: string; choices: 'once'[] } {
+/** A saved login is used only after a card, every time (no \"for this task\", no \"always\"), unless W0.7's Always allow everything is on. */
+export function loginVerdict(): { act: 'ask'; risk: 'login'; why: string; choices: 'once'[] };
+export function loginVerdict(allowAll: boolean): { act: 'ask'; risk: 'login'; why: string; choices: 'once'[] } | { act: 'allow'; risk: 'login'; why: string };
+export function loginVerdict(allowAll = false): { act: 'ask'; risk: 'login'; why: string; choices: 'once'[] } | { act: 'allow'; risk: 'login'; why: string } {
+  if (allowAll) return { act: 'allow', risk: 'login', why: 'always allow everything is on' };
   return { act: 'ask', risk: 'login', why: 'using a saved login (asks every time)', choices: ['once'] };
 }
 

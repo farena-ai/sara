@@ -88,6 +88,9 @@ export class Smtp {
 
   async #cmd(line, want, ms) {
     const p = this.#reply(ms);
+    // Handled now, awaited below: a connection that is already closed rejects at once, and the write
+    // can throw before the await, which would leave the rejection unhandled and end the process.
+    p.catch(() => {});
     await this.sock.write(Buffer.from(`${line}\r\n`, 'latin1'));
     const r = await p;
     if (!want.includes(Math.floor(r.code / 100))) throw new SmtpError(`${line.split(' ')[0]}: ${r.code} ${r.lines.join(' ').slice(0, 200)}`, r.code);
@@ -124,6 +127,7 @@ export class Smtp {
     await this.#cmd(`RCPT TO:<${to}>`, [2]);
     await this.#cmd('DATA', [3]);
     const p = this.#reply(300_000);
+    p.catch(() => {});
     await this.sock.write(dotStuff(raw));
     const r = await p;
     if (Math.floor(r.code / 100) !== 2) throw new SmtpError(`DATA: ${r.code} ${r.lines.join(' ').slice(0, 200)}`, r.code);

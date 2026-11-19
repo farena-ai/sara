@@ -257,7 +257,7 @@ test('11: the reply saves meta.memoryPicks next to memoryIds; the panel helper i
   assert.match(picks[0].policy, /^d[0-9a-f]{8}$/);
   const sys = String(app.requests.at(-1)!.messages[0].content);
   assert.match(sys, /Each note ends with why it came to mind and how sure that is\. Lean on 'high', treat 'low' as background\./);
-  assert.match(sys, /\(2026-10-20\) Alex's dog is a beagle named Biscuit\. \[why: words "dog", "name"; sure: medium\]/);
+  assert.match(sys, /\(2026-10-20(?:, (?:today|yesterday|\d+ \w+ ago))?\) Alex's dog is a beagle named Biscuit\. \[why: words "dog", "name"; sure: medium\]/);
   assert.match(sys, /decided together: go by it unless told otherwise\) Alex and Sara agreed on tests before every push\. \[why: standing decision; sure: low\]/);
   const src = readFileSync(join(ROOT, 'web/her-panel.js'), 'utf8');
   assert.match(src, /export function memoryIdsOfLastTurn\(msgs\) \{\n  const from = msgs\.findLastIndex\(\(m\) => m\.role === 'user'\) \+ 1;/);

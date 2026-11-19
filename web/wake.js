@@ -4,7 +4,7 @@
 // mine", the talk shortcut, Try it and Remove. Below: the words that wake her (each for one of your
 // companions), where she answers, your devices (Stop listening on any of them), Turn off everywhere,
 // and the owner's two server switches. A browser can't listen: it says so and points to the apps.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -22,7 +22,7 @@ function btn(label, cls, onClick) {
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
   return data;
 }
 const status = (text) => {
@@ -325,8 +325,50 @@ export function renderVoiceInstall(v) {
   }
 }
 
+/** W0.3: Settings → Voice → Talk with Sara: add the multilingual streaming model (es/fr/de/pt/it). */
+export function renderLangsInstall(v) {
+  const row = $('#talk-langs-row');
+  const st = v?.streaming;
+  if (!row || !st?.multi) return;
+  const s = $('#talk-langs-status');
+  const b = $('#talk-langs-get');
+  const j = v.install?.job;
+  const mine = row.dataset.asked === '1' && j?.state === 'running';
+  row.hidden = st.multi.installed || (!st.installable && !st.linux);
+  b.hidden = st.linux || !st.installable;
+  b.disabled = j?.state === 'running';
+  s.textContent = mine
+    ? t('Installing… {n} of {of}: {pct} %', { n: String((j.progress?.index ?? 0) + 1), of: String(j.progress?.of ?? 1), pct: String(j.progress?.total ? Math.floor((j.progress.bytes / j.progress.total) * 100) : 0) })
+    : st.linux
+      ? t('On Linux run: sudo ./deploy/install-voice.sh --languages')
+      : row.dataset.asked === '1' && j?.state === 'failed'
+        ? (j.error ?? '')
+        : t('Spanish, French, German, Portuguese and Italian. About {mb} MB.', { mb: String(st.multi.mb ?? 480) });
+  if (!b.dataset.wired) {
+    b.dataset.wired = '1';
+    b.addEventListener('click', async () => {
+      if (!window.confirm(t('Download the hearing model for other languages (about {mb} MB)? Every file is checked before use.', { mb: String(st.multi.mb ?? 480) }))) return;
+      row.dataset.asked = '1';
+      try {
+        await api('/voice/install', { method: 'POST', body: { languages: true } });
+      } catch (err) {
+        s.textContent = err.message;
+        return;
+      }
+      const poll = async () => {
+        const nv = await api('/voice').catch(() => null);
+        renderLangsInstall(nv);
+        if (nv?.install?.job?.state === 'running') setTimeout(poll, 2000);
+        else if (nv?.streaming?.ready) $('#talk-hearing').value = 'streaming';
+      };
+      void poll();
+    });
+  }
+}
+
 /** V0.2: Settings → Voice → Talk with Sara: add the streaming hearing model (words as you speak). */
 export function renderStreamInstall(v) {
+  renderLangsInstall(v);
   const row = $('#talk-stream-row');
   const st = v?.streaming;
   if (!row || !st) return;

@@ -9,16 +9,16 @@ import { type AppContext, resolveChain } from '../chat.ts';
 import { type Expressive, EXPRESSIVE_SAMPLE, type VoiceTone } from '../expressive.ts';
 import { isGroupChannel } from '../group.ts';
 import { as400, cookies, HttpError, readJson, readRaw, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
-import { trOwner } from '../i18n.ts';
+import { en, trOwner } from '../i18n.ts';
 import { OPENAI_LIVE_MODELS, OPENAI_LIVE_VOICES } from '../live.ts';
 import { cleanTalk } from '../talk.ts';
 import { interpLang } from '../interpreter.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { localVoiceInstallable, localVoiceMissing, localVoiceSupported } from '../platform.ts';
-import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall, STREAM_MB } from '../voice-install.ts';
+import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, MULTI_MB, startInstall, STREAM_MB } from '../voice-install.ts';
 import type { Conversation as VideoConv } from '../store.ts';
 import { cameraState, type CameraTarget, checkFrame, FRAME_MAX_BYTES, modelSees, parseVideoSettings, VideoError, videoSettings } from '../video.ts';
-import { DEFAULT_VOICE, openaiSpeak, speechText, VOICE_VAULT, VoiceError, type VoiceSettings, xaiSpeak, xaiVoices } from '../voice.ts';
+import { DEFAULT_VOICE, hearLang, openaiSpeak, speechText, VOICE_VAULT, VoiceError, type VoiceSettings, xaiSpeak, xaiVoices } from '../voice.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
@@ -146,6 +146,9 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
           installable: !opts.member && localVoiceInstallable(),
           linux: process.platform === 'linux',
           mb: STREAM_MB,
+          // W0.3: the languages words-as-you-speak hears here, and the multilingual model's install.
+          languages: ready ? (app.voice?.streamLangs() ?? []) : [],
+          multi: { installed: Boolean(app.voice?.manifest?.multi), mb: MULTI_MB },
         };
       };
       if (!b && method === 'GET') {
@@ -178,8 +181,11 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         if (privateLocalOn()) throw new HttpError(409, 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
         if (!app.voice) throw new HttpError(503, 'Voice isn’t ready yet.');
         const voiceEngine = app.voice;
-        // V0.2: {streaming: true} adds the streaming hearing model (and whatever else is missing).
-        const streaming = Boolean(((await readJson(req).catch(() => ({}))) as { streaming?: unknown }).streaming);
+        // V0.2: {streaming: true} adds the streaming hearing model (and whatever else is missing);
+        // W0.3: {languages: true} the multilingual one (Spanish, French, German, Portuguese, Italian).
+        const ask = (await readJson(req).catch(() => ({}))) as { streaming?: unknown; languages?: unknown };
+        const languages = Boolean(ask.languages);
+        const streaming = Boolean(ask.streaming) || languages;
         const j = startInstall(
           voiceEngine.dir,
           () => {
@@ -189,7 +195,7 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
             const talk = streaming ? { talk: { ...cleanTalk(v.talk), hearing: 'streaming' as const } } : {};
             if (Object.keys(patch).length || streaming) app.settings.update({ voice: { ...(app.settings.get().voice ?? {}), ...patch, ...talk } as VoiceSettings });
           },
-          streaming ? { streaming: 'add' } : {},
+          languages ? { streaming: 'languages' } : streaming ? { streaming: 'add' } : {},
         );
         return send(res, 202, { job: j });
       }
@@ -197,7 +203,7 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'warm' && method === 'POST') {
         const v = cfg();
         const local = app.voice && (v.stt === 'local' || v.tts === 'local');
-        if (local) void app.voice!.warm(v.localVoice, { streaming: v.stt === 'local' && cleanTalk(v.talk).hearing === 'streaming' }).catch(() => undefined);
+        if (local) void app.voice!.warm(v.localVoice, { streaming: v.stt === 'local' && cleanTalk(v.talk).hearing === 'streaming', lang: hearLang(app.settings.get()) }).catch(() => undefined);
         return send(res, 202, { warming: Boolean(local) });
       }
       if (!b && method === 'PUT') {
@@ -308,7 +314,8 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         const audio = await readRaw(req, 2 * 1024 * 1024);
         if (!streamingView().on) throw new HttpError(409, 'Streaming hearing is off.', { fallback: true });
         try {
-          return send(res, 200, await app.voice!.hear(u.searchParams.get('id') ?? '', audio, u.searchParams.get('end') === '1'));
+          // W0.3: the page says the person's language (`lang`, 'auto' = the interpreter); else Settings → Language.
+          return send(res, 200, await app.voice!.hear(u.searchParams.get('id') ?? '', audio, u.searchParams.get('end') === '1', u.searchParams.get('lang') || hearLang(app.settings.get())));
         } catch (err) {
           if (err instanceof VoiceError) throw new HttpError(409, err.message, { fallback: true });
           throw err;
@@ -436,8 +443,8 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         // Demo: calls only with the reviewer code (calls are off when none is set).
         const d = demoCalls.view(visitorKey(req));
         const v = liveView();
-        if (!d.enabled) return send(res, 200, { available: false, engine: null, how: null, message: 'Live calls are off in the demo.', demo: d, inCall: false });
-        return send(res, 200, { available: v.available, engine: v.engine, how: v.how, ...(v.available ? { billedTo: 'the demo server' } : { message: 'Live calls are not available on the demo right now.' }), demo: d, inCall: false });
+        if (!d.enabled) return send(res, 200, { available: false, engine: null, how: null, message: en('Live calls are off in the demo.'), demo: d, inCall: false });
+        return send(res, 200, { available: v.available, engine: v.engine, how: v.how, ...(v.available ? { billedTo: 'the demo server' } : { message: en('Live calls are not available on the demo right now.') }), demo: d, inCall: false });
       }
       return send(res, 200, { ...liveView(), inCall: Boolean(ctx.liveCall && !ctx.liveCall.ended) });
     }

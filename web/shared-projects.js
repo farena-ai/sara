@@ -3,7 +3,7 @@
 // leave / remove / stop) and the Settings → Connections → Phone and notifications "Shared projects" list
 // (invitations with Accept / Decline, every shared project with Open). Owner only (the server says 403
 // to members, kid mode and the demo, and the card stays hidden).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => globalThis.document?.querySelector(s);
 let ctx = { openProject: () => {} };
@@ -12,7 +12,7 @@ let current = null; // { project, conversations }
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', headers: opts.body !== undefined ? { 'content-type': 'application/json' } : {}, body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error ?? `HTTP ${res.status}`), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(serverText(data, `HTTP ${res.status}`)), { status: res.status });
   return data;
 }
 const el = (tag, cls, text) => {

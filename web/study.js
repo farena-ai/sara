@@ -3,7 +3,7 @@
 // document, one of its chapters or pasted text; study due cards (flashcards with Again/Hard/Good/Easy,
 // multiple choice, short answers graded with kind feedback); summary sheet; export (Anki TSV, CSV) and
 // import. Kid mode: the hint comes before the answer. Each person's own sets (their own space).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 let kid = false;
@@ -30,7 +30,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? t('Something went wrong.'));
+  if (!res.ok) throw new Error(serverText(data, t('Something went wrong.')));
   return data;
 }
 const say = (msg) => {

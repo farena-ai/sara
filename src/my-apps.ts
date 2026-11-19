@@ -18,6 +18,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { HttpError, readJson, readRaw, send } from './http.ts';
+import { en, enf } from './i18n.ts';
 import { SHARE_EXPIRY } from './share.ts';
 import { isCanvasToken, serveCanvas } from './canvas.ts';
 
@@ -84,12 +85,12 @@ export function appMime(path: string): string {
 /** A file path inside an app: plain relative parts, a known kind of file, no hidden or reserved names. */
 export function cleanAppPath(p: unknown): string {
   const s = String(p ?? '').trim().replace(/\\/g, '/').replace(/^(\.\/)+/, '').replace(/^\/+/, '');
-  if (!s || s.length > 120) fail('A file needs a short path like index.html.');
+  if (!s || s.length > 120) fail(en('A file needs a short path like index.html.'));
   const parts = s.split('/');
-  for (const part of parts) if (!part || part === '.' || part === '..' || part.startsWith('.') || !/^[A-Za-z0-9._ -]+$/.test(part)) fail(`"${s}" is not a path inside the app.`);
-  if (parts[0] === '_data' || parts[0] === '_sara') fail(`"${s}" uses a name the app server keeps for itself.`);
+  for (const part of parts) if (!part || part === '.' || part === '..' || part.startsWith('.') || !/^[A-Za-z0-9._ -]+$/.test(part)) fail(enf('"{path}" is not a path inside the app.', { path: s }));
+  if (parts[0] === '_data' || parts[0] === '_sara') fail(enf('"{path}" uses a name the app server keeps for itself.', { path: s }));
   const ext = s.toLowerCase().split('.').pop() ?? '';
-  if (!MIME[ext] || !s.includes('.')) fail(`"${s}" is not a kind of file an app may have (pages, styles, scripts, pictures, fonts and data only; no server code).`);
+  if (!MIME[ext] || !s.includes('.')) fail(enf('"{path}" is not a kind of file an app may have (pages, styles, scripts, pictures, fonts and data only; no server code).', { path: s }));
   return s;
 }
 
@@ -189,7 +190,7 @@ export class MyApps {
     return this.#rows().find((r) => r.name.toLowerCase() === name);
   }
   #need(ref: number | string): AppRow {
-    return this.#row(ref) ?? fail(`There is no app "${ref}". app_list shows the kept apps.`);
+    return this.#row(ref) ?? fail(enf('There is no app "{name}". app_list shows the kept apps.', { name: ref }));
   }
   #shareLive(r: AppRow): boolean {
     return Boolean(r.share_token) && (!r.share_until || Date.parse(r.share_until) > this.#now().getTime());
@@ -222,11 +223,11 @@ export class MyApps {
   }
   #addVersion(id: number, files: Files, note: string): number {
     const paths = Object.keys(files);
-    if (!paths.includes('index.html')) fail('An app needs an index.html page (the one that opens first).');
-    if (paths.length > APP_LIMITS.files) fail(`An app may have at most ${APP_LIMITS.files} files.`);
+    if (!paths.includes('index.html')) fail(en('An app needs an index.html page (the one that opens first).'));
+    if (paths.length > APP_LIMITS.files) fail(enf('An app may have at most {n} files.', { n: APP_LIMITS.files }));
     let bytes = 0;
     for (const p of paths) bytes += Buffer.byteLength(files[p], 'base64');
-    if (bytes > APP_LIMITS.totalBytes) fail(`The app is too big (at most ${APP_LIMITS.totalBytes / 1024 / 1024} MB in all).`);
+    if (bytes > APP_LIMITS.totalBytes) fail(enf('The app is too big (at most {n} MB in all).', { n: APP_LIMITS.totalBytes / 1024 / 1024 }));
     const max = (this.#db.prepare('SELECT MAX(n) AS m FROM versions WHERE app_id = ?').get(id) as { m: number | null }).m ?? 0;
     const n = Number(max) + 1;
     const at = this.#now().toISOString();
@@ -244,19 +245,19 @@ export class MyApps {
       let b64: string;
       if (f.base64) {
         const clean = content.replace(/\s+/g, '');
-        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4 !== 0) fail(`"${path}" is not valid base64.`);
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(clean) || clean.length % 4 !== 0) fail(enf('"{path}" is not valid base64.', { path }));
         b64 = clean;
       } else b64 = Buffer.from(content, 'utf8').toString('base64');
-      if (Buffer.byteLength(b64, 'base64') > APP_LIMITS.fileBytes) fail(`"${path}" is too big (at most ${APP_LIMITS.fileBytes / 1024} KB per file).`);
+      if (Buffer.byteLength(b64, 'base64') > APP_LIMITS.fileBytes) fail(enf('"{path}" is too big (at most {n} KB per file).', { path, n: APP_LIMITS.fileBytes / 1024 }));
       into[path] = b64;
     }
     return into;
   }
   #cleanName(v: unknown, except?: number): string {
     const name = String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
-    if (!name) fail('An app needs a name.');
+    if (!name) fail(en('An app needs a name.'));
     const same = this.#rows().find((r) => r.name.toLowerCase() === name.toLowerCase() && Number(r.id) !== except);
-    if (same) fail(`An app called "${same.name}" is already kept: edit it (app_edit) or pick another name.`);
+    if (same) fail(enf('An app called "{name}" is already kept: edit it (app_edit) or pick another name.', { name: same.name }));
     return name;
   }
 
@@ -269,7 +270,7 @@ export class MyApps {
   }
   keep(input: { name: unknown; files: AppFileInput[]; note?: string }): AppView {
     const name = this.#cleanName(input.name);
-    if (this.#rows().length >= APP_LIMITS.apps) fail(`At most ${APP_LIMITS.apps} apps can be kept; delete one first.`);
+    if (this.#rows().length >= APP_LIMITS.apps) fail(enf('At most {n} apps can be kept; delete one first.', { n: APP_LIMITS.apps }));
     const files = MyApps.#encode(input.files, {});
     const at = this.#now().toISOString();
     this.#db.exec('BEGIN');
@@ -289,7 +290,7 @@ export class MyApps {
     const id = Number(r.id);
     const files = MyApps.#encode(input.files, { ...this.#files(id, Number(r.current)) });
     for (const p of input.remove ?? []) delete files[cleanAppPath(p)];
-    if (!input.files?.length && !input.remove?.length) fail('Nothing to change: give files to add or change, or paths to remove.');
+    if (!input.files?.length && !input.remove?.length) fail(en('Nothing to change: give files to add or change, or paths to remove.'));
     this.#addVersion(id, files, input.note ?? 'Changed');
     return this.#view(this.#need(id));
   }
@@ -297,13 +298,13 @@ export class MyApps {
   undo(ref: number | string): AppView {
     const r = this.#need(ref);
     const prev = this.#db.prepare('SELECT MAX(n) AS n FROM versions WHERE app_id = ? AND n < ?').get(Number(r.id), Number(r.current)) as { n: number | null };
-    if (!prev.n) fail('Nothing to undo: this is the first version kept.');
+    if (!prev.n) fail(en('Nothing to undo: this is the first version kept.'));
     return this.restore(Number(r.id), Number(prev.n));
   }
   restore(ref: number | string, n: number): AppView {
     const r = this.#need(ref);
     const has = this.#db.prepare('SELECT 1 AS x FROM versions WHERE app_id = ? AND n = ?').get(Number(r.id), n);
-    if (!has) fail(`There is no version ${n} of "${r.name}".`);
+    if (!has) fail(enf('There is no version {n} of "{name}".', { n, name: r.name }));
     this.#db.prepare('UPDATE apps SET current = ?, updated = ? WHERE id = ?').run(n, this.#now().toISOString(), Number(r.id));
     return this.#view(this.#need(Number(r.id)));
   }
@@ -335,7 +336,7 @@ export class MyApps {
     let until: string | null = null;
     if (expiry !== 'never') {
       const ms = (SHARE_EXPIRY as Record<string, number>)[expiry];
-      if (!ms) fail('Pick how long the link works: 1h, 1d, 7d, 30d or never.');
+      if (!ms) fail(en('Pick how long the link works: 1h, 1d, 7d, 30d or never.'));
       until = new Date(this.#now().getTime() + ms).toISOString();
     }
     this.#db.prepare('UPDATE apps SET share_token = ?, share_until = ? WHERE id = ?').run(token(), until, Number(r.id));
@@ -356,12 +357,12 @@ export class MyApps {
     return v ? JSON.parse(v.value) : undefined;
   }
   setData(id: number, key: string, value: unknown): void {
-    if (!KEY_RE.test(key)) fail('A data name may use letters, digits, dot, dash and underscore (up to 64).');
+    if (!KEY_RE.test(key)) fail(en('A data name may use letters, digits, dot, dash and underscore (up to 64).'));
     const json = JSON.stringify(value ?? null);
-    if (Buffer.byteLength(json) > APP_LIMITS.dataValueBytes) fail(`That value is too big (at most ${APP_LIMITS.dataValueBytes / 1024} KB per name).`);
+    if (Buffer.byteLength(json) > APP_LIMITS.dataValueBytes) fail(enf('That value is too big (at most {n} KB per name).', { n: APP_LIMITS.dataValueBytes / 1024 }));
     const others = this.#db.prepare('SELECT COUNT(*) AS c, COALESCE(SUM(LENGTH(value)), 0) AS b FROM data WHERE app_id = ? AND key <> ?').get(id, key) as { c: number; b: number };
-    if (Number(others.c) >= APP_LIMITS.dataKeys) fail(`An app may keep at most ${APP_LIMITS.dataKeys} names.`);
-    if (Number(others.b) + json.length > APP_LIMITS.dataTotalBytes) fail('This app keeps too much data already.');
+    if (Number(others.c) >= APP_LIMITS.dataKeys) fail(enf('An app may keep at most {n} names.', { n: APP_LIMITS.dataKeys }));
+    if (Number(others.b) + json.length > APP_LIMITS.dataTotalBytes) fail(en('This app keeps too much data already.'));
     this.#db.prepare('INSERT INTO data (app_id, key, value) VALUES (?, ?, ?) ON CONFLICT (app_id, key) DO UPDATE SET value = excluded.value').run(id, key, json);
   }
   deleteData(id: number, key: string): void {
@@ -450,7 +451,7 @@ export async function serveMyApp(app: AppContext, req: IncomingMessage, res: Ser
     if (method !== 'PUT' && method !== 'DELETE') return notFound();
     if (hit.readOnly) {
       await drain();
-      return outJson(res, 403, { error: 'This is a shared, read-only copy of the app.' });
+      return outJson(res, 403, { error: en('This is a shared, read-only copy of the app.') });
     }
     try {
       if (method === 'DELETE') {

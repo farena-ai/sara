@@ -183,6 +183,68 @@ last word plus the hearing time. CPU, engines loaded.
 - 0.4 s ended every turn sooner but would also cut people off at short mid-sentence pauses; 0.5 s
   was kept.
 
+## Words as you speak in six languages (W0.3)
+
+Words as you speak (V0.2) was English only. An optional second streaming model now hears Spanish, French,
+German, Portuguese and Italian too, so your words show up while you talk in your own language.
+
+- **Model:** NVIDIA Nemotron 3.5 ASR Streaming 0.6B, int8, 560 ms chunks
+  (`sherpa-onnx-nemotron-3.5-asr-streaming-0.6b-560ms-int8-2026-06-11`, NVIDIA Open Model License, free,
+  commercial use allowed; ~480 MB, pinned SHA-256; [credits](CREDITS.md)). One model covers 40 locales; the
+  language is set per stream. It runs on the sherpa-onnx 1.13.8 that Sara already uses. Free; nothing you say
+  leaves the server.
+- **Install (only when you ask):** Settings → Sara → Voice → Talk with Sara → **Add words as you speak in
+  other languages** (Windows, Mac), `sara voice install --languages`, or on Linux
+  `sudo ./deploy/install-voice.sh --languages`. It adds `multi` to `voice.json`.
+- **Which model hears you:** your Talk language, else the app language, else the browser's (`hearLang`).
+  English keeps the small English model when it's installed. es/fr/de/pt/it use the multilingual one.
+  Any other language, or no model for yours: whole sentences, as before. The page may also send `lang` on
+  `POST /api/voice/stream`.
+- **Which words are sent:** for English, Parakeet's words when it's loaded (V0.2). For other languages the
+  streaming words are sent, because Parakeet hears English only.
+- **Whole recordings too:** with the model installed, a whole recording in es/fr/de/pt/it (whole-sentences
+  hearing, voice notes heard on this server, meetings and their **captions**) is heard by it instead of
+  the English-only Parakeet. Before, those came out as English-sounding nonsense.
+- **Interpreter:** with the model installed, the interpreter shows live words too. Either language may be
+  spoken, so the stream uses `auto`, and whole recordings sent with `lang=auto` go to the same model.
+- **Helper:** `sara-voice-worker online` reads `<id>@<lang>` on a new stream and sets its language (an older
+  helper keeps the whole thing as the id: auto-detect). Each language stream starts with 1 s of quiet:
+  without at least ~0.6 s of quiet first, the model dropped the first word or two ("hat ein Ende" for
+  "Alles hat ein Ende"). Whole recordings get 0.6 s of quiet after the words so the last word comes out.
+- **Cold start:** loading the model takes ~2–5 s. Talk loads it when it opens (`/api/voice/warm` passes your
+  language). If you start talking before it's ready, the words show all at once at the end of that first
+  sentence.
+
+### Measured (this PC, 2026-11-19, CPU, 4 threads; `<scratch>/w0hearing/measure.ts 560 5`)
+
+Five Talk-style sentences per language, read by a Piper voice through Sara's own local TTS
+(es_ES davefx, fr_FR siwis, de_DE thorsten, pt_BR faber, it_IT paola; English hfc_female), with 0.4 s of
+quiet after them. Pieces of 0.25 s are fed at real-time pace. "First word" = from the start of speech until
+the first word shows. "End → text" = from the last piece until its words are back.
+
+| Language | Model | First word (median) | First word (worst) | End → text (median) | Word errors |
+| --- | --- | --- | --- | --- | --- |
+| English | NeMo English (V0.2) | 0.73 s | 0.78 s | 0.04 s | 7 % |
+| Spanish | Nemotron 3.5 | 1.08 s | 1.58 s | 0.08 s | 9 % |
+| French | Nemotron 3.5 | 1.04 s | 1.90 s | 0.02 s | 10 % |
+| German | Nemotron 3.5 | 1.03 s | 1.04 s | 0.08 s | 5 % |
+| Portuguese | Nemotron 3.5 | 1.05 s | 1.10 s | 0.10 s | 10 % |
+| Italian | Nemotron 3.5 | 1.02 s | 1.04 s | 0.10 s | 37 % |
+
+- Human voices from the model's test set: Spanish, French and German all ~1.0 s to the first word, and the
+  text was right apart from "que" in the Spanish one. `auto` (the interpreter) on the Spanish and French
+  sentences: 0 % errors.
+- Italian: two of five sentences came out wrong ("Casa possinari…" for "Cosa posso cucinare…"). The Piper
+  Italian voice may be part of the cause; no human Italian clip was tested.
+- The 160 ms build shows the first word ~0.15 s sooner (0.80–0.89 s) but uses ~2.4× the CPU (real-time factor
+  0.45 vs 0.19), ends turns more slowly (0.18 vs 0.08 s) and made more French and Italian errors (24 %/23 %),
+  so the 560 ms build is shipped.
+- Before the 1 s lead-in, the same run lost first words in every language (word errors 15–29 %, first word
+  1.4–1.9 s).
+- Live check (real Chrome, fake mic playing the Spanish fixture, real helper and models): Talk showed
+  "Recuér…" → "Recuérdame llamar a mi hermana mañana…" while it played; the sent line was "Recuérdame
+  llamar a mi hermana mañana Medioria" ("mediodía" misheard, browser-resampled audio).
+
 ## Interpreter (V4.2)
 
 Two people who don't share a language talk through Sara (design: [INTERPRETER.md](design/INTERPRETER.md)).

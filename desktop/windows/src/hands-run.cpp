@@ -19,6 +19,8 @@ namespace {
 std::mutex g_m;
 Settings g_s;
 std::map<std::string, ULONGLONG> g_grants;
+/** W0.7: Always allow everything keys confirmed on this computer (key -> until). */
+std::map<std::string, ULONGLONG> g_all;
 const ULONGLONG kGrantMs = 15 * 60000;
 const size_t kCommandChars = 4000, kOutputChars = 64000, kChunkChars = 4000, kLiveChars = 64000;
 
@@ -138,7 +140,7 @@ bool locked() {
 }
 
 // ---- the card (this window has no network or web approval path) ----
-struct Panel { std::wstring title, text; bool task, destructive; std::atomic<HWND> window{nullptr}; std::atomic<bool> done{false}; int answer = 0; };
+struct Panel { std::wstring title, text; bool task, destructive, all = false; std::atomic<HWND> window{nullptr}; std::atomic<bool> done{false}; int answer = 0; };
 LRESULT CALLBACK proc(HWND h, UINT m, WPARAM w, LPARAM l) {
   auto p = reinterpret_cast<Panel*>(GetWindowLongPtrW(h, GWLP_USERDATA));
   if (m == WM_COMMAND && p && HIWORD(w) == BN_CLICKED) {
@@ -175,7 +177,7 @@ void show(Panel& p) {
   control(L"EDIT", shown, 0, 20, 48, 630, 200, ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL | WS_TABSTOP, WS_EX_CLIENTEDGE, mono);
   control(L"STATIC", L"It runs as you, never as administrator. Stop (Ctrl+Alt+Esc) ends it and everything it started. Closing this window means Don't.", 0, 20, 256, 630, 44, SS_NOPREFIX);
   control(L"BUTTON", L"Allow once", 101, 20, 312, 140, 44, WS_TABSTOP | BS_PUSHBUTTON);
-  if (p.task) control(L"BUTTON", L"Allow for this task", 102, 172, 312, 230, 44, WS_TABSTOP | BS_PUSHBUTTON);
+  if (p.task) control(L"BUTTON", p.all ? L"Always allow everything" : L"Allow for this task", 102, 172, 312, 230, 44, WS_TABSTOP | BS_PUSHBUTTON);
   HWND deny = control(L"BUTTON", L"Don't", IDCANCEL, 510, 312, 140, 44, WS_TABSTOP | BS_DEFPUSHBUTTON);
   SetWindowPos(h, HWND_TOPMOST, 160, 110, s(680), s(420), SWP_SHOWWINDOW);
   SetForegroundWindow(h);
@@ -188,10 +190,10 @@ void show(Panel& p) {
   p.done = true;
 }
 /** 0 Don't, 1 once, 2 this task. */
-int ask(const std::wstring& text, bool taskChoice, bool destructive, bool test, const std::atomic<bool>* cancel) {
+int ask(const std::wstring& text, bool taskChoice, bool destructive, bool test, const std::atomic<bool>* cancel, bool allChoice = false) {
   Panel p;
   p.title = test ? L"TEST Sara: run a command" : L"Sara: run a command";
-  p.text = text; p.task = taskChoice; p.destructive = destructive;
+  p.text = text; p.task = taskChoice || allChoice; p.destructive = destructive; p.all = allChoice;
   std::thread ui([&] { show(p); });
   while (!p.done) { if (cancel && cancel->load()) if (HWND h = p.window.load()) PostMessageW(h, WM_CLOSE, 0, 0); Sleep(20); }
   ui.join();
@@ -209,13 +211,20 @@ Reply approve(const Args& a, Ctx& ctx, const std::wstring& text, bool readOnly, 
     std::lock_guard<std::mutex> l(g_m);
     for (auto it = g_grants.begin(); it != g_grants.end();) it = now - it->second > kGrantMs ? g_grants.erase(it) : std::next(it);
     if (!destructive && (level == 2 || (level == 1 && !task.empty() && g_grants.count(task)))) { g_grants[task] = now; return {}; }
+    // W0.7: Always allow everything, confirmed on this computer: every command runs (also the destructive ones).
+    for (auto it = g_all.begin(); it != g_all.end();) it = now >= it->second ? g_all.erase(it) : std::next(it);
+    if (!a.allowAll.empty() && g_all.count(a.allowAll)) return {};
   }
+  bool offerAll = !a.allowAll.empty();
   if (ctx.ev) ctx.ev("\"state\":\"asking\"");
   if (ctx.approving) *ctx.approving = true;
-  int answer = ask(text, !destructive && level == 1 && !task.empty(), destructive, s.test, ctx.cancel);
+  int answer = ask(text, !destructive && level == 1 && !task.empty(), destructive, s.test, ctx.cancel, offerAll);
   if (ctx.approving) *ctx.approving = false;
   if (!answer || (ctx.cancel && ctx.cancel->load())) return {"", "denied_local", "The person at this computer said no."};
-  if (answer == 2 && !task.empty()) { std::lock_guard<std::mutex> l(g_m); g_grants[task] = GetTickCount64(); }
+  if (answer == 2 && offerAll) {
+    double ms = a.allowAllMs >= 60000 ? std::min(a.allowAllMs, 7.0 * 24 * 3600000) : 60000;
+    std::lock_guard<std::mutex> l(g_m); g_all[a.allowAll] = GetTickCount64() + (ULONGLONG)ms;
+  } else if (answer == 2 && !task.empty()) { std::lock_guard<std::mutex> l(g_m); g_grants[task] = GetTickCount64(); }
   return {};
 }
 

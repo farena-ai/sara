@@ -4,7 +4,7 @@
 // step too. One quiet line, collapsed: "Remembered 2 things · Checked the weather 0.4 s · Added a
 // to-do"; live while she works ("Checking the weather…"); one tap or click opens the details of
 // every step (what ran, the output, how long). Replaces the grey "$ command" boxes.
-import { locale, t } from './naming.js';
+import { locale, serverText, t } from './naming.js';
 import { icon } from './icons.js';
 import { stepWordsWith } from './step-words.js';
 import { stoppedByPerson } from './step-words.js';
@@ -105,7 +105,7 @@ const SAVED_RE = /^(Saved|Updated|Changed) skill "([a-z0-9-]{1,64})"/;
 async function skillApi(path, method = 'GET', body) {
   const res = await fetch(`/api${path}`, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
   return data;
 }
 function skillActions(step) {

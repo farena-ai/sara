@@ -75,11 +75,11 @@ test('warm worker: a crash fails that job, the next one restarts; three crashes 
 test('warm worker: a model that fails to load, an error answer, a slow job and low memory', async (t) => {
   const { dir, cleanup } = tempDir();
   const fail = worker(dir, {}, { FAKE_WORKER_FAIL: '1' });
-  const slow = worker(dir, { jobTimeoutMs: 300 });
+  const slow = worker(dir, { jobTimeoutMs: 300 }); // "slow" never answers (the fixture), so 300 ms is always too long
   const low = worker(dir, { freeMemMb: () => 100, minFreeMb: 1024 });
   t.after(() => (fail.w.stop(), slow.w.stop(), low.w.stop(), cleanup()));
   await assert.rejects(fail.w.ask('a.wav'), /did not load/);
-  await assert.rejects(slow.w.ask('bad.wav'), /no audio/);
+  await assert.rejects(slow.w.ask('bad.wav', 60_000), /no audio/, 'its own generous time: a loaded machine may take a while to answer');
   assert.equal(slow.w.state, 'ready', 'an error answer keeps the worker');
   await assert.rejects(slow.w.ask('slow.wav'), /took too long/);
   assert.equal(slow.w.state, 'stopped', 'a stuck worker is killed');
@@ -181,6 +181,9 @@ test('POST /api/voice/warm loads the local engines (Talk opened); keepLoaded sav
   const w = await fetch(`${base}/voice/warm`, { method: 'POST', headers: H, body: '{}' });
   assert.equal(w.status, 202);
   assert.deepEqual(await w.json(), { warming: true });
-  for (let i = 0; i < 50 && starts(eng.log).length < 2; i++) await sleep(50);
+  // The warm-up runs after the 202: wait for both workers to say ready (two process starts can take
+  // many seconds on a loaded machine; a fixed 2.5 s window flaked), then check which ones started.
+  const end = Date.now() + 60_000;
+  while (Date.now() < end && Object.values(eng.e.workerStates()).filter((x) => x === 'ready').length < 2) await sleep(25);
   assert.deepEqual(starts(eng.log).map((l) => l.split(' ')[1]).sort(), ['stt', 'tts']);
 });

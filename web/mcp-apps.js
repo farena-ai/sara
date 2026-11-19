@@ -4,7 +4,7 @@
 // It talks to Sara only through postMessage (JSON-RPC, the MCP Apps dialect). What it may ask:
 // ui/initialize, its size, ping, and tools/call on its own server's app tools; every call goes to
 // the server, where the tool's permission decides (Off, Ask: an approval card here, or on its own).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const MIN_H = 80;
 const MAX_H = 720;
@@ -24,7 +24,7 @@ const el = (tag, cls, text) => {
 async function post(path, body) {
   const res = await fetch(`/api${path}`, { method: body === undefined ? 'GET' : 'POST', headers: body === undefined ? {} : { 'content-type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
   return data;
 }
 

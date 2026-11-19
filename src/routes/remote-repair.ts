@@ -26,6 +26,7 @@ import { remoteRepairOf, REPAIR_SCOPES } from '../remote-repair.ts';
 import { SUPPORT_HOURS, supportFindings, SupportError } from '../support.ts';
 import { readPeerBody, supportReport } from './support.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { en } from '../i18n.ts';
 
 function http(err: unknown): never {
   if (err instanceof SupportError) throw new HttpError(err.status, err.message);
@@ -110,14 +111,14 @@ export async function handleRepairPeer(ctx: RouteCtx, req: IncomingMessage, res:
     if (op === 'status') return (rr.statusIn(linkId, name, b), reply(200, { ok: true }));
     // U3.17: a fix recipe needs no fix pass (it only becomes a proposal here); private local mode refuses it.
     if (op === 'recipe') {
-      if (rr.deps.privateLocal()) return reply(403, { error: 'Private local mode is on there.' });
+      if (rr.deps.privateLocal()) return reply(403, { error: en('Private local mode is on there.') });
       await fixRecipesOf(ctx.app)?.received(linkId, name, b);
       return reply(200, { ok: true });
     }
     // look, plan and stop need a fix pass this owner gave on this link, accepted and still valid.
     if (rr.deps.privateLocal()) {
       audit({ action: `remote-repair.${op}`, who: who(name), role: 'system', channel: 'repair-link', outcome: 'refused' });
-      return reply(403, { error: 'Private local mode is on there, so fix passes are paused.' });
+      return reply(403, { error: en('Private local mode is on there, so fix passes are paused.') });
     }
     if (!rr.activePass(linkId, 'given')) {
       audit({ action: `remote-repair.${op}`, who: who(name), role: 'system', channel: 'repair-link', outcome: 'refused' });

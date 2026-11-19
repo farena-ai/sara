@@ -2,7 +2,7 @@
 // community's shelf (or a linked friend's), review exactly what an item does and this server's own
 // checks, install only what was reviewed; share skills, templates, automations, team recipes and Store
 // add-on links; rate, comment, report; the community's owner removes listings. Owner only.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 const state = { places: [], installs: [], reports: [], items: null, place: '' };
@@ -27,7 +27,7 @@ async function api(path, opts = {}) {
     credentials: 'same-origin',
   });
   const j = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(j.error || res.statusText);
+  if (!res.ok) throw new Error(serverText(j, res.statusText));
   return j;
 }
 const KIND = { skill: 'Skill', template: 'Template', automation: 'Automation', team: 'Team recipe', addon: 'Store add-on', worker: 'Worker' };

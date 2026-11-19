@@ -109,7 +109,7 @@ test('self-memories: what Sara says about herself is kept (quote-checked) and re
   assert.equal(r.droppedFacts, 1);
   const c2 = app.store.createConversation();
   await say(app, c2.id, 'what movie did you watch with Maya?', 'The Thing!');
-  assert.match(lastSystem(app), /\(2026-10-24, something you said about yourself\) Sara watched The Thing with Maya last night\./);
+  assert.match(lastSystem(app), /\(2026-10-24(?:, (?:today|yesterday|\d+ \w+ ago))?, something you said about yourself\) Sara watched The Thing with Maya last night\./);
 });
 
 test('her day: written once per local day after 6 am, injected, then reused', async (t) => {

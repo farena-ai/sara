@@ -83,6 +83,61 @@ export interface VoiceManifest {
   voices: VoiceModel[];
   /** V0.2: the optional streaming hearing model (words as you speak; `sara voice install --streaming`). */
   online?: { kind: 'transducer'; encoder: string; decoder: string; joiner: string; tokens: string };
+  /** W0.3: the optional multilingual streaming model (`sara voice install --languages`); the stream language is set per utterance. */
+  multi?: { kind: 'transducer'; encoder: string; decoder: string; joiner: string; tokens: string; languages: string[] };
+}
+
+/** W0.3: the languages words-as-you-speak covers (Sara's six app languages). */
+export const STREAM_LANGS = ['en', 'es', 'fr', 'de', 'pt', 'it'] as const;
+
+/** W0.3: a language code as the streaming models know it ('pt-BR' → 'pt'; 'auto' = either language, the interpreter); undefined = none. */
+export function streamLang(lang: string | undefined | null): string | undefined {
+  const l = String(lang ?? '').trim().toLowerCase();
+  if (l === 'auto') return 'auto';
+  const base = l.split(/[-_]/)[0] ?? '';
+  return (STREAM_LANGS as readonly string[]).includes(base) ? base : undefined;
+}
+
+/** W0.3: the language a person speaks to her: their Talk language, else the app language, else the browser's (English by default). */
+export function hearLang(s: { talkLanguage?: string; language?: string; languageDetected?: string }): string {
+  for (const l of [s.talkLanguage, s.language, s.languageDetected]) {
+    const x = streamLang(l);
+    if (x && x !== 'auto') return x;
+  }
+  return 'en';
+}
+
+/** W0.3: 16 kHz mono 16-bit PCM from a PCM16 WAV (first channel, linear resampling like the page). */
+export function wavPcm16k(wav: Buffer): Buffer {
+  let o = 12;
+  let rate = 16000;
+  let channels = 1;
+  let data: Buffer = Buffer.alloc(0);
+  while (o + 8 <= wav.length) {
+    const id = wav.toString('ascii', o, o + 4);
+    const n = wav.readUInt32LE(o + 4);
+    if (id === 'fmt ') {
+      channels = Math.max(1, wav.readUInt16LE(o + 10));
+      rate = wav.readUInt32LE(o + 12) || 16000;
+    }
+    if (id === 'data') {
+      data = wav.subarray(o + 8, Math.min(wav.length, o + 8 + n));
+      break;
+    }
+    o += 8 + n + (n % 2);
+  }
+  const src = Math.floor(data.length / (2 * channels));
+  if (rate === 16000 && channels === 1) return Buffer.from(data.subarray(0, src * 2));
+  const len = Math.floor((src * 16000) / rate);
+  const out = Buffer.alloc(len * 2);
+  const at = (i: number) => data.readInt16LE(i * 2 * channels);
+  for (let i = 0; i < len; i++) {
+    const x = (i * rate) / 16000;
+    const i0 = Math.min(Math.floor(x), src - 1);
+    const i1 = Math.min(i0 + 1, src - 1);
+    out.writeInt16LE(Math.round(at(i0) + (at(i1) - at(i0)) * (x - i0)), i * 2);
+  }
+  return out;
 }
 export interface VoiceModel {
   id: string;
@@ -224,7 +279,7 @@ export class LocalVoiceEngine {
   #workerCmd(streaming = false): string[] | undefined {
     if (!this.#warm || !this.manifest) return undefined;
     if (this.#warm.idleMs() <= 0 && !streaming) {
-      for (const [k, w] of this.#workers) if (k !== 'online') (w.stop(), this.#workers.delete(k)); // switched off: free the memory now
+      for (const [k, w] of this.#workers) if (k !== 'online' && k !== 'multi') (w.stop(), this.#workers.delete(k)); // switched off: free the memory now
       return undefined;
     }
     if (this.#warm.worker) return this.#warm.worker;
@@ -243,7 +298,7 @@ export class LocalVoiceEngine {
   #placed = false;
 
   #worker(key: string, args: string[]): WarmWorker | undefined {
-    const streaming = key === 'online';
+    const streaming = key === 'online' || key === 'multi';
     const cmd = this.#workerCmd(streaming);
     if (!cmd) return undefined;
     let w = this.#workers.get(key);
@@ -276,9 +331,32 @@ export class LocalVoiceEngine {
     return o ? this.#worker('online', ['online', this.#abs(o.encoder), this.#abs(o.decoder), this.#abs(o.joiner), this.#abs(o.tokens), String(this.#threads), process.env.SARA_TEST_STREAM_END ?? STREAM_END]) : undefined;
   }
 
-  /** V0.2: true when words-as-you-speak hearing can run here (model installed and the helper present). */
-  streamingReady(): boolean {
-    return Boolean(this.manifest?.online && this.#workerCmd(true));
+  #multiWorker(): WarmWorker | undefined {
+    const o = this.manifest?.multi;
+    return o ? this.#worker('multi', ['online', this.#abs(o.encoder), this.#abs(o.decoder), this.#abs(o.joiner), this.#abs(o.tokens), String(this.#threads), process.env.SARA_TEST_STREAM_END ?? STREAM_END]) : undefined;
+  }
+
+  /**
+   * W0.3: which streaming model hears a language: English keeps the small English model; es/fr/de/pt/it
+   * (and 'auto', either language) the multilingual one with its language set. Undefined = none here.
+   */
+  #streamFor(lang?: string): { key: 'online' | 'multi'; lang?: string } | undefined {
+    const l = lang === undefined ? 'en' : streamLang(lang);
+    if (!l) return undefined;
+    if (l === 'en' && this.manifest?.online) return { key: 'online' };
+    if (this.manifest?.multi && (l === 'auto' || this.manifest.multi.languages.includes(l))) return { key: 'multi', lang: l };
+    return undefined;
+  }
+
+  /** W0.3: the languages words-as-you-speak hears here (none without a streaming model). */
+  streamLangs(): string[] {
+    return STREAM_LANGS.filter((l) => this.#streamFor(l));
+  }
+
+  /** V0.2: true when words-as-you-speak hearing can run here (model installed and the helper present); W0.3: for `lang`. */
+  streamingReady(lang?: string): boolean {
+    const any = lang === undefined && (this.manifest?.online || this.manifest?.multi);
+    return Boolean((any || this.#streamFor(lang)) && this.#workerCmd(true));
   }
 
   /**
@@ -286,17 +364,21 @@ export class LocalVoiceEngine {
    * finishes it. Returns the words so far and whether the model heard the end of the turn. Throws a
    * VoiceError on any trouble (the page then sends the whole recording as before).
    */
-  async hear(id: string, pcm: Buffer, end: boolean): Promise<{ text: string; endpoint: boolean; loaded: boolean }> {
+  async hear(id: string, pcm: Buffer, end: boolean, lang?: string): Promise<{ text: string; endpoint: boolean; loaded: boolean }> {
     if (!/^[\w-]{1,40}$/.test(id)) throw new VoiceError('Bad stream id.');
-    const w = this.manifest?.online ? this.#onlineWorker() : undefined;
-    if (!w) throw new VoiceError('Streaming hearing is not installed here.');
+    // W0.3: no lang = English (V0.2), or the multilingual model when it's the only one.
+    const pick = this.#streamFor(lang) ?? (lang === undefined && this.manifest?.multi ? { key: 'multi' as const, lang: 'en' } : undefined);
+    const w = pick?.key === 'multi' ? this.#multiWorker() : pick ? this.#onlineWorker() : undefined;
+    if (!w || !pick) throw new VoiceError(lang && pick === undefined && this.manifest?.online ? 'Streaming hearing for this language is not installed here.' : 'Streaming hearing is not installed here.');
+    // The helper sets a new stream's language from "<id>@<lang>" (an older helper keeps it as the id: auto).
+    const sid = pick.lang ? `${id}@${pick.lang}` : id;
     let last = '0 ';
     try {
       const n = pcm.length - (pcm.length % 2);
       const pieces = Math.max(1, Math.ceil(n / STREAM_PIECE));
       for (let i = 0; i < pieces; i++) {
         const b64 = pcm.subarray(i * STREAM_PIECE, Math.min(n, (i + 1) * STREAM_PIECE)).toString('base64') || '-';
-        last = await w.ask(`${end && i === pieces - 1 ? 'e' : 'a'} ${id} ${b64}`, 15_000);
+        last = await w.ask(`${end && i === pieces - 1 ? 'e' : 'a'} ${sid} ${b64}`, 15_000);
       }
     } catch (err) {
       throw new VoiceError(`Streaming hearing failed (${(err as Error).message}).`);
@@ -304,13 +386,16 @@ export class LocalVoiceEngine {
     const m = /^([01]) ?([\s\S]*)$/.exec(last);
     // `loaded`: the whole-sentence model is in memory, so the page re-hears the recording with it
     // (~0.05 s, more accurate than the streaming words; docs/RESULTS.md) and shows these only as partials.
-    return { text: (m?.[2] ?? '').trim(), endpoint: m?.[1] === '1', loaded: this.#workers.get('stt')?.state === 'ready' };
+    // W0.3: the whole-sentence model is English: other languages keep the streaming words.
+    return { text: (m?.[2] ?? '').trim(), endpoint: m?.[1] === '1', loaded: pick.key === 'online' && this.#workers.get('stt')?.state === 'ready' };
   }
 
   /** Loads hearing and the voice now (Talk opened). Never throws; true when something is loading. */
-  async warm(voiceId?: string, opts: { streaming?: boolean } = {}): Promise<boolean> {
+  async warm(voiceId?: string, opts: { streaming?: boolean; lang?: string } = {}): Promise<boolean> {
     const v = this.manifest?.voices.find((x) => x.id === voiceId) ?? this.manifest?.voices[0];
-    const ws = [this.#sttWorker(), v ? this.#ttsWorker(v) : undefined, opts.streaming ? this.#onlineWorker() : undefined].filter((w): w is WarmWorker => Boolean(w));
+    // W0.3: Talk in another language loads the multilingual streaming model instead.
+    const s = opts.streaming ? this.#streamFor(opts.lang) : undefined;
+    const ws = [this.#sttWorker(), v ? this.#ttsWorker(v) : undefined, s?.key === 'multi' ? this.#multiWorker() : opts.streaming && this.manifest?.online ? this.#onlineWorker() : undefined].filter((w): w is WarmWorker => Boolean(w));
     await Promise.all(ws.map((w) => w.start().catch(() => undefined)));
     return ws.length > 0;
   }
@@ -356,7 +441,18 @@ export class LocalVoiceEngine {
     return join(this.#tmp, `${randomUUID()}.${ext}`);
   }
 
-  async transcribe(wav: Buffer): Promise<string> {
+  async transcribe(wav: Buffer, opts: { lang?: string } = {}): Promise<string> {
+    // W0.3: a recording in es/fr/de/pt/it (or 'auto') goes to the multilingual model when it's here:
+    // the whole-sentence model (Parakeet) hears English only. Any trouble: the path below, as before.
+    const l = streamLang(opts.lang);
+    if (l && l !== 'en' && isWav(wav) && this.#streamFor(l)?.key === 'multi' && this.#workerCmd(true)) {
+      try {
+        // 0.6 s of quiet after the words lets the last one out of the model's 560 ms look-ahead.
+        return (await this.hear(`w${randomUUID().replace(/-/g, '').slice(0, 20)}`, Buffer.concat([wavPcm16k(wav), Buffer.alloc(19_200)]), true, l)).text;
+      } catch {
+        // the whole-sentence model then
+      }
+    }
     const stt = this.manifest?.stt;
     if (!stt) throw new VoiceError(localVoiceSupported() ? 'Local speech-to-text is not installed (run deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
     if (!isWav(wav)) throw new VoiceError('Expected a WAV recording.');

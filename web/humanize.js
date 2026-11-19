@@ -3,7 +3,7 @@
 // removed words marked, After with the new ones marked, the "reads natural" score before and after,
 // and whether every fact stayed. Keep makes a new version of the document (or replaces the report);
 // Undo puts the old words back. A child gets suggestions for their own draft instead (no Keep).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 function el(tag, cls, text) {
   const n = document.createElement(tag);
@@ -14,7 +14,7 @@ function el(tag, cls, text) {
 async function post(path, body) {
   const r = await fetch(`/api/writing/${path}`, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? String(r.status));
+  if (!r.ok) throw new Error(serverText(d, String(r.status)));
   return d;
 }
 

@@ -17,7 +17,7 @@ import { CAP_MAX, CAP_MIN, titleSettings, titleUsage } from '../titles.ts';
 import type { TurnOptions } from '../chat.ts';
 import { SESSION_COOKIE } from '../auth.ts';
 import { as400, cookies, fromPhoneApp, HttpError, readJson, safeDecode, SECURITY_HEADERS, send } from '../http.ts';
-import { appLanguage } from '../i18n.ts';
+import { appLanguage, en, trOwner } from '../i18n.ts';
 import { policy } from '../policy-profile.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { cleanOrigins, otherAppsSettings } from '../other-apps.ts';
@@ -590,7 +590,7 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
             last = (err as Error).message;
           }
         }
-        throw new HttpError(400, `Couldn't sign in: ${last.slice(0, 300)}`, { reason: explainSignIn(last, String(body.preset ?? 'other')), detail: last.slice(0, 300) });
+        throw new HttpError(400, "Couldn't sign in: {error}", { params: { error: last.slice(0, 300) }, reason: explainSignIn(last, String(body.preset ?? 'other')), detail: last.slice(0, 300) });
       }
       if (b === 'undo' && c && method === 'POST') {
         guardOn();
@@ -851,10 +851,10 @@ export function createConnectionsRoutes(ctx: RouteCtx): RouteHandler {
         const token = app.vault.get(HOME_VAULT);
         if (!base || !token) return send(res, 200, { url: base ?? '', hasToken: Boolean(token), ok: false });
         const r = await netFetch(`${base}/api/config`, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(8_000), redirect: 'error' }).catch((err: Error) => err);
-        if (r instanceof Error) return send(res, 200, { url: base, hasToken: true, ok: false, error: `Couldn't reach it from this server (${r.message}).` });
-        if (r.status === 401) return send(res, 200, { url: base, hasToken: true, ok: false, error: 'Home Assistant refused the token.' });
+        if (r instanceof Error) return send(res, 200, { url: base, hasToken: true, ok: false, error: trOwner(en("Couldn't reach it from this server ({error})."), app.settings.get(), { error: r.message }) });
+        if (r.status === 401) return send(res, 200, { url: base, hasToken: true, ok: false, error: trOwner(en('Home Assistant refused the token.'), app.settings.get()) });
         const cfg = r.ok ? ((await r.json().catch(() => ({}))) as { location_name?: string; version?: string }) : {};
-        return send(res, 200, { url: base, hasToken: true, ok: r.ok, name: cfg.location_name ?? null, version: cfg.version ?? null, ...(r.ok ? {} : { error: `Home Assistant said ${r.status}.` }) });
+        return send(res, 200, { url: base, hasToken: true, ok: r.ok, name: cfg.location_name ?? null, version: cfg.version ?? null, ...(r.ok ? {} : { error: trOwner(en('Home Assistant said {status}.'), app.settings.get(), { status: r.status }) }) });
       }
       if (method === 'PUT') {
         const body = await readJson(req);

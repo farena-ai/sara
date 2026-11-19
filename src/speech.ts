@@ -14,7 +14,7 @@ import { personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { addTags, engineTags, type Expressive, forEngine, type MoodHint, moodSpeed, plainSpeech, toneInstructions, type VoiceTone } from './expressive.ts';
 import { moodLabel } from './inner.ts';
-import { DEFAULT_VOICE, elevenlabsSpeak, isWav, openaiSpeak, openaiTranscribe, speechText, VOICE_VAULT, VoiceError, xaiSpeak, type Audio, type VoiceSettings } from './voice.ts';
+import { DEFAULT_VOICE, elevenlabsSpeak, hearLang, isWav, openaiSpeak, openaiTranscribe, speechText, VOICE_VAULT, VoiceError, xaiSpeak, type Audio, type VoiceSettings } from './voice.ts';
 
 const XAI_STT = 'https://api.x.ai/v1/stt';
 const OPENAI_API = /^https:\/\/api\.openai\.com(?:\/|$)/;
@@ -184,7 +184,8 @@ export class Speech {
     if (opts.language) v.xai = { ...v.xai, language: opts.language };
     if (v.stt === 'off') throw new VoiceError('Speech-to-text is off (Settings → Voice).');
     if (v.stt === 'openai') return openaiTranscribe(v.openai, this.#app.vault.get(VOICE_VAULT.openai), audio, v.xai.language);
-    if (isWav(audio) && this.#app.voice) return this.#app.voice.transcribe(audio);
+    // W0.3: in the person's language (es/fr/de/pt/it hear through the multilingual streaming model when installed).
+    if (isWav(audio) && this.#app.voice) return this.#app.voice.transcribe(audio, { lang: opts.language ?? hearLang(this.#app.settings.get()) });
     // Voice notes: the on-server engine reads WAV only, so Grok voice hears them when available.
     if (this.hasXai()) {
       const key = await this.xaiKey().catch(() => undefined);

@@ -259,9 +259,9 @@ export function syncTalkButton(show) {
   if (b) b.hidden = !show;
 }
 
-/** V0.2: one piece of a live utterance to the streaming hearing model (web/voice.js StreamHearing). */
-async function postStream(id, bytes, end) {
-  const res = await fetch(`/api/voice/stream?id=${encodeURIComponent(id)}${end ? '&end=1' : ''}`, { method: 'POST', headers: { 'content-type': 'audio/L16' }, body: bytes });
+/** V0.2: one piece of a live utterance to the streaming hearing model (web/voice.js StreamHearing). W0.3: `lang` ('auto' = either language); none = the person's language. */
+async function postStream(id, bytes, end, lang) {
+  const res = await fetch(`/api/voice/stream?id=${encodeURIComponent(id)}${end ? '&end=1' : ''}${lang ? `&lang=${encodeURIComponent(lang)}` : ''}`, { method: 'POST', headers: { 'content-type': 'audio/L16' }, body: bytes });
   if (!res.ok) throw new Error(`stream ${res.status}`);
   return res.json();
 }
@@ -346,8 +346,9 @@ export async function startTalk(opts) {
     // V4.2: the interpreter hears either language (no language hint) and has no streaming preview.
     transcribe: (wav) => (interpOn() ? interpTranscribe(wav) : ctx.transcribe(wav)),
     isSpeech: (f) => (gate ??= new SpeechGate(mic.ctx?.sampleRate ?? 48000)).push(f),
-    // V0.2: words as you speak (Settings → Voice → Talk with Sara → Hearing while you talk).
-    stream: ctx.voiceCfg()?.streaming?.on ? () => (interpOn() ? null : new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000)) : undefined,
+    // V0.2: words as you speak (Settings → Voice → Talk with Sara → Hearing while you talk). W0.3: the
+    // interpreter streams too when the multilingual model is here (either language: 'auto').
+    stream: ctx.voiceCfg()?.streaming?.on ? () => { const st = ctx.voiceCfg()?.streaming ?? {}; return interpOn() ? (st.languages?.length > 1 ? new StreamHearing((id, b, e) => postStream(id, b, e, 'auto'), mic.ctx?.sampleRate ?? 48000) : null) : new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000); } : undefined,
     onPartial: (words) => {
       // The newest words only, so a long sentence never squeezes the header.
       const shown = words.length > 60 ? `…${words.slice(-60).replace(/^\S*\s/, '')}` : words;

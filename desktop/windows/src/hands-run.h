@@ -21,6 +21,9 @@ struct Args {
   std::string op;  // c.run | c.open
   std::string command, shell, cwd, target, task, approvalLevel;
   double timeoutMs = 60000;
+  /** W0.7: the server's Always allow everything key (confirmed once on this computer's card). */
+  std::string allowAll;
+  double allowAllMs = 3600000;
 };
 
 struct Ctx {

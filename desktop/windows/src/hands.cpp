@@ -2544,6 +2544,8 @@ class Hands {
   std::map<std::string, ULONGLONG> deskGrants_;
   /** HANDSFREE: "Let her finish this task" (key → until): confirmed once here, kept across turns, dropped on Stop/takeover. */
   std::map<std::string, ULONGLONG> freeGrants_;
+  /** W0.7: Always allow everything keys the person confirmed here (key -> until); a task ending keeps them. */
+  std::map<std::string, ULONGLONG> allGrants_;
   inline static Hands* hookOwner_ = nullptr;
   HHOOK mouseHook_ = nullptr, keyHook_ = nullptr;
   std::atomic<bool> keep{false};      // Phase 88: let Sara keep control when the person uses her window
@@ -4096,15 +4098,28 @@ class Hands {
       bool freeOn = !freeKey.empty() && level >= 1 && !a["forceOnce"].truthy() && !reviewCard && !info.hard;
       if (freeOn && freeGrants_.count(freeKey)) { once = false; granted = true; }
       bool offerFree = freeOn && !freeGrants_.count(freeKey);
+      // W0.7: Always allow everything (the server's key, confirmed once on this card): no card at all, also for
+      // payments, account pages, review cards and Ask every time. Blocked, secret and elevated targets were refused above.
+      std::string allKey = a["allowAll"].str().substr(0, 160);
+      for (auto it = allGrants_.begin(); it != allGrants_.end();) it = now >= it->second ? allGrants_.erase(it) : std::next(it);
+      bool allOn = !allKey.empty() && allGrants_.count(allKey) > 0;
+      if (allOn) { once = false; granted = true; }
+      bool offerAll = !allKey.empty() && !allOn;
       deskUntil_ = now + 15 * 60000;
       if (once || !granted) {
         approving_ = true;
-        int answer = desktopApproval(wide(info.target), !once && (level == 1 || (reviewCard && level == 2)) && !task.empty(), host.testLabel, r.cancel.get(), offerFree);
+        int answer = desktopApproval(wide(info.target), !once && (level == 1 || (reviewCard && level == 2)) && !task.empty(), host.testLabel, r.cancel.get(), offerFree && !offerAll, offerAll);
         approving_ = false;
         sendText(std::string("{\"t\":\"ev\",\"kind\":\"local_approval\",\"allowed\":") + (answer ? "true" : "false") + "}");
         if (!answer || r.cancel->load()) { e = {"denied_local", "The person at this computer did not approve that action."}; return {}; }
         if (r.op != "d.launch" && r.op != "d.tabswitch") { auto fresh = sarascreen::refreshApproved(action); if (!fresh.code.empty()) { e = {fresh.code, fresh.message}; return {}; } }
-        if (answer == 2 && offerFree) {
+        if (answer == 2 && offerAll) {
+          double ms = a["allowAllMs"].num(3600000);
+          if (!(ms >= 60000)) ms = 60000;
+          if (ms > 7.0 * 24 * 3600000) ms = 7.0 * 24 * 3600000;
+          allGrants_[allKey] = GetTickCount64() + (ULONGLONG)ms;
+          localLog("allowall", "Always allow everything", allKey);
+        } else if (answer == 2 && offerFree) {
           double ms = a["handsFreeMs"].num(3600000);
           if (!(ms >= 60000)) ms = 60000;
           if (ms > 8.0 * 3600000) ms = 8.0 * 3600000;
@@ -4180,7 +4195,7 @@ class Hands {
     if (r.op == "c.run" || r.op == "c.open") {
       sararun::Args ra;
       ra.op = r.op; ra.command = a["command"].str(); ra.shell = a["shell"].str(); ra.cwd = a["cwd"].str(); ra.target = a["target"].str();
-      ra.task = a["task"].str(); ra.approvalLevel = a["approvalLevel"].str(); ra.timeoutMs = a["timeoutMs"].num(60000);
+      ra.task = a["task"].str(); ra.approvalLevel = a["approvalLevel"].str(); ra.allowAll = a["allowAll"].str().substr(0, 160); ra.allowAllMs = a["allowAllMs"].num(3600000); ra.timeoutMs = a["timeoutMs"].num(60000);
       sararun::Ctx rc;
       std::string rid = r.id;
       rc.ev = [this, rid](const std::string& frag) { sendText("{\"t\":\"ev\",\"kind\":\"run\",\"id\":" + q(rid) + "," + frag + "}"); };

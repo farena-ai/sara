@@ -13,6 +13,7 @@ import { HttpError, readJson, send } from '../http.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { SupportError } from '../support.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { en } from '../i18n.ts';
 
 export function createFriendTimeRoutes(ctx: RouteCtx): RouteHandler {
   const { app } = ctx;
@@ -58,7 +59,7 @@ export async function handleFriendTimePeer(ctx: RouteCtx, req: IncomingMessage, 
   } catch {
     return reply(413, { error: 'too big' });
   }
-  if (privateLocalOn()) return reply(403, { error: 'Private local mode is on there.' });
+  if (privateLocalOn()) return reply(403, { error: en('Private local mode is on there.') });
   try {
     const { linkId, name } = ft.verify(req.headers, op, raw);
     return reply(200, await ft.received(linkId, name, op, JSON.parse(raw) as Record<string, unknown>));

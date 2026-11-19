@@ -73,6 +73,7 @@ import { initWorkApps, loadWorkApps } from './workapps.js';
 import { alwaysAllowButton, serverPolicyRows } from './tool-policy.js';
 import { onPcRunEvent } from './pc-run-card.js';
 import { initHandsFree, onHandsFreeEvent, refreshHandsFree } from './handsfree.js';
+import { initAlwaysAllow, refreshAlwaysAllow } from './always-allow.js';
 import { initPcRunSettings, renderPcRunPrefs } from './pc-run-settings.js';
 import { initPcFilesSettings, renderPcFilesPrefs } from './pc-files-settings.js';
 import { initMoveIn, loadMoveIn, moveInEvent } from './movein.js';
@@ -9256,6 +9257,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-phone') renderInstallGuide($('#ph-install'));
   if (pick === 'co-hooks') void Promise.all([loadHooks(), loadEventTriggers()]);
   if (pick === 'co-computer') void loadComputer();
+  if (pick === 'co-computer' && typeof refreshAlwaysAllow === 'function') void refreshAlwaysAllow();
   if (shown.has('her-import')) void loadImport();
   if (shown.has('dh-movein')) void loadMoveIn();
   if (pick === 'models-local') void loadLocalModels();
@@ -14923,6 +14925,7 @@ $('#cu-desktop').addEventListener('change', async () => {
 });
 initPcRunSettings(() => handsBridge());
 initHandsFree({ api, stop: () => { if (state.streaming) $('#stop')?.click(); } });
+initAlwaysAllow({ api, confirmProof: () => confirmProof() }); // W0.7
 $('#cu-tabs').addEventListener('change', async () => {
   const box = $('#cu-tabs');
   const d = handsBridge();

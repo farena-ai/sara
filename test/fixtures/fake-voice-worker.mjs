@@ -1,7 +1,7 @@
 // U5 voice fast: a fake sara-voice-worker (same line protocol as deploy/voice/sara-voice-worker.c).
 // FAKE_WORKER_LOG: append "start <mode> <pid>" per start. FAKE_WORKER_READY_MS: load delay.
 // FAKE_WORKER_FAIL=1: print "fail" instead of "ready". Text "crash" exits 3; "bad" answers err;
-// "slow" waits 2 s before answering.
+// "slow" never answers (a stuck engine: the job timeout ends it).
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { basename } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -27,15 +27,18 @@ setTimeout(() => {
   // silence (all zero samples) after at least 0.5 s of audio is an endpoint.
   const streams = new Map();
   const online = (line) => {
-    const [op, id, b64 = ''] = line.split(' ');
+    const [op, full, b64 = ''] = line.split(' ');
+    // W0.3: "<id>@<lang>" sets the language of a new stream; its words are then "<lang>1 <lang>2…".
+    const [id, lang] = String(full ?? '').split('@');
     if (!/^[aex]$/.test(op) || !id) return void process.stdout.write('err bad request\n');
     if (op === 'x') return void (streams.delete(id), process.stdout.write('ok 0 \n'));
     const pcm = b64 && b64 !== '-' ? Buffer.from(b64, 'base64') : Buffer.alloc(0);
-    const st = streams.get(id) ?? { bytes: 0 };
+    if (!streams.has(id) && lang && log) appendFileSync(log, `lang ${id} ${lang}\n`);
+    const st = streams.get(id) ?? { bytes: 0, word: lang || 'w' };
     streams.set(id, st);
     st.bytes += pcm.length;
     if (log) appendFileSync(log, `piece ${id} ${pcm.length}\n`);
-    const words = Array.from({ length: Math.floor(st.bytes / 8000) }, (_, i) => `w${i + 1}`).join(' ');
+    const words = Array.from({ length: Math.floor(st.bytes / 8000) }, (_, i) => `${st.word}${i + 1}`).join(' ');
     if (/crash/.test(id)) process.exit(3);
     const quiet = pcm.length > 0 && pcm.every((x) => x === 0) && st.bytes >= 16000;
     if (op === 'e') streams.delete(id);
@@ -52,8 +55,8 @@ setTimeout(() => {
         process.stdout.write(`ok 10\n`);
       } else process.stdout.write(`ok heard ${text} by ${process.pid}\n`);
     };
-    if (/slow/.test(text)) setTimeout(answer, 2000);
-    else answer();
+    if (/slow/.test(text)) return; // stuck
+    answer();
   });
   rl.on('close', () => process.exit(0));
 }, Number(process.env.FAKE_WORKER_READY_MS ?? 0));

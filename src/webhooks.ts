@@ -591,7 +591,7 @@ export class HookManager {
   change(id: string, input: Record<string, unknown>): { hook: Hook; outSecret?: string } {
     const h = this.store.get(id);
     if (!h) throw new HttpError(404, 'No such webhook.');
-    if (h.ownerPlugin) throw new HttpError(400, `This webhook was made by the ${PLUGIN_HOOK_NAMES[h.ownerPlugin] ?? h.ownerPlugin} plugin: change it on that plugin's page.`);
+    if (h.ownerPlugin) throw new HttpError(400, "This webhook was made by the {plugin} plugin: change it on that plugin's page.", { params: { plugin: PLUGIN_HOOK_NAMES[h.ownerPlugin] ?? h.ownerPlugin } });
     const patch: Parameters<HookStore['update']>[1] = {};
     if (input.name !== undefined) {
       const n = cleanName(input.name);

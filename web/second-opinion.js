@@ -115,7 +115,7 @@ function showResult(div, m, r, open) {
   const p = panelFor(div);
   p.open = open;
   const answered = r.answers.filter((a) => a.text);
-  p.querySelector('.sop-sum').textContent = r.differ ? t('Second opinion: {n} points differ', { n: r.differ }) : t('Second opinion: they agree');
+  p.querySelector('.sop-sum').textContent = r.differ === 1 ? t('Second opinion: 1 point differs') : r.differ ? t('Second opinion: {n} points differ', { n: r.differ }) : t('Second opinion: they agree');
   const body = bodyOf(p);
   const cols = el('div', 'sop-cols');
   for (const a of r.answers) {

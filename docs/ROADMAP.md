@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Solid, round 1: time awareness, Always allow, six languages, in 3.31.0
+
+Sara now knows exactly when everything happened: each earlier message, memory, mail and reminder carries its
+time and age, and a wrong "yesterday" is corrected automatically. One switch, Always allow everything, lets
+her computer actions run without approval cards (password to turn on, time limit, everything still on the
+Action timeline). Words appear as you speak in Spanish, French, German, Portuguese and Italian, every message
+follows your language, and the test suite no longer fails when the computer is busy.
+
 ## Fixes in 3.30.1
 
 From real use: the claim checker now knows every tool that changes something, so things she really did with

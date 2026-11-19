@@ -165,9 +165,9 @@ export type RunExecutor = (x: RunExec) => Promise<{ exitCode: number | null; tim
 export function killTree(pid: number): void {
   if (!pid) return;
   if (process.platform === 'win32') {
-    if (spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true }).status === 0) return;
+    if (spawnSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore', windowsHide: true, timeout: 30_000 }).status === 0) return;
     // taskkill /T can fail inside a nested job ("Quota violation"): find the tree ourselves, then end each.
-    const q = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }'], { encoding: 'utf8', windowsHide: true });
+    const q = spawnSync('powershell.exe', ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', 'Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }'], { encoding: 'utf8', windowsHide: true, timeout: 60_000 });
     const kids = new Map<number, number[]>();
     for (const line of String(q.stdout ?? '').split(/\r?\n/)) {
       const [c, p] = line.trim().split(/\s+/).map(Number);
@@ -213,7 +213,13 @@ export const spawnRun: RunExecutor = (x) =>
     const child = spawn(file as string, argv as string[], { cwd, windowsHide: true, detached: !win, stdio: ['ignore', 'pipe', 'pipe'], windowsVerbatimArguments: win && x.shell === 'cmd' });
     let timedOut = false;
     let stopped = false;
-    const end = () => killTree(child.pid ?? 0);
+    // A kill on a loaded PC can fail (taskkill or the tree walk didn't start, or missed a new child):
+    // until the command has really ended, it is tried again every 5 s (W0.4).
+    let again: ReturnType<typeof setInterval> | undefined;
+    const end = () => {
+      killTree(child.pid ?? 0);
+      if (child.exitCode === null && child.signalCode === null) again ??= setInterval(() => killTree(child.pid ?? 0), 5000);
+    };
     const timer = setTimeout(() => {
       timedOut = true;
       end();
@@ -228,12 +234,18 @@ export const spawnRun: RunExecutor = (x) =>
     child.stderr?.on('data', take);
     const done = (code: number | null) => {
       clearTimeout(timer);
+      if (again) clearInterval(again);
       x.signal.removeEventListener('abort', onAbort);
       resolve({ exitCode: timedOut || stopped ? null : code, timedOut, stopped, ...(child.pid ? { pid: child.pid } : {}) });
     };
     child.on('error', (e) => {
       x.onChunk(`${e.message}\n`);
       done(null);
+    });
+    // Once the shell itself has exited its id can be reused by another program: no more kills by id.
+    child.on('exit', () => {
+      if (again) clearInterval(again);
+      again = undefined;
     });
     child.on('close', (code) => done(code));
     if (x.signal.aborted) onAbort();

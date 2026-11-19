@@ -1702,6 +1702,11 @@ body:not(.member) [data-member-only] { display: none !important; }
 /* HANDSFREE: "Let her finish this task" banner and step log (web/handsfree.js). */
 .hf-banner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 0 0 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--accent); border-radius: 14px; background: var(--surface-2); }
 .hf-banner.done { border-color: var(--line); }
+/* W0.7: Always allow everything is on. */
+.alw-banner { border-color: var(--danger); }
+.alw-banner .cu-badge-dot { background: var(--danger); }
+dialog#alw-warn:not(#_) { position: fixed; inset: 0; margin: auto; width: min(520px, calc(100vw - 32px)); max-width: none; height: fit-content; max-height: calc(100dvh - 32px); overflow: auto; }
+dialog#alw-warn:not(#_) > p:first-of-type { padding-right: 36px; }
 .hf-banner.done .cu-badge-dot { animation: none; background: var(--text-3); }
 .hf-text { flex: 1 1 200px; min-width: 0; font-size: .9em; overflow-wrap: anywhere; }
 .cl-list { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 6px; }

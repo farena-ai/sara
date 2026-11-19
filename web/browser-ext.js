@@ -2,7 +2,7 @@
 // switches in the person's own space: the extension may send pages at all, and "Fill this form" may
 // propose values from My details. Paired extensions are listed with the other devices (kind
 // 'extension'). D1: and Watch me do this may send the steps you showed it. Saves on change (not the page saver).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 let wired = false;
@@ -10,7 +10,7 @@ let wired = false;
 async function call(method = 'GET', body) {
   const r = await fetch('/api/extension', { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? String(r.status));
+  if (!r.ok) throw new Error(serverText(d, String(r.status)));
   return d;
 }
 

@@ -2,7 +2,7 @@
 // Owner only. A provider preset fills the issuer pattern and shows the steps; the exact redirect URL is
 // shown to paste; Check the provider, Test sign-in (a popup, signs nobody in), who maps to whom with a
 // live preview, and opt-in just-in-time members. Saves with its own Save button (not the page saver).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 import { SSO_ISSUERS, SSO_PRESET_IDS, ssoPresetName, ssoSteps } from './sso-presets.js';
 
 const $ = (s) => document.querySelector(s);
@@ -12,7 +12,7 @@ let view = null;
 async function call(path, method = 'GET', body) {
   const r = await fetch('/api/sso' + path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? String(r.status));
+  if (!r.ok) throw new Error(serverText(d, String(r.status)));
   return d;
 }
 const words = (v) => String(v ?? '').split(/[\n,]+/).map((x) => x.trim()).filter(Boolean);

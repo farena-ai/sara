@@ -5,7 +5,7 @@
 // the table reads their own language. Settings → Sara → Voice → Interpreter keeps the two languages,
 // the cloud switch and the saved transcripts.
 // InterpreterSession has no DOM use (unit-tested in Node with fakes); the rest wires the page.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 /** One line's words per language: what was said in its own language, the translation in the other. */
 export function sideTexts(line, a, b) {
@@ -109,7 +109,7 @@ export const interpOn = () => Boolean(session);
 export async function interpTranscribe(wav) {
   const res = await fetch('/api/voice/transcribe?lang=auto', { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wav });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`);
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
   return data.text ?? '';
 }
 

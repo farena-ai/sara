@@ -14,6 +14,8 @@ terms; check the upstream page for the exact text before redistributing anything
 | NVIDIA Parakeet TDT-CTC 110M (sherpa-onnx export) | Local speech-to-text | `deploy/install-voice.sh` | See the model card (NVIDIA) |
 | [Kokoro](https://huggingface.co/hexgrad/Kokoro-82M) v0.19 (sherpa-onnx export) | Local voices | `deploy/install-voice.sh` | Apache-2.0 |
 | Piper voice `en_US-hfc_female-medium` (sherpa-onnx export) | Fast local fallback voice | `deploy/install-voice.sh` | See the voice's model card |
+| NVIDIA NeMo FastConformer streaming transducer, English, 80 ms (sherpa-onnx export) | Words as you speak (optional, V0.2) | `install-voice.sh --streaming`, Settings → Voice | CC-BY-4.0 |
+| [NVIDIA Nemotron 3.5 ASR Streaming 0.6B](https://huggingface.co/nvidia/nemotron-3.5-asr-streaming-0.6b) (sherpa-onnx int8 export, 560 ms) | Words as you speak in Spanish, French, German, Portuguese and Italian (optional, W0.3) | `install-voice.sh --languages`, `sara voice install --languages`, Settings → Voice | [NVIDIA Open Model License](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-open-model-license/) (commercial use allowed, attribution kept) |
 | [Claude Code](https://www.npmjs.com/package/@anthropic-ai/claude-code) | Claude subscription sign-in and delegated coding | `deploy/install-agents.sh` | Anthropic's terms |
 | [Grok CLI](https://www.npmjs.com/package/@xai-official/grok) | Grok subscription sign-in, voice, pictures and delegated coding | `deploy/install-agents.sh` | xAI's terms |
 | [Microsoft Edge WebView2](https://developer.microsoft.com/microsoft-edge/webview2/) SDK | The Windows desktop app's window | `desktop/windows/build.sh` | Microsoft's WebView2 SDK license |

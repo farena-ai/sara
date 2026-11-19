@@ -3,7 +3,7 @@
 // shared chat never carries it). The view runs in an iframe with sandbox="allow-scripts" only (the
 // server adds the same CSP sandbox): an opaque origin that can't read this page, Sara's cookies,
 // storage or API. The only thing it may tell us is its height, and only from its own frame.
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const MIN_H = 60;
 const MAX_H = 900;
@@ -20,7 +20,7 @@ const el = (tag, cls, text) => {
 async function api(path, opts = {}) {
   const res = await fetch(`/api${path}`, { method: opts.method ?? 'GET', credentials: 'same-origin' });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(data.error ? t(data.error) : res.statusText), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(serverText(data, res.statusText)), { status: res.status });
   return data;
 }
 

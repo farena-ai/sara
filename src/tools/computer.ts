@@ -35,6 +35,7 @@ import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { managerName } from '../hands-managers.ts';
 import { HandsError, PROXY_BLOCKED_MESSAGE, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { handsFreeMs, saysGoAhead, type HandsFreeState } from '../handsfree.ts';
+import { alwaysAllowArgs, alwaysAllowOn } from '../always-allow.ts';
 import { nextSetupStep, redirectFrom, type SetupPage } from '../google-setup.ts';
 import { BROWSER_APP, browserLabel, browserTabs, desktopItems, desktopWindows, maskDesktopText, type DesktopItem } from '../hands-desktop.ts';
 import { cleanRelPath, fileEntries, fileRootsOf, FileRuleError, matchRoot, rootLabel } from '../hands-files.ts';
@@ -176,6 +177,8 @@ export function createComputerTools(app: AppContext): Tool[] {
     const st = freeOf(conversationId);
     return st ? { handsFree: st.task, handsFreeMs: Math.max(0, st.until - Date.now()) } : {};
   };
+  /** W0.7 (src/always-allow.ts): this person's Always allow everything switch. */
+  const allAllowed = (): boolean => alwaysAllowOn(app as never);
   const logStep = (conversationId: string | undefined, what: string, where?: string) => {
     if (conversationId) hub()?.handsFree.step(conversationId, what, where);
   };
@@ -220,7 +223,9 @@ export function createComputerTools(app: AppContext): Tool[] {
     if (!h.claim(d.id, conv.id)) throw new ToolError(`${NAME()} is using ${nameOf(d)} for another conversation right now. Wait for that task to finish (or ask the owner to stop it).`);
     try {
       h.spend(taskOf(conv.id).key);
-      return await h.request(d.id, name, args, { signal: ctx.signal, who: NAME(), ...(ctx.runId ? { runId: ctx.runId } : {}), ...(what ? { what } : {}), ...(deadlineMs ? { deadlineMs } : {}) });
+      // W0.7: desktop ops carry the Always allow key; the computer confirms it once on its own card.
+      const sent = name.startsWith('d.') ? { ...args, ...alwaysAllowArgs(app as never) } : args;
+      return await h.request(d.id, name, sent, { signal: ctx.signal, who: NAME(), ...(ctx.runId ? { runId: ctx.runId } : {}), ...(what ? { what } : {}), ...(deadlineMs ? { deadlineMs } : {}) });
     } catch (err) {
       if (err instanceof HandsError) {
         const what: Record<string, string> = {
@@ -370,7 +375,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       } catch {
         /* the verdict says it's not an address */
       }
-      const v = navigationVerdict(url, { ownerText: t.ownerText, granted: grantsOf(ctx.conversationId), localOnly: localOnly(ctx.conversationId), jobPort: (p) => jobPorts.includes(p), handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)) });
+      const v = navigationVerdict(url, { ownerText: t.ownerText, granted: grantsOf(ctx.conversationId), localOnly: localOnly(ctx.conversationId), jobPort: (p) => jobPorts.includes(p), handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)), allowAll: allAllowed() });
       if (v.act === 'block') return { refuse: `Error: ${v.why}` };
       if (v.act === 'ask') return { ask: true, summary: `open ${v.site} in ${BR()} (${v.why}; once you allow it, she can open it again during this task)` };
       return {};
@@ -666,9 +671,9 @@ export function createComputerTools(app: AppContext): Tool[] {
     }
     const cu = app.settings.get().computerUse ?? {};
     const free = freeOf(ctx.conversationId, ctx.replay);
-    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: policy().alwaysAllowOn || actLevel(cu.level) !== 'always' ? actLevel(cu.level) : 'task', taskSites: actSitesOf(ctx.conversationId), always: policy().alwaysAllowOn ? (cu.always ?? []) : [], handsFree: Boolean(free), offerFree: approvalsMode() !== 'step' && !ctx.replay });
+    const base = actionVerdict({ kind, site, target: found as never, page: page as never, ...(extra.text ? { text: extra.text } : {}), level: policy().alwaysAllowOn || actLevel(cu.level) !== 'always' ? actLevel(cu.level) : 'task', taskSites: actSitesOf(ctx.conversationId), always: policy().alwaysAllowOn ? (cu.always ?? []) : [], handsFree: Boolean(free), offerFree: approvalsMode() !== 'step' && !ctx.replay, allowAll: allAllowed() });
     // M8 "Re-plan from here": a branch never repeats her actions on its own; each new one asks (once).
-    const verdict = ctx.replay && base.act !== 'block' ? { act: 'ask' as const, risk: base.risk, why: 're-planned from an earlier step: every action asks', choices: ['once' as const] } : base;
+    const verdict = ctx.replay && base.act !== 'block' && !allAllowed() ? { act: 'ask' as const, risk: base.risk, why: 're-planned from an earlier step: every action asks', choices: ['once' as const] } : base;
     const target = describe(found);
     preparedActs.set(args, { ...(typeof found.fp === 'string' && !tgt.expect && tgt.ref ? { expect: found.fp } : {}), site, target });
     if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
@@ -952,7 +957,9 @@ export function createComputerTools(app: AppContext): Tool[] {
       // The computer checks again itself; this only saves a pointless card.
       const savedHere = saved && (!saved.sites.length || saved.sites.some((x) => loginOrigin(x) === origin)) ? saved : undefined;
       if (saved && !savedHere && !pms.length) return { refuse: `Error: The page open now is ${origin}, but the saved login \u201c${saved.name}\u201d is only for ${saved.sites.join(', ')}. Open that exact site\u2019s sign-in page first: the computer fills a login only on the site it was saved for.` };
-      const v = loginVerdict();
+      const v = loginVerdict(allAllowed());
+      // W0.7: Always allow everything: no card (the computer still fills only the site the login was saved for).
+      if (v.act === 'allow') return {};
       const site = siteOf(new URL(url));
       if (savedHere) {
         const detail: ComputerApproval = { kind: 'computer', action: 'login', site, computer: nameOf(d), target: `your saved \u201c${savedHere.name}\u201d login`, name: savedHere.name, risk: v.risk, why: v.why, choices: v.choices };
@@ -1241,7 +1248,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     if (action !== 'open_app') desktopTarget(d, args);
     const item = deskViews.get(d.id)?.refs.get(String(args.ref ?? ''));
     const view = deskViews.get(d.id);
-    const verdict = desktopActionVerdict({ site: `desktop:${d.id}`, kind: action, target: item ?? { name: String(args.app ?? '') }, text: typeof args.text === 'string' ? args.text : undefined, level: 'task', handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)), ...(view?.app || view?.title ? { window: { app: view.app, title: view.title } } : {}) });
+    const verdict = desktopActionVerdict({ site: `desktop:${d.id}`, kind: action, target: item ?? { name: String(args.app ?? '') }, text: typeof args.text === 'string' ? args.text : undefined, level: 'task', handsFree: Boolean(freeOf(ctx.conversationId, ctx.replay)), allowAll: allAllowed(), ...(view?.app || view?.title ? { window: { app: view.app, title: view.title } } : {}) });
     if (verdict.act === 'block') return { refuse: `Error: ${verdict.why}` };
     if (app.member && verdict.risk === 'payment') return { refuse: `Error: ${PURCHASE_REFUSAL}` };
     // Native code independently inspects and asks. No broker card is created, so a phone can't answer.
@@ -1253,7 +1260,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     const namesBefore = action === 'scroll' ? [...(deskViews.get(d.id)?.refs.values() ?? [])].map((i) => `${i.role}|${i.name ?? ''}`).join('\n') : '';
     const target = action === 'open_app' ? { app: String(args.app ?? '') } : desktopTarget(d, args);
     hub()!.desktopUsed(convOf(ctx).id, d.id);
-    const forceOnce = replayDesktop.delete(args);
+    const forceOnce = replayDesktop.delete(args) && !allAllowed();
     const free = forceOnce ? {} : freeArgs(convOf(ctx).id);
     const send = (where: Record<string, unknown>) => op(ctx, d, opName, { ...where, task: taskOf(convOf(ctx).id).key, forceOnce, ...free, ...(action === 'type' ? { text: str(args, 'text') } : {}), ...(action === 'keys' ? { combo: str(args, 'combo') } : {}), ...(action === 'scroll' ? { dx: Number(args.dx ?? 0), dy: Number(args.dy ?? args.amount ?? 0) } : {}), ...(action === 'drag' ? { toX: Number(args.to_x), toY: Number(args.to_y) } : {}), ...(action === 'click' ? { button: args.button === 'right' ? 'right' : 'left', double: args.double === true } : {}) }, desktopSummary(args, d, action));
     // 3.6.x: busy web apps change while she acts. The computer refuses when the very control she named changed (its
@@ -1561,9 +1568,9 @@ export function createComputerTools(app: AppContext): Tool[] {
         const t = tabRef(list, String(args.tab ?? ''));
         if (typeof t === 'string') throw new ToolError(t);
         const replayed = replayDesktop.delete(args);
-        const page = ownBrowserPage(t.title, t.url ?? '', '', Boolean(!replayed && freeOf(conv.id)));
+        const page = ownBrowserPage(t.title, t.url ?? '', '', Boolean(!replayed && freeOf(conv.id)), allAllowed());
         hub()!.desktopUsed(conv.id, d.id);
-        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task: taskOf(conv.id).key, forceOnce: replayed || page.act === 'once', ...(replayed ? {} : freeArgs(conv.id)) }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
+        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task: taskOf(conv.id).key, forceOnce: (replayed && !allAllowed()) || page.act === 'once', ...(replayed ? {} : freeArgs(conv.id)) }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
         logStep(conv.id, `switched to the tab \u201c${t.title.slice(0, 60)}\u201d`, nameOf(d));
         deskViews.delete(d.id);
         const x = r.result;
@@ -1683,7 +1690,7 @@ export function createComputerTools(app: AppContext): Tool[] {
         const list = browserTabs((await deskOp(ctx, d, 'd.tabs', {}, 'reading your browser tabs')).result.browsers);
         const t = tabRef(list, args.tab);
         if (typeof t === 'string') throw new ToolError(t);
-        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task, forceOnce: ownBrowserPage(t.title, t.url ?? '').act === 'once' }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
+        const r = await op(ctx, d, 'd.tabswitch', { window: t.window, tab: t.index, title: t.title, task, forceOnce: ownBrowserPage(t.title, t.url ?? '', '', false, allAllowed()).act === 'once' }, `switching to your tab \u201c${t.title.slice(0, 60)}\u201d`);
         windowId = String(r.result.window ?? t.window);
       } else windowId = (await windowOf(ctx, d, args.window)).id ?? '';
       if (!windowId) throw new ToolError('Which window? Give its id from pc_windows or pc_my_tabs.');
@@ -1694,7 +1701,7 @@ export function createComputerTools(app: AppContext): Tool[] {
       };
       const look = async (w: string) => toView((await deskOp(ctx, d, 'd.elements', { window: w, limit: 300 }, 'reading the form')).result);
       const view = await look(windowId);
-      const page = ownBrowserPage(view.title ?? '', view.items.find((i) => /address and search bar/i.test(i.name ?? ''))?.value ?? '');
+      const page = ownBrowserPage(view.title ?? '', view.items.find((i) => /address and search bar/i.test(i.name ?? ''))?.value ?? '', '', false, allAllowed());
       if (page.act === 'block') throw new ToolError(`That page is off limits: ${page.why}`);
       const sensitive = page.act === 'once';
       const details = (app.myDetails ?? myDetailsFor(app.store.db)).get();

@@ -22,6 +22,12 @@ import { addRules, applyTranslations, keepCode, saveChanges, undoChanges } from 
 import { ACTIVE_NOTES, type Choices, LEARN_DAYS, type Staging } from './staging.ts';
 import type { BoardData, ConversationData, GoalData, MemoryData, PersonaFinding, PersonData, ScheduleData, SkillData, Staged, TaskData } from './types.ts';
 import { AGENT_NAME } from './types.ts';
+import { en, fill } from '../i18n.ts';
+
+/** W0.2: a report line's English text with its template and values (the app translates the template). */
+export function keyedLine(tkey: string, params: Record<string, string | number>): Pick<ReportLine, 'text' | 'tkey' | 'params'> {
+  return { text: fill(tkey, params), tkey, params };
+}
 
 export const UNDO_DAYS = 30;
 const TX_ROWS = 5000;
@@ -44,6 +50,9 @@ export interface ReportLine {
   key: string;
   count: number;
   text: string;
+  /** W0.2: the English template of `text` and its values, so the app shows the line in the owner's language. */
+  tkey?: string;
+  params?: Record<string, string | number>;
   examples?: string[];
   /** MI3: the Settings page that fixes it (the report's link) and, for rebuild plans, the card key. */
   page?: string;
@@ -367,11 +376,11 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
           if (s.scripts) bump('skillsHeld');
         }
       } catch (err) {
-        needsYou.push({ key: 'skill', count: 1, text: `Skill "${s.name}" couldn't be added: ${(err as Error).message}` });
+        needsYou.push({ key: 'skill', count: 1, ...keyedLine(en('Skill "{name}" couldn\'t be added: {error}'), { name: s.name, error: (err as Error).message }) });
       }
       done++;
     }
-  } else if (list.some((x) => x.kind === 'skill')) needsYou.push({ key: 'skills', count: list.filter((x) => x.kind === 'skill').length, text: 'Skills are not available on this server.' });
+  } else if (list.some((x) => x.kind === 'skill')) needsYou.push({ key: 'skills', count: list.filter((x) => x.kind === 'skill').length, ...keyedLine(en('Skills are not available on this server.'), {}) });
 
   // ---------------- schedules → tasks and reminders ----------------
   if (app.planner) {
@@ -486,11 +495,11 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   for (const f of staging.all('schedules')) {
     const s = f.data as ScheduleData;
     if (f.state !== 'new') continue;
-    if (s.target === 'needs-you') needsYou.push({ key: 'schedule', count: 1, text: `Schedule "${s.title}" (${s.words}): ${s.why ?? 'set it up by hand'}.`, page: 'planner' });
+    if (s.target === 'needs-you') needsYou.push({ key: 'schedule', count: 1, ...(s.why ? keyedLine(en('Schedule "{title}" ({words}): {why}.'), { title: s.title, words: s.words, why: s.why }) : keyedLine(en('Schedule "{title}" ({words}): set it up by hand.'), { title: s.title, words: s.words })), page: 'planner' });
   }
   if (counts.tasks || counts.reminders) translated.unshift({ key: 'schedules', count: (counts.tasks ?? 0) + (counts.reminders ?? 0), text: `cron jobs → ${counts.tasks ?? 0} tasks, ${counts.reminders ?? 0} reminders (tasks never act by themselves; scripts never run)` });
   // MI2: custom-store cards still undecided import nothing; they wait in the report.
-  for (const c of inp.cards?.undecided ?? []) needsYou.push({ key: 'custom-card', count: c.tables, text: `Custom store "${c.store}": "${c.title}" (${c.tables} tables) not confirmed, so nothing from it came in. Import the bundle again to map it.` });
+  for (const c of inp.cards?.undecided ?? []) needsYou.push({ key: 'custom-card', count: c.tables, ...keyedLine(en('Custom store "{store}": "{title}" ({n} tables) not confirmed, so nothing from it came in. Import the bundle again to map it.'), { store: c.store, title: c.title, n: c.tables }) });
   if (inp.cards?.telemetry.length) inp.leftBehind = [...inp.leftBehind.filter((l) => l.key !== 'telemetry-tables'), { key: 'telemetry-tables', count: inp.cards.telemetry.length, text: `${inp.cards.telemetry.length} log/telemetry tables: not useful to her`, examples: inp.cards.telemetry.slice(0, 4) }];
   if (inp.cards?.skipped) inp.leftBehind = [...inp.leftBehind, { key: 'custom-skipped', count: inp.cards.skipped, text: `${inp.cards.skipped} custom-store cards you skipped` }];
   // MI3: copies of one store (backups, probe and round-trip copies) were mapped once.
@@ -501,8 +510,8 @@ export async function runBatch(inp: BatchInput): Promise<BatchRow> {
   }
   for (const f of staging.all('later')) needsYou.push({ key: (f.data as { code: string }).code, count: 1, text: `${(f.data as { what: string }).what}: ${(f.data as { why: string }).why}` });
   const held = staging.counts(choices).held;
-  for (const [cat, n] of Object.entries(held)) if (n && !(choices.sensitive?.[cat as 'medical'] === true)) needsYou.push({ key: `held-${cat}`, count: n, text: `${cat === 'medical' ? 'Health/medical' : 'Intimate'}: ${n} items held. Import the bundle again and say yes to bring them.` });
-  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, text: `${counts.skillsHeld} skills run scripts: they are off until you check them (Settings → Skills & tools → Skills).`, page: 'skills' });
+  for (const [cat, n] of Object.entries(held)) if (n && !(choices.sensitive?.[cat as 'medical'] === true)) needsYou.push({ key: `held-${cat}`, count: n, ...keyedLine(cat === 'medical' ? en('Health/medical: {n} items held. Import the bundle again and say yes to bring them.') : en('Intimate: {n} items held. Import the bundle again and say yes to bring them.'), { n }) });
+  if (counts.skillsHeld) needsYou.push({ key: 'skills-held', count: counts.skillsHeld, ...keyedLine(en('{n} skills run scripts: they are off until you check them (Settings → Skills & tools → Skills).'), { n: counts.skillsHeld }), page: 'skills' });
   const imported: ReportLine[] = [];
   if (counts.persona) imported.push({ key: 'persona', count: 1, text: `Personality: her sheet from ${personaF?.ref.split('/').at(-1) ?? 'the persona files'}${counts.personaNotes ? `, ${counts.personaNotes} lines kept as her notes` : ''}`, page: 'her' });
   if (counts.memories) imported.push({ key: 'memories', count: counts.memories, text: `Memories: ${counts.memories}${counts.archived ? ` (${counts.archived} archived)` : ''}`, page: 'memory' });

@@ -24,6 +24,7 @@ import { tmpdir } from 'node:os';
 import { basename, delimiter, dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
+import { killTree as killProcessTree } from '../src/hands-run.ts';
 import { copyProject, listFiles, loadTasks, runHidden, taskText, TIERS, type Task } from './bench-tasks.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -137,9 +138,11 @@ export interface Row {
 
 const solutionOf = (t: Task) => join(t.root === TIERS.projects.tasks ? TIERS.projects.solutions : TIERS.tasks.solutions, t.id);
 
+/** Ends the harness and everything it started. Windows: Sara's own killTree (taskkill /T, and its
+ * own walk of the process tree when taskkill fails, as it can on a loaded PC or inside a job). */
 function killTree(pid: number | undefined): void {
   if (!pid) return;
-  if (process.platform === 'win32') spawnSync('taskkill', ['/T', '/F', '/PID', String(pid)], { windowsHide: true, stdio: 'ignore' });
+  if (process.platform === 'win32') killProcessTree(pid);
   else {
     try {
       process.kill(-pid, 'SIGKILL');
@@ -186,15 +189,24 @@ export async function runHarness(h: Harness, t: Task, o: { python: string; timeo
         error = (err as Error).message;
         return done(null);
       }
+      // The time limit ends the harness; until it has really ended, the kill is tried again every 5 s
+      // (W0.4: one taskkill under the full suite's load left a hung harness running for 15 minutes).
+      let again: ReturnType<typeof setInterval> | undefined;
       const timer = setTimeout(() => {
         error = `stopped after ${o.timeoutSec} s (time limit)`;
         killTree(child.pid);
+        again = setInterval(() => killTree(child.pid), 5000);
       }, o.timeoutSec * 1000);
       child.on('error', (err) => {
         error ??= err.message;
       });
+      child.on('exit', () => {
+        if (again) clearInterval(again); // its id may be reused from here on
+        again = undefined;
+      });
       child.on('close', (code) => {
         clearTimeout(timer);
+        if (again) clearInterval(again);
         done(code);
       });
       if (h.stdin && child.stdin) {

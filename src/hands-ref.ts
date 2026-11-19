@@ -1302,7 +1302,7 @@ export class HandsRef {
           if (signal.aborted) throw new OpError('stopped', 'The queued desktop request was cancelled.');
           const target = dt.inspect(op, a);
           dt.beginTask(this.opts.walkAway === true);
-          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask' || target.once === true, task: String(a.task ?? ''), target: { role: target.element?.role ?? (op === 'd.tabswitch' ? 'tab' : undefined), name: target.element?.name ?? (op === 'd.tabswitch' ? String(a.title ?? '') : String(a.app ?? '')), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}), ...(op === 'd.type' && typeof a.review === 'string' && a.review ? { review: a.review } : {}) };
+          const prompt = { op, forceOnce: a.forceOnce === true || a.approvalLevel === 'ask' || target.once === true, task: String(a.task ?? ''), target: { role: target.element?.role ?? (op === 'd.tabswitch' ? 'tab' : undefined), name: target.element?.name ?? (op === 'd.tabswitch' ? String(a.title ?? '') : String(a.app ?? '')), secret: target.element?.secure }, ...(typeof a.text === 'string' ? { text: a.text } : {}), ...(op === 'd.type' && typeof a.review === 'string' && a.review ? { review: a.review } : {}), ...(typeof a.allowAll === 'string' && a.allowAll ? { allowAll: a.allowAll.slice(0, 160), allowAllMs: Number(a.allowAllMs) || 0 } : {}) };
           const ok = await this.desktopConsent.allow(prompt, this.opts.desktopConsent, signal);
           if (signal?.aborted) throw new OpError('stopped', 'Stopped.');
           this.ws?.send(JSON.stringify({ t: 'ev', kind: 'local_approval', op, allowed: ok }));

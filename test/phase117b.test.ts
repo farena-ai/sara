@@ -230,6 +230,46 @@ test('outbox: a 4xx keeps the mail and tries again after 1 minute, then 5; a 5xx
   assert.deepEqual(told, ['550 no such user'], 'a 5xx tells the owner');
 });
 
+test('outbox: a mail the server took is off the saved list at once, so a connection (or process) that dies right after never sends it again', async () => {
+  const saved: string[][] = [];
+  const seen: string[][] = [];
+  const ob = new Outbox({
+    deliver: async (items: { id: string }[], sent: (id: string) => void) => {
+      seen.push(items.map((x) => x.id));
+      sent(items[0].id); // the server said 250 for the first one…
+      seen.push(saved.at(-1) ?? []); // (what was on disk right then)
+      throw Object.assign(new Error('the connection closed'), { transient: true }); // …then the line dropped
+    },
+    gaveUp: () => {},
+    save: (items: { id: string }[]) => void saved.push(items.map((x) => x.id)),
+    items: [{ id: 'a', to: OWNER, raw: 'eA==', tries: 0, next: 0 }, { id: 'b', to: OWNER, raw: 'eA==', tries: 0, next: 0 }],
+    clock: { now: () => 0, setTimeout: () => 0, clearTimeout: () => {} },
+  });
+  await ob.flush();
+  assert.deepEqual(seen, [['a', 'b'], ['b']], 'both were due; the sent one was saved off the list before anything else happened');
+  assert.deepEqual(ob.items.map((x: { id: string }) => x.id), ['b'], 'only the unsent one waits for a retry');
+  assert.equal(ob.items[0].tries, 1);
+});
+
+test('SMTP client: QUIT on a connection the server already closed fails quietly (no unhandled rejection that would end the plugin)', async () => {
+  const { Smtp } = await load('smtp.mjs');
+  const stray: unknown[] = [];
+  const onStray = (e: unknown) => void stray.push(e);
+  process.on('unhandledRejection', onStray);
+  try {
+    let close: (why: string) => void = () => {};
+    const sock = { onData: () => {}, onClose: (f: (why: string) => void) => (close = f), write: async () => { throw new Error('the socket is closed'); }, close: async () => {} };
+    const smtp = new Smtp(sock);
+    close('closed by the other side');
+    await smtp.quit();
+    await assert.rejects(smtp.send(HER, OWNER, Buffer.from('x')), /closed/);
+    await pause(20);
+    assert.deepEqual(stray, []);
+  } finally {
+    process.off('unhandledRejection', onStray);
+  }
+});
+
 test('the loopback override is never on by default', () => {
   const env = process.env.SARA_TEST_ALLOW_LOOPBACK_MAIL;
   delete process.env.SARA_TEST_ALLOW_LOOPBACK_MAIL;
@@ -278,7 +318,7 @@ test('email: setup refuses his own mailbox, the password is in the vault only, o
   fake.kick();
   assert.ok(await until(() => fake.imapLog.filter((l) => l.startsWith('SELECT')).length > selects, 20_000), `reconnected ${JSON.stringify(pm.store.logs('email').slice(0, 15).map((l) => l.detail))}`);
   await pause(800);
-  assert.equal(fake.sent.length, before, 'nothing answered twice');
+  assert.equal(fake.sent.length, before, `nothing answered twice ${JSON.stringify(fake.sent.map((x) => [x.at, header(x.data, 'Subject'), header(x.data, 'In-Reply-To'), bodyOf(x.data).slice(0, 80)]))} ${JSON.stringify(pm.store.logs('email').slice(0, 25).map((l) => l.detail))}`);
 });
 
 test('email: an owner mail gets one plain-text reply in the thread (Re: once, In-Reply-To, References, Auto-Submitted); a reply continues that session; strangers, failed and forged checks, Reply-To, auto-replies, lists, bounces, her own mail and repeats are ignored; HTML and quotes are cleaned', async (t) => {

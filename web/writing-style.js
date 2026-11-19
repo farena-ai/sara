@@ -1,7 +1,7 @@
 // S11 (docs/WRITING_STYLE.md): Settings → You → About you → Writing style. The default (Natural / As
 // written) and Match my voice: 1-5 samples of the person's own writing (pasted, or documents from
 // their Library) become a short style card in their own space. Saves on change (not the page saver).
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
 let wired = false;
@@ -9,7 +9,7 @@ let wired = false;
 async function call(path, method = 'GET', body) {
   const r = await fetch(`/api/writing${path}`, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error ?? String(r.status));
+  if (!r.ok) throw new Error(serverText(d, String(r.status)));
   return d;
 }
 

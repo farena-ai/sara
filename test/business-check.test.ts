@@ -14,10 +14,16 @@ const policy = () => ({ version: 1, privateLocal: true, allowCloud: false, insta
   models: [{ id: 'local', provider: { id: 'local', kind: 'openai-compatible', label: sentinel, baseUrl: 'http://127.0.0.1:11434/v1', local: true, needsKey: false },
     model: 'synthetic-model', cloud: false, inputNanoUsdPerToken: 0, outputNanoUsdPerToken: 0, maxInputTokens: 1024, maxOutputTokens: 64, maxOutputBytes: 1024, deadlineMs: 1000, tone: 'professional' }],
   workspaces: { [workspaceId]: { modelId: 'local', allowanceNanoUsd: 0 } } });
+const compileCache = mkdtempSync(join(realpathSync(tmpdir()), 'sara-business-cc-'));
+process.on('exit', () => rmSync(compileCache, { recursive: true, force: true }));
 function invoke(root: string | undefined, args = ['--business-check'], changes: NodeJS.ProcessEnv = {}, cwd = checkout) {
   const env: NodeJS.ProcessEnv = { ...process.env, SARA_PROFILE: 'business', SARA_BUSINESS_ORIGIN: 'http://localhost:17863', SARA_PORT: '17863', ...changes };
   if (root === undefined) delete env.SARA_DATA; else env.SARA_DATA = root;
-  return spawnSync(process.execPath, ['src/main.ts', ...args], { cwd, env, encoding: 'utf8', timeout: 20_000 });
+  // The real entry loads every module of the app (~2-3 s on an idle PC, 20 s+ when the full suite
+  // loads the machine: the old 20 s cap killed it mid-start, status null). The cap only guards a hang.
+  // One compile cache for the file's ~40 starts takes about a third off each one.
+  env.NODE_COMPILE_CACHE = compileCache;
+  return spawnSync(process.execPath, ['src/main.ts', ...args], { cwd, env, encoding: 'utf8', timeout: 180_000 });
 }
 function report(result: ReturnType<typeof invoke>, status: string, exit = 0) {
   assert.equal(result.error, undefined); assert.equal(result.status, exit, result.stderr);
@@ -191,7 +197,7 @@ test('bounded descriptor reads tolerate exact limits and refuse input growth wit
       const report = inspectBusinessConfiguration(process.env);
       console.log(JSON.stringify({ status: report.status, policy: report.checks.find(check => check.id === 'model-policy').status, grew, policyBytes }));
     `;
-    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: checkout, env, encoding: 'utf8', timeout: 20_000 });
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: checkout, env, encoding: 'utf8', timeout: 180_000 });
     assert.equal(child.status, 0, child.stderr);
     assert.deepEqual(JSON.parse(child.stdout), { status: 'blocked', policy: 'blocked', grew: true, policyBytes: 262145 });
   } finally { rmSync(dir, { recursive: true, force: true }); }
@@ -234,7 +240,7 @@ test('inspection refuses junction and directory substitutions after traversal wi
         console.log(JSON.stringify({ status: report.status, swapped, replacementOpens, replacementReads, leaked: [root, outside, process.env.CHECK_SECRET].some(value => text.includes(value)) }));
       `;
       const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: checkout,
-        env: { ...process.env, SARA_PROFILE: 'business', SARA_DATA: root, SARA_BUSINESS_ORIGIN: 'https://business.example.test', SARA_PORT: '7860', CHECK_OUTSIDE: outside, CHECK_VARIANT: variant, CHECK_SECRET: sentinel }, encoding: 'utf8', timeout: 20_000 });
+        env: { ...process.env, SARA_PROFILE: 'business', SARA_DATA: root, SARA_BUSINESS_ORIGIN: 'https://business.example.test', SARA_PORT: '7860', CHECK_OUTSIDE: outside, CHECK_VARIANT: variant, CHECK_SECRET: sentinel }, encoding: 'utf8', timeout: 180_000 });
       assert.equal(child.status, 0, child.stderr);
       observations.push({ variant, ...JSON.parse(child.stdout) });
       assert.deepEqual(snapshot(root + '-saved-business'), businessBefore);
@@ -302,7 +308,7 @@ test('instrumented actual main inspection performs no DB, Vault, secret/content 
       await import('./src/main.ts');
     `;
     const before = snapshot(dir);
-    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: checkout, env: { ...process.env, SARA_PROFILE: 'business', SARA_DATA: dir, SARA_BUSINESS_ORIGIN: 'https://business.example.test', SARA_PORT: '7860' }, encoding: 'utf8', timeout: 20_000 });
+    const child = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: checkout, env: { ...process.env, SARA_PROFILE: 'business', SARA_DATA: dir, SARA_BUSINESS_ORIGIN: 'https://business.example.test', SARA_PORT: '7860' }, encoding: 'utf8', timeout: 180_000 });
     report(child, 'configuration-only'); assert.deepEqual(snapshot(dir), before);
     const match = /CHECK_PROBES:(\{[^\n]+\})/.exec(child.stderr); assert.ok(match, child.stderr);
     assert.deepEqual(JSON.parse(match[1]), { database: 0, protectedRead: 0, write: 0, network: 0, decrypt: 0 });

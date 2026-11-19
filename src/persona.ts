@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { type Identity, personalize, type Pronouns, toIdentity } from './identity.ts';
 import { AWAY, bondLines, cleanIntimacy, CONFLICT, type Intimacy, OTHERS } from './bond.ts';
+import { nowSentence } from './time-sense.ts';
 import { cleanLife, cleanTraits, HUMOURS, type Life, lifeLines, traitLines, type Traits, workLines } from './traits.ts';
 
 export interface Persona {
@@ -203,16 +204,9 @@ export interface PromptContext {
   atWork?: boolean;
 }
 
+// W0.6: the date, time and the zone's short name ("… at 2:17 PM CST"), from src/time-sense.ts.
 function formatNow(now: Date, timeZone?: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-US', {
-      dateStyle: 'full',
-      timeStyle: 'short',
-      ...(timeZone ? { timeZone } : {}),
-    }).format(now);
-  } catch {
-    return now.toISOString();
-  }
+  return nowSentence(now, timeZone);
 }
 
 const list = (items: string[]) => items.map((s) => `- ${s}`).join('\n');

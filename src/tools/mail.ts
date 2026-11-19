@@ -5,6 +5,7 @@
 // The calendar tools get `account` too: Google's as before, Outlook's through Graph.
 // Reading runs on its own; drafting, sending, organizing, undo and calendar changes ask first;
 // trash and spam ask every time. Email text is someone else's: information, never instructions.
+import { ageShort, clockLabel } from '../time-sense.ts';
 import { ALWAYS_ASK } from '../gmail-organize.ts';
 import { gmailDates } from '../gmail-dates.ts';
 import type { MailAccounts } from '../mail/accounts.ts';
@@ -42,8 +43,17 @@ const IDS_IN = /\[([\w-]{6,})\]|\b(?:thread|email) ([\w-]{6,})/g;
 /** The accounts the combined view reads (all signed-in ones, minus those switched off). */
 const combinedOf = (accounts: MailAccounts): MailAccountInfo[] => (typeof accounts.combined === 'function' ? accounts.combined() : accounts.list().filter((a) => !a.problem));
 
-function line(m: MailMessage): string {
-  return `- [${m.id}] ${m.date ? new Date(m.date).toUTCString().slice(0, 22) : ''} · From: ${m.from} · Subject: ${m.subject || '(none)'}${m.unread ? ' · unread' : ''}${m.flagged ? ' · flagged' : ''}${m.folder && m.folder !== 'INBOX' ? ` · in ${m.folder}` : ''}${m.categories?.length ? ` · categories: ${m.categories.join(', ')}` : ''}${m.snippet ? `\n  ${m.snippet}` : ''}`;
+/** W0.6: when an email came, in the owner's zone with how long ago ("Thu 9:40 AM, 4 h 37 min ago"). */
+function mailWhen(date: string | undefined, timeZone?: string): string {
+  const at = date ? new Date(date) : undefined;
+  if (!at || !Number.isFinite(at.getTime())) return '';
+  const now = new Date();
+  const ms = now.getTime() - at.getTime();
+  return ms >= 0 ? `${clockLabel(at, now, timeZone)}, ${ageShort(ms)}` : clockLabel(at, now, timeZone);
+}
+
+function line(m: MailMessage, timeZone?: string): string {
+  return `- [${m.id}] ${mailWhen(m.date, timeZone)} · From: ${m.from} · Subject: ${m.subject || '(none)'}${m.unread ? ' · unread' : ''}${m.flagged ? ' · flagged' : ''}${m.folder && m.folder !== 'INBOX' ? ` · in ${m.folder}` : ''}${m.categories?.length ? ` · categories: ${m.categories.join(', ')}` : ''}${m.snippet ? `\n  ${m.snippet}` : ''}`;
 }
 
 export function createMailTools(d: MailToolDeps): Tool[] {
@@ -239,7 +249,7 @@ export function createMailTools(d: MailToolDeps): Tool[] {
     if (!ids.length) return `No emails found in ${a.address}.`;
     const msgs = await p.list(ids, ctx.signal);
     remember(a.id, ...msgs.flatMap((m) => [m.id, m.threadId]));
-    return clip(`${UNTRUSTED}\n${a.address} (${providerName(a)}):\n${msgs.map(line).join('\n')}`, 20_000);
+    return clip(`${UNTRUSTED}\n${a.address} (${providerName(a)}):\n${msgs.map((m) => line(m, d.timeZone())).join('\n')}`, 20_000);
   }
 
   const read: Tool = {

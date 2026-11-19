@@ -10,6 +10,7 @@ import { isSameOrigin, safeDecode } from '../http.ts';
 import { LiveCall } from '../live.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import type { RouteCtx } from './context.ts';
+import { en } from '../i18n.ts';
 
 export function createLiveUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket: Duplex, head: Buffer) => void {
   const { app, demoAccepted, demoCalls, demoOwner, isAuthed, me, offApp, offStore, opts, speech, videos, visitorKey } = ctx;
@@ -46,11 +47,11 @@ export function createLiveUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket:
         const ws = acceptWebSocket(req, socket, head);
         if (!ws) return;
         if (!key || !choice.engine) {
-          ws.send(JSON.stringify({ type: 'ended', reason: 'Live calls are not available on the demo right now.' }));
+          ws.send(JSON.stringify({ type: 'ended', reason: en('Live calls are not available on the demo right now.') }));
           return ws.close(1000);
         }
         if (ctx.liveCall && !ctx.liveCall.ended) {
-          ws.send(JSON.stringify({ type: 'ended', reason: 'Another demo call is going on. Try again in a few minutes.' }));
+          ws.send(JSON.stringify({ type: 'ended', reason: en('Another demo call is going on. Try again in a few minutes.') }));
           return ws.close(1000);
         }
         const go = demoCalls.begin(visitor);
@@ -92,7 +93,7 @@ export function createLiveUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket:
       if (isGroupChannel(conv.channel)) {
         const gws = acceptWebSocket(req, socket, head);
         if (!gws) return;
-        gws.send(JSON.stringify({ type: 'ended', reason: 'Calls aren’t available in group chats.' }));
+        gws.send(JSON.stringify({ type: 'ended', reason: en('Calls aren’t available in group chats.') }));
         return gws.close(1000);
       }
       if (!app.settings.get().disclosureAcceptedAt) return refuseUpgrade(socket, 403, 'Forbidden');
@@ -131,7 +132,7 @@ export function createLiveUpgrade(ctx: RouteCtx): (req: IncomingMessage, socket:
       if (ringId) {
         const ring = app.calls?.answer(ringId, deviceLabel(req.headers['user-agent']));
         if (!ring || ring.conversationId !== conv.id) {
-          ws.send(JSON.stringify({ type: 'ended', reason: 'This call was already answered or has ended.' }));
+          ws.send(JSON.stringify({ type: 'ended', reason: en('This call was already answered or has ended.') }));
           return ws.close(1000);
         }
         opening = openingNote(ring, app.settings.get().ownerName?.trim() || 'the owner');

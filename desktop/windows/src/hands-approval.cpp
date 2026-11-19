@@ -12,7 +12,7 @@ namespace {
 // dropdowns) closes on deactivation, so the approved control would be gone. It stays topmost (re-asserted
 // on a timer), answers to the mouse only, ignores Sara's own tagged input, and closing it means Don't.
 constexpr UINT_PTR kTopTimer = 1;
-struct Panel { std::wstring summary; bool task, test, free = false; std::atomic<HWND> window{nullptr}; std::atomic<bool> done{false}; int answer = 0; };
+struct Panel { std::wstring summary; bool task, test, free = false, all = false; std::atomic<HWND> window{nullptr}; std::atomic<bool> done{false}; int answer = 0; };
 void answer(HWND card, int id) {
   auto p = reinterpret_cast<Panel*>(GetWindowLongPtrW(card, GWLP_USERDATA));
   if (!p) return;
@@ -73,7 +73,7 @@ void show(Panel& p) {
   control(L"STATIC", p.summary.substr(0, extra ? 2600 : 900), 0, 20, 56, 570, 140 + extra, SS_NOPREFIX);
   control(L"STATIC", L"Decide here with the mouse; the window you were using keeps its place. Stop (Ctrl+Alt+Esc) still works. Closing this window means Don't.", 0, 20, 198 + extra, 570, 42, SS_NOPREFIX);
   control(L"BUTTON", L"Allow once", 101, 20, 248 + extra, 130, 44, BS_PUSHBUTTON);
-  if (p.task) control(L"BUTTON", p.free ? L"Let her finish this task" : L"Allow for this task", 102, 160, 248 + extra, 225, 44, BS_PUSHBUTTON);
+  if (p.task) control(L"BUTTON", p.all ? L"Always allow everything" : p.free ? L"Let her finish this task" : L"Allow for this task", 102, 160, 248 + extra, 225, 44, BS_PUSHBUTTON);
   control(L"BUTTON", L"Don't", IDCANCEL, 440, 248 + extra, 140, 44, BS_DEFPUSHBUTTON);
   // Shown without activation: no SetForegroundWindow, no SetFocus.
   SetWindowPos(h, HWND_TOPMOST, 140, 100, s(620), s(340 + extra), SWP_SHOWWINDOW | SWP_NOACTIVATE);
@@ -83,8 +83,9 @@ void show(Panel& p) {
   p.window = nullptr; DeleteObject(font); p.done = true;
 }
 }
-int desktopApproval(const std::wstring& summary, bool taskChoice, bool test, const std::atomic<bool>* cancel, bool freeChoice) {
-  Panel p; p.summary = summary; p.task = taskChoice || freeChoice; p.test = test; p.free = freeChoice;
+int desktopApproval(const std::wstring& summary, bool taskChoice, bool test, const std::atomic<bool>* cancel, bool freeChoice, bool allChoice) {
+  // W0.7: allChoice = the second button confirms the server's Always allow everything on this computer.
+  Panel p; p.summary = summary; p.task = taskChoice || freeChoice || allChoice; p.test = test; p.free = freeChoice; p.all = allChoice;
   std::thread ui([&] { show(p); });
   while (!p.done) { if (cancel && cancel->load()) if (HWND h = p.window.load()) PostMessageW(h, WM_CLOSE, 0, 0); Sleep(20); }
   ui.join(); return cancel && cancel->load() ? 0 : p.answer;

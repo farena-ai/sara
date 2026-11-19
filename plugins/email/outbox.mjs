@@ -8,7 +8,9 @@ export const RETRY_MIN = [1, 5, 30];
 export class Outbox {
   /**
    * @param {object} o
-   * @param {(items: object[]) => Promise<Map<string, Error|null>>} o.deliver sends the due items, returns an error (or null) per id
+   * @param {(items: object[], sent: (id: string) => void) => Promise<Map<string, Error|null>>} o.deliver sends the due items, returns an error (or null) per id;
+   *   it calls `sent(id)` the moment the server accepted one, so a mail already sent is off the saved list
+   *   even if the connection (or the process) dies before the rest is done (nothing is sent twice)
    * @param {(item: object, why: string) => void} o.gaveUp told once when a mail is given up
    * @param {(items: object[]) => void} o.save persists the list
    */
@@ -43,12 +45,20 @@ export class Outbox {
         const due = this.items.filter((x) => x.next <= now);
         if (!due.length) break;
         let results;
+        const done = new Set();
+        const sent = (id) => {
+          if (done.has(id)) return;
+          done.add(id);
+          this.items = this.items.filter((x) => x.id !== id);
+          this.save(this.items);
+        };
         try {
-          results = await this.deliver(due);
+          results = await this.deliver(due, sent);
         } catch (err) {
           results = new Map(due.map((x) => [x.id, Object.assign(err instanceof Error ? err : new Error(String(err)), { transient: err?.transient ?? true })]));
         }
         for (const it of due) {
+          if (done.has(it.id)) continue; // the server took it: never again, whatever came after
           const err = results.get(it.id);
           if (err === null || err === undefined) {
             this.items = this.items.filter((x) => x !== it);

@@ -177,9 +177,9 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     if (files.length && wv && typeof wv.postMessageWithAdditionalObjects === 'function') {
       try { wv.postMessageWithAdditionalObjects({ m: 'qa', a: 'files' }, files); } catch (err) { /* the app is going away */ }
     } else if (files.length) {
-      $('drop').textContent = 'Drop them on Sara\u2019s main window';
+      $('drop').textContent = t('Drop them on Sara\u2019s main window');
       $('drop').classList.add('on');
-      setTimeout(() => { $('drop').classList.remove('on'); $('drop').textContent = 'Drop to give these to Sara'; }, 2500);
+      setTimeout(() => { $('drop').classList.remove('on'); $('drop').textContent = t('Drop to give these to Sara'); }, 2500);
     }
   });
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
@@ -211,6 +211,50 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
   };
 
   // ---------- the session: who is signed in, the AI notice, demo, private mode ----------
+  // W0.2: the page speaks the owner's app language: the server's /i18n/<lang>.json (the main window's
+  // translations, keyed by the English text), loaded once per language after /api/session.
+  let words = {};
+  let wordsLang = 'en';
+  const t = (s, p) => {
+    let out = typeof words[s] === 'string' && words[s].trim() ? words[s] : s;
+    if (p) for (const k of Object.keys(p)) out = out.split('{' + k + '}').join(String(p[k]));
+    return out;
+  };
+  const LANGS = ['es', 'fr', 'de', 'pt-BR', 'it'];
+  const pickLang = (code) => {
+    const c = String(code || '').toLowerCase();
+    if (c.startsWith('pt')) return 'pt-BR';
+    return LANGS.find((l) => l === c.slice(0, 2)) || 'en';
+  };
+  const firstText = new WeakMap();
+  const firstAttr = new WeakMap();
+  const translatePage = () => {
+    document.documentElement.lang = wordsLang;
+    const walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      if (n.parentElement && n.parentElement.closest('#log, #ctx, #name, #mood, #offer-line, script, style')) continue;
+      if (!firstText.has(n)) firstText.set(n, n.nodeValue);
+      const orig = firstText.get(n);
+      const key = orig.replace(/\s+/g, ' ').trim();
+      if (key) n.nodeValue = orig.replace(key, t(key));
+    }
+    for (const el of document.querySelectorAll('[title], [aria-label], [placeholder]')) {
+      if (!firstAttr.has(el)) firstAttr.set(el, { title: el.getAttribute('title'), 'aria-label': el.getAttribute('aria-label'), placeholder: el.getAttribute('placeholder') });
+      for (const [k, v] of Object.entries(firstAttr.get(el))) if (v) el.setAttribute(k, t(v));
+    }
+  };
+  const loadWords = async (s) => {
+    const lang = pickLang((s && s.appLanguage) || navigator.language);
+    if (lang === wordsLang) return;
+    let next = {};
+    if (lang !== 'en') {
+      const r = await fetch('/i18n/' + lang + '.json', { credentials: 'same-origin', cache: 'no-cache' }).catch(() => null);
+      next = r && r.ok ? await r.json().catch(() => ({})) : {};
+    }
+    words = next;
+    wordsLang = lang;
+    translatePage();
+  };
   let session = null;   // GET /api/session
   let her = null;       // GET /api/sara/state
   let conv = null;      // the conversation this window's question went to
@@ -250,9 +294,10 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     $('ask').hidden = $('foot').hidden = q.disabled;
     if (!why || why === 'loading') { info.hidden = true; info.textContent = ''; fit(); return; }
     let html = '';
-    if (why === 'demo') html = '<p><b>Quick ask is off on the demo.</b> The demo server is read-only for apps; open Sara to try her in the main window.</p><button id=go class=primary>Open Sara</button>';
-    if (why === 'signin') html = '<p>Sign in to this Sara in the main window first, then ask her from anywhere.</p><button id=go class=primary>Open Sara</button>';
-    if (why === 'disclosure') html = '<div class="notice disclosure">' + esc(session.disclosure || '') + '</div><p>Read and accept this notice in the main window once; then you can ask her from here.</p><button id=go class=primary>Open Sara</button>';
+    const open = '<button id=go class=primary>' + esc(t('Open Sara')) + '</button>';
+    if (why === 'demo') html = '<p><b>' + esc(t('Quick ask is off on the demo.')) + '</b> ' + esc(t('The demo server is read-only for apps; open Sara to try her in the main window.')) + '</p>' + open;
+    if (why === 'signin') html = '<p>' + esc(t('Sign in to this Sara in the main window first, then ask her from anywhere.')) + '</p>' + open;
+    if (why === 'disclosure') html = '<div class="notice disclosure">' + esc(session.disclosure || '') + '</div><p>' + esc(t('Read and accept this notice in the main window once; then you can ask her from here.')) + '</p>' + open;
     info.innerHTML = html;
     info.hidden = false;
     const go = $('go');
@@ -351,6 +396,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     refreshing = (async () => {
       try {
         session = await api('/session');
+        await loadWords(session).catch(() => {});
       } catch (e) {
         session = null;
         post({ a: 'state', online: false });
@@ -359,14 +405,14 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       const name = (session.identity && session.identity.name) || 'Sara';
       $('name').textContent = name;
       $('private').hidden = !session.privateLocal;
-      q.placeholder = 'Ask ' + name + ' anything…';
+      q.placeholder = t('Ask {name} anything…', { name });
       if (!session.authenticated || session.demo) {
         post({ a: 'state', online: true, signedIn: Boolean(session.authenticated), demo: Boolean(session.demo), name, mood: '', face: '', now: '' });
         return;
       }
       her = await api('/sara/state').catch(() => null);
-      const mood = her && her.enabled ? her.mood : '';
-      $('mood').textContent = her && her.enabled ? her.mood + ' · ' + her.energy : '';
+      const mood = her && her.enabled ? t(her.mood) : '';
+      $('mood').textContent = her && her.enabled ? t(her.mood) + ' · ' + t(her.energy) : '';
       const lines = [];
       const asks = [];
       // Approvals waiting (in a turn that's still running: the conversation says "working").
@@ -441,7 +487,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     return d;
   };
   const approvalCard = (ev) => {
-    const card = add('card', '<div>' + esc(ev.summary || ev.name) + '</div><div class=row><button class=primary data-ok=1>Allow</button><button data-ok=0>Deny</button><button data-open=1>Open in Sara</button></div>');
+    const card = add('card', '<div>' + esc(ev.summary || ev.name) + '</div><div class=row><button class=primary data-ok=1>' + esc(t('Allow')) + '</button><button data-ok=0>' + esc(t('Deny')) + '</button><button data-open=1>' + esc(t('Open in Sara')) + '</button></div>');
     card.onclick = async (e) => {
       const b = e.target.closest('button');
       if (!b) return;
@@ -449,7 +495,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       card.querySelectorAll('button').forEach((x) => (x.disabled = true));
       try {
         await api('/approvals/' + encodeURIComponent(ev.approvalId), { method: 'POST', body: { approved: b.dataset.ok === '1' } });
-        card.querySelector('div').textContent = (b.dataset.ok === '1' ? 'Allowed: ' : 'Denied: ') + (ev.summary || ev.name);
+        card.querySelector('div').textContent = (b.dataset.ok === '1' ? t('Allowed: {what}', { what: ev.summary || ev.name }) : t('Denied: {what}', { what: ev.summary || ev.name }));
       } catch (err) { card.querySelector('div').textContent = err.message; }
       card.querySelector('.row').remove();
       fit();
@@ -579,8 +625,8 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     const x = document.createElement('button');
     x.type = 'button';
     x.textContent = '✕';
-    x.setAttribute('aria-label', 'Remove ' + label);
-    x.title = 'Remove';
+    x.setAttribute('aria-label', t('Remove {what}', { what: label }));
+    x.title = t('Remove');
     x.onclick = () => { onRemove(); q.focus(); };
     c.append(l, x);
     return c;
@@ -588,14 +634,14 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
   const renderCtx = () => {
     ctxBox.textContent = '';
     if (ctx.text) {
-      const c = chip((ctx.app ? 'From ' + ctx.app : 'Selected text') + ': “' + short(ctx.text, 70) + '”', ctx.text.slice(0, 800), () => { ctx.text = ''; renderCtx(); });
+      const c = chip((ctx.app ? t('From {app}', { app: ctx.app }) : t('Selected text')) + ': “' + short(ctx.text, 70) + '”', ctx.text.slice(0, 800), () => { ctx.text = ''; renderCtx(); });
       c.dataset.kind = 'text';
       ctxBox.append(c);
     }
     if (nothingIn && !ctx.text && !pics.length) {
       const n = document.createElement('p');
       n.className = 'none';
-      n.textContent = 'Nothing selected in ' + nothingIn;
+      n.textContent = t('Nothing selected in {app}', { app: nothingIn });
       ctxBox.append(n);
     }
     pics.forEach((p, i) => {
@@ -605,8 +651,8 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     });
     ctxBox.hidden = !ctxBox.childElementCount;
     winBtn.hidden = !ctx.window || pics.length > 0 || Boolean(blocked());
-    winBtn.title = 'Add a picture of ' + (ctx.app || 'the window you were in') + ' (nothing is sent until you ask)';
-    winBtn.setAttribute('aria-label', 'Add a picture of ' + (ctx.app || 'this window'));
+    winBtn.title = ctx.app ? t('Add a picture of {app} (nothing is sent until you ask)', { app: ctx.app }) : t('Add a picture of the window you were in (nothing is sent until you ask)');
+    winBtn.setAttribute('aria-label', ctx.app ? t('Add a picture of {app}', { app: ctx.app }) : t('Add a picture of this window'));
     fit();
   };
   const setContext = (c) => {
@@ -712,7 +758,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     q.placeholder = r.placeholder;
     if (!use || r.chunks.reduce((a, c) => a + c.length, 0) < rate * 0.4) return;
     mic.disabled = true;
-    q.placeholder = 'Listening back…';
+    q.placeholder = t('Listening back…');
     try {
       const res = await fetch('/api/voice/transcribe', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'audio/wav' }, body: wav(r.chunks, rate) });
       const data = await res.json().catch(() => ({}));
@@ -720,7 +766,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       const text = String(data.text || '').trim();
       if (text) ask(text);
     } catch (err) {
-      add('err', esc('Microphone: ' + err.message));
+      add('err', esc(t('Microphone: {error}', { error: err.message })));
     } finally {
       mic.disabled = false;
       q.placeholder = r.placeholder;
@@ -740,9 +786,9 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       node.connect(ctx.destination);
       rec = { stream, ctx, src, node, chunks, placeholder: q.placeholder, limit: setTimeout(() => stopMic(true), 120000) };
       mic.classList.add('on');
-      q.placeholder = 'Listening… click the mic again when you\'re done';
+      q.placeholder = t('Listening… click the mic again when you\'re done');
     } catch (err) {
-      add('err', esc('Microphone: ' + (err && err.message ? err.message : 'not allowed')));
+      add('err', esc(err && err.message ? t('Microphone: {error}', { error: err.message }) : t('Microphone: not allowed')));
     }
   };
 
@@ -778,7 +824,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     const w = wake;
     if (!w) return;
     document.body.dataset.state = 'thinking';
-    add('step', esc('Thinking…'));
+    add('step', esc(t('Thinking…')));
     wakePost('thinking');
     const headers = { 'content-type': 'audio/wav', 'X-Sara-Wake-Claim': w.claim, 'X-Sara-Wake-Label': w.label };
     if (w.companion) headers['X-Sara-Companion'] = w.companion;
@@ -805,7 +851,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
         if (res.ok) await playPiece(await res.blob());
       } catch (e) { /* her text stays on screen */ }
     }
-    if (data.open || data.more) add('step', esc(data.needsOk ? 'She needs your OK in Sara.' : 'The rest is in Sara.'));
+    if (data.open || data.more) add('step', esc(data.needsOk ? t('She needs your OK in Sara.') : t('The rest is in Sara.')));
     endWake(data.open ? 'open' : 'answered');
   };
   const endWake = (why) => {
@@ -879,7 +925,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     const o = offered || {};
     endOffer();
     setContext({ app: o.app, text: o.line });
-    q.value = o.kind === 'form' ? 'Help me get past this form.' : 'What does this error mean, and how do I fix it?';
+    q.value = o.kind === 'form' ? t('Help me get past this form.') : t('What does this error mean, and how do I fix it?');
     post({ a: 'offer', act: 'help' });
     refresh().then(() => { listen(); showInfo(); q.focus(); q.select(); });
     fit();
@@ -893,8 +939,8 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       document.documentElement.classList.toggle('night', o.theme !== 'day');
       document.documentElement.classList.toggle('solid', Boolean(o.solid));
       offered = { kind: o.kind === 'form' ? 'form' : 'error', app: String(o.app || '').slice(0, 80), line: String(o.line || '').slice(0, 200) };
-      const app = offered.app || 'This window';
-      $('offer-t').textContent = offered.kind === 'form' ? app + ': this form seems stuck. Want a hand?' : app + ' shows an error. Want help with it?';
+      const app = offered.app || t('This window');
+      $('offer-t').textContent = offered.kind === 'form' ? t('{app}: this form seems stuck. Want a hand?', { app }) : t('{app} shows an error. Want help with it?', { app });
       $('offer-line').textContent = '“' + offered.line + '”';
       document.documentElement.classList.toggle('offering', true);
       $('offer').hidden = false;
@@ -944,14 +990,14 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     /** Quick ask anywhere: the app's picture of the window that was in front ({data, w, h} or {error}). */
     picture(o = {}) {
       winBtn.disabled = false;
-      if (o.error || !/^data:image\/jpeg;base64,/.test(String(o.data || ''))) { add('err', esc(o.error || 'No picture came from that window.')); return false; }
+      if (o.error || !/^data:image\/jpeg;base64,/.test(String(o.data || ''))) { add('err', esc(o.error || t('No picture came from that window.'))); return false; }
       pics = [{ data: String(o.data), w: Number(o.w) || 0, h: Number(o.h) || 0 }];
       renderCtx();
       q.focus();
       return true;
     },
     /** Push-to-talk: the talk shortcut is held (no stop on a pause), let go (send), Esc (throw it away). */
-    hold() { if (wake) { wake.hold = true; add('step', esc('Listening… let go of the shortcut to send, Esc to cancel.')); } return Boolean(wake); },
+    hold() { if (wake) { wake.hold = true; add('step', esc(t('Listening… let go of the shortcut to send, Esc to cancel.'))); } return Boolean(wake); },
     release() { if (!wake) return false; wake.hold = false; wake.released = true; if (wake.finish) wake.finish(); return true; },
     cancelTalk() { if (!wake) return false; wake.cancelled = true; wake.hold = false; if (wake.finish) wake.finish(); if (wake.audio) wake.audio.pause(); return true; },
     setSpeak(on) { speakOn = Boolean(on); if (!speakOn) stopSpeech(); return speakOn; },
@@ -962,14 +1008,14 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       if (wake || blocked() || busy) return false;
       wake = { label: 'TALK' };
       document.body.dataset.state = 'listening';
-      add('step', esc('Listening… press the shortcut again or stop talking to send.'));
+      add('step', esc(t('Listening… press the shortcut again or stop talking to send.')));
       try {
         wake.claim = (await claimWake('TALK')).claim;
-        if (!wake.claim) throw new Error('Another device answered.');
-        if (wake.cancelled) { add('step', esc('Cancelled.')); return endWake('cancel'); }
+        if (!wake.claim) throw new Error(t('Another device answered.'));
+        if (wake.cancelled) { add('step', esc(t('Cancelled.'))); return endWake('cancel'); }
         const blob = await recordTalk();
         if (!wake) return true;
-        if (wake.cancelled) { add('step', esc('Cancelled.')); return endWake('cancel'); }
+        if (wake.cancelled) { add('step', esc(t('Cancelled.'))); return endWake('cancel'); }
         if (!blob) { add('step', esc('I didn’t catch that.')); return endWake('nothing'); }
         await wakeTurn(blob);
       } catch (err) {
@@ -983,10 +1029,10 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       if (wake || blocked()) return 'busy';
       wake = { label: String(o.label || 'W1'), companion: String(o.companion || '') };
       document.body.dataset.state = 'listening';
-      add('step', esc('Listening…'));
+      add('step', esc(t('Listening…')));
       try {
         const c = await claimWake(wake.label);
-        if (!c.ok) { add('step', esc('Answered on ' + c.by + '.')); endWake('lost'); return 'lost'; }
+        if (!c.ok) { add('step', esc(t('Answered on {device}.', { device: c.by }))); endWake('lost'); return 'lost'; }
         wake.claim = c.claim;
         wakePost('claimed');
         return 'claimed';

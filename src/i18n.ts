@@ -141,6 +141,27 @@ export function fill(text: string, params?: Record<string, unknown>): string {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => (k in params ? String(params[k] ?? '') : m));
 }
 
+/**
+ * W0.2: English text with values filled in, remembered with its template. Engines throw errors with
+ * it (`throw new XError(enf('There is no app "{name}".', { name }))`) and routes pass `err.message`
+ * on as they always did: send() finds the template again and adds `errorKey` + `params`, so the app
+ * shows the message in the owner's language (web/naming.js serverText). The model still reads English.
+ */
+const KEYED = new Map<string, { key: string; params: Record<string, unknown> }>();
+export function enf(template: string, params: Record<string, unknown>): string {
+  const text = fill(template, params);
+  if (text !== template) {
+    KEYED.delete(text);
+    KEYED.set(text, { key: template, params: Object.fromEntries(Object.entries(params).map(([k, v]) => [k, typeof v === 'number' ? v : String(v ?? '')])) });
+    if (KEYED.size > 500) KEYED.delete(KEYED.keys().next().value as string);
+  }
+  return text;
+}
+/** The template and values of a text enf() made (undefined for any other text). */
+export function keyedText(text: string): { key: string; params: Record<string, unknown> } | undefined {
+  return KEYED.get(text);
+}
+
 const I18N_DIR = join(dirname(fileURLToPath(import.meta.url)), '..', 'web', 'i18n');
 const dicts = new Map<Lang, Record<string, unknown>>();
 function dictFor(lang: Lang): Record<string, unknown> {

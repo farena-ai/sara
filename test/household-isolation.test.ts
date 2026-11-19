@@ -314,6 +314,8 @@ const OWNER_ONLY_SUBPATHS: [string, string][] = [
   // Phase 96: trusting a workspace's project skills is the owner's (members have no workspaces).
   ['POST', '/api/skills/trust-project'],
 ];
+/** W0.7: each person's own Always allow everything switch (their own data dir; kids/adults gated in src/always-allow.ts). */
+const MEMBER_OWN_SUBPATHS = new Set(['/api/computer/always']);
 /** Families not exercised by the generic loop (sign-out or streams) and checked on their own. */
 const SKIP = new Set(['logout', 'events', 'health', 'login', 'claim', 'demo', 'public']);
 
@@ -511,6 +513,16 @@ test('session list (Phase 108, CH2): pages, capped lists, project pages and the 
   assert.equal(own.status, 200, 'the owner\'s conversation is untouched');
 });
 
+test('W0.7 Always allow everything is each person\'s own: a member without the owner\'s say-so can\'t turn it on', async () => {
+  const before = await call(owner, 'GET', '/api/computer/always');
+  assert.equal(before.status, 200);
+  const mine = await call(ana, 'GET', '/api/computer/always');
+  assert.equal(mine.status, 200);
+  assert.equal(mine.json.may, false, 'the owner has not allowed it for this member');
+  assert.equal((await call(ana, 'PUT', '/api/computer/always', { on: true, warned: true, for: '1h' })).status, 403);
+  assert.equal((await call(owner, 'GET', '/api/computer/always')).json.on, before.json.on, 'nothing of the owner\'s changed');
+});
+
 test('every route family: no person ever gets another person\'s data', async () => {
   const fam = routeFamilies();
   assert.ok(fam.size > 80, `found ${fam.size} route families`);
@@ -557,8 +569,8 @@ test('every route family: no person ever gets another person\'s data', async () 
       tried++;
       if (vMarkers.some((m) => r.text.includes(m))) failures.push(`${attacker.name} ${j.method} ${j.path} → ${r.status} LEAKED another person's data`);
       if (r.status >= 500) failures.push(`${attacker.name} ${j.method} ${j.path} → ${r.status}`);
-      if (attacker !== owner && j.ownerOnly && r.status !== 403) failures.push(`${attacker.name} ${j.method} ${j.path} → ${r.status}, expected 403 (owner only)`);
-      if (attacker !== owner && j.ownerOnly && r.status === 403 && r.json.ownerOnly !== true) failures.push(`${attacker.name} ${j.method} ${j.path}: 403 without ownerOnly`);
+      if (attacker !== owner && j.ownerOnly && r.status !== 403 && !MEMBER_OWN_SUBPATHS.has(j.path)) failures.push(`${attacker.name} ${j.method} ${j.path} → ${r.status}, expected 403 (owner only)`);
+      if (attacker !== owner && j.ownerOnly && r.status === 403 && r.json.ownerOnly !== true && !MEMBER_OWN_SUBPATHS.has(j.path)) failures.push(`${attacker.name} ${j.method} ${j.path}: 403 without ownerOnly`);
     };
     // A few at a time (keeps the run short; the server handles them like any busy app would).
     for (let i = 0; i < jobs.length; i += 8) await Promise.all(jobs.slice(i, i + 8).map(one));

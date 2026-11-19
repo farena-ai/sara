@@ -90,7 +90,7 @@ test('V1.4 a harness that runs past its time is stopped and graded on what it le
   const r = await runHarness(fake('hang'), jsTask(), { python, timeoutSec: 2 });
   assert.equal(r.pass, false);
   assert.match(r.error ?? '', /time/i);
-  assert.ok(r.seconds < 30);
+  assert.ok(r.seconds < 30, JSON.stringify(r));
 });
 
 test('V1.4 a missing CLI gives a clear row error instead of a crash', async () => {

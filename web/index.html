@@ -379,6 +379,8 @@
       <div id="offrecord-bar" class="offrecord-bar" hidden>🕶 <strong>Off the record.</strong> Nothing here is saved: she won't remember it, it isn't in backups, and it's gone when you close it or the server restarts. No tools or photos here. <button id="offrecord-end" type="button" class="ghost small">Close it now</button></div>
       <div id="jobs-strip" class="jobs-strip" hidden></div>
       <div id="hf-banner" class="hf-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="hf-text" class="hf-text"></span> <button id="hf-log" type="button" class="ghost small">Steps</button> <button id="hf-stop" type="button" class="danger small">Stop</button><ol id="hf-steps" class="hf-steps" hidden></ol></div>
+      <!-- W0.7: Always allow everything is on (web/always-allow.js). -->
+      <div id="alw-banner" class="hf-banner alw-banner" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="alw-banner-text" class="hf-text"></span> <button id="alw-banner-off" type="button" class="ghost small">Turn off</button></div>
       <div id="cu-badge" class="cu-badge" role="status" hidden><span class="cu-badge-dot" aria-hidden="true"></span><span id="cu-badge-text" class="cu-badge-text"></span> <button id="cu-badge-stop" type="button" class="danger small">Stop</button></div>
       <div id="cu-live" class="cu-live" role="region" aria-label="Live view" hidden>
         <img id="cu-live-img" class="cu-live-img" alt="What Sara sees in the Sara browser">
@@ -2944,6 +2946,20 @@
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
       <p class="muted small page-lead">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
+      <!-- W0.7 (docs/ALWAYS_ALLOW.md): one switch per person for every approval card (web/always-allow.js). -->
+      <h3>Always allow everything <button type="button" class="tip" data-tip="On: every command, desktop, browser and computer action runs without an approval card. Passwords stay yours, and everything still goes to the Action timeline and the audit trail.">?</button></h3>
+      <div id="alw-box" class="alw-box" data-noauto data-nodirty>
+        <p id="alw-state" class="small" role="status"></p>
+        <label class="row">For how long <button type="button" class="tip" data-tip="It turns itself off after this time. Until I turn it off keeps it on; Turn off here or above the chat ends it at once.">?</button> <select id="alw-for" data-noauto><option value="1h">1 hour</option><option value="1d">1 day</option><option value="off">Until I turn it off</option></select></label>
+        <p class="row"><button id="alw-on" type="button" class="danger" hidden>Turn on…</button> <button id="alw-off" type="button" class="ghost" hidden>Turn off</button> <span id="alw-status" class="muted small" role="status"></span></p>
+        <p id="alw-why" class="muted small" hidden></p>
+      </div>
+      <dialog id="alw-warn" class="alw-warn" aria-labelledby="alw-warn-h">
+        <h3 id="alw-warn-h">Always allow everything?</h3>
+        <p class="small">Sara will run every command and computer action for you without asking first, including payments, account and security settings, saved logins and deleting things. Requests from other people and apps still ask.</p>
+        <p class="small">She still never types your passwords, and every action stays on the Action timeline (with Undo where there is one). You confirm it with your password or passkey next; the Sara app on your computer asks once more there.</p>
+        <div class="add-row"><button id="alw-warn-yes" type="button" class="danger">Turn it on</button> <button id="alw-warn-no" type="button" class="ghost">Cancel</button></div>
+      </dialog>
       <div id="cu-this" class="cu-this" hidden>
         <h3>This computer</h3>
         <label class="row"><input id="cu-optin" type="checkbox" data-noauto> Let Sara use this computer <button type="button" class="tip" data-tip="Off by default. On: Sara may use her own browser window here (its own profile, never yours) to look at pages, read their errors, click and type. You see what she does and can stop her any time.">?</button></label>
@@ -3271,6 +3287,7 @@
       <label class="row" data-owner-only>Keep hearing and voice loaded <button type="button" class="tip" data-tip="Her own hearing and voice on this server stay in memory after you talk, so she answers about a second sooner. Off loads them for every sentence and frees the memory.">?</button> <select id="talk-keep"><option value="0">Off</option><option value="10" selected>10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
       <label class="row" data-owner-only>Hearing while you talk <button type="button" class="tip" data-tip="Words as you speak shows what she hears while you talk and ends your turn a little sooner, with a streaming hearing model on this server. Whole sentences hears each sentence when you stop.">?</button> <select id="talk-hearing"><option value="whole" selected>Whole sentences</option><option value="streaming">Words as you speak</option></select></label>
       <p id="talk-stream-row" class="small" data-owner-only hidden><button id="talk-stream-get" type="button" class="ghost">Add words-as-you-speak hearing</button> <button type="button" class="tip" data-tip="Downloads the streaming hearing model for Talk with Sara (about 105 MB). Checked before use; what you say stays on this server.">?</button> <span id="talk-stream-status" class="muted small" role="status"></span></p>
+      <p id="talk-langs-row" class="small" data-owner-only hidden><button id="talk-langs-get" type="button" class="ghost">Add words as you speak in other languages</button> <button type="button" class="tip" data-tip="Downloads a hearing model for Spanish, French, German, Portuguese and Italian (about 480 MB). Talk then shows your words in your language. Stays on this server.">?</button> <span id="talk-langs-status" class="muted small" role="status"></span></p>
       <!-- V4.2 (docs/design/INTERPRETER.md): the live interpreter (web/interpreter.js loadInterpreter). -->
       <h3>Interpreter <button type="button" class="tip" data-tip="Two people who don't share a language talk through Sara: each turn is heard, translated and spoken in the other language. Start it here or with Interpreter on the talk screen.">?</button></h3>
       <div id="interp-prefs" data-nodirty data-noauto>

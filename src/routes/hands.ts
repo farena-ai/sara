@@ -19,6 +19,7 @@
 //   GET    /api/computer/frame/<id>?after=n the live view: the newest frame after n (long-poll, memory only)
 //   GET    /api/computer/thumb/<sha>        a step thumbnail from the run record
 import { HANDS_FREE_FOR, handsFreeFor } from '../handsfree.ts';
+import { ALWAYS_FOR, AlwaysAllowError, alwaysAllowView, mayAlwaysAllow, setAlwaysAllow } from '../always-allow.ts';
 import { policy } from '../policy-profile.ts';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -29,6 +30,7 @@ import { TunnelError } from '../tunnel.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { en, trOwner } from '../i18n.ts';
 
 const OWNER_ONLY = { ownerOnly: true };
 /** Phase 90: a computer's answer about its logins, cut to names, sites and dates. */
@@ -70,6 +72,28 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     const [a, b, c, d] = parts;
     if (a !== 'hands' && a !== 'computer') return NEXT;
     if (opts.demo) throw new HttpError(404, 'Not found');
+    // W0.7 (src/always-allow.ts): this person's Always allow everything switch (no computer needed:
+    // it covers commands and every tool's card too). On = the password/code/passkey again + the warning.
+    if (a === 'computer' && b === 'always' && !c) {
+      if (method === 'GET') return send(res, 200, alwaysAllowView(app as never));
+      if (method === 'DELETE') return send(res, 200, setAlwaysAllow(app as never, { on: false }));
+      if (method === 'PUT') {
+        const body = await readJson(req);
+        if (body.for !== undefined && !(ALWAYS_FOR as readonly string[]).includes(body.for as string)) throw new HttpError(400, en('for: 1h, 1d or off.'));
+        if (body.on !== true) return send(res, 200, setAlwaysAllow(app as never, { on: false }));
+        if (!mayAlwaysAllow(app as never).ok) throw new HttpError(403, mayAlwaysAllow(app as never).why ?? en('Not available here.'));
+        if (body.warned !== true) throw new HttpError(400, en('Always allow everything needs the warning first.'));
+        // C15: from a remote device the owner approves it first; then it's really them (step-up).
+        ctx.askFirst(req, 'allow-all');
+        ctx.confirmIdentity(req, body, { passkey: true });
+        try {
+          return send(res, 200, setAlwaysAllow(app as never, { on: true, for: body.for, warned: true }));
+        } catch (err) {
+          if (err instanceof AlwaysAllowError) throw new HttpError(err.status, err.message);
+          throw err;
+        }
+      }
+    }
     const hub = app.hands;
     if (!hub) throw new HttpError(404, 'Computer use is not available here.');
     // Members: only with the owner's switch on, and the server-wide choices stay the owner's.
@@ -203,8 +227,8 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
     if (c === 'relock' && !d && method === 'POST') {
       await readJson(req).catch(() => ({}));
       const h = hub.hello(b);
-      if (!hub.connected(b) || !h) return send(res, 200, { ok: false, connected: false, error: { code: 'offline', message: 'That computer is not connected right now.' } });
-      if (!(h.ops ?? []).includes('b.relock')) return send(res, 200, { ok: false, connected: true, error: { code: 'unsupported', message: 'The Sara app there has no password managers yet: update it.' } });
+      if (!hub.connected(b) || !h) return send(res, 200, { ok: false, connected: false, error: { code: 'offline', message: trOwner(en('That computer is not connected right now.'), app.settings.get()) } });
+      if (!(h.ops ?? []).includes('b.relock')) return send(res, 200, { ok: false, connected: true, error: { code: 'unsupported', message: trOwner(en('The Sara app there has no password managers yet: update it.'), app.settings.get()) } });
       try {
         const r = await hub.request(b, 'b.relock', {}, { deadlineMs: 30_000 });
         const locked = Array.isArray(r.result.locked) ? (r.result.locked as unknown[]).map(String).filter((x) => /^[a-z0-9]{1,20}$/.test(x)) : [];
@@ -231,7 +255,7 @@ export function createHandsRoutes(ctx: RouteCtx): RouteHandler {
       const op = String(body.op ?? '');
       if (!/^[a-z]\.[A-Za-z]{1,30}$/.test(op)) throw new HttpError(400, 'op: like "b.open".');
       // Phase 89: a tunnel is only ever opened by the server, after its own port-ownership check.
-      if (SERVER_ONLY_OPS.has(op)) return send(res, 200, { ok: false, error: { code: 'server_only', message: `${op} is sent only by the server itself (the dev tunnel checks the port first): use "Try the dev tunnel".` } });
+      if (SERVER_ONLY_OPS.has(op)) return send(res, 200, { ok: false, error: { code: 'server_only', message: trOwner(en('{op} is sent only by the server itself (the dev tunnel checks the port first): use "Try the dev tunnel".'), app.settings.get(), { op }) } });
       const args = body.args && typeof body.args === 'object' && !Array.isArray(body.args) ? (body.args as Record<string, unknown>) : {};
       const ac = new AbortController();
       req.on('close', () => {

@@ -12,6 +12,8 @@
 //     stdin  "a <id> <base64 PCM16 16 kHz mono>\n"  stdout "ok <endpoint 0|1> <text so far>\n"
 //     stdin  "e <id> <base64|->\n" (last piece)    stdout "ok 1 <final text>\n" (the stream is freed)
 //     stdin  "x <id>\n" (drop it)                  stdout "ok 0 \n"
+//     W0.3: "<id>@<lang>" (e.g. s1@es, s1@auto) sets a NEW stream's language for prompt-conditioned
+//     multilingual models (Nemotron 3.5 streaming); later lines may send the same form or just <id>.
 //   After loading it prints "ready\n" (or "fail <why>\n" and exits 2). EOF on stdin ends it.
 // Release builds (V0.1): desktop/windows/build-voice-helper.sh (MSVC), desktop/mac/build.sh (clang,
 // universal); Linux servers build it in deploy/install-voice.sh. Each against the pinned sherpa-onnx.
@@ -150,7 +152,7 @@ static int pcm16(const char *b64, float *out, int max) {
 static struct { char id[48]; const SherpaOnnxOnlineStream *s; unsigned long used; } slots[STREAMS];
 static unsigned long tick = 0;
 
-static int slot(const SherpaOnnxOnlineRecognizer *r, const char *id, int create) {
+static int slot(const SherpaOnnxOnlineRecognizer *r, const char *id, const char *lang, int create) {
   int free = -1, old = 0;
   for (int i = 0; i < STREAMS; ++i) {
     if (slots[i].s && strcmp(slots[i].id, id) == 0) return slots[i].used = ++tick, i;
@@ -161,6 +163,13 @@ static int slot(const SherpaOnnxOnlineRecognizer *r, const char *id, int create)
   if (free < 0) { SherpaOnnxDestroyOnlineStream(slots[old].s); slots[old].s = NULL; free = old; }
   snprintf(slots[free].id, sizeof(slots[free].id), "%s", id);
   slots[free].s = SherpaOnnxCreateOnlineStream(r);
+  if (slots[free].s && lang && *lang) {
+    SherpaOnnxOnlineStreamSetOption(slots[free].s, "language", lang);
+    // W0.3 (measured): the multilingual model drops the first word or two unless ~0.6 s of quiet comes
+    // first; the page's pre-roll is shorter, so every language-tagged stream starts with 1 s of it.
+    static float lead[16000];
+    SherpaOnnxOnlineStreamAcceptWaveform(slots[free].s, 16000, lead, 16000);
+  }
   slots[free].used = ++tick;
   return slots[free].s ? free : -1;
 }
@@ -208,14 +217,16 @@ static int online(int argc, char **argv) {
     *id++ = 0;
     char *b64 = strchr(id, ' ');
     if (b64) *b64++ = 0;
-    if (!*id || strlen(id) > 40) { reply("err", "bad request"); continue; }
+    char *lang = strchr(id, '@');
+    if (lang) *lang++ = 0;
+    if (!*id || strlen(id) > 40 || (lang && strlen(lang) > 15)) { reply("err", "bad request"); continue; }
     if (line[0] == 'x') {
-      int i = slot(r, id, 0);
+      int i = slot(r, id, NULL, 0);
       if (i >= 0) { SherpaOnnxDestroyOnlineStream(slots[i].s); slots[i].s = NULL; }
       reply("ok", "0 ");
       continue;
     }
-    int i = slot(r, id, 1);
+    int i = slot(r, id, lang, 1);
     if (i < 0) { reply("err", "no stream"); continue; }
     const SherpaOnnxOnlineStream *s = slots[i].s;
     int n = b64 && strcmp(b64, "-") ? pcm16(b64, samples, LINE) : 0;

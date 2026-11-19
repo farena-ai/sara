@@ -457,7 +457,7 @@ function queueMail(to, { text, files = [], replyTo, thread, ctx }) {
 }
 
 /** Sends the due mail over one SMTP connection. */
-async function deliver(items) {
+async function deliver(items, sent = () => {}) {
   const out = new Map();
   if (!String(s().smtpHost ?? '').trim()) {
     for (const it of items) out.set(it.id, Object.assign(new Error('there is no SMTP server in the settings'), { transient: true }));
@@ -471,6 +471,7 @@ async function deliver(items) {
       try {
         await smtp.send(her(), it.to, Buffer.from(it.raw, 'base64'));
         out.set(it.id, null);
+        sent(it.id);
         sara.log(`sent a reply to ${it.to}`);
       } catch (err) {
         out.set(it.id, err);

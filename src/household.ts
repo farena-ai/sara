@@ -51,6 +51,8 @@ export interface MemberLimits {
   voice: boolean;
   /** Pictures from her and new looks (they cost the owner). */
   pictures: boolean;
+  /** W0.7: may turn on Always allow everything for themselves (adults only; never kids). */
+  alwaysAllow?: boolean;
 }
 
 export type MemberStatus = 'active' | 'suspended' | 'leaving';
@@ -143,6 +145,7 @@ export function cleanLimits(v: unknown, available: ModelPick[], base?: MemberLim
     costPerDay: pick(r.costPerDay, COST_LIMITS, cur.costPerDay),
     voice: r.voice === undefined ? cur.voice : r.voice === true,
     pictures: r.pictures === undefined ? cur.pictures : r.pictures === true,
+    ...((r.alwaysAllow === undefined ? cur.alwaysAllow : r.alwaysAllow === true) ? { alwaysAllow: true } : {}),
   };
 }
 

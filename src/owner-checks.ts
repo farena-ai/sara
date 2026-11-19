@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.31.0
+  { id: 'time-sense', release: '3.31.0', title: en('Ask how long ago you said something'), steps: [en('Ask her anything, wait a few minutes, then send the message below.')], ask: en('How long ago did I ask you that?'), expect: en('She gives the real time (for example 4 minutes ago), never yesterday.') },
+  { id: 'always-allow', release: '3.31.0', title: en('Turn on Always allow everything'), steps: [en('Press Always allow everything, read the warning and confirm it is you.')], view: '#view=settings:co-computer', expect: en('A red Always allow is on bar above the message box, with Turn off. Her computer actions run without cards until it ends.') },
+  { id: 'live-words-languages', release: '3.31.0', title: en('Words as you speak in your language'), steps: [en('Press Add words as you speak in other languages, then talk to her in Spanish, French, German, Portuguese or Italian.')], view: '#view=settings:her-voice', expect: en('Your words appear while you speak, in that language.') },
   // 3.24.0
   { id: 'restore-now', release: '3.24.0', title: en('Test a restore now'), steps: [en('Find Test restores on this page.'), en('Press Test a restore now.')], view: '#view=settings:dh-backups', expect: en('After a minute or two a Passed row with how long it took. Your chats and files are not changed.') },
   { id: 'whats-new-help', release: '3.24.0', title: en('What’s new any time'), steps: [en('Open What’s new on this page.'), en('Press Show me on one of its lines.')], view: '#view=help', expect: en('Each release since the version you last saw, in plain words, and Show me opens the place it lives.') },

@@ -422,3 +422,19 @@ and files and one *Working on it* line on long jobs; the Private API's typing, t
 used only if you already turned it on (Sara never asks you to turn SIP off). Strangers get one line;
 groups are answered when a message starts with her name. Sessions file into the *iMessage* project.
 
+## She knows what time it is (unreleased, W0.6)
+
+Sara always knows the exact time and how long ago things were, worked out by the app from when each
+message was really sent, in your time zone (Settings → You), never guessed:
+
+- Every earlier message she sees says when it came and how long ago ("2:07 PM, 10 min ago"; "Tue 9:40 PM,
+  2 days ago"), and when you come back after a break she sees how long it was ("8 h since the last
+  message").
+- The date, time and your time zone are repeated to her every turn, as the last line of her instructions.
+- What she remembers, your reminders and tasks ("in 2 h 5 min", "3 h ago"), emails she lists and what she
+  looks up in past chats carry their age too. Emails show your local time (they used to show UTC).
+- If she still says "yesterday", "earlier today", "last week" or "2 hours ago" about something you said
+  in this chat and that's wrong, the app fixes the words in her reply ("Like you told me 10 minutes ago…"),
+  in English, Spanish, French, German, Portuguese and Italian.
+
+Nothing to set up. Design: docs/design/W0TIME.md.
