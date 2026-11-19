@@ -14,6 +14,10 @@ Sara** and nothing else. On the page you are on:
 - **Right-click** selected text → *Ask Sara about "…"*; right-click a page → *Save this page to Sara's Library*.
 - **Off on this site**: a switch in the popup; on that site nothing is read or sent (the menu does nothing there).
 
+- **Watch me do this** (teach by showing): do a task once in this tab while Sara watches; she keeps
+  the steps, you review them, then **Send to Sara** for a skill or automation, or **Replay here**. See
+  [Watch me do this](#watch-me-do-this) below.
+
 ## Hard limits
 
 - **Never filled:** password fields, payment card fields (number, expiry, CVC, name on card), one-time /
@@ -26,6 +30,30 @@ Sara** and nothing else. On the page you are on:
 - Private local mode on the server: the extension waits (Sara refuses it until the mode is off).
 - Kid spaces never get the extension. Household members pair it with their own space; it sees only their
   own Library and My details.
+
+## Watch me do this
+
+1. On the page where the task starts, open Sara's extension and press **Watch me do this**. The
+   button shows **REC** while it watches this one tab.
+2. Do the task as usual: search, click, type, pick, go to the next page. Sara keeps what you clicked
+   (its visible text or label), what you typed or picked, and each page's address **without** the
+   part after `?` or `#` (that part can hold sign-in tokens).
+3. Open the extension again and press **Stop**. The steps are listed: untick any you don't want,
+   name it and say what it's for.
+4. **Replay here** runs the ticked steps on this tab again (it opens the first page if the tab is
+   elsewhere). **Send to Sara** puts them in *Settings → Skills & tools → Skills → Shown in your
+   browser*. **Discard** forgets them.
+5. In Sara: **Save as a skill** (or **Edit first** in the skill editor), **Make an automation** (the
+   skill plus an Automations entry that stays off until you set when it runs), or **Delete**.
+
+Never recorded: password fields, payment card fields, one-time / 2FA codes and SSN / ID numbers (the
+same rules as form filling), and long runs of digits. Those steps say "you type this yourself", with no
+value; Sara's server drops any value for them again, and Replay never types into them. Hidden and file
+fields are left out. Steps stay in the browser's session storage until you send or discard them (they
+are gone when the browser closes) and **Off on this site** keeps a site out of a recording. After a page
+load the browser may stop the recorder on the new page; then the popup says *Paused* and one click on
+Sara's button there goes on. The owner (or a household member, in their own space) can switch recording
+off in *Settings → Connections → Devices and sign-in → Browser extension → Let it record steps you show it*.
 
 ## Install (unpacked; nothing is published)
 

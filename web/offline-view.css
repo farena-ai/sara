@@ -66,6 +66,9 @@ html.shell .offv { top: var(--titlebar, 0px); }
 .offv-msg.user { align-self: flex-end; background: color-mix(in srgb, var(--accent) 16%, var(--surface-1)); }
 .offv-msg.waiting { border-style: dashed; border-color: color-mix(in srgb, var(--warn) 60%, var(--line)); background: var(--surface-1); }
 .offv-msg.refused { border-color: var(--danger); }
+/* V5.6: the phone's own small model answered while the server is away. */
+.offv-msg.offline-answer { border-style: dashed; border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
+.offv-thinking { align-self: flex-start; margin: 0; font-style: italic; }
 .offv-who { font-size: 12px; font-weight: 600; color: var(--text-3); margin-bottom: 2px; }
 .offv-text, .offv-note { white-space: pre-wrap; overflow-wrap: anywhere; }
 .offv-note { padding: 4px 2px; }

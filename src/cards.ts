@@ -48,7 +48,9 @@ export type Card =
   /** Phase 98: a card a plugin made (data only: title, up to 8 lines, a picture from its own folder, a link, up to 3 buttons). */
   | import('./hooks.ts').PluginCard
   /** C3: an MCP App (its page is served by /api/mcp-apps/<id>/frame in a sandboxed frame). */
-  | import('./tools/mcp.ts').McpAppCard;
+  | import('./tools/mcp.ts').McpAppCard
+  /** D3: a live view she posted (web/canvas-card.js frames it; the address is fetched, never stored here). */
+  | { kind: 'canvas'; id: number; title: string; view: string };
 export type CheckupCardItem = { check: string; status: string; facts: Record<string, string | number | boolean | string[]> };
 export type CheckupCardSuggestion = { id: string; kind: string; check: string; how: 'apply' | 'assist' | 'guide'; browser?: string; name?: string; bytes?: number; page?: string };
 
@@ -174,6 +176,10 @@ function build({ name, args, output, thumb }: CardInput): Card | undefined {
       return gmailCard(output);
     case 'web_search':
       return searchCard(arg(args, 'query'), output);
+    case 'canvas_post': {
+      const id = /\(live view #(\d+)\)/.exec(output)?.[1];
+      return id ? { kind: 'canvas', id: Number(id), title: cut(arg(args, 'title'), 80), view: cut(arg(args, 'kind'), 12) } : undefined;
+    }
     case 'analyze_table':
       return chartCard(args, output);
     // E2: the finder's ranked list (numbered lines with the store's link) as the search card.

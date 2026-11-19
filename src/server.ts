@@ -56,6 +56,7 @@ import { type AppInfo } from './health.ts';
 import { summarizeConversation } from './memory-worker.ts';
 import { audit } from './audit-trail.ts';
 import { cleanClientKey, InFlightKeys, messageWithKey, serverIdOf } from './offline-keys.ts';
+import { cleanOfflineAnswer, offlineAnswerAllowed, storeOfflineAnswer } from './offline-answer.ts';
 import { as400, bodyKeys, clientIp, cookies, fromPhoneApp, HttpError, isSameOrigin, MAX_BODY, MIME, PHOTO_BODY, readJson, readRaw, safeDecode, SECURITY_HEADERS, send, validWorkspace } from './http.ts';
 import { NEXT, type ActiveTurn, type RouteCtx } from './routes/context.ts';
 import { createLibraryRoutes } from './routes/library.ts';
@@ -73,6 +74,7 @@ import { createAgentRoutes } from './routes/agents.ts';
 import { createHookRoutes } from './routes/hooks.ts';
 import { createPersistRoutes } from './routes/persist.ts';
 import { createPreciseRoutes } from './routes/precise.ts';
+import { createSecondOpinionRoutes } from './routes/second-opinion.ts';
 import { createLeanRoutes } from './routes/lean.ts';
 import { createGetStartedRoutes } from './routes/get-started.ts';
 import { sharedReleases } from './download.ts';
@@ -1071,6 +1073,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const persistRoutes = createPersistRoutes(ctx);
   // Phase 120: checks after her edits and @-references (src/routes/precise.ts).
   const preciseRoutes = createPreciseRoutes(ctx);
+  // D8: a second opinion on one of her replies (src/routes/second-opinion.ts).
+  const secondOpinionRoutes = createSecondOpinionRoutes(ctx);
   // Phase 123: the lean tool list and /compact (src/routes/lean.ts).
   const leanRoutes = createLeanRoutes(ctx);
   // R2: the guided setup, the sample space and the starter packs (src/routes/get-started.ts).
@@ -1465,7 +1469,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         // V0.8: "Sign in with <provider>" when OpenID Connect sign-in is on.
         ...(!authed && homeSso && !opts.member && homeSso.status().enabled ? { sso: homeSso.status() } : {}),
         // Phase 71: who is signed in (the owner, or a household member and their account's state).
-        ...(authed && !opts.demo ? (opts.member ? { role: 'member', member: (({ name, status, deleteAfter, limits }) => ({ name, status, deleteAfter: deleteAfter ?? null, voice: limits.voice, pictures: limits.pictures }))(opts.member.record() ?? ({ name: '', status: 'suspended', limits: { voice: false, pictures: false } } as unknown as MemberRecord)) } : { role: 'owner', ...(opts.household ? { household: true } : {}) }) : {}),
+        ...(authed && !opts.demo ? (opts.member ? { role: 'member', member: (({ name, status, deleteAfter, limits, child }) => ({ name, status, deleteAfter: deleteAfter ?? null, voice: limits.voice, pictures: limits.pictures, ...(child ? { child: true } : {}) }))(opts.member.record() ?? ({ name: '', status: 'suspended', limits: { voice: false, pictures: false } } as unknown as MemberRecord)) } : { role: 'owner', ...(opts.household ? { household: true } : {}) }) : {}),
         // Phase 59: a new server that can be set up in the browser (only while nobody has signed in).
         ...(() => {
           const st = !authed && !opts.demo && auth.setupPending ? opts.claim?.status() : undefined;
@@ -1687,6 +1691,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await agendaRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await persistRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await preciseRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await secondOpinionRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await leanRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await getStartedRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await workProfileRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2569,6 +2574,9 @@ export function createSaraServer(opts: ServerOptions): Server {
           demoTurnAllowed(req);
           // Feature 4: an outbox item (written offline) is stored once, however often it is sent.
           const clientKey = cleanClientKey(body.clientKey);
+          // V5.6: the phone's own small model answered it while the server was away (needs the key).
+          const offlineAnswer = cleanOfflineAnswer(body.offlineAnswer);
+          if (offlineAnswer && !clientKey) throw new HttpError(400, 'That offline answer is not valid.');
           const keyHeld = clientKey ? outboxKeys.hold(`chat:${b}`, clientKey) : undefined;
           if (clientKey) {
             const sent = messageWithKey(cx.store.db, b, clientKey);
@@ -2576,6 +2584,13 @@ export function createSaraServer(opts: ServerOptions): Server {
               keyHeld?.();
               if (sent === undefined) throw new HttpError(409, 'This message is already being sent.');
               return send(res, 200, { duplicate: true, messageId: sent });
+            }
+          }
+          if (offlineAnswer && clientKey && offlineAnswerAllowed(cx, conv, { offRecord })) {
+            try {
+              return send(res, 200, { ok: true, offlineAnswer: true, ...storeOfflineAnswer(cx.store, b, content, clientKey, offlineAnswer) });
+            } finally {
+              keyHeld?.();
             }
           }
           let handedOff = false; // a background turn lets go of the key when it ends

@@ -11,6 +11,7 @@
 // offers, how far back she looks, offers per day) and the cards still waiting for an answer.
 import { currentIdentity, serverText, t } from './naming.js';
 import { checkWords, editDraft, loadSkills } from './skills.js';
+import { loadTaught } from './taught.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -209,6 +210,7 @@ function status(text) {
 }
 
 export async function loadLearning() {
+  void loadTaught(); // D1: Shown in your browser, right below
   const box = $('#lsk-waiting');
   if (!box) return;
   try {

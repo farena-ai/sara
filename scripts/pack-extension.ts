@@ -28,7 +28,8 @@ export const appVersion = (): string => (JSON.parse(readFileSync(join(ROOT, 'pac
  * The manifest for one store. Chrome and Edge run the background as a service worker; Firefox runs
  * it as a background script (Firefox has no MV3 service workers) and needs its add-on id and the
  * built-in data consent list (required for new AMO add-ons; shown at install). What is sent: the
- * page's text and address (websiteContent, browsingActivity), only to the person's own Sara.
+ * page's text and address (websiteContent, browsingActivity) and, for Watch me do this, the steps you
+ * showed it (websiteActivity), only to the person's own Sara.
  */
 export function buildManifest(base: Manifest, target: Target, version?: string): Manifest {
   const m: Manifest = JSON.parse(JSON.stringify(base));
@@ -36,7 +37,7 @@ export function buildManifest(base: Manifest, target: Target, version?: string):
   if (target === 'firefox') {
     m.background = { scripts: ['background.js'], type: 'module' };
     m.browser_specific_settings = {
-      gecko: { id: GECKO_ID, strict_min_version: '140.0', data_collection_permissions: { required: ['websiteContent', 'browsingActivity'] } },
+      gecko: { id: GECKO_ID, strict_min_version: '140.0', data_collection_permissions: { required: ['websiteContent', 'browsingActivity', 'websiteActivity'] } },
       // Listed for desktop Firefox only (no right-click menus on Android); 142 is where Android
       // gained the data consent key, so web-ext lint stays clean.
       gecko_android: { strict_min_version: '142.0' },

@@ -36,6 +36,8 @@ interface DeviceSession {
   kind?: 'api' | 'home-assistant' | 'hands' | 'a2a' | 'shortcut' | 'extension';
   /** R4: what an iPhone Shortcuts token (kind 'shortcut') may do. */
   scopes?: ShortcutScope[];
+  /** D2: 'watch' = a Shortcuts-kind token paired with a Wear OS watch (docs/WEAR.md). */
+  device?: 'watch';
   /** Phase 100: an agent's key (kind 'a2a') stops working at this time (default 180 days). */
   expiresAt?: string;
   /** C15: a remote sign-in waiting for the owner's approval (its cookie opens nothing yet). */
@@ -567,7 +569,7 @@ export class OwnerAuth {
    * the widget). Shown once, only its hash kept, listed under Devices too; it works only on
    * /api/shortcuts/* with its scopes, never on the app's own API, until it is removed.
    */
-  createShortcutToken(label: string, scopes: readonly ShortcutScope[] = SHORTCUT_SCOPES): { token: string; id: string; scopes: ShortcutScope[] } {
+  createShortcutToken(label: string, scopes: readonly ShortcutScope[] = SHORTCUT_SCOPES, device?: 'watch'): { token: string; id: string; scopes: ShortcutScope[] } {
     const now = this.#now();
     const want = SHORTCUT_SCOPES.filter((x) => scopes.includes(x));
     if (!want.length) throw new Error('Pick at least one: Share or Ask.');
@@ -575,14 +577,14 @@ export class OwnerAuth {
     if (sessions.filter((d) => d.kind === 'shortcut').length >= MAX_SHORTCUT_TOKENS) throw new Error('Up to 10 iPhone Shortcuts tokens: remove one you no longer use first.');
     const id = randomBytes(9).toString('base64url');
     const secret = randomBytes(32).toString('base64url');
-    sessions.push({ id, label: label.trim().slice(0, 60) || 'iPhone Shortcuts', createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), kind: 'shortcut', scopes: want });
+    sessions.push({ id, label: label.trim().slice(0, 60) || 'iPhone Shortcuts', createdAt: now.toISOString(), lastSeen: now.toISOString(), tokenHash: sha256(secret), kind: 'shortcut', scopes: want, ...(device ? { device } : {}) });
     this.#owner.sessions = capSessions(sessions);
     this.#save();
     return { token: `${SHORTCUT_TOKEN_PREFIX}${id}.${secret}`, id, scopes: want };
   }
 
   /** R4: the id, name and scopes of a valid Shortcuts token (any other token or a cookie: undefined). */
-  shortcutToken(token: string | undefined): { id: string; label: string; scopes: ShortcutScope[] } | undefined {
+  shortcutToken(token: string | undefined): { id: string; label: string; scopes: ShortcutScope[]; device?: 'watch' } | undefined {
     if (!token?.startsWith(SHORTCUT_TOKEN_PREFIX)) return undefined;
     const [id, secret, extra] = token.slice(SHORTCUT_TOKEN_PREFIX.length).split('.');
     if (!id || !secret || extra !== undefined) return undefined;
@@ -593,12 +595,12 @@ export class OwnerAuth {
       d.lastSeen = new Date(now).toISOString();
       this.#save();
     }
-    return { id, label: d.label, scopes: [...(d.scopes ?? [])] };
+    return { id, label: d.label, scopes: [...(d.scopes ?? [])], ...(d.device ? { device: d.device } : {}) };
   }
 
   /** R4: this person's Shortcuts tokens (never the hash). */
-  shortcutTokens(): { id: string; label: string; scopes: ShortcutScope[]; createdAt: string; lastSeen: string }[] {
-    return (this.#owner.sessions ?? []).filter((d) => d.kind === 'shortcut').map((d) => ({ id: d.id, label: d.label, scopes: [...(d.scopes ?? [])], createdAt: d.createdAt, lastSeen: d.lastSeen }));
+  shortcutTokens(): { id: string; label: string; scopes: ShortcutScope[]; createdAt: string; lastSeen: string; device?: 'watch' }[] {
+    return (this.#owner.sessions ?? []).filter((d) => d.kind === 'shortcut').map((d) => ({ id: d.id, label: d.label, scopes: [...(d.scopes ?? [])], createdAt: d.createdAt, lastSeen: d.lastSeen, ...(d.device ? { device: d.device } : {}) }));
   }
 
   /** Phase 71: whether a device or app sign-in with this id is listed here (routing only; tokens are still checked). */

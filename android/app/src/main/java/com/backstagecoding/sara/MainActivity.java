@@ -133,6 +133,13 @@ public class MainActivity extends Activity {
         else showWeb(server, getIntent());
     }
 
+    /** V5.6: the phone fallback model gives its memory back when Android asks for it. */
+    @Override
+    public void onTrimMemory(int level) {
+        super.onTrimMemory(level);
+        if (level >= TRIM_MEMORY_BACKGROUND) LocalModel.closeModel();
+    }
+
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
@@ -1597,6 +1604,17 @@ public class MainActivity extends Activity {
         public void serverName(String name) {
             Servers.Profile p = Servers.active(MainActivity.this);
             if (p != null) Servers.rename(MainActivity.this, p.id, name, false);
+        }
+
+        /**
+         * V5.6: the phone fallback model (LocalModel): status, on, download, remove, ask, cancel.
+         * An answer arrives later through window.saraLocalModel(id, json) (web/offline-answer.js).
+         */
+        @JavascriptInterface
+        public String localModel(String op, String json) {
+            return LocalModel.op(MainActivity.this, op, json, (id, r) -> runOnUiThread(() -> {
+                if (web != null) web.evaluateJavascript("window.saraLocalModel&&window.saraLocalModel(" + JSONObject.quote(id) + "," + JSONObject.quote(r) + ")", null);
+            }));
         }
 
         /** Settings kept on the phone: instant, lockPrivate, appLock. */

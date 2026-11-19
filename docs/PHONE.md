@@ -105,6 +105,11 @@ The iPhone app isn't in the App Store. Add Sara to the Home Screen from Safari f
 the badge, and use Apple Shortcuts for the share sheet, Siri and a widget: Settings → Connections →
 **iPhone Shortcuts**. [IPHONE.md](IPHONE.md)
 
+## Wear OS watch (D2)
+
+A tile with today's reminders, what waits on you and Talk. Pair it with the code the watch shows:
+Settings → Connections → Phone and notifications → **Wear OS watch**. [WEAR.md](WEAR.md)
+
 ## Siri on iPhone (2.1)
 
 Say **"Ask Sara"** (or use the *Ask Sara* action in Shortcuts), say your message, and Siri speaks her

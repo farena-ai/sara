@@ -174,6 +174,10 @@ A kept app is the same kind of untrusted code as a preview, kept on the server (
 - Its data store (`_data/<name>`, 100 names, 64 KB each, 1 MB in all) is per app: the open link
   reads and writes, a share link (expiring, revocable at once) only reads. Undo never touches it;
   deleting the app deletes it.
+- Live views in chat (D3, docs/LIVE_VIEWS.md) ride the same door: `/myapp/<space>/cv<token>/`, the
+  same CSP, and the chat frames them with `sandbox="allow-scripts"`. A view can read its own state,
+  tick its own checklist rows (a Planner list only the to-dos it lists) and save its own data (own
+  source only). The chat card stores only the view's number; the address is fetched with the session.
 
 ### 5. A hostile repository
 - Every git command Sara runs herself has hooks, fsmonitor, pagers, external diff and text

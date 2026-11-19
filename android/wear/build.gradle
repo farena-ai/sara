@@ -1,0 +1,41 @@
+apply plugin: 'com.android.application'
+
+// D2 (docs/WEAR.md): Sara's Wear OS watch app. A tile (today, what waits on you, Talk) and a small
+// setup screen. Standalone: it talks to your Sara server itself: no phone app or Google services
+// in between. Its version follows the phone app's (app/build.gradle).
+def appGradle = rootProject.file('app/build.gradle').text
+def appVersion = (appGradle =~ /versionName '([^']+)'/)[0][1]
+def appCode = ((appGradle =~ /versionCode (\d+)/)[0][1]) as int
+
+android {
+    namespace 'com.backstagecoding.sara.wear'
+    compileSdk 36
+
+    defaultConfig {
+        // The phone app's id: app stores pair a watch app with its phone app by it.
+        applicationId 'com.backstagecoding.sara'
+        minSdk 30
+        targetSdk 34
+        // Its own number line next to the phone's (an APK per device type needs its own code).
+        versionCode appCode * 10 + 1
+        versionName appVersion
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}
+
+dependencies {
+    // Tiles are only possible through these Jetpack libraries (Apache 2.0, from Google's Maven).
+    implementation 'androidx.wear.tiles:tiles:1.4.1'
+    implementation 'androidx.wear.protolayout:protolayout:1.2.1'
+    implementation 'androidx.concurrent:concurrent-futures:1.2.0'
+}

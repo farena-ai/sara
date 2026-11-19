@@ -52,6 +52,11 @@ release steps: [docs/ops/C18_PLAY_RELEASE.md](../docs/ops/C18_PLAY_RELEASE.md).
 
 ## What it does besides the web app
 
+- **Answers while offline (V5.6)**: an optional small model on the phone gives short answers while
+  the server is away, marked "Offline answer" and added to the chat later (docs/OFFLINE.md). Run
+  `./fetch-llm-libs.sh` before building to include its engine (llama.cpp, MIT; arm64, and the x86_64
+  emulator with `--emulator`); without it the app builds as before. The 490 MB model is downloaded
+  by the app only when you tap Download in Settings.
 - **Reply from a notification**: type into her notification; her answer comes back as one.
 - **Send to Sara**: share text, links or photos from any app; they land in the message box. PDFs,
   Office files and tables (N5b) go to her Library through `POST /api/phone/share`, and a new chat
@@ -127,3 +132,8 @@ the launcher's shape.
   disclosure (*Place reminders use your location*, Play's prominent-disclosure rule; tested in
   `test/c18-android-release.test.ts`). Play answers and videos: `docs/ops/PLAY_SUBMIT_2880.md`.
 - iPhone: see `ios/README.md`.
+
+## The watch app (D2)
+
+`android/wear` is a separate Wear OS app: a tile (today, what waits on you, Talk) that pairs with a
+short code typed in Sara. Build it with `./gradlew :wear:assembleDebug`. See [docs/WEAR.md](../docs/WEAR.md).

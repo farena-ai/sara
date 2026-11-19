@@ -183,6 +183,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // U4.23: the learning coach (docs/LEARNING.md).
   [/^study_(make|list|quiz|answer)$/, 'study', 'study cards and quizzes'],
   [/^app_(keep|edit|undo|read|list)$/, 'myapps', 'apps she built for you'],
+  // D3: live views in chat (docs/design/LIVE_CANVAS.md).
+  [/^canvas_(post|update|list)$/, 'canvas', 'live checklists, tables and charts in the chat'],
   // U4.28: picture editing and short video with ComfyUI (docs/PICTURES.md).
   [/^(picture_edit|video_make)$/, 'media', 'picture editing and video'],
   // S2: meeting notes (docs/MEETINGS.md).
@@ -366,6 +368,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'bild bearbeiten', 'foto bearbeiten', 'entferne', 'hintergrund', 'hochskalieren', 'kurzes video', 'animieren',
     'editar a foto', 'editar a imagem', 'remova', 'apague', 'fundo', 'aumentar', 'video curto',
     'modifica la foto', 'rimuovi', 'cancella', 'sfondo', 'ingrandisci', 'video breve', 'animare'],
+  // D3 (docs/design/LIVE_CANVAS.md): live checklists, tables and charts in the chat.
+  canvas: ['checklist', 'check list', 'live view', 'live list', 'live table', 'live chart', 'canvas', 'chart', 'graph', 'table of', 'packing list', 'to do list', 'todo list', 'tick off', 'keep track', 'track my', 'show my tasks', 'my to dos',
+    'lista de verificacion', 'lista de tareas', 'grafico', 'tabla', 'lista para empacar',
+    'liste de controle', 'liste de taches', 'graphique', 'tableau', 'liste a cocher',
+    'checkliste', 'abhakliste', 'diagramm', 'tabelle', 'packliste', 'aufgabenliste',
+    'lista de verificacao', 'lista de tarefas', 'grafico', 'tabela',
+    'lista di controllo', 'lista delle cose', 'grafico', 'tabella', 'lista da spuntare'],
   // V3.1 (docs/MY_APPS.md): small web apps she builds and keeps on Library → My apps.
   myapps: ['make me an app', 'build me an app', 'build an app', 'make an app', 'an app for', 'little app', 'small app', 'mini app', 'web app', 'my apps', 'keep the app', 'keep this app', 'save the app', 'the app you made', 'the app you built', 'undo the app', 'tracker app',
     'hazme una app', 'crea una app', 'una aplicacion', 'mis apps', 'mis aplicaciones',

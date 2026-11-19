@@ -42,6 +42,25 @@
         <button id="save" type="button" data-t="savePage"></button>
         <button id="fill" type="button" data-t="fillForm"></button>
       </div>
+      <div class="row one"><button id="teach" type="button" data-t="teach"></button></div>
+    </div>
+    <div id="teach-rec" class="card rec" hidden>
+      <p><strong data-t="teachTitle"></strong></p>
+      <p id="teach-count" class="small"></p>
+      <p class="muted small" data-t="teachHow"></p>
+      <div class="row one"><button id="teach-stop" class="primary" type="button" data-t="teachStop"></button></div>
+    </div>
+    <div id="teach-card" class="card" hidden>
+      <p><strong data-t="teachReview"></strong></p>
+      <p class="muted small" data-t="teachReviewHow"></p>
+      <ol id="teach-list" class="teach-steps"></ol>
+      <label class="field"><span data-t="teachNameLabel"></span><input id="teach-name" type="text" maxlength="80"></label>
+      <label class="field"><span data-t="teachWhyLabel"></span><textarea id="teach-why" rows="2" maxlength="400"></textarea></label>
+      <div class="row">
+        <button id="teach-send" class="primary" type="button" data-t="teachSend"></button>
+        <button id="teach-replay" type="button" data-t="teachReplay"></button>
+      </div>
+      <p><button id="teach-discard" class="link" type="button" data-t="teachDiscard"></button></p>
     </div>
     <div id="out" class="out" hidden>
       <p id="notice" class="notice" hidden></p>

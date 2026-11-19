@@ -29,4 +29,6 @@ quiz for the kids) can be kept on your own Sara server, with every version and a
 - It is served by your own server only (the address is on your Sara). Each household member keeps
   their own apps in their own space.
 
+Live checklists, tables and charts she posts in a chat are listed here too: see [Live views in chat](LIVE_VIEWS.md).
+
 Details for developers: [design](design/MY_APPS.md), [threat model](THREAT_MODEL.md).

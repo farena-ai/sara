@@ -34,10 +34,20 @@
 //   POST   /api/skills/tidy                    { action: archive | keep | later | merge | not-same | merge-later }
 //   POST   /api/skills/:scope/:name/archive    archive one by hand (any skill but a broken one)
 //   POST   /api/skills/:scope/:name/bring-back out of Archived
+// D1 (docs/design/D1TEACH.md): steps shown in the browser extension (src/teach.ts):
+//   GET    /api/skills/taught                  the recordings waiting, each with its steps in words and a skill draft
+//   POST   /api/skills/taught/:id              { action: skill | automation | discard, draft?: { name, description, body } }
+//                                               automation = the skill (saved first if needed) + an Automations
+//                                               entry created switched off
+import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { isPrivateLocalError } from '../net-guard.ts';
 import { fromFolder, fromGit, fromZip, PackageError, SKILL_LIMITS } from '../packages.ts';
+import { automationsFor } from '../automations.ts';
+import { en } from '../i18n.ts';
+import { automationDraftOf, skillDraftOf, stepLine, TaughtStore, titleOf } from '../teach.ts';
+import { SKILL_NAME_RE, slugify, uniqueName } from '../skills.ts';
 import { checkServerFolder, isScope, type SkillStore, type SkillView } from '../skill-store.ts';
 import { tidyAnswer, tidyCard, type TidyAction } from '../skill-tidy.ts';
 import { LOOKBACK_CHOICES, PER_DAY_CHOICES, type SkillLearner, TIMES_CHOICES } from '../skill-learning.ts';
@@ -243,6 +253,48 @@ export function createSkillRoutes(ctx: RouteCtx): RouteHandler {
       }
     }
 
+    if (a === 'skills' && b === 'taught') {
+      const taught = new TaughtStore(app.dataDir, () => app.now());
+      if (!c && method === 'GET') return send(res, 200, { taught: taught.list().map((t) => ({ ...t, title: titleOf(t), lines: t.steps.map(stepLine), draft: skillDraftOf(t) })) });
+      if (c && !d && method === 'POST') {
+        const item = taught.get(c);
+        if (!item) throw new HttpError(404, en('That recording is gone.'));
+        const body = await readJson(req);
+        const action = String(body.action ?? '');
+        if (action === 'discard') {
+          taught.remove(c);
+          publish();
+          return send(res, 200, { ok: true });
+        }
+        if (action !== 'skill' && action !== 'automation') throw new HttpError(400, en('Choose Save as a skill, Make an automation or Delete.'));
+        let skillName = item.skillName && skills.list().some((s) => s.scope === 'companion' && s.name === item.skillName) ? item.skillName : undefined;
+        if (!skillName) {
+          const draft = body.draft && typeof body.draft === 'object' ? (body.draft as Record<string, unknown>) : {};
+          const auto = skillDraftOf(item);
+          const want = String(draft.name ?? '').trim() || auto.name;
+          const root = skills.dirOf('companion');
+          const name = uniqueName(SKILL_NAME_RE.test(want) ? want : slugify(want), (x) => existsSync(join(root, x)));
+          try {
+            const v = skills.save('companion', { name, description: String(draft.description ?? '').trim() || auto.description, body: String(draft.body ?? '').trim() ? String(draft.body) : auto.body, metadata: { 'sara-taught': item.startUrl || 'browser' } }, { create: true, source: 'made', why: 'shown in the browser', origin: 'taught' });
+            skillName = v.name;
+          } catch (err) {
+            return asHttp(err);
+          }
+          taught.patch(c, { skillName });
+        }
+        if (action === 'automation') {
+          const list = automationsFor(app);
+          const made = list.create(automationDraftOf(item, skillName), { by: 'settings' });
+          list.setEnabled(made.id, false);
+          taught.remove(c);
+          publish();
+          return send(res, 200, { skill: { scope: 'companion', name: skillName }, automation: { id: made.id, name: made.name } });
+        }
+        publish();
+        return send(res, 200, { skill: { scope: 'companion', name: skillName } });
+      }
+      throw new HttpError(405, 'Method not allowed');
+    }
     if (a === 'skills' && b === 'learning') {
       const learner = app.learning;
       if (!learner) {

@@ -246,7 +246,7 @@ Wave 3:
 
 ## Wave 7: reach further
 
-**V5.6 Phone fallback model** (item 36) · PARTIAL · L
+**V5.6 Phone fallback model** (item 36) · DONE (2026-11-18, [V5_PHONE_MODEL.md](V5_PHONE_MODEL.md), docs/OFFLINE.md) · L
 - Exists: docs/OFFLINE.md (read-only recent chats, outbox).
 - Build: an optional small on-phone model in the Android app for short answers while the server is
   away, marked "offline answer"; synced back when online.
@@ -269,7 +269,7 @@ Wave 3:
   and runs sandboxed with no Sara session.
 - Acceptance: a checklist card updates live; its script cannot read the page.
 
-**D8 Second opinion** · PARTIAL · S
+**D8 Second opinion** · DONE (docs/design/D8SECOND.md) · S
 - Exists: `src/modelpicks.ts` (blind side-by-side), `src/auto-route.ts`.
 - Build: "Get a second opinion" on any reply: two other connected models answer, the differences
   highlighted; spend shown first.

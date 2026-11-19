@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The tile picker's picture: a round face with lines, a badge and the Talk pill. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" android:width="192dp" android:height="192dp" android:viewportWidth="192" android:viewportHeight="192">
+    <path android:fillColor="#FF000000" android:pathData="M96,0a96,96 0,1 1,0 192a96,96 0,1 1,0 -192z" />
+    <path android:fillColor="#FFB9B0FF" android:pathData="M76,30h40v8h-40z" />
+    <path android:fillColor="#FFFFFFFF" android:pathData="M40,56h112v8h-112z M40,74h100v8h-100z M40,92h88v8h-88z" />
+    <path android:fillColor="#FFFFC46B" android:pathData="M50,114h92v10h-92z" />
+    <path android:fillColor="#FF7C6CF2" android:pathData="M66,140h60a14,14 0,0 1,0 28h-60a14,14 0,0 1,0 -28z" />
+</vector>

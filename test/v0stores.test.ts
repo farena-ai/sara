@@ -56,7 +56,7 @@ test('per-store manifests: Edge = Chrome (service worker), Firefox gets gecko id
   assert.equal(g.id, GECKO_ID);
   assert.match(g.id, /^[\w.-]+@[\w.-]+$/);
   assert.equal(g.strict_min_version, '140.0', 'built-in data consent needs Firefox 140');
-  assert.deepEqual([...g.data_collection_permissions.required].sort(), ['browsingActivity', 'websiteContent']);
+  assert.deepEqual([...g.data_collection_permissions.required].sort(), ['browsingActivity', 'websiteActivity', 'websiteContent']);
   assert.equal(ff.browser_specific_settings.gecko_android.strict_min_version, '142.0', 'web-ext lint: Android got the key in 142');
   // Same least-privilege permissions in every build.
   for (const m of [chrome, ff]) {
@@ -101,7 +101,7 @@ test('pack-extension writes sara-chrome/edge/firefox zips, a source zip for AMO 
     assert.equal(edge.get('manifest.json')!.toString(), chrome.get('manifest.json')!.toString());
     assert.ok(chrome.has('manifest.json') && chrome.has('_locales/pt_BR/messages.json') && chrome.has('icons/icon128.png'));
     assert.ok(![...chrome.keys()].some((k) => /\.md$|\.test\.|^\./.test(k)), 'no notes or tests in a store zip');
-    assert.equal(JSON.parse(ff.get('manifest.json')!.toString()).browser_specific_settings.gecko.data_collection_permissions.required.length, 2);
+    assert.equal(JSON.parse(ff.get('manifest.json')!.toString()).browser_specific_settings.gecko.data_collection_permissions.required.length, 3);
     assert.equal(JSON.parse(chrome.get('manifest.json')!.toString()).version, version);
     const src = unzip(readFileSync(join(out, `sara-extension-source-${version}.zip`)));
     for (const k of ['extension/manifest.json', 'extension/popup.js', 'scripts/pack-extension.ts', 'src/zip-write.ts', 'BUILD.md']) assert.ok(src.has(k), `source zip has ${k}`);

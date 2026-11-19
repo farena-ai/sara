@@ -61,7 +61,7 @@ They come from a throwaway Sara with made-up data (a plant-care page, "Alex Rive
 | Permission | Why it is needed | Why nothing smaller works |
 |---|---|---|
 | `activeTab` | Read the tab you are on, only when you click the toolbar button or a right-click entry. | No standing access to any site; the grant ends when you leave the tab. |
-| `scripting` | Inject the two page readers (`lib/extract.js`, `lib/fields.js`) into that tab after the click: one reads the readable text, one lists form fields and types approved values. | `activeTab` alone can't run code in the page; no content scripts are declared, so nothing runs on pages by itself. |
+| `scripting` | Inject the page helpers (`lib/extract.js`, `lib/fields.js`, `lib/teach.js`) into that tab after the click: one reads the readable text, one lists form fields and types approved values, one records or replays the steps of Watch me do this. | `activeTab` alone can't run code in the page; no content scripts are declared, so nothing runs on pages by itself. |
 | `storage` | Keep your Sara's address, the device token and your "off on this site" list, plus a hand-over from the right-click menu to the popup. | Nothing is synced; it stays in this browser. |
 | `contextMenus` | The two right-click entries: "Ask Sara about the selection" and "Save this page to Sara's Library". | No other way to add them. |
 | `http://*/*`, `https://*/*` (optional host permission) | Asked once at pairing **for your Sara's address only** (e.g. `https://sara.example.com/*`), so the extension can call your own server. It is never asked for any other site. | Your server's address is yours to choose, so it can't be listed in advance; it is optional, so nothing is granted at install (checked live in a fresh profile). |
@@ -74,7 +74,8 @@ reviewer*):
 > (or the Windows installer from the latest release), open it at http://localhost:7860 and finish the short
 > setup. Then click the extension, type `localhost:7860`, press Connect, allow the address, and approve the
 > shown code in Sara (Settings → Connections → Devices and sign-in). The extension talks only to that
-> server, reads a page only when clicked, never fills passwords, cards or codes, and never submits forms.
+> server, reads a page only when clicked (Watch me do this: only the steps in that tab until Stop, reviewed
+> before sending), never fills or records passwords, cards or codes, and never submits forms.
 > No analytics, no remote code. Source zip with build steps attached (AMO).
 
 ### Data-use disclosures
@@ -90,7 +91,7 @@ reviewer*):
 | Personal communications | **Yes** | The question the user types to their own Sara. |
 | Location | No | |
 | Web history | **Yes** | The address and title of the page the user clicks on (one page, on click). |
-| User activity | No | No clicks, keystrokes or scrolling are recorded. |
+| User activity | **Yes** | Only after the user presses Watch me do this, in that one tab until Stop: what they clicked and typed (never password, card, code or ID values), reviewed by the user before it is sent. No keystroke-by-keystroke logs, no scrolling or mouse movement. |
 | Website content | **Yes** | The readable text of the page the user asks about or saves. |
 
 Tick all three certifications: not sold or transferred to third parties; not used for anything unrelated
@@ -100,7 +101,7 @@ to the single purpose; not used for creditworthiness or lending.
 → privacy policy URL above. Category Productivity. Mature content: No.
 
 **Firefox:** the manifest already declares `data_collection_permissions` (required:
-`websiteContent`, `browsingActivity`); Firefox shows them at install. In the AMO form, answer that the
+`websiteContent`, `browsingActivity`, `websiteActivity` for Watch me do this); Firefox shows them at install. In the AMO form, answer that the
 add-on sends data only to a server the user chooses (their own Sara), link the privacy policy, and pick
 **Firefox** (desktop) only: Firefox for Android has no right-click menus and is untested.
 

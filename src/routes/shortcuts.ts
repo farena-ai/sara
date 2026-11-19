@@ -6,6 +6,9 @@
 //   POST /api/shortcuts/ask     {text} (JSON, a form or plain text) -> a turn in this iPhone's "Siri"
 //                               chat: at most two sentences (text) or JSON {say, url, later?}
 //   GET  /api/shortcuts/widget  plain lines: next reminder, watches, what waits for you
+// D2 (docs/WEAR.md), a Wear OS watch: POST /api/shortcuts/wear/pair (no sign-in) -> {code, poll};
+//   GET /api/shortcuts/wear/pair/<poll> -> 202 waiting, 200 {token, name} once, 404; signed in:
+//   POST /api/shortcuts/wear/claim {code, label}; with the watch's token GET /api/shortcuts/wear (glance).
 // Signed in (Settings → Connections → Phone and notifications → iPhone Shortcuts): GET /api/shortcuts, POST /api/shortcuts/tokens
 // {label, scopes}, DELETE /api/shortcuts/tokens/<id>, PUT /api/shortcuts/links (owner: iCloud links).
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -18,6 +21,7 @@ import { externalTurn } from '../other-apps.ts';
 import { qrSvg } from '../qr.ts';
 import { browserOrigin } from '../reach.ts';
 import { SC_LINES, ShortcutLimiter, ShortcutLinksFile, shortAnswer, waitingCount, widgetLines } from '../shortcuts.ts';
+import { normalizeCode, WEAR_LINES, wearGlance, wearPairing } from '../wear.ts';
 import { phoneWidgetExtras } from './her.ts';
 import { readShare, shareInto, type SharedInput } from './phone.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -47,10 +51,10 @@ export function linkFromFile(input: SharedInput): SharedInput {
 }
 
 /** This iPhone's own "Siri" conversation (one per token). */
-export function siriConversation(app: RouteCtx['app'], tokenId: string): string {
+export function siriConversation(app: RouteCtx['app'], tokenId: string, title = 'Siri'): string {
   const found = app.store.findChannelConversation(SHORTCUTS_CHANNEL, tokenId);
   if (found) return found.id;
-  return app.store.createConversation({ title: 'Siri', channel: SHORTCUTS_CHANNEL, channelKey: tokenId }).id;
+  return app.store.createConversation({ title, channel: SHORTCUTS_CHANNEL, channelKey: tokenId }).id;
 }
 
 export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; linksDir?: string }): { publicRoutes: RouteHandler; routes: RouteHandler } {
@@ -77,7 +81,7 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
     res.end(say);
   }
 
-  function check(req: IncomingMessage, route: 'share' | 'ask' | 'widget'): { id: string; label: string; scopes: ShortcutScope[] } {
+  function check(req: IncomingMessage, route: 'share' | 'ask' | 'widget'): { id: string; label: string; scopes: ShortcutScope[]; device?: 'watch' } {
     const ip = clientIp(req, ctx.opts.trustProxy);
     if (wrong.blocked(ip)) throw new HttpError(429, SC_LINES.slow);
     const tok = auth.shortcutToken(bearer(req));
@@ -106,10 +110,10 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
     return raw;
   }
 
-  async function ask(req: IncomingMessage, res: ServerResponse, tok: { id: string }): Promise<void> {
+  async function ask(req: IncomingMessage, res: ServerResponse, tok: { id: string; device?: 'watch' }): Promise<void> {
     const text = (await readAsk(req)).trim().slice(0, ASK_MAX);
     if (!text) return answer(req, res, 400, tr(SC_LINES.empty));
-    const convId = siriConversation(app, tok.id);
+    const convId = siriConversation(app, tok.id, tok.device === 'watch' ? 'Watch' : 'Siri');
     const url = `${origin(req)}/#c=${convId}`;
     const started = Date.now();
     let late = false;
@@ -138,6 +142,24 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
 
   const publicRoutes: RouteHandler = async (req, res, method, parts) => {
     const [a, b] = parts;
+    // D2: a watch pairs without any sign-in (a short code the person types in Sara).
+    if (a === 'shortcuts' && b === 'wear' && parts[2] === 'pair') {
+      if (method === 'POST' && parts.length === 3) {
+        if (ctx.opts.demo) throw new HttpError(403, 'Not on the demo.');
+        if (privateLocalOn()) throw new HttpError(403, tr(SC_LINES.privateLocal));
+        const ip = clientIp(req, ctx.opts.trustProxy);
+        if (wrong.blocked(ip)) throw new HttpError(429, tr(WEAR_LINES.tooMany));
+        const started = wearPairing.start(LoginLimiter.key(ip));
+        if (!started) throw new HttpError(429, tr(WEAR_LINES.tooMany));
+        return send(res, 201, started);
+      }
+      if (method === 'GET' && parts.length === 4) {
+        const got = wearPairing.take(parts[3]!);
+        if (got.state === 'pending') return send(res, 202, { state: 'pending' });
+        if (got.state === 'gone') throw new HttpError(404, tr(WEAR_LINES.badCode));
+        return send(res, 200, { token: got.token, name: got.name });
+      }
+    }
     if (a !== 'shortcuts' || parts.length !== 2) return NEXT;
     // Only a Shortcuts token here; a signed-in page uses the routes below.
     if (!bearer(req).startsWith(SHORTCUT_TOKEN_PREFIX)) return NEXT;
@@ -156,6 +178,10 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
       res.writeHead(200, { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store' });
       return void res.end(lines.join('\n'));
     }
+    if (b === 'wear' && method === 'GET') {
+      check(req, 'widget');
+      return send(res, 200, wearGlance(app, waitingCount(active, app)));
+    }
     return NEXT;
   };
 
@@ -164,7 +190,8 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
     const [a, b, c] = parts;
     if (a !== 'shortcuts') return NEXT;
     if (ctx.opts.demo) throw new HttpError(403, 'Not on the demo.');
-    const view = (r: IncomingMessage) => ({ server: origin(r), tokens: auth.shortcutTokens(), links: links.get(), owner: !ctx.opts.member, privateLocal: privateLocalOn() });
+    const all = () => auth.shortcutTokens();
+    const view = (r: IncomingMessage) => ({ server: origin(r), tokens: all().filter((t) => t.device !== 'watch'), watches: all().filter((t) => t.device === 'watch'), links: links.get(), owner: !ctx.opts.member, privateLocal: privateLocalOn() });
     if (!b && method === 'GET') return send(res, 200, view(req));
     if (b === 'tokens' && !c && method === 'POST') {
       // A token made by an app that signed in with its own token could outlive that app's sign-in: the web page only.
@@ -180,6 +207,21 @@ export function createShortcutRoutes(ctx: RouteCtx & { askBudgetMs?: number; lin
       audit({ action: 'shortcuts.token', who: who(), role: role(), channel: 'web', outcome: 'ok', keys: made.scopes });
       const qr = `data:image/svg+xml;base64,${Buffer.from(qrSvg(made.token)).toString('base64')}`;
       return send(res, 201, { ...made, qr, ...view(req) });
+    }
+    if (b === 'wear' && c === 'claim' && method === 'POST') {
+      // D2: the code a watch shows. Like tokens: from the signed-in web page only.
+      if (String(req.headers.authorization ?? '').startsWith('Bearer ')) throw new HttpError(403, 'Make Shortcuts tokens in the Sara web app.');
+      const body = await readJson(req, 4096);
+      const label = String(body.label ?? '').replace(/\s+/g, ' ').trim() || tr(WEAR_LINES.label);
+      let ok = false;
+      try {
+        ok = wearPairing.claim(normalizeCode(String(body.code ?? '')), () => ({ token: auth.createShortcutToken(label, ['ask'], 'watch').token, name: app.persona.name }));
+      } catch (err) {
+        throw new HttpError(400, (err as Error).message);
+      }
+      audit({ action: 'shortcuts.wear', who: who(), role: role(), channel: 'web', outcome: ok ? 'ok' : 'refused' });
+      if (!ok) throw new HttpError(400, tr(WEAR_LINES.badCode));
+      return send(res, 201, view(req));
     }
     if (b === 'tokens' && c && method === 'DELETE') {
       if (!auth.shortcutTokens().some((x) => x.id === c)) throw new HttpError(404, 'Not found');

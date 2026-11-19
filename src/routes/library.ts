@@ -18,6 +18,7 @@ import { MIME as DOC_MIME } from '../documents/spec.ts';
 import { scanRoute } from '../scan.ts';
 import { journalRoute } from '../journal.ts';
 import { myAppsRoute } from '../my-apps.ts';
+import { canvasRoute } from '../canvas.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
@@ -166,6 +167,8 @@ export function createLibraryRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'journal') return journalRoute(app, req, res, method, c, parts[3]);
       // V3.1 My apps: the person's own kept web apps (src/my-apps.ts), with or without documents.
       if (b === 'apps') return myAppsRoute(app, req, res, method, c, parts[3]);
+      // D3: live views she posted in chats (src/canvas.ts).
+      if (b === 'canvases') return canvasRoute(app, req, res, method, c);
       const lib = app.library;
       if (!lib) throw new HttpError(404, 'The library is not available');
       // E5: `revision` (the first 12 of the sha) lets Read together say which version it shares.

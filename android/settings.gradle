@@ -6,4 +6,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = 'sara-android'
-include ':app'
+include ':app', ':wear'

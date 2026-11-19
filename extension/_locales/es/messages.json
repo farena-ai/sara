@@ -157,5 +157,86 @@
  },
  "storeDescription": {
   "message": "Sara es una compañera de IA personal que ejecutas en tu propio servidor o PC. Esta extensión conecta tu navegador con TU Sara, y con nada más.\n\nEn la página en la que estás:\n• Pregunta a Sara por esta página: lee el texto de la página y responde en la ventana emergente. Sigue la conversación en Sara con un clic.\n• Resumir: un resumen breve de la página.\n• Guardar en la Biblioteca: el texto y la dirección de la página se guardan en su Biblioteca como documento.\n• Rellenar este formulario: Sara propone valores de Mis datos. Ves cada campo, desmarca o cambia lo que quieras y luego apruebas. No se escribe nada antes de tu aprobación y el formulario nunca se envía por ti.\n• Clic derecho en un texto seleccionado para preguntar por él, o en una página para guardarla.\n• Desactivada en este sitio: un interruptor, y nada de ese sitio se lee ni se envía.\n\nPrivacidad y seguridad:\n• Los datos van solo al servidor de Sara que emparejas. Sin analítica, sin anuncios, sin otros servidores, sin código remoto.\n• Una página se lee solo cuando haces clic. Nada se ejecuta en segundo plano.\n• Nunca se rellenan: contraseñas, tarjetas de pago, códigos de un solo uso ni números de identificación.\n• El emparejamiento usa un código corto que apruebas dentro de Sara. Desconecta en la ventana emergente, o cierra su sesión en Sara, y su acceso termina al instante.\n\nNecesitas un servidor de Sara (gratuito y de código abierto). Más información e instalación en https://github.com/farena-ai/sara"
+ },
+ "teach": {
+  "message": "Mira cómo lo hago"
+ },
+ "teachTitle": {
+  "message": "Mirando lo que haces"
+ },
+ "teachHow": {
+  "message": "Haz la tarea en esta pestaña como siempre. Las contraseñas, tarjetas y códigos nunca se graban. Abre esto otra vez y pulsa Detener cuando termines."
+ },
+ "teachStop": {
+  "message": "Detener"
+ },
+ "teachRecording": {
+  "message": "$1 pasos hasta ahora."
+ },
+ "teachPaused": {
+  "message": "En pausa en esta página: el navegador necesita un clic en el botón de Sara aquí para seguir mirando."
+ },
+ "teachStarted": {
+  "message": "Mirando. Haz la tarea ahora."
+ },
+ "teachReview": {
+  "message": "Los pasos que mostraste"
+ },
+ "teachReviewHow": {
+  "message": "Desmarca los pasos que no quieras. Sara hace con ellos una habilidad o un borrador de automatización que revisas en Sara."
+ },
+ "teachNameLabel": {
+  "message": "Cómo llamarlo"
+ },
+ "teachWhyLabel": {
+  "message": "Para qué sirve (opcional)"
+ },
+ "teachSend": {
+  "message": "Enviar a Sara"
+ },
+ "teachReplay": {
+  "message": "Repetir aquí"
+ },
+ "teachDiscard": {
+  "message": "Descartar"
+ },
+ "teachDiscarded": {
+  "message": "Descartado. No se envió nada."
+ },
+ "teachSent": {
+  "message": "Enviado a Sara como «$1». Revísalo en Sara: guárdalo como habilidad o haz una automatización."
+ },
+ "teachOpen": {
+  "message": "Revisar en Sara"
+ },
+ "teachEmpty": {
+  "message": "No se grabó ningún paso."
+ },
+ "teachReplaying": {
+  "message": "Repitiendo los pasos…"
+ },
+ "teachReplayed": {
+  "message": "Listo: $1 pasos repetidos."
+ },
+ "teachReplayedYou": {
+  "message": "Listo: $1 pasos repetidos. Estos los escribes tú: $2"
+ },
+ "teachMissing": {
+  "message": "Detenido: en esta página nada coincide con «$1»."
+ },
+ "teachGo": {
+  "message": "Abrir $1"
+ },
+ "teachClick": {
+  "message": "Hacer clic en «$1»"
+ },
+ "teachType": {
+  "message": "Escribir «$1» en «$2»"
+ },
+ "teachPick": {
+  "message": "Elegir «$1» en «$2»"
+ },
+ "teachSecret": {
+  "message": "«$1»: lo escribes tú (no se graba)"
  }
 }

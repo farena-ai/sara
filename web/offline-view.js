@@ -5,6 +5,7 @@
 // Note changes are added to the end of the note (never overwriting what changed meanwhile).
 import { asOfText } from './offline-sync.js';
 import { withPending } from './offline-lists.js';
+import { answerOffline, phoneModel } from './offline-answer.js';
 
 /**
  * Every word this view shows, through `t` (the app's translations). The app saves them with the
@@ -49,6 +50,10 @@ export function offlineWords(t) {
     add: t('Add'),
     willSync: t('Will sync when online'),
     willSend: t('Will send when online'),
+    // V5.6: the phone's own small model answers while the server is away.
+    offlineAnswer: t('Offline answer'),
+    offlineFrom: t('From the small model on this phone; it is added to the chat when you are back online.'),
+    thinking: t('Thinking on this phone…'),
   };
 }
 const fill = (s, vars = {}) => Object.entries(vars).reduce((out, [k, v]) => out.split(`{${k}}`).join(String(v)), String(s));
@@ -70,9 +75,12 @@ function button(text, cls, onClick) {
  * Shows the view. `copy` is the device's copy (web/offline-store.js), `words` offlineWords(t),
  * `onRetry` checks the connection now (resolves true when back).
  */
-export function mountOfflineView({ copy, words, onRetry, root = document.body, locale, herName }) {
+export function mountOfflineView({ copy, words, onRetry, root = document.body, locale, herName, model, kid = false }) {
   const W = { ...offlineWords((s) => s), ...(words ?? {}) };
   if (herName) W.her = herName;
+  // V5.6: never for a child's account (the app saves that with the words for the offline page).
+  const pm = kid || W.noPhoneModel ? null : (model ?? phoneModel(globalThis));
+  const thinking = new Set();
   const view = el('div', 'offv');
   view.id = 'offline-view';
   view.setAttribute('role', 'region');
@@ -206,7 +214,14 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
       b.append(el('div', 'offv-who', m.role === 'user' ? W.you : W.her), el('div', 'offv-text', m.content));
       msgs.append(b);
     }
-    for (const item of outbox.filter((x) => x.kind === 'chat' && x.conversationId === id)) msgs.append(waitingBubble(item, `${W.waiting} · ${W.willSend}`));
+    for (const item of outbox.filter((x) => x.kind === 'chat' && x.conversationId === id)) {
+      msgs.append(waitingBubble(item, `${W.waiting} · ${W.willSend}`));
+      if (item.offlineAnswer) {
+        const a = el('div', 'offv-msg her offline-answer');
+        a.append(el('div', 'offv-who', `${W.her} · ${W.offlineAnswer}`), el('div', 'offv-text', item.offlineAnswer.text), el('div', 'offv-wait', W.offlineFrom));
+        msgs.append(a);
+      } else if (thinking.has(item.id)) msgs.append(el('p', 'offv-muted offv-thinking', W.thinking));
+    }
     const form = el('form', 'offv-compose');
     const box = el('textarea', 'offv-input');
     box.id = 'offv-input';
@@ -219,8 +234,15 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!box.value.trim()) return;
-      await copy.queue({ kind: 'chat', conversationId: id, text: box.value });
+      const entry = await copy.queue({ kind: 'chat', conversationId: id, text: box.value });
       box.value = '';
+      if (pm?.usable()) {
+        thinking.add(entry.id);
+        void answerOffline({ copy, item: entry, model: pm, her: W.her, lang: W.lang ?? document.documentElement.lang }).finally(() => {
+          thinking.delete(entry.id);
+          if (picked?.kind === 'chat' && picked.id === id) void openChat(id);
+        });
+      }
       await openChat(id);
       document.getElementById('offv-input')?.focus();
     });

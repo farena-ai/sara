@@ -157,5 +157,86 @@
  },
  "storeDescription": {
   "message": "Sara est une compagne IA personnelle que vous faites tourner sur votre propre serveur ou PC. Cette extension relie votre navigateur à VOTRE Sara, et à rien d'autre.\n\nSur la page où vous êtes :\n• Demander à Sara : elle lit le texte de la page et répond dans la fenêtre de l'extension. Poursuivez la discussion dans Sara en un clic.\n• Résumer : un court résumé de la page.\n• Enregistrer dans la Bibliothèque : le texte et l'adresse de la page sont gardés dans sa Bibliothèque comme document.\n• Remplir ce formulaire : Sara propose des valeurs tirées de Mes informations. Vous voyez chaque champ, décochez ou modifiez ce que vous voulez, puis vous validez. Rien n'est saisi avant votre accord et le formulaire n'est jamais envoyé à votre place.\n• Clic droit sur un texte sélectionné pour poser une question, ou sur une page pour l'enregistrer.\n• Désactivée sur ce site : un interrupteur, et rien de ce site n'est lu ni envoyé.\n\nConfidentialité et sécurité :\n• Les données vont uniquement au serveur Sara que vous associez. Pas de statistiques, pas de publicité, pas d'autres serveurs, pas de code distant.\n• Une page n'est lue que lorsque vous cliquez. Rien ne tourne en arrière-plan.\n• Jamais remplis : mots de passe, cartes de paiement, codes à usage unique et numéros d'identité.\n• L'association utilise un code court que vous validez dans Sara. Déconnectez dans la fenêtre de l'extension, ou déconnectez-la dans Sara, et son accès prend fin aussitôt.\n\nIl vous faut un serveur Sara (gratuit et open source). En savoir plus et l'installer : https://github.com/farena-ai/sara"
+ },
+ "teach": {
+  "message": "Regarde comment je fais"
+ },
+ "teachTitle": {
+  "message": "Je regarde ce que tu fais"
+ },
+ "teachHow": {
+  "message": "Fais la tâche dans cet onglet comme d’habitude. Les mots de passe, cartes et codes ne sont jamais enregistrés. Rouvre ceci et appuie sur Arrêter quand tu as fini."
+ },
+ "teachStop": {
+  "message": "Arrêter"
+ },
+ "teachRecording": {
+  "message": "$1 étapes pour l’instant."
+ },
+ "teachPaused": {
+  "message": "En pause sur cette page : le navigateur a besoin d’un clic sur le bouton de Sara ici pour continuer."
+ },
+ "teachStarted": {
+  "message": "Je regarde. Fais la tâche maintenant."
+ },
+ "teachReview": {
+  "message": "Les étapes que tu as montrées"
+ },
+ "teachReviewHow": {
+  "message": "Décoche les étapes inutiles. Sara en fait une compétence ou un brouillon d’automatisation que tu relis dans Sara."
+ },
+ "teachNameLabel": {
+  "message": "Comment l’appeler"
+ },
+ "teachWhyLabel": {
+  "message": "À quoi ça sert (facultatif)"
+ },
+ "teachSend": {
+  "message": "Envoyer à Sara"
+ },
+ "teachReplay": {
+  "message": "Rejouer ici"
+ },
+ "teachDiscard": {
+  "message": "Jeter"
+ },
+ "teachDiscarded": {
+  "message": "Jeté. Rien n’a été envoyé."
+ },
+ "teachSent": {
+  "message": "Envoyé à Sara sous « $1 ». Relis-le dans Sara : garde-le comme compétence ou fais-en une automatisation."
+ },
+ "teachOpen": {
+  "message": "Relire dans Sara"
+ },
+ "teachEmpty": {
+  "message": "Aucune étape n’a été enregistrée."
+ },
+ "teachReplaying": {
+  "message": "Je rejoue les étapes…"
+ },
+ "teachReplayed": {
+  "message": "Fini : $1 étapes rejouées."
+ },
+ "teachReplayedYou": {
+  "message": "Fini : $1 étapes rejouées. Tu tapes ceux-ci toi-même : $2"
+ },
+ "teachMissing": {
+  "message": "Arrêté : rien sur cette page ne correspond à « $1 »."
+ },
+ "teachGo": {
+  "message": "Ouvrir $1"
+ },
+ "teachClick": {
+  "message": "Cliquer sur « $1 »"
+ },
+ "teachType": {
+  "message": "Taper « $1 » dans « $2 »"
+ },
+ "teachPick": {
+  "message": "Choisir « $1 » dans « $2 »"
+ },
+ "teachSecret": {
+  "message": "« $1 » : tu le tapes toi-même (pas enregistré)"
  }
 }

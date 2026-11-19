@@ -74,6 +74,43 @@ the message (the answer was lost on the way back) never makes a second message. 
 message gives it a fresh key; one whose send was cut off on the way can only be deleted (it may
 already be there).
 
+## Answers while offline (V5.6, Android app)
+
+In the Android app a small model **on the phone** can give a short answer while her server is away
+(design: docs/design/V5_PHONE_MODEL.md).
+
+- **Setting:** Settings → Connections → Devices and sign-in → Offline on this device → **Answers
+  while offline**: the switch, the model's state and **Download the model (490 MB)** / **Remove the
+  model**. In a browser, the Windows or Mac app it says *Only in the Android app* (messages written
+  offline wait for her as before).
+- **The model:** Qwen2.5 0.5B Instruct (Q4_K_M, Apache-2.0, 491 MB, speaks the six app languages).
+  Nothing is downloaded until you tap Download. The file comes straight from Hugging Face (a public
+  file, no account), a cut download resumes, and the whole file is checked against its pinned
+  SHA-256 before it is ever used. Remove deletes it. Wi-Fi is best.
+- **How it answers:** in a kept chat, your message waits as *Waiting to send* as before and the
+  phone's model gets the newest kept messages of that chat (up to 6) and your question, with a short
+  brief: answer in at most three sentences, no tools, internet or memory, and say when it needs her.
+  While it thinks the view says *Thinking on this phone…*; the answer shows under your message as
+  **Sara · Offline answer**. It is kept with the outbox item (encrypted like the rest of the copy).
+  Editing the message drops that answer (it answered other words).
+- **Synced once:** when the connection is back, the message goes with its answer
+  (`offlineAnswer: {text, model, at}`). The server stores both (the answer with
+  `meta.offlineAnswer`) and does **not** start a second turn, so nothing is answered twice; the same
+  key sent again is a duplicate as before. In the chat the answer carries *Offline answer · from the
+  small model on your phone* and, on the newest answer, **Ask Sara again** (the normal Regenerate:
+  she answers it with her full model).
+- **Never:** children's accounts (the page doesn't ask the model, and the server ignores an offline
+  answer from a child's device: the message gets a normal turn), off-the-record chats (never kept),
+  other people's chats. The model sees nothing the offline copy doesn't already keep, and nothing it
+  sees leaves the phone.
+- **Engine:** llama.cpp (MIT, pinned b12528) inside the signed app (`android/fetch-llm-libs.sh`,
+  `android/app/src/main/cpp/llm.c`, `LocalModel.java`); a build without it says *This copy of the app
+  has no model engine for this phone's processor*. Official arm64 phones only (and the x86_64
+  emulator with `--emulator`); older 32-bit phones have none. Answers take a few seconds on a recent
+  phone.
+- Code: `web/offline-answer.js` (bridge, prompt, keep the answer, the chat chip),
+  `src/offline-answer.ts` (check and store). Tests: `test/v5-phone-model.test.ts`.
+
 ## The offline page
 
 The service worker serves its offline page when the page itself can't load (a reload or a fresh

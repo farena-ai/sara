@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Reach further: offline answers, teach by showing, Wear OS, live views, second opinion, in 3.30.0
+
+When your server can't be reached, the Android app can answer from a small model on the phone (downloaded only
+when you ask) and syncs the reply later. In the browser extension, Watch me do this records a task once (never
+passwords or card numbers) and Sara keeps it as a skill or a paused automation. A Wear OS tile shows today and
+what's waiting, with Talk. Checklists, tables and charts in chat update themselves in a sandbox. Any reply can
+get a second opinion from two other models, with the cost shown first and the differences highlighted.
+
 ## Senses and trust: photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access, in 3.29.0
 
 Search a photo folder by place, text and people with a picture model on your own computer. Talk across two

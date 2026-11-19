@@ -57,7 +57,7 @@ export async function flushOutbox(copy, { post, get, onSent = () => {} } = {}) {
           ? await sendListChange(item, { get: get ?? ((path) => fetch(path, { cache: 'no-store' })), post })
           : item.kind === 'note'
           ? await post('/api/notes/add', { ...(item.noteId ? { id: item.noteId } : {}), title: item.title ?? '', text: item.text, clientKey: item.key, writtenAt: item.writtenAt })
-          : await post(`/api/conversations/${encodeURIComponent(item.conversationId)}/messages`, { content: item.text, clientKey: item.key });
+          : await post(`/api/conversations/${encodeURIComponent(item.conversationId)}/messages`, { content: item.text, clientKey: item.key, ...(item.offlineAnswer ? { offlineAnswer: item.offlineAnswer } : {}) });
     } catch {
       // No answer at all: it may or may not have arrived; the key decides on the next try.
       await copy.mark(item.id, { state: 'waiting' });

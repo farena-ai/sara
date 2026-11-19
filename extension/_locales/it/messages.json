@@ -157,5 +157,86 @@
  },
  "storeDescription": {
   "message": "Sara è una compagna IA personale che fai girare sul tuo server o PC. Questa estensione collega il tuo browser alla TUA Sara, e a nient'altro.\n\nSulla pagina che stai guardando:\n• Chiedi a Sara di questa pagina: legge il testo della pagina e risponde nella finestra dell'estensione. Continua la chat in Sara con un clic.\n• Riassumi: un breve riassunto della pagina.\n• Salva nella Biblioteca: il testo e l'indirizzo della pagina restano nella sua Biblioteca come documento.\n• Compila questo modulo: Sara propone valori dai Miei dati. Vedi ogni campo, togli la spunta o cambia ciò che vuoi, poi approvi. Nulla viene scritto prima della tua approvazione e il modulo non viene mai inviato al posto tuo.\n• Clic destro su un testo selezionato per chiedere di quello, o su una pagina per salvarla.\n• Spenta su questo sito: un interruttore, e nulla di quel sito viene letto o inviato.\n\nPrivacy e sicurezza:\n• I dati vanno solo al server di Sara che colleghi. Niente statistiche, niente pubblicità, niente altri server, niente codice remoto.\n• Una pagina viene letta solo quando fai clic. Nulla gira in background.\n• Mai compilati: password, carte di pagamento, codici monouso e numeri di documenti.\n• Il collegamento usa un codice breve che approvi dentro Sara. Scollega nella finestra dell'estensione, o disconnettila in Sara, e l'accesso finisce subito.\n\nTi serve un server di Sara (gratuito e open source). Scopri di più e installalo su https://github.com/farena-ai/sara"
+ },
+ "teach": {
+  "message": "Guarda come lo faccio"
+ },
+ "teachTitle": {
+  "message": "Sto guardando cosa fai"
+ },
+ "teachHow": {
+  "message": "Fai il compito in questa scheda come al solito. Password, carte e codici non vengono mai registrati. Riapri qui e premi Ferma quando hai finito."
+ },
+ "teachStop": {
+  "message": "Ferma"
+ },
+ "teachRecording": {
+  "message": "$1 passaggi finora."
+ },
+ "teachPaused": {
+  "message": "In pausa su questa pagina: il browser ha bisogno di un clic sul pulsante di Sara qui per continuare."
+ },
+ "teachStarted": {
+  "message": "Sto guardando. Fai il compito ora."
+ },
+ "teachReview": {
+  "message": "I passaggi che hai mostrato"
+ },
+ "teachReviewHow": {
+  "message": "Togli la spunta ai passaggi che non vuoi. Sara ne fa una skill o una bozza di automazione che controlli in Sara."
+ },
+ "teachNameLabel": {
+  "message": "Come chiamarlo"
+ },
+ "teachWhyLabel": {
+  "message": "A cosa serve (facoltativo)"
+ },
+ "teachSend": {
+  "message": "Invia a Sara"
+ },
+ "teachReplay": {
+  "message": "Ripeti qui"
+ },
+ "teachDiscard": {
+  "message": "Scarta"
+ },
+ "teachDiscarded": {
+  "message": "Scartato. Non è stato inviato nulla."
+ },
+ "teachSent": {
+  "message": "Inviato a Sara come «$1». Controllalo in Sara: salvalo come skill o crea un’automazione."
+ },
+ "teachOpen": {
+  "message": "Controlla in Sara"
+ },
+ "teachEmpty": {
+  "message": "Nessun passaggio registrato."
+ },
+ "teachReplaying": {
+  "message": "Ripeto i passaggi…"
+ },
+ "teachReplayed": {
+  "message": "Fatto: $1 passaggi ripetuti."
+ },
+ "teachReplayedYou": {
+  "message": "Fatto: $1 passaggi ripetuti. Questi li scrivi tu: $2"
+ },
+ "teachMissing": {
+  "message": "Fermato: in questa pagina niente corrisponde a «$1»."
+ },
+ "teachGo": {
+  "message": "Apri $1"
+ },
+ "teachClick": {
+  "message": "Fare clic su «$1»"
+ },
+ "teachType": {
+  "message": "Scrivere «$1» in «$2»"
+ },
+ "teachPick": {
+  "message": "Scegliere «$1» in «$2»"
+ },
+ "teachSecret": {
+  "message": "«$1»: lo scrivi tu (non registrato)"
  }
 }

@@ -1,7 +1,7 @@
 // U4.25 (docs/EXTENSION.md): Settings → Connections → Devices and sign-in → Browser extension. Two
 // switches in the person's own space: the extension may send pages at all, and "Fill this form" may
 // propose values from My details. Paired extensions are listed with the other devices (kind
-// 'extension'). Saves on change (not the page saver).
+// 'extension'). D1: and Watch me do this may send the steps you showed it. Saves on change (not the page saver).
 import { t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
@@ -18,6 +18,8 @@ function paint(s) {
   $('#bx-on').checked = s.on !== false;
   $('#bx-forms').checked = s.forms !== false;
   $('#bx-forms').disabled = s.on === false;
+  $('#bx-teach').checked = s.teach !== false;
+  $('#bx-teach').disabled = s.on === false;
   $('#bx-status').textContent = s.paired ? t('{n} paired: see the list below.', { n: s.paired }) : t('None paired yet.');
 }
 
@@ -25,7 +27,7 @@ export async function loadBrowserExt() {
   if (!$('#bx-box')) return;
   if (!wired) {
     wired = true;
-    for (const [id, key] of [['#bx-on', 'on'], ['#bx-forms', 'forms']]) {
+    for (const [id, key] of [['#bx-on', 'on'], ['#bx-forms', 'forms'], ['#bx-teach', 'teach']]) {
       $(id).addEventListener('change', async (e) => {
         try {
           paint(await call('PUT', { [key]: e.target.checked }));

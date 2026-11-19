@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D2: the Wear OS app's text (docs/WEAR.md). -->
+<resources>
+    <string name="app_name">Sara</string>
+    <string name="tile_label">Sara today</string>
+    <string name="tile_description">Today, what waits on you, and Talk</string>
+    <string name="setup_intro">Type the address of your Sara server, the one you open in your browser.</string>
+    <string name="server_hint">Server address</string>
+    <string name="get_code">Get a code</string>
+    <string name="code_intro">In Sara on your phone or computer: Settings → Connections → Phone and notifications → Wear OS watch. Type this code there.</string>
+    <string name="code_gone">That code ran out. Get a new one.</string>
+    <string name="cant_reach">Can\'t reach that server. Check the address.</string>
+    <string name="paired">Paired with %1$s. Add the tile: swipe on the watch face, then tap +.</string>
+    <string name="signed_out">This watch was removed in Sara. Set it up again.</string>
+    <string name="not_set_up">Tap to set up Sara on this watch.</string>
+    <string name="talk">Talk</string>
+    <string name="speak_prompt">Ask Sara</string>
+    <string name="asking">Asking: %1$s</string>
+    <string name="talk_failed">Sara didn\'t answer. Try again.</string>
+    <string name="no_speech">This watch has no speech input.</string>
+    <string name="forget">Remove from this watch</string>
+    <string name="nothing_today">Nothing else today.</string>
+    <string name="more">+%1$d more</string>
+    <string name="updated">Updated %1$s</string>
+    <string name="offline">Offline</string>
+</resources>

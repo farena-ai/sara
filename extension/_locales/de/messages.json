@@ -157,5 +157,86 @@
  },
  "storeDescription": {
   "message": "Sara ist eine persönliche KI-Begleiterin, die du auf deinem eigenen Server oder PC betreibst. Diese Erweiterung verbindet deinen Browser mit DEINER Sara und mit nichts anderem.\n\nAuf der Seite, auf der du gerade bist:\n• Sara zu dieser Seite fragen: Sie liest den Text der Seite und antwortet im Popup. Mit einem Klick geht das Gespräch in Sara weiter.\n• Zusammenfassen: eine kurze Zusammenfassung der Seite.\n• In der Bibliothek speichern: Text und Adresse der Seite werden als Dokument in ihrer Bibliothek gespeichert.\n• Dieses Formular ausfüllen: Sara schlägt Werte aus Meine Angaben vor. Du siehst jedes Feld, entfernst Häkchen oder änderst Werte und gibst dann frei. Vor deiner Freigabe wird nichts eingetragen, und das Formular wird nie für dich abgeschickt.\n• Rechtsklick auf markierten Text, um danach zu fragen, oder auf eine Seite, um sie zu speichern.\n• Auf dieser Website aus: ein Schalter, und von dieser Website wird nichts gelesen oder gesendet.\n\nDatenschutz und Sicherheit:\n• Daten gehen nur an den Sara-Server, mit dem du die Erweiterung verbindest. Keine Analyse, keine Werbung, keine anderen Server, kein nachgeladener Code.\n• Eine Seite wird nur gelesen, wenn du klickst. Im Hintergrund läuft nichts.\n• Nie ausgefüllt: Passwörter, Zahlungskarten, Einmalcodes und Ausweisnummern.\n• Die Verbindung läuft über einen kurzen Code, den du in Sara bestätigst. Trenne sie im Popup oder melde sie in Sara ab, und ihr Zugriff endet sofort.\n\nDu brauchst einen Sara-Server (kostenlos und quelloffen). Mehr dazu und Einrichtung unter https://github.com/farena-ai/sara"
+ },
+ "teach": {
+  "message": "Schau mir dabei zu"
+ },
+ "teachTitle": {
+  "message": "Ich schaue zu"
+ },
+ "teachHow": {
+  "message": "Erledige die Aufgabe in diesem Tab wie immer. Passwörter, Karten und Codes werden nie aufgezeichnet. Öffne das hier wieder und drücke Stopp, wenn du fertig bist."
+ },
+ "teachStop": {
+  "message": "Stopp"
+ },
+ "teachRecording": {
+  "message": "Bisher $1 Schritte."
+ },
+ "teachPaused": {
+  "message": "Auf dieser Seite pausiert: Der Browser braucht hier einen Klick auf Saras Knopf, damit ich weiter zuschaue."
+ },
+ "teachStarted": {
+  "message": "Ich schaue zu. Erledige die Aufgabe jetzt."
+ },
+ "teachReview": {
+  "message": "Die Schritte, die du gezeigt hast"
+ },
+ "teachReviewHow": {
+  "message": "Entferne den Haken bei Schritten, die du nicht willst. Sara macht daraus einen Skill oder einen Automatik-Entwurf, den du in Sara prüfst."
+ },
+ "teachNameLabel": {
+  "message": "Wie es heißen soll"
+ },
+ "teachWhyLabel": {
+  "message": "Wofür es ist (optional)"
+ },
+ "teachSend": {
+  "message": "An Sara senden"
+ },
+ "teachReplay": {
+  "message": "Hier abspielen"
+ },
+ "teachDiscard": {
+  "message": "Verwerfen"
+ },
+ "teachDiscarded": {
+  "message": "Verworfen. Nichts wurde gesendet."
+ },
+ "teachSent": {
+  "message": "Als „$1“ an Sara gesendet. Prüfe es in Sara: als Skill speichern oder eine Automatik daraus machen."
+ },
+ "teachOpen": {
+  "message": "In Sara prüfen"
+ },
+ "teachEmpty": {
+  "message": "Es wurden keine Schritte aufgezeichnet."
+ },
+ "teachReplaying": {
+  "message": "Die Schritte werden abgespielt…"
+ },
+ "teachReplayed": {
+  "message": "Fertig: $1 Schritte abgespielt."
+ },
+ "teachReplayedYou": {
+  "message": "Fertig: $1 Schritte abgespielt. Diese gibst du selbst ein: $2"
+ },
+ "teachMissing": {
+  "message": "Angehalten: Auf dieser Seite passt nichts zu „$1“."
+ },
+ "teachGo": {
+  "message": "$1 öffnen"
+ },
+ "teachClick": {
+  "message": "Auf „$1“ klicken"
+ },
+ "teachType": {
+  "message": "„$1“ in „$2“ eingeben"
+ },
+ "teachPick": {
+  "message": "„$1“ in „$2“ wählen"
+ },
+ "teachSecret": {
+  "message": "„$1“: gibst du selbst ein (nicht aufgezeichnet)"
  }
 }

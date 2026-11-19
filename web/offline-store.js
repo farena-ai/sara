@@ -267,7 +267,7 @@ export async function openOfflineCopy(kv, { crypto = globalThis.crypto, now = ()
       if (!cur || cur.tried) return null;
       const t = String(text ?? '').trim();
       if (!t) return null;
-      const next = { ...cur, text: t, key: `${id}-e${now().getTime().toString(36)}`, state: 'waiting', error: undefined };
+      const next = { ...cur, text: t, key: `${id}-e${now().getTime().toString(36)}`, state: 'waiting', error: undefined, offlineAnswer: undefined };
       await write('outbox', id, next);
       return next;
     },

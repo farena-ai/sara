@@ -119,8 +119,10 @@ export interface ExtSettings {
   on: boolean;
   /** "Fill this form" proposes values from My details. */
   forms: boolean;
+  /** D1: "Watch me do this" may send the steps you showed it (docs/design/D1TEACH.md). */
+  teach: boolean;
 }
-const DEFAULTS: ExtSettings = { on: true, forms: true };
+const DEFAULTS: ExtSettings = { on: true, forms: true, teach: true };
 
 export class ExtSettingsFile {
   readonly #file: string;
@@ -131,7 +133,7 @@ export class ExtSettingsFile {
     try {
       if (!existsSync(this.#file)) return { ...DEFAULTS };
       const raw = JSON.parse(readFileSync(this.#file, 'utf8')) as Partial<ExtSettings>;
-      return { on: raw.on !== false, forms: raw.forms !== false };
+      return { on: raw.on !== false, forms: raw.forms !== false, teach: raw.teach !== false };
     } catch {
       return { ...DEFAULTS };
     }
@@ -140,6 +142,7 @@ export class ExtSettingsFile {
     const next = { ...this.get() };
     if (typeof patch.on === 'boolean') next.on = patch.on;
     if (typeof patch.forms === 'boolean') next.forms = patch.forms;
+    if (typeof patch.teach === 'boolean') next.teach = patch.teach;
     writeFileSync(this.#file, `${JSON.stringify(next)}\n`);
     return next;
   }

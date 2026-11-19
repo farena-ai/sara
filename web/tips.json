@@ -113,12 +113,28 @@
       "Fill this form proposes values from My details; you approve each field in the extension before anything is typed. Passwords, cards and codes are never filled.",
       "signin"
     ],
+    "bx-teach": [
+      "Watch me do this records the clicks and typing of a task you show it, for a skill or automation you review in Skills. Passwords, cards and codes are never recorded.",
+      "signin"
+    ],
     "offline-keep": [
       "On in the Sara apps and installed web apps, off in a plain browser tab (it may be a shared computer). Turning it off deletes this device's copy at once.",
       "signin"
     ],
     "offline-private": [
       "Off by default: private chats stay on the server only. Turn it on for your own phone or computer if you want to read them offline too.",
+      "signin"
+    ],
+    "offans-on": [
+      "Android app only. While the server is away, a small model on the phone answers short questions in kept chats. No tools, internet or memory; Ask Sara again later for a full answer.",
+      "signin"
+    ],
+    "offans-get": [
+      "Downloads Qwen2.5 0.5B (about 490 MB, Apache-2.0) from Hugging Face, a public file with no account. It is checked before use. Wi-Fi is best; a cut download resumes.",
+      "signin"
+    ],
+    "offans-del": [
+      "Deletes the model file from this phone. Offline answers already in your chats stay.",
       "signin"
     ],
     "wm-text": [

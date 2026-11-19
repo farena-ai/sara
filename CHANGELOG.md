@@ -5,6 +5,43 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.30.0 (2026-11-18): Offline answers on the phone, teach by showing, Wear OS, live views, second opinion
+
+- New: Second opinion on any of her replies (the ⋯ actions under a reply → Get a second opinion): two other
+  connected models answer your question on their own, without seeing her reply, and the three answers
+  show side by side with what only one of them says, or says with other numbers, highlighted. Before
+  anything is sent you see which two models and what it costs (free on this computer, about $0.002,
+  or price not known) and can swap either one. Private chats only ever ask models on this computer,
+  and past your spend limit only free models are offered. The result stays under the reply
+  (docs/CHOOSING_A_MODEL.md "Second opinion").
+- New: Live views in chat: she can post a small checklist you tick, a table or a bar or line chart right
+  in the chat, and it keeps itself up to date from where its data lives: her own list (tell her
+  "add sunscreen"), your Planner to-dos (tick one and the task is done; finish a task elsewhere and
+  it shows ticked within seconds) or the data one of your kept apps saves. Each runs sandboxed, like
+  My apps: no Sara sign-in, it can't read the chat page or reach the internet. Library → My apps →
+  Live views in chats lists them with Open the chat and Remove (docs/LIVE_VIEWS.md).
+- New: Sara on a Wear OS watch (D2): a tile with the rest of today's reminders, how many things wait on
+  you and a Talk button that asks her by voice and shows her short answer. Pair the watch with the
+  short code it shows (Settings → Connections → Phone and notifications → Wear OS watch): no token
+  to type on the watch. Anything that needs your OK stays on your phone. The watch app is in
+  `android/wear` (build it yourself; not in an app store). Guide: docs/WEAR.md.
+- New: Answers while offline (Android app; Settings → Connections → Devices and sign-in → Offline on this
+  device): an optional small model on the phone (Qwen2.5 0.5B, about 490 MB, downloaded only when you
+  tap Download and checked before use) gives a short answer in a kept chat while her server can't be
+  reached. It shows as "Offline answer" under your waiting message and is added to the chat, once,
+  with your message when the connection is back; she doesn't answer it a second time unless you tap
+  Ask Sara again. Never for children's accounts; elsewhere offline messages wait as before
+  (docs/OFFLINE.md "Answers while offline").
+- New: Teach by showing (browser extension → Watch me do this): do a task once in your browser and Sara
+  keeps the steps (clicks, what you typed, what you picked, the pages), never a password, payment
+  card, one-time code or ID number: those steps only say you type them yourself, and Sara's server
+  checks that again. Addresses are kept without their query part. Stop shows the steps to untick and
+  name; Replay here runs them on the page again (the secret ones are left for you); Send to Sara puts
+  them under Settings → Skills & tools → Skills → Shown in your browser, where Save as a skill or
+  Make an automation (it stays off until you set when it runs) turns them into something she can do.
+  A switch on Devices and sign-in → Browser extension turns recording off (docs/EXTENSION.md
+  "Watch me do this").
+
 ## 3.29.0 (2026-11-18): Photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access
 
 - New: What left this server (Settings → Privacy & system → Privacy): a day-by-day list of every request

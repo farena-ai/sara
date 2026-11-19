@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D2: the Wear OS app's text (docs/WEAR.md). -->
+<resources>
+    <string name="app_name">Sara</string>
+    <string name="tile_label">Sara heute</string>
+    <string name="tile_description">Heute, was auf dich wartet, und Sprechen</string>
+    <string name="setup_intro">Gib die Adresse deines Sara-Servers ein, die du im Browser öffnest.</string>
+    <string name="server_hint">Serveradresse</string>
+    <string name="get_code">Code holen</string>
+    <string name="code_intro">In Sara auf dem Handy oder Computer: Einstellungen → Verbindungen → Handy und Benachrichtigungen → Wear-OS-Uhr. Gib dort diesen Code ein.</string>
+    <string name="code_gone">Der Code ist abgelaufen. Hol einen neuen.</string>
+    <string name="cant_reach">Dieser Server ist nicht erreichbar. Prüfe die Adresse.</string>
+    <string name="paired">Gekoppelt mit %1$s. Kachel hinzufügen: auf dem Zifferblatt wischen, dann + tippen.</string>
+    <string name="signed_out">Diese Uhr wurde in Sara entfernt. Richte sie neu ein.</string>
+    <string name="not_set_up">Tippen, um Sara auf dieser Uhr einzurichten.</string>
+    <string name="talk">Sprechen</string>
+    <string name="speak_prompt">Sara fragen</string>
+    <string name="asking">Frage: %1$s</string>
+    <string name="talk_failed">Sara hat nicht geantwortet. Versuch es noch einmal.</string>
+    <string name="no_speech">Diese Uhr hat keine Spracheingabe.</string>
+    <string name="forget">Von dieser Uhr entfernen</string>
+    <string name="nothing_today">Heute nichts mehr.</string>
+    <string name="more">+%1$d weitere</string>
+    <string name="updated">Aktualisiert %1$s</string>
+    <string name="offline">Offline</string>
+</resources>

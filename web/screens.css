@@ -196,6 +196,13 @@ dialog .saved-tag { color: var(--success); }
    tokens only; 44 px targets; one column on phones. */
 .lsk-section { display: grid; gap: 8px; margin: 12px 0; min-width: 0; }
 .lsk-section h4 { margin: 8px 0 0; }
+/* D1: Shown in your browser (web/taught.js) */
+.tch-item { display: grid; gap: 4px; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+.tch-item p { margin: 0; overflow-wrap: anywhere; }
+#settings .tch-steps:not(#_) { display: block; }
+.tch-steps ol { margin: 4px 0 6px; padding-left: 22px; display: grid; gap: 2px; overflow-wrap: anywhere; }
+.tch-steps .tch-secret { color: var(--muted); font-style: italic; }
+.tch-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .lsk-settings { display: grid; gap: 4px; min-width: 0; }
 .lsk-settings .row { min-height: 44px; align-items: center; }
 .lsk-settings .row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }

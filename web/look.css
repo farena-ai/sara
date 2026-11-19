@@ -323,6 +323,15 @@ li.step { animation: step-in var(--dur-slow) var(--ease-out) both; }
 /* C3: an MCP App (sandboxed frame; the bridge sets its height within 80-720 px). */
 .rcard-mcp-app { width: min(720px, calc(100% - 60px)); }
 .rcard-mcp-app .rcard-meta { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 400; }
+.rcard-canvas { width: min(720px, calc(100% - 60px)); }
+.rcard-canvas .rcard-head { flex-wrap: wrap; }
+.rcard-canvas .rcard-meta { font-weight: 400; }
+.cvc-live { margin-left: auto; font-size: 12px; font-weight: 600; color: var(--success); display: inline-flex; align-items: center; gap: 5px; }
+.cvc-live::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.cvc-frame { display: block; width: 100%; height: 120px; min-height: 60px; max-height: 900px; border: 1px solid var(--hairline-strong); border-radius: var(--r-3); background: var(--surface-1); }
+.cvc-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; margin-top: 6px; }
+.cvc-err { color: var(--danger, var(--text-2)); }
+@media (max-width: 720px) { .rcard-canvas { width: 100%; } }
 .mcp-app-frame { display: block; width: 100%; min-height: 80px; max-height: 720px; border: 1px solid var(--hairline-strong); border-radius: var(--r-3); background: var(--surface-1); }
 .mcp-app-note { margin: 0; }
 .rcard.ok { border-color: color-mix(in srgb, var(--success) 40%, var(--hairline-strong)); }

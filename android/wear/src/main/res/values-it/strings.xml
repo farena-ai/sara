@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- D2: the Wear OS app's text (docs/WEAR.md). -->
+<resources>
+    <string name="app_name">Sara</string>
+    <string name="tile_label">Sara oggi</string>
+    <string name="tile_description">Oggi, cosa ti aspetta e Parla</string>
+    <string name="setup_intro">Scrivi l\'indirizzo del tuo server Sara, quello che apri nel browser.</string>
+    <string name="server_hint">Indirizzo del server</string>
+    <string name="get_code">Ottieni un codice</string>
+    <string name="code_intro">In Sara sul telefono o computer: Impostazioni → Connessioni → Telefono e notifiche → Orologio Wear OS. Scrivi lì questo codice.</string>
+    <string name="code_gone">Il codice è scaduto. Chiedine uno nuovo.</string>
+    <string name="cant_reach">Impossibile raggiungere il server. Controlla l\'indirizzo.</string>
+    <string name="paired">Associato a %1$s. Aggiungi il riquadro: scorri sul quadrante e tocca +.</string>
+    <string name="signed_out">Questo orologio è stato rimosso in Sara. Configuralo di nuovo.</string>
+    <string name="not_set_up">Tocca per configurare Sara su questo orologio.</string>
+    <string name="talk">Parla</string>
+    <string name="speak_prompt">Chiedi a Sara</string>
+    <string name="asking">Domanda: %1$s</string>
+    <string name="talk_failed">Sara non ha risposto. Riprova.</string>
+    <string name="no_speech">Questo orologio non ha l\'input vocale.</string>
+    <string name="forget">Rimuovi da questo orologio</string>
+    <string name="nothing_today">Nient\'altro oggi.</string>
+    <string name="more">+%1$d altri</string>
+    <string name="updated">Aggiornato %1$s</string>
+    <string name="offline">Offline</string>
+</resources>

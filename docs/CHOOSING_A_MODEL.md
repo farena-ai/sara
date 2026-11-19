@@ -257,3 +257,22 @@ from her).
 
 Next: [COSTS.md](COSTS.md) (what each choice costs) and [REQUIREMENTS.md](REQUIREMENTS.md) (the
 server itself).
+
+## Second opinion
+
+Not sure about one of her answers? Open the actions under the reply (hover, long-press or ⋯) and
+press **Get a second opinion** (the two-people icon).
+
+- Two other connected models answer the same question on their own. They see the chat up to your
+  question, not her reply, and get no tools, so nothing is done on your behalf.
+- Before anything is sent you see the two models and what it costs: *free, on this computer*, a
+  subscription you already have, *≈ $0.002*, or *price not known*. Swap either one in the pickers;
+  only then press **Ask them**.
+- The answers show side by side with hers. A highlight means **only this answer says this**; a
+  dotted one means **other numbers** than the other answers (6 minutes vs 7). Check those points
+  before you rely on them.
+- Private chats only ever ask models on this computer (and so does "Nothing leaves this
+  computer"). Past your daily or monthly spend limit, only free models are offered. At most 40
+  second opinions a day; their spend shows in Usage as *second-opinion*.
+- The result stays folded under the reply; **Ask again** picks new models. Off-the-record chats have
+  no second opinion.

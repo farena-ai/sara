@@ -2273,6 +2273,8 @@
         <p class="muted small">Ask her in a chat ("make me an app to track my plants"), try it, then say "keep it". To change one, tell her what to change.</p>
         <p id="myap-status" class="small" role="status" aria-live="polite"></p>
         <div id="myap-list" class="myap-list" data-nodirty data-noauto></div>
+        <h3>Live views in chats <button type="button" class="tip" data-tip="Checklists, tables and charts she posted in a chat. They update by themselves from their source and run sandboxed, without your Sara sign-in. Remove one to stop it everywhere.">?</button></h3>
+        <div id="myap-canvases" class="myap-list" data-nodirty data-noauto></div>
       </section>
       <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
       <section id="lib-meetings" hidden>
@@ -4487,6 +4489,12 @@
         <div class="add-row"><button id="lsk-mine" type="button" class="ghost">Look through recent coding work now</button></div>
         <p id="lsk-status" class="muted small" role="status"></p>
       </div>
+      <!-- D1 (docs/design/D1TEACH.md): steps shown in the browser extension (web/taught.js). -->
+      <div id="tch-section" class="lsk-section">
+        <h3>Shown in your browser <button type="button" class="tip" data-tip="In the browser extension, press Watch me do this and do a task once. The steps wait here: save them as a skill or an automation. Passwords, cards and codes are never recorded.">?</button></h3>
+        <div id="tch-list" class="lsk-list tch-list"></div>
+        <p id="tch-status" class="muted small" role="status"></p>
+      </div>
       <label class="skl-filter">Show <select id="skl-show"><option value="all">All skills</option><option value="on">Switched on</option><option value="mine">Mine</option><option value="builtin">Built in</option></select></label>
       <h3 id="skl-projects-head" hidden>Project skills <button type="button" class="tip" data-tip="A workspace can carry its own skills in .agents/skills. A cloned project could use them to steer her, so they are left out until you trust that workspace here. Stop trusting removes them again.">?</button></h3>
       <div id="skl-projects" class="skl-projects" hidden></div>
@@ -4842,6 +4850,15 @@
           <p class="small"><button id="tel-test" type="button" disabled>Test call to my number</button> <span id="tel-test-state" class="muted small" role="status"></span></p>
           <div id="tel-calls" class="list tel-calls"></div>
         </div>
+      </div>
+      <!-- D2 (docs/WEAR.md): a Wear OS watch pairs with the code it shows (web/wear-page.js). -->
+      <h3 id="wear-box">Wear OS watch <button type="button" class="tip" data-tip="A tile on your watch with today's reminders, how many things wait on you and a Talk button. Anything that needs your OK stays on your phone.">?</button></h3>
+      <div class="wear-host" data-nodirty data-noauto>
+        <p class="muted small">Install Sara's Wear OS app on the watch, open it, type this server's address and tap Get a code. Then type that code here.</p>
+        <label>Code on the watch <button type="button" class="tip" data-tip="Six letters and numbers the watch shows, like K7P-42Q. It works once, for 10 minutes. Only type a code your own watch shows.">?</button> <input id="wear-code" maxlength="9" autocomplete="off" autocapitalize="characters" spellcheck="false"></label>
+        <label>Name of the watch <button type="button" class="tip" data-tip="So you can tell your watches apart here and under Devices and sign-in. Leave empty for Wear OS watch.">?</button> <input id="wear-label" maxlength="60" autocomplete="off"></label>
+        <p class="small"><button id="wear-pair" type="button">Pair the watch</button> <span id="wear-status" class="muted small" role="status"></span></p>
+        <div id="wear-list" class="list"></div>
       </div>
       <h3 data-owner-only>Shared projects <button type="button" class="tip" data-tip="Projects you share with friends whose Sara is linked under Messages, and their invitations. Accept one to get it in your projects; leave or stop sharing any time.">?</button></h3>
       <div id="shp-list" class="list shp" data-owner-only data-nodirty data-noauto></div>
@@ -5534,6 +5551,10 @@
         <label class="row"><input id="offline-keep" type="checkbox" data-nodirty> Keep a copy on this device for offline</label>
         <label class="row"><input id="offline-private" type="checkbox" data-nodirty> Also keep private chats</label>
         <p id="offline-note" class="muted small">The last 30 chats (their last 200 messages) and your notes, encrypted by this browser. Off-the-record chats are never kept. Signing out deletes the copy.</p>
+        <p class="offans-head"><strong>Answers while offline</strong> <button type="button" class="tip" data-tip="In the Android app, a small model on the phone can give short answers while her server is away. They are marked Offline answer and added to the chat when you are back online.">?</button></p>
+        <label class="row"><input id="offans-on" type="checkbox" data-nodirty> Short answers from a small model on this phone while the server is away</label>
+        <p id="offans-state" class="muted small" role="status"></p>
+        <p class="offans-acts"><button id="offans-get" type="button" class="small" data-nodirty>Download the model (490 MB)</button> <button id="offans-del" type="button" class="ghost small" data-nodirty hidden>Remove the model</button></p>
       </div>
       <div id="hd-box" class="hd-box" data-nodirty hidden>
         <h3>Phone as a helper <button type="button" class="tip" data-tip="Sara may ask this phone or browser for one picture, its location or one screen picture when you ask her for help. Each time it shows a full-screen prompt here: nothing is taken unless you tap Allow once.">?</button></h3>
@@ -5626,6 +5647,7 @@
       <div id="bx-box" class="bx-box" data-nodirty data-noauto>
         <label class="row"><input id="bx-on" type="checkbox"> Let the browser extension send pages to Sara</label>
         <label class="row"><input id="bx-forms" type="checkbox"> Let it fill forms from My details after you approve</label>
+        <label class="row"><input id="bx-teach" type="checkbox"> Let it record steps you show it</label>
         <p class="muted small">It never fills passwords, payment cards or codes, and never sends a form. Install steps: docs/EXTENSION.md.</p>
         <p id="bx-status" class="muted small" role="status"></p>
       </div>

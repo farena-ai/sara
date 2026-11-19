@@ -124,9 +124,11 @@ import { initSelfCode } from './self-code.js';
 import { initLegacy, loadLegacy } from './legacy.js'; // V5.3
 import { initDashboard, loadDashboard } from './dashboard.js';
 import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
+import { offlineAnswerChip } from './offline-answer.js';
 import { initDataRights } from './data-rights.js';
 import { initMemberTools } from './member-tools.js';
 import { initShortcutsPage, renderInstallGuide } from './shortcuts-page.js';
+import { initWearPage, loadWearPage } from './wear-page.js';
 import { applyBadge, isStandalone, pushPossible } from './ios-web.js';
 import { initWorkProfile } from './work-profile.js';
 import { initUsageReport } from './usage-report.js';
@@ -211,6 +213,7 @@ import { initSharedProjects, loadSharedSettings, renderProjectShare, sharedChang
 import { installPhoneSave } from './phone-save.js';
 import { fillScreen, initScreen } from './screen-companion.js';
 import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
+import { secondOpinionButton } from './second-opinion.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -2016,6 +2019,8 @@ function msgActions(div, m, { last, lastUser, other = false }) {
       flag.addEventListener('click', () => openReport(m, flag));
       bar.append(flag);
     }
+    // D8: a second opinion from two other models (web/second-opinion.js).
+    if (!state.conv?.offRecord && !state.conv?.partner && !other) { const so = secondOpinionButton(div, m, act, state.currentId); if (so) bar.append(so); }
   }
   if ((m.role === 'assistant' || m.role === 'user') && m.id && !state.conv?.partner) {
     // Phase 22: pin to the top of the conversation (📌 = pin).
@@ -2369,6 +2374,8 @@ function renderMessages(messages, opts = {}) {
       // Phase 120: what his @-references attached, and the checks chip under her reply.
       if (m.role === 'user' && Array.isArray(m.meta?.refs) && m.meta.refs.length) b.append(refChipsSent(m.meta.refs, m.id));
       if (m.role === 'assistant' && m.meta?.checks?.state) b.append(checksChip(m.meta.checks));
+      // V5.6: an answer the phone's own small model gave while the server was away.
+      if (m.role === 'assistant' && m.meta?.offlineAnswer) b.append(offlineAnswerChip(m, { t, her: currentIdentity().name || t('Sara'), last: m.id === messages.at(-1)?.id && !state.conv?.readOnly, again: () => void regenerate() }));
       // S10 (docs/CHOICES.md): her pick-an-answer card; open until answered or a later message.
       if (m.role === 'assistant' && m.meta?.choice?.options) b.append(choiceCard(m.meta.choice, { open: m.meta.choice.answered === undefined && m.id > (lastUser?.id ?? 0), t, send: (s) => void send(s), other: () => $('#input')?.focus() }));
       // R1B3 follow-up: a line picked into the scene's canon says so.
@@ -9176,6 +9183,7 @@ function showSettingsTab(page, opts = {}) {
   // U4.28: Editing and short video (web/media-studio.js), owner only.
   if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
+  if (pick === 'co-phone' && typeof loadWearPage === 'function') void loadWearPage(); // D2
   if (shown.has('dh-quality')) void loadQuality();
   // V5.1: the action timeline (web/timeline.js) under Reports.
   if (shown.has('dh-timeline') && typeof loadTimeline === 'function') void loadTimeline({ openChat: (id) => { document.querySelector('#settings')?.close(); void openConversation(id); } });
@@ -10987,6 +10995,8 @@ initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
 initMemberTools({ api });
 // R4: Settings → Connections → iPhone Shortcuts (web/shortcuts-page.js).
 initShortcutsPage({ api, el, copyText });
+// D2: Settings → Connections → Phone and notifications → Wear OS watch (web/wear-page.js).
+initWearPage({ api, el });
 // EC26: Settings → Sara → At work (web/work-profile.js).
 initWorkProfile({ api, el });
 initUsageReport({ api, el, isMember });

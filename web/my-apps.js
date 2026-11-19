@@ -185,6 +185,44 @@ function render() {
   list.replaceChildren(...state.apps.map(card));
 }
 
+// D3 (src/canvas.ts): the live views she posted in chats: where they live, open the chat, remove.
+const CV_KIND = { checklist: () => t('Live checklist'), table: () => t('Live table'), chart: () => t('Live chart'), html: () => t('Live view') };
+function canvasFrom(v) {
+  if (v.source?.type === 'tasks') return v.source.project ? t('From Planner to-dos in {project}', { project: v.source.project }) : t('From your Planner to-dos');
+  if (v.source?.type === 'app') return t('From the app {name}', { name: v.source.app });
+  return t('Its own data');
+}
+function renderCanvases(list) {
+  const host = $('#myap-canvases');
+  if (!host) return;
+  if (!list.length) {
+    host.replaceChildren(el('p', 'muted small', t('None yet. Ask her in a chat for a checklist, table or chart that keeps itself up to date.')));
+    return;
+  }
+  host.replaceChildren(
+    ...list.map((v) => {
+      const row = el('div', 'myap-cv');
+      const what = el('div', 'myap-cv-what');
+      what.append(el('strong', '', v.title), el('span', 'muted small', `${(CV_KIND[v.kind] ?? CV_KIND.html)()} · ${canvasFrom(v)} · ${when(v.updatedAt)}`));
+      const acts = el('div', 'myap-cv-acts');
+      if (v.conversationId)
+        acts.append(
+          btn(t('Open the chat'), 'ghost small', () => {
+            $('#library')?.close();
+            location.hash = `#c=${encodeURIComponent(v.conversationId)}`;
+          }),
+        );
+      acts.append(
+        btn(t('Remove'), 'ghost small', () => {
+          if (confirm(t('Remove the live view "{name}"? It stops updating in every chat.', { name: v.title }))) void act(() => api(`/library/canvases/${v.id}`, { method: 'DELETE' }), () => t('Removed.'));
+        }),
+      );
+      row.append(what, acts);
+      return row;
+    }),
+  );
+}
+
 async function load() {
   try {
     state = await api('/library/apps');
@@ -192,6 +230,11 @@ async function load() {
     status(err.message);
   }
   render();
+  try {
+    renderCanvases((await api('/library/canvases')).canvases ?? []);
+  } catch {
+    renderCanvases([]);
+  }
 }
 
 export function openMyApps() {

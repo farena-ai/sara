@@ -19,6 +19,7 @@ import { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { HttpError, readJson, readRaw, send } from './http.ts';
 import { SHARE_EXPIRY } from './share.ts';
+import { isCanvasToken, serveCanvas } from './canvas.ts';
 
 export const APP_LIMITS = {
   files: 60,
@@ -56,7 +57,7 @@ const MIME: Record<string, string> = {
 
 /** What every app response carries (see the header comment). */
 export const APP_CSP = "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads; default-src 'self' data: blob:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' data: blob:; connect-src 'self'; form-action 'self'; base-uri 'self'; frame-ancestors 'self'";
-const HEADERS: Record<string, string> = {
+export const APP_HEADERS: Record<string, string> = {
   'content-security-policy': APP_CSP,
   'x-frame-options': 'SAMEORIGIN',
   'cross-origin-resource-policy': 'cross-origin',
@@ -67,6 +68,8 @@ const HEADERS: Record<string, string> = {
   // fetch() from the page's opaque origin is a CORS request, without credentials.
   'access-control-allow-origin': '*',
 };
+
+const HEADERS = APP_HEADERS;
 
 export class MyAppsError extends Error {}
 const fail = (m: string): never => {
@@ -377,12 +380,12 @@ export class MyApps {
 }
 
 /** The person's own folder: a member's space, or the owner's data folder (shared by her companions). */
-function spaceDir(app: AppContext): string {
+export function mySpaceDir(app: AppContext): string {
   if (app.member) return app.dataDir;
   return app.family?.spaceDirOf?.('owner') ?? app.dataDir;
 }
 export function myAppsFor(app: AppContext): MyApps {
-  return MyApps.open(spaceDir(app), app.member ? app.member.id : 'owner', () => app.now());
+  return MyApps.open(mySpaceDir(app), app.member ? app.member.id : 'owner', () => app.now());
 }
 
 /** The small script every page gets (web/myapp-data.js): `appData.get/set/remove/keys` on the app's own store. */
@@ -420,7 +423,9 @@ export async function serveMyApp(app: AppContext, req: IncomingMessage, res: Ser
     await drain();
     outJson(res, 404, { error: 'Not found' });
   };
-  if (!m || m[1] !== want || !MyApps.exists(spaceDir(app))) return notFound();
+  // D3: a live canvas in a chat rides the same door (src/canvas.ts, same CSP, token only).
+  if (m && m[1] === want && isCanvasToken(m[2])) return serveCanvas(app, req, res, m[2], m[3] === undefined ? undefined : safeRest(m[3]), rawTarget.split('?')[1] ?? '');
+  if (!m || m[1] !== want || !MyApps.exists(mySpaceDir(app))) return notFound();
   const hit = myAppsFor(app).resolve(m[2]);
   if (!hit) return notFound();
   if (!m[3]) return out(res, 308, 'text/plain; charset=utf-8', '', { location: hit.root });
@@ -470,6 +475,14 @@ export async function serveMyApp(app: AppContext, req: IncomingMessage, res: Ser
   if (type.startsWith('text/html')) body = Buffer.from(withHelper(body.toString('utf8'), `${hit.root}_sara/data.js`));
   return out(res, 200, type, method === 'HEAD' ? Buffer.alloc(0) : body);
 }
+
+const safeRest = (p: string): string => {
+  try {
+    return decodeURIComponent(p.slice(1));
+  } catch {
+    return '\u0000';
+  }
+};
 
 /** /api/library/apps[/:id[/undo|restore|share]] (the person's own apps). */
 export async function myAppsRoute(app: AppContext, req: IncomingMessage, res: ServerResponse, method: string, c: string | undefined, d: string | undefined): Promise<void> {

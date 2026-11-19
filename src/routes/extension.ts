@@ -5,10 +5,12 @@
 //     POST /api/ext/save           {url, title, text, selection} → the Library document {id, name, url}
 //     POST /api/ext/fill           {url, title, fields:[{ref, label, name, id, placeholder, autocomplete, type, never}]}
 //                                  → {fills, skipped, unmatched} for the popup's approval card (nothing is filled here)
+//     POST /api/ext/teach          D1 {name, why, title, url, steps} → {id, name, url}: the steps you showed it,
+//                                  checked again (src/teach.ts), for review in Settings → Skills
 //     GET  /api/device/whoami, POST /api/device/logout
 //   Nothing else: no chats, memories, settings or devices. Private local mode refuses it, kid spaces
 //   never reach it (src/family.ts), and the owner can switch it or its form filling off:
-//     GET/PUT /api/extension       {on, forms} (+ paired count), in the person's own space.
+//     GET/PUT /api/extension       {on, forms, teach} (+ paired count), in the person's own space.
 import { randomBytes } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { audit } from '../audit-trail.ts';
@@ -20,13 +22,16 @@ import { myDetailsFor } from '../my-details.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { externalTurn } from '../other-apps.ts';
 import { ShortcutLimiter } from '../shortcuts.ts';
+import { cleanTeaching, TaughtStore, titleOf } from '../teach.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 const LINES = {
   off: en('The browser extension is turned off in Settings → Connections → Devices and sign-in.'),
   forms: en('Filling forms from the browser extension is off in Settings → Connections → Devices and sign-in.'),
+  teach: en('Recording steps from the browser extension is off in Settings → Connections → Devices and sign-in.'),
+  noSteps: en('There are no steps to keep: do the task once while Sara watches, then press Stop.'),
   privateLocal: en('Private local mode is on: the browser extension waits until it is off.'),
-  only: en('The browser extension can only ask about pages, save them and fill forms.'),
+  only: en('The browser extension can only ask about pages, save them, fill forms and record steps you show it.'),
   notExt: en('Only the browser extension uses these.'),
   empty: en('There is nothing on this page to ask about.'),
   slow: en('Too many requests from the browser extension. Wait a minute and try again.'),
@@ -71,7 +76,7 @@ export function createExtensionRoutes(ctx: RouteCtx): { api: (req: IncomingMessa
       const s = settings.get();
       const d = auth.devices().find((x) => x.id === deviceId);
       const details = (app.myDetails ?? myDetailsFor(app.store.db)).get();
-      return send(res, 200, { companion: app.persona.name, device: d?.label ?? '', on: s.on, forms: s.forms, privateLocal: privateLocalOn(), hasDetails: Object.keys(details).length > 0, disclosureAccepted: Boolean(app.settings.get().disclosureAcceptedAt) });
+      return send(res, 200, { companion: app.persona.name, device: d?.label ?? '', on: s.on, forms: s.forms, teach: s.teach, privateLocal: privateLocalOn(), hasDetails: Object.keys(details).length > 0, disclosureAccepted: Boolean(app.settings.get().disclosureAcceptedAt) });
     }
     if (b === 'ask' && method === 'POST') {
       ready(deviceId, 'ask');
@@ -124,6 +129,16 @@ export function createExtensionRoutes(ctx: RouteCtx): { api: (req: IncomingMessa
         unmatched: plan.unmatched.slice(0, 50),
         hasDetails: Object.keys(details).length > 0,
       });
+    }
+    if (b === 'teach' && method === 'POST') {
+      ready(deviceId, 'share');
+      if (!settings.get().teach) throw new HttpError(403, LINES.teach);
+      const t = cleanTeaching(await readJson(req, 256 * 1024));
+      if (!t.steps.some((s) => s.kind !== 'go')) throw new HttpError(400, LINES.noSteps);
+      const item = new TaughtStore(app.dataDir, () => app.now()).add(t, deviceId);
+      app.events?.publish({ type: 'skills' });
+      audit({ action: 'extension.teach', who: who(), role: role(), channel: EXT_CHANNEL, outcome: 'ok', keys: [`steps:${t.steps.length}`] });
+      return send(res, 200, { id: item.id, name: titleOf(item), url: `${origin(req)}/#view=settings:ab-skills` });
     }
     throw new HttpError(403, LINES.only);
   }

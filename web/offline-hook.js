@@ -6,9 +6,12 @@ import { idbKV, openOfflineCopy } from './offline-store.js';
 import { LIST_LIMITS, slimBoard } from './offline-lists.js';
 import { flushOutbox, keepChoice, privateChoice, watchConnection } from './offline-sync.js';
 import { mountOfflineView, offlineWords } from './offline-view.js';
+import { phoneModel } from './offline-answer.js';
 
 const env = () => ({ ua: navigator.userAgent, standalone: Boolean(globalThis.matchMedia?.('(display-mode: standalone)').matches) });
-const st = { copy: null, view: null, watch: null, on: false, t: (s) => s, current: () => null, onBack: () => {}, flushing: false, refreshTimer: 0, pop: null };
+// Until the app lends its translator: English, with {params} filled (never shown raw).
+const fillIn = (s, p = {}) => Object.entries(p).reduce((o, [k, v]) => o.split(`{${k}}`).join(String(v)), String(s));
+const st = { copy: null, view: null, watch: null, on: false, t: fillIn, current: () => null, onBack: () => {}, flushing: false, refreshTimer: 0, pop: null, modelTimer: 0 };
 
 /** Whether this device keeps a copy (Settings → Connections → Devices and sign-in). */
 export const offlineKeepOn = () => keepChoice(globalThis.localStorage, env());
@@ -51,7 +54,7 @@ export async function initOffline({ session, t, current, onBack, open }) {
   try {
     st.copy ??= await openOfflineCopy(idbKV());
     await st.copy.signedIn({ serverId: session.serverId, space: session.space ?? 'owner' });
-    await st.copy.saveWords({ ...offlineWords(t), her: t('Sara'), lang: document.documentElement.lang || 'en' });
+    await st.copy.saveWords({ ...offlineWords(t), her: t('Sara'), lang: document.documentElement.lang || 'en', ...(session.member?.child ? { noPhoneModel: true } : {}) });
   } catch (err) {
     console.warn('offline copy:', err);
     st.copy = null;
@@ -102,6 +105,7 @@ export async function offlineSignOut() {
  * device's own choice, in localStorage). Off deletes the copy at once; on makes it now.
  */
 export function showOfflineSettings() {
+  showPhoneModelSettings();
   const keep = document.getElementById('offline-keep');
   const priv = document.getElementById('offline-private');
   if (!keep || !priv) return;
@@ -127,6 +131,65 @@ export function showOfflineSettings() {
   priv.addEventListener('change', () => {
     save('sara.offline.private', priv.checked);
     void refreshCopy(); // kept or dropped now
+  });
+}
+
+/**
+ * V5.6: Answers while offline (the Android app's own small model). Outside the app the controls
+ * stay visible with "Only in the Android app" (a hidden setting reads as a deleted one).
+ */
+function showPhoneModelSettings() {
+  const on = document.getElementById('offans-on');
+  const state = document.getElementById('offans-state');
+  const get = document.getElementById('offans-get');
+  const del = document.getElementById('offans-del');
+  if (!on || !state || !get || !del) return;
+  const t = st.t;
+  const kid = Boolean(st.session?.member?.child);
+  const pm = kid ? null : phoneModel(globalThis);
+  clearTimeout(st.modelTimer);
+  const draw = () => {
+    if (!pm) {
+      on.checked = false;
+      on.disabled = get.disabled = true;
+      del.hidden = true;
+      state.textContent = kid ? t("Not used for children's accounts.") : t('Only in the Android app. Elsewhere, messages written offline wait for her as before.');
+      return;
+    }
+    const s = pm.status();
+    on.checked = Boolean(s.on);
+    on.disabled = !s.engine;
+    get.hidden = s.state === 'ready';
+    get.disabled = !s.engine || s.state === 'downloading';
+    del.hidden = !(s.state === 'ready' || s.state === 'error' || (s.state === 'none' && s.got > 0));
+    const mb = (n) => Math.max(1, Math.round((Number(n) || 0) / 1e6));
+    state.textContent = !s.engine
+      ? t("This copy of the app has no model engine for this phone's processor.")
+      : s.state === 'ready'
+        ? t('Ready on this phone: {name}, {mb} MB.', { name: s.name ?? '', mb: mb(s.size) })
+        : s.state === 'downloading'
+          ? t('Downloading… {pct}% of {mb} MB', { pct: s.size ? Math.floor((100 * (s.got ?? 0)) / s.size) : 0, mb: mb(s.size) })
+          : s.state === 'error'
+            ? t('The download stopped: {error}. Press Download to go on.', { error: s.error ?? '' })
+            : t('Not downloaded yet. Wi-Fi is best.');
+    const box = document.getElementById('offline-box');
+    if (s.state === 'downloading' && box?.isConnected) st.modelTimer = setTimeout(draw, 1500);
+  };
+  draw();
+  if (on.dataset.wired) return;
+  on.dataset.wired = '1';
+  on.addEventListener('change', () => {
+    phoneModel(globalThis)?.set(on.checked);
+    draw();
+  });
+  get.addEventListener('click', () => {
+    phoneModel(globalThis)?.download();
+    setTimeout(showPhoneModelSettings, 300);
+  });
+  del.addEventListener('click', () => {
+    if (!confirm(t('Remove the model from this phone?'))) return;
+    phoneModel(globalThis)?.remove();
+    showPhoneModelSettings();
   });
 }
 
@@ -182,7 +245,7 @@ export function todaySnapshot(root = document) {
 
 function goneOffline() {
   if (!st.on || !st.copy) return;
-  st.view ??= mountOfflineView({ copy: st.copy, words: offlineWords(st.t), onRetry: () => st.watch?.checkNow() });
+  st.view ??= mountOfflineView({ copy: st.copy, words: offlineWords(st.t), kid: Boolean(st.session?.member?.child), onRetry: () => st.watch?.checkNow() });
   void st.view.show(st.current());
 }
 
@@ -236,7 +299,7 @@ async function sendOutbox() {
 }
 
 function showOutbox() {
-  st.view ??= mountOfflineView({ copy: st.copy, words: offlineWords(st.t), onRetry: () => st.watch?.checkNow() });
+  st.view ??= mountOfflineView({ copy: st.copy, words: offlineWords(st.t), kid: Boolean(st.session?.member?.child), onRetry: () => st.watch?.checkNow() });
   void st.view.show(st.current());
   // Online: Try again sends what is left and closes the view.
   setTimeout(() => {

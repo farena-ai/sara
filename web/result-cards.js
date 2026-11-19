@@ -9,6 +9,7 @@ import { gmailResult } from './gmail-view.js';
 import { pluginResultCard } from './plugins.js';
 import { checkupCard, checkupChangeCard } from './checkup-view.js';
 import { mcpAppCard } from './mcp-apps.js';
+import { canvasCard } from './canvas-card.js';
 import { researchCard, researchOffer } from './research-card.js';
 import { settingCard } from './everyday-card.js';
 import { compareCard, decisionCard } from './decision-card.js';
@@ -303,7 +304,7 @@ function openCard(c) {
   return card;
 }
 
-const DRAW = { open: (c) => openCard(c), weather, task, reminder, note, calendar, test, job, home, photo, search, chart, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
+const DRAW = { open: (c) => openCard(c), weather, task, reminder, note, calendar, test, job, home, photo, search, chart, gmail: gmailResult, computer, 'hands-install': handsInstall, checkup: checkupCard, 'checkup-change': checkupChangeCard, 'pc-run': (c) => pcRunCard(c, shell), plugin: (c) => pluginResultCard(c), 'mcp-app': mcpAppCard, canvas: canvasCard, research: researchCard, 'research-offer': researchOffer, setting: (c) => settingCard(c), decision: (c) => decisionCard(c), compare: (c) => compareCard(c) };
 
 /** One element per card; the file cards of a reply become one "Files changed" card. */
 export function renderCards(cards) {
