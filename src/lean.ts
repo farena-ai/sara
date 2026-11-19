@@ -195,7 +195,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // R6: Google Docs/Sheets, Word/Excel online, Slack/Teams actions, accounting exports (docs/WORK_APPS.md).
   [/^(gdoc_|gsheet_|excel_|word_|slack_|teams_post$|accounting_export$)/, 'workapps', 'work apps'],
   // R8: chores and allowance; a child's safe search (docs/FAMILY.md).
-  [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search|meal_plan_(get|set)|meal_shopping|family_calendar)$/, 'family', 'chores, allowance and the family planner'],
+  [/^(chore_(add|list|done)|allowance_(balance|pay)|kid_search|kid_ask_parent|meal_plan_(get|set)|meal_shopping|family_calendar)$/, 'family', 'chores, allowance and the family planner'],
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
   [/^(my_details_get|upkeep_(list|log))$/, 'details', 'my details and car and house upkeep'],
   // N6: what she knows about their world (facts with sources; forget one).
@@ -356,6 +356,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'documento google', 'foglio di calcolo', 'foglio google', 'canale', 'pubblica in', 'il mio stato', 'contabilita', 'commercialista', 'esportare fatture'],
   // R8 (docs/FAMILY.md): chores, allowance, and a child's safe search.
   family: ['dinners', 'dinner plan', 'meal plan', 'plan meals', 'for dinner', 'family calendar', 'family week', 'cenas', 'diners', 'repas de la semaine', 'abendessen', 'jantares', 'cene', 'chore', 'my chores', 'add a chore', 'allowance', 'pocket money', 'points', 'paid out', 'pay out', 'i did the', 'i finished', 'mark it done', 'how much money do i have', 'my balance', 'homework', 'search for', 'look up',
+    'ask my mom', 'ask my dad', 'ask my parent', 'ask a parent', 'more time', 'more minutes', 'mas tiempo', 'pregunta a mi mama', 'plus de temps', 'demande a maman', 'mehr zeit', 'frag mama', 'mais tempo', 'pergunta a mae', 'piu tempo', 'chiedi a mamma',
     'tarea de casa', 'quehaceres', 'mesada', 'paga semanal', 'puntos', 'ya termine', 'cuanto dinero tengo', 'deberes', 'buscar',
     'corvee', 'corvees', 'argent de poche', 'points', 'j ai fini', 'combien j ai', 'devoirs', 'chercher',
     'hausarbeit', 'hausarbeiten', 'taschengeld', 'punkte', 'ich bin fertig', 'wie viel geld habe ich', 'hausaufgaben', 'suchen',

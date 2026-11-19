@@ -516,7 +516,7 @@ CREATE INDEX IF NOT EXISTS event_trigger_runs_t ON event_trigger_runs (trigger_i
             }
           }
         },
-        { outside: r.policy, externalApp: true, ...(r.policy.tools.length ? {} : { noTools: true }), budget: r.budget },
+        { outside: r.policy, externalApp: true, ...(r.policy.tools.length ? {} : { noTools: true }), budget: r.budget, cause: { kind: 'trigger', label: r.trigger.name } },
       );
     } catch (err) {
       error = (err as Error).message;

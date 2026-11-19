@@ -4,6 +4,7 @@
 // doctor summary PDF for a date range; a parent manages a child's medicines. Never medical advice.
 // Its privacy switches live in Settings → You → What Sara knows → Health log (loadHealthSettings).
 import { initCare, loadCare } from './care.js';
+import { renderCoach } from './health-coach.js';
 import { t } from './naming.js';
 import { initSimpleHome } from './simple-home.js';
 
@@ -94,6 +95,7 @@ export async function loadHealth() {
   data = r;
   render();
   void loadCare();
+  void renderCoach(ctx); // W4.4
 }
 
 async function quickAdd() {
@@ -404,7 +406,7 @@ export async function loadHealthSettings(api) {
   } catch {
     return;
   }
-  const map = { 'hs-cloud': 'cloudOk', 'hs-ask': 'includeInAsk', 'hs-remind': 'reminders', 'hs-names': 'namesInAlerts' };
+  const map = { 'hs-cloud': 'cloudOk', 'hs-ask': 'includeInAsk', 'hs-remind': 'reminders', 'hs-names': 'namesInAlerts', 'hs-coach': 'coach' };
   for (const [id, key] of Object.entries(map)) {
     const box = $(`#${id}`);
     box.checked = Boolean(r.settings[key]);

@@ -33,6 +33,8 @@ const PURPOSE = {
   other: () => [t('Other places'), t('Everything else, like weather, prices and services your add-ons use.')],
 };
 
+const ALLOWED = { updates: () => t('update checks'), 'model-downloads': () => t('model downloads') };
+
 const lang = () => document.documentElement.lang || 'en';
 function size(bytes) {
   const units = [['gigabyte', 1e9], ['megabyte', 1e6], ['kilobyte', 1e3]];
@@ -84,6 +86,12 @@ function draw(r) {
     sum.textContent = t('Requests: {count} · Places: {places} · Sent: about {size}', { count: num(r.total.count), places: num(r.total.places), size: size(r.total.bytes) });
   } else {
     sum.textContent = r.privateLocal ? t('Nothing left this server: "Nothing leaves this computer" is on.') : t('Nothing left this server on this day.');
+  }
+  // W5.2: the switch's state next to the evidence, with what is allowed while it is on.
+  const mode = $('#pv-ledger-mode');
+  if (mode) {
+    const allowed = (r.localAllow ?? []).map((id) => (ALLOWED[id] ?? (() => id))());
+    mode.textContent = !r.privateLocal ? t('Local-only mode is off.') : allowed.length ? t('Local-only mode is on. Allowed: {list}.', { list: allowed.join(', ') }) : t('Local-only mode is on. Nothing is allowed out.');
   }
   const box = $('#pv-ledger-list');
   const out = [];

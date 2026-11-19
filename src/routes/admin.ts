@@ -30,7 +30,7 @@ import { useOllamaKeyForSearch } from '../web-search-auto.ts';
 import { mcpSecrets, mergeSecrets, searchConfig } from '../integrations.ts';
 import { proactiveSettings } from '../life.ts';
 import { isCloudModel } from '../modelpicks.ts';
-import { privateLocalOn } from '../net-guard.ts';
+import { localAllowed, privateLocalOn } from '../net-guard.ts';
 import { DEVICE_TOKEN_PREFIX } from '../auth.ts';
 import { copyOffsite, offsiteSettings, testOffsite } from '../offsite-run.ts';
 import { OFFSITE_PASS_VAULT, OFFSITE_S3_VAULT } from '../offsite.ts';
@@ -730,7 +730,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         // looks (the app does it by itself every hour): it never asks, so no device shows an unasked
         // "Your OK is needed" that could hide a real request (computer use) behind it.
         if (body.action === 'update') ctx.askFirst(req, 'restart');
-        if (privateLocalOn()) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
+        if (privateLocalOn() && !localAllowed('updates')) throw new HttpError(409, 'Paused in private local mode: checking for updates needs the internet.');
         // Phase 46: Windows and macOS check the release page; the installer does the update.
         if (updater.how === 'release') {
           const status = body.action === 'update' ? await updater.update(app.now()) : await updater.check(app.now());

@@ -5,6 +5,88 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.35.0 (2026-11-19): Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why
+
+- New: practice a language out loud, with cards, listening and your words checked as you speak (W4.3, docs/LANGUAGE_PRACTICE.md). Library → Learn a language: pick
+  Spanish, French, German, Portuguese, Italian or English and a level (A1, A2, B1). A short daily
+  session mixes spaced-repetition cards (a normal Study set per language and level, so the Today tile
+  and reminders work as before), listening (she says a sentence in her local voice for that language,
+  also slower) and saying it back (local hearing in that language, your words shown as you speak,
+  each word marked right, close or not heard, with one gentle tip). Practice talking opens Talk in a
+  practice chat where she answers only in that language, at your level, with at most one gentle
+  correction. Streak and words known on the page. Local voices and hearing only, never cloud audio.
+- New: a private health coach shows your week and offers one or two small goals, never medical advice (W4.4, docs/design/W4COACH.md). Health → Your week: sleep, steps,
+  weight, mood and doses marked taken for the last 7 days against the 7 before, worked out in code
+  from your own encrypted log and imports (no model reads it). She offers one or two small goals
+  (mark each dose, a little more sleep, a few more steps, log your mood) to Accept or skip with Not
+  now; accepted goals show "3 of 4 days so far". Never medical advice: a red-flag reading (blood
+  pressure, heart rate, glucose, temperature, very short sleep, a quick weight change, very low mood,
+  a strong symptom) shows only "Talk to your doctor about …", with no number and no goal. An opt-in
+  weekly check-in on Sunday evening goes through your nudge limit and never says a number or a
+  medicine name. Caregivers: a third consent, Weekly summary, shares it with an adult in your
+  household (never mood or notes). Owner and adult members each have their own; kids never.
+- New: a **Family screen** for a kitchen tablet shows the day, chores, meals and shopping, with a kid-safe Talk (W4.5, docs/FAMILY_SCREEN.md).
+  Settings → Household → People on this server → Family screen makes a one-time code; the tablet
+  opens /family-screen, types it and gets its own key that opens only the family screen (never
+  chats, memory, settings or money). It shows today's family events (never private ones), chores due
+  today per person with tap-to-done (a kid's mark still waits for a parent), dinners for the week,
+  the shared grocery list (tap to add or tick, or say it when this server has its own hearing),
+  what's due soon, and a big kid-safe Talk button: a kid talks in their own space with their own
+  limits and bedtime, everyone else talks off the record; never any tools, shopping, money or
+  computer use, and money or adult asks get a kind no without any model. It dims at night (its own
+  hours) and Talk rests then.
+- New: **Local-only mode** now comes with a test that runs a full day of features and proves nothing leaves the server (W5.2, docs/design/W5LOCAL.md). The switch on Settings → Models &
+  usage → On this computer is now called "Local-only mode: nothing leaves this computer" and has
+  **Allowed while it's on**: update checks (only Sara's own release page on GitHub) and model
+  downloads for Ollama on this computer, each off until you tick it; everything else stays blocked.
+  What they send shows in Settings → Privacy → What left this server, which now also says whether the
+  mode is on and what is allowed. The morning briefing says plainly that the weather was not checked
+  in this mode. A new test runs a full day (chat, memory, reminders, photos, voice, briefing, Library,
+  planner, automations, health) on a real server with every socket, DNS lookup and UDP packet trapped
+  and checks that nothing reached another computer and the ledger shows zero.
+- New: backups you can carry on a USB drive or send sealed to a friend's Sara, with a printed recovery sheet (W5.3, docs/BACKUPS.md). Settings → Privacy & system → Backups now has
+  a **recovery sheet**: one printable page (PDF) with 18 words and a QR code, shown once until you
+  press "I printed it". **Carry copies** seal a backup with that sheet and put it on a USB drive
+  (picked from a list of the drives this computer sees), any other folder or a linked friend's Sara,
+  every day or every week, keeping the newest few; an unplugged drive just waits and is filled when
+  it is back. A friend's Sara keeps your sealed copies only after they say yes (with a size limit)
+  and can't open them. **Restore on a new computer** finds the copy on the drive (or takes the file),
+  asks for the 18 words (or the QR text), opens and checks it in a throwaway folder, then restores it
+  when Sara restarts; the data that was there is kept. A wrong sheet, a mistyped word and a changed
+  file each get their own plain answer. `--restore <file.sara>` works with `SARA_BACKUP_KEY`.
+- New: **Kid mode v2** sets rules by age band, with time requests you approve from your phone and a parent dashboard (W5.4, docs/design/W5KIDS.md). Kid-safe mode now has three age bands (under 8,
+  8 to 12, 13 to 17; the old 6-9 and 10-12 are read as the first two). Each band starts with its own
+  tools, words, content strictness, minutes a day, bedtime and study buddy style, and a parent changes
+  any of them on Family → Kids ("Use this age's defaults" puts them back). Under 13 she explains and
+  coaches homework and never writes essays or reports for them; strict also keeps scary and gory
+  stories off. Near the end of the day's time she helps them wrap up; the kid's bar over the message box
+  shows the minutes left and **Ask for 15 more minutes**, and every parent's phone gets Approve /
+  Decline (also for a tool that is off, or anything else they ask her to ask you; grown-up content,
+  money, computer use, Always allow and public records can never be asked for). Family → Kids →
+  **Dashboard**: today's time with **+15 minutes**, requests, flagged moments (kept off, a worry,
+  personal details shared: counts, never words), and the week's topics. **Transcript view** is off by
+  default; when a parent turns it on, the kid's bar says a parent can read their chats and when they
+  last looked.
+- New: **Why did you do this?** on every action shows what started it and the rule that let it run (W5.5, docs/TIMELINE.md). Each row in Settings →
+  Privacy & system → Reports → Action timeline has it: what started the change (your message and
+  when you sent it, an automation by name and whether its schedule ran it, a trigger, a webhook, a
+  repeat you set, a goal, a worker's job, an errand or a Handle it plan step, another app or an
+  outside request, or your own click) and, when no card was shown, the rule that let it run (Always
+  allow everything, allowed once ahead, allowed for this task, a tool you set to run on its own, or a
+  tool that never asks). **Show the chat turn** opens the chat at that message. The reason is saved
+  with the row when it happens, so it is never guessed; rows from before say "From before this was
+  recorded." Ask her "why did you do that?" right after an action and she answers from the same saved
+  reason, without a model call, in six languages. Changes made by automation emails and worker or
+  team helpers now show on the timeline too.
+- Security: the second outside-facing review (W5.1, docs/security/W5_REVIEW.md) of everything added in
+  ROADMAP_V and ROADMAP_W, with attack tests. A Sara you host for a friend now only accepts model
+  addresses on the internet (not this server, its network or cloud metadata; `SARA_HOSTED_LOCAL_MODELS=1`
+  shares a model server on this computer). The family screen's "Everyone" Talk no longer sees your
+  library, people, planner or files. Memory lane share links drop the photos' location and camera data.
+  With Always allow everything on, a turn asks again after she read a web page, an email or an MCP answer.
+  A friend's Sara holding your backups counts unfinished uploads against its limit, and a public-records
+  page that redirects to a paid broker or sign-in site is skipped.
+
 ## 3.34.0 (2026-11-19): Public records report, Handle it, memory lane, MCP both ways, team workspace
 - New: a public-records report for personal use: she searches free public sources, cites every fact and saves a PDF marked NOT FCRA COMPLIANT on every page (W4.6, docs/RECORDS.md). Library → Public
   records report (owner only): type a name, address, phone, email or username (plus city and state);

@@ -1,6 +1,7 @@
 // Voice: voice settings and notes, calls (ringing), video frames, push notifications, live-call status.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { createHash } from 'node:crypto';
+import { LearnError, langLearnFor, learnLang } from '../lang-learn.ts';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { SESSION_COOKIE } from '../auth.ts';
@@ -337,6 +338,17 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         // Phase 37: the raw text goes in (her *sighs* and "haha" become Grok voice's speech tags).
         const raw = String(body.text ?? '').slice(0, 2400);
         if (!speechText(raw)) throw new HttpError(400, 'Nothing to say');
+        // W4.3: Talk practice speaks the language being learned with a local voice only.
+        if (body.local === true) {
+          try {
+            const audio = await langLearnFor(app).say(raw, learnLang(body.lang));
+            res.writeHead(200, { 'content-type': audio.type, 'content-length': audio.data.length, 'cache-control': 'no-store', ...SECURITY_HEADERS });
+            return void res.end(audio.data);
+          } catch (err) {
+            if (err instanceof LearnError) throw new HttpError(err.status, err.message);
+            throw err;
+          }
+        }
         const level = ['off', 'subtle', 'lively'].includes(String(body.expressive)) ? (String(body.expressive) as Expressive) : undefined;
         const tone = ['natural', 'warm', 'bright', 'calm'].includes(String(body.tone)) ? (String(body.tone) as VoiceTone) : undefined;
         try {

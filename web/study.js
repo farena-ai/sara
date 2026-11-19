@@ -3,6 +3,7 @@
 // document, one of its chapters or pasted text; study due cards (flashcards with Again/Hard/Good/Easy,
 // multiple choice, short answers graded with kind feedback); summary sheet; export (Anki TSV, CSV) and
 // import. Kid mode: the hint comes before the answer. Each person's own sets (their own space).
+import { initLangLearn } from './lang-learn.js';
 import { serverText, t } from './naming.js';
 
 const $ = (s) => document.querySelector(s);
@@ -330,6 +331,7 @@ async function saveStudyPrefs() {
 }
 
 export function initStudy() {
+  initLangLearn();
   $('#lib-study-open')?.addEventListener('click', () => void openStudy());
   $('#lib-s-back')?.addEventListener('click', () => {
     closeStudy();

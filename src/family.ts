@@ -16,18 +16,42 @@ import { detectCrisis, detectExplicit } from './safety.ts';
 import type { AppContext } from './chat.ts';
 import type { SharedBoardStore } from './shared-boards.ts';
 import type { Tool } from './tools/types.ts';
+import type { ActItem } from './phone-actions.ts';
 
 // ------------------------------------------------------------------------------------------------
 // Kid-safe member mode: the profile and its checks
 // ------------------------------------------------------------------------------------------------
 
-export const AGE_BANDS = ['6-9', '10-12', '13-17'] as const;
-export type AgeBand = (typeof AGE_BANDS)[number];
+/** W5.4 (docs/design/W5KIDS.md): the age bands. R8's `6-9`/`10-12` are read as `under-8`/`8-12`. */
+export const AGE_BANDS = ['under-8', '8-12', '13-17'] as const;
+export type KidBand = (typeof AGE_BANDS)[number];
+const LEGACY_BANDS: Record<string, KidBand> = { '6-9': 'under-8', '10-12': '8-12' };
+export type AgeBand = KidBand | '6-9' | '10-12';
+/** The v2 band of a stored band (old ones mapped; anything else is the middle band). */
+export function bandOf(b: string): KidBand {
+  return LEGACY_BANDS[b] ?? ((AGE_BANDS as readonly string[]).includes(b) ? (b as KidBand) : '8-12');
+}
 /** Pick-list values for the daily time limit (minutes; 0 = no limit). */
 export const KID_MINUTES = [0, 30, 45, 60, 90, 120, 180] as const;
+export const KID_TONES = ['simple', 'friendly', 'respectful'] as const;
+export type KidTone = (typeof KID_TONES)[number];
+export const KID_STRICTNESS = ['strict', 'standard'] as const;
+export type KidStrictness = (typeof KID_STRICTNESS)[number];
+/** Extra time a parent gives with one tap (and what a kid asks for). */
+export const EXTRA_MINUTES = 15;
 
 export interface ChildProfile {
   band: AgeBand;
+  /** W5.4: her words for them (band default; a parent may change it). */
+  tone?: KidTone;
+  /** W5.4: strict also keeps scary and gory asks off (band default). */
+  strictness?: KidStrictness;
+  /** W5.4: the kid tools a parent left on (a subset of KID_TOOLS); missing = every kid tool (R8 profiles). */
+  tools?: string[];
+  /** W5.4: study buddy style for homework (asks what they think first, one hint at a time, a check question). */
+  studyBuddy?: boolean;
+  /** W5.4: a parent may read the chats; the kid is told on screen. null/missing = off. */
+  transcripts?: { on: true; since: string } | null;
   since: string;
   /** Bedtime: no chatting from `from` to `to` (HH:MM, the household's time zone). null = none. */
   bedtime: { from: string; to: string } | null;
@@ -51,20 +75,50 @@ export class FamilyError extends Error {
 /** A profile from a request (checked); `base` keeps what isn't given. */
 export function cleanChild(v: unknown, now: Date, base?: ChildProfile): ChildProfile {
   const r = (v ?? {}) as Record<string, unknown>;
-  const band = (r.band ?? base?.band ?? '10-12') as AgeBand;
-  if (!AGE_BANDS.includes(band)) throw new FamilyError(400, en('Pick an age band.'));
-  let bedtime: ChildProfile['bedtime'] = base ? base.bedtime : { from: '20:30', to: '07:00' };
+  const raw = String(r.band ?? base?.band ?? '8-12');
+  if (!(AGE_BANDS as readonly string[]).includes(raw) && !LEGACY_BANDS[raw]) throw new FamilyError(400, en('Pick an age band.'));
+  const band = bandOf(raw);
+  // W5.4: a new profile, or a band change, starts from the band's defaults; a parent adjusts them.
+  const fresh = !base || bandOf(base.band) !== band;
+  const d = BAND_DEFAULTS[band];
+  const pick = <T extends string>(key: string, list: readonly T[], def: T, err: string): T => {
+    const x = r[key] === undefined ? (fresh ? def : ((base as unknown as Record<string, unknown>)?.[key] ?? def)) : r[key];
+    if (!(list as readonly unknown[]).includes(x)) throw new FamilyError(400, err);
+    return x as T;
+  };
+  const tone = pick('tone', KID_TONES, d.tone, en('Pick a tone.'));
+  const strictness = pick('strictness', KID_STRICTNESS, d.strictness, en('Pick how strict.'));
+  const toolList = r.tools === undefined ? (fresh ? d.tools : base?.tools) : Array.isArray(r.tools) ? r.tools.map(String) : [];
+  const tools = toolList ? [...new Set(toolList.filter((x: string) => KID_TOOLS.has(x)))] : undefined;
+  const studyBuddy = r.studyBuddy === undefined ? (fresh ? d.studyBuddy : (base?.studyBuddy ?? d.studyBuddy)) : r.studyBuddy === true;
+  const transcripts = r.transcripts === undefined ? (base?.transcripts ?? null) : r.transcripts === true ? { on: true as const, since: base?.transcripts?.since ?? now.toISOString() } : null;
+  const v2 = { tone, strictness, ...(tools ? { tools } : {}), studyBuddy, transcripts };
+  let bedtime: ChildProfile['bedtime'] = base && !fresh ? base.bedtime : d.bedtime;
   if (r.bedtime === null || r.bedtime === false) bedtime = null;
   else if (r.bedtime !== undefined) {
     const b = r.bedtime as Record<string, unknown>;
     if (!HHMM.test(String(b.from ?? '')) || !HHMM.test(String(b.to ?? ''))) throw new FamilyError(400, en('Bedtime needs a start and an end time.'));
     bedtime = { from: String(b.from), to: String(b.to) };
   }
-  const minutes = r.minutesPerDay === undefined ? (base?.minutesPerDay ?? 0) : Number(r.minutesPerDay);
+  const minutes = r.minutesPerDay === undefined ? (base && !fresh ? base.minutesPerDay : d.minutesPerDay) : Number(r.minutesPerDay);
   if (!(KID_MINUTES as readonly number[]).includes(minutes)) throw new FamilyError(400, en('Pick one of the offered limits.'));
   const allow = r.shopAllow === undefined ? (base?.shopAllow ?? []) : Array.isArray(r.shopAllow) ? r.shopAllow : String(r.shopAllow).split(/[\s,]+/);
   const shopAllow = [...new Set(allow.map((h) => String(h).trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '').replace(/^www\./, '')).filter((h) => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(h)))].slice(0, 20);
-  return { band, since: base?.since ?? now.toISOString(), bedtime, minutesPerDay: minutes, safeSearch: r.safeSearch === undefined ? (base?.safeSearch ?? false) : r.safeSearch === true, shopAllow };
+  return { band, ...v2, since: base?.since ?? now.toISOString(), bedtime, minutesPerDay: minutes, safeSearch: r.safeSearch === undefined ? (base?.safeSearch ?? false) : r.safeSearch === true, shopAllow };
+}
+
+/** W5.4: the kid tools each band starts with (a parent turns any of them on or off). */
+const YOUNG_TOOLS = ['todo', 'remind', 'note', 'recall', 'chore_list', 'chore_done', 'allowance_balance', 'family_calendar', 'study_list', 'study_quiz', 'study_answer', 'ask_choice', 'decide', 'settings_guide', 'scrapbook', 'moments'];
+const MIDDLE_TOOLS = [...YOUNG_TOOLS, 'library', 'make_document', 'household_lists', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'study_make', 'kid_search', 'ask_everything'];
+export const BAND_DEFAULTS: Record<KidBand, { tone: KidTone; strictness: KidStrictness; minutesPerDay: number; bedtime: { from: string; to: string }; studyBuddy: boolean; tools: string[] }> = {
+  'under-8': { tone: 'simple', strictness: 'strict', minutesPerDay: 30, bedtime: { from: '19:30', to: '07:00' }, studyBuddy: true, tools: YOUNG_TOOLS },
+  '8-12': { tone: 'friendly', strictness: 'strict', minutesPerDay: 60, bedtime: { from: '20:30', to: '07:00' }, studyBuddy: true, tools: MIDDLE_TOOLS },
+  '13-17': { tone: 'respectful', strictness: 'standard', minutesPerDay: 120, bedtime: { from: '22:30', to: '06:30' }, studyBuddy: false, tools: [...MIDDLE_TOOLS, 'humanize_text'] },
+};
+
+/** W5.4: the tools a child's companion may offer: the parent's list (always with asking a parent), or every kid tool for an R8 profile. */
+export function kidToolsFor(p: ChildProfile): ReadonlySet<string> {
+  return p.tools ? new Set([...p.tools.filter((x) => KID_TOOLS.has(x)), 'kid_ask_parent']) : KID_TOOLS;
 }
 
 const mins = (s: string) => Number(s.slice(0, 2)) * 60 + Number(s.slice(3, 5));
@@ -104,8 +158,17 @@ export function familyRuntime(): FamilyRuntime {
 /** Why a child's talking stops now (bedtime, the daily limit), or undefined. */
 export function kidPause(kidId: string, p: ChildProfile, now = runtime.now()): string | undefined {
   if (inBedtime(p, now, runtime.tz())) return en("It's bedtime on this server. Chat again in the morning.");
-  if (p.minutesPerDay > 0 && (runtime.store?.minutesToday(kidId, now, runtime.tz()) ?? 0) >= p.minutesPerDay) return en("You've used today's time on this server. It starts again tomorrow.");
+  const left = kidLeft(kidId, p, now);
+  if (left !== undefined && left <= 0) return en("You've used today's time on this server. It starts again tomorrow.");
   return undefined;
+}
+
+/** W5.4: minutes left today (the limit plus a parent's extra minus what was used), or undefined with no limit. */
+export function kidLeft(kidId: string, p: ChildProfile, now = runtime.now()): number | undefined {
+  if (!(p.minutesPerDay > 0)) return undefined;
+  const s = runtime.store;
+  const tz = runtime.tz();
+  return Math.max(0, p.minutesPerDay + (s?.extraToday(kidId, now, tz) ?? 0) - (s?.minutesToday(kidId, now, tz) ?? 0));
 }
 
 /** Server-side route check for a child member (after the member checks). */
@@ -132,14 +195,16 @@ export function childSettings<T extends Record<string, unknown>>(s: T): T {
 }
 
 /** The only tools a child's companion offers (an allowlist: new tools stay off for kids until listed). */
-export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'family_calendar', 'study_make', 'study_list', 'study_quiz', 'study_answer', 'ask_choice', 'ask_everything', 'humanize_text']);
+export const KID_TOOLS: ReadonlySet<string> = new Set(['todo', 'remind', 'note', 'recall', 'library', 'scrapbook', 'moments', 'make_document', 'settings_guide', 'household_lists', 'decide', 'compare', 'facts_list', 'fact_forget', 'board_list', 'card_add', 'card_move', 'card_comment', 'chore_list', 'chore_done', 'allowance_balance', 'kid_search', 'family_calendar', 'study_make', 'study_list', 'study_quiz', 'study_answer', 'ask_choice', 'ask_everything', 'humanize_text', 'kid_ask_parent']);
 
 /**
  * Gates a child's tool registry: everything outside KID_TOOLS is unavailable while they are a child
  * (so it is neither offered nor run when a crafted call names it), including tools added later.
  */
-export function gateKidTools(reg: { list(): Tool[]; add(t: Tool): void }, isKid: () => boolean): void {
-  const wrap = (t: Tool): Tool => (KID_TOOLS.has(t.spec.name) ? t : new Proxy(t, { get: (target, prop) => (prop === 'isAvailable' ? () => !isKid() && (target.isAvailable?.() ?? true) : Reflect.get(target, prop, target)) }));
+export function gateKidTools(reg: { list(): Tool[]; add(t: Tool): void }, isKid: () => boolean, allowed: () => ReadonlySet<string> | undefined = () => undefined): void {
+  // W5.4: a kid tool the parent turned off is hidden too (the parent's list, read on every check).
+  const kidOk = (name: string) => KID_TOOLS.has(name) && (allowed()?.has(name) ?? true);
+  const wrap = (t: Tool): Tool => new Proxy(t, { get: (target, prop) => (prop === 'isAvailable' ? () => (!isKid() || kidOk(target.spec.name)) && (target.isAvailable?.() ?? true) : Reflect.get(target, prop, target)) });
   for (const t of reg.list()) reg.add(wrap(t));
   const add = reg.add.bind(reg);
   reg.add = (t: Tool) => add(wrap(t));
@@ -161,15 +226,28 @@ export function kidResultOk(url: string, text: string, p: ChildProfile): boolean
 
 /** Asks a child gets a kind "not here" for, without the model (crisis words still get the crisis help). */
 const KID_OFF = /\b(sex|porn|nude|naked|nsfw|hookup|onlyfans|dating app|buy (a )?(gun|vape|weed|alcohol|beer)|vape|weed|cocaine|meth|gamble|gambling|casino|bet on|kill (him|her|them)|how to make a (bomb|weapon))\b/i;
-export function kidOffLimits(text: string): boolean {
-  return KID_OFF.test(text) || detectExplicit(text);
+/** W5.4: strict (the younger bands' default) also keeps scary and gory asks off. */
+const KID_OFF_STRICT = /\b(horror|gore|gory|creepypasta|serial killers?|slasher|torture|murders?)\b/i;
+export function kidOffLimits(text: string, strictness: KidStrictness = 'standard'): boolean {
+  return KID_OFF.test(text) || detectExplicit(text) || (strictness === 'strict' && KID_OFF_STRICT.test(text));
 }
+/** W5.4: things a kid shares that a parent should know were shared (the kind only, never the words). */
+const KID_PERSONAL = /\b(my (home )?address is|i live (at|on)|my phone number is|my (pass ?word|passcode) is|my school is called)\b/i;
 export const KID_OFF_REPLY = en("That's not something I can help with here. A parent or another grown-up you trust is a great person to ask. Want to talk about something else?");
 
 /** The persona note for a child (her tone and rules), by age band. */
-export function kidNote(p: ChildProfile, name: string): string {
-  const words = p.band === '6-9' ? 'very short sentences and easy words, like for a 7-year-old' : p.band === '10-12' ? 'clear, friendly words for a 10 to 12 year old' : 'plain, respectful words for a teenager';
-  return `You are talking with ${name}, a child (age ${p.band}) in this household; a parent set this up. Use ${words}. Be warm, patient and encouraging, like a kind tutor or a friendly older cousin: never romantic, flirty or "partner"-like, no adult topics, no scary details. For homework, help them learn (hints, questions, one step at a time) instead of handing over the answer; for a book report, essay or other school assignment, coach (an outline, guiding questions, feedback on their own draft) and never write it for them. Never ask for or repeat personal details (address, school name, passwords, photos of themselves). Never suggest buying anything or give shopping links; never offer to email or contact anyone. For big worries, feelings that hurt, or anything unsafe, say kindly that a parent or a trusted grown-up should know, and give the crisis help when it is serious.`;
+export function kidNote(p: ChildProfile, name: string, left?: number): string {
+  const band = bandOf(p.band);
+  const tone = p.tone ?? BAND_DEFAULTS[band].tone;
+  const words = tone === 'simple' ? 'very short sentences and easy words, like for a 6 or 7 year old' : tone === 'friendly' ? 'clear, friendly words for an 8 to 12 year old' : 'plain, respectful words for a teenager';
+  const age = band === 'under-8' ? 'under 8' : band;
+  // W5.4: school-safe. Under 13 she explains and coaches; a teen gets help with their own work.
+  const school = band === '13-17' ? 'For homework, help them understand and improve their own work (explain, give feedback, show a short example); don\'t write whole essays, book reports or other assignments for them to hand in.' : 'For homework, explain and help them learn (hints, questions, one step at a time) instead of handing over the answer, and never write an essay, story, book report or other assignment for them, even when asked: coach instead (an outline, guiding questions, feedback on their own draft).';
+  const buddy = (p.studyBuddy ?? BAND_DEFAULTS[band].studyBuddy) ? ' Be their study buddy: ask what they already think first, give one hint at a time, and end with a quick question to check it made sense.' : '';
+  const strict = (p.strictness ?? BAND_DEFAULTS[band].strictness) === 'strict' ? ' Keep everything gentle: no scary, violent or romantic content, even in stories.' : '';
+  const seen = p.transcripts?.on ? ' A parent can read these chats (they were told on screen); if they ask, say so honestly.' : '';
+  const wind = left !== undefined && left <= 10 ? ` About ${left} minutes are left today: keep answers short, help them reach a good stopping point, and don't start anything long.` : '';
+  return `You are talking with ${name}, a child (age ${age}) in this household; a parent set this up. Use ${words}. Be warm, patient and encouraging, like a kind tutor or a friendly older cousin: never romantic, flirty or "partner"-like, no adult topics, no scary details. ${school}${buddy}${strict} Never ask for or repeat personal details (address, school name, passwords, photos of themselves). Never suggest buying anything or give shopping links; never offer to email or contact anyone, use a computer for them, or look people up. If they ask for something that is off for them, offer to ask a parent (kid_ask_parent). For big worries, feelings that hurt, or anything unsafe, say kindly that a parent or a trusted grown-up should know, and give the crisis help when it is serious.${seen}${wind}`;
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -258,6 +336,8 @@ CREATE TABLE IF NOT EXISTS family_parents (person TEXT PRIMARY KEY);
 CREATE TABLE IF NOT EXISTS kid_study (kid TEXT NOT NULL, set_id INTEGER NOT NULL, title TEXT NOT NULL, cards INTEGER NOT NULL, learned INTEGER NOT NULL, due INTEGER NOT NULL, reviewed INTEGER NOT NULL, day TEXT NOT NULL, PRIMARY KEY (kid, set_id));
 CREATE TABLE IF NOT EXISTS kid_topics (kid TEXT NOT NULL, day TEXT NOT NULL, topic TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (kid, day, topic));
 CREATE TABLE IF NOT EXISTS kid_minutes (kid TEXT NOT NULL, day TEXT NOT NULL, block INTEGER NOT NULL, PRIMARY KEY (kid, day, block));
+CREATE TABLE IF NOT EXISTS kid_extra (kid TEXT NOT NULL, day TEXT NOT NULL, minutes INTEGER NOT NULL, PRIMARY KEY (kid, day));
+CREATE TABLE IF NOT EXISTS kid_flags (kid TEXT NOT NULL, day TEXT NOT NULL, kind TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (kid, day, kind));
 CREATE TABLE IF NOT EXISTS grocery_lists (board_id TEXT PRIMARY KEY, created_by TEXT NOT NULL, created_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS grocery_items (ref TEXT PRIMARY KEY, board_id TEXT NOT NULL, category TEXT, store TEXT, price TEXT, checked_at TEXT);
 CREATE TABLE IF NOT EXISTS family_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
@@ -573,6 +653,27 @@ export class FamilyStore {
   noteBlocked(kid: string, at: Date, tz?: string): void {
     this.db.prepare("INSERT INTO kid_topics (kid, day, topic, n) VALUES (?, ?, 'kept off', 1) ON CONFLICT(kid, day, topic) DO UPDATE SET n = n + 1").run(kid, localDay(at, tz));
   }
+  /** W5.4: a parent gives a kid extra minutes for today (one more 15 minutes). */
+  addExtra(by: string, kid: string, minutes: number, at: Date, tz?: string): number {
+    this.#mustParent(by);
+    const m = Math.max(1, Math.min(120, Math.floor(minutes) || EXTRA_MINUTES));
+    this.db.prepare('INSERT INTO kid_extra (kid, day, minutes) VALUES (?, ?, ?) ON CONFLICT(kid, day) DO UPDATE SET minutes = MIN(240, minutes + excluded.minutes)').run(kid, localDay(at, tz), m);
+    this.#emit([kid, ...this.parents()], 'kid');
+    return this.extraToday(kid, at, tz);
+  }
+  extraToday(kid: string, at: Date, tz?: string): number {
+    return Number((this.db.prepare('SELECT minutes FROM kid_extra WHERE kid = ? AND day = ?').get(kid, localDay(at, tz)) as { minutes: number } | undefined)?.minutes ?? 0);
+  }
+  /** W5.4: a flagged moment (kept off, a worry, personal details shared): the kind and a count, never words. */
+  noteFlag(kid: string, kind: 'kept off' | 'worry' | 'personal', at: Date, tz?: string): void {
+    this.db.prepare('INSERT INTO kid_flags (kid, day, kind, n) VALUES (?, ?, ?, 1) ON CONFLICT(kid, day, kind) DO UPDATE SET n = n + 1').run(kid, localDay(at, tz), kind);
+    this.#emit(this.parents(), 'kid');
+  }
+  flags(by: string, kid: string, at: Date, tz?: string, days = 14): { day: string; kind: string; n: number }[] {
+    this.#mustParent(by);
+    const from = localDay(new Date(at.getTime() - (days - 1) * 86_400_000), tz);
+    return (this.db.prepare('SELECT day, kind, n FROM kid_flags WHERE kid = ? AND day >= ? ORDER BY day DESC, kind').all(kid, from) as { day: string; kind: string; n: number }[]).map((r) => ({ day: r.day, kind: r.kind, n: Number(r.n) }));
+  }
   minutesToday(kid: string, at: Date, tz?: string): number {
     return 5 * Number((this.db.prepare('SELECT COUNT(*) AS n FROM kid_minutes WHERE kid = ? AND day = ?').get(kid, localDay(at, tz)) as { n: number }).n);
   }
@@ -704,13 +805,15 @@ export interface FamilyAccess {
   /** The owner only: kid-safe member mode on, changed or off for a member. */
   setChild?: (id: string, child: unknown) => void;
   /** Tells the parents (their phones and the Family chat line); quiet hours apply there. */
-  notifyParents?: (title: string, body: string) => void;
+  notifyParents?: (title: string, body: string, act?: ActItem) => void;
   /** U4.21: tells one person (their phones); the caller checks quietFor first. */
   notifyPerson?: (person: string, title: string, body: string) => void;
   /** U4.21: true while it is that person's quiet hours (their own settings). */
   quietFor?: (person: string) => boolean;
   /** U4.22: a person's own folder ('owner' or a member id), for a parent managing a child's medicines. */
   spaceDirOf?: (id: string) => string | undefined;
+  /** W4.5: a person's own main app (the family screen runs a kid's Talk turn in their own space). */
+  appOf?: (id: string) => AppContext | undefined;
 }
 export const kidsOf = (f: FamilyAccess): FamilyPerson[] => f.people().filter((p) => p.child);
 
@@ -726,10 +829,18 @@ export function kidTurn(app: AppContext, text: string): string | undefined {
   const at = app.now();
   const tz = f?.tz();
   try {
-    if (!detectCrisis(text) && kidOffLimits(text)) {
+    const strictness = child.strictness ?? BAND_DEFAULTS[bandOf(child.band)].strictness;
+    // W5.4: flagged moments for the parents' dashboard (the kind and a count, never the words).
+    if (detectCrisis(text)) {
+      f?.store.noteFlag(app.member.id, 'worry', at, tz);
+      const name = app.member.record?.()?.name ?? '';
+      f?.notifyParents?.(trOwner(en('A check-in might help'), app.settings.get()), trOwner(en('{name} may be having a hard time. Sara gave them help and suggested talking to you.'), app.settings.get(), { name }));
+    } else if (kidOffLimits(text, strictness)) {
       f?.store.noteBlocked(app.member.id, at, tz);
+      f?.store.noteFlag(app.member.id, 'kept off', at, tz);
       return trOwner(KID_OFF_REPLY, app.settings.get());
     }
+    if (KID_PERSONAL.test(text)) f?.store.noteFlag(app.member.id, 'personal', at, tz);
     f?.store.noteTurn(app.member.id, text, at, tz);
   } catch (err) {
     console.warn(`family: noting a turn failed: ${(err as Error).message}`);

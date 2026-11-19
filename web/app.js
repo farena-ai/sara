@@ -364,6 +364,8 @@ async function boot() {
   startEvents();
   // Feature 4: this device's copy of the recent chats and notes, and the outbox (web/offline-hook.js).
   void initOffline({ session, t, current: () => state.currentId, onBack: () => void backFromOffline(), open: (id) => (state.currentId = id) });
+  // W5.4: a kid's own bar (time left, ask for more time, transcript notice), web/kid-mode.js.
+  if (session.member?.child) void import('/kid-mode.js').then((m) => m.initKidBar({ api }), () => {});
   // EC24: a helper prompt that was asked before this page opened shows now (owner only).
   if (session.role === 'owner') void loadPhoneHelper();
   void api('/settings').then((s) => {
@@ -5112,9 +5114,9 @@ $('#cmpx-run').addEventListener('click', async () => {
 
 // ---------- voice ----------
 const voice = { cfg: null, mic: new Mic(), call: null };
-const speaker = new Speaker(async (text, who, lang) => {
+const speaker = new Speaker(async (text, who, lang, local) => {
   // Phase 66: a group chat line goes to its companion's own voice (her settings), by the companion header.
-  const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json', ...(who ? { 'x-sara-companion': who } : {}) }, body: JSON.stringify({ text, ...(lang ? { lang } : {}) }) });
+  const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json', ...(who ? { 'x-sara-companion': who } : {}) }, body: JSON.stringify({ text, ...(lang ? { lang } : {}), ...(local ? { local: true } : {}) }) });
   return res.ok ? res.blob() : null;
 });
 const voiceOn = () => localStorage.getItem('sara.speak') === '1' || Boolean(voice.call?.active) || talkOn();
@@ -6897,6 +6899,7 @@ function renderBackups(d) {
 const restoreTest = createRestoreTest({ api });
 async function loadBackups() {
   void restoreTest.load();
+  void import('/carry.js').then((m) => (m.initCarry(api), m.loadCarry(api))).catch(() => undefined); // W5.3 (web/carry.js)
   try {
     renderBackups(await api('/backups'));
   } catch {
@@ -7068,7 +7071,8 @@ window.addEventListener('hashchange', () => {
   if (!id) return;
   history.replaceState(null, '', '/');
   if (state.conversations.some((c) => c.id === id)) void openConversation(id);
-  else void openElsewhere(id);
+  // W4.3: a chat made a moment ago (Talk practice) is not in the list yet: reload it first.
+  else void loadConversations().catch(() => {}).then(() => (state.conversations.some((c) => c.id === id) ? openConversation(id) : openElsewhere(id)));
 });
 
 // ---------- iPhone app notifications through Apple (Phase 17) ----------
@@ -9211,7 +9215,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'co-phone' && typeof loadContinueSettings === 'function') void loadContinueSettings(); // W1.3
   if (shown.has('dh-quality')) void loadQuality();
   // V5.1: the action timeline (web/timeline.js) under Reports.
-  if (shown.has('dh-timeline') && typeof loadTimeline === 'function') void loadTimeline({ openChat: (id) => { document.querySelector('#settings')?.close(); void openConversation(id); } });
+  if (shown.has('dh-timeline') && typeof loadTimeline === 'function') void loadTimeline({ openChat: (id) => { document.querySelector('#settings')?.close(); void openConversation(id); }, openTurn: (id, mid) => { document.querySelector('#settings')?.close(); void openConversation(id).then(() => jumpToMessage(mid)); } });
   // V3.4: Fix this issue on the GitHub page (web/fix-issue.js), owner only.
   if (pick === 'ab-github' && typeof loadFixIssue === 'function' && !isMember()) {
     initFixIssue({ api });
@@ -11478,7 +11482,7 @@ function initUpdates(session) {
   upx.version = session.version ?? '';
   upx.demo = Boolean(session.demo);
   upx.member = session.role === 'member';
-  upx.privateLocal = Boolean(session.privateLocal);
+  upx.privateLocal = Boolean(session.privateLocal) && !(session.localAllow ?? []).includes('updates');
   if (!upx.version) return;
   if (updatedNote(store(localStorage, SEEN_KEY), upx.version)) showUpdateNote(t('Sara was updated to {version}.', { version: upx.version }), false);
   store(localStorage, SEEN_KEY, upx.version);

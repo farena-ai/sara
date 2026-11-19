@@ -16,6 +16,13 @@ import { OWNER_SETTINGS, type MemberRecord, type memberUsage } from './household
 import { SettingsStore, type Settings } from './settings.ts';
 import { Vault } from './vault.ts';
 
+/**
+ * W5.1: a hosted friend's model address must be public (src/routes/models.ts). SARA_HOSTED_LOCAL_MODELS=1
+ * lets them use a model server on this computer itself (127.0.0.1, e.g. the owner's Ollama; never the
+ * network or cloud metadata); tests with a fake model on 127.0.0.1 set it too.
+ */
+export const hostedProviderGuard = { allowLoopback: process.env.SARA_HOSTED_LOCAL_MODELS === '1' };
+
 /** Owner-only settings a hosted friend keeps for themselves (their own models). */
 export const HOSTED_SETTINGS_OWN: readonly (keyof Settings)[] = ['providers', 'prices', 'modelLists', 'modelAutoSwitch'];
 const BLOCKED = OWNER_SETTINGS.filter((k) => !HOSTED_SETTINGS_OWN.includes(k));

@@ -9,7 +9,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { writeFileAtomic } from './fs-util.ts';
 import { join } from 'node:path';
-import { isLoopbackHost, setPrivateLocal } from './net-guard.ts';
+import { isLoopbackHost, LOCAL_ALLOWS, setLocalAllow, setPrivateLocal, type LocalAllow } from './net-guard.ts';
 import { SUBSCRIPTION_KINDS, type ProviderConfig } from './providers/types.ts';
 import type { Settings } from './settings.ts';
 import { isCloudModelName } from './model-names.ts';
@@ -22,7 +22,17 @@ export interface PrivateLocalState {
   since?: string;
   /** Set by SARA_PRIVATE_LOCAL=1: the app can't turn it off. */
   locked: boolean;
+  /** W5.2: what the person allows while it is on (src/net-guard.ts LOCAL_ALLOWS), off by default. */
+  allow: LocalAllow[];
 }
+
+/** W5.2: what each allowance lets out while Local-only mode is on (English; the page translates). */
+export const ALLOW_LABEL: Record<LocalAllow, string> = {
+  updates: "Checking for updates (Sara's release page on GitHub)",
+  'model-downloads': 'Downloading models for Ollama on this computer',
+};
+
+const knownAllows = (v: unknown): LocalAllow[] => (Array.isArray(v) ? LOCAL_ALLOWS.filter((id) => v.includes(id)) : []);
 
 /** SARA_PRIVATE_LOCAL → 'locked' (always on), 'start' (on until turned off), or undefined. */
 export function envMode(v: string | undefined): 'locked' | 'start' | undefined {
@@ -35,12 +45,12 @@ export function envMode(v: string | undefined): 'locked' | 'start' | undefined {
 export class PrivateLocalStore {
   readonly #path: string;
   readonly #env: 'locked' | 'start' | undefined;
-  #state: { on: boolean; since?: string };
+  #state: { on: boolean; since?: string; allow?: LocalAllow[] };
 
   constructor(dataDir: string, env: string | undefined = process.env.SARA_PRIVATE_LOCAL) {
     this.#path = join(dataDir, FILE);
     this.#env = envMode(env);
-    let saved: { on?: unknown; since?: unknown } | undefined;
+    let saved: { on?: unknown; since?: unknown; allow?: unknown } | undefined;
     if (existsSync(this.#path)) {
       try {
         saved = JSON.parse(readFileSync(this.#path, 'utf8')) as typeof saved;
@@ -49,20 +59,30 @@ export class PrivateLocalStore {
       }
     }
     const on = this.#env === 'locked' ? true : saved ? saved.on === true : this.#env === 'start';
-    this.#state = { on, ...(on ? { since: typeof saved?.since === 'string' ? saved.since : new Date().toISOString() } : {}) };
+    this.#state = { on, ...(on ? { since: typeof saved?.since === 'string' ? saved.since : new Date().toISOString() } : {}), allow: knownAllows(saved?.allow) };
     // The first start with SARA_PRIVATE_LOCAL=start remembers the choice, so turning it off sticks.
     if (!saved && this.#env === 'start') this.#save();
+    setLocalAllow(this.#state.allow ?? []);
     setPrivateLocal(this.#state.on);
   }
 
   get(): PrivateLocalState {
-    return { on: this.#state.on, ...(this.#state.since ? { since: this.#state.since } : {}), locked: this.#env === 'locked' };
+    return { on: this.#state.on, ...(this.#state.since ? { since: this.#state.since } : {}), locked: this.#env === 'locked', allow: [...(this.#state.allow ?? [])] };
+  }
+
+  /** W5.2: saves and applies what is allowed while the mode is on (known ids only, in list order). */
+  setAllow(list: readonly string[]): PrivateLocalState {
+    this.#state = { ...this.#state, allow: knownAllows(list) };
+    this.#save();
+    setLocalAllow(this.#state.allow ?? []);
+    return this.get();
   }
 
   /** Saves and applies the switch. The callers check the rules (a local model, confirmation). */
   set(on: boolean): PrivateLocalState {
     if (this.#env === 'locked' && !on) throw new Error('SARA_PRIVATE_LOCAL=1 is set on this server, so private local mode stays on.');
-    this.#state = on ? { on, since: this.#state.on && this.#state.since ? this.#state.since : new Date().toISOString() } : { on: false };
+    const allow = this.#state.allow ?? [];
+    this.#state = on ? { on, since: this.#state.on && this.#state.since ? this.#state.since : new Date().toISOString(), allow } : { on: false, allow };
     this.#save();
     setPrivateLocal(on);
     return this.get();

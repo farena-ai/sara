@@ -1,0 +1,81 @@
+/* W4.5 (docs/FAMILY_SCREEN.md): the Family screen page, sized for tablets (1024x768, 1280x800, both
+   ways round) and readable from across a kitchen. Theme tokens only. */
+html, body.fs-body { margin: 0; min-height: 100%; background: var(--surface-0); color: var(--text-1); font-family: var(--font-ui); }
+body.fs-body { font-size: 18px; line-height: 1.35; -webkit-tap-highlight-color: transparent; }
+.fs-app { box-sizing: border-box; min-height: 100vh; padding: var(--s-4) var(--s-5) var(--s-6); }
+.fs-app *, .fs-talk * { box-sizing: border-box; }
+.fs-muted { color: var(--text-2); }
+
+/* Header: a big clock you can read from the sink. */
+.fs-head { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); margin: calc(-1 * var(--s-4)) calc(-1 * var(--s-5)) var(--s-4); padding: var(--s-3) var(--s-5); background: var(--surface-0); border-bottom: 1px solid var(--hairline); }
+.fs-head-right { display: flex; align-items: center; gap: var(--s-4); }
+.fs-clock { font-size: 56px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; }
+.fs-date { margin-top: var(--s-1); font-size: 22px; color: var(--text-2); }
+.fs-name { font-size: var(--fs-16); color: var(--text-3); text-align: right; }
+
+/* Four cards: two columns in landscape, one in portrait. */
+.fs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-4); align-items: start; }
+@media (orientation: portrait), (max-width: 760px) { .fs-grid { grid-template-columns: minmax(0, 1fr); } }
+.fs-card { min-width: 0; padding: var(--s-4); border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-1); box-shadow: var(--elev-1); }
+.fs-card h2 { margin: 0 0 var(--s-3); font-size: 24px; }
+.fs-card h3 { margin: var(--s-4) 0 var(--s-2); font-size: 18px; color: var(--text-2); }
+.fs-person h3 { margin-top: var(--s-3); color: var(--text-1); }
+.fs-person:first-of-type h3 { margin-top: 0; }
+.fs-empty { margin: 0; }
+.fs-list { list-style: none; margin: 0; padding: 0; }
+.fs-row { display: flex; gap: var(--s-3); align-items: baseline; padding: var(--s-2) 0; border-top: 1px solid var(--hairline); }
+.fs-row:first-child { border-top: 0; }
+.fs-time, .fs-day { flex: 0 0 auto; min-width: 6.5em; white-space: nowrap; color: var(--accent-text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fs-what { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.fs-none .fs-what { color: var(--text-3); }
+.fs-rem-mine .fs-what { font-style: italic; }
+
+/* Chores and list items: big tap targets. */
+.fs-chore, .fs-item { display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 56px; margin: 0 0 var(--s-2); padding: var(--s-2) var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-control); background: var(--surface-2); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
+.fs-chore:focus-visible, .fs-item:focus-visible, .fs-btn:focus-visible, .fs-big:focus-visible, .fs-chip:focus-visible, .fs-talk-btn:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.fs-tick { flex: 0 0 32px; height: 32px; display: grid; place-items: center; border: 2px solid var(--hairline-strong); border-radius: var(--r-round); font-weight: 700; color: var(--on-accent); }
+.is-done .fs-tick { border-color: var(--success); background: var(--success); }
+.fs-chore.is-done, .fs-item.is-done { cursor: default; background: var(--success-soft); }
+.fs-item.is-done { cursor: pointer; }
+.fs-item.is-done .fs-what { text-decoration: line-through; color: var(--text-2); }
+.fs-points { flex: 0 0 auto; padding: 2px var(--s-2); border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent-text); font-size: var(--fs-14); }
+.fs-wait { flex: 0 0 auto; font-size: var(--fs-14); color: var(--text-2); }
+.fs-chore { flex-wrap: wrap; }
+.fs-chore .fs-what { flex: 1 1 8em; }
+@media (max-width: 520px) {
+  .fs-chore .fs-wait { flex-basis: 100%; padding-left: 44px; }
+  .fs-clock { font-size: 44px; }
+  .fs-talk-btn { min-height: 60px; padding: 0 var(--s-4); font-size: 22px; }
+  .fs-name { display: none; }
+  .fs-time, .fs-day { min-width: 5.5em; }
+}
+.fs-shop { list-style: none; margin: var(--s-3) 0 0; padding: 0; }
+
+.fs-add { display: flex; gap: var(--s-2); }
+.fs-add input { flex: 1 1 auto; min-width: 0; min-height: 52px; padding: 0 var(--s-3); border: 1px solid var(--hairline-strong); border-radius: var(--r-control); background: var(--surface-0); color: var(--text-1); font: inherit; }
+.fs-btn { flex: 0 0 auto; min-width: 52px; min-height: 52px; padding: 0 var(--s-4); border: 1px solid var(--hairline-strong); border-radius: var(--r-control); background: var(--surface-2); color: var(--text-1); font: inherit; font-weight: 600; cursor: pointer; }
+.fs-add .fs-btn[type="submit"] { background: var(--accent-grad); border-color: transparent; color: var(--on-accent); }
+.fs-big { display: block; width: 100%; min-height: 64px; margin: var(--s-3) 0; border: 0; border-radius: var(--r-control); background: var(--accent-grad); color: var(--on-accent); font: inherit; font-size: 22px; font-weight: 700; cursor: pointer; }
+.fs-big:disabled, .fs-btn:disabled { opacity: 0.6; }
+
+/* The big Talk button. */
+.fs-talk-btn { display: flex; align-items: center; gap: var(--s-2); min-height: 72px; padding: 0 var(--s-6); border: 0; border-radius: var(--r-pill); background: var(--accent-grad); color: var(--on-accent); font: inherit; font-size: 28px; font-weight: 700; box-shadow: var(--elev-3); cursor: pointer; }
+dialog.fs-talk { box-sizing: border-box; width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: var(--s-5); border: 1px solid var(--hairline-strong); border-radius: var(--r-card); background: var(--surface-1); color: var(--text-1); box-shadow: var(--elev-3); }
+dialog.fs-talk::backdrop { background: var(--call-bg); opacity: 0.7; }
+.fs-talk-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.fs-talk-head h2 { margin: 0; font-size: 28px; }
+.fs-who { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-4) 0; }
+.fs-chip { min-height: 52px; padding: 0 var(--s-4); border: 2px solid var(--hairline-strong); border-radius: var(--r-pill); background: var(--surface-2); color: var(--text-1); font: inherit; font-weight: 600; cursor: pointer; }
+.fs-chip.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-text); }
+.fs-reply { min-height: 4em; margin-top: var(--s-4); padding: var(--s-3) var(--s-4); border-radius: var(--r-2); background: var(--surface-2); font-size: 22px; line-height: 1.4; }
+
+/* Pairing. */
+.fs-pair { max-width: 520px; margin: 12vh auto 0; padding: var(--s-6); border: 1px solid var(--hairline); border-radius: var(--r-card); background: var(--surface-1); box-shadow: var(--elev-2); text-align: center; }
+.fs-pair h1 { margin: 0 0 var(--s-3); font-size: 32px; }
+.fs-code { width: 100%; min-height: 72px; margin-top: var(--s-4); border: 2px solid var(--hairline-strong); border-radius: var(--r-control); background: var(--surface-0); color: var(--text-1); font-family: var(--font-mono); font-size: 36px; letter-spacing: 0.15em; text-align: center; text-transform: uppercase; }
+.fs-status { min-height: 1.4em; color: var(--text-2); }
+.fs-flash { position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%); max-width: calc(100vw - 32px); margin: 0; padding: var(--s-3) var(--s-4); border-radius: var(--r-control); background: var(--danger-soft); color: var(--text-1); box-shadow: var(--elev-2); }
+
+/* Night: dim everything (a tap wakes it for a minute). */
+html.fs-dim body.fs-body { filter: brightness(0.35); transition: filter 2s var(--ease-std); }
+@media (prefers-reduced-motion: reduce) { html.fs-dim body.fs-body { transition: none; } }

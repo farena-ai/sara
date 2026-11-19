@@ -31,6 +31,10 @@ Settings) takes effect at once; nothing asks for a password to turn it off.
   your click; the browser's own password, payment and sync pages stay blocked.
 - Requests from other people still ask: other apps, outside requests, forwarded mail or messages,
   answers from a linked server, group chats. The switch covers what **you** ask her to do.
+- Other people's words that a tool brings into your own turn count too (W5.1): after she reads a web
+  page (`web_fetch`), an email (mail or Gmail read, search or thread), Inbox suggestions or an answer from an
+  MCP server, the rest of that turn asks again for anything that would ask without the switch. Tools set
+  to Allow still run; computer use and the browser keep the switch.
 - A tool you set to **Never** stays off. Spend limits still stop paid calls.
 - Household members never press Pay, Buy or Place order (R7).
 - Everything still goes to the **Action timeline** (with Undo where there is one) and to the

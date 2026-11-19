@@ -3,7 +3,7 @@
 // "can't be undone" reason where not. Server: src/routes/timeline.ts (each space its own).
 import { serverText, t } from './naming.js';
 
-/** @type {{ openChat?: (id: string) => void }} */
+/** @type {{ openChat?: (id: string) => void, openTurn?: (id: string, messageId: number) => void }} */
 let ctx = {};
 let before = 0;
 const $ = (s) => document.querySelector(s);
@@ -66,7 +66,39 @@ function row(item) {
     foot.append(a);
   }
   li.append(foot);
+  li.append(whyBox(item));
   return li;
+}
+
+let seq = 0;
+/** W5.5 (docs/design/W5WHY.md): what started it and why no card was shown, as stored with the row. */
+function whyBox(item) {
+  const box = el('div', 'tl-why small');
+  const body = el('div', 'tl-why-body');
+  body.id = `tl-why-${item.id}-${++seq}`;
+  body.hidden = true;
+  const ask = btn(t('Why did you do this?'), 'linkish small tl-why-ask', () => {
+    body.hidden = !body.hidden;
+    ask.setAttribute('aria-expanded', String(!body.hidden));
+  });
+  ask.setAttribute('aria-expanded', 'false');
+  ask.setAttribute('aria-controls', body.id);
+  for (const l of item.whyLines ?? []) {
+    const p = el('p', `tl-why-${l.part}${l.part === 'old' ? ' muted' : ''}`, t(l.key, { ...(l.params ?? {}), ...(l.at ? { time: when(l.at) } : {}) }));
+    body.append(p);
+  }
+  const mid = item.why?.cause?.messageId;
+  if (item.conversationId && mid && ctx.openTurn) {
+    const a = el('a', 'tl-why-turn small', t('Show the chat turn'));
+    a.href = '#';
+    a.addEventListener('click', (e) => {
+      e.preventDefault();
+      ctx.openTurn?.(item.conversationId, mid);
+    });
+    body.append(a);
+  }
+  box.append(ask, body);
+  return box;
 }
 
 function confirmRow(li, item) {

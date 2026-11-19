@@ -12,17 +12,20 @@
 //   POST   /api/family/kids/:id/pay                     {amount, note?}  (a record only)
 //   PUT    /api/family/kids/:id/profile                 {child | null}   (the owner)
 //   PUT    /api/family/parents/:id                      {on}             (the owner)
+//   W5.4:  GET kids/:id/dashboard · GET kids/:id/chats[?c=] (transcript view on) · POST kids/:id/extra {minutes}
+//          POST requests/:id {approve} (parents) · GET me/kid · POST me/requests {kind, tool?, what?} (the kid)
 //   GET    /api/family/grocery · POST /api/family/grocery {name}
 //   GET    /api/family/grocery/:id
 //   POST   /api/family/grocery/:id/items                {title, aisle?, store?}
 //   PATCH  /api/family/grocery/:id/items/:ref           {aisle?, store?, done?} · DELETE …/items/:ref
 //   POST   /api/family/grocery/:id/cheapest             {refs?}          (find_product; the owner's space)
-import { AGE_BANDS, AISLES, cheapestLine, CHORE_REPEATS, FamilyError, KID_MINUTES, kidsOf, OTHER_AISLE, STAPLES } from '../family.ts';
+import { AGE_BANDS, AISLES, BAND_DEFAULTS, cheapestLine, CHORE_REPEATS, EXTRA_MINUTES, FamilyError, KID_MINUTES, KID_STRICTNESS, KID_TONES, KID_TOOLS, kidsOf, OTHER_AISLE, STAPLES } from '../family.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { en, trOwner } from '../i18n.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 import { planOf } from '../family-plan.ts';
 import { familyPlanRoutes } from './family-plan.ts';
+import { SCREEN_CODE_MS, screensOf } from '../family-screen.ts';
 
 const MAX_PHOTO_BODY = 6 * 1024 * 1024;
 const PHOTO_RE = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/=]+)$/;
@@ -74,8 +77,33 @@ export function createFamilyRoutes(ctx: RouteCtx): RouteHandler {
         grocery: groceryLists(),
         groceryInvites: groceryInvites(),
         plan: { settings: planOf(f.store).settings(), pending: planOf(f.store).pending(me).length, rotas: parent ? planOf(f.store).rotas() : {} },
-        options: { repeats: CHORE_REPEATS, bands: AGE_BANDS, minutes: KID_MINUTES, aisles: [...AISLES, OTHER_AISLE].map((x) => ({ id: x.id, name: x.name })) },
+        options: { repeats: CHORE_REPEATS, bands: AGE_BANDS, minutes: KID_MINUTES, tones: KID_TONES, strictness: KID_STRICTNESS, kidTools: [...KID_TOOLS].filter((x) => x !== 'kid_ask_parent'), bandDefaults: BAND_DEFAULTS, aisles: [...AISLES, OTHER_AISLE].map((x) => ({ id: x.id, name: x.name })) },
       });
+    }
+
+    // W4.5: family screens (tablets), the owner's only (src/family-screen.ts).
+    if (b === 'screens') {
+      const screens = me === 'owner' ? screensOf(app) : undefined;
+      if (!screens) {
+        if (method !== 'GET') await readJson(req).catch(() => undefined);
+        throw new HttpError(403, T(en('Only the owner of this server can change this.')));
+      }
+      if (!c && method === 'GET') return send(res, 200, { screens: screens.list(), codeMinutes: SCREEN_CODE_MS / 60_000 });
+      if (c === 'code' && !d && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, await wrap(() => screens.code(body.name)));
+      }
+      if (c && c !== 'code' && !d && method === 'PATCH') {
+        const body = await readJson(req);
+        const screen = await wrap(() => screens.update(c, body));
+        if (!screen) throw new HttpError(404, T(en('That screen is gone.')));
+        return send(res, 200, { screen });
+      }
+      if (c && c !== 'code' && !d && method === 'DELETE') {
+        if (!screens.remove(c)) throw new HttpError(404, T(en('That screen is gone.')));
+        return send(res, 200, { ok: true });
+      }
+      throw new HttpError(404, 'Not found');
     }
 
     // U4.21: the planner (meals, recipes, likes and allergies, rota, family calendar).
@@ -122,6 +150,36 @@ export function createFamilyRoutes(ctx: RouteCtx): RouteHandler {
       if ((d === 'approve' || d === 'reject') && !e && method === 'POST') {
         const body = await readJson(req);
         return send(res, 200, { mark: await wrap(() => (d === 'approve' ? f.store.approve(me, id) : f.store.reject(me, id, body.note))) });
+      }
+    }
+
+    // ------------------------------------------------------------ W5.4 kid mode v2 (src/kid-mode.ts)
+    if (b === 'me' && c === 'kid' && !d && method === 'GET') {
+      const { kidStatus } = await import('../kid-mode.ts');
+      return send(res, 200, { kid: kidStatus(f) ?? null });
+    }
+    if (b === 'me' && c === 'requests' && !d && method === 'POST') {
+      const body = await readJson(req);
+      const { askParent } = await import('../kid-mode.ts');
+      return send(res, 201, { request: await wrap(() => askParent(f, body)) });
+    }
+    if (b === 'requests' && c && !d && method === 'POST') {
+      const body = await readJson(req);
+      const { decideKidRequest } = await import('../kid-mode.ts');
+      return send(res, 200, { request: await wrap(() => decideKidRequest(f, Number(c), body.approve === true)) });
+    }
+    if (b === 'kids' && c && (d === 'dashboard' || d === 'chats' || d === 'extra') && !e) {
+      if (!known().includes(c)) throw new HttpError(404, T(en('No such person.')));
+      const km = await import('../kid-mode.ts');
+      if (d === 'dashboard' && method === 'GET') return send(res, 200, await wrap(() => km.kidDashboard(f, c)));
+      if (d === 'chats' && method === 'GET') {
+        const conv = new URL(req.url ?? '/', 'http://x').searchParams.get('c') ?? undefined;
+        return send(res, 200, await wrap(() => km.kidChats(f, c, conv)));
+      }
+      if (d === 'extra' && method === 'POST') {
+        const body = await readJson(req);
+        const extra = await wrap(() => f.store.addExtra(me, c, Number(body.minutes ?? EXTRA_MINUTES), app.now(), tz));
+        return send(res, 200, { extra });
       }
     }
 

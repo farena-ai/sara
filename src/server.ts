@@ -104,11 +104,13 @@ import { createFamilyRoutes } from './routes/family.ts';
 import { createInboxRoutes } from './routes/inbox.ts';
 import { createWaitingRoutes } from './routes/waiting.ts';
 import { createWatchRoutes } from './routes/watches.ts';
+import { familyScreenRoutes } from './family-screen.ts';
 import { createMessagesRoutes } from './routes/messages.ts';
 import { createSupportRoutes, handleSupportPeer } from './routes/support.ts';
 import { createRemoteRepairRoutes, handleRepairPeer } from './routes/remote-repair.ts';
 import { createSharedProjectRoutes, handleSharedProjectPeer } from './routes/shared-projects.ts';
 import { createFriendTimeRoutes, handleFriendTimePeer } from './routes/friend-time.ts';
+import { createCarryRoutes, handleCarryPeer } from './routes/carry.ts';
 import { createMarketRoutes, handleMarketPeer } from './routes/market.ts';
 import { createRepairRoutes } from './routes/repair.ts';
 import { createSelfCodeRoutes } from './routes/self-code.ts';
@@ -548,7 +550,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       res.writeHead(200, { 'content-type': MEDIA_TYPES[file.split('.').pop()!], 'cache-control': 'public, max-age=86400', ...SECURITY_HEADERS });
       return void (req.method === 'HEAD' ? res.end() : createReadStream(file).pipe(res));
     }
-    const rel = pathname === '/' ? 'index.html' : pathname === '/pair' ? 'pair.html' : pathname === '/device' ? 'device.html' : pathname === '/privacy' ? 'privacy.html' : pathname === '/support' ? 'support.html' : pathname === '/help' ? 'help.html' : pathname === '/download' ? 'download.html' : safeDecode(pathname).replace(/^\/+/, '');
+    const rel = pathname === '/' ? 'index.html' : pathname === '/pair' ? 'pair.html' : pathname === '/device' ? 'device.html' : pathname === '/privacy' ? 'privacy.html' : pathname === '/support' ? 'support.html' : pathname === '/help' ? 'help.html' : pathname === '/download' ? 'download.html' : pathname === '/family-screen' ? 'family-screen.html' : safeDecode(pathname).replace(/^\/+/, '');
     // Phase 31: a companion without a look of her own yet shows her initial, not Sara's face.
     if (app.companionId && app.companionId !== 'main' && isAuthed(req) && !app.look?.custom && /^(sara-portrait|sara-avatar)\.jpg$|^sara\/[\w-]+\.jpg$/.test(rel)) {
       const svg = initialPicture(app.persona.name);
@@ -1125,6 +1127,7 @@ export function createSaraServer(opts: ServerOptions): Server {
   const remoteRepairRoutes = createRemoteRepairRoutes(ctx); // T5: fix passes (docs/REMOTE_REPAIR.md)
   const sharedProjectRoutes = createSharedProjectRoutes(ctx); // U4.26 (docs/SHARED_PROJECTS.md)
   const friendTimeRoutes = createFriendTimeRoutes(ctx); // V2.10 (docs/design/V2SCHEDULE.md)
+  const carryRoutes = createCarryRoutes(ctx); // W5.3 (docs/design/W5BACKUP.md), before admin's /api/backups
   const marketRoutes = createMarketRoutes(ctx); // U4.27: the community marketplace (docs/MARKETPLACE.md)
   // ROADMAP_T: self-repair (src/routes/repair.ts; docs/SELF_REPAIR.md), owner only.
   const repairRoutes = createRepairRoutes(ctx);
@@ -1500,6 +1503,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         ...(authed && !opts.demo ? { serverId: serverIdOf(app.rootDir ?? app.dataDir), space: spaceId } : {}),
         // Phase 67: the header badge while nothing may leave this computer.
         ...(authed && privateLocalOn() ? { privateLocal: true } : {}),
+        // W5.2: what the person allowed while it is on (open pages check for updates only if allowed).
+        ...(authed && privateLocalOn() ? { localAllow: (app.privateLocal?.get().allow ?? []) } : {}),
         // 2.18: the version this server runs, so open pages notice an update and reload (web/update-check.js). Not in the demo.
         ...(authed && !opts.demo ? { version: info.version } : {}),
         // Phase 53: the app language (the page loads its translations before showing anything).
@@ -1602,6 +1607,8 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (a === 'phone' && (await phoneRoutes.publicRoutes(req, res, method, parts)) !== NEXT) return;
     // R4: a Shortcuts token is its own credential, for /api/shortcuts/{share,ask,widget} only.
     if (a === 'shortcuts' && (await shortcutRoutes.publicRoutes(req, res, method, parts)) !== NEXT) return;
+    // W4.5: the family screen's own token is its credential, for /api/family-screen/* only (src/family-screen.ts).
+    if (a === 'family-screen') return familyScreenRoutes(app, req, res, method, parts, clientIp(req, opts.trustProxy));
     // C15: the asking device checks its own request before (and after) it is signed in.
     if (await gate.publicRoutes(req, res, method, parts)) return;
     if (!isAuthed(req)) throw new HttpError(401, 'Sign in first.');
@@ -1682,6 +1689,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await shortcutRoutes.routes(req, res, method, parts)) !== NEXT) return;
     if ((await modelsRoutes(req, res, method, parts)) !== NEXT) return;
     // Admin: settings, backups, logs, doctor, status, health history, updates, access, desktop apps, safety stats, search, tools, MCP, checklist: src/routes/admin.ts.
+    if ((await carryRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await adminRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await governanceRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await memberToolsRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2805,6 +2813,9 @@ export function createSaraServer(opts: ServerOptions): Server {
       }
       if (url.pathname.startsWith('/msg/v1/sproj/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleSharedProjectPeer(ctx, req, res, url.pathname);
+      }
+      if (url.pathname.startsWith('/msg/v1/carry/')) {
+        if (app.messages && !opts.member && !opts.demo) return await handleCarryPeer(ctx, req, res, url.pathname);
       }
       if (url.pathname.startsWith('/msg/v1/ftime/')) {
         if (app.messages && !opts.member && !opts.demo) return await handleFriendTimePeer(ctx, req, res, url.pathname);

@@ -1241,7 +1241,7 @@ export class HookManager {
             }
           }
         },
-        { outside: policy, externalApp: true, ...(policy.tools.length ? {} : { noTools: true }), budget: { tokens: Math.min(room, 30_000), minutes: 10 } },
+        { outside: policy, externalApp: true, ...(policy.tools.length ? {} : { noTools: true }), budget: { tokens: Math.min(room, 30_000), minutes: 10 }, cause: { kind: 'webhook', label: h.name } },
       );
     } catch (err) {
       error = (err as Error).message;

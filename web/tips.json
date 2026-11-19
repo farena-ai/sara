@@ -25,6 +25,10 @@
       "A notice on your phone at each dose time you set for a medicine. Mark it taken or skipped on the Health page.",
       "what-sara-knows"
     ],
+    "hs-coach": [
+      "Off by default. On Sunday evening she says your week in Health is ready, within your daily nudge limit. The note never has a number or a medicine name.",
+      "what-sara-knows"
+    ],
     "hs-names": [
       "Off by default: reminders only say it is time for a dose, so a locked screen shows no medicine names. Turn on to see the name and dose.",
       "what-sara-knows"
@@ -2029,7 +2033,7 @@
       "look"
     ],
     "models-local": [
-      "Run her model on this computer: Sara finds Ollama, suggests a model that fits your graphics card or memory, and downloads it. The switch Nothing leaves this computer keeps every request on this computer.",
+      "Run her model on this computer: Sara finds Ollama, suggests a model that fits your graphics card or memory, and downloads it. Local-only mode keeps every request on this computer, except what you allow.",
       "private-local"
     ],
     "models-default": [

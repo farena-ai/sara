@@ -1947,6 +1947,16 @@
     "Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.",
     "Read the result: how long it took, what it counted and how much a restore now would lose."
    ]
+  },
+  {
+   "id": "carry",
+   "q": "How do I restore Sara on a new computer?",
+   "steps": [
+    "Plug in the drive with your sealed copy (.sara).",
+    "Under Restore on a new computer, press Look on the drives and pick it.",
+    "Type the 18 words from your recovery sheet, press Check the backup, then Restore this backup."
+   ],
+   "show": "#cy-restore"
   }
  ],
  "dh-data": [
@@ -2098,6 +2108,26 @@
    "steps": [
     "Set Messages a day and Spending a day.",
     "Choose the models they may use."
+   ]
+  },
+  {
+   "id": "family-screen",
+   "q": "How do I set up a family screen on a tablet?",
+   "steps": [
+    "Type a name under Family screen and press Make a pairing code.",
+    "On the tablet, open the address shown and type the code.",
+    "Set its night hours and the Talk button in the list below."
+   ],
+   "show": "#fsc-code"
+  },
+  {
+   "id": "kid-mode",
+   "q": "How do I set up kid mode for my child’s age?",
+   "steps": [
+    "Open Family → Kids and tick Kid-safe mode for them.",
+    "Pick their age band: tools, words, time a day and bedtime fill in.",
+    "Change anything you like, then press Save.",
+    "Press Dashboard to see time, topics, requests and flagged moments."
    ]
   }
  ],
@@ -2495,6 +2525,16 @@
     "Find the change in the Action timeline (newest first).",
     "Press Revert, then Yes, revert.",
     "If a change can't be undone, the row says why."
+   ],
+   "show": "#tl-list"
+  },
+  {
+   "id": "why",
+   "q": "How do I see why she did something?",
+   "steps": [
+    "Press Why did you do this? under the change.",
+    "It says what started it (your message, an automation, a plan step…) and why no card was shown.",
+    "Press Show the chat turn to see it in the chat, or ask her \"why did you do that?\" right after."
    ],
    "show": "#tl-list"
   },

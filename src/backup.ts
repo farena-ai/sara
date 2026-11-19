@@ -15,7 +15,7 @@ export const BACKUPS_DIR = 'backups';
 /** Never inside a backup: live database files (a consistent copy is added), temp, old backups. */
 // service: the Mac app's running state (how she starts, pid files, a stop switch); it belongs to
 // this computer, not to her, so it is neither saved nor replaced by a restore.
-const SKIP_TOP = new Set(['sara.db', 'sara.db-wal', 'sara.db-shm', 'tmp', BACKUPS_DIR, 'snapshots', 'update-request', 'update-status.json', 'cache', 'logs', 'downloads', 'first-token.txt', 'service']); // downloads: the desktop app files (rebuildable)
+const SKIP_TOP = new Set(['sara.db', 'sara.db-wal', 'sara.db-shm', 'tmp', BACKUPS_DIR, 'snapshots', 'update-request', 'update-status.json', 'cache', 'logs', 'downloads', 'first-token.txt', 'service', 'restore-staged', 'carry-held']); // W5.3: a staged restore and friends' sealed copies are never in her own backups // downloads: the desktop app files (rebuildable)
 const isRestoreLeftover = (name: string) => name.startsWith('before-restore-');
 /** Left where they are by a restore: her backups, this computer's service settings, the logs. */
 const KEEP_IN_PLACE = new Set([BACKUPS_DIR, 'service', 'logs']);

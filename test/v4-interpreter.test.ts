@@ -179,7 +179,7 @@ test('speak in a language: Speech.speak picks the language voice; the routes pas
   await speechOf(app).speak('Hello');
   assert.deepEqual(said, ['piper:es_ES-davefx', 'piper:en_US-hfc_female', 'piper:en_US-hfc_female']);
   assert.match(read('src/routes/voice.ts'), /lang: interpLang\(body\.lang\)/);
-  assert.match(read('web/voice.js'), /this\.fetchAudio\(q\.text, q\.voice, q\.lang\)/);
+  assert.match(read('web/voice.js'), /this\.fetchAudio\(q\.text, q\.voice, q\.lang[,)]/);
   assert.match(read('web/app.js'), /\.\.\.\(lang \? \{ lang \} : \{\}\)/);
 });
 

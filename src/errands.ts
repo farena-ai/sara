@@ -398,7 +398,7 @@ const addressOf = (from: string): string => (/<([^>]+)>/.exec(from)?.[1] ?? from
 
 export interface ErrandOptions {
   /** Tests: a fake turn in the errand's chat (default: app.runTracked). */
-  runTask?: (r: { errand: Errand; conversationId: string; content: string }) => Promise<{ reply: string; error?: string; declined?: boolean }>;
+  runTask?: (r: { errand: Errand; conversationId: string; content: string; step?: string }) => Promise<{ reply: string; error?: string; declined?: boolean }>;
   /** Tests: catch notifications (default: app.push.notifyOwner). */
   notify?: (title: string, body: string, conversationId: string, tag: string) => Promise<void>;
   quiet?: () => boolean;
@@ -1099,7 +1099,7 @@ CREATE TABLE IF NOT EXISTS errands (
     const conversationId = this.#conversation(e);
     e.conversationId = conversationId;
     const content = `${what}\n\n(This is one step of my errand “${e.goal}”. What we know: ${JSON.stringify(e.facts)}. Do only this step; anything that changes something still needs my OK.)`;
-    const res = await (this.#o.runTask ?? ((r) => this.#defaultTask(r)))({ errand: e, conversationId, content });
+    const res = await (this.#o.runTask ?? ((r) => this.#defaultTask(r)))({ errand: e, conversationId, content, step: s.text });
     if (res.declined) {
       s.status = 'skipped';
       s.result = T(en('You declined her step, so she skipped it.'));
@@ -1111,7 +1111,7 @@ CREATE TABLE IF NOT EXISTS errands (
     this.#done(e, s, res.reply || T(en('She did this step.')), { kind: 'turn', verified: 'read', line: this.#T(en('Her turn in the errand’s chat (its own approvals).')), ref: conversationId, at: this.#now().toISOString() });
   }
 
-  async #defaultTask(r: { errand: Errand; conversationId: string; content: string }): Promise<{ reply: string; error?: string; declined?: boolean }> {
+  async #defaultTask(r: { errand: Errand; conversationId: string; content: string; step?: string }): Promise<{ reply: string; error?: string; declined?: boolean }> {
     const app = this.#app;
     if (!app.runTracked) return { reply: '', error: 'this server cannot run turns in the background' };
     if (app.isBusy?.(r.conversationId)) return { reply: '', error: 'she is still working in its chat' };
@@ -1132,7 +1132,8 @@ CREATE TABLE IF NOT EXISTS errands (
           else if (ev.type === 'approval') asked = true;
           else if (ev.type === 'tool_result' && asked && ev.status === 'denied') declined = true;
         },
-        { budget: { tokens: ERRAND.taskTokens, minutes: ERRAND.taskMinutes } },
+        // W5.5: a Handle it run names its plan step; any other errand its goal.
+        { budget: { tokens: ERRAND.taskTokens, minutes: ERRAND.taskMinutes }, cause: r.errand.facts.handleKind ? { kind: 'handle', label: r.errand.goal, ...(r.step ? { step: r.step } : {}) } : { kind: 'errand', label: r.errand.goal, ...(r.step ? { step: r.step } : {}) } },
       );
     } catch (err) {
       error = (err as Error).message;

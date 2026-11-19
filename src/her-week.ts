@@ -271,7 +271,7 @@ export function herWeekAccept(app: AppContext, id: string, messageId?: number): 
   const d = TIPS.find((x) => x.id === id);
   if (!d) throw new TimelineError(400, en('That suggestion isn’t one she can apply.'));
   const done = d.apply(app);
-  const row = timelineOf(app).record({ tool: 'her_week', kind: 'settings', summary: `Weekly check-in: ${d.id}`, undo: { type: 'herweek', tip: d.id, ...(messageId !== undefined ? { message: messageId } : {}), ...done.undo }, title: d.text, params: {} });
+  const row = timelineOf(app).record({ tool: 'her_week', kind: 'settings', summary: `Weekly check-in: ${d.id}`, undo: { type: 'herweek', tip: d.id, ...(messageId !== undefined ? { message: messageId } : {}), ...done.undo }, title: d.text, params: {}, why: { cause: { kind: 'click' }, rule: 'click' } });
   mark(app, id, messageId, { done: row.id });
   return row;
 }

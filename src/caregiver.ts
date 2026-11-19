@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
 import { type CareContact, type CareGrant, type CheckinStatus, HealthError, HealthLog, healthFor } from './health-log.ts';
 import { en, trOwner } from './i18n.ts';
+import { type CoachShare, coachShare, coachWeek } from './health-coach-week.ts';
 
 const HOUR = 3_600_000;
 /** A dose still open this long after its time counts as missed. */
@@ -20,6 +21,8 @@ export interface CareView {
   name: string;
   doses?: { missed: { med: string; due: string }[]; today: { taken: number; skipped: number; open: number } };
   checkins?: { day: string; status: CheckinStatus }[];
+  /** W4.4: the coach's weekly summary, when shared. */
+  summary?: CoachShare;
 }
 
 const me = (app: AppContext): string | undefined => app.family?.person;
@@ -44,12 +47,13 @@ export function setCareGrant(app: AppContext, b: Record<string, unknown>): CareG
   const c = h.care();
   const doses = b.doses === true;
   const checkins = b.checkins === true;
-  if (!doses && !checkins) {
+  const summary = b.summary === true;
+  if (!doses && !checkins && !summary) {
     h.removeCareGrant(person);
     return undefined;
   }
   const old = c.grants.find((g) => g.person === person);
-  const grant: CareGrant = { person, doses, checkins, since: old?.since ?? app.now().toISOString(), ...(old?.told ? { told: old.told } : {}) };
+  const grant: CareGrant = { person, doses, checkins, ...(summary ? { summary } : {}), since: old?.since ?? app.now().toISOString(), ...(old?.told ? { told: old.told } : {}) };
   h.setCare({ ...c, grants: [...c.grants.filter((g) => g.person !== person), grant] });
   return grant;
 }
@@ -84,7 +88,7 @@ export function caringFor(app: AppContext): { id: string; name: string }[] {
   for (const p of peopleOf(app)) {
     if (p.id === self || p.child) continue;
     const g = logOf(app, p.id)?.care().grants.find((x) => x.person === self);
-    if (g && (g.doses || g.checkins)) out.push({ id: p.id, name: p.name });
+    if (g && (g.doses || g.checkins || g.summary)) out.push({ id: p.id, name: p.name });
   }
   return out;
 }
@@ -95,11 +99,12 @@ export function careViewOf(app: AppContext, id: string): CareView {
   const p = peopleOf(app).find((x) => x.id === id && x.id !== self && !x.child);
   const h = p ? logOf(app, id) : undefined;
   const g = h?.care().grants.find((x) => x.person === self);
-  if (!p || !h || !g || !(g.doses || g.checkins)) throw new HealthError(403, en('This person has not shared this with you.'));
+  if (!p || !h || !g || !(g.doses || g.checkins || g.summary)) throw new HealthError(403, en('This person has not shared this with you.'));
   const v: CareView = { id, name: p.name };
   const now = app.now();
   if (g.doses) v.doses = { missed: missedDoses(h, now).map((d) => ({ med: h.med(d.medId)?.name ?? '', due: d.due })), today: todayCounts(h, now) };
   if (g.checkins) v.checkins = h.checkins(7).map((c) => ({ day: c.day, status: c.status }));
+  if (g.summary) v.summary = coachShare(coachWeek(h, now));
   return v;
 }
 

@@ -250,6 +250,8 @@ function note(app: AppContext, e: Errand, title: string, o: { undo?: boolean; se
       ...(o.undo ? { undo: { type: 'handle_it', id: e.id } } : { never: o.sent ? NEVER.sent : en('Handle it steps are undone by stopping it; what she did is listed here.') }),
       title,
       params,
+      // W5.5: the Handle it plan (and its step) started it.
+      why: { cause: { kind: 'handle', label: e.goal, ...(o.step ? { step: o.step } : {}) } },
     });
   } catch {
     /* the timeline is best effort */

@@ -74,6 +74,18 @@ export function createPhoneRoutes(ctx: RouteCtx): { publicRoutes: RouteHandler; 
       app.planner.addReminder({ text: r.text, dueAt: new Date(app.now().getTime() + SNOOZE_MS).toISOString(), conversationId: c.conv ?? r.conversationId ?? null });
       return { ok: true, done: 'snooze' };
     }
+    // W5.4 (docs/design/W5KIDS.md): a kid's request (one more 15 minutes, a tool, something else).
+    if (c.kind === 'kid' && (action === 'approve' || action === 'decline')) {
+      if (!app.family) throw new HttpError(404, ACT_LINES.nothing);
+      push.actions.spend(c);
+      const { decideKidRequest } = await import('../kid-mode.ts');
+      try {
+        decideKidRequest(app.family, Number(c.id), action === 'approve');
+      } catch (err) {
+        throw new HttpError((err as { status?: number }).status ?? 409, (err as Error).message);
+      }
+      return { ok: true, done: action };
+    }
     if (c.kind === 'inbox' && action === 'accept') {
       const inbox = app.inbox;
       const item = inbox?.list({ status: 'pending', limit: 500 }).find((x) => String(x.id) === c.id);

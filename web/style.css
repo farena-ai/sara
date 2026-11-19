@@ -255,6 +255,28 @@ ul.health li, ul.backups li { padding: 3px 0; }
 ul.rtst-list li { display: block; border-top: 1px solid var(--hairline); padding: 6px 0; }
 ul.rtst-list li.rtst-failed strong { color: var(--danger); }
 ul.rtst-list li.rtst-skipped strong { color: var(--warn); }
+/* W5.3 backups you can carry (web/carry.js) */
+.cy-box { margin: 4px 0 10px; min-width: 0; max-width: 100%; }
+.cy-box .cy-ok, .cy-state.cy-ok { color: var(--ok, var(--accent)); }
+.cy-box .cy-bad, .cy-state.cy-bad { color: var(--danger); }
+.cy-state.cy-wait { color: var(--warn); }
+.cy-sheetview { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin: 8px 0; padding: 12px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--surface, transparent); }
+ol.cy-words { columns: 3; column-gap: 18px; margin: 0; padding-left: 26px; flex: 1 1 260px; font-size: 15px; font-weight: 600; }
+ol.cy-words li { padding: 2px 0; break-inside: avoid; }
+img.cy-qr { width: 132px; height: 132px; border-radius: 6px; flex: 0 0 auto; }
+#settings .cy-check { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+#settings .cy-check input { width: 18px; height: 18px; flex: 0 0 auto; }
+#settings .cy-field[hidden] { display: none; }
+#settings .cy-field:not([hidden]) { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
+#settings .cy-field select, #settings .cy-field input:not(.tiny) { flex: 1 1 220px; min-width: 0; }
+ul.cy-list li.cy-item { border-top: 1px solid var(--hairline); padding: 6px 0; }
+.cy-acts { display: inline-flex; gap: 6px; margin-left: 8px; flex-wrap: wrap; }
+ol.cy-steps { padding-left: 22px; margin: 4px 0; }
+ol.cy-steps li.cy-step { margin: 0 0 12px; }
+textarea.cy-wordsin { display: block; width: 100%; max-width: 560px; margin: 6px 0; font: inherit; }
+.cy-found { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 6px; }
+.cy-friend { padding: 4px 0; border-top: 1px solid var(--hairline); }
+@media (max-width: 520px) { ol.cy-words { columns: 2; } }
 ul.health .mark { display: inline-block; width: 18px; font-weight: 700; }
 ul.health li.ok .mark { color: var(--success); }
 ul.health li.bad .mark { color: var(--warn); }
@@ -1655,6 +1677,12 @@ body:not(.member) [data-member-only] { display: none !important; }
 .hh-models .row { margin: 0; }
 .hh-models .badge.warn { font-size: 11px; padding: 0 6px; border-radius: 999px; border: 1px solid var(--warn); color: var(--warn); white-space: nowrap; }
 .hh-members { display: grid; gap: 12px; }
+.fsc-code code { font-family: var(--font-mono); font-size: 28px; letter-spacing: 0.12em; }
+.fsc-screen .fsc-head { margin: 0 0 6px; }
+#settings .fsc-screen label.fsc-field, #settings .fsc-screen label.fsc-check { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+#settings .fsc-screen label.fsc-field input { width: auto; flex: 0 0 auto; }
+#settings .fsc-screen label.fsc-check input { width: 22px; flex: 0 0 22px; }
+.fsc-screen .fsc-help { margin: 2px 0 8px; }
 .hh-card { border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; background: var(--panel-2); display: grid; gap: 6px; min-width: 0; }
 .hh-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .hh-badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); white-space: nowrap; }
@@ -2190,6 +2218,15 @@ dialog#simple-home:not(#_) { inset: 0; width: 100%; max-width: none; height: aut
   #simple-home .sh-big { min-height: 128px; font-size: 20px; }
 }
 #health .hl-dot.hl-line2, #health .hl-dot2 { fill: var(--text-3); }
+/* W4.4 health coach: Your week */
+#health .hl-coach-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; margin: 6px 0; }
+#health .hl-coach-tile { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; background: var(--surface-2, var(--surface)); min-width: 0; }
+#health .hl-coach-name { color: var(--text-2); }
+#health .hl-coach-val { font-size: 1.15em; font-weight: 600; }
+#health .hl-coach-flags { border: 1px solid var(--danger); border-radius: 10px; padding: 6px 10px; margin: 6px 0; }
+#health .hl-coach-flags p { margin: 4px 0; }
+#health .hl-coach-goal { gap: 8px; flex-wrap: wrap; align-items: center; }
+@media (max-width: 720px) { #health .hl-coach-goal .hl-row-main { flex: 1 1 100%; } }
 #health .hl-trend-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--text-2); margin-top: 2px; }
 #health .hl-change { color: var(--text-1); }
 #health .hl-how { margin: 2px 0 6px; }
@@ -2561,6 +2598,30 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #family .fam-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(12em, 1fr)); gap: 8px 12px; align-items: end; }
 #family .fam-field { display: grid; grid-template-columns: 1fr auto; gap: 4px 6px; align-items: center; }
 #family .fam-field > :is(input, select) { grid-column: 1 / -1; width: 100%; min-width: 0; }
+/* W5.4 kid mode v2 (web/kid-mode.js): profile editor, dashboard, the kid's bar. */
+#family .kid-form { display: grid; gap: 8px; min-width: 0; }
+#family details.kid-tools:not(#_) { display: block; border-top: 1px solid var(--line); padding-top: 6px; }
+#family .kid-tools summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+#family .kid-tool-grid { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0; }
+#family .kid-tool-grid .fam-check { flex: 1 1 14em; max-width: 22em; }
+#family .kid-actions, #family .kid-dash-row, #family .kid-req { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+#family .kid-dash { display: grid; gap: 6px; min-width: 0; }
+#family .kid-dash:not(:empty) { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 6px; }
+#family .kid-chats ul { list-style: none; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+#family .kid-row { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: end; }
+#family .kid-row > .fam-field { flex: 1 1 9em; max-width: 14em; }
+#family .kid-row > .fam-check { min-height: 36px; }
+#family .kid-form > .fam-field { max-width: 30em; }
+#family .kid-meter { flex: 1 1 8em; max-width: 16em; height: 14px; }
+#family .kid-h { margin: 6px 0 0; font-size: 0.95em; }
+#family .kid-req { border: 1px solid var(--line); border-radius: 10px; padding: 6px 8px; background: var(--surface); }
+#family .kid-req > span:first-child { flex: 1 1 12em; }
+#family .kid-log { max-height: 22em; overflow: auto; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; background: var(--surface); }
+#family .kid-msg { margin: 4px 0; overflow-wrap: anywhere; }
+#family .kid-msg.kid-assistant { color: var(--text-2); }
+.kid-bar:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 0 auto 6px; padding: 6px 12px; max-width: min(820px, calc(100% - 24px)); border: 1px solid var(--line); border-radius: 12px; background: var(--surface-2); font-size: 0.92em; }
+.kid-bar .kid-bar-time.low { color: var(--warn, var(--accent)); font-weight: 600; }
+.kid-bar .kid-bar-seen { color: var(--text-2); }
 #family .fam-label { font-size: 12.5px; color: var(--text-2); }
 #family .fam-store { width: 9em; }
 #family .fam-item-label { display: inline-flex; gap: 10px; align-items: center; flex: 1 1 12em; min-width: 0; cursor: pointer; }
@@ -2718,6 +2779,29 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 #lib-study .sy-choice { text-align: left; white-space: normal; }
 #lib-study .sy-summary { margin: 0; padding-left: 1.2em; display: grid; gap: 4px; }
 #lib-study .danger-text { color: var(--error); }
+/* W4.3 Learn a language (web/lang-learn.js). */
+#lib-lang .ll-setup { display: flex; flex-wrap: wrap; gap: 10px 18px; margin: 4px 0 12px; min-width: 0; }
+#lib-lang .ll-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; flex: 1 1 140px; max-width: 240px; min-width: 0; }
+#lib-lang .ll-field select { flex-basis: 100%; min-width: 0; width: 100%; }
+#lib-lang .ll-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 12px; }
+#lib-lang .ll-progress > button { margin-left: auto; }
+#lib-lang .ll-chip { padding: 3px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); font-size: var(--fs-small); }
+#lib-lang .ll-chip.ll-hot { border-color: var(--accent); color: var(--accent-text); }
+#lib-lang .ll-local { flex-basis: 100%; margin: 0; }
+#lib-lang .ll-card { display: grid; gap: 10px; padding: 14px; border: 1px solid var(--border); border-radius: 14px; background: var(--surface-2); min-width: 0; }
+#lib-lang .ll-card h3, #lib-lang .ll-card p { margin: 0; }
+#lib-lang .ll-plan { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; }
+#lib-lang .ll-card > button { justify-self: start; }
+#lib-lang .ll-sentence { font-size: 1.3em; font-weight: 600; overflow-wrap: anywhere; }
+#lib-lang .ll-meaning { color: var(--text-2); overflow-wrap: anywhere; }
+#lib-lang .ll-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+#lib-lang .ll-live:empty { display: none; }
+#lib-lang .ll-words { font-size: 1.15em; line-height: 1.8; overflow-wrap: anywhere; }
+#lib-lang .ll-w { padding: 1px 4px; border-radius: 6px; }
+#lib-lang .ll-ok { background: var(--success-soft); color: var(--success); }
+#lib-lang .ll-close { background: var(--warn-soft); color: var(--warn); }
+#lib-lang .ll-missed { color: var(--text-2); text-decoration: underline dotted; }
+#lib-lang .ll-tip { font-weight: 600; }
 /* V2.5 Snap and file (web/scan.js). */
 #lib-scan .snap-take { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 8px 0 12px; }
 #lib-scan .snap-take label.row { display: inline-flex; align-items: center; gap: 6px; }
@@ -2996,6 +3080,13 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 #settings .tl-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 0 calc(1.4em + 10px); padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
 #settings .tl-ask p { flex: 1 1 100%; margin: 0; }
 #settings .tl-filter select { max-width: 220px; }
+/* W5.5: Why did you do this? under each timeline row. */
+#settings .tl-why { margin: 6px 0 0 calc(1.4em + 10px); min-width: 0; }
+#settings .tl-why-body:not(#_) { margin-top: 6px; padding: 8px 10px; border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--surface-2); display: grid; gap: 4px; min-width: 0; }
+#settings .tl-why-body[hidden]:not(#_) { display: none; }
+#settings .tl-why-body p { margin: 0; overflow-wrap: anywhere; }
+#settings .tl-why-rule { color: var(--text-2); }
+#settings .tl-why-old { font-style: italic; }
 
 /* D8: a second opinion under one of her replies (web/second-opinion.js). */
 #messages .sop-panel { align-self: stretch; max-width: min(1100px, 100%); margin: 2px 0 10px; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--panel); white-space: normal; }

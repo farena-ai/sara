@@ -418,6 +418,8 @@
       </div>
       <!-- PL2a (POLISH2 N26): the check-in's first-run note sits here, in the page flow above the
            message box (never over it); on Today it sits in #td-checkin instead (web/hub.js). -->
+      <!-- W5.4 (web/kid-mode.js): a kid's bar: time left, Ask for 15 more minutes, the transcript notice. -->
+      <div id="kid-bar" class="kid-bar" role="status" hidden></div>
       <div id="chat-checkin" class="checkin-slot"></div>
       <form id="composer">
         <ul id="ref-menu" class="ref-menu" role="listbox" aria-label="Attach with @" hidden></ul>
@@ -1765,6 +1767,10 @@
         <button id="hl-quick-go" type="button" class="small">Log it</button>
       </div>
       <p id="hl-status" class="muted small" role="status"></p>
+      <!-- W4.4 (docs/design/W4COACH.md): the coach's week, small goals and red flags -->
+      <h3 id="hl-coach-h">Your week <button type="button" class="tip" data-tip="Sleep, steps, weight, mood and doses for the last 7 days against the 7 before, worked out on this server. No model reads it. Never medical advice.">?</button></h3>
+      <div id="hl-coach" class="hl-coach"></div>
+      <label class="row hl-check"><input id="hl-coach-on" type="checkbox" data-noauto> Weekly check-in on Sundays <button type="button" class="tip" data-tip="A short note on Sunday evening that your week is ready, within your daily nudge limit. It never says a number or a medicine name.">?</button></label>
       <h3 id="hl-due-h" hidden>Doses due</h3>
       <div id="hl-due" class="hl-list"></div>
       <h3>Medicines <button type="button" class="tip" data-tip="She reminds you at each time (24-hour, like 08:00, 20:00). With the number on hand she estimates when to refill. Mark each dose taken or skipped.">?</button></h3>
@@ -1825,6 +1831,7 @@
           <select id="hl-care-person" aria-label="Caregiver"></select>
           <label class="small hl-check"><input id="hl-care-doses" type="checkbox" checked> Missed doses</label>
           <label class="small hl-check"><input id="hl-care-checkins" type="checkbox" checked> Check-ins <button type="button" class="tip" data-tip="Only your daily answer: OK, Not great or I need help. Never your notes, mood or chats.">?</button></label>
+          <label class="small hl-check"><input id="hl-care-summary" type="checkbox"> Weekly summary <button type="button" class="tip" data-tip="Your week from the health coach: sleep, steps, weight, doses and goals. Never mood or notes; a red flag shows only as worth a word with a doctor.">?</button></label>
           <button id="hl-care-share" type="button" class="small">Share</button>
         </div>
         <p id="hl-care-none" class="muted small" hidden>No other adults in this household yet.</p>
@@ -2193,6 +2200,7 @@
           <p class="small"><button id="lib-journal-open" type="button" class="ghost small">Journal…</button> <button type="button" class="tip" data-tip="A minute a day: say how your day went (or type it) and tag your mood. Heard on this computer only; just for you, never in chats, memory or reports.">?</button></p>
           <p class="small"><button id="lib-apps-open" type="button" class="ghost small">My apps…</button> <button type="button" class="tip" data-tip="Small web apps she built for you and kept: a tracker, a list, a game. Each keeps its versions (Undo any change) and its own saved data, runs sandboxed on this server, and can be shared by link.">?</button></p>
           <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
+          <p class="small"><button id="lib-lang-open" type="button" class="ghost small">Learn a language…</button> <button type="button" class="tip" data-tip="A few minutes a day: cards, listening and saying sentences back in Spanish, French, German, Portuguese, Italian or English. Heard and spoken on this computer only.">?</button></p>
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
         <div class="lib-tools" data-nodirty>
@@ -2245,6 +2253,19 @@
         <p><button id="lib-s-back" type="button" class="ghost small">← All documents</button></p>
         <h2>Study <button type="button" class="tip" data-tip="Make cards from your documents or notes, then study a few each day. Again brings a card back soon; Good and Easy space it out. Export for Anki or as CSV any time.">?</button></h2>
         <div id="lib-s-body" class="sy-body" data-nodirty></div>
+      </section>
+      <!-- W4.3 (docs/LANGUAGE_PRACTICE.md): language practice on the study engine (web/lang-learn.js). -->
+      <section id="lib-lang" hidden>
+        <p><button id="lib-l-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>Learn a language <button type="button" class="tip" data-tip="Each day: a few cards (they come back when it's time), three sentences to listen to and three to say back. She marks each word you said and gives one gentle tip.">?</button></h2>
+        <div class="ll-setup" data-nodirty>
+          <label class="ll-field small"><span>I'm learning</span> <button type="button" class="tip" data-tip="The language you practice. Meanings are shown in the language Sara uses for you.">?</button> <select id="ll-lang" aria-label="I'm learning"></select></label>
+          <label class="ll-field small"><span>My level</span> <button type="button" class="tip" data-tip="Beginner is for your first words; Intermediate has longer sentences. Talk practice keeps her replies at this level too.">?</button> <select id="ll-level" aria-label="My level"><option value="a1">Beginner (A1)</option><option value="a2">Elementary (A2)</option><option value="b1">Intermediate (B1)</option></select></label>
+          <label class="ll-field small"><span>Cards a day</span> <button type="button" class="tip" data-tip="How many cards one session shows at most. Cards you find hard come back sooner.">?</button> <select id="ll-daily" aria-label="Cards a day"><option value="5">5</option><option value="10">10</option><option value="20">20</option></select></label>
+        </div>
+        <div id="ll-progress" class="ll-progress" aria-live="polite"></div>
+        <div id="ll-body" class="ll-body" data-nodirty></div>
+        <p id="ll-status" class="muted small" role="status"></p>
       </section>
       <!-- V2.5 (docs/design/SNAP.md): Snap and file, camera pages → one PDF in the Library (web/scan.js). -->
       <section id="lib-scan" hidden>
@@ -3538,9 +3559,16 @@
         <section class="settings-page" data-page="models-local" data-group="Models & usage" data-title="On this computer" data-owner-only hidden>
       <p class="muted small page-lead">Run her model on this computer, and if you like, keep everything here: nothing goes to the internet.</p>
       <div class="pl-card" id="pl-card" data-noauto data-nodirty>
-        <label class="row pl-switch"><input id="pl-on" type="checkbox"> <span>Nothing leaves this computer</span> <button type="button" class="tip" data-tip="On: Sara only connects to this computer (127.0.0.1, ::1, localhost). Cloud models, web search, bridges, phone notifications, updates and reports pause until you turn it off. Your model must run here.">?</button></label>
+        <label class="row pl-switch"><input id="pl-on" type="checkbox"> <span>Local-only mode: nothing leaves this computer</span> <button type="button" class="tip" data-tip="On: Sara only connects to this computer (127.0.0.1, ::1, localhost). Cloud models, web search, bridges, phone notifications, updates and reports pause until you turn it off. Your model must run here.">?</button></label>
         <p id="pl-status" class="muted small" role="status"></p>
         <p id="pl-need" class="small" hidden>First get a model on this computer (below). Then turn this on.</p>
+        <!-- W5.2 (docs/design/W5LOCAL.md): what the person allows while it is on, each by itself (web/local-models.js). -->
+        <div id="pl-allow" class="pl-allow">
+          <p class="small pl-allow-head"><strong>Allowed while it's on</strong></p>
+          <label class="row"><input id="pl-allow-updates" type="checkbox"> <span>Update checks</span> <button type="button" class="tip" data-tip="Lets Sara check her own release page on GitHub for a new version while Local-only mode is on. Nothing about you is sent. Off until you tick it.">?</button></label>
+          <label class="row"><input id="pl-allow-models" type="checkbox"> <span>Model downloads</span> <button type="button" class="tip" data-tip="Lets Ollama on this computer download a model you pick, without turning Local-only mode off. Your chats never go with it. Off until you tick it.">?</button></label>
+          <p id="pl-allow-note" class="muted small">Everything else stays on this computer. What these send shows in Settings → Privacy &amp; system → Privacy → What left this server.</p>
+        </div>
         <details id="pl-leave-box" class="pl-leave-box">
           <summary>What would leave this computer (paused while it's on)</summary>
           <ul id="pl-leave" class="pl-leave"></ul>
@@ -4181,6 +4209,7 @@
         <label class="row"><input id="hs-ask" type="checkbox"> Include health when I ask from a private chat</label>
         <label class="row"><input id="hs-remind" type="checkbox"> Dose reminders on my phone</label>
         <label class="row"><input id="hs-names" type="checkbox"> Show the medicine name in reminders</label>
+        <label class="row"><input id="hs-coach" type="checkbox"> Weekly health check-in from the coach</label>
         <p id="hs-state" class="muted small" role="status"></p>
       </div>
         </section>
@@ -5832,6 +5861,23 @@
         <p class="small"><button id="os-test" type="button" class="ghost">Test restore now</button> <span id="os-test-status" class="muted small"></span></p>
         <p class="muted small">Once a week Sara downloads the newest off-server copy, unlocks it with your passphrase and restores it into a temporary folder to check it really works (your live data isn't touched).</p>
       </div>
+      <!-- W5.3 (docs/design/W5BACKUP.md): backups you can carry (web/carry.js). -->
+      <h3>Recovery sheet <button type="button" class="tip" data-tip="One printed page with 18 words and a QR code. Carried copies are sealed with it, and it is the only way to open them. Sara shows it once.">?</button></h3>
+      <div id="cy-sheet" class="cy-box" data-noauto data-nodirty></div>
+      <h3>Carry copies <button type="button" class="tip" data-tip="Sealed copies of your backups on a USB drive, another folder or a friend's Sara. If this computer is lost, any new one can restore them with your sheet.">?</button></h3>
+      <p class="muted small">Keep a copy away from this computer. Copies are sealed with your recovery sheet: whoever holds the drive or the friend's Sara can't open them.</p>
+      <div id="cy-targets" class="cy-box" data-noauto data-nodirty></div>
+      <div id="cy-add" class="cy-box cy-add" data-noauto data-nodirty hidden>
+        <label class="cy-field"><button type="button" class="tip" data-tip="A USB drive, another disk, a linked friend's Sara, or any folder (on a server: a mounted drive).">?</button> Copy to <select id="cy-where"></select></label>
+        <label class="cy-field"><button type="button" class="tip" data-tip="The full path of the folder. Copies go into a Sara backups folder inside it.">?</button> <input id="cy-path" aria-label="Folder" hidden></label>
+        <label class="cy-field"><button type="button" class="tip" data-tip="How often a fresh sealed copy goes there. A drive that isn't plugged in is filled as soon as it is back.">?</button> How often <select id="cy-every"><option value="day">Every day</option><option value="week">Every week</option></select></label>
+        <label class="cy-field"><button type="button" class="tip" data-tip="How many sealed copies to keep there. Older ones are deleted.">?</button> Keep <input id="cy-keep" type="number" min="1" max="60" value="4" class="tiny" aria-label="Copies to keep"> copies</label>
+        <p class="small"><button id="cy-add-go" type="button" class="ghost">Add this place</button> <span id="cy-add-status" class="muted small" role="status"></span></p>
+      </div>
+      <h3>Backups you keep for friends <button type="button" class="tip" data-tip="A linked friend can send their sealed backups here. You can't open them; you can hand one back on a drive if they lose their computer.">?</button></h3>
+      <div id="cy-hold" class="cy-box" data-noauto data-nodirty></div>
+      <h3>Restore on a new computer <button type="button" class="tip" data-tip="Bring Sara back from a sealed copy: pick the .sara file, type the 18 words from your sheet, Sara checks it in a throwaway folder, then restores it when she restarts.">?</button></h3>
+      <div id="cy-restore" class="cy-box" data-noauto data-nodirty></div>
         </section>
         <section class="settings-page" data-page="dh-data" data-group="Privacy & system" data-title="Move in and export" data-owner-only hidden>
       <h3>Bring your history <button type="button" class="tip" data-tip="Bring in your ChatGPT or Claude export: the chats become past conversations she can look through (archived, with their dates), and she learns key facts from what you wrote. It stays on your server. Remove imported history undoes it.">?</button></h3>
@@ -6115,7 +6161,7 @@
         <label class="row"><input id="hh-pictures" type="checkbox" checked> <span>Pictures from her <button type="button" class="tip" data-tip="Her photos and new looks, made with your picture service (which may cost money).">?</button></span></label>
         <label class="row"><input id="hh-18" type="checkbox"> <span>This person is 18 or older <button type="button" class="tip" data-tip="This app is for adults. There is no ID check: you confirm it here and they confirm it again when they join.">?</button></span></label>
         <label class="row"><input id="hh-child" type="checkbox"> <span>This is a child (kid-safe mode) <button type="button" class="tip" data-tip="Adult content always off, kid-friendly words, no computer use, shopping, mail or outside apps. Set bedtime and daily time on the Family page.">?</button></span></label>
-        <label class="hh-child-only" hidden>Age band <button type="button" class="tip" data-tip="Picks her words and tone: simpler for younger kids.">?</button> <select id="hh-band"><option value="6-9">Age 6-9</option><option value="10-12" selected>Age 10-12</option><option value="13-17">Age 13-17</option></select></label>
+        <label class="hh-child-only" hidden>Age band <button type="button" class="tip" data-tip="Picks her words and tone: simpler for younger kids.">?</button> <select id="hh-band"><option value="under-8">Under 8</option><option value="8-12" selected>8 to 12</option><option value="13-17">13 to 17</option></select></label>
         <label class="row hh-child-only" hidden><input id="hh-guardian" type="checkbox"> <span>I am this child’s parent or guardian <button type="button" class="tip" data-tip="A child's invite needs your word instead of 18+. They join without confirming an age.">?</button></span></label>
         <p><button id="hh-invite" type="button">Make invite</button></p>
       </div>
@@ -6157,6 +6203,19 @@
         <label class="row">Chore reminders at <button type="button" class="tip" data-tip="The time of day the chore reminder goes out (your time zone).">?</button> <input id="fpl-remind-at" type="time"></label>
         <label class="row">Rota moves on <button type="button" class="tip" data-tip="Chores set to take turns move to the next person once a week, on this day.">?</button> <select id="fpl-rota-day"></select></label>
         <p id="fpl-set-status" class="muted small" role="status"></p>
+      </div>
+      <!-- W4.5 (docs/FAMILY_SCREEN.md): a tablet on the wall or in the kitchen (web/family-screens.js, src/family-screen.ts). -->
+      <h3>Family screen <button type="button" class="tip" data-tip="Turns a tablet into a family screen: today's calendar, chores to tick off, dinners, the shopping list and a kid-safe Talk button. It never sees anyone's chats.">?</button></h3>
+      <div id="fsc-box" class="fsc-box" data-nodirty data-noauto>
+        <label>Screen name <button type="button" class="tip" data-tip="Only a label for you, shown in this list and on the screen. Example: Kitchen.">?</button> <input id="fsc-name" maxlength="40" placeholder="e.g. Kitchen"></label>
+        <p><button id="fsc-code" type="button">Make a pairing code</button></p>
+        <div id="fsc-new" class="tok-new" hidden>
+          <p class="small">On the tablet, open <code id="fsc-url" data-raw></code> and type this code:</p>
+          <p class="fsc-code"><code id="fsc-new-code" data-raw></code></p>
+          <p class="muted small">It works once, for 10 minutes. The screen gets its own key that opens only the family screen.</p>
+        </div>
+        <p id="fsc-status" class="small" role="status"></p>
+        <div id="fsc-list" class="hh-members"></div>
       </div>
       <h3>Tools for household members <button type="button" class="tip" data-tip="What their companions may do with tools. Sara checks these rules on the server before every step, so a member cannot get around them from an app or a hand-made request.">?</button></h3>
       <div id="hmt-box" class="mt-box" data-noauto data-nodirty>
@@ -6225,6 +6284,7 @@
       <div class="pv-ledger" data-noauto data-nodirty>
         <div class="add-row pv-ledger-bar"><span class="small">Day</span> <button type="button" class="tip" data-tip="Pick a day to see what left that day. Days follow your time zone.">?</button> <select id="pv-ledger-day" aria-label="Day"></select> <button id="pv-ledger-forget" type="button" class="ghost" hidden>Clear the list</button></div>
         <p id="pv-ledger-sum" class="small" role="status"></p>
+        <p class="small pv-ledger-mode"><span id="pv-ledger-mode"></span> <a id="pv-ledger-local" href="#view=settings:models-local">Local-only mode settings</a></p>
         <div id="pv-ledger-list" class="pv-ledger-list"></div>
         <p class="muted small">Things that only connect to this computer (a model running here) are not listed: they never leave. <a href="/help#privacy-ledger" target="_blank" rel="noopener">Guide</a></p>
       </div>

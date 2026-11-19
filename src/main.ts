@@ -61,7 +61,7 @@ import { createM365Tools } from './workapps/m365.ts';
 import { createChatAppTools } from './workapps/chatapps.ts';
 import { createAccountingTool } from './workapps/accounting.ts';
 import { bookingFor } from './workapps/booking.ts';
-import { FamilyStore, gateKidTools, setFamilyRuntime, type FamilyAccess } from './family.ts';
+import { FamilyStore, gateKidTools, kidToolsFor, setFamilyRuntime, type FamilyAccess } from './family.ts';
 import { createFamilyTools, createKidSearchTool } from './tools/family.ts';
 import { inQuiet } from './family-plan.ts';
 import { zonedParts } from './planner.ts';
@@ -77,6 +77,8 @@ import { Travel } from './travel.ts';
 import { createTravelTools } from './tools/travel.ts';
 import { createHealthTools } from './tools/health-log.ts';
 import { decryptBackup, isEncrypted } from './offsite.ts';
+import { applyStagedRestore, carryTick } from './carry.ts';
+import { isCarry, keyFromWords, openCarryFile } from './carry-key.ts';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { OwnerAuth } from './auth.ts';
@@ -397,6 +399,15 @@ if (existsSync(dataDir) && !statSync(dataDir).isDirectory()) throw new StartupEr
 mkdirSync(dataDir, { recursive: true, mode: 0o700 });
 // C15: was this server set up before (an owner file already there)? Then new-device approval
 // starts off with a one-time notice instead of locking anyone out; a new install starts with it on.
+// W5.3: a restore staged by "Restore on a new computer" runs now, before anything opens the data.
+if (!process.argv.includes('--restore')) {
+  try {
+    const staged = applyStagedRestore(dataDir);
+    if (staged) console.log(`Restored the backup from ${staged.madeAt}. Previous data kept in ${staged.movedTo}.`);
+  } catch (err) {
+    console.error(`The staged restore failed: ${(err as Error).message}`);
+  }
+}
 const existingInstall = existsSync(join(dataDir, 'owner.json'));
 const auth = new OwnerAuth(dataDir, undefined, { resetIfDamaged: process.argv.includes('--reset-token') });
 
@@ -448,6 +459,23 @@ if (process.argv.includes('--restore')) {
   }
   let source = resolve(file);
   // An encrypted off-server copy: decrypt it first (passphrase from SARA_BACKUP_PASSPHRASE).
+  // W5.3: a sealed .sara copy opens with the recovery sheet's words (SARA_BACKUP_KEY).
+  if (isCarry(readFileSync(source).subarray(0, 8))) {
+    const words = process.env.SARA_BACKUP_KEY;
+    if (!words) {
+      console.error('This backup is sealed with your recovery sheet. Set SARA_BACKUP_KEY to its 18 words.');
+      process.exit(2);
+    }
+    try {
+      const out = `${dataDir.replace(/[\\/]+$/, '')}.opened-${process.pid}.tar.gz`;
+      process.on('exit', () => rmSync(out, { force: true }));
+      await openCarryFile(source, out, keyFromWords(words));
+      source = out;
+    } catch (err) {
+      console.error((err as Error).message);
+      process.exit(1);
+    }
+  }
   if (isEncrypted(readFileSync(source).subarray(0, 8))) {
     const pass = process.env.SARA_BACKUP_PASSPHRASE;
     if (!pass) {
@@ -924,8 +952,8 @@ function familyAccess(space: Space): FamilyAccess | undefined {
     ...(sharedBoards ? { boards: sharedBoards } : {}),
     tz: () => settings.get().timeZone || undefined,
     ...(space.id === 'owner' ? { setChild: (id: string, child: unknown) => void household.setChild(id, child) } : {}),
-    notifyParents: (title, body) => {
-      for (const p of familyStore.parents()) void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', 'family-weekly').catch(() => undefined);
+    notifyParents: (title, body, act) => {
+      for (const p of familyStore.parents()) void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', act ? `family-kid-${act.id}` : 'family-weekly', act).catch(() => undefined);
     },
     // U4.21: chore reminders per person, never in that person's own quiet hours.
     notifyPerson: (p, title, body) => void spaceOf(p)?.companions.main.app.push?.notifyOwner(title, body, '', 'family-chores').catch(() => undefined),
@@ -935,6 +963,8 @@ function familyAccess(space: Space): FamilyAccess | undefined {
     },
     // U4.22: whose folder a health log is in (a parent manages a child's medicines there).
     spaceDirOf: (id: string) => (id === 'owner' ? dataDir : household.members().some((m) => m.id === id) ? household.dirOf(id) : undefined),
+    // W4.5: the family screen's Talk runs a kid's turn in their own space (src/family-screen.ts).
+    appOf: (id: string) => spaceOf(id)?.companions.main.app,
   };
 }
 // Sign-in registries shared by every space (codes are made or approved by a signed-in person).
@@ -1835,7 +1865,7 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     hookManager.attach(id, app);
   }
   // R8: kid-safe member mode: a child's companion offers only the kid tools (an allowlist, also for tools added later).
-  if (isMember) gateKidTools(tools, () => Boolean(space.member?.child()));
+  if (isMember) gateKidTools(tools, () => Boolean(space.member?.child()), () => { const c = space.member?.child(); return c ? kidToolsFor(c) : undefined; }); // W5.4: the parent's tool list
   deliveryFor(app); // Recover delivery evidence once per store; never dispatch on boot.
   dataRights()?.apply([{ dir, app }]); // EC17: a held space's database refuses deletes from the start.
   const server = createSaraServer({ ...serverOpts, app, auth: space.auth, companions: space.companions, spaceId: space.id, ...(isMember ? { member: memberHooksFor(space) } : isDemo ? {} : { household: householdHooks, usageSources, usageBudgets }) });
@@ -2042,6 +2072,8 @@ function backupTick(): Promise<void> {
           if (copied) console.log(`Off-server copy: ${copied}`);
         } catch (err) { console.warn(`Off-server copy failed: ${(err as Error).message}`); }
       }
+      // W5.3: sealed copies to drives and linked Saras that are due (never throws).
+      for (const r of await carryTick(mainApp, dataDir)) console.log(`Carried copy: ${r.copied ?? (r.waiting ? 'waiting for the drive' : r.error)}`);
     } catch (err) { console.warn(`Automatic backup failed: ${(err as Error).message}`); }
     // V0.6: a stop that began during the snapshot skips the maintenance (it can take minutes).
     if (shuttingDown) return;

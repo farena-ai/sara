@@ -629,7 +629,7 @@ export class Goals {
   }
 
   #persistFor(g: Goal, round: number, note?: string): PersistTurn {
-    return { kind: 'goal', id: g.id, n: round, ...(note ? { note } : {}), blocked: g.meta.blocked ?? [] };
+    return { kind: 'goal', id: g.id, n: round, label: g.text.slice(0, 80), ...(note ? { note } : {}), blocked: g.meta.blocked ?? [] };
   }
 
   /** Checks the caps (before queuing), then adds round n+1 to the pending queue. */

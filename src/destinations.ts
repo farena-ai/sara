@@ -19,7 +19,7 @@ import type { Conversation } from './store.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 import { askNudge, type Urgency } from './nudges.ts';
 
-export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce' | 'legacy' | 'nudges' | 'herweek';
+export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce' | 'legacy' | 'nudges' | 'herweek' | 'healthcoach';
 export type Where = 'origin' | 'chat' | 'project' | 'dedicated' | 'apps';
 export const WHERES: readonly Where[] = ['origin', 'chat', 'project', 'dedicated', 'apps'];
 export type AppKind = 'telegram' | 'discord';
@@ -63,6 +63,7 @@ export const FEEDS: readonly { id: Feed; title: string; words: RegExp; items: bo
   { id: 'nudges', title: en('Smaller things'), words: /\b(smaller things|roundup|digest|nudges?)\b/i, items: false, origin: en('Your latest chat') },
   // W1.5: her weekly "how am I doing" check-in (src/her-week.ts).
   { id: 'herweek', title: en('Weekly check-in'), words: /\b(weekly check-?in|how (am i|she is|you are) doing)\b/i, items: false, origin: en('Your latest chat') },
+  { id: 'healthcoach', title: en('Health coach'), words: /\b(health coach|weekly health|health check-?ins?)\b/i, items: false, origin: en('Your latest chat') },
 ];
 const FEED_IDS = new Set<string>(FEEDS.map((f) => f.id));
 export const isFeed = (x: unknown): x is Feed => FEED_IDS.has(String(x));

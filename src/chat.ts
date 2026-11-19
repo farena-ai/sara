@@ -2,7 +2,7 @@
 // (model → tool calls → results → model …) with streaming and persistence.
 import { toolAlias } from './tool-alias.ts';
 import { legacyActivity } from './legacy.ts';
-import { kidNote, kidTurn } from './family.ts';
+import { kidLeft, kidNote, kidTurn } from './family.ts';
 import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
 import { talkNote } from './talk.ts';
@@ -93,6 +93,7 @@ import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, u
 import type { Redactor } from './redact.ts';
 import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { noteAction, timelineBefore } from './timeline.ts';
+import { asksWhyThat, ruleOf, type ActionCause } from './action-why.ts';
 import { alwaysAllowOn, noteAlwaysAllowed } from './always-allow.ts';
 import { secondOpinionOffer } from './second-opinion.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
@@ -143,6 +144,7 @@ import { filesNamed, inputsHash, RunRecorder, toolSetHash, workspaceRef, WORKSPA
 import { join } from 'node:path';
 import { PROJECT_NOW_MARK, projectNowPath, projectNowSection } from './project-now.ts';
 import { READ_TOGETHER_MARK, readTogetherSection } from './read-together.ts';
+import { learnTalkNote } from './lang-learn-note.ts';
 import { budgetSummaryFallback, LADDER, quickIsCheaper, turnBudgetFor, turnBudgetSettings, TurnMeter, type Budget, type BudgetState, type ModelCallPlan } from './budget.ts';
 import { billingOf, findPrice, priceTable } from './usage.ts';
 import type { SecurityPass } from './security/pass.ts';
@@ -1395,6 +1397,8 @@ export interface TurnOptions {
    * raises them), whatever the conversation's channel is.
    */
   voiceRoom?: boolean;
+  /** W4.5 (src/family-screen.ts): the family screen's kid-safe Talk: her rules for a child, adult mode off. */
+  kidSafe?: import('./family.ts').ChildProfile;
   /**
    * Hardening M3: a turn from another app (/v1, MCP ask_sara, Home Assistant). Her notes, summaries,
    * dates, "last time" and recall leave out private, imported and adult-channel conversations (the
@@ -1484,6 +1488,8 @@ export interface TurnOptions {
    * nobody is watching). The turn writes back what the guard blocked and whether he steered.
    */
   persist?: PersistTurn;
+  /** W5.5: what started this turn when it is not the person's own message (automation, errand, trigger…); stored on its timeline rows. */
+  cause?: ActionCause;
 }
 
 /** Phase 118: a goal round or a loop tick (src/goals.ts, src/loops.ts). */
@@ -1491,6 +1497,8 @@ export interface PersistTurn {
   kind: 'goal' | 'loop';
   id: number;
   n: number;
+  /** W5.5: the goal's title or the repeat's words, for "Why did you do this?". */
+  label?: string;
   /** The app's note for step 0 ("[Note from the app, not from …]"). */
   note?: string;
   /** Calls blocked in earlier rounds (call keys and their error lines). */
@@ -1543,6 +1551,9 @@ function birthdaysNote(people: AppContext['people'], today: string): string | un
 /** Phase 100: tools whose result is another agent's words, and the read-only tools that still run on their own after one. */
 // U5.33: a friend's shared-project items and the other server's help/fix report are peer words too.
 const PEER_ANSWER_TOOLS = new Set(['a2a_send', 'a2a_reply', 'a2a_status', 'shared_project_read', 'support_look', 'remote_look']);
+/** W5.1: tools whose answer is other people's words (web pages, mail, MCP servers): Always allow holds after one. */
+const OUTSIDE_WORDS_TOOLS = new Set(['web_fetch', 'mail_read', 'mail_thread', 'mail_search', 'mail_needs_answer', 'gmail_read', 'gmail_thread', 'gmail_search', 'gmail_needs_answer', 'inbox_suggestions']);
+export const outsideWordsTool = (name: string): boolean => OUTSIDE_WORDS_TOOLS.has(name) || name.startsWith('mcp_');
 const READ_AFTER_PEER = new Set(['a2a_agents', 'a2a_status', 'a2a_cancel', 'web_search', 'recall', 'memory_search', 'search_conversations', 'read_file', 'list_files', 'weather', 'get_time']);
 
 /** Phase 100: the asker's words for the model, wrapped as untrusted text (STAPLES §2.1.4). */
@@ -2152,7 +2163,7 @@ function scopeTools(app: AppContext, conv: Conversation, opts: TurnOptions, x: S
 function scopeAdult(app: AppContext, conv: Conversation, opts: TurnOptions): { voiceRoom: boolean; adultOn: boolean } {
   const voiceRoom = isVoiceRoomChannel(conv.channel) || Boolean(opts.voiceRoom);
   // EC26: never at work, whatever Adult mode says.
-  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a' && !atWork(app, conv);
+  const adultOn = adultModeOn(app.settings.get()) && (!opts.group || opts.group.adult) && !voiceRoom && !opts.outside && conv.channel !== 'a2a' && !atWork(app, conv) && !opts.kidSafe;
   return { voiceRoom, adultOn };
 }
 
@@ -2172,8 +2183,8 @@ function scopeSafetyNotes(app: AppContext, conv: Conversation, text: string, opt
     if (voiceRoom) safetyNotes.push(voiceRoomNote(app.settings.get().ownerName?.trim() || 'the owner', isVoiceRoomChannel(conv.channel) ? conv.channel : 'wake'));
     if (!adultOn && !work) safetyNotes.push(ADULT_OFF_NOTE);
     // R8: kid-safe member mode: her tone and rules for a child (src/family.ts).
-    const kid = app.member?.child?.();
-    if (kid) safetyNotes.push(kidNote(kid, app.member?.record()?.name ?? 'them'));
+    const kid = app.member?.child?.() ?? opts.kidSafe;
+    if (kid) safetyNotes.push(kidNote(kid, app.member?.record()?.name ?? 'them', app.member?.child?.() ? kidLeft(app.member.id, kid) : undefined)); // W5.4: wind-down
   }
   if (opts.group) safetyNotes.push(opts.group.note);
   // N5b: car mode: two spoken sentences, nothing to read, her newest messages ready to read aloud.
@@ -2438,6 +2449,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // sends, and other people get none; other people's weak words also count next to a sexual sentence.
   const external = (opts as { externalApp?: boolean }).externalApp === true || Boolean(opts.outside) || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel);
   const ownerApp = !conv.partner && !external;
+  // W5.5: what started this turn, kept on every timeline row it makes (src/action-why.ts).
+  const turnCause: ActionCause = (() => {
+    const link = userMsg ? { messageId: userMsg.id, at: userMsg.createdAt } : {};
+    if (opts.cause) return { ...opts.cause, ...link };
+    if (opts.persist) return { kind: opts.persist.kind, ...(opts.persist.label ? { label: opts.persist.label } : {}), ...link };
+    if (opts.outside) return { kind: 'outside', label: opts.outside.label, ...link };
+    if (external) return { kind: 'app', label: opts.via || conv.channel, ...link };
+    return { kind: 'message', ...link, ...(userMsg && userMsg.role === 'user' ? { text: userMsg.content } : {}), ...(opts.via || conv.channel !== 'web' ? { channel: opts.via || conv.channel } : {}) };
+  })();
   const youOpts = ownerApp ? { owner: true } : conv.partner ? { others: true } : {};
   // Phase 57: lines an app sends as history get the same check (they reach the model too), and so
   // does its own note (its system messages and its name), which goes into her instructions.
@@ -2486,6 +2506,20 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     yield { type: 'token', text: herWeek.reply };
     yield { type: 'done', messageId: msg.id };
     return;
+  }
+  // W5.5 (docs/design/W5WHY.md): "why did you do that?" right after an action answers from the stored
+  // cause on its timeline rows (no model, no guessing). Nothing recorded since his last message: the model answers.
+  if (ownerApp && !opts.resume && !opts.replay && !opts.group && asksWhyThat(text, app.persona?.name)) {
+    const tl = await import('./timeline.ts');
+    const prev = store.messages(conv.id).filter((m) => m.role === 'user' && m.id !== userMsg?.id).at(-1);
+    const rows = tl.rowsToExplain(app, conv.id, prev?.createdAt);
+    if (rows.length) {
+      const reply = tl.whyAnswer(app, rows);
+      const msg = addAssistantMessage(reply, { why: { rows: rows.map((r) => r.id) } });
+      yield { type: 'token', text: reply };
+      yield { type: 'done', messageId: msg.id };
+      return;
+    }
   }
   // R1B1: a shared-scene seat is bound only after the minors block, so a blocked message never
   // reaches scene code. The block itself is rebuilt from persisted rows after the step gate.
@@ -2841,6 +2875,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   // changes something asks the owner for the rest of the turn, so a peer's words can't run anything
   // the owner hasn't seen (peer output is untrusted tool output).
   let peerAnswered = Boolean(opts.outsideContent);
+  // W5.1: someone else's words came in through a tool (a web page, an email, an MCP answer): from
+  // here on Always allow everything no longer skips cards in this turn (normal permissions still apply).
+  let outsideWords = false;
   // Phase 79 (harness M4): the turn's budget (Settings → Budgets: coding chats 200k tokens / 40
   // steps by default, everyday chats off), or the explicit "Continue with N more". The meter is a
   // set of TurnHooks fed by the run recorder's sums; near a limit it steps down the ladder (quick
@@ -3391,6 +3428,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Nothing leaves this computer on (or a private chat), only a model on this computer sees it.
     const readTogether = readTogetherSection(app, conv, { ...nowGate, local: !(privateLocalOn() || conv.private) || onThisComputer(provider.config, model) });
     if (readTogether) messages.push({ role: 'system', content: readTogether });
+    // W4.3: the language-practice chat keeps her in the language, at the level, with gentle corrections.
+    const practice = conv.partner ? undefined : learnTalkNote(app, conv);
+    if (practice) messages.push({ role: 'system', content: practice });
     // E6: a feed item shared mid-turn drops her outward tools from the next round on too.
     if (app.readTogether?.get(conv.id)?.source === 'feed') tools = tools.filter((t) => !OFFSERVER_TOOL(t.spec.name));
     yield { type: 'context', used: historySize(hist.messages), budget, dropped: hist.dropped };
@@ -3991,7 +4031,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const permission3a = untrustedAsk || mentionHeld ? 'ask' : permission2;
       // W0.7 (src/always-allow.ts): Always allow everything: the person's own requests run without a card
       // (never another app's, an outside request's, forwarded text's or a linked server's; never past 'never').
-      const allowAll = !opts.outside && !opts.externalApp && !external && !opts.untrusted && !peerAnswered && !conv.partner && !opts.group && alwaysAllowOn(app);
+      const allowAll = !opts.outside && !opts.externalApp && !external && !opts.untrusted && !peerAnswered && !conv.partner && !opts.group && !outsideWords && alwaysAllowOn(app);
       const allowAllSkipped = allowAll && permission3a === 'ask';
       const permission3 = allowAllSkipped ? 'auto' : permission3a;
       // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
@@ -4421,7 +4461,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // V5.1: what she changed goes on the action timeline (src/timeline.ts), with its undo when one exists.
       // W0.7: one audit row per call that skipped its card because Always allow everything is on.
       if (ranTool && allowAllSkipped) noteAlwaysAllowed(app, call.name, summary, conv.channel || 'web');
-      if (ranTool && status === 'ok' && !opts.replay) noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: conv.id, workspace: conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore });
+      if (ranTool && status === 'ok' && !opts.replay) noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: conv.id, workspace: conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore, why: { cause: turnCause, rule: ruleOf({ approved: explicitlyApproved, allowAll: allowAllSkipped, ahead: allowedAhead, task: Boolean(prep?.auto) && set === 'ask', set, ownerSet: app.settings.get().toolPermissions?.[call.name] === 'auto' }) } });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
@@ -4438,6 +4478,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       }
       if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
       if (status === 'ok' && PEER_ANSWER_TOOLS.has(call.name)) peerAnswered = true;
+      if (status === 'ok' && outsideWordsTool(call.name)) outsideWords = true;
       yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}), ...(timedOut ? { timedOut: true } : {}) };
       try { currentScope(); } catch (err) {
         if (!(err instanceof ToolAdmissionError)) throw err;

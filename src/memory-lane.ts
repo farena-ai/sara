@@ -37,6 +37,7 @@ import { checkClaims } from './receipts.ts';
 import { detectMinorSexualContent } from './safety.ts';
 import type { ShareSnapshot, SharePicture } from './share.ts';
 import { scrubForShare } from './share.ts';
+import { stripImageMeta } from './image-meta.ts';
 import type { Conversation } from './store.ts';
 import { gatherStory, keepTrueQuotes, storyFacts } from './story.ts';
 import { VoiceError } from './voice.ts';
@@ -462,7 +463,9 @@ export function laneShare(app: AppContext, id: number): { snapshot: ShareSnapsho
   const pictures: SharePicture[] = [];
   for (const p of s.photos) {
     const b = lanePhotoBytes(app, p);
-    if (b && /^image\/(png|jpeg|webp|gif)$/.test(b.mime) && pictures.length < 12) pictures.push({ mime: b.mime, data: b.data });
+    // W5.1: a public link never carries the photo's GPS position or camera data.
+    const clean = b && /^image\/(png|jpeg|webp|gif)$/.test(b.mime) ? stripImageMeta(b.mime, b.data) : undefined;
+    if (b && clean && pictures.length < 12) pictures.push({ mime: b.mime, data: clean });
   }
   return {
     snapshot: { title: s.title, companion: app.persona.name, messages: [{ role: 'assistant', text, at: s.createdAt, pics: pictures.map((_, i) => i) }], hidden: { tools: 0, pictures: s.photos.length - pictures.length, scrubbed: n } },

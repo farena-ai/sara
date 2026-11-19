@@ -19,7 +19,7 @@ import type { Vault } from './vault.ts';
 
 export const ACT_PREFIX = 'sara_act.';
 export const ACT_VAULT = 'phone:act-key';
-export type ActKind = 'approval' | 'reminder' | 'reply' | 'inbox' | 'automation';
+export type ActKind = 'approval' | 'reminder' | 'reply' | 'inbox' | 'automation' | 'kid';
 export type ActName = 'approve' | 'decline' | 'snooze' | 'reply' | 'accept';
 export const ACT_NAMES: readonly ActName[] = ['approve', 'decline', 'snooze', 'reply', 'accept'];
 /** Approvals and runs that wait: as short as the card's own wait (10 minutes) plus a little. */

@@ -5,6 +5,7 @@
 // (the owner turns on kid-safe mode per member: age band, bedtime, daily time, safe search; parents
 // see each kid's topics and minutes, never their words). Nothing here calls a model.
 import { t } from './naming.js';
+import { kidDashboard, kidProfileForm } from './kid-mode.js';
 import { calendarTab, initFamilyPlan, loadPlanSettings, mealsTab, resetWeek, rotaControl, stars, todayLines } from './family-plan.js';
 
 export { loadPlanSettings };
@@ -49,7 +50,6 @@ const say = (msg) => {
 const money = (cents) => (cents / 100).toLocaleString(undefined, { style: 'currency', currency: 'USD' });
 const when = (iso) => new Date(iso).toLocaleString([], { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const REPEAT = () => ({ once: t('Once'), daily: t('Every day'), weekdays: t('Weekdays'), weekly: t('Every week') });
-const TOPIC = () => ({ homework: t('homework'), math: t('math'), reading: t('reading and writing'), science: t('science'), history: t('history and places'), games: t('games'), 'music and art': t('music and art'), sports: t('sports'), feelings: t('feelings and friends'), 'chores and money': t('chores and money'), other: t('other things'), 'kept off': t('asked about something kept off') });
 const worth = (c) => [c.cents ? money(c.cents) : '', c.points ? t('{n} points', { n: c.points }) : ''].filter(Boolean).join(' + ') || t('No reward');
 const nameOf = (id) => data?.people.find((p) => p.id === id)?.name ?? id;
 const input = (cls, attrs = {}) => Object.assign(el('input', cls), attrs);
@@ -372,27 +372,10 @@ function kidsTab() {
     card.append(head);
     const kid = data.kids.find((k) => k.id === p.id);
     const prof = kid?.profile;
+    // W5.4 (web/kid-mode.js): the profile editor v2 (age band defaults, tone, strictness, tools, transcript view).
+    const h = { el, btn, tip, input, select, field, run, api: ctx.api, say };
     if (data.me.owner) {
-      const on = input('', { type: 'checkbox', checked: p.child });
-      const onL = el('label', 'fam-check');
-      onL.append(on, el('span', '', t('Kid-safe mode')), tip(t('For a child: adult content always off, kid-friendly tone, no computer use, shopping, mail or outside apps. Only you can turn it off.')));
-      card.append(onL);
-      const form = el('div', 'fam-grid');
-      const band = select((data.options.bands ?? []).map((b) => [b, t('Age {band}', { band: b })]), prof?.band ?? '10-12', t('Age band'));
-      const from = input('', { type: 'time', value: prof?.bedtime?.from ?? '20:30' });
-      const to = input('', { type: 'time', value: prof?.bedtime?.to ?? '07:00' });
-      const bed = input('', { type: 'checkbox', checked: prof ? Boolean(prof.bedtime) : true });
-      const bedL = el('label', 'fam-check');
-      bedL.append(bed, el('span', '', t('Bedtime')));
-      const minutes = select(data.options.minutes.map((m) => [String(m), m ? t('{n} minutes', { n: m }) : t('No limit')]), String(prof?.minutesPerDay ?? 0), t('Time a day'));
-      const safe = input('', { type: 'checkbox', checked: Boolean(prof?.safeSearch) });
-      const safeL = el('label', 'fam-check');
-      safeL.append(safe, el('span', '', t('Safe web search')), tip(t('Lets her search the web for them in strict safe-search mode (Brave Search or SearXNG only). Shops and grown-up results are left out.')));
-      const allow = input('', { value: (prof?.shopAllow ?? []).join(', '), placeholder: 'scholastic.com' });
-      form.append(field(t('Age band'), band, t('Picks her words and tone: simpler for younger kids.')), bedL, field(t('From'), from), field(t('To'), to), field(t('Time a day'), minutes, t('Counted in 5-minute blocks with a message. When it runs out she says so until tomorrow.')), safeL, field(t('Shop sites allowed in search'), allow, t('Search leaves out shopping sites except these (comma-separated), e.g. a book club site.')));
-      card.append(form);
-      const save = btn(t('Save'), 'small', () => void run(() => ctx.api(`/family/kids/${p.id}/profile`, { method: 'PUT', body: { child: on.checked ? { band: band.value, bedtime: bed.checked ? { from: from.value, to: to.value } : null, minutesPerDay: Number(minutes.value), safeSearch: safe.checked, shopAllow: allow.value } : null } }), t('Saved.')));
-      card.append(save);
+      card.append(kidProfileForm(p, prof, data.options, h));
       if (!p.child) {
         const par = input('', { type: 'checkbox', checked: p.parent });
         const parL = el('label', 'fam-check');
@@ -402,28 +385,29 @@ function kidsTab() {
       }
     }
     if (p.child) {
-      const show = btn(t('What they talked about'), 'ghost small', async () => {
-        try {
-          const r = await ctx.api(`/family/kids/${p.id}`);
-          const ul = el('ul', 'fam-ledger');
-          for (const d of r.activity.days.slice().reverse()) {
-            if (!d.minutes && !d.topics.length) continue;
-            ul.append(el('li', 'small', `${new Date(`${d.day}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })} · ${t('{n} min', { n: d.minutes })} · ${d.topics.map((x) => `${TOPIC()[x.topic] ?? x.topic} (${x.n})`).join(', ')}`));
-          }
-          if (!ul.children.length) ul.append(el('li', 'muted small', t('Nothing this week.')));
-          // U4.23 (docs/LEARNING.md): their study sets, titles and counts only.
-          const sl = el('ul', 'fam-ledger');
-          for (const s of r.study ?? []) sl.append(el('li', 'small', `${s.title} · ${t('{learned} of {cards} learned · {due} due', { learned: s.learned, cards: s.cards, due: s.due })} · ${t('{n} studied today', { n: s.reviewedToday })}`));
-          show.replaceWith(el('p', 'muted small', t('Topics only, never their words.')), ul, ...(sl.children.length ? [el('p', 'muted small', t('Study sets (titles and counts, never the cards)')), sl] : []));
-        } catch (err) {
-          say(err.message);
-        }
+      // W5.4: the parent dashboard (time, requests, flagged moments, the week, transcript view when on).
+      const dash = el('div', 'kid-dash');
+      const show = btn(t('Dashboard'), 'small', () => {
+        show.remove();
+        void kidDashboard(dash, p, h).then(() => studySets(dash, p));
       });
-      card.append(show);
+      card.append(show, dash);
     }
     out.push(card);
   }
   return out;
+}
+
+// U4.23 (docs/LEARNING.md): their study sets, titles and counts only (under the dashboard).
+async function studySets(host, p) {
+  try {
+    const r = await ctx.api(`/family/kids/${p.id}`);
+    const sl = el('ul', 'fam-ledger');
+    for (const s of r.study ?? []) sl.append(el('li', 'small', `${s.title} · ${t('{learned} of {cards} learned · {due} due', { learned: s.learned, cards: s.cards, due: s.due })} · ${t('{n} studied today', { n: s.reviewedToday })}`));
+    if (sl.children.length) host.append(el('p', 'muted small', t('Study sets (titles and counts, never the cards)')), sl);
+  } catch {
+    /* the dashboard already said what went wrong */
+  }
 }
 
 // ---------------------------------------------------------------- Today

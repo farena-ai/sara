@@ -95,7 +95,7 @@ before(async () => {
   dataDir = mkdtempSync(join(tmpdir(), 'sara-w2friend-'));
   const port = await freePort();
   base = `http://127.0.0.1:${port}`;
-  const env: NodeJS.ProcessEnv = { ...process.env, SARA_DATA: dataDir, SARA_PORT: String(port), SARA_HOST: '127.0.0.1', SARA_SANDBOX: 'none', SARA_REPORT_TO: 'off', SARA_SETUP: 'off', SARA_VOICE_DIR: join(dataDir, 'novoice') };
+  const env: NodeJS.ProcessEnv = { ...process.env, SARA_DATA: dataDir, SARA_PORT: String(port), SARA_HOST: '127.0.0.1', SARA_SANDBOX: 'none', SARA_REPORT_TO: 'off', SARA_SETUP: 'off', SARA_VOICE_DIR: join(dataDir, 'novoice'), SARA_HOSTED_LOCAL_MODELS: '1' };
   for (const k of ['NODE_TEST_CONTEXT', 'SARA_DEMO', 'SARA_PRIVATE_LOCAL', 'SARA_MASTER_KEY', 'SARA_INSTANCE']) delete env[k];
   child = spawn(process.execPath, [join(ROOT, 'src', 'main.ts')], { env, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stdout!.on('data', (d: Buffer) => (log += d.toString()));

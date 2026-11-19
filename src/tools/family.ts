@@ -117,7 +117,20 @@ export function createFamilyTools(appOf: () => AppContext): Tool[] {
       return `Recorded: paid ${p.name} ${money(row.cents)} (a record only; no money was moved). Balance now ${money(b.balanceCents)}.\nVerified: ledger entry #${row.id} reads back.`;
     },
   };
-  return [choreAdd, choreList, choreDone, balance, pay, ...createPlanTools(appOf, has, isParent)];
+  // W5.4 (docs/design/W5KIDS.md): a kid asks a parent for something that is off for them.
+  const askParentTool: Tool = {
+    defaultPermission: 'auto',
+    changes: true,
+    isAvailable: () => has() && Boolean(appOf().member?.child?.()),
+    spec: { name: 'kid_ask_parent', description: 'For a kid in kid-safe mode: send a request to their parents when they ask for something that is off for them (more time today, a tool such as safe web search or making documents, or something else). The parents get Approve or Decline. Grown-up content, money, computer use and looking people up can never be asked for.', parameters: obj({ kind: { type: 'string', enum: ['time', 'tool', 'other'] }, tool: { type: 'string', description: 'For kind tool: the tool name, e.g. kid_search or make_document.' }, what: { type: 'string', description: 'In their words, short: what they would like and why.' } }, ['kind']) },
+    summarize: (a) => `ask a parent (${String(a.kind ?? '')})`,
+    async run(args) {
+      const { askParent } = await import('../kid-mode.ts');
+      const q = guard(() => askParent(access(appOf()), args));
+      return q.status === 'pending' ? `Sent to their parents (request ${q.id}). They will see Approve or Decline; tell the kid kindly that a parent will answer.` : `That was already answered: ${q.status}.`;
+    },
+  };
+  return [choreAdd, choreList, choreDone, balance, pay, askParentTool, ...createPlanTools(appOf, has, isParent)];
 }
 
 /** A child's web search: strict safe-search, shops and explicit results left out (src/family.ts). */

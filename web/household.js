@@ -141,6 +141,8 @@ export async function loadHousehold() {
   renderInvites(d.invites);
   renderMembers(d.members, d.models, d.options);
   renderHosted(d, loadHousehold);
+  // W4.5: the Family screen section (web/family-screens.js).
+  void import('./family-screens.js').then((m) => m.loadFamilyScreens()).catch(() => {});
 }
 
 function renderInvites(list) {

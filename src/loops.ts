@@ -712,7 +712,7 @@ export class Loops {
     const owner = ownerWord(app);
     const end = l.routineId !== null ? new Date(l.endsAt).toISOString().slice(0, 10) : hhmm(new Date(l.endsAt), tz);
     const note = `[Note from the app, not from ${owner}: this is a repeat ${owner} set in this chat (${fmtEvery(l.everyMin)}, until ${end}). Do this now: "${l.prompt}".${l.untilText ? ` The repeat ends when this is true: "${l.untilText}".` : ''}${l.lastLine ? ` Last time (at ${l.lastAt ? hhmm(new Date(l.lastAt), tz) : '?'}) you found: "${oneLine(l.lastLine, 300)}".` : ''}\nUse your tools to look at the real state now; don't guess from earlier messages.\nEnd your reply with one line, exactly one of: [[loop: same]] [[loop: changed]] [[loop: met]].]`;
-    const persist: PersistTurn = { kind: 'loop', id, n, note, unattended: trOwner(LOOP_LINES.unattended, s, { owner }), ...(l.meta.allowOnce?.length ? { allowOnce: l.meta.allowOnce } : {}) };
+    const persist: PersistTurn = { kind: 'loop', id, n, label: l.prompt.slice(0, 80), note, unattended: trOwner(LOOP_LINES.unattended, s, { owner }), ...(l.meta.allowOnce?.length ? { allowOnce: l.meta.allowOnce } : {}) };
     if (l.meta.allowOnce?.length) this.#set(id, { meta: JSON.stringify({ ...l.meta, allowOnce: [] }) });
     const lastOwner = app.store.messages(l.conversationId).filter((m) => m.role === 'user').at(-1)?.content ?? l.prompt;
     const out = await runPersistTurn(app, l.conversationId, hasOwnerMsg ? lastOwner : l.prompt, { ...(hasOwnerMsg ? { resume: true } : {}), persist, budget: { tokens: l.tickBudget.tokens, steps: l.tickBudget.steps } });

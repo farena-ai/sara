@@ -6,6 +6,7 @@
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError, type ToolScope } from './tool-admission.ts';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
+import { noteAction } from './timeline.ts';
 import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamWithin } from './chat.ts';
 import { cardOf, checkPlan, contradictSettings, gateAct, type Contradiction } from './contradict.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxDecision, type SandboxResult } from './sandbox-run.ts';
@@ -1173,6 +1174,8 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     }
     output = app.redactor.redact(output);
     const sbRecord = tried && triedRisk && triedDecision ? sandboxRecord(tried, triedRisk, triedDecision, triedApplied) : undefined;
+    // W5.5: a helper's change goes on the action timeline too, named by its worker job or team task.
+    if (status === 'ok') noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: task.conversationId, why: { cause: { kind: helper.name.startsWith('worker-') ? 'worker' : 'team', label: task.goal }, rule: explicitlyApproved ? 'card' : app.settings.get().toolPermissions?.[call.name] === 'auto' ? 'tool-on' : 'auto-tool' } });
     run.rec.tool({ id: call.id, name: call.name, summary, args: app.redactor.redactValue(call.arguments), status, output, ms: Date.now() - t0, approval: asked ? (status === 'denied' ? 'denied' : 'allowed') : status === 'denied' ? 'refused' : 'auto', files: filesNamed(call.name, call.arguments), ...(stopSeen ? { contradictions: [stopSeen] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}) });
     if (sbRecord?.decision === 'discarded') run.rec.stopped('gate');
     return { receipt: { name: call.name, status, args: call.arguments, output } };

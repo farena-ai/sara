@@ -14,6 +14,7 @@ import { photoLibraryTick } from './photo-library.ts';
 import { SharedProjects, sharedProjectsOf } from './shared-projects.ts';
 import { nudgeTick, reminderMayGo } from './nudges.ts';
 import { herWeekTick } from './her-week.ts';
+import { coachTick } from './health-coach.ts';
 
 const LATE_MS = 5 * 60_000;
 
@@ -68,6 +69,7 @@ export class ReminderScheduler {
     // W1.2 (docs/NUDGES.md): the day's one roundup of smaller nudges, after quiet hours.
     guard('nudges', () => void nudgeTick(this.#app, now));
     guard('herweek', () => void herWeekTick(this.#app, now)); // W1.5: the weekly check-in
+    guard('healthcoach', () => void coachTick(this.#app, now)); // W4.4: weekly health check-in (opt-in)
     // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
     this.#app.loops?.due(now);
     this.#app.goals?.tick(now.getTime());

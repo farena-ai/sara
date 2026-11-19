@@ -437,6 +437,7 @@
 <details class="howto-q" id="howto-dh-backups-now"><summary>How do I make a backup now?</summary><ol><li>Press Back up now.</li></ol></details>
 <details class="howto-q" id="howto-dh-backups-offsite"><summary>How do I keep a copy somewhere else?</summary><ol><li>Pick where under Copy backups to.</li><li>Fill in the folder or bucket and a passphrase.</li><li>Press Copy the latest backup now, then Test restore now.</li></ol></details>
 <details class="howto-q" id="howto-dh-backups-drill"><summary>How do I prove a backup really restores?</summary><ol><li>Open Readiness and recovery (Data &amp; health) and press Run a restore drill.</li><li>Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.</li><li>Read the result: how long it took, what it counted and how much a restore now would lose.</li></ol></details>
+<details class="howto-q" id="howto-dh-backups-carry"><summary>How do I restore Sara on a new computer?</summary><ol><li>Plug in the drive with your sealed copy (.sara).</li><li>Under Restore on a new computer, press Look on the drives and pick it.</li><li>Type the 18 words from your recovery sheet, press Check the backup, then Restore this backup.</li></ol></details>
 <h4 id="howto-dh-data">Move in and export</h4>
 <details class="howto-q" id="howto-dh-data-export"><summary>How do I export everything?</summary><ol><li>Under Export and import, press Export all data.</li><li>Keep the file somewhere safe.</li></ol></details>
 <details class="howto-q" id="howto-dh-data-history"><summary>How do I bring my chat history from another app?</summary><ol><li>Under Bring your history, pick the export file.</li><li>Press Import and check the preview.</li></ol></details>
@@ -459,6 +460,7 @@
 <details class="howto-q" id="howto-dh-operations-active-work"><summary>How do I tell active work from historical records?</summary><ol><li>Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.</li><li>RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.</li></ol></details>
 <h4 id="howto-dh-timeline">Action timeline</h4>
 <details class="howto-q" id="howto-dh-timeline-revert"><summary>How do I undo something she changed?</summary><ol><li>Find the change in the Action timeline (newest first).</li><li>Press Revert, then Yes, revert.</li><li>If a change can't be undone, the row says why.</li></ol></details>
+<details class="howto-q" id="howto-dh-timeline-why"><summary>How do I see why she did something?</summary><ol><li>Press Why did you do this? under the change.</li><li>It says what started it (your message, an automation, a plan step…) and why no card was shown.</li><li>Press Show the chat turn to see it in the chat, or ask her "why did you do that?" right after.</li></ol></details>
 <details class="howto-q" id="howto-dh-timeline-kind"><summary>How do I see only her mail or planner changes?</summary><ol><li>Pick a kind under Show.</li><li>Press Show older to see more.</li></ol></details>
 <h3>Household</h3>
 <h4 id="howto-dh-usage-report">Usage reports</h4>
@@ -487,6 +489,8 @@
 <h4 id="howto-household">People on this server</h4>
 <details class="howto-q" id="howto-household-invite"><summary>How do I invite someone?</summary><ol><li>Type their name under Invite someone.</li><li>Press Make invite, then Copy link and send it.</li></ol></details>
 <details class="howto-q" id="howto-household-limit"><summary>How do I limit what they use?</summary><ol><li>Set Messages a day and Spending a day.</li><li>Choose the models they may use.</li></ol></details>
+<details class="howto-q" id="howto-household-family-screen"><summary>How do I set up a family screen on a tablet?</summary><ol><li>Type a name under Family screen and press Make a pairing code.</li><li>On the tablet, open the address shown and type the code.</li><li>Set its night hours and the Talk button in the list below.</li></ol></details>
+<details class="howto-q" id="howto-household-kid-mode"><summary>How do I set up kid mode for my child’s age?</summary><ol><li>Open Family → Kids and tick Kid-safe mode for them.</li><li>Pick their age band: tools, words, time a day and bedtime fill in.</li><li>Change anything you like, then press Save.</li><li>Press Dashboard to see time, topics, requests and flagged moments.</li></ol></details>
 <h4 id="howto-account">Your account</h4>
 <details class="howto-q" id="howto-account-devices"><summary>How do I sign in on another device?</summary><ol><li>Press Devices and sign-in.</li></ol></details>
 <details class="howto-q" id="howto-account-delete"><summary>How do I delete my account?</summary><ol><li>Press Delete my account and confirm.</li><li>Your companion, chats and memories go.</li></ol></details>
@@ -549,6 +553,7 @@
 <ul>
   <li>Paused while it's on: cloud models and subscriptions, web search, Telegram and Discord, Gmail and Calendar, GitHub, notifications to phones, off-server backups, pictures of her, cloud voices and calls, update checks, and sending reports to the developer (reports are still kept here).</li>
   <li>Downloading a model needs the internet: turn it off for the download, then on again.</li>
+  <li><strong>Allowed while it's on:</strong> two things can be let out, each by itself and off until you tick it: update checks (Sara's release page on GitHub) and model downloads for Ollama on this computer. What they send shows in <em>What left this server</em>.</li>
   <li>Phones on your home network or Tailscale can still open Sara here: they connect in, she doesn't reach out.</li>
   <li>On Windows, programs she runs for coding can't be fully cut off from the internet; they are told not to use it. Your browser and the system itself are outside Sara.</li>
 </ul>

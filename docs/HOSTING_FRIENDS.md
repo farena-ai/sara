@@ -20,6 +20,9 @@ limit. You see only how much they use it, and you can pause or remove it.
 1. Open the link, tick **I am 18 or older**, press **Join**. Save the token you're shown.
 2. **Settings → Household → Your account → Your model:** the address of any OpenAI-compatible service
    (OpenRouter, OpenAI, Ollama Cloud, or a model on your own computer), your API key and the model's name.
+   The address must be on the internet (W5.1): a hosted Sara can't reach addresses on the server or its
+   network. A model on your own computer needs an address the internet can reach (a tunnel). The owner can
+   share a model server running on the server itself by starting Sara with `SARA_HOSTED_LOCAL_MODELS=1`.
 3. **Your spending limit:** dollars per day and per month (0 = no limit). At the limit, paid calls stop.
 4. **Download my data** takes everything with you at any time.
 

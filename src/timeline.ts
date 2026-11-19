@@ -12,7 +12,8 @@
 // is needed to put things back (read before the tool runs).
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
-import { en } from './i18n.ts';
+import { cleanWhy, whyLines, type ActionWhy } from './action-why.ts';
+import { en, trOwner } from './i18n.ts';
 import type { Task } from './planner.ts';
 import { toolChanges } from './tools/effects.ts';
 import { workspaceDir } from './tools/workspace.ts';
@@ -60,6 +61,8 @@ export interface TimelineRow {
   canRevert: boolean;
   never?: string;
   revertedAt?: string;
+  /** W5.5: what started it and why no card was shown, stored when it happened (undefined = an older row). */
+  why?: ActionWhy;
 }
 
 export class TimelineError extends Error {
@@ -123,6 +126,7 @@ interface DbRow {
   title: string | null;
   params: string | null;
   reverted_at: string | null;
+  why?: string | null;
 }
 
 export class ActionTimeline {
@@ -135,14 +139,18 @@ export class ActionTimeline {
       id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT NOT NULL, conversation_id TEXT, tool TEXT NOT NULL,
       kind TEXT NOT NULL, summary TEXT NOT NULL, undo TEXT, never TEXT, reverted_at TEXT, revert_note TEXT, title TEXT, params TEXT)`);
     db.exec('CREATE INDEX IF NOT EXISTS action_timeline_at ON action_timeline(at)');
+    // W5.5: the row's cause + rule (small JSON). Older tables get the column; their rows stay NULL.
+    const cols = db.prepare('PRAGMA table_info(action_timeline)').all() as { name: string }[];
+    if (!cols.some((c) => c.name === 'why')) db.exec('ALTER TABLE action_timeline ADD COLUMN why TEXT');
   }
 
-  record(r: { tool: string; kind: TimelineKind; summary: string; conversationId?: string | null; undo?: Undo; never?: string; title?: string; params?: Record<string, string | number> }): TimelineRow {
+  record(r: { tool: string; kind: TimelineKind; summary: string; conversationId?: string | null; undo?: Undo; never?: string; title?: string; params?: Record<string, string | number>; why?: ActionWhy }): TimelineRow {
     const at = this.#now().toISOString();
     const undo = r.undo ? JSON.stringify(r.undo) : null;
     const never = r.undo ? null : (r.never ?? NEVER.noUndo);
     const params = r.title && r.params ? JSON.stringify(Object.fromEntries(Object.entries(r.params).map(([k, v]) => [k, typeof v === 'string' ? v.slice(0, 120) : v]))) : null;
-    const id = Number(this.db.prepare('INSERT INTO action_timeline (at, conversation_id, tool, kind, summary, undo, never, title, params) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(at, r.conversationId ?? null, r.tool, r.kind, r.summary.slice(0, 400), undo, never, r.title ?? null, params).lastInsertRowid);
+    const why = cleanWhy(r.why);
+    const id = Number(this.db.prepare('INSERT INTO action_timeline (at, conversation_id, tool, kind, summary, undo, never, title, params, why) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(at, r.conversationId ?? null, r.tool, r.kind, r.summary.slice(0, 400), undo, never, r.title ?? null, params, why ? JSON.stringify(why) : null).lastInsertRowid);
     this.#prune();
     return this.get(id)!;
   }
@@ -164,6 +172,14 @@ export class ActionTimeline {
       canRevert: Boolean(d.undo) && !d.reverted_at && REVERT.has((JSON.parse(String(d.undo)) as Undo).type),
       ...(d.never ? { never: String(d.never) } : {}),
       ...(d.reverted_at ? { revertedAt: String(d.reverted_at) } : {}),
+      ...(() => {
+        try {
+          const w = d.why ? cleanWhy(JSON.parse(String(d.why))) : undefined;
+          return w ? { why: w } : {};
+        } catch {
+          return {};
+        }
+      })(),
     };
   }
 
@@ -240,7 +256,7 @@ export function timelineBefore(app: AppContext, name: string, args: Record<strin
 }
 
 /** chat.ts: a finished, successful tool call. Read-only calls are skipped. Never throws. */
-export function noteAction(app: AppContext, c: { name: string; args: Record<string, unknown>; output: string; summary: string; conversationId?: string; workspace?: string; snapshotId?: string; before?: unknown }): TimelineRow | undefined {
+export function noteAction(app: AppContext, c: { name: string; args: Record<string, unknown>; output: string; summary: string; conversationId?: string; workspace?: string; snapshotId?: string; before?: unknown; why?: ActionWhy }): TimelineRow | undefined {
   try {
     const d = DESCRIBE.get(c.name);
     let info: ActionInfo | null;
@@ -253,10 +269,46 @@ export function noteAction(app: AppContext, c: { name: string; args: Record<stri
       info = { kind: kindByName(c.name), never: SEND_WORDS.test(c.name) ? NEVER.sent : NEVER.noUndo };
     }
     if (!info) return undefined;
-    return timelineOf(app).record({ tool: c.name, kind: info.kind, summary: c.summary || c.name, conversationId: c.conversationId ?? null, ...(info.undo ? { undo: info.undo } : {}), ...(info.never ? { never: info.never } : {}), ...(info.title ? { title: info.title, params: info.params ?? {} } : {}) });
+    return timelineOf(app).record({ tool: c.name, kind: info.kind, summary: c.summary || c.name, conversationId: c.conversationId ?? null, ...(info.undo ? { undo: info.undo } : {}), ...(info.never ? { never: info.never } : {}), ...(info.title ? { title: info.title, params: info.params ?? {} } : {}), ...(c.why ? { why: c.why } : {}) });
   } catch {
     return undefined;
   }
+}
+
+// ---------- W5.5: "why did you do that?" in chat, from the stored rows only ----------
+
+/**
+ * The rows a "why did you do that?" in this chat is about: what she changed since the person's
+ * previous message (newest first, up to 3). Empty = nothing recorded, so the model answers as usual.
+ */
+export function rowsToExplain(app: AppContext, conversationId: string, sinceIso: string | undefined): TimelineRow[] {
+  try {
+    const rows = timelineOf(app).db.prepare('SELECT id FROM action_timeline WHERE conversation_id = ? AND (? IS NULL OR at >= ?) ORDER BY id DESC LIMIT 3').all(conversationId, sinceIso ?? null, sinceIso ?? null) as { id: number }[];
+    return rows.map((r) => timelineOf(app).get(Number(r.id))!).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+
+/** The chat answer, built from the stored rows (translated to the person's language). */
+export function whyAnswer(app: AppContext, rows: TimelineRow[]): string {
+  const s = app.settings.get();
+  const tz = s.timeZone;
+  const T = (k: string, p?: Record<string, unknown>) => trOwner(k, s, p);
+  const time = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleTimeString(typeof s.language === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(s.language) ? s.language : 'en-US', { hour: 'numeric', minute: '2-digit', ...(tz ? { timeZone: tz } : {}) });
+    } catch {
+      return new Date(iso).toISOString().slice(11, 16);
+    }
+  };
+  const one = (r: TimelineRow) => {
+    const what = r.title ? T(r.title, r.params ?? {}) : r.summary;
+    const lines = whyLines(r.why).map((l) => T(l.key, { ...(l.params ?? {}), ...(l.at ? { time: time(l.at) } : {}) }));
+    return `${T(en('What I did: {what}'), { what })}\n${lines.join('\n')}`;
+  };
+  const head = T(en('Here is why, from my action timeline:'));
+  return `${head}\n\n${rows.map(one).join('\n\n')}\n\n${T(en('Every change is listed in Settings → Privacy & system → Reports → Action timeline.'))}`;
 }
 
 // ---------- what already exists in Sara ----------

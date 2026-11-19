@@ -9,9 +9,10 @@ import { as400, HttpError, readJson, send } from '../http.ts';
 import { chatModels, CPU_TIERS, detectHardware, detectOllama, GPU_TIERS, installOllamaWithWinget, installStatus, ModelPuller, OLLAMA_DOWNLOAD, ollamaRoot, recommendModel } from '../local-models.ts';
 import { localDate } from '../memory-worker.ts';
 import { compareModels, comparePrompt, connectedModels, costHint, JOBS, recommend, testModel } from '../modelpicks.ts';
-import { blockedRecently, privateLocalOn } from '../net-guard.ts';
+import { hostedProviderGuard } from '../hosted.ts';
+import { blockedRecently, checkPublicTarget, LOCAL_ALLOWS, localAllowed, privateLocalOn, type LocalAllow } from '../net-guard.ts';
 import { dayStartUtc } from '../planner.ts';
-import { onThisComputer, PrivateLocalStore, whatWouldLeave } from '../private-local.ts';
+import { ALLOW_LABEL, onThisComputer, PrivateLocalStore, whatWouldLeave } from '../private-local.ts';
 import { isLedgerDay, LEDGER_DAYS, privacyLedger } from '../privacy-ledger.ts';
 import { createProvider, PROVIDER_PRESETS, validateProviderConfig } from '../providers/registry.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings } from '../settings.ts';
@@ -133,11 +134,14 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       apns: Boolean(app.vault.get(APNS_VAULT)),
       homeToken: Boolean(app.vault.get(HOME_VAULT)),
     };
+    const st = pl.get();
     return {
-      ...pl.get(),
+      ...st,
       demo: Boolean(opts.demo),
       localModels: here,
-      leave: whatWouldLeave(s, facts),
+      // W5.2: what may be allowed while Local-only mode is on, each by itself.
+      allowable: LOCAL_ALLOWS.map((id) => ({ id, label: ALLOW_LABEL[id] })),
+      leave: whatWouldLeave(s, facts).map((x) => (st.allow.includes(x.id as LocalAllow) ? { ...x, allowed: true } : x)),
       blocked: blockedRecently(),
       platform: process.platform,
     };
@@ -156,7 +160,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
       const want = new URL(req.url ?? '/', 'http://x').searchParams.get('day');
       if (want !== null && !isLedgerDay(want)) throw new HttpError(400, 'Pick a day like 2026-11-18.');
-      return send(res, 200, { ...ledger.day(want ?? undefined), today: ledger.dayOf(), days: ledger.days(), privateLocal: privateLocalOn(), keptDays: LEDGER_DAYS });
+      return send(res, 200, { ...ledger.day(want ?? undefined), today: ledger.dayOf(), days: ledger.days(), privateLocal: privateLocalOn(), localAllow: privateLocalOf().get().allow, keptDays: LEDGER_DAYS });
     }
     if (a === 'private-local' && !b) {
       const pl = privateLocalOf();
@@ -166,6 +170,13 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         // per-route `if (opts.demo)` checks are deliberate; keep them if the gate changes.
         if (opts.demo) throw new HttpError(403, 'Not available in the demo.');
         const body = await readJson(req);
+        // W5.2: `allow` alone changes only what is allowed while the mode is on.
+        if (body.allow !== undefined && body.on === undefined) {
+          if (!Array.isArray(body.allow)) throw new HttpError(400, 'allow must be a list.');
+          pl.setAllow(body.allow.map(String));
+          console.log(`Local-only mode allows: ${pl.get().allow.join(', ') || 'nothing'}.`);
+          return send(res, 200, await privateLocalView(pl));
+        }
         const want = body.on === true;
         const cur = pl.get();
         if (want === cur.on) return send(res, 200, await privateLocalView(pl));
@@ -214,7 +225,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           winget: process.platform === 'win32' && !opts.demo,
           install: installStatus() ?? null,
           pull: puller.status() ?? null,
-          privateLocal: privateLocalOn(),
+          privateLocal: privateLocalOn() && !localAllowed('model-downloads'),
           using: app.settings.get().companionModel ?? null,
         });
       }
@@ -222,7 +233,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'recommended' && method === 'GET') {
         const [hw, ollama] = await Promise.all([firstTenDeps.hardware(), firstTenDeps.ollama(root)]);
         const rc = recheckOf(app).view();
-        return send(res, 200, { version: FREE_MODELS.version, updated: FREE_MODELS.updated, hardware: hw, ollama: { found: ollama.found }, jobs: recommendations(hw, ollama, rc.results), recheck: rc, pull: puller.status() ?? null, privateLocal: privateLocalOn() });
+        return send(res, 200, { version: FREE_MODELS.version, updated: FREE_MODELS.updated, hardware: hw, ollama: { found: ollama.found }, jobs: recommendations(hw, ollama, rc.results), recheck: rc, pull: puller.status() ?? null, privateLocal: privateLocalOn() && !localAllowed('model-downloads') });
       }
       if (b === 'recheck' && method === 'GET') return send(res, 200, recheckOf(app).view());
       if (opts.demo && method !== 'GET') throw new HttpError(403, 'Not available in the demo.');
@@ -240,7 +251,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'pull' && method === 'GET') return send(res, 200, { pull: puller.status() ?? null });
       if (b === 'pull' && method === 'POST') {
         const body = await readJson(req);
-        if (privateLocalOn()) throw new HttpError(409, 'Downloading a model needs the internet. Turn "Nothing leaves this computer" off for the download, then on again.');
+        if (privateLocalOn() && !localAllowed('model-downloads')) throw new HttpError(409, 'Downloading a model needs the internet. Turn "Nothing leaves this computer" off for the download, then on again.');
         const model = String(body.model ?? '').trim();
         try {
           // A chat model becomes hers when it's done (an embedding model is only downloaded).
@@ -503,6 +514,15 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           throw as400(err);
         }
         policy().checkProvider(config);
+        // W5.1: a hosted friend's model address must be on the internet: never this computer, the
+        // owner's home network or cloud metadata (the server would fetch it and show the answer).
+        if (opts.member?.record()?.hosted) {
+          try {
+            await checkPublicTarget(config.baseUrl, { allowHttp: true, allowLoopback: hostedProviderGuard.allowLoopback });
+          } catch {
+            throw new HttpError(400, 'Use a model service on the internet: a Sara hosted for you cannot reach addresses on this server or its network.');
+          }
+        }
         const s = app.settings.get();
         const was = s.providers.find((p) => p.id === b);
         const providers = s.providers.filter((p) => p.id !== b).concat(config);

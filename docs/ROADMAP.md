@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Trust and family, round 2: languages, health coach, family screen, local-only proven, backups, kids, in 3.35.0
+
+Practice a language out loud with local voices and hearing. A private weekly health card offers small goals and
+never gives medical advice. A family screen on a tablet shows the day, chores, meals and shopping with a kid-safe
+Talk. Local-only mode now comes with a test that runs a full day of features and proves nothing leaves the server.
+Backups can be carried on a USB drive or sent sealed to a friend's Sara, with a printed recovery sheet to restore
+on a new computer. Kid mode gains age bands, time requests and a parent dashboard, every action on the timeline
+answers Why did you do this?, and a second security review fixed six issues. This completes ROADMAP_W.
+
 ## Do more for you: public records, Handle it, memory lane, MCP both ways, teams, in 3.34.0
 
 A public-records report searches free public sources only (never paid brokers), cites every fact and saves a PDF

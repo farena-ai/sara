@@ -32,7 +32,7 @@ const BY_LABEL: Record<string, LedgerPurpose> = {
 
 /** Well-known services by host suffix (the owner's own providers come as hints). */
 const KNOWN: [string, LedgerPurpose][] = [
-  ...['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com', 'aiplatform.googleapis.com', 'api.x.ai', 'openrouter.ai', 'api.groq.com', 'api.mistral.ai', 'api.deepseek.com', 'api.together.xyz', 'api.fireworks.ai', 'api.perplexity.ai', 'api.cohere.com', 'api.cerebras.ai', 'api.moonshot.ai', 'ollama.com', 'huggingface.co', 'hf.co'].map((h) => [h, 'model'] as [string, LedgerPurpose]),
+  ...['api.openai.com', 'api.anthropic.com', 'generativelanguage.googleapis.com', 'aiplatform.googleapis.com', 'api.x.ai', 'openrouter.ai', 'api.groq.com', 'api.mistral.ai', 'api.deepseek.com', 'api.together.xyz', 'api.fireworks.ai', 'api.perplexity.ai', 'api.cohere.com', 'api.cerebras.ai', 'api.moonshot.ai', 'ollama.com', 'registry.ollama.ai', 'huggingface.co', 'hf.co'].map((h) => [h, 'model'] as [string, LedgerPurpose]),
   ...['api.search.brave.com', 'api.tavily.com', 'api.exa.ai', 'serpapi.com', 'google.serper.dev'].map((h) => [h, 'search'] as [string, LedgerPurpose]),
   ...['gmail.googleapis.com', 'www.googleapis.com', 'oauth2.googleapis.com', 'accounts.google.com', 'graph.microsoft.com', 'login.microsoftonline.com', 'outlook.office365.com', 'outlook.office.com', 'caldav.icloud.com', 'imap.gmail.com', 'smtp.gmail.com'].map((h) => [h, 'mail'] as [string, LedgerPurpose]),
   ...['fcm.googleapis.com', 'android.googleapis.com', 'api.push.apple.com', 'api.sandbox.push.apple.com', 'web.push.apple.com', 'push.services.mozilla.com', 'notify.windows.com'].map((h) => [h, 'notifications'] as [string, LedgerPurpose]),

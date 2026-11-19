@@ -40,10 +40,11 @@ export interface Med { id: number; at: string; name: string; dose: string; times
 export type DoseStatus = 'due' | 'taken' | 'skipped';
 export interface Dose { id: number; at: string; medId: number; due: string; status: DoseStatus; doneAt?: string }
 export interface Appt { id: number; at: string; title: string; when: string; where?: string; questions: string[]; notes?: string }
-export interface HealthSettings { cloudOk: boolean; includeInAsk: boolean; reminders: boolean; namesInAlerts: boolean }
-export const HEALTH_DEFAULTS: HealthSettings = { cloudOk: false, includeInAsk: false, reminders: true, namesInAlerts: false };
+/** `coach`: W4.4 weekly health check-in (src/health-coach.ts), off until the person turns it on. */
+export interface HealthSettings { cloudOk: boolean; includeInAsk: boolean; reminders: boolean; namesInAlerts: boolean; coach: boolean }
+export const HEALTH_DEFAULTS: HealthSettings = { cloudOk: false, includeInAsk: false, reminders: true, namesInAlerts: false, coach: false };
 /** V5.4 (docs/design/V5CARE.md): who may see what (the person's own consent) and whom to call. */
-export interface CareGrant { person: string; doses: boolean; checkins: boolean; since: string; told?: number }
+export interface CareGrant { person: string; doses: boolean; checkins: boolean; since: string; told?: number; /** W4.4: the coach's weekly summary. */ summary?: boolean }
 export interface CareContact { name: string; phone: string }
 export interface CareState { grants: CareGrant[]; contacts: CareContact[] }
 export const CHECKIN_STATUSES = ['ok', 'notgreat', 'help'] as const;
@@ -551,6 +552,16 @@ export class HealthLog {
   }
   summaryPdf(from: string, to: string, who = ''): Buffer {
     return makePdf({ format: 'pdf', title: (this.bind.lang ?? ((s: string) => s))('Health summary'), template: 'report', content: this.summaryMarkdown(from, to, who) }, () => undefined);
+  }
+
+  // ---------------------------------------------------------------- W4.4 coach state (goals, check-in slot)
+  coachState<T>(): T | undefined {
+    const r = this.#db.prepare("SELECT data FROM items WHERE kind = 'coach' LIMIT 1").get() as { data: Uint8Array } | undefined;
+    return r ? this.#open<T>(r.data) : undefined;
+  }
+  setCoachState(v: object): void {
+    this.#db.prepare("DELETE FROM items WHERE kind = 'coach'").run();
+    this.#add('coach', this.#now().toISOString(), v as never);
   }
 
   // ---------------------------------------------------------------- V5.4 caregivers and check-ins

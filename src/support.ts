@@ -127,7 +127,7 @@ const sha = (s: string) => createHash('sha256').update(s).digest('hex');
 const clip = (s: unknown, n: number) => String(s ?? '').replace(/[\u0000-\u0008\u000b-\u001f]/g, '').trim().slice(0, n);
 
 /** The signed scope word: 'support' (S9b help pass), 'repair' (T5 fix pass, docs/REMOTE_REPAIR.md) or 'sproj' (U4.26 shared projects); 'ftime' = V2.10 friend scheduling. */
-export type SupportScope = 'support' | 'repair' | 'sproj' | 'ftime';
+export type SupportScope = 'support' | 'repair' | 'sproj' | 'ftime' | 'carry'; // 'carry' = W5.3 sealed backup copies (src/carry.ts)
 /** The headers of a support-scope request (exported for tests). */
 export function signSupport(linkId: string, op: string, body: string, key: KeyObject, at: Date, scope: SupportScope = 'support'): Record<string, string> {
   const time = at.toISOString();

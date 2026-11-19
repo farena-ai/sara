@@ -51,6 +51,29 @@ never on the demo server. Open it from the sidebar (**Family**) or the **Family*
 - Parents see **What they talked about**: topics and minutes per day for a week, never the words.
 - Voice and pictures start off for a child's invite.
 
+### Kid mode v2 (W5.4, docs/design/W5KIDS.md)
+- **Age bands** under 8, 8 to 12 and 13 to 17 (old profiles: 6-9 → under 8, 10-12 → 8 to 12). Each
+  band starts with defaults (`BAND_DEFAULTS`): the kid tools she offers, her words (simple, friendly,
+  respectful), content strictness (strict also keeps scary and gory asks off), minutes a day, bedtime
+  and study buddy style. Family → Kids changes any of them; **Use this age's defaults** puts them back.
+  A profile from before W5.4 keeps every kid tool until a parent picks.
+- **School-safe**: under 13 she explains and coaches and never writes essays, stories or book reports
+  to hand in; teens get help improving their own work. Study buddy: what do you think first, one hint
+  at a time, a quick check question.
+- **Time**: with 10 minutes or less left she helps them wrap up. The kid's bar over the message box
+  shows the minutes left and **Ask for 15 more minutes**; a parent taps **+15 minutes** on the
+  dashboard or **Approve** on the phone notification (extra time is for that day only).
+- **Requests** (`src/kid-mode.ts`): the bar's button or her `kid_ask_parent` tool asks the parents for
+  more time, a kid tool that is off, or something else. Every parent gets a push with Approve /
+  Decline (phone action kind `kid`); approving a tool adds it to the profile (the owner). Grown-up
+  content, money, computer use, Always allow and public records can never be asked for.
+- **Dashboard** (Family → Kids → Dashboard, parents): time today, requests, flagged moments (kept off,
+  a worry, personal details shared; counts only) and a week of topics. A worry also tells the parents
+  that a check-in might help (never the words).
+- **Transcript view**: off by default. When the owner turns it on, the kid's bar says "A parent can
+  read your chats here" with when a parent last looked, and her note tells her to say so honestly;
+  only then may a parent read the chats. Turning it off hides them at once.
+
 ## Grocery lists with stores
 - **Groceries → New grocery list** makes a shared list (N7 shared boards) and invites everyone at
   home. Items group by aisle in store order (produce, bakery, dairy and eggs, meat and fish, frozen,
@@ -115,4 +138,5 @@ the rota day.
 `/api/family` (member route `family`; audited): overview, chores, marks (approve, reject, photo),
 kids (balance, ledger, activity, pay, profile), parents, grocery lists and items, cheapest; U4.21:
 `week`, `meals/:day`, `meals/shopping`, `recipes`, `prefs/:person`, `plan-settings`, `rota/:chore`,
-`events`, `events/import`, `events/decide`.
+`events`, `events/import`, `events/decide`; W5.4: `kids/:id/dashboard`, `kids/:id/chats`,
+`kids/:id/extra`, `requests/:id`, `me/kid`, `me/requests`.

@@ -12,8 +12,16 @@
 //   POST   /api/study/cards/:cid/review        {grade: 1|3|4|5} → {card, next}
 //   POST   /api/study/cards/:cid/answer        {answer} → {result, next}
 //   POST   /api/study/cards/:cid/reveal        {step} → {step, text}
+// W4.3 language practice (src/lang-learn.ts; local voice and hearing only):
+//   GET|PUT /api/study/lang                     {lang?, level?, daily?} → {prefs, progress, local, session}
+//   POST   /api/study/lang/say                  {text, slow?} → audio/wav (local voice for the language)
+//   POST   /api/study/lang/hear?lang=           raw WAV → {text} (local hearing in that language)
+//   POST   /api/study/lang/score                {id, said} → {result, progress}
+//   POST   /api/study/lang/talk                 → {conversationId} (the practice chat for Talk)
+//   POST   /api/study/lang/warm                 → 202 (loads the language's local voice and hearing)
 import { HttpError, readJson, readRaw, send } from '../http.ts';
 import { trOwner } from '../i18n.ts';
+import { LearnError, langLearnFor, learnLang } from '../lang-learn.ts';
 import { fromAnki, fromCsv, StudyError, studyFor, toAnki, toCsv, type Card } from '../study.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -34,6 +42,46 @@ export function createStudyRoutes(ctx: RouteCtx): RouteHandler {
     if (a !== 'study') return NEXT;
     if (ctx.opts.demo) {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
+      throw new HttpError(404, 'Not found');
+    }
+    if (b === 'lang') {
+      const ll = langLearnFor(app);
+      const run = async <R>(f: () => Promise<R> | R): Promise<R> => {
+        try {
+          return await f();
+        } catch (err) {
+          if (err instanceof LearnError) throw new HttpError(err.status, T(err.message));
+          throw err;
+        }
+      };
+      if (!c && method === 'GET') return send(res, 200, ll.view());
+      if (!c && method === 'PUT') {
+        const body = await readJson(req);
+        return send(res, 200, await run(() => ll.setup(body as never)));
+      }
+      if (c === 'say' && !d && method === 'POST') {
+        const body = await readJson(req);
+        const audio = await run(() => ll.say(String(body.text ?? ''), learnLang(body.lang) ?? undefined, body.slow === true ? 0.8 : 1));
+        res.writeHead(200, { 'content-type': audio.type, 'content-length': audio.data.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+        return void res.end(audio.data);
+      }
+      if (c === 'hear' && !d && method === 'POST') {
+        const wav = await readRaw(req, 15 * 1024 * 1024);
+        const q2 = new URL(req.url ?? '/', 'http://x').searchParams;
+        return send(res, 200, { text: await run(() => ll.hear(wav, learnLang(q2.get('lang')) ?? undefined)) });
+      }
+      if (c === 'warm' && !d && method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        return send(res, 202, { warming: ll.warm() });
+      }
+      if (c === 'score' && !d && method === 'POST') {
+        const body = await readJson(req);
+        return send(res, 200, await run(() => ll.score(String(body.id ?? ''), String(body.said ?? ''))));
+      }
+      if (c === 'talk' && !d && method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        return send(res, 200, { conversationId: await run(() => ll.talkConversation()) });
+      }
       throw new HttpError(404, 'Not found');
     }
     const s = studyFor(app);

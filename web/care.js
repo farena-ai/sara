@@ -1,6 +1,7 @@
 // V5.4 (docs/design/V5CARE.md): the caregiver sections of Health: the daily check-in, who may see
 // what (the person's own consent, per caregiver), the people you care for (only what each shared,
 // read fresh every time) and the family to call from Simple home. Drawn by web/health.js.
+import { renderShared } from './health-coach.js';
 import { t } from './naming.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
@@ -93,7 +94,7 @@ function renderGrants() {
   for (const g of page.grants) {
     const row = el('div', 'hl-card');
     const top = el('div', 'hl-row');
-    const what = [g.doses ? t('Missed doses') : '', g.checkins ? t('Check-ins') : ''].filter(Boolean).join(' · ');
+    const what = [g.doses ? t('Missed doses') : '', g.checkins ? t('Check-ins') : '', g.summary ? t('Weekly summary') : ''].filter(Boolean).join(' · ');
     const main = el('div', 'hl-row-main');
     main.append(el('strong', '', nameOf(g.person)), el('span', 'muted small', ` ${t('sees: {what}', { what })}`));
     top.append(main, btn(t('Stop sharing'), 'small ghost', () => void stop(g.person)));
@@ -112,8 +113,9 @@ async function share() {
   if (!person) return;
   const doses = $('#hl-care-doses').checked;
   const checkins = $('#hl-care-checkins').checked;
-  if (!doses && !checkins) return say(t('Pick missed doses, check-ins or both.'));
-  const r = await call('/health-log/care/grants', { method: 'PUT', body: { person, doses, checkins } }, t('Shared.'));
+  const summary = !!$('#hl-care-summary')?.checked;
+  if (!doses && !checkins && !summary) return say(t('Pick at least one thing to share.'));
+  const r = await call('/health-log/care/grants', { method: 'PUT', body: { person, doses, checkins, summary } }, t('Shared.'));
   if (r) {
     page = r;
     render();
@@ -153,6 +155,7 @@ async function renderCaring() {
       const past = v.checkins.filter((c) => c !== today).slice(0, 6);
       if (past.length) card.append(el('p', 'muted small', past.map((c) => `${dayWord(c.day)}: ${checkinWord(c.status)}`).join(' · ')));
     }
+    if (v.summary) renderShared(card, v.summary, el); // W4.4
     list.append(card);
   }
 }

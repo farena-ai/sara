@@ -21,11 +21,14 @@
 //   PUT    /api/health-log/care/grants             {person, doses, checkins} (both false = withdraw) · DELETE /care/grants/:person
 //   POST   /api/health-log/care/checkin            {status: ok|notgreat|help} · PUT /care/contacts {contacts}
 //   GET    /api/health-log/care/of/:person         a caregiver: only what that person consented to (403 otherwise)
+//   GET    /api/health-log/coach                   W4.4 the coach's week (never for a child)
+//   POST   /api/health-log/coach/goals/:id         {action: accept|skip}
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { readHealthExport } from '../health-import.ts';
 import { trOwner } from '../i18n.ts';
 import { careCandidates, careViewOf, caringFor, cleanContacts, setCareGrant } from '../caregiver.ts';
 import { HealthError, healthFor, type HealthLog, kidHealth, parseQuick, type Quick } from '../health-log.ts';
+import { coachFor, coachGoalAction } from '../health-coach.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createHealthLogRoutes(ctx: RouteCtx): RouteHandler {
@@ -154,6 +157,16 @@ export function createHealthLogRoutes(ctx: RouteCtx): RouteHandler {
       const pdf = h.summaryPdf(from, to, who);
       res.writeHead(200, { ...SECURITY_HEADERS, 'content-type': 'application/pdf', 'content-disposition': `attachment; filename="health-summary-${from}-${to}.pdf"`, 'content-length': pdf.length, 'cache-control': 'no-store' });
       return void res.end(pdf);
+    }
+    // W4.4 the health coach: adults only, each their own.
+    if (b === 'coach') {
+      if (app.member?.child?.()) throw new HttpError(403, T('The health coach is for adults.'));
+      if (!c && method === 'GET') return send(res, 200, wrap(() => coachFor(app)));
+      if (c === 'goals' && d && method === 'POST') {
+        const body = await readJson(req);
+        if (body.action !== 'accept' && body.action !== 'skip') throw new HttpError(400, T('Pick accept or skip.'));
+        return send(res, 200, wrap(() => coachGoalAction(app, decodeURIComponent(d), body.action as 'accept' | 'skip')));
+      }
     }
     // V5.4 caregivers: the person's own consent, check-ins and family to call; a caregiver's view.
     if (b === 'care') {

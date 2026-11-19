@@ -7,7 +7,7 @@
 // with Nothing leaves this computer on, only the on-server engines are used.
 // TalkSession has no DOM use (unit-tested in Node with fakes); initTalk wires the page.
 import { approvalCommand } from './car-mode.js';
-import { t } from './naming.js';
+import { serverText, t } from './naming.js';
 import { Call, StreamHearing, Mic, SpeechGate } from './voice.js';
 import { interpAtStart, interpHeard, interpOn, interpTranscribe, stopInterp } from './interpreter.js';
 
@@ -260,6 +260,16 @@ export function syncTalkButton(show) {
 }
 
 /** V0.2: one piece of a live utterance to the streaming hearing model (web/voice.js StreamHearing). W0.3: `lang` ('auto' = either language); none = the person's language. */
+/** W4.3: the language being practised in Talk (null = a normal talk). */
+let learnLang = null;
+/** W4.3: local hearing in the practised language (never the cloud-capable transcribe route). */
+async function learnTranscribe(wav, lang) {
+  const res = await fetch(`/api/study/lang/hear?lang=${encodeURIComponent(lang)}`, { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wav });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(serverText(data, `HTTP ${res.status}`));
+  return data.text ?? '';
+}
+
 async function postStream(id, bytes, end, lang) {
   const res = await fetch(`/api/voice/stream?id=${encodeURIComponent(id)}${end ? '&end=1' : ''}${lang ? `&lang=${encodeURIComponent(lang)}` : ''}`, { method: 'POST', headers: { 'content-type': 'audio/L16' }, body: bytes });
   if (!res.ok) throw new Error(`stream ${res.status}`);
@@ -313,6 +323,10 @@ export async function startTalk(opts) {
   if (session || !ctx) return;
   const why = ctx.ready();
   if (why) return void ctx.notice(why);
+  // W4.3: Talk practice (Library → Learn a language): heard and spoken in that language, on this computer only.
+  learnLang = opts?.learn ? String(opts.learn) : null;
+  ctx.speaker.lang = learnLang;
+  ctx.speaker.local = Boolean(learnLang);
   const prefs = () => ({ ...TALK_DEFAULTS, ...(ctx.voiceCfg()?.settings?.talk ?? {}) });
   const dlg = $('#talk-mode');
   session = new TalkSession({
@@ -344,11 +358,11 @@ export async function startTalk(opts) {
     mic,
     speaker: ctx.speaker,
     // V4.2: the interpreter hears either language (no language hint) and has no streaming preview.
-    transcribe: (wav) => (interpOn() ? interpTranscribe(wav) : ctx.transcribe(wav)),
+    transcribe: (wav) => (interpOn() ? interpTranscribe(wav) : learnLang ? learnTranscribe(wav, learnLang) : ctx.transcribe(wav)),
     isSpeech: (f) => (gate ??= new SpeechGate(mic.ctx?.sampleRate ?? 48000)).push(f),
     // V0.2: words as you speak (Settings → Voice → Talk with Sara → Hearing while you talk). W0.3: the
     // interpreter streams too when the multilingual model is here (either language: 'auto').
-    stream: ctx.voiceCfg()?.streaming?.on ? () => { const st = ctx.voiceCfg()?.streaming ?? {}; return interpOn() ? (st.languages?.length > 1 ? new StreamHearing((id, b, e) => postStream(id, b, e, 'auto'), mic.ctx?.sampleRate ?? 48000) : null) : new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000); } : undefined,
+    stream: ctx.voiceCfg()?.streaming?.on ? () => { const st = ctx.voiceCfg()?.streaming ?? {}; return interpOn() ? (st.languages?.length > 1 ? new StreamHearing((id, b, e) => postStream(id, b, e, 'auto'), mic.ctx?.sampleRate ?? 48000) : null) : new StreamHearing((id, b, e) => postStream(id, b, e, learnLang ?? undefined), mic.ctx?.sampleRate ?? 48000); } : undefined,
     onPartial: (words) => {
       // The newest words only, so a long sentence never squeezes the header.
       const shown = words.length > 60 ? `…${words.slice(-60).replace(/^\S*\s/, '')}` : words;
@@ -389,7 +403,7 @@ export async function startTalk(opts) {
     await call.start();
     $('#talk-btn')?.classList.add('active');
     status(t('Listening…'));
-    void prefetchFillers();
+    if (!learnLang) void prefetchFillers();
     interpAtStart(opts);
   } catch (err) {
     stopTalk('error');
@@ -402,6 +416,11 @@ export function stopTalk(why = 'button') {
   const s = session;
   session = null;
   void stopInterp();
+  if (learnLang) {
+    learnLang = null;
+    ctx.speaker.lang = null;
+    ctx.speaker.local = false;
+  }
   call?.stop();
   call = null;
   stopFiller();

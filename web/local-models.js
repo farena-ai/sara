@@ -83,13 +83,21 @@ function renderPrivate(v) {
         ? t('On since {date}. Sara only connects to this computer.', { date: new Date(v.since).toLocaleString() })
         : t('Off. Sara may use the internet for what you set up.');
   $('#pl-need').hidden = v.on || v.localModels.length > 0;
+  // W5.2: what is allowed while it is on, each by itself.
+  const allow = new Set(v.allow ?? []);
+  for (const [id, sel] of ALLOW_BOXES) {
+    const box = $(sel);
+    if (!box) continue;
+    box.checked = allow.has(id);
+    box.disabled = Boolean(v.demo);
+  }
   const items = [...v.leave].sort((a, b) => Number(b.active) - Number(a.active));
   $('#pl-leave').replaceChildren(
     ...items.map((it) => {
       const li = el('li', it.active ? 'pl-item active' : 'pl-item');
       li.append(el('span', '', (LEAVE[it.id] ?? (() => it.label))()));
       if (it.names?.length) li.append(el('span', 'muted small', ` (${it.names.join(', ')})`));
-      li.append(el('span', `pl-chip${it.active && v.on ? ' paused' : ''}`, it.active ? (v.on ? t('paused') : t('set up')) : t('not set up')));
+      li.append(el('span', `pl-chip${it.active && v.on && !it.allowed ? ' paused' : ''}`, it.active ? (v.on ? (it.allowed ? t('allowed') : t('paused')) : t('set up')) : t('not set up')));
       return li;
     }),
   );
@@ -174,10 +182,12 @@ function renderPick() {
   const running = models.pull?.state === 'running';
   const btn = $('#lm-download');
   btn.textContent = have ? t('Use this model') : t('Download this model');
-  btn.disabled = running || (!have && Boolean(view?.on));
-  const offline = !have && Boolean(view?.on) && !running;
+  // W5.2: Model downloads allowed in Local-only mode lets the download through.
+  const blocked = Boolean(view?.on) && !(view?.allow ?? []).includes('model-downloads');
+  btn.disabled = running || (!have && blocked);
+  const offline = !have && blocked && !running;
   $('#lm-offline').hidden = !offline;
-  $('#lm-offline').textContent = offline ? t('Downloading needs the internet: turn “Nothing leaves this computer” off for the download, then on again.') : '';
+  $('#lm-offline').textContent = offline ? t('Downloading needs the internet: tick Model downloads above, or turn Local-only mode off for the download.') : '';
 }
 
 function renderPull(p) {
@@ -251,6 +261,24 @@ async function installWinget() {
   void tick();
 }
 
+const ALLOW_BOXES = [['updates', '#pl-allow-updates'], ['model-downloads', '#pl-allow-models']];
+
+async function saveAllow(e) {
+  const box = e.currentTarget;
+  const allow = ALLOW_BOXES.filter(([, sel]) => $(sel)?.checked).map(([id]) => id);
+  box.disabled = true;
+  try {
+    renderPrivate(await api('/private-local', { method: 'PUT', body: { allow } }));
+    // Model downloads change what the download button may do.
+    renderPick();
+  } catch (err) {
+    box.checked = !box.checked;
+    $('#pl-status').textContent = err.message;
+  } finally {
+    box.disabled = Boolean(view?.demo);
+  }
+}
+
 async function toggle() {
   const sw = $('#pl-on');
   const want = sw.checked;
@@ -282,6 +310,7 @@ export async function loadLocalModels() {
 export function initLocalModels(h) {
   helpers = { ...helpers, ...h };
   $('#pl-on').addEventListener('change', () => void toggle());
+  for (const [, sel] of ALLOW_BOXES) $(sel)?.addEventListener('change', (e) => void saveAllow(e));
   $('#lm-model').addEventListener('change', renderPick);
   $('#lm-download').addEventListener('click', () => void download());
   $('#lm-cancel').addEventListener('click', async () => {

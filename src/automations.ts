@@ -32,6 +32,7 @@ import { quietNow } from './life.ts';
 import { privateLocalOn } from './net-guard.ts';
 import { zonedParts, zonedToUtc } from './planner.ts';
 import { spendSettings, spentNow } from './spend.ts';
+import { noteAction } from './timeline.ts';
 import { calendarEvents, hasCalendar, type TodayEvent } from './today.ts';
 import { createFillDocumentTool, findForm } from './tools/fill-document.ts';
 import { timeOf } from './tools/work.ts';
@@ -956,7 +957,10 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
         const perm = this.#permission(name);
         if (perm === 'never') return { kind: act.kind, status: 'failed', text: T(en('Email drafts are turned off, so this step will fail.')) };
         if (perm !== 'auto' && ctx.allowed !== index) return { kind: act.kind, status: 'waiting', text: T(en('Save a draft to {to}: “{subject}”. Allow it in Settings → Automations.'), { to: act.to, subject: act.subject }) };
-        const out = await tool.run({ to: act.to, subject: fillIn(act.subject ?? ''), body, ...(attach.length ? { attachments: attach } : {}) }, this.#toolCtx(conversationId, ctx));
+        const args = { to: act.to, subject: fillIn(act.subject ?? ''), body, ...(attach.length ? { attachments: attach } : {}) };
+        const out = await tool.run(args, this.#toolCtx(conversationId, ctx));
+        // W5.5: the draft or send goes on the action timeline, started by this automation.
+        noteAction(this.#app, { name, args, output: out, summary: `${name === 'mail_send' ? 'Sent' : 'Drafted'} an email to ${act.to}`, conversationId, why: { cause: { kind: 'automation', label: a.name, how: a.trigger.kind }, rule: perm === 'auto' ? (this.#app.settings.get().toolPermissions?.[name] === 'auto' ? 'tool-on' : 'auto-tool') : 'allow-once' } });
         return { kind: act.kind, status: 'done', text: clip(out, 200) };
       }
     }
@@ -1034,7 +1038,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
           else if (ev.type === 'approval') asked = true;
           else if (ev.type === 'tool_result' && asked && ev.status === 'denied') declined = true;
         },
-        { budget: { tokens: AUTOMATION.taskTokens, minutes: AUTOMATION.taskMinutes } },
+        { budget: { tokens: AUTOMATION.taskTokens, minutes: AUTOMATION.taskMinutes }, cause: { kind: 'automation', label: r.automation.name, how: r.automation.trigger.kind } },
       );
     } catch (err) {
       error = (err as Error).message;

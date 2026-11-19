@@ -53,3 +53,33 @@ is lighter and needs no free port. Run the drill before a move or an upgrade.
 | Web | Section in `dh-backups` (web/index.html) + `web/restore-test.js`. |
 
 Settings (`settings.json`): `restoreTest: { on: true, everyDays: 30, hour: 3, offsite: true, history: [...] }`.
+
+## Backups you can carry (W5.3)
+
+**Settings → Privacy & system → Backups**, below the off-server copy. Design: [design/W5BACKUP.md](design/W5BACKUP.md).
+
+1. **Recovery sheet.** Press *Make my recovery sheet*: 18 words and a QR code appear. Download the
+   sheet (PDF) and print it, or write the words down in order, then tick *I printed it* and press
+   *Done*. Sara never shows the words again. Anyone with the sheet and a copy can open the copy, so
+   keep it like a passport. *Make a new sheet* gives a new key from then on; copies made before still
+   need the old sheet.
+2. **Carry copies.** Pick where: a drive (this computer's own disk is marked as not safe), a linked
+   friend's Sara (Messages → link a server first) or *Another folder…* (on a server: a mounted
+   drive). Choose every day or every week and how many to keep. Copies go to `Sara backups/` on the
+   drive as `.sara` files with a short README. Sara copies the newest daily backup on her hourly
+   check; *Copy now* makes a fresh one. An unplugged drive shows "Waiting for the drive" and is
+   filled when it comes back.
+3. **Backups you keep for friends.** Tick *Keep sealed backups for <name>* (up to 20 GB by default).
+   You see what you hold, can download a copy (to hand it back on a drive) or remove it. You hold
+   only sealed bytes: the key never leaves your friend's Sara.
+4. **Restore on a new computer.** Install Sara, open Backups, press *Look on the drives* (or choose
+   the `.sara` file), type the 18 words (or paste what your phone read from the QR code) and press
+   *Check the backup*: Sara opens it in a throwaway folder and runs the test-restore checks. Then
+   *Restore this backup* and restart Sara: the restore runs at the start, and what was there before
+   is kept in `before-restore-<time>/`. From the command line (Sara stopped):
+   `SARA_BACKUP_KEY="<the 18 words>" node src/main.ts --restore <file.sara>`.
+
+What you get when something is wrong: "The sheet has 18 words; you typed 17", "\"zzz\" is not one of
+the sheet words", "One of the words is wrong" (a checksum catches a mistyped word), "This recovery
+sheet doesn't fit this backup" (another sheet) and "This backup was changed or damaged after it was
+made" (any changed byte).

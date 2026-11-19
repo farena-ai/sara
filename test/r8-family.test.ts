@@ -198,7 +198,7 @@ test('R8 kid-safe mode: the profile, child invites vouched by a parent, settings
   const inv = h.invite({ name: 'Mia', hours: 24, confirm18: false, limits: { ...LIMITS, voice: true, pictures: true }, child: { band: '10-12', minutesPerDay: 60 }, confirmGuardian: true });
   assert.equal(h.checkInvite(inv.code)?.child, true);
   const { member } = h.redeem(inv.code, false);
-  assert.equal(member.child?.band, '10-12', 'a child joins without claiming 18+');
+  assert.equal(member.child?.band, '8-12', 'a child joins without claiming 18+ (W5.4: the old 10-12 band is stored as 8-12)');
   assert.equal(member.memberConfirmed18At, '');
   assert.deepEqual([member.limits.voice, member.limits.pictures], [false, false], 'voice and pictures start off for a child');
   assert.throws(() => h.redeem(h.invite({ name: 'Ann', hours: 24, confirm18: true, limits: LIMITS }).code, false), /18 or older/, 'grown-ups still confirm 18+');
@@ -301,7 +301,7 @@ test('R8 kid-safe turn: only kid tools are offered or run, her tone for kids, of
   assert.ok(offered.includes('chore_done'));
   assert.ok(offered.every((n) => KID_TOOLS.has(n)), offered.join(','));
   const sys = JSON.stringify(app.requests[0]?.messages.filter((m) => m.role === 'system'));
-  assert.match(sys, /a child \(age 6-9\)/);
+  assert.match(sys, /a child \(age under 8\)/); // W5.4: 6-9 is read as under 8
   assert.match(sys, /Never suggest buying anything/);
   const before = app.providerCalls;
   const out: string[] = [];

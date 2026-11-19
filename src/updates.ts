@@ -191,7 +191,7 @@ export class Updater {
   request(what: 'check' | 'update'): void {
     if (this.how === 'release') throw new Error('Use check() or update() here.');
     // Phase 67: the root updater fetches from GitHub: never in private local mode.
-    assertOnline('Checking for updates');
+    assertOnline('Checking for updates', 'updates');
     if (!this.available) throw new Error('This server updates from the command line: sudo sara update');
     const s = this.status();
     if (s.pending || s.state === 'checking' || s.state === 'updating') throw new Error('An update check or update is already running.');

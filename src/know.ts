@@ -202,7 +202,7 @@ export function knowForget(app: AppContext, id: string, conversationId?: string)
   const row = kind === 'm' ? (app.store.db.prepare('SELECT * FROM memories WHERE id = ?').get(n) as Record<string, unknown> | undefined) : undefined;
   facts.remove(id);
   const text = f.text.slice(0, 120);
-  const r = timelineOf(app).record({ tool: 'know_forget', kind: 'other', summary: `Forgot: ${text}`, conversationId: conversationId ?? null, title: en('Forgot: {text}'), params: { text }, undo: kind === 'm' ? { type: 'know_forget', memory: row } : { type: 'know_forget', doc: n } });
+  const r = timelineOf(app).record({ tool: 'know_forget', kind: 'other', summary: `Forgot: ${text}`, conversationId: conversationId ?? null, title: en('Forgot: {text}'), params: { text }, undo: kind === 'm' ? { type: 'know_forget', memory: row } : { type: 'know_forget', doc: n }, why: { cause: { kind: 'click' }, rule: 'click' } });
   return { timelineId: r.id };
 }
 
@@ -216,7 +216,7 @@ export function knowEdit(app: AppContext, id: string, text: string): { fact: Wor
   if (!before) throw new FactsError(404, 'Fact not found');
   const old = facts.get(id)?.text ?? '';
   const fact = facts.edit(id, text);
-  const r = timelineOf(app).record({ tool: 'know_edit', kind: 'other', summary: `Corrected: ${fact.text.slice(0, 120)}`, title: en('Corrected: {text}'), params: { text: fact.text.slice(0, 120), was: old.slice(0, 120) }, undo: { type: 'know_edit', id, before } });
+  const r = timelineOf(app).record({ tool: 'know_edit', kind: 'other', summary: `Corrected: ${fact.text.slice(0, 120)}`, title: en('Corrected: {text}'), params: { text: fact.text.slice(0, 120), was: old.slice(0, 120) }, undo: { type: 'know_edit', id, before }, why: { cause: { kind: 'click' }, rule: 'click' } });
   return { fact, timelineId: r.id };
 }
 
@@ -231,7 +231,7 @@ export function knowMerge(app: AppContext, keep: string, drop: string): { timeli
   const d = facts.get(drop);
   if (!k || !d) throw new FactsError(404, 'Fact not found');
   app.memory!.supersede(b.n, a.n);
-  const r = timelineOf(app).record({ tool: 'know_merge', kind: 'other', summary: `Merged: ${k.text.slice(0, 120)}`, title: en('Merged: {text}'), params: { text: k.text.slice(0, 120) }, undo: { type: 'know_merge', drop: b.n } });
+  const r = timelineOf(app).record({ tool: 'know_merge', kind: 'other', summary: `Merged: ${k.text.slice(0, 120)}`, title: en('Merged: {text}'), params: { text: k.text.slice(0, 120) }, undo: { type: 'know_merge', drop: b.n }, why: { cause: { kind: 'click' }, rule: 'click' } });
   return { timelineId: r.id };
 }
 

@@ -62,6 +62,34 @@ export function setPrivateLocal(on: boolean): void {
 
 export const privateLocalOn = (): boolean => privateOn;
 
+/**
+ * W5.2 (docs/design/W5LOCAL.md): what the person explicitly allows while Local-only mode is on,
+ * each one by itself and off by default. Each opens only its own addresses (URL prefixes, https
+ * only, no user:password) or its own local-program request; everything else stays blocked, and
+ * allowed traffic is counted by the privacy ledger like any other.
+ *   updates:         the update notice and release list of Sara itself (GitHub releases);
+ *   model-downloads: Ollama on this computer downloading a model (`/api/pull`), counted as
+ *                    registry.ollama.ai because Ollama makes that connection for us.
+ */
+export const LOCAL_ALLOWS = ['updates', 'model-downloads'] as const;
+export type LocalAllow = (typeof LOCAL_ALLOWS)[number];
+const ALLOW_PREFIXES: Record<LocalAllow, readonly string[]> = {
+  updates: ['https://github.com/farena-ai/sara/releases/', 'https://api.github.com/repos/farena-ai/sara/releases/'],
+  'model-downloads': [],
+};
+let allows = new Set<LocalAllow>();
+/** Sets the allowances (unknown ids are ignored). src/private-local.ts keeps the saved list. */
+export function setLocalAllow(list: readonly string[]): void {
+  allows = new Set(list.filter((x): x is LocalAllow => (LOCAL_ALLOWS as readonly string[]).includes(x)));
+}
+/** Is this allowance on (whether or not the mode is on now)? */
+export const localAllowed = (id: LocalAllow): boolean => allows.has(id);
+const allowedPrefix = (u: URL): boolean => {
+  if (u.protocol !== 'https:' || u.username || u.password) return false;
+  for (const id of allows) for (const p of ALLOW_PREFIXES[id]) if (u.href.startsWith(p)) return true;
+  return false;
+};
+
 /** Phase 117: told when the mode changes (the plugin socket broker closes its sockets when it goes on). */
 const modeListeners = new Set<(on: boolean) => void>();
 export function onPrivateLocalChange(fn: (on: boolean) => void): () => void {
@@ -180,7 +208,7 @@ export function outboundAllowed(target: string | URL, lan = false): boolean {
   if (!u) return false;
   if (OFFLINE.has(u.protocol)) return true;
   if (!['http:', 'https:', 'ws:', 'wss:'].includes(u.protocol)) return false;
-  return isLoopbackHost(u.hostname) || (lan && isLanHost(u.hostname));
+  return isLoopbackHost(u.hostname) || (lan && isLanHost(u.hostname)) || allowedPrefix(u);
 }
 
 /** Throws PrivateLocalError unless the address is allowed. Call it right before connecting. */
@@ -196,8 +224,8 @@ export function checkOutbound(target: string | URL, what?: string, lan = false):
  * For things that reach the internet without a URL Sara could check (a program that talks to its
  * vendor: Claude Code, the Grok CLI, winget, the updater): refused while the mode is on.
  */
-export function assertOnline(what: string): void {
-  if (!privateOn) return;
+export function assertOnline(what: string, allow?: LocalAllow): void {
+  if (!privateOn || (allow && allows.has(allow))) return;
   noteBlocked(what);
   throw new PrivateLocalError(what, `Paused in private local mode: ${what} needs the internet. Turn "Nothing leaves this computer" off to use it.`);
 }
@@ -238,7 +266,9 @@ export async function netFetch(input: string | URL | Request, init?: RequestInit
     checkOutbound(href);
     const u = toUrl(href);
     const why = u && !OFFLINE.has(u.protocol) ? ollamaEgress(u, init?.body) : undefined;
-    if (why) {
+    // W5.2: an allowed model download (Ollama fetches it; the ledger names where it comes from).
+    if (why && u && allows.has('model-downloads') && /\/api\/pull\b/i.test(u.pathname) && isLoopbackHost(u.hostname)) record({ target: 'https://registry.ollama.ai/', what: 'model download' });
+    else if (why) {
       noteBlocked(`${u!.host}${u!.pathname}`, href);
       throw new PrivateLocalError(`${u!.host}${u!.pathname}`, `Blocked by private local mode: ${why}`);
     }

@@ -2,6 +2,51 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.35.0",
+   "date": "2026-11-19",
+   "title": "Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why",
+   "items": [
+    {
+     "id": "3-35-0-practice-a-language-out-loud",
+     "kind": "new",
+     "text": "Practice a language out loud, with cards, listening and your words checked as you speak.",
+     "try": [
+      "lang-practice"
+     ]
+    },
+    {
+     "id": "3-35-0-a-private-health-coach-shows",
+     "kind": "new",
+     "text": "A private health coach shows your week and offers one or two small goals, never medical advice.",
+     "link": "#view=health"
+    },
+    {
+     "id": "3-35-0-a-family-screen-for-a",
+     "kind": "new",
+     "text": "A Family screen for a kitchen tablet shows the day, chores, meals and shopping, with a kid-safe Talk.",
+     "link": "#view=family"
+    },
+    {
+     "id": "3-35-0-local-only-mode-now-comes-with",
+     "kind": "new",
+     "text": "Local-only mode now comes with a test that runs a full day of features and proves nothing leaves the server."
+    },
+    {
+     "id": "3-35-0-backups-you-can-carry-on",
+     "kind": "new",
+     "text": "Backups you can carry on a USB drive or send sealed to a friend's Sara, with a printed recovery sheet.",
+     "try": [
+      "carry-sheet"
+     ]
+    },
+    {
+     "id": "3-35-0-kid-mode-v2-sets-rules",
+     "kind": "new",
+     "text": "Kid mode v2 sets rules by age band, with time requests you approve from your phone and a parent dashboard."
+    }
+   ]
+  },
+  {
    "version": "3.34.0",
    "date": "2026-11-19",
    "title": "Public records report, Handle it, memory lane, MCP both ways, team workspace",
@@ -272,40 +317,6 @@
      "kind": "new",
      "text": "Live and translated captions for meetings (Library → Meetings → a meeting → Captions): big captions that follow a room or a recording while she hears it.",
      "link": "#view=meetings"
-    }
-   ]
-  },
-  {
-   "version": "3.28.0",
-   "date": "2026-11-18",
-   "title": "My apps, automation replay, workforce report, Fix this issue, website receptionist",
-   "items": [
-    {
-     "id": "3-28-0-automation-steps-and-replay-settings",
-     "kind": "new",
-     "text": "Automation steps and replay (Settings → You → Automations): Steps opens an automation's step list."
-    },
-    {
-     "id": "3-28-0-workforce-report-and-one-click-hire",
-     "kind": "new",
-     "text": "Workforce report and one-click hire: once a week."
-    },
-    {
-     "id": "3-28-0-fix-this-issue-settings-connections",
-     "kind": "new",
-     "text": "Fix this issue (Settings → Connections → Apps and services → GitHub → Fix an issue): a repository's open issues, each with one button."
-    },
-    {
-     "id": "3-28-0-my-apps-library-my-apps",
-     "kind": "new",
-     "text": "My apps (Library → My apps): ask her for a small web app in a chat, try it and say \"keep it\"."
-    },
-    {
-     "id": "3-28-0-website-receptionist-settings-you-busine",
-     "kind": "new",
-     "text": "Website receptionist (Settings → You → Business details → Website receptionist): a chat for your own website, added with one line of code.",
-     "link": "#view=business",
-     "owner": true
     }
    ]
   }

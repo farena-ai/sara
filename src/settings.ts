@@ -89,6 +89,8 @@ export interface Settings {
   defaultLookOffered?: string;
   /** Off-server encrypted backup copies (Phase 8). */
   offsite?: Partial<OffsiteSettings>;
+  /** W5.3 backups you can carry (src/carry.ts). */
+  carry?: import('./carry.ts').CarrySettings;
   /** Morning briefing (Phase 8). */
   briefing?: Partial<BriefingSettings>;
   /** How much of a conversation is sent to the model each turn (characters; ~4 per token), when fixed. */

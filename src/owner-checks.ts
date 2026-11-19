@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.35.0
+  { id: 'lang-practice', release: '3.35.0', title: en('Practice a language out loud'), steps: [en('Press Learn a language…, pick Spanish, then Say it back and read the sentence aloud.')], view: '#view=library', expect: en('Your words appear as you speak and each is marked right, close or not heard, with one gentle tip.') },
+  { id: 'carry-sheet', release: '3.35.0', title: en('Make your recovery sheet'), steps: [en('In Backups you can carry, make a recovery sheet, print the PDF and press I printed it.')], view: '#view=settings:dh-backups', expect: en('18 words and a QR code on one page; after I printed it, the words are never shown again.') },
+  { id: 'why-action', release: '3.35.0', title: en('Ask why she did something'), steps: [en('Open the Action timeline and press Why did you do this? on a row.')], view: '#view=settings:dh-timeline', expect: en('What started it (your message, an automation or a schedule) and the rule that let it run, with a link to the chat turn.') },
   // 3.34.0
   { id: 'records-report', release: '3.34.0', title: en('Run a public-records report'), steps: [en('Press Public records report…, enter your own name and city, and run it.')], view: '#view=library', expect: en('A cited report with links and dates, Not found where nothing turned up, and a PDF with NOT FCRA COMPLIANT at the top of every page.') },
   { id: 'handle-it', release: '3.34.0', title: en('Let her handle a bill'), steps: [en('Open Bills, press Handle it on a bill, read her plan, then press Start.')], view: '#view=money', expect: en('She works through the steps, stops for your OK at sign-in, sending and payment, and never pays by herself.') },

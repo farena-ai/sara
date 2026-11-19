@@ -426,6 +426,8 @@ function showHome() {
   closeMeetings();
   const study = $('#lib-study');
   if (study) study.hidden = true;
+  const lang = $('#lib-lang');
+  if (lang) lang.hidden = true;
   const media = $('#lib-media');
   if (media) media.hidden = true;
   const scan = $('#lib-scan');

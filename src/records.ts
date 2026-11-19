@@ -663,6 +663,24 @@ export class Records {
         touch(place, false, true);
         continue;
       }
+      // W5.1: a redirect may not land the report on a paid broker, a sign-in-only site or a page that
+      // site's robots.txt asks not to read (each is checked again at the address it ended on).
+      if (got.url && got.url !== item.url) {
+        if (isPaidBroker(got.url)) {
+          addSource({ ...base, status: 'broker' });
+          continue;
+        }
+        if (isSignInOnly(got.url)) {
+          addSource({ ...base, status: 'sign-in' });
+          continue;
+        }
+        const landed = new URL(got.url);
+        if (!robots.has(landed.origin)) robots.set(landed.origin, await this.#robots(landed.origin, signal));
+        if (!robotsAllows(robots.get(landed.origin)!, landed.pathname + landed.search)) {
+          addSource({ ...base, status: 'robots' });
+          continue;
+        }
+      }
       const text = `${got.title}. ${got.text}`;
       if (PAYWALL_RE.test(text)) {
         addSource({ ...base, status: 'paid' });

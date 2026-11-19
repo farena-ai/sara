@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 251 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 255 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -1401,6 +1401,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 2. Sara restores the newest backup into a throwaway copy, checks it, starts it and deletes it; your live data is not touched.
 3. Read the result: how long it took, what it counted and how much a restore now would lose.
 
+**How do I restore Sara on a new computer?**
+
+1. Plug in the drive with your sealed copy (.sara).
+2. Under Restore on a new computer, press Look on the drives and pick it.
+3. Type the 18 words from your recovery sheet, press Check the backup, then Restore this backup.
+
 ### Move in and export
 
 **How do I export everything?**
@@ -1491,6 +1497,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Find the change in the Action timeline (newest first).
 2. Press Revert, then Yes, revert.
 3. If a change can't be undone, the row says why.
+
+**How do I see why she did something?**
+
+1. Press Why did you do this? under the change.
+2. It says what started it (your message, an automation, a plan step…) and why no card was shown.
+3. Press Show the chat turn to see it in the chat, or ask her "why did you do that?" right after.
 
 **How do I see only her mail or planner changes?**
 
@@ -1621,6 +1633,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Set Messages a day and Spending a day.
 2. Choose the models they may use.
+
+**How do I set up a family screen on a tablet?**
+
+1. Type a name under Family screen and press Make a pairing code.
+2. On the tablet, open the address shown and type the code.
+3. Set its night hours and the Talk button in the list below.
+
+**How do I set up kid mode for my child’s age?**
+
+1. Open Family → Kids and tick Kid-safe mode for them.
+2. Pick their age band: tools, words, time a day and bedtime fill in.
+3. Change anything you like, then press Save.
+4. Press Dashboard to see time, topics, requests and flagged moments.
 
 ### Your account
 

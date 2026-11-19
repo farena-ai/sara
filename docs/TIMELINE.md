@@ -19,6 +19,21 @@ sees only their own.
   on its chat card there).
 - **Show** picks one kind (Files, Settings, Mail, Calendar, Planner, Other); **Show older** loads more.
 - **Open the chat** jumps to the conversation where she made the change.
+- **Why did you do this?** (W5.5) opens two short lines under the change:
+  - what started it: your message (with the time you sent it), an automation by name (and whether its
+    schedule, an email or an upcoming event ran it), a trigger, a webhook, a repeat you set in that
+    chat, a goal, a worker's job, an errand, a Handle it plan step, another app or an outside
+    request, or your own click;
+  - why no card was shown, when none was: Always allow everything was on, you allowed it once ahead
+    or for this task, you set that tool to run on its own, or the tool never asks first. If there was
+    a card, it says you said yes on it.
+  **Show the chat turn** opens that chat at the message. The reason is saved with the row at the
+  moment of the change, so it is never worked out later; changes from before this existed say
+  "From before this was recorded."
+- Right after she changed something, ask her **"why did you do that?"** (also "¿por qué hiciste
+  eso?", "pourquoi tu as fait ça ?", "warum hast du das gemacht?", "por que você fez isso?",
+  "perché l'hai fatto?"). She answers from the same saved reason, without asking a model. If nothing
+  was recorded since your last message, she answers normally.
 
 Reverting is recorded in the audit trail. Nothing here calls a model. Design notes:
 [design/V5TIMELINE.md](design/V5TIMELINE.md).
