@@ -213,7 +213,7 @@ import { initSharedProjects, loadSharedSettings, renderProjectShare, sharedChang
 import { installPhoneSave } from './phone-save.js';
 import { fillScreen, initScreen } from './screen-companion.js';
 import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
-import { secondOpinionButton } from './second-opinion.js';
+import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -2021,6 +2021,8 @@ function msgActions(div, m, { last, lastUser, other = false }) {
     }
     // D8: a second opinion from two other models (web/second-opinion.js).
     if (!state.conv?.offRecord && !state.conv?.partner && !other) { const so = secondOpinionButton(div, m, act, state.currentId); if (so) bar.append(so); }
+    // fixreceipts: asked in words, her reply shows the same plan card for her previous reply.
+    if (!state.conv?.offRecord && !state.conv?.partner && !other && m.meta?.secondOpinionOffer) secondOpinionOffer(div, m, state.currentId);
   }
   if ((m.role === 'assistant' || m.role === 'user') && m.id && !state.conv?.partner) {
     // Phase 22: pin to the top of the conversation (📌 = pin).

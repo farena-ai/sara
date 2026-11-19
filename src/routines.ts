@@ -782,6 +782,7 @@ export const ROUTINES_DIR = join(import.meta.dirname, '..', 'templates', 'routin
 export function createSuggestRoutineTool(app: () => AppContext): Tool {
   return {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'suggest_routine',
       description: 'When the owner asks for something on a schedule ("every morning", "check this daily"), show him the matching ready-made routine card: what it does, when, what it needs and costs. You cannot turn it on: he taps Turn on in Planner → Routines.',

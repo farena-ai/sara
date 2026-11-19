@@ -91,6 +91,7 @@ import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, u
 import type { Redactor } from './redact.ts';
 import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
 import { noteAction, timelineBefore } from './timeline.ts';
+import { secondOpinionOffer } from './second-opinion.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
@@ -2424,6 +2425,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (homeSaid) {
     const msg = addAssistantMessage(homeSaid.reply, { homeVoice: homeSaid.id });
     yield { type: 'token', text: homeSaid.reply };
+    yield { type: 'done', messageId: msg.id };
+    return;
+  }
+  // fixreceipts: "get a second opinion" in words offers the D8 panel for her last reply (no model, no tools).
+  const sop = ownerApp && !opts.resume && !opts.replay && !opts.group && !conv.partner ? secondOpinionOffer(app, conv, text, userMsg?.id) : undefined;
+  if (sop) {
+    const msg = addAssistantMessage(sop.reply, sop.meta);
+    yield { type: 'token', text: sop.reply };
     yield { type: 'done', messageId: msg.id };
     return;
   }

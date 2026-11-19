@@ -21,9 +21,11 @@ export function createSecondOpinionRoutes(ctx: RouteCtx): RouteHandler {
     if (!conv) throw new HttpError(404, 'Conversation not found');
     if (method === 'GET') {
       const id = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('message'));
-      const plan = secondOpinionPlan(app, conv, replyOf(app, conv, id));
+      const reply = replyOf(app, conv, id);
+      const plan = secondOpinionPlan(app, conv, reply);
       needChoices(plan);
-      return send(res, 200, plan);
+      // fixreceipts: "asked" = this reply already has a second opinion (an old chat offer shows no card again).
+      return send(res, 200, { ...plan, asked: Boolean(reply.meta?.secondOpinion) });
     }
     if (method !== 'POST') throw new HttpError(405, 'Method not allowed');
     const body = (await readJson(req)) as { message?: unknown; models?: unknown };

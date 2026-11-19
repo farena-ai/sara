@@ -173,6 +173,7 @@ export function createSpotifyTools(spotify: SpotifyAccount): Tool[] {
 
   const playback: Tool = {
     defaultPermission: 'auto',
+    changes: true,
     spec: {
       name: 'spotify_playback',
       description:

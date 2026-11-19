@@ -5,6 +5,29 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.30.1 (2026-11-19): She knows what she did, second opinion from chat, sharper memory
+
+- Fixed: the Action timeline also lists changes she makes without asking first (a live checklist she posts,
+  for example), using the same rule as the claim checker.
+- Fixed: her memory picks and auto-loaded skills no longer match on everyday words. "I need a packing
+  checklist" picked notes only because they said "need", "get a second opinion" picked "second", and a
+  follow-up about a packing checklist loaded what she learned about a World of Warcraft patch because
+  it said "updated". One shared list of common words in all six languages (`src/common-words.ts`,
+  reusing the titles check's list) now never counts for memories, skill search or learned topics; a
+  memory matched only on general words ("updated", "changes") is a weak match (sure: low), and a
+  learned topic needs a real topic word in the question. Good matches still work ("what did I say about
+  my passport" finds the passport note; a WoW question still gets the WoW topic). Ranking golden set
+  unchanged at 19/20; false word picks on 10 messages that name no note went from 10 to 0.
+- Fixed: "She said it, did it happen?" no longer shows on things she really did with her newer tools. The
+  claim check now knows which tools change something from the tools themselves (they ask first, or their
+  name says add, update, log, post...), instead of an old hand-made list that missed live views,
+  purchases, upkeep, My apps, chores, health log and more. Live view changes also back a later
+  "the checklist is updated" or "I changed it twice". Real misses get the same chip as before.
+- Fixed: Asking in the chat for a second opinion ("get a second opinion", "what would another model say?",
+  in six languages) now shows the Second opinion card for her last reply, with the models and the cost
+  and Ask them / Not now, instead of her doing web research. Nothing goes to another model until you
+  press Ask them; private chats still only use models on this computer.
+
 ## 3.30.0 (2026-11-18): Offline answers on the phone, teach by showing, Wear OS, live views, second opinion
 
 - New: Second opinion on any of her replies (the ⋯ actions under a reply → Get a second opinion): two other

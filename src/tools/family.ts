@@ -200,6 +200,7 @@ function createPlanTools(appOf: () => AppContext, has: () => boolean, isParent: 
   const shop: Tool = {
     defaultPermission: 'auto',
     isAvailable: () => has() && isParent() && Boolean(appOf().family?.boards),
+    changes: true,
     spec: { name: 'meal_shopping', description: 'A parent puts the week\'s planned dinners\' ingredients on the family grocery list (quantities merged, grouped by aisle; nothing is bought).', parameters: obj({ week: { type: 'string', description: 'Any YYYY-MM-DD in the week (default: this week).' } }) },
     summarize: () => 'add the week\'s ingredients to the grocery list',
     async run(args) {

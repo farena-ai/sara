@@ -2,6 +2,7 @@
 import { randomUUID } from 'node:crypto';
 import { policy } from '../policy-profile.ts';
 import { BUILTIN_TOOLS } from './builtin.ts';
+import { noteToolEffect } from './effects.ts';
 import type { Permission, Tool } from './types.ts';
 
 export class ToolRegistry {
@@ -13,6 +14,7 @@ export class ToolRegistry {
 
   add(tool: Tool): void {
     this.#tools.set(tool.spec.name, tool);
+    noteToolEffect(tool);
   }
 
   remove(name: string): void {

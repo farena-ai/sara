@@ -185,6 +185,20 @@ test('V5.1: irreversible changes are labeled, read-only calls are not listed', a
   assert.equal(timelineOf(app).list({}).length, before, 'reads are not changes');
 });
 
+test('V5.1: quiet tools that change something are listed too (one rule with the claim checker)', async (t) => {
+  const { app } = setup(t);
+  // canvas_post-like: runs without asking ('auto') but changes something.
+  app.tools.add(stub('board_post', () => 'Posted the live checklist.'));
+  app.tools.add(stub('board_list', () => 'One board.'));
+  const before = timelineOf(app).list({}).length;
+  await act(app, 'board_list', {});
+  assert.equal(timelineOf(app).list({}).length, before, 'a quiet read is not listed');
+  await act(app, 'board_post', { title: 'Packing' });
+  const row = newest(app);
+  assert.equal(row.tool, 'board_post');
+  assert.equal(row.canRevert, false, 'no undo yet, said plainly');
+});
+
 test('V5.1: a new feature registers its own undo', async (t) => {
   const { app } = setup(t);
   const state = { color: 'blue' };

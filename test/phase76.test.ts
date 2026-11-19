@@ -59,9 +59,14 @@ test('1+2: words+meaning above words only above standing; sureness high / medium
   const third = rankMemories(mem, { query: "what's my dog's name?", conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY });
   assert.ok(third.findIndex((p) => p.memoryId === standing.id) > third.findIndex((p) => p.memoryId === words.id));
   assert.ok(third.filter((p) => !p.standing).every((p) => third.indexOf(p) < third.findIndex((q) => q.memoryId === standing.id)), 'matches first');
-  // A loose FTS-only hit (porter: "one" ~ "on") is a weak match, said so.
+  // fixrecall: "one" is a common word now, so "one more episode" no longer matches "on Sunday"
+  // (porter "one" ~ "on"); the open promise only comes as a standing note.
   const sunday = add(mem, 'promise', 'Alex will call his mom on Sunday.', daysAgo(1));
-  const loose = rankMemories(mem, { query: 'one more episode', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY }).find((p) => p.memoryId === sunday.id)!;
+  const notWords = rankMemories(mem, { query: 'one more episode', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY }).find((p) => p.memoryId === sunday.id)!;
+  assert.deepEqual([notWords.why, notWords.standing], [['standing open promise'], true]);
+  // A loose FTS-only hit (porter: "running" ~ "runs") is still a weak match, said so.
+  const runs = add(mem, 'fact', 'Alex runs 5k every Saturday.', daysAgo(1));
+  const loose = rankMemories(mem, { query: 'running shoes', conversationId: 'c', oldestHistoryId: 0, policy: NORMAL, today: TODAY }).find((p) => p.memoryId === runs.id)!;
   assert.deepEqual([loose.why, loose.confidence, loose.standing], [['similar words'], 'low', false]);
   assert.equal(pw.confidence, 'high', 'pinned + a match');
   assert.ok(pw.score >= 0.9, 'pinned floored at 0.9');

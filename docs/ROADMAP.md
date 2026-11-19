@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Fixes in 3.30.1
+
+From real use: the claim checker now knows every tool that changes something, so things she really did with
+newer tools no longer get a "did it happen?" warning. Asking for a second opinion in chat opens the Second opinion
+panel. Everyday words no longer pick memories or learned skills, and the Action timeline lists every change.
+
 ## Reach further: offline answers, teach by showing, Wear OS, live views, second opinion, in 3.30.0
 
 When your server can't be reached, the Android app can answer from a small model on the phone (downloaded only

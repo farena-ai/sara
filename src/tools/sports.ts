@@ -154,6 +154,7 @@ export function createSportsTools(getApp: () => AppContext): Tool[] {
       defaultPermission: 'auto',
       isAvailable: net,
       asksFirst: (a) => a.calendar === 'google' || a.calendar === 'outlook',
+      changes: true,
       spec: {
         name: 'schedule_to_calendar',
         description: "Put a followed team's upcoming games on a calendar: Sara's own planner by default (a \"Games\" list), or their Google or Outlook calendar only when the person asks for it and it's connected. Syncing again never duplicates a game and updates a changed start time.",
@@ -381,6 +382,7 @@ export function createSportsTools(getApp: () => AppContext): Tool[] {
     {
       defaultPermission: 'auto',
       isAvailable: local,
+      changes: true,
       spec: {
         name: 'bet_limits',
         description: 'Show or set the person\'s own betting limits and bankroll: a weekly loss limit, the most per bet, and cool-off days (no help finding bets until it ends; it can be made longer, not shorter). 0 turns a limit off. Call without arguments to show them.',

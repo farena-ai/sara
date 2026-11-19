@@ -658,13 +658,19 @@ export class SkillStore {
   }
 
   async find(text: string, opts: { limit?: number; target?: EmbedTarget; timeoutMs?: number } = {}): Promise<SkillView[]> {
+    return (await this.findScored(text, opts)).map((f) => f.view);
+  }
+
+  /** `find` with each skill's meaning score (null = found by words only), for callers that weigh it. */
+  async findScored(text: string, opts: { limit?: number; target?: EmbedTarget; timeoutMs?: number } = {}): Promise<{ view: SkillView; meaning: number | null }[]> {
     const limit = opts.limit ?? 8;
     const words = this.searchWords(text, limit * 2);
     const meaning = (await this.searchMeaning(opts.target, text, opts.timeoutMs)).filter((m) => m.score >= AUTO_MIN_SCORE - 0.1).slice(0, limit * 2);
     const merged = new Map<SkillView, number>();
+    const score = new Map(meaning.map((m) => [m.view, m.score]));
     words.forEach((w, i) => merged.set(w.view, (merged.get(w.view) ?? 0) + 1 / (60 + i)));
     meaning.forEach((m, i) => merged.set(m.view, (merged.get(m.view) ?? 0) + 1 / (60 + i)));
-    return [...merged.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([v]) => v);
+    return [...merged.entries()].sort((a, b) => b[1] - a[1]).slice(0, limit).map(([v]) => ({ view: v, meaning: score.get(v) ?? null }));
   }
 
   // ---------------------------------------------------------------------------------------------

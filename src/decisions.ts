@@ -465,6 +465,7 @@ export function createDecisionTools(getApp: () => AppContext): Tool[] {
     return n;
   };
   const decide: Tool = {
+    changes: false,
     spec: {
       name: 'decide',
       description: DECIDE_DESC,
@@ -565,6 +566,7 @@ export function createDecisionTools(getApp: () => AppContext): Tool[] {
     },
   };
   const compare: Tool = {
+    changes: false,
     spec: {
       name: 'compare',
       description: 'Put products, plans or options side by side as a table: items (names, or rows with their values, e.g. find_product results) and attributes (price, size, rating…). Uses only the values given; missing ones are marked, never filled in. For a weighted pick, use decide.',

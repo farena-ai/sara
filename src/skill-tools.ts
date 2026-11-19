@@ -116,6 +116,7 @@ export function createSkillTools(app: () => AppContext, deps: Deps = {}): Tool[]
     {
       defaultPermission: 'auto',
       isAvailable: () => Boolean(app().skills),
+      changes: false,
       spec: {
         name: 'skill_use',
         description:

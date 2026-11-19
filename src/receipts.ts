@@ -4,6 +4,7 @@
 // conversation ("I wrote you a poem", "I fixed my bike") is not flagged.
 
 import { BROWSER_TOOLS } from './tools/browser.ts';
+import { toolChanges, effectOf } from './tools/effects.ts';
 import { verifyState } from './verify-action.ts';
 
 /** R3 (src/errands.ts): errand_status marks an errand email that was sent and verified with this. */
@@ -303,12 +304,12 @@ export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
 }
 /** Clause edges: punctuation and "but" words; negation counts only in the verb's own clause. */
 const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin embargo|mais|cependant|aber|jedoch|doch|mas|porém|però|ma)\s+/i;
-/** Read-only tools: they never back an action claim. */
-const READ_ONLY = /^(?:read_file|list_dir|search|web_search|web_fetch|gmail_read|gmail_search|gmail_thread|gmail_needs_answer|mail_read|mail_search|mail_thread|mail_needs_answer|mail_accounts|mail_add_account|mail_folders|calendar_events|github_list|github_read|home_status|job_status|browser_read|recall|find|ssh_servers)$/;
-
-// 3.14.1: tools that write a file or a Library document back "I made / saved it" too (make_document said
-// "saved in the Library (document 10)", yet "it's saved as document #10" was flagged and re-done).
-const WRITE_TOOLS = new Set(['write_file', 'edit_file', 'make_document', 'fill_document', 'invoice_make', 'accounting_export', 'expense_report', 'time_invoice', 'time_report', 'word_fill', 'recipe_save', 'gdoc_append', 'gdoc_replace_text', 'gsheet_update_range', 'gsheet_append_rows', 'excel_update_range']);
+// fixreceipts: what counts as a change comes from the tools themselves (src/tools/effects.ts), not a
+// hand list that newer tools (canvas_post, purchases, upkeep, My apps...) fell out of. Every
+// changing tool backs "I made / saved / updated it"; read-only tools never back an action claim.
+const changes = (r: Receipt) => toolChanges(r.name);
+/** Edits to files or documents (E3: she must look again after the last one). */
+const FILE_EDITS = new Set(['write_file', 'edit_file', 'make_document', 'fill_document', 'word_fill', 'gdoc_append', 'gdoc_replace_text', 'gsheet_update_range', 'gsheet_append_rows', 'excel_update_range']);
 /** Phase 73: a command on one of the owner's servers counts like her shell; these change her server list. */
 const COMMAND_TOOLS = new Set(['shell', 'ssh_run']);
 const SSH_CHANGE = new Set(['ssh_connect', 'ssh_revoke_key', 'ssh_remove_server', 'ssh_forget_password']);
@@ -373,7 +374,40 @@ function priorDocument(sentence: string, prior: Receipt[]): boolean {
   const n = /\b(?:document|doc|file)\s*(?:#|number\s*|no\.\s*)?(\d{1,6})\b/i.exec(sentence)?.[1];
   if (!n) return false;
   const re = new RegExp(String.raw`\b(?:document|doc)\s*#?\s*${n}\b`, 'i');
-  return prior.some((r) => r.status === 'ok' && WRITE_TOOLS.has(r.name) && re.test(String(r.output ?? '')));
+  return prior.some((r) => r.status === 'ok' && changes(r) && re.test(String(r.output ?? '')));
+}
+
+/**
+ * fixreceipts: "and the checklist: I changed it twice" after canvas_post / canvas_update changed it
+ * in an earlier turn: an earlier change whose result names the same thing (its quoted title, or the
+ * live view's kind: checklist, table, chart, live view).
+ */
+const THING = /\b(?:live (?:view|checklist|table|chart|page)|checklist|lista de verificaci[oó]n|liste de contr[oô]le|checkliste|lista de verifica[cç][aã]o|lista di controllo|table|chart)\b/i;
+const LIVE = /\blive (view|checklist|table|chart|html)\b/i;
+/** Words a recap may use without naming new content ("and the checklist: I changed it twice"). */
+const FILLER = new Set("and the a an it its i i've i'm have has had just also now with them they this that these those twice again both times once already all every some more few list checklist live view table chart page your my our his her for to of on in into from out off up was were is are be been so too then there here thing things item items row rows".split(' '));
+function priorThing(sentence: string, prior: Receipt[]): boolean {
+  const said = sentence.toLowerCase();
+  const m = THING.exec(sentence)?.[0].toLowerCase().replace(/^live /, '');
+  const thing = m && !['view', 'page', 'table', 'chart'].includes(m) ? 'checklist' : m;
+  let rest = said;
+  const hits = prior.filter((r) => {
+    const out = String(r.output ?? '');
+    // Only live views (canvas_post / canvas_update say "the live checklist ..."); notes and documents go by number.
+    if (r.status !== 'ok' || !changes(r) || !LIVE.test(out)) return false;
+    const title = [...out.matchAll(/"([^"\n]{4,80})"/g)].map((x) => x[1].toLowerCase()).find((x) => said.includes(x));
+    if (title) {
+      rest = rest.replace(title, ' ');
+      return true;
+    }
+    const kind = LIVE.exec(out)?.[1].toLowerCase();
+    return Boolean(thing && kind) && (thing === 'view' || thing === 'page' || thing === kind);
+  });
+  if (!hits.length) return false;
+  // A recap, not a new change: every other word it uses is already in what those changes did.
+  const known = hits.map((r) => `${JSON.stringify(r.args)} ${r.output}`).join(' ').toLowerCase();
+  const words = rest.match(/[\p{L}']{3,}/gu) ?? [];
+  return words.every((w) => FILLER.has(w) || /(?:ed|ing)$/.test(w) || known.includes(w));
 }
 
 function priorNote(sentence: string, prior: Receipt[]): boolean {
@@ -392,7 +426,7 @@ function backing(receipts: Receipt[]) {
   return {
     ok,
     shells,
-    hasWrite: ok.some((r) => WRITE_TOOLS.has(r.name) || SSH_CHANGE.has(r.name)) || mcp || shells.length > 0,
+    hasWrite: ok.some((r) => changes(r) || SSH_CHANGE.has(r.name)) || mcp || shells.length > 0,
     hasRun: shells.length > 0 || mcp,
     hasCommit: ok.some((r) => r.name === 'git_commit' || r.name === 'git_push') || shells.some((r) => /\bgit\b[\s\S]*\b(commit|push|merge|tag)\b/.test(cmd(r)) && exitCode(r.output) === 0),
     hasWeb: ok.some((r) => r.name === 'web_search' || r.name === 'web_fetch'),
@@ -406,7 +440,7 @@ function backing(receipts: Receipt[]) {
     // A screenshot (at that width, when one is named) or a passing browser_check after the last edit.
     lookedAfterEdit: (width?: 'phone' | 'desktop') => {
       const last = (f: (r: Receipt) => boolean) => receipts.findLastIndex((r) => r.status === 'ok' && f(r));
-      return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => WRITE_TOOLS.has(r.name));
+      return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => FILE_EDITS.has(r.name));
     },
     // Phase 62: sending (mail, a GitHub comment / issue / pull request, an MCP tool, a mail command).
     // R3: an errand's email, sent through mail_send and verified, shows in errand_status / errand_list.
@@ -414,7 +448,7 @@ function backing(receipts: Receipt[]) {
     // Phase 62: a calendar entry (or a reminder set for it).
     hasSchedule: mcp || ok.some((r) => r.name === 'calendar_add' || (r.name === 'remind' && String(r.args.action) === 'set')),
     // Anything that did something (not just reading) backs the judge's generic "action".
-    hasAny: ok.some((r) => !READ_ONLY.test(r.name)),
+    hasAny: ok.some((r) => effectOf(r.name) !== 'reads'),
     typeChecks: receipts.filter((r) => r.name === 'diagnostics'),
     failedOnly: receipts.some((r) => r.status === 'error') && !ok.length,
     testRuns: shells.filter((r) => /\b(test|jest|vitest|pytest|mocha|go test|cargo test|npm t\b|node --test|make check|npm run check)\b/i.test(cmd(r))),
@@ -445,7 +479,7 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     seen.add(key);
     claims.push({ kind, sentence, problem });
   };
-  const priorWrite = (s: string) => priorSupports(s, prior, (r) => WRITE_TOOLS.has(r.name) || r.name === 'shell');
+  const priorWrite = (s: string) => priorSupports(s, prior, (r) => changes(r) || r.name === 'shell') || priorThing(s, prior);
   const priorRun = (s: string) => priorSupports(s, prior, (r) => r.name === 'shell' || r.name.startsWith('mcp_'));
 
   for (const s of sentences(reply)) {
@@ -454,7 +488,7 @@ export function checkClaims(reply: string, receipts: Receipt[], prior: Receipt[]
     const artifact = ARTIFACT.test(s) || I18N.artifact.test(s) || ART2.test(s);
     // 3.4.2: keeping something for the owner ("I've saved your results to your note") is backed by the note tool too.
     const keep = claimed(s, KEEP);
-    const savedBefore = priorNote(s, prior) || priorDocument(s, prior);
+    const savedBefore = priorNote(s, prior) || priorDocument(s, prior) || priorThing(s, prior);
     if (artifact && !b.hasWrite && !priorWrite(s) && !savedBefore && !(b.hasPlanner && (keep || claimed(s, [PLANNER, I18N.planner]))) && claimed(s, [WRITE_VERB, I18N.write, ...MORE.write!])) add('write', s, 'missing');
     if (artifact && !b.hasRun && !priorRun(s) && claimed(s, [RUN_VERB, I18N.run, ...MORE.run!])) add('run', s, 'missing');
     if (claimed(s, [TESTS_PASS, I18N.tests, ...MORE.tests_pass!])) {
@@ -547,7 +581,7 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
   const mcp = ok.some((r) => r.name.startsWith('mcp_'));
   const b = backing(receipts);
   const backed: Record<ClaimKind, boolean> = {
-    write: shell || mcp || ok.some((r) => WRITE_TOOLS.has(r.name) || SSH_CHANGE.has(r.name)) || priorSupports(sentence, prior, (r) => WRITE_TOOLS.has(r.name) || r.name === 'shell'),
+    write: shell || mcp || ok.some((r) => changes(r) || SSH_CHANGE.has(r.name)) || priorSupports(sentence, prior, (r) => changes(r) || r.name === 'shell') || priorThing(sentence, prior),
     run: shell || mcp,
     tests_pass: shell || mcp,
     types_clean: receipts.some((r) => r.name === 'diagnostics' && r.status === 'ok'),
@@ -555,7 +589,7 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     web: mcp || ok.some((r) => r.name === 'web_search' || r.name === 'web_fetch'),
     // E6: invoice_mark sent sets the due reminders; action_items with create_tasks adds to-dos.
     remind: ok.some((r) => r.name === 'remind' || (r.name === 'invoice_mark' && r.args.status === 'sent')),
-    planner: mcp || ok.some((r) => r.name === 'todo' || r.name === 'note' || WRITE_TOOLS.has(r.name) || (r.name === 'action_items' && r.args.create_tasks === true)),
+    planner: mcp || ok.some((r) => r.name === 'todo' || r.name === 'note' || changes(r) || (r.name === 'action_items' && r.args.create_tasks === true)) || priorThing(sentence, prior),
     browser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
     send: b.hasSend,
     schedule: b.hasSchedule,

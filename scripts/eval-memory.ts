@@ -110,6 +110,7 @@ async function rankEval(): Promise<void> {
     ['SunnyWeather keeps crashing on launch', 37],
   ];
   const out: { policy: string; top1: number; top3: number; rows: { message: string; want: string; got: string; rank: number; why: string }[] }[] = [];
+  const falsePicks: { message: string; picks: string[] }[] = [];
   try {
     for (const fade of ['normal', 'never'] as const) {
       const policy = decayPolicy({ fade });
@@ -126,6 +127,29 @@ async function rankEval(): Promise<void> {
       console.log(`\n${fade}: first ${top1}/${GOLD.length}, in the top 3 ${top3}/${GOLD.length}`);
       for (const r of rowsR) console.log(`${r.rank === 1 ? 'ok  ' : 'MISS'} #${r.rank || '-'} ${r.message}\n      got: ${r.got} ${r.why}`);
     }
+    // fixrecall: messages that name nothing in the notes (only common words, or other topics).
+    // A word match at sure: medium or high on any of them is a false pick (the owner's evidence:
+    // "need", "get", "second" picked notes). Lower is better; 0 is the goal.
+    const { rankMemories } = await import('../src/memory-rank.ts');
+    const NEG = [
+      'I need a packing checklist',
+      'get a second opinion on the checklist',
+      'You said "I went and read two proper guides and the checklist is updated with them.", but I don\'t see that it happened. Please really do it now, or tell me why you can\'t.',
+      'And the checklist: I changed it twice.',
+      'did you see what I said?',
+      'Can you get me two more?',
+      'thanks, that is what I needed',
+      'Necesito una segunda opinión, por favor',
+      "J'ai besoin d'un deuxième avis",
+      'Ich brauche eine zweite Meinung',
+    ];
+    for (const q of NEG) {
+      const picks = rankMemories(mem, { query: q, conversationId: 'eval', oldestHistoryId: 0, standing: false, today: TODAY }).filter((p) => p.confidence !== 'low');
+      falsePicks.push({ message: q, picks: picks.map((p) => `${p.memory.content} [${p.why.join(' + ')}; ${p.confidence}]`) });
+    }
+    const n = falsePicks.reduce((a, r) => a + r.picks.length, 0);
+    console.log(`\nfalse word picks (sure medium/high) on ${NEG.length} messages that name no note: ${n} (on ${falsePicks.filter((r) => r.picks.length).length} messages)`);
+    for (const r of falsePicks) if (r.picks.length) console.log(`  ${r.message.slice(0, 60)}\n      ${r.picks.join('\n      ')}`);
   } finally {
     st.close();
     rmSync(dir, { recursive: true, force: true, maxRetries: 5 });
@@ -133,7 +157,7 @@ async function rankEval(): Promise<void> {
   const date = new Date().toISOString().slice(0, 10);
   const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
   mkdirSync(join(ROOT, 'evals', 'results'), { recursive: true });
-  writeFileSync(join(ROOT, 'evals', 'results', `${date}-memory-rank.json`), JSON.stringify({ date, sara: version, notes: NOTES.length, messages: GOLD.length, results: out }, null, 2) + '\n');
+  writeFileSync(join(ROOT, 'evals', 'results', `${date}-memory-rank.json`), JSON.stringify({ date, sara: version, notes: NOTES.length, messages: GOLD.length, results: out, falsePicks }, null, 2) + '\n');
   const main = out[0];
   process.exitCode = main.top1 >= 16 ? 0 : 1;
 }

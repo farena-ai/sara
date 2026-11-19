@@ -858,6 +858,7 @@ export function createBoardTools(app: () => AppContext): Tool[] {
     },
   };
   const ask: Tool = {
+    changes: true,
     spec: {
       name: 'card_ask',
       description: "Only while you work on a card: ask the owner one question you can't answer from the card. The card moves to Waiting on you with the question and this call waits for the answer.",

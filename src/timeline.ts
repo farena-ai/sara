@@ -14,6 +14,7 @@ import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { en } from './i18n.ts';
 import type { Task } from './planner.ts';
+import { toolChanges } from './tools/effects.ts';
 import { workspaceDir } from './tools/workspace.ts';
 
 export const TIMELINE_KINDS = ['files', 'settings', 'mail', 'calendar', 'planner', 'other'] as const;
@@ -245,9 +246,10 @@ export function noteAction(app: AppContext, c: { name: string; args: Record<stri
     let info: ActionInfo | null;
     if (d) info = d({ app, args: c.args, output: c.output, ...(c.conversationId ? { conversationId: c.conversationId } : {}), ...(c.workspace ? { workspace: c.workspace } : {}), ...(c.snapshotId ? { snapshotId: c.snapshotId } : {}), before: c.before });
     else {
-      // Anything that asks first changes something; quiet ('auto') tools without a describer are reads.
+      // One rule with the claim checker (src/tools/effects.ts): every tool that changes something gets a
+      // row, including quiet ('auto') ones like canvas_post; tools that only read are skipped.
       const tool = app.tools.get(c.name);
-      if (!tool || tool.defaultPermission === 'auto') return undefined;
+      if (!tool || !toolChanges(c.name)) return undefined;
       info = { kind: kindByName(c.name), never: SEND_WORDS.test(c.name) ? NEVER.sent : NEVER.noUndo };
     }
     if (!info) return undefined;

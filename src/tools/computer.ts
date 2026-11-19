@@ -558,6 +558,7 @@ export function createComputerTools(app: AppContext): Tool[] {
 
   const request: Tool = {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'pc_browser_request',
       description: 'The response body of one network request from pc_browser_logs (text only, up to 64 KB, secrets masked), e.g. to see why an API call returned 500.',
@@ -904,6 +905,7 @@ export function createComputerTools(app: AppContext): Tool[] {
 
   const downloads: Tool = {
     defaultPermission: 'auto',
+    changes: false,
     spec: { name: 'pc_browser_downloads', description: "The files in the Downloads/Sara folder on the owner's computer (where Sara's browser saves downloads, and where they can put a file for you to upload).", parameters: obj({ ...COMPUTER_ARG }) },
     isAvailable: anyOnline,
     summarize: () => `list ${BR()} downloads`,
@@ -1028,6 +1030,7 @@ export function createComputerTools(app: AppContext): Tool[] {
 
   const yourTurn: Tool = {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'pc_browser_your_turn',
       description:

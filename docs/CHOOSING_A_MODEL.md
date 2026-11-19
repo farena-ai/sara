@@ -262,6 +262,9 @@ server itself).
 
 Not sure about one of her answers? Open the actions under the reply (hover, long-press or ⋯) and
 press **Get a second opinion** (the two-people icon).
+Or just ask in the chat: "get a second opinion", "what would another model say?" (also in Spanish,
+French, German, Portuguese and Italian). She then shows the same card for her last reply instead of
+looking things up herself, and nothing is sent until you press **Ask them**.
 
 - Two other connected models answer the same question on their own. They see the chat up to your
   question, not her reply, and get no tools, so nothing is done on your behalf.

@@ -51,6 +51,12 @@ When a question is about a topic she learned, she loads those notes for that rep
 links the pages, and says how recent they are. If the last refresh failed she tells you it may be out
 of date. If your question goes beyond what she read, she says so and offers to look it up.
 
+A question counts as "about" a topic only when it shares a real topic word with it ("warcraft",
+"talent", "heat pumps"). Everyday words ("said", "two", "see", "need", in any of the six languages)
+never count, and general ones ("updated", "changes", "guide", "class") count only when the meaning
+match is strong too, so a follow-up like "you said the checklist is updated" doesn't pull in what she
+learned about a game patch.
+
 ## Keeping it fresh
 
 Pick **Every day**, **Every week** or **Every month** (or *Refresh now*). Each refresh reads again,

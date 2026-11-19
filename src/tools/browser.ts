@@ -228,6 +228,7 @@ export function createBrowserTools(app: AppContext): Tool[] {
 
   const check: Tool = {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'browser_check',
       description: `Check facts about the page in the testing browser, without running any code: ${CHECK_TYPES.join(', ')}. Each check passes or fails; use them to prove your app works (e.g. after clicking "Add", text_visible "1 item"). no_horizontal_scroll at phone width catches layouts that don't fit.`,

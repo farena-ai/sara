@@ -748,6 +748,7 @@ export const exitCodeOf = (v: Verdict): number => (v === 'safe' ? 0 : v === 'tig
 export function createSafetyReportTool(deps: () => SafetyDeps): Tool {
   return {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'safety_report',
       description: "Read the owner's safety check-up: the verdict and one line per check (read-only; you can't fix anything: point the owner at Settings → Privacy & system → Safety check-up).",

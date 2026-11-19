@@ -30,7 +30,8 @@ import type { ChatMessage } from './providers/types.ts';
 import { checkClaims, fetchPageRetrying, RESEARCH } from './research.ts';
 import { detectExplicit, detectMinorSexualContent } from './safety.ts';
 import { adultModeOn } from './settings.ts';
-import type { SkillView } from './skill-store.ts';
+import { AUTO_MIN_SCORE, type SkillView } from './skill-store.ts';
+import { distinctWords } from './common-words.ts';
 import { slugify, uniqueName } from './skills.ts';
 import { guardedGet, type GuardedGetSeams } from './tools/builtin.ts';
 import { runSearch } from './tools/search.ts';
@@ -807,18 +808,42 @@ export class Learning {
     if (!skills || !text.trim()) return undefined;
     const topics = this.list().filter((t) => t.skill && (t.status === 'ready' || t.status === 'stale' || t.status === 'learning' || t.status === 'queued'));
     if (!topics.length) return undefined;
-    const found = await skills.find(text, { limit: 6, ...(target ? { target } : {}), timeoutMs: 1500 }).catch(() => [] as SkillView[]);
-    const q = new Set((text.toLowerCase().match(/[\p{L}\d][\p{L}\p{M}\d'-]{3,}/gu) ?? []).map((w) => w.slice(0, 5)));
-    for (const v of found) {
+    const found = await skills.findScored(text, { limit: 6, ...(target ? { target } : {}), timeoutMs: 1500 }).catch(() => [] as { view: SkillView; meaning: number | null }[]);
+    for (const { view: v, meaning } of found) {
       if (v.source !== 'topic' || loaded.has(v.name)) continue;
       const t = topics.find((x) => x.skill === v.name);
       if (!t) continue;
-      const own = (`${t.subject} ${t.site ? new URL(t.site).hostname.replace(/^www\./, '').split('.')[0] : ''}`.toLowerCase().match(/[\p{L}\d][\p{L}\p{M}\d'-]{3,}/gu) ?? []).map((w) => w.slice(0, 5));
-      if (!own.some((w) => q.has(w))) continue;
+      // A real topic overlap: a distinctive topic word in the question (common words never count).
+      if (!topicFits(t.subject, t.site, text, meaning)) continue;
       const when = (t.lastGoodAt ?? t.createdAt).slice(0, 10);
       const fresh = t.status === 'stale' ? ` The last refresh failed (${t.error ?? 'unknown'}), so it may be out of date: say so.` : '';
       return { view: v, block: `${skills.activation(v)}\nThis is what you learned on ${when} about ${t.subject}. Answer from it and cite its sources as links.${fresh}` };
     }
     return undefined;
   }
+}
+
+/**
+ * Does a question name a learned topic? It needs a topic word in common that is not a common word
+ * (six languages: "said", "two", "see" never count) and not a general one ("updated", "changes",
+ * "class"); one general word in common is enough only with a strong meaning match
+ * (≥ AUTO_MIN_SCORE). Words compare folded, by their first five letters (plurals, -ed forms).
+ */
+export function topicFits(subject: string, site: string | null | undefined, text: string, meaning?: number | null): boolean {
+  let host = '';
+  try {
+    host = site ? new URL(site).hostname.replace(/^www\./, '').split('.')[0] : '';
+  } catch {
+    host = '';
+  }
+  const own = distinctWords(`${subject} ${host}`);
+  const q = distinctWords(text);
+  let any = false;
+  for (const [w, info] of q) {
+    const o = own.get(w);
+    if (!o) continue;
+    if (!o.generic && !info.generic) return true;
+    any = true;
+  }
+  return any && (meaning ?? 0) >= AUTO_MIN_SCORE;
 }

@@ -14,6 +14,7 @@ import { HISTORY_BUDGET_CHARS, historyBudgetFor, historyMode, primeBudget } from
 import { HARD_MAX_CHARS, MIN_HISTORY_CHARS, type HistoryMode } from '../model-context.ts';
 import { cleanAppearance } from '../appearance.ts';
 import { checklist } from '../checklist.ts';
+import { toolEffect } from '../tools/effects.ts';
 import { appMenu } from '../bridges/commands.ts';
 import { CONTRADICT_MODES, type ContradictMode, contradictSettings } from '../contradict.ts';
 import { doctorDataSources, runDoctor } from '../doctor.ts';
@@ -300,6 +301,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
             permission: app.tools.permission(t.spec.name, s.toolPermissions),
             source: t.source ?? 'built-in',
             available: t.isAvailable?.() ?? true,
+            // fixreceipts: changes something (true) or only reads (false); null = undecided (src/tools/effects.ts).
+            changes: ((e) => (e ? e === 'changes' : null))(toolEffect(t)),
           })),
           sandbox: { mode: app.sandbox.mode, detail: app.sandbox.detail, ...(app.sandbox.mode === 'none' ? { note: noSandboxNote() } : {}) },
           shellNetwork: s.shellNetwork ?? true,

@@ -137,6 +137,7 @@ export function createCodingTools(app: AppContext): Tool[] {
 
   const gitLook: Tool = {
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: 'git',
       description: 'Look at the git repository in the workspace (read only): status, diff (unstaged and staged changes), log, branches, or show a commit.',

@@ -357,6 +357,7 @@ export function createGiftTools(app: () => AppContext): Tool[] {
   const refuse = (p: Person) => `${p.name}'s card is private: she does not plan gifts or write cards from it.`;
   return [
     {
+      changes: false,
       spec: {
         name: 'people_gift_ideas',
         description: "Gift ideas for a person on the owner's People cards (birthday, anniversary or another occasion), from what she knows about them, within the owner's budget. Saves them on the card; the owner can put one on the shopping list there. Never uses private cards or private facts.",
@@ -380,6 +381,7 @@ export function createGiftTools(app: () => AppContext): Tool[] {
       },
     },
     {
+      changes: true,
       spec: {
         name: 'people_gift_card',
         description: "Draft the text for a greeting card to a person on the owner's People cards, in the owner's own writing style. Saved on the card as a draft; never sent.",

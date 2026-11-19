@@ -109,7 +109,7 @@ export function createCanvasTools(getApp: () => AppContext): Tool[] {
             ...(a.html !== undefined ? { html: a.html } : {}),
             ...(a.data !== undefined ? { data: a.data } : {}),
           });
-          return `Changed the live view "${v.title}" (#${v.id}); it shows the change in the chat within a few seconds.`;
+          return `Changed the live ${v.kind} "${v.title}" (live view #${v.id}); it is updated in the chat within a few seconds.`;
         }),
     },
     {

@@ -41,6 +41,7 @@ export function createRemoteRepairTools(appOf: () => AppContext): Tool[] {
     return Boolean(r && r.support.peers().some((p) => r.activePass(p.id, 'held')));
   };
   const ask: Tool = {
+    changes: true,
     spec: {
       name: 'remote_help_request',
       description: "When the owner can't get something working and asks to have a linked friend's Sara fix it (\"can you have Sam fix it\"): puts a card in the Messages chat with that friend where the owner picks how long (1 hour, 1 day, 7 days) and what the friend may do (look only / fix with my OK each time / fix within this pass). Nothing is sent until the owner presses the button there.",

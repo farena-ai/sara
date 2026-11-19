@@ -1373,6 +1373,7 @@ export function createAgendaTools(app: () => AppContext): Tool[] {
       },
     },
     {
+      changes: true,
       spec: {
         name: 'agenda_goal',
         description:

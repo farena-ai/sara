@@ -8,6 +8,7 @@
 // call, M10: a task signature); every pick carries policyId (M3/M9); `override` puts a note in or
 // out (M8); KIND_PRIOR is the one table of standing weights (M2 marks decisions binding); the
 // bracket note format `[why: …; sure: …]` is shared by M2 cards and M10 trigger lines.
+import { isCommonWord, isGenericWord } from './common-words.ts';
 import { createHash } from 'node:crypto';
 import type { Memory, MemoryKind } from './memory.ts';
 
@@ -87,17 +88,13 @@ export function explainPolicy(p: DecayPolicy): string {
 
 // ---- words ----
 
-const STOP = new Set(
-  'the and for are but not you your yours with this that what when where which who whom why how was were have has had did does do can could would should will shall about from into onto over under than then them they their there these those his her hers him she he its it’s it\'s our ours out just like also very really some any all each more most much many such only own same too again once here been being because while during before after above below off between both few nor other yes no okay ok hey hi hello please thanks thank tell me my mine myself i im i\'m you\'re youre we us remember know think'.split(
-    /\s+/,
-  ),
-);
+// Common words (six languages) live in common-words.ts: they never count as match words.
 
-/** The meaningful words of a text (lower case, no stop words, at most 24, in order). */
+/** The meaningful words of a text (lower case, no common words in the six languages, at most 24, in order). */
 export function queryWords(text: string): string[] {
   const words = (text.toLowerCase().match(/[\p{L}\p{N}][\p{L}\p{N}'-]*/gu) ?? [])
     .map((w) => w.replace(/'s$/, '').replace(/['"-]/g, ''))
-    .filter((w) => w.length >= 3 && !STOP.has(w));
+    .filter((w) => w.length >= 3 && !isCommonWord(w));
   return [...new Set(words)].slice(0, 24);
 }
 
@@ -233,14 +230,16 @@ export function scoreCandidates(cands: Candidate[], policyIn: PolicyWithId | Dec
     // FTS5 (porter) found it but no query word is in the note by our own reading ("one" ~ "on"):
     // still a match, but a weak one, said plainly ("similar words", sure: low).
     const fuzzy = c.words !== undefined && !words.length;
-    const byWords = c.words !== undefined && words.length > 0;
+    // Only general words in common ("updated", "changes"): a weak match too, never sure: medium.
+    const generic = c.words !== undefined && words.length > 0 && words.every(isGenericWord);
+    const byWords = c.words !== undefined && words.length > 0 && !generic;
     const byMeaning = c.meaning !== undefined && c.meaning !== null;
-    const matched = byWords || byMeaning || fuzzy;
+    const matched = byWords || byMeaning || fuzzy || generic;
     const f = freshness(m, policy, today);
     const u = reuse(m.useCount ?? 0);
     const pinned = Boolean(m.pinned);
     if (!matched && !pinned && !c.included && !c.keep && policy.halfLifeDays > 0 && f + policy.reuseWeight * u < policy.minStanding) continue;
-    const rWord = byWords ? MATCH_FLOOR + (1 - MATCH_FLOOR) * (queryWordCount ? Math.min(1, words.length / queryWordCount) : 0) : fuzzy ? MATCH_FLOOR - 0.15 : 0;
+    const rWord = byWords ? MATCH_FLOOR + (1 - MATCH_FLOOR) * (queryWordCount ? Math.min(1, words.length / queryWordCount) : 0) : fuzzy || generic ? MATCH_FLOOR - 0.15 : 0;
     const rMean = byMeaning ? MATCH_FLOOR + (1 - MATCH_FLOOR) * clamp(((c.meaning as number) - MEANING_FLOOR) / (1 - MEANING_FLOOR), 0, 1) : 0;
     const r = matched ? Math.min(1, Math.max(rWord, rMean) + (byWords && byMeaning ? AGREE_BONUS : 0)) : 0;
     // Standing notes: prior × (0.6 + 0.4 f) as designed. Matched notes: freshness counts less
@@ -251,12 +250,13 @@ export function scoreCandidates(cands: Candidate[], policyIn: PolicyWithId | Dec
     if (c.included) score = Math.max(score, 1);
     const why: string[] = [];
     if (byWords) why.push(`words ${words.slice(0, 4).map((w) => `"${w}"`).join(', ')}`);
+    else if (generic && !byMeaning) why.push(`general words ${words.slice(0, 4).map((w) => `"${w}"`).join(', ')}`);
     else if (fuzzy && !byMeaning) why.push('similar words');
     if (byMeaning) why.push('meaning');
     if (!matched) why.push(c.included ? 'added for this run' : pinned ? 'pinned' : `standing ${KIND_WORD[m.kind] ?? m.kind}`);
     else if (pinned) why.push('pinned');
     const confidence: Confidence = (byWords && byMeaning) || (pinned && (byWords || byMeaning)) ? 'high' : byWords || byMeaning ? 'medium' : 'low';
-    out.push({ memoryId: m.id, memory: m, score: round(score, 4), confidence, why, policyId: pid, words, meaning: byMeaning ? round(c.meaning as number, 3) : null, standing: !matched, pinned, old: f < 0.5, freshness: round(f, 4), included: Boolean(c.included), fuzzy: fuzzy && !byMeaning });
+    out.push({ memoryId: m.id, memory: m, score: round(score, 4), confidence, why, policyId: pid, words, meaning: byMeaning ? round(c.meaning as number, 3) : null, standing: !matched, pinned, old: f < 0.5, freshness: round(f, 4), included: Boolean(c.included), fuzzy: (fuzzy || generic) && !byMeaning });
   }
   // Notes that matched the message come before standing ones (as before Phase 76), then best
   // first; ties: newest happenedOn, then the higher id (deterministic).

@@ -77,6 +77,7 @@ const assigneeName = (app: AppContext, a: string | null) => (!a ? '' : a.startsW
 
 function listsTool(getApp: () => AppContext): Tool {
   return {
+    changes: false,
     spec: {
       name: 'household_lists',
       description: "The lists shared in this household (groceries, chores, a team's to-dos): each open item with who it's assigned to and when it's due, what is assigned to this person, and invitations waiting. Only lists shared with this person show; their own private to-dos are in todo/board_list.",

@@ -93,6 +93,12 @@ export interface Tool {
    */
   interruptible?: boolean;
   /**
+   * fixreceipts: true = a call changes something (it backs "I did it" claims), false = it only reads
+   * or looks. Most tools need not say: src/tools/effects.ts works it out (asks first, interruptible,
+   * the verb in the name); say it when the name can't tell (test/fixreceipts.test.ts lists those).
+   */
+  changes?: boolean;
+  /**
    * Phase 73: calls that ask the owner first even when the tool is set to run on its own (the
    * "ask first" list: e.g. ssh_run with rm -rf, shutdown, a changed firewall).
    */

@@ -80,6 +80,7 @@ export function createStudyTools(getApp: () => AppContext): Tool[] {
     },
     {
       defaultPermission: 'auto',
+      changes: false,
       spec: {
         name: 'study_quiz',
         description: 'Ask them the next due card of a study set (or of all sets). A multiple-choice card is shown as a pick-an-answer card; for others ask the question in your words and wait. When they answer, call study_answer with the card number and their words. Never say the answer before they tried.',

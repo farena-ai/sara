@@ -231,6 +231,7 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
   };
 
   const invoiceList: Tool = {
+    changes: false,
     spec: {
       name: 'invoice_list',
       description: 'List invoices and quotes with their status (draft, sent, overdue, paid, accepted, void), totals and due dates; with no status, everything plus how much is unpaid.',
@@ -294,6 +295,7 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
   };
 
   const followUps: Tool = {
+    changes: false,
     spec: {
       name: 'follow_ups',
       description: "Who the person owes a reply: email conversations in their connected mailboxes where the last message is someone else's, written to them (not just copied), not a newsletter, no-reply or automated mail, waiting more than `days` days; ranked (questions first). Also lists their to-dos that are due. Then offer to draft replies (mail_draft / gmail_draft with reply_to: a draft they review, never sent by you).",
@@ -452,6 +454,7 @@ export function createBizTools(getApp: () => AppContext): Tool[] {
   };
 
   const actionItems: Tool = {
+    changes: true,
     spec: {
       name: 'action_items',
       description: 'Turn meeting notes (pasted text, or a document in the Library) into action items with owner, due date and the exact line they came from. Code finds the plain ones ("Dana will send the deck by Friday", "Action: …", "- [ ] …", "@sam to …"); add others you read as items [{task, owner, due, quote}] (each quote word for word from the notes, or it is dropped). create_tasks: true makes them Planner to-dos (only when the person asked for that).',

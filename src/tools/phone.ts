@@ -47,6 +47,7 @@ export function createPhoneTools(app: AppContext): Tool[] {
   };
   const picture = (kind: 'camera' | 'screen'): Tool => ({
     defaultPermission: 'auto',
+    changes: false,
     spec: {
       name: kind === 'camera' ? 'phone_camera' : 'phone_screen',
       description:

@@ -102,6 +102,7 @@ export function createAutomationTools(getApp: () => AppContext): Tool[] {
     },
     {
       defaultPermission: 'auto',
+      changes: false,
       spec: {
         name: 'automation_dry_run',
         description: 'Try an automation without doing anything: no draft is saved, no copy is kept, no task runs, no phone notification (one chat line labeled as a test). Reports what each action would do with today’s data. Give id (an existing one) or a draft (as automation_create).',

@@ -144,11 +144,37 @@ function showResult(div, m, r, open) {
 
 /** The message action (one per reply of hers), or null where it doesn't fit. */
 export function secondOpinionButton(div, m, act, conversationId) {
-  if (!conversationId || m.role !== 'assistant' || !m.id || !String(m.content ?? '').trim() || m.meta?.blocked) return null;
+  if (!conversationId || m.role !== 'assistant' || !m.id || !String(m.content ?? '').trim() || m.meta?.blocked || m.meta?.secondOpinionOffer) return null;
   div._sopConv = conversationId;
   const b = act('group', t('Get a second opinion from two other models'));
   b.addEventListener('click', () => void showPlan(div, m));
   // A kept second opinion comes back folded under the reply.
   if (m.meta?.secondOpinion?.answers && !div._sop?.isConnected) queueMicrotask(() => div.isConnected && showResult(div, m, m.meta.secondOpinion, false));
   return b;
+}
+
+/**
+ * fixreceipts: the owner asked in chat ("get a second opinion"); her reply carries
+ * `meta.secondOpinionOffer = { message }` and shows the same plan card for that earlier reply of hers
+ * (models, cost, Ask them / Not now). Nothing is sent before Ask them. Once asked, the answers live on
+ * that reply (they come back folded under it), so an old offer shows no card again.
+ */
+export function secondOpinionOffer(div, m, conversationId) {
+  const id = m.meta?.secondOpinionOffer?.message;
+  if (!conversationId || m.role !== 'assistant' || !Number.isInteger(id) || div._sopOffer) return;
+  div._sopOffer = true;
+  div._sopConv = conversationId;
+  const target = { id, meta: {} };
+  queueMicrotask(async () => {
+    if (!div.isConnected) return;
+    const p = panelFor(div);
+    p.classList.add('sop-offer');
+    try {
+      const plan = await call(`/conversations/${encodeURIComponent(conversationId)}/second-opinion?message=${id}`);
+      if (plan.asked) return void p.remove();
+    } catch {
+      // showPlan says why (no other model, reply gone).
+    }
+    void showPlan(div, target);
+  });
 }

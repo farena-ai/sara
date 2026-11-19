@@ -212,3 +212,56 @@ export function diffAnswers(texts: string[]): Part[][] {
     }),
   );
 }
+
+// ---------- fixreceipts: "get a second opinion" asked in chat ----------
+// The owner typed it instead of tapping the reply's action: she offers the same panel (plan, cost,
+// Ask them / Not now) for her previous reply rather than improvising research. Nothing is sent to
+// another model until that tap; private chats keep to models on this computer (secondOpinionPlan).
+
+export type OfferLang = 'en' | 'es' | 'fr' | 'de' | 'pt-BR' | 'it';
+const ASK: [OfferLang, RegExp][] = [
+  ['en', /\b(?:second opinion|other opinion|what (?:would|does|do) (?:an?other|a different|other|the other) (?:models?|ais?)\b[^?.!]{0,20}\b(?:say|think)|ask (?:an?other|a different|other|two other) (?:models?|ais?)|(?:check|compare) with (?:an?other|a different|other) models?)\b/i],
+  ['es', /\b(?:segunda opini[oó]n|otra opini[oó]n|qu[eé] (?:dir[ií]a|opinar[ií]a|pensar[ií]a) otro modelo|preg[uú]ntale? a otros? modelos?|consulta (?:a )?otros? modelos?)/i],
+  ['fr', /\b(?:(?:second|deuxi[eè]me|autre) avis|qu.en (?:dirait|penserait) un autre mod[eè]le|que dirait un autre mod[eè]le|demande (?:[aà] )?(?:un |d.)autres? mod[eè]les?)/i],
+  ['de', /\b(?:zweite(?:n)? meinung|zweitmeinung|andere(?:n)? meinung|was w[uü]rde (?:ein )?anderes modell (?:sagen|meinen|denken)|frag (?:mal )?(?:ein )?anderes modell|frag andere modelle)/i],
+  ['pt-BR', /\b(?:segunda opini[aã]o|outra opini[aã]o|o que (?:outro modelo|outros modelos) (?:diria|diriam|acha|achariam)|pergunte? (?:a|para) outros? modelos?)/i],
+  ['it', /\b(?:second[oa] (?:parere|opinione)|altro parere|cosa (?:direbbe|penserebbe) un altro modello|chiedi (?:a )?(?:un )?altr[oi] modell[oi])/i],
+];
+/** A second opinion from a person (doctor, lawyer...) or a no: not ours to offer. */
+const NOT_OURS = /\b(?:doctors?|physicians?|surgeons?|dentists?|vets?|lawyers?|attorneys?|specialists?|m[eé]dic[oa]s?|m[eé]decins?|avocats?|abogad[oa]s?|[aä]rzt(?:in|e)?|anw[aä]lt(?:in|e)?|advogad[oa]s?|avvocat[oi]|dottor[ei]?)\b|\b(?:don.t|do not|no need|no|never|not|without|sin|sans|pas besoin|kein(?:e|en)?|nicht|n[aã]o|senza|non)\b[^.!?]{0,25}\b(?:second|segunda|deuxi[eè]me|zweite|secondo|seconda|other|otra|autre|andere|outra|altro)/i;
+
+/** The language of a short chat message asking for a second opinion from other models, else undefined. */
+export function asksSecondOpinion(text: string): OfferLang | undefined {
+  const s = text.trim();
+  if (!s || s.length > 160 || NOT_OURS.test(s)) return undefined;
+  return ASK.find(([, re]) => re.test(s))?.[0];
+}
+
+const OFFER: Record<OfferLang, string> = {
+  en: 'I can ask two other models for their own answer to your question, without showing them mine, and then show you where we differ. Here is who would answer and what it costs. Nothing is sent until you tap Ask them.',
+  es: 'Puedo pedir a otros dos modelos su propia respuesta a tu pregunta, sin enseñarles la mía, y luego mostrarte en qué diferimos. Aquí ves quién respondería y cuánto cuesta. No se envía nada hasta que toques Pregúntales.',
+  fr: "Je peux demander à deux autres modèles leur propre réponse à ta question, sans leur montrer la mienne, puis te montrer où nous divergeons. Voici qui répondrait et ce que ça coûte. Rien n'est envoyé avant que tu touches Demande-leur.",
+  de: 'Ich kann zwei andere Modelle nach ihrer eigenen Antwort auf deine Frage fragen, ohne ihnen meine zu zeigen, und dir dann zeigen, wo wir uns unterscheiden. Hier siehst du, wer antworten würde und was es kostet. Nichts wird gesendet, bevor du auf Frag sie tippst.',
+  'pt-BR': 'Posso pedir a outros dois modelos a resposta deles à sua pergunta, sem mostrar a minha, e depois mostrar onde divergimos. Aqui está quem responderia e quanto custa. Nada é enviado até você tocar em Pergunte a eles.',
+  it: 'Posso chiedere a due altri modelli la loro risposta alla tua domanda, senza mostrare la mia, e poi mostrarti dove siamo diversi. Ecco chi risponderebbe e quanto costa. Non viene inviato nulla finché non tocchi Chiedi a loro.',
+};
+export function secondOpinionOfferText(lang: OfferLang | string): string {
+  return OFFER[lang as OfferLang] ?? OFFER.en;
+}
+
+/**
+ * chat.ts: the owner asked for a second opinion in words. Her offer (reply text + the message meta
+ * the web turns into the D8 plan card) for her last reply before this message, or undefined when
+ * it isn't such an ask or she has no earlier reply here (then the turn goes on as usual).
+ */
+export function secondOpinionOffer(app: AppContext, conv: Conversation, text: string, beforeId?: number): { reply: string; meta: { secondOpinionOffer: { message: number; private?: true } } } | undefined {
+  const lang = asksSecondOpinion(text);
+  if (!lang) return undefined;
+  const mine = app.store
+    .messages(conv.id)
+    .filter((m) => m.role === 'assistant' && m.content.trim() && !m.meta?.blocked && !m.meta?.secondOpinionOffer && (beforeId === undefined || m.id < beforeId))
+    .at(-1);
+  if (!mine) return undefined;
+  const priv = Boolean(conv.private) || privateLocalOn();
+  return { reply: secondOpinionOfferText(lang), meta: { secondOpinionOffer: { message: mine.id, ...(priv ? { private: true as const } : {}) } } };
+}

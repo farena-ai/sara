@@ -16,6 +16,7 @@
 // the old title. With no model allowed (no local model and no Quick pick, or a private chat with
 // no local model) a bridge placeholder gets a few plain topic words once (the no-model fallback);
 // other titles stay as they are.
+import { fold, STOP_SIX } from './common-words.ts';
 import type { AppContext } from './chat.ts';
 import { cheapCall, cheapRoute, fenceLines, ledgerOf, safeLines, type CheapModel } from './cheap.ts';
 import { isGroupChannel } from './group.ts';
@@ -102,29 +103,10 @@ export function datedPlaceholder(base: string, when: Date, lang: string, timeZon
 
 // ------------------------------------------------------------------ words (the topic check)
 
-const STOP = new Set(
-  [
-    // en
-    'the a an and or but if so of to in on at by for with from about into over after before is are was were be been being am do does did have has had i me my mine you your yours he him his she her it its we us our they them their this that these those what which who whom how why when where there here not no yes just very really also too can could would should will shall may might must get got make made like want need know think going go come let lets say said tell told talk chat thing things stuff something anything today tomorrow yesterday now then again more most some any all each other only well okay ok hey hi hello thanks thank please sure maybe still even much many one two',
-    // es
-    'el la los las un una unos unas y o pero si de del al a en con por para sobre es son era fue ser estar está están estoy eres soy yo tú tu te mi me mis nos nuestro su sus él ella ellos ellas esto eso este esta ese esa qué que quién cómo cuándo dónde no sí muy también ya hoy mañana ayer ahora luego más menos algo nada todo todos hola gracias vale bueno bien hacer tengo tienes tiene quiero puedo',
-    // fr
-    'le la les un une des et ou mais si de du au aux en dans sur avec pour par est sont était être avoir ai as a je tu il elle nous vous ils elles me te se mon ma mes ton ta tes son sa ses ce cet cette ces quoi que qui comment quand où non oui très aussi déjà aujourd hui demain hier maintenant plus moins rien tout tous bonjour salut merci bien faire veux peux',
-    // de
-    'der die das den dem des ein eine einen einem einer und oder aber wenn von zu im in an auf mit für über nach vor ist sind war waren sein bin bist hat habe haben ich du er sie es wir ihr mein meine dein deine sein seine unser was wer wie wann wo warum nicht nein ja sehr auch schon heute morgen gestern jetzt dann mehr weniger etwas nichts alles alle hallo danke gut machen will kann noch mal',
-    // pt
-    'o a os as um uma uns umas e ou mas se de do da dos das no na nos nas em com por para sobre é são era foi ser estar está estão estou sou eu tu você vocês ele ela eles elas me te meu minha seu sua nosso isso isto esse essa este esta que quem como quando onde não sim muito também já hoje amanhã ontem agora mais menos algo nada tudo todos oi olá obrigado obrigada bem fazer quero posso',
-    // it
-    'il lo la i gli le un uno una e o ma se di del della dei degli delle al alla a in con per su è sono era essere avere ho hai ha io tu lui lei noi voi loro mi ti ci mio mia tuo tua suo sua questo questa quello quella che chi come quando dove non no sì molto anche già oggi domani ieri adesso ora più meno qualcosa niente tutto tutti ciao grazie bene fare voglio posso',
-  ]
-    .join(' ')
-    .split(/\s+/)
-    .map((w) => fold(w)),
-);
+// The six-language stop-word list now lives in common-words.ts (shared with memory and skill matching).
+const STOP = STOP_SIX;
 
-export function fold(s: string): string {
-  return s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
-}
+export { fold };
 
 /** Content words: folded, 3+ letters, no stop-words, no numbers; long words cut to 6 letters (plurals). */
 export function topicWords(text: string): Set<string> {

@@ -23,7 +23,7 @@ function valid(args: Record<string, unknown>): boolean {
 
 export function createSceneCanonTools(): Tool[] {
   return [{
-    source: 'built-in', defaultPermission: 'auto',
+    source: 'built-in', defaultPermission: 'auto', changes: true,
     // Retiring removes a story fact from every linked chat: the owner approves each one.
     asksFirst: (args) => args.action === 'retire',
     spec: {

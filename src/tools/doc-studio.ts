@@ -94,6 +94,7 @@ function clausesIn(v: unknown): ClauseIn[] {
 
 export function createDocStudioTools(getApp: () => AppContext): Tool[] {
   const fromTemplate: Tool = {
+    changes: true,
     spec: {
       name: 'doc_from_template',
       description:
