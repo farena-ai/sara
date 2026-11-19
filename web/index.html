@@ -286,6 +286,7 @@
         <div id="head-chips" class="head-chips">
           <button id="conv-settings-btn" class="ghost small" type="button" title="Model, workspace and mode for this conversation"><i class="ic" data-icon="settings"></i><span id="conv-summary">…</span></button>
           <button id="speak-toggle" class="ghost small icon" type="button" title="Read her replies aloud" aria-pressed="false" hidden><i class="ic" data-icon="speaker"></i></button>
+          <button id="cnt-phone" class="ghost small icon" type="button" title="Continue on my phone" aria-label="Continue on my phone" hidden><i class="ic" data-icon="handoff"></i></button>
           <button id="server-btn" class="server-btn" type="button" title="Which server this app shows. Switch to another one" hidden><i class="ic" data-icon="switch"></i><span id="server-btn-name">Sara</span><span id="server-btn-count" class="srv-count" hidden></span></button>
         </div>
         <button id="pl-badge" class="pl-badge" type="button" title="Nothing leaves this computer: private local mode is on" hidden><i class="ic" data-icon="lock"></i><span>Only this computer</span></button>
@@ -2942,7 +2943,7 @@
       <p id="dk-version" class="muted small"></p>
       <h3>Screen companion <button type="button" class="tip" data-tip="Off by default. On: the Sara app looks at the window in front every few seconds, on this computer only, and offers help when an error or a stuck form shows. Nothing is kept or sent.">?</button></h3>
       <label class="row"><input id="dk-screen" type="checkbox" data-noauto> Offer help when an error shows on screen <button type="button" class="tip" data-tip="A small bubble asks if you want help. Help with this puts the message in quick ask; it goes to Sara only when you press Ask. Never password fields, typed text or hidden windows.">?</button></label>
-      <p class="small"><button id="dk-screen-pause" type="button" class="ghost" hidden>Pause for 1 hour</button> <span id="dk-screen-note" class="muted small" role="status"></span></p>
+      <p class="small"><button id="dk-screen-pause" type="button" class="ghost" hidden>Pause for 1 hour</button> <button id="dk-screen-perm" type="button" class="ghost" hidden>Open Accessibility settings</button> <span id="dk-screen-note" class="muted small" role="status"></span></p>
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
       <p class="muted small page-lead">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
@@ -4064,6 +4065,15 @@
         <label class="rnw-field rnw-photo">Add by photo of the card<input id="rnw-photo" type="file" accept="image/*" capture="environment"></label>
         <p id="rnw-status" class="muted small" role="status"></p>
       </div>
+      <!-- W1.1 (docs/design/W1KNOW.md): everything she knows about you, by topic, steerable (web/facts.js). -->
+      <h3>What she knows <button type="button" class="tip" data-tip="Grouped by topic, each with where and when she learned it. Why shows the words it came from. That’s wrong fixes it and Forget removes it, both with Undo. Not true forgets it for good.">?</button></h3>
+      <div class="kn-tools" data-nodirty data-noauto>
+        <input id="kn-q" type="search" maxlength="200" autocomplete="off" placeholder="Search what she knows" aria-label="Search what she knows">
+      </div>
+      <div id="kn-dups" class="kn-dups" hidden data-nodirty data-noauto></div>
+      <div id="wsk-list" data-nodirty data-noauto></div>
+      <p id="wsk-status" class="muted small" role="status"></p>
+      <div id="kn-also" class="kn-also" data-nodirty data-noauto></div>
       <div id="wsk-suggest" hidden>
         <h3>From your documents <button type="button" class="tip" data-tip="Renewal, expiry and due dates she found in your documents. Accept adds a reminder before the date (30 days for renewals and expiry, 3 for due dates). Nothing is added unless you accept.">?</button></h3>
         <div id="wsk-suggest-list" data-nodirty data-noauto></div>
@@ -4074,9 +4084,6 @@
         <button id="wsk-ask-go" type="button" class="small">Ask</button>
       </div>
       <div id="wsk-answer" role="status"></div>
-      <h3>What she knows <button type="button" class="tip" data-tip="Health facts, a passport and anything from a private chat are marked Private. Edit changes her memory too; Delete removes it; Not true forgets it for good.">?</button></h3>
-      <div id="wsk-list" data-nodirty data-noauto></div>
-      <p id="wsk-status" class="muted small" role="status"></p>
       <h3>Health log <button type="button" class="tip" data-tip="Your Health log is encrypted on this server and kept out of memory and reports. These switches decide who else may read it.">?</button></h3>
       <div class="hs-box" data-nodirty data-noauto>
         <label class="row"><input id="hs-cloud" type="checkbox"> Let a cloud model read my health log</label>
@@ -4401,6 +4408,17 @@
       <!-- ALERTDEST: where her alerts and results go (web/automations.js, src/destinations.ts). -->
       <h3 id="atm-dest-h">Where alerts go <button type="button" class="tip" data-tip="Pick where each kind lands: the chat it was set up in, a chat just for them, a chat in a project, one of your chats, or only your chat apps. Or ask her: “put my stock alerts in the Stock Alerts project”.">?</button></h3>
       <div id="atm-dest" class="atm-box adst-box" data-nodirty data-noauto aria-labelledby="atm-dest-h"></div>
+      <!-- W1.2: one daily budget for her nudges (src/nudges.ts, web/nudges.js). -->
+      <h3 id="ndg-h">Her nudges <button type="button" class="tip" data-tip="Everything she sends on her own shares one daily budget, best first. Smaller things wait for one roundup. Safety alerts and reminders you set always come.">?</button></h3>
+      <div id="ndg-box" class="atm-box ndg-box" data-nodirty data-noauto aria-labelledby="ndg-h">
+        <p id="ndg-today" class="muted small" role="status"></p>
+        <div class="ndg-row">
+          <label>Nudges a day <input id="ndg-budget" type="number" min="0" max="20" inputmode="numeric"></label>
+          <label>Roundup of smaller things at <select id="ndg-hour"></select></label>
+        </div>
+        <div id="ndg-kinds" class="ndg-kinds"></div>
+        <div id="ndg-held" class="ndg-held"></div>
+      </div>
         </section>
         <!-- Phase 120 (PRECISE §4.14, §5.10): checks after her edits and @-references (web/refs.js). -->
         <section class="settings-page" data-page="ab-precise" data-group="Skills & tools" data-title="Check her edits" data-owner-only hidden>
@@ -4868,7 +4886,14 @@
           <div id="tel-calls" class="list tel-calls"></div>
         </div>
       </div>
-      <!-- D2 (docs/WEAR.md): a Wear OS watch pairs with the code it shows (web/wear-page.js). -->
+      <!-- W1.3 (docs/design/W1CONTINUE.md): continue on another device (web/continue-here.js). -->
+      <h3 id="cnt-box">Continue on another device <button type="button" class="tip" data-tip="Your open chat, unsent words, where you were reading, Talk and live views follow you: open Sara on another device soon after and a card offers to continue. Only your own devices.">?</button></h3>
+      <div class="cnt-host" data-nodirty data-noauto>
+        <label class="row"><input id="cnt-on" type="checkbox"> <span>Offer to continue where I left off</span> <button type="button" class="tip" data-tip="On: each of your devices tells this server which chat is open and what you were typing. Off: nothing is kept and anything kept is forgotten.">?</button></label>
+        <label>How soon after <button type="button" class="tip" data-tip="How long after you put one device down another one still offers to continue. Continue on my phone keeps its offer for half an hour.">?</button> <select id="cnt-within"></select></label>
+        <p class="muted small">On a computer, ⋯ at the top of a chat has Continue on my phone: your phone gets a notification that opens the same chat with your words.</p>
+        <p id="cnt-status" class="muted small" role="status"></p>
+      </div>
       <h3 id="wear-box">Wear OS watch <button type="button" class="tip" data-tip="A tile on your watch with today's reminders, how many things wait on you and a Talk button. Anything that needs your OK stays on your phone.">?</button></h3>
       <div class="wear-host" data-nodirty data-noauto>
         <p class="muted small">Install Sara's Wear OS app on the watch, open it, type this server's address and tap Get a code. Then type that code here.</p>

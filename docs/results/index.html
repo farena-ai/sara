@@ -43,7 +43,7 @@ a{color:var(--accent)}
 .stack td.cmd{grid-column:1 / -1;margin-top:4px}}
 </style>
 </head>
-<body data-built="2026-11-18">
+<body data-built="2026-11-19">
 <main>
 <h1>Sara benchmark: original repository tasks</h1>
 <p class="lead">Small and real-size coding projects written for Sara (a bug spread over modules, a feature from a spec, a refactor that must keep behavior), in JavaScript and Python. Every harness gets the same request in a fresh copy of the project and is graded by the same hidden tests it never sees.</p>
@@ -87,6 +87,70 @@ a{color:var(--accent)}
 <tr><td><strong>Same model, no harness</strong><span class="sub">Real-size projects, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">raw</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
 <tr><td><strong>Sara</strong><span class="sub">Real-size projects, 2026-10-28</span></td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/bench-tasks.ts</span> <span class="nw">--tier</span> <span class="nw">projects</span> <span class="nw">--mode</span> <span class="nw">agent</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span></code><span class="sub">win32, Python 3.14.9</span></td></tr>
 </table></div>
+<h2 id="everyday">Everyday tasks with a real local model</h2>
+<p class="lead">Real chat turns on a throwaway Sara with fixture mail, calendar, web pages and a second linked server; a local model through Ollama answers every turn and uses her real tools. A task passes only when every code check passes (the tool ran, the rows and files exist, nothing private leaked); a small local judge scores it 1-5 too.</p>
+<div class="card scroll"><table class="stack">
+<tr><th>Run</th><th>Model</th><th>Score</th><th>Date</th><th>Re-run</th></tr>
+<tr><td><strong>2026-11-19 after</strong><span class="sub">Sara 3.30.1</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M<span class="sub">judge qwen3.5:9b</span></td><td class="score">52/53<span class="sub">98%, 12.4 min</span><span class="sub">judge 4.85/5</span></td><td class="date">2026-11-19</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/eval-real.ts</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span> <span class="nw">--judge</span> <span class="nw">qwen3.5:9b</span></code></td></tr>
+<tr><td><strong>2026-11-19 before</strong><span class="sub">Sara 3.30.1</span></td><td class="model">qwen3.8:27b-mtp-q4_K_M<span class="sub">judge qwen3.5:9b</span></td><td class="score">46/53<span class="sub">87%, 13.1 min</span><span class="sub">judge 4.77/5</span></td><td class="date">2026-11-19</td><td class="cmd"><code><span class="nw">node</span> <span class="nw">scripts/eval-real.ts</span> <span class="nw">--model</span> <span class="nw">qwen3.8:27b-mtp-q4_K_M</span> <span class="nw">--judge</span> <span class="nw">qwen3.5:9b</span></code></td></tr>
+</table></div>
+<h2>Everyday tasks: task by task</h2>
+<div class="card scroll"><table class="grid">
+<tr><th>Task</th><th>2026-11-19 after</th><th>2026-11-19 before</th></tr>
+<tr><td><code>chat-hello</code><span class="sub">chat</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>chat-budget</code><span class="sub">chat</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>chat-honest</code><span class="sub">chat</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>chat-translate</code><span class="sub">chat</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>chat-mold</code><span class="sub">chat</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>memory-recall</code><span class="sub">memory</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>remind-dentist</code><span class="sub">reminders</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>todo-add</code><span class="sub">reminders</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>note-wifi</code><span class="sub">notes</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>reminders-list</code><span class="sub">reminders</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>calendar-week</code><span class="sub">calendar</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>calendar-add</code><span class="sub">calendar</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s10-choice</code><span class="sub">S10 choice cards</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s1-research</code><span class="sub">S1 research</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s3-goal-create</code><span class="sub">S3 goals</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s3-goal-update</code><span class="sub">S3 goals</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s3-goal-status</code><span class="sub">S3 goals</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s5-ask</code><span class="sub">S5 ask everything</span></td><td class="no" aria-label="fail" title="called ask_everything">✗</td><td class="no" aria-label="fail" title="called ask_everything">✗</td></tr>
+<tr><td><code>s5-person</code><span class="sub">S5 ask everything</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s11-humanize</code><span class="sub">S11 humanize</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s2-meeting</code><span class="sub">S2 meetings</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s4-promises</code><span class="sub">S4 promises</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s4-people-due</code><span class="sub">S4 promises</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s6-trips</code><span class="sub">S6 trips</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s6-status</code><span class="sub">S6 trips</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s7-template</code><span class="sub">S7 documents</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s7-revise</code><span class="sub">S7 documents</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s7-checklist</code><span class="sub">S7 documents</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s7-sign</code><span class="sub">S7 documents</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>docclaim</code><span class="sub">docclaim</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>doc-letter</code><span class="sub">S11 humanize</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s8-team</code><span class="sub">S8 team run</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="run finished; result has a fixture price">✗</td></tr>
+<tr><td><code>t1-heal</code><span class="sub">T1 self-repair</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>t3-code</code><span class="sub">T3 code fix</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>alertdest</code><span class="sub">alert destinations</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>mail-connect</code><span class="sub">mailmulti</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>mail-accounts</code><span class="sub">mailmulti</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>s9b-support</code><span class="sub">S9b support look</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>t5-request</code><span class="sub">T5 remote fix</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>t5-plan</code><span class="sub">T5 remote fix</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-canvas</code><span class="sub">D3 live checklist</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="has the four items">✗</td></tr>
+<tr><td><code>v-second-opinion</code><span class="sub">D8 second opinion</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-receipts</code><span class="sub">claim receipts</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-renewals</code><span class="sub">V renewals</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="passport in Renewals; dated 2027-03-31">✗</td></tr>
+<tr><td><code>v-purchases</code><span class="sub">V purchases</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="price kept">✗</td></tr>
+<tr><td><code>v-interpreter</code><span class="sub">V interpreter</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="reply mentions alérgico">✗</td></tr>
+<tr><td><code>v-movein</code><span class="sub">V1.1 Bring everything</span></td><td class="ok" aria-label="pass">✓</td><td class="no" aria-label="fail" title="reply mentions the Move in page">✗</td></tr>
+<tr><td><code>v-waiting</code><span class="sub">V1.2 waiting on you</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-friend-time</code><span class="sub">V2.10 schedule with friends</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-myapps</code><span class="sub">V my apps</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-timeline</code><span class="sub">V5.1 timeline revert</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-time</code><span class="sub">W0.6 time sense</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+<tr><td><code>v-always</code><span class="sub">W0.7 Always allow</span></td><td class="ok" aria-label="pass">✓</td><td class="ok" aria-label="pass">✓</td></tr>
+</table></div>
 <h2>How it is run</h2>
 <ul class="plain">
 <li>Tasks: <code>bench/tasks</code> and <code>bench/projects</code>, original to this repository. Reference solutions exist only to prove each task is solvable and that its hidden tests fail on the starting code (<code>node scripts/bench-compare.ts --mode verify</code>).</li>
@@ -100,7 +164,7 @@ a{color:var(--accent)}
 node scripts/bench-compare.ts                   # every harness found on this computer, then this page
 node scripts/bench-compare.ts --harness aider   # one harness (add your own in evals/harnesses.json)
 node scripts/bench-compare.ts --page            # rebuild this page from docs/results (offline)</pre>
-<footer>Built 2026-11-18 from docs/results by <code>scripts/bench-compare.ts</code>. Works offline: one file, no scripts.</footer>
+<footer>Built 2026-11-19 from docs/results by <code>scripts/bench-compare.ts</code>. Works offline: one file, no scripts.</footer>
 </main>
 </body>
 </html>

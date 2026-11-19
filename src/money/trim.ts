@@ -347,6 +347,6 @@ export function trimTick(app: AppContext, now: Date): boolean {
   const content = l.yearlyCents
     ? T(app, en('Maybe cancel this month: {names} (about {amount} a year). Money → Maybe cancel starts a cancel errand for any of them; nothing is cancelled without your OK.'), { names, amount: fmtMoney(l.yearlyCents) })
     : T(app, en('Maybe cancel this month: {names}. Money → Maybe cancel starts a cancel errand for any of them; nothing is cancelled without your OK.'), { names });
-  postAlert(app, 'money', { role: 'assistant', reason: 'proactive', content });
+  postAlert(app, 'money', { role: 'assistant', reason: 'proactive', nudge: { value: 0.5 }, content });
   return true;
 }

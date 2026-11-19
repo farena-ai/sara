@@ -70,11 +70,29 @@ inbox tile). **Accept** adds a planner reminder at 9:00, N days before the date:
 
 Nothing is added by itself.
 
+## See and steer it (W1.1)
+
+The page is the one place for what she knows about you (design: `docs/design/W1KNOW.md`):
+
+- **Search** finds a fact by any word in it, the words it came from, or the chat or document it was in.
+- Each fact shows when she learned it and how long ago.
+- **That's wrong** fixes the words; **Forget** removes it. Both have **Undo** right there and on the action
+  timeline. **Not true** still forgets it for good.
+- **Why do you think that?** shows the message it came from (numbers masked) with a link to it in the chat, or the
+  document and page. A message you made her forget is never shown again.
+- Facts that say the same thing are offered for **Merge** (she keeps the newer one; Undo) or **Keep both**.
+- **She also keeps** counts People cards, notes from chats, how you like to work, renewals, purchases and learned
+  skills, with a link to each. Your Health log is never shown or counted here; it says only that it is kept
+  private.
+- Each household member sees and changes only their own.
+
 ## In chat
 
 - `facts_list` ("what do you know about me?") lists facts with sources. Private facts are listed only in a
   private chat or when the person asks for them.
 - `fact_forget` ("forget that…", asks first) removes the fact and its memory.
+- `renewal_add` ("my passport expires March 31, keep track of it") adds the date to You → Renewals with
+  its reminder, the same row as typing it in there (W0.1).
 - The persona section tells her to name a fact's source, to ask before keeping something sensitive, and to
   keep numbers to the last 4.
 - Lean family `facts` has words in six languages.

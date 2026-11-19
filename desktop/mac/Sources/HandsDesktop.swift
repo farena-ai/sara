@@ -277,15 +277,20 @@ extension HandsScreen {
 
 /// The local native card is the only place a desktop approval can be answered.
 final class HandsDesktopApproval {
-  static func ask(_ summary: String, taskChoice: Bool, test: Bool, cancel: HandsCancel) -> Int {
+  /// 0 Don't, 1 once, 2 this task, 3 W0.5: Always allow everything (the server's switch, confirmed here once).
+  static func ask(_ summary: String, taskChoice: Bool, allChoice: Bool = false, test: Bool, cancel: HandsCancel) -> Int {
     let done = DispatchSemaphore(value: 0)
     var answer = 0
     DispatchQueue.main.async {
       guard !cancel.isSet else { done.signal(); return }
       let alert = NSAlert(); alert.messageText = test ? "TEST Sara: desktop action" : "Sara: desktop action"
-      alert.informativeText = String(summary.prefix(900)) + "\nDecide here. Control-Option-Esc still stops Sara."
+      alert.informativeText = String(summary.prefix(900)) + "\nDecide here. Control-Option-Esc still stops Sara." +
+        (allChoice ? "\n\nAlways allow everything is on for you. Press Always allow everything to let her act on this Mac without asking until it ends; you can turn it off any time from the menu bar." : "")
       alert.addButton(withTitle: "Allow once").keyEquivalent = ""
-      if taskChoice { alert.addButton(withTitle: "Allow for this task").keyEquivalent = "" }
+      // W0.5: the server's Always allow everything is confirmed on this Mac's own card, once per stretch; like
+      // hands.cpp, its button takes the task button's place.
+      if allChoice { alert.addButton(withTitle: "Always allow everything").keyEquivalent = "" }
+      else if taskChoice { alert.addButton(withTitle: "Allow for this task").keyEquivalent = "" }
       let deny = alert.addButton(withTitle: "Don't"); deny.keyEquivalent = "\r"
       let window = alert.window; window.sharingType = .none; window.level = .modalPanel
       window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -293,7 +298,11 @@ final class HandsDesktopApproval {
       RunLoop.main.add(timer, forMode: .modalPanel)
       NSApp.activate(ignoringOtherApps: true)
       let result = alert.runModal(); timer.invalidate()
-      if !cancel.isSet { answer = result == .alertFirstButtonReturn ? 1 : taskChoice && result == .alertSecondButtonReturn ? 2 : 0 }
+      if !cancel.isSet {
+        if result == .alertFirstButtonReturn { answer = 1 }
+        else if result == .alertSecondButtonReturn && allChoice { answer = 3 }
+        else if result == .alertSecondButtonReturn && taskChoice { answer = 2 }
+      }
       done.signal()
     }
     done.wait(); return answer

@@ -23,6 +23,7 @@ node scripts/eval-real.ts --model gemma4:12b --judge qwen3.5:9b --out outputs/re
 | `--turn-seconds` | 600 | One chat turn is stopped after this long (counted as a turn error). |
 | `--allow-cloud` | off | Cloud-tagged Ollama models (`:cloud`, `-cloud`) are refused without it. |
 | `--out` | `outputs/real-runs/<date>` | `results.json` (everything, resumable) and `report.md` (summary table + failures). |
+| `--publish <label>` | | Also write the short public summary `docs/results/real-runs-<date>-<label>.json` (scores, features, names of failed checks; no prompts, replies or paths). `node scripts/bench-compare.ts --page` then shows it on the [benchmark page](results/index.html). |
 
 ## How it works (one page)
 
@@ -50,6 +51,13 @@ node scripts/eval-real.ts --model gemma4:12b --judge qwen3.5:9b --out outputs/re
   task, also side jobs like titles and summaries). Local models cost $0; the cap is on tokens and minutes.
 - **Resumable.** `results.json` is written after every task; a rerun skips finished tasks (an `error` task
   is retried). `--redo` reruns chosen tasks; `--judge-only` rescored with another judge.
+
+- **Round 2 (W0.1): one task per newer feature.** `v-canvas` (live checklist in the chat), `v-second-opinion`
+  ("get a second opinion on that" → the plan card, no model call), `v-receipts` (what she says she did is
+  backed by tool receipts), `v-renewals`, `v-purchases`, `v-interpreter`, `v-movein` (Bring everything from
+  ChatGPT), `v-waiting` (waiting on you), `v-friend-time` (pair world), `v-myapps`, `v-timeline` (add, then
+  undo), `v-time` (W0.6: "how long ago…" from the stored message time) and `v-always` (W0.7: Always allow
+  everything on → no card, still on the action timeline).
 
 ## What a failure means
 

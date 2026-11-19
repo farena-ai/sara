@@ -1,6 +1,14 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "ndg-budget": [
+      "How many nudges she may send you on her own each day, best first. 0 = everything that is not urgent waits for the roundup. Safety alerts and reminders you set never count.",
+      "automations"
+    ],
+    "ndg-hour": [
+      "When the one daily roundup of smaller things arrives (after your quiet hours). Where it lands: Where alerts go, Smaller things.",
+      "automations"
+    ],
     "tl-kind": [
       "Show only one kind of change: files, settings, mail moves, calendar, planner or other.",
       "safety"
@@ -67,6 +75,10 @@
     ],
     "rnw-photo": [
       "Snap a license, ID or insurance card. The photo goes to your Library, a model that can see pictures reads it, and the expiry date shows up in this list.",
+      "what-sara-knows"
+    ],
+    "kn-q": [
+      "Finds what she knows by any word: the fact, the words it came from, or the chat or document it was in.",
       "what-sara-knows"
     ],
     "wsk-ask": [
@@ -2041,7 +2053,7 @@
       "planner"
     ],
     "you-knows": [
-      "What Sara knows about your world, from your chats and your Library documents, each with its source. Edit, delete or mark Not true; dates in documents can become reminders.",
+      "Everything Sara knows about you in one place, by topic, with sources. Search it, ask why, fix or forget anything (with Undo) and merge duplicates; dates in documents can become reminders.",
       "what-sara-knows"
     ],
     "you-details": [

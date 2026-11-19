@@ -2,6 +2,52 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.32.0",
+   "date": "2026-11-19",
+   "title": "What Sara knows, polite nudges, continue on another device, Mac parity",
+   "items": [
+    {
+     "id": "3-32-0-one-what-i-know-about",
+     "kind": "new",
+     "text": "One \"What I know about you\" page. Settings → You → What Sara knows now lists everything she knows about you by topic, with where and when she learned it and how long ago.",
+     "try": [
+      "know-why"
+     ]
+    },
+    {
+     "id": "3-32-0-her-nudges-share-one-polite",
+     "kind": "new",
+     "text": "Her nudges share one polite daily budget, most useful first, with the rest in an evening roundup.",
+     "link": "#view=money"
+    },
+    {
+     "id": "3-32-0-continue-on-another-device-your",
+     "kind": "new",
+     "text": "Continue on another device. Your open chat, the words you hadn't sent, where you were reading and an open Talk or live view follow you.",
+     "try": [
+      "continue-device"
+     ]
+    },
+    {
+     "id": "3-32-0-the-screen-companion-on-the",
+     "kind": "new",
+     "text": "The screen companion on the Mac. Offer help when an error shows on screen now works in the Mac app too, with the same rules and bubble as on Windows.",
+     "link": "#view=settings:desktop-app",
+     "owner": true
+    },
+    {
+     "id": "3-32-0-tell-sara-a-renewal-date",
+     "kind": "new",
+     "text": "Tell Sara a renewal date in a chat (\"my passport expires March 31, 2027, keep track of it\") and it goes on You → Renewals with its reminder."
+    },
+    {
+     "id": "3-32-0-the-benchmark-page-shows-the",
+     "kind": "new",
+     "text": "The benchmark page shows the everyday real-model task runs task by task; the real-model suite has 13 more tasks, one per newer feature."
+    }
+   ]
+  },
+  {
    "version": "3.31.0",
    "date": "2026-11-19",
    "title": "She knows the time, Always allow, six languages everywhere",
@@ -246,25 +292,6 @@
      "id": "3-26-0-move-in-with-one-button",
      "kind": "new",
      "text": "Move in with one button: each old agent Sara finds on this computer has Bring everything: one review that counts her personality, notes, chats, skills, scheduled jobs."
-    }
-   ]
-  },
-  {
-   "version": "3.25.0",
-   "date": "2026-11-18",
-   "title": "Sign in with your provider, faster voice on Windows, store-ready extension",
-   "items": [
-    {
-     "id": "3-25-0-sign-in-with-your-provider",
-     "kind": "new",
-     "text": "Sign in with your provider (OpenID Connect) on every server, not only business mode."
-    },
-    {
-     "id": "3-25-0-stopping-sara-the-windows-service",
-     "kind": "fixed",
-     "text": "Stopping Sara (the Windows service closing her input) could wait for a backup tick's test restore or weekly check; the stop now skips that maintenance.",
-     "link": "#view=settings:dh-backups",
-     "owner": true
     }
    ]
   }

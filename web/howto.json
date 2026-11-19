@@ -414,8 +414,9 @@
    "id": "fix",
    "q": "How do I fix something Sara knows about me?",
    "steps": [
-    "Find the fact in its group; its source says where she learned it.",
-    "Press Edit to change the words, or Delete to remove it.",
+    "Find it in its topic, or search; its source says where and when she learned it.",
+    "Press That’s wrong to fix the words, or Forget to remove it. Undo brings either back.",
+   "Press Why do you think that? to see the words it came from.",
     "Press Not true if it is wrong: she forgets it and won’t learn it again."
    ],
    "show": "#wsk-list"

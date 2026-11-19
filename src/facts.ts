@@ -13,6 +13,7 @@
 // facts can propose adding to it, never write it.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
+import { noteNudgeReminder } from './nudges.ts';
 import { verifyQuotes } from './biz/contracts.ts';
 import { type LibraryDoc, type LibraryStore } from './library/store.ts';
 import { forgetMemory, localDate } from './memory-worker.ts';
@@ -673,6 +674,7 @@ export class WorldFacts {
     const text = `${s.label}: ${when} (${s.name}${s.page ? `, page ${s.page}` : ''})`;
     const r = planner.addReminder({ text, dueAt: this.remindAt(s.date, days).toISOString() });
     this.db.prepare("UPDATE world_doc_facts SET suggest = 'accepted', reminder_id = ?, days_before = ? WHERE id = ?").run(r.id, days, id);
+    noteNudgeReminder(this.#app, r.id, 'renewals', 0.9, 'reminder');
     return { suggestion: { ...s, status: 'accepted', reminderId: r.id, daysBefore: days }, reminder: { id: r.id, text: r.text, dueAt: r.dueAt } };
   }
 

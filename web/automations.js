@@ -8,6 +8,7 @@
 // remove; each change saves at once); History shows every run's steps and outcome, and a finished run
 // has "Run again with this input" (once per run, same trigger detail, same runner).
 import { t } from './naming.js';
+import { loadNudges } from './nudges.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => void, askSara?: (text: string, conversationId?: string | null) => void, openSettings?: (page: string) => void } | null} */
 let ctx = null;
@@ -44,6 +45,7 @@ const say = (msg) => {
 export async function loadAutomations() {
   const host = $('#atm-list');
   if (!ctx || !host) return;
+  void loadNudges(ctx.api);
   try {
     data = await ctx.api('/automations');
   } catch (e) {

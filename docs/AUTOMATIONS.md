@@ -108,4 +108,4 @@ space's own store.
 
 N7: the time-sheet fill also takes `source: calendar | tracked | both` (hours tracked with `time_start` / `time_add`; docs/WORK_AND_TEAMS.md).
 
-Where results and alerts go (a project chat, a chat just for them, Telegram/Discord): Settings → You → Automations → Where alerts go, or the *Posts to* line on each row. See [ALERTS_DESTINATIONS.md](ALERTS_DESTINATIONS.md).
+Where results and alerts go (a project chat, a chat just for them, Telegram/Discord): Settings → You → Automations → Where alerts go, or the *Posts to* line on each row. See [ALERTS_DESTINATIONS.md](ALERTS_DESTINATIONS.md). How many nudges she sends on her own a day, quiet hours and the daily roundup: [NUDGES.md](NUDGES.md).

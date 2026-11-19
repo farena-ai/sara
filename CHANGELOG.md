@@ -5,6 +5,45 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.32.0 (2026-11-19): What Sara knows, polite nudges, continue on another device, Mac parity
+
+- New: one "What I know about you" page (W1.1). Settings → You → What Sara knows now lists everything she
+  knows about you by topic, with where and when she learned it and how long ago. Search it, ask "Why do you
+  think that?" to see the message it came from, press "That's wrong" to fix it or "Forget" to remove it (both
+  with Undo), and merge facts that say the same thing. It also shows how many People cards, notes, renewals,
+  purchases and learned skills she keeps, with a link to each; your Health log stays private. Each household
+  member sees only their own.
+- New: her nudges share one polite daily budget, most useful first, with the rest in an evening roundup (W1.2). Everything she sends on her own (money notes,
+  free trials, the Maybe cancel note, the workforce report, gift and upkeep reminders, texting first,
+  home reactions) shares one budget, most important first. Quiet hours are honored; safety alerts
+  and things you asked for (briefing, renewal reminders) always come on time. Smaller things wait for
+  one roundup a day. Each nudge has a "Why did I get this?" line and "Fewer like this", which she
+  learns per person. Settings → You → Automations → Her nudges. See docs/NUDGES.md.
+- New: continue on another device. Your open chat, the words you hadn't sent, where you were reading
+  and an open Talk or live view follow you: open Sara on another device within 30 minutes and a card
+  says "Continue where you left off on your PC — 2 minutes ago". On a computer, ⋯ at the top of a chat
+  has Continue on my phone, which sends your phone a notification (browser, iPhone app or Android app).
+  Each person's own, never across household members; Settings → Phone and notifications (W1.3,
+  docs/CHATS.md).
+- New: the screen companion on the Mac. **Offer help when an error shows on screen** now works in the Mac
+  app too, with the same rules and bubble as on Windows. It needs the Accessibility permission (words only,
+  no pictures, so not Screen Recording); Settings says so in plain words and opens the right pane (W0.5).
+- New: tell Sara a renewal date in a chat ("my passport expires March 31, 2027, keep track of it") and it
+  goes on You → Renewals with its reminder, the same row as typing it in there (W0.1).
+- Fixed: asked to bring everything over from ChatGPT or another assistant, Sara said she can't; she now
+  points you to Move in (Settings → Privacy & system) with the export steps (W0.1).
+- Changed: "check everything, mail too" questions are steered to Ask everything instead of only your
+  documents (W0.1).
+- New: the benchmark page (docs/results/index.html) shows the everyday real-model task runs task by task;
+  the real-model suite has 13 more tasks, one per newer feature (`node scripts/eval-real.ts --publish`) (W0.1).
+- New: **Always allow is on — Turn off** in the Windows tray menu and the Mac menu bar menu, shown only
+  while Always allow everything is on (W0.5).
+- New: the Mac app supports Always allow everything like the Windows app: its own card asks once
+  (**Always allow everything**), then desktop actions and commands run without cards until the switch ends
+  (at most 7 days per confirmation) (W0.5).
+- New: shared conversation links, client portals and legacy pages follow the visitor's light or dark
+  system setting, with the app's own Day colours (W0.5).
+
 ## 3.31.0 (2026-11-19): She knows the time, Always allow, six languages everywhere
 
 - Fixed: the email bridge no longer sends the same reply twice. When the mail server dropped the line while

@@ -19,6 +19,7 @@ replies stay out of the repository).
 | Memory across sessions (recall, no inventing, forgetting) | qwen3.8 27B (local) | **11/12** checks | 2026-10-27 | `node scripts/eval-memory.ts --model <model>` |
 | Memory ranking: the note that should come first (40 notes, 20 messages, no model) | none (code only) | **19/20** | 2026-10-30 | `node scripts/eval-memory.ts --rank` |
 | Plan check: planned tool calls vs. stored decisions, stop / flag / none (no model) | none (code only) | stops: precision / recall **1.00 / 1.00** on both sets; exact **35/35** (development) and **11/12** (held out) | 2026-10-30 | `node scripts/eval-contradict.ts` |
+| Real-model task runs, round 2: the 40 U1 tasks + one per newer feature (W0.1) | qwen3.8 27B (local), judge `qwen3.5:9b` | **52/53** tasks pass every check (**46/53** before the fixes below; the 13 new tasks 8/13 → **13/13**), judge 4.77 → **4.85/5** | 2026-11-19 | `node scripts/eval-real.ts` |
 | Real-model task runs: 40 everyday tasks through real chat turns and tools (U1.1) | qwen3.8 27B (local), judge `qwen3.5:9b` | **39/40** tasks pass every check (33/39 before the 4 fixes below), judge **4.92/5** | 2026-11-17 | `node scripts/eval-real.ts` |
 | Library: answers from documents, with the source | qwen3.8 27B (local) | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model>` |
 | Library with meaning search | qwen3.8 27B (local) + nomic-embed-text | **8/8** in both runs | 2026-10-27 | `node scripts/eval-library.ts --model <model> --embed nomic-embed-text` |
@@ -814,6 +815,32 @@ What the runs found, and what happened:
 Limits: one run per task is a sample, not a rate; the judge is a small local model (it once called a correct
 reply a failure for calling the right tool); the calendar is a fixture tool pair, not the Google/IMAP calendar
 code; times include the first model load.
+
+## Real-model qualification, round 2 (W0.1)
+
+The same suite (`node scripts/eval-real.ts`) with 13 more tasks, one per newer feature: a live checklist in the
+chat, "get a second opinion on that", claim receipts, renewals, purchases, the interpreter, Bring everything
+from ChatGPT (Move in), what is waiting on you, finding a time with a friend (two linked servers), building
+one of My apps, adding then undoing a calendar event (action timeline), "how long ago…" from stored message
+times (W0.6) and Always allow everything (W0.7: no card, still on the action timeline). Same local model and
+judge as round 1; cost $0. Every task, run by run, is on the [benchmark page](results/index.html#everyday)
+(summaries in `docs/results/real-runs-2026-11-19-{before,after}.json`).
+
+| Run (2026-11-19, Sara 3.30.1 + this branch) | Checks | 40 U1 tasks | 13 new tasks | Judge | Time | Tokens in / out |
+|---|---|---|---|---|---|---|
+| Before fixes | **46/53** | 38/40 | 8/13 | 4.77/5 | 13.1 min | 1,561,777 / 51,512 |
+| After fixes (s5-ask rerun twice after its two fixes) | **52/53** | 39/40 | **13/13** | 4.85/5 | 12.4 min | 1,410,646 / 45,562 |
+
+| Found | Kind | Done |
+|---|---|---|
+| "My passport expires March 31, 2027, keep track of that renewal": there was no tool for it, so she wrote a note and a reminder that You → Renewals never showed | product gap | new `renewal_add` tool (same row as You → Renewals → Add, with its reminder), lean + prompt line + tests |
+| "Can you bring everything over from ChatGPT?": she said she can't and explained a manual export, never naming Move in | product bug | her prompt sends "bring over my history from another assistant" to the settings guide, which links Move in; the eval's home world now has `settings_guide` like the real app |
+| "Check everything you have, mail, documents and notes" went to `library` + `note` and skipped the mail (both runs; round 1 passed) | prompt conflict, then model choice | the prompt and the `library` description now hand "check everything" to `ask_everything`; two reruns still chose `library` (right answer, December 1, without the mail): [BACKLOG](BACKLOG.md) |
+| A team run whose last step queued an action stopped at "waiting for your one OK" | correct behavior | the eval now gives the one OK, like a person |
+| Four failed checks were the eval's own: checklist items read from the view list instead of its state, the price stored in cents, "tengo alergia" (correct Spanish) not accepted, two fixture events with the same id (one undo removed the wrong event) | eval bug | fixed in the script |
+
+Limits: one run per task is a sample; the fixes were checked on the task that found them and on a full rerun,
+not on many runs. No cloud model was run (the roadmap's "and one cloud model" needs a paid key; free only here).
 
 ## The everyday test suite
 

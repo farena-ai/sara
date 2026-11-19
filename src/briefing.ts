@@ -6,6 +6,7 @@ import { netFetch } from './net-guard.ts';
 import { guard } from './log.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import type { AppContext } from './chat.ts';
+import { askNudge } from './nudges.ts';
 import { alertApps, alertPlace } from './destinations.ts';
 import { complete, targetConversation } from './life.ts';
 import { localDate } from './memory-worker.ts';
@@ -266,7 +267,9 @@ ${facts.agenda || '(nothing due)'}${facts.calendar ? `\nCalendar today:\n${facts
       const n = app.store.addMessage(conv.id, 'notice', `disclosure:${disclosureText(app.persona.name, appLanguage(app.settings.get()))}`);
       app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...n, content: disclosureText(app.persona.name, appLanguage(app.settings.get())), meta: { kind: 'disclosure' } }, reason: 'proactive' });
     }
-    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { briefing: { day: today } });
+    // W1.2: the briefing is asked for at its hour, so the gate only explains it (never holds it).
+    const gate = askNudge(app, { kind: 'briefing', value: 1, urgency: 'reminder', text });
+    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { briefing: { day: today }, nudge: { kind: 'briefing', why: gate.why } });
     app.settings.update({ briefing: { ...briefingSettings(app), lastDay: today } });
     app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
     alertApps(app, place, msg.content, false);

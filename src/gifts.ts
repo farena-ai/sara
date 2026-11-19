@@ -7,6 +7,7 @@
 // members never see each other's plans. Ideas and card text are drafts: nothing is bought or sent.
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
+import { noteNudgeReminder } from './nudges.ts';
 import { HttpError } from './http.ts';
 import { styleCardNote, writingFor } from './humanize.ts';
 import { complete } from './life.ts';
@@ -276,6 +277,7 @@ export class Gifts {
         const budget = this.budgetOf(p.id);
         const r = planner.addReminder({ text: `${what}. Time to think of a gift${budget ? ` (budget ${budget})` : ''} and a card: ideas are on their People card.`, dueAt: at.toISOString() });
         this.#db.prepare('INSERT INTO gift_reminders (person_id, occasion, date, reminder_id) VALUES (?, ?, ?, ?)').run(p.id, o.key, o.date, r.id);
+        noteNudgeReminder(this.#app, r.id, 'gifts', 0.6);
         made++;
       }
     }

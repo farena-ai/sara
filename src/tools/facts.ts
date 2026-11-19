@@ -4,6 +4,7 @@
 // learned in a private chat, a passport) are listed only in a private chat or when asked for.
 import type { AppContext } from '../chat.ts';
 import { factsFor } from '../facts.ts';
+import { RENEWAL_WHATS, RenewalError, renewalAction } from '../renewals.ts';
 import { ToolError, type Tool, type ToolContext } from './types.ts';
 
 function ownChat(app: AppContext, ctx: ToolContext) {
@@ -50,6 +51,41 @@ export function createFactsTools(getApp: () => AppContext): Tool[] {
         const gone = factsFor(app).forget(what);
         if (!gone.length) return `No fact matches “${what}”. Look with facts_list and use its words.`;
         return `Forgot ${gone.length}: ${gone.map((f) => f.text).join('; ')}`;
+      },
+    },
+    // W0.1 (real-model round 2): "my passport expires March 31, keep track of it" had no tool (she wrote a note
+    // and a reminder that the Renewals list never saw). Same path as You → Renewals → Add (src/renewals.ts).
+    {
+      defaultPermission: 'auto',
+      spec: {
+        name: 'renewal_add',
+        description: "Keep track of a renewal or expiry date the person tells you (passport, driver's license, car registration, insurance, warranty, subscription, lease): it goes on You → Renewals and, unless they say no, a reminder is set the usual time before it (worked out by code). Use it when they ask you to keep track of, watch or remind them about such a date; not for dates in their documents (those wait as cards).",
+        parameters: {
+          type: 'object',
+          properties: {
+            title: { type: 'string', description: 'A short name, e.g. "Passport" or "Car insurance".' },
+            date: { type: 'string', description: 'The date it expires or renews, YYYY-MM-DD.' },
+            what: { type: 'string', enum: [...RENEWAL_WHATS] },
+            remind: { type: 'boolean', description: 'Set the reminder before it (default true).' },
+          },
+          required: ['title', 'date'],
+          additionalProperties: false,
+        },
+      },
+      summarize: (a) => `track the renewal “${String(a.title ?? '').slice(0, 60)}” (${String(a.date ?? '')})`,
+      async run(args, ctx) {
+        const app = getApp();
+        ownChat(app, ctx);
+        try {
+          const { id } = renewalAction(app, 'add', args);
+          const row = args.remind === false ? undefined : renewalAction(app, 'remind', { id });
+          const tz = app.settings.get().timeZone || undefined;
+          const day = (iso: string) => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(iso));
+          return `Added “${String(args.title).trim()}” (${String(args.date)}) to You → Renewals.${row?.dueAt ? ` A reminder is set for ${day(row.dueAt)}.` : ' No reminder set.'}`;
+        } catch (err) {
+          if (err instanceof RenewalError) throw new ToolError(err.message);
+          throw err;
+        }
       },
     },
   ];

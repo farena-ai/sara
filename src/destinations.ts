@@ -17,8 +17,9 @@ import { en, trOwner } from './i18n.ts';
 import { ownerEvidenceConversation } from './owner-evidence.ts';
 import type { Conversation } from './store.ts';
 import { ToolError, type Tool } from './tools/types.ts';
+import { askNudge, type Urgency } from './nudges.ts';
 
-export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce' | 'legacy';
+export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce' | 'legacy' | 'nudges';
 export type Where = 'origin' | 'chat' | 'project' | 'dedicated' | 'apps';
 export const WHERES: readonly Where[] = ['origin', 'chat', 'project', 'dedicated', 'apps'];
 export type AppKind = 'telegram' | 'discord';
@@ -58,6 +59,8 @@ export const FEEDS: readonly { id: Feed; title: string; words: RegExp; items: bo
   { id: 'briefing', title: en('Morning briefing'), words: /\b(briefing|mornings?)\b/i, items: false, keepsChat: true, origin: en('Your latest chat') },
   { id: 'workforce', title: en('Workforce report'), words: /\b(workforce|workers? reports?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'legacy', title: en('Legacy access'), words: /\b(legacy|emergency access|trusted person)\b/i, items: false, origin: en('Its own chat') },
+  // W1.2: the one daily roundup of smaller nudges (src/nudges.ts).
+  { id: 'nudges', title: en('Smaller things'), words: /\b(smaller things|roundup|digest|nudges?)\b/i, items: false, origin: en('Your latest chat') },
 ];
 const FEED_IDS = new Set<string>(FEEDS.map((f) => f.id));
 export const isFeed = (x: unknown): x is Feed => FEED_IDS.has(String(x));
@@ -211,7 +214,14 @@ export function alertApps(app: AppContext, place: AlertPlace, text: string, noti
 }
 
 /** Posts one alert where it belongs; returns the chat id here (undefined for apps only). */
-export function postAlert(app: AppContext, feed: Feed, o: { item?: string; origin?: () => string | undefined; role: 'assistant' | 'notice'; content: string; meta?: Record<string, unknown>; reason?: 'reply' | 'reminder' | 'proactive'; appText?: string }): string | undefined {
+export function postAlert(app: AppContext, feed: Feed, o: { item?: string; origin?: () => string | undefined; role: 'assistant' | 'notice'; content: string; meta?: Record<string, unknown>; reason?: 'reply' | 'reminder' | 'proactive'; appText?: string; nudge?: { kind?: string; value: number; urgency?: Urgency } }): string | undefined {
+  // W1.2: what she posts on her own asks the one daily nudge gate first (held = undefined).
+  if ((o.reason === 'proactive' || o.nudge) && !o.meta?.nudge) {
+    const kind = o.nudge?.kind ?? feed;
+    const v = askNudge(app, { kind, value: o.nudge?.value ?? 0.5, ...(o.nudge?.urgency ? { urgency: o.nudge.urgency } : {}), text: o.appText ?? o.content });
+    if (!v.send) return undefined;
+    o = { ...o, meta: { ...o.meta, nudge: { kind, why: v.why } } };
+  }
   const place = alertPlace(app, feed, o);
   if (place.conversationId) {
     const msg = app.store.addMessage(place.conversationId, o.role, o.content, o.meta);

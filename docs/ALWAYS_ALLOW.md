@@ -13,13 +13,15 @@ Where: **Settings → Connections → Computer use → Always allow everything**
 2. Press **Turn on…** and read the one-time warning.
 3. Confirm it's you: your owner token, the current two-step code, or a passkey (the same step-up as
    making an API key). From a remote device the owner approves it first (new-device approval).
-4. On your computer, the Sara app shows its own card once with **Always allow everything**: press it
-   there. A phone can never relax what a computer allows; after that one press the computer asks
+4. On your computer, the Sara app (Windows or Mac) shows its own card once with **Always allow everything**:
+   press it there. A phone can never relax what a computer allows; after that one press the computer asks
    nothing until the switch ends (it ends with its time, or the next time the switch is turned on it
    is a new stretch and the computer asks once again).
 
-While it is on, a red **Always allow is on** bar with **Turn off** sits above the chat box. Turning it
-off (there or in Settings) takes effect at once; nothing asks for a password to turn it off.
+While it is on, a red **Always allow is on** bar with **Turn off** sits above the chat box, and the Windows
+tray menu and the Mac menu bar menu show **Always allow is on — Turn off** right under her name (W0.5; the
+menus check about every 45 seconds, so the entry can show up to a minute late). Turning it off (there or in
+Settings) takes effect at once; nothing asks for a password to turn it off.
 
 ## What it never changes
 
@@ -51,4 +53,10 @@ off (there or in Settings) takes effect at once; nothing asks for a password to 
   `allowAll` + `allowAllMs` to the computer.
 - Windows app: `hands.cpp` (desktop ops) and `hands-run.cpp` (commands) keep a confirmed key per
   stretch (capped at 7 days); `src/hands-desktop-consent.ts` is the reference device.
+- Mac app (W0.5): `Hands.swift` (desktop ops, tab switch) and `HandsRun.swift` (commands) do the same
+  (`allGrants`, `Hands.allowAllSeconds`); the card's **Always allow everything** button takes the place of
+  **Allow for this task**, like on Windows.
+- Menus (W0.5): the quick-ask page's `state` carries `always`; `saraQuick.alwaysOff()` sends
+  `DELETE /api/computer/always` with the app's own sign-in (`main.cpp` `alwaysOffFromTray`,
+  `QuickAsk.swift` `refreshAlwaysItem`).
 - Tests: `test/w0-always.test.ts`.

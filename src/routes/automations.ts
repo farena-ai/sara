@@ -18,6 +18,7 @@
 //   POST   /api/automations/templates/read        {text} → {template, placeholders} (checked, scrubbed)
 //   GET    /api/automations/:key/template         {template} (automations only; no personal data)
 //   preview / dry-run / create also take {template, values} or {gallery, values}; create needs allow: true.
+import { fewerLikeThis, moreLikeThis, nudgeState, saveNudgePrefs } from '../nudges.ts';
 import { exportTemplate, fillTemplate, GALLERY, parseTemplate, TemplateError } from '../automation-templates.ts';
 import { AutomationError, automationsFor, draftFromWords, STARTERS, type Draft } from '../automations.ts';
 import { appReady, checkDest, cleanDest, describeDest, destFor, feedItems, feedOfItem, FEEDS, feedTitle, isFeed, originLabel, ownerProjects, ownerWebChats, setFeedDest, setItemDest } from '../destinations.ts';
@@ -64,6 +65,21 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
     // ALERTDEST (docs/ALERTS_DESTINATIONS.md): where alerts go, per feed and per item.
     //   GET /api/automations/alerts  {feeds, chats, projects, apps}
     //   PUT /api/automations/alerts  {feed, dest, alsoExisting?} | {item, dest | null}
+    // W1.2 (docs/NUDGES.md): her nudges' daily budget, roundup hour and what she learned.
+    //   GET /api/automations/nudges · PUT {budget, digestHour} · POST /nudges/fewer|more {kind}
+    if (b === 'nudges') {
+      if (!c && method === 'PUT') {
+        const body = await readJson(req);
+        saveNudgePrefs(app, { ...(typeof body.budget === 'number' ? { budget: body.budget } : {}), ...(typeof body.digestHour === 'number' ? { digestHour: body.digestHour } : {}) });
+      } else if ((c === 'fewer' || c === 'more') && method === 'POST' && !d) {
+        const body = await readJson(req);
+        const kind = typeof body.kind === 'string' && /^[a-z][\w-]{0,40}$/.test(body.kind) ? body.kind : '';
+        if (!kind || kind === 'digest') throw new HttpError(400, T(en('Which kind of nudge?')));
+        if (c === 'fewer') fewerLikeThis(app, kind);
+        else moreLikeThis(app, kind);
+      } else if (c || method !== 'GET') throw new HttpError(c ? 404 : 405, c ? 'Not found' : 'Method not allowed');
+      return send(res, 200, nudgeState(app));
+    }
     if (b === 'alerts' && !c) {
       if (method === 'PUT') {
         const body = await readJson(req);

@@ -198,7 +198,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   // N4: My details (name, addresses, sizes, vehicle, insurance and loyalty numbers).
   [/^(my_details_get|upkeep_(list|log))$/, 'details', 'my details and car and house upkeep'],
   // N6: what she knows about their world (facts with sources; forget one).
-  [/^(facts_list|fact_forget)$/, 'facts', 'what she knows'],
+  [/^(facts_list|fact_forget|renewal_add)$/, 'facts', 'what she knows'],
   // S6: the travel assistant (docs/TRAVEL.md).
   [/^trip_(list|status)$/, 'travel', 'trips and flights'],
   // U4.22: the private health log (docs/HEALTH.md).

@@ -67,6 +67,10 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
   var mood = ""
   var items: [NowItem] = []
   var face: NSImage?
+  /// W0.5: this person's Always allow everything is on (the menu offers Turn off).
+  var always = false
+  /// W0.5: the screen companion's bubble is up (shown without the keyboard).
+  var offering = false
   // The shortcut.
   var hotKeyRef: EventHotKeyRef?
   var handlerInstalled = false
@@ -285,6 +289,41 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     web.evaluateJavaScript("window.saraQuick&&saraQuick.decide(\(arr)[0],\(ok))")
   }
 
+  /// W0.5: the menu bar's "Always allow is on — Turn off": the page turns it off (the same route as Settings).
+  func alwaysOff() {
+    always = false  // the menu drops the item at once; the page's refresh confirms it
+    guard ready, let web else { return }
+    web.evaluateJavaScript("window.saraQuick&&saraQuick.alwaysOff&&saraQuick.alwaysOff()")
+  }
+
+  /// W0.5 (V4.5 on the Mac): the screen companion's bubble: this panel in front WITHOUT taking the keyboard
+  /// (a non-activating panel, never made key), with the page's offer card. ScreenWatch.swift decides.
+  func showOffer(kind: String, app: String, line: String) {
+    ensure()
+    guard ready, let panel, let web, !panel.isVisible else { return }
+    let o: [String: Any] = ["theme": Shell.isDay ? "day" : "night", "solid": false, "kind": kind, "app": app, "line": line]
+    guard let data = try? JSONSerialization.data(withJSONObject: o), let json = String(data: data, encoding: .utf8) else { return }
+    panel.appearance = Shell.appearance
+    place()
+    offering = true
+    panel.orderFrontRegardless()
+    web.evaluateJavaScript("window.saraQuick&&saraQuick.offer&&saraQuick.offer(\(json))")
+  }
+  /// "Help with this": the panel takes the keyboard, the line is already in the box (he still presses Ask).
+  func takeOffer() {
+    offering = false
+    guard let panel, let web else { return }
+    shownAt = Date()
+    panel.makeKeyAndOrderFront(nil)
+    panel.makeFirstResponder(web)
+  }
+  /// The bubble goes (Not now, Pause, or 30 s passed without him taking it).
+  func endOffer(force: Bool = false) {
+    guard offering || force else { return }
+    offering = false
+    if force || !(panel?.isKeyWindow ?? false) { hide() }
+  }
+
   /// Phase 75 stage 3: Snooze 10 min from a reminder's notification (the normal reminders route).
   func snooze(rid: String, conv: String, text: String) {
     guard ready, let web, let data = try? JSONSerialization.data(withJSONObject: [rid, conv, text]), let arr = String(data: data, encoding: .utf8) else { return }
@@ -342,6 +381,9 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
         let json = (try? JSONSerialization.data(withJSONObject: r)).flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
         self?.web?.evaluateJavaScript("window.saraQuick&&saraQuick.picture(\(json))")
       }
+    case "offer":
+      // W0.5: the screen companion's bubble: help / dismiss / pause (ScreenWatch.swift).
+      ScreenCompanion.shared.act(body["act"] as? String ?? "")
     case "reminder":
       app.notifyReminder(conv: body["conv"] as? String ?? "", rid: body["rid"] as? String ?? "", text: body["text"] as? String ?? "")
     default: break
@@ -354,6 +396,7 @@ final class QuickAsk: NSObject, WKScriptMessageHandler, WKNavigationDelegate, WK
     demo = b["demo"] as? Bool ?? false
     name = String((b["name"] as? String ?? "Sara").prefix(60))
     mood = String((b["mood"] as? String ?? "").prefix(40))
+    always = signedIn && !demo && b["always"] as? Bool == true
     items = (b["now"] as? String ?? "").split(separator: "\n").prefix(10).compactMap { line in
       let f = line.split(separator: "\t", omittingEmptySubsequences: false).map(String.init)
       return f.count == 4 && (f[0] == "job" || f[0] == "approval") ? NowItem(kind: f[0], id: f[1], conv: f[2], text: f[3]) : nil
@@ -556,6 +599,19 @@ extension AppDelegate {
   }
   @objc func allowNowItem(_ item: NSMenuItem) { quick?.decide(item.representedObject as? String ?? "", true) }
   @objc func denyNowItem(_ item: NSMenuItem) { quick?.decide(item.representedObject as? String ?? "", false) }
+
+  // MARK: W0.5: Always allow everything's off switch, right under her name while it is on.
+  static let alwaysTag = 7800
+  func refreshAlwaysItem(in m: NSMenu) {
+    for item in m.items where item.tag == AppDelegate.alwaysTag { m.removeItem(item) }
+    guard server != nil, let q = quick else { return }
+    guard q.always, q.signedIn, !q.demo else { return }
+    let it = NSMenuItem(title: "Always allow is on — Turn off", action: #selector(alwaysOffFromMenu), keyEquivalent: "")
+    it.target = self
+    it.tag = AppDelegate.alwaysTag
+    m.insertItem(it, at: min(1, m.items.count))
+  }
+  @objc func alwaysOffFromMenu() { quick?.alwaysOff() }
 }
 
 extension NSFont {

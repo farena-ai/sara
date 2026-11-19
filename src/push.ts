@@ -191,8 +191,17 @@ export class PushService {
     return { sent: web.sent + ios.sent, failed: web.failed + ios.failed, removed: web.removed + ios.removed };
   }
 
-  async #sendWeb(payload: PushPayload): Promise<{ sent: number; failed: number; removed: number }> {
-    const rows = this.#db.prepare('SELECT endpoint, p256dh, auth, origin FROM push_subscriptions').all() as Record<string, string>[];
+  /** W1.3: Continue on my phone — only phones and tablets get it (browser push from a phone, the iPhone app). */
+  async sendPhones(payload: PushPayload): Promise<{ sent: number; failed: number; removed: number; phones: number }> {
+    const phone = (label: string) => /iPhone|iPad|Android/i.test(label);
+    const phones = this.list().filter((r) => phone(r.label)).length + (this.apns?.devices().length ?? 0);
+    if (privateLocalOn()) return { sent: 0, failed: 0, removed: 0, phones };
+    const [web, ios] = await Promise.all([this.#sendWeb(payload, phone), this.apns ? this.apns.sendAll(payload).catch(() => ({ sent: 0, failed: 1, removed: 0 })) : { sent: 0, failed: 0, removed: 0 }]);
+    return { sent: web.sent + ios.sent, failed: web.failed + ios.failed, removed: web.removed + ios.removed, phones };
+  }
+
+  async #sendWeb(payload: PushPayload, only?: (label: string) => boolean): Promise<{ sent: number; failed: number; removed: number }> {
+    const rows = (this.#db.prepare('SELECT endpoint, p256dh, auth, origin, label FROM push_subscriptions').all() as Record<string, string>[]).filter((r) => !only || only(String(r.label ?? '')));
     const out = { sent: 0, failed: 0, removed: 0 };
     let badge = payload.badge;
     try {

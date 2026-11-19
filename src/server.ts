@@ -86,6 +86,7 @@ import { createReadinessRoutes } from './routes/readiness.ts';
 import { createSelfTestRoutes } from './routes/self-test.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
 import { createTimelineRoutes } from './routes/timeline.ts';
+import { createContinueHereRoutes } from './routes/continue-here.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
@@ -1085,6 +1086,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   const routineRoutes = createRoutineRoutes(ctx);
   // V5.1: the action timeline with Revert (src/routes/timeline.ts).
   const timelineRoutes = createTimelineRoutes(ctx);
+  // W1.3: continue on another device (src/routes/continue-here.ts).
+  const continueHereRoutes = createContinueHereRoutes(ctx);
   // N2: automations, one place, each person's own (src/routes/automations.ts).
   const automationRoutes = createAutomationRoutes(ctx);
   const errandRoutes = createErrandRoutes(ctx);
@@ -1698,6 +1701,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await timelineRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await continueHereRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;

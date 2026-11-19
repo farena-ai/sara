@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## One Sara, round 1: what she knows, polite nudges, continue anywhere, in 3.32.0
+
+Settings → You → What Sara knows shows everything she knows about you by topic, with where and when she learned
+it, Why, That's wrong and Forget with Undo. All her nudges share one daily budget, most useful first, with the
+rest in an evening roundup and Fewer like this. Open Sara on another device and continue the chat you left,
+with your unsent words. The Mac app gets Always allow and the screen helper, and she was re-tested on a real
+local model with one task per newer feature.
+
 ## Solid, round 1: time awareness, Always allow, six languages, in 3.31.0
 
 Sara now knows exactly when everything happened: each earlier message, memory, mail and reminder carries its

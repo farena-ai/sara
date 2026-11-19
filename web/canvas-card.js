@@ -84,6 +84,7 @@ export function canvasCard(c) {
   card.append(head);
   const id = Number(c.id);
   if (!Number.isInteger(id) || id <= 0) return card;
+  card.dataset.canvas = String(id); // W1.3: which live view is in sight follows to another device
   const body = el('div', 'cvc-body');
   const foot = el('div', 'cvc-foot');
   foot.append(el('span', 'muted small', t('Updates by itself. Runs apart from Sara, without your sign-in.')));

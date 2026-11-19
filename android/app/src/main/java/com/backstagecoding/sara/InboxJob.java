@@ -87,6 +87,16 @@ public class InboxJob extends JobService {
                 }
             }
             if (j.has("pmLatest")) pm.edit().putLong(p.id, Math.max(pmAfter, j.optLong("pmLatest", 0))).apply();
+            // W1.3: "Continue on my phone" from another of this person's devices (shown once per handoff).
+            JSONObject handoff = j.optJSONObject("handoff");
+            if (handoff != null) {
+                android.content.SharedPreferences ho = c.getSharedPreferences("sara-handoff", Context.MODE_PRIVATE);
+                String hid = handoff.optString("id");
+                if (!hid.isEmpty() && !hid.equals(ho.getString(p.id, "")) && !(inUse && MainActivity.visible)) {
+                    Notify.message(c, name, handoff.optString("conversationId"), Math.abs((long) hid.hashCode()) + 1, handoff.optString("text"), "continue", p.id, several ? Servers.host(p.url) : null);
+                }
+                if (!hid.isEmpty()) ho.edit().putString(p.id, hid).apply();
+            }
         } catch (Exception ignored) {
             // offline: try next time
         }

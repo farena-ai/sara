@@ -43,5 +43,5 @@ bubble. Opt-in, local only, off by default, with a pause.
   never the window in front; the bubble showed once without the focus and hid itself after 30 s.
 
 ## Not done
-- The Mac app (needs the Accessibility API port; no Mac use in this wave).
+- ~~The Mac app~~: ported in W0.5 (`desktop/mac/Sources/ScreenWatch.swift`, Accessibility only; not yet run on a Mac).
 - The bubble's own words are English, like the rest of the quick-ask page.

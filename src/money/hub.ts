@@ -16,6 +16,7 @@ import { BUDGET_CATEGORIES, cleanBudgetCategory, findSubscriptions, monthPeriod,
 import { billStatus, newLimitWarnings, notifyLimits, refreshBills, type LastValue } from './core.ts';
 import { headerSig, readTransactions, type CsvMapping } from './parse.ts';
 import { moneyStore, type MoneyStore } from './store.ts';
+import { noteNudgeReminder } from '../nudges.ts';
 
 export class MoneyHubError extends Error {
   readonly status: number;
@@ -208,7 +209,7 @@ export function budgetAlerts(app: AppContext, conversationId: string | null): st
       ...over.map((w) => T(app, en('{category} went past your {limit} for {month}: {spent} so far.'), { category: w.category, spent: fmtMoney(w.spentCents), limit: fmtMoney(w.limitCents), month: label })),
     ];
     let conv: string | undefined;
-    for (const content of lines) conv = postAlert(app, 'money', { role: 'assistant', content, origin: () => conversationId ?? undefined, reason: 'proactive' }) ?? conv;
+    for (const content of lines) conv = postAlert(app, 'money', { role: 'assistant', content, origin: () => conversationId ?? undefined, reason: 'proactive', nudge: { value: 0.65 } }) ?? conv;
     const warn = notifyLimits(app, over, conv ?? conversationId);
     return [near.length ? `Getting close (told once this month): ${near.map((b) => `${b.category}: ${fmtMoney(b.spentCents)} of ${fmtMoney(b.limitCents)} (${b.pct}%)`).join('; ')}.` : '', warn].filter(Boolean).join('\n');
   }
@@ -348,10 +349,11 @@ export function observeMoneyMail(app: AppContext, m: InboxMail): boolean {
     if (app.planner && at.getTime() > app.now().getTime()) {
       const r = app.planner.addReminder({ text: `${merchant}'s free trial ends ${when}. If you don't want to keep it, cancel it yourself before then: ${link}`, dueAt: at.toISOString(), conversationId: null });
       s.db.prepare('UPDATE money_mailsubs SET reminder_id = ? WHERE id = ?').run(r.id, id);
+      noteNudgeReminder(app, r.id, 'trials', 0.75);
     }
-    if (prefsOf(app).gentle) postAlert(app, 'money', { role: 'assistant', reason: 'proactive', content: T(app, en("{merchant}'s free trial ends on {day}{price}. If you don't want it, cancel it yourself before then ({link}). Sara never cancels or pays anything."), { merchant, day: when, price: toC ? ` (then ${fmtMoney(toC)})` : '', link }) });
+    if (prefsOf(app).gentle) postAlert(app, 'money', { role: 'assistant', reason: 'proactive', nudge: { kind: 'trials', value: 0.7 }, content: T(app, en("{merchant}'s free trial ends on {day}{price}. If you don't want it, cancel it yourself before then ({link}). Sara never cancels or pays anything."), { merchant, day: when, price: toC ? ` (then ${fmtMoney(toC)})` : '', link }) });
   } else if (kind === 'price' && prefsOf(app).gentle) {
-    postAlert(app, 'money', { role: 'assistant', reason: 'proactive', content: T(app, en('{merchant} is changing its price{change}. Tracking only: Sara never cancels or pays anything.'), { merchant, change: fromCents && toC ? ` from ${fmtMoney(fromCents)} to ${fmtMoney(toC)}` : toC ? ` to ${fmtMoney(toC)}` : '' }) });
+    postAlert(app, 'money', { role: 'assistant', reason: 'proactive', nudge: { value: 0.45 }, content: T(app, en('{merchant} is changing its price{change}. Tracking only: Sara never cancels or pays anything.'), { merchant, change: fromCents && toC ? ` from ${fmtMoney(fromCents)} to ${fmtMoney(toC)}` : toC ? ` to ${fmtMoney(toC)}` : '' }) });
   }
   return true;
 }

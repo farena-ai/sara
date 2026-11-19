@@ -13,7 +13,7 @@ Nothing new is collected; the list reads what Sara already knows:
 | A photo of a card | **Add by photo of the card** puts the photo in your Library. A model that can see pictures reads it like any scanned page, and the date shows up here. |
 | Renewal mail | The inbox helper reads new mail by the same rules: a policy renewing, a registration or license expiring, a warranty ending. Shop offers ("this offer expires…") are left out. |
 | The Money page | Subscription renewals it caught in mail, and yearly charges (owner's household money only). Mail the Money page took is not read a second time. |
-| You | Type a row in: what, name, date. |
+| You | Type a row in: what, name, date. Or tell Sara in a chat ("my passport expires March 31, 2027, keep track of it"): `renewal_add` adds the same row and its reminder. |
 
 The same date for the same kind of thing shows **once**. A document beats the mail about it, and the row
 says it was also in your mail.

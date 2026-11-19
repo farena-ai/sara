@@ -193,6 +193,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     statusItem.button?.toolTip = current.map { "Sara · \($0.name)" } ?? "Sara"
     // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start) and its page.
     quick = QuickAsk(app: self)
+    ScreenCompanion.shared.sync(self)  // W0.5: the screen companion, when it was switched on
     quick?.registerShortcut(tell: true)
     quick?.ensure()
     statusItem.menu = statusMenu()
@@ -593,6 +594,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
         }
         prefs.set(value, forKey: "hands.\(Servers.activeId ?? "").desktopLevel")
         Hands.shared?.tellDesktopLevel(value)
+      case "screenCompanion":
+        // W0.5 (V4.5 on the Mac): "Offer help when an error shows on screen" (off by default; this Mac only).
+        prefs.set(on, forKey: "screenCompanion")
+        ScreenCompanion.shared.sync(self)
+      case "screenPause":
+        // Pause for 60 minutes, or 0 = resume.
+        let n = Int(body["value"] as? String ?? "") ?? (body["value"] as? Int ?? -1)
+        guard n == 0 || n == 60 else { return replyHandler(nil, "0 or 60 minutes.") }
+        ScreenCompanion.shared.watch.pause(Double(n) * 60_000, now: ScreenCompanion.shared.nowMs)
       case "handsWalkAway":
         // Phase 93: explicit keep-awake choice; it never unlocks the Mac or bypasses local approval.
         prefs.set(on, forKey: "hands.\(Servers.activeId ?? "").walkAway")
@@ -747,6 +757,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate, WKNa
     d["handsPerms"] = ["capture": perms.capture, "ax": perms.ax]
     // The server hears when a permission was just granted.
     if let h = Hands.shared, h.desktop, (perms.capture, perms.ax) != lastPerms { lastPerms = (perms.capture, perms.ax); h.tellOptIn() }
+    screenPrefs(&d)  // W0.5: the screen companion (ScreenWatch.swift)
     n5Prefs(&d)
     return d
   }
@@ -1026,6 +1037,8 @@ extension AppDelegate: NSMenuDelegate {
     // Phase 75 stage 2: her face, mood, Ask and "Now" at the top of the menu bar menu.
     if menu === statusItem?.menu {
       refreshNowItems(in: menu)
+      refreshAlwaysItem(in: menu)  // W0.5: "Always allow is on — Turn off"
+      refreshScreenItem(in: menu)  // W0.5: pause / resume the screen companion
       refreshHandsItems(in: menu)
       quick?.refresh()  // fresh for the next time it opens
     }

@@ -468,9 +468,10 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 **How do I fix something Sara knows about me?**
 
-1. Find the fact in its group; its source says where she learned it.
-2. Press Edit to change the words, or Delete to remove it.
-3. Press Not true if it is wrong: she forgets it and won’t learn it again.
+1. Find it in its topic, or search; its source says where and when she learned it.
+2. Press That’s wrong to fix the words, or Forget to remove it. Undo brings either back.
+3. Press Why do you think that? to see the words it came from.
+4. Press Not true if it is wrong: she forgets it and won’t learn it again.
 
 **How do I ask my documents a question?**
 

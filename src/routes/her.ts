@@ -1,6 +1,7 @@
 // Her: persona, character files and cards, look, avatar, together, gallery, adult mode, companions, phone widgets.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
 import { policy } from '../policy-profile.ts';
+import { continueHereOf } from '../continue-here.ts';
 import { randomBytes } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { extname, join } from 'node:path';
@@ -530,7 +531,9 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
         .all(after) as { id: number; conversation_id: string; content: string; created_at: string; meta: string | null }[];
       const latest = (app.store.db.prepare('SELECT MAX(id) AS n FROM messages').get() as { n: number | null }).n ?? 0;
       const kind = (meta: string | null) => (meta?.includes('"reminder"') ? 'reminder' : meta?.includes('"job"') ? 'job' : 'message');
-      return send(res, 200, { latest, ...extra, name: app.persona.name, messages: rows.reverse().map((r) => ({ id: r.id, conversationId: r.conversation_id, text: r.content.slice(0, 500), at: r.created_at, kind: kind(r.meta) })) });
+      // W1.3: Continue on my phone (a fresh handoff from another of this person's devices).
+      const handoff = continueHereOf(app).handoff();
+      return send(res, 200, { latest, ...extra, ...(handoff ? { handoff: { id: handoff.id, conversationId: handoff.conversationId, title: handoff.title, text: hide ? trOwner('Open the app to see it.', app.settings.get()) : trOwner('Continue where you left off: {title}', app.settings.get(), { title: handoff.title }) } } : {}), name: app.persona.name, messages: rows.reverse().map((r) => ({ id: r.id, conversationId: r.conversation_id, text: r.content.slice(0, 500), at: r.created_at, kind: kind(r.meta) })) });
     }
 
     if (a === 'sara' && b === 'state' && method === 'GET') {

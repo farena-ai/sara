@@ -169,6 +169,7 @@ import { initWhen, loadWhenList, loadWhenSettings, saveWhenSettings, whenChip, w
 import { initSessionContinuity, loadSessionContinuitySettings, saveSessionContinuitySettings, loadConversationContinuity } from './session-continuity.js';
 import { addToSceneAction, canonChip, initScenes, lineCanonChip, loadSceneSettings, renderSceneChip, saveSceneSettings } from './scenes.js';
 import { initPickup, loadPickupSettings, pickupAfterReply, pickupNotice, pickupOpen, savePickupSettings } from './pickup.js';
+import { continueOpen, initContinueHere, loadContinueSettings } from './continue-here.js';
 import { initEvals, onEvalEvent, openEvals } from './evals-view.js';
 import { renderCard, renderCards } from './result-cards.js';
 import { gmailApproval, gmailQuestion } from './gmail-view.js';
@@ -215,6 +216,7 @@ import { installPhoneSave } from './phone-save.js';
 import { fillScreen, initScreen } from './screen-companion.js';
 import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
 import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
+import { nudgeLine } from './nudges.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -1319,6 +1321,7 @@ async function openConversation(id) {
   void persistOpen(conv.id);
   // Phase 119: was he just talking in another of his chats? (the pickup banner)
   void pickupOpen(conv.id);
+  continueOpen(); // W1.3: this device is on this chat now
   // HANDSFREE: "Let her finish this task" banner and step log for this chat.
   void refreshHandsFree(conv.id);
   // R1C2: other chats of his active on this project (coding chats only; the server decides).
@@ -2407,6 +2410,8 @@ function renderMessages(messages, opts = {}) {
       if (m.meta?.proactive) b.classList.add('proactive');
       // Phase 103: a message from her plans says why she wrote (tap → the plan on Her plans).
       if (m.role === 'assistant' && m.meta?.agenda) b.append(agendaWhy(m.meta.agenda));
+      // W1.2: a nudge she sent on her own says why it came, with "Fewer like this" (web/nudges.js).
+      if (m.role === 'assistant' && m.meta?.nudge?.why) b.append(nudgeLine(m.meta.nudge, api));
       if (m.meta?.call) b.classList.add('missed-call');
       if (m.role === 'assistant') {
         const sameRun = prevBubble?.role === 'assistant' && (prevBubble.meta?.speaker?.id ?? null) === (m.meta?.speaker?.id ?? null);
@@ -9187,6 +9192,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
   if (pick === 'co-phone' && typeof loadWearPage === 'function') void loadWearPage(); // D2
+  if (pick === 'co-phone' && typeof loadContinueSettings === 'function') void loadContinueSettings(); // W1.3
   if (shown.has('dh-quality')) void loadQuality();
   // V5.1: the action timeline (web/timeline.js) under Reports.
   if (shown.has('dh-timeline') && typeof loadTimeline === 'function') void loadTimeline({ openChat: (id) => { document.querySelector('#settings')?.close(); void openConversation(id); } });
@@ -11062,6 +11068,8 @@ initAsk({
 initSessionContinuity({ api });
 initScenes({ api, openSettings: (page) => openSettings(page) });
 initPickup({ api, el, state, reload: (id) => void openConversation(id) });
+// W1.3: continue on another device (web/continue-here.js).
+initContinueHere({ api, el, state, open: (id) => openConversation(id), jump: (id) => jumpToMessage(id), talkOn, startTalk: () => void startTalk(), notice: (text) => append(bubble('notice', text)) });
 initLearning();
 initDeviceApproval();
 initBoard({ fmtDue: (iso) => fmtDue(iso, false), openConversation: (id) => openConversation(id), openPlanner: async (tab) => {

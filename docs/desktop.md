@@ -1048,10 +1048,10 @@ Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in 
   microphone was `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<wav>` in
   `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`.
 
-## Screen companion (V4.5, Windows)
+## Screen companion (V4.5 Windows, W0.5 Mac)
 
 Settings → This computer → **Offer help when an error shows on screen** (off by default). While it is on,
-the Windows app looks at the window in front every few seconds, on this computer only: its title, the
+the Windows or Mac app looks at the window in front every few seconds, on this computer only: its title, the
 program's name and the names of its controls (labels, messages, buttons). It never reads password
 fields, text you typed, or windows hidden from Sara (password managers, banking, your own list in
 Computer use), and never her own windows.
@@ -1067,7 +1067,14 @@ bubble appears over quick ask's place without taking the focus:
 
 Each thing is offered once, at most one offer every 2 minutes. Nothing is saved or sent: the app
 remembers only a number per offer until it quits, and its log says only that an offer was shown.
-The Mac app doesn't have it yet. Rules: `src/screen-companion.ts`; design: docs/design/V4SCREEN.md.
+Rules: `src/screen-companion.ts`; design: docs/design/V4SCREEN.md.
+
+**On a Mac (W0.5)** the app reads the window through Accessibility (the same permission Computer use asks
+for): turn on Sara in System Settings → Privacy & Security → Accessibility. Settings → This computer says so
+and has **Open Accessibility settings**. It takes no pictures, so Screen Recording is not needed. Error
+messages that macOS shows as a sheet on a window count as a dialog. Pause / Resume is in the menu bar menu.
+The port is `desktop/mac/Sources/ScreenWatch.swift` (same word lists and numbers, kept equal by
+`test/w0-mac.test.ts`).
 
 ## Notifications and files (2.7)
 

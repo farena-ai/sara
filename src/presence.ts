@@ -11,6 +11,7 @@
 // each kind last fired. Household members have no Home Assistant in 2.0, so presence is the
 // owner's only (docs/HOUSEHOLD.md).
 import { existsSync, readFileSync } from 'node:fs';
+import { askNudge } from './nudges.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { join } from 'node:path';
 import { FOR_SPEAKER, spokenText } from './spoken.ts';
@@ -303,13 +304,16 @@ export class PresenceWorker {
     // The same honesty and safety rules as any line she sends: else a plain greeting.
     if (!text || text.length > 300 || /^skip\b/i.test(text) || checkClaims(text, []).length || detectMinorSexualContent(text, { fromHer: true })) text = trOwner(FALLBACK[kind], app.settings.get());
     f.last[kind] = now.toISOString();
+    // W1.2 (docs/NUDGES.md): a chat message from her shares the daily nudge budget (`test` skips it).
+    const gate = message && conv && !test ? askNudge(app, { kind: 'presence', value: 0.6, text, digest: false }) : undefined;
+    if (gate && !gate.send) return note({ kind, fired: false, why: 'nudge budget' });
     if (message && conv) {
       if (disclosureDue(app.store.lastDisclosureAt(), now)) {
         const d = disclosureText(app.persona.name, appLanguage(app.settings.get()));
         const n = app.store.addMessage(conv.id, 'notice', `disclosure:${d}`);
         app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...n, content: d, meta: { kind: 'disclosure' } }, reason: 'proactive' });
       }
-      const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { presence: { kind } });
+      const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { presence: { kind }, ...(gate ? { nudge: { kind: 'presence', why: gate.why } } : {}) });
       app.events?.publish({ type: 'message', conversationId: conv.id, message: msg, reason: 'proactive' });
     }
     if (speaker) {

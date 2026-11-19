@@ -1213,6 +1213,14 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
   let runner = HandsRun()
   var desktopLevel = "task"
   private var desktopGrants: [String: Date] = [:]
+  /// W0.5 (W0.7 parity): Always allow everything keys the person confirmed on this Mac's card (key -> until).
+  /// A task ending or Stop keeps them (Stop still ends what runs); the server stops sending the key when it ends.
+  private var allGrants: [String: Date] = [:]
+  /// How long a confirmed key lasts here: the server's allowAllMs, at least 1 minute, at most 7 days.
+  static func allowAllSeconds(_ v: Any?) -> TimeInterval {
+    let ms = (v as? Double) ?? Double(v as? Int ?? 3_600_000)
+    return min(max(ms, 60_000), 7 * 24 * 3_600_000) / 1000
+  }
   private var desktopUntil = Date.distantPast
   private var desktopApproving = false
   private var desktopTap: CFMachPort?
@@ -1691,14 +1699,19 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
     let level = a["approvalLevel"] as? String == "ask" ? "ask" : desktopLevel
     let once = t.once || a["forceOnce"] as? Bool == true
     let granted = level == "always" || (level == "task" && !taskName.isEmpty && desktopGrants[taskName] != nil)
+    // W0.5: Always allow everything (the server's key, confirmed once on this Mac's card): no card.
+    let allKey = String((a["allowAll"] as? String ?? "").prefix(160))
+    allGrants = allGrants.filter { $0.value > Date() }
+    let allOn = !allKey.isEmpty && allGrants[allKey] != nil
     lock.unlock()
-    if once || !granted {
+    if once || !granted, !allOn {
       lock.lock(); desktopApproving = true; lock.unlock()
-      let answer = HandsDesktopApproval.ask(summary, taskChoice: !once && level == "task" && !taskName.isEmpty, test: testLabel, cancel: cancel)
+      let answer = HandsDesktopApproval.ask(summary, taskChoice: !once && level == "task" && !taskName.isEmpty, allChoice: !allKey.isEmpty, test: testLabel, cancel: cancel)
       lock.lock(); desktopApproving = false; lock.unlock()
       sendText(jsonText(["t": "ev", "kind": "local_approval", "allowed": answer > 0]))
       guard answer > 0, !cancel.isSet else { throw HandsScreen.denied("The person at this computer did not approve that action.") }
       if answer == 2 { lock.lock(); desktopGrants[taskName] = Date(); lock.unlock() }
+      if answer == 3 && !allKey.isEmpty { lock.lock(); allGrants[allKey] = Date().addingTimeInterval(Hands.allowAllSeconds(a["allowAllMs"])); lock.unlock(); localLog("allowall", "Always allow everything", allKey) }
       // The same tab, checked again after the card (the person may have changed the tabs meanwhile).
       _ = try HandsTabs.inspectSwitch(a)
     }
@@ -1722,17 +1735,24 @@ final class Hands: NSObject, URLSessionWebSocketDelegate {
       let level = a["approvalLevel"] as? String == "ask" ? "ask" : desktopLevel
       let once = info.once || a["forceOnce"] as? Bool == true
       let granted = level == "always" || (level == "task" && !taskName.isEmpty && desktopGrants[taskName] != nil)
+      // W0.5 (W0.7 parity with hands.cpp): Always allow everything, the server's key confirmed once on this card:
+      // no card at all, also for payments, account pages and "Ask every time". Blocked windows, secure fields and
+      // key-shaped text were refused above (inspectInput); those are limits, not approvals.
+      let allKey = String((a["allowAll"] as? String ?? "").prefix(160))
+      allGrants = allGrants.filter { $0.value > Date() }
+      let allOn = !allKey.isEmpty && allGrants[allKey] != nil
       desktopUntil = Date().addingTimeInterval(15 * 60)
       lock.unlock()
       updateBadge()
-      if once || !granted {
+      if once || !granted, !allOn {
         lock.lock(); desktopApproving = true; lock.unlock()
-        let answer = HandsDesktopApproval.ask(info.summary, taskChoice: !once && level == "task" && !taskName.isEmpty, test: testLabel, cancel: cancel)
+        let answer = HandsDesktopApproval.ask(info.summary, taskChoice: !once && level == "task" && !taskName.isEmpty, allChoice: !allKey.isEmpty, test: testLabel, cancel: cancel)
         lock.lock(); desktopApproving = false; lock.unlock()
         sendText(jsonText(["t": "ev", "kind": "local_approval", "allowed": answer > 0]))
         guard answer > 0, !cancel.isSet else { throw HandsScreen.denied("The person at this computer did not approve that action.") }
         if op != "d.launch" { try HandsScreen.refreshApproved(&action, operation: op) }
         if answer == 2 { lock.lock(); desktopGrants[taskName] = Date(); lock.unlock() }
+        if answer == 3 && !allKey.isEmpty { lock.lock(); allGrants[allKey] = Date().addingTimeInterval(Hands.allowAllSeconds(a["allowAllMs"])); lock.unlock(); localLog("allowall", "Always allow everything", allKey) }
       }
       let result = try HandsScreen.input(op, action, cancelled: { self.lock.lock(); defer { self.lock.unlock() }; return cancel.isSet || self.paused || self.stopping || !self.desktop })
       localLog(op, info.summary, taskName)

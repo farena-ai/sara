@@ -10,10 +10,19 @@
 //   GET    /api/facts/renewals                      V2.1 {renewals, daysBefore, whats} (docs/RENEWALS.md)
 //   POST   /api/facts/renewals {what, title, date}  add one by hand
 //   POST   /api/facts/renewals/:id/remind|hide|remove|errand
+//   W1.1 (docs/design/W1KNOW.md): the one "What I know about you" page
+//   GET    /api/facts/know?q=                       {today, total, topics, duplicates, also}
+//   GET    /api/facts/:id/why                       the source message / document page
+//   POST   /api/facts/:id/forget                    {timelineId}: Undo = POST /api/timeline/:id/revert
+//   POST   /api/facts/:id/wrong {text}              "That's wrong": {fact, timelineId}
+//   POST   /api/facts/merge {keep, drop}            {timelineId}
+//   POST   /api/facts/keep-both {a, b}              never suggest that pair again
 import { askDocuments, DAYS_BEFORE, FACT_GROUPS, factsFor, FactsError } from '../facts.ts';
 import { ErrandError } from '../errands.ts';
 import { RENEWAL_WHATS, RenewalError, renewalAction, renewalsOf } from '../renewals.ts';
 import { HttpError, readJson, send } from '../http.ts';
+import { knowEdit, knowForget, knowKeepBoth, knowMerge, knowView, knowWhy } from '../know.ts';
+import { TimelineError } from '../timeline.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createFactsRoutes(ctx: RouteCtx): RouteHandler {
@@ -28,6 +37,18 @@ export function createFactsRoutes(ctx: RouteCtx): RouteHandler {
     const facts = factsFor(app);
     try {
       if (!b && method === 'GET') return send(res, 200, { facts: facts.list(), groups: FACT_GROUPS, suggestions: facts.suggestions() });
+      if (b === 'know' && !c && method === 'GET') return send(res, 200, knowView(app, { q: new URL(req.url ?? '/', 'http://x').searchParams.get('q') ?? '' }));
+      if ((b === 'merge' || b === 'keep-both') && !c && method === 'POST') {
+        const body = ((await readJson(req).catch(() => ({}))) ?? {}) as Record<string, unknown>;
+        if (b === 'merge') return send(res, 200, knowMerge(app, String(body.keep ?? ''), String(body.drop ?? '')));
+        knowKeepBoth(app, String(body.a ?? ''), String(body.b ?? ''));
+        return send(res, 200, { ok: true });
+      }
+      if (b && c === 'why' && !d && method === 'GET') return send(res, 200, knowWhy(app, b));
+      if (b && (c === 'forget' || c === 'wrong') && !d && method === 'POST') {
+        const body = ((await readJson(req).catch(() => ({}))) ?? {}) as Record<string, unknown>;
+        return send(res, 200, c === 'forget' ? knowForget(app, b) : knowEdit(app, b, String(body.text ?? '')));
+      }
       if (b === 'renewals') {
         if (!c && method === 'GET') return send(res, 200, { renewals: renewalsOf(app), daysBefore: DAYS_BEFORE, whats: RENEWAL_WHATS });
         const body = ((await readJson(req).catch(() => ({}))) ?? {}) as Record<string, unknown>;
@@ -66,7 +87,7 @@ export function createFactsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { ok: true });
       }
     } catch (err) {
-      if (err instanceof FactsError || err instanceof RenewalError || err instanceof ErrandError) throw new HttpError(err.status, err.message);
+      if (err instanceof FactsError || err instanceof RenewalError || err instanceof ErrandError || err instanceof TimelineError) throw new HttpError(err.status, err.message);
       throw err;
     }
     throw new HttpError(405, 'Method not allowed');

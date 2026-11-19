@@ -82,16 +82,16 @@ final class HandsRunPanel: NSObject, NSWindowDelegate {
   private var finished = false
   private let done = DispatchSemaphore(value: 0)
 
-  /// 0 Don't, 1 once, 2 this task.
-  static func ask(title: String, heading: String, text: String, note: String, taskChoice: Bool, cancel: HandsCancel) -> Int {
+  /// 0 Don't, 1 once, 2 this task, 3 W0.5: Always allow everything (the server's switch, confirmed here once).
+  static func ask(title: String, heading: String, text: String, note: String, taskChoice: Bool, allChoice: Bool = false, cancel: HandsCancel) -> Int {
     let p = HandsRunPanel()
-    DispatchQueue.main.async { p.show(title: title, heading: heading, text: text, note: note, taskChoice: taskChoice) }
+    DispatchQueue.main.async { p.show(title: title, heading: heading, text: text, note: note, taskChoice: taskChoice, allChoice: allChoice) }
     while p.done.wait(timeout: .now() + 0.05) == .timedOut {
       if cancel.isSet { DispatchQueue.main.async { p.finish(0) } }
     }
     return cancel.isSet ? 0 : p.answer
   }
-  private func show(title: String, heading: String, text: String, note: String, taskChoice: Bool) {
+  private func show(title: String, heading: String, text: String, note: String, taskChoice: Bool, allChoice: Bool) {
     let w: CGFloat = 640, h: CGFloat = 400
     let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1280, height: 800)
     let p = NSPanel(contentRect: NSRect(x: screen.midX - w / 2, y: screen.maxY - h - 80, width: w, height: h), styleMask: [.titled, .closable, .nonactivatingPanel, .utilityWindow], backing: .buffered, defer: false)
@@ -133,7 +133,8 @@ final class HandsRunPanel: NSObject, NSWindowDelegate {
       v.addSubview(b)
     }
     button("Allow once", 1, 20, 140)
-    if taskChoice { button("Allow for this task", 2, 172, 200) }
+    // W0.5: like hands-run.cpp, the Always allow everything button takes the task button's place.
+    if allChoice { button("Always allow everything", 3, 172, 220) } else if taskChoice { button("Allow for this task", 2, 172, 200) }
     button("Don't", 0, w - 160, 140)
     p.contentView = v
     panel = p
@@ -169,11 +170,13 @@ final class HandsRun {
   var readOnlyAuto = false
   var test = false
   private var grants: [String: Date] = [:]
+  /// W0.5: Always allow everything keys confirmed on this Mac's card (key -> until), like hands-run.cpp's g_all.
+  private var allGrants: [String: Date] = [:]
   private let lock = NSLock()
 
   func configure(on: Bool, level: String, readOnly: Bool) {
     lock.lock()
-    if level != self.level || !on { grants.removeAll() }
+    if level != self.level || !on { grants.removeAll(); allGrants.removeAll() }
     self.on = on
     self.level = ["ask", "task", "always"].contains(level) ? level : "task"
     self.readOnlyAuto = readOnly
@@ -207,16 +210,24 @@ final class HandsRun {
     grants = grants.filter { Date().timeIntervalSince($0.value) < HandsRunRules.grantSeconds }
     let granted = !destructive && (lvl == "always" || (lvl == "task" && !task.isEmpty && grants[task] != nil))
     if granted { grants[task] = Date() }
+    // W0.5: Always allow everything, confirmed on this Mac: every command runs (also the destructive ones).
+    // Never as administrator, never sudo: those are refused before this (limits, not approvals).
+    let allKey = String((a["allowAll"] as? String ?? "").prefix(160))
+    allGrants = allGrants.filter { $0.value > Date() }
+    if !allKey.isEmpty && allGrants[allKey] != nil { lock.unlock(); return }
     lock.unlock()
     if auto || granted { return }
     ctx.ev(["state": "asking"])
     ctx.approving(true)
     let answer = HandsRunPanel.ask(title: test ? "TEST Sara: run a command" : "Sara: run a command", heading: heading, text: text,
                                    note: "It runs as you, never as administrator. Stop (Control-Option-Esc) ends it and everything it started. Closing this window means Don't.",
-                                   taskChoice: !destructive && lvl == "task" && !task.isEmpty, cancel: ctx.cancel)
+                                   taskChoice: !destructive && lvl == "task" && !task.isEmpty, allChoice: !allKey.isEmpty, cancel: ctx.cancel)
     ctx.approving(false)
     guard answer > 0, !ctx.cancel.isSet else { throw HandsOpError(code: "denied_local", message: "The person at this computer said no.") }
-    if answer == 2 && !task.isEmpty { lock.lock(); grants[task] = Date(); lock.unlock() }
+    if answer == 3 && !allKey.isEmpty {
+      lock.lock(); allGrants[allKey] = Date().addingTimeInterval(Hands.allowAllSeconds(a["allowAllMs"])); lock.unlock()
+      ctx.log("allowall", "Always allow everything")
+    } else if answer == 2 && !task.isEmpty { lock.lock(); grants[task] = Date(); lock.unlock() }
   }
 
   private func runCommand(_ a: [String: Any], _ ctx: Ctx) throws -> [String: Any] {

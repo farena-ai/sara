@@ -438,3 +438,18 @@ message was really sent, in your time zone (Settings → You), never guessed:
   in English, Spanish, French, German, Portuguese and Italian.
 
 Nothing to set up. Design: docs/design/W0TIME.md.
+
+## Continue on another device (unreleased, W1.3)
+
+Put the PC down mid-sentence, pick up your phone, and Sara offers to carry on: a card says "Continue
+where you left off on your PC — 2 minutes ago" with the chat's name and the words you hadn't sent yet.
+**Continue** opens that chat, puts your words back in the text box, scrolls to where you were reading
+(or to the live view you had open) and starts Talk again if it was on. **Not now** hides it on that device.
+
+On a computer, ⋯ at the top of a chat has **Continue on my phone**: your phone gets a notification that
+opens the same chat (browser notifications on the phone, the iPhone app, or the Android app's check).
+
+- Only your own devices: each person in a household has their own; nobody sees another's spot.
+- Settings → Connections → Phone and notifications → Continue on another device: switch it off (what was
+  kept is forgotten) or choose how soon after (5 minutes to 4 hours, 30 minutes by default).
+- Shared rooms, group chats and off-the-record chats never follow you.

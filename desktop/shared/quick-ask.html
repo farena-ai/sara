@@ -11,9 +11,11 @@
   server's normal routes and rules: the AI disclosure, private local mode, household limits and the
   demo's read-only rules all apply exactly as in the web app. Nothing here can accept the AI notice:
   if it hasn't been accepted, the window shows it and sends you to the main window.
-  Native → page: saraQuick.show({theme, solid, shortcut}), saraQuick.refresh(), saraQuick.decide(id, ok),
+  Native → page: saraQuick.show({theme, solid, shortcut}), saraQuick.refresh(), saraQuick.decide(id, ok), saraQuick.alwaysOff(),
   saraQuick.snooze(reminderId, conv, text), saraQuick.hidden(). Page → native: {m:'qa', a:'ready'|'hide'|'size'|
   'open'|'drag'|'state'|'reminder', …}.
+  W0.5: 'state' also says whether this person's Always allow everything is on (always: true), so the tray /
+  menu bar menu can offer "Always allow is on — Turn off"; alwaysOff() is the same route as Settings.
   Phase 75 stage 3: the apps' native notifications come from here too: 'state' carries the approvals
   waiting with what each wants to run (asks: "id\tconv\tsummary\tcommand" lines; the app shows one
   notification each with Allow / Deny, which call saraQuick.decide, the same route as the tray and
@@ -435,6 +437,9 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       for (const j of (Array.isArray(jobs) ? jobs : []).filter((x) => x.status === 'running').slice(0, 6)) {
         lines.push(['job', String(j.id), clean(j.conversationId, 60), clean(j.label, 70) + '… ' + since(j.startedAt)].join('\t'));
       }
+      // W0.5: Always allow everything (src/always-allow.ts): the menu offers Turn off while it is on.
+      const aa = await api('/computer/always').catch(() => null);
+      const alwaysOn = Boolean(aa && aa.on === true);
       // Ownicon: a companion without a picture of her own shows her monogram, never Sara's face.
       const url = session.face && session.face.kind === 'initial' && session.face.icon ? session.face.icon + '?s=64' : faceUrl();
       // 3.5.2: a new look keeps the same address: the server's face tag tells it changed.
@@ -450,7 +455,7 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
       faceImg.closest('header').classList.toggle('own-face', Boolean(her && her.customAvatar));
       // iconFull: the monogram fills the icon (the app's closer face crop at small sizes would cut it).
       const icon = await iconFor(session.face);
-      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, icon, iconFull: Boolean(icon && icon !== 'builtin' && iconFull), now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0 });
+      post({ a: 'state', online: true, signedIn: true, demo: false, name, mood, face, icon, iconFull: Boolean(icon && icon !== 'builtin' && iconFull), now: lines.slice(0, 10).join('\n'), asks: asks.slice(0, 10).join('\n'), busy: working.length > 0, always: alwaysOn });
       checkVoice();
     })().finally(() => { refreshing = null; });
     return refreshing;
@@ -963,6 +968,10 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     refresh() { refresh().then(listen); return true; },
     decide(id, ok) {
       return api('/approvals/' + encodeURIComponent(id), { method: 'POST', body: { approved: Boolean(ok) } }).then(() => refresh(), () => refresh());
+    },
+    /** W0.5: the tray / menu bar's "Always allow is on — Turn off": the same route as Settings (no proof needed to turn it off). */
+    alwaysOff() {
+      return api('/computer/always', { method: 'DELETE' }).then(() => refresh(), () => refresh());
     },
     /** Snooze 10 min from the notification: the same reminder again, through the normal route. */
     async snooze(rid, conv, text) {

@@ -410,7 +410,7 @@ export function legacyOf(app: AppContext): Legacy | undefined {
       dataDir: app.dataDir,
       now: () => app.now(),
       alert: (title, text) => {
-        postAlert(app, 'legacy', { role: 'assistant', content: `${title}\n\n${text}`, reason: 'proactive' });
+        postAlert(app, 'legacy', { role: 'assistant', content: `${title}\n\n${text}`, reason: 'proactive', nudge: { value: 1, urgency: 'safety' } });
         void app.push?.notifyOwner(title, text, '', 'legacy').catch(() => undefined);
       },
       mail: async (to, subject, body) => {

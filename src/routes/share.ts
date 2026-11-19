@@ -2,7 +2,9 @@
 // list, revoke, settings) and the public read-only page `/s/<token>`: server-rendered and escaped,
 // no script, never indexed, rate-limited per address. Household members share their own chats unless
 // the owner turned that off (settings `members`); the demo can't share.
+import { readFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
+import { join } from 'node:path';
 import { audit } from '../audit-trail.ts';
 import { LoginLimiter } from '../auth.ts';
 import { clientIp, HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
@@ -114,7 +116,28 @@ function visitorLang(req: IncomingMessage, fallback: Lang): Lang {
 }
 
 function page(lang: Lang, title: string, body: string): string {
-  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow, noarchive"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/share.css"></head><body><main class="sh-page">${body}</main></body></html>`;
+  return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><meta name="robots" content="noindex, nofollow, noarchive"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(title)}</title><link rel="stylesheet" href="/theme.css"><link rel="stylesheet" href="/s/theme-light.css" media="(prefers-color-scheme: light)"><link rel="stylesheet" href="/share.css"></head><body><main class="sh-page">${body}</main></body></html>`;
+}
+
+/**
+ * W0.5: the public pages have no script (so no theme-boot.js and no data-theme): they follow the visitor's
+ * system instead. This is theme.css's own Day colours (every `:root[data-theme="light"] { … }` block, never a
+ * copy), for `:root` under `prefers-color-scheme: light`. Read once per web folder.
+ */
+const lightCache = new Map<string, string>();
+export function shareLightCss(webDir: string): string {
+  const hit = lightCache.get(webDir);
+  if (hit !== undefined) return hit;
+  let theme = '';
+  try {
+    theme = readFileSync(join(webDir, 'theme.css'), 'utf8');
+  } catch {
+    /* no theme.css: the page stays in its dark colours */
+  }
+  const blocks = [...theme.matchAll(/:root\[data-theme="light"\]\s*\{([^}]*)\}/g)].map((m) => m[1].trim());
+  const css = `/* The public pages' Day colours, made from web/theme.css (src/routes/share.ts shareLightCss). */\n@media (prefers-color-scheme: light) {\n:root {\n${blocks.join('\n')}\n}\n}\n`;
+  lightCache.set(webDir, css);
+  return css;
 }
 
 function render(snap: ShareSnapshot, expiresAt: string, lang: Lang, base: string): string {
@@ -154,6 +177,13 @@ export function createSharePublic(o: { opts: ServerOptions; ownerLang: () => Lan
       res.end(page(lang, text, `<p class="sh-gone">${esc(text)}</p>`));
     };
     if (method !== 'GET' && method !== 'HEAD') return (plain(405, tr('Method not allowed', lang)), true);
+    if (m[1] === 'theme-light.css' && m[2] === undefined) {
+      // W0.5: the Day colours for a visitor whose system is light (no token, nothing private).
+      const css = shareLightCss(o.opts.webDir);
+      res.writeHead(200, { ...PUBLIC_HEADERS, 'content-type': 'text/css; charset=utf-8', 'cache-control': 'public, max-age=3600', 'content-length': Buffer.byteLength(css) });
+      res.end(method === 'HEAD' ? undefined : css);
+      return true;
+    }
     if (views.take(ip) || wrong.blocked(ip)) return (plain(429, tr('Too many requests. Try again later.', lang)), true);
     const s = shares();
     const gone = () => {

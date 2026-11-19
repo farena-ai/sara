@@ -151,6 +151,11 @@ public class LiveInbox extends Service {
             if (data.contains("\"notice\":true") && !MainActivity.visible) new Thread(() -> InboxJob.check(this)).start();
             return;
         }
+        // W1.3: Continue on my phone: the app's own check shows it (once per handoff, with the chat to open).
+        if ("continue".equals(event)) {
+            if (!MainActivity.visible) new Thread(() -> InboxJob.check(this)).start();
+            return;
+        }
         // Phase 31: another companion on the same server called or wrote.
         if ("other".equals(event)) {
             other(data);

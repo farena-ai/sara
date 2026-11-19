@@ -9,6 +9,7 @@ import { addDays, daysBetween, localDay, morningOf } from './biz/store.ts';
 import type { AppContext } from './chat.ts';
 import { errandsFor, type Errand } from './errands.ts';
 import { en, trOwner } from './i18n.ts';
+import { noteNudgeReminder } from './nudges.ts';
 import { purchases, type Purchase } from './money/purchases.ts';
 import { looksLikeCard, looksLikeSsn, myDetailsFor } from './my-details.ts';
 
@@ -316,6 +317,7 @@ function syncReminder(app: AppContext, id: number): void {
     ? trOwner(en('{what} is due around {miles} miles (about {date}). Log it or book it in Settings → You → My details → Car and house upkeep.'), s, { what, miles: it.next.miles.toLocaleString('en-US'), date: usDay(it.next.date) })
     : trOwner(en('{what} is due {date}. Log it or book it in Settings → You → My details → Car and house upkeep.'), s, { what, date: usDay(it.next.date) });
   const rem = planner.addReminder({ text, dueAt: due.toISOString() });
+  noteNudgeReminder(app, rem.id, 'upkeep', 0.55, it.key.startsWith('smoke') ? 'safety' : 'normal');
   d.prepare('UPDATE upkeep_items SET reminder_id = ?, reminder_for = ? WHERE id = ?').run(rem.id, it.next.date, id);
 }
 

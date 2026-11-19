@@ -555,6 +555,8 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
   'whats-new',
   // V5.1: their own action timeline and Revert (src/routes/timeline.ts; a member's own sara.db)
   'timeline',
+  // W1.3: their own continue-on-another-device spots (src/routes/continue-here.ts; a member's own data folder)
+  'continue-here',
   // talking
   // R4: their own iPhone Shortcuts tokens (src/routes/shortcuts.ts; the iCloud links are the owner's)
   'shortcuts',

@@ -4,6 +4,7 @@
 // - Proactive messages: now and then she texts first, like a person would. Rate-limited, quiet
 //   hours, never double-texts, owner-tunable, AI disclosure still applies.
 import { guard } from './log.ts';
+import { askNudge } from './nudges.ts';
 import { noteCall } from './trouble.ts';
 import { appLanguage, languageLine, talkLanguage } from './i18n.ts';
 import type { DatabaseSync } from 'node:sqlite';
@@ -392,11 +393,14 @@ export class LifeWorker {
       this.#holdUntil = now.getTime() + 2 * 60 * 60_000;
       return { skipped: 'failed checks' };
     }
+    // W1.2 (docs/NUDGES.md): her texting first shares the one daily nudge budget (never saved up).
+    const gate = askNudge(app, { kind: 'checkin', value: 0.45, text, digest: false });
+    if (!gate.send) return { skipped: 'nudge budget' };
     if (disclosureDue(app.store.lastDisclosureAt(), now)) {
       const n = app.store.addMessage(conv.id, 'notice', `disclosure:${disclosureText(app.persona.name, appLanguage(app.settings.get()))}`);
       app.events?.publish({ type: 'message', conversationId: conv.id, message: { ...n, content: disclosureText(app.persona.name, appLanguage(app.settings.get())), meta: { kind: 'disclosure' } }, reason: 'proactive' });
     }
-    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { proactive: { reason } });
+    const msg = app.store.addMessage(conv.id, 'assistant', app.redactor.redact(text), { proactive: { reason }, nudge: { kind: 'checkin', why: gate.why } });
     if (dateToday) app.memory?.markMentioned(dateToday.id, today);
     if (followUp) app.memory?.markMentioned(followUp.memory.id, today);
     this.#inner.save({ ...this.#inner.get(now), lastProactiveAt: now.toISOString(), proactiveDay: today, proactiveCount: sentToday + 1 });

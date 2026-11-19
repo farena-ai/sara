@@ -185,6 +185,17 @@
 .wsk-quote { display: block; margin-top: 2px; padding-left: var(--s-2); border-left: 2px solid var(--accent-line); color: var(--text-2); font-style: italic; overflow-wrap: anywhere; }
 #settings .wsk-acts { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 #settings .wsk-edit { flex: 1 1 260px; min-width: 0; }
+/* W1.1: one "What I know about you" page */
+#settings .kn-tools { display: flex; gap: var(--s-2); align-items: center; margin-bottom: var(--s-2); }
+#settings .kn-tools input { flex: 1 1 auto; min-width: 0; }
+#settings .kn-dups:not([hidden]) { display: grid; gap: var(--s-2); margin: var(--s-2) 0; padding: var(--s-2) var(--s-3); border: 1px dashed var(--accent-line); border-radius: var(--r-2); background: var(--surface-1); min-width: 0; }
+#settings .kn-dup { display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+#settings .kn-why { display: grid; gap: 4px; padding: var(--s-2); border-radius: var(--r-2); background: var(--surface-2); min-width: 0; overflow-wrap: anywhere; }
+#settings .kn-said { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--text-1); }
+#settings #wsk-status:not(:empty) { position: sticky; bottom: 0; z-index: 1; margin: 0; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-2); background: var(--surface-1); }
+#settings .kn-undo { display: inline-flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
+#settings .kn-also { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: var(--s-3) 0; }
+#settings .kn-chip { display: inline-flex; gap: 6px; align-items: center; padding: 2px var(--s-2); border: 1px solid var(--line); border-radius: var(--r-pill); background: var(--surface-1); color: var(--text-2); }
 #settings .wsk-askrow { display: flex; gap: var(--s-2); align-items: center; }
 #settings .wsk-askrow input { flex: 1 1 auto; min-width: 0; }
 #settings #wsk-answer { margin: var(--s-2) 0; }

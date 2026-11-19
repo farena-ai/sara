@@ -16,6 +16,7 @@ import { en } from './i18n.ts';
 import { localDate } from './memory-worker.ts';
 import { mailSubs, subscriptionsOf } from './money/hub.ts';
 import { moneyStore } from './money/store.ts';
+import { noteNudgeReminder } from './nudges.ts';
 import { looksLikeCard, looksLikeSsn } from './my-details.ts';
 
 export const RENEWAL_WHATS = ['passport', 'license', 'registration', 'insurance', 'warranty', 'subscription', 'lease', 'other'] as const;
@@ -181,6 +182,7 @@ export function renewalAction(app: AppContext, action: 'add' | 'remind' | 'hide'
     if (!app.planner) throw new RenewalError(404, en('Reminders are not available here.'));
     const r = app.planner.addReminder({ text: `${row.title}: ${KIND_TEXT[row.kind]} ${whenText(row.date)}`, dueAt: facts.remindAt(row.date, row.daysBefore).toISOString() });
     facts.markRenewal(id, { reminderId: r.id, daysBefore: row.daysBefore });
+    noteNudgeReminder(app, r.id, 'renewals', 0.9, 'reminder');
     return { ok: true, id, reminderId: r.id, dueAt: r.dueAt };
   }
   if (action === 'errand') {

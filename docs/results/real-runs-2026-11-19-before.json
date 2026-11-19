@@ -1,0 +1,457 @@
+{
+ "kind": "real-runs",
+ "label": "before",
+ "version": "3.30.1",
+ "model": "qwen3.8:27b-mtp-q4_K_M",
+ "judge": "qwen3.5:9b",
+ "started": "2026-11-19T12:44:21.350Z",
+ "passed": 46,
+ "of": 53,
+ "judgeAvg": 4.77,
+ "minutes": 13.1,
+ "tokensIn": 1561777,
+ "tokensOut": 51512,
+ "command": "node scripts/eval-real.ts --model qwen3.8:27b-mtp-q4_K_M --judge qwen3.5:9b",
+ "runs": [
+  {
+   "task": "chat-hello",
+   "feature": "chat",
+   "pass": true,
+   "judge": 4,
+   "seconds": 27,
+   "failed": []
+  },
+  {
+   "task": "chat-budget",
+   "feature": "chat",
+   "pass": true,
+   "judge": 5,
+   "seconds": 9,
+   "failed": []
+  },
+  {
+   "task": "chat-honest",
+   "feature": "chat",
+   "pass": true,
+   "judge": 5,
+   "seconds": 4,
+   "failed": []
+  },
+  {
+   "task": "chat-translate",
+   "feature": "chat",
+   "pass": true,
+   "judge": 5,
+   "seconds": 4,
+   "failed": []
+  },
+  {
+   "task": "chat-mold",
+   "feature": "chat",
+   "pass": true,
+   "judge": 5,
+   "seconds": 13,
+   "failed": []
+  },
+  {
+   "task": "memory-recall",
+   "feature": "memory",
+   "pass": true,
+   "judge": 5,
+   "seconds": 29,
+   "failed": []
+  },
+  {
+   "task": "remind-dentist",
+   "feature": "reminders",
+   "pass": true,
+   "judge": 5,
+   "seconds": 8,
+   "failed": []
+  },
+  {
+   "task": "todo-add",
+   "feature": "reminders",
+   "pass": true,
+   "judge": 5,
+   "seconds": 8,
+   "failed": []
+  },
+  {
+   "task": "note-wifi",
+   "feature": "notes",
+   "pass": true,
+   "judge": 5,
+   "seconds": 4,
+   "failed": []
+  },
+  {
+   "task": "reminders-list",
+   "feature": "reminders",
+   "pass": true,
+   "judge": 5,
+   "seconds": 4,
+   "failed": []
+  },
+  {
+   "task": "calendar-week",
+   "feature": "calendar",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "calendar-add",
+   "feature": "calendar",
+   "pass": true,
+   "judge": 5,
+   "seconds": 14,
+   "failed": []
+  },
+  {
+   "task": "s10-choice",
+   "feature": "S10 choice cards",
+   "pass": true,
+   "judge": 4,
+   "seconds": 34,
+   "failed": []
+  },
+  {
+   "task": "s1-research",
+   "feature": "S1 research",
+   "pass": true,
+   "judge": 5,
+   "seconds": 31,
+   "failed": []
+  },
+  {
+   "task": "s3-goal-create",
+   "feature": "S3 goals",
+   "pass": true,
+   "judge": 5,
+   "seconds": 43,
+   "failed": []
+  },
+  {
+   "task": "s3-goal-update",
+   "feature": "S3 goals",
+   "pass": true,
+   "judge": 4,
+   "seconds": 16,
+   "failed": []
+  },
+  {
+   "task": "s3-goal-status",
+   "feature": "S3 goals",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "s5-ask",
+   "feature": "S5 ask everything",
+   "pass": false,
+   "judge": 4,
+   "seconds": 34,
+   "failed": [
+    "called ask_everything"
+   ]
+  },
+  {
+   "task": "s5-person",
+   "feature": "S5 ask everything",
+   "pass": true,
+   "judge": 5,
+   "seconds": 8,
+   "failed": []
+  },
+  {
+   "task": "s11-humanize",
+   "feature": "S11 humanize",
+   "pass": true,
+   "judge": 5,
+   "seconds": 9,
+   "failed": []
+  },
+  {
+   "task": "s2-meeting",
+   "feature": "S2 meetings",
+   "pass": true,
+   "judge": 5,
+   "seconds": 9,
+   "failed": []
+  },
+  {
+   "task": "s4-promises",
+   "feature": "S4 promises",
+   "pass": true,
+   "judge": 5,
+   "seconds": 6,
+   "failed": []
+  },
+  {
+   "task": "s4-people-due",
+   "feature": "S4 promises",
+   "pass": true,
+   "judge": 5,
+   "seconds": 15,
+   "failed": []
+  },
+  {
+   "task": "s6-trips",
+   "feature": "S6 trips",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "s6-status",
+   "feature": "S6 trips",
+   "pass": true,
+   "judge": 5,
+   "seconds": 5,
+   "failed": []
+  },
+  {
+   "task": "s7-template",
+   "feature": "S7 documents",
+   "pass": true,
+   "judge": 5,
+   "seconds": 19,
+   "failed": []
+  },
+  {
+   "task": "s7-revise",
+   "feature": "S7 documents",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "s7-checklist",
+   "feature": "S7 documents",
+   "pass": true,
+   "judge": 5,
+   "seconds": 12,
+   "failed": []
+  },
+  {
+   "task": "s7-sign",
+   "feature": "S7 documents",
+   "pass": true,
+   "judge": 5,
+   "seconds": 28,
+   "failed": []
+  },
+  {
+   "task": "docclaim",
+   "feature": "docclaim",
+   "pass": true,
+   "judge": 5,
+   "seconds": 15,
+   "failed": []
+  },
+  {
+   "task": "doc-letter",
+   "feature": "S11 humanize",
+   "pass": true,
+   "judge": 5,
+   "seconds": 20,
+   "failed": []
+  },
+  {
+   "task": "s8-team",
+   "feature": "S8 team run",
+   "pass": false,
+   "judge": 2,
+   "seconds": 85,
+   "failed": [
+    "run finished",
+    "result has a fixture price"
+   ]
+  },
+  {
+   "task": "t1-heal",
+   "feature": "T1 self-repair",
+   "pass": true,
+   "judge": 5,
+   "seconds": 9,
+   "failed": []
+  },
+  {
+   "task": "t3-code",
+   "feature": "T3 code fix",
+   "pass": true,
+   "judge": 5,
+   "seconds": 6,
+   "failed": []
+  },
+  {
+   "task": "alertdest",
+   "feature": "alert destinations",
+   "pass": true,
+   "judge": 5,
+   "seconds": 10,
+   "failed": []
+  },
+  {
+   "task": "mail-connect",
+   "feature": "mailmulti",
+   "pass": true,
+   "judge": 5,
+   "seconds": 6,
+   "failed": []
+  },
+  {
+   "task": "mail-accounts",
+   "feature": "mailmulti",
+   "pass": true,
+   "judge": 5,
+   "seconds": 5,
+   "failed": []
+  },
+  {
+   "task": "s9b-support",
+   "feature": "S9b support look",
+   "pass": true,
+   "judge": 5,
+   "seconds": 9,
+   "failed": []
+  },
+  {
+   "task": "t5-request",
+   "feature": "T5 remote fix",
+   "pass": true,
+   "judge": 5,
+   "seconds": 5,
+   "failed": []
+  },
+  {
+   "task": "t5-plan",
+   "feature": "T5 remote fix",
+   "pass": true,
+   "judge": 5,
+   "seconds": 22,
+   "failed": []
+  },
+  {
+   "task": "v-canvas",
+   "feature": "D3 live checklist",
+   "pass": false,
+   "judge": 4,
+   "seconds": 6,
+   "failed": [
+    "has the four items"
+   ]
+  },
+  {
+   "task": "v-second-opinion",
+   "feature": "D8 second opinion",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "v-receipts",
+   "feature": "claim receipts",
+   "pass": true,
+   "judge": 5,
+   "seconds": 8,
+   "failed": []
+  },
+  {
+   "task": "v-renewals",
+   "feature": "V renewals",
+   "pass": false,
+   "judge": 4,
+   "seconds": 21,
+   "failed": [
+    "passport in Renewals",
+    "dated 2027-03-31"
+   ]
+  },
+  {
+   "task": "v-purchases",
+   "feature": "V purchases",
+   "pass": false,
+   "judge": 4,
+   "seconds": 7,
+   "failed": [
+    "price kept"
+   ]
+  },
+  {
+   "task": "v-interpreter",
+   "feature": "V interpreter",
+   "pass": false,
+   "judge": 5,
+   "seconds": 18,
+   "failed": [
+    "reply mentions alérgico"
+   ]
+  },
+  {
+   "task": "v-movein",
+   "feature": "V1.1 Bring everything",
+   "pass": false,
+   "judge": 4,
+   "seconds": 11,
+   "failed": [
+    "reply mentions the Move in page"
+   ]
+  },
+  {
+   "task": "v-waiting",
+   "feature": "V1.2 waiting on you",
+   "pass": true,
+   "judge": 5,
+   "seconds": 18,
+   "failed": []
+  },
+  {
+   "task": "v-friend-time",
+   "feature": "V2.10 schedule with friends",
+   "pass": true,
+   "judge": 5,
+   "seconds": 5,
+   "failed": []
+  },
+  {
+   "task": "v-myapps",
+   "feature": "V my apps",
+   "pass": true,
+   "judge": 5,
+   "seconds": 28,
+   "failed": []
+  },
+  {
+   "task": "v-timeline",
+   "feature": "V5.1 timeline revert",
+   "pass": true,
+   "judge": 4,
+   "seconds": 23,
+   "failed": []
+  },
+  {
+   "task": "v-time",
+   "feature": "W0.6 time sense",
+   "pass": true,
+   "judge": 5,
+   "seconds": 7,
+   "failed": []
+  },
+  {
+   "task": "v-always",
+   "feature": "W0.7 Always allow",
+   "pass": true,
+   "judge": 5,
+   "seconds": 13,
+   "failed": []
+  }
+ ]
+}

@@ -160,7 +160,7 @@ test('Settings → This computer has the switch and the pause, with tips', () =>
   assert.match(js, /setPref', \{ key, value \}/);
   assert.match(js, /set\('screenCompanion'/);
   assert.match(js, /set\('screenPause', Number\(p\?\.screenPausedMin\) > 0 \? '0' : '60'\)/);
-  assert.match(js, /Only in the Windows app for now\./);
+  assert.match(js, /Update the Sara app to use this\./); // W0.5: the Mac app has it too (test/w0-mac.test.ts)
   assert.match(read('web', 'app.js'), /fillScreen\(p\);/);
   const tips = JSON.parse(read('web', 'tips.json'));
   assert.ok(tips['dk-screen'] || /id="dk-screen" type="checkbox"[^>]*> [^<]+<button type="button" class="tip"/.test(page));

@@ -89,6 +89,8 @@ export const ICONS = {
   branch: '<circle cx="6.5" cy="5.5" r="2"/><circle cx="6.5" cy="18.5" r="2"/><circle cx="17.5" cy="8" r="2"/><path d="M6.5 7.5v9M17.5 10c0 4-5 3.5-9.5 7"/>',
   book: '<path d="M4.5 5.5c2.5-1.3 5-1.3 7.5 0v14c-2.5-1.3-5-1.3-7.5 0zM12 5.5c2.5-1.3 5-1.3 7.5 0v14c-2.5-1.3-5-1.3-7.5 0z"/>',
   monitor: '<rect x="3" y="4.5" width="18" height="12" rx="2"/><path d="M8.5 20.5h7M12 16.5v4"/>',
+  // W1.3: Continue on my phone (a phone with an arrow into it).
+  handoff: '<rect x="7" y="2.5" width="10" height="19" rx="2.2"/><path d="M11 18.5h2M2.5 10h7.5M7.5 7.5 10 10l-2.5 2.5"/>',
   terminal: '<rect x="3" y="4.5" width="18" height="15" rx="2.5"/><path d="M7 9.5l3 2.5-3 2.5M12.5 15h4.5"/>',
   flask: '<path d="M9.5 3.5h5M10 3.5v6L4.8 18a1.7 1.7 0 0 0 1.5 2.5h11.4a1.7 1.7 0 0 0 1.5-2.5L14 9.5v-6"/><path d="M7.5 14.5h9"/>',
   update: '<path d="M20 12a8 8 0 1 1-2.4-5.7"/><path d="M20 4.5v4h-4M12 16.5v-8M8.8 11.5L12 8.3l3.2 3.2"/>',

@@ -26,6 +26,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { killTree as killProcessTree } from '../src/hands-run.ts';
 import { copyProject, listFiles, loadTasks, runHidden, taskText, TIERS, type Task } from './bench-tasks.ts';
+import type { RealSummary } from './real-runs-publish.ts';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = join(ROOT, 'docs', 'results');
@@ -377,7 +378,36 @@ a{color:var(--accent)}
 `;
 
 /** The static results page: no scripts, no outside files, light and dark. */
-export function buildPage(d: { sara: SaraSummary[]; others: CompareSummary[]; built: string }): string {
+/** W0.1: the everyday real-model task runs (scripts/eval-real.ts summaries), newest first, task by task. */
+export function realSection(real: RealSummary[]): string {
+  if (!real.length) return '';
+  const runs = [...real].sort((a, b) => b.started.localeCompare(a.started) || b.label.localeCompare(a.label));
+  const name = (r: RealSummary) => `${day(r.started)} ${r.label}`;
+  const summary = runs
+    .map((r) => `<tr><td><strong>${esc(name(r))}</strong><span class="sub">Sara ${esc(r.version)}</span></td><td class="model">${esc(r.model)}<span class="sub">judge ${esc(r.judge)}</span></td><td class="score">${r.passed}/${r.of}<span class="sub">${r.of ? Math.round((r.passed / r.of) * 100) : 0}%, ${r.minutes} min</span>${r.judgeAvg !== null ? `<span class="sub">judge ${r.judgeAvg.toFixed(2)}/5</span>` : ''}</td><td class="date">${esc(day(r.started))}</td><td class="cmd"><code>${cmdHtml(r.command)}</code></td></tr>`)
+    .join('\n');
+  const ids: string[] = [];
+  const feature = new Map<string, string>();
+  for (const r of runs) for (const t of r.runs) if (!feature.has(t.task)) { ids.push(t.task); feature.set(t.task, t.feature); }
+  const head = `<tr><th>Task</th>${runs.map((r) => `<th>${esc(name(r))}</th>`).join('')}</tr>`;
+  const body = ids
+    .map((id) => `<tr><td><code>${esc(id)}</code><span class="sub">${esc(feature.get(id) ?? '')}</span></td>${runs.map((r) => { const t = r.runs.find((x) => x.task === id); return !t ? '<td class="none" aria-label="not run">–</td>' : t.pass ? '<td class="ok" aria-label="pass">✓</td>' : `<td class="no" aria-label="fail" title="${esc(t.failed.join('; '))}">✗</td>`; }).join('')}</tr>`)
+    .join('\n');
+  return `<h2 id="everyday">Everyday tasks with a real local model</h2>
+<p class="lead">Real chat turns on a throwaway Sara with fixture mail, calendar, web pages and a second linked server; a local model through Ollama answers every turn and uses her real tools. A task passes only when every code check passes (the tool ran, the rows and files exist, nothing private leaked); a small local judge scores it 1-5 too.</p>
+<div class="card scroll"><table class="stack">
+<tr><th>Run</th><th>Model</th><th>Score</th><th>Date</th><th>Re-run</th></tr>
+${summary}
+</table></div>
+<h2>Everyday tasks: task by task</h2>
+<div class="card scroll"><table class="grid">
+${head}
+${body}
+</table></div>
+`;
+}
+
+export function buildPage(d: { sara: SaraSummary[]; others: CompareSummary[]; real?: RealSummary[]; built: string }): string {
   const rows: PageRow[] = [];
   for (const s of d.sara) {
     const tier = tierOf(s);
@@ -440,7 +470,7 @@ ${grids}
 <tr><th>Run</th><th>Command</th></tr>
 ${commands}
 </table></div>
-<h2>How it is run</h2>
+${realSection(d.real ?? [])}<h2>How it is run</h2>
 <ul class="plain">
 <li>Tasks: <code>bench/tasks</code> and <code>bench/projects</code>, original to this repository. Reference solutions exist only to prove each task is solvable and that its hidden tests fail on the starting code (<code>node scripts/bench-compare.ts --mode verify</code>).</li>
 <li>Other harnesses are the CLIs their users installed, with their own keys and settings; this repository holds only the command line used to call them, never their code. A harness's model is shown when its owner said which one it uses.</li>
@@ -467,7 +497,8 @@ export function pageFromDocs(built: string, dir = DOCS): string {
   const files = existsSync(dir) ? readdirSync(dir).sort() : [];
   const sara = files.filter((f) => /^(tasks|projects)-(agent|raw)\.json$/.test(f)).map((f) => readJson<SaraSummary>(join(dir, f)));
   const others = files.filter((f) => /^compare-(tasks|projects)-[a-z0-9-]+\.json$/.test(f)).map((f) => readJson<CompareSummary>(join(dir, f)));
-  return buildPage({ sara, others, built });
+  const real = files.filter((f) => /^real-runs-[a-z0-9-]+\.json$/.test(f)).map((f) => readJson<RealSummary>(join(dir, f)));
+  return buildPage({ sara, others, real, built });
 }
 
 export function writePage(built = new Date().toISOString().slice(0, 10)): string {

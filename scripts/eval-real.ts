@@ -73,6 +73,21 @@ import { createResearchTools } from '../src/tools/research-tool.ts';
 import { createSupportTools } from '../src/tools/support.ts';
 import { createTravelTools } from '../src/tools/travel.ts';
 import { zipStored } from '../src/zip-write.ts';
+import { realSummary } from './real-runs-publish.ts';
+// W0.1: one task per ROADMAP_V feature (+ W0.6 time sense, W0.7 Always allow).
+import { setAlwaysAllow } from '../src/always-allow.ts';
+import { canvasFor } from '../src/canvas.ts';
+import { friendTimeOf } from '../src/friend-time.ts';
+import { purchasesOverview } from '../src/money/purchases.ts';
+import { myAppsFor } from '../src/my-apps.ts';
+import { renewalsOf } from '../src/renewals.ts';
+import { timelineOf } from '../src/timeline.ts';
+import { createCanvasTools } from '../src/tools/canvas.ts';
+import { createFactsTools } from '../src/tools/facts.ts';
+import { createFriendTimeTools } from '../src/tools/friend-time.ts';
+import { createMyAppsTools } from '../src/tools/my-apps.ts';
+import { createPurchaseTools } from '../src/tools/purchases.ts';
+import { createSettingsGuideTool } from '../src/settingsguide.ts';
 import { makeApp } from '../test/helpers.ts';
 import { monoWav, pitchOf } from '../test/fixtures/s2-audio.ts';
 import { TRAVEL } from '../test/travel-fixtures.ts';
@@ -97,6 +112,8 @@ const { values: opt } = parseArgs({
     'cap-minutes': { type: 'string', default: '360' },
     'turn-seconds': { type: 'string', default: '600' },
     out: { type: 'string' },
+    /** W0.1: also write the sanitized summary to docs/results/real-runs-<date>-<label>.json (benchmark page). */
+    publish: { type: 'string' },
   },
 });
 const OLLAMA = opt.ollama!.replace(/\/+$/, '').replace(/\/v1$/, '');
@@ -314,6 +331,7 @@ async function homeWorld(): Promise<{ n: Node }> {
     { id: 'ev3', title: 'Dentist', start: `${ymd(2)}T20:00:00Z`, end: `${ymd(2)}T21:00:00Z`, allDay: false, location: 'Bright Smile Dental' },
   ];
   const sent: any[] = [];
+  let evSeq = 3;
   n.extra.sent = sent;
   const info = { id: 'im_one', address: addr('alex'), kind: 'imap', provider: 'fastmail', calendar: true };
   const prov = {
@@ -326,7 +344,8 @@ async function homeWorld(): Promise<{ n: Node }> {
   app.mailAccounts = { list: () => [info], combined: () => [info], default: () => info, provider: () => prov, view: () => ({}) };
   n.extra.events = events;
   app.tools.add({ spec: { name: 'calendar_events', description: 'List calendar events between two dates (ISO). Returns title, start, end, location.', parameters: { type: 'object', properties: { from: { type: 'string' }, to: { type: 'string' } } } }, defaultPermission: 'auto', summarize: () => 'Look at the calendar', run: async () => events.map((e) => `${e.id}: ${e.title} ${e.start}–${e.end}${e.location ? ` at ${e.location}` : ''}`).join('\n') });
-  app.tools.add({ spec: { name: 'calendar_add', description: 'Add a calendar event.', parameters: { type: 'object', properties: { title: { type: 'string' }, start: { type: 'string', description: 'ISO date-time' }, end: { type: 'string' }, location: { type: 'string' } }, required: ['title', 'start'] } }, defaultPermission: 'ask', summarize: (a: any) => `Add “${a.title}” at ${a.start}`, run: async (a: any) => { events.push({ id: `ev${events.length + 1}`, ...a }); return `Added “${a.title}” (${a.start}).`; } });
+  app.tools.add({ spec: { name: 'calendar_add', description: 'Add a calendar event.', parameters: { type: 'object', properties: { title: { type: 'string' }, start: { type: 'string', description: 'ISO date-time' }, end: { type: 'string' }, location: { type: 'string' } }, required: ['title', 'start'] } }, defaultPermission: 'ask', summarize: (a: any) => `Add “${a.title}” at ${a.start}`, run: async (a: any) => { const id = `ev${++evSeq}`; events.push({ id, ...a }); return `Added “${a.title}” (${a.start}) (event ${id}).`; } });
+  app.tools.add({ spec: { name: 'calendar_remove', description: 'Remove a calendar event by its id (from calendar_events).', parameters: { type: 'object', properties: { id: { type: 'string' } }, required: ['id'] } }, defaultPermission: 'ask', summarize: (a: any) => `Remove event ${a.id}`, run: async (a: any) => { const i = events.findIndex((e) => e.id === String(a.id)); if (i < 0) return `No event ${a.id}.`; const [e] = events.splice(i, 1); return `Removed “${e.title}”.`; } });
   // People + promises from sent mail (S4).
   app.people = new PeopleStore(db, { now: () => new Date() });
   const P = app.people;
@@ -379,6 +398,7 @@ async function homeWorld(): Promise<{ n: Node }> {
   app.tools.add({ spec: { name: 'web_fetch', description: 'Fetch a web page and return its text.', parameters: { type: 'object', properties: { url: { type: 'string' } }, required: ['url'] } }, defaultPermission: 'auto', summarize: (a: any) => `Read ${a.url}`, run: async (a: any) => { const p = Object.values(PAGES).find((x) => String(a.url).includes(x.title.split(' ')[1]!.toLowerCase())) ?? (/reader|kindle|kobo/i.test(String(a.url)) ? PAGES['/ereaders']! : null); return p ? `${p.title}\n${p.body}` : `Could not load ${a.url} (this test computer has only a few fixture pages: try web_search first).` } });
   for (const t of [listDir, readFileTool, writeFileTool, editFileTool, searchTool]) app.tools.add(t);
   app.tools.add(createAskChoiceTool());
+  app.tools.add(createSettingsGuideTool()); // W0.1: a core chat tool in the real app (main.ts); "where is…" answers need it
   app.tools.add(createMakeDocumentTool(() => app));
   app.tools.add(createHumanizeTool(() => app));
   app.tools.add(createLibraryTool(() => app));
@@ -386,6 +406,7 @@ async function homeWorld(): Promise<{ n: Node }> {
   app.tools.add(createAskEverythingTool(() => app));
   for (const t of createDocStudioTools(() => app)) app.tools.add(t);
   for (const t of createResearchTools(() => app)) app.tools.add(t);
+  for (const t of [...createCanvasTools(() => app), ...createPurchaseTools(() => app), ...createMyAppsTools(() => app), ...createFactsTools(() => app)]) app.tools.add(t);
   // Meetings (S2): a recorded meeting whose words come from a fake hearing engine; notes by the real model.
   const A = ['Thanks for joining. The launch was planned for February.', 'I think we should move the launch to March.', 'I will update the project plan by Friday.', 'Let us decide on March then.'];
   const B = ['The client needs the new date this week.', 'Agreed, March gives us time for testing.', 'Who tells the client?', 'I can do it tomorrow.'];
@@ -461,7 +482,8 @@ async function pairWorld(): Promise<{ hank: Node; sam: Node; hankLink: string; s
     m.onChange = (chat: string) => app.events?.publish({ type: 'pm', chat } as never);
     const sup = supportOf(app);
     if (sup) sup.onChange = (chat: string) => app.events?.publish({ type: 'pm', chat } as never);
-    for (const t of [...createSupportTools(() => app), ...createRemoteRepairTools(() => app)]) app.tools.add(t);
+    for (const t of [...createSupportTools(() => app), ...createRemoteRepairTools(() => app), ...createFriendTimeTools(() => app)]) app.tools.add(t);
+    friendTimeOf(app)!.events = async () => [{ start: new Date(Date.now() + DAY).toISOString(), end: new Date(Date.now() + DAY + 3600_000).toISOString(), title: `${name} private appointment` }] as never;
     await n.req('PUT', '/messages/settings', { url: n.base });
     return n;
   };
@@ -613,6 +635,8 @@ const TASKS: Task[] = [
       if (!run) return;
       if (run.status === 'proposed' || run.status === 'plan') { try { tr.approve(run.id); } catch (e) { r.note.push(`approve: ${(e as Error).message}`); } }
       await Promise.race([tr.finished?.(run.id), sleep(1_200_000)]);
+      // Its last step queued an action (e.g. make_document): "waiting for your one OK". A person taps OK once.
+      if (tr.get(run.id).status === 'waiting') { try { await tr.decide(run.id, { approved: true }); } catch (e) { r.note.push(`approve actions: ${(e as Error).message}`); } await waitFor(() => tr.get(run.id).status !== 'waiting', 600_000); }
       const g = tr.get(run.id);
       r.note.push(`team run ${g.status}: ${String(g.result?.text ?? JSON.stringify(g.result ?? '')).slice(0, 600)}`);
     },
@@ -669,6 +693,44 @@ const TASKS: Task[] = [
     },
     turns: ['Hank gave me a fix pass. Look at his Sara and send him a fix plan.'],
     checks: async (r) => { const plans = (await r.w.hank.req('GET', '/remote-repair')).plans; return [...base(r), ranOk(r, 'remote_look'), ranOk(r, 'remote_fix_plan'), check('Hank received a plan', plans.length > 0, JSON.stringify(plans).slice(0, 200))]; },
+  },
+  // ---- W0.1: one task per ROADMAP_V feature, W0.6 time sense and W0.7 Always allow
+  { id: 'v-canvas', feature: 'D3 live checklist', world: 'home', goal: 'She posts a live checklist in the chat (canvas_post) with the four ski-trip items to tick.', turns: ['Make me a live checklist I can tick off right here in the chat for my ski trip: skis, boots, goggles, gloves.'], checks: (r) => { const v = canvasFor(r.n.app).list(); const c = v.find((x: any) => x.kind === 'checklist'); const s = c ? JSON.stringify(canvasFor(r.n.app).state(r.n.app, c.id)) : ''; return [...base(r), ranOk(r, 'canvas_post'), check('a checklist view', Boolean(c), JSON.stringify(v).slice(0, 200)), check('has the four items', ['ski', 'boot', 'goggle', 'glove'].every((w) => s.toLowerCase().includes(w)), s.slice(0, 200))]; } },
+  {
+    id: 'v-second-opinion', feature: 'D8 second opinion', world: 'home', conv: 'opinion', goal: 'After her answer, “get a second opinion” offers the plan card (no model, no tools) for her last reply.',
+    turns: ['Should I pay off my car loan early or invest the money instead? One short paragraph.', 'Can you get a second opinion on that?'],
+    checks: (r) => { const conv = r.n.convs.get('opinion')!; const ms = r.n.app.store.messages(conv); const offer = ms.filter((m: any) => m.role === 'assistant').at(-1)?.meta?.secondOpinionOffer; return [...base(r), check('the offer card on her last reply', Boolean(offer), JSON.stringify(ms.at(-1)?.meta ?? {}).slice(0, 200)), check('no tools for the offer', !r.turns[1]?.tools.length, r.turns[1]?.tools.map((t) => t.name).join(',')), says(r, /two other models/i, 'the offer')]; },
+  },
+  { id: 'v-receipts', feature: 'claim receipts', world: 'home', goal: 'She adds the to-do and the reminder; what she says she did is backed by tool receipts (no claim chips).', turns: ['Add "water the plants" to my to-do list and remind me about it tomorrow at 8am.'], checks: (r) => { const ts = r.n.app.planner.tasks({ status: 'all' }).map((t: any) => t.title).join(' | '); const rs = r.n.app.planner.reminders({ status: 'all' }).filter((x: any) => /plant/i.test(x.text)); return [...base(r), called(r, 'todo'), called(r, 'remind'), check('to-do row', /plant/i.test(ts), ts), check('reminder row', rs.length > 0, 'no plant reminder'), check('no unbacked claim flags', r.turns.every((t) => !t.claims.length), r.turns.flatMap((t) => t.claims).join(' | '))]; } },
+  { id: 'v-renewals', feature: 'V renewals', world: 'home', goal: 'She tracks the passport renewal (2027-03-31) so it shows in Renewals with a reminder before it.', turns: ['My passport expires on March 31, 2027. Keep track of that renewal for me and remind me in time.'], checks: (r) => { const rn = renewalsOf(r.n.app); const p = rn.find((x: any) => /passport/i.test(`${x.title} ${x.what}`)); const rem = r.n.app.planner.reminders({ status: 'all' }).filter((x: any) => /passport/i.test(x.text)); return [...base(r), check('passport in Renewals', Boolean(p), JSON.stringify(rn).slice(0, 200)), check('dated 2027-03-31', p?.date === '2027-03-31', p?.date), check('a reminder before it', Boolean(p?.reminder) || rem.some((x: any) => x.dueAt < '2027-03-31'), JSON.stringify(rem).slice(0, 200))]; } },
+  { id: 'v-purchases', feature: 'V purchases', world: 'home', goal: 'She adds the vacuum to Money → Purchases (purchase_add) and says until when it can be returned.', turns: [`I bought a Dyson V8 vacuum at Target on ${ymd(-1)} for $399.99. Keep track of it so I know until when I can return it.`], checks: (r) => { const ps = purchasesOverview(r.n.app).purchases; const p = ps.find((x: any) => /dyson|vacuum/i.test(x.item)); return [...base(r), ranOk(r, 'purchase_add'), check('purchase row', Boolean(p), JSON.stringify(ps).slice(0, 200)), check('price kept', p?.priceCents === 39999, JSON.stringify(p).slice(0, 200))]; } },
+  { id: 'v-interpreter', feature: 'V interpreter', world: 'home', goal: 'As an interpreter she gives the Spanish sentence for the pharmacist (headache, allergic to penicillin).', turns: ["I'm at a pharmacy in Madrid and the pharmacist only speaks Spanish. Be my interpreter: tell her I need something for a headache and that I'm allergic to penicillin."], checks: (r) => [...base(r), says(r, /dolor de cabeza/i, 'dolor de cabeza'), says(r, /penicilina/i, 'penicilina'), says(r, /al[eé]rgic[oa]|alergia/i, 'alérgico/alergia')] },
+  { id: 'v-movein', feature: 'V1.1 Bring everything', world: 'home', goal: 'Asked to bring everything over from ChatGPT, she points to Move in (Settings → dh-movein) with the export steps; no refusal, no made-up import.', turns: ['I have used ChatGPT for two years. Can you bring everything over from it, my chats and what it knows about me?'], checks: (r) => [...base(r), says(r, /settings:dh-movein|Move in/i, 'the Move in page'), says(r, /export/i, 'the export step'), check('no pretend import', !/I(?:'|’)ve (imported|brought over)/i.test(reply(r)), last(r).slice(0, 200))] },
+  {
+    id: 'v-waiting', feature: 'V1.2 waiting on you', world: 'home', goal: 'Asked what is waiting on him, she names the overdue car registration reminder and the unanswered question.',
+    setup: (_w, n) => { n.app.planner.addReminder?.({ text: 'Renew the car registration', dueAt: new Date(Date.now() - 2 * DAY).toISOString() }); },
+    turns: ['What is waiting on me right now? Anything overdue or that needs my answer?'],
+    checks: (r) => [...base(r), says(r, /registration/i, 'the overdue registration reminder')],
+  },
+  { id: 'v-friend-time', feature: 'V2.10 schedule with friends', world: 'pair', who: 'hank', goal: 'She asks Sam’s Sara for a coffee time next week (friend_time find, approved); only busy blocks cross.', turns: ['Find a time with Sam for coffee next week, 30 minutes.'], checks: (r) => { const all = tools(r).map((t) => t.output).join(' '); return [...base(r), ranOk(r, 'friend_time'), check('asked Sam', /Asked Sam/i.test(all), all.slice(0, 200)), check('no private event title', !/private appointment/i.test(reply(r) + all), 'leak')]; } },
+  { id: 'v-myapps', feature: 'V my apps', world: 'home', goal: 'She builds a tip calculator app and keeps it on Library → My apps (app_keep) with working files.', turns: ['Build me a little app: a tip calculator where I type the bill and pick 15, 18 or 20 percent.'], checks: (r) => { const as = myAppsFor(r.n.app).list(); const a = as[0]; const files = a ? JSON.stringify(myAppsFor(r.n.app).files(a.id)) : ''; return [...base(r), ranOk(r, 'app_keep'), check('an app kept', as.length > 0, 'none'), check('has the 15/18/20 choices', /15/.test(files) && /18/.test(files) && /20/.test(files), files.slice(0, 200))]; } },
+  {
+    id: 'v-timeline', feature: 'V5.1 timeline revert', world: 'home', conv: 'timeline', goal: 'She adds a calendar event (on the action timeline), then takes it back when asked; the event is gone.',
+    turns: [`Put "Yoga class" on my calendar on ${ymd(3)} at 6pm.`, 'Actually, undo that, take the yoga class back off my calendar.'],
+    checks: (r) => { const ev = r.n.extra.events.filter((e: any) => /yoga/i.test(e.title ?? '')); const tl = timelineOf(r.n.app).list({ limit: 50 }); return [...base(r), called(r, 'calendar_add'), check('on the action timeline', tl.some((x: any) => x.tool === 'calendar_add'), JSON.stringify(tl).slice(0, 200)), check('yoga event gone', ev.length === 0, JSON.stringify(ev))]; },
+  },
+  {
+    id: 'v-time', feature: 'W0.6 time sense', world: 'home', conv: 'lasagna', goal: 'Told 50 minutes ago that the lasagna went in, she says it was about 50 minutes ago (from the message time, not a guess).',
+    setup: (_w, n) => { const c = n.app.store.createConversation({ title: 'Dinner' }); const at = new Date(Date.now() - 50 * 60_000).toISOString(); n.app.store.addMessage(c.id, 'user', 'I just put the lasagna in the oven.'); n.app.store.addMessage(c.id, 'assistant', 'Nice, enjoy! Lasagna usually needs about an hour.'); n.app.store.db.prepare('UPDATE messages SET created_at = ? WHERE conversation_id = ?').run(at, c.id); n.convs.set('lasagna', c.id); },
+    turns: ['How long ago did I put the lasagna in?'],
+    checks: (r) => [...base(r), says(r, /\b(4[5-9]|5[0-5])\b|fifty|almost an hour|nearly an hour/i, 'about 50 minutes')],
+  },
+  {
+    id: 'v-always', feature: 'W0.7 Always allow', world: 'home', goal: 'With Always allow everything on, the calendar add runs without a card and lands on the action timeline.',
+    setup: (_w, n) => { setAlwaysAllow(n.app, { on: true, for: '1h', warned: true }); },
+    turns: [`Add "Pick up dry cleaning" to my calendar on ${ymd(2)} at 5pm.`],
+    after: (r) => { setAlwaysAllow(r.n.app, { on: false }); },
+    checks: (r) => { const ev = r.n.extra.events.find((e: any) => /dry clean/i.test(e.title ?? '')); const tl = timelineOf(r.n.app).list({ limit: 50 }); return [...base(r), ranOk(r, 'calendar_add'), check('no approval card', r.turns.every((t) => !t.cards.length), r.turns.flatMap((t) => t.cards).join(' | ')), check('event added', Boolean(ev), 'none'), check('on the action timeline', tl.some((x: any) => x.tool === 'calendar_add' && /dry/i.test(JSON.stringify(x))), JSON.stringify(tl).slice(0, 200))]; },
   },
 ];
 
@@ -798,6 +860,7 @@ try {
   results.judge = opt.judge!;
   save();
   writeFileSync(join(OUT, 'report.md'), report());
+  if (opt.publish) { const f = join(ROOT, 'docs', 'results', `real-runs-${today}-${opt.publish}.json`); writeFileSync(f, JSON.stringify(realSummary(results as never, opt.publish, TASKS.map((t) => t.id)), null, 1) + '\n'); log(`published ${f} (rebuild the page: node scripts/bench-compare.ts --page)`); }
   for (const s of servers) { s.closeAllConnections?.(); s.close(); }
   for (const n of nodes) { try { n.app.research?.close?.(); n.app.store.close(); } catch {} try { rmSync(n.dir, { recursive: true, force: true, maxRetries: 5 }); } catch (e) { log(`left ${n.dir}: ${(e as Error).message}`); } }
   log(`report: ${join(OUT, 'report.md')}`);

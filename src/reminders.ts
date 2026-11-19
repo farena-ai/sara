@@ -12,6 +12,7 @@ import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedPar
 import { healthTick } from './health-log.ts';
 import { photoLibraryTick } from './photo-library.ts';
 import { SharedProjects, sharedProjectsOf } from './shared-projects.ts';
+import { nudgeTick, reminderMayGo } from './nudges.ts';
 
 const LATE_MS = 5 * 60_000;
 
@@ -63,6 +64,8 @@ export class ReminderScheduler {
       delivered++;
     }
     if (delivered) this.#app.events?.publish({ type: 'planner', what: 'reminders' });
+    // W1.2 (docs/NUDGES.md): the day's one roundup of smaller nudges, after quiet hours.
+    guard('nudges', () => void nudgeTick(this.#app, now));
     // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
     this.#app.loops?.due(now);
     this.#app.goals?.tick(now.getTime());
@@ -137,6 +140,13 @@ export class ReminderScheduler {
   }
 
   #deliver(r: Reminder, conversationId: string, text: string, next: Date | null, anchor?: number): void {
+    // W1.2: a reminder she made herself (renewals, gifts, upkeep, trials) asks the nudge gate;
+    // held ones wait for the roundup. Reminders the person set never ask.
+    const gate = reminderMayGo(this.#app, r.id, r.text);
+    if (!gate.go) {
+      this.#planner.markFired(r.id, next, anchor);
+      return;
+    }
     const calls = this.#app.calls;
     if (calls?.wants(r.call ? 'scheduled' : 'reminder', r.call)) {
       const out = calls.ring({ kind: r.call ? 'scheduled' : 'reminder', reason: text, conversationId });
@@ -145,7 +155,7 @@ export class ReminderScheduler {
         return;
       }
     }
-    const msg = this.#app.store.addMessage(conversationId, 'assistant', text, { reminder: { id: r.id, dueAt: r.dueAt, repeat: r.repeat, ...(r.placeId ? { placeId: r.placeId } : {}) } });
+    const msg = this.#app.store.addMessage(conversationId, 'assistant', text, { reminder: { id: r.id, dueAt: r.dueAt, repeat: r.repeat, ...(r.placeId ? { placeId: r.placeId } : {}) }, ...(gate.kind ? { nudge: { kind: gate.kind, why: gate.why } } : {}) });
     this.#planner.markFired(r.id, next, anchor);
     this.#app.events?.publish({ type: 'message', conversationId, message: msg, reason: 'reminder' });
     alertApps(this.#app, alertPlace(this.#app, 'reminders', { origin: () => conversationId, create: false }), text, false);

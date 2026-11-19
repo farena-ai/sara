@@ -1113,7 +1113,7 @@ struct NowItem {
   std::wstring kind, id, conv, text;  // kind: job | approval
 };
 struct NowState {
-  bool online = false, signedIn = false, demo = false;
+  bool online = false, signedIn = false, demo = false, always = false;  // always: W0.5, Always allow everything is on
   std::wstring name = L"Sara", mood;
   std::vector<NowItem> items;
 };
@@ -1839,6 +1839,7 @@ static void takeNow(std::map<std::wstring, std::wstring>& m) {
   n.online = m[L"online"] == L"true";
   n.signedIn = m[L"signedIn"] == L"true";
   n.demo = m[L"demo"] == L"true";
+  n.always = m[L"always"] == L"true";
   if (!m[L"name"].empty()) n.name = m[L"name"].substr(0, 60);
   n.mood = m[L"mood"].substr(0, 40);
   if (!n.online) {
@@ -1998,6 +1999,13 @@ static void refreshNow() {
 static void decideFromTray(const std::wstring& approvalId, bool ok) {
   if (!g_qaReady || !g_qaWeb || approvalId.empty()) return;
   g_qaWeb->ExecuteScript((L"window.saraQuick&&saraQuick.decide(\"" + jsonEscape(approvalId) + L"\"," + (ok ? L"true" : L"false") + L")").c_str(), nullptr);
+}
+/** W0.5: the tray's "Always allow is on — Turn off": the quick-ask page turns it off (the same route as Settings). */
+static void alwaysOffFromTray() {
+  g_now.always = false;  // the menu drops the item at once; the page's refresh confirms it
+  if (!g_qaReady || !g_qaWeb) return;
+  g_qaWeb->ExecuteScript(L"window.saraQuick&&saraQuick.alwaysOff&&saraQuick.alwaysOff()", nullptr);
+  logLine(L"always allow: turned off from the tray");
 }
 static void openConversation(const std::wstring& conv);
 
@@ -3233,7 +3241,7 @@ static void quickAskMenu(HMENU m, bool grey) {
 // quick-ask box, where the person still presses Ask. Pause: the bubble, the tray menu or Settings.
 static const UINT WM_APP_SCREEN = WM_APP + 32;  // a look from the worker thread (lp = sarawatch::Look*)
 static const UINT_PTR kScreenTimer = 33, kScreenHideTimer = 34;
-enum : UINT { ID_SCREEN_PAUSE = 4020, ID_SCREEN_RESUME };
+enum : UINT { ID_SCREEN_PAUSE = 4020, ID_SCREEN_RESUME, ID_ALWAYS_OFF };  // ID_ALWAYS_OFF: W0.5
 static sarawatch::Watch g_watch;
 static std::atomic<bool> g_watchBusy{false};
 static bool g_offerShown = false;
@@ -3380,6 +3388,8 @@ static void trayMenu() {
     mi.dwTypeData = head.data();
     mi.hbmpItem = faceBitmap();
     InsertMenuItemW(m, 0, TRUE, &mi);
+    // W0.5: while Always allow everything is on, its off switch is right under her name.
+    if (g_now.always && g_now.signedIn && !g_now.demo) AppendMenuW(m, MF_STRING, ID_ALWAYS_OFF, L"Always allow is on \u2014 Turn off");
     // Quick ask: off on the demo (read-only) and until she's signed in.
     std::wstring ask = L"Ask " + menuText(g_now.name) + L"…" + (shortcutLabel().empty() || g_shortcutTaken ? L"" : L"\t" + shortcutLabel());
     AppendMenuW(m, MF_STRING | (g_now.demo || !g_now.signedIn ? MF_GRAYED : 0), ID_ASK, ask.c_str());
@@ -4909,6 +4919,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_QA_SELECTION: setPref(L"quickAskSelection", prefOn(L"quickAskSelection", true) ? L"0" : L"1"); break;
         case ID_SCREEN_PAUSE: g_watch.pause(3600000, nowMs()); break;
         case ID_SCREEN_RESUME: g_watch.pause(0, nowMs()); break;
+        case ID_ALWAYS_OFF: alwaysOffFromTray(); break;
         case ID_WAKE_ON:
           // Switching on needs the consent card and the download: that's on Settings → Hey Sara.
           if (wakePref(L"wakeOn", false)) {

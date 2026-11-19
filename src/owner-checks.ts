@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.32.0
+  { id: 'know-why', release: '3.32.0', title: en('See what she knows about you'), steps: [en('Open What Sara knows, press Why on one fact, then Forget and Undo.')], view: '#view=settings:you-knows', expect: en('You see where she learned it and how long ago; Forget removes it and Undo brings it back.') },
+  { id: 'nudge-budget', release: '3.32.0', title: en('Set how often she nudges you'), steps: [en('Find Her nudges on this page and look at the daily budget and roundup hour.')], view: '#view=settings:you-automations', expect: en('Up to that many nudges a day; the rest come together at the roundup hour, and each has Why did I get this?') },
+  { id: 'continue-device', release: '3.32.0', title: en('Continue on another device'), steps: [en('Type something in a chat on your PC without sending it, then open Sara on your phone.')], view: '#view=settings:co-phone', expect: en('A card says Continue where you left off on your PC, and Continue brings back the chat and your words.') },
   // 3.31.0
   { id: 'time-sense', release: '3.31.0', title: en('Ask how long ago you said something'), steps: [en('Ask her anything, wait a few minutes, then send the message below.')], ask: en('How long ago did I ask you that?'), expect: en('She gives the real time (for example 4 minutes ago), never yesterday.') },
   { id: 'always-allow', release: '3.31.0', title: en('Turn on Always allow everything'), steps: [en('Press Always allow everything, read the warning and confirm it is you.')], view: '#view=settings:co-computer', expect: en('A red Always allow is on bar above the message box, with Turn off. Her computer actions run without cards until it ends.') },

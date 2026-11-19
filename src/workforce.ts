@@ -182,7 +182,7 @@ export function workforcePostsTo(app: AppContext): string {
 export function sendWorkforceReport(app: AppContext, now: Date = app.now()): string | undefined {
   const r = workforceReport(app, { now });
   const content = workforceText(app, r);
-  return postAlert(app, 'workforce', { role: 'assistant', reason: 'proactive', content, meta: { workforce: { from: r.from, to: r.to } } });
+  return postAlert(app, 'workforce', { role: 'assistant', reason: 'proactive', nudge: { value: 1, urgency: 'reminder' }, content, meta: { workforce: { from: r.from, to: r.to } } });
 }
 
 const localParts = (now: Date, tz: string | undefined) => {
@@ -210,6 +210,6 @@ export function workforceTick(app: AppContext, now: Date = app.now()): boolean {
   if (!st.lastWeek || !prefs.on) return false;
   const r = workforceReport(app, { now });
   if (!r.total.done && !r.total.failed) return false;
-  postAlert(app, 'workforce', { role: 'assistant', reason: 'proactive', content: workforceText(app, r), meta: { workforce: { from: r.from, to: r.to } } });
+  postAlert(app, 'workforce', { role: 'assistant', reason: 'proactive', nudge: { value: 0.6 }, content: workforceText(app, r), meta: { workforce: { from: r.from, to: r.to } } });
   return true;
 }
