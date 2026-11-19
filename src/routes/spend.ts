@@ -23,7 +23,9 @@ export function createSpendRoutes(ctx: RouteCtx): RouteHandler {
   return async (req, res, method, parts) => {
     const [a, b] = parts;
     if (a !== 'spend' || b) return NEXT;
-    if (ctx.opts.demo || ctx.opts.member || app.member) {
+    // W2.3: a hosted friend sets their own spend limit (their own models, their own money).
+    const hosted = typeof ctx.opts.member?.record === 'function' && Boolean(ctx.opts.member.record()?.hosted);
+    if (ctx.opts.demo || ((ctx.opts.member || app.member) && !hosted)) {
       if (method !== 'GET') await readJson(req).catch(() => undefined);
       throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
     }

@@ -10,8 +10,9 @@ import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
 import { en } from './i18n.ts';
 import { localDate } from './memory-worker.ts';
+import { herVoice } from './persona-style.ts';
 import { speechOf } from './speech.ts';
-import { DEFAULT_VOICE, speechChunks, VoiceError, type Audio } from './voice.ts';
+import { speechChunks, VoiceError, type Audio } from './voice.ts';
 
 export type BriefingVoice = 'local' | 'chosen';
 export const BRIEFING_COLLECTION = 'Briefings';
@@ -92,11 +93,11 @@ function wavSeconds(b: Buffer): number | undefined {
 
 /** The voice the recording uses: the local engine unless the person picked their chosen (maybe cloud) voice. */
 export function briefingSpeaker(app: AppContext, choice: BriefingVoice): Speak {
-  const v = { ...DEFAULT_VOICE, ...app.settings.get().voice };
+  const v = herVoice(app);
   if (choice === 'chosen') return (text) => speechOf(app).speak(text);
   return async (text) => {
     if (!app.voice || !app.voice.voices().length) throw new VoiceError('The voice on this computer isn’t installed. Install it in Settings → Voice, or pick your chosen voice.');
-    return app.voice.speak(text, v.localVoice, v.speed ?? 1);
+    return app.voice.speak(text, v.local, v.speed);
   };
 }
 

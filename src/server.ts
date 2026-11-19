@@ -21,6 +21,7 @@ import { speechOf } from './speech.ts';
 import { extname, join, normalize, resolve, sep } from 'node:path';
 import { DEVICE_TOKEN_PREFIX, deviceLabel, LoginLimiter, OwnerAuth, SESSION_COOKIE } from './auth.ts';
 import { createDeviceGate } from './device-gate.ts';
+import { hostedView } from './hosted.ts';
 import { cleanLimits as cleanMemberLimits, COST_LIMITS, HouseholdError, INVITE_HOURS, LEAVING_DAYS, MESSAGE_LIMITS, memberRouteCheck, type MemberRecord, type ModelPick, type PairRegistry } from './household.ts';
 import type { FirstClaim } from './claim.ts';
 import { cleanScope, DeviceFlow } from './device-flow.ts';
@@ -298,6 +299,8 @@ export interface HouseholdHooks {
   signOutAll: (id: string) => void;
   /** V0.8: a new session in a member's space (OpenID Connect sign-in mapped to them). */
   sessionFor?: (id: string, label: string) => { value: string; maxAgeSeconds: number; id: string } | undefined;
+  /** W2.3: a notification to a hosted friend's own devices (e.g. their space is closing). */
+  tellHosted?: (id: string, title: string, body: string, params?: Record<string, string | number>) => void;
 }
 
 /** A soft square picture with a companion's initial (until she has a look of her own). */
@@ -1472,7 +1475,7 @@ export function createSaraServer(opts: ServerOptions): Server {
         // V0.8: "Sign in with <provider>" when OpenID Connect sign-in is on.
         ...(!authed && homeSso && !opts.member && homeSso.status().enabled ? { sso: homeSso.status() } : {}),
         // Phase 71: who is signed in (the owner, or a household member and their account's state).
-        ...(authed && !opts.demo ? (opts.member ? { role: 'member', member: (({ name, status, deleteAfter, limits, child }) => ({ name, status, deleteAfter: deleteAfter ?? null, voice: limits.voice, pictures: limits.pictures, ...(child ? { child: true } : {}) }))(opts.member.record() ?? ({ name: '', status: 'suspended', limits: { voice: false, pictures: false } } as unknown as MemberRecord)) } : { role: 'owner', ...(opts.household ? { household: true } : {}) }) : {}),
+        ...(authed && !opts.demo ? (opts.member ? { role: 'member', member: (({ name, status, deleteAfter, limits, child, hosted }) => ({ name, status, deleteAfter: deleteAfter ?? null, voice: limits.voice, pictures: limits.pictures, ...(child ? { child: true } : {}), ...(hosted ? { hosted: true } : {}) }))(opts.member.record() ?? ({ name: '', status: 'suspended', limits: { voice: false, pictures: false } } as unknown as MemberRecord)) } : { role: 'owner', ...(opts.household ? { household: true } : {}) }) : {}),
         // Phase 59: a new server that can be set up in the browser (only while nobody has signed in).
         ...(() => {
           const st = !authed && !opts.demo && auth.setupPending ? opts.claim?.status() : undefined;
@@ -1842,6 +1845,7 @@ export function createSaraServer(opts: ServerOptions): Server {
             limits: { ...rec.limits, models: rec.limits.models.map((m) => ({ ...m, label: models.find((p) => p.id === m.providerId)?.label ?? m.providerId })) },
             today: app.member?.today() ?? { messages: 0, usd: 0 },
             companions: opts.member.apps().length,
+            ...(rec.hosted ? { hosted: true } : {}),
           });
         }
         if (c === 'export' && !parts[3] && method === 'GET') {
@@ -1869,19 +1873,61 @@ export function createSaraServer(opts: ServerOptions): Server {
       const memberView = (m: MemberRecord) => ({ id: m.id, name: m.name, status: m.status, createdAt: m.createdAt, deleteAfter: m.deleteAfter ?? null, limits: m.limits, child: m.child ?? null, usage: H.usage(m.id) });
       const view = () => ({
         members: H.store.members().map(memberView),
-        invites: H.store.invites(),
+        invites: H.store.invites().filter((i) => !i.hosted),
+        // W2.3: hosted friends (totals only) and their pending invites.
+        hosted: H.store.hosted().map((m) => hostedView(m, H.usage(m.id))),
+        hostedInvites: H.store.invites().filter((i) => i.hosted),
         models: H.models(),
         options: { hours: INVITE_HOURS, messages: MESSAGE_LIMITS, cost: COST_LIMITS, leavingDays: LEAVING_DAYS },
       });
+      const inviteLink = (code: string) => {
+        const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
+        const url = `${origin}/#join=${code}`;
+        return { url, qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(url)).toString('base64')}` };
+      };
       if (!b && method === 'GET') return send(res, 200, view());
+      // W2.3 (docs/HOSTING_FRIENDS.md): a Sara hosted for a friend. The owner gets totals, pause and remove (after an export window).
+      if (b === 'hosted') {
+        const d = parts[3];
+        try {
+          if (c === 'invites' && !d && method === 'POST') {
+            const body = await readJson(req);
+            const { code, invite } = H.store.invite({ name: body.name, hours: body.hours, confirm18: body.confirm18, limits: { models: [], messagesPerDay: 0, costPerDay: 0, voice: true, pictures: true }, hosted: true });
+            return send(res, 200, { code, ...inviteLink(code), invite, ...view() });
+          }
+          if (!c && method === 'GET') return send(res, 200, { hosted: view().hosted, hostedInvites: view().hostedInvites });
+          const cur = c ? H.store.get(c) : undefined;
+          if (!c || !cur?.hosted) throw new HttpError(404, 'No such friend.');
+          if (!d && method === 'GET') return send(res, 200, hostedView(cur, H.usage(c)));
+          if (!d && method === 'PUT') {
+            const body = await readJson(req);
+            if (body.status === 'active' || body.status === 'suspended') H.store.setStatus(c, body.status);
+            if (body.name !== undefined) H.store.rename(c, body.name);
+            return send(res, 200, view());
+          }
+          if (d === 'remove' && !parts[4] && method === 'POST') {
+            await readJson(req);
+            H.store.markLeaving(c);
+            H.tellHosted?.(c, en('Your Sara on this server is closing'), en('Download your data in Settings → Your account within {n} days. After that it is deleted.'), { n: LEAVING_DAYS });
+            return send(res, 200, view());
+          }
+          if (!d && method === 'DELETE') {
+            if (cur.status !== 'leaving') throw new HttpError(409, 'Remove them first (they get a few days to download their data).');
+            await H.deleteNow(c);
+            return send(res, 200, view());
+          }
+        } catch (err) {
+          if (err instanceof HttpError) throw err;
+          return herr(err);
+        }
+        throw new HttpError(404, 'Not found');
+      }
       if (b === 'invites' && !c && method === 'POST') {
         const body = await readJson(req);
         try {
           const limits = cleanMemberLimits(body.limits, H.models());
           const { code, invite } = H.store.invite({ name: body.name, hours: body.hours, confirm18: body.confirm18, limits, ...(body.child ? { child: body.child, confirmGuardian: body.confirmGuardian } : {}) });
-          const origin = typeof req.headers.origin === 'string' && req.headers.origin !== 'null' ? req.headers.origin : `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`;
-          const url = `${origin}/#join=${code}`;
-          return send(res, 200, { code, url, invite, qr: `data:image/svg+xml;base64,${Buffer.from(qrSvg(url)).toString('base64')}`, ...view() });
+          return send(res, 200, { code, ...inviteLink(code), invite, ...view() });
         } catch (err) {
           return herr(err);
         }
@@ -1893,7 +1939,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (b === 'members' && c) {
         const d = parts[3];
         const cur = H.store.get(c);
-        if (!cur) throw new HttpError(404, 'No such member.');
+        if (!cur || cur.hosted) throw new HttpError(404, 'No such member.');
         try {
           if (!d && method === 'PUT') {
             const body = await readJson(req);

@@ -162,6 +162,21 @@ const
 function SetEnvironmentVariable(lpName, lpValue: String): BOOL;
   external 'SetEnvironmentVariableW@kernel32.dll stdcall';
 
+// W2.1 preflight: the same limits as src/preflight.ts and deploy/lib-preflight.sh (test/w2-install.test.ts).
+const
+  PF_DISK_FAIL_MB = 1024;
+  PF_REMOTE_DISK_MB = 300;
+  PF_RAM_FAIL_MB = 450;
+  PF_RAM_WARN_MB = 1536;
+  PF_MIN_WIN_BUILD = 17763;
+type
+  TMemoryStatusEx = record
+    dwLength, dwMemoryLoad: DWORD;
+    ullTotalPhys, ullAvailPhys, ullTotalPageFile, ullAvailPageFile, ullTotalVirtual, ullAvailVirtual, ullAvailExtendedVirtual: Int64;
+  end;
+function GlobalMemoryStatusEx(var Buf: TMemoryStatusEx): BOOL;
+  external 'GlobalMemoryStatusEx@kernel32.dll stdcall';
+
 var
   UsePage: TWizardPage;
   UseLocal, UseRemote: TNewRadioButton;
@@ -586,11 +601,89 @@ begin
   end;
 end;
 
+// ---------- W2.1 preflight ----------
+// A TestInstall build can pretend a check failed (/PFTEST=os,ram,disk) to show its card; release builds can't.
+function PfTest(const What: String): Boolean;
+begin
+  Result := False;
+#ifdef TestInstall
+  Result := Pos(',' + What + ',', ',' + Lowercase(ExpandConstant('{param:PFTEST|}')) + ',') > 0;
+#endif
+end;
+
+function PfCard(const Title, Why, Fix: String): String;
+begin
+  Result := Title + #13#10#13#10 + Why + #13#10#13#10 + 'Next step: ' + Fix;
+  Log('Preflight: ' + Title + ' | ' + Why + ' | Next step: ' + Fix);
+end;
+
+function PfDiskCard(const Path: String; NeedMb: Integer): String;
+var Free, Total: Int64; Drive: String; FreeMb: Int64;
+begin
+  Result := '';
+  Drive := AddBackslash(ExtractFileDrive(Path));
+  if Length(Drive) < 3 then exit;
+  if not GetSpaceOnDisk64(Drive, Free, Total) then begin
+    Log('Preflight: could not read the free space of ' + Drive);
+    exit;
+  end;
+  FreeMb := Free div (1024 * 1024);
+  if PfTest('disk') then FreeMb := 100;
+  Log('Preflight: ' + Drive + ' has ' + IntToStr(FreeMb) + ' MB free');
+  if FreeMb < NeedMb then
+    Result := PfCard('Not enough free disk space on ' + Drive,
+      Drive + ' has ' + IntToStr(FreeMb) + ' MB free; Sara needs at least ' + IntToStr(NeedMb) + ' MB there.',
+      'free space with Settings → System → Storage → Cleanup recommendations (or empty the Recycle Bin), then run Setup again.');
+end;
+
+// 'start': Windows version and memory (before any question). 'disk': free space where the files and her data go.
+function PreflightProblem(const Phase: String): String;
+var V: TWindowsVersion; Mem: TMemoryStatusEx; Mb: Int64;
+begin
+  Result := '';
+  if Phase = 'start' then begin
+    GetWindowsVersionEx(V);
+    if PfTest('os') then V.Build := 17134;
+    Log('Preflight: Windows ' + IntToStr(V.Major) + '.' + IntToStr(V.Minor) + ' build ' + IntToStr(V.Build));
+    if (V.Major = 10) and (V.Build < PF_MIN_WIN_BUILD) then begin
+      Result := PfCard('Windows is too old for Sara.',
+        'This is Windows build ' + IntToStr(V.Build) + '; Sara needs Windows 10 version 1809 (build ' + IntToStr(PF_MIN_WIN_BUILD) + ') or newer.',
+        'open Settings → Windows Update, install the updates (or the newest feature update), then run Setup again.');
+      exit;
+    end;
+    Mem.dwLength := 64;
+    if GlobalMemoryStatusEx(Mem) then begin
+      Mb := Mem.ullTotalPhys div (1024 * 1024);
+      if PfTest('ram') then Mb := 300;
+      Log('Preflight: ' + IntToStr(Mb) + ' MB of memory');
+      if Mb < PF_RAM_FAIL_MB then
+        Result := PfCard('Not enough memory for Sara.',
+          'This computer has ' + IntToStr(Mb) + ' MB of memory; Sara needs at least ' + IntToStr(PF_RAM_FAIL_MB) + ' MB (2 GB or more is comfortable).',
+          'install Sara on a computer with more memory, and connect this one to it: Sara-Setup.exe /MODE=remote /SERVER=<its address>.')
+      else if Mb < PF_RAM_WARN_MB then
+        Log('Preflight: memory is tight (' + IntToStr(Mb) + ' MB): big imports and local voice may be slow.');
+    end;
+  end else if Phase = 'disk' then begin
+    if IsRemote then Result := PfDiskCard(ExpandConstant('{app}'), PF_REMOTE_DISK_MB)
+    else begin
+      Result := PfDiskCard(ExpandConstant('{app}'), PF_DISK_FAIL_MB);
+      if (Result = '') and (Uppercase(ExtractFileDrive(DataDir)) <> Uppercase(ExtractFileDrive(ExpandConstant('{app}')))) then
+        Result := PfDiskCard(DataDir, PF_DISK_FAIL_MB);
+    end;
+  end;
+end;
+
 // ---------- wizard ----------
 function InitializeSetup: Boolean;
 var M, P: String;
 begin
   Result := True;
+  P := PreflightProblem('start');
+  if P <> '' then begin
+    SuppressibleMsgBox(P, mbError, MB_OK, IDOK);
+    Result := False;
+    exit;
+  end;
   M := Lowercase(ExpandConstant('{param:MODE|}'));
   if (M <> '') and (M <> 'service') and (M <> 'user') and (M <> 'remote') then begin
     SuppressibleMsgBox('/MODE must be service, user or remote.', mbError, MB_OK, IDOK);
@@ -999,7 +1092,8 @@ end;
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 var App, O: String; P: Integer;
 begin
-  Result := '';
+  Result := PreflightProblem('disk');
+  if Result <> '' then exit;
   App := ExpandConstant('{app}');
   IsUpgrade := FileExists(App + '\sara.env');
   if IsRemote then begin

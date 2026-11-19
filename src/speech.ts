@@ -4,6 +4,7 @@
 // engine reads WAV only.
 
 import { voiceForLang } from './interpreter.ts';
+import { herVoice } from './persona-style.ts';
 import { netFetch } from './net-guard.ts';
 import { localVoiceMissing, localVoiceSupported } from './platform.ts';
 import { speechLanguage } from './i18n.ts';
@@ -134,7 +135,9 @@ export class Speech {
     const mood = v.followMood === false ? {} : this.mood();
     const tone = opts.tone ?? v.tone ?? 'natural';
     const level = opts.expressive ?? v.expressive ?? 'subtle';
-    const speed = moodSpeed(v.speed, mood, tone);
+    // W1.4: voice id and speed from the one persona style (src/persona-style.ts).
+    const her = herVoice(this.#app);
+    const speed = moodSpeed(her.speed, mood, tone);
     // R5: phone calls need PCM (WAV or raw), never MP3.
     if (v.tts === 'openai') return openaiSpeak(v.openai, this.#app.vault.get(VOICE_VAULT.openai), plain, speed, toneInstructions(mood, tone, level), opts.phone ? 'wav' : 'mp3');
     // R2d: an engine gets only the tags its provider documents (expressive.ts engineTags), else plain words.
@@ -142,7 +145,7 @@ export class Speech {
     if (v.tts === 'xai' && opts.phone) throw new VoiceError('Grok voice makes MP3 only, which a phone line can’t play here.');
     if (v.tts === 'xai') return xaiSpeak(v.xai, await this.xaiKey().catch((e: Error) => { throw new VoiceError(e.message); }), forEngine(tagged(text, level, mood, tone), 'xai').slice(0, 1400), speed);
     if (!this.#app.voice) throw new VoiceError(localVoiceSupported() ? 'The voice on this server is not installed (deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
-    return this.#app.voice.speak(plain, voiceId ?? v.localVoice, speed);
+    return this.#app.voice.speak(plain, voiceId ?? her.local, speed);
   }
 
   /** How she feels right now, for her voice. */

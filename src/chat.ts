@@ -7,6 +7,7 @@ import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
 import { talkNote } from './talk.ts';
 import { homeVoiceTurn } from './home-voice.ts';
+import { asksHowAmIDoing } from './her-week-words.ts';
 import { existsSync } from 'node:fs';
 import { withKeyRotation } from './key-rotation.ts';
 import { audit } from './audit-trail.ts';
@@ -2475,6 +2476,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   if (sop) {
     const msg = addAssistantMessage(sop.reply, sop.meta);
     yield { type: 'token', text: sop.reply };
+    yield { type: 'done', messageId: msg.id };
+    return;
+  }
+  // W1.5 (docs/HER_WEEK.md): "How am I doing?" answers with the weekly check-in card (no model, no tools).
+  const herWeek = ownerApp && !opts.resume && !opts.replay && !opts.group && asksHowAmIDoing(text, app.persona?.name) ? (await import('./her-week.ts')).herWeekTurn(app, text) : undefined;
+  if (herWeek) {
+    const msg = addAssistantMessage(herWeek.reply, herWeek.meta);
+    yield { type: 'token', text: herWeek.reply };
     yield { type: 'done', messageId: msg.id };
     return;
   }

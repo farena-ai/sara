@@ -22,6 +22,9 @@ import { localDate } from '../memory-worker.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { fillNames, scrubPersona } from '../packs/scrub.ts';
 import { loadPersona, type Persona, SAFETY_BOUNDARIES, validatePersona, withOwnPronouns } from '../persona.ts';
+import { cleanStyle, FACE_MODES, GREET_STYLES, personaStyle, previewOf } from '../persona-style.ts';
+import { receptionFor } from '../reception.ts';
+import { writingFor } from '../humanize.ts';
 import { talksHere } from '../private-local.ts';
 import { badgeCount } from '../shortcuts.ts';
 import { detectMinorSexualContent } from '../safety.ts';
@@ -466,6 +469,42 @@ export function createHerRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (parts.voice && c.voice) app.settings.update({ voice: withCharacterVoice(app, c.voice) });
       return send(res, 200, { persona: c.persona, look: lookDone, voice: Boolean(parts.voice && c.voice), renamedMemories: renamed });
+    }
+    // W1.4 How she comes across: one style from the persona store (src/persona-style.ts).
+    if (a === 'persona' && b === 'style') {
+      const view = () => {
+        const s = personaStyle(app);
+        return { style: { signOff: s.signOff, greet: s.greet, face: s.face, humanizer: s.humanizer }, source: s.source, name: s.name, talk: s.talk, textRules: s.textRules, voice: s.voice, voiceCard: s.voiceCard, greets: GREET_STYLES, faces: FACE_MODES };
+      };
+      if (c === 'preview' && !parts[3] && method === 'POST') {
+        const body = (await readJson(req)) as { sentence?: unknown };
+        let business = '';
+        try {
+          business = receptionFor(app).business;
+        } catch {
+          business = '';
+        }
+        return send(res, 200, previewOf(personaStyle(app), String(body.sentence ?? ''), { owner: app.settings.get().ownerName?.trim() ?? '', business }));
+      }
+      if (c) return NEXT;
+      if (method === 'GET') return send(res, 200, view());
+      if (method === 'PUT') {
+        const body = (await readJson(req)) as Record<string, unknown>;
+        if (body.greet !== undefined && body.greet !== '' && !GREET_STYLES.includes(body.greet as never)) throw new HttpError(400, 'Pick a greeting style from the list.');
+        if (body.face !== undefined && body.face !== '' && !FACE_MODES.includes(body.face as never)) throw new HttpError(400, 'Pick a picture from the list.');
+        if (body.humanizer !== undefined) writingFor(app).setStyle(body.humanizer as never);
+        const cur = { ...(app.persona.style ?? {}) } as Record<string, unknown>;
+        for (const k of ['signOff', 'greet', 'face'] as const) if (body[k] !== undefined) cur[k] = body[k];
+        let style;
+        try {
+          style = cleanStyle(cur);
+        } catch (err) {
+          throw as400(err);
+        }
+        const { style: _old, ...rest } = app.persona;
+        savePersona(app, validatePersona(style ? { ...rest, style } : rest));
+        return send(res, 200, view());
+      }
     }
     if (a === 'persona' && !b) {
       const file = join(app.dataDir, 'persona.json');

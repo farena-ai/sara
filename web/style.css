@@ -1634,6 +1634,12 @@ body:not(.member) [data-member-only] { display: none !important; }
 .acc-info { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 8px 0 12px; }
 .acc-info dt { color: var(--muted); }
 .acc-info dd { margin: 0; overflow-wrap: anywhere; }
+/* W2.3: a Sara hosted for a friend (web/hosted.js) */
+.hst-box, .hst-own { display: grid; gap: 10px; max-width: 560px; }
+.hst-box .dev-list:empty { display: none; }
+.hst-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.hst-row p, .hst-box > p, .hst-own > p { margin: 0; }
+.hst-box > [role="status"]:empty { display: none; }
 
 /* Phase 73: Settings → Abilities → Servers over SSH */
 .ssh-list { display: grid; gap: 8px; margin: 8px 0; }
@@ -2920,3 +2926,15 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 .offans-chip .offans-again { padding: 2px 10px; }
 #offline-box .offans-head { margin: 14px 0 2px; }
 #offline-box .offans-acts { display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 0; }
+
+/* W1.4 How she comes across (web/comes-across.js) */
+#settings .hca-box label { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+#settings .hca-box label > input, #settings .hca-box label > select { flex-basis: 100%; }
+#settings .hca-prev { display: grid; gap: 8px; margin: 10px 0 14px; padding: 12px; border-radius: 12px; background: var(--surface-2); min-width: 0; }
+#settings .hca-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) auto; gap: 8px; align-items: start; }
+#settings .hca-k { font-size: 0.82rem; color: var(--muted); padding-top: 4px; }
+#settings .hca-row p { margin: 0; overflow-wrap: anywhere; font-size: 0.92rem; }
+#settings .hca-bubble { padding: 6px 10px; border-radius: 12px; background: var(--surface-1); border: 1px solid var(--hairline-strong, var(--line)); justify-self: start; }
+#settings .hca-email { white-space: pre-line; }
+#settings .hca-row > :nth-child(2):last-child { grid-column: 2 / -1; }
+@media (max-width: 520px) { #settings .hca-row { grid-template-columns: minmax(0, 1fr) auto; } #settings .hca-k { grid-column: 1 / -1; padding: 0; } }

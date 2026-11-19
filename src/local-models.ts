@@ -5,7 +5,7 @@
 // Cancel. Nothing is installed without the owner pressing a button; on Windows the optional
 // "Install Ollama with winget" runs only after an explicit click.
 import { execFile, spawn } from 'node:child_process';
-import { arch, platform, totalmem } from 'node:os';
+import { arch, cpus, platform, totalmem } from 'node:os';
 import { assertOnline, netFetch } from './net-guard.ts';
 import type { ProviderConfig } from './providers/types.ts';
 import { isCloudModelName, EMBED_MODEL_NAME } from './model-names.ts';
@@ -20,6 +20,8 @@ export interface Hardware {
   arch: string;
   /** RAM in GB (rounded to one decimal). */
   ramGb: number;
+  /** W2.2: the processor (name of the first core and the number of logical cores). */
+  cpu?: { name: string; cores: number };
   /** The biggest NVIDIA GPU, if nvidia-smi found one. */
   gpu?: { name: string; vramGb: number };
   /** Apple silicon: the GPU shares the main memory. */
@@ -95,7 +97,7 @@ export function parseNvidiaSmi(out: string): { name: string; vramGb: number } | 
 }
 
 /** Looks at this computer. Never fails: what it can't find is left out. */
-export async function detectHardware(opts: { exec?: Exec; platform?: string; arch?: string; totalmem?: number } = {}): Promise<Hardware> {
+export async function detectHardware(opts: { exec?: Exec; platform?: string; arch?: string; totalmem?: number; cpus?: { model: string }[] } = {}): Promise<Hardware> {
   const run = opts.exec ?? execText;
   const plat = opts.platform ?? platform();
   const cpu = opts.arch ?? arch();
@@ -110,7 +112,15 @@ export async function detectHardware(opts: { exec?: Exec; platform?: string; arc
     const out = await run('nvidia-smi', ['--query-gpu=name,memory.total', '--format=csv,noheader,nounits']).catch(() => '');
     gpu = parseNvidiaSmi(out);
   }
-  const base = { platform: plat, arch: cpu, ramGb: Math.round((ram / GB) * 10) / 10, ...(gpu ? { gpu } : {}), ...(appleSilicon ? { appleSilicon } : {}) };
+  const cores = (() => {
+    try {
+      return opts.cpus ?? cpus();
+    } catch {
+      return [];
+    }
+  })();
+  const proc = cores.length ? { cpu: { name: String(cores[0]?.model ?? '').replace(/\s+/g, ' ').trim().slice(0, 80), cores: cores.length } } : {};
+  const base = { platform: plat, arch: cpu, ramGb: Math.round((ram / GB) * 10) / 10, ...proc, ...(gpu ? { gpu } : {}), ...(appleSilicon ? { appleSilicon } : {}) };
   return { ...base, ...memoryBudget(base) };
 }
 

@@ -19,6 +19,7 @@
 //   GET    /api/automations/:key/template         {template} (automations only; no personal data)
 //   preview / dry-run / create also take {template, values} or {gallery, values}; create needs allow: true.
 import { fewerLikeThis, moreLikeThis, nudgeState, saveNudgePrefs } from '../nudges.ts';
+import { herWeekAccept, herWeekPrefs, herWeekSkip, saveHerWeekPrefs, sendHerWeek } from '../her-week.ts';
 import { exportTemplate, fillTemplate, GALLERY, parseTemplate, TemplateError } from '../automation-templates.ts';
 import { AutomationError, automationsFor, draftFromWords, STARTERS, type Draft } from '../automations.ts';
 import { appReady, checkDest, cleanDest, describeDest, destFor, feedItems, feedOfItem, FEEDS, feedTitle, isFeed, originLabel, ownerProjects, ownerWebChats, setFeedDest, setItemDest } from '../destinations.ts';
@@ -79,6 +80,32 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
         else moreLikeThis(app, kind);
       } else if (c || method !== 'GET') throw new HttpError(c ? 404 : 405, c ? 'Not found' : 'Method not allowed');
       return send(res, 200, nudgeState(app));
+    }
+    // W1.5 (docs/HER_WEEK.md): the weekly check-in.
+    //   GET|PUT /api/automations/her-week {on, day, time} · POST /her-week/now · POST /her-week/accept|skip {id, message?}
+    if (b === 'her-week') {
+      if (!c && method === 'PUT') {
+        const body = await readJson(req);
+        saveHerWeekPrefs(app, { ...(typeof body.on === 'boolean' ? { on: body.on } : {}), ...(typeof body.day === 'number' ? { day: body.day } : {}), ...(typeof body.time === 'string' ? { time: body.time } : {}) });
+      } else if (c === 'now' && method === 'POST' && !d) {
+        await readJson(req).catch(() => undefined);
+        return send(res, 200, { conversationId: sendHerWeek(app, true) ?? null });
+      } else if ((c === 'accept' || c === 'skip') && method === 'POST' && !d) {
+        const body = await readJson(req);
+        const id = typeof body.id === 'string' ? body.id : '';
+        const message = typeof body.message === 'number' ? body.message : undefined;
+        try {
+          if (c === 'skip') {
+            herWeekSkip(app, id, message);
+            return send(res, 200, { ok: true });
+          }
+          return send(res, 200, { row: herWeekAccept(app, id, message) });
+        } catch (err) {
+          const e = err as { status?: number; message: string };
+          throw new HttpError(e.status ?? 400, T(e.message));
+        }
+      } else if (c || method !== 'GET') throw new HttpError(c ? 404 : 405, c ? 'Not found' : 'Method not allowed');
+      return send(res, 200, herWeekPrefs(app));
     }
     if (b === 'alerts' && !c) {
       if (method === 'PUT') {

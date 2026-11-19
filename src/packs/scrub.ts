@@ -5,7 +5,7 @@
 import type { Persona } from '../persona.ts';
 
 /** The persona fields a pack keeps (§4.3); anything else in persona.json fails `persona`. */
-export const PERSONA_KEYS = ['name', 'pronouns', 'age', 'appearance', 'summary', 'background', 'personality', 'speech', 'boundaries', 'traits', 'humour', 'life', 'archetype', 'talk', 'relationship', 'away', 'conflict', 'others', 'slowBurn', 'quietFocus', 'intimacy'] as const;
+export const PERSONA_KEYS = ['name', 'pronouns', 'age', 'appearance', 'summary', 'background', 'personality', 'speech', 'boundaries', 'traits', 'humour', 'life', 'archetype', 'talk', 'relationship', 'away', 'conflict', 'others', 'slowBurn', 'quietFocus', 'intimacy', 'style'] as const;
 /** Her side of intimacy (yourLimits and stopWord are his). */
 export const INTIMACY_KEYS = ['level', 'initiative', 'likes', 'limits', 'turnoffs'] as const;
 

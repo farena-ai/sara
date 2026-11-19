@@ -5,6 +5,36 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.33.0 (2026-11-19): One personality, weekly check-in, easier installs, first ten minutes, host a friend
+
+- New: **How Sara comes across** (Settings → Sara → Name and personality): one personality for chat, her voice,
+  email drafts and your website receptionist. Set an email sign-off, the receptionist's greeting style and the
+  picture devices show by default, and see one sentence as chat text, spoken, as an email line and after the
+  receptionist's greeting. Everything is kept in her character (and its file), per companion and per person (W1.4).
+- New: her weekly check-in shows what she did, what failed and what cost money, with three ideas you can accept in one tap. Ask any time in chat: "How am I
+  doing?" (six languages). It goes through the daily nudge budget (docs/HER_WEEK.md) (W1.5).
+- New: the first ten minutes: Set up Sara looks at this computer and offers the right way to run her model, then ends with three quick wins (W2.2). Then Bring what you have, Where do you text? with Send me a test, and three
+  quick wins tailored to what is connected. Every step skippable and kept; six languages.
+- New: **Host a Sara for a friend** (Settings → Household → People on this server). An invite link gives a
+  friend their own Sara on your server that is not part of your household: they bring their own model
+  and API key and set their own spending limit (Settings → Your account), their keys are sealed with a
+  key file of their own, and you see only their 7-day totals. Pause, or Remove with 7 days for them to
+  download their data. Your Data rights exports and usage reports leave their space out. See
+  docs/HOSTING_FRIENDS.md (W2.3).
+- New: every installer checks the machine before it changes anything (W2.1): disk space, memory, the
+  port, the system and its version, a 64-bit CPU, an earlier install, administrator rights and the
+  internet. Each problem is a card with what is wrong and the exact next step (32-bit Raspberry Pi OS,
+  no systemd, Alpine, little memory with the swap commands, a port in use with the command that shows
+  who has it). Only the checks: `get-sara.sh --preflight`, `install.sh --preflight` or
+  `node src/main.ts --preflight`. Windows Setup checks the Windows version, memory and disk space first.
+- Fixed: when another program already uses her port, Sara now says so with the next step instead of
+  stopping with a long error.
+- Tests: `node scripts/install-matrix.ts` installs Sara in throwaway containers (Ubuntu 22.04/24.04,
+  Debian 12, Fedora 40, AlmaLinux 9, arm64, Docker Compose) from a local tarball; results in
+  docs/INSTALL_MATRIX.md.
+- Fixed: the guided setup no longer opens again after Finish when it was first opened by hand, and
+  shows one close button.
+
 ## 3.32.0 (2026-11-19): What Sara knows, polite nudges, continue on another device, Mac parity
 
 - New: one "What I know about you" page (W1.1). Settings → You → What Sara knows now lists everything she

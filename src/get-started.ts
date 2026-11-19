@@ -18,10 +18,12 @@ import type { AppContext } from './chat.ts';
 import { automationsFor, type Draft } from './automations.ts';
 import { getLayout, putLayout, SECTIONS, type SectionId } from './today-layout.ts';
 import { PACK_HINTS } from './pack-hint.ts';
+import { broughtIn, chatAppName } from './first-ten.ts';
 
 export { packNote } from './pack-hint.ts';
 
-export const STEPS = ['model', 'mail', 'calendar', 'phone', 'computer'] as const;
+// W2.2 (docs/design/W2FIRST.md): Bring everything and Where do you text? come right after the model.
+export const STEPS = ['model', 'bring', 'chat', 'mail', 'calendar', 'phone', 'computer'] as const;
 export type StepId = (typeof STEPS)[number];
 export const isStep = (s: unknown): s is StepId => (STEPS as readonly string[]).includes(s as string);
 
@@ -126,7 +128,9 @@ export function detect(app: AppContext, c: Connected): Record<StepId, boolean> {
     hands = 0;
   }
   const computer = hands > 0 || c.devices.some((d) => COMPUTER.test(d));
-  return { model, mail, calendar, phone, computer };
+  const bring = !c.member && broughtIn(app);
+  const chat = !c.member && chatAppName(app) !== null;
+  return { model, bring, chat, mail, calendar, phone, computer };
 }
 
 export interface StepView {
@@ -147,8 +151,9 @@ export interface GuideView {
   samples: boolean;
 }
 
-/** A member's models are set up by the owner: their guide has no model step. */
-export const stepsFor = (member: boolean): StepId[] => (member ? STEPS.filter((s) => s !== 'model') : [...STEPS]);
+/** A member's models, imports and chat apps are the owner's (owner-only pages): their guide skips those. */
+const OWNER_STEPS: readonly StepId[] = ['model', 'bring', 'chat'];
+export const stepsFor = (member: boolean): StepId[] => (member ? STEPS.filter((s) => !OWNER_STEPS.includes(s)) : [...STEPS]);
 
 export function guideView(app: AppContext, c: Connected): GuideView {
   const p = readProgress(app);

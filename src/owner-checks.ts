@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.33.0
+  { id: 'comes-across', release: '3.33.0', title: en('How Sara comes across'), steps: [en('Change her email sign-off or greeting style here and press Play on the preview.')], view: '#view=settings:her-character', expect: en('The preview shows the same sentence as chat, voice, an email line and the receptionist greeting, all in the new style.') },
+  { id: 'her-week', release: '3.33.0', title: en('Her weekly check-in'), steps: [en('Press Show me now in Her weekly check-in.')], view: '#view=settings:you-briefing', expect: en('A card with what she did, what failed, what cost money and three ideas you can Accept or Undo.') },
+  { id: 'host-friend', release: '3.33.0', title: en('Host a Sara for a friend'), steps: [en('Make an invite in Host a Sara for a friend and open it in a private window.')], view: '#view=settings:household', expect: en('The friend gets their own Sara with their own model; you see only their name, status and weekly totals.') },
   // 3.32.0
   { id: 'know-why', release: '3.32.0', title: en('See what she knows about you'), steps: [en('Open What Sara knows, press Why on one fact, then Forget and Undo.')], view: '#view=settings:you-knows', expect: en('You see where she learned it and how long ago; Forget removes it and Undo brings it back.') },
   { id: 'nudge-budget', release: '3.32.0', title: en('Set how often she nudges you'), steps: [en('Find Her nudges on this page and look at the daily budget and roundup hour.')], view: '#view=settings:you-automations', expect: en('Up to that many nudges a day; the rest come together at the roundup hour, and each has Why did I get this?') },

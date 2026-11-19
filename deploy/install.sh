@@ -16,6 +16,7 @@
 # from it). Without a name everything is exactly as above ("sara", port 7860).
 #   sudo /opt/sara-src/deploy/install.sh --instance work [--port N]   # or SARA_INSTANCE=work
 #   /opt/sara-src/deploy/install.sh --dry-run --instance work         # print the plan, change nothing
+#   /opt/sara-src/deploy/install.sh --preflight                       # W2.1: check this server, change nothing
 # Re-running it for an instance that already exists (even one set up by hand) keeps its data,
 # settings and port.
 # Sara uses her own pinned, checksum-verified Node.js in /opt/sara/node, so she never depends on
@@ -33,7 +34,7 @@ NODE_SHA256_x64=eb6728e77c576a35162c122c45ccadf224d89ff00abc8dae46cc2897c6002d7c
 NODE_SHA256_arm64=33c37be234ba8bee041961047b19160f4d7d0f164e8e246f78bdd10feff148b3
 
 # ---- Which instance --------------------------------------------------------------
-INSTANCE="${SARA_INSTANCE:-}" PORT_ARG="" DRY_RUN=0
+INSTANCE="${SARA_INSTANCE:-}" PORT_ARG="" DRY_RUN=0 PREFLIGHT=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --instance) INSTANCE="${2:-}"; shift 2 || true ;;
@@ -41,8 +42,9 @@ while [[ $# -gt 0 ]]; do
     --port) PORT_ARG="${2:-}"; shift 2 || true ;;
     --port=*) PORT_ARG="${1#*=}"; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --preflight) PREFLIGHT=1; shift ;;
     -h|--help) sed -n '2,/^set -euo/p' "$0" | sed '$d' | sed 's/^# \{0,1\}//'; exit 0 ;;
-    *) printf 'Unknown option: %s (install.sh [--instance NAME] [--port N] [--dry-run])\n' "$1" >&2; exit 1 ;;
+    *) printf 'Unknown option: %s (install.sh [--instance NAME] [--port N] [--dry-run] [--preflight])\n' "$1" >&2; exit 1 ;;
   esac
 done
 INSTANCE="${INSTANCE:-sara}"
@@ -105,6 +107,15 @@ if [[ $DRY_RUN -eq 1 ]]; then
 fi
 
 # ---- Checks (nothing is changed before these pass) ---------------------------
+# W2.1 preflight (deploy/lib-preflight.sh): skipped when get-sara.sh just ran it.
+if [[ $PREFLIGHT -eq 1 || "${SARA_PREFLIGHT_DONE:-0}" != 1 ]]; then
+  # shellcheck source=deploy/lib-preflight.sh
+  . "$SRC_DIR/deploy/lib-preflight.sh"
+  PF_HOSTS="registry.npmjs.org"
+  [[ -x "$APP_DIR/node/bin/node" || "${SARA_USE_SYSTEM_NODE:-0}" == 1 ]] || PF_HOSTS="nodejs.org $PF_HOSTS"
+  pf_run "$INSTANCE" "$PORT_WANTED" "$PF_HOSTS" "$PREFLIGHT" || exit 1
+  [[ $PREFLIGHT -eq 0 ]] || exit 0
+fi
 [[ $EUID -eq 0 ]] || die "Run as root (sudo ./deploy/install.sh${INSTANCE:+ --instance $INSTANCE})."
 if ! command -v systemctl >/dev/null || [[ ! -d /run/systemd/system ]]; then
   die "This system isn't running systemd (common in containers, WSL without systemd and some minimal images), so the native install can't work here. Use Docker Compose instead: docs/INSTALL.md, 'Docker Compose'."

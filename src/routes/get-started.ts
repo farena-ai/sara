@@ -8,10 +8,15 @@
 //   POST   /api/get-started/samples         load the examples into the sample space
 //   DELETE /api/get-started/samples         remove every example
 //   PUT    /api/get-started/pack            {id: household|business|sales|student|null}
+//   GET    /api/get-started/model           W2.2: hardware + the recommended way to run a model (owner)
+//   GET    /api/get-started/wins            W2.2: three quick wins tailored to what is connected
 import { HttpError, readJson, send } from '../http.ts';
 import { localDate } from '../memory-worker.ts';
-import { applyPack, guideView, isPack, isStep, loadSamples, markGuide, PACK_DEFS, PACKS, readProgress, readSamples, removeSamples, restartGuide, revertPack, stepAction, type Connected } from '../get-started.ts';
+import { applyPack, detect, guideView, isPack, isStep, loadSamples, markGuide, PACK_DEFS, PACKS, readProgress, readSamples, removeSamples, restartGuide, revertPack, stepAction, type Connected } from '../get-started.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { chatAppName, firstTenDeps, modelPlan, quickWins, tiersFor } from '../first-ten.ts';
+import { ollamaRoot, OLLAMA_DOWNLOAD } from '../local-models.ts';
+import { privateLocalOn } from '../net-guard.ts';
 
 export function createGetStartedRoutes(ctx: RouteCtx): RouteHandler {
   const { app, auth, opts } = ctx;
@@ -46,6 +51,14 @@ export function createGetStartedRoutes(ctx: RouteCtx): RouteHandler {
       }
       return send(res, 200, view());
     }
+    if (b === 'model' && method === 'GET') {
+      if (member) throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
+      const s = app.settings.get();
+      const [hardware, ollama] = await Promise.all([firstTenDeps.hardware(), firstTenDeps.ollama(ollamaRoot(s.providers))]);
+      const plan = modelPlan(hardware, ollama, { privateLocal: privateLocalOn() });
+      return send(res, 200, { hardware, plan, tiers: tiersFor(plan.path === 'gpu' ? 'gpu' : 'cpu'), ollama: { found: ollama.found, version: ollama.version ?? null }, pull: app.modelPuller?.status() ?? null, download: OLLAMA_DOWNLOAD, privateLocal: privateLocalOn(), done: Boolean(s.defaultProviderId && s.defaultModel) });
+    }
+    if (b === 'wins' && method === 'GET') return send(res, 200, { wins: quickWins(app, detect(app, connected())), chat: member ? null : chatAppName(app) });
     if (b === 'mark' && method === 'POST') {
       const body = await readJson(req);
       markGuide(app, { ...(typeof body.offered === 'boolean' ? { offered: body.offered } : {}), ...(typeof body.finished === 'boolean' ? { finished: body.finished } : {}) });

@@ -6,6 +6,9 @@ memories, planner, notes, library, moments, scrapbook, looks, devices, API keys 
 The owner keeps running the server and pays for the models; the owner **can't read** anyone else's
 space.
 
+> Hosting a friend who is not part of your household (their own model, keys and spending limit; you
+> see only totals): see [HOSTING_FRIENDS.md](HOSTING_FRIENDS.md).
+
 > Part 1 is the user guide. Part 2 is the design (what is shared, what is isolated, and why it holds).
 > The attack cases and how each is blocked are in [THREAT_MODEL.md → Household mode](THREAT_MODEL.md#household-mode-phase-71).
 > Pinning rules for everyone and the audit trail: [AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md).

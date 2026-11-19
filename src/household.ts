@@ -69,6 +69,10 @@ export interface MemberRecord {
   limits: MemberLimits;
   /** R8 (docs/FAMILY.md): kid-safe member mode. Set by the owner (a parent); enforced server-side. */
   child?: ChildProfile;
+  /** W2.3 (docs/HOSTING_FRIENDS.md): a Sara the owner hosts for a friend: NOT a household member
+   *  (no boards, Family, sign-in rules or member tools), their own models, keys and spend limit;
+   *  the owner sees usage totals only (src/hosted.ts). */
+  hosted?: true;
 }
 
 interface InviteRecord {
@@ -82,6 +86,8 @@ interface InviteRecord {
   /** R8: an invite for a child (the owner confirmed being their parent or guardian instead of 18+). */
   child?: ChildProfile;
   guardianConfirmedAt?: string;
+  /** W2.3: an invite for a hosted friend (their own Sara on this server). */
+  hosted?: true;
 }
 
 interface HouseholdFile {
@@ -175,7 +181,18 @@ export class HouseholdStore {
     return join(this.dataDir, MEMBERS_DIR, id);
   }
 
+  /** Household members (W2.3: hosted friends are not; see hosted() and everyone()). */
   members(): MemberRecord[] {
+    return this.everyone().filter((m) => !m.hosted);
+  }
+
+  /** W2.3: the friends this server hosts (their own Sara; not household members). */
+  hosted(): MemberRecord[] {
+    return this.everyone().filter((m) => m.hosted);
+  }
+
+  /** Every space besides the owner's: household members and hosted friends. */
+  everyone(): MemberRecord[] {
     return structuredClone(this.#file.members);
   }
 
@@ -198,21 +215,22 @@ export class HouseholdStore {
   }
 
   /** A new invite (the code is returned once and only its hash kept). The owner confirms 18+. */
-  invite(input: { name: unknown; hours: unknown; confirm18: unknown; limits: MemberLimits; child?: unknown; confirmGuardian?: unknown }): { code: string; invite: InviteView } {
+  invite(input: { name: unknown; hours: unknown; confirm18: unknown; limits: MemberLimits; child?: unknown; confirmGuardian?: unknown; hosted?: boolean }): { code: string; invite: InviteView } {
     // R8: a child's invite needs the owner's word that they are the child's parent or guardian (not 18+).
-    const child = input.child ? cleanChild(input.child, this.#now()) : undefined;
+    // W2.3: a hosted friend is an adult with their own Sara (never a child's profile).
+    const child = input.child && !input.hosted ? cleanChild(input.child, this.#now()) : undefined;
     if (child && input.confirmGuardian !== true) throw new HouseholdError(400, en('Confirm that you are this child’s parent or guardian.'));
     if (!child && input.confirm18 !== true) throw new HouseholdError(400, en('Confirm that this person is 18 or older.'));
     const name = String(input.name ?? '').replace(/[\u0000-\u001f\u007f<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (!name) throw new HouseholdError(400, en('Type their name (only you see it).'));
     const hours = Number(input.hours ?? 24);
     if (!(INVITE_HOURS as readonly number[]).includes(hours)) throw new HouseholdError(400, en('Pick how long the invite works.'));
-    if (!input.limits.models.length) throw new HouseholdError(400, en('Pick at least one model they may use.'));
+    if (!input.hosted && !input.limits.models.length) throw new HouseholdError(400, en('Pick at least one model they may use.'));
     this.sweepInvites();
     if (this.#file.members.length + this.#file.invites.length >= MAX_MEMBERS) throw new HouseholdError(400, en('Up to {n} people besides you on one server.'));
     const code = newInviteCode();
     const now = this.#now();
-    const rec: InviteRecord = { id: randomBytes(6).toString('hex'), hash: sha256(normalizeInviteCode(code)), name, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + hours * 3600_000).toISOString(), ownerConfirmed18At: child ? '' : now.toISOString(), limits: child ? { ...input.limits, voice: false, pictures: false } : input.limits, ...(child ? { child, guardianConfirmedAt: now.toISOString() } : {}) };
+    const rec: InviteRecord = { id: randomBytes(6).toString('hex'), hash: sha256(normalizeInviteCode(code)), name, createdAt: now.toISOString(), expiresAt: new Date(now.getTime() + hours * 3600_000).toISOString(), ownerConfirmed18At: child ? '' : now.toISOString(), limits: child ? { ...input.limits, voice: false, pictures: false } : input.limits, ...(child ? { child, guardianConfirmedAt: now.toISOString() } : {}), ...(input.hosted ? { hosted: true as const } : {}) };
     this.#file.invites.push(rec);
     this.#save();
     const { hash: _h, ...invite } = rec;
@@ -237,9 +255,9 @@ export class HouseholdStore {
   }
 
   /** What the join page shows for a code (or undefined: wrong, used or expired). */
-  checkInvite(code: string): { name: string; expiresAt: string; child?: boolean } | undefined {
+  checkInvite(code: string): { name: string; expiresAt: string; child?: boolean; hosted?: boolean } | undefined {
     const i = this.#findInvite(code);
-    return i ? { name: i.name, expiresAt: i.expiresAt, ...(i.child ? { child: true } : {}) } : undefined;
+    return i ? { name: i.name, expiresAt: i.expiresAt, ...(i.child ? { child: true } : {}), ...(i.hosted ? { hosted: true } : {}) } : undefined;
   }
 
   /**
@@ -254,7 +272,7 @@ export class HouseholdStore {
     let id = randomBytes(5).toString('hex');
     while (this.#file.members.some((m) => m.id === id)) id = randomBytes(5).toString('hex');
     const now = this.#now().toISOString();
-    const member: MemberRecord = { id, name: inv.name, createdAt: now, status: 'active', ownerConfirmed18At: inv.ownerConfirmed18At, memberConfirmed18At: inv.child ? '' : now, limits: inv.limits, ...(inv.child ? { child: inv.child } : {}) };
+    const member: MemberRecord = { id, name: inv.name, createdAt: now, status: 'active', ownerConfirmed18At: inv.ownerConfirmed18At, memberConfirmed18At: inv.child ? '' : now, limits: inv.limits, ...(inv.child ? { child: inv.child } : {}), ...(inv.hosted ? { hosted: true as const } : {}) };
     const dir = this.dirOf(id);
     mkdirSync(dir, { recursive: true, mode: 0o700 });
     this.#file.invites = this.#file.invites.filter((i) => i !== inv);
@@ -311,7 +329,7 @@ export class HouseholdStore {
   /** Members whose export window is over. */
   due(): MemberRecord[] {
     const now = this.#now().getTime();
-    return this.members().filter((m) => m.status === 'leaving' && m.deleteAfter && Date.parse(m.deleteAfter) <= now);
+    return this.everyone().filter((m) => m.status === 'leaving' && m.deleteAfter && Date.parse(m.deleteAfter) <= now);
   }
 
   /** Deletes a member's record and folder for good (the caller stopped their space first). */
@@ -331,7 +349,7 @@ export function memberDirs(dataDir: string, h: HouseholdStore): { member: Member
   const root = join(dataDir, MEMBERS_DIR);
   if (!existsSync(root)) return [];
   const names = new Set(readdirSync(root));
-  return h.members().filter((m) => names.has(m.id)).map((m) => ({ member: m, dir: h.dirOf(m.id) }));
+  return h.everyone().filter((m) => names.has(m.id)).map((m) => ({ member: m, dir: h.dirOf(m.id) }));
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -457,6 +475,8 @@ export class MemberPolicy {
 
   /** Throws when this model isn't one the owner allowed for this member. */
   checkModel(providerId: string, model: string): void {
+    // W2.3: a hosted friend uses their own models (their own providers and keys).
+    if (this.record()?.hosted) return;
     if (!this.limits().models.some((m) => m.providerId === providerId && m.model === model)) throw new Error(`The owner of this server hasn't made ${model} available to you. Pick one of your models in Settings → Models & usage.`);
   }
 
@@ -646,6 +666,10 @@ export const MEMBER_ROUTES: ReadonlySet<string> = new Set([
 const MEMBER_READ_ONLY: ReadonlySet<string> = new Set(['providers', 'setup', 'safety', 'usage', 'policy']);
 /** Phase 83: the run routes that branch, compare or change something (owner-only inside the member family `runs`). */
 export const BRANCH_ACTIONS: ReadonlySet<string> = new Set(['branch', 'diff', 'use', 'apply', 'discard', 'stop']);
+/** W2.3: families a hosted friend may also change (their own models, keys and spend limit). */
+const HOSTED_OWN_ROUTES: ReadonlySet<string> = new Set(['providers', 'usage', 'spend']);
+/** W2.3: household-shared things and the owner's computers/skill links stay away from hosted friends. */
+const HOSTED_REFUSED: ReadonlySet<string> = new Set(['family', 'boards', 'columns', 'hands', 'computer', 'alexa']);
 /** While being removed: only what's needed to take their data and leave. */
 const LEAVING_ROUTES: ReadonlySet<string> = new Set(['session', 'logout', 'household', 'export']);
 
@@ -658,6 +682,11 @@ export function memberRouteCheck(rec: MemberRecord | undefined, method: string, 
   if (!rec) return { status: 401, message: en('Sign in first.') };
   if (rec.status === 'suspended' && a !== 'session' && a !== 'logout') return { status: 403, message: en('Your account on this server is paused. Ask the owner.') };
   if (rec.status === 'leaving' && !LEAVING_ROUTES.has(a)) return { status: 403, message: en('Your account is being removed: download your data in Settings → Your account.') };
+  // W2.3: a hosted friend's own models and spend limit; nothing shared with a household, nothing of the server's.
+  if (rec.hosted) {
+    if (HOSTED_REFUSED.has(a)) return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
+    if (HOSTED_OWN_ROUTES.has(a)) return undefined;
+  }
   if (!MEMBER_ROUTES.has(a)) return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   if (MEMBER_READ_ONLY.has(a) && method !== 'GET') return { status: 403, message: en('Only the owner of this server can use this.'), ownerOnly: true };
   // Household admin is the owner's; a member only has their own account (me…).

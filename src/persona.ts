@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { type Identity, personalize, type Pronouns, toIdentity } from './identity.ts';
 import { AWAY, bondLines, cleanIntimacy, CONFLICT, type Intimacy, OTHERS } from './bond.ts';
 import { nowSentence } from './time-sense.ts';
+import { cleanStyle, type PersonaStyleFile } from './persona-style-file.ts';
 import { cleanLife, cleanTraits, HUMOURS, type Life, lifeLines, traitLines, type Traits, workLines } from './traits.ts';
 
 export interface Persona {
@@ -40,6 +41,8 @@ export interface Persona {
   intimacy?: Intimacy;
   /** Phase 51: "Quiet when I'm focused": terse replies while the owner sends short commands (coding only). */
   quietFocus?: boolean;
+  /** W1.4: how she comes across everywhere (src/persona-style.ts): sign-off, greeting style, face. */
+  style?: PersonaStyleFile;
 }
 
 const shortId = (v: unknown): string | undefined => {
@@ -120,6 +123,8 @@ function studioFields(o: Record<string, unknown>): Partial<Persona> {
   if (o.quietFocus === true) out.quietFocus = true;
   const intimacy = cleanIntimacy(o.intimacy);
   if (intimacy) out.intimacy = intimacy;
+  const style = cleanStyle(o.style);
+  if (style) out.style = style;
   return out;
 }
 

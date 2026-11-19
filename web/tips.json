@@ -709,6 +709,18 @@
       "A podcast app can follow your briefings with this private link. Anyone who has the link can listen, so don't share it. A new link stops the old one.",
       "planner"
     ],
+    "hw-on": [
+      "Once a week she tells you how she did: what she did, what failed, what cost money, and three ideas. It counts as one of her nudges.",
+      "planner"
+    ],
+    "hw-day": [
+      "The day her weekly check-in arrives.",
+      "planner"
+    ],
+    "hw-time": [
+      "The time her weekly check-in arrives. Outside your quiet hours it comes right away; otherwise it waits for the roundup.",
+      "planner"
+    ],
     "rv-life": [
       "Next to the weekly review, a look back at your week of life: people you were in touch with, your health log in counts, what you spent and the moments you kept.",
       "planner"

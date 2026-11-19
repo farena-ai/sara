@@ -30,8 +30,38 @@ curl -fsSL https://raw.githubusercontent.com/farena-ai/sara/main/deploy/get-sara
 (This works once the repository is public. Until then, copy Sara to the server and run
 `sudo bash deploy/get-sara.sh --source <that folder or .tar file>`.)
 
-It downloads Sara into `/opt/sara-src`, checks the copy, and then asks a few questions. Each one
-shows a suggestion in [brackets]: just press Enter to take it.
+It first checks the server (the preflight, below), downloads Sara into `/opt/sara-src`, checks the
+copy, and then asks a few questions. Each one shows a suggestion in [brackets]: just press Enter to take it.
+
+#### Before anything changes: the preflight
+
+Every installer checks the machine first and changes nothing until those checks pass: free disk space
+(1 GB at least, 3 GB with local voice), memory (450 MB at least, 1.5 GB to be comfortable), the port,
+the system and its version (and systemd on Linux), a 64-bit CPU, an earlier install (that becomes an
+update; her data stays), administrator rights, and the internet (for the downloads). Each problem is
+shown as a card with what is wrong and the exact next step, for example:
+
+```
+[sara] Preflight: 6 OK, 1 to look at, 1 to fix
+  FIX  Port 7860 is already in use
+       Another program (maybe another Sara) is listening on port 7860.
+       Next step: See what uses it: sudo ss -ltnp 'sport = :7860'. Stop that program, or install on another port: --port 7861.
+```
+
+Run only the checks (no root needed, nothing is changed):
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/farena-ai/sara/main/deploy/get-sara.sh | bash -s -- --preflight
+sudo /opt/sara-src/deploy/install.sh --preflight            # from a copy you already have
+node src/main.ts --preflight                                # Docker, Windows, macOS or a plain checkout
+docker compose run --rm sara node src/main.ts --preflight   # inside the Docker image
+```
+
+Common cards: a **32-bit Raspberry Pi OS** (write "Raspberry Pi OS (64-bit)" with Raspberry Pi Imager),
+**no systemd** (containers, WSL: use Docker Compose, or turn systemd on in WSL), **Alpine/musl** (use
+Docker Compose), **little memory** (it prints the commands for 2 GB of swap). Windows Setup does the
+same checks for Windows version, memory and disk space before it changes anything. Which systems the
+installers were last run on is in [INSTALL_MATRIX.md](INSTALL_MATRIX.md).
 
 1. **How will you reach her?**
    - **Tailscale** (suggested when Tailscale is installed and signed in on this machine): a private
@@ -788,6 +818,11 @@ On a systemd installation, you can also check the service journal with `sudo jou
 
 - **"Sara is NOT answering"**: `sudo sara logs` shows why; most often a port clash or a bad edit in
   `/etc/sara/sara.env`.
+- **"Port 7860 is already in use"** when she starts: another program (or another Sara) has it. The card
+  names the command that shows which one and how to start her on another port (`SARA_PORT`, or
+  `"7861:7860"` under `ports:` in docker-compose.yml).
+- **The installer stopped at the preflight**: follow the card's *Next step* and run it again;
+  `--preflight` repeats only the checks.
 - **Can't open it from my computer**: `sudo sara access` shows how she's reached. With "just this
   computer", use the SSH tunnel (section 1), or switch: `sudo sara access tailscale`.
 - **Tailscale address doesn't open**: the device you open it on must be signed in to the same

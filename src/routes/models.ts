@@ -452,7 +452,8 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
     }
     if (a === 'providers') {
       // Phase 71: a member sees only the models the owner allowed them: no addresses, keys or presets.
-      if (opts.member) {
+      // W2.3: a hosted friend manages their own providers (their own settings and vault) like an owner.
+      if (opts.member && !opts.member.record()?.hosted) {
         const allowed = opts.member.record()?.limits.models ?? [];
         const s = app.settings.get();
         const mine = (id: string) => allowed.filter((m) => m.providerId === id).map((m) => m.model);

@@ -269,6 +269,7 @@ import { HomeSso } from './home-sso.ts';
 import { ssoPeople } from './routes/sso.ts';
 import { Evals } from './evals.ts';
 import { CostAutopilot } from './cost-autopilot.ts';
+import { HostedSettings, hostedKey, hostedVault } from './hosted.ts';
 import { cookieValue, HouseholdStore, MEMBER_TOKEN_PREFIX, MemberPolicy, MemberSettings, memberDirs, memberOfToken, memberUsage, memberVault, PairRegistry, peekJson, type MemberRecord, type ModelPick } from './household.ts';
 import type { Vault as VaultT } from './vault.ts';
 import { AlexaService } from './alexa.ts';
@@ -282,6 +283,7 @@ import { storeSettings } from './routes/store.ts';
 import { detectChannel, hubArch, hubBase, type HubOs, hubOs, HubPinger, HubState, localHub, modelKind, pingBlocked, scrubText, TicketStore, type HubFacts, type HubSpace } from './hub.ts';
 import { appLanguage, trOwner } from './i18n.ts';
 import { homedir } from 'node:os';
+import { formatCards, gatherFacts, portInUseCard, preflight, preflightExit } from './preflight.ts';
 import { assertPersonalProfile, runtimeProfile } from './business/profile.ts';
 
 // A promise nobody waited for that failed: log it and carry on (a background job, a model call
@@ -290,6 +292,13 @@ import { assertPersonalProfile, runtimeProfile } from './business/profile.ts';
 process.on('unhandledRejection', (err) => console.warn(`Background task failed: ${(err as Error)?.stack ?? err}`));
 process.on('uncaughtException', (err) => {
   const code = (err as NodeJS.ErrnoException).code;
+  // W2.1: another program on her port is a fix-it card, not a stack trace.
+  if (code === 'EADDRINUSE') {
+    const p = Number((err as NodeJS.ErrnoException & { port?: number }).port ?? process.env.SARA_PORT ?? 7860);
+    const where = existsSync('/.dockerenv') ? 'docker' : process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'mac' : 'linux';
+    console.error(`\n${formatCards([portInUseCard(p, where)])}`);
+    process.exit(1);
+  }
   if (err instanceof StartupError || code === 'ENOTDIR' || code === 'EACCES' || code === 'ENOSPC' || code === 'EROFS') {
     console.error(`\nSara can't start: ${err instanceof StartupError ? err.message : err.message}`);
     if (code === 'ENOSPC') console.error('The disk is full. Free some space, then start her again.');
@@ -313,6 +322,13 @@ const dataDir = resolve(process.env.SARA_DATA ?? join(root, 'data'));
 const host = process.env.SARA_HOST ?? '127.0.0.1';
 const port = Number(process.env.SARA_PORT ?? 7860);
 const defaultPersonaPath = resolve(process.env.SARA_PERSONA ?? join(root, 'persona', 'sara.json'));
+
+// W2.1: `--preflight [--json] [--offline]` checks this machine for an install and creates nothing.
+if (process.argv.includes('--preflight')) {
+  const cards = preflight(await gatherFacts({ dataDir, port, host: host === '0.0.0.0' ? '0.0.0.0' : '127.0.0.1', offline: process.argv.includes('--offline') }));
+  console.log(process.argv.includes('--json') ? JSON.stringify(cards, null, 1) : formatCards(cards));
+  process.exit(preflightExit(cards));
+}
 
 // EC27: `sara addons requalify --from <results.json> --index <index.json>` folds qualification runs
 // into store/qualified.json (scripts/addons-requalify.ts). Touches no data folder.
@@ -805,7 +821,8 @@ function memberMailFor(space: Space): void {
   if (isDemo) return;
   const mdir = join(space.dir, 'mail');
   mkdirSync(mdir, { recursive: true, mode: 0o700 });
-  const serverKey = process.env.SARA_MASTER_KEY ?? readFileSync(join(dataDir, 'master.key'), 'utf8').trim();
+  // W2.3: a hosted friend's mailboxes are sealed with their own key (members/<id>/keys), not the server's.
+  const serverKey = household.get(space.id)?.hosted ? hostedKey(space.dir) : (process.env.SARA_MASTER_KEY ?? readFileSync(join(dataDir, 'master.key'), 'utf8').trim());
   const mv = new Vault(mdir, serverKey);
   space.mailVault = mv;
   memberMailVaults.add(mv);
@@ -843,7 +860,8 @@ const household = new HouseholdStore(dataDir);
 const usageBudgets = new UsageBudgets(dataDir);
 const usageSources = (): ReportSource[] => [
   ...companions.all().map((c) => ({ person: 'owner', personName: settings.get().ownerName || 'Owner', db: c.app.store.db })),
-  ...[...memberSpaces.entries()].flatMap(([id, sp]) => sp.companions.all().map((c) => ({ person: id, personName: household.get(id)?.name ?? id, db: c.app.store.db }))),
+  // W2.3: hosted friends' usage is theirs (the owner sees their totals on the household page).
+  ...[...memberSpaces.entries()].filter(([id]) => !household.get(id)?.hosted).flatMap(([id, sp]) => sp.companions.all().map((c) => ({ person: id, personName: household.get(id)?.name ?? id, db: c.app.store.db }))),
 ];
 // Phase 99 (ST4, docs/BOARD.md): household boards shared by choice, in one shared store (never on the
 // demo). A change is pushed to the event hub of each of the board's people only.
@@ -855,7 +873,8 @@ setDataRights(
     : new DataRights(dataDir, {
         spaces: () => [
           { person: 'owner', name: settings.get().ownerName || 'Owner', dir: dataDir, apps: () => ownerSpace.companions.all().map((c) => c.app) },
-          ...[...memberSpaces.values()].map((sp) => ({ person: sp.id, name: household.get(sp.id)?.name ?? sp.id, dir: sp.dir, apps: () => sp.companions.all().map((c) => c.app) })),
+          // W2.3: never a hosted friend's space (the owner can't export or delete their data from here).
+          ...[...memberSpaces.values()].filter((sp) => !household.get(sp.id)?.hosted).map((sp) => ({ person: sp.id, name: household.get(sp.id)?.name ?? sp.id, dir: sp.dir, apps: () => sp.companions.all().map((c) => c.app) })),
         ],
         deleteMember: (id) => deleteMemberSpace(id),
       }),
@@ -1911,8 +1930,9 @@ function buildMemberSpace(member: MemberRecord, dir: string, givenAuth?: OwnerAu
     id: member.id,
     dir,
     auth: givenAuth ?? new OwnerAuth(dir, undefined, { tokenPrefix: `${MEMBER_TOKEN_PREFIX}${member.id}.` }),
-    settings: new MemberSettings(dir, settings, limits, () => household.get(member.id)?.child),
-    vault: memberVault(vault, limits),
+    // W2.3: a hosted friend has their own settings (own models) and their own vault and key file.
+    settings: member.hosted ? new HostedSettings(dir) : new MemberSettings(dir, settings, limits, () => household.get(member.id)?.child),
+    vault: member.hosted ? hostedVault(dir) : memberVault(vault, limits),
     events: new EventHub(),
     companions: new CompanionManager(dir),
   };
@@ -1967,6 +1987,10 @@ const householdHooks: HouseholdHooks = {
   deleteNow: deleteMemberSpace,
   signOutAll: (id) => void memberSpaces.get(id)?.auth.signOut('others'),
   sessionFor: (id, label) => (household.get(id)?.status === 'active' ? memberSpaces.get(id)?.auth.createSession(label) : undefined),
+  tellHosted: (id, title, body, params) => {
+    const app = memberSpaces.get(id)?.companions.main.app;
+    if (app) void app.push?.notifyOwner(trOwner(title, app.settings.get()), trOwner(body, app.settings.get(), params), '', 'hosted-closing').catch(() => {});
+  },
 };
 
 companions.build = (id, dir) => buildCompanion(ownerSpace, id, dir);

@@ -3,6 +3,7 @@
 // (their limits, today's use, a new token, download, delete), and joining with an invite on the
 // sign-in page. Limits save as they change (no Save button); every string goes through t().
 import { serverText, t } from './naming.js';
+import { initHosted, loadHostedAccount, renderHosted } from './hosted.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -139,6 +140,7 @@ export async function loadHousehold() {
   $('#hh-models').replaceWith(box);
   renderInvites(d.invites);
   renderMembers(d.members, d.models, d.options);
+  renderHosted(d, loadHousehold);
 }
 
 function renderInvites(list) {
@@ -321,6 +323,11 @@ export async function loadAccount() {
     dl.replaceChildren();
     row(t('Name here'), me.name, true);
     row(t('Joined'), fmtDay(me.createdAt));
+    // W2.3: a hosted friend's own Sara: their own model and limit (web/hosted.js), no owner limits.
+    if (me.hosted) {
+      row(t('Today'), t('Messages: {n} · about {cost}', { n: me.today.messages, cost: money(me.today.usd) }));
+      return void loadHostedAccount();
+    }
     row(t('Models you may use'), me.limits.models.map((m) => m.model).join(', ') || '–', true);
     row(t('Messages a day'), limitLabel(me.limits.messagesPerDay));
     row(t('Spending a day'), costLabel(me.limits.costPerDay));
@@ -359,7 +366,7 @@ function showJoin(code = '') {
   if (!code) return;
   api(`/household/join?code=${encodeURIComponent(code)}`).then(
     (r) => {
-      $('#join-who').textContent = r.invite.child ? t('A parent set up a kid-safe space for {name} here: your own chats and chores, with grown-up things turned off.', { name: r.invite.name }) : t('The owner of this server invited you as {name}. With it you get your own space here: your own companion, conversations and memories, which the owner can’t read.', { name: r.invite.name });
+      $('#join-who').textContent = r.invite.hosted ? t('You are invited to your own Sara on this server, as {name}. You bring your own model and set your own spending limit; the server owner sees only your usage totals, never your conversations.', { name: r.invite.name }) : r.invite.child ? t('A parent set up a kid-safe space for {name} here: your own chats and chores, with grown-up things turned off.', { name: r.invite.name }) : t('The owner of this server invited you as {name}. With it you get your own space here: your own companion, conversations and memories, which the owner can’t read.', { name: r.invite.name });
       // R8: a child's invite was vouched for by their parent: no 18+ box.
       const box = $('#join-18')?.closest('label');
       if (box) box.hidden = Boolean(r.invite.child);
@@ -401,6 +408,7 @@ export function initHousehold(deps) {
   });
   $('#hh-new-copy').addEventListener('click', () => deps.copyText($('#hh-new-url').textContent, $('#hh-new-copy')));
   $('#acc-delete').addEventListener('click', () => void deleteAccount());
+  initHosted();
   $('#acc-devices').addEventListener('click', () => deps.showSettingsTab('dh-devices'));
   $('#acc-tok-rotate').addEventListener('click', async () => {
     try {

@@ -108,6 +108,13 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## One Sara, round 2, and easier to run: personality, weekly check-in, installs, first run, friends, in 3.33.0
+
+One personality setting drives her chat, voice, email sign-off, receptionist greeting and face. A weekly check-in
+shows what she did, what failed and what cost money, with three one-tap suggestions. Every installer checks the
+machine before it changes anything and explains each problem with the next step. A guided first ten minutes picks
+a model that suits your computer and ends with three quick wins, and you can host a Sara for a friend on your server.
+
 ## One Sara, round 1: what she knows, polite nudges, continue anywhere, in 3.32.0
 
 Settings → You → What Sara knows shows everything she knows about you by topic, with where and when she learned

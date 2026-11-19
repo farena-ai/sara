@@ -11,3 +11,11 @@ export function packResultWords(r: { pack: string | null; added: number[]; kept:
 export function sampleWords(card: { kind: string; day: string }, t: T, day?: (iso: string) => string): { title: string; text: string; icon: string } | undefined;
 export function sampleSectionWords(t: T): Record<string, string>;
 export function sampleTour(t: T): { sel: string; title: string; text: string }[];
+// W2.2 the first ten minutes.
+export const PATH_IDS: string[];
+export function pathWords(id: string, t: T): { title: string; text: string };
+export function modelWords(t: T): Record<string, string & ((...a: never[]) => string)> & { machine: string };
+export function chatWords(t: T): Record<string, unknown>;
+export const WIN_IDS: string[];
+export function winWords(win: { id: string; app?: string; note?: string }, t: T): { title: string; prompt: string };
+export function winsWords(t: T): { title: string; text: string };

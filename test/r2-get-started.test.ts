@@ -32,18 +32,20 @@ function counts(app: ReturnType<typeof makeApp>): Record<string, number> {
   return Object.fromEntries(tables.map(({ name }) => [name, Number((app.store.db.prepare(`SELECT count(*) AS n FROM "${name}"`).get() as { n: number }).n)]));
 }
 
-test('R2 guide: five steps, progress saved in the person\'s own folder, skip and resume', (t) => {
+test('R2 guide: seven steps (W2.2 added bring and chat), progress saved in the person\'s own folder, skip and resume', (t) => {
   const { app, dir } = rig(t);
   let v = guideView(app, none);
-  assert.deepEqual(v.steps.map((s) => s.id), ['model', 'mail', 'calendar', 'phone', 'computer']);
+  assert.deepEqual(v.steps.map((s) => s.id), ['model', 'bring', 'chat', 'mail', 'calendar', 'phone', 'computer']);
   assert.equal(v.at, 'model');
   assert.equal(v.done, 0);
   assert.equal(v.complete, false);
   stepAction(app, 'model', 'skip');
+  stepAction(app, 'bring', 'skip');
+  stepAction(app, 'chat', 'skip');
   stepAction(app, 'mail', 'skip');
   v = guideView(app, none);
   assert.equal(v.at, 'calendar', 'skipping moves on');
-  assert.deepEqual(v.steps.filter((s) => s.state === 'skipped').map((s) => s.id), ['model', 'mail']);
+  assert.deepEqual(v.steps.filter((s) => s.state === 'skipped').map((s) => s.id), ['model', 'bring', 'chat', 'mail']);
   // Saved on disk: a new view (a reload, another device) comes back at the same step.
   assert.ok(existsSync(join(dir, PROGRESS_FILE)));
   assert.equal(readProgress(app).at, 'calendar');
@@ -61,17 +63,17 @@ test('R2 guide: five steps, progress saved in the person\'s own folder, skip and
 
 test('R2 guide: steps tick themselves from what is really connected', (t) => {
   const { app } = rig(t);
-  assert.deepEqual(detect(app, none), { model: false, mail: false, calendar: false, phone: false, computer: false });
+  assert.deepEqual(detect(app, none), { model: false, bring: false, chat: false, mail: false, calendar: false, phone: false, computer: false });
   app.settings.update({ defaultProviderId: 'fake', defaultModel: 'fake-model' } as never);
   app.google = { status: () => ({ connected: true, gmail: true, calendar: false }) } as never;
   const d = detect(app, { devices: ['Sara app on Android', 'Sara app on Windows'], pushDevices: 0 });
-  assert.deepEqual(d, { model: true, mail: true, calendar: false, phone: true, computer: true });
+  assert.deepEqual(d, { model: true, bring: false, chat: false, mail: true, calendar: false, phone: true, computer: true });
   // A plain browser on a computer is not "the Sara app on your computer".
   assert.equal(detect(app, { devices: ['Chrome on Windows'], pushDevices: 0 }).computer, false);
   // A done step is never the one shown: the first one left is.
   stepAction(app, 'model', 'go');
   const v = guideView(app, { devices: ['Sara app on Android', 'Sara app on Windows'], pushDevices: 1 });
-  assert.equal(v.at, 'calendar');
+  assert.equal(v.at, 'bring');
   assert.equal(v.done, 4);
 });
 
@@ -174,7 +176,7 @@ test('R2 routes: guide, samples and pack over HTTP; sign-in needed; not in the d
   assert.equal(r.body.guide.at, 'model');
   assert.equal(r.body.packs.list.length, 4);
   r = await api('/api/get-started/step', 'POST', { id: 'model', action: 'skip' });
-  assert.equal(r.body.guide.at, 'mail');
+  assert.equal(r.body.guide.at, 'bring');
   assert.equal((await api('/api/get-started/step', 'POST', { id: 'nope', action: 'skip' })).status, 400);
   r = await api('/api/get-started/mark', 'POST', { offered: true });
   assert.equal(r.body.guide.offered, true);

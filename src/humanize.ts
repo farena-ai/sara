@@ -19,6 +19,7 @@ import { detectDocLang, type DocLang } from './facts-lang.ts';
 import { HttpError } from './http.ts';
 import { complete } from './life.ts';
 import { backgroundConversation, type Conversation } from './store.ts';
+import { personaStyle, signOffNote } from './persona-style.ts';
 
 export type WritingStyle = 'natural' | 'as-written';
 export const WRITING_STYLES: readonly WritingStyle[] = ['natural', 'as-written'];
@@ -540,7 +541,15 @@ export function writingNote(app: AppContext): string | undefined {
   } catch {
     return undefined;
   }
-  if (prefs.style !== 'natural') return undefined;
+  // W1.4: her sign-off for email drafts comes from the one persona style (src/persona-style.ts).
+  let sign = '';
+  try {
+    sign = signOffNote(personaStyle(app));
+  } catch {
+    sign = '';
+  }
+  if (prefs.style !== 'natural') return sign || undefined;
   const base = 'Writing style: Natural. When you write something longer for them (an email draft, a summary, a letter, a report), write like a person: plain everyday words, sentences of varied length, concrete details from the source; no stock phrases (delve, tapestry, testament, "it\'s important to note", "in conclusion", moreover/furthermore chains), no rule-of-three lists, few em-dashes, no stacked hedges or empty intensifiers, no headings in short pieces. Numbers, names, quotes, citations and links stay exactly as they are.';
-  return prefs.card ? `${base} ${styleCardNote(prefs.card)}` : base;
+  const out = prefs.card ? `${base} ${styleCardNote(prefs.card)}` : base;
+  return sign ? `${out} ${sign}` : out;
 }

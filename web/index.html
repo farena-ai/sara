@@ -2880,6 +2880,23 @@
         <p id="st-drift" class="muted small"></p>
       </div>
       <p class="muted small">Want to change every detail by hand? <button id="my-advanced" type="button" class="ghost small">Open the full character</button></p>
+      <h3>How Sara comes across <button type="button" class="tip" data-tip="One personality for every place she speaks: chat, her voice, email drafts she writes for you and your website receptionist. Change it here and every place follows.">?</button></h3>
+      <div id="hca-box" class="hca-box" data-nodirty data-noauto>
+        <p class="muted small">Type a sentence to see and hear it the way she says it everywhere.</p>
+        <label>Try a sentence <button type="button" class="tip" data-tip="Any sentence. The preview shows it as her chat text, in her voice, as an email line with her sign-off and after your receptionist's greeting.">?</button> <input id="hca-sentence" maxlength="300" autocomplete="off"></label>
+        <div class="hca-prev" aria-live="polite">
+          <div class="hca-row"><span class="hca-k">Chat</span><p id="hca-chat" class="hca-bubble" data-raw></p></div>
+          <div class="hca-row"><span class="hca-k">Voice</span><span id="hca-voice" class="muted small" data-raw></span><button id="hca-say" type="button" class="ghost small">▶ Play</button></div>
+          <div class="hca-row"><span class="hca-k">Email</span><p id="hca-email" class="hca-email" data-raw></p></div>
+          <div class="hca-row"><span class="hca-k">Receptionist</span><p id="hca-greeting" class="hca-bubble" data-raw></p></div>
+        </div>
+        <label>Email sign-off <button type="button" class="tip" data-tip="How email drafts she writes for you end, before your name. Example: Cheers, or Kind regards. Leave empty and she picks one that fits.">?</button> <input id="hca-signoff" maxlength="80" autocomplete="off"></label>
+        <label>Receptionist greeting <button type="button" class="tip" data-tip="How your website receptionist says hello and the tone of its answers. Starts from how she talks; a greeting you typed on the receptionist page still wins.">?</button> <select id="hca-greet"><option value="warm">Warm</option><option value="casual">Casual</option><option value="brief">Brief</option><option value="formal">Formal</option></select></label>
+        <label>Her picture <button type="button" class="tip" data-tip="What her face looks like on devices that haven't picked one in Appearance: the orb, her moving portrait, a still portrait or the picture you uploaded.">?</button> <select id="hca-face"><option value="">Each device decides</option><option value="orb">The orb</option><option value="portrait">Her portrait, moving</option><option value="still">Her portrait, still</option><option value="own">The picture you uploaded</option></select></label>
+        <label>Writing <button type="button" class="tip" data-tip="Natural: longer things she writes for you read like a person wrote them. As written: no rewriting. The same choice as You → About you → Writing style.">?</button> <select id="hca-human"><option value="natural">Natural</option><option value="as-written">As written</option></select></label>
+        <p class="muted small"><span id="hca-voice-where"></span> <button id="hca-open-voice" type="button" class="ghost small">Change her voice</button></p>
+        <p id="hca-status" class="muted small" role="status"></p>
+      </div>
       <h3>Character file</h3>
       <p class="muted small">Keep her whole character in one file (name, personality, look and voice choice), to back it up or move it to another Sara server. No keys, memories or conversations are in it.</p>
       <p class="actions-left"><a id="char-export" class="button ghost" href="/api/character/export" download>Save character file</a> <button id="char-import" type="button" class="ghost">Load a character file…</button></p>
@@ -3856,6 +3873,14 @@
       </div>
       <label class="row"><input id="rv-life" type="checkbox" data-nodirty data-noauto> Also send a life review: people, health log, money and moments</label>
       <p class="small"><button id="rv-life-now" type="button" class="ghost">Life review now</button> <span id="rv-life-status" class="muted small" role="status"></span></p>
+      <h3>Her weekly check-in <button type="button" class="tip" data-tip="Once a week she tells you how she did for you: what she did, what failed, what cost money, and three ideas you can accept with one tap.">?</button></h3>
+      <p class="muted small">What she did, what failed or she couldn't do, what cost money, and three ideas you can accept with one tap (each can be undone). Ask any time in chat: "How am I doing?"</p>
+      <label class="row"><input id="hw-on" type="checkbox" checked data-nodirty data-noauto> Send me her weekly check-in</label>
+      <div class="row-grid">
+        <label>Day <select id="hw-day" data-nodirty data-noauto><option value="0">Sunday</option><option value="1">Monday</option><option value="2">Tuesday</option><option value="3">Wednesday</option><option value="4">Thursday</option><option value="5">Friday</option><option value="6">Saturday</option></select></label>
+        <label>Time <input id="hw-time" type="time" value="17:00" data-nodirty data-noauto></label>
+      </div>
+      <p class="small"><button id="hw-now" type="button" class="ghost">Show me now</button> <span id="hw-status" class="muted small" role="status"></span></p>
       <h3>Yearly look back</h3>
       <p class="muted small">On the anniversary of your first message, she writes a look back at your year together from Your story (milestones, promises, projects, moments) and sends it like her other messages, outside quiet hours. You can also ask for one any time on the Your story page.</p>
       <label class="row"><input id="story-yearly" type="checkbox"> Send me a look back on our anniversary</label>
@@ -6029,6 +6054,24 @@
       <h3>People</h3>
       <p id="hh-none" class="muted small">Nobody else uses this server yet.</p>
       <div id="hh-members" class="hh-members" data-noauto data-nodirty></div>
+      <!-- W2.3 (docs/HOSTING_FRIENDS.md): a Sara hosted for a friend (web/hosted.js, src/hosted.ts). -->
+      <h3>Host a Sara for a friend <button type="button" class="tip" data-tip="Their own Sara on your server, not part of your household: their own model, key and spending limit. You see only how much they use it, and can pause or remove it.">?</button></h3>
+      <div id="hst-box" class="hst-box" data-nodirty data-noauto>
+        <label>Their name <button type="button" class="tip" data-tip="Only a label for you in this list. They name their own companion later.">?</button> <input id="hst-name" maxlength="40" placeholder="e.g. Robin"></label>
+        <label>The invite works for <button type="button" class="tip" data-tip="How long the link and code can be used. After that, or once used, it stops working.">?</button>
+          <select id="hst-hours"><option value="1">1 hour</option><option value="24" selected>1 day</option><option value="72">3 days</option><option value="168">7 days</option></select></label>
+        <label class="row"><input id="hst-18" type="checkbox"> <span>This person is 18 or older <button type="button" class="tip" data-tip="You confirm it here and they confirm it again when they join.">?</button></span></label>
+        <p><button id="hst-invite" type="button">Make invite link</button></p>
+        <div id="hst-new" class="tok-new" hidden>
+          <p class="small"><strong>Send this to them</strong> (shown only now):</p>
+          <p class="small"><code id="hst-new-url" data-raw></code> <button id="hst-new-copy" type="button" class="ghost small">Copy link</button></p>
+          <img id="hst-new-qr" class="pair-qr" alt="QR code of the invite link">
+        </div>
+        <p id="hst-status" class="small" role="status"></p>
+        <ul id="hst-invites" class="dev-list"></ul>
+        <div id="hst-list" class="hh-members"></div>
+        <p class="muted small">What you see: their name, whether it is on, and their totals for the last 7 days (messages, tokens, cost). Never their chats, memories or which models they use. Their keys are sealed with their own key file. Whoever runs a server can technically read its disk and backups.</p>
+      </div>
       <!-- R7: tool rules for household members (web/member-tools.js, src/member-tools.ts). -->
       <h3>Family planner <button type="button" class="tip" data-tip="Shared by everyone at home: when dinner is, when chore reminders go out, and the day a chore rota moves on. Meals and the family calendar are in Family.">?</button></h3>
       <div id="fpl-settings" class="fpl-settings" data-nodirty data-noauto>
@@ -6057,6 +6100,21 @@
         <section class="settings-page" data-page="account" data-group="Household" data-title="Your account" data-member-only hidden>
       <p class="muted small page-lead">You use this server as a member of the owner's household. Your companions, conversations, memories, planner, library and moments are yours: the owner can't read them, and sees only how many messages you send and roughly what they cost.</p>
       <dl id="acc-info" class="acc-info"></dl>
+      <!-- W2.3 (docs/HOSTING_FRIENDS.md): a hosted friend's own model and spending limit (web/hosted.js). -->
+      <h3 class="acc-hosted-only" hidden>Your model <button type="button" class="tip" data-tip="Any OpenAI-compatible service: OpenRouter, OpenAI, Ollama Cloud or a model on your own computer. Your key is sealed with your own key, not the server owner's.">?</button></h3>
+      <div id="acc-model" class="acc-hosted-only hst-own" data-nodirty data-noauto hidden>
+        <label>Address <button type="button" class="tip" data-tip="The service's API address, ending in /v1. Example: https://openrouter.ai/api/v1">?</button> <input id="acc-m-url" type="url" placeholder="https://openrouter.ai/api/v1"></label>
+        <label>API key <button type="button" class="tip" data-tip="Leave empty to keep the key you saved before. Local models need none.">?</button> <input id="acc-m-key" type="password" autocomplete="off"></label>
+        <label>Model <button type="button" class="tip" data-tip="The model's name at that service, as the service writes it.">?</button> <input id="acc-m-model" maxlength="200"></label>
+        <p><button id="acc-m-save" type="button">Save model</button></p>
+      </div>
+      <h3 class="acc-hosted-only" hidden>Your spending limit <button type="button" class="tip" data-tip="Your own limit for your own model. At the limit, paid calls stop until the next day or month. 0 means no limit.">?</button></h3>
+      <div id="acc-spend" class="acc-hosted-only hst-own" data-nodirty data-noauto hidden>
+        <label>Per day, US dollars <button type="button" class="tip" data-tip="Counted in your time zone. 0 means no limit.">?</button> <input id="acc-sp-day" type="number" min="0" step="0.5"></label>
+        <label>Per month, US dollars <button type="button" class="tip" data-tip="Counted from the first of the month. 0 means no limit.">?</button> <input id="acc-sp-month" type="number" min="0" step="1"></label>
+        <p><button id="acc-sp-save" type="button">Save limit</button></p>
+      </div>
+      <p id="acc-m-status" class="small acc-hosted-only" role="status" hidden></p>
       <h3>Sign-in and devices</h3>
       <p class="small"><button id="acc-devices" type="button" class="ghost">Devices and sign-in</button> <span class="muted">Passkeys, two-step sign-in, phones and apps, API keys.</span></p>
       <details>

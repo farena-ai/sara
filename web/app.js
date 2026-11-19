@@ -39,6 +39,7 @@ import { loadMailAccounts } from './mail-accounts.js';
 import { loadBusinessDetails, saveBusinessDetails } from './business-details.js';
 import { loadMyDetails, saveMyDetails } from './my-details.js';
 import { loadWritingStyle } from './writing-style.js';
+import { initComesAcross, loadComesAcross } from './comes-across.js';
 import { loadBrowserExt } from './browser-ext.js';
 import { loadSso } from './sso-settings.js';
 import { paintSsoLogin, ssoAfterLogout, ssoReturn } from './sso-signin.js';
@@ -217,6 +218,7 @@ import { fillScreen, initScreen } from './screen-companion.js';
 import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
 import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
 import { nudgeLine } from './nudges.js';
+import { herWeekCard, initHerWeek, loadHerWeek } from './her-week.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -408,7 +410,7 @@ async function boot() {
   // R2: the guided setup (web/get-started.js), offered once after the first sign-in through the queue.
   if (!session.demo && !getStartedReady) {
     getStartedReady = true;
-    initGetStarted({ api, el, firstRun, isMember, openSettings, openToday, paintFitness, paintTryCards, state });
+    initGetStarted({ api, el, firstRun, isMember, openSettings, openToday, paintFitness, paintTryCards, state, startWin: async (text) => { await newConversation(); await runStarter({ kind: 'text', text }); } });
   }
   refreshSaraStatus();
   setInterval(refreshSaraStatus, 5 * 60_000);
@@ -1543,6 +1545,9 @@ initLook();
 initOrbs();
 // A1: her living picture (web/avatar.js): header, sidebar, Today, her panel, her page, calls.
 initAvatar();
+// W1.4: her picture on a device with no pick follows the persona style (web/comes-across.js).
+addEventListener('sara-herface', () => state.lastFace && setFace(state.lastFace));
+void initComesAcross();
 // V4e: the counts and line draws that make Today feel alive (still with reduced motion or Motion: Off).
 initMotion();
 initMemoryMap({ api, openNote: (id) => void openMemory({ focus: id }) });
@@ -2427,6 +2432,8 @@ function renderMessages(messages, opts = {}) {
       if (m.role === 'assistant') els.push(...whenFor(m));
       // N1: the weekly review's "How she did" card (owner only).
       if (m.role === 'assistant' && m.meta?.quality && !isMember()) els.push(qualityCard(m.meta.quality));
+      // W1.5: her weekly check-in card (web/her-week.js).
+      if (m.role === 'assistant' && m.meta?.herWeek) els.push(herWeekCard(m.meta.herWeek, api, m.id));
       // Phase 81: her security pass over the files this turn changed (when it has finished).
       // Phase 86: "Red-team this" on the after-turn card (the threat card when there is one, else this one).
       const rtWs = (state.conversations ?? []).find((c) => c.id === state.currentId)?.workspace;
@@ -9188,6 +9195,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'you-briefing' && typeof loadStudyPrefs === 'function') void loadStudyPrefs();
   if (pick === 'you-briefing' && typeof loadGiftPrefs === 'function') void loadGiftPrefs();
   if (pick === 'you-briefing' && typeof loadBriefingAudio === 'function') void loadBriefingAudio();
+  if (pick === 'you-briefing' && typeof loadHerWeek === 'function') void loadHerWeek(); // W1.5
   // U4.28: Editing and short video (web/media-studio.js), owner only.
   if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
@@ -9225,6 +9233,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-store') void loadGetMore();
   // Phase 126: Settings → Sara → Hey Sara.
   if (pick === 'her-hey') void loadWakePage();
+  if (pick === 'her-character' && typeof loadComesAcross === 'function') void loadComesAcross();
   if (pick === 'co-signal') void loadSignalPage();
   if (pick === 'co-email') void loadEmailPage();
   if (pick === 'ab-mail') {
@@ -11918,6 +11927,7 @@ async function loadReview() {
   $('#rv-day').value = String(r.day);
   $('#rv-time').value = r.time;
 }
+initHerWeek(api);
 async function saveReview() {
   await api('/review', { method: 'PUT', body: { enabled: $('#rv-enabled').checked, day: Number($('#rv-day').value), time: $('#rv-time').value || '18:00' } });
 }

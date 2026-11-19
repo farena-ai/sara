@@ -7,10 +7,11 @@
 import { t } from './naming.js';
 import { icon } from './icons.js';
 import { startTour } from './tour.js';
+import { paintChat, paintModel, stopFirstTen, winsBox } from './first-ten.js';
 import { guideWords, packResultWords, packWords, PACK_IDS, routineName, sampleSectionWords, sampleTour, sampleWords, stepWords } from './get-started-words.js';
 
 const $ = (sel) => document.querySelector(sel);
-/** What app.js lends this module (api, el, firstRun, isMember, openSettings, paintFitness, paintTryCards, state). */
+/** What app.js lends this module (api, el, firstRun, isMember, openSettings, paintFitness, paintTryCards, startWin, state). */
 let ctx = null;
 let data = null;
 /** The guide reopens when the Settings page it opened closes. */
@@ -47,9 +48,12 @@ function dialog() {
   if (d) return d;
   d = el('dialog', 'gs-dialog');
   d.id = 'gs';
+  // Its own ✕ is in the header (dialogs.js would add a second one on top of it).
+  d.dataset.nox = '';
   d.setAttribute('aria-labelledby', 'gs-title');
   d.addEventListener('close', () => {
     showing = null;
+    stopFirstTen();
     void paintToday();
   });
   document.body.append(d);
@@ -60,9 +64,13 @@ function dialog() {
 export async function openGuide(at) {
   if (!(await load())) return;
   const d = dialog();
+  ctx.firstRun?.drop?.('guide');
+  if (!data.guide.offered) void send('/mark', 'POST', { offered: true }).catch(() => undefined);
   showing = at ?? (data.guide.complete ? 'end' : data.guide.at);
   await paint();
   if (!d.open) d.showModal();
+  // showModal focuses the first control (the ✕): the step's main button is where to start.
+  d.querySelector('.gs-acts .gs-main')?.focus();
 }
 
 async function go(step) {
@@ -119,8 +127,16 @@ async function paintStep(step, body, acts, w) {
   status.setAttribute('role', 'status');
   body.append(title, el('p', 'gs-text', sw.text), status);
   const after = () => go(nextOf(step.id));
+  // W2.2: the parts that need more than one button (web/first-ten.js).
+  const h = { api: ctx.api, el, button, openPage, after, repaint: () => paint() };
   let main;
-  if (step.id === 'model') {
+  if (step.id === 'model' && step.state !== 'done' && !ctx.isMember()) {
+    main = (await paintModel(body, h)) ?? button(sw.go, 'gs-main', () => openPage(sw.page));
+    body.append(button(sw.go, 'linkish small ft-own', () => openPage(sw.page)));
+  } else if (step.id === 'chat') {
+    await paintChat(body, step, h);
+    main = step.state === 'done' ? button(w.next, 'gs-main', after) : button(sw.go, 'gs-main', () => openPage(sw.page));
+  } else if (step.id === 'model') {
     const fit = el('div', 'gs-fit fitness-note');
     fit.hidden = true;
     body.append(fit);
@@ -163,7 +179,15 @@ async function paintStep(step, body, acts, w) {
 function paintEnd(body, acts, w) {
   const title = el('h2', 'gs-title', w.endTitle);
   title.id = 'gs-title';
-  body.append(title, el('p', 'gs-text', w.endText), packPicker('gs'));
+  body.append(title);
+  // W2.2: three quick wins tailored to what is connected, then the pack (web/first-ten.js).
+  const wins = el('div', 'ft-wins-slot');
+  body.append(wins, el('p', 'gs-text', w.endText), packPicker('gs'));
+  void winsBox({ api: ctx.api, el, button }, async (prompt) => {
+    await send('/mark', 'POST', { finished: true, offered: true }).catch(() => undefined);
+    $('#gs').close();
+    await ctx.startWin?.(prompt);
+  }).then((box) => wins.replaceWith(box));
   const row = el('label', 'row gs-examples');
   const box = el('input');
   box.type = 'checkbox';
@@ -331,7 +355,9 @@ async function queueGuide() {
   if (g.offered || g.finished || g.done >= 3) return;
   ctx.firstRun.add(
     'guide',
-    () => {
+    async () => {
+      // W2.2: opened by hand (Today, Settings) or finished meanwhile: don't open it again.
+      if (!(await load()) || data.guide.offered || data.guide.finished) return;
       void send('/mark', 'POST', { offered: true }).catch(() => undefined);
       void openGuide();
     },

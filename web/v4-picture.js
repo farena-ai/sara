@@ -7,6 +7,8 @@
 
 /** The mode to show: 'orb', 'portrait', 'still', 'own' or 'vrm'. Nothing picked: your picture if you uploaded one (as in 3.0.0), else the orb. */
 export function herPictureMode(stored, custom) {
+  // W1.4: nothing picked on this device: the person's persona style (web/comes-across.js) decides.
+  stored ||= globalThis.document?.documentElement?.dataset.herFace ?? null;
   if (stored === 'orb') return 'orb';
   if (stored === 'portrait') return 'portrait';
   if (stored === 'portrait-still') return 'still';
