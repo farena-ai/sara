@@ -87,7 +87,7 @@ const SETTINGS_ORDER = [
   'dh-devices', 'co-phone', 'co-shortcuts', 'desktop-app', 'co-computer',
   'ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-tools', 'ab-library', 'ab-recipes',
   'ab-projects', 'ab-precise', 'ab-persist', 'ab-ssh',
-  'dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'her-import', 'dh-movein', 'dh-health', 'dh-quality', 'dh-recovery', 'dh-operations', 'dh-updates', 'dh-reports',
+  'dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'her-import', 'dh-movein', 'dh-health', 'dh-quality', 'dh-recovery', 'dh-operations', 'dh-updates', 'dh-reports', 'dh-timeline',
   'household', 'dh-policy', 'dh-audit', 'dh-retention', 'dh-trust', 'dh-usage-report', 'dh-shares', 'account',
 ];
 // A small heading inside a group, before the first of these pages (owner decision: Coding is a

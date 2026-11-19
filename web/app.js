@@ -18,6 +18,7 @@ import { browserLang, currentIdentity, currentLang, locale, savedLang, setIdenti
 import { initDefaultLook, renderDefaultLook } from './default-look.js';
 import { autoSave, initDialogs, markDirty, onSave, runSave, saved } from './dialogs.js';
 import { isDocFile, loadLibrarySettings, openArchives, openLibrary, saveLibrarySettings, uploadDoc, waitRead } from './library.js';
+import { loadPhotoFolder } from './photo-folder.js';
 import { initRooms, loadRoomList, openRoom } from './rooms.js';
 import { initProjectMap, resetProjectMap } from './codemap.js';
 import { initWorkspaceView, loadCoAuthor } from './workspace-view.js';
@@ -63,6 +64,7 @@ import { initTrips, loadTrips, openTrips, renderTripsTile } from './trips.js';
 import { initMoney, openMoney } from './money.js';
 import { initBizPack, openBizPack } from './bizpack.js';
 import { initHealth, loadHealthSettings, openHealth } from './health.js';
+import { openSimpleHome } from './simple-home.js'; // V5.4
 import { initPhoneCalls, loadPhoneCalls } from './phone-calls.js';
 import { initFamily, loadFamily, loadPlanSettings, openFamily, renderFamilyTile } from './family.js';
 import { initMessages, messagesChanged, messagesReconnected, openMessages, refreshMessagesBadge } from './messages.js';
@@ -119,6 +121,7 @@ import { initSafetyCheck, loadSafetyCheck, todaySafetyLine } from './safety-chec
 import { initGovernance } from './governance.js';
 import { initSharing, openShare } from './sharing.js';
 import { initSelfCode } from './self-code.js';
+import { initLegacy, loadLegacy } from './legacy.js'; // V5.3
 import { initDashboard, loadDashboard } from './dashboard.js';
 import { initOffline, offlineHint, offlineSawChat, offlineSawList, offlineSignOut, showOfflineSettings } from './offline-hook.js';
 import { initDataRights } from './data-rights.js';
@@ -136,8 +139,10 @@ import { initNav, placeRail, relabelNav, setMore } from './nav.js';
 import { initGetMore, initStore, loadGetMore, loadStorePrivacy } from './store.js';
 import { decorateCompanionRows, initPacks } from './packs.js';
 import { loadWakePage, renderStreamInstall, renderVoiceInstall, wakeEvent } from './wake.js';
-import { initTalk, syncTalkButton, talkEvent, talkOn, talkWake } from './talk.js';
+import { initTalk, startTalk, syncTalkButton, talkEvent, talkOn, talkWake } from './talk.js';
+import { initInterpreter, loadInterpreter } from './interpreter.js';
 import { hubHash, initHub, loadPrivacy, openReport as openHubReport, reportThisButton } from './hub.js';
+import { loadLedger } from './privacy-ledger.js';
 import { initOwnerChecks, openTryThese } from './owner-checks.js';
 import { initWhatsNew, openWhatsNew } from './whats-new.js';
 import { createQueue, normPath, overlayCount, starterChips, todayAction } from './first-run.js';
@@ -200,9 +205,12 @@ import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './
 import { initMemoryMap } from './memory-map.js';
 import { choiceCard } from './choice-card.js';
 import { initRepair, loadRepair, saveRepair } from './repair.js';
+import { loadTimeline } from './timeline.js';
 import { initFixIssue, loadFixIssue } from './fix-issue.js';
 import { initSharedProjects, loadSharedSettings, renderProjectShare, sharedChanged } from './shared-projects.js';
 import { installPhoneSave } from './phone-save.js';
+import { fillScreen, initScreen } from './screen-companion.js';
+import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -1712,6 +1720,7 @@ initCommandBar({
     // V3 §2: the Settings home, Appearance and Find a setting, wherever you are.
     add('settings-home', 'settings', t('All settings'), () => openSettings('home'), 'Ctrl+,', t('settings home index every page'));
     add('appearance', 'sliders', t('Appearance'), () => openSettings('you-appearance'), '', t('theme palette color dark light look'));
+    add('accessibility', 'sliders', t('Accessibility'), () => openSettings('you-appearance'), '', t('accessibility dyslexia reduce motion large layout line focus screen reader'));
     add('reset-look', 'undo', t('Reset the look to the defaults'), async () => {
       await openSettings('you-appearance');
       $('#ap-reset').click();
@@ -5076,9 +5085,9 @@ $('#cmpx-run').addEventListener('click', async () => {
 
 // ---------- voice ----------
 const voice = { cfg: null, mic: new Mic(), call: null };
-const speaker = new Speaker(async (text, who) => {
+const speaker = new Speaker(async (text, who, lang) => {
   // Phase 66: a group chat line goes to its companion's own voice (her settings), by the companion header.
-  const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json', ...(who ? { 'x-sara-companion': who } : {}) }, body: JSON.stringify({ text }) });
+  const res = await fetch('/api/voice/speak', { method: 'POST', headers: { 'content-type': 'application/json', ...(who ? { 'x-sara-companion': who } : {}) }, body: JSON.stringify({ text, ...(lang ? { lang } : {}) }) });
   return res.ok ? res.blob() : null;
 });
 const voiceOn = () => localStorage.getItem('sara.speak') === '1' || Boolean(voice.call?.active) || talkOn();
@@ -5318,6 +5327,7 @@ const callApprovals = new CallApprovals({
   },
 });
 // U4.24 (docs/VOICE_FIRST.md): Talk with Sara, the voice-first mode (web/talk.js).
+initInterpreter({ api, speaker, notice: (text) => append(bubble('notice', text)), startTalk: (o) => startTalk(o), settingsClose: () => $('#settings')?.close() });
 initTalk({
   api,
   speaker,
@@ -5599,6 +5609,7 @@ $('#video-call-btn').addEventListener('click', async () => {
 async function loadVoice() {
   const d = await api('/voice');
   voice.cfg = d;
+  void loadInterpreter();
   const v = d.settings;
   $('#v-stt').value = v.stt;
   $('#v-tts').value = v.tts;
@@ -9166,6 +9177,8 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
   if (shown.has('dh-quality')) void loadQuality();
+  // V5.1: the action timeline (web/timeline.js) under Reports.
+  if (shown.has('dh-timeline') && typeof loadTimeline === 'function') void loadTimeline({ openChat: (id) => { document.querySelector('#settings')?.close(); void openConversation(id); } });
   // V3.4: Fix this issue on the GitHub page (web/fix-issue.js), owner only.
   if (pick === 'ab-github' && typeof loadFixIssue === 'function' && !isMember()) {
     initFixIssue({ api });
@@ -9226,6 +9239,7 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'ab-projects') void Promise.all([loadSandboxGate(), loadSecPass(), loadThreatModel(), loadRedTeam(), loadCodeProjects(), loadProjectDials()]);
   if (pick === 'ab-ssh') void loadSsh();
   if (pick === 'ab-library') void loadLibrarySettings();
+  if (pick === 'ab-library' && typeof loadPhotoFolder === 'function') void loadPhotoFolder();
   if (pick === 'co-apps') void Promise.all([loadOtherApps(), loadAlexa()]);
   if (pick === 'co-agents') void loadAgents();
   // R4: the Home Screen guide on an iPhone in a Safari tab (also when the push read fails).
@@ -9242,6 +9256,9 @@ function showSettingsTab(page, opts = {}) {
     void loadPrivacy();
     // Phase 124: the Sara Store row.
     void loadStorePrivacy();
+    // V5.2: What left this server.
+    if (typeof loadLedger === 'function') void loadLedger();
+    if (typeof loadLegacy === 'function') void loadLegacy(); // V5.3
   }
   $('#settings-empty').hidden = true;
   $('#settings').classList.add('page-open'); // phone: show the page instead of the list
@@ -10151,7 +10168,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), simple: () => void openSimpleHome(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -10584,6 +10601,7 @@ function currentAppearance() {
   return {
     palette: palettePick(), theme: themePick(), accent: accentPick(), density: localStorage.getItem('sara.density') ?? 'comfy', portrait: portraitPick(),
     ...(decor ? { decor } : {}), ...(localStorage.getItem('sara.accent') === 'custom' ? { accentCustom: readCustomAccent() } : {}),
+    access: currentAccess(),
   };
 }
 $('#ap-sync').addEventListener('click', async () => {
@@ -10599,6 +10617,7 @@ function adoptAppearance(a) {
   const keys = { palette: 'sara.palette', theme: 'sara.theme', accent: 'sara.accent', density: 'sara.density', portrait: 'sara.portrait', decor: 'sara.decor' };
   for (const [k, key] of Object.entries(keys)) if (a[k]) localStorage.setItem(key, a[k]);
   if (a.accentCustom) localStorage.setItem('sara.accentCustom', JSON.stringify(a.accentCustom));
+  adoptAccess(a.access);
   localStorage.setItem('sara.v1Notice', 'seen');
   applyAppearance();
   $('#ap-theme').value = themePick();
@@ -10693,6 +10712,8 @@ function apSegment(id) {
   return sync;
 }
 apSegSync = ['ap-theme', 'ap-motion', 'ap-decor', 'ap-density', 'ap-size', 'ap-portrait', 'ap-sessions'].map(apSegment);
+// V5.5: the Accessibility group; the switch also sets Text size in chat (redrawn here).
+initA11y({ after: () => { $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15'; applyAppearance(); for (const f of apSegSync) f(); } });
 // Reset to defaults: forgets this device's look (the owner's defaults apply; docs/APPEARANCE.md).
 const AP_KEYS = ['sara.palette', 'sara.theme', 'sara.accent', 'sara.accentPicked', 'sara.herPicture', 'sara.runDetails', 'sara.accentCustom', 'sara.decor', 'sara.glass', 'sara.portrait', 'sara.density', 'sara.chatbg', 'sara.textSize', 'sara.typing', PAGE_KEY];
 $('#ap-reset').addEventListener('click', () => {
@@ -10958,6 +10979,7 @@ initGovernance({ api, el, openSettings: (page) => void openSettings(page) });
 // EC11 + EC15: shared links and usage reports (web/sharing.js, web/usage-report.js).
 initSharing({ api, el });
 initSelfCode({ api, proof: () => confirmProof() });
+initLegacy({ api, el, confirmProof, copyText }); // V5.3 legacy access
 initDashboard({ api }); // U5.34
 // EC17: Retention and legal hold (web/data-rights.js).
 initDataRights({ api, el, openSettings: (page) => void openSettings(page) });
@@ -14236,6 +14258,7 @@ async function loadDesktop() {
   $('#dk-version').textContent = `${t('Sara for {platform}', { platform: p.platform === 'mac' ? 'Mac' : 'Windows' })} ${p.version ?? ''} · ${t('connected to {host}', { host: location.host })}`;
   fillQuickAsk(p);
   fillSaveSettings(p);
+  fillScreen(p);
 }
 /**
  * Phase 75 (stage 3): the quick-ask shortcut, read and set through the app's bridge
@@ -14275,6 +14298,7 @@ if (window.SaraDesktop) {
     else await loadDesktop();
   });
   $('#dk-quick-try').addEventListener('click', () => void window.SaraDesktop.call('quickAsk').catch(() => {}));
+  initScreen(loadDesktop);
   $('#dk-test').addEventListener('click', () => window.SaraDesktop.call('testNotification', { title: t('Sara'), body: t('Notifications from Sara will look like this.') }));
 }
 

@@ -78,9 +78,47 @@ export function blockedRecently(): { at: string; target: string }[] {
   return blocked.slice(-20);
 }
 
-function noteBlocked(target: string): void {
+function noteBlocked(target: string, url?: string | URL): void {
   blocked.push({ at: new Date().toISOString(), target });
   if (blocked.length > 50) blocked.splice(0, blocked.length - 50);
+  if (url !== undefined) record({ target: String(url), blocked: true });
+}
+
+/**
+ * V5.2 (src/privacy-ledger.ts): what the privacy ledger is told about one request: its address,
+ * the caller's label, the size of the request body when it can be told, and whether private local
+ * mode stopped it. Never the body itself.
+ */
+export interface OutboundNote { target: string; what?: string; bytes?: number; blocked?: boolean }
+let recorder: ((e: OutboundNote) => void) | undefined;
+/** The server's privacy ledger (set by setPrivacyLedger); undefined = nobody counts. */
+export function setOutboundRecorder(fn?: (e: OutboundNote) => void): void {
+  recorder = fn;
+}
+function record(e: OutboundNote): void {
+  if (!recorder) return;
+  try {
+    recorder(e);
+  } catch {
+    /* counting never breaks a request */
+  }
+}
+/** Size of a request body without reading it (undefined when it can't be told: streams, forms). */
+function bodySize(body: unknown): number | undefined {
+  if (body === undefined || body === null) return 0;
+  if (typeof body === 'string') return Buffer.byteLength(body);
+  if (body instanceof ArrayBuffer) return body.byteLength;
+  if (ArrayBuffer.isView(body)) return body.byteLength;
+  if (body instanceof URLSearchParams) return Buffer.byteLength(body.toString());
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return body.size;
+  return undefined;
+}
+/**
+ * V5.2: a connection that leaves without netFetch/openWebSocket (mail sockets, raw http(s), git,
+ * Apple push): called right after its checkOutbound, so the privacy ledger counts it too.
+ */
+export function noteOutbound(target: string | URL, what?: string, bytes?: number): void {
+  record({ target: String(target), ...(what ? { what } : {}), ...(bytes !== undefined ? { bytes } : {}) });
 }
 
 /**
@@ -150,7 +188,7 @@ export function checkOutbound(target: string | URL, what?: string, lan = false):
   if (outboundAllowed(target, lan)) return;
   const u = toUrl(target);
   const host = u ? u.host || u.protocol : String(target).slice(0, 80);
-  noteBlocked(what ? `${what} (${host})` : host);
+  noteBlocked(what ? `${what} (${host})` : host, target);
   throw new PrivateLocalError(what ? `${what} (${host})` : host);
 }
 
@@ -201,10 +239,11 @@ export async function netFetch(input: string | URL | Request, init?: RequestInit
     const u = toUrl(href);
     const why = u && !OFFLINE.has(u.protocol) ? ollamaEgress(u, init?.body) : undefined;
     if (why) {
-      noteBlocked(`${u!.host}${u!.pathname}`);
+      noteBlocked(`${u!.host}${u!.pathname}`, href);
       throw new PrivateLocalError(`${u!.host}${u!.pathname}`, `Blocked by private local mode: ${why}`);
     }
   }
+  record({ target: requestUrl(input), bytes: init && 'body' in init ? bodySize(init.body) : input instanceof Request ? undefined : 0 });
   return transport(input, init);
 }
 
@@ -215,6 +254,7 @@ export async function netFetch(input: string | URL | Request, init?: RequestInit
 export async function netFetchPeer(input: string, init: RequestInit | undefined, lan: boolean): Promise<Response> {
   if (privateOn && lan && isLanHost(new URL(input).hostname)) {
     checkOutbound(input, 'agent', true);
+    record({ target: input, what: 'agent', bytes: bodySize(init?.body) });
     return transport(input, init);
   }
   return netFetch(input, init);
@@ -356,5 +396,6 @@ const guardedGlobal = (input: string | URL | Request, init?: RequestInit): Promi
 /** A WebSocket (Node's built-in client) after the same check. */
 export function openWebSocket(url: string, opts?: unknown): WebSocket {
   checkOutbound(url);
+  record({ target: url });
   return new WebSocket(url, opts as string[] | undefined);
 }

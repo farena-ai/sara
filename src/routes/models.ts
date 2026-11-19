@@ -12,6 +12,7 @@ import { compareModels, comparePrompt, connectedModels, costHint, JOBS, recommen
 import { blockedRecently, privateLocalOn } from '../net-guard.ts';
 import { dayStartUtc } from '../planner.ts';
 import { onThisComputer, PrivateLocalStore, whatWouldLeave } from '../private-local.ts';
+import { isLedgerDay, LEDGER_DAYS, privacyLedger } from '../privacy-ledger.ts';
 import { createProvider, PROVIDER_PRESETS, validateProviderConfig } from '../providers/registry.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings } from '../settings.ts';
 import { cleanLimits } from '../team.ts';
@@ -141,6 +142,19 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
   return async (req, res, method, parts) => {
     const [a, b, c] = parts;
     // Phase 67: "Nothing leaves this computer" (private local mode) and a model on this computer.
+    // V5.2: the privacy ledger, "What left this server" per day (Settings → Privacy).
+    if (a === 'private-local' && b === 'ledger' && !c) {
+      const ledger = privacyLedger();
+      if (!ledger) throw new HttpError(404, 'Not available');
+      if (method === 'DELETE') {
+        ledger.clear();
+        return send(res, 200, { ok: true });
+      }
+      if (method !== 'GET') throw new HttpError(405, 'Method not allowed');
+      const want = new URL(req.url ?? '/', 'http://x').searchParams.get('day');
+      if (want !== null && !isLedgerDay(want)) throw new HttpError(400, 'Pick a day like 2026-11-18.');
+      return send(res, 200, { ...ledger.day(want ?? undefined), today: ledger.dayOf(), days: ledger.days(), privateLocal: privateLocalOn(), keptDays: LEDGER_DAYS });
+    }
     if (a === 'private-local' && !b) {
       const pl = privateLocalOf();
       if (method === 'GET') return send(res, 200, await privateLocalView(pl));

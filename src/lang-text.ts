@@ -89,3 +89,10 @@ export function monthNumber(word: string, lang: TextLang): number {
 export function dayMonthRe(lang: TextLang): RegExp {
   return new RegExp(`(?<![\\p{L}\\p{N}])(\\d{1,2})(?:\\.|º|°|ª|er)?\\s*(?:de\\s+)?(${monthAlternation(lang)})\\.?(?![\\p{L}])(?:,?\\s*(?:de\\s+)?(\\d{4})(?!\\d))?`, 'giu');
 }
+
+/** V4.4: the language a short line leans to (one real sign is enough, no tie), else undefined. */
+export function leanLang(text: string): TextLang | undefined {
+  const { best, score } = langScores(text);
+  const top = score[best];
+  return top >= 1 && TEXT_LANGS.every((l) => l === best || score[l] < top) ? best : undefined;
+}

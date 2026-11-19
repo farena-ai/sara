@@ -9,6 +9,7 @@ import { ACTION_WORDS, chatPrompt, cleanHosts, deviceApprovalSettings, DeviceApp
 import { clientIp, cookies, HttpError, readJson, send } from './http.ts';
 import { en, trOwner } from './i18n.ts';
 import { identityOf } from './persona.ts';
+import { legacyActivity } from './legacy.ts';
 import { policy } from './policy-profile.ts';
 import { todayChanged } from './today.ts';
 import { telegramSettings } from './bridges/telegram.ts';
@@ -125,6 +126,8 @@ export function createDeviceGate(o: { app: AppContext; auth: OwnerAuth; demo: bo
       const session = auth.createSession(label, { ip, remote, maxDevices: s.maxDevices });
       res.setHeader('set-cookie', cookie(session.value, session.maxAgeSeconds));
       if (isNew) newAddress(label, ip);
+      // V5.3: a real sign-in cancels legacy access that was counting down.
+      legacyActivity(app, 'sign-in');
       send(res, 200, { ok: true });
     },
     askFirst(req, action) {

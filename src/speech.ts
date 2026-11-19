@@ -3,6 +3,7 @@
 // hearing engine that reads them: Grok voice (xAI speech-to-text) or a speech API; the on-server
 // engine reads WAV only.
 
+import { voiceForLang } from './interpreter.ts';
 import { netFetch } from './net-guard.ts';
 import { localVoiceMissing, localVoiceSupported } from './platform.ts';
 import { speechLanguage } from './i18n.ts';
@@ -116,8 +117,16 @@ export class Speech {
   }
 
   /** Her voice with the chosen engine. */
-  async speak(text: string, voiceId?: string, opts: { expressive?: Expressive; tone?: VoiceTone; phone?: boolean } = {}): Promise<Audio> {
+  async speak(text: string, voiceId?: string, opts: { expressive?: Expressive; tone?: VoiceTone; phone?: boolean; lang?: string } = {}): Promise<Audio> {
     const v = this.settings();
+    // V4.2 interpreter: words in another language: Grok voice gets the language, a local voice that
+    // names it is picked (else her own), no mood tags; OpenAI and ElevenLabs read any language.
+    const lang = opts.lang;
+    if (lang) {
+      v.xai = { ...v.xai, language: lang };
+      opts = { ...opts, expressive: 'off' };
+      if (v.tts === 'local' && !voiceId) voiceId = voiceForLang(this.#app.voice?.voices() ?? [], lang);
+    }
     const plain = speechText(plainSpeech(text)).slice(0, 1200);
     if (!plain) throw new VoiceError('Nothing to say');
     if (v.tts === 'off') throw new VoiceError(personalize('Her voice is off (Settings → Voice).', identityOf(this.#app.persona)));
@@ -170,8 +179,9 @@ export class Speech {
   }
 
   /** What the owner said, from WAV (the app) or a voice note (OGG/Opus, MP3, M4A). */
-  async transcribe(audio: Buffer): Promise<string> {
+  async transcribe(audio: Buffer, opts: { language?: string } = {}): Promise<string> {
     const v = this.settings();
+    if (opts.language) v.xai = { ...v.xai, language: opts.language };
     if (v.stt === 'off') throw new VoiceError('Speech-to-text is off (Settings → Voice).');
     if (v.stt === 'openai') return openaiTranscribe(v.openai, this.#app.vault.get(VOICE_VAULT.openai), audio, v.xai.language);
     if (isWav(audio) && this.#app.voice) return this.#app.voice.transcribe(audio);

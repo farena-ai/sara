@@ -158,6 +158,24 @@ replaced. The owner token and setup code are printed once at start-up straight t
 you share a log (for a bug report), still read it: it can name your server's folders, models and
 connected services. See [INSTALL.md → Logs](INSTALL.md#logs).
 
+## What left this server
+
+**Settings → Privacy & system → Privacy → What left this server** shows, one day at a time, every
+request her server sent to another computer: the place (a host name like `api.openai.com`), why it
+went (AI models, web search, mail and calendar, phone notifications, chat apps, voices, Sara's makers,
+GitHub, add-ons, your home network, other), how many requests and about how much was sent. The
+count is made in the same place every request goes through (the net guard), so a feature can't skip it.
+
+- Only the host name, the purpose, a count, the sizes and the first/last time are kept, for 30 days,
+  in `privacy-ledger.json` in her data folder. Never what was in a request (messages, mail, search
+  words), its path or address details, or who asked. **Clear the list** forgets it all.
+- Things that only connect to this computer (a model running here) are not listed: they never
+  leave. With **Nothing leaves this computer** on, the list stays empty and a *Stopped before
+  leaving* card counts what the switch refused.
+- Not counted: programs she starts that go online themselves (Ollama's own model downloads, coding
+  CLIs, add-on programs and sandboxed jobs, which have their own allowlist and refusal rows in the
+  audit trail).
+
 ## Turning everything off at once
 
 **Nothing leaves this computer** (Settings → Models & usage → On this computer, or `SARA_PRIVATE_LOCAL=1`)

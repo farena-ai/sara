@@ -6,7 +6,7 @@
 // bridge's IMAP and SMTP code takes (plugins/email/imap.mjs, smtp.mjs).
 import { isIP } from 'node:net';
 import type { TLSSocket } from 'node:tls';
-import { checkOutbound } from '../net-guard.ts';
+import { checkOutbound, noteOutbound } from '../net-guard.ts';
 import { addressAllowed, connectTcp, defaultLookup, isLoopbackAddress, loopbackMailOverride, startTls, upgrade } from '../plugins/net.ts';
 
 /** What plugins/email/imap.mjs and smtp.mjs expect of a socket. */
@@ -31,6 +31,7 @@ export interface OpenOpts {
 
 export async function openMailSocket(host: string, port: number, opts: OpenOpts = {}): Promise<{ sock: WireSocket; greeting?: string; fingerprint?: string }> {
   checkOutbound(`tcp://${isIP(host) === 6 ? `[${host}]` : host}:${port}`, 'your mail server', Boolean(opts.loopback));
+  noteOutbound(`tcp://${isIP(host) === 6 ? `[${host}]` : host}:${port}`, 'your mail server');
   const addrs = isIP(host) ? [host] : await (opts.lookup ?? defaultLookup)(host).catch(() => [] as string[]);
   if (!addrs.length) throw new Error(`${host} couldn't be found`);
   const test = loopbackMailOverride(opts.testLoopback) && addrs.every(isLoopbackAddress);

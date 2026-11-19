@@ -13,6 +13,7 @@ export const QUICK = [
   { id: 'cl-on', page: 'her-calls', label: t('Let her call me'), where: t('Calls from her') },
   { id: 'wk-on', page: 'her-hey', label: t('Listen for “Hey Sara” on this computer'), where: t('Hey Sara') },
   { id: 'compact-auto', page: 'models-default', label: t('Tidy long chats on their own'), where: t('Default model') },
+  { id: 'ap-a11y', page: 'you-appearance', label: t('Accessibility mode'), where: t('Appearance') },
 ];
 
 /**

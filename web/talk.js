@@ -9,6 +9,7 @@
 import { approvalCommand } from './car-mode.js';
 import { t } from './naming.js';
 import { Call, StreamHearing, Mic, SpeechGate } from './voice.js';
+import { interpAtStart, interpHeard, interpOn, interpTranscribe, stopInterp } from './interpreter.js';
 
 /** No word from her this long after you spoke: a filler line plays. */
 export const FILLER_AFTER_MS = 700;
@@ -308,7 +309,7 @@ async function prefetchFillers() {
   );
 }
 
-export async function startTalk() {
+export async function startTalk(opts) {
   if (session || !ctx) return;
   const why = ctx.ready();
   if (why) return void ctx.notice(why);
@@ -342,10 +343,11 @@ export async function startTalk() {
   call = new Call({
     mic,
     speaker: ctx.speaker,
-    transcribe: ctx.transcribe,
+    // V4.2: the interpreter hears either language (no language hint) and has no streaming preview.
+    transcribe: (wav) => (interpOn() ? interpTranscribe(wav) : ctx.transcribe(wav)),
     isSpeech: (f) => (gate ??= new SpeechGate(mic.ctx?.sampleRate ?? 48000)).push(f),
     // V0.2: words as you speak (Settings → Voice → Talk with Sara → Hearing while you talk).
-    stream: ctx.voiceCfg()?.streaming?.on ? () => new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000) : undefined,
+    stream: ctx.voiceCfg()?.streaming?.on ? () => (interpOn() ? null : new StreamHearing(postStream, mic.ctx?.sampleRate ?? 48000)) : undefined,
     onPartial: (words) => {
       // The newest words only, so a long sentence never squeezes the header.
       const shown = words.length > 60 ? `…${words.slice(-60).replace(/^\S*\s/, '')}` : words;
@@ -353,6 +355,8 @@ export async function startTalk() {
     },
     onUtterance: async (text) => {
       if (!session) return;
+      // V4.2: in the interpreter every turn is translated (no turn to her, no goodbye command).
+      if (interpOn()) return void (await interpHeard(text));
       // A yes/no for the waiting card (or goodbye) answers without stopping the turn that waits.
       if (!session.keepsTurn(text)) {
         ctx.stopTurn();
@@ -361,6 +365,7 @@ export async function startTalk() {
       await session?.heard(text);
     },
     onInterrupt: () => {
+      if (interpOn()) return;
       session?.interrupted();
       stopFiller();
       // Talking over her line about a card stops her voice only: the card keeps waiting.
@@ -373,7 +378,7 @@ export async function startTalk() {
       if (call?.muted) return;
       if (s === 'hearing') status(t('Hearing you…'));
       else if (s === 'thinking') {
-        session?.ended();
+        if (!interpOn()) session?.ended();
         status(t('Thinking…'));
       }
       else if (s === 'listening' && !ctx.speaker.speaking) status(t('Listening…'));
@@ -384,6 +389,7 @@ export async function startTalk() {
     $('#talk-btn')?.classList.add('active');
     status(t('Listening…'));
     void prefetchFillers();
+    interpAtStart(opts);
   } catch (err) {
     stopTalk('error');
     ctx.notice(err?.name === 'NotAllowedError' ? t('Microphone: permission denied.') : t('Microphone: {message}', { message: err?.message ?? '' }));
@@ -394,6 +400,7 @@ export function stopTalk(why = 'button') {
   if (!session) return;
   const s = session;
   session = null;
+  void stopInterp();
   call?.stop();
   call = null;
   stopFiller();

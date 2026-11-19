@@ -14,7 +14,10 @@ export interface Appearance {
   density: 'comfy' | 'compact';
   decor?: 'on' | 'off';
   portrait: 'large' | 'small' | 'hidden';
+  /** V5.5 (docs/design/V5_ACCESS.md): the Accessibility choices (web/a11y-mode.js). */
+  access?: Access;
 }
+export interface Access { on: boolean; read: 'easy' | 'normal'; lineFocus: boolean; reduceMotion: boolean; large: boolean }
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const pick = <T extends string>(v: unknown, list: readonly T[], fallback: T): T => (list.includes(v as T) ? (v as T) : fallback);
@@ -36,6 +39,10 @@ export function cleanAppearance(v: unknown): Appearance | undefined {
     portrait: pick(o.portrait, ['large', 'small', 'hidden'] as const, 'small'),
   };
   if (o.decor === 'on' || o.decor === 'off') out.decor = o.decor;
+  if (o.access && typeof o.access === 'object') {
+    const a = o.access as Record<string, unknown>;
+    out.access = { on: a.on === true, read: a.read === 'easy' ? 'easy' : 'normal', lineFocus: a.lineFocus === true, reduceMotion: a.reduceMotion === true, large: a.large === true };
+  }
   const c = o.accentCustom as Record<string, unknown> | undefined;
   const dark = shade(c?.dark), light = shade(c?.light);
   if (out.accent === 'custom') {

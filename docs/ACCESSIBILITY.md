@@ -23,11 +23,37 @@ zoomed page. This page says what is in place, how it is checked and what to keep
   (1440 px) widths: no sideways scrolling and no clipped text in the chat, Today, Settings →
   Automations and the offline view.
 
+## The Accessibility switch (V5.5)
+
+Settings → You → Appearance → **Accessibility** (the first group on the page; also a quick setting on
+the Settings home, in Settings search and in Ctrl K). Each device keeps its own choice, like the rest
+of Appearance, and "Use on all my devices" carries it to a new device.
+
+- **Accessibility mode** turns on the three below together and sets *Text size in chat* to at least
+  Large. Turning it off puts back what you had before.
+- **Reading style → Easier reading**: a clearer font (Atkinson Hyperlegible, Lexend or OpenDyslexic
+  when the device has one, otherwise Verdana), more space between letters, words and lines, shorter
+  lines in the chat and no slanted text. It can help with dyslexia. Nothing is downloaded.
+- **Line focus**: a reading band follows your pointer, a tap or the keyboard focus and fades the rest
+  of the screen, so you keep your place. It is not part of the switch; turn it on here.
+- **Motion → Reduced**: no animations or transitions anywhere in Sara (her orb and portrait stand
+  still too), not only the background light. *Follow the system* does the same when the system asks
+  for less motion.
+- **Large layout**: bigger text and controls on every page (chat, sidebar, Today, Settings and the
+  other places), not only the chat text.
+
+The choices are applied before the page is drawn, so a reload never flashes the plain look.
+*Reset to defaults* resets colors and layout but keeps these choices on purpose.
+
+Screen readers: every dialog is announced by its name (a dialog without a label is named after its
+heading when the page loads).
+
 ## How it is checked
 
 `web/a11y-check.js` is Sara's own small checker (axe-core is not a dependency). Rules: images
 without alt, buttons and links without a name, inputs without a label, headings that skip a level,
-theme color contrast (computed from `web/theme.css`, light and dark) and a visible focus ring.
+theme color contrast (computed from `web/theme.css`, light and dark), a visible focus ring and (V5.5)
+dialogs without a name or a heading.
 
 - **Without a browser** (`test/r9-a11y.test.ts`, part of the normal test run): every rule on small
   examples, then `index.html`, `offline.html`, `pair.html`, `download.html` and `device.html` must
@@ -45,6 +71,11 @@ theme color contrast (computed from `web/theme.css`, light and dark) and a visib
 - Something that announces itself (a status line, a new card) goes in `role="status"` or an
   `aria-live="polite"` region.
 - A clickable `div` needs `role="button"`, `tabindex="0"` and Enter/Space; prefer a real `<button>`.
+
+- **Views added since R9** (`test/v5-access.test.ts`): Ask everything, Errands, Goals, Trips,
+  Family, Health, Money, Messages, Waiting on you, What's new, Try these, Talk and Business, plus the
+  newer Settings pages, each checked on its own (hidden parts included). The live pass over the same
+  views at 1440/390 in light and dark found nothing to fix (V5.5, 2026-11-18).
 
 ## Known gaps
 

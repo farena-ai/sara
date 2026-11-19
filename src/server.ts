@@ -83,6 +83,7 @@ import { createSafetyCheckRoutes } from './routes/safety-check.ts';
 import { createReadinessRoutes } from './routes/readiness.ts';
 import { createSelfTestRoutes } from './routes/self-test.ts';
 import { createRoutineRoutes } from './routes/routines.ts';
+import { createTimelineRoutes } from './routes/timeline.ts';
 import { createAutomationRoutes } from './routes/automations.ts';
 import { createErrandRoutes } from './routes/errands.ts';
 import { createLongGoalRoutes } from './routes/long-goals.ts';
@@ -141,6 +142,7 @@ import { createConnectionsRoutes, createHomeAssistantApi } from './routes/connec
 import { createAdminRoutes } from './routes/admin.ts';
 import { createGovernanceRoutes } from './routes/governance.ts';
 import { createSharePublic, createShareRoutes } from './routes/share.ts';
+import { createLegacyPublic } from './routes/legacy.ts';
 import { createExtensionRoutes } from './routes/extension.ts';
 import { ssoOwnerRoute, ssoPeople, ssoPublicRoute } from './routes/sso.ts';
 import { HomeSso } from './home-sso.ts';
@@ -1077,6 +1079,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 121: the safety check-up and the routines gallery (src/routes/safety-check.ts, src/routes/routines.ts).
   const safetyCheckRoutes = createSafetyCheckRoutes(ctx);
   const routineRoutes = createRoutineRoutes(ctx);
+  // V5.1: the action timeline with Revert (src/routes/timeline.ts).
+  const timelineRoutes = createTimelineRoutes(ctx);
   // N2: automations, one place, each person's own (src/routes/automations.ts).
   const automationRoutes = createAutomationRoutes(ctx);
   const errandRoutes = createErrandRoutes(ctx);
@@ -1184,6 +1188,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // R4: the installed web app's badge (iPhone and Android): approvals and inbox cards waiting.
   if (app.push && !app.push.badge) app.push.badge = () => badgeCount(active, app);
   const sharePublic = createSharePublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
+  // V5.3: the page a trusted person gets (src/routes/legacy.ts).
+  const legacyPublic = createLegacyPublic({ opts, app, ownerLang: () => appLanguage(app.settings.get()) });
   // R6 (docs/WORK_APPS.md): booking pages and accounting exports (src/routes/booking.ts).
   const bookingPublic = createBookingPublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const bookingRoutes = createBookingRoutes(ctx);
@@ -1686,6 +1692,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if ((await workProfileRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await safetyCheckRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await routineRoutes(req, res, method, parts)) !== NEXT) return;
+    if ((await timelineRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await automationRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await errandRoutes(req, res, method, parts)) !== NEXT) return;
     if ((await longGoalRoutes(req, res, method, parts)) !== NEXT) return;
@@ -2743,6 +2750,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/movein/') && method === 'GET' && !opts.demo && !opts.member && serveMoveInFile(req, res, url.pathname)) return;
       // EC11: a shared conversation (read-only, no sign-in, never indexed).
       if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
+      if (url.pathname.startsWith('/legacy/') && (await legacyPublic(req, res, url.pathname))) return;
       // R6: a public booking page (no sign-in; off unless its owner turned it on).
       if (url.pathname.startsWith('/book/') && (await bookingPublic(req, res, url.pathname))) return;
       if ((url.pathname === '/reception.js' || url.pathname.startsWith('/reception/')) && (await receptionPublic(req, res, url.pathname))) return;

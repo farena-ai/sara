@@ -181,7 +181,7 @@ Wave 3:
 
 ## V4 Senses (wave 5)
 
-**V4.1 Photo library search** (item 26) · PARTIAL · L
+**V4.1 Photo library search** (item 26) · DONE (2026-11-18, [V4PHOTOS.md](V4PHOTOS.md), docs/PHOTO_LIBRARY.md) · L
 - Exists: `src/moments.ts`, `src/picture-reader.ts`, `src/library/vectors.ts`, `src/find.ts`.
 - Build: index a chosen photo folder locally (GPU when present): captions, text in photos, places from
   EXIF, optional face groups you name; search by words; made-for-you albums in Moments. Nothing leaves.
@@ -231,7 +231,7 @@ Wave 3:
   can cancel at any time.
 - Acceptance: simulated clock walks through each stage; a sign-in cancels.
 
-**V5.4 Caregiver mode** (item 34) · PARTIAL · M
+**V5.4 Caregiver mode** (item 34) · DONE (docs/design/V5CARE.md) · M
 - Exists: easy mode (`src/everyday-settings.ts`, `src/lean.ts`), `src/health-log.ts` medicines,
   `src/family.ts` profile pattern, `src/household.ts`.
 - Build: a simplified home (big buttons: talk, medicines, call family), daily check-in, a caregiver

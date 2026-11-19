@@ -106,6 +106,8 @@ export function checkTree(root) {
       if (!textOf(n).trim() && !nameOf(n, ids)) out.push({ rule: 'button-name', where: describe(n) });
     }
     if (n.tag === 'a' && n.attrs.href !== undefined && !textOf(n).trim() && !nameOf(n, ids)) out.push({ rule: 'link-name', where: describe(n) });
+    // V5.5: a dialog is announced by its name: aria-label(ledby), or a heading web/a11y-mode.js names it from.
+    if (n.tag === 'dialog' && !nameOf(n, ids) && !all(n).some((c) => /^h[1-3]$/.test(c.tag))) out.push({ rule: 'dialog-name', where: describe(n) });
     if (n.tag === 'input' || n.tag === 'select' || n.tag === 'textarea') {
       const type = (n.attrs.type ?? 'text').toLowerCase();
       if (n.tag === 'input' && ['hidden', 'submit', 'reset', 'button', 'image'].includes(type)) continue;

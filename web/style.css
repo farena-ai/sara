@@ -1563,6 +1563,27 @@ body.private-local .pl-card { border-color: var(--accent); }
 .mo-item img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 12px; display: block; cursor: zoom-in; background: var(--panel-2); }
 .mo-item.mo-note .mo-quote { margin: 0; aspect-ratio: 1; overflow: hidden; padding: 14px; border-radius: 12px; background: var(--panel-2); font-style: italic; display: flex; align-items: center; line-height: 1.4; }
 .mo-item.pending .mo-caption { color: var(--muted); font-style: italic; }
+/* V4.1: Your photo folder in Our moments */
+.mo-photos { margin: 10px 0 14px; padding: 10px 12px 12px; border-radius: 14px; background: var(--panel-2); min-width: 0; max-width: 100%; overflow: hidden; }
+#mo-ph-find { min-width: 0; }
+.mo-photos h3 { margin: 0 0 4px; }
+.mo-ph-search input { width: 100%; }
+.mo-ph-albums:not([hidden]) { display: flex; gap: 10px; overflow-x: auto; padding: 8px 2px; max-width: 100%; }
+.mo-ph-album { display: grid; gap: 2px; justify-items: start; flex: 0 0 132px; padding: 6px; border-radius: 12px; background: var(--panel); color: var(--text); border: 1px solid var(--border); text-align: left; }
+.mo-ph-album.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.mo-ph-album img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 8px; background: var(--panel-2); }
+.mo-ph-album-name { font-weight: 600; font-size: 0.9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.mo-ph-detail:not([hidden]) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin: 8px 0 12px; padding: 10px; border-radius: 12px; background: var(--panel); }
+.mo-ph-big { width: 100%; max-height: 360px; object-fit: contain; border-radius: 10px; background: var(--panel-2); cursor: zoom-in; }
+.mo-ph-side { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.mo-ph-caption { margin: 0; font-weight: 600; }
+.mo-ph-text { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.mo-ph-side p { margin: 0; }
+.mo-ph-field { display: grid; gap: 4px; }
+.mo-ph-field input { width: 100%; }
+.mo-ph-place { display: flex; gap: 6px; }
+.mo-ph-place input { flex: 1; min-width: 0; }
+@media (max-width: 720px) { .mo-ph-detail:not([hidden]) { grid-template-columns: 1fr; } }
 .mo-cap { display: grid; gap: 2px; min-width: 0; }
 .mo-caption { font-size: .9rem; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .mo-meta { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
@@ -2071,7 +2092,45 @@ progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-rad
 #health .hl-line { fill: none; stroke: var(--accent-solid); stroke-width: 2; }
 #health .hl-line2 { stroke: var(--text-3); }
 #health .hl-dot { fill: var(--accent-solid); }
+/* V5.4 caregiver sections (web/care.js) and Simple home (web/simple-home.js) */
+#health .hl-check { display: inline-flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+#health .hl-check input { width: 20px; height: 20px; flex: 0 0 auto; }
+#health label.row.hl-check { display: flex; flex-wrap: wrap; margin: 6px 0; }
+#health .hl-checkin button { min-height: 40px; }
+#health #hl-care-add select { flex: 1 1 110px; }
+dialog#simple-home:not(#_) { inset: 0; width: 100%; max-width: none; height: auto; max-height: none; margin: 0; padding: 0; border: 0; border-radius: 0; background: var(--surface-0, var(--surface-1)); color: var(--text-1); }
+#simple-home .sh-body { max-width: 760px; margin: 0 auto; padding: calc(24px + var(--safe-t, 0px)) 20px calc(24px + var(--safe-b, 0px)); display: grid; gap: 16px; box-sizing: border-box; min-height: 100%; align-content: start; }
+#simple-home h2 { margin: 0; font-size: 30px; }
+#simple-home .sh-hello { margin: 0; font-size: 20px; color: var(--text-2); }
+#simple-home .sh-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+#simple-home .sh-big { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 150px; padding: 16px; border-radius: 20px; border: 2px solid var(--line); background: var(--surface-2); color: var(--text-1); font-size: 22px; font-weight: 600; line-height: 1.2; text-align: center; cursor: pointer; }
+#simple-home .sh-big:hover, #simple-home .sh-big:focus-visible { border-color: var(--accent-solid); }
+#simple-home .sh-big .ic, #simple-home .sh-big svg { width: 44px; height: 44px; color: var(--accent-solid); }
+#simple-home .sh-panel { border: 2px solid var(--line); border-radius: 20px; padding: 16px; background: var(--surface-2); display: grid; gap: 12px; font-size: 19px; min-width: 0; }
+#simple-home .sh-panel[hidden] { display: none; }
+#simple-home .sh-panel h3 { margin: 0; font-size: 22px; text-transform: none; letter-spacing: 0; color: var(--text-1); }
+#simple-home .sh-panel p { margin: 0; }
+#simple-home .sh-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+#simple-home .sh-row-main { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+#simple-home .sh-answers { display: grid; gap: 10px; }
+#simple-home .sh-wide { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 60px; padding: 10px 18px; border-radius: 14px; font-size: 20px; font-weight: 600; text-decoration: none; box-sizing: border-box; }
+#simple-home a.sh-call { border: 2px solid var(--accent-solid); color: var(--text-1); background: var(--surface-1); flex-wrap: wrap; overflow-wrap: anywhere; }
+#simple-home .sh-help:not(#_) { background: transparent; border: 2px solid var(--danger); color: var(--danger); }
+#simple-home .sh-answers .ghost:not(#_) { border: 2px solid var(--line); }
+#simple-home .sh-muted { color: var(--text-2); font-size: 17px; font-weight: 400; }
+#simple-home .sh-foot { margin: 0; text-align: center; }
+#simple-home .sh-foot button { font-size: 18px; min-height: 48px; }
+@media (max-width: 520px) {
+  #simple-home .sh-big { min-height: 128px; font-size: 20px; }
+}
 #health .hl-dot.hl-line2, #health .hl-dot2 { fill: var(--text-3); }
+#health .hl-trend-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; color: var(--text-2); margin-top: 2px; }
+#health .hl-change { color: var(--text-1); }
+#health .hl-how { margin: 2px 0 6px; }
+#health .hl-charts > p { grid-column: 1 / -1; margin: 0; }
+#health #hl-imports:empty { display: none; }
+#health .hl-how summary { cursor: pointer; color: var(--text-2); min-height: 28px; }
+#health .hl-import input[type="file"] { flex: 1 1 220px; min-width: 0; }
 #settings .hs-box { display: grid; gap: 4px; }
 #trips .tp-list { display: grid; gap: 12px; margin-top: 8px; }
 #trips .tp-card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: var(--surface-2); display: grid; gap: 8px; }
@@ -2205,6 +2264,16 @@ progress.gl-bar::-moz-progress-bar { background: var(--accent-solid); border-rad
 #settings .rc-docs { display: grid; gap: 2px; }
 #settings .rc-fields { display: grid; gap: 10px; max-width: 760px; }
 #settings .rc-fields .wa-field { text-align: start; }
+/* V5.3 legacy and emergency access (web/legacy.js) */
+#settings .lg-box h4 { margin: 14px 0 6px; font-size: 13px; color: var(--text-2); }
+#settings .lg-what { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#settings .lg-what textarea { width: 100%; min-width: 0; box-sizing: border-box; }
+#settings .lg-pick:not(#_) { display: block; max-height: 260px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; min-width: 0; }
+#settings .lg-sealed-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; min-width: 0; }
+#settings .lg-sealed-row input { flex: 1 1 140px; min-width: 0; }
+#settings .lg-link:empty { display: none; }
+#settings .lg-link { display: flex; flex-direction: column; gap: 6px; padding: 10px; margin: 8px 0; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); min-width: 0; }
+#settings .lg-link input { width: 100%; min-width: 0; font-family: var(--font-mono); }
 #settings #rc-box:not(#_) .rc-fields .wa-field > :is(input, textarea) { width: 100%; max-width: none; margin: 0; align-self: stretch; box-sizing: border-box; }
 #settings .rc-docs .wa-check { margin: 2px 0; }
 #settings :is(#rc-sites, #rc-rules, #rc-embed) { width: 100%; min-width: 0; box-sizing: border-box; }
@@ -2529,7 +2598,7 @@ dialog#msgs:not(#_) { width: min(1040px, 96vw); max-width: 96vw; }
 /* U4.23 (docs/LEARNING.md): Library → Study and its Today tile (web/study.js). */
 #lib-study .sy-body { display: grid; gap: 14px; }
 #lib-study .sy-due { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-#lib-study .sy-make, #lib-study .sy-set, #lib-study .sy-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2, var(--panel)); }
+#lib-study .sy-make, #lib-study .sy-set, #lib-study .sy-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
 #lib-study .sy-make h3, #lib-study .sy-sets h3 { margin: 0; }
 #lib-study .sy-body > button, #lib-study .sy-make > button, #lib-study .sy-summary + button { justify-self: start; }
 #lib-study .sy-sum-title { font-size: 1.1em; }
@@ -2748,3 +2817,51 @@ dialog#mx-editor:not(#_) { width: min(1180px, 96vw); max-height: 94vh; overflow:
 #settings .fx-files code { overflow-wrap: anywhere; }
 #settings .fx-ok { color: var(--success, var(--accent)); }
 #settings .fx-bad { color: var(--danger); }
+
+/* V5.5 Accessibility (docs/design/V5_ACCESS.md, web/a11y-mode.js): Settings → You → Appearance →
+   Accessibility. Theme variables only; nothing is downloaded (system faces that help reading first). */
+:root[data-read="easy"]:not(#_) {
+  --font-ui: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", Lexend, OpenDyslexic, Verdana, Tahoma, "Segoe UI", sans-serif;
+  --font-ui-v1: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", Lexend, OpenDyslexic, Verdana, Tahoma, "Segoe UI", sans-serif;
+  --font-display: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", Lexend, OpenDyslexic, Verdana, Tahoma, "Segoe UI", sans-serif;
+  --lh-read: 1.8;
+}
+:root[data-read="easy"] body { letter-spacing: 0.03em; word-spacing: 0.1em; }
+:root[data-read="easy"] :is(#messages .msg, .settings-body p, .settings-body li, #today p) { line-height: 1.8; }
+:root[data-read="easy"] #messages .msg :is(p, li) { max-width: 68ch; text-align: start; }
+:root[data-read="easy"] :is(em, i, cite):not([class]) { font-style: normal; font-weight: 600; }
+/* Large layout: the whole app a size up. Most sizes are fixed pixels, so the content blocks are
+   zoomed, never the window-sized frames (a zoomed frame sized in vw would run past the screen). */
+:root[data-large="on"]:not(#_) { --h-control: 44px; --h-row: 44px; }
+:root[data-large="on"] :is(#messages > *, #composer, #conversations, #side-nav, .td-scroll > *, #settings .settings-page, #settings .s3-rail, dialog:not(#settings) .settings-body > *) { zoom: 1.15; }
+/* Reduce motion: every animation and transition, not only the background (web/orb.js and
+   web/avatar.js stop on the same class). */
+:root.reduce-motion { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; }
+:root.reduce-motion *, :root.reduce-motion *::before, :root.reduce-motion *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; animation-delay: 0s !important;
+  transition-duration: 0.01ms !important; transition-delay: 0s !important; scroll-behavior: auto !important;
+}
+/* Line focus: a reading band that follows the pointer, a tap or the keyboard focus; the rest dims. */
+#a11y-line {
+  position: fixed; inset: 0 0 auto 0; margin: 0; padding: 0; border: 0; z-index: 2147483000; pointer-events: none;
+  height: calc(var(--chat-size, 15px) * 2.6); transform: translateY(calc(var(--a11y-y, 40vh) - 50%));
+  border-block: 2px solid var(--accent-line); background: transparent;
+  box-shadow: 0 0 0 100vmax color-mix(in srgb, var(--surface-0) 55%, transparent);
+}
+#a11y-line[hidden] { display: none; }
+#settings .ap-access-switch { font-weight: 600; }
+/* end V5.5 */
+/* V5.1: Settings → Reports → Action timeline (web/timeline.js). */
+#settings .tl-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+#settings .tl-row { border: 1px solid var(--hairline); border-radius: 12px; padding: 10px 12px; background: var(--surface-1); min-width: 0; }
+#settings .tl-head { display: flex; gap: 10px; align-items: flex-start; min-width: 0; }
+#settings .tl-icon { flex: 0 0 auto; width: 1.4em; text-align: center; opacity: 0.8; }
+#settings .tl-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#settings .tl-sum { font-weight: 600; overflow-wrap: anywhere; }
+#settings .tl-foot { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; margin: 8px 0 0 calc(1.4em + 10px); }
+#settings .tl-never { font-style: italic; }
+#settings .tl-done { color: var(--success); font-weight: 600; }
+#settings .tl-row[data-reverted] { opacity: 0.85; }
+#settings .tl-ask { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0 0 calc(1.4em + 10px); padding: 8px 10px; border-radius: 10px; background: var(--surface-2); }
+#settings .tl-ask p { flex: 1 1 100%; margin: 0; }
+#settings .tl-filter select { max-width: 220px; }

@@ -39,6 +39,9 @@ export const EVERYDAY = [
     words: ['backup', 'back up', 'save a copy', 'keep a copy', 'copia de seguridad', 'sauvegarde', 'sicherung', 'copia di sicurezza'] },
   { id: 'update', page: 'dh-updates', title: 'Updates (Settings → Privacy & system)', how: 'Updates: see if a new Sara is ready and install it.',
     words: ['update', 'upgrade', 'new version', 'latest version', 'actualizar', 'actualizacion', 'mise a jour', 'aktualisieren', 'atualizar', 'aggiornare', 'aggiornamento'] },
+  // V5.5 (docs/design/V5_ACCESS.md).
+  { id: 'accessibility', page: 'you-appearance', title: 'Accessibility (Settings → You → Appearance)', how: 'Appearance → Accessibility: one switch for easier reading, no motion and a larger layout, plus line focus.',
+    words: ['accessibility', 'accessible', 'dyslexia', 'dyslexic', 'reduce motion', 'less motion', 'no animations', 'large layout', 'bigger buttons', 'line focus', 'reading guide', 'screen reader', 'accesibilidad', 'dislexia', 'accessibilite', 'dyslexie', 'barrierefreiheit', 'legasthenie', 'acessibilidade', 'accessibilita', 'dislessia'] },
 ];
 
 const fold = (s) => String(s ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();

@@ -7,7 +7,7 @@ import { connect, type ClientHttp2Session } from 'node:http2';
 import { createPrivateKey, sign } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Vault } from './vault.ts';
-import { checkOutbound } from './net-guard.ts';
+import { checkOutbound, noteOutbound } from './net-guard.ts';
 
 export const APNS_VAULT = 'push:apns';
 export const DEFAULT_BUNDLE_ID = 'com.backstagecoding.sara';
@@ -140,6 +140,7 @@ export class ApnsSender {
   #session(origin: string): ClientHttp2Session {
     // Phase 67: Apple's push service is off this computer: refused in private local mode.
     checkOutbound(origin, 'iPhone notifications');
+    noteOutbound(origin, 'iPhone notifications');
     const s = this.#sessions.get(origin);
     if (s && !s.closed && !s.destroyed) return s;
     const fresh = connect(origin);

@@ -30,7 +30,7 @@ export const SETTINGS_KEYWORDS = {
   'dh-data': ['export and import', 'export', 'import'],
   'dh-movein': ['move in', 'import hermes', 'import openclaw', 'hermes agent', 'openclaw', 'migrate', 'old assistant'],
   'you-about': ['use path', 'company or coding', 'language', 'time zone'],
-  'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel'],
+  'you-appearance': ['appearance', 'theme', 'palette', 'dark mode', 'light mode', 'night', 'day', 'colour', 'color', 'accent', 'high contrast', 'classic', 'compact', 'density', 'font size', 'portrait', 'decoration', 'glass', 'glow', 'blur', 'text size', 'sessions shown', 'reset look', 'look and feel', 'accessibility', 'dyslexia', 'reduce motion', 'large layout', 'line focus', 'screen reader', 'easier reading'],
   'you-knows': ['what sara knows', 'what she knows', 'facts', 'about me', 'my world', 'deductible', 'lease', 'renewal', 'expiry', 'warranty', 'ask your documents', 'not true', 'forget'],
   'you-details': ['my details', 'details', 'address', 'shipping address', 'phone number', 'sizes', 'shoe size', 'vehicle', 'vin', 'license plate', 'insurance', 'policy number', 'loyalty', 'rewards number', 'emergency contact', 'employer', 'fill forms', 'web forms', 'store checks', 'my browser'],
   'you-automations': ['automations', 'automation', 'automate', 'when do', 'every friday', 'every day', 'schedule', 'recurring', 'time sheet', 'timesheet', 'routines', 'watches', 'triggers'],
@@ -67,8 +67,9 @@ export const SETTINGS_KEYWORDS = {
   'her-work': ['at work', 'work profile', 'work mode', 'work memory', 'office', 'colleagues', 'workplace', 'professional tone'],
   'dh-retention': ['retention', 'legal hold', 'litigation hold', 'delete my data', 'export person', 'gdpr', 'data deletion', 'keep chats'],
   'dh-policy': ['policy', 'admin', 'pinned', 'managed settings', 'lock settings'],
-  'dh-privacy': ['privacy', 'store data', 'what leaves'],
+  'dh-privacy': ['privacy', 'store data', 'what leaves', 'legacy', 'emergency access', 'trusted person', 'inactive'],
   'dh-reports': ['report', 'bug', 'idea', 'takedown', 'report an add-on'],
+  'dh-timeline': ['undo', 'revert', 'action timeline', 'what she changed', 'put back', 'change history'],
   // 3.0.3: where a new phone or computer gets its sign-in code. Words in all six app languages (the
   // titles and labels are matched in the app's language already; these are what people type instead).
   'dh-devices': ['code', 'sign-in code', 'pairing', 'pair', 'pair a device', 'add device', 'add a device', 'add computer', 'add phone', 'add a phone or computer', 'new device', 'sign in another device', 'another device', 'desktop apps', 'qr', 'qr code', 'passkey', 'two-step',
@@ -76,7 +77,7 @@ export const SETTINGS_KEYWORDS = {
     'add a computer', 'add desktop', 'add a desktop', 'pairing code', 'away from home', 'tailscale', 'use on my phone outside', 'outside the house', 'from anywhere',
     'codigo', 'emparejar', 'vincular', 'anadir dispositivo', 'otro dispositivo', 'jumeler', 'appairer', 'ajouter un appareil', 'autre appareil', 'koppeln', 'gerat hinzufugen', 'anderes gerat', 'codice', 'associa', 'abbina', 'aggiungi dispositivo', 'altro dispositivo', 'parear', 'emparelhar', 'adicionar dispositivo', 'outro dispositivo'],
   'co-phone': ['notifications', 'push', 'phone app', 'android', 'iphone', 'talk tile', 'connect the phone app', 'get the app', 'android app', 'put her on my phone'],
-  'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut'],
+  'desktop-app': ['windows app', 'desktop app', 'mac app', 'tray', 'shortcut', 'screen companion', 'error help'],
 };
 
 /**

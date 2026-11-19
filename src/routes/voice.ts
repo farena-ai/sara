@@ -12,6 +12,7 @@ import { as400, cookies, HttpError, readJson, readRaw, safeDecode, SECURITY_HEAD
 import { trOwner } from '../i18n.ts';
 import { OPENAI_LIVE_MODELS, OPENAI_LIVE_VOICES } from '../live.ts';
 import { cleanTalk } from '../talk.ts';
+import { interpLang } from '../interpreter.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { localVoiceInstallable, localVoiceMissing, localVoiceSupported } from '../platform.ts';
 import { cancelInstall, engineAfterInstall, INSTALL_MB, installJob, startInstall, STREAM_MB } from '../voice-install.ts';
@@ -316,7 +317,8 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
       if (b === 'transcribe' && method === 'POST') {
         const audio = await readRaw(req, 15 * 1024 * 1024);
         try {
-          const text = await speech.transcribe(audio);
+          const hint = new URL(req.url ?? '/', 'http://x').searchParams.get('lang');
+          const text = await speech.transcribe(audio, hint === 'auto' ? { language: 'auto' } : {});
           return send(res, 200, { text });
         } catch (err) {
           if (err instanceof VoiceError) throw new HttpError(400, err.message);
@@ -331,7 +333,7 @@ export function createVoiceRoutes(ctx: RouteCtx): RouteHandler {
         const level = ['off', 'subtle', 'lively'].includes(String(body.expressive)) ? (String(body.expressive) as Expressive) : undefined;
         const tone = ['natural', 'warm', 'bright', 'calm'].includes(String(body.tone)) ? (String(body.tone) as VoiceTone) : undefined;
         try {
-          const audio = await speech.speak(raw, body.voice ? String(body.voice) : undefined, { expressive: level, tone });
+          const audio = await speech.speak(raw, body.voice ? String(body.voice) : undefined, { expressive: level, tone, lang: interpLang(body.lang) });
           res.writeHead(200, { 'content-type': audio.type, 'content-length': audio.data.length, 'cache-control': 'no-store', ...SECURITY_HEADERS });
           return void res.end(audio.data);
         } catch (err) {

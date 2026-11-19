@@ -61,12 +61,12 @@ test('128b.1 N29/SETTINGS3: every page id in SETTINGS_ORDER is in exactly one gr
     'Models & usage': ['models-default', 'models-routes', 'models-providers', 'models-subs', 'models-local', 'dh-usage', 'ab-budgets'],
     Connections: ['dh-devices', 'co-phone', 'co-shortcuts', 'desktop-app', 'co-computer', 'co-telegram', 'co-discord', 'co-whatsapp', 'co-signal', 'co-imessage', 'co-matrix', 'co-slack', 'co-teams', 'co-email', 'co-pickup', 'co-continuity', 'ab-mail', 'ab-google', 'ab-home', 'ab-github', 'co-spotify', 'ab-search', 'ab-data', 'co-apps', 'co-agents', 'co-hooks'],
     'Skills & tools': ['ab-store', 'ab-skills', 'ab-plugins', 'ab-mcp', 'ab-tools', 'ab-library', 'ab-recipes', 'ab-projects', 'ab-precise', 'ab-persist', 'ab-ssh'],
-    'Privacy & system': ['dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'her-import', 'dh-movein', 'dh-health', 'dh-quality', 'dh-recovery', 'dh-operations', 'dh-updates', 'dh-reports'],
+    'Privacy & system': ['dh-safety', 'dh-privacy', 'dh-backups', 'dh-data', 'her-import', 'dh-movein', 'dh-health', 'dh-quality', 'dh-recovery', 'dh-operations', 'dh-updates', 'dh-reports', 'dh-timeline'],
   };
   for (const [g, ids] of Object.entries(want)) assert.deepEqual([...byGroup.get(g)!].sort(), [...ids].sort(), g);
   // The 11 merges: each host is a real page of the same group and the same audience (owner/member flags).
   const hosts = Object.fromEntries(sections.flatMap((s) => { const m = /data-host="([\w-]+)"/.exec(head(s.id)); return m ? [[s.id, m[1]]] : []; }));
-  assert.deepEqual(Object.keys(hosts).sort(), ['ab-budgets', 'ab-when', 'co-continuity', 'co-shortcuts', 'dh-movein', 'dh-operations', 'dh-quality', 'dh-recovery', 'her-import', 'models-subs', 'you-leave-by', 'you-upkeep']);
+  assert.deepEqual(Object.keys(hosts).sort(), ['ab-budgets', 'ab-when', 'co-continuity', 'co-shortcuts', 'dh-movein', 'dh-operations', 'dh-quality', 'dh-recovery', 'dh-timeline', 'her-import', 'models-subs', 'you-leave-by', 'you-upkeep']);
   const flags = (id: string) => ['data-owner-only', 'data-member-only'].filter((f) => head(id).includes(f)).join();
   for (const [id, host] of Object.entries(hosts)) {
     assert.equal(sections.find((s) => s.id === id)!.group, sections.find((s) => s.id === host)!.group, `${id} → ${host}: same group`);

@@ -93,6 +93,26 @@
     "Choose how she hears you under Hearing you.",
     "Then press the microphone in the chat box and speak."
    ]
+  },
+  {
+   "id": "captions",
+   "q": "How do I see live captions of a meeting, translated?",
+   "steps": [
+    "Pick a language in Translate captions into.",
+    "Open Library → Meetings, then the meeting, and press Captions.",
+    "A model on this computer translates each line under it."
+   ],
+   "show": "#meet-cap-lang"
+  },
+  {
+   "id": "interpret",
+   "q": "How do I talk with someone in another language?",
+   "steps": [
+    "Under Interpreter, pick your language and theirs.",
+    "Press Start the interpreter and put the phone between you.",
+    "Take turns speaking: each turn is translated and said out loud."
+   ],
+   "show": "#interp-start"
   }
  ],
  "her-hey": [
@@ -304,6 +324,16 @@
     "Decoration turns the glow and moving light back on."
    ],
    "show": "#ap-palette"
+  },
+  {
+   "id": "access",
+   "q": "How do I make Sara easier to read and use?",
+   "steps": [
+    "Tick Accessibility mode at the top of this page.",
+    "Change Reading style, Motion or Large layout one by one if you like.",
+    "Line focus adds a reading band that follows your pointer."
+   ],
+   "show": "#ap-a11y"
   }
  ],
  "you-briefing": [
@@ -776,6 +806,16 @@
     "Pick Gentle under Background reading.",
     "Big documents then take longer."
    ]
+  },
+  {
+   "id": "photos",
+   "q": "How do I search the photos on my computer?",
+   "steps": [
+    "Type the full path of your photo folder under Photo folder.",
+    "Press Use this folder and wait while she looks through it.",
+    "Open Our moments and type a place, a word or a name."
+   ],
+   "show": "#lib-photos-folder"
   }
  ],
  "ab-google": [
@@ -1991,6 +2031,25 @@
     "Press Reset the install ID to start fresh."
    ],
    "show": "#hub-reset"
+  },
+  {
+   "id": "legacy",
+   "q": "How do I leave access to someone I trust?",
+   "steps": [
+    "Under Legacy and emergency access, turn on legacy access.",
+    "Type their name and pick what they get.",
+    "Press Save, confirm it's you, and give them the link."
+   ],
+   "show": "#lg-box"
+  },
+  {
+   "id": "legacy-stop",
+   "q": "How do I stop legacy access from opening?",
+   "steps": [
+    "Sign in or chat with her: that cancels it.",
+    "Or press I'm here under Legacy and emergency access."
+   ],
+   "show": "#lg-status"
   }
  ],
  "dh-reports": [
@@ -2415,6 +2474,27 @@
     "Press Book it and she finds places near you and asks before booking. Receipts from Money show up here to log with one tap."
    ],
    "show": "#upk-rows"
+  }
+ ],
+ "dh-timeline": [
+  {
+   "id": "revert",
+   "q": "How do I undo something she changed?",
+   "steps": [
+    "Find the change in the Action timeline (newest first).",
+    "Press Revert, then Yes, revert.",
+    "If a change can't be undone, the row says why."
+   ],
+   "show": "#tl-list"
+  },
+  {
+   "id": "kind",
+   "q": "How do I see only her mail or planner changes?",
+   "steps": [
+    "Pick a kind under Show.",
+    "Press Show older to see more."
+   ],
+   "show": "#tl-kind"
   }
  ]
 }

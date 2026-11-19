@@ -13,3 +13,7 @@ body { margin: 0; background: var(--surface-0); color: var(--text-1); font: 16px
 .sh-tool .sh-text { font-family: var(--font-mono); }
 .sh-pic { display: block; max-width: 100%; max-height: 420px; border-radius: 8px; margin-top: 8px; }
 .sh-gone { text-align: center; color: var(--text-2); margin-top: 20vh; }
+/* V5.3: the legacy page (src/routes/legacy.ts) uses this shell too. */
+.sh-page form button { font: inherit; min-height: 44px; padding: 10px 18px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); cursor: pointer; }
+.sh-page dd { margin: 2px 0 10px; }
+.sh-page dt { font-weight: 600; }

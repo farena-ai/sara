@@ -182,3 +182,24 @@ last word plus the hearing time. CPU, engines loaded.
   hear; loading the streaming model ~1.1 s.
 - 0.4 s ended every turn sooner but would also cut people off at short mid-sentence pauses; 0.5 s
   was kept.
+
+## Interpreter (V4.2)
+
+Two people who don't share a language talk through Sara (design: [INTERPRETER.md](design/INTERPRETER.md)).
+
+- Start it with **Interpreter** on the talk screen, or **Start the interpreter** in Settings → Sara →
+  Voice → Interpreter. Pick your language and theirs (20 languages).
+- Take turns speaking. Each turn is heard, translated and said out loud in the other language. Sara
+  works out which language was spoken; **My turn** on your half helps when a short word could be
+  either. Saying "goodbye" is translated too: press **End** to stop.
+- On a phone the screen splits in two and the far half is upside down, so the other person can read
+  it across the table. ⇅ swaps the two languages.
+- Translation runs on a model on this computer first. With none, it only uses your quick cloud model
+  if you turn on **Use a cloud model when this computer has none** (off by default); otherwise the
+  words are shown and the screen says why.
+- Her voice speaks the other language with the voice service you chose: Grok voice is told the
+  language, OpenAI and ElevenLabs read any language, and a voice on this server is picked when its
+  name says the language (else her own voice reads it).
+- Every session is saved under Saved transcripts (what was said and the translation), newest 100
+  kept, only for you; Download gives a plain-text copy. Translations never become chats, memories or
+  notes.

@@ -19,9 +19,13 @@
 //   POST   /api/meetings/:id/part?i=n            raw WAV (one part) → {received}
 //   POST   /api/meetings/:id/speakers            {from, to} → {meeting} (rename a speaker)
 //   POST   /api/meetings/:id/drafts/:i           {action: send|save|dismiss, to?, subject?, body?} → {draft, meeting}
+// V4.4 live and translated captions (src/meeting-captions.ts):
+//   PUT    /api/meetings/captions                {lang, cloud} → {prefs}
+//   GET    /api/meetings/:id/captions?since=n&lang=xx&want=1,2   {captions} (new lines + ready translations)
 import { audit } from '../audit-trail.ts';
 import { HttpError, readJson, readRaw, SECURITY_HEADERS, send } from '../http.ts';
 import { LegalHoldError } from '../legal-hold.ts';
+import { CAPTION_LANGS, captionsOf } from '../meeting-captions.ts';
 import { MEETINGS, MeetingError } from '../meetings.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -46,11 +50,16 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(403, 'Only the owner of this server can use this.', { ownerOnly: true });
     }
     const m = app.meetings;
+    const captionsInfo = () => {
+      const c = captionsOf(app)!;
+      const e = c.engine();
+      return { prefs: c.prefs(), engine: e.engine, ...(e.why ? { why: e.why } : {}), langs: CAPTION_LANGS };
+    };
     const q = new URL(req.url ?? '/', 'http://x').searchParams;
     if (!b) {
       if (method === 'GET') {
         const why = m.refusal();
-        return send(res, 200, { meetings: m.list(), ready: !why, why, prefs: m.prefs(), speakerAddon: m.speakerAddon(), limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
+        return send(res, 200, { meetings: m.list(), ready: !why, why, prefs: m.prefs(), speakerAddon: m.speakerAddon(), captions: captionsInfo(), limits: { fileMb: MEETINGS.maxFileBytes / 1024 / 1024, wholeMb: MEETINGS.wholeMaxBytes / 1024 / 1024, hours: MEETINGS.maxSec / 3600, replies: MEETINGS.maxReplies } });
       }
       if (method === 'POST') {
         const body = await readJson(req);
@@ -72,6 +81,12 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
       const body = await readJson(req);
       return send(res, 200, { speakerAddon: await wrap(async () => m.speakerAddonAction(body.action)) });
     }
+    if (b === 'captions' && !c && method === 'PUT') {
+      const body = await readJson(req);
+      const prefs = await wrap(() => captionsOf(app)!.setPrefs(body));
+      audit({ action: 'meeting.prefs', role: 'owner', channel: 'web', keys: ['captions'] });
+      return send(res, 200, { prefs, captions: captionsInfo() });
+    }
     if (b === 'upload' && !c && method === 'POST') {
       const body = await readJson(req);
       return send(res, 200, { meeting: await wrap(() => m.upload(body)) });
@@ -90,6 +105,11 @@ export function createMeetingRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET') return send(res, 200, { meeting: m.get(id, Math.max(0, Number(q.get('since')) || 0)) });
       if (method === 'DELETE') return send(res, 200, { ok: await wrap(() => m.delete(id)) });
       throw new HttpError(405, 'Method not allowed');
+    }
+    if (c === 'captions' && method === 'GET') {
+      const want = (q.get('want') ?? '').split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0);
+      const lang = q.get('lang');
+      return send(res, 200, { captions: await wrap(() => captionsOf(app)!.read(id, { since: Number(q.get('since')) || 0, ...(lang === null ? {} : { lang }), want })) });
     }
     if (c === 'audio' && method === 'POST') {
       const audio = await readRaw(req, MEETINGS.maxAudioBytes);

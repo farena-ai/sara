@@ -102,9 +102,13 @@ export function createHealthTools(getApp: () => AppContext): Tool[] {
           for (const a of list) lines.push(`- ${a.title} ${formatLocal(a.when, tz)}${a.where ? ` at ${a.where}` : ''}${a.questions.length ? `; questions: ${a.questions.join('; ')}` : ''}${a.notes ? `; after the visit: ${a.notes}` : ''}`);
         } else {
           const days = Math.max(1, Math.min(90, Number(args.days) || 14));
-          const list = h.entries({ from: new Date(app.now().getTime() - days * 86_400_000).toISOString(), limit: 60 });
+          const list = h.entries({ from: new Date(app.now().getTime() - days * 86_400_000).toISOString(), limit: 60, manual: true });
           if (!list.length) lines.push(`Nothing logged in the last ${days} days.`);
           for (const e of list) lines.push(`- ${formatLocal(e.at, tz)} ${entryText(e)}${e.note ? ` (${e.note})` : ''}`);
+          // V4.3: imported device days as one line per measurement.
+          const trends = h.trends();
+          if (trends.length) lines.push('From watches and phone apps (imported):');
+          for (const tr of trends) lines.push(`- ${tr.name}: 7-day average ${tr.avg7} ${tr.unit}${tr.change !== undefined ? ` (${tr.change >= 0 ? '+' : ''}${tr.change}% on the week before)` : ''}; newest ${tr.last.day}: ${tr.last.value} ${tr.unit}`);
         }
         return `${lines.join('\n')}\n\n${NOT_ADVICE}`;
       },

@@ -136,6 +136,10 @@ function render(snap: ShareSnapshot, expiresAt: string, lang: Lang, base: string
 }
 
 /** Public read-only page `/s/<token>` (and `/s/<token>/p/<n>` for a picture). Answers true when handled. */
+// V5.3: the legacy page (src/routes/legacy.ts) uses the same shell, escaping and headers.
+export { page as sharePage, esc as shareEsc, PUBLIC_HEADERS as SHARE_PUBLIC_HEADERS };
+export { visitorLang };
+
 export function createSharePublic(o: { opts: ServerOptions; ownerLang: () => Lang }): (req: IncomingMessage, res: ServerResponse, pathname: string) => boolean {
   const views = new KeyLimiter(60);
   const wrong = new LoginLimiter(20);

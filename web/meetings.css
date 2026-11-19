@@ -47,3 +47,37 @@
   .ms-line { grid-template-columns: 52px 1fr; gap: 0 6px; }
   .ms-line .ms-said { grid-column: 1 / -1; }
 }
+/* V4.4: live and translated captions (web/captions.js). */
+.ms-head .ms-cap-open { margin-left: auto; }
+#meet-prefs #meet-cap-row { flex-wrap: wrap; }
+#meet-prefs #meet-cap-lang { width: auto; min-width: 12em; max-width: 100%; }
+.cap-view { --cap-size: 22px; display: grid; grid-template-rows: auto auto auto 1fr auto; gap: 8px; min-height: 0; }
+.cap-view:fullscreen { background: var(--bg); color: var(--text); padding: 16px 24px; height: 100vh; box-sizing: border-box; }
+.cap-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.cap-title { font-size: 17px; overflow-wrap: anywhere; }
+.cap-state { color: var(--muted); }
+.cap-state.cap-live { color: var(--accent); font-weight: 600; }
+.cap-state.cap-live::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.cap-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-left: auto; }
+.cap-view .cap-lang:not(#_) { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; width: auto; }
+.cap-view .cap-lang select:not(#_) { width: auto; max-width: 14em; margin: 0; }
+.cap-size { min-width: 44px; font-weight: 700; }
+.cap-note { margin: 0; }
+.cap-empty { margin: 24px 0; font-size: var(--cap-size); text-align: center; }
+.cap-lines { list-style: none; margin: 0; padding: 4px 2px; display: grid; align-content: start; gap: 14px; max-height: 62vh; overflow-y: auto; overscroll-behavior: contain; }
+.cap-view:fullscreen .cap-lines { max-height: none; min-height: 0; }
+.cap-line { display: grid; gap: 2px; overflow-wrap: anywhere; }
+.cap-who { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: none; }
+.cap-said { font-size: var(--cap-size); line-height: 1.3; font-weight: 600; }
+.cap-notice .cap-said { font-size: calc(var(--cap-size) * 0.7); font-weight: 400; font-style: italic; color: var(--muted); }
+.cap-sara .cap-who { color: var(--accent); }
+.cap-tr { font-size: calc(var(--cap-size) * 0.85); line-height: 1.3; color: var(--accent); }
+.cap-tr.cap-wait { color: var(--muted); font-size: 14px; font-style: italic; }
+.cap-jump { justify-self: center; border-radius: 999px; min-height: 36px; padding: 0 16px; }
+@media (max-width: 520px) {
+  .cap-tools { margin-left: 0; width: 100%; flex-wrap: nowrap; }
+  .cap-view .cap-lang > span:first-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .cap-view .cap-lang select:not(#_) { max-width: 11em; }
+  .cap-view .cap-full { display: none; }
+  .cap-lines { max-height: calc(100dvh - 390px); min-height: 220px; }
+}

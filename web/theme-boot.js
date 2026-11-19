@@ -59,6 +59,14 @@
   // V4 (docs/ops/V4_DESIGN.md): the background field moves unless turned off here (reduced motion
   // stops it too, in web/v4.js and the CSS).
   root.setAttribute('data-motion', get('sara.motion') === 'off' ? 'off' : 'on');
+  // V5.5 (docs/design/V5_ACCESS.md): Accessibility, before the first paint (web/a11y-mode.js, same rules).
+  if (get('sara.read') === 'easy') root.setAttribute('data-read', 'easy');
+  if (get('sara.large') === 'on') root.setAttribute('data-large', 'on');
+  if (get('sara.lineFocus') === 'on') root.setAttribute('data-line-focus', 'on');
+  if (get('sara.reduceMotion') === 'on') {
+    root.classList.add('reduce-motion');
+    root.setAttribute('data-motion', 'off');
+  }
   function hexHsl(hex) {
     var r = parseInt(hex.slice(1, 3), 16) / 255, g = parseInt(hex.slice(3, 5), 16) / 255, b = parseInt(hex.slice(5, 7), 16) / 255;
     var mx = Math.max(r, g, b), mn = Math.min(r, g, b), h = 0, s = 0, l = (mx + mn) / 2, d = mx - mn;

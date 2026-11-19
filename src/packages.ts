@@ -14,7 +14,7 @@ import { createHash } from 'node:crypto';
 import { lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { openZip } from './library/zip.ts';
-import { checkOutbound } from './net-guard.ts';
+import { checkOutbound, noteOutbound } from './net-guard.ts';
 import { KEY_SHAPED } from './redact.ts';
 import { GIT_SAFE } from './tools/coding.ts';
 import { commandPath } from './tools/sandbox.ts';
@@ -276,6 +276,7 @@ export function checkGitUrl(raw: string): URL {
 export async function fromGit(url: string, scratchRoot: string, lim: PackageLimits = SKILL_LIMITS, timeoutMs = 60_000): Promise<PackageFile[]> {
   const u = checkGitUrl(url);
   checkOutbound(u, 'git clone');
+  noteOutbound(u, 'git clone');
   mkdirSync(scratchRoot, { recursive: true, mode: 0o700 });
   const tmp = mkdtempSync(join(scratchRoot, 'git-'));
   const dest = join(tmp, 'repo');

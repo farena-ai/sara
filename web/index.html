@@ -961,9 +961,24 @@
       <span id="tm-status" class="tm-status" role="status">Listening…</span>
     </div>
     <ol id="tm-lines" class="tm-lines" aria-live="polite" aria-label="What you both said"></ol>
+    <!-- V4.2 (docs/design/INTERPRETER.md): the interpreter's two-sided screen (web/interpreter.js). -->
+    <div id="ti-screen" class="ti-screen" hidden>
+      <section id="ti-far" class="ti-half ti-far" aria-label="Their language">
+        <div class="ti-bar"><button type="button" class="tip" data-tip="The other person&#39;s language. On a phone this half is upside down, so they can read it across the table.">?</button> <select id="ti-lang-b" aria-label="Their language"></select> <button id="ti-turn-b" type="button" class="ghost small">My turn</button></div>
+        <p id="ti-big-b" class="ti-big" aria-live="polite"></p>
+        <p id="ti-prev-b" class="ti-prev"></p>
+      </section>
+      <button id="ti-swap" type="button" class="ghost small ti-swap" aria-label="Swap the languages">⇅</button>
+      <section id="ti-near" class="ti-half ti-near" aria-label="Your language">
+        <div class="ti-bar"><button type="button" class="tip" data-tip="Your language. Each turn is heard, translated and spoken in the other language. My turn helps when a short word could be either language.">?</button> <select id="ti-lang-a" aria-label="Your language"></select> <button id="ti-turn-a" type="button" class="ghost small">My turn</button></div>
+        <p id="ti-big-a" class="ti-big" aria-live="polite"></p>
+        <p id="ti-prev-a" class="ti-prev"></p>
+      </section>
+    </div>
     <div id="tm-approvals" class="tm-approvals"></div>
     <p class="tm-hint muted small">Just talk. Talking over her stops her. Say “goodbye” or press End to finish.</p>
     <div class="tm-actions">
+      <button id="tm-interp" type="button" class="ghost" aria-pressed="false" title="Interpreter: two people, two languages">Interpreter</button>
       <button id="tm-mute" type="button" class="ghost" aria-pressed="false">Mute</button>
       <button id="tm-end" type="button">End</button>
     </div>
@@ -1747,6 +1762,22 @@
       <h3>Readings and symptoms <button type="button" class="tip" data-tip="The last 90 days. Each reading with a number gets a small chart of its last 30 values. Charts show what you logged, nothing more.">?</button></h3>
       <div id="hl-charts" class="hl-charts"></div>
       <div id="hl-entries" class="hl-list"></div>
+      <h3>Trends from your watch or phone <button type="button" class="tip" data-tip="Bring in steps, sleep, heart rate and weight from Apple Health, Google Takeout (Fit) or Garmin. The file is read on this server and not kept. Importing it again adds nothing.">?</button></h3>
+      <div id="hl-trends" class="hl-charts"></div>
+      <div class="add-row hl-form hl-import" data-nodirty>
+        <span class="hl-tipwrap"><button type="button" class="tip" data-tip="Apple Health: export.zip. Google: the Fit export from Takeout (.zip). Garmin: CSV reports or .fit files. Only daily totals are saved, encrypted, in your own space.">?</button></span>
+        <input id="hl-import-file" type="file" accept=".zip,.xml,.csv,.fit,.json" aria-label="Health export file">
+        <button id="hl-import-go" type="button" class="small">Import</button>
+      </div>
+      <details class="hl-how">
+        <summary class="small">How to get the file</summary>
+        <ul class="hl-qs small">
+          <li>iPhone: open Health, tap your picture, then Export All Health Data, and save export.zip.</li>
+          <li>Google Fit: on takeout.google.com pick only Fit, then download the .zip.</li>
+          <li>Garmin: in Garmin Connect on the web, export a steps, sleep or weight report as CSV, or an activity as its original .fit file.</li>
+        </ul>
+      </details>
+      <div id="hl-imports" class="hl-list"></div>
       <h3>Appointments <button type="button" class="tip" data-tip="Keep questions to ask and what the doctor said. Add to calendar downloads a file for your own calendar app; nothing is sent anywhere.">?</button></h3>
       <div id="hl-appts" class="hl-list"></div>
       <div class="add-row hl-form" data-nodirty>
@@ -1760,6 +1791,41 @@
         <input id="hl-from" type="date" aria-label="From">
         <input id="hl-to" type="date" aria-label="To">
         <button id="hl-pdf" type="button" class="small">Make PDF</button>
+      </div>
+      <!-- V5.4 (docs/design/V5CARE.md): daily check-in, caregivers with consent, Simple home -->
+      <div id="hl-care" hidden>
+        <h3>Daily check-in <button type="button" class="tip" data-tip="One tap a day to say how you are. Caregivers you allow see only the answer; I need help tells them at once.">?</button></h3>
+        <div id="hl-checkin" class="hl-row hl-checkin" data-nodirty>
+          <button type="button" class="small" data-ci="ok">I&#39;m OK</button>
+          <button type="button" class="small ghost" data-ci="notgreat">Not great</button>
+          <button type="button" class="small ghost" data-ci="help">I need help</button>
+        </div>
+        <p id="hl-checkin-last" class="muted small" role="status"></p>
+        <h3>Caregivers <button type="button" class="tip" data-tip="Let an adult in your household see your missed doses and check-ins, nothing else. Never your chats, symptoms or notes. Stop sharing hides it at once.">?</button></h3>
+        <div id="hl-care-grants" class="hl-list"></div>
+        <div id="hl-care-add" class="add-row hl-form" data-nodirty>
+          <span class="hl-tipwrap"><button type="button" class="tip" data-tip="Pick who may look and what they see. You can change or stop it any time; they are told on their phone about missed doses and I need help.">?</button></span>
+          <select id="hl-care-person" aria-label="Caregiver"></select>
+          <label class="small hl-check"><input id="hl-care-doses" type="checkbox" checked> Missed doses</label>
+          <label class="small hl-check"><input id="hl-care-checkins" type="checkbox" checked> Check-ins <button type="button" class="tip" data-tip="Only your daily answer: OK, Not great or I need help. Never your notes, mood or chats.">?</button></label>
+          <button id="hl-care-share" type="button" class="small">Share</button>
+        </div>
+        <p id="hl-care-none" class="muted small" hidden>No other adults in this household yet.</p>
+        <div id="hl-caring" hidden>
+          <h3>People you care for <button type="button" class="tip" data-tip="Only what each person chose to share with you, read fresh each time. When they stop sharing, it disappears here.">?</button></h3>
+          <div id="hl-caring-list" class="hl-list"></div>
+        </div>
+        <h3>Simple home <button type="button" class="tip" data-tip="A plain page with four big buttons: talk, medicines, check in and call family. Good for anyone who wants Sara without the menus.">?</button></h3>
+        <div class="hl-row"><button id="hl-simple-open" type="button" class="small">Open Simple home</button></div>
+        <label class="row hl-check"><input id="sh-start" type="checkbox" data-noauto> Open Simple home when Sara starts on this device <button type="button" class="tip" data-tip="Only this phone or computer. Turn it off here or with Back to the full app on Simple home.">?</button></label>
+        <p class="muted small">People to call from Simple home</p>
+        <div id="hl-contacts" class="hl-list"></div>
+        <div class="add-row hl-form" data-nodirty>
+          <span class="hl-tipwrap"><button type="button" class="tip" data-tip="People to call with one tap on Simple home. The phone number opens your phone&#39;s own dialer.">?</button></span>
+          <input id="hl-contact-name" maxlength="60" placeholder="Name" aria-label="Name">
+          <input id="hl-contact-phone" type="tel" maxlength="30" placeholder="Phone number" aria-label="Phone number">
+          <button id="hl-contact-add" type="button" class="small">Add</button>
+        </div>
       </div>
       <div id="hl-kids" hidden>
         <h3>A child&#39;s medicines <button type="button" class="tip" data-tip="As a parent you add and remove a child's medicines and reminders, and see their doses. Their own notes and symptoms stay theirs.">?</button></h3>
@@ -1775,6 +1841,21 @@
         </div>
       </div>
     </form>
+  </dialog>
+  <!-- V5.4 (docs/design/V5CARE.md): Simple home, four big buttons -->
+  <dialog id="simple-home" class="simple-home" aria-labelledby="sh-title" data-nox>
+    <div class="sh-body">
+      <h2 id="sh-title">Simple home</h2>
+      <p id="sh-hello" class="sh-hello"></p>
+      <div class="sh-grid">
+        <button id="sh-talk" type="button" class="sh-big"><i class="ic" data-icon="mic"></i><span>Talk with Sara</span></button>
+        <button id="sh-meds" type="button" class="sh-big"><i class="ic" data-icon="reminder"></i><span>Medicines</span></button>
+        <button id="sh-checkin" type="button" class="sh-big"><i class="ic" data-icon="check"></i><span>Check in</span></button>
+        <button id="sh-call" type="button" class="sh-big"><i class="ic" data-icon="phone"></i><span>Call family</span></button>
+      </div>
+      <section id="sh-panel" class="sh-panel" aria-live="polite" hidden></section>
+      <p class="sh-foot"><button id="sh-exit" type="button" class="ghost">Back to the full app</button></p>
+    </div>
   </dialog>
   <!-- R8 (docs/FAMILY.md): Family (chores and allowance, grocery lists, kid-safe mode) -->
   <dialog id="family" aria-label="Family">
@@ -1831,6 +1912,29 @@
         <span id="mo-cost" class="muted small"></span>
       </div>
       <p id="mo-status" class="muted small" role="status"></p>
+      <!-- V4.1 (docs/PHOTO_LIBRARY.md): the owner's photo folder, searched on this computer -->
+      <section id="mo-photos" class="mo-photos" data-nodirty data-noauto hidden>
+        <h3>Your photo folder</h3>
+        <p id="mo-ph-state" class="muted small" role="status"></p>
+        <p class="actions-left small"><button id="mo-ph-pick" type="button" class="ghost small">Pick a photo folder</button></p>
+        <div id="mo-ph-find">
+          <div class="mo-ph-search"><input id="mo-ph-q" type="search" maxlength="200" placeholder="A place, a word in a photo, a person, a year" aria-label="Search your photos"></div>
+          <div id="mo-ph-albums" class="mo-ph-albums" aria-label="Made for you" hidden></div>
+          <p id="mo-ph-count" class="muted small" role="status"></p>
+          <div id="mo-ph-detail" class="mo-ph-detail" hidden>
+            <img id="mo-ph-big" class="mo-ph-big" alt="">
+            <div class="mo-ph-side">
+              <p id="mo-ph-caption" class="mo-ph-caption"></p>
+              <p id="mo-ph-meta" class="muted small"></p>
+              <p id="mo-ph-text" class="small mo-ph-text"></p>
+              <label class="mo-ph-field"><span>Who is in it <button type="button" class="tip" data-tip="Type the names of the people in this photo, separated by commas. Then searching a name finds it, and each name gets its own album.">?</button></span><input id="mo-ph-people" maxlength="400" placeholder="Names, separated by commas"></label>
+              <div id="mo-ph-place-row" class="mo-ph-field"><span>Name this place <button type="button" class="tip" data-tip="Give the place where this photo was taken a name, like Home or Grandma's house. Every photo taken within about 500 meters of it gets that name.">?</button></span><span class="mo-ph-place"><input id="mo-ph-place-name" maxlength="60" aria-label="Name this place"><button id="mo-ph-place-go" type="button" class="ghost small">Save the name</button></span></div>
+              <p id="mo-ph-msg" class="muted small" role="status"></p>
+            </div>
+          </div>
+          <div id="mo-ph-results" class="mo-grid mo-ph-grid"></div>
+        </div>
+      </section>
       <div id="mo-albums" class="mo-albums" role="tablist" aria-label="Albums"></div>
       <div class="add-row mo-new" data-nodirty><input id="mo-new-name" maxlength="60" placeholder="New album name" aria-label="New album name"><button id="mo-new" type="button" class="ghost small">+ New album</button></div>
       <div id="mo-album-head" class="mo-album-head" hidden>
@@ -2832,6 +2936,9 @@
       <label class="row"><input id="dk-appupd-auto" type="checkbox"> Update the app by itself <button type="button" class="tip" data-tip="On: a new Sara app is downloaded in the background, checked against Sara's signed release notice, and installed when you close the app or nobody is using the computer, never while Sara is using it. Off: you choose when, with Update now.">?</button></label>
       <p id="dk-appupd-row" class="small" hidden><span id="dk-appupd-status" class="muted" role="status"></span> <button id="dk-appupd-now" type="button" class="small" hidden>Update now</button> <button id="dk-appupd-check" type="button" class="ghost small">Check for a new app</button></p>
       <p id="dk-version" class="muted small"></p>
+      <h3>Screen companion <button type="button" class="tip" data-tip="Off by default. On: the Sara app looks at the window in front every few seconds, on this computer only, and offers help when an error or a stuck form shows. Nothing is kept or sent.">?</button></h3>
+      <label class="row"><input id="dk-screen" type="checkbox" data-noauto> Offer help when an error shows on screen <button type="button" class="tip" data-tip="A small bubble asks if you want help. Help with this puts the message in quick ask; it goes to Sara only when you press Ask. Never password fields, typed text or hidden windows.">?</button></label>
+      <p class="small"><button id="dk-screen-pause" type="button" class="ghost" hidden>Pause for 1 hour</button> <span id="dk-screen-note" class="muted small" role="status"></span></p>
         </section>
         <section class="settings-page" data-page="co-computer" data-group="Connections" data-title="Computer use" hidden>
       <p class="muted small page-lead">Sara can use her own browser on your computer: open pages, read them, take screenshots, check console errors, and click, type, choose and upload to fill in forms. You see a "Sara is working" badge with Stop while she does. It works through the Sara app for Windows or Mac and is off until you switch it on there.</p>
@@ -3162,6 +3269,16 @@
       <label class="row" data-owner-only>Keep hearing and voice loaded <button type="button" class="tip" data-tip="Her own hearing and voice on this server stay in memory after you talk, so she answers about a second sooner. Off loads them for every sentence and frees the memory.">?</button> <select id="talk-keep"><option value="0">Off</option><option value="10" selected>10 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option></select></label>
       <label class="row" data-owner-only>Hearing while you talk <button type="button" class="tip" data-tip="Words as you speak shows what she hears while you talk and ends your turn a little sooner, with a streaming hearing model on this server. Whole sentences hears each sentence when you stop.">?</button> <select id="talk-hearing"><option value="whole" selected>Whole sentences</option><option value="streaming">Words as you speak</option></select></label>
       <p id="talk-stream-row" class="small" data-owner-only hidden><button id="talk-stream-get" type="button" class="ghost">Add words-as-you-speak hearing</button> <button type="button" class="tip" data-tip="Downloads the streaming hearing model for Talk with Sara (about 105 MB). Checked before use; what you say stays on this server.">?</button> <span id="talk-stream-status" class="muted small" role="status"></span></p>
+      <!-- V4.2 (docs/design/INTERPRETER.md): the live interpreter (web/interpreter.js loadInterpreter). -->
+      <h3>Interpreter <button type="button" class="tip" data-tip="Two people who don't share a language talk through Sara: each turn is heard, translated and spoken in the other language. Start it here or with Interpreter on the talk screen.">?</button></h3>
+      <div id="interp-prefs" data-nodirty data-noauto>
+        <label class="row">Your language <button type="button" class="tip" data-tip="The language you speak. The interpreter's screen shows it on your half.">?</button> <select id="interp-a"></select></label>
+        <label class="row">Their language <button type="button" class="tip" data-tip="The other person's language. You can change both on the talk screen too.">?</button> <select id="interp-b"></select></label>
+        <label class="row"><input id="interp-cloud" type="checkbox"> Use a cloud model when this computer has none <button type="button" class="tip" data-tip="Off: only a model on this computer translates, so nothing said leaves it. On: your quick cloud model translates when there is no local one.">?</button></label>
+        <p class="actions-left"><button id="interp-start" type="button">Start the interpreter</button> <span id="interp-note" class="muted small" role="status"></span></p>
+        <p class="small"><strong>Saved transcripts</strong> <button type="button" class="tip" data-tip="Every interpreter session is saved here, with what was said and the translation. Only you see yours; the newest 100 are kept.">?</button></p>
+        <ul id="interp-list" class="interp-list small"></ul>
+      </div>
       <!-- S2 (docs/MEETINGS.md): meeting recordings (web/meetings.js loadMeetingPrefs). -->
       <h3 data-owner-only>Meetings <button type="button" class="tip" data-tip="How Sara records and hears your meetings (Library → Meetings).">?</button></h3>
       <div id="meet-prefs" data-owner-only data-nodirty data-noauto>
@@ -3169,6 +3286,9 @@
         <label class="row"><input id="meet-cloud" type="checkbox"> Let a cloud engine hear meetings <button type="button" class="tip" data-tip="Off: meetings are heard only by the hearing engine on this computer. On: your Speech API or Grok voice may hear them when there is no local engine.">?</button></label>
         <label class="row"><input id="meet-speakers" type="checkbox"> Better speaker separation <button type="button" class="tip" data-tip="Tells up to 8 voices apart in uploads and one-microphone recordings, on this computer. A free add-on (about 40 MB) downloads the first time a meeting needs it. Off or not there yet: speakers are split by pauses and pitch (two at most).">?</button></label>
         <p id="meet-speakers-row" class="small" hidden><span id="meet-speakers-status" class="muted small" role="status"></span> <button id="meet-speakers-get" type="button" class="ghost small">Download now</button> <button id="meet-speakers-remove" type="button" class="ghost small">Remove</button></p>
+        <label class="row" id="meet-cap-row">Translate captions into <button type="button" class="tip" data-tip="Shows a translated line under each caption (Meetings → a meeting → Captions). A model on this computer translates; nothing leaves unless you allow a cloud model below.">?</button> <select id="meet-cap-lang"><option value="">No translation</option></select></label>
+        <label class="row"><input id="meet-cap-cloud" type="checkbox"> Let a cloud model translate captions <button type="button" class="tip" data-tip="Off: only a model on this computer translates captions. On: your cloud model may translate them when there is none. Never in private local mode.">?</button></label>
+        <p id="meet-cap-note" class="muted small" role="status"></p>
         <p id="meet-prefs-note" class="muted small" role="status"></p>
       </div>
         </section>
@@ -3583,6 +3703,25 @@
       <!-- V3 (docs/ops/V3_DESIGN.md §4): three groups and a live preview; the same ids and lists underneath. -->
       <div class="ap-layout">
       <div class="ap-main">
+      <!-- V5.5 (docs/design/V5_ACCESS.md): one switch for easier reading, still motion and a large layout (web/a11y-mode.js). -->
+      <div class="ap-group ap-access" role="group" aria-labelledby="ap-g-access">
+        <div class="ap-group-h"><h3 id="ap-g-access">Accessibility</h3></div>
+        <label class="row ap-access-switch"><input id="ap-a11y" type="checkbox"> Accessibility mode: easier reading, no motion and a larger layout</label>
+      <div class="row-grid">
+        <label>Reading style
+          <select id="ap-read"><option value="normal">Normal (default)</option><option value="easy">Easier reading: a clearer font, more space between letters and lines</option></select>
+        </label>
+        <label>Line focus
+          <select id="ap-linefocus"><option value="off">Off (default)</option><option value="on">On: a reading band follows your pointer and dims the rest</option></select>
+        </label>
+        <label>Motion
+          <select id="ap-reduce"><option value="system">Follow the system (default)</option><option value="on">Reduced: no animations anywhere</option></select>
+        </label>
+        <label>Large layout
+          <select id="ap-large"><option value="off">Off (default)</option><option value="on">On: bigger text and buttons everywhere</option></select>
+        </label>
+      </div>
+      </div>
       <div class="ap-group" role="group" aria-labelledby="ap-g-theme">
         <div class="ap-group-h"><h3 id="ap-g-theme">Theme</h3><button id="ap-reset" type="button" class="ghost small">Reset to defaults</button></div>
       <div class="row-grid">
@@ -4592,6 +4731,13 @@
       <p class="muted small">Her picture model reads the scanned pages. Pick it in <a href="/#view=settings:models-routes">Which model does what → Looking at pictures</a>.</p>
       <p class="muted small">Files over 100 MB need to be PDFs. Behind a reverse proxy, big files are sent in 8 MB pieces, so a proxy limit of 10 MB or more is enough.</p>
       <p id="lib-settings-status" class="muted small" role="status"></p>
+      <h3>Photo folder <button type="button" class="tip" data-tip="Sara can search a folder of your photos by place, by the words in them and by who is in them. Everything stays on this computer: only a picture model on this computer looks at them.">?</button></h3>
+      <p class="muted small">Pick one folder of photos on this computer. Places and dates come from each photo; a picture model on this computer writes a caption and copies any writing. Your photos are never moved, changed or sent anywhere. Search them in Our moments.</p>
+      <div data-nodirty data-noauto>
+        <label>Folder <input id="lib-photos-folder" type="text" spellcheck="false" autocomplete="off" placeholder="The full path of a folder"></label>
+        <p class="actions-left small"><button id="lib-photos-save" type="button" class="small">Use this folder</button> <button id="lib-photos-scan" type="button" class="ghost small">Look through it now</button> <button id="lib-photos-forget" type="button" class="ghost small danger-text">Forget the index</button></p>
+        <p id="lib-photos-status" class="muted small" role="status"></p>
+      </div>
         </section>
         <section class="settings-page" data-page="ab-mcp" data-group="Skills & tools" data-title="Other programs (MCP)" data-owner-only hidden>
       <p class="muted small page-lead">Plug-in tool servers (Model Context Protocol), such as your email or calendar. Their tools appear in Tools and approvals. Server read-only annotations can allow tools to run automatically; they do not guarantee approval for external effects or costs. Inspect permissions, choose Ask or Off, save, leave and reopen to verify them after discovery, reconnect and updates.</p>
@@ -5876,6 +6022,17 @@
         <div id="store-notices" class="store-notices"></div>
         <div class="add-row"><button id="store-check" type="button" class="ghost">Check now</button> <button type="button" class="tip" data-tip="Downloads the store's list now and checks its signature, so you see new add-ons and updates. Nothing about you is sent with it.">?</button></div>
       </div>
+      <h3>What left this server <button type="button" class="tip" data-tip="Every request this server sent out, counted by where it went and why. Only the place and a count are kept, never what was in it. Kept for 30 days.">?</button></h3>
+      <div class="pv-ledger" data-noauto data-nodirty>
+        <div class="add-row pv-ledger-bar"><span class="small">Day</span> <button type="button" class="tip" data-tip="Pick a day to see what left that day. Days follow your time zone.">?</button> <select id="pv-ledger-day" aria-label="Day"></select> <button id="pv-ledger-forget" type="button" class="ghost" hidden>Clear the list</button></div>
+        <p id="pv-ledger-sum" class="small" role="status"></p>
+        <div id="pv-ledger-list" class="pv-ledger-list"></div>
+        <p class="muted small">Things that only connect to this computer (a model running here) are not listed: they never leave. <a href="/help#privacy-ledger" target="_blank" rel="noopener">Guide</a></p>
+      </div>
+      <!-- V5.3 (docs/LEGACY.md): legacy and emergency access (web/legacy.js). -->
+      <h3>Legacy and emergency access <button type="button" class="tip" data-tip="Name one person you trust. If you stop using Sara, she reminds you, waits, then opens a page for them with only what you picked. Any sign-in cancels.">?</button></h3>
+      <p id="lg-status" class="muted small" role="status"></p>
+      <div id="lg-box" class="lg-box" data-nodirty data-noauto></div>
         </section>
         <section class="settings-page" data-page="dh-reports" data-group="Privacy & system" data-title="Reports" hidden>
       <p class="muted small page-lead">Replies you reported with ⚑. Each is kept here; unless you unticked it, it was also sent to the app's developer (only the reply, the reason and your note).</p>
@@ -5884,6 +6041,15 @@
         <h3>Reports from the apps</h3>
         <p class="muted small">This server is the developer's report inbox (SARA_REPORT_INBOX=1): reports sent from other Sara servers and the phone apps.</p>
         <div id="reports-inbox" class="list"></div>
+      </div>
+        </section>
+        <section class="settings-page" data-page="dh-timeline" data-group="Privacy & system" data-title="Action timeline" data-host="dh-reports" hidden>
+      <p class="small">What she changed for you, newest first, kept for 90 days. <button type="button" class="tip" data-tip="Files, settings, mail moves, calendar and planner. Revert puts a change back where Sara keeps a way back; the others say why they can't be undone.">?</button></p>
+      <div class="tl-box" data-noauto data-nodirty>
+        <div class="add-row tl-filter"><button type="button" class="tip" data-tip="Show only one kind of change, like mail moves or planner changes.">?</button> <span class="small">Show</span> <select id="tl-kind" aria-label="Show"><option value="">Everything</option><option value="files">Files</option><option value="settings">Settings</option><option value="mail">Mail</option><option value="calendar">Calendar</option><option value="planner">Planner</option><option value="other">Other</option></select></div>
+        <p id="tl-status" class="muted small" role="status"></p>
+        <ul id="tl-list" class="tl-list"></ul>
+        <div class="add-row"><button id="tl-more" type="button" class="ghost" hidden>Show older</button></div>
       </div>
         </section>
         <p id="settings-empty" class="muted" hidden>Nothing matches. Try another word.</p>

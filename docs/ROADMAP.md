@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Senses and trust: photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access, in 3.29.0
+
+Search a photo folder by place, text and people with a picture model on your own computer. Talk across two
+languages with the live interpreter, import health trends from Apple Health, Google Fit and Garmin, and follow
+meetings with live translated captions. The Windows app can offer help when an error window appears (off by
+default). Every change Sara made is on one Action timeline with Revert, a privacy ledger lists what left the
+server and why, a trusted person can get chosen parts after long inactivity, caregivers see only what is
+shared, and one switch turns on easier reading, reduced motion and a larger layout.
+
 ## Your own apps and agents: My apps, automation replay, workforce report, Fix this issue, website receptionist, in 3.28.0
 
 Ask for a small web app and keep it, with versions and Undo; apps run sandboxed and never get your sign-in.

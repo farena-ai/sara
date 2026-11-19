@@ -103,3 +103,16 @@ dialog#try-these:not(#_) { width: min(680px, 96vw); }
   .ochk-go { flex: 1 0 100%; }
   .ochk-picks button:not(.ochk-go) { flex: 1 1 0; }
 }
+/* V5.2: Settings → Privacy → What left this server. */
+.pv-ledger .pv-ledger-bar { align-items: center; flex-wrap: wrap; }
+#settings .pv-ledger .pv-ledger-bar select:not(#_) { flex: 0 1 18em; width: auto; min-width: 10em; max-width: 100%; }
+.pv-ledger .pv-ledger-bar button:not(.tip) { min-height: 44px; }
+.pv-ledger-list { display: grid; gap: 10px; min-width: 0; }
+.pv-lg { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 0; }
+.pv-lg-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pv-lg-n { color: var(--text-2); font-size: 0.9em; }
+.pv-lg-why { margin: 2px 0 6px; }
+.pv-lg-hosts { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.pv-lg-hosts li { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.pv-lg-host { font-family: var(--font-mono); font-size: 0.9em; overflow-wrap: anywhere; min-width: 0; }
+.pv-lg-stopped { border-style: dashed; }

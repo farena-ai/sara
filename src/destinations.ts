@@ -18,7 +18,7 @@ import { ownerEvidenceConversation } from './owner-evidence.ts';
 import type { Conversation } from './store.ts';
 import { ToolError, type Tool } from './tools/types.ts';
 
-export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce';
+export type Feed = 'stocks' | 'sports' | 'mail' | 'products' | 'automations' | 'research' | 'goals' | 'travel' | 'inbox' | 'money' | 'reminders' | 'briefing' | 'workforce' | 'legacy';
 export type Where = 'origin' | 'chat' | 'project' | 'dedicated' | 'apps';
 export const WHERES: readonly Where[] = ['origin', 'chat', 'project', 'dedicated', 'apps'];
 export type AppKind = 'telegram' | 'discord';
@@ -57,6 +57,7 @@ export const FEEDS: readonly { id: Feed; title: string; words: RegExp; items: bo
   { id: 'reminders', title: en('Reminders'), words: /\breminders?\b/i, items: false, keepsChat: true },
   { id: 'briefing', title: en('Morning briefing'), words: /\b(briefing|mornings?)\b/i, items: false, keepsChat: true, origin: en('Your latest chat') },
   { id: 'workforce', title: en('Workforce report'), words: /\b(workforce|workers? reports?)\b/i, items: false, origin: en('Its own chat') },
+  { id: 'legacy', title: en('Legacy access'), words: /\b(legacy|emergency access|trusted person)\b/i, items: false, origin: en('Its own chat') },
 ];
 const FEED_IDS = new Set<string>(FEEDS.map((f) => f.id));
 export const isFeed = (x: unknown): x is Feed => FEED_IDS.has(String(x));

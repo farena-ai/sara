@@ -12,7 +12,7 @@ import { lookup as dnsLookup } from 'node:dns/promises';
 import { connect as netConnect, isIP } from 'node:net';
 import { checkServerIdentity, connect as tlsConnect, type PeerCertificate } from 'node:tls';
 import { en, fill } from './i18n.ts';
-import { checkOutbound, netFetch } from './net-guard.ts';
+import { checkOutbound, netFetch, noteOutbound } from './net-guard.ts';
 import type { RunResult } from './ssh.ts';
 
 /** Q1 (owner default): the ports "Sara finds it" tries, one at a time, at most 7 connects. */
@@ -105,7 +105,10 @@ export type GreetFn = (host: string, port: number, timeoutMs: number) => Promise
  * server answers with its error ("HTTP/1.1 400"), then close. Sara does not speak SSH beyond that.
  */
 /** The net guard for a raw socket: private local mode allows only this computer (throws PrivateLocalError). */
-const guardSocket = (host: string, port: number, what: string) => checkOutbound(`https://${isIP(host) === 6 ? `[${host}]` : host}:${port}/`, what);
+const guardSocket = (host: string, port: number, what: string) => {
+  checkOutbound(`https://${isIP(host) === 6 ? `[${host}]` : host}:${port}/`, what);
+  noteOutbound(`https://${isIP(host) === 6 ? `[${host}]` : host}:${port}/`, what);
+};
 
 export const readGreeting: GreetFn = async (host, port, timeoutMs) => {
   guardSocket(host, port, 'SSH port check');

@@ -54,6 +54,7 @@
 #include "page-logo.h"
 #include "toast.h"
 #include "quick-context.h"  // quick ask: selected text, this window
+#include "screen-watch.h"   // V4.5: the screen companion (off by default)
 #include "voice-pill.h"     // the listening / thinking / speaking pill
 #include "wake.h"
 #include "save-files.h"
@@ -62,6 +63,7 @@
 #include <wtsapi32.h>
 #include <memory>
 #include <thread>
+#include <atomic>
 #include "hands.h"
 #include "hands-files.h"  // 3.5.x: "Which folders" (a picked folder is checked there)
 #include "app-update.h"
@@ -1959,6 +1961,7 @@ static void hideQuickAsk(bool soft = false) {
   voicePillSync();
 }
 static std::wstring g_qaContext = L"{}";  // what the shortcut found in the app in front (quickAskHotkey)
+static void screenOfferAct(const std::wstring& act);
 static void ensureQuickAsk();
 /** The shortcut (or the tray's "Ask Sara…"): show it over whatever is in front, typing ready. */
 static void showQuickAsk() {
@@ -2008,6 +2011,7 @@ static void onQuickMessage(const std::wstring& json, const std::wstring& source)
   auto m = parseFlatJson(json);
   if (m[L"m"] != L"qa") return;
   const std::wstring& a = m[L"a"];
+  if (a == L"offer") return screenOfferAct(m[L"act"]);  // V4.5: the screen companion's bubble
   if (a == L"ready") {
     g_qaReady = true;
     if (g_qaWantShow) showQuickAsk();
@@ -3220,6 +3224,93 @@ static void quickAskMenu(HMENU m, bool grey) {
   AppendMenuW(m, MF_STRING | (prefOn(L"speakReplies", false) ? MF_CHECKED : 0) | (grey ? MF_GRAYED : 0), ID_SPEAK_REPLIES, L"Speak her replies");
   AppendMenuW(m, MF_STRING | (prefOn(L"quickAskSelection", true) ? MF_CHECKED : 0), ID_QA_SELECTION, L"Quick ask includes selected text");
 }
+// ---------- V4.5: the screen companion (docs/desktop.md "Screen companion", screen-watch.h) ----------
+// Off by default (Settings -> This computer). While on, every 5 s a worker thread reads the window in
+// front ON THIS COMPUTER (sarawatch::lookAt: title, program, control names; never hidden or Sara's own
+// windows, password fields or typed values) and the watch decides. An offer shows as the quick-ask
+// page's small bubble without taking the focus; it goes away by itself after 30 s. Nothing is written
+// or sent: the log says only that an offer was shown, and only "Help with this" puts the line into the
+// quick-ask box, where the person still presses Ask. Pause: the bubble, the tray menu or Settings.
+static const UINT WM_APP_SCREEN = WM_APP + 32;  // a look from the worker thread (lp = sarawatch::Look*)
+static const UINT_PTR kScreenTimer = 33, kScreenHideTimer = 34;
+enum : UINT { ID_SCREEN_PAUSE = 4020, ID_SCREEN_RESUME };
+static sarawatch::Watch g_watch;
+static std::atomic<bool> g_watchBusy{false};
+static bool g_offerShown = false;
+static long long nowMs() { return (long long)GetTickCount64(); }
+static void screenSync() {
+  g_watch.on = prefOn(L"screenCompanion", false);
+  if (g_watch.on) SetTimer(g_wnd, kScreenTimer, sarawatch::kEveryMs, nullptr);
+  else KillTimer(g_wnd, kScreenTimer);
+}
+static std::wstring screenPrefsJson() {
+  long long left = g_watch.pausedFor(nowMs());
+  return std::wstring(L",\"screenCompanion\":") + (prefOn(L"screenCompanion", false) ? L"true" : L"false") + L",\"screenPausedMin\":" + std::to_wstring((left + 59999) / 60000);
+}
+static void screenTick() {
+  if (!g_watch.on || g_watch.pausedFor(nowMs()) > 0 || g_watchBusy || quickAskVisible() || g_server.empty()) return;
+  HWND fg = GetForegroundWindow();
+#ifdef SARA_TEST_HOOKS
+  // Test builds: SARA_TEST_SCREEN_TITLE looks at that fake window instead of the one in front, so a live
+  // check never needs the focus and never reads anyone's real window.
+  wchar_t testTitle[256];
+  if (GetEnvironmentVariableW(L"SARA_TEST_SCREEN_TITLE", testTitle, 256)) fg = FindWindowW(nullptr, testTitle);
+#endif
+  if (!fg || fg == g_wnd || fg == g_qa) return;
+  g_watchBusy = true;
+  HWND to = g_wnd;
+  std::thread([fg, to] {
+    HRESULT co = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    auto* look = new sarawatch::Look(sarawatch::lookAt(fg));
+    if (SUCCEEDED(co)) CoUninitialize();
+    if (!PostMessageW(to, WM_APP_SCREEN, 0, (LPARAM)look)) {
+      delete look;
+      g_watchBusy = false;
+    }
+  }).detach();
+}
+static void screenLooked(sarawatch::Look* raw) {
+  std::unique_ptr<sarawatch::Look> look(raw);
+  g_watchBusy = false;
+  if (quickAskVisible()) return;  // he is using quick ask: no bubble over it
+  sarawatch::Offer offer;
+  if (!g_watch.check(*look, nowMs(), offer)) return;
+  ensureQuickAsk();
+  if (!g_qaReady || !g_qaWeb || !g_qaCtl) return;
+  logLine(L"screen: offered help (" + offer.kind + L")");  // never the text or the program
+  placeQuickAsk();
+  styleQuickAsk();
+  g_offerShown = true;
+  SetWindowPos(g_qa, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+  ShowWindow(g_qa, SW_SHOWNOACTIVATE);  // the bubble never takes the focus from the window he is in
+  g_qaCtl->put_IsVisible(TRUE);
+  quickJs(std::wstring(L"window.saraQuick&&saraQuick.offer&&saraQuick.offer({theme:'") + (g_day ? L"day" : L"night") + L"',solid:" + (g_qaAcrylic ? L"false" : L"true") +
+          L",kind:\"" + jsonEscape(offer.kind) + L"\",app:\"" + jsonEscape(offer.app) + L"\",line:\"" + jsonEscape(offer.line) + L"\"})");
+  SetTimer(g_wnd, kScreenHideTimer, 30000, nullptr);
+}
+/** The bubble's buttons: help (the quick-ask box with that line, typing ready), dismiss, pause for 1 hour. */
+static void screenOfferAct(const std::wstring& act) {
+  KillTimer(g_wnd, kScreenHideTimer);
+  g_offerShown = false;
+  if (act == L"help" && g_qa && g_qaCtl) {
+    g_qaShownAt = GetTickCount();
+    SetForegroundWindow(g_qa);
+    g_qaCtl->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+    return;
+  }
+  if (act == L"pause") g_watch.pause(3600000, nowMs());
+  hideQuickAsk();
+}
+static void screenHideTick() {
+  KillTimer(g_wnd, kScreenHideTimer);
+  if (g_offerShown && GetForegroundWindow() != g_qa) hideQuickAsk();
+  g_offerShown = false;
+}
+static void screenMenu(HMENU m) {
+  if (!g_watch.on) return;
+  bool paused = g_watch.pausedFor(nowMs()) > 0;
+  AppendMenuW(m, MF_STRING, paused ? ID_SCREEN_RESUME : ID_SCREEN_PAUSE, paused ? L"Resume the screen companion" : L"Pause the screen companion for 1 hour");
+}
 /** From Settings → Hey Sara in the main window: SaraDesktop.call('wake', {op, key, value}). */
 static void onWakeCall(const std::wstring& id, std::map<std::wstring, std::wstring>& m) {
   const std::wstring& op = m[L"op"];
@@ -3301,6 +3392,7 @@ static void trayMenu() {
       if (wakePref(L"wakeOn", false)) AppendMenuW(m, MF_STRING, g_wakePauseUntil ? ID_WAKE_RESUME : ID_WAKE_PAUSE, g_wakePauseUntil ? L"Resume Hey Sara" : L"Pause Hey Sara for 1 hour");
       AppendMenuW(m, MF_STRING, ID_WAKE_SETTINGS, L"Hey Sara settings\u2026");
       quickAskMenu(m, g_now.demo || !g_now.signedIn);  // Speak her replies · Include selected text
+      screenMenu(m);                                    // V4.5: pause / resume the screen companion
     }
     if (g_now.signedIn && !g_now.demo) {
       // "Now": background jobs still running and approvals waiting (refreshed every 45 s).
@@ -3916,7 +4008,7 @@ static std::wstring prefsJson() {
          // Phase 75 stage 2: the quick-ask shortcut, the choices, and whether another app has it.
          L",\"quickAskShortcut\":\"" + shortcutId() + L"\",\"quickAskShortcutLabel\":\"" + shortcutLabel() + L"\",\"quickAskShortcutFree\":" + (g_shortcutTaken ? L"false" : L"true") +
          L",\"quickAskShortcuts\":" + shortcutsJson() + L",\"sendTo\":" + (sendToOn() ? L"true" : L"false") + L",\"toasts\":" + (g_toastOk ? L"true" : L"false") + handsPrefsJson() +
-         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"frame\":\"" + jsonEscape(frameReport()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + L"}";
+         L",\"computer\":\"" + jsonEscape(computerName()) + L"\",\"os\":\"" + jsonEscape(osLabel()) + L"\",\"frame\":\"" + jsonEscape(frameReport()) + L"\",\"appUpdate\":" + saraupdate::statusJson() + sarasave::prefsJson() + screenPrefsJson() + L"}";
 }
 
 
@@ -4131,6 +4223,17 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
       if (value == L"always" && MessageBoxW(g_wnd, L"Sara may act on desktop apps without approval cards. Payments and account changes still ask. Protected windows and password fields stay refused. Stop always works. Allow this on this computer?", L"Desktop actions: Always allowed", MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2) != IDYES) return reply(id, L"null", L"Not allowed on this computer");
       setIni(handsSection(), L"handsDesktopLevel", value);
       sarahands::setDesktopLevel(value == L"ask" ? 0 : value == L"always" ? 2 : 1);
+    }
+    else if (key == L"screenCompanion") {
+      // V4.5: "Offer help when an error shows" (off by default; local only).
+      setPref(L"screenCompanion", on ? L"1" : L"0");
+      screenSync();
+    }
+    else if (key == L"screenPause") {
+      // V4.5: pause for 60 minutes, or 0 = resume.
+      int n = _wtoi(m[L"value"].c_str());
+      if (n != 0 && n != 60) return reply(id, L"null", L"0 or 60 minutes.");
+      g_watch.pause(n * 60000LL, nowMs());
     }
     else if (key == L"handsWalkAway") {
       setIni(handsSection(), L"handsWalkAway", on ? L"1" : L"0");
@@ -4749,6 +4852,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         pollFinish();
       }
       if (wp == kPttTimer) pttTick();  // push-to-talk: the talk shortcut let go / Esc
+      if (wp == kScreenTimer) screenTick();          // V4.5: one look at the window in front
+      if (wp == kScreenHideTimer) screenHideTick();  // V4.5: the bubble goes away by itself
       if (wp == kWakeTryTimer) {
         // Phase 126: Try it: 20 seconds of listening, the labels heard, nothing asked.
         KillTimer(h, kWakeTryTimer);
@@ -4767,6 +4872,9 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         g_wakePauseUntil = 0;
         wakeApply();
       }
+      return 0;
+    case WM_APP_SCREEN:
+      screenLooked((sarawatch::Look*)lp);
       return 0;
     case WM_APP_TRAY:
       switch (LOWORD(lp)) {
@@ -4799,6 +4907,8 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
         case ID_WAKE_TALK: wakeTalk(); break;
         case ID_SPEAK_REPLIES: toggleSpeakReplies(); break;
         case ID_QA_SELECTION: setPref(L"quickAskSelection", prefOn(L"quickAskSelection", true) ? L"0" : L"1"); break;
+        case ID_SCREEN_PAUSE: g_watch.pause(3600000, nowMs()); break;
+        case ID_SCREEN_RESUME: g_watch.pause(0, nowMs()); break;
         case ID_WAKE_ON:
           // Switching on needs the consent card and the download: that's on Settings → Hey Sara.
           if (wakePref(L"wakeOn", false)) {
@@ -5060,6 +5170,7 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   // Phase 75 stage 2: the quick-ask shortcut (a clash is said once per start), "Now" every 45 s.
   registerShortcut(true);
   SetTimer(g_wnd, kNowTimer, 45000, nullptr);
+  screenSync();  // V4.5: the screen companion as it was left (off by default)
   // U2.11: the first ask of the other servers a little after start, then every 2 minutes.
   SetTimer(g_wnd, kCountsTimer, testNumber(L"SARA_TEST_COUNTS_FIRST_MS", 15000), nullptr);
   // Phase 126: the talk shortcut, the screen-lock pause and Hey Sara as it was left (off by default).

@@ -913,6 +913,8 @@ export class Meetings {
 
   #forget(id: number): void {
     this.#db.prepare('DELETE FROM meeting_lines WHERE meeting_id = ?').run(id);
+    // V4.4: its caption translations (src/meeting-captions.ts; the table exists once captions were used).
+    if (this.#db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meeting_captions'").get()) this.#db.prepare('DELETE FROM meeting_captions WHERE meeting_id = ?').run(id);
     this.#db.prepare('DELETE FROM meetings WHERE id = ?').run(id);
     rmSync(this.#dir(id), { recursive: true, force: true });
   }

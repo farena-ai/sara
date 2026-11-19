@@ -36,7 +36,7 @@
 import { readFileSync } from 'node:fs';
 import { isIP, Socket } from 'node:net';
 import { connect as tlsConnect, type TLSSocket } from 'node:tls';
-import { assertOnline, checkOutbound, onPrivateLocalChange, privateLocalOn } from '../net-guard.ts';
+import { assertOnline, checkOutbound, noteOutbound, onPrivateLocalChange, privateLocalOn } from '../net-guard.ts';
 import { isPrivateAddress } from '../tools/builtin.ts';
 import { realClock, type Clock } from '../bridges/sendq.ts';
 import { tailscaleStatus } from '../tailscale.ts';
@@ -255,6 +255,7 @@ export class PluginSockets {
     // The guard itself (src/net-guard.ts): a local endpoint is a home-network target at most.
     try {
       checkOutbound(`tcp://${isIP(addr.host) === 6 ? `[${addr.host}]` : addr.host}:${port}`, 'a plugin connection', ep.where === 'local');
+      noteOutbound(`tcp://${isIP(addr.host) === 6 ? `[${addr.host}]` : addr.host}:${port}`, 'a plugin connection');
     } catch {
       return this.#deny('private local mode is on ("Nothing leaves this computer")');
     }

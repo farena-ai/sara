@@ -19,6 +19,8 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { makePdf } from './documents/pdf.ts';
+import type { ImportSource, Metric, Reading } from './health-import.ts';
+import { careCheckedIn, careTick } from './caregiver.ts';
 import { setHealthTerms } from './health-terms.ts';
 import { en, trOwner } from './i18n.ts';
 import { zonedParts, zonedToUtc } from './planner.ts';
@@ -26,13 +28,27 @@ import { zonedParts, zonedToUtc } from './planner.ts';
 export const NOT_ADVICE = 'Your own log, not medical advice. Ask a doctor or pharmacist about anything here.';
 
 export type EntryType = 'symptom' | 'mood' | 'sleep' | 'measure';
-export interface Entry { id: number; at: string; type: EntryType; name: string; value?: number; value2?: number; scale?: number; unit?: string; note?: string }
+export interface Entry { id: number; at: string; type: EntryType; name: string; value?: number; value2?: number; scale?: number; unit?: string; note?: string; imp?: string; src?: ImportSource; batch?: number }
+/** V4.3: one file imported from a watch or phone app (src/health-import.ts). */
+export interface ImportBatch { id: number; at: string; source: ImportSource; file: string; added: number; updated: number; from?: string; to?: string }
+export interface ImportResult { batch: number; source: ImportSource; added: number; updated: number; same: number; from?: string; to?: string }
+/** V4.3: a measurement over the 30 days up to its newest value. */
+export interface Trend { name: Metric; unit: string; points: { day: string; value: number }[]; last: { day: string; value: number }; avg7: number; prev7?: number; change?: number }
+const TREND_METRICS: readonly Metric[] = ['steps', 'sleep', 'heart rate', 'resting heart rate', 'weight'];
+const LB = 2.20462262;
 export interface Med { id: number; at: string; name: string; dose: string; times: string[]; days?: number[]; supply?: number; perDose?: number; refilledOn?: string; notes?: string; active: boolean; managedBy?: 'parent' }
 export type DoseStatus = 'due' | 'taken' | 'skipped';
 export interface Dose { id: number; at: string; medId: number; due: string; status: DoseStatus; doneAt?: string }
 export interface Appt { id: number; at: string; title: string; when: string; where?: string; questions: string[]; notes?: string }
 export interface HealthSettings { cloudOk: boolean; includeInAsk: boolean; reminders: boolean; namesInAlerts: boolean }
 export const HEALTH_DEFAULTS: HealthSettings = { cloudOk: false, includeInAsk: false, reminders: true, namesInAlerts: false };
+/** V5.4 (docs/design/V5CARE.md): who may see what (the person's own consent) and whom to call. */
+export interface CareGrant { person: string; doses: boolean; checkins: boolean; since: string; told?: number }
+export interface CareContact { name: string; phone: string }
+export interface CareState { grants: CareGrant[]; contacts: CareContact[] }
+export const CHECKIN_STATUSES = ['ok', 'notgreat', 'help'] as const;
+export type CheckinStatus = (typeof CHECKIN_STATUSES)[number];
+export interface Checkin { id: number; at: string; day: string; status: CheckinStatus }
 
 export class HealthError extends Error {
   readonly status: number;
@@ -93,6 +109,8 @@ export interface HealthBind {
   now?: () => Date;
   notify?: (title: string, body: string) => void;
   lang?: (s: string) => string;
+  /** V5.4: after a daily check-in (caregiver notices, src/caregiver.ts). */
+  checkedIn?: (status: CheckinStatus) => void;
 }
 
 export class HealthLog {
@@ -321,9 +339,10 @@ export class HealthLog {
   }
 
   // ---------------------------------------------------------------- symptoms, mood, sleep, measurements
-  entries(f: { type?: EntryType; name?: string; from?: string; to?: string; limit?: number }): Entry[] {
+  /** `manual`: only what the person logged by hand (no imported device days). */
+  entries(f: { type?: EntryType; name?: string; from?: string; to?: string; limit?: number; manual?: boolean }): Entry[] {
     return this.#rows<Entry>('entry', f.from, f.to)
-      .filter((e) => (!f.type || e.type === f.type) && (!f.name || e.name === f.name))
+      .filter((e) => (!f.type || e.type === f.type) && (!f.name || e.name === f.name) && (!f.manual || !e.imp))
       .slice(0, f.limit ?? 2000);
   }
   addEntry(d: Quick & { at?: string }): Entry {
@@ -360,8 +379,118 @@ export class HealthLog {
     const out: { title: string; quote: string; when: string; kind: string }[] = [];
     for (const m of this.meds(true)) if (hit(`${m.name} ${m.dose} ${m.notes ?? ''}`)) out.push({ title: m.name, quote: `${m.name} ${m.dose} · ${m.times.join(', ')}`, when: m.at, kind: 'med' });
     for (const a of this.appts()) if (hit(`${a.title} ${a.where ?? ''} ${a.notes ?? ''} ${a.questions.join(' ')}`)) out.push({ title: a.title, quote: a.notes || a.questions.join('; ') || a.title, when: a.when, kind: 'appt' });
-    for (const e of this.entries({ limit: 500 })) if (hit(`${e.name} ${e.note ?? ''}`)) out.push({ title: e.name, quote: entryText(e), when: e.at, kind: 'entry' });
+    for (const e of this.entries({ limit: 500, manual: true })) if (hit(`${e.name} ${e.note ?? ''}`)) out.push({ title: e.name, quote: entryText(e), when: e.at, kind: 'entry' });
     return out.slice(0, 20);
+  }
+
+  // ---------------------------------------------------------------- V4.3 imports from watches and phone apps
+  /**
+   * Readings from src/health-import.ts into sealed entries. One entry per measurement and day (a
+   * weight per weighing): a day already there is left alone, unless the same app now says something
+   * else (a day that was still going when the first export was made), so importing the same file
+   * again adds nothing. Weight follows the unit the person already uses.
+   */
+  importReadings(rs: Reading[], source: ImportSource, file: string): ImportResult {
+    const all = this.#rows<Entry>('entry');
+    const have = new Map<string, Entry>();
+    for (const e of all) if (e.imp) have.set(e.imp, e);
+    let wUnit = all.find((e) => e.name === 'weight' && (e.unit === 'lb' || e.unit === 'kg'))?.unit;
+    const now = this.#now().toISOString();
+    let added = 0;
+    let updated = 0;
+    let same = 0;
+    const days: string[] = [];
+    this.#db.exec('BEGIN');
+    try {
+      const batch = this.#add<ImportBatch>('import', now, { source, file: String(file ?? '').slice(0, 120), added: 0, updated: 0 });
+      for (const r of rs) {
+        let value = r.value;
+        let unit = r.unit;
+        if (r.metric === 'weight') {
+          wUnit ??= unit;
+          if (unit !== wUnit && (unit === 'kg' || unit === 'lb')) {
+            value = Math.round((unit === 'kg' ? value * LB : value / LB) * 10) / 10;
+            unit = wUnit;
+          }
+        }
+        const at = r.metric === 'weight' && r.at ? r.at : `${r.day}T12:00:00.000Z`;
+        const key = r.metric === 'weight' ? `weight@${at.slice(0, 16)}` : `${r.metric}@${r.day}`;
+        const ex = have.get(key);
+        if (ex) {
+          if (ex.src !== source || Math.abs((ex.value ?? 0) - value) < 0.01) same++;
+          else {
+            this.#put('entry', ex.id, ex.at, { ...ex, value });
+            updated++;
+            days.push(r.day);
+          }
+          continue;
+        }
+        const e: Omit<Entry, 'id' | 'at'> = { type: r.metric === 'sleep' ? 'sleep' : 'measure', name: r.metric, value, unit, imp: key, src: source, batch };
+        have.set(key, { ...e, id: this.#add<Entry>('entry', at, e), at });
+        added++;
+        days.push(r.day);
+      }
+      days.sort();
+      const range = days.length ? { from: days[0], to: days.at(-1)! } : {};
+      if (added + updated) this.#put('import', batch, now, { source, file: String(file ?? '').slice(0, 120), added, updated, ...range });
+      else this.#del('import', batch);
+      this.#db.exec('COMMIT');
+      return { batch: added + updated ? batch : 0, source, added, updated, same, ...range };
+    } catch (err) {
+      this.#db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+  imports(): ImportBatch[] {
+    return this.#rows<ImportBatch>('import');
+  }
+  /** Undo one import: its entries go (days it only updated keep the newer value). */
+  removeImport(id: number): number {
+    if (!this.#get<ImportBatch>('import', id)) throw new HealthError(404, en('That import is not in Health.'));
+    let n = 0;
+    this.#db.exec('BEGIN');
+    try {
+      for (const e of this.#rows<Entry>('entry')) if (e.batch === id && this.#del('entry', e.id)) n++;
+      this.#del('import', id);
+      this.#db.exec('COMMIT');
+    } catch (err) {
+      this.#db.exec('ROLLBACK');
+      throw err;
+    }
+    return n;
+  }
+  /** Steps, sleep, heart rate, resting heart rate and weight over the 30 days up to each one's newest day. */
+  trends(): Trend[] {
+    const tz = this.bind.tz?.();
+    const dayOf = (e: Entry) => {
+      if (e.imp && e.name !== 'weight') return e.imp.slice(e.imp.indexOf('@') + 1);
+      const p = zonedParts(new Date(e.at), tz);
+      return `${p.y}-${String(p.mo).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+    };
+    const rows = this.#rows<Entry>('entry').filter((e) => typeof e.value === 'number' && (TREND_METRICS as readonly string[]).includes(e.name));
+    const out: Trend[] = [];
+    for (const m of TREND_METRICS) {
+      const byDay = new Map<string, number>();
+      let unit = '';
+      for (const e of rows) {
+        if (e.name !== m) continue;
+        unit ||= e.unit ?? '';
+        const d = dayOf(e);
+        if (!byDay.has(d)) byDay.set(d, e.value!); // rows come newest first: the day's latest value
+      }
+      if (!byDay.size) continue;
+      const daysAll = [...byDay.keys()].sort();
+      const lastDay = daysAll.at(-1)!;
+      const t0 = Date.parse(`${lastDay}T00:00:00Z`);
+      const ago = (d: string) => Math.round((t0 - Date.parse(`${d}T00:00:00Z`)) / day);
+      const points = daysAll.filter((d) => ago(d) < 30).map((d) => ({ day: d, value: byDay.get(d)! }));
+      const r = (x: number) => (m === 'steps' ? Math.round(x) : Math.round(x * 10) / 10);
+      const mean = (xs: number[]) => (xs.length ? r(xs.reduce((a, b) => a + b, 0) / xs.length) : undefined);
+      const avg7 = mean(points.filter((p) => ago(p.day) < 7).map((p) => p.value))!;
+      const prev7 = mean(points.filter((p) => ago(p.day) >= 7 && ago(p.day) < 14).map((p) => p.value));
+      out.push({ name: m, unit, points, last: points.at(-1)!, avg7, ...(prev7 ? { prev7, change: Math.round(((avg7 - prev7) / prev7) * 100) } : {}) });
+    }
+    return out;
   }
 
   // ---------------------------------------------------------------- doctor summary
@@ -386,7 +515,20 @@ export class HealthLog {
       lines.push(`- **${m.name}** ${m.dose} · ${m.times.join(', ')} · ${L('taken')} ${taken}, ${L('skipped')} ${skipped}`);
     }
     lines.push('');
-    const es = this.entries({ from: a, to: b }).reverse();
+    const all = this.entries({ from: a, to: b }).reverse();
+    const es = all.filter((e) => !e.imp);
+    const dev = all.filter((e) => e.imp && typeof e.value === 'number');
+    if (dev.length) {
+      // V4.3: device days as one line per measurement, not a row per day.
+      lines.push(`## ${L(en('From your devices'))}`, '', `| ${L('What')} | ${L(en('Days'))} | ${L(en('Average'))} | ${L(en('Lowest'))} | ${L(en('Highest'))} | ${L(en('Unit'))} |`, '|---|---|---|---|---|---|');
+      for (const m of TREND_METRICS) {
+        const v = dev.filter((e) => e.name === m).map((e) => e.value!);
+        if (!v.length) continue;
+        const r = (x: number) => (m === 'steps' ? Math.round(x) : Math.round(x * 10) / 10);
+        lines.push(`| ${m} | ${v.length} | ${r(v.reduce((x, y) => x + y, 0) / v.length)} | ${r(Math.min(...v))} | ${r(Math.max(...v))} | ${dev.find((e) => e.name === m)?.unit ?? ''} |`);
+      }
+      lines.push('');
+    }
     for (const [type, title] of [['measure', 'Measurements'], ['symptom', 'Symptoms'], ['mood', 'Mood'], ['sleep', 'Sleep']] as const) {
       const list = es.filter((e) => e.type === type);
       if (!list.length) continue;
@@ -409,6 +551,45 @@ export class HealthLog {
   }
   summaryPdf(from: string, to: string, who = ''): Buffer {
     return makePdf({ format: 'pdf', title: (this.bind.lang ?? ((s: string) => s))('Health summary'), template: 'report', content: this.summaryMarkdown(from, to, who) }, () => undefined);
+  }
+
+  // ---------------------------------------------------------------- V5.4 caregivers and check-ins
+  /** The person's own consent list and the family they call (sealed like every record). */
+  care(): CareState {
+    const r = this.#db.prepare("SELECT data FROM items WHERE kind = 'care' LIMIT 1").get() as { data: Uint8Array } | undefined;
+    const c = r ? this.#open<Partial<CareState>>(r.data) : {};
+    return { grants: Array.isArray(c.grants) ? c.grants : [], contacts: Array.isArray(c.contacts) ? c.contacts : [] };
+  }
+  setCare(next: CareState): CareState {
+    this.#db.prepare("DELETE FROM items WHERE kind = 'care'").run();
+    this.#add('care', this.#now().toISOString(), { grants: next.grants, contacts: next.contacts });
+    return this.care();
+  }
+  /** Withdraws one caregiver's consent (everything they saw is hidden on their next look). */
+  removeCareGrant(person: string): boolean {
+    const c = this.care();
+    const grants = c.grants.filter((g) => g.person !== person);
+    if (grants.length === c.grants.length) return false;
+    this.setCare({ ...c, grants });
+    return true;
+  }
+  /** Today's date where the person lives. */
+  today(now: Date = this.#now()): string {
+    const p = zonedParts(now, this.bind.tz?.());
+    return `${p.y}-${String(p.mo).padStart(2, '0')}-${String(p.d).padStart(2, '0')}`;
+  }
+  /** The daily check-in: one per day, the latest answer counts. */
+  checkIn(status: CheckinStatus): Checkin {
+    if (!CHECKIN_STATUSES.includes(status)) throw new HealthError(400, en('Pick a check-in answer.'));
+    const now = this.#now();
+    const dayKey = this.today(now);
+    for (const c of this.checkins(3)) if (c.day === dayKey) this.#del('checkin', c.id);
+    const id = this.#add<Checkin>('checkin', now.toISOString(), { day: dayKey, status });
+    this.bind.checkedIn?.(status);
+    return this.#get<Checkin>('checkin', id)!;
+  }
+  checkins(days = 14): Checkin[] {
+    return this.#rows<Checkin>('checkin', new Date(this.#now().getTime() - days * day).toISOString());
   }
 
   /** What a parent sees of a child's log: medicines and doses only. */
@@ -457,6 +638,7 @@ export function healthFor(app: AppContext): HealthLog {
     tz: () => app.settings.get().timeZone || undefined,
     lang: (s) => trOwner(s, app.settings.get()),
     notify: (title, body) => void app.push?.notifyOwner(title, body, '', 'health-dose').catch(() => undefined),
+    checkedIn: (status) => careCheckedIn(app, status),
   };
   return h;
 }
@@ -482,7 +664,10 @@ export function healthModelOk(app: AppContext, modelLocal: boolean | undefined):
 /** On the reminder tick (src/reminders.ts): dose reminders, only where a health log exists. */
 export function healthTick(app: AppContext, now: Date): void {
   try {
-    if (HealthLog.exists(app)) healthFor(app).due(now);
+    if (HealthLog.exists(app)) {
+      healthFor(app).due(now);
+      careTick(app, now);
+    }
   } catch {
     /* a broken log never stops the tick */
   }

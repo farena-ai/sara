@@ -18,6 +18,7 @@ import { adultModeOn } from '../settings.ts';
 import { importedOther, movedFrom } from '../store.ts';
 import { RECALL_MODES, type RecallMode, recallMode, TRIGGER_KINDS, type TriggerKind } from '../triggers.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
+import { photoFolderRoute } from './photo-library.ts';
 
 export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
   const { app, opts } = ctx;
@@ -220,6 +221,8 @@ export function createMemoryRoutes(ctx: RouteCtx): RouteHandler {
     }
     // Phase 70: "Our moments": the album, its captions and albums (owner only; never the demo, MCP or /v1).
     if (a === 'moments') {
+      // V4.1: the owner's photo folder on this computer (src/routes/photo-library.ts).
+      if (b === 'folder') return photoFolderRoute(ctx, req, res, method, parts);
       const book = app.moments;
       if (!book) throw new HttpError(404, 'Our moments is not available here.');
       const d = parts[3];

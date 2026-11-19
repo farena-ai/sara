@@ -12,6 +12,7 @@ admin of a household server. Public summary: [SECURITY_OVERVIEW.md](SECURITY_OVE
 | What members' companions may do with tools | People on this server → **Tools for household members** (below) | Business chat has no tools |
 | Rules for everyone, you included | Settings → Household → Policy ([AUDIT_AND_POLICY.md](AUDIT_AND_POLICY.md)) | The operator's model policy ([BUSINESS_OPERATIONS.md](BUSINESS_OPERATIONS.md)) |
 | Audit export | Settings → Household → Audit trail: JSONL, CSV or JSON, signed | Organization administration → Audit export: CSV or JSON |
+| Undo what she changed | Settings → Privacy & system → Reports → **Action timeline**: Revert per row, each person their own ([TIMELINE.md](TIMELINE.md)) | Not in the business instance |
 | How long data is kept, legal hold | Settings → Household → Retention and legal hold ([DATA_RIGHTS.md](DATA_RIGHTS.md)) | Per workspace content hold ([BUSINESS.md](BUSINESS.md)) |
 | Prove a backup restores | Settings → Privacy & system → Recovery → **Run a restore drill** ([RECOVERY.md](RECOVERY.md)) | The operator's recovery rehearsal ([BUSINESS_OPERATIONS.md](BUSINESS_OPERATIONS.md)) |
 | A reviewer's summary | Settings → Household → Trust report ([TRUST_REPORT.md](TRUST_REPORT.md)) | |

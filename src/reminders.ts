@@ -2,6 +2,7 @@
 // delivered, marked late. A conversation in the middle of a turn is skipped until the turn ends, so
 // a reminder never lands between a tool call and its result.
 import { alertApps, alertPlace } from './destinations.ts';
+import { legacyTick } from './legacy.ts';
 import { familyTick } from './family.ts';
 import { giftsTick } from './gifts.ts';
 import { trimTick } from './money/trim.ts';
@@ -9,6 +10,7 @@ import { guard } from './log.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
 import { healthTick } from './health-log.ts';
+import { photoLibraryTick } from './photo-library.ts';
 import { SharedProjects, sharedProjectsOf } from './shared-projects.ts';
 
 const LATE_MS = 5 * 60_000;
@@ -64,6 +66,7 @@ export class ReminderScheduler {
     // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
     this.#app.loops?.due(now);
     this.#app.goals?.tick(now.getTime());
+    guard('legacy', () => legacyTick(this.#app)); // V5.3: reminders, waiting period, the page opening
     // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
     this.#app.watches?.due(now);
     // E1: "tell me when" on live data (prices, games, odds) on the same tick; the checks run async, one pass at a time.
@@ -98,6 +101,8 @@ export class ReminderScheduler {
     }
     // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
     this.#app.inbox?.due(now);
+    // V4.1: the photo folder is looked through every few hours and a couple of photos described (local model only).
+    guard('photo library', () => photoLibraryTick(this.#app));
     // S6: travel: check-in, leave-by and flight status alerts on the same tick.
     this.#app.travel?.due(now);
     // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).

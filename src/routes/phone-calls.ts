@@ -21,6 +21,7 @@ import { HttpError, readJson, readRaw, send } from '../http.ts';
 import { en, trOwner } from '../i18n.ts';
 import { PhoneCallError, phoneCallsFor } from '../phone-calls.ts';
 import { cleanTalk } from '../talk.ts';
+import { interpreterRoute } from './interpreter.ts';
 import { acceptWebSocket, refuseUpgrade } from '../ws.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -52,6 +53,8 @@ export function createPhoneCallRoutes(ctx: RouteCtx): RouteHandler {
   };
   return async (req, res, method, parts) => {
     const [a, b, c, d] = parts;
+    // V4.2: the live interpreter (src/routes/interpreter.ts).
+    if (a === 'talk' && b === 'interpret') return interpreterRoute(ctx, req, res, method, parts);
     // U4.24: Talk with Sara answers a card by voice the same way, if the person allows it.
     if (a === 'car' || a === 'talk') {
       if (b !== 'answer' || method !== 'POST') throw new HttpError(404, 'Not found');

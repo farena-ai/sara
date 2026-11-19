@@ -7,6 +7,7 @@ import { serverText, t } from './naming.js';
 import { openLightbox } from './lightbox.js';
 import { autoSave, onSave } from './dialogs.js';
 import { emptyState } from './tidy.js';
+import { drawPhotoFolder } from './photo-folder.js';
 
 const $ = (sel) => document.querySelector(sel);
 function el(tag, cls, text) {
@@ -135,6 +136,7 @@ export async function loadMoments() {
     return;
   }
   st.data = d;
+  void drawPhotoFolder();
   if (document.activeElement !== $('#mo-mode')) $('#mo-mode').value = d.settings.mode;
   $('#mo-cost').textContent = costLine(d);
   const status = [];

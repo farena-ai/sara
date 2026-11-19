@@ -203,6 +203,7 @@ import { Store } from './store.ts';
 import { Vault } from './vault.ts';
 import { guard, Log, logOptions } from './log.ts';
 import { PrivateLocalStore } from './private-local.ts';
+import { ledgerHints, PrivacyLedger, privacyLedger, setPrivacyLedger } from './privacy-ledger.ts';
 import { detectHardware, ModelPuller } from './local-models.ts';
 import { ModelCatalog } from './model-catalog.ts';
 import { createProvider } from './providers/registry.ts';
@@ -544,6 +545,8 @@ if (process.argv[2] === 'submit') {
 // Phase 67: "Nothing leaves this computer" is applied before anything can reach out (the saved
 // switch, or SARA_PRIVATE_LOCAL=1 / start). The guard itself is src/net-guard.ts.
 const privateLocal = new PrivateLocalStore(dataDir);
+// V5.2: the privacy ledger counts every request that leaves (host + purpose, never bodies).
+setPrivacyLedger(new PrivacyLedger({ file: join(dataDir, 'privacy-ledger.json'), timeZone: () => settings.get().timeZone, hints: () => ledgerHints(settings.get(), hubBase()) }));
 const modelPuller = new ModelPuller();
 const sandbox = detectSandbox(sandboxPref, true, { dataDir });
 if (sandbox.mode === 'user') {
@@ -2212,6 +2215,7 @@ async function shutdown(): Promise<void> {
   voice.stopWorkers();
   if (shuttingDown) return;
   shuttingDown = true;
+  privacyLedger()?.flush();
   setTimeout(() => process.exit(0), STOP_WATCHDOG_MS).unref();
   for (const c of companions.all()) await c.stop();
   for (const sp of memberSpaces.values()) for (const c of sp.companions.all()) await c.stop().catch(() => {});

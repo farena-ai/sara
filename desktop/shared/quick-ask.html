@@ -103,6 +103,14 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
 @media (prefers-reduced-motion:reduce){.a.typing::after{animation:none}}
 #drop{position:fixed;inset:6px;display:none;align-items:center;justify-content:center;border:2px dashed var(--accent,#8b7cf6);border-radius:14px;background:rgba(15,13,23,.82);color:#fff;font-weight:600;text-align:center;padding:12px;pointer-events:none;z-index:9}
 #drop.on{display:flex}
+/* V4.5 screen companion: the offer bubble (the rest of the window is hidden while it shows) */
+html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,html.offering #info,html.offering #open,html.offering #new{display:none!important}
+#offer{margin:2px 14px 12px}
+#offer[hidden]{display:none}
+#offer .offer-t{margin:2px 0 6px;font-weight:600}
+#offer .offer-line{margin:0 0 10px;padding:8px 10px;border-left:3px solid var(--accent);border-radius:8px;background:var(--panel-2);color:var(--text);font-size:13px;overflow-wrap:anywhere}
+#offer .offer-do{display:flex;flex-wrap:wrap;gap:8px}
+#offer .offer-note{margin:8px 0 0;color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
@@ -116,6 +124,16 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     <button id="new" class="icon" hidden title="Ask something new" aria-label="Ask something new">＋</button>
     <button id="close" class="icon" title="Close (Esc)" aria-label="Close">✕</button>
   </header>
+  <div id="offer" role="alertdialog" aria-labelledby="offer-t" aria-describedby="offer-line" hidden>
+    <p class="offer-t" id="offer-t"></p>
+    <p class="offer-line" id="offer-line"></p>
+    <div class="offer-do">
+      <button id="offer-help" class="primary" type="button">Help with this</button>
+      <button id="offer-no" type="button">Not now</button>
+      <button id="offer-pause" type="button" title="No offers for an hour (Settings → This computer turns it off)">Pause for 1 hour</button>
+    </div>
+    <p class="offer-note">Seen only on this computer. Nothing is sent unless you ask.</p>
+  </div>
   <div id="ctx" hidden aria-label="Going with your question"></div>
   <form id="ask" autocomplete="off">
     <textarea id="q" rows="1" placeholder="Ask Sara anything…" aria-label="Your question" spellcheck="true"></textarea>
@@ -851,8 +869,40 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
   };
   setTimeout(wakeSync, 1500);
   setInterval(wakeSync, 60000);
+  // ---------- V4.5 screen companion: the offer bubble ----------
+  // The app (desktop/windows/src/screen-watch.cpp) saw an error dialog or a stuck form in the window in
+  // front and shows this window WITHOUT taking the focus. Help with this: the line becomes a chip and the
+  // question is filled in (nothing is sent until Ask). Not now / Pause for 1 hour: the app hides it.
+  let offered = null;
+  const endOffer = () => { offered = null; document.documentElement.classList.toggle('offering', false); $('offer').hidden = true; };
+  $('offer-help').onclick = () => {
+    const o = offered || {};
+    endOffer();
+    setContext({ app: o.app, text: o.line });
+    q.value = o.kind === 'form' ? 'Help me get past this form.' : 'What does this error mean, and how do I fix it?';
+    post({ a: 'offer', act: 'help' });
+    refresh().then(() => { listen(); showInfo(); q.focus(); q.select(); });
+    fit();
+  };
+  $('offer-no').onclick = () => { endOffer(); post({ a: 'offer', act: 'dismiss' }); };
+  $('offer-pause').onclick = () => { endOffer(); post({ a: 'offer', act: 'pause' }); };
   window.saraQuick = {
+    /** V4.5: one offer ({kind: 'error' | 'form', app, line}); returns 'offer'. */
+    offer(o = {}) {
+      document.documentElement.classList.toggle('day', o.theme === 'day');
+      document.documentElement.classList.toggle('night', o.theme !== 'day');
+      document.documentElement.classList.toggle('solid', Boolean(o.solid));
+      offered = { kind: o.kind === 'form' ? 'form' : 'error', app: String(o.app || '').slice(0, 80), line: String(o.line || '').slice(0, 200) };
+      const app = offered.app || 'This window';
+      $('offer-t').textContent = offered.kind === 'form' ? app + ': this form seems stuck. Want a hand?' : app + ' shows an error. Want help with it?';
+      $('offer-line').textContent = '“' + offered.line + '”';
+      document.documentElement.classList.toggle('offering', true);
+      $('offer').hidden = false;
+      fit();
+      return 'offer';
+    },
     show(o = {}) {
+      endOffer();
       document.documentElement.classList.toggle('day', o.theme === 'day');
       document.documentElement.classList.toggle('night', o.theme !== 'day');
       document.documentElement.classList.toggle('solid', Boolean(o.solid));
@@ -883,6 +933,7 @@ kbd{font:11px ui-monospace,Consolas,Menlo,monospace;border:1px solid var(--borde
     },
     hidden(o = {}) {
       stopMic(false);
+      endOffer();
       // A click elsewhere (soft): her voice turn and spoken reply go on (the app's pill shows them).
       if (o.soft) return true;
       if (wake) { wake.stopped = wake.cancelled = true; if (wake.finish) wake.finish(); endWake('cancel'); }

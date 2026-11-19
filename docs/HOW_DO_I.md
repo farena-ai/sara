@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 242 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 250 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -277,6 +277,18 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Choose how she hears you under Hearing you.
 2. Then press the microphone in the chat box and speak.
 
+**How do I see live captions of a meeting, translated?**
+
+1. Pick a language in Translate captions into.
+2. Open Library → Meetings, then the meeting, and press Captions.
+3. A model on this computer translates each line under it.
+
+**How do I talk with someone in another language?**
+
+1. Under Interpreter, pick your language and theirs.
+2. Press Start the interpreter and put the phone between you.
+3. Take turns speaking: each turn is translated and said out loud.
+
 ### Hey Sara
 
 **How do I turn on Hey Sara?**
@@ -399,6 +411,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Pick Sara Classic as the palette.
 2. Decoration turns the glow and moving light back on.
+
+**How do I make Sara easier to read and use?**
+
+1. Tick Accessibility mode at the top of this page.
+2. Change Reading style, Motion or Large layout one by one if you like.
+3. Line focus adds a reading band that follows your pointer.
 
 ### Briefing and reminders
 
@@ -1145,6 +1163,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Pick Gentle under Background reading.
 2. Big documents then take longer.
 
+**How do I search the photos on my computer?**
+
+1. Type the full path of your photo folder under Photo folder.
+2. Press Use this folder and wait while she looks through it.
+3. Open Our moments and type a place, a word or a name.
+
 ### Other programs (MCP)
 
 **How do I connect another program (MCP)?**
@@ -1397,6 +1421,17 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Switch the check-in off on this page.
 2. Press Reset the install ID to start fresh.
 
+**How do I leave access to someone I trust?**
+
+1. Under Legacy and emergency access, turn on legacy access.
+2. Type their name and pick what they get.
+3. Press Save, confirm it's you, and give them the link.
+
+**How do I stop legacy access from opening?**
+
+1. Sign in or chat with her: that cancels it.
+2. Or press I'm here under Legacy and emergency access.
+
 ### Reports
 
 **How do I report a problem?**
@@ -1421,6 +1456,19 @@ them in one place. In the app, open the box and press **Show me** to see the con
 
 1. Record totals include finished history. State counts show queued and running work; delivery records can include archived evidence.
 2. RSS and event-loop lag are process-wide, including other spaces and HTTP servers in this process. They are not current-space usage.
+
+### Action timeline
+
+**How do I undo something she changed?**
+
+1. Find the change in the Action timeline (newest first).
+2. Press Revert, then Yes, revert.
+3. If a change can't be undone, the row says why.
+
+**How do I see only her mail or planner changes?**
+
+1. Pick a kind under Show.
+2. Press Show older to see more.
 
 ## Settings → Household
 

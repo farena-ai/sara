@@ -1048,6 +1048,27 @@ Windows app (`desktop/windows/src/quick-context.cpp`, `voice-pill.cpp`, glue in 
   microphone was `--use-fake-device-for-media-stream --use-file-for-fake-audio-capture=<wav>` in
   `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`.
 
+## Screen companion (V4.5, Windows)
+
+Settings → This computer → **Offer help when an error shows on screen** (off by default). While it is on,
+the Windows app looks at the window in front every few seconds, on this computer only: its title, the
+program's name and the names of its controls (labels, messages, buttons). It never reads password
+fields, text you typed, or windows hidden from Sara (password managers, banking, your own list in
+Computer use), and never her own windows.
+
+When a dialog shows an error ("Could not save…", "Access is denied", in six languages), a window says
+it is not responding, or a form message ("Email is required") stays for about 15 seconds, a small
+bubble appears over quick ask's place without taking the focus:
+
+- **Help with this**: the message becomes a chip in quick ask and a question is filled in. Nothing goes
+  to Sara until you press Ask.
+- **Not now**: the bubble goes (it also goes by itself after 30 seconds).
+- **Pause for 1 hour**: no offers for an hour (also in the tray menu and in Settings, with Resume).
+
+Each thing is offered once, at most one offer every 2 minutes. Nothing is saved or sent: the app
+remembers only a number per offer until it quits, and its log says only that an offer was shown.
+The Mac app doesn't have it yet. Rules: `src/screen-companion.ts`; design: docs/design/V4SCREEN.md.
+
 ## Notifications and files (2.7)
 
 - **Notifications:** Windows toasts (app ID `BackstageCoding.Sara`, set on the Start-menu shortcut by the

@@ -13,6 +13,7 @@
 import { Call, Mic, Speaker } from './voice.js';
 import { serverText, t } from './naming.js';
 import { closeResearch } from './research.js';
+import { closeCaptions, fillLangs, openCaptions } from './captions.js';
 
 const $ = (s) => document.querySelector(s);
 const POLL_MS = 2000;
@@ -110,12 +111,14 @@ export async function openMeetings() {
 }
 export function closeMeetings() {
   stopPolling();
+  closeCaptions();
   leaveRoom();
   if ($('#lib-meetings')) $('#lib-meetings').hidden = true;
 }
 
 async function render() {
   stopPolling();
+  closeCaptions();
   const host = $('#lib-m-body');
   if (!host || $('#lib-meetings').hidden) return;
   try {
@@ -257,7 +260,13 @@ function meetingView(m) {
     void render();
   });
   const head = el('div', 'ms-head');
-  head.append(el('h3', 'ms-title', m.title), el('span', 'ai-badge', t('AI companion')));
+  // V4.4: big live captions with an optional translated line (web/captions.js).
+  const caps = btn(t('Captions'), 'ghost small ms-cap-open', () => {
+    stopPolling();
+    void openCaptions(m.id, { host: $('#lib-m-body'), onBack: () => void render() });
+  });
+  caps.title = t('Big live captions, with a translated line under each if you like.');
+  head.append(el('h3', 'ms-title', m.title), el('span', 'ai-badge', t('AI companion')), caps);
   const notice = el('p', 'ms-notice', m.announce);
   notice.setAttribute('role', 'note');
   const status = el('p', 'small ms-status', STATUS_WORDS[m.status]?.() ?? m.status);
@@ -334,6 +343,8 @@ function speakerBar(m, box) {
 }
 
 function joinButtons(m, controls, status) {
+  // Back from Captions while this device is still in the room: only the End button.
+  if (room && room.id === m.id && !controls.childElementCount) controls.replaceChildren(endButton(m));
   if (room || m.status !== 'live') return;
   const go = btn(t('I understand, start my microphone'), '', async () => {
     go.disabled = true;
@@ -801,6 +812,7 @@ export async function loadMeetingPrefs() {
     $('#meet-cloud').checked = prefs.cloud;
     $('#meet-speakers').checked = prefs.speakers !== false;
     drawSpeakerAddon(r.speakerAddon);
+    drawCaptionPrefs(r.captions);
   } catch {
     box.hidden = true;
     return;
@@ -824,6 +836,32 @@ export async function loadMeetingPrefs() {
         $('#meet-prefs-note').textContent = err.message;
       }
     });
+}
+
+/** V4.4: Settings → Voice → Meetings: the captions' language and whether a cloud model may translate. */
+function drawCaptionPrefs(c) {
+  const lang = $('#meet-cap-lang');
+  const cloud = $('#meet-cap-cloud');
+  if (!lang || !cloud || !c) return;
+  fillLangs(lang, c.langs, c.prefs.lang);
+  cloud.checked = c.prefs.cloud;
+  const note = $('#meet-cap-note');
+  if (note) note.textContent = !c.prefs.lang ? '' : c.engine === 'local' ? t('Translated on this computer.') : c.engine === 'cloud' ? t('Translated by your cloud model.') : serverText({ error: c.why }, c.why ?? '');
+  if (lang.dataset.wired) return;
+  lang.dataset.wired = '1';
+  const save = async (body, undo) => {
+    try {
+      drawCaptionPrefs((await api('/meetings/captions', { method: 'PUT', body })).captions);
+    } catch (err) {
+      undo();
+      $('#meet-prefs-note').textContent = err.message;
+    }
+  };
+  lang.addEventListener('change', () => {
+    const was = c.prefs.lang;
+    void save({ lang: lang.value }, () => (lang.value = was));
+  });
+  cloud.addEventListener('change', () => void save({ cloud: cloud.checked }, () => (cloud.checked = !cloud.checked)));
 }
 
 /** U3.13: the speaker add-on's state under "Better speaker separation" (polled while it downloads). */

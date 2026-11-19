@@ -1,6 +1,7 @@
 // One conversational turn: disclosure, safety checks, provider routing, then the agent loop
 // (model → tool calls → results → model …) with streaming and persistence.
 import { toolAlias } from './tool-alias.ts';
+import { legacyActivity } from './legacy.ts';
 import { kidNote, kidTurn } from './family.ts';
 import { CAR_BLOCKED_TOOL, carNote, siriNote } from './phone-actions.ts';
 import { carErrandLines, phoneCallNote } from './car-errands.ts';
@@ -89,6 +90,7 @@ import type { ApprovalBroker, ToolRegistry } from './tools/registry.ts';
 import { checkClaims, confirmClaims, correctionNote, JUDGE_KINDS, judgedClaim, unsureClaims, type Claim, type Receipt } from './receipts.ts';
 import type { Redactor } from './redact.ts';
 import { SNAPSHOT_TOOLS, type SnapshotStore } from './snapshots.ts';
+import { noteAction, timelineBefore } from './timeline.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
@@ -2361,6 +2363,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     && (opts.pendingId === undefined || ownerWebPendingInput(app, conv.id, userText, opts.pendingId));
   if (!opts.resume && !opts.group && directOwnerInput && ownerEvidenceConversation(app, conv.id, opts)) {
     store.markDirectOwnerMessage(userMsg.id);
+    legacyActivity(app, 'chat'); // V5.3: he typed it himself: legacy access stops counting down.
   }
   // C12: the cheap per-turn pass over his own new message (usually nothing; src/working-style.ts gates the rest).
   if (!opts.resume && !opts.group && (directOwnerInput || app.member) && app.workingStyle) {
@@ -3884,6 +3887,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
       const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
       let ranTool = false;
+      let tlBefore: unknown;
       /** Interrupt now cut this call short (never counted by the loop guard). */
       let cutShort = false;
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
@@ -4148,6 +4152,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
             admit();
             ranTool = true;
             checks?.before(call.name, call.arguments);
+            if (!opts.replay) tlBefore = timelineBefore(app, call.name, call.arguments);
             // Interrupt now: a read-only call may be cancelled; a command may be stopped by the owner
             // (its own cancel); anything else that changes things always finishes.
             const cutOk = interruptible(call.name, tool);
@@ -4332,6 +4337,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (status === 'ok' && (call.name === 'worktree_start' || call.name === 'worktree_finish')) wsDir = worktreeFolder();
       if (!store.getConversation(conv.id)) return 'end';
       const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(timedOut ? { timedOut: true } : {}), ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
+      // V5.1: what she changed goes on the action timeline (src/timeline.ts), with its undo when one exists.
+      if (ranTool && status === 'ok' && !opts.replay) noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: conv.id, workspace: conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore });
       receipts.push({ name: call.name, status, args: call.arguments, output });
       if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
       // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).

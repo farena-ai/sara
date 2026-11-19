@@ -5,6 +5,76 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.29.0 (2026-11-18): Photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access
+
+- New: What left this server (Settings → Privacy & system → Privacy): a day-by-day list of every request
+  her server sent to another computer, grouped by why it went (AI models, web search, mail and
+  calendar, notifications, chat apps, Sara's makers...) with the place, how many and about how much
+  was sent. Counted where every request leaves; only the place and a count are kept (30 days), never
+  what was in it. Requests that stay on this computer are not listed, so with "Nothing leaves this
+  computer" on the list is empty and shows what was stopped instead; Clear the list forgets it
+  (docs/PRIVACY.md "What left this server").
+- New: Caregiver mode (Health → Daily check-in, Caregivers, Simple home): a person can let an adult in
+  their household see their missed doses, their daily check-ins, or both, and nothing else (never
+  chats, symptoms, mood, readings, appointments or notes). The caregiver sees it under Health →
+  People you care for, read fresh from the person's own encrypted log each time, so Stop sharing
+  hides it at once. A dose still open two hours after its time tells dose caregivers once (no
+  medicine name on the lock screen), and "I need help" tells check-in caregivers right away. Simple
+  home is a plain page with four big buttons: Talk with Sara, Medicines (big Taken buttons), Check in
+  and Call family (one-tap phone links); it can open on start on that device (docs/HEALTH.md
+  "Caregivers and Simple home").
+- New: Accessibility switch (Settings → You → Appearance → Accessibility, also a quick setting on the
+  Settings home): one switch for easier reading (a clearer font with more space between letters and
+  lines, which can help with dyslexia), no motion anywhere and a larger layout on every page, with
+  text at least Large; turning it off puts your earlier choices back. Line focus adds a reading band
+  that follows your pointer, a tap or the keyboard and fades the rest. The choices stay after a
+  reload, travel with "Use on all my devices", and Reset to defaults keeps them. Screen readers now
+  hear a name for every dialog; the views added since R9 were checked (docs/ACCESSIBILITY.md).
+- New: Action timeline (Settings → Privacy & system → Reports → Action timeline): one list of what she
+  changed for you, newest first, for 90 days: files, the name she calls you and other settings, mail
+  she sorted, calendar events she added, to-dos, notes and reminders, and anything else she asked your
+  OK for. Revert puts a change back where Sara already keeps a way back (the file snapshot, the mail
+  undo, removing an added event, the planner's own history); the rest says plainly why it can't be
+  undone (a sent message, a deleted event, a setting that lived on one device). Each household member
+  sees only their own; reverts go in the audit trail. New features add their own undo with
+  `registerAction`/`registerRevert` (src/timeline.ts; docs/TIMELINE.md).
+- New: Legacy and emergency access (Settings → Privacy & system → Privacy): name one person you trust and
+  pick what they get (a letter, notes, Library documents, sealed notes, your details; chats only if
+  you pick them). After the days you choose without a sign-in or a chat, Sara reminds you, waits,
+  then opens an expiring page for them. They can ask early; you are told at once and it still waits.
+  Any sign-in, chat or "I'm here" cancels. See docs/LEGACY.md.
+- New: Health imports (Health → Trends from your watch or phone): import an Apple Health export
+  (export.zip), a Google Takeout Fit export or Garmin CSV reports and .fit files. Sara keeps one value
+  per day for steps, sleep, heart rate, resting heart rate and weight, encrypted like the rest of the
+  log; the file itself is not kept. Importing the same file again adds nothing, and Undo import removes
+  what an import added. Each measurement gets a trend card (newest value, 7-day average, change on the
+  week before, 30-day chart), and the doctor summary shows device days as one line each
+  (docs/HEALTH.md "Imports").
+- New: Live and translated captions for meetings (Library → Meetings → a meeting → Captions): big captions
+  that follow a room or a recording while she hears it, with an optional translated line under each
+  one (17 languages, A−/A+ text size, full screen, Jump to the latest). A model on this computer
+  translates; a cloud model only if you allow it in Settings → Voice → Meetings, never in private
+  local mode. Each line is translated once and deleted with the meeting (docs/MEETINGS.md "Captions").
+- New: Live interpreter (Talk with Sara → **Interpreter**): two people who don't share a language talk
+  through Sara. Pick the two languages (20 to choose from); each turn is heard, translated by a model
+  on this computer first, and spoken in the other language. On a phone the screen splits in two with
+  the far half upside down, so the person across the table reads their own language; **My turn**
+  helps when a short word could be either language. Settings → Sara → Voice → Interpreter keeps the
+  languages, a switch to let a cloud model translate when this computer has none (off by default),
+  and the saved transcripts (download or delete). Translations never become chats or memories.
+- New: Photo library search (Settings → Skills & tools → Library → Photo folder, then Our moments): pick
+  one folder of photos on this computer and search it by place (from each photo's GPS, matched
+  against a built-in city list), by the words written in a photo, by people you name, by month or
+  year. A picture model on this computer writes a caption and copies the writing; a cloud model is
+  never sent a photo, and without a local one places, dates, names and people still work. Made-for-you
+  albums: trips, each person you named, photos with writing. *Name this place* turns nearby photos
+  into "Home". Owner only; the photos are never moved or changed (docs/PHOTO_LIBRARY.md).
+- New: Screen companion (Windows app, Settings → This computer, off by default): when an error dialog, a
+  "not responding" window or a stuck form shows, a small bubble offers help without taking the focus.
+  Help with this puts the message into quick ask (sent only when you press Ask); Not now; Pause for
+  1 hour (also in the tray menu). It looks only on that computer, never at password fields, typed text
+  or hidden windows, offers each thing once, and keeps or sends nothing.
+
 ## 3.28.0 (2026-11-18): My apps, automation replay, workforce report, Fix this issue, website receptionist
 
 - New: Automation steps and replay (Settings → You → Automations): **Steps** opens an automation's step

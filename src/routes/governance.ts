@@ -10,6 +10,7 @@ import { policy, PIN_KEYS, PROVIDER_KINDS } from '../policy-profile.ts';
 import { secretSources } from '../secret-sources.ts';
 import type { SecretSourceStatus } from '../vault.ts';
 import { dataRights } from '../data-rights.ts';
+import { legacyRoute } from './legacy.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 function filters(req: IncomingMessage): AuditFilter & { content: boolean } {
@@ -91,6 +92,11 @@ export function createGovernanceRoutes(ctx: RouteCtx): RouteHandler {
       throw new HttpError(404, 'Not found');
     }
     // EC17: retention, legal hold, per-person export and delete (owner only; docs/DATA_RIGHTS.md).
+    // V5.3: legacy and emergency access (src/routes/legacy.ts).
+    if (a === 'data-rights' && b === 'legacy') {
+      ownerOnly();
+      return legacyRoute(ctx, req, res, method, parts[2]);
+    }
     if (a === 'data-rights') {
       ownerOnly();
       const d = dataRights();

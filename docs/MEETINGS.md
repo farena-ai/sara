@@ -96,6 +96,24 @@ tools or do things during a meeting: tasks go into the notes.
 The safety rules of the chat apply: a line about sexual content involving minors is left out of the
 transcript ("Left out by the safety check") and never answered.
 
+## Captions (live, and translated)
+
+Open a meeting and press **Captions**: big text that follows the meeting while it happens, newest
+line at the bottom. It works for a room (every device that joined sends what it hears; any other
+signed-in screen can show the captions without its microphone, for example a tablet on the table)
+and for a recording while she hears it, and it reads back a finished meeting the same way.
+
+- **Translate into** puts a translated line under each caption, in one of 17 languages. The choice
+  is the same setting as *Settings → Voice → Meetings → Translate captions into*.
+- **Local first:** a model on this computer translates, a few lines at a time. A cloud model
+  translates only when you tick *Let a cloud model translate captions* and there is no model on this
+  computer, and never in private local mode. Without either, the captions stay plain and say why.
+- Each line is translated once per language and kept with the meeting (deleted with it). A line
+  already in that language is not sent. Lines left out by the safety check are never sent.
+- **A− / A+** change the text size (remembered on this device); **Full screen** fills the screen on
+  computers and tablets. Scroll up to read back; **Jump to the latest** brings you back to live.
+- Translation calls count as `captions` in usage, at most 800 a day.
+
 ## Notes from a recording
 
 **Choose File**, give it a name and tick the consent box. Recordings can be up to 3 hours in WAV,
@@ -138,6 +156,7 @@ press it, and each item is added once.
 | The sound | **Not kept**: heard and dropped. Tick *Keep the recording* to keep it with the meeting until you delete it (*Download the recording*). |
 | The transcript | In her own database on your server, with the meeting, until you delete the meeting. Never sent to chat apps. |
 | The notes | A document in her Library. |
+| Caption translations | With the transcript in her own database (`meeting_captions`), one per line and language, until you delete the meeting. |
 | Audit rows | `meeting.start`, `meeting.join`, `meeting.file`, `meeting.end`, `meeting.notes`, `meeting.todos`, `meeting.recording` (a download or the first play), `meeting.rename`, `meeting.draft` (send, save, dismiss), `meeting.prefs`, `meeting.delete`; ids only, never the words. |
 | The Windows or Mac app's recording | In the app's data folder (`meetings\rec-*.wav`; on a Mac `Application Support/<app>/meetings`) until the page has sent it, then deleted; leftovers after a week. |
 

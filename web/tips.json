@@ -1,6 +1,10 @@
 {
   "_about": "Phase 41: the ? tips for settings that have none written into index.html. Each entry: id of the control → [tip text, guide section in /help]. Plain words, how to tune it, an example. app.js adds a ? next to each control; the server's settings_guide tool reads this file and every data-tip in index.html.",
   "tips": {
+    "tl-kind": [
+      "Show only one kind of change: files, settings, mail moves, calendar, planner or other.",
+      "safety"
+    ],
     "hs-cloud": [
       "Off by default: only a local model on this server may read your Health log. Turn on to let a cloud model read it too. Logging works either way.",
       "what-sara-knows"
@@ -273,6 +277,14 @@
       "Off: meetings are heard only by the hearing engine on this computer. On: your Speech API or Grok voice may hear them when there is no local engine.",
       "voice"
     ],
+    "meet-cap-lang": [
+      "Shows a translated line under each caption (Meetings → a meeting → Captions). A model on this computer translates; nothing leaves unless you allow a cloud model below.",
+      "voice"
+    ],
+    "meet-cap-cloud": [
+      "Off: only a model on this computer translates captions. On: your cloud model may translate them when there is none. Never in private local mode.",
+      "voice"
+    ],
     "v-stt": [
       "How she hears you when you talk. On this server is private and free; Speech API uses a service with a key.",
       "voice"
@@ -519,6 +531,26 @@
     ],
     "ap-motion": [
       "A very faint light moves behind the app, a little faster while she is working. Off keeps it still. Your system's reduce motion setting always stops it.",
+      "start"
+    ],
+    "ap-a11y": [
+      "One switch for easier reading, no motion and a larger layout on this device, with text at least Large. Turning it off puts your earlier choices back.",
+      "start"
+    ],
+    "ap-read": [
+      "Easier reading uses a clearer font with more space between letters, words and lines, and no slanted text. It can help with dyslexia.",
+      "start"
+    ],
+    "ap-linefocus": [
+      "A band follows your pointer, a tap or the keyboard focus and dims the rest of the screen, so you keep your place while you read.",
+      "start"
+    ],
+    "ap-reduce": [
+      "Reduced stops every animation and moving effect in Sara, not only the background. Follow the system does it when your system asks for less motion.",
+      "start"
+    ],
+    "ap-large": [
+      "Bigger text and larger buttons on every page, not only in the chat. Text size in chat still sets the chat itself.",
       "start"
     ],
     "ap-herpic": [
@@ -1485,6 +1517,14 @@
       "Which photos join the album by themselves: all photos you two share, only those in messages you keep with ♡, or none (add them yourself with 🖼 under a photo). Private chats and group chats never join by themselves.",
       "moments"
     ],
+    "lib-photos-folder": [
+      "The full path of one photo folder on this computer, for example the Pictures folder in your user folder. Sub-folders count too. Sara looks through it again every few hours.",
+      "moments"
+    ],
+    "mo-ph-q": [
+      "Type a place (Lisbon), a word that is written in a photo (a shop name, a total), a person you named or a year. Every word must match.",
+      "moments"
+    ],
     "mo-new-name": [
       "Name a new album of your own, for example \"Our trip to Lisbon\". Then open a photo's ⋯ window and tick the album to add it.",
       "moments"
@@ -1893,8 +1933,13 @@
       "Off by default. On: a Rooms tile shows what is going on in the Discord channels and Telegram groups where Keep up is on, from her own room summary. Only for you, never for household members.",
       "today"
     ]
+
   },
   "pages": {
+    "dh-timeline": [
+      "What she changed for you, newest first, with Revert where Sara keeps a way back (files, mail moves, added events, the planner, the name she calls you) and a plain reason where not.",
+      "safety"
+    ],
     "ab-data": [
       "Where live prices, scores and odds come from: free sources, a key field for those that need one, a Test button and your “tell me when” watches.",
       "data"
@@ -2200,7 +2245,7 @@
       "usage"
     ],
     "dh-privacy": [
-      "The anonymous daily check-in: switch it off, see exactly what it sends, or start over with a new install ID.",
+      "The anonymous daily check-in, the Store list, and What left this server: every request that went out, by place and why.",
       "support"
     ],
     "dh-reports": [

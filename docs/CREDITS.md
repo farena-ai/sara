@@ -35,6 +35,12 @@ terms; check the upstream page for the exact text before redistributing anything
 | The model providers you connect (Ollama, OpenAI, Anthropic, xAI, OpenRouter, …) | Her thinking, voice and pictures | Each provider's own terms. Subscription sign-ins are used only where the provider allows it |
 | Telegram, Discord, Google (Gmail, Calendar), GitHub, Home Assistant, Apple Push | Only when you connect them | Each service's own terms |
 
+## Data in this repository
+
+- `src/photo-places.ts` (photo library place names, V4.1): city names and positions from
+  [GeoNames](https://www.geonames.org) `cities15000` (cities of 100,000+ people and capitals),
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Rebuilt with `scripts/photo-places.py`.
+
 ## Art
 
 The default portrait and expressions of "Sara" were made for this project with Grok Imagine

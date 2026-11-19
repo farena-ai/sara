@@ -3,7 +3,9 @@
 // .ics for the calendar; symptoms, mood, sleep and measurements with quick add and simple charts; a
 // doctor summary PDF for a date range; a parent manages a child's medicines. Never medical advice.
 // Its privacy switches live in Settings → You → What Sara knows → Health log (loadHealthSettings).
+import { initCare, loadCare } from './care.js';
 import { t } from './naming.js';
+import { initSimpleHome } from './simple-home.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, showSettingsTab?: (page: string) => void } | null} */
 let ctx = null;
@@ -47,6 +49,8 @@ const json = (method, body) => ({ method, body });
 
 export function initHealth(c) {
   ctx = c;
+  initCare(c); // V5.4
+  initSimpleHome(c);
   $('#hl-quick-go')?.addEventListener('click', () => void quickAdd());
   $('#hl-quick')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
@@ -70,6 +74,7 @@ export function initHealth(c) {
     void renderKid();
   });
   $('#hl-kid-add')?.addEventListener('click', () => void addMed(kid));
+  $('#hl-import-go')?.addEventListener('click', () => void importFile());
   const to = new Date();
   if ($('#hl-to')) $('#hl-to').value = dayOf(to);
   if ($('#hl-from')) $('#hl-from').value = dayOf(new Date(to.getTime() - 30 * 86_400_000));
@@ -88,6 +93,7 @@ export async function loadHealth() {
   if (!r) return;
   data = r;
   render();
+  void loadCare();
 }
 
 async function quickAdd() {
@@ -126,6 +132,8 @@ function render() {
   renderMeds();
   renderCharts();
   renderEntries();
+  renderTrends();
+  renderImports();
   renderAppts();
   const kids = data.kids ?? [];
   const box = $('#hl-kids');
@@ -235,6 +243,72 @@ function renderCharts() {
     box.append(card);
   }
 }
+// ---------- V4.3: trends and imports from a watch or phone app
+const METRIC_WORDS = () => ({ steps: t('Steps'), sleep: t('Sleep'), 'heart rate': t('Heart rate'), 'resting heart rate': t('Resting heart rate'), weight: t('Weight') });
+// Product names stay as they are in every language.
+const SOURCE_WORDS = () => ({ apple: 'Apple Health', google: 'Google Fit', garmin: 'Garmin' });
+const amount = (v, unit) => (unit === 'steps' ? t('{n} steps', { n: Math.round(v).toLocaleString() }) : unit === 'h' ? t('{n} h', { n: v.toLocaleString(undefined, { maximumFractionDigits: 1 }) }) : `${v.toLocaleString(undefined, { maximumFractionDigits: 1 })} ${unit}`);
+const shortDay = (d) => new Date(`${d}T12:00:00`).toLocaleDateString([], { month: 'short', day: 'numeric' });
+async function importFile() {
+  const box = $('#hl-import-file');
+  const f = box?.files?.[0];
+  if (!f) return say(t('Pick a file first.'));
+  const go = $('#hl-import-go');
+  go.disabled = true;
+  say(t('Reading {name}…', { name: f.name }));
+  try {
+    const res = await fetch(`/api/health-log/import?name=${encodeURIComponent(f.name)}`, { method: 'POST', headers: { 'content-type': 'application/octet-stream' }, body: f });
+    const r = await res.json().catch(() => ({}));
+    if (!res.ok) return say(r.error ?? t('That did not work. Try again.'));
+    say(r.added || r.updated ? t('Imported from {source}: {added} new, {updated} updated.', { source: SOURCE_WORDS()[r.source] ?? r.source, added: r.added, updated: r.updated }) : t('Nothing new: everything in this file is already in Health.'));
+    box.value = '';
+    await loadHealth();
+  } catch (err) {
+    say(err?.message ?? String(err));
+  } finally {
+    go.disabled = false;
+  }
+}
+function renderTrends() {
+  const box = $('#hl-trends');
+  if (!box) return;
+  box.replaceChildren();
+  const trends = data.trends ?? [];
+  if (!trends.length) box.append(el('p', 'muted small', t('No trends yet. Import a file from your watch or phone below, or log sleep and weight by hand.')));
+  for (const tr of trends) {
+    const card = el('div', 'hl-chart-card hl-trend');
+    card.append(el('div', 'hl-chart-head', `${METRIC_WORDS()[tr.name] ?? tr.name} · ${amount(tr.last.value, tr.unit)}`));
+    card.append(chart(tr.points));
+    const sub = el('div', 'hl-trend-sub small');
+    sub.append(el('span', '', t('7-day average: {v}', { v: amount(tr.avg7, tr.unit) })));
+    if (typeof tr.change === 'number') sub.append(el('span', 'hl-change', tr.change > 0 ? t('{n}% more than the week before', { n: tr.change }) : tr.change < 0 ? t('{n}% less than the week before', { n: -tr.change }) : t('same as the week before')));
+    sub.append(el('span', 'muted', t('30 days to {date}', { date: shortDay(tr.last.day) })));
+    card.append(sub);
+    box.append(card);
+  }
+}
+function renderImports() {
+  const list = $('#hl-imports');
+  if (!list) return;
+  list.replaceChildren();
+  for (const im of (data.imports ?? []).slice(0, 10)) {
+    const row = el('div', 'hl-row');
+    const span = im.from ? (im.from === im.to ? shortDay(im.from) : `${shortDay(im.from)} – ${shortDay(im.to)}`) : '';
+    row.append(el('span', 'hl-row-main small', `${SOURCE_WORDS()[im.source] ?? im.source} · ${im.file || t('a file')} · ${when(im.at)} · ${t('{n} added', { n: im.added })}${span ? ` (${span})` : ''}`));
+    row.append(
+      btn(t('Undo import'), 'small ghost', async () => {
+        if (!confirm(t('Remove what this import added?'))) return;
+        const r = await call(`/health-log/imports/${im.id}`, { method: 'DELETE' });
+        if (r) {
+          say(t('Removed {n} readings.', { n: r.removed }));
+          await loadHealth();
+        }
+      }),
+    );
+    list.append(row);
+  }
+}
+
 function renderEntries() {
   const list = $('#hl-entries');
   list.replaceChildren();

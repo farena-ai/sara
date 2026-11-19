@@ -2,6 +2,46 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.29.0",
+   "date": "2026-11-18",
+   "title": "Photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access",
+   "items": [
+    {
+     "id": "3-29-0-what-left-this-server-settings",
+     "kind": "new",
+     "text": "What left this server (Settings → Privacy & system → Privacy): a day-by-day list of every request her server sent to another computer, grouped by why it went."
+    },
+    {
+     "id": "3-29-0-caregiver-mode-health-daily-check-in",
+     "kind": "new",
+     "text": "Caregiver mode (Health → Daily check-in, Caregivers, Simple home): a person can let an adult in their household see their missed doses, their daily check-ins, or both.",
+     "link": "#view=health"
+    },
+    {
+     "id": "3-29-0-accessibility-switch-settings-you-appear",
+     "kind": "new",
+     "text": "Accessibility switch (Settings → You → Appearance → Accessibility, also a quick setting on the Settings home): one switch for easier reading."
+    },
+    {
+     "id": "3-29-0-action-timeline-settings-privacy-system",
+     "kind": "new",
+     "text": "Action timeline (Settings → Privacy & system → Reports → Action timeline): one list of what she changed for you, newest first, for 90 days: files."
+    },
+    {
+     "id": "3-29-0-legacy-and-emergency-access-settings",
+     "kind": "new",
+     "text": "Legacy and emergency access (Settings → Privacy & system → Privacy): name one person you trust and pick what they get.",
+     "link": "#view=library"
+    },
+    {
+     "id": "3-29-0-live-and-translated-captions-for",
+     "kind": "new",
+     "text": "Live and translated captions for meetings (Library → Meetings → a meeting → Captions): big captions that follow a room or a recording while she hears it.",
+     "link": "#view=meetings"
+    }
+   ]
+  },
+  {
    "version": "3.28.0",
    "date": "2026-11-18",
    "title": "My apps, automation replay, workforce report, Fix this issue, website receptionist",
@@ -223,67 +263,6 @@
      "link": "#view=money",
      "try": [
       "windows-open"
-     ]
-    }
-   ]
-  },
-  {
-   "version": "3.22.0",
-   "date": "2026-11-18",
-   "title": "Money, family planner, health log, study cards, browser extension",
-   "items": [
-    {
-     "id": "3-22-0-sara-in-your-browser-an",
-     "kind": "new",
-     "text": "Sara in your browser. An extension for Chrome, Edge and Firefox that pairs with your own Sara by a short code.",
-     "link": "#view=settings:dh-devices",
-     "try": [
-      "extension-pair"
-     ]
-    },
-    {
-     "id": "3-22-0-a-money-place-in-the",
-     "kind": "new",
-     "text": "A Money place in the sidebar (tracking only: Sara never logs in to a bank, pays, transfers or cancels anything; the page says so).",
-     "link": "#view=money",
-     "try": [
-      "money-import"
-     ]
-    },
-    {
-     "id": "3-22-0-a-home-and-family-planner",
-     "kind": "new",
-     "text": "A home and family planner in Family. Meals is a week of dinners: pick a saved family recipe or type one.",
-     "link": "#view=family",
-     "try": [
-      "family-meals"
-     ]
-    },
-    {
-     "id": "3-22-0-chores-can-take-turns-a",
-     "kind": "new",
-     "text": "Chores can take turns. A chore moves to the next person once a week, and each person with chores left gets one reminder a day, never during their quiet hours.",
-     "link": "#view=family",
-     "try": [
-      "family-meals"
-     ]
-    },
-    {
-     "id": "3-22-0-health-a-private-health-log",
-     "kind": "new",
-     "text": "Health, a private health log of your own. Medicines with dose reminders, Taken/Skipped and a refill estimate; appointments with questions to ask.",
-     "link": "#view=health",
-     "try": [
-      "health-medicine"
-     ]
-    },
-    {
-     "id": "3-22-0-a-learning-coach-from-any",
-     "kind": "new",
-     "text": "A learning coach. From any Library document, one of its chapters or text you paste, Sara makes a study set: flashcards, fill-in-the-blank cards.",
-     "link": "#view=study",
-     "try": [
-      "study-set"
      ]
     }
    ]
