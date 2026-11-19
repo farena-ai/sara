@@ -146,14 +146,14 @@ Wave 3:
 
 ## V3 Your own apps and agents (wave 4)
 
-**V3.1 My apps** (item 21) · PARTIAL · L
+**V3.1 My apps** (item 21) · DONE (2026-11-18, [MY_APPS.md](MY_APPS.md)) · L
 - Exists: `src/preview.ts` (token-scoped previews of apps she builds), `src/worktrees.ts`,
   `src/sandbox-run.ts`, `src/share.ts`.
 - Build: keep an app she built (static pages + a small JSON data store per app, no server code from the
   model), versions with Undo, My apps page, share link; served on the user's own server only.
 - Acceptance: build → keep → edit → Undo restores the previous version; the app never gets the Sara session.
 
-**V3.2 Automation step view and replay** (item 22) · PARTIAL · M
+**V3.2 Automation step view and replay** (item 22) · DONE (2026-11-18, docs/handoffs/2026-11-18-v3replay.md) · M
 - Exists: `src/automations.ts`, `web/automations.js`, templates, history, pause.
 - Build: a step list editor (drag to reorder, add step between), each run with its steps and outcome,
   "Run again with this input"; no new run engine.

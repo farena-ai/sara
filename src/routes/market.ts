@@ -37,7 +37,8 @@ export function createMarketRoutes(ctx: RouteCtx): RouteHandler {
         const skills = (app.skills?.list() ?? []).filter((s) => s.scope === 'companion' && s.enabled).map((s) => ({ ref: s.name, title: s.name }));
         const automations = (app.automations?.list() ?? []).map((x) => ({ ref: String(x.id), title: x.name }));
         const team = (app.teamRuns?.recipes.list() ?? []).map((x) => ({ ref: String(x.id), title: x.name }));
-        return send(res, 200, { skill: skills, automation: automations, team });
+        const worker = (app.workers?.list() ?? []).map((x) => ({ ref: String(x.id), title: x.name }));
+        return send(res, 200, { skill: skills, automation: automations, team, worker });
       }
       if (b === 'places' && c && method === 'GET') return send(res, 200, { listings: await mk.browse(decodeURIComponent(c)) });
       if (method === 'POST' && b === 'publish') return send(res, 200, { listing: await mk.publish(place, body as never) });

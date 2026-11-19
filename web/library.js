@@ -419,6 +419,8 @@ function showHome() {
   if (scan) scan.hidden = true;
   const journal = $('#lib-journal');
   if (journal) journal.hidden = true;
+  const myApps = $('#lib-apps');
+  if (myApps) myApps.hidden = true;
   $('#lib-doc').hidden = true;
   $('#lib-home').hidden = false;
   void loadList();

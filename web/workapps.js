@@ -2,6 +2,7 @@
 // Accounting export; Gmail and Calendar → Docs and Sheets; Email and calendar → Word and Excel files.
 // The extra Google/Microsoft permissions are only asked for when the person presses the button.
 import { t } from './naming.js';
+import { loadReception } from './receptionist.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement } | null} */
 let ctx = null;
@@ -57,6 +58,8 @@ export async function loadWorkApps(page) {
   if (page === 'you-business') {
     await loadBooking();
     loadExport();
+    // V3.5: the website receptionist (web/receptionist.js) shares this page and the booking requests.
+    void loadReception(ctx);
   }
   if (page === 'ab-google') await loadDocsPermission();
   if (page === 'ab-mail') await loadFilesPermission();

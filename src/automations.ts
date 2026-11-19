@@ -139,6 +139,8 @@ export interface StepResult {
   kind: ActionKind;
   status: 'done' | 'failed' | 'waiting' | 'skipped' | 'test' | 'declined';
   text: string;
+  /** V3.2: what the step was when it ran (plain words), so a run reads on its own after edits. */
+  does?: string;
 }
 export interface AutomationRun {
   id: number;
@@ -151,6 +153,8 @@ export interface AutomationRun {
   steps: StepResult[];
   dry: boolean;
   conversationId: string | null;
+  /** V3.2: the earlier run this one replays ("Run again with this input"). */
+  replayOf: number | null;
 }
 export interface Draft {
   name?: string;
@@ -168,7 +172,7 @@ export class AutomationError extends Error {
 }
 
 /** Plain words for every error (translated through trOwner on the routes). */
-export const AUTOMATION_LINES = [en('Automation not found.'), en('Give it a name.'), en('Pick when it runs.'), en('Pick a time like 15:00.'), en('Pick at least one day.'), en('Add at least one thing to do.'), en('Write what she should do.'), en('Who is the email to?'), en('Say which document to fill.'), en('You have the most automations this keeps.'), en('Pick the webhook.'), en('Email and webhook automations are the owner’s only.'), en('Automations can’t be set up from a private chat.'), en('That watch isn’t there.'), en('This one is turned on where it was set up.'), en('Nothing is waiting for your OK on this run.')];
+export const AUTOMATION_LINES = [en('Automation not found.'), en('Give it a name.'), en('Pick when it runs.'), en('Pick a time like 15:00.'), en('Pick at least one day.'), en('Add at least one thing to do.'), en('Write what she should do.'), en('Who is the email to?'), en('Say which document to fill.'), en('You have the most automations this keeps.'), en('Pick the webhook.'), en('Email and webhook automations are the owner’s only.'), en('Automations can’t be set up from a private chat.'), en('That watch isn’t there.'), en('This one is turned on where it was set up.'), en('Nothing is waiting for your OK on this run.'), en('This run is still going or waits for your OK.'), en('This run was already run again: use the newer one.'), en('Answer the run waiting for your OK first, then change the steps.')];
 
 type Row = Record<string, string | number | null>;
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -432,6 +436,8 @@ CREATE TABLE IF NOT EXISTS automation_runs (
 );
 CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, id);
 `);
+    // V3.2: a replayed run points at the run whose input it reused.
+    if (!(db.prepare('PRAGMA table_info(automation_runs)').all() as { name: string }[]).some((c) => c.name === 'replay_of')) db.exec('ALTER TABLE automation_runs ADD COLUMN replay_of INTEGER');
     // A restart ends what was running (a run waiting for an OK keeps waiting).
     db.prepare("UPDATE automation_runs SET outcome = 'failed', summary = 'interrupted by a restart', ended_at = at WHERE outcome = 'running'").run();
   }
@@ -613,6 +619,8 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
   /** Edit: name, trigger (time/days), condition, actions. */
   patch(id: number, body: Record<string, unknown>): Automation {
     const cur = this.#must(id);
+    // V3.2: a run held at step N goes on with step N after the OK; a new order would run another step.
+    if (body.actions !== undefined && JSON.stringify(body.actions) !== JSON.stringify(cur.actions) && this.#db.prepare("SELECT 1 FROM automation_runs WHERE automation_id = ? AND outcome = 'waiting'").get(id)) throw new AutomationError(409, en('Answer the run waiting for your OK first, then change the steps.'));
     const c = this.clean({ name: body.name ?? cur.name, trigger: body.trigger ? { ...cur.trigger, ...(body.trigger as object) } : cur.trigger, condition: body.condition ?? cur.condition, actions: body.actions ?? cur.actions });
     const next = c.trigger.kind === 'schedule' ? (nextRun(c.trigger, this.#now(), this.#tz())?.toISOString() ?? null) : null;
     this.#db.prepare('UPDATE automations SET name = ?, trigger_json = ?, condition_json = ?, actions_json = ?, next_at = ?, updated_at = ? WHERE id = ?').run(c.name, JSON.stringify(c.trigger), c.condition ? JSON.stringify(c.condition) : null, JSON.stringify(c.actions), next, this.#now().toISOString(), id);
@@ -758,10 +766,10 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     return r ? this.#runRow(r) : undefined;
   }
   #runRow(r: Row): AutomationRun {
-    return { id: Number(r.id), automationId: Number(r.automation_id), at: String(r.at), endedAt: r.ended_at ? String(r.ended_at) : null, trigger: String(r.trigger_detail), outcome: String(r.outcome) as Outcome, summary: String(r.summary), steps: JSON.parse(String(r.steps_json)) as StepResult[], dry: Number(r.dry) === 1, conversationId: r.conversation_id ? String(r.conversation_id) : null };
+    return { id: Number(r.id), automationId: Number(r.automation_id), at: String(r.at), endedAt: r.ended_at ? String(r.ended_at) : null, trigger: String(r.trigger_detail), outcome: String(r.outcome) as Outcome, summary: String(r.summary), steps: JSON.parse(String(r.steps_json)) as StepResult[], dry: Number(r.dry) === 1, conversationId: r.conversation_id ? String(r.conversation_id) : null, replayOf: r.replay_of ? Number(r.replay_of) : null };
   }
-  #startRun(a: Automation, detail: string, dry: boolean): number {
-    const id = Number(this.#db.prepare("INSERT INTO automation_runs (automation_id, at, trigger_detail, outcome, dry) VALUES (?, ?, ?, 'running', ?)").run(a.id, this.#now().toISOString(), clip(detail, 300), dry ? 1 : 0).lastInsertRowid);
+  #startRun(a: Automation, detail: string, dry: boolean, replayOf?: number): number {
+    const id = Number(this.#db.prepare("INSERT INTO automation_runs (automation_id, at, trigger_detail, outcome, dry, replay_of) VALUES (?, ?, ?, 'running', ?, ?)").run(a.id, this.#now().toISOString(), clip(detail, 300), dry ? 1 : 0, replayOf ?? null).lastInsertRowid);
     this.#db.prepare('DELETE FROM automation_runs WHERE automation_id = ? AND id NOT IN (SELECT id FROM automation_runs WHERE automation_id = ? ORDER BY id DESC LIMIT ?)').run(a.id, a.id, AUTOMATION.keepRuns);
     return id;
   }
@@ -799,7 +807,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
    * Runs an automation now (a trigger, *Run now* or a dry run). One run at a time: a second start
    * while one runs is recorded as skipped. Resolves when the run ends (or waits for an OK).
    */
-  async fire(id: number, detail: string, o: { dry?: boolean; force?: boolean } = {}): Promise<AutomationRun> {
+  async fire(id: number, detail: string, o: { dry?: boolean; force?: boolean; replayOf?: number } = {}): Promise<AutomationRun> {
     const a = this.#must(id);
     if (!o.dry && !o.force && !a.enabled) return this.#skip(a, detail, 'it is paused');
     if (this.#running.has(id)) return this.#skip(a, detail, 'still on the last run');
@@ -810,12 +818,30 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
       if ((sp.dayUsd > 0 && spent.day >= sp.dayUsd) || (sp.monthUsd > 0 && spent.month >= sp.monthUsd)) return this.#skip(a, detail, 'your spend limit is reached');
     }
     this.#running.add(id);
-    const runId = this.#startRun(a, detail, o.dry === true);
+    const runId = this.#startRun(a, detail, o.dry === true, o.replayOf);
     const p = this.#execute(a, runId, { files: [], detail }, 0, o.dry === true).finally(() => this.#running.delete(id));
     this.#work.add(p);
     void p.finally(() => this.#work.delete(p));
     await p;
     return this.run(runId)!;
+  }
+  /**
+   * V3.2 "Run again with this input": the same automation, its current steps, the same trigger detail
+   * (and a test run stays a test), through `fire` like Run now. Once per run: the checks run before
+   * the first await, so a double tap is refused, not run twice. Throws at once; resolves at the end.
+   */
+  replay(runId: number): Promise<AutomationRun> {
+    const old = this.run(runId);
+    if (!old) throw new AutomationError(404, en('Automation not found.'));
+    this.#must(old.automationId);
+    if (old.outcome === 'running' || old.outcome === 'waiting' || this.#running.has(old.automationId)) throw new AutomationError(409, en('This run is still going or waits for your OK.'));
+    if (this.replayedBy(runId) !== null) throw new AutomationError(409, en('This run was already run again: use the newer one.'));
+    return this.fire(old.automationId, old.trigger, { dry: old.dry, force: true, replayOf: runId });
+  }
+  /** V3.2: the run that replayed this one, if any. */
+  replayedBy(runId: number): number | null {
+    const r = this.#db.prepare('SELECT id FROM automation_runs WHERE replay_of = ? ORDER BY id DESC LIMIT 1').get(runId) as { id: number } | undefined;
+    return r ? Number(r.id) : null;
   }
   /** A dry run of a draft (no row, no watch, nothing done); the test line goes to `conversationId` if given. */
   async dryDraft(draft: Draft | Record<string, unknown>, conversationId?: string): Promise<StepResult[]> {
@@ -826,9 +852,9 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     const steps: StepResult[] = [];
     for (const [i, act] of a.actions.entries()) {
       try {
-        steps.push(await this.#step(a, act, i, ctx, conversationId ?? '', true));
+        steps.push({ ...(await this.#step(a, act, i, ctx, conversationId ?? '', true)), does: this.doesWords(act) });
       } catch (err) {
-        steps.push({ kind: act.kind, status: 'failed', text: clip((err as Error).message, 300) });
+        steps.push({ kind: act.kind, status: 'failed', text: clip((err as Error).message, 300), does: this.doesWords(act) });
         break;
       }
     }
@@ -852,6 +878,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
       } catch (err) {
         r = { kind: act.kind, status: 'failed', text: clip((err as Error).message, 300) };
       }
+      r = { ...r, does: this.doesWords(act) };
       steps.push(r);
       if (r.status === 'waiting') {
         outcome = 'waiting';
@@ -1025,7 +1052,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     if (allow && this.#running.has(a.id)) throw new AutomationError(409, en('Nothing is waiting for your OK on this run.'));
     this.#db.prepare('UPDATE automation_runs SET held_json = NULL WHERE id = ?').run(runId);
     if (!allow) {
-      const steps = [...run.steps.slice(0, held.index), { kind: a.actions[held.index]!.kind, status: 'declined' as const, text: this.#T(en('You said no, so it stopped there.')) }];
+      const steps = [...run.steps.slice(0, held.index), { kind: a.actions[held.index]!.kind, status: 'declined' as const, text: this.#T(en('You said no, so it stopped there.')), does: this.doesWords(a.actions[held.index]!) }];
       this.#db.prepare("UPDATE automation_runs SET outcome = 'declined', steps_json = ?, summary = ?, ended_at = ? WHERE id = ?").run(JSON.stringify(steps), clip(steps.map((s) => s.text).join(' · '), 300), this.#now().toISOString(), runId);
       return this.run(runId)!;
     }
@@ -1150,7 +1177,7 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     for (const a of this.list()) {
       const last = this.history(a.id, 1)[0];
       if (a.trigger.kind === 'live' || a.trigger.kind === 'product' || a.trigger.kind === 'file') linked.add(`${a.trigger.kind}:${a.trigger.ref}`);
-      out.push({ key: `auto:${a.id}`, source: 'automation', name: a.name, when: this.whenWords(a.trigger), does: a.actions.map((x) => this.doesWords(x)).join(' · '), enabled: a.enabled, status: a.pausedReason ?? '', next: a.enabled && a.nextAt ? a.nextAt : null, nextLocal: a.enabled && a.nextAt ? localWhen(new Date(a.nextAt), tz) : '', last: last ? { at: last.at, outcome: last.outcome, summary: last.summary } : null, canToggle: true, canEdit: true, canDelete: true, conversationId: a.conversationId, trigger: a.trigger, actions: a.actions });
+      out.push({ key: `auto:${a.id}`, source: 'automation', name: a.name, when: this.whenWords(a.trigger), does: a.actions.map((x) => this.doesWords(x)).join(' · '), enabled: a.enabled, status: a.pausedReason ?? '', next: a.enabled && a.nextAt ? a.nextAt : null, nextLocal: a.enabled && a.nextAt ? localWhen(new Date(a.nextAt), tz) : '', last: last ? { at: last.at, outcome: last.outcome, summary: last.summary } : null, canToggle: true, canEdit: true, canDelete: true, conversationId: a.conversationId, trigger: a.trigger, actions: a.actions, steps: a.actions.map((x) => this.doesWords(x)) });
     }
     for (const t of app.eventTriggers?.list() ?? []) {
       const r = app.eventTriggers!.runs(t.id, 1)[0];
@@ -1257,10 +1284,14 @@ CREATE INDEX IF NOT EXISTS automation_runs_a ON automation_runs (automation_id, 
     if (!ok) throw new AutomationError(404, en('Automation not found.'));
   }
   /** History through each thing's own store (automations and C4 triggers keep runs). */
-  historyKey(key: string): { at: string; outcome: string; summary: string; trigger?: string; conversationId?: string | null; steps?: StepResult[]; runId?: number }[] {
+  historyKey(key: string): { at: string; outcome: string; summary: string; trigger?: string; conversationId?: string | null; steps?: StepResult[]; runId?: number; replayOf?: number | null; replayedBy?: number | null }[] {
     const [kind, a] = key.split(':');
     const id = Number(a);
-    if (kind === 'auto') return this.history(id).map((r) => ({ at: r.at, outcome: r.dry ? 'test' : r.outcome, summary: r.summary, trigger: r.trigger, conversationId: r.conversationId, steps: r.steps, runId: r.id }));
+    if (kind === 'auto') {
+      const runs = this.history(id);
+      const by = new Map(runs.filter((r) => r.replayOf).map((r) => [r.replayOf!, r.id]));
+      return runs.map((r) => ({ at: r.at, outcome: r.dry ? 'test' : r.outcome, summary: r.summary, trigger: r.trigger, conversationId: r.conversationId, steps: r.steps, runId: r.id, replayOf: r.replayOf, replayedBy: by.get(r.id) ?? null }));
+    }
     if (kind === 'trigger') return (this.#app.eventTriggers?.runs(id, 50) ?? []).map((r) => ({ at: r.at, outcome: r.verdict, summary: r.summary, conversationId: r.conversationId }));
     if (kind === 'file') return (this.#app.watches?.alerts(id) ?? []).slice(0, 50).map((x) => ({ at: x.lastAt, outcome: 'done', summary: x.line }));
     const item = this.all().find((x) => x.key === key);
@@ -1299,6 +1330,8 @@ export interface UnifiedItem {
   where?: string;
   trigger?: Trigger;
   actions?: Action[];
+  /** V3.2: one plain line per step (the step editor). */
+  steps?: string[];
 }
 
 export function localWhen(at: Date, tz?: string): string {

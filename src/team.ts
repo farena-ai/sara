@@ -17,7 +17,9 @@ import type { ChatMessage, ToolCall } from './providers/types.ts';
 import { checkClaims, correctionNote, type Receipt } from './receipts.ts';
 import type { RoutePurpose } from './settings.ts';
 import { ToolError, type Tool } from './tools/types.ts';
-import { workspaceDir } from './tools/workspace.ts';
+import { inside, workspaceDir } from './tools/workspace.ts';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { cleanBudget, usageLine, usageScope, type UsageTotals } from './usage.ts';
 import { budgetCheck, type Budget, type Dimension } from './budget.ts';
 import { filesNamed, RunRecorder } from './runs.ts';
@@ -143,6 +145,10 @@ export interface Workflow {
   passed?: string[];
   /** The pull request, once open. */
   prUrl?: string;
+  /** V3.4: the task worktree it works in (folder relative to the workspace) and its branch. */
+  worktree?: { id: number; dir: string; branch: string; base: string };
+  /** V3.4: started by "Fix this issue" (the pull-request card in Settings → GitHub and the chat). */
+  fix?: boolean;
 }
 export interface Checkpoint {
   kind: 'plan' | 'pr';
@@ -205,6 +211,16 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n)}…` : s
 const est = (x: unknown) => Math.ceil((typeof x === 'string' ? x.length : JSON.stringify(x).length) / 4);
 
 /** The last line starting with "VERDICT:" in a report. */
+/** The folder a task works in: the workspace, or (V3.4) its task worktree inside it. */
+export function taskDir(app: AppContext, task: Pick<TeamTask, 'workspace' | 'workflow'>): string {
+  const ws = workspaceDir(app.rootDir ?? app.dataDir, task.workspace);
+  const wt = task.workflow?.worktree;
+  if (!wt) return ws;
+  const d = resolve(ws, wt.dir);
+  if (!inside(ws, d) || !existsSync(d)) throw new Error(`The task's worktree (${wt.dir}) is gone; start the fix again.`);
+  return d;
+}
+
 export function verdict(report: string | null): { ok: boolean; detail: string } | undefined {
   const line = [...(report ?? '').matchAll(/^\s*\**VERDICT:\**\s*(.+)$/gim)].at(-1)?.[1]?.trim();
   if (!line) return undefined;
@@ -249,6 +265,8 @@ export function receiptLines(steps: TeamStep[], names: Map<string, string>): str
 type Row = Record<string, string | number | null>;
 
 export class TeamManager {
+  /** V3.4: called when a task stops at a checkpoint (Fix this issue posts its pull-request card). */
+  onCheckpoint?: (task: TeamTask) => void | Promise<void>;
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
   readonly #runs = new Map<number, { ctl: AbortController; step?: { id: number; ctl: AbortController }; inbox: Map<number, string[]>; approvals: Map<string, PendingApproval>; done: Promise<TeamTask>; answer?: (d: 'go' | 'skip' | 'stop') => void; rec: RunRecorder; scope: ToolScope }>();
@@ -544,6 +562,8 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const run = this.#runs.get(id)!;
     this.#setTask(id, { status: 'waiting', checkpoint: JSON.stringify({ kind, text, at: this.#app.now().toISOString() }) });
     this.#note(id, null, kind === 'plan' ? 'Waiting for your OK on the plan.' : 'Waiting for your OK to open the pull request.');
+    // V3.4: the pull-request card (Fix this issue) tells the issue's chat.
+    if (this.onCheckpoint) void Promise.resolve().then(() => this.onCheckpoint?.(this.get(id)!)).catch((err) => console.warn(`team checkpoint: ${(err as Error).message}`));
     const d = await new Promise<'go' | 'skip' | 'stop'>((resolve, reject) => {
       run.answer = resolve;
       run.ctl.signal.addEventListener('abort', () => reject(run.ctl.signal.reason), { once: true });
@@ -601,7 +621,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const task = this.get(id)!;
     const helpers = teamHelpers(app);
     const byId = new Map(helpers.map((h) => [h.id, h]));
-    const wsDir = workspaceDir(app.rootDir ?? app.dataDir, task.workspace);
+    const wsDir = taskDir(app, task);
     let outcome: TaskStatus = 'done';
     let reason = '';
     try {
@@ -773,9 +793,9 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     };
     try {
       const slug = (wf.issue?.title ?? task.goal).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'change';
-      const branch = `sara/${task.id}-${slug}`;
+      const branch = wf.worktree?.branch ?? `sara/${task.id}-${slug}`;
       const title = clip(wf.issue ? `${wf.issue.title} (#${wf.issue.number})` : task.goal.split('\n')[0], 72);
-      await call('git_commit', { message: `${title}\n\n${wf.issue ? `Closes #${wf.issue.number}.\n\n` : ''}Made by ${app.persona.name}'s team (team task #${task.id}).`, new_branch: branch, ...(repoPath ? { path: repoPath } : {}) });
+      await call('git_commit', { message: `${title}\n\n${wf.issue ? `Closes #${wf.issue.number}.\n\n` : ''}Made by ${app.persona.name}'s team (team task #${task.id}).`, ...(wf.worktree ? {} : { new_branch: branch }), ...(repoPath ? { path: repoPath } : {}) });
       await call('git_push', { branch, ...(repoPath ? { path: repoPath } : {}) });
       const done = this.get(task.id)!.steps.filter((s) => s.status === 'done' && s.helper !== 'lead');
       const lastTest = done.filter((s) => byId.get(s.helper)?.role === 'tester').at(-1);
@@ -789,10 +809,12 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       ]
         .filter(Boolean)
         .join('\n\n');
-      const opened = await call('github_open_pr', { title, body, head: branch, ...(repoPath ? { path: repoPath } : {}) });
+      const opened = await call('github_open_pr', { title, body, head: branch, ...(wf.issue ? { repo: wf.issue.repo } : {}), ...(repoPath ? { path: repoPath } : {}) });
       const url = /https:\/\/github\.com\/([\w.-]+\/[\w.-]+)\/pull\/(\d+)/.exec(opened);
       if (!url) throw new Error(`Couldn't read the pull request from: ${clip(opened, 200)}`);
       this.#setTask(task.id, { workflow: JSON.stringify({ ...this.get(task.id)!.workflow, prUrl: url[0] }) });
+      const wt = wf.worktree && app.worktrees?.get(wf.worktree.id);
+      if (wt) app.worktrees!.markPr(wt, url[0]);
       // Her review of the pull request, posted on it.
       let reviewCompleted = false;
       try {

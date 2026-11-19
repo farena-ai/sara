@@ -582,7 +582,7 @@
       "plugins"
     ],
     "mk-kind": [
-      "Skills and templates arrive on trial, automations arrive paused, Store add-ons are only a link to the Store's own review card.",
+      "Skills and templates arrive on trial, automations and workers arrive paused, Store add-ons are only a link to the Store's own review card.",
       "plugins"
     ],
     "mk-item": [
@@ -799,6 +799,10 @@
     ],
     "ghw-every": [
       "How often she looks for new issues in the watched repositories. Off stops watching. Runs on your server, free.",
+      "workflows"
+    ],
+    "fx-repo": [
+      "The repository whose open issues you want to see (owner/name). Empty shows the watched repositories.",
       "workflows"
     ],
     "pj-ws": [

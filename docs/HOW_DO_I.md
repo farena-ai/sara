@@ -2,7 +2,7 @@
 
 <!-- Generated from web/howto.json by node scripts/gen-guide.ts. Edit howto.json, not this file. -->
 
-Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 239 of
+Every page of the app has a **How do I…?** box at the top with short, step-by-step answers. These are all 242 of
 them in one place. In the app, open the box and press **Show me** to see the control it talks about. New here? Start with
 [Start here](START_HERE.md); writing code with her? [For coders](FOR_CODERS.md).
 
@@ -439,6 +439,13 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Set Tax rate (%) (0 if you don't charge tax).
 2. Set Due in (days); she reminds you the day before and 3 days after if unpaid.
 
+**How do I put a receptionist chat on my website?**
+
+1. Keep your prices, hours and common questions in the Library, then tick them under Website receptionist.
+2. Write your business rules and add your website's address.
+3. Turn it on and paste the line it shows into your website.
+4. Booking requests from the chat wait for your OK under Booking page.
+
 ### What Sara knows
 
 **How do I fix something Sara knows about me?**
@@ -800,6 +807,13 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Under Issues become tasks, set a label.
 2. Press Look now to fetch them.
 
+**How do I have her fix a GitHub issue?**
+
+1. Under Fix an issue, type the repository (owner/name) and press Show issues.
+2. Press Fix this issue next to the issue.
+3. Her team fixes it in its own worktree and runs the tests until they pass.
+4. When the card says Ready for your OK, press Open the pull request (or Not now).
+
 ### iPhone Shortcuts
 
 **How do I share to Sara from my iPhone?**
@@ -1059,6 +1073,12 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Press Submit yours.
 2. Give the folder, then press Check it.
 3. Fix what it finds, then send it: the team reviews it before it is listed.
+
+**How do I hire a worker a friend shared?**
+
+1. Under Shared by friends, pick the shelf.
+2. Press Review and hire on the worker: you see what it may do and its daily budget.
+3. Press Hire. It arrives paused in Team → Workers that stay; turn it on there.
 
 ### Tools and approvals
 

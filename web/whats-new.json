@@ -2,6 +2,40 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.28.0",
+   "date": "2026-11-18",
+   "title": "My apps, automation replay, workforce report, Fix this issue, website receptionist",
+   "items": [
+    {
+     "id": "3-28-0-automation-steps-and-replay-settings",
+     "kind": "new",
+     "text": "Automation steps and replay (Settings → You → Automations): Steps opens an automation's step list."
+    },
+    {
+     "id": "3-28-0-workforce-report-and-one-click-hire",
+     "kind": "new",
+     "text": "Workforce report and one-click hire: once a week."
+    },
+    {
+     "id": "3-28-0-fix-this-issue-settings-connections",
+     "kind": "new",
+     "text": "Fix this issue (Settings → Connections → Apps and services → GitHub → Fix an issue): a repository's open issues, each with one button."
+    },
+    {
+     "id": "3-28-0-my-apps-library-my-apps",
+     "kind": "new",
+     "text": "My apps (Library → My apps): ask her for a small web app in a chat, try it and say \"keep it\"."
+    },
+    {
+     "id": "3-28-0-website-receptionist-settings-you-busine",
+     "kind": "new",
+     "text": "Website receptionist (Settings → You → Business details → Website receptionist): a chat for your own website, added with one line of code.",
+     "link": "#view=business",
+     "owner": true
+    }
+   ]
+  },
+  {
    "version": "3.27.0",
    "date": "2026-11-18",
    "title": "Renewals, purchases, Home Assistant scenes, audio briefing, scan pages, upkeep, gifts",
@@ -251,59 +285,6 @@
      "try": [
       "study-set"
      ]
-    }
-   ]
-  },
-  {
-   "version": "3.21.0",
-   "date": "2026-11-18",
-   "title": "smarter: six languages, voices apart, Word comments, team recipes",
-   "items": [
-    {
-     "id": "3-21-0-promises-clause-checklists-and-travel",
-     "kind": "new",
-     "text": "Promises, clause checklists and travel emails in Spanish, French, German, Brazilian Portuguese and Italian, not just English."
-    },
-    {
-     "id": "3-21-0-free-flight-status-without-a",
-     "kind": "new",
-     "text": "Free flight status without a key. The Trips page can use OpenSky Network (no sign-up), which shows whether your plane is in the air, on the ground or landed.",
-     "link": "#view=trips",
-     "try": [
-      "flight-free"
-     ]
-    },
-    {
-     "id": "3-21-0-tracked-changes-everywhere-in-a",
-     "kind": "new",
-     "text": "Tracked changes everywhere in a Word file. When she revises a Word document, changes in the header, footer, footnotes, endnotes and text boxes are tracked too.",
-     "link": "#view=library"
-    },
-    {
-     "id": "3-21-0-team-recipes-after-a-team",
-     "kind": "new",
-     "text": "Team recipes. After a team run finishes, \"Save as a team recipe\" keeps its plan.",
-     "link": "#view=team",
-     "owner": true,
-     "try": [
-      "team-recipe"
-     ]
-    },
-    {
-     "id": "3-21-0-ask-about-anything-also-searches",
-     "kind": "new",
-     "text": "Ask about anything also searches your meetings (what was said, with the time in the recording, and the notes), trips.",
-     "link": "#view=meetings",
-     "try": [
-      "ask-meeting"
-     ]
-    },
-    {
-     "id": "3-21-0-share-fixes-that-worked-under",
-     "kind": "new",
-     "text": "Share fixes that worked. Under Settings → Privacy & system → Health → Self-repair you can let a fix that worked.",
-     "link": "#view=settings:dh-health",
-     "owner": true
     }
    ]
   }

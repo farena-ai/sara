@@ -64,6 +64,8 @@ Settings → You → Business details → **Booking page**. Off by default.
   8 requests per 10 minutes per address, 20 open requests a day), with a hidden honeypot box and a
   signed time token (a form sent in under 2 seconds counts as a bot) instead of a captcha.
 - Each person's own (a household member's page is theirs); never on the demo.
+- The website receptionist (docs/RECEPTION.md) offers the same free times in a chat on your own site;
+  its requests show up in this list and always wait for your OK.
 
 ## Accounting exports
 

@@ -366,6 +366,17 @@
     "Set Due in (days); she reminds you the day before and 3 days after if unpaid."
    ],
    "show": "#biz-tax"
+  },
+  {
+   "id": "reception",
+   "q": "How do I put a receptionist chat on my website?",
+   "steps": [
+    "Keep your prices, hours and common questions in the Library, then tick them under Website receptionist.",
+    "Write your business rules and add your website's address.",
+    "Turn it on and paste the line it shows into your website.",
+    "Booking requests from the chat wait for your OK under Booking page."
+   ],
+   "show": "#rc-box"
   }
  ],
  "you-knows": [
@@ -612,6 +623,16 @@
     "Fix what it finds, then send it: the team reviews it before it is listed."
    ],
    "show": "#sto-submit-open"
+  },
+  {
+   "id": "hire",
+   "q": "How do I hire a worker a friend shared?",
+   "steps": [
+    "Under Shared by friends, pick the shelf.",
+    "Press Review and hire on the worker: you see what it may do and its daily budget.",
+    "Press Hire. It arrives paused in Team → Workers that stay; turn it on there."
+   ],
+   "show": "#mk-place"
   }
  ],
  "ab-tools": [
@@ -1152,6 +1173,17 @@
     "Press Look now to fetch them."
    ],
    "show": "#ghw-check"
+  },
+  {
+   "id": "fix",
+   "q": "How do I have her fix a GitHub issue?",
+   "steps": [
+    "Under Fix an issue, type the repository (owner/name) and press Show issues.",
+    "Press Fix this issue next to the issue.",
+    "Her team fixes it in its own worktree and runs the tests until they pass.",
+    "When the card says Ready for your OK, press Open the pull request (or Not now)."
+   ],
+   "show": "#fx-show"
   }
  ],
  "ab-ssh": [

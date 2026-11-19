@@ -14,6 +14,7 @@ import type { ServerOptions } from '../server.ts';
 import { ToolError } from '../tools/types.ts';
 import { accountingCsv, ACCOUNTING_FORMATS, ACCOUNTING_PARTS, type AccountingFormat, type AccountingPart } from '../workapps/accounting.ts';
 import { BookingError, bookingBySlug, bookingFor, slugify, slugTaken, whenText, type Booking } from '../workapps/booking.ts';
+import { ReceptionError, receptionFor } from '../reception.ts';
 import { originOf } from './share.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
@@ -47,6 +48,33 @@ export function createBookingRoutes(ctx: RouteCtx): RouteHandler {
       res.end(`\ufeff${f.csv}`);
       return;
     }
+    // V3.5: the website receptionist (docs/RECEPTION.md), each space's own.
+    if (b === 'reception') {
+      const rc = receptionFor(app);
+      const rview = () => {
+        const s = rc.store.settings();
+        const base = originOf(req, ctx.opts.trustProxy);
+        return { settings: s, url: `${base}/reception/${s.id}`, embed: `<script src="${base}/reception.js" data-sara="${s.id}" async></script>`, docs: rc.docChoices(), log: rc.store.recent(30), business: rc.business, bookingReady: bookingFor(app).store.settings().windows.length > 0, ...bookingFor(app).connections() };
+      };
+      if (!c && method === 'GET') return send(res, 200, rview());
+      if (!c && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          rc.store.save(body, (ids) => rc.keptDocs(ids));
+        } catch (err) {
+          if (err instanceof ReceptionError) throw new HttpError(err.status, T(err.message));
+          throw err;
+        }
+        return send(res, 200, rview());
+      }
+      if ((c === 'new-id' || c === 'clear-log') && method === 'POST') {
+        await readJson(req).catch(() => undefined);
+        if (c === 'new-id') rc.store.newId();
+        else rc.store.clearLog();
+        return send(res, 200, rview());
+      }
+      throw new HttpError(404, 'Not found');
+    }
     const bk = bookingFor(app);
     const view = () => {
       const s = bk.store.settings();
@@ -77,7 +105,7 @@ export function createBookingRoutes(ctx: RouteCtx): RouteHandler {
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch]!);
 const HEADERS = { ...SECURITY_HEADERS, 'cache-control': 'no-store', 'x-robots-tag': 'noindex, nofollow, noarchive', 'referrer-policy': 'no-referrer' };
-function visitorLang(req: IncomingMessage, fallback: Lang): Lang {
+export function visitorLang(req: IncomingMessage, fallback: Lang): Lang {
   for (const part of String(req.headers['accept-language'] ?? '').split(',')) {
     const code = part.split(';')[0].trim();
     const l = toLang(code) ?? toLang(code.split('-')[0]);

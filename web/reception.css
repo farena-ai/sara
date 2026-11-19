@@ -1,0 +1,34 @@
+/* V3.5 (src/routes/reception.ts): the website receptionist's chat page inside the owner's site. Theme variables only. */
+html, body.rc-body { height: 100%; }
+body.rc-body { margin: 0; background: var(--surface-0); color: var(--text-1); font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.rc { box-sizing: border-box; height: 100%; display: flex; flex-direction: column; gap: 8px; padding: 12px 12px 10px; }
+.rc-head { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.rc-name { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rc-badge { flex: none; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); }
+.rc-notice, .rc-fine { margin: 0; color: var(--text-2); font-size: 12px; }
+.rc [hidden] { display: none; }
+.rc-scroll { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding: 2px; }
+.rc-log { list-style: none; margin: 0; padding: 2px 0; display: flex; flex-direction: column; gap: 8px; }
+.rc-msg { max-width: 85%; padding: 8px 11px; border-radius: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.rc-her { align-self: flex-start; background: var(--surface-2); border: 1px solid var(--line); }
+.rc-you { align-self: flex-end; background: var(--accent-solid); color: var(--on-accent); }
+.rc-wait { color: var(--text-2); font-style: italic; }
+.rc-err { border-color: var(--danger); }
+.rc-ok { border-color: var(--success); }
+.rc-slots:not([hidden]) { display: flex; flex-wrap: wrap; gap: 6px; }
+.rc-sub { width: 100%; margin: 0; font-size: 13px; font-weight: 600; }
+.rc-slot { font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-1); color: var(--text-1); cursor: pointer; }
+.rc-slot[aria-pressed="true"] { border-color: var(--accent-solid); background: var(--accent-soft); }
+.rc-book:not([hidden]) { display: grid; gap: 6px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-1); }
+.rc-when { margin: 0; font-weight: 600; font-size: 14px; }
+.rc-book label { display: grid; gap: 2px; font-size: 13px; }
+.rc :is(input, textarea) { font: inherit; padding: 7px 9px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-1); color: var(--text-1); }
+.rc-ask { display: grid; gap: 6px; }
+.rc-ask textarea { resize: none; width: 100%; box-sizing: border-box; }
+.rc-actions { display: flex; gap: 6px; justify-content: flex-end; }
+.rc button[type="submit"], .rc-book-open { font: inherit; font-weight: 600; padding: 8px 14px; border-radius: 10px; border: 0; background: var(--accent-solid); color: var(--on-accent); cursor: pointer; }
+.rc .rc-book-open { background: transparent; color: var(--accent-text); border: 1px solid var(--line); }
+.rc button:disabled { opacity: 0.6; cursor: default; }
+.rc :is(button, input, textarea):focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
+.rc-hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.rc-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

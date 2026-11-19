@@ -30,7 +30,7 @@ async function api(path, opts = {}) {
   if (!res.ok) throw new Error(j.error || res.statusText);
   return j;
 }
-const KIND = { skill: 'Skill', template: 'Template', automation: 'Automation', team: 'Team recipe', addon: 'Store add-on' };
+const KIND = { skill: 'Skill', template: 'Template', automation: 'Automation', team: 'Team recipe', addon: 'Store add-on', worker: 'Worker' };
 const kindLabel = (k) => t(KIND[k] ?? k);
 const say = (sel, text) => {
   const s = $(sel);
@@ -93,7 +93,7 @@ function card(l) {
   if (perms.length) c.append(el('p', 'muted small', t('Tools: {tools}', { tools: perms.join(', ') })));
   for (const cm of l.comments ?? []) c.append(el('p', 'mk-comment small', `“${cm.text}” — ${cm.who} ${'★'.repeat(cm.stars)}`));
   const row = el('div', 'mk-actions');
-  row.append(btn(l.kind === 'addon' ? t('Review the link') : t('Review and install'), '', () => review(l)));
+  row.append(btn(l.kind === 'addon' ? t('Review the link') : l.kind === 'worker' ? t('Review and hire') : t('Review and install'), '', () => review(l)));
   row.append(btn(t('Rate'), 'ghost', () => rate(l)));
   const host = state.places.find((p) => p.id === state.place)?.host || state.place.startsWith('f:');
   if (l.mine || host) row.append(btn(l.mine ? t('Withdraw') : t('Remove'), 'ghost', () => remove(l)));
@@ -109,7 +109,7 @@ async function review(l) {
   try {
     const { listing, check } = await api('/market/review', { method: 'POST', body: { place: state.place, listing: l.id } });
     box.replaceChildren();
-    box.append(el('strong', '', t('What installing “{title}” does', { title: listing.title })));
+    box.append(el('strong', '', listing.kind === 'worker' ? t('What hiring “{title}” does', { title: listing.title }) : t('What installing “{title}” does', { title: listing.title })));
     const does = el('ul', 'mk-does');
     for (const d of check.doesLines) does.append(el('li', '', line(d)));
     box.append(does);
@@ -121,7 +121,7 @@ async function review(l) {
     } else box.append(el('p', 'mk-ok small', t('Checked here: no secrets, no hard-limit tools, no protected settings, size within limits, tools present.')));
     box.append(el('p', 'muted small mk-hash', t('Content hash: {hash}', { hash: String(listing.hash).slice(0, 16) })));
     const row = el('div', 'mk-actions');
-    if (check.ok) row.append(btn(listing.kind === 'addon' ? t('Open in Get more') : t('Install'), '', () => install(listing)));
+    if (check.ok) row.append(btn(listing.kind === 'addon' ? t('Open in Get more') : listing.kind === 'worker' ? t('Hire') : t('Install'), '', () => install(listing)));
     row.append(btn(t('Cancel'), 'ghost', () => (box.hidden = true)));
     box.append(row);
     box.scrollIntoView?.({ block: 'nearest' });
@@ -141,6 +141,17 @@ async function install(listing) {
         q.scrollIntoView?.({ block: 'center' });
       }
       $('#mk-review').hidden = true;
+      return;
+    }
+    if (r.installed.kind === 'worker') {
+      // V3.3: hired paused; one tap to Team → Workers that stay to look it over and turn it on.
+      const box = $('#mk-review');
+      box.replaceChildren(el('p', 'mk-ok small', t('Hired, paused. Look it over and turn it on in Team → Workers that stay.')), btn(t('Open Workers'), '', () => {
+        document.querySelector('#settings')?.close?.();
+        location.hash = '#view=team';
+      }));
+      await loadMarket();
+      $('#mk-review').hidden = false;
       return;
     }
     say('#mk-review', r.installed.kind === 'automation' ? t('Installed, paused. Turn it on in Automations when you are ready.') : t('Installed. It starts on trial; you can switch it off in Skills.'));

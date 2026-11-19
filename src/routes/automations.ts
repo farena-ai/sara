@@ -11,6 +11,8 @@
 //   DELETE /api/automations/:key
 //   GET    /api/automations/:key/history
 //   POST   /api/automations/runs/:runId/allow · /decline
+//   POST   /api/automations/runs/:runId/replay   V3.2 Run again with this input → 202 {runId}
+//   PATCH  /api/automations/:key {actions}         V3.2 the step list (reorder, add, remove, words)
 // R9 templates (src/automation-templates.ts):
 //   GET    /api/automations/templates             {gallery}
 //   POST   /api/automations/templates/read        {text} → {template, placeholders} (checked, scrubbed)
@@ -108,6 +110,13 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
       const template = await wrap(() => parseTemplate(typeof body.text === 'string' ? body.text : body.template));
       return send(res, 200, { template, placeholders: template.placeholders.map((p) => ({ ...p, label: T(p.label) })) });
     }
+    if (b === 'runs' && c && d === 'replay' && method === 'POST') {
+      await readJson(req).catch(() => ({}));
+      // Answers at once (like Run now); the new run lands in the history.
+      const { p } = await wrap(() => ({ p: s.replay(Number(c)) }));
+      void p.catch(() => undefined);
+      return send(res, 202, { ok: true, runId: s.replayedBy(Number(c)) });
+    }
     if (b === 'runs' && c && (d === 'allow' || d === 'decline') && method === 'POST') {
       await readJson(req).catch(() => ({}));
       return send(res, 200, { run: await wrap(() => s.answer(Number(c), d === 'allow')) });
@@ -122,7 +131,7 @@ export function createAutomationRoutes(ctx: RouteCtx): RouteHandler {
     if (!c && method === 'PATCH') {
       if (!auto) throw new HttpError(400, T('This one is turned on where it was set up.'));
       const body = await readJson(req);
-      return send(res, 200, { automation: await wrap(() => s.patch(Number(auto[1]), { ...(body.name !== undefined ? { name: body.name } : {}), ...(body.trigger ? { trigger: body.trigger } : {}) })) });
+      return send(res, 200, { automation: await wrap(() => s.patch(Number(auto[1]), { ...(body.name !== undefined ? { name: body.name } : {}), ...(body.trigger ? { trigger: body.trigger } : {}), ...(Array.isArray(body.actions) ? { actions: body.actions } : {}) })) });
     }
     if (c === 'template' && method === 'GET') {
       if (!auto) throw new HttpError(400, T('This one is turned on where it was set up.'));

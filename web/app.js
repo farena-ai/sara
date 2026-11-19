@@ -55,6 +55,7 @@ import { initStudy, loadStudyPrefs, openStudy, renderStudyTile } from './study.j
 import { initGiftPrefs, loadGiftPrefs } from './gifts.js';
 import { initScan, openScan } from './scan.js';
 import { initJournal, openJournal } from './journal.js';
+import { initMyApps, openMyApps } from './my-apps.js';
 import { initBriefingAudio, loadBriefingAudio } from './briefing-audio.js';
 import { initMediaStudio, loadMediaSettings } from './media-studio.js';
 import { loadMeetingPrefs, openMeetingsView, renderMeetingsTile } from './meetings.js';
@@ -199,6 +200,7 @@ import { runApproval, runEvidence, runLatest, runTimeline, setRunUser } from './
 import { initMemoryMap } from './memory-map.js';
 import { choiceCard } from './choice-card.js';
 import { initRepair, loadRepair, saveRepair } from './repair.js';
+import { initFixIssue, loadFixIssue } from './fix-issue.js';
 import { initSharedProjects, loadSharedSettings, renderProjectShare, sharedChanged } from './shared-projects.js';
 import { installPhoneSave } from './phone-save.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
@@ -9164,6 +9166,11 @@ function showSettingsTab(page, opts = {}) {
   if (pick === 'her-pictures' && typeof loadMediaSettings === 'function' && !isMember()) void loadMediaSettings();
   if (pick === 'co-phone' && typeof loadSharedSettings === 'function' && !isMember()) void loadSharedSettings(); // U4.26
   if (shown.has('dh-quality')) void loadQuality();
+  // V3.4: Fix this issue on the GitHub page (web/fix-issue.js), owner only.
+  if (pick === 'ab-github' && typeof loadFixIssue === 'function' && !isMember()) {
+    initFixIssue({ api });
+    void loadFixIssue();
+  }
   // ROADMAP_T: Self-repair on the Health page (web/repair.js).
   if (pick === 'dh-health' && typeof loadDashboard === 'function' && !isMember()) void loadDashboard(); // U5.34
   if (pick === 'dh-health' && typeof loadRepair === 'function' && !isMember()) {
@@ -10144,7 +10151,7 @@ document.addEventListener('keydown', (e) => {
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
-const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
+const VIEWS = { today: openToday, planner: () => $('#open-planner').click(), memory: () => $('#open-memory').click(), library: () => $('#open-library').click(), scrapbook: () => $('#open-scrapbook').click(), moments: () => $('#open-moments').click(), errands: () => $('#open-errands').click(), goals: () => $('#open-goals').click(), study: () => void openStudy(), scan: () => void openScan(), journal: () => void openJournal(), apps: () => void openMyApps(), meetings: () => void openMeetingsView(), family: () => $('#open-family').click(), messages: () => $('#open-msgs').click(), msgs: () => $('#open-msgs').click(), story: () => $('#open-story').click(), her: () => $('#open-sara').click(), team: () => $('#open-team').click(), evals: () => $('#open-evals').click(), help: () => $('#open-help').click(), trips: () => $('#open-trips').click(), money: () => $('#open-money').click(), business: () => $('#open-bizpack').click(), bizpack: () => $('#open-bizpack').click(), health: () => $('#open-health').click(), addons: () => $('#open-addons').click(), try: () => void openTryThese(), 'whats-new': () => void openWhatsNew(), shared: () => void openSettings('co-phone'), waiting: () => void openWaiting() };
 function openViewFromHash() {
   const v = /#view=([\w:-]+)/.exec(location.hash)?.[1];
   if (!v || !$('#main') || $('#main').hidden) return false;
@@ -12658,6 +12665,7 @@ initStudy();
 initGiftPrefs();
 initScan();
 initJournal();
+initMyApps();
 initBriefingAudio();
 initMediaStudio();
 initMarket();

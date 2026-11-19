@@ -29,11 +29,13 @@ import { peerRate } from './support.ts';
 import { HARD_LIMIT_TOOL } from './team-runs.ts';
 
 export const MARKET = { titleChars: 80, descChars: 600, payloadChars: 32_000, bodyChars: 24_000, tools: 20, settings: 20, commentChars: 300, whyChars: 300, listings: 200, comments: 20, skewMs: 5 * 60_000 } as const;
-export const KINDS = ['skill', 'template', 'automation', 'team', 'addon'] as const;
+export const KINDS = ['skill', 'template', 'automation', 'team', 'addon', 'worker'] as const;
 export type Kind = (typeof KINDS)[number];
 const SAFE_TRIGGERS = new Set(['schedule', 'calendar', 'email']);
 const SAFE_ACTIONS = new Set(['notify', 'task', 'draft_email']);
 const SKILL_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+/** V3.3: the worker tool groups a shared worker may have (never Run commands or Hand work to a coding agent). */
+const SHARED_GROUPS = new Set(['read', 'web', 'write', 'git']);
 
 export class MarketError extends Error {
   readonly status: number;
@@ -179,6 +181,26 @@ export function checkListing(l: Listing, env: CheckEnv = {}): CheckResult {
       does.push({ t: en('Adds the team recipe “{name}” with {n} helpers. A team run still shows its plan and asks before it starts.'), p: { name: clip(payload.name, 80), n: plan.roles?.length ?? 0 } });
       break;
     }
+    case 'worker': {
+      // V3.3 (docs/design/V3WORKFORCE.md): a worker bundle (src/workers.ts) without memories; hired paused.
+      const ws = Array.isArray(payload.workers) ? (payload.workers as Record<string, unknown>[]) : [];
+      if (payload.kind !== 'sara-worker-bundle' || !ws.length || ws.length > 12) no(en('This is not a Sara worker.'));
+      const nf = new Intl.NumberFormat('en-US');
+      for (const w of ws) {
+        const wn = clip(w?.name, 40);
+        if (!wn) no(en('This is not a Sara worker.'));
+        if (w?.memories !== undefined) no(en('A shared worker never brings memories (the results of its old jobs).'));
+        const groups = Array.isArray(w?.toolGroups) ? w.toolGroups.map(String) : [];
+        for (const g of groups) {
+          if (g === 'shell' || g === 'agent') no(en('{name} may run commands or hand work to a coding agent. Shared workers never do.'), { name: wn });
+          else if (!SHARED_GROUPS.has(g)) no(en('{name} asks for a kind of tool this Sara doesn’t know.'), { name: wn });
+        }
+        const num = (v: unknown, d: number) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Math.round(Number(v)) : d);
+        does.push({ t: en('{name}: {tokens} tokens a day, up to {minutes} minutes a job; it may: {groups}.'), p: { name: wn, tokens: nf.format(num(w?.dailyTokens, 200_000)), minutes: num(w?.timeLimitMin, 30), groups: groups.join(', ') || 'read' } });
+      }
+      does.unshift({ t: en('Hires {n} worker(s), paused: nothing runs until you turn them on in Team → Workers that stay. Each still asks before changing files.'), p: { n: ws.length } });
+      break;
+    }
     case 'addon': {
       const id = String(payload.storeId ?? '');
       if (Object.keys(payload).some((k) => k !== 'storeId') || !/^[a-z0-9][a-z0-9._-]{0,63}$/.test(id)) no(en('An add-on is shared only as a link to the Sara Store.'));
@@ -209,6 +231,8 @@ export interface MarketDeps {
     skill(p: { name: string; description: string; body: string }, o: { ref?: string; author: string }): string;
     automation(p: Record<string, unknown>, o: { ref?: string }): string;
     team(p: Record<string, unknown>, o: { ref?: string }): string;
+    /** V3.3: hires a worker bundle (paused); `ref` = the worker hired before (an update). */
+    worker(p: Record<string, unknown>, o: { ref?: string }): string;
   };
   /** Builds the payload of one of the owner's own items. */
   item(kind: Kind, ref: string, o: { title: string; text: string; description: string }): { title: string; payload: Record<string, unknown>; tools: string[] };
@@ -517,6 +541,7 @@ export class Market {
     let out: string;
     if (l.kind === 'skill' || l.kind === 'template') out = this.deps.install.skill(l.payload as never, { ref, author: l.author });
     else if (l.kind === 'automation') out = this.deps.install.automation(l.payload, { ref });
+    else if (l.kind === 'worker') out = this.deps.install.worker(l.payload, { ref });
     else out = this.deps.install.team(l.payload, { ref });
     const at = this.#iso();
     if (prev) this.#db.prepare('UPDATE mk_installs SET version = ?, hash = ?, ref = ?, title = ?, update_version = NULL, at = ? WHERE id = ?').run(l.version, l.hash, out, l.title, at, prev.id as string);
@@ -619,6 +644,19 @@ export function marketOf(app: AppContext): Market | undefined {
         if (o.ref) r.remove(Number(o.ref));
         return String(r.importJson(p).id);
       },
+      worker: (p, o) => {
+        const wk = app.workers;
+        if (!wk) throw new MarketError(409, en('Workers are not available here.'));
+        const cur = o.ref ? wk.get(Number(o.ref)) : undefined;
+        if (cur) {
+          // An update: the hired worker takes the new character, tools and budget, and waits paused again.
+          const top = ((p.workers as Record<string, unknown>[] | undefined) ?? [])[0] ?? {};
+          wk.patch(cur.id, { character: top.character, toolGroups: top.toolGroups, dailyTokens: top.dailyTokens, timeLimitMin: top.timeLimitMin, maxAttempts: top.maxAttempts, state: 'paused' });
+          return String(cur.id);
+        }
+        const made = wk.importBundle(p, { confirm: true });
+        return String(made[0]!.id);
+      },
     },
     item: (kind, ref, o) => {
       if (kind === 'skill' || kind === 'template') {
@@ -642,6 +680,12 @@ export function marketOf(app: AppContext): Market | undefined {
         if (!r?.get(Number(ref))) throw new MarketError(404, en('No such team recipe.'));
         const j = r.exportJson(Number(ref));
         return { title: j.name, payload: j as unknown as Record<string, unknown>, tools: [...new Set(j.plan.roles.flatMap((x) => x.tools ?? []))] };
+      }
+      if (kind === 'worker') {
+        const w = app.workers?.get(Number(ref));
+        if (!w) throw new MarketError(404, en('Worker not found'));
+        const b = app.workers!.exportBundle(w.id, { memories: false });
+        return { title: w.name, payload: b as unknown as Record<string, unknown>, tools: [] };
       }
       const id = ref.toLowerCase();
       return { title: o.title || id, payload: { storeId: id }, tools: [] };

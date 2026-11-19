@@ -20,6 +20,7 @@ import { en, trOwner } from './i18n.ts';
 import { quietNow } from './life.ts';
 import { policy } from './policy-profile.ts';
 import { teamHelpers, type HelperDef } from './team.ts';
+import { workforceTick } from './workforce.ts';
 
 export const WORKER = { maxWorkers: 12, maxQueued: 50, backoffMs: [60_000, 5 * 60_000, 30 * 60_000], minJobTokens: 10_000, maxBundle: 12, version: 1 } as const;
 /** The tool groups a worker may be allowed (each a few of her tools). */
@@ -256,6 +257,16 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
     return (this.#db.prepare('SELECT * FROM worker_jobs WHERE parent_id = ? ORDER BY id').all(jobId) as Row[]).map((r) => this.#jobView(r));
   }
 
+  /** V3.3: jobs that ended (done or failed) between two times, for the workforce report. */
+  jobsEnded(fromIso: string, toIso: string): WorkerJob[] {
+    return (this.#db.prepare("SELECT * FROM worker_jobs WHERE status IN ('done', 'failed') AND ended_at >= ? AND ended_at <= ? ORDER BY id").all(fromIso, toIso) as Row[]).map((r) => this.#jobView(r));
+  }
+
+  /** V3.3: jobs waiting in a worker's queue now. */
+  queuedCount(workerId: number): number {
+    return Number((this.#db.prepare("SELECT COUNT(*) AS n FROM worker_jobs WHERE worker_id = ? AND status = 'queued'").get(workerId) as { n: number }).n);
+  }
+
   /** Failed jobs (the dead-letter list), newest first. */
   failed(): WorkerJob[] {
     return (this.#db.prepare("SELECT * FROM worker_jobs WHERE status = 'failed' ORDER BY id DESC LIMIT 100").all() as Row[]).map((r) => this.#jobView(r));
@@ -429,6 +440,12 @@ CREATE TABLE IF NOT EXISTS worker_alerts (
   tick(now: Date = this.#now()): number {
     void this.#flush();
     if (policy().pins.crews === 'off') return 0;
+    // V3.3 (docs/design/V3WORKFORCE.md): the weekly workforce report, on the same tick.
+    try {
+      workforceTick(this.#app, now);
+    } catch (err) {
+      console.warn(`workforce: ${(err as Error).message}`);
+    }
     for (const [id, live] of this.#live) {
       const j = this.job(id);
       const w = j ? this.get(j.workerId) : undefined;

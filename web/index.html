@@ -2058,6 +2058,7 @@
           <p class="small"><button id="lib-media-open" type="button" class="ghost small" data-owner-only>Pictures and video…</button> <button type="button" class="tip" data-tip="Edit your pictures and make short clips with ComfyUI on this computer: paint over what to change, extend, upscale, remove the background or restyle. Results and versions stay here." data-owner-only>?</button></p>
           <p class="small"><button id="lib-scan-open" type="button" class="ghost small">Scan pages…</button> <button type="button" class="tip" data-tip="Photograph a letter, a card or a whole contract with your phone or webcam. She crops and straightens each page, keeps one PDF here, reads it and finds dates to remind you of.">?</button></p>
           <p class="small"><button id="lib-journal-open" type="button" class="ghost small">Journal…</button> <button type="button" class="tip" data-tip="A minute a day: say how your day went (or type it) and tag your mood. Heard on this computer only; just for you, never in chats, memory or reports.">?</button></p>
+          <p class="small"><button id="lib-apps-open" type="button" class="ghost small">My apps…</button> <button type="button" class="tip" data-tip="Small web apps she built for you and kept: a tracker, a list, a game. Each keeps its versions (Undo any change) and its own saved data, runs sandboxed on this server, and can be shared by link.">?</button></p>
           <p class="small"><button id="lib-study-open" type="button" class="ghost small">Study…</button> <button type="button" class="tip" data-tip="Flashcards, quizzes and a summary sheet from a document, a chapter or text you paste. Cards come back when it's time to see them again (spaced repetition).">?</button></p>
           <p class="small"><button id="lib-meetings-open" type="button" class="ghost small" data-owner-only>Meetings…</button> <button type="button" class="tip" data-tip="She listens in a room you start (everyone is told first) or reads a recorded meeting, then writes a summary, decisions and action items. Notes are kept here; to-dos go to the Planner only when you add them.">?</button></p>
         </div>
@@ -2160,6 +2161,14 @@
         </div>
         <h3 class="jr-h">Entries</h3>
         <ol id="jr-list" class="jr-list" aria-label="Entries"></ol>
+      </section>
+      <!-- V3.1 (docs/MY_APPS.md): the web apps she built and kept (web/my-apps.js). -->
+      <section id="lib-apps" hidden>
+        <p><button id="myap-back" type="button" class="ghost small">← All documents</button></p>
+        <h2>My apps <button type="button" class="tip" data-tip="Each app runs in a sandbox: it never gets your Sara sign-in and can't reach the internet, only its own saved data. Undo goes back one version; the saved data stays.">?</button></h2>
+        <p class="muted small">Ask her in a chat ("make me an app to track my plants"), try it, then say "keep it". To change one, tell her what to change.</p>
+        <p id="myap-status" class="small" role="status" aria-live="polite"></p>
+        <div id="myap-list" class="myap-list" data-nodirty data-noauto></div>
       </section>
       <!-- EC19 (docs/MEETINGS.md): meeting rooms and meeting notes (web/meetings.js). -->
       <section id="lib-meetings" hidden>
@@ -3744,6 +3753,10 @@
       <h3>Booking page <button type="button" class="tip" data-tip="A public link where people book a free time with you. Off until you turn it on; free times come from your calendars and planner.">?</button></h3>
       <p id="wa-book-status" class="muted small" role="status"></p>
       <div id="wa-book" data-nodirty data-noauto></div>
+      <!-- V3.5 (docs/RECEPTION.md): the website receptionist (web/receptionist.js). -->
+      <h3>Website receptionist <button type="button" class="tip" data-tip="A chat for your own website: it answers from documents you pick, offers free times, and every booking waits for your OK.">?</button></h3>
+      <p id="rc-status" class="muted small" role="status"></p>
+      <div id="rc-box" data-nodirty data-noauto></div>
       <h3>Accounting export <button type="button" class="tip" data-tip="CSV files of your invoices, expenses and time for QuickBooks Online, Xero or any spreadsheet. Files only: nothing is sent to an accounting service.">?</button></h3>
       <div id="wa-acct" data-nodirty data-noauto></div>
         </section>
@@ -3957,7 +3970,7 @@
       </div>
       <h3>Share something <button type="button" class="tip" data-tip="Only text and definitions cross: a skill's text, an automation's steps, a team plan, a Store link. Secrets, files and code never do; your Sara checks before sending.">?</button></h3>
       <div id="mk-share-box" data-nodirty data-noauto>
-      <label class="mk-field">What <button type="button" class="tip" data-tip="Skills and templates arrive on trial, automations arrive paused, Store add-ons are only a link to the Store's own review card.">?</button><select id="mk-kind"><option value="skill">Skill</option><option value="template">Template</option><option value="automation">Automation</option><option value="team">Team recipe</option><option value="addon">Store add-on</option></select></label>
+      <label class="mk-field">What <button type="button" class="tip" data-tip="Skills and templates arrive on trial, automations and workers arrive paused, Store add-ons are only a link to the Store's own review card.">?</button><select id="mk-kind"><option value="skill">Skill</option><option value="template">Template</option><option value="automation">Automation</option><option value="team">Team recipe</option><option value="addon">Store add-on</option><option value="worker">Worker</option></select></label>
       <label class="mk-field" id="mk-item-row">Which one <button type="button" class="tip" data-tip="One of your own skills, automations or team recipes. Your saved keys and settings are never part of it.">?</button><select id="mk-item"></select></label>
       <label class="mk-field" id="mk-title-row" hidden>Name <button type="button" class="tip" data-tip="A template's name, or the add-on's id as the Store shows it (for example weather).">?</button><input id="mk-title" type="text" maxlength="80" autocomplete="off"></label>
       <label class="mk-field" id="mk-text-row" hidden>Template text <button type="button" class="tip" data-tip="The prompt or workflow in plain words. It becomes a skill on trial for whoever installs it.">?</button><textarea id="mk-text" rows="4" maxlength="24000"></textarea></label>
@@ -4086,6 +4099,12 @@
         <button id="ghw-check" type="button" class="ghost">Look now</button>
       </div>
       <p id="ghw-status" class="muted small" role="status"></p>
+      <h3>Fix an issue <button type="button" class="tip" data-tip="One button per open issue: her team fixes it in a worktree of its own, runs the tests until they pass and reviews it. The pull request opens only after your OK.">?</button></h3>
+      <div id="fx-box" data-nodirty data-noauto>
+        <div class="add-row"><label>Repository <input id="fx-repo" list="fx-repos" maxlength="200" placeholder="owner/name" autocomplete="off"></label><datalist id="fx-repos"></datalist><button id="fx-show" type="button" class="ghost">Show issues</button></div>
+        <p id="fx-status" class="muted small" role="status"></p>
+        <ul id="fx-list" class="fx-list"></ul>
+      </div>
       <h3>Her commits <button type="button" class="tip" data-tip="Her commits end with a Co-authored-by line naming her, so GitHub shows who helped. Leave name and email empty for her name and an address that reaches nobody.">?</button></h3>
       <label class="row"><input id="ca-on" type="checkbox"> Name her as co-author</label>
       <div class="add-row">

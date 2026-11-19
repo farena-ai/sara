@@ -186,6 +186,14 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .wr-failed-list > li, .wr-preview-list > li { border-top: 1px solid var(--line); padding-top: 4px; }
 .wr-failed-list p, .wr-preview-list p { margin: 2px 0; overflow-wrap: anywhere; }
 .wr-import { display: inline-flex; align-items: center; gap: 4px; }
+/* V3.3: Workers that stay → Weekly report (web/workers.js). */
+.wr-report { margin-top: 14px; }
+#team .wr-report .wr-report-on:not(#_) { display: flex; flex-direction: row; align-items: center; justify-content: flex-start; gap: 8px; width: auto; margin: 4px 0; }
+#team .wr-report .wr-report-on:not(#_) input { width: 18px; height: 18px; flex: 0 0 auto; margin: 0; }
+.wr-report-when { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 6px 0; }
+#team .wr-report .wr-report-field:not(#_) { display: flex; flex-direction: column; align-items: stretch; gap: 4px; flex: 1 1 12rem; max-width: 20rem; }
+#team .wr-report .wr-report-field > span { display: inline-flex; align-items: center; gap: 6px; }
+.wr-report-where, .wr-report-list p { overflow-wrap: anywhere; }
 @media (max-width: 600px) {
   #team .rt-field > span:first-child { min-width: 0; flex: 1 1 100%; }
 }
@@ -244,6 +252,34 @@ button.rt-setup-first:hover { background: var(--accent-soft); filter: none; }
 .adst-note:empty { display: none; }
 .adst-posts { margin: 0; overflow-wrap: anywhere; }
 .atm-card .adst-pick { flex-basis: auto; }
+/* V3.2 step list editor and per-run steps */
+.atm-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.atm-step { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-radius: var(--r-card); background: var(--surface-1); padding: 6px 8px; min-width: 0; }
+.atm-step.atm-step-new { border-style: dashed; }
+.atm-step.atm-dragging { opacity: 0.5; }
+.atm-step.atm-drop { border-color: var(--accent); }
+.atm-grip { cursor: grab; color: var(--text-2); user-select: none; }
+.atm-step-n { color: var(--text-2); font-variant-numeric: tabular-nums; }
+.atm-step-main { flex: 1 1 auto; min-width: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; color: var(--text-1); }
+.atm-step-main input:not(#_) { flex: 1 1 220px; min-width: 0; max-width: none; }
+.atm-step-kind { flex: 0 0 7.5em; overflow-wrap: anywhere; }
+.atm-step-does { overflow-wrap: anywhere; }
+.atm-step-ctl { flex: 0 0 auto; gap: 2px; }
+#settings .atm-steps .atm-add-step:not(#_) { align-self: flex-start; min-height: 26px; padding: 0 8px; margin-left: 28px; border-style: dashed; color: var(--text-2); font-size: 0.85em; background: transparent; }
+#settings .atm-steps .atm-add-step:not(#_):hover { color: var(--text-1); border-color: var(--accent); }
+.atm-steps-box > button:last-child { align-self: flex-start; }
+.atm-steps-head { align-items: center; gap: 6px; }
+.atm-run-steps { margin: 4px 0; padding-left: 20px; display: flex; flex-direction: column; gap: 2px; }
+.atm-rs { overflow-wrap: anywhere; }
+.atm-rs > span + span { margin-left: 6px; }
+.atm-rs-does { color: var(--text-1); }
+#settings .atm-run details.atm-run-fold:not(#_) { display: block; overflow: hidden; }
+@media (max-width: 520px) {
+  .atm-step { flex-wrap: wrap; }
+  .atm-step-main { flex-basis: calc(100% - 48px); }
+  .atm-step-ctl { margin-left: auto; }
+  #settings .atm-steps .atm-add-step:not(#_) { min-height: 36px; margin-left: 0; }
+}
 @media (max-width: 720px) { .adst-pick { flex: 1 1 100%; } .adst-ctl select { max-width: none; } }
 .et-tools { flex-wrap: wrap; gap: 4px 12px; }
 .et-form .rt-field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 8px; }

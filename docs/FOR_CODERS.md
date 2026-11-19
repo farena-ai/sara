@@ -164,6 +164,27 @@ and nothing switches on by itself. `sara pack` checks your own plugin, skill or 
 submit it. Guide: [Store guide](STORE.md); servers over SSH: [SSH.md](SSH.md) (connect
 from a chat with one card since 2.52.1).
 
+## Fix this issue (V3.4)
+
+*Settings → Connections → Apps and services → GitHub → Fix an issue* lists a repository's open issues
+(type `owner/name`, or leave it empty for the repositories you watch). Each issue has one button,
+**Fix this issue**:
+
+1. She clones the repository (once) and makes a **worktree of its own** for the issue (branch
+   `sara/issue-<n>-…`), so your main checkout stays clean and several issues can be worked at once.
+2. Her team works it: the coder fixes it, the tester runs the project's tests (their exit code counts,
+   not what anyone says) and a failure goes back to the coder until they pass (up to 2 rounds), then
+   the reviewer reads the change. Commands a helper runs get the usual sandbox try and approval cards.
+3. A **pull-request card** shows what changed (files, +/−, the branch), the test run, the review and how
+   many rounds it took. The issue's own chat gets the same summary.
+4. **Nothing reaches GitHub until you press Open the pull request.** Then she commits, pushes the
+   branch, opens the pull request (it closes the issue) and posts her review on it. **Not now** stops
+   there; the work stays in its worktree, where you can keep chatting in the issue's chat, open a pull
+   request later, merge or discard it (the chat's worktree card).
+
+The issue's text is treated as information, never as instructions. The same worktree is used when you
+start an issue from *Team → From a GitHub issue* or ask her in chat (`work_on_issue`).
+
 ## Commands you can type
 
 Type `/` at the start of the message box for this list; the same commands work in Telegram, Discord and the

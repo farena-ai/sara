@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Your own apps and agents: My apps, automation replay, workforce report, Fix this issue, website receptionist, in 3.28.0
+
+Ask for a small web app and keep it, with versions and Undo; apps run sandboxed and never get your sign-in.
+Automation runs show each step and can be run again with the same input. Workers send a weekly report, and
+workers can be hired from the marketplace in one click (paused). Fix this issue works a GitHub issue in its own
+branch and opens the pull request only after you approve. A website receptionist answers visitors from the
+documents you pick, refuses off-topic questions and books only with your OK.
+
 ## Life autopilot: renewals, purchases, home, audio briefing, scanning, upkeep, gifts and more, in 3.27.0
 
 Passport, license, registration and insurance dates join one Renewals list with reminders and a renewal errand.

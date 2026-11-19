@@ -47,6 +47,8 @@ import { createErrandTools } from './tools/errands.ts';
 import { LongGoals } from './long-goals.ts';
 import { Study } from './study.ts';
 import { createStudyTools } from './tools/study.ts';
+import { createMyAppsTools } from './tools/my-apps.ts';
+import { myAppSpace } from './my-apps.ts';
 import { MediaStudio } from './media-studio.ts';
 import { createMediaTools } from './tools/media.ts';
 import { createLongGoalTools } from './tools/long-goals.ts';
@@ -1658,6 +1660,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     // U4.23 (docs/LEARNING.md): the learning coach, each space's own (members and kids too).
     app.study = new Study(app, store.db);
     for (const t of createStudyTools(() => app)) tools.add(t);
+    // V3.1 (docs/MY_APPS.md): keeping the small web apps she builds, each space's own.
+    for (const t of createMyAppsTools(() => app)) tools.add(t);
     // U4.28 (docs/PICTURES.md): picture editing and short video with the owner's ComfyUI (owner only).
     if (!isMember) {
       app.media = new MediaStudio(app, store.db);
@@ -2092,6 +2096,9 @@ if (!isDemo) setTimeout(() => guard('household', householdSweep), 60_000).unref(
  */
 function spaceByCredential(req: IncomingMessage): Space | undefined {
   if (!memberSpaces.size) return undefined;
+  // V3.1: a kept app's address names its space (that space checks the token; cookies are ignored).
+  const appSpace = myAppSpace(req.url);
+  if (appSpace) return appSpace === 'owner' ? ownerSpace : memberSpaces.get(appSpace);
   const cookie = cookieValue(req, SESSION_COOKIE);
   if (cookie) {
     if (auth.sessionId(cookie)) return ownerSpace;

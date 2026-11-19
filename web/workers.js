@@ -62,10 +62,16 @@ export async function loadWorkers() {
       void loadWorkers();
     }));
     acts.append(importButton());
+    // V3.3: hire a worker someone shared (Get more → Shared by friends).
+    acts.append(btn(t('Find workers to hire'), 'ghost small', () => {
+      $('#team')?.close?.();
+      location.hash = '#view=settings:ab-store';
+    }));
     rows.push(acts);
   }
   if (preview) rows.push(previewBox());
   rows.push(failedBox());
+  rows.push(reportBox());
   host.replaceChildren(...rows);
 }
 
@@ -208,6 +214,109 @@ function failedBox() {
   }
   box.append(list);
   return box;
+}
+
+// V3.3 (docs/design/V3WORKFORCE.md): the weekly workforce report: what each worker did, cost and
+// failed, sent once a week where the "Workforce report" alerts go (its own chat, Telegram…).
+let report = null;
+let reportOpen = false;
+const pick = (opts, value) => {
+  const s = document.createElement('select');
+  for (const [v, label] of opts) s.append(Object.assign(document.createElement('option'), { value: v, textContent: label, selected: String(v) === String(value ?? '') }));
+  return s;
+};
+function reportBox() {
+  const box = el('div', 'wr-report');
+  const h = el('h4', '', t('Weekly report'));
+  h.append(tip(t('Once a week she sends what each worker did: jobs done and failed, tokens and cost, what it made. Only weeks when a worker did something.')));
+  box.append(h);
+  const body = el('div', 'wr-report-body');
+  box.append(body);
+  void fillReport(body);
+  return box;
+}
+async function fillReport(body) {
+  try {
+    report = await ctx.api('/workers/report');
+  } catch (e) {
+    body.replaceChildren(el('p', 'muted small', e.message));
+    return;
+  }
+  const lang = document.documentElement.lang || undefined;
+  const status = el('p', 'muted small wr-report-status');
+  status.setAttribute('role', 'status');
+  const save = async (patch) => {
+    try {
+      const r = await ctx.api('/workers/report/settings', { method: 'PUT', body: patch });
+      report.prefs = r.prefs;
+      status.textContent = t('Saved.');
+    } catch (e) {
+      status.textContent = e.message;
+    }
+  };
+  const on = Object.assign(document.createElement('input'), { type: 'checkbox', id: 'wr-report-on', checked: report.prefs.on });
+  on.addEventListener('change', () => void save({ on: on.checked }));
+  const onRow = el('label', 'wr-report-on small');
+  onRow.append(on, document.createTextNode(` ${t('Send me a weekly report')}`));
+  const days = Array.from({ length: 7 }, (_, i) => [i, new Intl.DateTimeFormat(lang, { weekday: 'long', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 10, 15 + i, 12)))]);
+  const day = pick(days, report.prefs.day);
+  day.id = 'wr-report-day';
+  day.addEventListener('change', () => void save({ day: Number(day.value) }));
+  const hours = Array.from({ length: 24 }, (_, i) => [i, new Intl.DateTimeFormat(lang, { hour: 'numeric', minute: '2-digit', timeZone: 'UTC' }).format(new Date(Date.UTC(2026, 10, 15, i)))]);
+  const hour = pick(hours, report.prefs.hour);
+  hour.id = 'wr-report-hour';
+  hour.addEventListener('change', () => void save({ hour: Number(hour.value) }));
+  const when = el('div', 'wr-report-when');
+  const lab = (text, ctl, help) => {
+    const l = el('label', 'wr-report-field small');
+    const s = el('span', '', text);
+    s.append(' ', tip(help));
+    l.append(s, ctl);
+    return l;
+  };
+  when.append(lab(t('Day'), day, t('The day it comes, in your time zone.')), lab(t('From'), hour, t('The earliest hour it comes that day. If Sara was off, it comes the next time she is on.')));
+  const where = el('p', 'muted small wr-report-where', t('Goes to: {where}', { where: report.postsTo }));
+  const change = btn(t('Change where it goes'), 'linkish small', () => {
+    $('#team')?.close?.();
+    location.hash = '#view=settings:you-automations';
+  });
+  where.append(' ', change, tip(t('It goes where Workforce report alerts go: its own chat by default, or a project, one of your chats, Telegram or Discord. Change it in Automations → Where alerts go.')));
+  const acts = el('div', 'rt-more-acts');
+  acts.append(btn(reportOpen ? t('Hide this week') : t('Show this week'), 'ghost small', () => {
+    reportOpen = !reportOpen;
+    void fillReport(body);
+  }));
+  acts.append(btn(t('Send it now'), 'ghost small', async () => {
+    try {
+      const r = await ctx.api('/workers/report/send', { method: 'POST', body: {} });
+      status.textContent = t('Sent to {where}.', { where: r.postsTo });
+    } catch (e) {
+      status.textContent = e.message;
+    }
+  }));
+  const rows = [onRow, when, where, acts];
+  if (reportOpen) rows.push(reportTable(report.report));
+  rows.push(status);
+  body.replaceChildren(...rows);
+}
+function reportTable(r) {
+  const list = el('ul', 'wr-failed-list wr-report-list');
+  const money = (w) => (w.usd > 0 ? (w.usd < 0.01 ? t('less than $0.01') : t('about {usd}', { usd: `$${w.usd.toFixed(2)}` })) : w.unpriced ? t('cost unknown') : '');
+  for (const w of r.workers) {
+    const li = el('li', 'small');
+    const head = el('strong', '', w.name);
+    li.append(head);
+    const bits = [t('{done} done, {failed} failed, {waiting} waiting', { done: w.done, failed: w.failed, waiting: w.waiting })];
+    if (w.tokens) bits.push(t('{n} tokens', { n: w.tokens.toLocaleString() }));
+    if (money(w)) bits.push(money(w));
+    li.append(el('p', 'muted', w.done || w.failed || w.waiting ? bits.join(' · ') : t('Nothing this week.')));
+    for (const o of w.outputs) li.append(el('p', '', `✓ ${o.title}${o.text ? `: ${o.text}` : ''}`));
+    for (const f of w.failures) li.append(el('p', 'wr-needs', `✗ ${f.title}${f.error ? `: ${f.error}` : ''}`));
+    if (w.conversationId) li.append(btn(t('Open its chat'), 'ghost small', () => void openChat(w.conversationId)));
+    list.append(li);
+  }
+  if (!r.workers.length) list.append(el('li', 'muted small', t('No workers yet. Make one from a helper or a crew member.')));
+  return list;
 }
 
 function workerForm(w) {

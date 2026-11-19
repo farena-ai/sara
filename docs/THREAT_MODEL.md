@@ -161,6 +161,20 @@ What runs in a preview is code she (or a repository) wrote, so it is treated as 
   after the turn or 5 idle minutes); a local process that finds it could drive that browser, which
   itself can only reach previews.
 
+### 4c. Kept apps (My apps, V3.1)
+A kept app is the same kind of untrusted code as a preview, kept on the server (docs/MY_APPS.md).
+- Only static files are kept (an allowlist of page, style, script, picture, font and data types;
+  no dotfiles, no `..`, at most 60 files / 4 MB). Nothing the model wrote runs on the server.
+- Served only under `/myapp/<space>/<128-bit random token>/`; the token is the only key (cookies
+  and `Authorization` are never read there) and is not a Sara credential. `<space>` only tells the
+  front server which person's space to ask; that space checks the token and answers 404 otherwise.
+- Every response carries `Content-Security-Policy: sandbox …` without `allow-same-origin`, plus
+  `connect-src 'self'`: the page has an opaque origin (no Sara cookies, storage or API) and can't
+  send its data to other sites. No Set-Cookie, `Referrer-Policy: no-referrer`, `no-store`.
+- Its data store (`_data/<name>`, 100 names, 64 KB each, 1 MB in all) is per app: the open link
+  reads and writes, a share link (expiring, revocable at once) only reads. Undo never touches it;
+  deleting the app deletes it.
+
 ### 5. A hostile repository
 - Every git command Sara runs herself has hooks, fsmonitor, pagers, external diff and text
   conversion, credential helpers, proxy commands and the `ext::` protocol switched off on the

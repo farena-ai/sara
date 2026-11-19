@@ -5,6 +5,40 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.28.0 (2026-11-18): My apps, automation replay, workforce report, Fix this issue, website receptionist
+
+- New: Automation steps and replay (Settings → You → Automations): **Steps** opens an automation's step
+  list. Drag a step or use its arrows to change the order, add a step between two others, change
+  what a message or task says, or remove one; each change saves at once (locked while a run waits for
+  your OK). **History** now shows every run's steps, with what each step was and how it went, and a
+  finished run has **Run again with this input**, which runs it once more with the same start on the
+  same runner (approvals and limits apply; once per run) (docs/AUTOMATIONS.md "Steps and replay").
+- New: Workforce report and one-click hire: once a week (Team → Workers that stay → Weekly report; default
+  Monday 9 AM, only when a worker did something) Sara sends what each worker did: jobs done and
+  failed, jobs waiting, tokens and cost, what it made and why jobs failed. It goes where the new
+  "Workforce report" alerts go (its own chat by default, or a project, a chat, Telegram, Discord);
+  Show this week and Send it now are on the same card. Workers can now be shared in Get more → Shared
+  by friends: Review and hire shows what each worker may do and its budget, Hire adds it paused with
+  that budget (never with memories, never with Run commands) (docs/WORKERS.md).
+- New: Fix this issue (Settings → Connections → Apps and services → GitHub → Fix an issue): a repository's
+  open issues, each with one button. Her team fixes it in a worktree of its own, runs the tests until
+  they pass, reviews it and shows a pull-request card (files changed, test run, review) in Settings
+  and in the issue's chat. Nothing goes to GitHub until you press Open the pull request; Not now keeps
+  the work in its worktree. Issues started from Team or in chat also get their own worktree now
+  (docs/FOR_CODERS.md "Fix this issue").
+- New: My apps (Library → My apps): ask her for a small web app in a chat, try it and say "keep it". Kept
+  apps stay on your own server with every version: Undo last change, or go back to any version;
+  what the app saved stays. Open it, look at it inside the Library, or share a read-only link that
+  ends when you choose. Apps run sandboxed: they never get your Sara sign-in, can't reach the
+  internet and keep only their own small data. Each household member has their own.
+- New: Website receptionist (Settings → You → Business details → Website receptionist): a chat for your own
+  website, added with one line of code. It answers visitors only from the Library documents you tick and
+  your business details, follows your business rules in your own words, refuses other topics, and
+  always says it is an AI assistant. With *Offer free times* on, visitors pick a free time from your
+  booking page and leave a request that always waits for your OK (even when the booking page confirms
+  on its own). No tools, a daily question limit, limits per visitor, and a list of what visitors asked
+  lately (docs/RECEPTION.md).
+
 ## 3.27.0 (2026-11-18): Renewals, purchases, Home Assistant scenes, audio briefing, scan pages, upkeep, gifts
 
 - New: Car and house upkeep (Settings → You → My details → Car and house upkeep): add the usual schedule

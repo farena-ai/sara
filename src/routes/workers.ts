@@ -13,10 +13,14 @@
 //   POST   /api/workers/import                {bundle, confirm: true} → {workers}
 //   POST   /api/workers/jobs/:jid/replay      → {job}
 //   POST   /api/workers/jobs/:jid/drop        → {ok}
+//   GET    /api/workers/report?days=7         {report, text, prefs, postsTo}   V3.3 weekly workforce report
+//   PUT    /api/workers/report/settings       {on, day, hour} → {prefs, postsTo}
+//   POST   /api/workers/report/send           → {conversationId, postsTo}   send it now
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { policy } from '../policy-profile.ts';
 import { teamHelpers } from '../team.ts';
 import { TOOL_GROUPS, WorkerError } from '../workers.ts';
+import { sendWorkforceReport, setWorkforcePrefs, WorkforceError, workforcePostsTo, workforcePrefs, workforceReport, workforceText } from '../workforce.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
 
 export function createWorkerRoutes(ctx: RouteCtx): RouteHandler {
@@ -54,6 +58,28 @@ export function createWorkerRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, { worker: wrap(() => wk.create(body)) });
       }
       throw new HttpError(405, 'Method not allowed');
+    }
+    if (b === 'report') {
+      // V3.3 (docs/design/V3WORKFORCE.md): the weekly workforce report.
+      if (!c && method === 'GET') {
+        const days = Number(new URL(req.url ?? '/', 'http://x').searchParams.get('days') ?? 7) || 7;
+        const report = workforceReport(app, { days });
+        return send(res, 200, { report, text: workforceText(app, report), prefs: workforcePrefs(app), postsTo: workforcePostsTo(app) });
+      }
+      if (c === 'settings' && method === 'PUT') {
+        const body = await readJson(req);
+        try {
+          return send(res, 200, { prefs: setWorkforcePrefs(app, body), postsTo: workforcePostsTo(app) });
+        } catch (err) {
+          if (err instanceof WorkforceError) throw new HttpError(400, err.message);
+          throw err;
+        }
+      }
+      if (c === 'send' && method === 'POST') {
+        await readJson(req).catch(() => ({}));
+        return send(res, 200, { conversationId: sendWorkforceReport(app) ?? null, postsTo: workforcePostsTo(app) });
+      }
+      throw new HttpError(404, 'Not found');
     }
     if (b === 'import' && method === 'POST') {
       const body = await readJson(req);

@@ -367,7 +367,9 @@ export class Booking {
   }
 
   /** A visitor's request (already past the honeypot and the rate limit). */
-  async request(v: { slot: string; name: string; email: string; note: string }): Promise<BookingRequest> {
+  // V3.5: `ask` keeps it waiting for the person's OK whatever the page's setting (the website
+  // receptionist's requests); `via` is said in the note and the notice.
+  async request(v: { slot: string; name: string; email: string; note: string }, o: { ask?: boolean; via?: string } = {}): Promise<BookingRequest> {
     const s = this.store.settings();
     const name = clean(v.name, 80);
     const email = clean(v.email, 200).toLowerCase();
@@ -379,10 +381,10 @@ export class Booking {
     const free = await this.slots();
     if (!free.some((d) => d.getTime() === start.getTime())) throw new BookingError(en('Sorry, that time was just taken. Please pick another one.'), 409);
     const end = new Date(start.getTime() + s.duration * 60_000);
-    const r = this.store.add({ start: start.toISOString(), end: end.toISOString(), name, email, note }, this.#app.now());
-    if (s.approval === 'auto') return this.confirm(r.id);
+    const r = this.store.add({ start: start.toISOString(), end: end.toISOString(), name, email, note: o.via ? `(${o.via}) ${note}`.trim().slice(0, 1000) : note }, this.#app.now());
+    if (s.approval === 'auto' && !o.ask) return this.confirm(r.id);
     const notify = this.#deps.notify ?? ((title: string, text: string) => this.#app.push?.notifyOwner(title, text, '', `booking-${r.id}`) ?? Promise.resolve());
-    await notify(`Booking request: ${name}`, `${whenText(r.start, this.tz)}${note ? ` · ${note.slice(0, 120)}` : ''}. Confirm it in Settings → Business details → Booking page.`).catch(() => undefined);
+    await notify(`Booking request: ${name}${o.via ? ` (${o.via})` : ''}`, `${whenText(r.start, this.tz)}${note ? ` · ${note.slice(0, 120)}` : ''}. Confirm it in Settings → Business details → Booking page.`).catch(() => undefined);
     return r;
   }
 

@@ -21,6 +21,10 @@ Nothing executable crosses: no scripts, files or code, no keys or settings value
 Each listing has a name, a description, a version, the author's server name, the permissions it needs
 (tool names and setting names it works best with) and a content hash.
 
+Since V3.3 a **worker** can be shared too (docs/WORKERS.md "Hire a worker someone shared"): the worker
+bundle without memories, hired paused with its budget preset; shared workers never have the Run
+commands or Hand work to a coding agent groups.
+
 ## Checks (on the receiving server, before every install)
 
 - **Content hash**: recomputed here over everything shown (id, kind, text, version, author,

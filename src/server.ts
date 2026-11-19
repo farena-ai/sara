@@ -2,6 +2,7 @@
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
 import { countModels } from './model-names.ts';
+import { serveMyApp } from './my-apps.ts';
 import { usePathOf } from './settings.ts';
 import { clearTodayCache } from './today.ts';
 import { mailAccountsForState } from './mail/accounts.ts';
@@ -145,6 +146,7 @@ import { ssoOwnerRoute, ssoPeople, ssoPublicRoute } from './routes/sso.ts';
 import { HomeSso } from './home-sso.ts';
 import { extOrigin } from './extension.ts';
 import { createBookingPublic, createBookingRoutes } from './routes/booking.ts';
+import { createReceptionPublic } from './routes/reception.ts';
 import { createMcpAppRoutes } from './routes/mcp-apps.ts';
 import { createEditorRoutes } from './routes/editor.ts';
 import { createWorktreeRoutes } from './routes/worktrees.ts';
@@ -1185,6 +1187,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // R6 (docs/WORK_APPS.md): booking pages and accounting exports (src/routes/booking.ts).
   const bookingPublic = createBookingPublic({ opts, ownerLang: () => appLanguage(app.settings.get()) });
   const bookingRoutes = createBookingRoutes(ctx);
+  // V3.5 (docs/RECEPTION.md): the website receptionist's public chat (src/routes/reception.ts).
+  const receptionPublic = createReceptionPublic({ opts, ownerLang: () => appLanguage(app.settings.get()), webDir: opts.webDir });
   const deliveryRoutes = createDeliveryRoutes(ctx);
   const operationsRoutes = createOperationsRoutes(ctx, operations);
   // EC28: the readiness and recovery center (src/routes/readiness.ts).
@@ -2672,6 +2676,11 @@ export function createSaraServer(opts: ServerOptions): Server {
         if (!app.previews || opts.demo) throw new HttpError(404, 'Not found');
         return await app.previews.handle(req, res, rawTarget);
       }
+      // V3.1 My apps: kept apps, authorised by the token in the address only (src/my-apps.ts).
+      if (rawTarget.startsWith('/myapp/')) {
+        if (opts.demo) throw new HttpError(404, 'Not found');
+        return await serveMyApp(app, req, res, rawTarget);
+      }
       const url = new URL(req.url ?? '/', 'http://localhost');
       // Phase 57: other apps, with an API key: the OpenAI-compatible API and the MCP server.
       // Phase 71: a paused or leaving member's API keys stop working.
@@ -2736,6 +2745,7 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (url.pathname.startsWith('/s/') && sharePublic(req, res, url.pathname)) return;
       // R6: a public booking page (no sign-in; off unless its owner turned it on).
       if (url.pathname.startsWith('/book/') && (await bookingPublic(req, res, url.pathname))) return;
+      if ((url.pathname === '/reception.js' || url.pathname.startsWith('/reception/')) && (await receptionPublic(req, res, url.pathname))) return;
       // V2.4: the private briefing podcast feed (no sign-in; its token is the key; off unless made).
       if (url.pathname.startsWith('/feed/briefing/') && method === 'GET' && !opts.demo && !opts.member && (await import('./briefing-audio.ts')).serveFeed(app, url.pathname, `${isHttps(req) ? 'https' : 'http'}://${req.headers.host}`, res)) return;
       if (url.pathname.startsWith('/api/')) {

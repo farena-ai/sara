@@ -53,6 +53,23 @@ it) are filled in.
 link to its chat. Three failed runs in a row pause the automation and tell you why. Today shows an
 **Automations** tile only when one failed, waits for your OK or runs today.
 
+## Steps and replay
+
+**Steps** on an automation's row opens its step list, in the order they run. Drag a step (or use its
+↑ ↓ buttons, which also work by keyboard and on a phone) to change the order, **+ Add a step here**
+puts a new message ("Tell me") or task ("Ask Sara to do") between two others, the text box changes
+what a message or task says, and ✕ removes a step. Each change saves at once; one automation keeps
+up to six steps. While a run waits for your OK the order is locked (answer it first), so the OK
+always goes to the step you saw.
+
+In **History** every run lists its steps: what each one was when it ran and how it went (done,
+failed, waiting, you said no). The newest run and any run that went wrong are open; older ones fold
+under *Steps (n)*. A finished run has **Run again with this input**: the automation runs again now,
+with its steps as they are today and the same start (the email, webhook or *Run now* that started
+it). A test run replays as a test. Each run can be run again once; the new run says it is a replay
+and the old one points at it, so a double tap never makes two runs. It is the same runner as *Run
+now*: approvals, spend limits and the failure pause all apply.
+
 ## The time sheet starter
 
 *Fill my time sheet every week* runs every Friday at 3 PM. It reads the week's work events from your

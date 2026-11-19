@@ -182,6 +182,7 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^goal_(create|status|update)$/, 'goals', 'goals over days'],
   // U4.23: the learning coach (docs/LEARNING.md).
   [/^study_(make|list|quiz|answer)$/, 'study', 'study cards and quizzes'],
+  [/^app_(keep|edit|undo|read|list)$/, 'myapps', 'apps she built for you'],
   // U4.28: picture editing and short video with ComfyUI (docs/PICTURES.md).
   [/^(picture_edit|video_make)$/, 'media', 'picture editing and video'],
   // S2: meeting notes (docs/MEETINGS.md).
@@ -365,6 +366,13 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'bild bearbeiten', 'foto bearbeiten', 'entferne', 'hintergrund', 'hochskalieren', 'kurzes video', 'animieren',
     'editar a foto', 'editar a imagem', 'remova', 'apague', 'fundo', 'aumentar', 'video curto',
     'modifica la foto', 'rimuovi', 'cancella', 'sfondo', 'ingrandisci', 'video breve', 'animare'],
+  // V3.1 (docs/MY_APPS.md): small web apps she builds and keeps on Library → My apps.
+  myapps: ['make me an app', 'build me an app', 'build an app', 'make an app', 'an app for', 'little app', 'small app', 'mini app', 'web app', 'my apps', 'keep the app', 'keep this app', 'save the app', 'the app you made', 'the app you built', 'undo the app', 'tracker app',
+    'hazme una app', 'crea una app', 'una aplicacion', 'mis apps', 'mis aplicaciones',
+    'fais moi une app', 'cree une app', 'une application', 'mes apps', 'mes applications',
+    'bau mir eine app', 'erstelle eine app', 'eine app', 'meine apps', 'kleine app',
+    'faca um app', 'crie um app', 'um aplicativo', 'meus apps', 'meus aplicativos',
+    'fammi una app', 'crea un app', 'un applicazione', 'le mie app', 'mie app'],
   // U4.23 (docs/LEARNING.md): study sets, flashcards and quizzes.
   study: ['study', 'studying', 'flashcards', 'flash cards', 'flashcard', 'quiz me', 'quiz', 'test me', 'revise', 'revision', 'exam', 'study set', 'cards due', 'learn this', 'memorize',
     'estudiar', 'tarjetas', 'examen', 'repasar', 'cuestionario',

@@ -53,3 +53,22 @@ paused**; imported workers start paused so you can look them over and turn them 
 
 Only the owner can use workers. If your admin turned **Crews** off (Settings → Policy), workers are
 off too and their queues wait.
+
+## Weekly report
+
+Once a week Sara sends a short report of what each worker did: jobs done and failed, jobs still
+waiting, tokens and cost (from the usage meter), a few things it made and why jobs failed. It comes on
+the day and from the hour you pick (Team → Workers that stay → Weekly report; default Monday 9 AM in
+your time zone), only in weeks when a worker did something. It goes where **Workforce report** alerts
+go: its own chat by default; change it to a project, one of your chats, Telegram or Discord in
+Settings → You → Automations → Where alerts go (or ask her: "put my workforce report on Telegram").
+**Show this week** shows the same numbers in place; **Send it now** sends it at once.
+
+## Hire a worker someone shared
+
+A friend or someone in your community can share a worker (and the workers it leads) in Get more →
+Shared by friends. **Review and hire** shows each worker, what it may do and its budget preset
+(tokens a day, minutes a job); your Sara checks it first (no secrets, no memories of old jobs, never
+"Run commands" or "Hand work to a coding agent"). **Hire** adds them paused in Team → Workers that
+stay with that budget; turn them on there. A newer version is offered as an update and never applies
+itself. **Find workers to hire** in Workers that stay takes you to the shelf.

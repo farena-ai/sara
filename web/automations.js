@@ -4,6 +4,9 @@
 // runs, the next three times and the approvals; Try it is a dry run (nothing is done); Turn it on
 // makes it. Each row: on/off, History, Edit (name, time), Ask Sara to change it, Delete. Runs that
 // wait for an OK show Allow and Decline. Nothing here calls a model.
+// V3.2: Steps opens the step list (drag or arrows to reorder, add a step between, change its words,
+// remove; each change saves at once); History shows every run's steps and outcome, and a finished run
+// has "Run again with this input" (once per run, same trigger detail, same runner).
 import { t } from './naming.js';
 
 /** @type {{ api: (path: string, o?: object) => Promise<any>, el: (tag: string, cls?: string, text?: string) => HTMLElement, openConversation?: (id: string) => void, askSara?: (text: string, conversationId?: string | null) => void, openSettings?: (page: string) => void } | null} */
@@ -114,6 +117,7 @@ function itemRow(x) {
   const acts = el('div', 'row atm-acts');
   acts.append(btn(t('History'), 'ghost small', () => void toggleHistory(x, row)));
   if (x.source === 'automation') {
+    acts.append(btn(t('Steps'), 'ghost small', () => stepEditor(x, row)));
     acts.append(btn(t('Run now'), 'ghost small', () => void runNow(x)));
     acts.append(btn(t('Try it'), 'ghost small', () => void dryRun(x)));
     acts.append(btn(t('Edit'), 'ghost small', () => editForm(x, row)));
@@ -144,14 +148,189 @@ async function toggleHistory(x, row, keep) {
   }
   const box = el('div', 'atm-history');
   if (!runs.length) box.append(el('p', 'muted small', t('It has not run yet.')));
-  for (const r of runs) {
-    const li = el('div', 'atm-run small');
-    li.append(el('span', `atm-out atm-out-${r.outcome}`, OUTCOMES()[r.outcome] ?? r.outcome), el('span', 'muted', ` ${stamp(r.at)}${r.trigger ? ` · ${r.trigger}` : ''}`));
-    if (r.summary) li.append(el('div', '', r.summary));
-    if (r.conversationId) li.append(btn(t('Open the chat'), 'ghost small', () => ctx.openConversation?.(r.conversationId)));
-    box.append(li);
-  }
+  runs.forEach((r, i) => box.append(runItem(x, r, i === 0)));
   row.querySelector('.atm-history')?.remove();
+  row.append(box);
+}
+
+/** V3.2: one run: its outcome, input, each step with what it was and how it went, and Run again. */
+function runItem(x, r, first) {
+  const li = el('div', 'atm-run small');
+  li.append(el('span', `atm-out atm-out-${r.outcome}`, OUTCOMES()[r.outcome] ?? r.outcome), el('span', 'muted', ` ${stamp(r.at)}${r.trigger ? ` · ${r.trigger}` : ''}`));
+  if (r.replayOf) li.append(el('div', 'muted', t('Run again with the input of an earlier run.')));
+  const steps = r.steps ?? [];
+  if (steps.length) {
+    const ol = el('ol', 'atm-run-steps');
+    for (const st of steps) {
+      const item = el('li', `atm-rs atm-rs-${st.status}`);
+      item.append(el('span', `atm-out atm-out-${st.status}`, OUTCOMES()[st.status] ?? st.status));
+      if (st.does) item.append(el('span', 'atm-rs-does', st.does));
+      if (st.text && st.text !== st.does) item.append(el('span', 'muted atm-rs-text', st.text));
+      ol.append(item);
+    }
+    // The newest run and any run that went wrong are open; the rest fold to keep the list short.
+    if (first || ['failed', 'declined', 'waiting'].includes(r.outcome)) li.append(ol);
+    else {
+      const fold = el('details', 'atm-run-fold');
+      fold.append(el('summary', 'muted', t('Steps ({n})', { n: steps.length })), ol);
+      li.append(fold);
+    }
+  } else if (r.summary) li.append(el('div', '', r.summary));
+  const acts = el('div', 'row atm-acts');
+  if (x.source === 'automation' && r.runId && r.outcome !== 'running' && r.outcome !== 'waiting') {
+    if (r.replayedBy) acts.append(el('span', 'muted', t('Already run again (see the newer run).')));
+    else {
+      const again = btn(t('Run again with this input'), 'ghost small', () => void replay(x, r, again));
+      again.title = t('Runs its steps as they are now, with the same start: {input}', { input: r.trigger || t('Run now') });
+      acts.append(again);
+    }
+  }
+  if (r.conversationId) acts.append(btn(t('Open the chat'), 'ghost small', () => ctx.openConversation?.(r.conversationId)));
+  if (acts.childNodes.length) li.append(acts);
+  return li;
+}
+async function replay(x, r, b) {
+  b.disabled = true;
+  try {
+    await ctx.api(`/automations/runs/${r.runId}/replay`, { method: 'POST', body: {} });
+    say(t('Started again with the same input. The new run shows at the top of its history.'));
+  } catch (e) {
+    b.disabled = false;
+    say(e.message);
+  }
+  open.add(x.key);
+  setTimeout(() => void loadAutomations(), 1500);
+}
+
+// ------------------------------------------------ V3.2 the step list
+
+const MAX_STEPS = 6;
+const KINDS = () => ({ notify: t('Tell me'), task: t('Ask Sara to do'), draft_email: t('Email draft'), fill: t('Fill a document'), recipe: t('Run a recipe'), expense: t('Add an expense'), bill: t('Add a bill') });
+const words = (a) => (a.kind === 'notify' ? a.text : a.prompt) ?? '';
+
+/** Steps: reorder by drag or arrows, add between, change the words of a message or task, remove. */
+function stepEditor(x, row) {
+  const old = row.querySelector('.atm-steps-box');
+  if (old) return old.remove();
+  let list = (x.actions ?? []).map((a, i) => ({ a: { ...a }, does: x.steps?.[i] ?? '' }));
+  let saved = list.map((s) => ({ ...s, a: { ...s.a } }));
+  let from = -1;
+  const box = el('div', 'atm-card atm-steps-box');
+  const head = el('div', 'row atm-steps-head');
+  head.append(el('strong', 'small', t('Steps, in order')), tip(t('Drag a step, or use its arrows, to change the order. Add a step between two others, change what it says, or remove it. Each change saves at once.')));
+  const ol = el('ol', 'atm-steps');
+  const note = el('p', 'muted small');
+  note.setAttribute('role', 'status');
+  const done = btn(t('Done'), 'ghost small', () => {
+    box.remove();
+    void loadAutomations();
+  });
+  box.append(head, ol, note, done);
+  const save = async (msg, focus) => {
+    const keep = list.filter((s) => !s.fresh || words(s.a).trim());
+    try {
+      const r = await ctx.api(`/automations/${encodeURIComponent(x.key)}`, { method: 'PATCH', body: { actions: keep.map((s) => s.a) } });
+      x.actions = r.automation.actions;
+      list = list.map((s) => (s.fresh && words(s.a).trim() ? { ...s, fresh: false } : s));
+      saved = list.filter((s) => !s.fresh).map((s) => ({ ...s, a: { ...s.a } }));
+      note.textContent = msg;
+    } catch (e) {
+      list = saved.map((s) => ({ ...s, a: { ...s.a } }));
+      note.textContent = e.message;
+    }
+    draw(focus);
+  };
+  const move = (i, to, focus) => {
+    if (to < 0 || to >= list.length || i === to) return;
+    const [s] = list.splice(i, 1);
+    list.splice(to, 0, s);
+    void save(t('Order saved.'), focus ? `${focus}:${to}` : undefined);
+  };
+  const addHere = (i) => {
+    const b = btn(`+ ${t('Add a step here')}`, 'ghost small atm-add-step', () => {
+      list.splice(i, 0, { a: { kind: 'notify', text: '', how: 'phone' }, does: '', fresh: true });
+      draw(`text:${i}`);
+    });
+    return b;
+  };
+  function draw(focus) {
+    ol.replaceChildren();
+    const full = list.filter((s) => !s.fresh).length >= MAX_STEPS || list.length >= MAX_STEPS;
+    list.forEach((s, i) => {
+      if (i > 0 && !full) ol.append(addHere(i));
+      const li = el('li', `atm-step${s.fresh ? ' atm-step-new' : ''}`);
+      li.draggable = true;
+      li.addEventListener('dragstart', (e) => {
+        from = i;
+        e.dataTransfer?.setData('text/plain', String(i));
+        li.classList.add('atm-dragging');
+      });
+      li.addEventListener('dragend', () => li.classList.remove('atm-dragging'));
+      li.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        li.classList.add('atm-drop');
+      });
+      li.addEventListener('dragleave', () => li.classList.remove('atm-drop'));
+      li.addEventListener('drop', (e) => {
+        e.preventDefault();
+        li.classList.remove('atm-drop');
+        if (from >= 0) move(from, i);
+        from = -1;
+      });
+      const grip = el('span', 'atm-grip', '⋮⋮');
+      grip.setAttribute('aria-hidden', 'true');
+      const num = el('span', 'atm-step-n', `${i + 1}.`);
+      const main = el('div', 'atm-step-main');
+      if (s.fresh) {
+        const kind = document.createElement('select');
+        kind.setAttribute('aria-label', t('What kind of step'));
+        kind.append(new Option(KINDS().notify, 'notify'), new Option(KINDS().task, 'task'));
+        kind.value = s.a.kind;
+        kind.addEventListener('change', () => {
+          const w = words(s.a);
+          s.a = kind.value === 'task' ? { kind: 'task', prompt: w } : { kind: 'notify', text: w, how: 'phone' };
+        });
+        main.append(kind);
+      } else main.append(el('span', 'muted small atm-step-kind', KINDS()[s.a.kind] ?? s.a.kind));
+      if (s.a.kind === 'notify' || s.a.kind === 'task' || s.fresh) {
+        const input = Object.assign(document.createElement('input'), { type: 'text', value: words(s.a), maxLength: s.a.kind === 'notify' ? 500 : 2000 });
+        input.dataset.focus = `text:${i}`;
+        input.setAttribute('aria-label', t('Step {n}: what it says', { n: i + 1 }));
+        if (s.fresh) input.placeholder = t('What she tells you, or what she should do');
+        input.addEventListener('change', () => {
+          if (s.a.kind === 'notify') s.a.text = input.value;
+          else s.a.prompt = input.value;
+          if (s.fresh && !input.value.trim()) return;
+          void save(t('Saved.'));
+        });
+        main.append(input);
+      } else main.append(el('span', 'small atm-step-does', s.does || KINDS()[s.a.kind] || s.a.kind));
+      const ctl = el('div', 'row atm-step-ctl');
+      const up = btn('↑', 'ghost small', () => move(i, i - 1, 'up'));
+      up.setAttribute('aria-label', t('Move up'));
+      up.dataset.focus = `up:${i}`;
+      up.disabled = i === 0;
+      const down = btn('↓', 'ghost small', () => move(i, i + 1, 'down'));
+      down.setAttribute('aria-label', t('Move down'));
+      down.dataset.focus = `down:${i}`;
+      down.disabled = i === list.length - 1;
+      const del = btn('✕', 'ghost small danger', () => {
+        const fresh = s.fresh;
+        list.splice(i, 1);
+        if (fresh) draw();
+        else void save(t('Step removed.'));
+      });
+      del.setAttribute('aria-label', t('Remove this step'));
+      del.disabled = list.filter((y) => !y.fresh).length <= 1 && !s.fresh;
+      ctl.append(up, down, del);
+      li.append(grip, num, main, ctl);
+      ol.append(li);
+    });
+    if (!full) ol.append(addHere(list.length));
+    if (full) note.textContent ||= t('Six steps is the most one automation keeps.');
+    if (focus) ol.querySelector(`[data-focus="${focus}"]`)?.focus();
+  }
+  draw();
   row.append(box);
 }
 

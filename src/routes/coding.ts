@@ -603,6 +603,39 @@ export function createCodingRoutes(ctx: RouteCtx): RouteHandler {
     }
     // Phase 40: watched GitHub repositories (issues become tasks) and what she knows about projects.
     if (a === 'github-watch') {
+      // V3.4 "Fix this issue" (src/fix-issue.ts): the issue list with each fix, the one button, the pull-request card.
+      if (b === 'fix') {
+        if (opts.demo || opts.member || app.member) throw new HttpError(403, 'Fixing issues is only for the owner of this server.');
+        const fx = await import('../fix-issue.ts');
+        const id = Number(c);
+        try {
+          if (!c && method === 'GET') {
+            const repo = new URL(req.url ?? '/', 'http://x').searchParams.get('repo')?.trim();
+            if (!app.vault.get('git:github')) return send(res, 200, { connected: false, repos: watchSettings(app).repos, issues: [], fixes: fx.fixes(app) });
+            return send(res, 200, { connected: true, ...(await fx.fixList(app, repo || undefined)) });
+          }
+          if (!c && method === 'POST') {
+            const body = await readJson(req);
+            const t = await fx.fixIssue(app, String(body.repo ?? '').trim(), Number(body.number));
+            return send(res, 200, { fix: fx.fixView(app, t) });
+          }
+          if (id && !parts[3] && method === 'GET') {
+            const t = app.team?.get(id);
+            const v = t && fx.fixView(app, t);
+            if (!t || !v) throw new HttpError(404, 'No such fix.');
+            return send(res, 200, { fix: v, card: v.state === 'ready' || v.state === 'pr' ? await fx.prCard(app, t).catch(() => null) : null });
+          }
+          const say = parts[3];
+          if (id && (say === 'open' || say === 'not-now') && method === 'POST') {
+            fx.answerFix(app, id, say);
+            return send(res, 200, { ok: true });
+          }
+        } catch (err) {
+          if (err instanceof HttpError) throw err;
+          throw as400(err);
+        }
+        throw new HttpError(404, 'Not found');
+      }
       if (method === 'GET') {
         const w = watchSettings(app);
         let issues: OpenIssue[] = [];
