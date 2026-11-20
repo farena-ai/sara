@@ -248,6 +248,7 @@ import { createRemoteRepairTools } from './tools/remote-repair.ts';
 import { createSharedProjectTools } from './tools/shared-projects.ts';
 import { sharedProjectsOf } from './shared-projects.ts';
 import { createFriendTimeTools } from './tools/friend-time.ts';
+import { createLinkAwareTools } from './tools/link-aware.ts';
 import { friendTimeOf } from './friend-time.ts';
 import { repairOf } from './repair-env.ts';
 import { fixRecipesOf } from './fix-recipes.ts';
@@ -1828,7 +1829,10 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
     for (const t of createRemoteRepairTools(() => app)) tools.add(t); // T5: fix passes (docs/REMOTE_REPAIR.md)
     for (const t of createSharedProjectTools(() => app)) tools.add(t); // U4.26 (docs/SHARED_PROJECTS.md)
     for (const t of createFriendTimeTools(() => app)) tools.add(t); // V2.10 (docs/design/V2SCHEDULE.md)
+    for (const t of createLinkAwareTools(() => app)) tools.add(t); // LINKAWARE: who wrote, never what
     if (main) {
+      // LINKAWARE: her name goes to linked Saras with the owner's ("Jarvis (Sam’s Sara)"); the default name is not sent.
+      messenger.companion = () => { const n = String(app.persona?.name ?? '').trim(); return n && n.toLowerCase() !== 'sara' ? n : ''; };
       messenger.onChange = (chat) => app.events?.publish({ type: 'pm', chat });
       const sup = supportOf(app);
       if (sup) sup.onChange = (chat) => app.events?.publish({ type: 'pm', chat });

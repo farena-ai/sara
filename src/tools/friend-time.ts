@@ -4,9 +4,9 @@
 import type { AppContext } from '../chat.ts';
 import { FT_MINUTES, FT_PARTS, friendTimeOf, type FtRequest } from '../friend-time.ts';
 import { privateLocalOn } from '../net-guard.ts';
+import { matchFriend } from '../friend-match.ts';
 import type { Tool } from './types.ts';
 
-const fold = (s: string) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim();
 const line = (r: FtRequest, tz?: string) => {
   const when = (x: string) => new Intl.DateTimeFormat('en-US', { timeZone: tz, weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(x));
   const who = r.side === 'asker' ? `you asked ${r.friend}` : `${r.friend} asked`;
@@ -50,9 +50,10 @@ export function createFriendTimeTools(appOf: () => AppContext): Tool[] {
       const tz = appOf().settings.get().timeZone || undefined;
       const action = String(args.action ?? 'status');
       if (action === 'find') {
-        const name = fold(String(args.friend ?? ''));
         const friends = f.friends();
-        const hit = friends.find((x) => fold(x.name) === name) ?? friends.find((x) => name && fold(x.name).includes(name));
+        const found = matchFriend(friends, args.friend);
+        if (found.many) return `Which one: ${found.many.map((x) => x.name).join(', ')}?`;
+        const hit = found.hit;
         if (!hit) return `No linked friend called "${String(args.friend ?? '')}". Linked friends: ${friends.map((x) => x.name).join(', ') || 'none'}.`;
         const r = await f.ask(hit.id, args.what, args.minutes, args.part, args.days);
         return `Asked ${hit.name}'s Sara to find a time for "${r.title}" (${r.minutes} min, ${r.part}). ${hit.name} gets a card in Messages; once they share free/busy, 3 times appear there for both of you to pick.`;

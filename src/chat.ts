@@ -99,6 +99,7 @@ import { secondOpinionOffer } from './second-opinion.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxCard, type SandboxDecision, type SandboxGate, type SandboxPlan, type SandboxRecord, type SandboxResult } from './sandbox-run.ts';
 import { datesNote, followUps, followUpsNote, selectMemories, type Injection, type MemoryStore } from './memory.ts';
 import { ownerCueNote } from './owner-cues.ts';
+import { linkedFriendsNote } from './link-aware.ts';
 import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
@@ -1533,7 +1534,7 @@ export interface OutsidePolicy {
 }
 
 /** Phase 101 (ST6): the people-card tools (owner's own turns only). */
-export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'people_gift_ideas', 'people_gift_card', 'health_log', 'health_read', 'shared_project_read', 'friend_time', 'records_report']);
+export const PEOPLE_TOOLS = new Set(['person_lookup', 'person_note', 'people_list', 'people_due', 'promise_list', 'people_gift_ideas', 'people_gift_card', 'health_log', 'health_read', 'shared_project_read', 'friend_time', 'records_report', 'linked_friends']);
 
 /** Two optional prompt notes as one. */
 function joinNotes(a: string | undefined, b: string | undefined): string | undefined {
@@ -3652,6 +3653,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // R2: the starter pack's one line about what they use her for (src/get-started.ts).
     const pack = directOwnerInput || app.member ? packNote(app) : undefined;
     if (pack) messages.push({ role: 'system', content: pack });
+    // LINKAWARE: who is linked and who wrote (never what), the owner's own chats only (src/link-aware.ts).
+    const linked = directOwnerInput && !opts.group && !opts.externalApp && !opts.outside ? linkedFriendsNote(app) : undefined;
+    if (linked) messages.push({ role: 'system', content: linked });
     // The recorder opened its existing step before the caller's hook. Refresh that step,
     // including late hook notes, without rerunning hooks or creating another step.
     const finalLean = turnTools.lean ? turnTools.stepRecord(tools) : undefined;

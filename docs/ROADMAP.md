@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Fixes in 3.35.1
+
+Sara now knows which Saras you are linked with, who wrote and when, and what they asked for, never what they
+wrote, so "did Hank reach out?" gets a real answer. When a linked friend renames their Sara, the new name reaches
+you automatically and the old one still finds them for 30 days.
+
 ## Trust and family, round 2: languages, health coach, family screen, local-only proven, backups, kids, in 3.35.0
 
 Practice a language out loud with local voices and hearing. A private weekly health card offers small goals and

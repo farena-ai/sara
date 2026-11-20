@@ -337,6 +337,9 @@ test('S9a: the agents are not involved: messages never reach the model, memory, 
     assert.match(JSON.stringify(app.requests), /What did my friend message me/);
     const seen = JSON.stringify(app.requests);
     assert.ok(!seen.includes(words), 'not in the model request');
+    // LINKAWARE: she knows who wrote (name, unread count, when), never what (docs/MESSAGES.md, Isolation).
+    const other = app === a.app ? 'Bo' : 'Alex';
+    assert.match(seen, new RegExp(`Linked Saras[^"]*${other} \\(linked[^)]*1 unread from them`));
     assert.ok(!seen.includes('/msg/v1') && !/messages\.db/.test(seen));
     // No tool can read them.
     assert.ok(!app.tools.list().some((tl) => /^(pm_|msg_|message)/.test(tl.spec.name)), 'no message tool');
@@ -359,5 +362,10 @@ test('S9a: the agents are not involved: messages never reach the model, memory, 
   // S9b's support link and T5's remote repair import only the Messenger type (link keys and notices, never a message).
   assert.deepEqual(users.sort(), ['fix-recipes.ts', 'friend-time.ts', 'main.ts', 'market.ts', 'remote-repair.ts', 'routes/messages.ts', 'shared-projects.ts', 'support.ts']);
   for (const f of ['support.ts', 'remote-repair.ts', 'fix-recipes.ts', 'shared-projects.ts', 'market.ts', 'friend-time.ts']) assert.match(readFileSync(join(ROOT, 'src', f), 'utf8'), /import type \{ Messenger \} from '\.\/messages\.ts'/);
+  // LINKAWARE: the one way in for her is src/link-aware.ts, through app.messages.awareness() (names,
+  // counts, times) and settings(); it never imports the module or calls anything that returns text.
+  const aware = readFileSync(join(ROOT, 'src', 'link-aware.ts'), 'utf8');
+  assert.doesNotMatch(aware, /from '\.\/messages\.ts'/);
+  assert.deepEqual([...new Set([...aware.matchAll(/messages!?\??\.(\w+)\(/g)].map((x) => x[1]))].sort(), ['awareness', 'settings']);
   assert.ok(existsSync(join(a.dir, 'messages.db')), 'its own database file, never sara.db');
 });

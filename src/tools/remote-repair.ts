@@ -11,13 +11,14 @@ import { fill } from '../i18n.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { remoteRepairOf, stepShape, STEP_KINDS, type RemoteRepair } from '../remote-repair.ts';
 import { SUPPORT_ALLOW, supportFindings, SupportError } from '../support.ts';
+import { matchFriend } from '../friend-match.ts';
 import type { Tool } from './types.ts';
 
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 
 function byName<T extends { name: string }>(list: T[], name: unknown, none: string): T {
   const want = norm(name);
-  const hit = want ? list.filter((p) => norm(p.name) === want || norm(p.name).startsWith(want)) : list;
+  const hit = want ? (({ hit: one, many }) => (one ? [one] : many ?? []))(matchFriend(list, name)) : list;
   if (!hit.length) throw new SupportError(403, none);
   if (hit.length > 1) throw new SupportError(400, `Which one: ${hit.map((p) => p.name).join(', ')}?`);
   return hit[0]!;

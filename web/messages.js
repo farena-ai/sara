@@ -54,7 +54,7 @@ export function initMessages(c) {
   $('#msgs-link')?.addEventListener('click', () => void linkCode());
   $('#msgs-join-open')?.addEventListener('click', () => joinForm());
   $('#msgs-new-group')?.addEventListener('click', () => groupForm());
-  for (const id of ['#msgs-keep', '#msgs-receipts', '#msgs-typing', '#msgs-name', '#msgs-url', '#msgs-popup', '#msgs-sound', '#msgs-community']) $(id)?.addEventListener('change', () => void saveSettings());
+  for (const id of ['#msgs-keep', '#msgs-receipts', '#msgs-typing', '#msgs-name', '#msgs-url', '#msgs-popup', '#msgs-sound', '#msgs-community', '#msgs-aware']) $(id)?.addEventListener('change', () => void saveSettings());
   $('#msgs')?.addEventListener('close', () => {
     open = '';
     view = null;
@@ -322,10 +322,11 @@ function paintSettings(s) {
   set('#msgs-popup', s.popup !== false);
   set('#msgs-sound', Boolean(s.sound));
   set('#msgs-community', s.communityNotify || 'mentions');
+  set('#msgs-aware', s.aware !== false);
 }
 async function saveSettings() {
   try {
-    const r = await ctx.api('/messages/settings', { method: 'PUT', body: { retentionDays: Number($('#msgs-keep').value || 0), receipts: $('#msgs-receipts').checked, typing: $('#msgs-typing').checked, name: $('#msgs-name').value, url: $('#msgs-url').value, popup: $('#msgs-popup')?.checked ?? true, sound: $('#msgs-sound')?.checked ?? false, communityNotify: $('#msgs-community')?.value || 'mentions' } });
+    const r = await ctx.api('/messages/settings', { method: 'PUT', body: { retentionDays: Number($('#msgs-keep').value || 0), receipts: $('#msgs-receipts').checked, typing: $('#msgs-typing').checked, name: $('#msgs-name').value, url: $('#msgs-url').value, popup: $('#msgs-popup')?.checked ?? true, sound: $('#msgs-sound')?.checked ?? false, communityNotify: $('#msgs-community')?.value || 'mentions', aware: $('#msgs-aware')?.checked ?? true } });
     prefs = r.settings;
     paintSettings(r.settings);
     say(t('Saved.'));
@@ -533,6 +534,13 @@ function chatMenu(chat) {
   if (chat.status === 'active') {
     body.append(btn(chat.muted ? t('Unmute') : t('Mute'), 'ghost small', () => void patch({ muted: !chat.muted })));
     if (chat.kind === 'direct') body.append(btn(chat.blocked ? t('Unblock') : t('Block'), 'ghost small', () => void patch({ blocked: !chat.blocked })));
+  }
+  // LINKAWARE: names update by themselves when the other side renames; this is the fallback.
+  if (chat.kind === 'direct' && chat.status === 'active') {
+    body.append(btn(t('Rename'), 'ghost small', () => {
+      const n = prompt(t('Their name in your Messages (Sara knows them by it too):'), chat.title);
+      if (n && n.trim()) void patch({ name: n.trim() });
+    }));
   }
   const keep = el('label', 'msgs-keep');
   keep.append(el('span', 'small', t('Keep messages')));

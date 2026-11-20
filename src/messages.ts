@@ -33,6 +33,8 @@ export const MSG = {
   giveUpMs: 7 * 86_400_000,
   retentionDays: 30,
   perMinute: 240,
+  /** LINKAWARE: how long a renamed friend still answers to the old name. */
+  formerMs: 30 * 86_400_000,
 };
 const RETRY = [60_000, 5 * 60_000, 30 * 60_000, 2 * 3_600_000, 6 * 3_600_000];
 const CODE_PREFIX = 'sara-msg:';
@@ -59,6 +61,8 @@ export interface MsgSettings {
   sound: boolean;
   /** T4: how communities notify unless a community picks its own. */
   communityNotify: NotifyLevel;
+  /** LINKAWARE: Sara sees who is linked and who wrote (names, counts, times; never what). */
+  aware: boolean;
 }
 /** T4: a community's "Notify me": everything, when I'm mentioned (the default), nothing. */
 export type NotifyLevel = 'all' | 'mentions' | 'none';
@@ -223,6 +227,8 @@ export class Messenger {
   readonly #rate = new Map<string, { min: number; n: number }>();
   #flushing: Promise<void> | undefined;
   #closed = false;
+  /** LINKAWARE: the companion's name (her name), sent with the owner's in `name` events (main.ts sets it). */
+  companion: (() => string) | undefined;
   /** A new message for the owner (not muted, not blocked): main.ts sends the phone/desktop notification. */
   onNotify: ((title: string, body: string, chatId: string, info?: { kind: ChatRow['kind']; mention: boolean }) => void) | undefined;
   /** Something changed in a chat (ids only): main.ts tells the open pages. */
@@ -236,10 +242,14 @@ export class Messenger {
     const has = (t: string, c: string) => (this.#db.prepare(`PRAGMA table_info(${t})`).all() as { name: string }[]).some((r) => r.name === c);
     if (!has('pm_chats', 'notify')) this.#db.exec('ALTER TABLE pm_chats ADD COLUMN notify TEXT');
     if (!has('pm_messages', 'mention')) this.#db.exec('ALTER TABLE pm_messages ADD COLUMN mention INTEGER NOT NULL DEFAULT 0');
+    // LINKAWARE: the other side's companion name and the name they had before a rename (kept 30 days).
+    for (const c of ['companion', 'former', 'former_at']) if (!has('pm_links', c)) this.#db.exec(`ALTER TABLE pm_links ADD COLUMN ${c} TEXT`);
     this.#vault = o.vault;
     this.#now = o.now ?? (() => new Date());
     this.#name = o.name ?? (() => '');
     this.#fetch = o.fetch ?? ((u, i) => netFetch(u, i));
+    // LINKAWARE: the name the links already know (from the link handshake); a later change is announced.
+    if (!this.#db.prepare("SELECT 1 FROM pm_settings WHERE k = 'sentName'").get()) this.#db.prepare("INSERT INTO pm_settings (k, v) VALUES ('sentName', ?)").run(JSON.stringify(JSON.stringify([this.name(), ''])));
     this.#files = join(o.dataDir, 'messages-files');
   }
 
@@ -289,7 +299,7 @@ export class Messenger {
   settings(): MsgSettings {
     const rows = this.#db.prepare('SELECT k, v FROM pm_settings').all() as { k: string; v: string }[];
     const m = Object.fromEntries(rows.map((r) => [r.k, JSON.parse(r.v)])) as Partial<MsgSettings>;
-    return { retentionDays: m.retentionDays ?? MSG.retentionDays, receipts: m.receipts ?? true, typing: m.typing ?? true, url: m.url ?? '', name: m.name ?? '', popup: m.popup ?? true, sound: m.sound ?? false, communityNotify: NOTIFY_LEVELS.includes(m.communityNotify as NotifyLevel) ? (m.communityNotify as NotifyLevel) : 'mentions' };
+    return { retentionDays: m.retentionDays ?? MSG.retentionDays, receipts: m.receipts ?? true, typing: m.typing ?? true, url: m.url ?? '', name: m.name ?? '', popup: m.popup ?? true, sound: m.sound ?? false, communityNotify: NOTIFY_LEVELS.includes(m.communityNotify as NotifyLevel) ? (m.communityNotify as NotifyLevel) : 'mentions', aware: m.aware ?? true };
   }
   setSettings(v: Record<string, unknown>): MsgSettings {
     const put = (k: string, val: unknown) => this.#db.prepare('INSERT INTO pm_settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').run(k, JSON.stringify(val));
@@ -301,6 +311,8 @@ export class Messenger {
     if (v.popup !== undefined) put('popup', Boolean(v.popup));
     if (v.sound !== undefined) put('sound', Boolean(v.sound));
     if (v.communityNotify !== undefined) put('communityNotify', level(v.communityNotify));
+    if (v.aware !== undefined) put('aware', Boolean(v.aware));
+    if (v.name !== undefined && this.#announce()) this.#kick();
     return this.settings();
   }
   name(): string {
@@ -334,8 +346,71 @@ export class Messenger {
     this.#db.prepare('DELETE FROM pm_links WHERE id = ?').run(id);
     this.#db.prepare('DELETE FROM pm_outbox WHERE link_id = ?').run(id);
   }
-  links(): { id: string; name: string; kind: string; url: string; createdAt: string }[] {
-    return (this.#db.prepare('SELECT * FROM pm_links ORDER BY created_at').all() as unknown as (LinkRow & { created_at: string })[]).map((l) => ({ id: l.id, name: l.peer_name, kind: l.kind, url: l.peer_url, createdAt: l.created_at }));
+  links(): { id: string; name: string; kind: string; url: string; createdAt: string; aliases: string[] }[] {
+    return (this.#db.prepare('SELECT * FROM pm_links ORDER BY created_at').all() as unknown as (LinkRow & { created_at: string; companion: string | null; former: string | null; former_at: string | null })[]).map((l) => ({ id: l.id, name: l.peer_name, kind: l.kind, url: l.peer_url, createdAt: l.created_at, aliases: this.#aliases(l) }));
+  }
+  /** LINKAWARE: other names a link answers to (their companion, and the name before a rename for 30 days). */
+  #aliases(l: { companion: string | null; former: string | null; former_at: string | null }): string[] {
+    return [l.companion, this.#former(l)].filter((x): x is string => Boolean(x));
+  }
+  #former(l: { former: string | null; former_at: string | null }): string | null {
+    return l.former && l.former_at && this.#now().getTime() - Date.parse(l.former_at) < MSG.formerMs ? l.former : null;
+  }
+  /** The title of a one-to-one chat: "Jarvis (Sam’s Sara)" once their companion's name is known. */
+  #title(name: string, companion: string | null): string {
+    return companion && companion.toLowerCase() !== name.toLowerCase() ? clip(`${companion} (${name}’s Sara)`, MSG.nameChars * 2 + 10) : name;
+  }
+  /**
+   * LINKAWARE: tell every link our current name (Messages name + companion name), once per change. The
+   * first look only remembers it (links already know the name from the link handshake). Returns true
+   * when events were queued. Older queued name events for a link are replaced, so a burst sends one.
+   */
+  #announce(): boolean {
+    const name = this.name();
+    const companion = clip(this.companion?.() ?? '', MSG.nameChars);
+    const key = JSON.stringify([name, companion]);
+    const row = this.#db.prepare("SELECT v FROM pm_settings WHERE k = 'sentName'").get() as { v: string } | undefined;
+    const put = () => this.#db.prepare("INSERT INTO pm_settings (k, v) VALUES ('sentName', ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v").run(JSON.stringify(key));
+    if (!row) return (put(), false);
+    if (JSON.parse(row.v) === key) return false;
+    put();
+    for (const l of this.#db.prepare('SELECT id FROM pm_links').all() as { id: string }[]) {
+      this.#db.prepare("DELETE FROM pm_outbox WHERE link_id = ? AND mid = '~name'").run(l.id);
+      this.#enqueue(l.id, { type: 'name', name, ...(companion ? { companion } : {}) }, { mid: '~name' });
+    }
+    return true;
+  }
+  /** Applies a new name to a link (a `name` event, or Rename in the chat's Options). */
+  #rename(l: LinkRow, nameIn: unknown, companionIn: unknown, keepCompanion = false): void {
+    const name = clip(nameIn, MSG.nameChars);
+    if (!name) throw new MsgError(400, 'bad event');
+    const cur = this.#db.prepare('SELECT companion FROM pm_links WHERE id = ?').get(l.id) as { companion: string | null };
+    const companion = keepCompanion ? cur.companion : clip(companionIn, MSG.nameChars) || null;
+    const next = new Set([name, companion].filter(Boolean).map((x) => x!.toLowerCase()));
+    const gone = [cur.companion, l.peer_name].find((x) => x && !next.has(x.toLowerCase()));
+    if (gone) this.#db.prepare('UPDATE pm_links SET former = ?, former_at = ? WHERE id = ?').run(gone, this.#iso(), l.id);
+    this.#db.prepare('UPDATE pm_links SET peer_name = ?, companion = ? WHERE id = ?').run(name, companion, l.id);
+    if (l.kind === 'direct') this.#db.prepare('UPDATE pm_chats SET title = ? WHERE id = ?').run(this.#title(name, companion), l.id);
+    if (l.kind === 'host' && l.community) {
+      this.#db.prepare('UPDATE pm_members SET name = ? WHERE community = ? AND id = ?').run(name, l.community, l.id);
+      this.#roster(l.community);
+      this.#kick();
+    }
+    this.onChange?.(l.kind === 'direct' ? l.id : (l.community ?? l.id));
+  }
+
+  /**
+   * LINKAWARE: the only thing Sara may know about Messages: each direct link's name, since when, how
+   * many unread messages are from them and when their last one arrived. It never selects a message
+   * body, a file or anything from a community (test/s9a-messages.test.ts, docs/MESSAGES.md).
+   */
+  awareness(): { link: string; name: string; companion: string | null; formerly: string | null; since: string; chat: string | null; unread: number; lastInAt: string | null }[] {
+    const rows = this.#db.prepare("SELECT l.id AS link, l.peer_name AS name, l.companion AS companion, l.former AS former, l.former_at AS former_at, l.created_at AS since, c.id AS chat, c.muted AS muted, c.blocked AS blocked FROM pm_links l LEFT JOIN pm_chats c ON c.link_id = l.id AND c.kind = 'direct' WHERE l.kind = 'direct' ORDER BY l.created_at").all() as { link: string; name: string; companion: string | null; former: string | null; former_at: string | null; since: string; chat: string | null; muted: number | null; blocked: number | null }[];
+    return rows.map((r) => {
+      const n = r.chat ? (this.#db.prepare('SELECT COUNT(*) AS n FROM pm_messages WHERE chat = ? AND mine = 0 AND deleted = 0 AND seen = 0').get(r.chat) as { n: number }).n : 0;
+      const last = r.chat ? (this.#db.prepare('SELECT MAX(at) AS at FROM pm_messages WHERE chat = ? AND mine = 0 AND deleted = 0').get(r.chat) as { at: string | null }).at : null;
+      return { link: r.link, name: r.name, companion: r.companion, formerly: this.#former(r), since: r.since, chat: r.chat, unread: r.muted || r.blocked ? 0 : n, lastInAt: r.blocked ? null : last };
+    });
   }
 
   /** A one-time code another owner pastes to link (single use, 30 minutes). */
@@ -503,6 +578,10 @@ export class Messenger {
     if (v.notify !== undefined && c.kind === 'community') this.#db.prepare('UPDATE pm_chats SET notify = ? WHERE id = ?').run(v.notify === null || v.notify === '' ? null : level(v.notify), id);
     if (v.blocked !== undefined && c.kind === 'direct') this.#db.prepare('UPDATE pm_chats SET blocked = ? WHERE id = ?').run(v.blocked ? 1 : 0, id);
     if (v.retentionDays !== undefined) this.#db.prepare('UPDATE pm_chats SET retention = ? WHERE id = ?').run(v.retentionDays === null || v.retentionDays === '' ? null : days(v.retentionDays), id);
+    if (v.name !== undefined && c.kind === 'direct' && c.linkId) {
+      const l = this.#link(c.linkId);
+      if (l) this.#rename(l, v.name, null, true);
+    }
     if (Array.isArray(v.hide) && c.kind === 'community') this.#db.prepare('UPDATE pm_chats SET hidden = ? WHERE id = ?').run(JSON.stringify(v.hide.map((x) => clip(x, 64)).slice(0, MSG.members)), id);
     this.onChange?.(id);
     return this.chat(id)!;
@@ -822,6 +901,7 @@ export class Messenger {
     return this.#flushing;
   }
   async #pass(): Promise<void> {
+    this.#announce(); // a name changed while we were offline or at start-up goes out with this pass
     for (let round = 0; round < 5 && !this.#closed; round++) {
       const rows = this.#db.prepare('SELECT * FROM pm_outbox WHERE next_at <= ? ORDER BY n').all(this.#iso()) as { n: number; link_id: string; chat: string | null; mid: string | null; body: string; once: number; tries: number; created_at: string }[];
       if (!rows.length) return;
@@ -925,6 +1005,8 @@ export class Messenger {
     if (['dm', 'edit', 'del', 'c.post', 'c.edit', 'c.del', 'c.msg', 'c.report'].includes(ev.type) && !s('mid')) throw new MsgError(400, 'bad event');
     // U5.33: ids the other side chooses end up in the owner page's links: plain id characters only.
     for (const k of ['mid', 'authorId']) if (ev[k] !== undefined && !PEER_ID.test(String(ev[k]))) throw new MsgError(400, 'bad event');
+    // LINKAWARE: the other side's new name (one-to-one and community links; names only, clipped).
+    if (ev.type === 'name') return this.#rename(l, ev.name, ev.companion);
     const text = () => String(ev.text ?? '').slice(0, MSG.textChars);
     const file = () => (ev.file && typeof ev.file === 'object' ? fileFrom(ev.file as FileIn) : null);
     const at = () => (typeof ev.at === 'string' && Number.isFinite(Date.parse(ev.at)) ? new Date(Math.min(Date.parse(ev.at), this.#now().getTime())).toISOString() : this.#iso());

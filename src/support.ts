@@ -206,7 +206,7 @@ export class SupportLink {
   }
   /** Linked servers by name (the tool picks one by name). */
   peers(): { id: string; name: string }[] {
-    return this.#m.links().filter((l) => l.kind === 'direct').map((l) => ({ id: l.id, name: l.name }));
+    return this.#m.links().filter((l) => l.kind === 'direct').map((l) => ({ id: l.id, name: l.name, aliases: l.aliases ?? [] }));
   }
 
   // ---- the log (both sides) ----------------------------------------------------------------------

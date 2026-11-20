@@ -138,6 +138,8 @@ const PREFIX_FAMILIES: [RegExp, string, string][] = [
   [/^shared_project_read$/, 'sharedproj', 'shared projects'],
   // V2.10: find a time with a linked friend (busy blocks only cross).
   [/^friend_time$/, 'friendtime', 'finding a time with a friend'],
+  // LINKAWARE: who is linked and who wrote (names, counts, times; never what).
+  [/^linked_friends$/, 'linkedfriends', 'linked friends in Messages'],
   // ROADMAP_T: self-repair (check yourself, fix what is broken, learn to do something).
   [/^repair_(status|fix)$/, 'repair', 'fixing herself'],
   // T3: changing her own code (src/tools/self-code.ts).
@@ -301,6 +303,7 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   review: ['review', 'code review', 'red team', 'revision', 'revue', 'revisao', 'revisione', 'uberprufung'],
   photos: ['photo', 'selfie', 'picture', 'foto', 'photo de toi', 'bild'],
   repair: ['fix yourself', 'repair yourself', 'is broken', 's broken', 'not working', 'doesnt work', 'doesn t work', 'stopped working', 'check yourself', 'self repair', 'learn to', 'arreglate', 'no funciona', 'esta roto', 'repare toi', 'ne marche pas', 'ne fonctionne pas', 'reparier dich', 'funktioniert nicht', 'ist kaputt', 'conserte se', 'nao funciona', 'esta quebrado', 'aggiustati', 'non funziona', 'e rotto'],
+  linkedfriends: ['reach out', 'reached out', 'wrote', 'write me', 'wrote me', 'written me', 'heard from', 'message from', 'messages from', 'messaged me', 'linked with', 'linked sara', 'who is linked', 'escribio', 'me escribio', 'mensaje de', 'mensajes de', 'vinculad', 'ecrit', 'm a ecrit', 'message de', 'messages de', 'lie avec', 'geschrieben', 'nachricht von', 'nachrichten von', 'verknupft', 'escreveu', 'mensagem de', 'mensagens de', 'vinculad', 'scritto', 'messaggio da', 'messaggi da', 'collegat'],
   friendtime: ['find a time', 'a time with', 'time to meet', 'when can we meet', 'free busy', 'schedule with', 'buscar un hora', 'buscar una hora', 'cuando podemos', 'encontrar un hueco', 'trouver un moment', 'trouver un creneau', 'un creneau avec', 'termin finden', 'einen termin mit', 'zeit finden', 'encontrar um horario', 'marcar com', 'trovare un orario', 'trovare un momento'],
   sharedproj: ['shared project', 'shared notes', 'shared files', 'shared to do', 'proyecto compartido', 'notas compartidas', 'projet partage', 'notes partagees', 'geteiltes projekt', 'gemeinsames projekt', 'geteilte notizen', 'projeto compartilhado', 'notas compartilhadas', 'progetto condiviso', 'note condivise'],
   support: ['help pass', 'fix pass', 'have sara fix', 'fix it remotely', 'pase de arreglo', 'pass de réparation', 'reparaturpass', 'passe de conserto', 'pass di riparazione', 'whats wrong with', 'what s wrong with', 'look at his sara', 'look at her sara', 'their sara', 'support link', 'pase de ayuda', 'que le pasa a', 'pass d aide', 'qu est ce qui ne va pas', 'hilfepass', 'was stimmt nicht', 'passe de ajuda', 'o que ha de errado', 'pass di aiuto', 'cosa non va'],

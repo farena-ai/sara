@@ -5,6 +5,10 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.35.1 (2026-11-20): Sara knows who you're linked with, and names follow renames
+
+- Fixed: Sara now knows who you are linked with in Messages and who wrote (never what), so "did Hank reach out?" gets a real answer. In your own chats she now knows each linked Sara's name, how long you have been linked, how many unread messages are from them, when the last one came and which of their requests wait for you (help pass, fix, find a time, shared project), and can look it up with a read-only tool. Never what anyone wrote: she still can't read or send messages and points you to Messages. Messages settings → Let Sara know who wrote (never what), on by default. Friend tools (find a time, fix requests, help passes) now find a friend by first name in any case. Fixed: a linked Sara's name was frozen at link time. A rename now reaches linked Saras by itself ("Jarvis (Sam’s Sara)", also communities), the old name keeps working for 30 days ("formerly Hank"), and Options → Rename sets one by hand (docs/MESSAGES.md).
+
 ## 3.35.0 (2026-11-19): Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why
 
 - New: practice a language out loud, with cards, listening and your words checked as you speak (W4.3, docs/LANGUAGE_PRACTICE.md). Library → Learn a language: pick

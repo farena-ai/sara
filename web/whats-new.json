@@ -2,6 +2,20 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.35.1",
+   "date": "2026-11-20",
+   "title": "Sara knows who you're linked with, and names follow renames",
+   "items": [
+    {
+     "id": "3-35-1-sara-now-knows-who-you",
+     "kind": "fixed",
+     "text": "Sara now knows who you are linked with in Messages and who wrote (never what), so \"did Hank reach out?\" gets a real answer.",
+     "link": "#view=msgs",
+     "owner": true
+    }
+   ]
+  },
+  {
    "version": "3.35.0",
    "date": "2026-11-19",
    "title": "Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why",
@@ -277,46 +291,6 @@
      "kind": "new",
      "text": "Teach by showing (browser extension → Watch me do this): do a task once in your browser and Sara keeps the steps (clicks, what you typed, what you picked, the pages).",
      "link": "#view=settings:dh-devices"
-    }
-   ]
-  },
-  {
-   "version": "3.29.0",
-   "date": "2026-11-18",
-   "title": "Photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access",
-   "items": [
-    {
-     "id": "3-29-0-what-left-this-server-settings",
-     "kind": "new",
-     "text": "What left this server (Settings → Privacy & system → Privacy): a day-by-day list of every request her server sent to another computer, grouped by why it went."
-    },
-    {
-     "id": "3-29-0-caregiver-mode-health-daily-check-in",
-     "kind": "new",
-     "text": "Caregiver mode (Health → Daily check-in, Caregivers, Simple home): a person can let an adult in their household see their missed doses, their daily check-ins, or both.",
-     "link": "#view=health"
-    },
-    {
-     "id": "3-29-0-accessibility-switch-settings-you-appear",
-     "kind": "new",
-     "text": "Accessibility switch (Settings → You → Appearance → Accessibility, also a quick setting on the Settings home): one switch for easier reading."
-    },
-    {
-     "id": "3-29-0-action-timeline-settings-privacy-system",
-     "kind": "new",
-     "text": "Action timeline (Settings → Privacy & system → Reports → Action timeline): one list of what she changed for you, newest first, for 90 days: files."
-    },
-    {
-     "id": "3-29-0-legacy-and-emergency-access-settings",
-     "kind": "new",
-     "text": "Legacy and emergency access (Settings → Privacy & system → Privacy): name one person you trust and pick what they get.",
-     "link": "#view=library"
-    },
-    {
-     "id": "3-29-0-live-and-translated-captions-for",
-     "kind": "new",
-     "text": "Live and translated captions for meetings (Library → Meetings → a meeting → Captions): big captions that follow a room or a recording while she hears it.",
-     "link": "#view=meetings"
     }
    ]
   }

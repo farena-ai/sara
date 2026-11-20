@@ -216,7 +216,7 @@ export class FriendTime {
     return this.#view(this.#need(id));
   }
   friends(): { id: string; name: string }[] {
-    return this.#m.links().filter((l) => l.kind === 'direct').map((l) => ({ id: l.id, name: l.name }));
+    return this.#m.links().filter((l) => l.kind === 'direct').map((l) => ({ id: l.id, name: l.name, aliases: l.aliases ?? [] }));
   }
   #set(id: string, v: Record<string, string | number | null>): void {
     const keys = Object.keys(v);

@@ -7,6 +7,7 @@
 import { untrustedPeer, type AppContext } from '../chat.ts';
 import { fill } from '../i18n.ts';
 import { SUPPORT_ALLOW, supportFindings, supportOf, SupportError, type SupportLink } from '../support.ts';
+import { matchFriend } from '../friend-match.ts';
 import type { Tool } from './types.ts';
 
 const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
@@ -15,7 +16,7 @@ const norm = (s: unknown) => String(s ?? '').trim().toLowerCase();
 function pick(sp: SupportLink, name: unknown): { id: string; name: string; pass: string; asked: boolean } {
   const held = sp.peers().map((p) => ({ ...p, pass: sp.activePass(p.id, 'held') })).filter((p) => p.pass);
   const want = norm(name);
-  const hit = want ? held.filter((p) => norm(p.name) === want || norm(p.name).startsWith(want)) : held;
+  const hit = want ? (({ hit: one, many }) => (one ? [one] : many ?? []))(matchFriend(held, name)) : held;
   if (!hit.length) throw new SupportError(403, held.length ? `No help pass from "${String(name)}". Passes held: ${held.map((p) => p.name).join(', ')}.` : 'Nobody has given you a help pass right now. They give one under Messages → their chat with you → Ask for help.');
   if (hit.length > 1) throw new SupportError(400, `Which one: ${hit.map((p) => p.name).join(', ')}?`);
   const h = hit[0]!;

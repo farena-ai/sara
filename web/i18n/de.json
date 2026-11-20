@@ -21284,13 +21284,6 @@
 "How do I stop legacy access from opening?": "Wie verhindere ich, dass der Nachlasszugang öffnet?",
 "Sign in or chat with her: that cancels it.": "Melde dich an oder chatte mit ihr: Das bricht es ab.",
 "Or press I'm here under Legacy and emergency access.": "Oder tippe unter Nachlass- und Notfallzugang auf Ich bin da.",
-  "Photo search, interpreter, health imports, captions, action timeline, privacy ledger, legacy access": "Fotosuche, Dolmetscher, Gesundheitsimporte, Untertitel, Aktionsverlauf, Datenschutz-Protokoll, Nachlass-Zugang",
-  "What left this server (Settings → Privacy & system → Privacy): a day-by-day list of every request her server sent to another computer, grouped by why it went.": "Was diesen Server verlassen hat (Einstellungen → Datenschutz und System → Datenschutz): eine tägliche Liste jeder Anfrage, die ihr Server an einen anderen Computer geschickt hat, nach Grund gruppiert.",
-  "Caregiver mode (Health → Daily check-in, Caregivers, Simple home): a person can let an adult in their household see their missed doses, their daily check-ins, or both.": "Betreuungsmodus (Gesundheit → Täglicher Check-in, Betreuende, Einfacher Start): eine Person kann einem Erwachsenen im Haushalt ihre verpassten Dosen, ihre täglichen Check-ins oder beides zeigen.",
-  "Accessibility switch (Settings → You → Appearance → Accessibility, also a quick setting on the Settings home): one switch for easier reading.": "Barrierefreiheits-Schalter (Einstellungen → Du → Darstellung → Barrierefreiheit, auch als Schnelleinstellung auf der Einstellungen-Startseite): ein Schalter für leichteres Lesen.",
-  "Action timeline (Settings → Privacy & system → Reports → Action timeline): one list of what she changed for you, newest first, for 90 days: files.": "Aktionsverlauf (Einstellungen → Datenschutz und System → Berichte → Aktionsverlauf): eine Liste dessen, was sie für dich geändert hat, neueste zuerst, für 90 Tage: Dateien.",
-  "Legacy and emergency access (Settings → Privacy & system → Privacy): name one person you trust and pick what they get.": "Nachlass- und Notfallzugang (Einstellungen → Datenschutz und System → Datenschutz): nenne eine Vertrauensperson und wähle, was sie bekommt.",
-  "Live and translated captions for meetings (Library → Meetings → a meeting → Captions): big captions that follow a room or a recording while she hears it.": "Live- und übersetzte Untertitel für Meetings (Bibliothek → Meetings → ein Meeting → Untertitel): große Untertitel, die einem Raum oder einer Aufnahme folgen, während sie zuhört.",
 "Free: both run on this computer.": "Kostenlos: beide laufen auf diesem Computer.",
 "No extra cost: on this computer or in a subscription you have.": "Keine Zusatzkosten: auf diesem Computer oder in einem Abo, das du hast.",
 "Costs about {usd} for both answers.": "Kostet etwa {usd} für beide Antworten.",
@@ -22829,5 +22822,10 @@
   "18 words and a QR code on one page; after I printed it, the words are never shown again.": "18 Wörter und ein QR-Code auf einer Seite; nach Ich habe es gedruckt werden die Wörter nie wieder angezeigt.",
   "Ask why she did something": "Frag, warum sie etwas getan hat",
   "Open the Action timeline and press Why did you do this? on a row.": "Öffne den Aktionsverlauf und drück bei einer Zeile Warum hast du das getan?.",
-  "What started it (your message, an automation or a schedule) and the rule that let it run, with a link to the chat turn.": "Was es ausgelöst hat (deine Nachricht, eine Automatisierung oder ein Zeitplan) und die Regel, die es erlaubt hat, mit Link zum Chat-Schritt."
+  "What started it (your message, an automation or a schedule) and the rule that let it run, with a link to the chat turn.": "Was es ausgelöst hat (deine Nachricht, eine Automatisierung oder ein Zeitplan) und die Regel, die es erlaubt hat, mit Link zum Chat-Schritt.",
+"Let Sara know who wrote (never what)": "Sara wissen lassen, wer geschrieben hat (nie was)",
+"When on, Sara knows who you are linked with and who wrote: names, unread counts and times only. She never sees what anyone wrote and can’t send messages.": "Wenn an, weiß Sara, mit wem du verbunden bist und wer geschrieben hat: nur Namen, ungelesene Nachrichten und Zeiten. Sie sieht nie, was jemand geschrieben hat, und kann keine Nachrichten senden.",
+"Their name in your Messages (Sara knows them by it too):": "Der Name in deinen Nachrichten (auch Sara kennt die Person so):",
+  "Sara knows who you're linked with, and names follow renames": "Sara weiß, mit wem du verbunden bist, und Namen folgen Umbenennungen",
+  "Sara now knows who you are linked with in Messages and who wrote (never what), so \"did Hank reach out?\" gets a real answer.": "Sara weiß jetzt, mit wem du in Nachrichten verbunden bist und wer geschrieben hat (nie was), also bekommt „Hat Hank sich gemeldet?“ eine echte Antwort."
 }
