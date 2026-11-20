@@ -68,7 +68,7 @@ export async function loadMarket() {
 async function browse() {
   const list = $('#mk-list');
   $('#mk-review').hidden = true;
-  list.replaceChildren(el('p', 'muted small', t('Loading…')));
+  list.replaceChildren(el('p', 'muted small sk-line', t('Loading…')));
   try {
     const { listings } = await api(`/market/places/${encodeURIComponent(state.place)}`);
     list.replaceChildren();

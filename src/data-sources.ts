@@ -293,6 +293,65 @@ export function parseYahooEarnings(json: unknown): Record<string, { date: string
   return out;
 }
 
+// ---------------------------------------------------------------- P2: charts and symbol search for the Stocks tile
+
+export type ChartRange = '1d' | '1w' | '1m' | '1y';
+/** Yahoo Finance chart parameters and how long each range is kept (ms). */
+export const CHART_RANGES: Record<ChartRange, { range: string; interval: string; ttl: number }> = {
+  '1d': { range: '1d', interval: '5m', ttl: 5 * 60_000 },
+  '1w': { range: '5d', interval: '30m', ttl: 30 * 60_000 },
+  '1m': { range: '1mo', interval: '1d', ttl: 6 * 3600_000 },
+  '1y': { range: '1y', interval: '1d', ttl: 12 * 3600_000 },
+};
+export interface StockChart extends Stamp {
+  symbol: string;
+  name?: string;
+  currency?: string;
+  /** [ms since epoch, price], oldest first; gaps (null closes) dropped. */
+  points: [number, number][];
+  prevClose: number | null;
+  price: number | null;
+}
+export interface SymbolHit {
+  symbol: string;
+  name: string;
+  exchange?: string;
+  type: string;
+}
+
+/** Yahoo Finance chart (no key): one symbol's closes for a range. Null when it has nothing. */
+export function parseYahooChart(json: unknown, fetchedAt: string): StockChart | null {
+  const r = (json as { chart?: { result?: { meta?: Record<string, unknown>; timestamp?: unknown[]; indicators?: { quote?: { close?: unknown[] }[] } }[] | null } })?.chart?.result?.[0];
+  const m = r?.meta;
+  if (!r || !m || !Array.isArray(r.timestamp)) return null;
+  const closes = r.indicators?.quote?.[0]?.close ?? [];
+  const points: [number, number][] = [];
+  r.timestamp.forEach((ts, i) => {
+    const t = Number(ts);
+    const c = closes[i];
+    if (Number.isFinite(t) && typeof c === 'number' && Number.isFinite(c)) points.push([t * 1000, round(c, 4)]);
+  });
+  const t = num(m.regularMarketTime);
+  const name = typeof m.longName === 'string' ? m.longName : typeof m.shortName === 'string' ? m.shortName : undefined;
+  return { symbol: String(m.symbol ?? '').toUpperCase(), ...(name ? { name } : {}), ...(typeof m.currency === 'string' ? { currency: m.currency } : {}), points, prevClose: num(m.chartPreviousClose) ?? num(m.previousClose), price: num(m.regularMarketPrice), source: 'Yahoo Finance', at: t ? new Date(t * 1000).toISOString() : fetchedAt, fetchedAt };
+}
+
+const SEARCH_TYPES = new Set(['EQUITY', 'ETF', 'INDEX', 'MUTUALFUND', 'CRYPTOCURRENCY', 'CURRENCY', 'FUTURE']);
+/** Yahoo Finance search (no key): tickers for a company name or part of a symbol (stocks, ETFs, indexes, crypto). */
+export function parseYahooSearch(json: unknown): SymbolHit[] {
+  const rows = (json as { quotes?: unknown })?.quotes;
+  if (!Array.isArray(rows)) return [];
+  const out: SymbolHit[] = [];
+  for (const q of rows as Record<string, unknown>[]) {
+    const symbol = typeof q?.symbol === 'string' ? q.symbol.toUpperCase() : '';
+    const type = String(q?.quoteType ?? '');
+    if (!symbol || !SYMBOL.test(symbol) || !SEARCH_TYPES.has(type)) continue;
+    const exchange = typeof q.exchDisp === 'string' ? q.exchDisp : typeof q.exchange === 'string' ? q.exchange : undefined;
+    out.push({ symbol, name: String(q.longname ?? q.shortname ?? symbol).slice(0, 80), ...(exchange ? { exchange } : {}), type });
+  }
+  return out.slice(0, 8);
+}
+
 export function parseYahooSpark(json: unknown, fetchedAt: string): QuoteResult {
   const res = (json as { spark?: { result?: { symbol: string; response?: { meta?: Record<string, unknown> }[] }[] } })?.spark?.result ?? [];
   const quotes: Quote[] = [];
@@ -625,6 +684,33 @@ export class DataSources {
     const order = new Map(symbols.map((s, i) => [s, i]));
     out.sort((a, b) => (order.get(a.symbol) ?? 99) - (order.get(b.symbol) ?? 99));
     return { quotes: out, missing };
+  }
+
+  /** P2: one symbol's price line for a range (Yahoo Finance chart, free, no key), kept per range (CHART_RANGES). */
+  async chart(raw: string, range: ChartRange): Promise<StockChart> {
+    const symbol = String(raw ?? '').trim().toUpperCase().replace(/^\$/, '');
+    if (!SYMBOL.test(symbol)) throw new DataError('bad-input', 'quote', 'Give a ticker symbol, like AAPL.');
+    const r = CHART_RANGES[range];
+    if (!r) throw new DataError('bad-input', 'quote', 'The range is 1d, 1w, 1m or 1y.');
+    const p = providerInfo('yahoo') as ProviderInfo;
+    return this.#cached<StockChart>(`ch:${symbol}:${range}`, () => r.ttl, async () => {
+      const { body } = await this.#get(p, `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${r.range}&interval=${r.interval}`);
+      const c = parseYahooChart(this.#json(p, body), new Date(this.#now()).toISOString());
+      if (!c || !c.points.length) throw new DataError('not-found', p.id, `No chart for ${symbol}.`);
+      return c;
+    });
+  }
+
+  /** P2: tickers for a company name or symbol (Yahoo Finance search, free, no key), kept 1 hour. */
+  async searchSymbols(raw: string): Promise<SymbolHit[]> {
+    const q = String(raw ?? '').replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 40);
+    if (!q) return [];
+    const p = providerInfo('yahoo') as ProviderInfo;
+    const r = await this.#cached<{ hits: SymbolHit[] }>(`find:${q.toLowerCase()}`, () => 3600_000, async () => {
+      const { body } = await this.#get(p, `https://query1.finance.yahoo.com/v1/finance/search?q=${encodeURIComponent(q)}&quotesCount=8&newsCount=0&listsCount=0`);
+      return { hits: parseYahooSearch(this.#json(p, body)) };
+    });
+    return r.hits;
   }
 
   /**

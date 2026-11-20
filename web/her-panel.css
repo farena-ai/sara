@@ -124,18 +124,27 @@
   opacity: .9;
 }
 .hp-portrait { display: block; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; background: var(--surface-2); box-shadow: 0 0 0 3px var(--surface-1); }
-html.sara-busy .hp-glow { animation: hp-breathe var(--breathe) ease-in-out infinite; }
+/* LAGFIX (docs/design/LAGFIX.md): while she works the glow breathes and pulses on the compositor: a
+   fixed stronger glow on ::after whose opacity moves. Animating box-shadow itself restyled and repainted
+   the page every frame for as long as she worked (about half of the page's time while she streamed). */
+.hp-glow::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--mood-b) 16%, transparent), 0 0 44px 8px color-mix(in srgb, var(--mood-b) 44%, transparent), 0 0 90px 16px color-mix(in srgb, var(--mood-a) 24%, transparent);
+}
+html.sara-busy .hp-glow::after { animation: hp-breathe var(--breathe) ease-in-out infinite; }
 html.sara-busy .hp-glow::before { animation: hp-motes var(--breathe) ease-in-out infinite; }
-html.sara-speaking .hp-glow { animation: hp-pulse 1.3s ease-in-out infinite; }
-@keyframes hp-breathe {
-  0%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--mood-a) 12%, transparent), 0 0 26px 2px color-mix(in srgb, var(--mood-a) 34%, transparent), 0 0 60px 6px color-mix(in srgb, var(--mood-b) 18%, transparent); }
-  50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--mood-b) 16%, transparent), 0 0 44px 8px color-mix(in srgb, var(--mood-b) 44%, transparent), 0 0 90px 16px color-mix(in srgb, var(--mood-a) 24%, transparent); }
+html.sara-speaking .hp-glow::after {
+  box-shadow: 0 0 0 9px color-mix(in srgb, var(--mood-a) 22%, transparent), 0 0 52px 12px color-mix(in srgb, var(--mood-a) 55%, transparent);
+  animation: hp-pulse 1.3s ease-in-out infinite;
 }
+@keyframes hp-breathe { 0%, 100% { opacity: 0; } 50% { opacity: 1; } }
 @keyframes hp-motes { 50% { opacity: .45; transform: rotate(8deg) scale(1.04); } }
-@keyframes hp-pulse {
-  0%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--mood-a) 16%, transparent), 0 0 30px 4px color-mix(in srgb, var(--mood-a) 44%, transparent); }
-  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--mood-a) 22%, transparent), 0 0 52px 12px color-mix(in srgb, var(--mood-a) 55%, transparent); }
-}
+@keyframes hp-pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
 .hp-mood {
   display: inline-flex;
   align-items: center;
@@ -183,7 +192,7 @@ html.sara-speaking .hp-glow { animation: hp-pulse 1.3s ease-in-out infinite; }
 .hp-link:hover { background: var(--accent-soft); color: var(--accent-text); }
 .hp-now-line { display: flex; align-items: flex-start; gap: 9px; margin: 0; font-size: 14px; line-height: 1.45; color: var(--text-1); overflow-wrap: anywhere; }
 .hp-now-line::before { content: ""; flex: none; width: 8px; height: 8px; margin-top: 6px; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px -1px var(--success); }
-.hp-now-line.busy::before { background: var(--accent-solid); box-shadow: 0 0 10px 0 var(--accent-glow); animation: step-pulse 1.3s ease-in-out infinite; }
+.hp-now-line.busy::before { background: var(--accent-solid); box-shadow: 0 0 10px 0 var(--accent-glow); animation: step-pulse 1.3s ease-in-out infinite; } /* LAGFIX: step-pulse is opacity only */
 .hp-now-line.waiting::before { background: var(--warn); box-shadow: 0 0 10px 0 var(--warn); }
 .hp-approvals, .hp-jobs { display: grid; gap: 8px; }
 .hp-approvals:empty, .hp-jobs:empty { display: none; }

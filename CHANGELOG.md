@@ -5,6 +5,47 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.36.0 (2026-11-20): Enter sends, stocks on Today, smoother chat, fresh look
+
+- Fixed: Enter sends your message and Shift+Enter starts a new line, everywhere you type to her. That covers chat and project chats, Edit last message, Messages, the workspace's Ask box, the offline page, the desktop apps' quick ask and the website receptionist chat. Phone keyboards that hid the Enter key from the page (Android) and gave a new line now send too, and Enter that picks a word in an input method never sends half a word. Prefer writing long messages? Settings → You → Appearance → Chat behavior → Enter sends the message → No: Enter makes a new line and Ctrl+Enter (Cmd+Enter on a Mac) sends (per device, on by default, docs/CHATS.md).
+- New: a Stocks tile on Today with charts, and trackers you add right there (P2, docs/design/P2STOCKS.md). A Stocks tile shows the
+  stocks you track and the ones you have alerts on, with the price, the day's change (arrow and
+  sign, not color only) and a small chart you can switch between 1D, 1W, 1M and 1Y, drawn on your
+  computer from free prices. Tap one for a bigger chart with your alert levels marked and add an
+  alert there. Add a stock from the tile by company name or ticker, reorder or remove it with Edit
+  list. Trackers and alerts are one list. If you already watch stocks, the tile turns itself on
+  once (hide it any time). Prices refresh politely (every minute while the market is open, every
+  15 minutes when closed, slower after errors) and always say how old they are; in private local
+  mode nothing is fetched. Household members get their own; kids don't.
+- Fixed: the page no longer freezes while she writes a long reply in a long chat (LAGFIX, docs/design/LAGFIX.md). While she
+  wrote, the page drew her whole reply again for every few words, measured the page before and after
+  each draw, and kept pulsing glows that redrew the page on every frame; on a slower computer the page
+  was busy the whole time she wrote, and clicks and typing waited up to 2 seconds. Now finished
+  paragraphs are drawn once, her reply updates about 20 times a second, and the glows pulse without
+  redrawing the page: on the same long chat the page's long pauses went from 211 to 5 and the worst
+  wait for a click from 1.9 s to under 0.9 s. The Windows app now writes a line to desktop.log when its
+  window or the page stops answering ("slow ui", "page busy"), so a stall can be told apart and fixed.
+- Fixed: asking her for something long (a full build prompt or document) no longer ends the turn. It could end with
+  "Unterminated string in JSON at position 16384" and no answer. Big tool arguments are now shortened
+  value by value before add-on checks see them, never cut mid-text, and the check is skipped when no
+  add-on uses it.
+- Improved: a visual refresh that brings the look up to date (P4, docs/design/P4_VISUAL.md). Your messages
+  now sit in a soft rounded bubble with more room between turns; code blocks are wider with a header bar
+  and a rounded Copy button; every control shows one clear focus ring; inputs and selects share one height
+  and corner; cards and Today tiles share one softer edge; small windows open with a short, calm motion;
+  an empty chat shows a small picture; nine panels show a shimmering placeholder instead of "Loading…".
+  Sara Classic, High contrast and the accessibility switch keep their look; motion stays off with reduced motion.
+- Fixed: small everyday annoyances in the chat (P3FIXES, docs/design/POLISH_FIXES.md). Each chat keeps
+  its own unsent text (no more half a message showing up in the next chat or vanishing on a reload;
+  never kept for off-the-record chats). After Send, and after opening a chat, the cursor is back in
+  the message box on computers. Scrolling up to read while she writes no longer pulls you down, and
+  the redraw when she finishes keeps your place. Message times say the day when it isn't today
+  ("Yesterday, 9:30 PM"). Your own messages have Copy, and Copy buttons keep their icon. The chat's
+  ⋯ menu closes with Esc and works with the arrow keys; its button is bigger on phones, as is Copy on
+  code. Long chat names show in full on hover, and a double-click on the chat's title renames it.
+  Delete conversation and New project can't run twice from a double click, and Enter saves a new
+  project. New shortcuts: Ctrl/⌘+Shift+O for a new chat, Shift+Esc back to the message box.
+
 ## 3.35.1 (2026-11-20): Sara knows who you're linked with, and names follow renames
 
 - Fixed: Sara now knows who you are linked with in Messages and who wrote (never what), so "did Hank reach out?" gets a real answer. In your own chats she now knows each linked Sara's name, how long you have been linked, how many unread messages are from them, when the last one came and which of their requests wait for you (help pass, fix, find a time, shared project), and can look it up with a read-only tool. Never what anyone wrote: she still can't read or send messages and points you to Messages. Messages settings → Let Sara know who wrote (never what), on by default. Friend tools (find a time, fix requests, help passes) now find a friend by first name in any case. Fixed: a linked Sara's name was frozen at link time. A rename now reaches linked Saras by itself ("Jarvis (Sam’s Sara)", also communities), the old name keeps working for 30 days ("formerly Hank"), and Options → Rename sets one by hand (docs/MESSAGES.md).

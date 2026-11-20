@@ -27,9 +27,13 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.36.0
+  { id: 'long-document', release: '3.36.0', title: en('Ask for a long document'), steps: [en('Send the message below in any chat.')], ask: en('Write me a full, detailed build prompt for a small to-do app.'), expect: en('She writes it all and finishes the turn; the page stays smooth while she writes.') },
+  { id: 'enter-sends', release: '3.36.0', title: en('Press Enter to send'), steps: [en('Type a message, press Shift+Enter for a second line, then press Enter.')], view: '#view=settings:you-appearance', expect: en('Both lines go as one message; Enter sends on your phone keyboard too.') },
+  { id: 'stocks-today', release: '3.36.0', title: en('Add a stock to Today'), steps: [en('Press + on the Stocks tile, find a company and add it, then tap it.')], view: '#view=today', expect: en('Its price, the day’s change and a small chart; tapping shows a bigger chart with your alert levels.') },
   // 3.35.0
   { id: 'lang-practice', release: '3.35.0', title: en('Practice a language out loud'), steps: [en('Press Learn a language…, pick Spanish, then Say it back and read the sentence aloud.')], view: '#view=library', expect: en('Your words appear as you speak and each is marked right, close or not heard, with one gentle tip.') },
   { id: 'carry-sheet', release: '3.35.0', title: en('Make your recovery sheet'), steps: [en('In Backups you can carry, make a recovery sheet, print the PDF and press I printed it.')], view: '#view=settings:dh-backups', expect: en('18 words and a QR code on one page; after I printed it, the words are never shown again.') },

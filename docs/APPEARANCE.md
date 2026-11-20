@@ -125,3 +125,12 @@ the installed app's name and her own character sheet; text you or she wrote is n
   other {prêt·e}}` (French they takes the inclusive form; other languages use the masculine).
 - `test/name-everywhere.test.ts` keeps it that way: no hand-made renames in web code, no companion
   words in raw markup, well-formed pronoun choices in every language.
+
+## The 2026 refresh (P4)
+
+Every theme except Sara Classic got a quiet update: your messages in a soft bubble, wider code blocks
+with a Copy bar, one visible focus ring on every control, one height and corner for fields, softer card
+edges, a gentle opening motion for small windows, a picture on an empty chat and shimmering placeholders
+while panels load. Nothing moved and no setting changed. Want the old look? Settings → You → Appearance →
+Sara Classic. High contrast keeps solid lines, and Reduce motion (or the accessibility switch) turns the
+motion off. Details: `docs/design/P4_VISUAL.md`.

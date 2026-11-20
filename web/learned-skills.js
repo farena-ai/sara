@@ -183,7 +183,7 @@ function cardFor(kind, id) {
     if (kind === 'offer') offerBody(card, v, redraw);
     else fixBody(card, v, redraw);
   };
-  card.append(el('p', 'muted small', t('Loading…')));
+  card.append(el('p', 'muted small sk-line', t('Loading…')));
   void redraw();
   return card;
 }

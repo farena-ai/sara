@@ -95,7 +95,8 @@
   background-size: 250% 100%; -webkit-background-clip: text; background-clip: text; color: transparent; animation: v4-shimmer 2.2s linear infinite;
 }
 @keyframes v4-shimmer { from { background-position: 100% 0; } to { background-position: -150% 0; } }
-@keyframes v4-breathe { 0%, 100% { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 8px var(--accent-glow); } 50% { box-shadow: 0 0 0 4px var(--accent-soft), 0 0 16px var(--accent-glow); } }
+/* LAGFIX (docs/design/LAGFIX.md): opacity only (on the compositor); the glow is on the dot itself. */
+@keyframes v4-breathe { 50% { opacity: .6; } }
 .v4-rcpt { display: inline-flex; align-items: center; gap: 4px; flex: none; font-size: 11px; color: var(--success); border: 1px solid color-mix(in srgb, var(--success) 35%, transparent); border-radius: 999px; padding: 0 7px; }
 .v4-rcpt::before { content: "✓"; }
 :root[data-palette="classic"] .v4-rcpt { display: none; }

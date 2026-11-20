@@ -116,6 +116,7 @@ import { initPersist, loadPersistSettings, loadRepeats, openGoalCard, openLoopCa
 import { initRoutines, loadRoutines, openRoutinesAt, setRoutinesOpener, todayRoutineCards } from './routines.js';
 import { initWatches, watchNotice } from './watches.js';
 import { initDataSources, liveWatchNotice, loadDataSources, renderWatchingTile, saveDataSources } from './data-sources.js';
+import { initStocks, renderStocksTile } from './stocks.js';
 import { crewNotice, initCrews, loadCrews } from './crews.js';
 import { initTeamRuns, loadTeamRuns, onTeamRunEvent, teamRunNotice } from './team-runs.js';
 import { initWorkers, loadWorkers } from './workers.js';
@@ -184,7 +185,7 @@ import { closePanel, initHerPanel, openPanel, panelConv, panelFace, panelJobs, p
 import { initCommandBar, openCommandBar, score as cmdScore } from './command-bar.js';
 import { initV4, v4Kick } from './v4.js';
 import { initMotion } from './v4-motion.js';
-import { glassPlan, nearBottom, streamFrame, watchModal } from './smooth.js';
+import { followTracker, glassPlan, nearBottom, paced, streamBlocks, streamFrame, watchModal } from './smooth.js';
 import { icon, paintIcons, setIcon, TOOL_ICONS } from './icons.js';
 import { byRoom, chains, cursorOf, groupKeyOf, mergePage, PAGE_KEY, PAGE_STEP, pageOf, pageSize } from './session-list.js';
 import { createRecovery } from './recovery.js';
@@ -224,6 +225,8 @@ import { adoptAccess, currentAccess, initA11y } from './a11y-mode.js';
 import { secondOpinionButton, secondOpinionOffer } from './second-opinion.js';
 import { nudgeLine } from './nudges.js';
 import { herWeekCard, initHerWeek, loadHerWeek } from './her-week.js';
+import { enterSend, enterSendsOn, setEnterSends } from './enter-send.js';
+import { Drafts, busy, extraShortcut, menuKeys, msgWhen } from './paper-cuts.js';
 /** Phase 113: web/hub.js is wired (after the first sign-in). */
 let getStartedReady = false;
 let hubReady = false;
@@ -676,7 +679,7 @@ function convRow(c, o = {}) {
   // Under its room's heading (Group by room) a session named after the room says when it started instead.
   if (o.inRoom && c.room && (c.room.kind === 'dm' || shown.includes(c.room.title))) shown = t('Session of {date}', { date: new Date(c.createdAt).toLocaleDateString(locale(), { month: 'short', day: 'numeric' }) });
   const title = el('span', 'conv-title', shown);
-  if (shown !== c.title) a.title = c.title;
+  a.title = c.title; // P3FIXES: long names are cut with …; the full name shows on hover
   a.append(title);
   // Phase 66: a group chat shows who's in it.
   // Phase 108: an earlier session under its chat says when it was (its room is the chat's own).
@@ -742,12 +745,14 @@ function convRow(c, o = {}) {
     e.preventDefault();
     e.stopPropagation();
     convMenu(c, more);
+    // P3FIXES: opened from the keyboard, the first item takes the focus (arrows move, Esc closes).
+    if (e.detail === 0) document.querySelector('.pop-menu .pop-item')?.focus();
   });
   a.append(more);
   a.addEventListener('click', (e) => {
     e.preventDefault();
     closeSidebar();
-    openConversation(c.id);
+    void openConversation(c.id).then(focusComposer);
   });
   a.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/sara-conv', c.id));
   return a;
@@ -1136,6 +1141,16 @@ $('#tags-save').addEventListener('click', async () => {
   }
 });
 
+// P3FIXES: double-click the chat's title to rename it (the same as ⋯ → Rename…).
+$('#chat-title').addEventListener('dblclick', async () => {
+  const c = state.conv;
+  if (!c?.id || document.body.classList.contains('demo')) return;
+  const title = prompt(t('Rename conversation'), c.title)?.trim();
+  if (!title || title === c.title) return;
+  await moveConversation(c.id, { title });
+  $('#chat-title').textContent = title;
+});
+
 async function moveConversation(id, patch) {
   const updated = await api(`/conversations/${id}`, { method: 'PATCH', body: patch });
   state.conversations = state.conversations.map((c) => (c.id === id ? { ...c, ...updated } : c));
@@ -1148,6 +1163,12 @@ function closeMenus() {
   for (const m of document.querySelectorAll('.pop-menu')) m.remove();
 }
 document.addEventListener('click', closeMenus);
+// P3FIXES: Esc closes an open ⋯ menu (not the window under it) and gives the focus back; arrows move.
+window.addEventListener('keydown', (e) => {
+  const menu = document.querySelector('.pop-menu');
+  if (menu) menuKeys(menu, e);
+}, true);
+window.addEventListener('resize', closeMenus);
 
 function convMenu(c, anchor) {
   closeMenus();
@@ -1178,6 +1199,7 @@ function convMenu(c, anchor) {
   item(c.archivedAt ? t('Unarchive') : t('Archive'), () => moveConversation(c.id, { archived: !c.archivedAt }));
   item(t('Delete…'), () => openDeleteDialog(c), 'danger-text');
   document.body.append(menu);
+  menu._anchor = anchor;
   const r = anchor.getBoundingClientRect();
   menu.style.top = `${Math.min(window.innerHeight - menu.offsetHeight - 8, r.bottom + 4)}px`;
   menu.style.left = `${Math.max(8, r.right - menu.offsetWidth)}px`;
@@ -1192,11 +1214,14 @@ async function newConversation(projectId = null, offRecord = false) {
     $('#input').focus();
     return;
   }
+  const prevId = state.currentId;
+  const prevPrivate = Boolean(state.conv?.offRecord);
   const conv = await api('/conversations', { method: 'POST', body: offRecord ? { offRecord: true } : projectId ? { projectId } : {} });
   state.conversations.unshift(conv);
   if (projectId) collapsed.delete(`p${projectId}`);
   state.currentId = conv.id;
   state.conv = conv;
+  moveDraft(prevId, prevPrivate);
   renderConvSummary();
   $('#chat-title').textContent = conv.title;
   renderConversations();
@@ -1232,7 +1257,15 @@ function openProjectDialog(p, thenMove = null) {
   $('#pd-name').focus();
 }
 $('#new-project').addEventListener('click', () => openProjectDialog(null));
-$('#pd-save').addEventListener('click', async () => {
+// P3FIXES: Enter in the name saves; a second press while saving does nothing (no twin projects).
+$('#pd-name').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.isComposing) {
+    e.preventDefault();
+    $('#pd-save').click();
+  }
+});
+$('#pd-save').addEventListener('click', () => void busy($('#pd-save'), saveProject));
+async function saveProject() {
   $('#pd-error').textContent = '';
   const body = projectEditing?.builtin ? { name: $('#pd-name').value.trim() } : { name: $('#pd-name').value.trim(), workspace: $('#pd-workspace').value.trim() || null };
   try {
@@ -1247,7 +1280,7 @@ $('#pd-save').addEventListener('click', async () => {
   } catch (err) {
     $('#pd-error').textContent = err.message;
   }
-});
+}
 $('#pd-archive').addEventListener('click', async () => {
   if (!projectEditing) return;
   if (!confirm(t('Archive "{name}"? Its conversations move to No project; its to-dos and notes stay in the Planner.', { name: projectEditing.name }))) return;
@@ -1289,9 +1322,12 @@ $('#dc-archive').addEventListener('click', async () => {
   $('#delete-conv').close();
   if (deleting) await moveConversation(deleting.id, { archived: true });
 });
-$('#dc-delete').addEventListener('click', async () => {
+// P3FIXES: a double click deletes once (the second DELETE used to fail out of sight); errors show in the window.
+$('#dc-delete').addEventListener('click', () => void busy($('#dc-delete'), deleteConversationNow).catch((err) => { $('#dc-count').textContent = err.message; }));
+async function deleteConversationNow() {
   if (!deleting) return;
   await api(`/conversations/${deleting.id}${$('#dc-forget').checked ? '?forget=1' : ''}`, { method: 'DELETE' });
+  drafts.set(deleting.id, '');
   $('#delete-conv').close();
   state.conversations = state.conversations.filter((c) => c.id !== deleting.id);
   if (state.currentId === deleting.id) {
@@ -1304,12 +1340,14 @@ $('#dc-delete').addEventListener('click', async () => {
     }
   }
   renderConversations();
-});
+}
 
 // Phase 22: long conversations load in pages (the latest PAGE messages; earlier ones on demand).
 const PAGE = 150;
 async function openConversation(id) {
   if (todayOpen()) closeToday({ focus: false });
+  const prevId = state.currentId;
+  const prevPrivate = Boolean(state.conv?.offRecord);
   stopWatching();
   const conv = await api(`/conversations/${id}?limit=${PAGE}`);
   // Phase 49: another conversation's app preview doesn't stay open beside this one.
@@ -1319,6 +1357,7 @@ async function openConversation(id) {
   readTogetherSwitched(conv.id);
   $('#chat-title').textContent = conv.title;
   state.conv = conv;
+  moveDraft(prevId, prevPrivate);
   renderConvSummary();
   renderConversations();
   renderMessages(conv.messages, { busy: Boolean(conv.activity) });
@@ -1821,6 +1860,7 @@ initToday({
   // Phase 103: Today's "Her plans" tile (web/agenda.js).
   renderPlans: (plans, head) => renderPlansTile(plans, head),
   renderWatching: (part, head) => renderWatchingTile(part, head),
+  renderStocks: (part, head) => renderStocksTile(part, head),
   renderAutomations: (part, head) => renderAutomationsTile(part, head),
   renderErrands: (part, head) => renderErrandsTile(part, head),
   renderGoals: (part, head) => renderGoalsTile(part, head),
@@ -1886,9 +1926,10 @@ async function copyText(text, btn) {
   try {
     await navigator.clipboard.writeText(text);
     if (btn) {
-      const was = btn.textContent;
+      // P3FIXES: keep the button's own nodes (an icon button lost its icon after "Copied").
+      const was = [...btn.childNodes];
       btn.textContent = t('Copied');
-      setTimeout(() => (btn.textContent = was), 1200);
+      setTimeout(() => btn.replaceChildren(...was), 1200);
     }
   } catch {
     /* clipboard blocked */
@@ -1903,7 +1944,11 @@ function setReply(div, raw, { partial = false } = {}) {
     body = el('div', 'md');
     div.prepend(body);
   }
-  body.replaceChildren(toDom(parseMd(raw.trimEnd()), document, { onCopy: copyText, copyLabel: t('Copy') }));
+  const md = (s) => toDom(parseMd(s.trimEnd()), document, { onCopy: copyText, copyLabel: t('Copy') });
+  // LAGFIX (docs/design/LAGFIX.md): while she streams, finished blocks are drawn once; only the last one again.
+  if (partial) return streamBlocks(body, raw, md);
+  body._sb = null;
+  body.replaceChildren(md(raw));
 }
 
 // While streaming, re-render at most once per frame.
@@ -1925,8 +1970,10 @@ function typeReply(div, raw) {
     // Nobody is watching (tab in the background, where timers crawl): show it all.
     if (document.hidden) div._shown = target.length;
     else div._shown = Math.min(target.length, div._shown + 1 + Math.floor(Math.random() * 3) + Math.floor(backlog / 250));
-    setReply(div, target.slice(0, div._shown), { partial: true });
-    $('#messages').scrollTop = $('#messages').scrollHeight;
+    // P3FIXES: scrolled up to read? The text keeps coming without pulling the view down.
+    // LAGFIX: block by block, and "at the newest line" from the scroll tracker (no layout read first).
+    const box = $('#messages');
+    streamFrame(box, () => setReply(div, target.slice(0, div._shown), { partial: true }), followTracker(box).at);
     const last = target[div._shown - 1];
     const delay = backlog > 600 ? 20 : /[.!?…]/.test(last) ? 220 + Math.random() * 260 : /[,;:]/.test(last) ? 90 + Math.random() * 90 : last === '\n' ? 160 : 28 + Math.random() * 40;
     div._typer = setTimeout(tick, delay);
@@ -1949,13 +1996,14 @@ function finishTyping(div) {
 function queueReply(div, raw) {
   if (humanTyping()) return typeReply(div, raw);
   div._raw = raw;
-  if (div._queued) return;
-  div._queued = true;
-  requestAnimationFrame(() => {
-    div._queued = false;
-    // docs/PERFORMANCE.md: one layout read and at most one scroll a frame; a reader who scrolled up stays put.
-    streamFrame($('#messages'), () => setReply(div, div._raw));
+  // LAGFIX (docs/design/LAGFIX.md): drawn ~20 times a second (not per token or frame), block by block, and
+  // "is he at the newest line" comes from the scroll tracker, so a draw reads layout once (the scroll after it).
+  const box = $('#messages');
+  div._paint ??= paced(() => {
+    if (!div.classList.contains('typing')) return; // the reply ended meanwhile: its full draw is there
+    streamFrame(box, () => setReply(div, div._raw, { partial: true }), followTracker(box).at);
   });
+  div._paint();
 }
 
 function bubble(role, text, kind, id, images = [], docs = []) {
@@ -2040,6 +2088,12 @@ function msgActions(div, m, { last, lastUser, other = false }) {
     // fixreceipts: asked in words, her reply shows the same plan card for her previous reply.
     if (!state.conv?.offRecord && !state.conv?.partner && !other && m.meta?.secondOpinionOffer) secondOpinionOffer(div, m, state.currentId);
   }
+  if (m.role === 'user' && m.content?.trim()) {
+    // P3FIXES: his own message can be copied too (to reuse a long request).
+    const copy = act('copy', t('Copy this message'));
+    copy.addEventListener('click', () => copyText(m.content, copy));
+    bar.append(copy);
+  }
   if ((m.role === 'assistant' || m.role === 'user') && m.id && !state.conv?.partner) {
     // Phase 22: pin to the top of the conversation (📌 = pin).
     const on = m.meta?.pinned === true;
@@ -2111,7 +2165,8 @@ function toggleMsgActions(div, open = !div.classList.contains('show-actions')) {
 
 const msgTime = (iso) => {
   const d = iso ? new Date(String(iso).replace(' ', 'T') + (/Z|[+-]\d\d:?\d\d$/.test(String(iso)) ? '' : 'Z')) : null;
-  return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' }) : '';
+  // P3FIXES: an older message says its day too ("Yesterday, 9:30 PM", "Nov 12, 8:00 AM").
+  return d ? msgWhen(d, new Date(), locale()) : '';
 };
 
 // ---------- Phase 75: her messages, step lines and result cards ----------
@@ -2973,9 +3028,10 @@ async function runStream(path, body, userBubble) {
   const place = (node) => {
     if (!node) return;
     if (steps?.isConnected) {
-      steps.before(node);
       const box = $('#messages');
-      box.scrollTop = box.scrollHeight;
+      const follow = nearBottom(box);
+      steps.before(node);
+      if (follow) box.scrollTop = box.scrollHeight;
     } else append(node);
   };
   const ensureSteps = () => {
@@ -3288,7 +3344,12 @@ async function runStream(path, body, userBubble) {
         state.conv = { ...state.conv, earlier: c.earlier, pinned: c.pinned };
         renderPins();
         const errors = [...document.querySelectorAll('#messages .msg.error')];
-        renderMessages(c.messages);
+        // P3FIXES: reading higher up when she finished? The redraw keeps your place.
+        const box = $('#messages');
+        const reading = !nearBottom(box);
+        const top = box.scrollTop;
+        renderMessages(c.messages, { keepScroll: reading });
+        if (reading) box.scrollTop = top;
         // Fred fix B: an error the server kept (a turnerror notice) is drawn from the chat itself.
         for (const e of errors) if (!e.dataset.saved || !c.messages.some((m) => String(m.id) === e.dataset.saved)) append(e);
         if (errors.some((e) => e.classList.contains('trouble'))) document.querySelector('#messages .continue-bar')?.remove();
@@ -3310,6 +3371,43 @@ async function runStream(path, body, userBubble) {
     }
   }
 }
+
+// ---------- P3FIXES: unsent text per chat, and the cursor back in the message box ----------
+const drafts = new Drafts(globalThis.sessionStorage);
+const finePointer = () => !globalThis.matchMedia?.('(pointer: coarse)').matches;
+/** Puts the cursor in the message box on computers (on phones that would pop the keyboard up). */
+function focusComposer() {
+  const input = $('#input');
+  if (finePointer() && input && !input.disabled && input.offsetParent && !document.querySelector('dialog[open]:not(#today)')) input.focus({ preventScroll: true });
+}
+/** Keeps what is typed for the open chat (never for off-the-record chats). */
+function keepDraft() {
+  if (state.currentId && !state.conv?.offRecord && !state.editing) drafts.set(state.currentId, $('#input')?.value ?? '');
+}
+/** Switching chats: the chat left keeps its unsent text and the chat opened gets its own back. */
+function moveDraft(fromId, fromPrivate) {
+  const input = $('#input');
+  if (!input || state.editing) return;
+  const typed = input.value;
+  // The same chat drawn again (a reload, a deep link): an empty box gets its draft back.
+  if (fromId === state.currentId) {
+    if (!typed.trim() && !state.conv?.offRecord && drafts.get(state.currentId)) {
+      input.value = drafts.get(state.currentId);
+      autosize();
+    }
+    return;
+  }
+  if (fromId && !fromPrivate) drafts.set(fromId, typed);
+  const mine = state.conv?.offRecord ? '' : drafts.get(state.currentId);
+  input.value = fromId ? mine : typed.trim() ? typed : mine;
+  autosize();
+}
+let draftTimer = 0;
+$('#input').addEventListener('input', () => {
+  clearTimeout(draftTimer);
+  draftTimer = setTimeout(keepDraft, 400);
+});
+addEventListener('pagehide', keepDraft);
 
 $('#composer').addEventListener('submit', (e) => {
   e.preventDefault();
@@ -3334,14 +3432,21 @@ $('#composer').addEventListener('submit', (e) => {
   autosize();
   send(text);
 });
+// P3FIXES: after a send the chat's draft is gone and the cursor is back in the box (also after clicking Send).
+$('#composer').addEventListener('submit', () => {
+  clearTimeout(draftTimer);
+  keepDraft();
+  focusComposer();
+});
 
+// P1 (web/enter-send.js): Enter sends (Shift+Enter = new line; IME and phone keyboards safe). With
+// "Enter sends the message" off, Ctrl/Cmd+Enter sends; on, Ctrl/Cmd+Enter is Interrupt now (Phase 116).
+enterSend($('#input'), (e) => {
+  state.altSend = Boolean(e.altKey);
+  state.nowSend = Boolean((e.ctrlKey || e.metaKey) && enterSendsOn());
+  $('#composer').requestSubmit();
+});
 $('#input').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-    e.preventDefault();
-    state.altSend = e.altKey;
-    state.nowSend = e.ctrlKey || e.metaKey;
-    $('#composer').requestSubmit();
-  }
   // Esc in the empty message box while she works = Stop (the same as the Stop button).
   if (e.key === 'Escape' && !e.isComposing && state.streaming && !$('#input').value.trim() && $('#send-menu')?.hidden !== false) {
     e.preventDefault();
@@ -10205,6 +10310,15 @@ document.addEventListener('keydown', (e) => {
     SHORTCUTS[e.code]();
   }
 });
+// P3FIXES: Ctrl/⌘+Shift+O starts a new chat; Shift+Esc puts the cursor back in the message box.
+document.addEventListener('keydown', (e) => {
+  const want = extraShortcut(e);
+  if (!want || document.querySelector('dialog[open]:not(#today)')) return;
+  e.preventDefault();
+  if (want === 'new') return void $('#new-chat').click();
+  if (todayOpen()) closeToday({ focus: false });
+  $('#input').focus();
+});
 
 // Links that open a view: /#view=today|planner|memory|scrapbook|her|settings[:page] (Phase 19).
 window.saraCompanionCount = () => state.companions?.companions.length ?? 1;
@@ -10385,6 +10499,7 @@ $('#conv-search').addEventListener('input', () => {
 });
 $('#conv-search').addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
+    if (!$('#conv-search').value) focusComposer(); // P3FIXES: a second Esc leaves the search
     $('#conv-search').value = '';
     renderConversations();
   }
@@ -10530,6 +10645,8 @@ $('#ap-theme').value = themePick();
 $('#ap-size').value = localStorage.getItem('sara.textSize') ?? '15';
 $('#ap-typing').value = localStorage.getItem('sara.typing') ?? 'instant';
 $('#ap-typing').addEventListener('change', () => localStorage.setItem('sara.typing', $('#ap-typing').value));
+$('#ap-enter').value = enterSendsOn() ? 'on' : 'off';
+$('#ap-enter').addEventListener('change', () => setEnterSends($('#ap-enter').value !== 'off'));
 $('#ap-theme').addEventListener('change', () => {
   localStorage.setItem('sara.theme', $('#ap-theme').value);
   applyAppearance();
@@ -11004,6 +11121,7 @@ initWorkingStyle({ api, el });
 initPhoneHelper({ api });
 // E1: Settings → Data sources, the Watching tile and the live-watch chat card (web/data-sources.js).
 initDataSources({ api, el, openSettings: (page) => void openSettings(page) });
+initStocks({ api, el });
 initWatches({
   api,
   el,

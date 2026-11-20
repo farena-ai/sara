@@ -228,6 +228,9 @@ summary { cursor: pointer; color: var(--accent-2); }
 .conv-more { visibility: hidden; padding: 0 6px; line-height: 1.4; color: var(--muted); }
 #conversations a.conv:hover .conv-more, #conversations a.conv.active .conv-more { visibility: visible; }
 @media (hover: none) { .conv-more { visibility: visible; } }
+/* P3FIXES: the ⋯ shows while its row has keyboard focus; touch screens get finger-sized ⋯ and Copy buttons. */
+#conversations a.conv:focus-within .conv-more { visibility: visible; }
+@media (pointer: coarse) { #conversations .conv-more { min-width: 40px; min-height: 40px; margin-block: -4px; display: inline-flex; align-items: center; justify-content: center; } #messages .copy-code { min-height: 40px; min-width: 44px; } }
 .pop-menu { position: fixed; z-index: 50; min-width: 190px; max-height: 70vh; overflow-y: auto; background: var(--glass-strong); -webkit-backdrop-filter: var(--glass-filter); backdrop-filter: var(--glass-filter); border: 1px solid var(--hairline-strong); border-radius: 12px; padding: 4px; box-shadow: var(--shadow-2); }
 .pop-menu hr { border: 0; border-top: 1px solid var(--hairline-strong); margin: 4px 0; }
 .pop-label { font-size: 11px; color: var(--muted); padding: 4px 10px; text-transform: uppercase; }

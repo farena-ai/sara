@@ -394,7 +394,7 @@ function renderToday() {
   if (!list) return;
   const items = nextThings(ui.today);
   const time = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
-  if (!ui.today) return void list.replaceChildren(el('li', 'hp-empty', t('Loading…')));
+  if (!ui.today) return void list.replaceChildren(el('li', 'hp-empty sk-line', t('Loading…')));
   if (!items.length) return void list.replaceChildren(el('li', 'hp-empty', t('Nothing else on today.')));
   list.replaceChildren(
     ...items.map((x) => {

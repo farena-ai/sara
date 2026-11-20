@@ -252,7 +252,7 @@ export function describeDest(app: AppContext, feed: Feed, item?: string, origin?
 
 /** The items of a feed that exist now (Automations page keys). */
 export function feedItems(app: AppContext, feed: Feed): { key: string; label: string; origin?: string | null }[] {
-  if (feed === 'stocks' || feed === 'sports' || feed === 'mail') return (app.liveWatches?.list() ?? []).filter((w) => w.state !== 'done' && liveFeed(w.kind) === feed).map((w) => ({ key: `live:${w.id}`, label: w.label, origin: w.conversationId }));
+  if (feed === 'stocks' || feed === 'sports' || feed === 'mail') return (app.liveWatches?.list() ?? []).filter((w) => w.state !== 'done' && w.when !== 'track' && liveFeed(w.kind) === feed).map((w) => ({ key: `live:${w.id}`, label: w.label, origin: w.conversationId }));
   if (feed === 'products') return (app.productWatches?.list() ?? []).map((w) => ({ key: `product:${w.id}`, label: w.label, origin: w.conversationId }));
   if (feed === 'automations') return (app.automations?.list() ?? []).map((a) => ({ key: `auto:${a.id}`, label: a.name }));
   if (feed === 'goals') return (app.longGoals?.list({ open: true }) ?? []).map((g) => ({ key: `goal:${g.id}`, label: g.title }));

@@ -63,8 +63,9 @@ test('the streamed reply renders once a frame and never forces layout per token'
   assert.ok(token.length > 100);
   assert.doesNotMatch(token, /scrollHeight|getBoundingClientRect|offsetHeight/, 'no layout read per token');
   const queue = app.slice(app.indexOf('function queueReply('), app.indexOf('function bubble('));
-  assert.match(queue, /requestAnimationFrame\(/);
-  assert.match(queue, /streamFrame\(\$\('#messages'\), \(\) => setReply\(div, div\._raw\)\)/);
+  // LAGFIX: paced (web/smooth.js `paced` draws in a requestAnimationFrame, at most every STREAM_EVERY_MS).
+  assert.match(queue, /paced\(/);
+  assert.match(queue, /streamFrame\(box, \(\) => setReply\(div, div\._raw, \{ partial: true \}\), followTracker\(box\)\.at\)/);
 });
 
 test('after a turn the chat keeps a window of PAGE messages when he is at the bottom (flat page over a long session)', () => {

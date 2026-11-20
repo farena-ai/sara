@@ -108,6 +108,12 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Polish: Enter sends, stocks on Today, smoother chat, fresh look, in 3.36.0
+
+Enter sends and Shift+Enter makes a new line in every place you type to her. Watched stocks get a Today tile
+with charts and trackers. Long replies no longer freeze the page while she writes, asking for a long document
+no longer ends the turn, 25 small annoyances are gone, and the whole app has a fresher, more consistent look.
+
 ## Fixes in 3.35.1
 
 Sara now knows which Saras you are linked with, who wrote and when, and what they asked for, never what they

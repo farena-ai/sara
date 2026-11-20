@@ -143,7 +143,7 @@ function children(node, prefix, depth) {
 async function showFile(path, line) {
   const ws = getWs();
   const box = $('#pm-detail');
-  box.replaceChildren(el('p', 'muted small', t('Loading…')));
+  box.replaceChildren(el('p', 'muted small sk-line', t('Loading…')));
   let f;
   try {
     f = await api(`/codemap/${encodeURIComponent(ws)}/file?path=${encodeURIComponent(path)}`);

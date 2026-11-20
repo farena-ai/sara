@@ -45,6 +45,7 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <algorithm>
 #include <ctime>
 #include <windowsx.h>
 #include <wincodec.h>
@@ -60,6 +61,7 @@
 #include "save-files.h"
 #include "meeting-rec.h"
 #include "server-counts.h"  // U2.8/U2.11: the taskbar count, every server's unread
+#include "ui-watch.h"       // LAGFIX: how long one message kept the window thread busy
 #include <wtsapi32.h>
 #include <memory>
 #include <thread>
@@ -1056,6 +1058,8 @@ static void logLine(const std::wstring& line) {
   }
 }
 
+// LAGFIX: the message loop times every message; a slow one is written to desktop.log (ui-watch.h).
+static sarauiwatch::LoopWatch g_loopWatch;
 static std::wstring g_balloonTitle, g_balloonBody;
 /** Shown from the message loop (calling the shell from inside a WebView2 callback times out). */
 static void trayBalloon(const std::wstring& title, const std::wstring& body) {
@@ -1863,7 +1867,8 @@ static void takeNow(std::map<std::wstring, std::wstring>& m) {
   const std::wstring prefix = L"data:image/png;base64,";
   if (face.rfind(prefix, 0) == 0) {
     auto png = base64Decode(toUtf8(face.substr(prefix.size())));
-    if (png.size() > 8 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G') {
+    // LAGFIX: the same face every 5 s while she works: no new bitmap and no file write on this thread.
+    if (png.size() > 8 && png[1] == 'P' && png[2] == 'N' && png[3] == 'G' && png != g_facePng) {
       g_facePng = png;
       if (g_faceBmp) DeleteObject(g_faceBmp);
       g_faceBmp = nullptr;
@@ -2019,6 +2024,7 @@ static void onQuickMessage(const std::wstring& json, const std::wstring& source)
   auto m = parseFlatJson(json);
   if (m[L"m"] != L"qa") return;
   const std::wstring& a = m[L"a"];
+  g_loopWatch.stage(L"quick ask: " + a);
   if (a == L"offer") return screenOfferAct(m[L"act"]);  // V4.5: the screen companion's bubble
   if (a == L"ready") {
     g_qaReady = true;
@@ -3754,6 +3760,7 @@ static const wchar_t* kShim = LR"JS(
 
 static void reply(const std::wstring& id, const std::wstring& resultJson, const std::wstring& error) {
   if (id.empty() || !g_web) return;
+  g_loopWatch.step(L"reply");  // LAGFIX: a slow answer to the page says whether the reply itself waited
   std::wstring msg = L"{\"id\":" + id + (error.empty() ? L",\"result\":" + resultJson : L",\"error\":\"" + jsonEscape(error) + L"\"") + L"}";
   g_web->PostWebMessageAsJson(msg.c_str());
 }
@@ -4065,6 +4072,7 @@ static void meetingRec(const std::wstring& id, const std::wstring& op) {
 static void onMessage(const std::wstring& json, const std::wstring& source) {
   auto m = parseFlatJson(json);
   const std::wstring& kind = m[L"m"];
+  g_loopWatch.stage(L"page: " + (kind.empty() ? m[L"type"] : kind));
   const std::wstring id = m[L"id"];
   bool fromServer = sameOrigin(source);
   // The local setup/offline pages may only set the server, retry or change server.
@@ -4127,7 +4135,20 @@ static void onMessage(const std::wstring& json, const std::wstring& source) {
   if (kind == L"appUpdate") return onAppUpdateCall(id, m);
   if (kind.rfind(L"save", 0) == 0) return sarasave::onCall(kind, id, m);  // Save to my PC (save-files.cpp)
   // Phase 68: the page's ⇄ menu. Names and hosts only: no sign-in ever goes to a page.
-  if (kind == L"servers") return reply(id, serversJson());
+  if (kind == L"servers") {
+#ifdef SARA_TEST_HOOKS
+    // LAGFIX (test builds): where a slow answer spends its time (reading the profiles, or the reply).
+    ULONGLONG t0 = GetTickCount64();
+    std::wstring list = serversJson();
+    ULONGLONG t1 = GetTickCount64();
+    reply(id, list);
+    ULONGLONG t2 = GetTickCount64();
+    if (t2 - t0 >= 100) logLine(L"timing servers: json " + std::to_wstring(t1 - t0) + L" ms, reply " + std::to_wstring(t2 - t1) + L" ms");
+    return;
+#else
+    return reply(id, serversJson());
+#endif
+  }
   if (kind == L"useServer") {
     reply(id, L"true");
     return postSwitch(m[L"id"]);
@@ -4494,6 +4515,19 @@ static void createController() {
             onMessage(j, s);
             return S_OK;
           }).Get(), nullptr);
+          // LAGFIX (docs/design/LAGFIX.md): the page's own thread too busy to answer for seconds (WebView2
+          // says "unresponsive") or its process gone: one line in desktop.log, so a stuck-feeling app can be
+          // told apart from a stuck window thread ("slow ui:"). Nothing is reloaded or shown.
+          g_web->add_ProcessFailed(Callback<ICoreWebView2ProcessFailedEventHandler>([](ICoreWebView2*, ICoreWebView2ProcessFailedEventArgs* a) -> HRESULT {
+            COREWEBVIEW2_PROCESS_FAILED_KIND k;
+            if (FAILED(a->get_ProcessFailedKind(&k))) return S_OK;
+            static ULONGLONG lastSaid = 0;
+            if (k == COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_UNRESPONSIVE) {
+              if (GetTickCount64() - lastSaid > 60000) logLine(L"page busy: the page didn't answer for several seconds (WebView2: unresponsive)");
+              lastSaid = GetTickCount64();
+            } else logLine(L"page process failed: kind " + std::to_wstring((int)k));
+            return S_OK;
+          }).Get(), nullptr);
           // Phase 75 stage 3: a web Notification from the page (new Notification(), a service
           // worker's) becomes the app's own toast, under the same one-per-event rule, never a second one.
           ComPtr<ICoreWebView2_24> w24;
@@ -4606,6 +4640,45 @@ static LRESULT customFrameHitTest(HWND h, WPARAM wp, LPARAM lp) {
   if (pt.y < titlebarPx()) return HTCAPTION;
   return HTCLIENT;
 }
+
+#ifdef SARA_TEST_HOOKS
+/** LAGFIX, test builds only: a thread asks the window for a no-op answer (WM_NULL) every 100 ms and
+ *  writes how long the answer took to <test dir>/ui-heartbeat.log: one summary line every 5 s (worst,
+ *  p95, how many) and a line for every answer slower than 200 ms. A live check reads it while a chat
+ *  streams; nothing of this is in release builds. */
+static void startUiHeartbeat() {
+  std::wstring path = dataDir() + L"\\ui-heartbeat.log";
+  std::thread([path] {
+    std::vector<DWORD> window;
+    ULONGLONG since = GetTickCount64();
+    auto say = [&path](const std::wstring& line) {
+      FILE* f = nullptr;
+      if (_wfopen_s(&f, path.c_str(), L"a, ccs=UTF-8") == 0 && f) {
+        fwprintf(f, L"%llu %s\n", (unsigned long long)GetTickCount64(), line.c_str());
+        fclose(f);
+      }
+    };
+    for (;;) {
+      Sleep(100);
+      if (!g_wnd) continue;
+      ULONGLONG t0 = GetTickCount64();
+      DWORD_PTR r = 0;
+      LRESULT ok = SendMessageTimeoutW(g_wnd, WM_NULL, 0, 0, SMTO_NORMAL, 20000, &r);
+      DWORD took = (DWORD)(GetTickCount64() - t0);
+      window.push_back(ok ? took : 20000);
+      if (took >= 200) say(L"stall " + std::to_wstring(took) + L" ms");
+      if (GetTickCount64() - since >= 5000) {
+        std::vector<DWORD> s = window;
+        std::sort(s.begin(), s.end());
+        DWORD worst = s.empty() ? 0 : s.back(), p95 = s.empty() ? 0 : s[(s.size() * 95) / 100 < s.size() ? (s.size() * 95) / 100 : s.size() - 1];
+        say(L"window worst=" + std::to_wstring(worst) + L" p95=" + std::to_wstring(p95) + L" n=" + std::to_wstring(s.size()) + L" slowLoop=" + std::to_wstring(g_loopWatch.slowCount()) + L" worstLoop=" + std::to_wstring(g_loopWatch.worst()));
+        window.clear();
+        since = GetTickCount64();
+      }
+    }
+  }).detach();
+}
+#endif
 
 static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
   // U2.8: the taskbar button was (re)made (Explorer restarted): lay the count on it again.
@@ -4895,6 +4968,7 @@ static LRESULT CALLBACK WndProc(HWND h, UINT msg, WPARAM wp, LPARAM lp) {
           break;
         case WM_CONTEXTMENU:
         case WM_RBUTTONUP:
+          g_loopWatch.modal();  // LAGFIX: the menu's own loop keeps the window answering
           trayMenu();
           break;
         case NIN_BALLOONUSERCLICK:
@@ -5204,10 +5278,17 @@ int WINAPI wWinMain(HINSTANCE inst, HINSTANCE, LPWSTR cmd, int show) {
   if (!files.empty()) takeFiles(files);  // attached once her page has loaded
   if (!g_toastQueue.empty()) PostMessageW(g_wnd, WM_APP_TOAST, 0, 0);
 
+#ifdef SARA_TEST_HOOKS
+  startUiHeartbeat();
+#endif
   MSG msg;
   while (GetMessageW(&msg, nullptr, 0, 0)) {
+    // LAGFIX: one message that keeps this thread busy for seconds is what Windows calls "Not responding".
+    g_loopWatch.begin(msg.message, msg.wParam, GetTickCount64());
     TranslateMessage(&msg);
     DispatchMessageW(&msg);
+    std::wstring slow = g_loopWatch.end(GetTickCount64());
+    if (!slow.empty()) logLine(slow);
   }
   BufferedPaintUnInit();
   CoUninitialize();

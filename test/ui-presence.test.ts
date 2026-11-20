@@ -76,8 +76,9 @@ test('panel styles: 320 px column from 1100 px, an overlay below, a sheet on pho
   assert.match(css, /html\.shell \.her-panel\.mode-side, html\.shell \.her-panel\.mode-overlay \{ padding-top: var\(--titlebar\); \}/, 'the panel starts below the native title strip');
   assert.match(css, /html\.shell #chat-head \.head-icon, html\.shell #chat-head \.head-face-btn \{ app-region: no-drag;/);
   // Motion is breathing / pulsing only while she works or writes; theme.css turns all of it off for reduced motion.
-  assert.match(css, /html\.sara-busy \.hp-glow \{ animation: hp-breathe/);
-  assert.match(css, /html\.sara-speaking \.hp-glow \{ animation: hp-pulse/);
+  // LAGFIX: on the glow's ::after (opacity only, on the compositor).
+  assert.match(css, /html\.sara-busy \.hp-glow::after \{ animation: hp-breathe/);
+  assert.match(css, /html\.sara-speaking \.hp-glow::after \{[^}]*animation: hp-pulse/);
   assert.match(web('theme.css'), /@media \(prefers-reduced-motion: reduce\)[\s\S]*animation-duration: \.001ms !important/);
   // Colours come from the tokens (no new literal palette outside the mood tints).
   const literals = [...css.replace(/\.hp-glow\[data-mood="\w+"\] \{[^}]*\}/g, '').matchAll(/#[0-9a-f]{3,8}\b/gi)].map((m) => m[0]);

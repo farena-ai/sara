@@ -24,6 +24,26 @@ export type PluginHookPoint = keyof typeof HOOK_MS;
 export const NOTE_MAX = 1000;
 export const RESULT_MAX = 16 * 1024;
 
+/**
+ * A copy of `value` whose JSON is at most `max` characters, made by shortening long strings (each one
+ * scrubbed with `scrub`), never by cutting the JSON text. When even that can't fit, the keys are kept.
+ */
+export function fitJson(value: unknown, max: number, scrub: (s: string) => string = (s) => s): Record<string, unknown> {
+  const copy = (v: unknown, cap: number, depth: number): unknown => {
+    if (typeof v === 'string') { const t = scrub(v); return t.length > cap ? `${t.slice(0, cap)}…` : t; }
+    if (v === null || typeof v !== 'object') return v;
+    if (depth > 8) return '…';
+    if (Array.isArray(v)) return v.slice(0, 200).map((x) => copy(x, cap, depth + 1));
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).slice(0, 200).map(([k, x]) => [k.slice(0, 100), copy(x, cap, depth + 1)]));
+  };
+  const root = value && typeof value === 'object' && !Array.isArray(value) ? value : { value };
+  for (let cap = max; cap >= 32; cap = Math.floor(cap / 2)) {
+    const out = copy(root, cap, 0) as Record<string, unknown>;
+    if (JSON.stringify(out).length <= max) return out;
+  }
+  return { truncated: true, keys: Object.keys(root as Record<string, unknown>).slice(0, 50) };
+}
+
 /** One running plugin, as the adapter sees it. */
 export interface HookPlugin {
   id: string;
@@ -205,7 +225,9 @@ export class PluginTurn {
    * make an automatic one ask; it can never let a step through that Sara would stop.
    */
   async beforeTool(c: { id: string; name: string; args: Record<string, unknown>; permission: 'auto' | 'ask' }): Promise<{ deny?: { plugin: string; name: string; reason: string }; ask?: { plugin: string; name: string; reason: string }; events: PluginEvent[] }> {
-    const res = await this.#fan('tool.before', { tool: c.name, args: JSON.parse(this.host.scrub(JSON.stringify(c.args)).slice(0, RESULT_MAX) || '{}'), permission: c.permission });
+    // Big arguments (a long document she writes) are cut value by value, never as JSON text: cutting the
+    // text mid-string made JSON.parse throw and ended the whole turn (2026-11-20, a 16 KB make_document).
+    const res = this.host.withHook('tool.before').length ? await this.#fan('tool.before', { tool: c.name, args: fitJson(c.args, RESULT_MAX, (t) => this.host.scrub(t)), permission: c.permission }) : [];
     let deny: { plugin: string; name: string; reason: string } | undefined;
     let ask: { plugin: string; name: string; reason: string } | undefined;
     const events: PluginEvent[] = [];

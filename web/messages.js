@@ -2,6 +2,7 @@
 // and communities. Sara is not involved: nothing here calls a model, and a message reaches her only
 // when the owner presses "Ask Sara about this" (it opens a new chat with the text in the box, unsent).
 import { t } from './naming.js';
+import { enterSend } from './enter-send.js';
 import { initSupport, loadSupport, supportRows, supportStrip } from './support.js';
 import { addNotice, countText, desktopBadge, noticeCount, noticeTitle, parseShown, pendingNotices, remember, withCount } from './msg-notice.js';
 
@@ -723,12 +724,7 @@ function composer(chat) {
       say(err.message);
     }
   };
-  box.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-      e.preventDefault();
-      void send();
-    }
-  });
+  enterSend(box, () => void send());
   box.addEventListener('input', () => {
     if (Date.now() - typingAt < 4000) return;
     typingAt = Date.now();

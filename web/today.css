@@ -911,6 +911,68 @@ html.shell .td-scroll { padding-top: calc(var(--titlebar) + clamp(12px, 2.4vw, 2
 @media (max-width: 720px) { #today .today-try-list { grid-template-columns: minmax(0, 1fr); } }
 /* /E7 try cards */
 
+/* ---------- P2 Stocks tile + bigger chart (web/stocks.js; docs/design/P2STOCKS.md) ---------- */
+#td-stocks .p2s-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+#td-stocks .p2s-row { display: flex; align-items: center; gap: 4px; min-width: 0; }
+#td-stocks .p2s-open { flex: 1 1 auto; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(56px, 200px) auto; align-items: center; gap: 10px; min-height: 48px; padding: 6px 8px; background: transparent; border: 1px solid transparent; border-radius: var(--r-control); color: var(--text-1); text-align: start; box-shadow: none; position: relative; }
+#td-stocks .p2s-open:hover, #td-stocks .p2s-open:focus-visible { background: var(--surface-2); border-color: var(--line); }
+#td-stocks .p2s-who { display: flex; flex-direction: column; min-width: 0; }
+#td-stocks .p2s-sym { font-weight: 700; letter-spacing: .02em; }
+#td-stocks .p2s-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#td-stocks .p2s-price { display: flex; flex-direction: column; align-items: flex-end; font-variant-numeric: tabular-nums; white-space: nowrap; }
+#td-stocks .p2s-num { font-weight: 600; }
+#td-stocks .p2s-bell { font-size: .7rem; font-weight: 400; }
+.p2s-chg { font-size: .82rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.p2s-chg.up { color: var(--success); }
+.p2s-chg.down { color: var(--danger); }
+.p2s-chg.flat { color: var(--text-2); }
+.p2s-arrow { font-size: .7em; margin-inline-end: 1px; }
+.p2s-spark { width: 100%; height: 36px; display: block; overflow: visible; }
+.p2s-spark .p2s-line, .p2s-chart .p2s-line { fill: none; stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; }
+.p2s-spark.up .p2s-line, .p2s-chart.up .p2s-line { stroke: var(--success); }
+.p2s-spark.down .p2s-line, .p2s-chart.down .p2s-line { stroke: var(--danger); }
+.p2s-spark .p2s-area, .p2s-chart .p2s-area { stroke: none; opacity: .14; }
+.p2s-spark.up .p2s-area, .p2s-chart.up .p2s-area { fill: var(--success); }
+.p2s-spark.down .p2s-area, .p2s-chart.down .p2s-area { fill: var(--danger); }
+.p2s-spark .p2s-base, .p2s-chart .p2s-base { stroke: var(--text-2); stroke-width: 1; stroke-dasharray: 2 3; opacity: .55; }
+#td-stocks .p2s-ranges, .p2s-dlg .p2s-ranges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 6px; }
+.p2s-range { min-width: 40px; min-height: 32px; padding: 2px 8px; font-size: .8rem; font-weight: 600; background: transparent; color: var(--text-2); border: 1px solid var(--line); border-radius: 999px; box-shadow: none; }
+.p2s-range.on { background: var(--accent-soft); color: var(--accent-text); border-color: transparent; }
+#td-stocks .p2s-edit { margin-inline-start: auto; }
+#td-stocks .p2s-tools { display: flex; gap: 2px; flex: 0 0 auto; }
+#td-stocks .p2s-tools button { min-width: 32px; min-height: 32px; padding: 0; }
+#td-stocks .p2s-addbox { display: grid; gap: 6px; margin: 0 0 8px; }
+#td-stocks .p2s-addbox > p { margin: 0; }
+#td-stocks .p2s-addrow { display: flex; gap: 6px; min-width: 0; }
+#td-stocks .p2s-q { flex: 1 1 auto; min-width: 0; min-height: 36px; }
+#td-stocks .p2s-hits { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+#td-stocks .p2s-hit { width: 100%; min-height: 36px; text-align: start; background: transparent; color: var(--text-1); border: 1px solid var(--line); border-radius: var(--r-control); box-shadow: none; padding: 4px 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#td-stocks .p2s-hit:hover, #td-stocks .p2s-hit:focus-visible { background: var(--surface-2); }
+#td-stocks .p2s-status:empty { display: none; }
+#td-stocks .p2s-status { margin: 0; }
+#td-stocks .p2s-intro { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 6px; padding: 6px 8px; border-radius: var(--r-control); background: var(--accent-soft); }
+#td-stocks .p2s-add-btn { min-width: 32px; min-height: 32px; padding: 0; font-size: 1.1rem; line-height: 1; }
+.p2s-warn { color: var(--warn); }
+#td-stocks .p2s-foot { margin-top: 6px; }
+dialog#stock-chart:not(#_) { width: min(720px, calc(100vw - 24px)); max-width: none; }
+.p2s-dlg .p2s-dlg-price { display: flex; align-items: baseline; gap: 10px; margin: 0 0 8px; }
+.p2s-dlg .p2s-num.big { font-size: 1.6rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.p2s-dlg .p2s-big { margin: 0 0 12px; }
+.p2s-chart { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: var(--r-control); background: var(--surface-2); }
+.p2s-chart .p2s-lbl { fill: var(--text-2); font-size: 11px; }
+.p2s-chart .p2s-level { stroke-width: 1.2; stroke-dasharray: 6 4; }
+.p2s-chart .p2s-level.above { stroke: var(--success); }
+.p2s-chart .p2s-level.below { stroke: var(--danger); }
+.p2s-chart .p2s-level-lbl.above { fill: var(--success); }
+.p2s-chart .p2s-level-lbl.below { fill: var(--danger); }
+.p2s-dlg .p2s-alerts h3 { margin: 0 0 4px; font-size: .95rem; }
+.p2s-dlg .p2s-alert-list { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 2px; }
+.p2s-dlg .p2s-alert-list li { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.p2s-dlg .p2s-alert-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.p2s-dlg .p2s-alert-add input { width: 7.5em; }
+@container (max-width: 520px) { #td-stocks .p2s-open { grid-template-columns: minmax(0, 1fr) minmax(48px, 80px) auto; gap: 6px; } }
+/* /P2 Stocks */
+
 /* ---------- V1 new look (docs/ops/V1_DESIGN.md §5), folded from the former pro.css ----------
    Outside Sara Classic these rules are scoped :where(:root:not([data-palette="classic"])) (zero
    specificity: each ties the rule it replaces and wins by coming later); decoration by

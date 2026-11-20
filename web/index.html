@@ -53,6 +53,7 @@
   <link rel="stylesheet" href="/v4-pages.css">
   <link rel="stylesheet" href="/offline-view.css">
   <link rel="stylesheet" href="/get-started.css">
+  <link rel="stylesheet" href="/refresh.css">
   <link rel="stylesheet" href="/settings3.css">
   <script type="module" src="/app.js"></script>
 </head>
@@ -523,6 +524,7 @@
                 <section class="today-card td-tile" id="td-calendar" tabindex="0" aria-labelledby="td-calendar-h"><div class="td-tile-head"><h3 id="td-calendar-h" aria-hidden="true">Your day</h3></div><div class="today-list"></div></section>
                 <section class="today-card td-tile" id="td-weather" hidden tabindex="0" aria-labelledby="td-weather-h"><div class="td-tile-head"><h3 id="td-weather-h">Weather</h3></div><div class="td-body"></div></section>
                 <section class="today-card td-tile" id="td-dates" hidden tabindex="0" aria-labelledby="td-dates-h"><div class="td-tile-head"><h3 id="td-dates-h">Coming up</h3></div><div class="today-list"></div></section>
+                <section class="today-card td-tile td-stocks" id="td-stocks" hidden tabindex="0" aria-labelledby="td-stocks-h"><div class="td-tile-head"><h3 id="td-stocks-h">Stocks</h3></div><div class="td-body"></div></section>
               </div>
             </section>
             <section class="td-sec" id="td-sec-needs" data-sec="needs" aria-labelledby="td-sec-needs-h">
@@ -1000,6 +1002,12 @@
     <div class="settings-body">
       <h2 id="hi-title">Handle it</h2>
       <div id="hi-body"></div>
+    </div>
+  </dialog>
+  <dialog id="stock-chart" class="small-dialog p2s-dlg" aria-labelledby="p2s-dlg-title">
+    <div class="settings-body">
+      <h2 id="p2s-dlg-title">Stocks</h2>
+      <div id="p2s-dlg-body"></div>
     </div>
   </dialog>
   <dialog id="update-pop" class="update-pop" aria-labelledby="upp-title">
@@ -3913,6 +3921,9 @@
       <div class="row-grid">
         <label>Her replies appear
           <select id="ap-typing"><option value="instant">As fast as they arrive</option><option value="human">Typed, like a person</option></select>
+        </label>
+        <label>Enter sends the message
+          <select id="ap-enter"><option value="on">Yes (default)</option><option value="off">No: Enter makes a new line</option></select>
         </label>
         <label>Sessions shown
           <select id="ap-sessions"><option value="5">5 (the default)</option><option value="8" data-raw>8</option><option value="10" data-raw>10</option></select>

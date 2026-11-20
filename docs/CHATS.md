@@ -242,6 +242,22 @@ Discord projects hold what you expect, and use *Put back* if you'd rather have t
 page size you like (5 / 8 / 10). When WhatsApp or Signal plugins arrive, say if you'd rather have
 one shared *Chats* project instead of one each.
 
+## Enter sends, Shift+Enter makes a new line (P1, unreleased)
+
+Every box where you type to her works the same way: the chat (and project chats), *Change your last
+message*, Messages, the workspace's *Ask her about this file*, the offline page, the desktop apps' quick
+ask and the website receptionist chat.
+
+- **Enter** sends. **Shift+Enter** starts a new line.
+- **Ctrl+Enter** (⌘+Enter on a Mac) keeps its meaning: in the chat while she works it is *Interrupt now*.
+- Typing in Japanese, Chinese or Korean (an input method): the Enter that picks a word never sends.
+- Phones: the keyboard's Enter key sends too (its key says *Send*). Some Android keyboards hid the key
+  from the page and gave a new line; that is fixed.
+- Like long messages? Settings → You → Appearance → Chat behavior → *Enter sends the message* → **No**.
+  Then Enter makes a new line and Ctrl+Enter (⌘+Enter) sends. It is saved per device, on by default
+  everywhere (phones too), and the quick ask follows it.
+- Boxes for longer text (offline notes) always keep Enter for new lines; Ctrl+Enter saves them.
+
 ## Talking to her while she works (2.49.0)
 
 You don't have to wait for her to finish. Whatever you send while she's working goes one of four ways:

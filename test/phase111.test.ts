@@ -176,7 +176,7 @@ test('111.4 layout: PUT validates and round-trips, per companion, DELETE resets;
   const p = r1.body.prefs as ReturnType<typeof defaultPrefs>;
   assert.deepEqual(p.sections, ['work', 'day', 'needs', 'her', 'more'], 'the rest follow in the designed order');
   assert.deepEqual(Object.keys(p.tiles).sort(), ['td-mail', 'td-usage'], 'unknown ids are dropped');
-  assert.deepEqual(p.order.day, ['td-dates', 'td-calendar', 'td-weather']);
+  assert.deepEqual(p.order.day, ['td-dates', 'td-calendar', 'td-weather', 'td-stocks']);
   assert.equal(p.awayHours, 24, 'clamped');
   assert.equal((await req('PUT', '/today/layout', { tiles: { 'td-mail': { size: 'S' } } })).status, 400, 'a size the tile does not allow is refused');
   const many = Object.fromEntries(Array.from({ length: 70 }, (_v, i) => [`td-x${i}`, {}]));

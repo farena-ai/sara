@@ -10,6 +10,7 @@
 // entry and tells this companion's open pages (SSE `today {part}`); a load that started before a
 // change never writes its older numbers back (the stale Mail tile, §5.1).
 import type { AppContext } from './chat.ts';
+import { stocksOf } from './stock-trackers.ts';
 import { header, type GmailPart } from './google.ts';
 import { expressionFor, leansPlayful, moodLabel } from './inner.ts';
 import { localDate } from './memory-worker.ts';
@@ -82,6 +83,8 @@ export interface Today {
   modelItems?: unknown[];
   /** E1: live-data watches (Watching). */
   watching?: ReturnType<import('./live-watch.ts').LiveWatches['todayTile']>;
+  /** P2: the Stocks tile (symbols only; the tile fetches prices itself). */
+  stocks?: ReturnType<import('./stock-trackers.ts').StockTrackers['todayPart']>;
   /** N2: automations that failed, wait for an OK or run today (none: no tile). */
   automations?: ReturnType<import('./automations.ts').Automations['todayTile']>;
   /** R3: open errands, the ones waiting on you first (none open: no tile). */
@@ -119,7 +122,7 @@ export interface Today {
 }
 
 /** Every part `GET /api/today?parts=` knows. */
-export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'study', 'people', 'family', 'meetings', 'trips', 'layout'] as const;
+export const TODAY_PARTS = ['day', 'coming', 'mail', 'her', 'board', 'hooks', 'plans', 'models', 'weather', 'home', 'memories', 'moments', 'work', 'usage', 'projects', 'needs', 'away', 'rooms', 'business', 'watching', 'automations', 'inbox', 'money', 'teams', 'shared', 'worktime', 'errands', 'goals', 'study', 'people', 'family', 'meetings', 'trips', 'stocks', 'layout'] as const;
 export type TodayPartName = (typeof TODAY_PARTS)[number];
 
 const CACHE_MS = 2 * 60_000;
@@ -563,6 +566,12 @@ export async function buildToday(app: AppContext, opts: { fresh?: boolean; parts
       const tile = demo ? undefined : app.liveWatches?.todayTile();
       if (tile) out.watching = tile;
       meta('watching');
+    },
+    stocks: () => {
+      // P2: the Stocks tile's symbols (trackers and alerts, one list); no prices here, no network.
+      const part = demo ? undefined : stocksOf(app)?.todayPart();
+      if (part) out.stocks = part;
+      meta('stocks');
     },
     automations: () => {
       // N2: a tile only when an automation failed, waits for an OK, or runs today.

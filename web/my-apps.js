@@ -101,7 +101,7 @@ function shareRow(a) {
 }
 
 async function versionsBox(a, box) {
-  box.replaceChildren(el('p', 'muted small', t('Loading…')));
+  box.replaceChildren(el('p', 'muted small sk-line', t('Loading…')));
   try {
     const d = await api(`/library/apps/${a.id}`);
     const ol = el('ol', 'myap-versions');

@@ -821,3 +821,66 @@ html.ios-short-view { --safe-b: 0px; }
 }
 :root[data-theme="light"] { --acc-glow: hsl(var(--acc-h) 80% 50% / .28); }
 :root[data-palette="contrast"], :root[data-decor="off"] { --acc-glow: transparent; --acc-haze: transparent; }
+/* ---------- P4 visual refresh (docs/design/P4_VISUAL.md): the 2026 tokens ----------
+   Used by web/refresh.css only (loaded after every page sheet, before settings3.css). A type scale with
+   line heights, a 4-px spacing scale, radius and elevation steps, softer borders, one two-tone focus ring
+   (AA on every palette: the ring is --focus over a --surface-0 gap) and motion. Colours are mixes of the
+   palette's own tokens, so every palette, Night and Day follow. Sara Classic does not use these. */
+:root {
+  --p4-fs-xs: 12px;
+  --p4-fs-sm: 13px;
+  --p4-fs-md: 14px;
+  --p4-fs-lg: 16px;
+  --p4-fs-xl: 20px;
+  --p4-fs-2xl: 26px;
+  --p4-lh-tight: 1.25;
+  --p4-lh-body: 1.55;
+  --p4-sp-1: 4px;
+  --p4-sp-2: 8px;
+  --p4-sp-3: 12px;
+  --p4-sp-4: 16px;
+  --p4-sp-5: 24px;
+  --p4-sp-6: 32px;
+  --p4-r-sm: 8px;
+  --p4-r-md: 12px;
+  --p4-r-lg: 16px;
+  --p4-r-xl: 20px;
+  --p4-control-h: var(--h-control);
+  --p4-border: color-mix(in srgb, var(--line) 62%, transparent);
+  --p4-border-strong: color-mix(in srgb, var(--line) 85%, var(--text-3));
+  --p4-ring: 0 0 0 2px var(--surface-0), 0 0 0 4px var(--focus);
+  --p4-field-ring: 0 0 0 3px color-mix(in srgb, var(--accent-solid) 22%, transparent);
+  --p4-user-fill: color-mix(in srgb, var(--surface-3) 70%, var(--surface-2));
+  --p4-code-fill: color-mix(in srgb, var(--surface-0) 55%, var(--surface-1));
+  --p4-code-head: color-mix(in srgb, var(--surface-2) 80%, var(--surface-1));
+  --p4-skel-a: color-mix(in srgb, var(--text-1) 7%, transparent);
+  --p4-skel-b: color-mix(in srgb, var(--text-1) 14%, transparent);
+  --p4-elev-1: 0 1px 2px color-mix(in srgb, var(--surface-0) 60%, transparent);
+  --p4-elev-2: 0 1px 2px color-mix(in srgb, var(--surface-0) 50%, transparent), 0 8px 24px -12px color-mix(in srgb, var(--surface-0) 90%, transparent);
+  --p4-elev-3: 0 24px 64px -20px color-mix(in srgb, var(--surface-0) 95%, transparent);
+  --p4-dur: 160ms;
+  --p4-dur-slow: 240ms;
+  --p4-ease: cubic-bezier(.2, 0, 0, 1);
+}
+/* Day: shadows from the text colour (the surfaces are light), softer still. */
+:root[data-theme="light"] {
+  --p4-elev-1: 0 1px 2px color-mix(in srgb, var(--text-1) 6%, transparent);
+  --p4-elev-2: 0 1px 2px color-mix(in srgb, var(--text-1) 5%, transparent), 0 8px 24px -14px color-mix(in srgb, var(--text-1) 22%, transparent);
+  --p4-elev-3: 0 24px 60px -24px color-mix(in srgb, var(--text-1) 30%, transparent);
+  --p4-user-fill: color-mix(in srgb, var(--surface-3) 55%, var(--surface-2));
+  --p4-code-fill: color-mix(in srgb, var(--surface-2) 60%, var(--surface-1));
+}
+/* High contrast stays solid: full-strength lines, no soft shadows, no tinted fills. */
+:root[data-palette="contrast"] {
+  --p4-border: var(--line);
+  --p4-border-strong: var(--line);
+  --p4-elev-1: none;
+  --p4-elev-2: none;
+  --p4-user-fill: var(--surface-2);
+  --p4-code-fill: var(--surface-1);
+  --p4-code-head: var(--surface-2);
+}
+@media (prefers-reduced-motion: reduce) {
+  :root { --p4-dur: 0ms; --p4-dur-slow: 0ms; }
+}
+:root.reduce-motion { --p4-dur: 0ms; --p4-dur-slow: 0ms; }

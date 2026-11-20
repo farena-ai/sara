@@ -2,6 +2,42 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.36.0",
+   "date": "2026-11-20",
+   "title": "Enter sends, stocks on Today, smoother chat, fresh look",
+   "items": [
+    {
+     "id": "3-36-0-a-stocks-tile-on-today",
+     "kind": "new",
+     "text": "A Stocks tile on Today with charts, and trackers you add right there.",
+     "try": [
+      "stocks-today"
+     ]
+    },
+    {
+     "id": "3-36-0-enter-sends-your-message-and",
+     "kind": "fixed",
+     "text": "Enter sends your message and Shift+Enter starts a new line, everywhere you type to her.",
+     "link": "#view=msgs",
+     "owner": true,
+     "try": [
+      "enter-sends"
+     ]
+    },
+    {
+     "id": "3-36-0-the-page-no-longer-freezes",
+     "kind": "fixed",
+     "text": "The page no longer freezes while she writes a long reply in a long chat."
+    },
+    {
+     "id": "3-36-0-asking-her-for-something-long",
+     "kind": "fixed",
+     "text": "Asking her for something long (a full build prompt or document) no longer ends the turn.",
+     "link": "#view=library"
+    }
+   ]
+  },
+  {
    "version": "3.35.1",
    "date": "2026-11-20",
    "title": "Sara knows who you're linked with, and names follow renames",
@@ -256,41 +292,6 @@
      "id": "3-30-1-she-said-it-did-it",
      "kind": "fixed",
      "text": "\"She said it, did it happen?\" no longer shows on things she really did with her newer tools."
-    }
-   ]
-  },
-  {
-   "version": "3.30.0",
-   "date": "2026-11-18",
-   "title": "Offline answers on the phone, teach by showing, Wear OS, live views, second opinion",
-   "items": [
-    {
-     "id": "3-30-0-second-opinion-on-any-of",
-     "kind": "new",
-     "text": "Second opinion on any of her replies (the ⋯ actions under a reply → Get a second opinion): two other connected models answer your question on their own."
-    },
-    {
-     "id": "3-30-0-live-views-in-chat-she",
-     "kind": "new",
-     "text": "Live views in chat: she can post a small checklist you tick, a table or a bar or line chart right in the chat, and it keeps itself up to date from where its data lives."
-    },
-    {
-     "id": "3-30-0-sara-on-a-wear-os",
-     "kind": "new",
-     "text": "Sara on a Wear OS watch: a tile with the rest of today's reminders, how many things wait on you and a Talk button that asks her by voice and shows her short answer."
-    },
-    {
-     "id": "3-30-0-answers-while-offline-android-app",
-     "kind": "new",
-     "text": "Answers while offline (Android app; Settings → Connections → Devices and sign-in → Offline on this device): an optional small model on the phone.",
-     "link": "#view=settings:co-phone",
-     "owner": true
-    },
-    {
-     "id": "3-30-0-teach-by-showing-browser-extension",
-     "kind": "new",
-     "text": "Teach by showing (browser extension → Watch me do this): do a task once in your browser and Sara keeps the steps (clicks, what you typed, what you picked, the pages).",
-     "link": "#view=settings:dh-devices"
     }
    ]
   }

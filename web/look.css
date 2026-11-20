@@ -269,13 +269,15 @@ html.sara-speaking .head-face { animation: her-pulse 1.3s ease-in-out infinite; 
 .steps-sum:hover { border-color: var(--hairline-strong); color: var(--text-1); }
 .steps-sum:focus-visible { outline: 2px solid var(--accent-solid); outline-offset: 2px; }
 .steps-dot { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--success); box-shadow: 0 0 8px -1px var(--success); }
-.steps.live .steps-dot { background: var(--accent-solid); animation: step-pulse 1.3s ease-in-out infinite; }
+.steps.live .steps-dot { background: var(--accent-solid); box-shadow: 0 0 10px 1px var(--accent-glow); animation: step-pulse 1.3s ease-in-out infinite; }
 .steps.has-error .steps-dot { background: var(--warn); box-shadow: 0 0 8px -1px var(--warn); }
 .steps.live .steps-text { color: var(--text-1); }
 .steps-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .steps-total:empty { display: none; }
 .steps-total { color: var(--text-3); font-variant-numeric: tabular-nums; white-space: nowrap; }
-@keyframes step-pulse { 50% { box-shadow: 0 0 0 5px transparent, 0 0 12px 2px var(--accent-glow); opacity: .65; } }
+/* LAGFIX (docs/design/LAGFIX.md): opacity only, so the live dot pulses on the compositor (a box-shadow
+   keyframe restyled and repainted the page every frame while she worked). The glow sits on the dot. */
+@keyframes step-pulse { 50% { opacity: .55; } }
 .steps-list { list-style: none; display: grid; gap: 2px; margin: 8px 0 2px 12px; padding: 2px 0 2px 12px; border-left: 1px solid var(--hairline-strong); }
 li.step { animation: step-in var(--dur-slow) var(--ease-out) both; }
 @keyframes step-in { from { opacity: 0; transform: translateY(3px); } }

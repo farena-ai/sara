@@ -186,10 +186,12 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
         box.value = item.text;
         box.rows = Math.min(8, Math.max(2, item.text.split('\n').length));
         const row = el('div', 'offv-acts');
-        row.append(button(W.save, 'offv-small primary', async () => {
+        const save = button(W.save, 'offv-small primary', async () => {
           await copy.edit(item.id, box.value);
           await redraw();
-        }), button(W.cancel, 'offv-small', () => redraw()));
+        });
+        row.append(save, button(W.cancel, 'offv-small', () => redraw()));
+        enterKeys(box, () => save.click());
         b.replaceChildren(box, row);
         box.focus();
       }));
@@ -246,21 +248,47 @@ export function mountOfflineView({ copy, words, onRetry, root = document.body, l
       await openChat(id);
       document.getElementById('offv-input')?.focus();
     });
-    box.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-        e.preventDefault();
-        form.requestSubmit();
-      }
-    });
+    enterKeys(box, () => form.requestSubmit());
     pane.replaceChildren(backRow(chat?.title || listed?.title || '…'), msgs, form);
     showPane(true);
     await drawSide();
     msgs.scrollTop = msgs.scrollHeight;
   }
 
+  // P1: the same Enter rule as web/enter-send.js (a copy: the offline cache can't load new files;
+  // test/p1-enter.test.ts keeps them equal). multiline: Enter = line, Ctrl/Cmd+Enter sends.
+  function enterAction(e, on) {
+    if (!e || e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return null;
+    if (on) return e.shiftKey ? null : 'send';
+    return (e.ctrlKey || e.metaKey) && !e.shiftKey ? 'send' : null;
+  }
+  function enterKeys(box, send, multiline = false) {
+    let on = !multiline;
+    try {
+      if (localStorage.getItem('sara.enterSends') === 'off') on = false;
+    } catch {
+      /* default */
+    }
+    box.setAttribute('enterkeyhint', on ? 'send' : 'enter');
+    let shiftAt = 0;
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.shiftKey) shiftAt = Date.now();
+      if (enterAction(e, on) !== 'send') return;
+      e.preventDefault();
+      send();
+    });
+    box.addEventListener('beforeinput', (e) => {
+      if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && on && Date.now() - shiftAt > 1000) {
+        e.preventDefault();
+        send();
+      }
+    });
+  }
+
   function noteForm(onAdd, placeholder) {
     const form = el('form', 'offv-compose');
     const box = el('textarea', 'offv-input');
+    enterKeys(box, () => form.requestSubmit(), true);
     box.rows = 3;
     box.placeholder = placeholder;
     box.setAttribute('aria-label', placeholder);

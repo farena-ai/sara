@@ -6,6 +6,7 @@
 // with Merge / Open PR / Discard. Folder: the main checkout or one of her task worktrees.
 // Also: Settings → Connections → Apps and services → GitHub → "Her commits" (the co-author line, the language servers found).
 import { t } from './naming.js';
+import { enterSend } from './enter-send.js';
 
 const $ = (s) => document.querySelector(s);
 let ctx = null;
@@ -45,12 +46,7 @@ export function initWorkspaceView(c) {
     }
   });
   $('#wv-send').addEventListener('click', () => void ask());
-  $('#wv-ask').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      void ask();
-    }
-  });
+  enterSend($('#wv-ask'), () => void ask());
   $('#wv-start').addEventListener('click', () => void startTree());
   document.addEventListener('pp-tab', (e) => {
     if (e.detail === 'workspace') void open(ctx.workspace());
@@ -70,7 +66,7 @@ const rootPath = (rel) => (st.root ? `${st.root}/${rel}` : rel);
 
 async function loadTree() {
   const box = $('#wv-files');
-  box.replaceChildren(ctx.el('p', 'muted small', t('Loading…')));
+  box.replaceChildren(ctx.el('p', 'muted small sk-line', t('Loading…')));
   try {
     const r = await ctx.api(`/workspaces/${encodeURIComponent(st.ws)}/tree${st.root ? `?dir=${encodeURIComponent(st.root)}` : ''}`);
     const pre = st.root ? `${st.root}/` : '';

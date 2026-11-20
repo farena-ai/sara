@@ -12,6 +12,7 @@
 // the line. Private local mode pauses the checks.
 //
 // Table (additive, the space's own store.db, so each household member has their own): long_goals.
+import { fitJson } from './hooks.ts';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
 import { postAlert } from './destinations.ts';
@@ -227,7 +228,7 @@ CREATE TABLE IF NOT EXISTS long_goals (
         kind,
         status: 'todo',
         ...(kind === 'errand' && m.errand && typeof m.errand === 'object' ? { errand: { ...(typeof m.errand.template === 'string' ? { template: m.errand.template } : {}), ...(m.errand.facts && typeof m.errand.facts === 'object' ? { facts: m.errand.facts } : {}) } } : {}),
-        ...(kind === 'automation' && m.automation && typeof m.automation === 'object' ? { automation: JSON.parse(JSON.stringify(m.automation).slice(0, 4000)) as Record<string, unknown> } : {}),
+        ...(kind === 'automation' && m.automation && typeof m.automation === 'object' ? { automation: fitJson(m.automation, 4000) } : {}),
       };
     });
     if (!milestones.length) {

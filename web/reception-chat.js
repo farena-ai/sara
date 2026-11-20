@@ -1,6 +1,8 @@
 // V3.5 (docs/RECEPTION.md): the website receptionist's chat page (inside the iframe on the owner's site).
 // Replies are drawn as text nodes only (never HTML); the visitor's words go only to this server.
 // W3.5: replies come in the visitor's language; payment links the owner pasted show under the reply.
+import { enterSend } from './enter-send.js';
+
 const root = document.querySelector('main.rc');
 if (root) {
   const id = root.dataset.id;
@@ -101,12 +103,7 @@ if (root) {
       q.focus();
     }
   });
-  q.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      ask.requestSubmit();
-    }
-  });
+  enterSend(q, () => ask.requestSubmit());
   root.querySelector('.rc-book-open')?.addEventListener('click', async () => {
     try {
       const r = await fetch(`/reception/${encodeURIComponent(id)}/slots`);

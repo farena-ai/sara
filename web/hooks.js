@@ -721,7 +721,7 @@ async function curlPanel(h, panel) {
 }
 
 async function logPanel(h, panel) {
-  panel.replaceChildren(el('p', 'muted small', t('Loading…')));
+  panel.replaceChildren(el('p', 'muted small sk-line', t('Loading…')));
   try {
     const r = await api(`/hooks/${enc(h.id)}/deliveries`);
     panel.replaceChildren();

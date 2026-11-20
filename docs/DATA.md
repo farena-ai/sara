@@ -73,3 +73,15 @@ the Chiefs spread moves by a point" (`watch_add`, `watch_list`, `watch_remove`).
 
 See also: [Watches on files and logs](WATCHES.md), [Library](LIBRARY.md), [Money](MONEY.md).
 See also: [Sports, odds and your bet log](SPORTS.md), [Watches on files and logs](WATCHES.md), [Library](LIBRARY.md).
+
+## Stocks on Today (P2)
+
+Today → Stocks shows the stocks you track and every stock you have an alert on, with the price,
+the day's change (arrow and sign, green or red) and a small chart (1D, 1W, 1M or 1Y). Tap a stock
+for a bigger chart with your alert lines, and add an alert right there. Add a stock with `+`
+(type a company or a ticker), reorder or remove with Edit list; removing a stock also removes its
+alerts. If you already had stock alerts, the tile turns itself on once; hide it with its ⋯ menu,
+or show it again in Customize. Prices refresh every minute while the US market is open and every
+15 minutes when it is closed, and the tile always says how old they are. Trackers and alerts are
+the same list (Settings → Data sources shows them all). Household members have their own; kids
+don't get it. In private local mode nothing is fetched and the tile says so.

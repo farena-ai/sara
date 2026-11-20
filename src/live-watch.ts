@@ -37,9 +37,10 @@ export const LIVE = {
 } as const;
 
 export type LiveKind = 'price' | 'game' | 'odds' | 'mail';
-export type LiveWhen = 'above' | 'below' | 'moves_pct' | 'starts' | 'final' | 'score_change' | 'moves_by' | 'arrives' | 'close_late';
+// P2: 'track' = a stock tracker on Today's Stocks tile (no alert: never checked in the background, never fires).
+export type LiveWhen = 'above' | 'below' | 'moves_pct' | 'starts' | 'final' | 'score_change' | 'moves_by' | 'arrives' | 'close_late' | 'track';
 export type LiveHow = 'chat' | 'phone' | 'desktop';
-const WHEN_BY_KIND: Record<LiveKind, LiveWhen[]> = { price: ['above', 'below', 'moves_pct'], game: ['starts', 'final', 'score_change', 'close_late'], odds: ['moves_by', 'above', 'below'], mail: ['arrives'] };
+const WHEN_BY_KIND: Record<LiveKind, LiveWhen[]> = { price: ['above', 'below', 'moves_pct', 'track'], game: ['starts', 'final', 'score_change', 'close_late'], odds: ['moves_by', 'above', 'below'], mail: ['arrives'] };
 
 export interface LiveTarget {
   symbol?: string;
@@ -54,6 +55,8 @@ export interface LiveTarget {
   /** E4: made by following a team (src/sports/follow.ts): renewed while the follow lasts; the label shows this name. */
   followId?: number;
   teamName?: string;
+  /** P2: a tracker's company name ("Apple Inc."), from its first quote. */
+  name?: string;
 }
 
 /** E4: when a game counts as "late" for a close-game alert (4th quarter, last period, 7th inning, 2nd half from 75'). */
@@ -133,6 +136,7 @@ function ensureTables(db: DatabaseSync): void {
 
 export function labelOf(kind: LiveKind, t: LiveTarget, when: LiveWhen, value: number | null): string {
   if (kind === 'mail') return `Email${t.from ? ` from ${t.from}` : ''}${t.words ? ` with “${t.words}”` : ''}`;
+  if (kind === 'price' && when === 'track') return `${t.symbol} on the Stocks tile`;
   if (kind === 'price') return when === 'moves_pct' ? `${t.symbol} moves ${value}% in a day` : `${t.symbol} ${when} ${value}`;
   if (kind === 'game') return `${t.teamName ?? t.team} (${String(t.league).toUpperCase()}) ${when === 'starts' ? 'game starts' : when === 'final' ? 'final score' : when === 'close_late' ? `close game late (within ${value})` : 'score changes'}`;
   const what = `${t.teamName ?? t.team} ${t.market === 'spreads' ? 'spread' : t.market === 'totals' ? 'total' : 'moneyline'}${t.book ? ` at ${t.book}` : ''}`;
@@ -193,18 +197,18 @@ export class LiveWatches {
 
   /** Today's small "Watching" card. */
   todayTile(): { items: { id: number; label: string; state: string; lastValue: string | null; lastCheckAt: string | null }[] } | undefined {
-    const items = this.#rows("state != 'done'").map((r) => this.#view(r)).map((w) => ({ id: w.id, label: w.label, state: w.state, lastValue: w.lastValue, lastCheckAt: w.lastCheckAt }));
+    const items = this.#rows("state != 'done' AND when_kind != 'track'").map((r) => this.#view(r)).map((w) => ({ id: w.id, label: w.label, state: w.state, lastValue: w.lastValue, lastCheckAt: w.lastCheckAt }));
     return items.length ? { items: items.slice(0, 8) } : undefined;
   }
 
-  add(input: { kind?: unknown; from?: unknown; words?: unknown; symbol?: unknown; league?: unknown; team?: unknown; sport?: unknown; market?: unknown; book?: unknown; when?: unknown; value?: unknown; until?: unknown; how?: unknown; conversationId?: string | null; followId?: number; teamName?: string }): LiveWatch {
+  add(input: { name?: unknown; kind?: unknown; from?: unknown; words?: unknown; symbol?: unknown; league?: unknown; team?: unknown; sport?: unknown; market?: unknown; book?: unknown; when?: unknown; value?: unknown; until?: unknown; how?: unknown; conversationId?: string | null; followId?: number; teamName?: string }): LiveWatch {
     const kind = String(input.kind ?? '') as LiveKind;
     if (!WHEN_BY_KIND[kind]) throw new LiveWatchError(400, 'Kind is price, game, odds or mail.');
     const when = String(input.when ?? '') as LiveWhen;
     if (!WHEN_BY_KIND[kind].includes(when)) throw new LiveWatchError(400, `For a ${kind} watch, "when" is one of: ${WHEN_BY_KIND[kind].join(', ')}.`);
     const t: LiveTarget = {};
     let value: number | null = null;
-    const needValue = !['starts', 'final', 'score_change', 'arrives'].includes(when);
+    const needValue = !['starts', 'final', 'score_change', 'arrives', 'track'].includes(when);
     if (when === 'close_late' && (input.value === undefined || input.value === null || input.value === '')) input = { ...input, value: 3 };
     if (needValue) {
       value = Number(input.value);
@@ -215,6 +219,7 @@ export class LiveWatches {
       if (kind === 'price') {
         t.symbol = upper(input.symbol);
         if (!/^[A-Z0-9][A-Z0-9.\-^=]{0,14}$/.test(t.symbol)) throw new LiveWatchError(400, 'Give a ticker symbol, like AAPL.');
+        if (when === 'track' && input.name) t.name = String(input.name).replace(/[\u0000-\u001f]/g, ' ').trim().slice(0, 80);
       } else if (kind === 'mail') {
         // E3: email from someone / with words, from the person's own connected mailboxes (owner only:
         // household members and the demo have none, so they get the plain "connect a mailbox" answer).
@@ -249,9 +254,10 @@ export class LiveWatches {
       if (Number.isNaN(u.getTime()) || u.getTime() <= now.getTime()) throw new LiveWatchError(400, '"until" must be a future date (YYYY-MM-DD or a date and time).');
       until = new Date(Math.min(u.getTime(), now.getTime() + LIVE.maxDays * 86_400_000));
     }
-    const total = this.#rows().length;
+    // P2: trackers have their own cap (src/stock-trackers.ts) and never take an alert's place.
+    const total = when === 'track' ? 0 : this.#rows("when_kind != 'track'").length;
     if (total >= LIVE.maxTotal) throw new LiveWatchError(409, `You have ${LIVE.maxTotal} watches. Remove one first.`);
-    if (this.#rows("state = 'active'").length >= LIVE.maxActive) throw new LiveWatchError(409, `${LIVE.maxActive} watches are already on. Remove one first.`);
+    if (when !== 'track' && this.#rows("state = 'active' AND when_kind != 'track'").length >= LIVE.maxActive) throw new LiveWatchError(409, `${LIVE.maxActive} watches are already on. Remove one first.`);
     const iso = now.toISOString();
     const r = this.#db.prepare('INSERT INTO live_watches (kind, target_json, when_kind, value, how, conversation_id, until, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(kind, JSON.stringify(t), when, value, how, input.conversationId ?? null, until.toISOString(), iso, iso);
     return this.get(Number(r.lastInsertRowid))!;
@@ -264,7 +270,7 @@ export class LiveWatches {
   /** From ReminderScheduler.tick(): starts one check pass if none is running. */
   due(now: Date = this.#app.now()): void {
     if (this.#running || privateLocalOn()) return;
-    if (!this.#db.prepare("SELECT 1 FROM live_watches WHERE state != 'done' LIMIT 1").get()) return;
+    if (!this.#db.prepare("SELECT 1 FROM live_watches WHERE state != 'done' AND when_kind != 'track' LIMIT 1").get()) return;
     this.#running = this.check(now)
       .catch((err: Error) => {
         console.warn(`live watches: ${err.message}`);
@@ -279,7 +285,7 @@ export class LiveWatches {
     const iso = now.toISOString();
     for (const r of this.#rows("state != 'done'")) {
       // E4: a followed team's watches last as long as the follow (renewed here, no timer).
-      if (Date.parse(r.until) <= t && (JSON.parse(r.target_json) as LiveTarget).followId !== undefined) this.#set(r.id, { until: new Date(t + LIVE.defaultDays * 86_400_000).toISOString() });
+      if (Date.parse(r.until) <= t && (r.when_kind === 'track' || (JSON.parse(r.target_json) as LiveTarget).followId !== undefined)) this.#set(r.id, { until: new Date(t + LIVE.defaultDays * 86_400_000).toISOString() });
       else if (Date.parse(r.until) <= t) this.#set(r.id, { state: 'done', reason: 'until' });
       else if (r.state === 'paused' && r.reason === 'quota' && r.paused_until && Date.parse(r.paused_until) <= t) this.#set(r.id, { state: 'active', reason: null, paused_until: null });
     }
@@ -298,7 +304,7 @@ export class LiveWatches {
     const ds = this.#ds();
     if (!ds) return fired;
     // Prices: every due symbol in one request.
-    const prices = active.filter((r) => r.kind === 'price');
+    const prices = active.filter((r) => r.kind === 'price' && r.when_kind !== 'track');
     if (prices.length && this.#dueGroup('price', t, LIVE.priceEveryMs)) {
       const syms = [...new Set(prices.map((r) => (JSON.parse(r.target_json) as LiveTarget).symbol!))];
       try {
@@ -609,7 +615,7 @@ export function createLiveWatchTools(getApp: () => AppContext): Tool[] {
           type: 'object',
           properties: {
             kind: { type: 'string', enum: ['price', 'game', 'odds', 'mail'] },
-            when: { type: 'string', enum: ['above', 'below', 'moves_pct', 'starts', 'final', 'score_change', 'close_late', 'moves_by', 'arrives'], description: 'price: above, below, moves_pct. game: starts, final, score_change, close_late (a close game late on: value = within how many points, default 3). odds: moves_by, above, below. mail: arrives.' },
+            when: { type: 'string', enum: ['above', 'below', 'moves_pct', 'track', 'starts', 'final', 'score_change', 'close_late', 'moves_by', 'arrives'], description: 'price: above, below, moves_pct, or track (no alert: just keep it on their Today Stocks tile). game: starts, final, score_change, close_late (a close game late on: value = within how many points, default 3). odds: moves_by, above, below. mail: arrives.' },
             from: { type: 'string', description: 'mail: the sender (a name or address, or part of it).' },
             words: { type: 'string', description: 'mail: words or phrases (comma-separated) in the subject or preview.' },
             value: { type: 'number', description: 'The threshold (price, percent, line or points). Not used for game watches.' },

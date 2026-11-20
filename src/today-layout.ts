@@ -27,6 +27,8 @@ export const TILES: readonly TileDef[] = [
   { id: 'td-calendar', section: 'day', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-weather', section: 'day', sizes: ['S', 'M'], size: 'S' },
   { id: 'td-dates', section: 'day', sizes: ['S', 'M'], size: 'S' },
+  // P2: the Stocks tile (opt-in; shows itself once for someone who already watches stocks).
+  { id: 'td-stocks', section: 'day', sizes: ['M', 'L'], size: 'M', hidden: true },
   { id: 'td-needs', section: 'needs', sizes: ['M', 'L'], size: 'L' },
   { id: 'td-mail', section: 'needs', sizes: ['M', 'L'], size: 'L' },
   // E6: Money in and Owe a reply (shown only once invoices or follow-ups are used).

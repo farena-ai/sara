@@ -58,7 +58,7 @@ export function giftsSection(p) {
   h.append(' ', tip(t('Ideas come only from what she may use in a normal chat: never private facts, health or money details, or private cards. Nothing is bought or sent.')));
   sec.append(h);
   const body = el('div', 'gf-body');
-  body.append(el('p', 'muted small', t('Loading…')));
+  body.append(el('p', 'muted small sk-line', t('Loading…')));
   sec.append(body);
   const load = () => api(`/people/${p.id}/gifts`).then((d) => draw(body, p, d, load)).catch((err) => body.replaceChildren(el('p', 'muted small', err.message)));
   void load();

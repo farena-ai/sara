@@ -63,7 +63,7 @@ async function toolsOf(name) {
 }
 
 async function showPerms(box, item) {
-  box.replaceChildren(el('p', 'muted small', t('Loading…')));
+  box.replaceChildren(el('p', 'muted small sk-line', t('Loading…')));
   try {
     const tools = await toolsOf(item.id);
     box.replaceChildren(

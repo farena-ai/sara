@@ -366,9 +366,13 @@
   border-radius: 50%;
   box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 14px -2px var(--acc-glow);
 }
-:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="listening"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-listen 1.4s ease-out infinite; }
-:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="thinking"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-think 2.4s ease-in-out infinite; }
-:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="speaking"] :is(#her-face > img.avatar, #brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { animation: v4d-ring-speak .9s ease-in-out infinite; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="listening"] #her-face > img.avatar { animation: v4d-ring-listen 1.4s ease-out infinite; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="thinking"] #her-face > img.avatar { animation: v4d-ring-think 2.4s ease-in-out infinite; }
+:where(:root.v4-own-face:not([data-palette="classic"]))[data-her-state="speaking"] #her-face > img.avatar { animation: v4d-ring-speak .9s ease-in-out infinite; }
+/* LAGFIX (docs/design/LAGFIX.md): only the header picture ripples, breathes or pulses; her other pictures keep a
+   steady lit ring while she works. Each box-shadow animation restyled and repainted the page every frame
+   (four of them cost about a third of the page's time while she streamed). */
+:where(:root.v4-own-face:not([data-palette="classic"])):is([data-her-state="listening"], [data-her-state="thinking"], [data-her-state="speaking"]) :is(#brand-today > img.avatar, .msg:last-of-type > img.msg-face, .hp-portrait) { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 18px 1px var(--acc-glow); }
 @keyframes v4d-ring-listen { 0% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 0 3px var(--acc-glow); } 100% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 0 10px transparent; } }
 @keyframes v4d-ring-think { 50% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 3px var(--accent-solid), 0 0 20px 2px var(--acc-glow); } }
 @keyframes v4d-ring-speak { 50% { box-shadow: 0 0 0 1.5px var(--surface-1), 0 0 0 4.5px var(--accent-solid), 0 0 24px 4px var(--acc-glow); } }

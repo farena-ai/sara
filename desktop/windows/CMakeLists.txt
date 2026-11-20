@@ -67,6 +67,12 @@ if(SARA_TEST_HOOKS)
   target_compile_definitions(ServerCountsChecks PRIVATE UNICODE _UNICODE SARA_TEST_HOOKS)
   target_compile_options(ServerCountsChecks PRIVATE /W4 /permissive- /utf-8)
   target_link_libraries(ServerCountsChecks PRIVATE gdi32 user32)
+  # LAGFIX: the slow-message log's rules on a fake clock (test/lagfix.test.ts).
+  add_executable(UiWatchChecks ../../test/fixtures/ui-watch-checks.cpp)
+  target_include_directories(UiWatchChecks PRIVATE src)
+  target_compile_definitions(UiWatchChecks PRIVATE UNICODE _UNICODE)
+  target_compile_options(UiWatchChecks PRIVATE /W4 /permissive- /utf-8)
+  target_link_libraries(UiWatchChecks PRIVATE user32)
   # V4.5: the screen companion's rules on the fake screens, and its reader on the fixture's own windows (test/v4-screen.test.ts).
   add_executable(ScreenWatchFixture WIN32 ../../test/fixtures/screen-watch-window.cpp)
   target_link_libraries(ScreenWatchFixture PRIVATE user32 gdi32 shell32)

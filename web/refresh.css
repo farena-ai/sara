@@ -1,0 +1,70 @@
+/* P4 visual refresh (docs/design/P4_VISUAL.md): a 2026 pass over the whole app, outside Sara Classic.
+   Loaded after every page sheet and right before settings3.css. Visual only: no ids, no behaviour.
+   Rules: theme variables for every colour (test/p4-visual.test.ts), the --p4-* tokens live in theme.css,
+   every selector starts with the Classic scope, motion only under prefers-reduced-motion: no-preference
+   and never with the accessibility switch's reduce-motion. High contrast keeps solid lines (tokens). */
+
+/* ---- 1. Type: smoother faces, balanced headings, calmer paragraphs ---- */
+:where(:root:not([data-palette="classic"])) body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; text-rendering: optimizeLegibility; }
+:where(:root:not([data-palette="classic"])) :is(h1, h2, h3) { letter-spacing: -0.01em; text-wrap: balance; }
+:where(:root:not([data-palette="classic"])) ::selection { background: var(--accent-soft); color: var(--text-1); }
+:where(:root:not([data-palette="classic"])) :is(#messages, #conversations, .hp-scroll, dialog) { scrollbar-width: thin; scrollbar-color: var(--p4-border-strong) transparent; }
+
+/* ---- 2. Focus: one visible two-tone ring on every control (AA: --focus over a surface gap) ---- */
+:where(:root:not([data-palette="classic"])) :is(button, a, summary, [role="button"], [tabindex]):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+:where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea:not(#input)):focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; border-color: var(--accent-solid); box-shadow: var(--p4-field-ring); }
+:where(:root:not([data-palette="classic"])) :is(input[type="checkbox"], input[type="radio"]):focus-visible { box-shadow: var(--p4-ring); }
+
+/* ---- 3. Controls: one height, one radius, softer edges, quiet transitions ---- */
+:where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select) { min-height: var(--p4-control-h); border-radius: var(--p4-r-sm); border-color: var(--p4-border-strong); }
+:where(:root:not([data-palette="classic"])) :is(input, select, textarea) { transition: border-color var(--p4-dur) var(--p4-ease), box-shadow var(--p4-dur) var(--p4-ease), background-color var(--p4-dur) var(--p4-ease); }
+:where(:root:not([data-palette="classic"])) :is(input:not([type="checkbox"], [type="radio"], [type="range"]), select, textarea:not(#input)):hover:not(:focus, :disabled) { border-color: color-mix(in srgb, var(--p4-border-strong) 60%, var(--text-3)); }
+:where(:root:not([data-palette="classic"])) button { border-radius: var(--p4-r-sm); transition: background-color var(--p4-dur) var(--p4-ease), border-color var(--p4-dur) var(--p4-ease), color var(--p4-dur) var(--p4-ease), box-shadow var(--p4-dur) var(--p4-ease), transform var(--p4-dur) var(--p4-ease); }
+:where(:root:not([data-palette="classic"])) button:active:not(:disabled) { transform: translateY(1px); }
+
+/* ---- 4. Cards and tiles: one radius, a softer edge, a faint lift by day ---- */
+:where(:root:not([data-palette="classic"])) :is(.v4-card, .kit-card, #today .td-tile) { border-color: var(--p4-border); border-radius: var(--p4-r-md); transition: border-color var(--p4-dur) var(--p4-ease), box-shadow var(--p4-dur) var(--p4-ease), transform var(--p4-dur) var(--p4-ease); }
+:where(:root:not([data-palette="classic"])[data-theme="light"]) :is(.v4-card, #today .td-tile) { box-shadow: var(--p4-elev-1); }
+
+/* ---- 5. Chat: your turns in a soft bubble, more air between turns, polished code ---- */
+:where(:root:not([data-palette="classic"])) .msg.user { align-self: flex-start; width: fit-content; max-width: min(760px, calc(100% - 44px)); margin-top: var(--p4-sp-4); padding: 8px 16px 10px; border: 1px solid transparent; border-radius: var(--p4-r-lg); background: var(--p4-user-fill); }
+:where(:root:not([data-palette="classic"])) .msg.user::before { top: 10px; }
+:where(:root:not([data-palette="classic"])) .msg.user.steer { border-color: var(--p4-border-strong); }
+:where(:root:not([data-palette="classic"])) .msg.her.run-start { margin-top: var(--p4-sp-4); }
+:where(:root:not([data-palette="classic"])) .msg-head-time { color: var(--text-3); font-size: var(--p4-fs-xs); font-variant-numeric: tabular-nums; }
+:where(:root:not([data-palette="classic"])) .msg .md { line-height: var(--p4-lh-body); }
+:where(:root:not([data-palette="classic"])) .msg .md .code-block { min-width: min(560px, calc(100vw - 96px)); max-width: 720px; margin: var(--p4-sp-2) 0 var(--p4-sp-3); border: 1px solid var(--p4-border); border-radius: var(--p4-r-md); background: var(--p4-code-fill); box-shadow: var(--p4-elev-1); }
+:where(:root:not([data-palette="classic"])) .msg .md .code-head { min-height: 34px; padding: 3px 6px 3px 14px; border-bottom: 1px solid var(--p4-border); background: var(--p4-code-head); color: var(--text-3); font: 500 var(--p4-fs-xs)/1.4 var(--font-mono); letter-spacing: .02em; }
+:where(:root:not([data-palette="classic"])) .msg .md .code-head button { min-height: 26px; padding: 2px 10px; border-radius: 6px; font-family: var(--font-ui); }
+:where(:root:not([data-palette="classic"])) .msg .md pre { padding: 12px 16px 14px; line-height: 1.6; }
+:where(:root:not([data-palette="classic"])) .msg .md pre code { font-family: var(--font-mono); font-size: var(--p4-fs-sm); }
+:where(:root:not([data-palette="classic"])) .msg .md :not(pre) > code { padding: 1px 6px; border: 1px solid var(--p4-border); border-radius: 6px; background: var(--surface-2); font-family: var(--font-mono); font-size: .88em; }
+:where(:root:not([data-palette="classic"])) .msg .md .md-table { border-color: var(--p4-border); border-radius: var(--p4-r-md); }
+:where(:root:not([data-palette="classic"])) .msg-actions { transition: opacity var(--p4-dur) var(--p4-ease); }
+:where(:root:not([data-palette="classic"])) .msg-actions .msg-ic { border-radius: var(--p4-r-sm); }
+:where(:root:not([data-palette="classic"])) .msg-actions .msg-ic:hover { background: var(--surface-2); color: var(--text-1); }
+
+/* ---- 6. Sidebar and header: softer dividers, rounded rows, a steadier title ---- */
+:where(:root:not([data-palette="classic"])) #sidebar { border-right-color: var(--p4-border); }
+:where(:root:not([data-palette="classic"])) :is(#conversations a, .side-go) { border-radius: var(--p4-r-sm); transition: background-color var(--p4-dur) var(--p4-ease), color var(--p4-dur) var(--p4-ease); }
+:where(:root:not([data-palette="classic"])) #chat-head { border-bottom-color: var(--p4-border); }
+:where(:root:not([data-palette="classic"])) #chat-title { font-size: var(--p4-fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+
+/* ---- 7. Dialogs: a rounder corner on small windows, a calm entrance (section 10) ---- */
+:where(:root:not([data-palette="classic"])) dialog.small-dialog { border-radius: var(--p4-r-lg); }
+
+/* ---- 8. Empty states: a small picture in the theme colours ---- */
+:where(:root:not([data-palette="classic"])) #messages .empty-start::before,
+:where(:root:not([data-palette="classic"])) .cmd-empty::before { content: ""; display: block; width: 52px; height: 52px; margin: 0 auto var(--p4-sp-2); background: var(--accent-text); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect width='52' height='52' rx='16' fill-opacity='.14'/%3E%3Cpath d='M16 20.5a4.5 4.5 0 0 1 4.5-4.5h11a4.5 4.5 0 0 1 4.5 4.5v7a4.5 4.5 0 0 1-4.5 4.5H24l-5 4v-4.2a4.5 4.5 0 0 1-3-4.3z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M22 24h8M22 28h5' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 52 52'%3E%3Crect width='52' height='52' rx='16' fill-opacity='.14'/%3E%3Cpath d='M16 20.5a4.5 4.5 0 0 1 4.5-4.5h11a4.5 4.5 0 0 1 4.5 4.5v7a4.5 4.5 0 0 1-4.5 4.5H24l-5 4v-4.2a4.5 4.5 0 0 1-3-4.3z' fill='none' stroke='black' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M22 24h8M22 28h5' stroke='black' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
+:where(:root:not([data-palette="classic"])) .cmd-empty::before { width: 40px; height: 40px; }
+
+/* ---- 9. Skeleton lines instead of a bare "Loading…" (the words stay for screen readers) ---- */
+:where(:root:not([data-palette="classic"])) .sk-line { display: block; width: min(280px, 70%); min-height: 1.1em; margin: var(--p4-sp-2) 0; border-radius: 6px; color: transparent; background: linear-gradient(90deg, var(--p4-skel-a) 0%, var(--p4-skel-b) 50%, var(--p4-skel-a) 100%) 0 0 / 200% 100%; list-style: none; user-select: none; }
+
+/* ---- 10. Motion: entrances and shimmer only when nothing asks for less ---- */
+@media (prefers-reduced-motion: no-preference) {
+  :where(:root:not([data-palette="classic"]):not(.reduce-motion)) dialog:modal:where(:not(#today, #settings)) { animation: p4-pop var(--p4-dur-slow) var(--p4-ease); }
+  :where(:root:not([data-palette="classic"]):not(.reduce-motion)) .sk-line { animation: p4-shimmer 1.4s linear infinite; }
+}
+@keyframes p4-pop { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+@keyframes p4-shimmer { to { background-position: -200% 0; } }

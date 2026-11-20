@@ -42,6 +42,19 @@ There is no disconnect overlay in the web app: the fog was a modal window's blur
 off (Firefox by default) the backdrop is the plain scrim, and the Sara Classic aurora pauses while a
 window is open (`html.modal-open`, no page-wide `:has()`).
 
+## Sending in a long chat (LAGFIX, 2026-11-20)
+
+Sending a message in a long chat made the page (and so the app) feel stuck until she finished. Three
+things ran for every few words she wrote: her whole reply was parsed and drawn again, the page measured
+itself before and after each draw, and the "she is working" glows animated a shadow, which redraws the
+page on every frame. Now finished paragraphs are drawn once, her reply updates about 20 times a second,
+and the glows only fade (the graphics card does that). On a long chat on a slower computer the page's
+long pauses while she writes went from 211 to 5. Details and numbers: `docs/design/LAGFIX.md`.
+
+If the Windows app still greys out with "Not responding", its `desktop.log` (in the app's data folder)
+has a `slow ui:` line naming what held the window, or `page busy:` when the page itself was too busy:
+those lines are what to send with a report.
+
 ## Keeping it fast
 
 `test/smooth.test.ts` guards the patterns: no page-wide `:has()`, no layout read per token or per orb

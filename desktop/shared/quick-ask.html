@@ -587,9 +587,29 @@ html.offering #ask,html.offering #foot,html.offering #out,html.offering #ctx,htm
     fit();
     ask(m.content, m);
   };
-  q.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('ask').requestSubmit(); }
-  });
+  // P1: the same Enter rule as web/enter-send.js (a copy: this page belongs to the desktop app;
+  // test/p1-enter.test.ts keeps them equal). Off in Settings → Appearance: Ctrl/Cmd+Enter sends.
+  function enterAction(e, on) {
+    if (!e || e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return null;
+    if (on) return e.shiftKey ? null : 'send';
+    return (e.ctrlKey || e.metaKey) && !e.shiftKey ? 'send' : null;
+  }
+  function enterKeys(box, send) {
+    const on = () => { try { return localStorage.getItem('sara.enterSends') !== 'off'; } catch { return true; } };
+    box.setAttribute('enterkeyhint', on() ? 'send' : 'enter');
+    if (!on()) $('hint').textContent = t('Ctrl/Cmd+Enter to ask · Enter for a new line · Esc to close');
+    let shiftAt = 0;
+    box.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.shiftKey) shiftAt = Date.now();
+      if (enterAction(e, on()) !== 'send') return;
+      e.preventDefault();
+      send();
+    });
+    box.addEventListener('beforeinput', (e) => {
+      if ((e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') && on() && Date.now() - shiftAt > 1000) { e.preventDefault(); send(); }
+    });
+  }
+  enterKeys(q, () => $('ask').requestSubmit());
   q.addEventListener('input', fit);
   addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.preventDefault(); post({ a: 'hide' }); } });
   $('close').onclick = () => post({ a: 'hide' });

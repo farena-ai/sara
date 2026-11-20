@@ -525,6 +525,10 @@
       "Follow the system is the default: it switches with this device's own light or dark setting. Night is the dark look, Day the light one.",
       "start"
     ],
+    "ap-enter": [
+      "On this device: Enter sends and Shift+Enter starts a new line. Pick No to write longer messages; then Ctrl+Enter (Cmd+Enter on a Mac) sends.",
+      "start"
+    ],
     "ap-typing": [
       "Show her replies as they arrive, or typed out like a person texting.",
       "start"
