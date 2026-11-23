@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { compressedFile, compressible, encodedEtag, etagMatches, pickEncoding } from './static-compress.ts';
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
 import { countModels } from './model-names.ts';
@@ -484,6 +485,12 @@ export function createSaraServer(opts: ServerOptions): Server {
   // Phase 100: 'agents' (A2A keys and peers) too. EC4/EC5: the audit trail and the policy.
   const DEVICE_TOKEN_DENIED = new Set(['devices', 'device', 'security', 'passkey', 'two-step', 'owner-token', 'pair', 'other-apps', 'hands', 'agents', 'hooks', 'deliveries', 'operations', 'audit', 'policy', 'prereqs', 'isolation', 'crews', 'team-runs', 'workers', 'triggers', 'secrets', 'data-rights', 'readiness', 'phone-helper', 'app-updates', 'member-tools', 'sso']);
   /**
+   * X0: what an app signed in with a device code may read but not change: what runs on the server
+   * (tool servers start a program, add-ons, tool permissions, code changes) and backups, which hold
+   * the vault and its key (so no download either). A stolen app token is not the owner.
+   */
+  const DEVICE_TOKEN_READ_ONLY = new Set(['mcp', 'plugins', 'tools', 'self-code', 'backups']);
+  /**
    * EC4: route groups whose changes get an audit row. Approvals are recorded by the chat (with the
    * tool name) and policy changes by the policy store, so each action writes exactly one row.
    */
@@ -582,16 +589,33 @@ export function createSaraServer(opts: ServerOptions): Server {
     const st = statSync(target);
     // Always revalidate so a new version is picked up on the next load; unchanged files cost a 304.
     const etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
-    if (req.headers['if-none-match'] === etag) {
-      res.writeHead(304, { etag, 'cache-control': 'no-cache', ...SECURITY_HEADERS });
+    // X2 (src/static-compress.ts): text files go out compressed, each compressed once per version.
+    const enc = compressible(target, st.size) && !req.headers.range ? pickEncoding(req.headers['accept-encoding']) : undefined;
+    const sentTag = encodedEtag(etag, enc);
+    if (etagMatches(req.headers['if-none-match'], etag)) {
+      res.writeHead(304, { etag: sentTag, 'cache-control': 'no-cache', vary: 'accept-encoding', ...SECURITY_HEADERS });
       return void res.end();
     }
-    res.writeHead(200, {
+    const head = {
       'content-type': MIME[extname(target)] ?? 'application/octet-stream',
       'cache-control': 'no-cache',
-      etag,
+      etag: sentTag,
+      vary: 'accept-encoding',
       ...SECURITY_HEADERS,
-    });
+    };
+    if (enc) {
+      let body: Buffer | undefined;
+      try {
+        body = compressedFile(target, etag, enc);
+      } catch {
+        body = undefined; // unreadable just now: fall through to the plain stream, which reports it
+      }
+      if (body) {
+        res.writeHead(200, { ...head, 'content-encoding': enc, 'content-length': body.length });
+        return void res.end(req.method === 'HEAD' ? undefined : body);
+      }
+    }
+    res.writeHead(200, { ...head, etag });
     if (req.method === 'HEAD') return void res.end();
     createReadStream(target).pipe(res);
   }
@@ -1624,6 +1648,9 @@ export function createSaraServer(opts: ServerOptions): Server {
     // other apps: those need you in the web app.
     if (deviceTokenOf(req) && DEVICE_TOKEN_DENIED.has(a) && !(a === 'device' && (b === 'logout' || b === 'whoami'))) {
       throw new HttpError(403, 'Apps signed in with a device code can\'t change sign-in settings or devices. Use the web app (Settings → Devices and sign-in).');
+    }
+    if (deviceTokenOf(req) && DEVICE_TOKEN_READ_ONLY.has(a) && (method !== 'GET' || (a === 'backups' && Boolean(b)))) {
+      throw new HttpError(403, 'Apps signed in with a device code can\'t change tool servers, add-ons, tool permissions or code changes, or take backups. Use the web app.');
     }
     if (deviceTokenOf(req) && ((a === 'jobs' && (c === 'recovery' || c === 'continue')) || (a === 'team' && c === 'resume'))) {
       throw new HttpError(403, 'Review interrupted work in the owner web app.');

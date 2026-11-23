@@ -308,3 +308,32 @@ export function checkTimeClaims(reply: string, events: TimeEvent[], now: Date, t
   for (const e of edits.reverse()) text = text.slice(0, e.at) + e.by + text.slice(e.at + e.len);
   return { text, fixes };
 }
+
+// ---------------------------------------------------------------------------------------------
+// X1: where the clock line goes on the wire
+// ---------------------------------------------------------------------------------------------
+const NOW_TAIL = /\n\n(\[Now: [^\n]*\])$/;
+
+/**
+ * The clock line ends her instructions (nowLine above) and changes every minute. A model reuses
+ * what it has already read only up to the first changed byte, so with the line inside the first
+ * message everything after it (the whole conversation) was read again each time the minute turned.
+ * The Anthropic adapter calls this just before sending: the line leaves the instructions and follows
+ * the conversation as its own note. Nothing else moves; without the line nothing changes. The
+ * OpenAI-style adapters do not: a system line as the last message is not safe with every local
+ * chat template, and that needs real-model runs first (BACKLOG).
+ */
+export function moveClockToEnd<T extends { role: string; content: string }>(messages: T[]): T[] {
+  const lead = messages.findIndex((m) => m.role !== 'system');
+  const end = lead < 0 ? messages.length : lead;
+  let tail: string | undefined;
+  const out = messages.map((m, i) => {
+    if (i >= end || tail !== undefined || typeof m.content !== 'string') return m;
+    const hit = NOW_TAIL.exec(m.content);
+    if (!hit) return m;
+    tail = hit[1]!;
+    return { ...m, content: m.content.slice(0, hit.index) };
+  });
+  if (tail === undefined || lead < 0) return messages;
+  return [...out, { role: 'system', content: tail } as T];
+}

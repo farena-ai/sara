@@ -4,7 +4,7 @@
 // web chat can't). Owner space only (a household member's companion never gets them). The chat gets a
 // live card (the command, its output as it comes, Stop) from the computer's `run` events, and a final
 // card from the result's [pc-run …] line.
-import { alwaysAllowArgs } from '../always-allow.ts';
+import { alwaysAllowArgsFor } from '../always-allow.ts';
 import { randomUUID } from 'node:crypto';
 import { audit } from '../audit-trail.ts';
 import { APPS_PAGE } from '../cards.ts';
@@ -73,7 +73,7 @@ export function createPcRunTools(app: AppContext): Tool[] {
     try {
       h.spend(taskOf(conv.id));
       h.desktopUsed(conv.id, d.id);
-      return { id, reply: await h.request(d.id, op, { ...args, task: taskOf(conv.id), ...alwaysAllowArgs(app as never) }, { id, signal: ctx.signal, who: NAME(), what, ...(ctx.runId ? { runId: ctx.runId } : {}) }) };
+      return { id, reply: await h.request(d.id, op, { ...args, task: taskOf(conv.id), ...alwaysAllowArgsFor(app as never, ctx) }, { id, signal: ctx.signal, who: NAME(), what, ...(ctx.runId ? { runId: ctx.runId } : {}) }) };
     } catch (err) {
       return { id, error: err instanceof HandsError ? err : new HandsError('error', (err as Error).message) };
     } finally {

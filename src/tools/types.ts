@@ -22,6 +22,8 @@ export interface ToolContext {
   allowPrivateNetwork?: boolean;
   /** 3.1.2: this reply's web reading tally (not-found guesses, bot walls, how many pages). */
   webTurn?: import('../web-guard.ts').WebTurn;
+  /** X0 (src/taint.ts): other people's words (a page, an email, an MCP answer) are in play in this chat. */
+  outsideWords?: boolean;
   /** Conversation the call came from (planner tools deliver reminders there). */
   conversationId?: string;
   /** The companion's name (git commits in the workspace are made under it). */

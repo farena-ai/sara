@@ -160,6 +160,11 @@ export function alwaysAllowArgs(app: AlwaysApp | undefined): { allowAll?: string
   return { allowAll: `aa:${app.member?.id ?? 'owner'}:${since.toString(36)}`, allowAllMs: Math.max(60_000, Math.min(DEVICE_MAX_MS, left)) };
 }
 
+/** X0 (src/taint.ts): the same, but never while other people's words are in play (the computer shows its own card). */
+export function alwaysAllowArgsFor(app: AlwaysApp | undefined, ctx: { outsideWords?: boolean } | undefined): { allowAll?: string; allowAllMs?: number } {
+  return ctx?.outsideWords ? {} : alwaysAllowArgs(app);
+}
+
 /** One audit row for an action that ran without a card because the switch is on. */
 export function noteAlwaysAllowed(app: AlwaysApp, tool: string, summary: string, channel = 'web'): void {
   try {

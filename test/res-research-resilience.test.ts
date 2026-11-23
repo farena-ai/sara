@@ -329,14 +329,16 @@ test('res chat: research_start hands the question to a run with a plan card; man
   const steps = Array.from({ length: 10 }, (_, i) => [call(`f${i}`, 'web_fetch', { url: url(`s${i}`, '/ok') })]);
   app.script.push(...steps, text('Here is what I found.'));
   const evs: typeof events = [];
-  for await (const ev of runTurn(app, conv.id, 'Look up warrior basics on these sites', new AbortController().signal)) evs.push(ev as never);
+  // X0: the addresses are his own words (after a page is read, an address nobody wrote out would ask first).
+  const sites = Array.from({ length: 10 }, (_, i) => url(`s${i}`, '/ok')).join(' ');
+  for await (const ev of runTurn(app, conv.id, `Look up warrior basics on these sites: ${sites}`, new AbortController().signal)) evs.push(ev as never);
   const results = evs.filter((e) => e.type === 'tool_result' && e.name === 'web_fetch');
   assert.equal(results.length, 10);
   assert.doesNotMatch(results[7].output!, /research_start/);
   assert.match(results[8].output!, /You have read 9 pages in this reply[\s\S]*research_start/);
   const offers = results.filter((e) => e.card?.kind === 'research-offer');
   assert.equal(offers.length, 1);
-  assert.equal((offers[0].card as unknown as { question: string }).question, 'Look up warrior basics on these sites');
+  assert.match((offers[0].card as unknown as { question: string }).question, /^Look up warrior basics on these sites: http/);
 });
 
 test('res persona: her instructions say to search instead of guessing, and to hand deep work to research_start', () => {

@@ -401,11 +401,13 @@ async function boot() {
   if (onToday) void openToday();
   if (first && shared) void applySharedDraft(shared);
   if (session.adultAsk) $('#adult-ask').showModal();
+  // X2: the tool names load while /setup is asked, not after it (one round trip less before the first chips).
+  const toolNamesReady = Promise.race([loadToolNames(), new Promise((r) => setTimeout(r, 1500))]); // E7: the empty chat's try chips
   const setup = await api('/setup').catch(() => ({ done: true }));
   state.usePath = normPath(setup.usePath);
   // 3.3.0 (ezplain): plain words on the main screens unless she is set up for coding only.
   document.documentElement.dataset.usePath = state.usePath;
-  await Promise.race([loadToolNames(), new Promise((r) => setTimeout(r, 1500))]); // E7: the empty chat's try chips
+  await toolNamesReady;
   if (!state.messages?.length) renderMessages([]); // the empty chat's chips follow the use choice
   if (!setup.done) {
     state.setupPending = true;

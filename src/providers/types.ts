@@ -89,7 +89,12 @@ export type StreamEvent =
    * Fred fix B: the model's private reasoning (Ollama's `reasoning`, `reasoning_content`, /api/chat
    * `thinking`): only how much there was, once at the end. Never shown and never saved as her words.
    */
-  | { type: 'reasoning'; chars: number };
+  | { type: 'reasoning'; chars: number }
+  /**
+   * X1: why the model stopped, when it was not on its own: 'length' = the reply hit the output limit
+   * (a tool call being written then is incomplete), 'refusal' = the provider's safety system declined.
+   */
+  | { type: 'stop'; reason: 'length' | 'refusal' };
 
 /**
  * 'chatgpt' = ChatGPT plan via Sign in with ChatGPT; 'claude-code' / 'grok-cli' = subscription

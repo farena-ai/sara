@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.37.0 (2026-11-22): Safer with other people's words, complete backups, quicker with Claude
+
+- Fixed: words from a web page, an email, search results or a tool server can no longer ride **Always allow everything**. While such words are in a chat, and for your next two messages there, commands and desktop actions on your computer show their card again, and so does anything that would ask without the switch (docs/security/X0_REVIEW.md, docs/ALWAYS_ALLOW.md).
+- Fixed: she asks before fetching a web address that nobody wrote out while other people's words are in a chat. Not you, not a search result, not a page or an email: a made-up address could carry your private text away. A yes covers that site for the rest of the reply; addresses on this computer never ask.
+- Fixed: backups take a safe snapshot of every database, not only the main one. Messages, the health log, the journal, photos, shares and the rest were copied while open (docs/BACKUPS.md).
+- Fixed: apps signed in with a device code (terminal, VS Code) can no longer add tool servers, change tool permissions or add-ons, switch code changes on, or download a backup. Do those in the web app.
+- Fixed: tools of a tool server reached over the internet ask first by default, whatever the server says about itself. You can still set one to run on its own.
+- Fixed: one background job that fails no longer stops the others (watches, automations, errands, inbox and more ride one clock). Health shows *Background jobs* when one keeps failing.
+- New: replies with Claude models are faster and cheaper. The instructions, the tool list and the conversation are cached between steps, the time of day is sent after the conversation, and long replies are no longer cut at 4,096 tokens.
+- New: the app loads faster away from home. Its files are sent compressed: a first load is about 1.9 MB instead of 6.7 MB.
+- Fixed: a busy model server (429, 5xx, a dropped connection) gets two more tries when no other model is set to take over; a reply that starts and then goes silent is given up after 5 minutes (15 on a processor-only model) instead of hanging until Stop; a tool call that was cut off is not run and she is told to send it again in parts.
+- Fixed: the "10 min ago" labels on earlier messages are worked out once per reply, so a model re-reads less between steps.
+- For developers: `npm run test:affected` runs the tests close to a change (the full `npm run check` still decides a commit).
+
 ## 3.36.0 (2026-11-20): Enter sends, stocks on Today, smoother chat, fresh look
 
 - Fixed: Enter sends your message and Shift+Enter starts a new line, everywhere you type to her. That covers chat and project chats, Edit last message, Messages, the workspace's Ask box, the offline page, the desktop apps' quick ask and the website receptionist chat. Phone keyboards that hid the Enter key from the page (Android) and gave a new line now send too, and Enter that picks a word in an input method never sends half a word. Prefer writing long messages? Settings → You → Appearance → Chat behavior → Enter sends the message → No: Enter makes a new line and Ctrl+Enter (Cmd+Enter on a Mac) sends (per device, on by default, docs/CHATS.md).

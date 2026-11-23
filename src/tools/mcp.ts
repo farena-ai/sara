@@ -133,8 +133,11 @@ export function mcpHeaderValue(v: string): string {
 /**
  * Default permission for an MCP tool: tools the server marks read-only (and not destructive) run
  * without asking; anything that sends, changes or deletes asks first. The owner can change either.
+ * X0: a server reached over the network describes itself, so its word is not enough: every tool of
+ * an http server asks until the owner sets it to run on its own.
  */
-export function mcpDefaultPermission(t: { annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }): 'auto' | 'ask' {
+export function mcpDefaultPermission(t: { annotations?: { readOnlyHint?: boolean; destructiveHint?: boolean } }, transport?: 'stdio' | 'http'): 'auto' | 'ask' {
+  if (transport === 'http') return 'ask';
   return t.annotations?.readOnlyHint === true && t.annotations.destructiveHint !== true ? 'auto' : 'ask';
 }
 
@@ -819,7 +822,7 @@ export class McpManager {
   #wrap(conn: McpConnection, t: McpToolInfo): Tool {
     const name = mcpToolName(conn.config.name, t.name);
     return {
-      defaultPermission: mcpDefaultPermission(t),
+      defaultPermission: mcpDefaultPermission(t, conn.config.transport),
       source: `MCP: ${conn.config.name}`,
       isAvailable: () => conn.status === 'ready',
       spec: {
@@ -861,9 +864,9 @@ export class McpManager {
 
   /** C3: the permission an app's call has: the tool's own (owner's choice, server choice, policy). */
   appPermission(appId: string, name: string, overrides: Record<string, Permission> | undefined): Permission {
-    const { tool, toolName } = this.appTool(appId, name);
+    const { tool, toolName, conn } = this.appTool(appId, name);
     if (this.#registry.get(toolName)) return this.#registry.permission(toolName, overrides);
-    return policy().clamp(toolName, overrides?.[toolName] ?? this.#registry.policyFor?.(toolName) ?? mcpDefaultPermission(tool), undefined);
+    return policy().clamp(toolName, overrides?.[toolName] ?? this.#registry.policyFor?.(toolName) ?? mcpDefaultPermission(tool, conn.config.transport), undefined);
   }
 
   /** C3: runs a call an app asked for (after the permission check and any approval). */

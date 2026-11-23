@@ -1,4 +1,5 @@
 // Adapter for the Anthropic Messages API (API-key auth).
+import { moveClockToEnd } from '../time-sense.ts';
 import { sseEvents } from '../sse.ts';
 import { parseAnthropic, type ModelLimits } from '../model-context.ts';
 import {
@@ -23,26 +24,52 @@ interface AnthropicUsage {
   cache_creation_input_tokens?: number;
 }
 
-type Block =
+type CacheMark = { cache_control?: { type: 'ephemeral' } };
+type Block = CacheMark & (
   | { type: 'text'; text: string }
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string | Block[] }
-  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } };
+  | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+);
 
 interface WireMessage {
   role: 'user' | 'assistant';
   content: string | Block[];
 }
 
-/** Converts to Anthropic format: system prompt separate; tool results become user tool_result blocks. */
-export function toAnthropic(messages: ChatMessage[]): { system: string; messages: WireMessage[] } {
-  const system = messages
-    .filter((m) => m.role === 'system')
-    .map((m) => m.content)
-    .join('\n\n');
+/** X1: how a system note that comes after the conversation started is shown to the model (it is not the person speaking). */
+export const APP_NOTE = '[Note from the app, not from the person]';
+
+/**
+ * Converts to Anthropic format: system prompt separate; tool results become user tool_result blocks.
+ * X1: only the system messages before the conversation make the system prompt. A system note after
+ * that (the time now, a correction, a steer) stays where it is, as a marked note in the user turn:
+ * hoisting it into the system prompt changed the prompt every step, which threw away the cache of
+ * everything after it, and put "see the results above" above the results.
+ */
+export function toAnthropic(input: ChatMessage[]): { system: string; messages: WireMessage[]; stableBlocks: number } {
+  const messages = moveClockToEnd(input);
+  const lead = messages.findIndex((m) => m.role !== 'system');
+  const head = lead < 0 ? messages : messages.slice(0, lead);
+  const system = head.map((m) => m.content).join('\n\n');
   const out: WireMessage[] = [];
-  for (const m of messages) {
-    if (m.role === 'system') continue;
+  /** Late notes waiting to go at the end of the user turn they follow. */
+  let notes: string[] = [];
+  let stableBlocks = 0;
+  const count = () => out.reduce((n, w) => n + (typeof w.content === 'string' ? 1 : w.content.length), 0);
+  for (const m of lead < 0 ? [] : messages.slice(lead)) {
+    if (m.role === 'system') {
+      if (m.content.trim()) notes.push(m.content);
+      continue;
+    }
+    if (notes.length) {
+      // A note between two messages: its own user text, joined to the user turn around it.
+      const prev = out.at(-1);
+      const block: Block = { type: 'text', text: `${APP_NOTE}\n${notes.join('\n\n')}` };
+      if (prev?.role === 'user') prev.content = [...(typeof prev.content === 'string' ? [{ type: 'text', text: prev.content } as Block] : prev.content), block];
+      else out.push({ role: 'user', content: [block] });
+      notes = [];
+    }
     if (m.role === 'assistant') {
       if (m.toolCalls?.length) {
         const blocks: Block[] = m.content ? [{ type: 'text', text: m.content }] : [];
@@ -68,7 +95,55 @@ export function toAnthropic(messages: ChatMessage[]): { system: string; messages
       else out.push({ role: 'user', content: m.content });
     }
   }
-  return { system, messages: out };
+  // Everything up to here is the same on the next step; the notes after it change every step.
+  stableBlocks = count();
+  if (notes.length) {
+    const prev = out.at(-1);
+    const block: Block = { type: 'text', text: `${APP_NOTE}\n${notes.join('\n\n')}` };
+    if (prev?.role === 'user') prev.content = [...(typeof prev.content === 'string' ? [{ type: 'text', text: prev.content } as Block] : prev.content), block];
+    else out.push({ role: 'user', content: [block] });
+  }
+  return { system, messages: out, stableBlocks };
+}
+
+/**
+ * X1: the most a model writes in one reply when the caller sets no limit. 4,096 cut long files and
+ * plans short on every current model; the old models keep their real ceilings.
+ */
+export function defaultMaxTokens(model: string): number {
+  if (/claude-3-5|claude-3\.5/i.test(model)) return 8192;
+  if (/claude-(3|2|instant)\b|claude-3-(opus|sonnet|haiku)/i.test(model)) return 4096;
+  return 32_000;
+}
+
+/**
+ * X1: prompt caching. The request is read as tools, then the system prompt, then the messages, and a
+ * cache mark stores everything before it for a few minutes at a tenth of the price. Three marks: the
+ * last tool, the system prompt, and the last block that will still be there on the next step (not the
+ * per-step notes after it). A changed byte before a mark means no hit from there on, which is why the
+ * time of day is not in the system prompt (src/chat.ts).
+ */
+export function withCacheMarks<T extends { name: string }>(system: string, messages: WireMessage[], stableBlocks: number, tools: T[] | undefined): { system?: (Block & { type: 'text' })[]; messages: WireMessage[]; tools?: (T & CacheMark)[] } {
+  const mark = { cache_control: { type: 'ephemeral' as const } };
+  let left = stableBlocks;
+  const marked = messages.map((w): WireMessage => {
+    const n = typeof w.content === 'string' ? 1 : w.content.length;
+    const hit = left > 0 && left <= n;
+    const at = left - 1;
+    left -= n;
+    if (!hit) return w;
+    const blocks: Block[] = typeof w.content === 'string' ? [{ type: 'text', text: w.content }] : [...w.content];
+    // An empty text block can't carry a mark.
+    const b = blocks[at]!;
+    if (b.type === 'text' && !b.text) return w;
+    blocks[at] = { ...b, ...mark };
+    return { ...w, content: blocks };
+  });
+  return {
+    ...(system ? { system: [{ type: 'text' as const, text: system, ...mark }] } : {}),
+    messages: marked,
+    ...(tools?.length ? { tools: tools.map((t, i) => (i === tools.length - 1 ? { ...t, ...mark } : t)) } : {}),
+  };
 }
 
 export class AnthropicProvider implements Provider {
@@ -105,7 +180,8 @@ export class AnthropicProvider implements Provider {
   }
 
   async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {
-    const { system, messages } = toAnthropic(req.messages);
+    const wire = toAnthropic(req.messages);
+    const cached = withCacheMarks(wire.system, wire.messages, wire.stableBlocks, req.tools?.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })));
     const res = await reach(this.config, this.#url('/messages'), {
       method: 'POST',
       headers: this.#headers(),
@@ -113,11 +189,11 @@ export class AnthropicProvider implements Provider {
       ...(req.redirect ? { redirect: req.redirect } : {}),
       body: JSON.stringify({
         model: req.model,
-        max_tokens: req.maxTokens ?? 4096,
+        max_tokens: req.maxTokens ?? defaultMaxTokens(req.model),
         stream: true,
-        ...(system ? { system } : {}),
-        messages,
-        ...(req.tools?.length ? { tools: req.tools.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })) } : {}),
+        ...(cached.system ? { system: cached.system } : {}),
+        messages: cached.messages,
+        ...(cached.tools ? { tools: cached.tools } : {}),
         ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
       }),
     });
@@ -156,7 +232,7 @@ export class AnthropicProvider implements Provider {
         type?: string;
         index?: number;
         content_block?: { type?: string; id?: string; name?: string };
-        delta?: { type?: string; text?: string; partial_json?: string };
+        delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string | null };
         error?: { message?: string };
         message?: { usage?: AnthropicUsage };
         usage?: AnthropicUsage;
@@ -205,6 +281,15 @@ export class AnthropicProvider implements Provider {
           break;
         case 'message_delta':
           if (json.usage) { strictOutput ||= json.usage.output_tokens !== undefined; addUsage(json.usage); }
+          // X1: a reply cut at the output limit, or declined by the provider, is said so (never silently short).
+          if (json.delta?.stop_reason === 'max_tokens') {
+            // A tool call still being written is incomplete: hand it over as it is, marked by its unparsed text.
+            for (const [i, t] of tools) {
+              tools.delete(i);
+              yield { type: 'tool_call', call: { id: t.id, name: t.name, arguments: { _raw: t.json } } };
+            }
+            yield { type: 'stop', reason: 'length' };
+          } else if (json.delta?.stop_reason === 'refusal') yield { type: 'stop', reason: 'refusal' };
           break;
         case 'message_stop':
           if (req.strictUsage && (strictUsageInvalid || !strictInput || !strictOutput || !used || !Number.isSafeInteger(used.input) || !Number.isSafeInteger(used.output))) yield { type: 'usage', input: NaN, output: NaN };

@@ -124,7 +124,29 @@ interface FileRef {
   full: string;
   mode: number;
 }
-function walk(root: string, dir: string, out: FileRef[]): void {
+/** X0: a real SQLite file (by its first bytes), so a backup snapshots it instead of copying it while it is open. */
+function isSqliteFile(full: string): boolean {
+  try {
+    const fd = openSync(full, 'r');
+    try {
+      const head = Buffer.alloc(16);
+      return readSync(fd, head, 0, 16, 0) === 16 && head.toString('latin1') === 'SQLite format 3\0';
+    } finally {
+      closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+}
+/** X0: side databases (messages.db, health.db, journal.db ...) outside her workspaces: snapshotted like sara.db. */
+const sideDbOf = (rel: string, full: string): string | undefined => {
+  if (/(^|\/)(workspaces|tmp)\//.test(rel)) return undefined;
+  const m = /^(.*\.db)(-wal|-shm)?$/.exec(rel);
+  if (!m) return undefined;
+  const base = m[2] ? full.slice(0, -m[2].length) : full;
+  return isSqliteFile(base) ? m[1] : undefined;
+};
+function walk(root: string, dir: string, out: FileRef[], sideDbs?: Set<string>): void {
   for (const name of readdirSync(dir)) {
     const full = join(dir, name);
     const rel = relative(root, full).split(sep).join('/');
@@ -137,8 +159,20 @@ function walk(root: string, dir: string, out: FileRef[]): void {
     if (!st) continue;
     if (st.isDirectory()) {
       if (REBUILDABLE.has(name) && /(^|\/)workspaces\//.test(rel)) continue;
-      walk(root, full, out);
-    } else if (st.isFile()) out.push({ path: rel, full, mode: st.mode });
+      walk(root, full, out, sideDbs);
+    } else if (st.isFile()) {
+      const side = sideDbs ? sideDbOf(rel, full) : undefined;
+      if (side) sideDbs!.add(side);
+      else out.push({ path: rel, full, mode: st.mode });
+    }
+  }
+}
+
+/** X0: the old way for one database: its file and write-ahead files as they are on disk. */
+function rawCopy(dbFile: string, rel: string, files: FileRef[]): void {
+  for (const tail of ['', '-wal', '-shm']) {
+    const st = statSync(dbFile + tail, { throwIfNoEntry: false });
+    if (st?.isFile()) files.push({ path: rel + tail, full: dbFile + tail, mode: st.mode });
   }
 }
 
@@ -146,8 +180,10 @@ function walk(root: string, dir: string, out: FileRef[]): void {
 export function createBackup(dataDir: string, outFile: string, opts: { saraVersion?: string; includeWorkspaces?: boolean; now?: Date } = {}): BackupManifest {
   const includeWorkspaces = opts.includeWorkspaces ?? true;
   const refs: FileRef[] = [];
-  walk(dataDir, dataDir, refs);
+  const sideDbs = new Set<string>();
+  walk(dataDir, dataDir, refs, sideDbs);
   const files = refs.filter((e) => includeWorkspaces || !/(^|\/)workspaces\//.test(e.path));
+  sideDbs.delete('sara.db');
   const dbs = ['sara.db'];
   const snaps: string[] = [];
   let counts: Record<string, number> | undefined;
@@ -161,17 +197,35 @@ export function createBackup(dataDir: string, outFile: string, opts: { saraVersi
       if (existsSync(mc)) for (const n of readdirSync(mc)) if (existsSync(join(mc, n, 'sara.db'))) dbs.push(`members/${m}/companions/${n}/sara.db`);
     }
   }
+  const mainDbs = dbs.length;
+  dbs.push(...[...sideDbs].sort());
   for (const [i, rel] of dbs.entries()) {
     const dbFile = join(dataDir, ...rel.split('/'));
     if (!existsSync(dbFile)) continue;
+    const side = i >= mainDbs;
     const tmpDir = join(dataDir, 'tmp');
     mkdirSync(tmpDir, { recursive: true });
     // The index keeps two snapshots made in the same millisecond apart (VACUUM INTO refuses an existing file).
     const snap = join(tmpDir, `backup-${process.pid}-${Date.now()}-${i}.db`);
-    const db = new DatabaseSync(dbFile);
+    // X0: a side database that can't be snapshotted (damaged, or not ours to open) is copied as files, as before.
+    let db: DatabaseSync;
+    try {
+      db = new DatabaseSync(dbFile);
+    } catch (err) {
+      if (!side) throw err;
+      rawCopy(dbFile, rel, files);
+      continue;
+    }
     try {
       db.exec('PRAGMA busy_timeout = 5000');
-      db.prepare('VACUUM INTO ?').run(snap);
+      try {
+        db.prepare('VACUUM INTO ?').run(snap);
+      } catch (err) {
+        if (!side) throw err;
+        rmSync(snap, { force: true });
+        rawCopy(dbFile, rel, files);
+        continue;
+      }
       if (i === 0) {
         counts = {};
         for (const t of COUNTED_TABLES) counts[t] = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t) ? Number((db.prepare(`SELECT count(*) AS n FROM ${t}`).get() as { n: number }).n) : 0;

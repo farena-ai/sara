@@ -21399,10 +21399,6 @@
 "The browser extension can only ask about pages, save them, fill forms and record steps you show it.": "L’estensione del browser può solo chiedere delle pagine, salvarle, compilare moduli e registrare i passaggi che mostri.",
 "That recording is gone.": "Quella registrazione non c’è più.",
 "Choose Save as a skill, Make an automation or Delete.": "Scegli Salva come skill, Crea un’automazione o Elimina.",
-  "She knows what she did, second opinion from chat, sharper memory": "Sa cosa ha fatto, secondo parere dalla chat, memoria più precisa",
-  "The Action timeline also lists changes she makes without asking first (a live checklist she posts, for example), using the same rule as the claim checker.": "La Cronologia azioni elenca anche le modifiche che fa senza chiedere prima (per esempio un elenco dal vivo che pubblica), con la stessa regola del controllo.",
-  "Her memory picks and auto-loaded skills no longer match on everyday words.": "I ricordi che sceglie e le abilità che carica da sola non scattano più su parole comuni.",
-  "\"She said it, did it happen?\" no longer shows on things she really did with her newer tools.": "\"L’ha detto, è successo?\" non compare più su cose che ha davvero fatto con i nuovi strumenti.",
 "🔒 Only this computer": "🔒 Solo questo computer",
 "Open in Sara": "Apri in Sara",
 "Help with this": "Aiutami con questo",
@@ -22878,5 +22874,13 @@
   "Ask for a long document": "Chiedi un documento lungo",
   "She writes it all and finishes the turn; the page stays smooth while she writes.": "Lo scrive tutto e chiude il turno; la pagina resta fluida mentre scrive.",
   "Send the message below in any chat.": "Invia il messaggio qui sotto in qualsiasi chat.",
-  "Write me a full, detailed build prompt for a small to-do app.": "Scrivimi un prompt di sviluppo completo e dettagliato per una piccola app di attività."
+  "Write me a full, detailed build prompt for a small to-do app.": "Scrivimi un prompt di sviluppo completo e dettagliato per una piccola app di attività.",
+  "Apps signed in with a device code can't change tool servers, add-ons, tool permissions or code changes, or take backups. Use the web app.": "Le app che hanno effettuato l’accesso con un codice dispositivo non possono modificare i server degli strumenti, i componenti aggiuntivi, i permessi degli strumenti né le modifiche al codice, né fare backup. Usa l’app web.",
+  "Not working right now: {names}. Latest problem: {error}": "Non funzionano in questo momento: {names}. Ultimo problema: {error}",
+  "Safer with other people's words, complete backups, quicker with Claude": "Più sicura con le parole altrui, backup completi, più veloce con Claude",
+  "Replies with Claude models are faster and cheaper.": "Le risposte con i modelli Claude sono più veloci ed economiche.",
+  "The app loads faster away from home. Its files are sent compressed: a first load is about 1.9 MB instead of 6.7 MB.": "L’app si carica più in fretta fuori casa. I file vengono inviati compressi: il primo caricamento pesa circa 1,9 MB invece di 6,7 MB.",
+  "Words from a web page, an email, search results or a tool server can no longer ride Always allow everything.": "Le parole di una pagina web, di un’email, dei risultati di ricerca o di un server di strumenti non possono più sfruttare Consenti sempre tutto.",
+  "She asks before fetching a web address that nobody wrote out while other people's words are in a chat.": "Chiede prima di aprire un indirizzo web che nessuno ha scritto mentre in una chat ci sono parole altrui.",
+  "Backups take a safe snapshot of every database, not only the main one.": "I backup creano un’istantanea sicura di ogni database, non solo di quello principale."
 }

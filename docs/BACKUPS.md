@@ -4,6 +4,10 @@ A backup only counts once it has been restored. Sara makes a backup every day (S
 system → Backups), can copy it off the server ([RECOVERY.md](RECOVERY.md) has the restore drill and
 the readiness page), and since U5.31 she **tests a restore by herself once a month**.
 
+Every database in the data folder is copied as a safe snapshot while Sara runs (since X0: not only the
+main one, but Messages, the health log, the journal, photos, shares and the rest too). Files in her
+workspaces are copied as files.
+
 ## What you see
 
 **Settings → Privacy & system → Backups → Test restores**

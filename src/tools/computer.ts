@@ -35,7 +35,7 @@ import { cleanLoginName, loginOrigin } from '../hands-logins.ts';
 import { managerName } from '../hands-managers.ts';
 import { HandsError, PROXY_BLOCKED_MESSAGE, type HandsDeviceView, type HandsReply } from '../hands.ts';
 import { handsFreeMs, saysGoAhead, type HandsFreeState } from '../handsfree.ts';
-import { alwaysAllowArgs, alwaysAllowOn } from '../always-allow.ts';
+import { alwaysAllowArgsFor, alwaysAllowOn } from '../always-allow.ts';
 import { nextSetupStep, redirectFrom, type SetupPage } from '../google-setup.ts';
 import { BROWSER_APP, browserLabel, browserTabs, desktopItems, desktopWindows, maskDesktopText, type DesktopItem } from '../hands-desktop.ts';
 import { cleanRelPath, fileEntries, fileRootsOf, FileRuleError, matchRoot, rootLabel } from '../hands-files.ts';
@@ -224,7 +224,7 @@ export function createComputerTools(app: AppContext): Tool[] {
     try {
       h.spend(taskOf(conv.id).key);
       // W0.7: desktop ops carry the Always allow key; the computer confirms it once on its own card.
-      const sent = name.startsWith('d.') ? { ...args, ...alwaysAllowArgs(app as never) } : args;
+      const sent = name.startsWith('d.') ? { ...args, ...alwaysAllowArgsFor(app as never, ctx) } : args;
       return await h.request(d.id, name, sent, { signal: ctx.signal, who: NAME(), ...(ctx.runId ? { runId: ctx.runId } : {}), ...(what ? { what } : {}), ...(deadlineMs ? { deadlineMs } : {}) });
     } catch (err) {
       if (err instanceof HandsError) {

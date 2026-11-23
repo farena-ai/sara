@@ -110,9 +110,10 @@ test('Anthropic: moves system prompt out of messages and streams text deltas', a
   assert.equal(req.headers['x-api-key'], 'ak-test');
   assert.equal(req.headers['anthropic-version'], '2023-06-01');
   const body = JSON.parse(req.body);
-  assert.equal(body.system, 'be Sara');
-  assert.deepEqual(body.messages, [{ role: 'user', content: 'hi' }]);
-  assert.equal(body.max_tokens, 4096);
+  // X1: the system prompt and the last lasting block carry a cache mark; the default reply limit is the model's own.
+  assert.deepEqual(body.system, [{ type: 'text', text: 'be Sara', cache_control: { type: 'ephemeral' } }]);
+  assert.deepEqual(body.messages, [{ role: 'user', content: [{ type: 'text', text: 'hi', cache_control: { type: 'ephemeral' } }] }]);
+  assert.equal(body.max_tokens, 32_000);
   assert.deepEqual(await p.listModels(), ['a-model', 'b-model']);
 });
 
@@ -166,7 +167,7 @@ test('Anthropic: streams tool_use blocks and converts tool results to user tool_
   assert.equal(out.text, 'On it.');
   assert.deepEqual(out.calls.filter((e) => e.type !== 'tool_delta'), [{ type: 'tool_call', call: { id: 'toolu_1', name: 'shell', arguments: { command: 'ls -la' } } }]);
   const body = JSON.parse(seen.at(-1)!.body);
-  assert.deepEqual(body.tools[0], { name: 'read_file', description: 'read', input_schema: tools[0].parameters });
+  assert.deepEqual(body.tools[0], { name: 'read_file', description: 'read', input_schema: tools[0].parameters, cache_control: { type: 'ephemeral' } });
   assert.deepEqual(body.messages[1].content, [
     { type: 'text', text: 'ok' },
     { type: 'tool_use', id: 't1', name: 'a', input: {} },
@@ -176,7 +177,7 @@ test('Anthropic: streams tool_use blocks and converts tool results to user tool_
     role: 'user',
     content: [
       { type: 'tool_result', tool_use_id: 't1', content: 'r1' },
-      { type: 'tool_result', tool_use_id: 't2', content: 'r2' },
+      { type: 'tool_result', tool_use_id: 't2', content: 'r2', cache_control: { type: 'ephemeral' } },
     ],
   });
 });

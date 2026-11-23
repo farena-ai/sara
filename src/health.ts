@@ -1,4 +1,5 @@
 // Phase 6: health page data (Settings → Health and `sara status`). Read-only and cheap.
+import { tickJobsFailing } from './tick-jobs.ts';
 import { existsSync, readFileSync, statfsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
@@ -19,7 +20,7 @@ export function appInfo(root: string, startedAt = new Date()): AppInfo {
 }
 
 /** Checks a non-technical owner can't act on (folded away in Company mode). */
-const TECH = new Set(['Memory', 'Tool sandbox', 'Command approvals', 'Run history']);
+const TECH = new Set(['Memory', 'Tool sandbox', 'Command approvals', 'Run history', 'Background jobs']);
 
 const size = (f: string) => (existsSync(f) ? statSync(f).size : 0);
 
@@ -85,6 +86,9 @@ export function healthReport(app: AppContext, info: AppInfo) {
     if (stuck.length) add(en('Model lists'), false, stuck.map((x) => x.text).join(' '), stuck);
     if (moved.length) add(en('Model changes'), true, moved.map((n) => n.text).join(' '), moved);
   }
+  // X0 (src/tick-jobs.ts): a job of the reminder tick that failed three times in a row (shown only then).
+  const stuckJobs = tickJobsFailing().filter((j) => j.failing >= 3);
+  if (stuckJobs.length) add(en('Background jobs'), false, [en('Not working right now: {names}. Latest problem: {error}'), { names: stuckJobs.map((j) => j.name).join(', '), error: stuckJobs[0]!.lastError ?? '' }], stuckJobs);
   // Phase 78: how much room the run snapshots take (risk 11).
   if (app.runs) {
     const st = app.runs.stats();

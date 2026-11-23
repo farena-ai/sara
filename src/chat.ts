@@ -138,6 +138,8 @@ import { cardFor, type Card } from './cards.ts';
 import { ASK_CHOICE, choiceText, parseChoice, settleChoice, type Choice } from './choices.ts';
 import { takeQuizChoice } from './tools/study.ts';
 import { BOT_WALL_LINE, looksLikeBotWall, WebTurn } from './web-guard.ts';
+import { retryingStream } from './providers/retry.ts';
+import { TAINT_CARRY_TURNS, carriedTaint, hostOfUrl, outboundUrl, outsideWordsTool, unseenAddressLine, urlSeen } from './taint.ts';
 /** 3.1.2: tools whose output may be a bot-check page (commands, browsers, MCP browser tools). */
 const BOT_WALL_TOOLS = /^(shell|run_command|browser_read|browser_open|pc_browser_\w+|mcp_.*(browser|playwright|fetch|navigate|snapshot).*)$/i;
 import { cardOf, checkPlan, contradictionNote, contradictSettings, declinedOutput, gateAct, judgePrompt, judgeSaysNo, type Contradiction, type ContradictionCard } from './contradict.ts';
@@ -767,11 +769,31 @@ export class SlowModelError extends Error {
   }
 }
 
+/** X1: a model that started its reply and then sent nothing for too long. */
+export class StalledModelError extends Error {
+  readonly seconds: number;
+  constructor(seconds: number) {
+    super(`the reply stopped arriving (nothing for ${seconds} seconds)`);
+    this.name = 'StalledModelError';
+    this.seconds = seconds;
+  }
+}
+/** X1: how long a started reply may go silent: a model on the processor writes long tool calls in one piece. */
+export const streamIdleTiming = { anyMs: 300_000, cpuMs: 900_000 };
+
+/** X1: a tool call whose arguments never finished arriving (the reply hit the output limit, or the JSON is broken). */
+export function cutOffCall(args: Record<string, unknown> | undefined): string | undefined {
+  return args && typeof args._raw === 'string' && Object.keys(args).length === 1 ? args._raw : undefined;
+}
+export function cutOffLine(name: string, raw: string, hitLimit: boolean): string {
+  return `Not run: the arguments of this ${name} call ${hitLimit ? 'were cut off when the reply reached its length limit' : 'did not arrive as complete JSON'} (${raw.length} characters came). Nothing was done. Send the call again; if it carries a long text or file, send it in smaller parts (several calls).`;
+}
+
 /**
  * Streams from a model, giving up (SlowModelError) if nothing arrives within `firstMs`. The owner
  * pressing Stop still aborts as before.
  */
-export async function* streamWithin<T>(start: (signal: AbortSignal) => AsyncIterable<T>, outer: AbortSignal | undefined, firstMs: number): AsyncGenerator<T> {
+export async function* streamWithin<T>(start: (signal: AbortSignal) => AsyncIterable<T>, outer: AbortSignal | undefined, firstMs: number, idleMs = 0): AsyncGenerator<T> {
   const ctl = new AbortController();
   const onAbort = () => ctl.abort(outer?.reason);
   if (outer?.aborted) ctl.abort(outer.reason);
@@ -779,13 +801,18 @@ export async function* streamWithin<T>(start: (signal: AbortSignal) => AsyncIter
   let waiting = true;
   const slow = new SlowModelError(Math.round(firstMs / 1000));
   const timer = setTimeout(() => waiting && ctl.abort(slow), firstMs);
+  // X1: after the first word, a stream that goes silent for `idleMs` is given up too (StalledModelError):
+  // before, a connection that hung mid-reply held the turn until someone pressed Stop.
+  const stalled = new StalledModelError(Math.round(idleMs / 1000));
+  let idle: NodeJS.Timeout | undefined;
+  const aborted = () => new Promise<never>((_, reject) => ctl.signal.addEventListener('abort', () => reject(ctl.signal.reason), { once: true }));
   try {
     const it = start(ctl.signal)[Symbol.asyncIterator]();
     while (true) {
       // The first event races the timer (a model that ignores the abort can't hold the turn).
-      const next = waiting
-        ? await Promise.race([it.next(), new Promise<never>((_, reject) => ctl.signal.addEventListener('abort', () => reject(ctl.signal.reason), { once: true }))])
-        : await it.next();
+      if (!waiting && idleMs > 0) idle = setTimeout(() => ctl.abort(stalled), idleMs);
+      const next = waiting || idleMs > 0 ? await Promise.race([it.next(), aborted()]) : await it.next();
+      clearTimeout(idle);
       if (next.done) break;
       if (waiting) {
         waiting = false;
@@ -795,9 +822,11 @@ export async function* streamWithin<T>(start: (signal: AbortSignal) => AsyncIter
     }
   } catch (err) {
     if (ctl.signal.reason === slow && !outer?.aborted) throw slow;
+    if (ctl.signal.reason === stalled && !outer?.aborted) throw stalled;
     throw err;
   } finally {
     clearTimeout(timer);
+    clearTimeout(idle);
     outer?.removeEventListener('abort', onAbort);
   }
 }
@@ -1552,9 +1581,8 @@ function birthdaysNote(people: AppContext['people'], today: string): string | un
 /** Phase 100: tools whose result is another agent's words, and the read-only tools that still run on their own after one. */
 // U5.33: a friend's shared-project items and the other server's help/fix report are peer words too.
 const PEER_ANSWER_TOOLS = new Set(['a2a_send', 'a2a_reply', 'a2a_status', 'shared_project_read', 'support_look', 'remote_look']);
-/** W5.1: tools whose answer is other people's words (web pages, mail, MCP servers): Always allow holds after one. */
-const OUTSIDE_WORDS_TOOLS = new Set(['web_fetch', 'mail_read', 'mail_thread', 'mail_search', 'mail_needs_answer', 'gmail_read', 'gmail_thread', 'gmail_search', 'gmail_needs_answer', 'inbox_suggestions']);
-export const outsideWordsTool = (name: string): boolean => OUTSIDE_WORDS_TOOLS.has(name) || name.startsWith('mcp_');
+// W5.1 / X0: which tools bring in other people's words, and what that changes: src/taint.ts.
+export { outsideWordsTool };
 const READ_AFTER_PEER = new Set(['a2a_agents', 'a2a_status', 'a2a_cancel', 'web_search', 'recall', 'memory_search', 'search_conversations', 'read_file', 'list_files', 'weather', 'get_time']);
 
 /** Phase 100: the asker's words for the model, wrapped as untrusted text (STAPLES §2.1.4). */
@@ -2859,6 +2887,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const takeImages = (): Record<string, unknown> => ({ ...(pendingImages.length ? { images: pendingImages.splice(0) } : {}), ...(pendingProof.length ? { proof: pendingProof.splice(0) } : {}), ...(pendingFiles.length ? { files: pendingFiles.splice(0) } : {}) });
   const receipts: Receipt[] = [];
   // 3.1.2: this reply's web reading (guessed 404s, bot walls, how many pages; docs/RESEARCH.md).
+  // X1: the labels on earlier messages ("10 min ago") are worked out once per turn, not per step: a label
+  // that changed mid-turn made the model re-read the whole conversation (no cache hit after it).
+  const turnClock = app.now();
   const webTurn = new WebTurn({ canResearch: Boolean(app.research) && !conv.private && !conv.partner && !opts.group && !opts.outside && !opts.externalApp });
   // EC21: the model's own tool calls so far this turn (code mode is offered from the second on).
   let callsThisTurn = 0;
@@ -2878,7 +2909,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let peerAnswered = Boolean(opts.outsideContent);
   // W5.1: someone else's words came in through a tool (a web page, an email, an MCP answer): from
   // here on Always allow everything no longer skips cards in this turn (normal permissions still apply).
-  let outsideWords = false;
+  // X0: the hold also carries over the person's next messages ("when they next reply, run X"), and a
+  // turn that starts from someone else's words (a webhook, forwarded text, a peer) begins held.
+  let outsideWords = Boolean(opts.outside || opts.untrusted || opts.outsideContent) || carriedTaint(store.messages(conv.id).filter((m) => !isForgotten(m)).slice(-200), TAINT_CARRY_TURNS + 1); // +1: this turn's own message is already stored
+  /** X0: what tools answered in this turn (an address written out there counts as seen). */
+  const turnOutputs: string[] = [];
+  /** X0: sites the person said yes to in this reply (an unseen address there does not ask again). */
+  const approvedHosts = new Set<string>();
   // Phase 79 (harness M4): the turn's budget (Settings → Budgets: coding chats 200k tokens / 40
   // steps by default, everyday chats off), or the explicit "Continue with N more". The meter is a
   // set of TurnHooks fed by the run recorder's sums; near a limit it steps down the ladder (quick
@@ -3409,7 +3446,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           }
           return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
         })()
-      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: app.now(), timeZone: s.timeZone });
+      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: turnClock, timeZone: s.timeZone });
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
     const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
     const nowPath = projectNowPath(app, conv, nowGate);
@@ -3420,6 +3457,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const checkpointText = checkpointSection(app, conv, { ...nowGate, ...(nowPath ? { now: projectNowRef } : {}) });
     // W0.6: the owner's local date, time and zone (and the pause before his message) restated as the
     // last thing in her instructions every step (kept with the step's system text, never stored).
+    // X1: the adapters send this line after the conversation (moveClockToEnd in src/time-sense.ts), so the
+    // instructions before it stay the same from step to step and the model's cache can be reused.
     const timeNow = opts.replay ? '' : `\n\n${nowLine(app.now(), s.timeZone, userMsg ? pauseBefore(store.messages(conv.id), userMsg.id) : null)}`;
     const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') + timeNow }];
     // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
@@ -3672,6 +3711,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     let reply = '';
     let reasoningChars = 0;
+    /** X1: the reply hit the output limit or was declined by the provider. */
+    let stopReason: 'length' | 'refusal' | undefined;
     const calls: ToolCall[] = [];
     // Phase 63: calls being written show up live (throttled, secrets hidden, same minors pattern check as her words).
     const building = new ToolStreamTracker({ redact: (x) => app.redactor.redact(x), withhold: (x) => Boolean(minorSexualMatch(x)) });
@@ -3692,7 +3733,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
       const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
       const slowMs = slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
-      const stream = streamWithin((sig) => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }));
+      // X1: a busy server gets two more tries only when no other model is waiting to take over (Phase 38
+      // hands over at once when one is).
+      const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(ci < chain.length - 1 ? { tries: 0 } : {}), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
       for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
         if (ev.type === 'slow_mark') {
           slowSaid = true;
@@ -3713,6 +3756,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           calls.push(ev.call);
         } else if (ev.type === 'reasoning') {
           reasoningChars += ev.chars;
+        } else if (ev.type === 'stop') {
+          stopReason = ev.reason;
         }
       }
       yield* building.flush();
@@ -4005,13 +4050,15 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // Phase 116 (BR2 §5.8): the loop guard, before anything is prepared or asked.
       const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
       const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
+      // X1: a call whose arguments were cut off never runs, is never prepared and never shows a card.
+      const cutOff = cutOffCall(call.arguments);
       let ranTool = false;
       let tlBefore: unknown;
       /** Interrupt now cut this call short (never counted by the loop guard). */
       let cutShort = false;
       // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
       // only when the call may run at all (offered this turn, not off, not blocked by privacy).
-      const mayPrepare = !admissionFailure && !guardHit && Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
+      const mayPrepare = !admissionFailure && cutOff === undefined && !guardHit && Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
       const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, signal, conv.id, Boolean(opts.replay)) : undefined;
       try { set = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
       if (prep?.summary) summary = app.redactor.redact(prep.summary);
@@ -4032,7 +4079,12 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // holds it to someone else asks first (it can only add an ask, never skip one).
       const mentionHeld = permission2 === 'auto' ? outgoingHolds(mentionHits, call.name, call.arguments) : undefined;
       if (mentionHeld) summary = `${personalize(`This mentions your reminder: \"${mentionHeld.reminder.text}\". Send it anyway?`, identityOf(app.persona))} ${summary}`;
-      const permission3a = untrustedAsk || mentionHeld ? 'ask' : permission2;
+      // X0 (src/taint.ts): while other people's words are in play, an address nobody wrote out asks first
+      // (a made-up address could carry private text away); refused when nobody can be asked.
+      const outUrl = outsideWords && permission2 === 'auto' ? outboundUrl(call.name, call.arguments) : undefined;
+      const unseenOut = outUrl !== undefined && !approvedHosts.has(hostOfUrl(outUrl)) && !urlSeen(outUrl, webTurn.known, [text, ...store.messages(conv.id).filter((m) => m.role === 'user').slice(-30).map((m) => m.content), ...priorReceipts.map((r) => r.output), ...turnOutputs]);
+      if (unseenOut) summary = `${personalize(unseenAddressLine(outUrl!), identityOf(app.persona))} ${summary}`;
+      const permission3a = unseenOut && opts.outside?.approvals === 'deny' ? 'never' : untrustedAsk || mentionHeld || unseenOut ? 'ask' : permission2;
       // W0.7 (src/always-allow.ts): Always allow everything: the person's own requests run without a card
       // (never another app's, an outside request's, forwarded text's or a linked server's; never past 'never').
       const allowAll = !opts.outside && !opts.externalApp && !external && !opts.untrusted && !peerAnswered && !conv.partner && !opts.group && !outsideWords && alwaysAllowOn(app);
@@ -4062,6 +4114,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       } else if (!tool) {
         status = 'error';
         output = aliasHint || `Unknown tool "${call.name}".`;
+      } else if (cutOff !== undefined) {
+        status = 'error';
+        output = cutOffLine(call.name, cutOff, stopReason === 'length');
       } else if (conv.partner || !tools.some((t) => t.spec.name === call.name) || (tool.isAvailable && !tool.isAvailable())) {
         // Only the tools offered this turn may run (partner chats have none), whatever the model says.
         status = 'denied';
@@ -4302,6 +4357,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
                 conversationId: conv.id,
                 companionName: app.persona.name,
                 webTurn,
+                outsideWords,
                 attachImage: (id) => { attachedThisTurn++; pendingImages.push(id); },
                 ...(app.uploads ? { saveImage: (b: Buffer) => app.uploads!.saveBytes(b).id } : {}),
                 attachFile: (f) => {
@@ -4483,6 +4539,9 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
       if (status === 'ok' && PEER_ANSWER_TOOLS.has(call.name)) peerAnswered = true;
       if (status === 'ok' && outsideWordsTool(call.name)) outsideWords = true;
+      if (typeof output === 'string' && turnOutputs.length < 200) turnOutputs.push(output);
+      // It ran, so the person approved it: that site is theirs to open for the rest of this reply.
+      if (unseenOut && status === 'ok' && outUrl) approvedHosts.add(hostOfUrl(outUrl));
       yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}), ...(timedOut ? { timedOut: true } : {}) };
       try { currentScope(); } catch (err) {
         if (!(err instanceof ToolAdmissionError)) throw err;

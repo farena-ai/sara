@@ -7,6 +7,7 @@ import { familyTick } from './family.ts';
 import { giftsTick } from './gifts.ts';
 import { trimTick } from './money/trim.ts';
 import { guard } from './log.ts';
+import { tickJob } from './tick-jobs.ts';
 import type { AppContext } from './chat.ts';
 import { formatLocal, nextOccurrence, type PlannerStore, type Reminder, zonedParts } from './planner.ts';
 import { healthTick } from './health-log.ts';
@@ -55,81 +56,82 @@ export class ReminderScheduler {
     const now = this.#app.now();
     const tz = this.#app.settings.get().timeZone;
     let delivered = 0;
-    for (const r of this.#planner.dueReminders(now)) {
-      if (!this.#owns(r)) continue;
-      const conv = { id: this.#where(r) };
-      if (this.#app.isBusy?.(conv.id)) continue;
-      // Phase 26: ring instead, when the owner asked for a call (or wants every reminder as one).
-      // Monthly: the day it was first set for (the 31st), kept from the first time it fires.
-      const anchor = r.repeat === 'monthly' ? (r.anchorDay ?? zonedParts(new Date(r.dueAt), tz).d) : undefined;
-      this.#deliver(r, conv.id, reminderText(r, now, tz), nextOccurrence(r.dueAt, r.repeat, now, tz, anchor), anchor);
-      delivered++;
-    }
-    if (delivered) this.#app.events?.publish({ type: 'planner', what: 'reminders' });
-    // W1.2 (docs/NUDGES.md): the day's one roundup of smaller nudges, after quiet hours.
-    guard('nudges', () => void nudgeTick(this.#app, now));
-    guard('herweek', () => void herWeekTick(this.#app, now)); // W1.5: the weekly check-in
-    guard('healthcoach', () => void coachTick(this.#app, now)); // W4.4: weekly health check-in (opt-in)
-    // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
-    this.#app.loops?.due(now);
-    this.#app.goals?.tick(now.getTime());
-    guard('legacy', () => legacyTick(this.#app)); // V5.3: reminders, waiting period, the page opening
-    // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
-    this.#app.watches?.due(now);
-    // E1: "tell me when" on live data (prices, games, odds) on the same tick; the checks run async, one pass at a time.
-    this.#app.liveWatches?.due(now);
-    // N2: automations (schedules, calendar triggers) on the same tick.
-    this.#app.automations?.due(now);
-    // R3: errands take their next step, check follow-ups and deadlines on the same tick.
-    this.#app.errands?.due(now);
-    // S3: long-running goals check progress, nudge, propose new plans and send weekly summaries on the same tick.
-    this.#app.longGoals?.due(now);
-    // U4.23: one "cards due" reminder a day at the chosen time.
-    this.#app.study?.due(now);
-    // S4: last contact, waiting replies and promises from mail, calendars and rooms (at most every 30 minutes).
-    void this.#app.peopleTies?.due(now);
-    // V2.7: gift reminders ahead of birthdays and yearly dates on People cards.
-    giftsTick(this.#app, now);
-    // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
-    void this.#app.messages?.due(now).catch(() => undefined);
-    // U4.26: shared projects send what the friends have not acknowledged yet (offline catch-up).
-    if (SharedProjects.exists(this.#app)) void sharedProjectsOf(this.#app)?.due(now).catch(() => undefined);
-    // HANDSFREE 3a: calendars added by link are read again every 15 minutes (in the background).
-    (this.#app.mailAccounts as { calendarLinks?: { tick(): void } } | undefined)?.calendarLinks?.tick();
-    // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).
-    familyTick(this.#app, now);
-    // U4.22: medicine dose reminders (only where a health log exists).
-    healthTick(this.#app, now);
-    // V2.8 (docs/TRIM.md): the monthly "maybe cancel" note (once a month, where Money alerts go).
     try {
-      trimTick(this.#app, now);
-    } catch (err) {
-      console.warn(`trim: ${(err as Error).message}`);
-    }
-    // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
-    this.#app.inbox?.due(now);
-    // V4.1: the photo folder is looked through every few hours and a couple of photos described (local model only).
-    guard('photo library', () => photoLibraryTick(this.#app));
-    // S6: travel: check-in, leave-by and flight status alerts on the same tick.
-    this.#app.travel?.due(now);
-    // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
-    this.#app.productWatches?.due(now);
-    // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.
-    this.#app.learnTopics?.due(now);
-    // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
-    this.#app.crews?.due(now);
-    // ROADMAP_T: self-repair looks for problems at most every 15 minutes (level 1 fixes per the permission).
-    this.#app.repair?.due(now);
-    // C10: workers' queues (time limits, the next job, held alerts).
-    this.#app.workers?.tick(now);
-    void this.#app.memoryTidy?.due(now).catch((err: Error) => console.warn(`memory tidy: ${err.message}`));
-    // C12: the working-style night pass (fading, usual hours) on the same tick and quiet hours.
-    try {
-      this.#app.workingStyle?.due(now);
-    } catch (err) {
-      console.warn(`working style: ${(err as Error).message}`);
+      for (const r of this.#planner.dueReminders(now)) {
+        if (!this.#owns(r)) continue;
+        const conv = { id: this.#where(r) };
+        if (this.#app.isBusy?.(conv.id)) continue;
+        // Phase 26: ring instead, when the owner asked for a call (or wants every reminder as one).
+        // Monthly: the day it was first set for (the 31st), kept from the first time it fires.
+        const anchor = r.repeat === 'monthly' ? (r.anchorDay ?? zonedParts(new Date(r.dueAt), tz).d) : undefined;
+        this.#deliver(r, conv.id, reminderText(r, now, tz), nextOccurrence(r.dueAt, r.repeat, now, tz, anchor), anchor);
+        delivered++;
+      }
+      if (delivered) this.#app.events?.publish({ type: 'planner', what: 'reminders' });
+    } finally {
+      // X0 (src/tick-jobs.ts): the jobs below run even when a reminder could not be delivered, each on its own.
+      this.#jobs(now);
     }
     return delivered;
+  }
+
+  /** Everything else that rides this tick. One job failing never stops the next (src/tick-jobs.ts). */
+  #jobs(now: Date): void {
+    // W1.2 (docs/NUDGES.md): the day's one roundup of smaller nudges, after quiet hours.
+    tickJob('nudges', () => nudgeTick(this.#app, now));
+    tickJob('herweek', () => herWeekTick(this.#app, now)); // W1.5: the weekly check-in
+    tickJob('healthcoach', () => coachTick(this.#app, now)); // W4.4: weekly health check-in (opt-in)
+    // Phase 118 (PERSIST §3.1 P4): the loops' clock is this tick (no new timer); goals' approval waits too.
+    tickJob('loops', () => this.#app.loops?.due(now));
+    tickJob('goals', () => this.#app.goals?.tick(now.getTime()));
+    tickJob('legacy', () => legacyTick(this.#app)); // V5.3: reminders, waiting period, the page opening
+    // E4: file/log watches ride the same tick (a plain read; no model, no timer of their own).
+    tickJob('watches', () => this.#app.watches?.due(now));
+    // E1: "tell me when" on live data (prices, games, odds) on the same tick; the checks run async, one pass at a time.
+    tickJob('live watches', () => this.#app.liveWatches?.due(now));
+    // N2: automations (schedules, calendar triggers) on the same tick.
+    tickJob('automations', () => this.#app.automations?.due(now));
+    // R3: errands take their next step, check follow-ups and deadlines on the same tick.
+    tickJob('errands', () => this.#app.errands?.due(now));
+    // S3: long-running goals check progress, nudge, propose new plans and send weekly summaries on the same tick.
+    tickJob('long goals', () => this.#app.longGoals?.due(now));
+    // U4.23: one "cards due" reminder a day at the chosen time.
+    tickJob('study', () => this.#app.study?.due(now));
+    // S4: last contact, waiting replies and promises from mail, calendars and rooms (at most every 30 minutes).
+    tickJob('people ties', () => this.#app.peopleTies?.due(now));
+    // V2.7: gift reminders ahead of birthdays and yearly dates on People cards.
+    tickJob('gifts', () => giftsTick(this.#app, now));
+    // S9a: messages to linked servers that are offline are retried, and old ones purged, on the same tick.
+    tickJob('messages', () => this.#app.messages?.due(now));
+    // U4.26: shared projects send what the friends have not acknowledged yet (offline catch-up).
+    if (SharedProjects.exists(this.#app)) tickJob('shared projects', () => sharedProjectsOf(this.#app)?.due(now));
+    // HANDSFREE 3a: calendars added by link are read again every 15 minutes (in the background).
+    tickJob('calendar links', () => (this.#app.mailAccounts as { calendarLinks?: { tick(): void } } | undefined)?.calendarLinks?.tick());
+    // R8 (docs/FAMILY.md): the parents' weekly chores summary (the owner's main companion, once a week).
+    tickJob('family', () => familyTick(this.#app, now));
+    // U4.22: medicine dose reminders (only where a health log exists).
+    tickJob('health', () => healthTick(this.#app, now));
+    // V2.8 (docs/TRIM.md): the monthly "maybe cancel" note (once a month, where Money alerts go).
+    tickJob('trim', () => trimTick(this.#app, now));
+    // N3: from your inbox (new mail at most every 10 minutes, package alerts) on the same tick.
+    tickJob('inbox', () => this.#app.inbox?.due(now));
+    // V4.1: the photo folder is looked through every few hours and a couple of photos described (local model only).
+    tickJob('photo library', () => photoLibraryTick(this.#app));
+    // S6: travel: check-in, leave-by and flight status alerts on the same tick.
+    tickJob('travel', () => this.#app.travel?.due(now));
+    // E2: product watches (one due page check per tick, in the background; src/shopping/watch.ts).
+    tickJob('product watches', () => this.#app.productWatches?.due(now));
+    // C6: due topic refreshes join the learning queue; a waiting "learned something new" goes out.
+    tickJob('learn topics', () => this.#app.learnTopics?.due(now));
+    // EC12/EC13: crews' slots and the overnight memory tidy ride the same tick.
+    tickJob('crews', () => this.#app.crews?.due(now));
+    // ROADMAP_T: self-repair looks for problems at most every 15 minutes (level 1 fixes per the permission).
+    tickJob('repair', () => this.#app.repair?.due(now));
+    // C10: workers' queues (time limits, the next job, held alerts).
+    tickJob('workers', () => this.#app.workers?.tick(now));
+    tickJob('memory tidy', () => this.#app.memoryTidy?.due(now));
+    // C12: the working-style night pass (fading, usual hours) on the same tick and quiet hours.
+    tickJob('working style', () => this.#app.workingStyle?.due(now));
   }
 
   /** A call (if the owner wants one and it rings), otherwise a chat message and a notification. */

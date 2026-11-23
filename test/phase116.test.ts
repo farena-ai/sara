@@ -827,9 +827,11 @@ test('providers (risk 1): a user line straight after tool results reaches every 
   const a = toAnthropic(msgs);
   assert.deepEqual(a.messages.map((m) => m.role), ['user', 'assistant', 'user']);
   const turn = a.messages[2].content as { type: string; tool_use_id?: string; text?: string }[];
-  assert.deepEqual(turn.map((b) => b.type), ['tool_result', 'tool_result', 'text']);
+  // X1: the app's note about the steer stays in that turn (after his words), not hoisted into the system prompt.
+  assert.deepEqual(turn.map((b) => b.type), ['tool_result', 'tool_result', 'text', 'text']);
   assert.equal(turn[2].text, 'use pnpm, not npm');
-  assert.match(a.system, /sent this while you were working/);
+  assert.match(turn[3].text ?? '', /^\[Note from the app, not from the person\]\n[\s\S]*sent this while you were working/);
+  assert.doesNotMatch(a.system, /sent this while you were working/);
   // Two steers at one safe point: still one user turn.
   const two = toAnthropic([...msgs.slice(0, 6), { role: 'user', content: 'and skip the docs', steer: true }]);
   assert.deepEqual((two.messages[2].content as { type: string }[]).map((b) => b.type), ['tool_result', 'tool_result', 'text', 'text']);

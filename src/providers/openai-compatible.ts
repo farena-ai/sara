@@ -216,6 +216,7 @@ export class OpenAICompatibleProvider implements Provider {
     let usage: StreamEvent | undefined;
     let strictUsageInvalid = false;
     let finished = false;
+    let lengthSaid = false;
     let reasoned = 0;
     const flush = function* (): Generator<StreamEvent> {
       for (const [, c] of [...calls.entries()].sort((a, b) => a[0] - b[0])) {
@@ -274,7 +275,12 @@ export class OpenAICompatibleProvider implements Provider {
         }
         usage = { type: 'usage', input: Number(json.usage.prompt_tokens ?? 0), output: Number(json.usage.completion_tokens ?? 0), ...(json.usage.prompt_tokens_details?.cached_tokens ? { cached: Number(json.usage.prompt_tokens_details.cached_tokens) } : {}) };
       }
-      if (choice?.finish_reason) { finished = true; yield* flush(); }
+      if (choice?.finish_reason) {
+        finished = true;
+        yield* flush();
+        // X1: cut at the output limit (a tool call being written then is incomplete), said once.
+        if (choice.finish_reason === 'length' && !lengthSaid) { lengthSaid = true; yield { type: 'stop', reason: 'length' }; }
+      }
     }
     yield* flush();
     if (reasoned) yield { type: 'reasoning', chars: reasoned };
