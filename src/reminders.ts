@@ -1,6 +1,7 @@
 // Delivers due reminders into chat. Runs every 15 s; late reminders (server was down) are still
 // delivered, marked late. A conversation in the middle of a turn is skipped until the turn ends, so
 // a reminder never lands between a tool call and its result.
+import { ownChat } from './home-chat.ts';
 import { alertApps, alertPlace } from './destinations.ts';
 import { legacyTick } from './legacy.ts';
 import { familyTick } from './family.ts';
@@ -141,7 +142,9 @@ export class ReminderScheduler {
    */
   #where(r: Reminder): string {
     const { store } = this.#app;
-    const origin = () => (r.conversationId ? store.getConversation(r.conversationId)?.id : (store.listConversations()[0] ?? store.createConversation({ title: 'Reminders' })).id);
+    // Y5: a reminder set outside any chat (Planner, a tool on a schedule) goes to her home chat, not to
+    // whichever chat is first in the list.
+    const origin = () => (r.conversationId ? store.getConversation(r.conversationId)?.id : (ownChat(this.#app) ?? store.listConversations()[0] ?? store.createConversation({ title: 'Reminders' })).id);
     return alertPlace(this.#app, 'reminders', { origin }).conversationId ?? origin() ?? store.createConversation({ title: 'Reminders' }).id;
   }
 

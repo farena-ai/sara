@@ -16,7 +16,7 @@ with one tap. Ask any time in chat: **"How am I doing?"**
   Action timeline, so Undo works there too.
 - **When.** Settings → You → Briefing and reminders → *Her weekly check-in*: on/off, day (default
   Sunday) and time (default 5 PM). *Show me now* sends one to your chat right away.
-- **Where.** Where alerts go → *Weekly check-in* (default: your latest chat; Telegram/Discord too).
+- **Where.** Where alerts go → *Weekly check-in* (default: her own chat, *From Sara*; Telegram/Discord too).
 
 ## What she may suggest
 

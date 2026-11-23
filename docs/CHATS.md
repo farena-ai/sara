@@ -165,6 +165,28 @@ session and opens the next one in the same project (your filing sticks). Message
 always go to the newest open session. You can still read and write in an ended session from the app;
 that doesn't reopen it for the chat app.
 
+## How the list is ordered, and where she writes on her own (unreleased, Y5)
+
+The chat you used last is always at the top, and what she sends without being asked has one place.
+
+- **From Sara** is the first row of the list (it carries her name). The morning briefing, check-ins,
+  the weekly review, the roundup of smaller things, notes from add-ons and reminders that were not set
+  in a chat all arrive there. It is an ordinary chat: answer in it and she replies there. Archive it and
+  it comes back the next time she has something to say. It appears once you have written to her.
+- **Recent** lists the five chats you used last, from every project, newest first. A chat in a project
+  shows the project's name beside its title. Recent appears when your chats are spread over more than
+  one folder (with a single folder, that folder is already in this order).
+- **Projects and chat apps** follow, the one you used last on top. An empty project stays below the
+  used ones. Inside a folder the newest chat is first, as before.
+- **What counts as "used"** is a message, yours or hers. Renaming a chat, changing its model or moving
+  it to a project no longer moves it up.
+- Something you asked for in a chat still answers in that chat: a reminder you set there, a price
+  watch you made there. *Settings → Alerts and destinations* still sends any feed to a chat, a project
+  or a chat app of your choice.
+
+Before this, what she sent on her own went to "your most recent chat", which could be a coding
+session or a one-off question, and folders kept a fixed order whatever you used last.
+
 ## A tidy list (2.41.0)
 
 Each chat service gets its **own project** in the sidebar, with its icon: **Telegram**, **Discord**,

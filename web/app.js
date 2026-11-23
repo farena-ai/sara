@@ -100,6 +100,8 @@ import { initLocalModels, loadLocalModels, setPrivateBadge } from './local-model
 import { loadFreeModels } from './free-models.js';
 import { faceUrl, groupTag, initGroups, isGroup, openGroupDialog, showGroupButton, speakerHeader } from './group.js';
 import { appLink, inPhoneApp, phoneKind } from './pair-link.js';
+import { turnReuse } from './turn-reuse.js';
+import { byActivity, homeOf, recentOf, showRecent } from './conv-order.js';
 import { DEVICES_PAGE, devicesPath } from './devices-path.js';
 import { initReach, reachLine, renderAway, renderPhoneConnect } from './reach.js';
 import { STORY_RANGE_KEY, storyRange } from './story-range.js';
@@ -303,7 +305,9 @@ function offerPhoneApp(session) {
     $('#login-app').href = link;
     $('#login-app-note').textContent = t('The app opens with this server filled in; sign it in there with a code from {path}.', { path: devicesPath(t) });
   }
-  $('#login-paircode').hidden = Boolean(session.demo) || !(inPhoneApp(ua) || phoneKind(ua, navigator.maxTouchPoints));
+  // Y1: every device gets the way in with a code (it showed on phones only, so on a new computer the
+  // sign-in page offered nothing but the owner token).
+  $('#login-paircode').hidden = Boolean(session.demo);
 }
 let langReady;
 async function boot() {
@@ -685,6 +689,9 @@ function convRow(c, o = {}) {
   a.append(title);
   // Phase 66: a group chat shows who's in it.
   // Phase 108: an earlier session under its chat says when it was (its room is the chat's own).
+  // Y5: in Recent a chat says which project it is in (the same row also sits in that project's folder).
+  const inProject = o.recent && c.projectId !== null ? (state.projects ?? []).find((p) => p.id === c.projectId)?.name : null;
+  if (inProject) a.append(el('span', 'channel-tag conv-room-chip conv-in-project', inProject));
   if (o.isEarlier) a.append(el('span', 'channel-tag conv-room-chip', new Date(c.createdAt).toLocaleDateString(locale(), { month: 'short', day: 'numeric' })));
   else if (isGroup(c)) a.append(el('span', 'channel-tag group-tag', groupTag(c)));
   // Phase 108: a bridge session shows its room (inside its channel project the channel goes without saying),
@@ -900,7 +907,7 @@ function group(key, label, convs, opts = {}) {
       hint.title = opts.empty;
       box.append(hint);
     }
-    const o = { inChannel: Boolean(opts.builtin), label, project: opts.project, groupKey: opts.groupKey };
+    const o = { inChannel: Boolean(opts.builtin), label, project: opts.project, groupKey: opts.groupKey, ...(opts.recent ? { recent: true } : {}) };
     // Phase 108: Group by room: a heading per room, each with its own See more.
     if (opts.byRoom && convs.length) {
       for (const r of byRoom(convs)) {
@@ -1041,8 +1048,12 @@ function renderConversations() {
   renderTagFilter();
   if ($('#conv-search')?.value.trim()) return void runSearch();
   const nav = $('#conversations');
+  /** A folder of the list: its chats now, drawn later (the order is decided first). */
+  const folder = (convs, key, label, o) => ({ key, convs, el: () => group(key, label, convs, o) });
   const all = state.tagFilter ? state.conversations.filter((c) => c.tags?.includes(state.tagFilter)) : state.conversations;
-  const live = all.filter((c) => !c.archivedAt);
+  // Y5 (web/conv-order.js): her home chat is its own first row; the folders below never list it.
+  const home = state.tagFilter ? undefined : homeOf(all);
+  const live = all.filter((c) => !c.archivedAt && c !== home);
   const archived = all.filter((c) => c.archivedAt);
   const projects = (state.projects ?? []).filter((p) => p.status === 'active');
   const known = new Set(projects.map((p) => p.id));
@@ -1055,7 +1066,7 @@ function renderConversations() {
       const convs = live.filter((c) => c.projectId === p.id);
       if (!convs.length && !(state.unloaded?.[`p${p.id}`] ?? 0)) return null;
       const menuBtn = smallBtn('⋯', t('Channel project options'), () => builtinMenu(p, menuBtn));
-      return group(`p${p.id}`, p.name, convs, {
+      return folder(convs, `p${p.id}`, p.name, {
         builtin: p,
         icon: channelIcon(p),
         dropProject: p.id,
@@ -1068,7 +1079,7 @@ function renderConversations() {
   const groups = projects
     .filter((p) => !p.builtin)
     .map((p) =>
-      group(`p${p.id}`, p.name, live.filter((c) => c.projectId === p.id), {
+      folder(live.filter((c) => c.projectId === p.id), `p${p.id}`, p.name, {
         folder: 'folder',
         dropProject: p.id,
         empty: t('Empty: drag a conversation here, or press +.'),
@@ -1077,7 +1088,14 @@ function renderConversations() {
       }),
     );
   const loose = live.filter((c) => c.projectId === null || !known.has(c.projectId));
-  const parts = [...channelGroups, ...groups, group('none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), loose, { folder: 'chat', dropProject: null, ...paging('none', 'none') })];
+  const looseGroup = folder(loose, 'none', projects.some((p) => !p.builtin) ? t('No project') : t('Conversations'), { folder: 'chat', dropProject: null, ...paging('none', 'none') });
+  // Y5 (web/conv-order.js): her home chat first, then Recent (the newest chats from every folder), then
+  // the folders with the one used last on top. Before, folders kept a fixed order.
+  const folders = byActivity([...channelGroups, ...groups, looseGroup]);
+  const parts = [];
+  if (home) parts.push(homeRow(home));
+  if (!state.tagFilter && showRecent(live, folders.filter((f) => f.convs.length).length)) parts.push(group('recent', t('Recent'), recentOf(live), { folder: 'recall', recent: true }));
+  parts.push(...folders.map((f) => f.el()));
   // V4d: the V1 Projects section is gone: it listed his projects a second time (page only, no
   // channels, no No project). Each group above is that project's one row.
   if (archived.length || (!state.tagFilter && state.unloaded?.archived)) parts.push(group('archived', t('Archived'), archived, { folder: 'archive', ...paging('archived', 'archived') }));
@@ -1091,6 +1109,16 @@ function renderConversations() {
     }
   }
   nav.replaceChildren(...parts);
+}
+/** Y5: her home chat as the list's first row (a normal chat row with its own mark). */
+function homeRow(c) {
+  const box = el('div', 'conv-home');
+  const row = convRow(c);
+  row.classList.add('conv-home-row');
+  row.draggable = false;
+  row.prepend(icon('sparkle', 'conv-home-icon') ?? '');
+  box.append(row);
+  return box;
 }
 
 // Phase 22: tags.
@@ -2302,7 +2330,17 @@ function renderMessages(messages, opts = {}) {
     turn = null;
   };
   let prevBubble = null;
-  for (const m of messages) {
+  // Y2 (web/turn-reuse.js, docs/design/LAGFIX.md #5): the chat is drawn turn by turn. A settled turn
+  // (not one of the last two) that was drawn before and has not changed keeps its elements, so the
+  // redraw after a reply builds two turns instead of the whole chat (the brief freeze after each reply).
+  const reuse = turnReuse(box, state.conv?.id, messages, { on: opts.reuse === true });
+  for (const group of reuse.turns) {
+    if (reuse.take(group, els)) {
+      prevBubble = group.at(-1);
+      continue;
+    }
+    const from = els.length;
+  for (const m of group) {
     if (m.role === 'user') flush();
     turn ??= newTurn();
     if (m.role === 'assistant' && Array.isArray(m.meta?.memoryIds)) for (const id of m.meta.memoryIds) turn.mem.add(id);
@@ -2506,12 +2544,14 @@ function renderMessages(messages, opts = {}) {
       if (m.role === 'assistant' && m.meta?.threats && !document.body.classList.contains('demo')) els.push(threatCard(m.meta.threats, { onOpen: (sum) => void openFindings({ workspace: sum.workspace, tab: 'threats' }), onFixStarted: (sum) => void openFindings({ workspace: sum.workspace, source: 'threat' }), redteam: true, conversationId: state.currentId }));
     }
   }
-  flush();
-  box.replaceChildren(...els);
+    flush();
+    reuse.built(group, els, from);
+  }
+  reuse.place(els);
   // Phase 123: the messages a tidy stands in for stay in place, dimmed.
   dimFolded(box, messages);
   for (const b of els) {
-    if (!b._msg) continue;
+    if (!b._msg || reuse.kept(b)) continue;
     const m = b._msg;
     const solo = !isGroup(state.conv);
     msgActions(b, m, { last: solo && m === lastAssistant && lastAssistant.id > (lastUser?.id ?? 0), lastUser: solo && m === lastUser && !m.meta?.forgotten && !state.conv?.partner, other: Boolean(m.meta?.groupFrom) });
@@ -2520,7 +2560,7 @@ function renderMessages(messages, opts = {}) {
   const heads = turnHeads(messages, { herName: currentIdentity().name || t('Sara'), youName: t('You') });
   const at = new Map(messages.map((m, i) => [m, i]));
   for (const b of els) {
-    const h = b._msg && !isGroup(state.conv) ? heads.get(at.get(b._msg)) : null;
+    const h = b._msg && !reuse.kept(b) && !isGroup(state.conv) ? heads.get(at.get(b._msg)) : null;
     if (!h) continue;
     const face = b.querySelector(':scope > .msg-face');
     if (face) face.after(turnHead(h));
@@ -3350,7 +3390,7 @@ async function runStream(path, body, userBubble) {
         const box = $('#messages');
         const reading = !nearBottom(box);
         const top = box.scrollTop;
-        renderMessages(c.messages, { keepScroll: reading });
+        renderMessages(c.messages, { keepScroll: reading, reuse: true });
         if (reading) box.scrollTop = top;
         // Fred fix B: an error the server kept (a turnerror notice) is drawn from the chat itself.
         for (const e of errors) if (!e.dataset.saved || !c.messages.some((m) => String(m.id) === e.dataset.saved)) append(e);

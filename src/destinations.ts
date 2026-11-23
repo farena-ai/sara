@@ -56,14 +56,14 @@ export const FEEDS: readonly { id: Feed; title: string; words: RegExp; items: bo
   { id: 'inbox', title: en('From your inbox'), words: /\b(inbox helper|from (my|your) inbox|bills?|packages?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'money', title: en('Money'), words: /\b(money|budgets?|spending|subscriptions?|free trials?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'reminders', title: en('Reminders'), words: /\breminders?\b/i, items: false, keepsChat: true },
-  { id: 'briefing', title: en('Morning briefing'), words: /\b(briefing|mornings?)\b/i, items: false, keepsChat: true, origin: en('Your latest chat') },
+  { id: 'briefing', title: en('Morning briefing'), words: /\b(briefing|mornings?)\b/i, items: false, keepsChat: true, origin: en('Her own chat') },
   { id: 'workforce', title: en('Workforce report'), words: /\b(workforce|workers? reports?)\b/i, items: false, origin: en('Its own chat') },
   { id: 'legacy', title: en('Legacy access'), words: /\b(legacy|emergency access|trusted person)\b/i, items: false, origin: en('Its own chat') },
   // W1.2: the one daily roundup of smaller nudges (src/nudges.ts).
-  { id: 'nudges', title: en('Smaller things'), words: /\b(smaller things|roundup|digest|nudges?)\b/i, items: false, origin: en('Your latest chat') },
+  { id: 'nudges', title: en('Smaller things'), words: /\b(smaller things|roundup|digest|nudges?)\b/i, items: false, origin: en('Her own chat') },
   // W1.5: her weekly "how am I doing" check-in (src/her-week.ts).
-  { id: 'herweek', title: en('Weekly check-in'), words: /\b(weekly check-?in|how (am i|she is|you are) doing)\b/i, items: false, origin: en('Your latest chat') },
-  { id: 'healthcoach', title: en('Health coach'), words: /\b(health coach|weekly health|health check-?ins?)\b/i, items: false, origin: en('Your latest chat') },
+  { id: 'herweek', title: en('Weekly check-in'), words: /\b(weekly check-?in|how (am i|she is|you are) doing)\b/i, items: false, origin: en('Her own chat') },
+  { id: 'healthcoach', title: en('Health coach'), words: /\b(health coach|weekly health|health check-?ins?)\b/i, items: false, origin: en('Her own chat') },
 ];
 const FEED_IDS = new Set<string>(FEEDS.map((f) => f.id));
 export const isFeed = (x: unknown): x is Feed => FEED_IDS.has(String(x));
@@ -225,6 +225,8 @@ export function postAlert(app: AppContext, feed: Feed, o: { item?: string; origi
     if (!v.send) return undefined;
     o = { ...o, meta: { ...o.meta, nudge: { kind, why: v.why } } };
   }
+  // Y9: the demo stores nothing of its own (its visitors' chats live in memory): no feed posts there.
+  if (app.demo) return undefined;
   const place = alertPlace(app, feed, o);
   if (place.conversationId) {
     const msg = app.store.addMessage(place.conversationId, o.role, o.content, o.meta);

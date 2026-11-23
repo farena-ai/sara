@@ -17,7 +17,7 @@ Design: [ops/EC1213_DESIGN.md](ops/EC1213_DESIGN.md).
    become one short summary; the old ones are archived (still searchable, no longer brought to
    mind). This step needs a model.
 
-In the morning a card in your most recent chat says what changed. *What changed* lists each change
+In the morning a card in her own chat (*From Sara*) says what changed. *What changed* lists each change
 with **Undo**, and each disagreement with its three answers (an answer can be undone too).
 **Tidy now** runs it at once.
 

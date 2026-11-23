@@ -415,8 +415,10 @@ export class Store {
       if (!Object.keys(rest).length) return this.getConversation(id);
       return this.updateConversation(id, rest);
     }
+    // Y5: renaming a chat or changing its model, mode or privacy is not activity: only messages move a
+    // chat up the list (it used to jump to the top when its model was changed).
     this.db
-      .prepare('UPDATE conversations SET title = ?, provider_id = ?, model = ?, workspace = ?, mode = ?, private = ?, updated_at = ? WHERE id = ?')
+      .prepare('UPDATE conversations SET title = ?, provider_id = ?, model = ?, workspace = ?, mode = ?, private = ? WHERE id = ?')
       .run(
         patch.title ?? c.title,
         patch.providerId !== undefined ? patch.providerId : c.providerId,
@@ -424,7 +426,6 @@ export class Store {
         patch.workspace ?? c.workspace,
         patch.mode ?? c.mode,
         (patch.private ?? c.private) ? 1 : 0,
-        this.#now().toISOString(),
         id,
       );
     return this.getConversation(id);

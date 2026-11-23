@@ -187,7 +187,7 @@ import { BriefingWorker } from './briefing.ts';
 import { clearTodayCache, gmailTodayHook, todayChanged } from './today.ts';
 import { LeaveByWorker } from './leaveby.ts';
 import { ReviewWorker } from './review.ts';
-import { createPhotoTools, DEFAULT_IMAGE_MODEL, photoSettings, xaiImageKey } from './photos.ts';
+import { createPhotoTools, DEFAULT_IMAGE_MODEL, lookTextEngine, photoSettings, xaiImageKey } from './photos.ts';
 import { policyResolver } from './tool-policy.ts';
 import { LookBuilder, PLACES } from './look.ts';
 import { appearanceFor, defaultLookFile, defaultLookFor } from './default-look.ts';
@@ -1338,6 +1338,18 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
       key: async () => (isMember && !space.member!.limits().pictures ? undefined : ((await xaiImageKey({ vault: spaceVault, xaiProviderKey: xaiProviderKeyOf, grokToken: async () => subscriptions.grokAccessToken() })) ?? undefined)),
       model: () => photoSettings(settingsC).model || DEFAULT_IMAGE_MODEL,
       faceLock: () => settingsC.get().faceLock !== false,
+      // Z1: the picture engine picked in Settings makes her look too (OpenAI images, ComfyUI, an image tool).
+      textEngine: () =>
+        lookTextEngine({
+          settings: settingsC,
+          engines: {
+            tools: { get: (n) => tools.get(n), permission: (n) => tools.permission(n, settingsC.get().toolPermissions) },
+            openaiKey: () => {
+              const p = settingsC.get().providers.find((x) => /api\.openai\.com/.test(x.baseUrl) && x.kind === 'openai-compatible');
+              return p ? spaceVault.get(vaultKeyFor(p.id)) : undefined;
+            },
+          },
+        }),
       // The he/they default look matching her pronouns (or the one picked), until a custom look exists.
       builtin: (rel) => (id && id !== 'main' ? undefined : defaultLookFile(webDir, rel, defaultLookFor(settingsC.get().defaultLook, app.persona.pronouns))),
     }),
@@ -2199,7 +2211,10 @@ async function spaceBySignIn(req: IncomingMessage): Promise<Space | undefined> {
   const body = await peekJson(req);
   if (path === '/api/login') {
     const m = memberOfToken(body.token);
-    return m ? memberSpaces.get(m) : undefined;
+    if (m) return memberSpaces.get(m);
+    // Y1: a member's sign-in code typed on the sign-in page goes to that member's space too.
+    const paired = pairs.spaceOf(String(body.token ?? ''));
+    return paired && paired !== 'owner' ? memberSpaces.get(paired) : undefined;
   }
   if (path === '/api/pair/redeem') {
     const id = pairs.spaceOf(String(body.code ?? ''));

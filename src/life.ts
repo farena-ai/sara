@@ -3,6 +3,7 @@
 //   with what she said before (one short background model call per day, not per message).
 // - Proactive messages: now and then she texts first, like a person would. Rate-limited, quiet
 //   hours, never double-texts, owner-tunable, AI disclosure still applies.
+import { homeChat } from './home-chat.ts';
 import { guard } from './log.ts';
 import { askNudge } from './nudges.ts';
 import { noteCall } from './trouble.ts';
@@ -185,9 +186,12 @@ export class LifeStore {
   }
 }
 
-/** Most recent chat conversation (where she'd text him). */
+/**
+ * Where she'd text him on her own. Y5 (src/home-chat.ts): her home chat ("From Sara"), one fixed place,
+ * not whichever chat was used last; before he has ever written (no home chat yet), the most recent chat.
+ */
 export function targetConversation(app: AppContext): Conversation | undefined {
-  return app.store.listConversations().find((c) => c.mode === 'chat' && !c.partner);
+  return homeChat(app) ?? app.store.listConversations().find((c) => c.mode === 'chat' && !c.partner);
 }
 
 export function dayPrompt(app: AppContext, recentDays: { day: string; content: string }[], selfFacts: string[], weekday: string, weekend: boolean, threads = ''): string {

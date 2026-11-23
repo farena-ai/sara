@@ -38,7 +38,7 @@ test('briefing goes out once, at the chosen time, with weather and the list', as
     briefing: { enabled: true, time: '07:30', place: { name: 'Kansas City, Missouri, US', lat: 39.09, lon: -94.58 } },
   });
   app.planner!.addTask({ title: 'Call the plumber', dueAt: '2026-10-26T20:00:00Z' });
-  const conv = app.store.createConversation({});
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: her own chat, where the briefing goes (src/home-chat.ts)
   app.store.addMessage(conv.id, 'user', 'hi');
   const w = new BriefingWorker(app, fakeFetch as never);
   assert.equal(await w.tick(), undefined, 'not yet 07:30');
@@ -81,7 +81,7 @@ test('the scheduled briefing and "Send one now" never make two briefings at once
     timeZone: 'America/Chicago',
     briefing: { enabled: true, time: '07:00', place: { name: 'Kansas City, Missouri, US', lat: 39.09, lon: -94.58 } },
   });
-  const conv = app.store.createConversation({});
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: her own chat, where the briefing goes (src/home-chat.ts)
   app.store.addMessage(conv.id, 'user', 'hi');
   const briefings = () => app.store.messages(conv.id).filter((m) => m.role === 'assistant' && m.meta?.briefing);
   app.script.push([{ type: 'text', text: 'Morning, Frank! First one.' }]);
@@ -117,7 +117,7 @@ test('a restart or a lost "sent today" mark never re-sends the day\'s briefing',
   });
   const briefing = { enabled: true, time: '07:00' };
   app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x' }], defaultProviderId: 'p', defaultModel: 'm', timeZone: 'America/Chicago', briefing });
-  const conv = app.store.createConversation({});
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: her own chat, where the briefing goes (src/home-chat.ts)
   app.store.addMessage(conv.id, 'user', 'hi');
   app.script.push([{ type: 'text', text: 'Morning!' }]);
   assert.match((await new BriefingWorker(app, fakeFetch as never).tick())!, /Morning/);

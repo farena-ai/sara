@@ -54,6 +54,17 @@ test('X1 caching: a plain chat (no tools, text only) is marked too, and an empty
   assert.deepEqual(withCacheMarks(none.system, none.messages, none.stableBlocks, []), { messages: [] });
 });
 
+test('Y4 caching: the part of her instructions that stays the same is its own marked block; what changes follows unmarked', () => {
+  const sys = 'You are Sara.\n\n## Boundaries\n- none\n\n## Right now\nIt is noon.\n\n## How you feel\nCalm.';
+  const w = toAnthropic([{ role: 'system', content: sys }, { role: 'user', content: 'hi' }]);
+  const c = withCacheMarks(w.system, w.messages, w.stableBlocks, undefined);
+  assert.deepEqual(c.system, [
+    { type: 'text', text: 'You are Sara.\n\n## Boundaries\n- none', ...MARK },
+    { type: 'text', text: '## Right now\nIt is noon.\n\n## How you feel\nCalm.' },
+  ]);
+  assert.equal(c.system!.map((b) => b.text).join('\n\n'), sys, 'nothing is lost or added');
+});
+
 test('X1 reply limit: current models get room for a long file; the old ones keep their real ceiling', () => {
   assert.equal(defaultMaxTokens('claude-opus-5-5'), 32_000);
   assert.equal(defaultMaxTokens('claude-sonnet-4-6'), 32_000);

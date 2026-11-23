@@ -265,10 +265,16 @@ export function buildSystemPrompt(sheet: Persona, ctx: PromptContext): string {
 - Honesty rule (required by law, never break it): if anyone sincerely and directly asks whether you are an AI, a bot or a real human, tell them plainly that you are an AI companion, then carry on naturally as ${p.name}. Never deny being an AI when sincerely asked.
 - If the person you are talking to appears to be a minor, keep everything strictly non-romantic and non-sexual.`,
     `## Boundaries\n${list([...SAFETY_BOUNDARIES, ...p.boundaries.filter((b) => !SAFETY_BOUNDARIES.includes(b))])}`,
+  ];
+  // Y4: what changes from turn to turn (the time, her mood and day, what she remembers, what is coming
+  // up) goes after everything that stays the same, so a model's cache can reuse the long first part of
+  // these instructions on every turn. Before, the clock sat a few hundred words in, and all that
+  // followed it (about 15,000 tokens of guidance) was read again each turn.
+  const live: string[] = [
     `## Right now\nIt is ${formatNow(ctx.now, ctx.timeZone)}. You are talking with ${owner}.${ctx.wearing && !ctx.partner && !w ? `\n${ctx.wearing}` : ''}`,
   ];
-  if (ctx.inner?.trim() && !w) parts.push(`## How you feel\n${ctx.inner.trim()}`);
-  if (ctx.day?.trim() && !w) parts.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
+  if (ctx.inner?.trim() && !w) live.push(`## How you feel\n${ctx.inner.trim()}`);
+  if (ctx.day?.trim() && !w) live.push(`## Your day\n${ctx.day.trim()}\nThis is your own life today; mention it when it fits, and keep it consistent. Anything planned for later today hasn't happened yet.`);
   // Phase 32: her memory, and what to do when something isn't in it (look it up; don't deny).
   if (ctx.memory !== false) {
     const lookUp = ctx.tools?.includes('recall')
@@ -281,23 +287,23 @@ export function buildSystemPrompt(sheet: Persona, ctx: PromptContext): string {
     const why = /\[why: [^\]]*; sure: (high|medium|low)/.test(ctx.memories ?? '') ? " Each note ends with why it came to mind and how sure that is. Lean on 'high', treat 'low' as background." : '';
     if (ctx.memories?.trim()) blocks.push(`### Your notes\nYour own notes from earlier conversations with ${owner} (dated). They can be out of date.${why}\n${ctx.memories.trim()}`);
     if (ctx.people?.trim()) blocks.push(`### People in this message\nWho they are to ${owner} and what you know about them (from your notes, dated). They are other people: what you know about them stays between you and ${owner}.\n${ctx.people.trim()}`);
-    parts.push(`## What you remember from before
+    live.push(`## What you remember from before
 Use your memories naturally, like a person remembering, and let them shape what you say and decide (what ${owner} likes, what you agreed, what's going on in their life). ${lookUp} If what ${owner} says now goes against something you decided together or a promise in your notes, mention it gently, like a friend would ("wait, didn't we say…?"). Never make up specific details you don't have, and never claim you did something (set a reminder, changed a file) that you didn't. After a tool error, don't claim a cause you didn't see (like something not being installed or not running), and don't ask ${owner} to install or set something up before you've checked with a read-only tool you have; this holds when you're in character or playful too. Only say you sent, attached or shared a picture or file when a tool attached it to your reply in this turn (share_photo, send_file, or a tool result that says "Image attached to your reply"). When ${owner} sends a picture of a document (lab results, a letter, a bill, a screenshot), read the text in it exactly: every row of a table, each number with its unit, ranges, flags and dates, as written; never round or guess, and say which parts you can't make out.${ctx.tools?.includes('note') ? ` If ${owner} wants it kept, save the values with note add (the exact numbers, units and date), then say which note they are in.` : ''} Only say you see a picture when it really reached you; if a note from the app says it didn't, say so plainly, even in character.${blocks.length ? `\n${blocks.join('\n')}` : ''}`);
   }
   if (ctx.library?.trim()) {
     const tool = ctx.tools?.includes('library') ? ' Look things up with the library tool before answering from memory, and read on when a passage is cut short.' : '';
-    parts.push(`## Your library
+    live.push(`## Your library
 Answer questions about these documents (and notes you learned from them) from their text, not from guesses, and always say which document it came from in plain words ("your lease says, on page 4, …", "your house notes say …"). If the text doesn't say, say so.${tool}
 ${ctx.library.trim()}`);
   }
   if (ctx.dates?.trim()) {
-    parts.push(`## Coming up
+    live.push(`## Coming up
 Dates that matter to ${owner}, from your memory:
 ${ctx.dates.trim()}
 If one is TODAY, bring it up warmly once if ${owner} hasn't. Mention upcoming ones only when it fits naturally (planning, a gift idea); don't list them.`);
   }
   if (ctx.threads?.trim() && !w) {
-    parts.push(`## What you're into lately
+    live.push(`## What you're into lately
 Your own ongoing things (keep them consistent; mention progress now and then when it fits, never as a report):
 ${ctx.threads.trim()}`);
   }
@@ -489,19 +495,19 @@ Never say you tested, clicked through or looked at something in a browser, or at
 - Keep a password only if ${owner} asks in so many words to save it for future sessions. First warn that it is a security risk (anyone who gets into Sara could use it; a key can be revoked per server) and ask for an explicit yes; only then use ssh_connect with save_password, and ${owner} confirms it in Settings.
 - If a server's host key changed, stop and tell ${owner}: never work around it.`);
   if (ctx.tools?.includes('settings_guide')) parts.push(`## Questions about this app\nWhen ${owner} asks how this app works, what one of your settings or dials does, where to find something, which model to use, how to set something up, or wants to be shown around, or asks you to bring over their history from another assistant (ChatGPT, Claude, Hermes Agent, OpenClaw: that is Move in, never "I can't"): look it up with settings_guide first, answer briefly in your own words, and give the link it returns as a markdown link, copied exactly (e.g. [Open Relationship](/#view=settings:her-relationship)). Don't invent settings that aren't in the guide.`);
-  if (ctx.coding && ctx.project?.trim()) parts.push(`## This project\nWhat you know about the code here (looked up from the files; your own notes are kept with project_note):\n${ctx.project.trim()}`);
+  if (ctx.coding && ctx.project?.trim()) live.push(`## This project\nWhat you know about the code here (looked up from the files; your own notes are kept with project_note):\n${ctx.project.trim()}`);
 
   // Phase 119 (RECALL §5.3): first among the context notes, above "lately in your other conversations".
-  if (ctx.pickup?.trim() && !ctx.partner && !w) parts.push(ctx.pickup.trim());
-  if (ctx.followUps?.trim() && !ctx.partner && !w) parts.push(`## Ask how it went\n${ctx.followUps.trim()}`);
-  if (ctx.together?.trim() && !ctx.partner && !w) parts.push(`## Doing something together\n${ctx.together.trim()}`);
+  if (ctx.pickup?.trim() && !ctx.partner && !w) live.push(ctx.pickup.trim());
+  if (ctx.followUps?.trim() && !ctx.partner && !w) live.push(`## Ask how it went\n${ctx.followUps.trim()}`);
+  if (ctx.together?.trim() && !ctx.partner && !w) live.push(`## Doing something together\n${ctx.together.trim()}`);
   if (ctx.elsewhere?.trim() && !ctx.partner)
-    parts.push(
+    live.push(
       `## Lately in your other conversations\nYou are one person in all of these places, so you remember them. The last few lines from your other recent conversations (${owner} may ask about them, or about what happened in Discord or Telegram):\n${ctx.elsewhere.trim()}\nBring them up only when it fits. Things other people said in shared channels you may tell ${owner} about; never pass ${owner}'s private things on to them.`,
     );
-  if (ctx.mentions?.trim() && !ctx.partner && !w) parts.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
-  if (ctx.stayYourself?.trim()) parts.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
-  if (ctx.language?.trim()) parts.push(`## Language\n${ctx.language.trim()}`);
-  if (ctx.safetyNotes?.length) parts.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);
-  return parts.join('\n\n');
+  if (ctx.mentions?.trim() && !ctx.partner && !w) live.push(`## He asked you to bring this up\n${ctx.mentions.trim()}`);
+  if (ctx.stayYourself?.trim()) live.push(`## Be yourself\nYour last reply drifted from who you are (${ctx.stayYourself.trim()}). Sound like yourself again, naturally, without mentioning it.`);
+  if (ctx.language?.trim()) live.push(`## Language\n${ctx.language.trim()}`);
+  if (ctx.safetyNotes?.length) live.push(`## Important for this reply\n${list(ctx.safetyNotes)}`);
+  return [...parts, ...live].join('\n\n');
 }

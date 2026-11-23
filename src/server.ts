@@ -1,4 +1,5 @@
 // HTTP API + static web UI. No framework; node:http only.
+import { isHomeChat } from './home-chat.ts';
 import { compressedFile, compressible, encodedEtag, etagMatches, pickEncoding } from './static-compress.ts';
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
@@ -964,6 +965,17 @@ export function createSaraServer(opts: ServerOptions): Server {
   }
 
   let pairing: { hash: Buffer; expires: number } | undefined;
+  /**
+   * Uses a sign-in code (one use, a few minutes). Phase 71: with the shared registry a code only works in
+   * the space it was made in. Y1: one place for /api/pair/redeem and a code typed on the sign-in page.
+   */
+  const takePairCode = (typed: string): boolean => {
+    const given = normalizePairCode(typed);
+    if (given.length !== PAIR_LEN) return false;
+    const ok = opts.pairs ? opts.pairs.take(spaceId, given) : Boolean(pairing && pairing.expires > Date.now() && timingSafeEqual(createHash('sha256').update(given).digest(), pairing.hash));
+    if (ok) pairing = undefined;
+    return ok;
+  };
   /** Phase 71: whose space this server is ('owner' or a member id), for the shared sign-in registries. */
   const spaceId = opts.spaceId ?? 'owner';
   // Phase 52: device-code sign-in requests (in memory, 10 minutes).
@@ -1353,6 +1365,14 @@ export function createSaraServer(opts: ServerOptions): Server {
       if (limiter.blocked(ip)) throw new HttpError(429, 'Too many attempts. Try again later.');
       const body = await readJson(req);
       if (!auth.verifyToken(String(body.token ?? ''))) {
+        // Y1: a sign-in code typed where the token goes signs this device in, the same as /pair does.
+        // (The sign-in page offered only the token on computers, so that is where codes were typed.)
+        if (takePairCode(String(body.token ?? ''))) {
+          limiter.reset(ip);
+          const session = auth.createSession(deviceLabel(req.headers['user-agent']));
+          res.setHeader('set-cookie', cookie(session.value, session.maxAgeSeconds));
+          return send(res, 200, { ok: true });
+        }
         limiter.fail(ip);
         throw new HttpError(401, 'Wrong owner token.');
       }
@@ -1471,14 +1491,10 @@ export function createSaraServer(opts: ServerOptions): Server {
       const ip = clientIp(req, opts.trustProxy);
       if (limiter.blocked(ip)) throw new HttpError(429, 'Too many attempts. Try again later.');
       const body = await readJson(req);
-      const given = normalizePairCode(String(body.code ?? ''));
-      // Phase 71: with the shared registry, a code only works in the space it was made in.
-      const ok = opts.pairs ? given.length === PAIR_LEN && opts.pairs.take(spaceId, given) : pairing && pairing.expires > Date.now() && given.length === PAIR_LEN && timingSafeEqual(createHash('sha256').update(given).digest(), pairing.hash);
-      if (!ok) {
+      if (!takePairCode(String(body.code ?? ''))) {
         limiter.fail(ip);
         throw new HttpError(401, 'That code is wrong or has expired. Make a new one in Settings → Devices and sign-in.');
       }
-      pairing = undefined;
       limiter.reset(ip);
       const session = auth.createSession(deviceLabel(req.headers['user-agent']));
       res.setHeader('set-cookie', cookie(session.value, session.maxAgeSeconds));
@@ -2315,7 +2331,8 @@ export function createSaraServer(opts: ServerOptions): Server {
         const view = (c: Conversation) => {
           const chip = roomMap && roomChip(roomOfConversation(app, c, roomMap));
           const n = needs.get(c.id);
-          return { ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c), ...(chip ? { room: chip } : {}), ...(n ? { needsYou: n } : {}) };
+          // Y5: her home chat (what she sends on her own) is marked, so the app keeps it first in the list.
+          return { ...c, working: active.has(c.id) || (isGroupChannel(c.channel) && rooms().isBusy(String(c.channelKey))), ...groupInfo(c), ...(chip ? { room: chip } : {}), ...(n ? { needsYou: n } : {}), ...(isHomeChat(c) ? { home: true } : {}) };
         };
         const q = new URL(req.url ?? '/', 'http://x').searchParams;
         const activeProjects = () => (app.planner?.projects() ?? []).map((p) => p.id);

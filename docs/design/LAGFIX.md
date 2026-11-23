@@ -67,6 +67,17 @@ the window again, desktop.log now says which message held the thread (`slow ui: 
 - `AppUpdate.fetch` waits on a semaphore but runs on a global queue (fine). Timers: 10 s server state
   (off the main thread), 45 s / 5 s quick-ask refresh (as Windows).
 
+## The after-turn redraw (#5), done in Y2 (2026-11-23)
+
+Owner report after 3.37.0: "After each test the harness through the windows app became unresponsive
+for a short time." desktop.log had no `slow ui` or `page busy` line for it: the window thread was
+fine, the page was rebuilding the chat. `web/turn-reuse.js` keeps the turns that have not changed:
+the redraw after a reply builds the newest turn and the one before it (it just lost Regenerate and
+Edit) and leaves every other element in the page untouched. Checked in a real browser on a
+150-message chat with a scripted model: 146 elements kept, 4 rebuilt, no long task (64-69 ms before on
+this PC; the 4x-slower case was 0.7-1.0 s). Opening a chat, editing or deleting still draws all of it.
+Tests: `test/y2-turn-reuse.test.ts`.
+
 ## Left / next
 
 - The after-turn full redraw (#5): redraw only the latest turn and patch the "latest message" bits

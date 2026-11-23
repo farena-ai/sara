@@ -217,6 +217,10 @@ summary { cursor: pointer; color: var(--accent-2); }
 .side-tools { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 6px; }
 .side-tools > button { flex: 1 1 auto; white-space: nowrap; }
 .conv-group { margin-bottom: 6px; }
+/* Y5: her home chat (what she sends on her own), the first row of the list. */
+.conv-home { margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.conv-home-row { font-weight: 600; }
+.conv-home-icon { width: 14px; height: 14px; margin-right: 6px; color: var(--accent); flex: none; }
 .group-head { display: flex; align-items: center; gap: 2px; border-radius: 6px; padding-right: 4px; }
 .group-head.drop { outline: 2px dashed var(--accent); }
 .group-toggle { flex: 1; text-align: left; background: none; border: 0; color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; padding: 6px 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -2,6 +2,45 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.38.0",
+   "date": "2026-11-23",
+   "title": "Sign in with a code anywhere, one home for her messages, no freeze after replies",
+   "items": [
+    {
+     "id": "3-38-0-one-home-for-what-she",
+     "kind": "new",
+     "text": "One home for what she sends on her own. The morning briefing, check-ins, weekly reviews, the roundup of smaller things and add-on notes arrive in From Sara."
+    },
+    {
+     "id": "3-38-0-the-chat-you-used-last",
+     "kind": "new",
+     "text": "The chat you used last is always at the top. Recent lists your five newest chats from every project, and projects are ordered by last use."
+    },
+    {
+     "id": "3-38-0-replies-are-cheaper-and-quicker",
+     "kind": "new",
+     "text": "Replies are cheaper and quicker with every model that caches."
+    },
+    {
+     "id": "3-38-0-several-look-ups-in-one-step",
+     "kind": "new",
+     "text": "Several look-ups in one step run at the same time (pages, searches, files, her memory) instead of one after another."
+    },
+    {
+     "id": "3-38-0-her-look-is-made-with",
+     "kind": "new",
+     "text": "Her look is made with the picture engine you picked.",
+     "link": "#view=library",
+     "owner": true
+    },
+    {
+     "id": "3-38-0-a-sign-in-code-from-settings",
+     "kind": "fixed",
+     "text": "A sign-in code from Settings now works on the sign-in page of a new computer."
+    }
+   ]
+  },
+  {
    "version": "3.37.0",
    "date": "2026-11-22",
    "title": "Safer with other people's words, complete backups, quicker with Claude",
@@ -263,48 +302,6 @@
      "id": "3-32-0-the-benchmark-page-shows-the",
      "kind": "new",
      "text": "The benchmark page shows the everyday real-model task runs task by task; the real-model suite has 13 more tasks, one per newer feature."
-    }
-   ]
-  },
-  {
-   "version": "3.31.0",
-   "date": "2026-11-19",
-   "title": "She knows the time, Always allow, six languages everywhere",
-   "items": [
-    {
-     "id": "3-31-0-words-as-you-speak-in",
-     "kind": "new",
-     "text": "Words as you speak in Spanish, French, German, Portuguese and Italian.",
-     "link": "#view=settings:her-voice",
-     "try": [
-      "live-words-languages"
-     ]
-    },
-    {
-     "id": "3-31-0-always-allow-everything-settings-connect",
-     "kind": "new",
-     "text": "Always allow everything (Settings → Connections → Computer use).",
-     "try": [
-      "always-allow"
-     ]
-    },
-    {
-     "id": "3-31-0-the-email-bridge-no-longer",
-     "kind": "fixed",
-     "text": "The email bridge no longer sends the same reply twice."
-    },
-    {
-     "id": "3-31-0-a-command-she-runs-on",
-     "kind": "fixed",
-     "text": "A command she runs on your computer that goes past its time limit is now always stopped."
-    },
-    {
-     "id": "3-31-0-sara-now-knows-exactly-when",
-     "kind": "fixed",
-     "text": "Sara now knows exactly when everything was said, so she no longer says \"yesterday\" about something from 10 minutes ago.",
-     "try": [
-      "time-sense"
-     ]
     }
    ]
   }

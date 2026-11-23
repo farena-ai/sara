@@ -18,7 +18,7 @@ function fixture(t: TestContext) {
   });
   const runs = new RunStore(app.store.db, () => clock.now); app.runs = runs;
   const agenda = new Agenda(app, app.store.db); app.agenda = agenda; agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   const source = app.store.addMessage(conv.id, 'user', 'My interview at Acme is November 5');
   app.store.markDirectOwnerMessage(source.id);
   const item = agenda.store.addItem({

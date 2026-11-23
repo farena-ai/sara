@@ -144,6 +144,12 @@ export interface LookDeps {
   faceLock?: () => boolean;
   /** The built-in default look's file for a picture path (he/they defaults), when no custom look exists. */
   builtin?: (rel: string) => string | undefined;
+  /**
+   * Z1: the picture engine the person chose when it is not Grok Imagine (src/photos.ts lookTextEngine):
+   * it makes the portrait from the description. Such engines make a picture from words only, so the look
+   * is that one portrait (no expression frames) and single changes (outfit, place) are not offered.
+   */
+  textEngine?: () => { label: string; make: (prompt: string) => Promise<Buffer> } | undefined;
 }
 
 const ADULT_ONLY = /\b(child|children|kid|kids|minor|teen|teenager|underage|toddler|baby|school ?girl|school ?boy|loli|shota|1[0-7] ?(yo|years? old))\b/i;
@@ -254,6 +260,9 @@ export class LookBuilder {
   }
 
   #edit(from: Buffer, prompt: string, face?: Buffer): Promise<Buffer> {
+    // Z1: changing one thing and keeping her face needs an engine that edits a picture.
+    const other = this.#d.textEngine?.();
+    if (other) return Promise.reject(new Error(`${other.label} makes a picture from words only, so it can't change one part of her look and keep her face. Describe the whole look again to make a new one, or pick Grok Imagine in Settings → Pictures from her → Picture engine for outfits, places and expressions.`));
     const url = (b: Buffer) => `data:${b[0] === 0x89 ? 'image/png' : b[0] === 0x52 ? 'image/webp' : 'image/jpeg'};base64,${b.toString('base64')}`;
     // Phase 36 face lock: the second picture is her locked face, so changes never drift from it.
     if (face) return this.#call('/images/edits', { prompt: `${prompt} The person's face must be exactly the face in the second picture: the same person, same features. Keep the art style of the first picture exactly (if it is a painted illustration, it stays a painted illustration, not a photo).`, images: [{ type: 'image_url', url: url(from) }, { type: 'image_url', url: url(face) }] });
@@ -302,9 +311,10 @@ export class LookBuilder {
     if (this.status.state === 'drafting' || this.status.state === 'building') throw new Error('A picture is already being made.');
     this.status = { state: 'drafting', step: 0, total: 1 };
     try {
-      const img = await this.#call('/images/generations', {
-        prompt: `Head-and-shoulders portrait of ${look}. An adult. Facing the viewer with a friendly, relaxed expression, eyes open, mouth closed. Cozy, softly lit room in the background. ${LOOK_STYLES[style] ?? LOOK_STYLES.illustrated}. Square format. No text, no watermark.`,
-      });
+      const prompt = `Head-and-shoulders portrait of ${look}. An adult. Facing the viewer with a friendly, relaxed expression, eyes open, mouth closed. Cozy, softly lit room in the background. ${LOOK_STYLES[style] ?? LOOK_STYLES.illustrated}. Square format. No text, no watermark.`;
+      // Z1: the picture engine the person chose makes it (Grok Imagine when none other is picked).
+      const other = this.#d.textEngine?.();
+      const img = other ? await other.make(prompt) : await this.#call('/images/generations', { prompt });
       mkdirSync(dirname(this.draftFile), { recursive: true, mode: 0o700 });
       writeFileSync(this.draftFile, img, { mode: 0o600 });
       this.#writeDraftMeta({ newFace: true, place: 'room', style: LOOK_STYLES[style] ? style : 'illustrated' });
@@ -325,7 +335,11 @@ export class LookBuilder {
     const work = join(this.#d.dataDir, 'look-new');
     rmSync(work, { recursive: true, force: true });
     mkdirSync(join(work, 'sara', 'frames'), { recursive: true, mode: 0o700 });
-    const total = EXPRESSIONS.length - 1 + EXPRESSIONS.length * (1 + MOUTHS.length);
+    // Z1: an engine that draws from words only can't make her other expressions from this face: the look
+    // is the one portrait (the app shows a single picture that breathes; switch to Grok Imagine later and
+    // *Finish the look* adds the expressions).
+    const plain = Boolean(this.#d.textEngine?.());
+    const total = plain ? 1 : EXPRESSIONS.length - 1 + EXPRESSIONS.length * (1 + MOUTHS.length);
     this.status = { state: 'building', step: 0, total };
     const done = () => (this.status = { ...this.status, step: this.status.step + 1 });
     const save = (rel: string, b: Buffer) => writeFileSync(join(work, rel), b, { mode: 0o600 });
@@ -333,15 +347,16 @@ export class LookBuilder {
       save('sara-portrait.jpg', base);
       save('sara-avatar.jpg', base);
       const faces = Object.fromEntries(EXPRESSIONS.map((x) => [x, base])) as Record<Expression, Buffer>;
+      if (plain) done();
       await this.#pool(
-        EXPRESSIONS.filter((x) => x !== 'default').map((x) => async () => {
+        (plain ? [] : EXPRESSIONS.filter((x) => x !== 'default')).map((x) => async () => {
           faces[x] = await this.#edit(base, EXPRESSION_EDIT[x]);
           save(`sara/portrait-${x}.jpg`, faces[x]);
           done();
         }),
       );
       await this.#pool(
-        EXPRESSIONS.flatMap((x) => [
+        (plain ? [] : EXPRESSIONS).flatMap((x) => [
           async () => {
             save(`sara/frames/${x}-blink.jpg`, await this.#edit(faces[x], BLINK));
             done();

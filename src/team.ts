@@ -3,11 +3,12 @@
 // checks the work (a failing test goes back to the coder, a reviewer's changes too), and reports
 // only what the receipts show. Helpers are not companions: no persona, no relationship, just a
 // named role with its own model (Phase 38 jobs), tools and the same sandbox and approvals.
+import { retryingStream } from './providers/retry.ts';
 import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissionError, type ToolScope } from './tool-admission.ts';
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { noteAction } from './timeline.ts';
-import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamWithin } from './chat.ts';
+import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamIdleTiming, streamWithin } from './chat.ts';
 import { cardOf, checkPlan, contradictSettings, gateAct, type Contradiction } from './contradict.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxDecision, type SandboxResult } from './sandbox-run.ts';
 import { complete } from './life.ts';
@@ -264,6 +265,29 @@ export function receiptLines(steps: TeamStep[], names: Map<string, string>): str
 }
 
 type Row = Record<string, string | number | null>;
+
+/** Y8: said to a helper whose reply was empty (once per step). */
+export const EMPTY_HELPER_NOTE = '[Note from the app: your last reply was empty. Use a tool to continue your part, or write your report now: what you did, what you found, and anything left open.]';
+/** Y8: tool results older than the newest KEEP_FULL are shortened to this many characters. */
+export const HELPER_HISTORY = { keepFull: 6, clipTo: 1500 };
+/**
+ * Y8: a helper's own history grew without limit over its (up to 25) moves, each result up to 12,000
+ * characters. The newest results stay whole; older ones keep their start and say they were shortened,
+ * as her own turns do. Changes the list in place.
+ */
+export function trimHelperHistory(messages: ChatMessage[], o: { keepFull?: number; clipTo?: number } = {}): number {
+  const keep = o.keepFull ?? HELPER_HISTORY.keepFull;
+  const to = o.clipTo ?? HELPER_HISTORY.clipTo;
+  const tools = messages.map((m, i) => (m.role === 'tool' ? i : -1)).filter((i) => i >= 0);
+  let cut = 0;
+  for (const i of tools.slice(0, Math.max(0, tools.length - keep))) {
+    const m = messages[i]!;
+    if (m.content.length <= to + 80) continue;
+    messages[i] = { ...m, content: `${m.content.slice(0, to)}\n[... shortened: ${m.content.length - to} more characters were here]` };
+    cut++;
+  }
+  return cut;
+}
 
 export class TeamManager {
   /** V3.4: called when a task stops at a checkpoint (Fix this issue posts its pull-request card). */
@@ -922,6 +946,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       ];
       const receipts: Receipt[] = [...step.receipts];
       let corrected = false;
+      let emptyAsked = false;
       for (let round = 0; round < MAX_HELPER_ROUNDS; round++) {
         assertCurrentScope(app, run.scope, ctl.signal, task.workspace, privateLocalOn());
         if (ctl.signal.aborted) throw ctl.signal.reason;
@@ -939,7 +964,10 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         const scope = usageScope.getStore();
         const was = { tokens: scope?.tokens ?? 0, reported: scope?.reported ?? 0 };
         try {
-          for await (const ev of streamWithin((sig) => provider.stream({ model, messages, tools: tools.map((t) => t.spec), signal: sig, temperature: 0.3 }), ctl.signal, fallbackAfterMs(app, { provider, promptChars: promptChars(messages) }))) {
+          // Y8: helpers get what her own turns have: a busy server is tried again (when no other model
+          // waits to take over), a reply that goes silent is given up, and old tool results are shortened.
+          trimHelperHistory(messages);
+          for await (const ev of streamWithin((sig) => retryingStream(() => provider.stream({ model, messages, tools: tools.map((t) => t.spec), signal: sig, temperature: 0.3 }), sig, ci < chain.length - 1 ? { tries: 0 } : {}), ctl.signal, fallbackAfterMs(app, { provider, promptChars: promptChars(messages) }), streamIdleTiming.anyMs)) {
             if (ev.type === 'text') reply += ev.text;
             else if (ev.type === 'tool_call') calls.push(ev.call);
           }
@@ -954,6 +982,13 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         }
         // Real token counts when the model reported them, else the rough estimate (characters / 4).
         this.#addTokens(task, step, scope && (scope.reported ?? 0) > was.reported ? (scope.tokens ?? 0) - was.tokens : est(messages) + est(reply) + est(calls));
+        if (!calls.length && !reply.trim() && !emptyAsked) {
+          // Y8: nothing came back (small models do this): ask once more before taking it as the report.
+          emptyAsked = true;
+          this.#note(task.id, step.id, `${helper.name} sent an empty reply; asked again.`);
+          messages.push({ role: 'user', content: EMPTY_HELPER_NOTE });
+          continue;
+        }
         if (!calls.length) {
           // The helper's claims are checked against its own receipts before the lead repeats them.
           const claims = checkClaims(reply, receipts);

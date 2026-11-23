@@ -95,7 +95,7 @@
         <p class="claim-token-open"><button id="claim-token-show" type="button" class="linkish small" aria-expanded="false">I already have a token</button></p>
       </div>
       <p class="muted" id="login-intro">Enter the owner token printed in the server log on first start.</p>
-      <input id="login-token" type="password" autocomplete="current-password" placeholder="Owner token" required>
+      <input id="login-token" type="password" autocomplete="current-password" placeholder="Owner token or sign-in code" required>
       <input id="login-code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6-digit code from your authenticator app" hidden>
       <details id="login-help" class="login-help muted small">
         <summary>Where do I find it?</summary>
@@ -111,7 +111,7 @@
       <label id="login-sso-adult" class="row small login-sso-adult" hidden><input id="login-sso-18" type="checkbox"> I'm 18 or older (needed the first time) <button type="button" class="tip" data-tip="This server can make you an account the first time you sign in with your provider. Accounts are for people 18 or older.">?</button></label>
       <button id="demo-start" type="button" class="ghost" hidden>Try the demo (no sign-in)</button>
       <p id="demo-note" class="muted small" hidden>This is Sara's demo server: conversations aren't saved and disappear after a few hours. Please don't share personal information.</p>
-      <p id="login-paircode" class="small" hidden><a href="/pair">Have a code from Settings → Connections → Devices and sign-in? Sign in with it</a></p>
+      <p id="login-paircode" class="small"><a href="/pair">Have a code from Settings → Connections → Devices and sign-in? Sign in with it</a></p>
       <!-- Phase 71: joining a household with an invite (docs/HOUSEHOLD.md) -->
       <p id="join-open" class="small"><button id="join-show" type="button" class="linkish">I have an invite</button></p>
       <div id="join" class="join-box" hidden>

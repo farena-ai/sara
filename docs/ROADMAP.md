@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Everyday fixes: sign-in codes, the chat list, a home for her messages, in 3.38.0
+
+A sign-in code now works on the sign-in page of any device. What she sends on her own (the morning
+briefing, check-ins, reviews) has one home, *From Sara*, at the top of the list; the chats you used last
+come first, and projects follow the order you use them in. The page no longer freezes for a moment after
+each reply, several look-ups in one step run together, her instructions are laid out so models reuse
+what they already read, and her look can be made with the picture engine you picked.
+
 ## Safer and quicker: other people's words, complete backups, Claude caching, in 3.37.0
 
 A review of the whole project and its fixes. Words from a web page, an email or a tool server can no longer

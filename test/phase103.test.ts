@@ -55,7 +55,7 @@ test('off by default: nothing is planned, nothing new is sent, the proactive pat
   const { app, clock, agenda } = setup(t);
   assert.deepEqual(agenda.settings(), DEFAULT_AGENDA);
   assert.equal(agenda.enabled(), false);
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'Big week: the interview is on Friday. I really need to finish the garden shed.');
   assert.equal(rows(app, 'agenda_items'), 0, 'no plan while off');
   assert.equal(rows(app, 'agenda_goals'), 0);
@@ -94,7 +94,7 @@ test('reading his words (code only): future events and goal-like phrases', () =>
 test('scheduling: "the interview is on Friday" → one follow-up with a quoted why; the step says so in the chat', async (t) => {
   const { app, agenda } = setup(t);
   agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'Big week: the interview is on Friday.', 'Good luck!');
   const items = agenda.store.items();
   assert.equal(items.length, 1);
@@ -116,7 +116,7 @@ test('scheduling: "the interview is on Friday" → one follow-up with a quoted w
 test('limits in code: 5 open, 2 a day, 30 days ahead, never the past, no source → no plan', async (t) => {
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'I visit on Thursday. I see the plumber on Wednesday.');
   const tool = app.tools.get('agenda_add')!;
   const ctx = { workspaceDir: app.dataDir, signal: new AbortController().signal, sandbox: app.sandbox, conversationId: conv.id };
@@ -152,7 +152,7 @@ test('shared cap: proactive + her plans = 2 a day; quiet hours, min gap and the 
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
   app.settings.update({ proactive: { enabled: true, maxPerDay: 2, quietStart: 22, quietEnd: 9, minGapHours: 1 } });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'hi');
   const due = (what: string, at: string) => agenda.addItemByOwner({ what, dueAt: new Date(at) });
   due('Plan one', '2026-11-02T12:00:00Z');
@@ -200,7 +200,7 @@ test('shared cap: proactive + her plans = 2 a day; quiet hours, min gap and the 
 test('delivery: meta.agenda.why on the message; his answer marks it done; a missed window moves once then expires', async (t) => {
   const { app, clock, agenda, events } = setup(t);
   agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'Big week: the interview is on Friday.');
   const it = agenda.store.items()[0];
   clock.now = new Date('2026-11-06T19:30:00Z');
@@ -235,7 +235,7 @@ test('delivery: meta.agenda.why on the message; his answer marks it done; a miss
 test('a check-in: a goal he accepts gets its check-in; his answer becomes a progress note', async (t) => {
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'I really need to finish the garden shed.');
   assert.equal(agenda.store.goals().length, 0, 'once is not a goal');
   clock.now = new Date('2026-11-05T10:00:00Z');
@@ -276,7 +276,7 @@ test('a check-in: a goal he accepts gets its check-in; his answer becomes a prog
 test('editing on Today: time, text, cancel; off pauses everything (and aborts a running call), on restores', async (t) => {
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   await say(app, conv.id, 'Big week: the interview is on Friday.');
   const it = agenda.store.items()[0];
   const e1 = agenda.editItem(it.id, { dueAt: new Date('2026-11-06T20:30:00Z'), what: 'Ask how the interview with Acme went' })!;
@@ -325,7 +325,7 @@ test('crisis pause: after a crisis-flagged turn only one gentle check-in within 
   const { app, clock, agenda } = setup(t);
   agenda.update({ enabled: true });
   app.settings.update({ proactive: { enabled: true, maxPerDay: 5, quietStart: 22, quietEnd: 9, minGapHours: 1 } });
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   agenda.addItemByOwner({ what: 'Ask about the trip', dueAt: new Date('2026-11-02T14:00:00Z') });
   agenda.addItemByOwner({ what: 'Ask about the dinner', dueAt: new Date('2026-11-02T18:00:00Z') });
   await say(app, conv.id, "I don't want to be alive anymore", "I'm really glad you told me.");
@@ -367,7 +367,7 @@ test('never from outside: other apps, agents, webhooks, partner, private and gro
   const priv = app.store.createConversation({ private: true });
   await say(app, priv.id, 'The interview is on Friday.');
   assert.equal(agenda.store.items().length, 0, 'a private chat never feeds her plans');
-  const conv = app.store.createConversation();
+  const conv = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   app.script.push(text('ok'));
   for await (const _ of runTurn(app, conv.id, 'The interview is on Friday.', new AbortController().signal, { externalApp: true })) void _;
   assert.ok(!(app.requests.at(-1)!.tools ?? []).some((x) => AGENDA_TOOLS.has(x.name)), 'no agenda tools for another app');

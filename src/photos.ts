@@ -127,6 +127,34 @@ export async function makePhoto(d: PhotoDeps, scene: string, o: { signal?: Abort
   return toolPhoto(ed, p.tool, prompt, o);
 }
 
+/**
+ * Z1: the picture engine the person chose, for making her look from a description. Undefined for Grok
+ * Imagine (the look builder talks to it itself, and only it can change one part and keep her face).
+ * Owner (2026-11-23): the image tool "needs to be selectable by the user in their harness ... OpenAI,
+ * Grok, ComfyUI, etc." New pictures already followed Settings → Pictures from her → Picture engine;
+ * her look was Grok only.
+ */
+export function lookTextEngine(d: Pick<PhotoDeps, 'settings' | 'engines' | 'fetch'>): { engine: PhotoEngine; label: string; make: (prompt: string, signal?: AbortSignal) => Promise<Buffer> } | undefined {
+  const p = photoSettings(d.settings);
+  const engine = p.engine ?? 'grok';
+  if (engine === 'grok') return undefined;
+  const ed: EngineDeps = { ...d.engines, fetch: d.fetch };
+  return {
+    engine,
+    label: ENGINE_LABEL[engine],
+    make: async (prompt, signal) => {
+      const o = signal ? { signal } : {};
+      if (engine === 'openai') return openaiPhoto(ed, prompt, p.openaiModel, o);
+      if (engine === 'comfyui') {
+        if (!p.comfy) throw new ToolError('Pick a ComfyUI workflow in Settings → Pictures from her.');
+        return comfyPhoto(ed, p.comfy, prompt, o);
+      }
+      if (!p.tool) throw new ToolError('Pick an image tool in Settings → Pictures from her.');
+      return toolPhoto(ed, p.tool, prompt, o);
+    },
+  };
+}
+
 /** Key order: a key saved for pictures, then the Grok subscription, then an xAI model provider's key. */
 export async function xaiImageKey(d: Pick<PhotoDeps, 'vault' | 'xaiProviderKey' | 'grokToken'>): Promise<string | undefined> {
   return d.vault.get(PHOTO_KEY_VAULT) || (await d.grokToken?.()) || d.xaiProviderKey();

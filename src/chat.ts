@@ -139,6 +139,7 @@ import { ASK_CHOICE, choiceText, parseChoice, settleChoice, type Choice } from '
 import { takeQuizChoice } from './tools/study.ts';
 import { BOT_WALL_LINE, looksLikeBotWall, WebTurn } from './web-guard.ts';
 import { retryingStream } from './providers/retry.ts';
+import { runsTogether, runTogether } from './parallel-calls.ts';
 import { TAINT_CARRY_TURNS, carriedTaint, hostOfUrl, outboundUrl, outsideWordsTool, unseenAddressLine, urlSeen } from './taint.ts';
 /** 3.1.2: tools whose output may be a bot-check page (commands, browsers, MCP browser tools). */
 const BOT_WALL_TOOLS = /^(shell|run_command|browser_read|browser_open|pc_browser_\w+|mcp_.*(browser|playwright|fetch|navigate|snapshot).*)$/i;
@@ -767,6 +768,16 @@ export class SlowModelError extends Error {
     this.name = 'SlowModelError';
     this.seconds = seconds;
   }
+}
+
+/**
+ * Y3: the model answering this step, as a fact for her. She stays herself and does not bring it up; when
+ * the person asks which model is answering (or asks her to test one), this is the only true answer.
+ */
+export function modelLine(model: string, providerLabel: string): string {
+  const m = String(model ?? '').replace(/[\[\]\n\r]/g, ' ').trim().slice(0, 120);
+  const p = String(providerLabel ?? '').replace(/[\[\]\n\r]/g, ' ').trim().slice(0, 60);
+  return `[Model: this reply is written by ${m}${p ? ` (${p})` : ''}. Do not bring it up. If asked which model is answering, or asked to test a model, say this one by name and never claim to be running on another: you cannot switch models yourself, the person picks it in the model menu.]`;
 }
 
 /** X1: a model that started its reply and then sent nothing for too long. */
@@ -3459,8 +3470,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // last thing in her instructions every step (kept with the step's system text, never stored).
     // X1: the adapters send this line after the conversation (moveClockToEnd in src/time-sense.ts), so the
     // instructions before it stay the same from step to step and the model's cache can be reused.
+    // Y3: which model writes this step (owner report: asked to test one model, she named it while another
+    // answered). A fact for when she is asked; it changes only when the model does, so it sits before the clock.
+    const modelNow = opts.replay ? '' : `\n\n${modelLine(model, provider.config.label)}`;
     const timeNow = opts.replay ? '' : `\n\n${nowLine(app.now(), s.timeZone, userMsg ? pauseBefore(store.messages(conv.id), userMsg.id) : null)}`;
-    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') + timeNow }];
+    const messages: ChatMessage[] = [{ role: 'system', content: (opts.clientNote?.text.trim() ? system + clientNoteSection(opts.clientNote) : system) + (opts.editor ? '\n\n' + editorNote(opts.editor) : '') + (checkpointText ? '\n\n' + checkpointText : '') + (opts.roomNow?.trim() ? (conv.partner ? roomNowSection(opts.roomNow) : roomNoteSection(opts.roomNow, undefined, true)) : opts.roomNote?.trim() ? roomNoteSection(opts.roomNote) : '') + modelNow + timeNow }];
     // R1C2: Project now (quoted titles, times, paths and check labels; its own mark, never replayed).
     const projectNow = nowPath ? projectNowSection(app, conv, { ...nowGate, now: projectNowRef }) : undefined;
     if (projectNow) messages.push({ role: 'system', content: projectNow });
@@ -4585,7 +4599,16 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         run.cancel();
       }
     };
-    for (const [callIdx, call] of calls.entries()) {
+    // Y6 (src/parallel-calls.ts): a step whose calls all only read (pages, files, searches, her memory) runs
+    // them at the same time. Each call still goes through its own checks in oneCall; anything else in the
+    // step keeps the whole step one after another, in the order the model wrote it.
+    const together = runsTogether(calls) && !(cut.signal.aborted && !signal.aborted);
+    if (together) {
+      callsThisTurn += calls.length;
+      const ends = yield* runTogether(calls.length, (i) => oneCall(calls[i]!, i));
+      if (ends.includes('end')) return;
+    }
+    for (const [callIdx, call] of together ? [] : calls.entries()) {
       callsThisTurn++;
       // Interrupt now: calls not started yet are skipped (each still gets its result, so the history stays whole).
       if (cut.signal.aborted && !signal.aborted) {

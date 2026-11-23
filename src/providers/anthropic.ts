@@ -116,6 +116,23 @@ export function defaultMaxTokens(model: string): number {
   return 32_000;
 }
 
+/** Y4: where her instructions turn from what stays the same to what changes each turn (src/persona.ts). */
+export const LIVE_PART = '\n\n## Right now\n';
+
+/**
+ * Y4: the system prompt as blocks. The part that is the same on every turn carries the cache mark; the
+ * part that changes each turn (time, mood, memory) follows unmarked, so a new turn still reuses the
+ * tools and the long first part. Within one turn the mark on the last message covers all of it.
+ */
+function systemBlocks(system: string, mark: { cache_control: { type: 'ephemeral' } }): (Block & { type: 'text' })[] {
+  const at = system.indexOf(LIVE_PART);
+  if (at <= 0) return [{ type: 'text', text: system, ...mark }];
+  return [
+    { type: 'text', text: system.slice(0, at), ...mark },
+    { type: 'text', text: system.slice(at + 2) },
+  ];
+}
+
 /**
  * X1: prompt caching. The request is read as tools, then the system prompt, then the messages, and a
  * cache mark stores everything before it for a few minutes at a tenth of the price. Three marks: the
@@ -140,7 +157,7 @@ export function withCacheMarks<T extends { name: string }>(system: string, messa
     return { ...w, content: blocks };
   });
   return {
-    ...(system ? { system: [{ type: 'text' as const, text: system, ...mark }] } : {}),
+    ...(system ? { system: systemBlocks(system, mark) } : {}),
     messages: marked,
     ...(tools?.length ? { tools: tools.map((t, i) => (i === tools.length - 1 ? { ...t, ...mark } : t)) } : {}),
   };

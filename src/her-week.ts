@@ -340,6 +340,9 @@ function slotOf(now: Date, tz: string | undefined, day: number, time: string): {
 
 /** ReminderScheduler.tick: once a week at the chosen day and time. Returns the chat it went to. */
 export function herWeekTick(app: AppContext, now: Date = app.now()): string | undefined {
+  // Y9: never on the demo. Its data folder must stay empty (the demo refuses to start on one that holds a
+  // chat), and a weekly check-in written there on 2026-11-22 took the demo down at its next restart.
+  if (app.demo) return undefined;
   const s = load(app);
   if (!s.on) return undefined;
   const { slot, lateMin } = slotOf(now, app.settings.get().timeZone, s.day, s.time);

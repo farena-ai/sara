@@ -14,6 +14,7 @@
 // re-checked, 1 MB, private local mode refuses), tool (only callTools, and every call asks the
 // owner: it is an outside request), notify, card, model (capped per day, billed to the owner's
 // background route), kv.get/kv.set, memory.notes (shared-notes only) and bridge.inbound.
+import { ownChat } from '../home-chat.ts';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { randomInt, randomUUID } from 'node:crypto';
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync } from 'node:fs';
@@ -2996,9 +2997,9 @@ export function scheduleDue(s: { every: string; at?: string }, lastMs: number, n
   return now.getTime() - lastMs >= mins * 60_000;
 }
 
-/** The owner's most recent own conversation in the app (where a plugin's notes and cards go). */
+/** Where a plugin's notes and cards go: her home chat (Y5, src/home-chat.ts), else the owner's most recent own conversation. */
 export function latestOwnerConversation(app: AppContext): Conversation | undefined {
-  return app.store.listConversations().find((c) => c.channel === 'web' && !c.partner && !c.private && !c.archivedAt);
+  return ownChat(app) ?? app.store.listConversations().find((c) => c.channel === 'web' && !c.partner && !c.private && !c.archivedAt);
 }
 
 function walkSet(dir: string, mode: { file: number; dir: number }): void {

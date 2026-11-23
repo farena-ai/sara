@@ -10,7 +10,7 @@ function fixture(t: { after(fn: () => void): void }, sourceText = 'My interview 
   t.after(() => { app.store.close(); tmp.cleanup(); });
   app.settings.update({ providers: [{ id: 'p', label: 'P', kind: 'openai-compatible', baseUrl: 'http://x' }], defaultProviderId: 'p', defaultModel: 'm', ownerName: 'Alex', timeZone: 'America/Chicago', proactive: { maxPerDay: 2, minGapHours: 1, quietStart: 23, quietEnd: 7 } });
   const agenda = new Agenda(app, app.store.db); app.agenda = agenda; agenda.update({ enabled: true });
-  const c = app.store.createConversation();
+  const c = app.store.createConversation({ channelKey: 'home' }); // Y5: the chat she writes in on her own (src/home-chat.ts)
   const owner = (content: string, conversation = c.id) => { const m = app.store.addMessage(conversation, 'user', content); app.store.markDirectOwnerMessage(m.id); return m; };
   const source = owner(sourceText);
   const item = agenda.store.addItem({ kind: 'follow-up', what: 'Ask how your interview at Acme went', why: 'You said this', quote: source.content, sourceConversation: c.id, sourceMessage: source.id, dueAt, createdBy: 'her' });

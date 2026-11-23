@@ -10,6 +10,7 @@
 // - Whatever waits is bundled into ONE roundup a day (`nudgeTick`, on the reminders' tick), ranked
 //   by score, where "Smaller things" alerts go.
 // State is per person (`<app.dataDir>/nudges.json`: household members have their own dataDir).
+import { ownChat } from './home-chat.ts';
 import { existsSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AppContext } from './chat.ts';
@@ -238,7 +239,7 @@ export function nudgeTick(app: AppContext, now: Date = app.now()): string | unde
   s.digestDay = s.day;
   save(app, s);
   return postAlert(app, 'nudges', {
-    origin: () => ownerWebChats(app, 1)[0]?.id,
+    origin: () => (ownChat(app) ?? { id: ownerWebChats(app, 1)[0]?.id }).id,
     role: 'assistant',
     reason: 'proactive',
     content,

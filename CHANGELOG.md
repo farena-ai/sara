@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.38.0 (2026-11-23): Sign in with a code anywhere, one home for her messages, no freeze after replies
+
+- Fixed: a sign-in code from Settings now works on the sign-in page of a new computer. The page offered only the owner token there (the "Have a code?" link showed on phones only), so the code was typed into the token box and refused. The link shows on every device, and a code typed in that box signs the device in.
+- New: one home for what she sends on her own. The morning briefing, check-ins, weekly reviews, the roundup of smaller things and add-on notes arrive in From Sara, the first row of the chat list, instead of whichever chat you used last (docs/CHATS.md).
+- New: the chat you used last is always at the top. Recent lists your five newest chats from every project, and projects are ordered by last use. Renaming a chat or changing its model no longer moves it up.
+- Fixed: the short freeze after each reply. The page rebuilt the whole chat when a reply finished; it now rebuilds only the newest two turns (docs/design/LAGFIX.md).
+- Fixed: she names the model that is really answering. Asked to test one model while another wrote the reply, she could claim the wrong one.
+- New: replies are cheaper and quicker with every model that caches. What changes each turn (the time, her mood, memory notes) now comes last in her instructions, so the long first part is reused instead of read again every turn.
+- New: several look-ups in one step run at the same time (pages, searches, files, her memory) instead of one after another.
+- New: her look is made with the picture engine you picked. Create a look follows Settings → Pictures from her → Picture engine (OpenAI images, your own ComfyUI, another image tool, or Grok Imagine), so it no longer needs a Grok sign-in or an xAI key. Outfits and expressions that keep her face still need Grok Imagine (docs/PHOTOS.md).
+- Fixed: the demo server could fail to start after an update. The weekly check-in wrote a chat into the demo's data folder, and the demo refuses to run on a folder that holds one; proactive posts and her home chat are now never written on the demo.
+- Fixed: team helpers try a busy model server again, give up a reply that stalls, ask once more after an empty reply and keep their history short over a long job.
+
+
 ## 3.37.0 (2026-11-22): Safer with other people's words, complete backups, quicker with Claude
 
 - Fixed: words from a web page, an email, search results or a tool server can no longer ride **Always allow everything**. While such words are in a chat, and for your next two messages there, commands and desktop actions on your computer show their card again, and so does anything that would ask without the switch (docs/security/X0_REVIEW.md, docs/ALWAYS_ALLOW.md).

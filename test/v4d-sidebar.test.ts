@@ -17,9 +17,11 @@ test('V4d sidebar: one list of projects, every old group kept', () => {
   assert.doesNotMatch(app, /side-projects/);
   const rc = fnOf(app, 'renderConversations');
   // Channel projects (Telegram, Discord…) with their channel icon, his projects with a folder, No project.
-  assert.match(rc, /group\(`p\$\{p\.id\}`, p\.name, convs, \{\s*builtin: p,\s*icon: channelIcon\(p\),/);
-  assert.match(rc, /group\(`p\$\{p\.id\}`, p\.name, live\.filter\(\(c\) => c\.projectId === p\.id\), \{\s*folder: 'folder',/);
-  assert.match(rc, /group\('none', [^\n]*\{ folder: 'chat', dropProject: null,/);
+  // Y5: each is a folder(...) drawn later, once the order (by last use) is decided (web/conv-order.js).
+  assert.match(rc, /folder\(convs, `p\$\{p\.id\}`, p\.name, \{\s*builtin: p,\s*icon: channelIcon\(p\),/);
+  assert.match(rc, /folder\(live\.filter\(\(c\) => c\.projectId === p\.id\), `p\$\{p\.id\}`, p\.name, \{\s*folder: 'folder',/);
+  assert.match(rc, /folder\(loose, 'none', [^\n]*\{ folder: 'chat', dropProject: null,/);
+  assert.match(rc, /const folder = \(convs, key, label, o\) => \(\{ key, convs, el: \(\) => group\(key, label, convs, o\) \}\);/);
   assert.match(rc, /group\('archived', t\('Archived'\), archived, \{ folder: 'archive', \.\.\.paging\('archived', 'archived'\) \}\)/);
   assert.match(rc, /parts\.push\(hiddenGroup\(hidden, live\)\)/);
   // Drag and drop, paging, the folded set and the counts stay in group().

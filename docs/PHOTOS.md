@@ -18,6 +18,12 @@ Settings → Sara → **Pictures from her**.
 
   Engines other than Grok draw her from her description (name, look, what she wears, her art style)
   each time, so her face can vary a little.
+
+  **Her look follows this choice too.** *Create a look* from a description is made with the engine you
+  picked here, so OpenAI images, your own ComfyUI or another image tool work without a Grok sign-in or
+  an xAI key. Those engines make a picture from words only, so the look is that one portrait: outfits,
+  places and the set of expressions (which keep her face from one picture to the next) need Grok
+  Imagine. Pick Grok Imagine later and *Finish the look* adds the expressions.
 - In a chat she asks before taking a new picture unless you set *Take a new photo* to Allowed in
   Tools.
 

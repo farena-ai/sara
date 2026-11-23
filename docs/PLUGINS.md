@@ -245,8 +245,8 @@ Calls a plugin may make (`op`):
 |---|---|---|
 | `fetch` | `url` → `status`, `contentType`, `body`, `truncated` | GET only in v1; the network rules above |
 | `tool` | `name`, `args` → `ok`, `content` | only names in `callTools`; **every call asks the owner** on the Plugins page (*Allow once* / *Don't*, at most 10 minutes); only while a request from Sara (tool, button, hook, schedule, event) is running: the approval ends with that request, a late *Allow* is *expired* and runs nothing; a tool set to *never* is refused |
-| `notify` | `text` (≤ 300) → `ok` | a notification and a labelled note in the owner's latest chat |
-| `card` | `card` → `ok` | needs `cards`; posted labelled in the owner's latest chat |
+| `notify` | `text` (≤ 300) → `ok` | a notification and a labelled note in her own chat (*From Sara*) |
+| `card` | `card` → `ok` | needs `cards`; posted labelled in her own chat (*From Sara*) |
 | `model` | `prompt`, `maxTokens` → `text` | needs `model`; counted against `callsPerDay`/`tokensPerDay` (the budget ledger, `plugin:<id>`) |
 | `job.run` | `plan` → the job's result | needs `permissions.run`; the owner approves each job (the card shows the exact command); it runs in a disposable copy, never the real workspace (below) |
 | `kv.get` / `kv.set` | `key`, `value` | its own small store: 200 keys, 64 KB a value |
