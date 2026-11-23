@@ -108,6 +108,13 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Quicker to open and tidier, in 3.39.0
+
+Your browser keeps the app's own files, so opening or reloading Sara no longer asks the server about
+each of them; the first load after an update fetches everything in one go. The notice bar no longer
+covers the end of a chat, the phone's top strip appears only when something is going on, her day on
+Today reads as plain words, and the Windows installer shows Sara's own picture and colors.
+
 ## Everyday fixes: sign-in codes, the chat list, a home for her messages, in 3.38.0
 
 A sign-in code now works on the sign-in page of any device. What she sends on her own (the morning

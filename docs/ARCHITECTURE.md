@@ -716,3 +716,23 @@ The approval savepoint includes a synchronous trusted signed-association callbac
 changes actual candidate origin or grants Store update authority; source changes require removal
 and a fresh review. Missing/changed payloads remain visible with a held reason. Actual installed-root
 and release qualification remain separate gates from source and isolated copy-fixture tests.
+
+## A turn, in three parts (Z3, 2026-11-23)
+
+`runTurn` in `src/chat.ts` runs one reply. Inside it:
+
+- **`runTurnInner`** sets the turn up (safety, memory, the tools on offer, budgets) and runs the step
+  loop: build the messages, call the model (with fallbacks, retries and the stall limit from
+  `src/providers/retry.ts`), then run the calls the model asked for.
+- **`runToolCall`** runs one tool call end to end: the made-up-name check, admission
+  (`src/tool-admission.ts`), the loop guard, permissions (taint from `src/taint.ts`, peers, Always
+  allow, unattended runs), the approval card, the sandbox gate, the run, snapshots, checks and the
+  receipt. It reads and changes the turn's state only through `ToolCallEnv`, a typed list of what a
+  call needs; the properties that are not `readonly` are everything a call may change.
+- **`src/parallel-calls.ts`** decides when a step's calls run together (every call only reads) and
+  drives them.
+
+The method used to take `runToolCall` out is the one to reuse for the next block: move the code,
+let the compiler list every name it can no longer find, pass exactly those as one typed object. One
+trap: a variable whose name is also a global compiles and fails at run time
+(`test/z3-tool-call-env.test.ts`).

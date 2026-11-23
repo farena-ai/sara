@@ -233,7 +233,7 @@ test('lazy loading: three.js only comes with a chosen 3D model', () => {
   assert.doesNotMatch(av, /^import[^;]*(avatar-vrm|three-vrm)/m, 'no static import in avatar.js');
   assert.match(av, /import\('\.\/avatar-vrm\.js'\)/, 'loaded on demand');
   const vrm = web('avatar-vrm.js');
-  assert.match(vrm, /import\('\/vendor\/three-vrm\/sara-vrm\.js'\)/);
+  assert.match(vrm, /import\('\.\/vendor\/three-vrm\/sara-vrm\.js'\)/);
   const lic = readFileSync(new URL('../web/vendor/three-vrm/LICENSE-three.txt', import.meta.url), 'utf8');
   assert.match(lic, /MIT License/);
   assert.match(readFileSync(new URL('../web/vendor/three-vrm/LICENSE-three-vrm.txt', import.meta.url), 'utf8'), /MIT License/);

@@ -1,6 +1,7 @@
 // HTTP API + static web UI. No framework; node:http only.
 import { isHomeChat } from './home-chat.ts';
 import { compressedFile, compressible, encodedEtag, etagMatches, pickEncoding } from './static-compress.ts';
+import { cacheFor, staticModules, VERSIONED_PATH, versionPage, webBuildId } from './static-version.ts';
 import { assertNotHeld, isLegalHold, LegalHoldError } from './legal-hold.ts';
 import { needsYouMap, wireNeedsYou, type NeedsYou } from './needs-you.ts';
 import { countModels } from './model-names.ts';
@@ -371,6 +372,8 @@ export function createSaraServer(opts: ServerOptions): Server {
   // 3.0.3: a waiting approval starting or ending tells the sidebar (the needs-you dot).
   wireNeedsYou(app);
   const webRoot = resolve(opts.webDir);
+  const indexHtml = join(webRoot, 'index.html');
+  const identitySrc = join(webRoot, '..', 'src', 'identity.ts');
   // Built-in wording names the owner's companion (written for "Sara"/she, see identity.ts).
   const me = (t: string) => personalize(t, identityOf(app.persona));
   // Her voice and hearing (Grok voice key or sign-in, speech APIs, the on-server voice).
@@ -534,10 +537,22 @@ export function createSaraServer(opts: ServerOptions): Server {
     }, 10 * 60_000).unref();
   }
 
-  async function serveStatic(req: IncomingMessage, res: ServerResponse, pathname: string): Promise<void> {
+  async function serveStatic(req: IncomingMessage, res: ServerResponse, asked: string): Promise<void> {
+    // Z4 (src/static-version.ts): /v/<id>/x.js is x.js, and when <id> is the current set of scripts
+    // and stylesheets the browser may keep it without asking again. Nothing else lives under /v/.
+    const buildId = webBuildId(webRoot, [identitySrc]);
+    let pathname = asked;
+    let keep = 'no-cache';
+    if (asked.startsWith('/v/')) {
+      const m = VERSIONED_PATH.exec(asked);
+      if (!m) throw new HttpError(404, 'Not found');
+      keep = cacheFor(m[1] === buildId);
+      pathname = `/${m[2]}`;
+    }
+    const versioned = pathname !== asked;
     if (pathname === '/identity.js') {
-      identityJs ??= stripTypeScriptTypes(readFileSync(join(webRoot, '..', 'src', 'identity.ts'), 'utf8'));
-      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': 'no-cache', ...SECURITY_HEADERS });
+      identityJs ??= stripTypeScriptTypes(readFileSync(identitySrc, 'utf8'));
+      res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8', 'cache-control': keep, ...SECURITY_HEADERS });
       return void res.end(req.method === 'HEAD' ? undefined : identityJs);
     }
     // Ownicon: the companion's app icon at any size, and as a .ico (src/app-icon.ts).
@@ -586,20 +601,25 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
     const file = resolve(webRoot, normalize(rel));
     if (file !== webRoot && !file.startsWith(webRoot + sep)) throw new HttpError(404, 'Not found');
-    const target = existsSync(file) && statSync(file).isFile() ? file : join(webRoot, 'index.html');
+    const found = existsSync(file) && statSync(file).isFile();
+    if (versioned && !found) throw new HttpError(404, 'Not found'); // a missing script is missing, never the page
+    const target = found ? file : indexHtml;
     const st = statSync(target);
-    // Always revalidate so a new version is picked up on the next load; unchanged files cost a 304.
-    const etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+    // Z4: the app's page goes out with its scripts and stylesheets pointed at /v/<id>/ (the id is part
+    // of its ETag). offline.html and the small pages keep plain addresses (web/sw.js stores by those).
+    const asPage = target === indexHtml ? (raw: Buffer): Buffer => Buffer.from(versionPage(raw.toString('utf8'), buildId, (entry) => staticModules(webRoot, entry, buildId, ['identity.js']))) : undefined;
+    // The page and plain addresses are checked on every load; unchanged files cost a 304.
+    const etag = `"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}${asPage ? `-${buildId}` : ''}"`;
     // X2 (src/static-compress.ts): text files go out compressed, each compressed once per version.
     const enc = compressible(target, st.size) && !req.headers.range ? pickEncoding(req.headers['accept-encoding']) : undefined;
     const sentTag = encodedEtag(etag, enc);
     if (etagMatches(req.headers['if-none-match'], etag)) {
-      res.writeHead(304, { etag: sentTag, 'cache-control': 'no-cache', vary: 'accept-encoding', ...SECURITY_HEADERS });
+      res.writeHead(304, { etag: sentTag, 'cache-control': keep, vary: 'accept-encoding', ...SECURITY_HEADERS });
       return void res.end();
     }
     const head = {
       'content-type': MIME[extname(target)] ?? 'application/octet-stream',
-      'cache-control': 'no-cache',
+      'cache-control': keep,
       etag: sentTag,
       vary: 'accept-encoding',
       ...SECURITY_HEADERS,
@@ -607,7 +627,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     if (enc) {
       let body: Buffer | undefined;
       try {
-        body = compressedFile(target, etag, enc);
+        body = compressedFile(target, etag, enc, asPage);
       } catch {
         body = undefined; // unreadable just now: fall through to the plain stream, which reports it
       }
@@ -618,6 +638,7 @@ export function createSaraServer(opts: ServerOptions): Server {
     }
     res.writeHead(200, { ...head, etag });
     if (req.method === 'HEAD') return void res.end();
+    if (asPage) return void res.end(asPage(readFileSync(target)));
     createReadStream(target).pipe(res);
   }
 

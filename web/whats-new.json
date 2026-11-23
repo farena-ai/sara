@@ -2,6 +2,33 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.39.0",
+   "date": "2026-11-23",
+   "title": "Quicker to open, a tidier screen, Sara's own installer look",
+   "items": [
+    {
+     "id": "3-39-0-the-windows-installer-shows-saras",
+     "kind": "new",
+     "text": "The Windows installer shows Sara's own picture and colors instead of the stock setup pictures."
+    },
+    {
+     "id": "3-39-0-opening-or-reloading-the-app",
+     "kind": "fixed",
+     "text": "Opening or reloading the app is quicker. Your browser now keeps the app's own files."
+    },
+    {
+     "id": "3-39-0-the-notice-bar-for-updates",
+     "kind": "fixed",
+     "text": "The notice bar for updates and known issues no longer covers the end of the chat."
+    },
+    {
+     "id": "3-39-0-on-a-phone-the-top",
+     "kind": "fixed",
+     "text": "On a phone, the top strip no longer takes a row just to repeat the model's name."
+    }
+   ]
+  },
+  {
    "version": "3.38.0",
    "date": "2026-11-23",
    "title": "Sign in with a code anywhere, one home for her messages, no freeze after replies",
@@ -256,52 +283,6 @@
      "id": "3-33-0-when-another-program-already-uses",
      "kind": "fixed",
      "text": "When another program already uses her port, Sara now says so with the next step instead of stopping with a long error."
-    }
-   ]
-  },
-  {
-   "version": "3.32.0",
-   "date": "2026-11-19",
-   "title": "What Sara knows, polite nudges, continue on another device, Mac parity",
-   "items": [
-    {
-     "id": "3-32-0-one-what-i-know-about",
-     "kind": "new",
-     "text": "One \"What I know about you\" page. Settings → You → What Sara knows now lists everything she knows about you by topic, with where and when she learned it and how long ago.",
-     "try": [
-      "know-why"
-     ]
-    },
-    {
-     "id": "3-32-0-her-nudges-share-one-polite",
-     "kind": "new",
-     "text": "Her nudges share one polite daily budget, most useful first, with the rest in an evening roundup.",
-     "link": "#view=money"
-    },
-    {
-     "id": "3-32-0-continue-on-another-device-your",
-     "kind": "new",
-     "text": "Continue on another device. Your open chat, the words you hadn't sent, where you were reading and an open Talk or live view follow you.",
-     "try": [
-      "continue-device"
-     ]
-    },
-    {
-     "id": "3-32-0-the-screen-companion-on-the",
-     "kind": "new",
-     "text": "The screen companion on the Mac. Offer help when an error shows on screen now works in the Mac app too, with the same rules and bubble as on Windows.",
-     "link": "#view=settings:desktop-app",
-     "owner": true
-    },
-    {
-     "id": "3-32-0-tell-sara-a-renewal-date",
-     "kind": "new",
-     "text": "Tell Sara a renewal date in a chat (\"my passport expires March 31, 2027, keep track of it\") and it goes on You → Renewals with its reminder."
-    },
-    {
-     "id": "3-32-0-the-benchmark-page-shows-the",
-     "kind": "new",
-     "text": "The benchmark page shows the everyday real-model task runs task by task; the real-model suite has 13 more tasks, one per newer feature."
     }
    ]
   }

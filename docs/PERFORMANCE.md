@@ -61,3 +61,32 @@ those lines are what to send with a report.
 frame, the stream renders once a frame, still faces in the chat, the after-turn window, the V4 aurora
 still and the glass setting. When adding decoration, prefer opacity and transform on small elements,
 never `backdrop-filter` over something that changes every frame, and test in Firefox.
+
+## The web app's own files (Z4, 2026-11-23)
+
+The web app is about 290 ES modules and 41 stylesheets, with no build step. How they reach the browser:
+
+- **The page** (`index.html`) is checked on every load (`no-cache` + ETag). The server sends it with
+  every script and stylesheet address rewritten to `/v/<id>/…` (`versionPage` in
+  `src/static-version.ts`). `<id>` is worked out from the names, sizes and times of every `.js`,
+  `.mjs` and `.css` under `web/` (plus `src/identity.ts`, which becomes `identity.js`), looked at
+  again at most every 3 seconds. The id is part of the page's ETag.
+- **`/v/<id>/x.js`** is `x.js`. When `<id>` is the current one the answer says
+  `public, max-age=31536000, immutable`, so the browser reuses it without asking. Any other id (a
+  tab left open across an update) gets today's file with `no-cache`. Only scripts and stylesheets
+  live there; a missing one is a 404, never the page.
+- Modules import each other with **relative** paths, so everything `app.js` loads is under the same
+  `/v/<id>/`. An absolute import (`import('/x.js')`) would load a second copy of that module and of
+  everything it imports, with its own state: `test/z4-static-version.test.ts` fails on one.
+- The page also names every module `app.js` loads at start (`<link rel="modulepreload">`, from
+  `staticModules`, read from the import lines once per id), so a first load fetches them in one round
+  with `app.js` instead of in waves by import depth.
+- Plain addresses (`/app.js`) still work and are still checked each time: the small pages
+  (`/pair`, `/help`, ...), `offline.html` and the service worker (`web/sw.js` stores the offline
+  page's files by plain address) use them. Pictures, JSON and looks are not versioned (a custom look
+  is per owner and must never sit under an address a browser keeps for good).
+
+Measured in a desktop browser against a local server: a repeat load made 250 requests answered "not
+changed" before, and makes none now; the first load after a change fetches all 250 once. Through a
+tunnel or on a phone each of those requests was a round trip, so that is where the gain is. Not
+measured on a phone or through the owner's tunnel.

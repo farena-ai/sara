@@ -186,7 +186,7 @@ test('scan: translations with pronoun variants are well formed; the help page is
     }
   }
   const help = readFileSync(join(WEB, 'help-i18n.js'), 'utf8');
-  assert.match(help, /import\('\/identity\.js'\)/);
+  assert.match(help, /import\('\.\/identity\.js'\)/);
   assert.match(help, /personalizeTranslation/);
   const naming = readFileSync(join(WEB, 'naming.js'), 'utf8');
   assert.match(naming, /personalizeTranslation/);

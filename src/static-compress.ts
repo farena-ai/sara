@@ -33,7 +33,7 @@ const cache = new Map<string, Buffer>();
 let cached = 0;
 
 /** The file's bytes in this encoding (compressed once per version of the file). */
-export function compressedFile(file: string, etag: string, enc: Encoding): Buffer {
+export function compressedFile(file: string, etag: string, enc: Encoding, change?: (raw: Buffer) => Buffer): Buffer {
   const key = `${enc}\0${file}\0${etag}`;
   const hit = cache.get(key);
   if (hit) {
@@ -42,7 +42,9 @@ export function compressedFile(file: string, etag: string, enc: Encoding): Buffe
     cache.set(key, hit);
     return hit;
   }
-  const raw = readFileSync(file);
+  // Z4: `change` is for a file sent in another form than it has on disk (the page with its versioned
+  // addresses); the caller's etag stands for that form.
+  const raw = change ? change(readFileSync(file)) : readFileSync(file);
   const out =
     enc === 'br'
       ? brotliCompressSync(raw, { params: { [constants.BROTLI_PARAM_QUALITY]: 5, [constants.BROTLI_PARAM_SIZE_HINT]: raw.length, [constants.BROTLI_PARAM_MODE]: constants.BROTLI_MODE_TEXT } })

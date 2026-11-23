@@ -5,6 +5,17 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.39.0 (2026-11-23): Quicker to open, a tidier screen, Sara's own installer look
+
+- Fixed: opening or reloading the app is quicker. Your browser now keeps the app's own files (about 250 scripts and stylesheets) and stops asking the server about each one on every load; a new version is still picked up on the next load. The first load after an update is quicker too: everything is fetched in one go instead of in waves.
+
+- For developers: the tool executor is its own function. `runToolCall` in `src/chat.ts` holds what was a 570-line closure inside the turn function, and reads the turn's state through one typed list (`ToolCallEnv`). Nothing changes in what she does.
+
+- Fixed: the notice bar for updates and known issues no longer covers the end of the chat. It sits in the page above the message box (or at the top of Today), like the check-in note.
+- Fixed: on a phone, the top strip no longer takes a row just to repeat the model's name. It shows when something is going on (a worker, a run, research, the model answering).
+- Fixed: her day on Today reads as plain words when the model wrote it with list marks, bold or code ticks.
+- New: the Windows installer shows Sara's own picture and colors instead of the stock setup pictures.
+
 ## 3.38.0 (2026-11-23): Sign in with a code anywhere, one home for her messages, no freeze after replies
 
 - Fixed: a sign-in code from Settings now works on the sign-in page of a new computer. The page offered only the owner token there (the "Have a code?" link showed on phones only), so the code was typed into the token box and refused. The link shows on every device, and a code typed in that box signs the device in.

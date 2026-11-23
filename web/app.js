@@ -4,7 +4,7 @@ import { carAnswer, carCommand, carOn, initCarMode, setCar, touchCar } from './c
 import { LiveCall } from './live.js';
 import { VideoCallView } from './video-call.js';
 import { CallApprovals } from './call-approvals.js';
-import { parse as parseMd, toDom } from './markdown.js';
+import { parse as parseMd, plainLine, toDom } from './markdown.js';
 import { PALETTE_RESETS, customAccent, paletteDefaultAccent } from './accent.js';
 import { herPictureMode, pictureMotion } from './v4-picture.js';
 import { adoptPresence, avatarConfig, configureAvatar, initAvatar, reloadVrm } from './avatar.js';
@@ -372,7 +372,7 @@ async function boot() {
   // Feature 4: this device's copy of the recent chats and notes, and the outbox (web/offline-hook.js).
   void initOffline({ session, t, current: () => state.currentId, onBack: () => void backFromOffline(), open: (id) => (state.currentId = id) });
   // W5.4: a kid's own bar (time left, ask for more time, transcript notice), web/kid-mode.js.
-  if (session.member?.child) void import('/kid-mode.js').then((m) => m.initKidBar({ api }), () => {});
+  if (session.member?.child) void import('./kid-mode.js').then((m) => m.initKidBar({ api }), () => {});
   // EC24: a helper prompt that was asked before this page opened shows now (owner only).
   if (session.role === 'owner') void loadPhoneHelper();
   void api('/settings').then((s) => {
@@ -7046,7 +7046,7 @@ function renderBackups(d) {
 const restoreTest = createRestoreTest({ api });
 async function loadBackups() {
   void restoreTest.load();
-  void import('/carry.js').then((m) => (m.initCarry(api), m.loadCarry(api))).catch(() => undefined); // W5.3 (web/carry.js)
+  void import('./carry.js').then((m) => (m.initCarry(api), m.loadCarry(api))).catch(() => undefined); // W5.3 (web/carry.js)
   try {
     renderBackups(await api('/backups'));
   } catch {
@@ -10283,7 +10283,9 @@ async function loadToday(fresh = false) {
     const box = $('#td-her .today-her');
     box.replaceChildren();
     if (d.her.day) {
-      const day = el('p', 'td-her-day muted small', d.her.day);
+      // Z2 (polish): her day is one plain line here; a model that wrote it with list marks, bold or code
+      // ticks showed them raw ("- one - two"). The marks are read away, the words stay.
+      const day = el('p', 'td-her-day muted small', plainLine(d.her.day));
       day.dataset.raw = '';
       day.title = t('Show all');
       day.tabIndex = 0;

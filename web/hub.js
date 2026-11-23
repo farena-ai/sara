@@ -93,6 +93,20 @@ function placeFirst() {
   note.classList.add('hub-note-inline');
   if (note.parentNode !== host) host.append(note);
 }
+/**
+ * Z2 (polish): the hub's notice bar (an update, a known issue) is in the page flow too, in the same
+ * place as the check-in note. It used to float over the last lines of the chat, four lines tall on a
+ * phone, until closed.
+ */
+function placeBanner() {
+  const bar = $('#hub-banner');
+  if (!bar) return;
+  const today = $('#today');
+  const host = today?.open ? $('#td-checkin') : $('#chat-checkin');
+  if (!host) return;
+  bar.classList.add('hub-note-inline');
+  if (bar.parentNode !== host) host.append(bar);
+}
 let followsToday = false;
 function followToday() {
   const today = $('#today');
@@ -100,6 +114,7 @@ function followToday() {
   followsToday = true;
   new MutationObserver(() => {
     if (!$('#hub-first').hidden) placeFirst();
+    if (!$('#hub-banner').hidden) placeBanner();
   }).observe(today, { attributes: true, attributeFilter: ['open'] });
 }
 
@@ -163,6 +178,8 @@ function showBanner(n) {
   link.hidden = !ok;
   if (ok) link.href = n.url;
   else link.removeAttribute('href');
+  placeBanner();
+  followToday();
   $('#hub-banner').hidden = false;
   // Shown once: Sara forgets it now (it stays on screen until closed).
   void api('/hub/notice', { method: 'POST', body: { id: n.id } }).catch(() => {});

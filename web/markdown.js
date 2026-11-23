@@ -252,6 +252,23 @@ export function inline(s) {
   return out;
 }
 
+/**
+ * Z2 (polish): one plain line from text that may carry Markdown marks, for places that show a single
+ * line of her words (her day on Today). List marks, heading marks, bold, code ticks and fences go;
+ * every word stays, and lines are joined with a space. Not a parser: it only removes marks.
+ */
+export function plainLine(text) {
+  return String(text ?? '')
+    .replace(/```[a-z0-9]*\n?/gi, ' ')
+    .replace(/^\s{0,3}(?:#{1,6}|[-*+]|\d{1,3}[.)])\s+/gm, '')
+    .replace(/^\s{0,3}>\s?/gm, '')
+    .replace(/(\*\*|__|~~|`)/g, '')
+    .replace(/(^|[\s(])\*(\S[^*\n]*?)\*(?=[\s).,;:!?]|$)/g, '$1$2')
+    .replace(/\s*\n+\s*/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
+}
+
 /** Plain text of a tree (for copy/speech fallbacks and tests). */
 export function plain(nodes) {
   return nodes.map((n) => (n.t === 'table' ? [n.head, ...n.rows].map((r) => r.map((c) => plain(c)).join('\t')).join('\n') : n.t === 'text' || n.t === 'code' ? n.text : n.t === 'br' ? '\n' : n.kids ? plain(n.kids) : '')).join('');

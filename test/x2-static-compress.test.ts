@@ -9,6 +9,7 @@ import { brotliDecompressSync, gunzipSync } from 'node:zlib';
 import { OwnerAuth } from '../src/auth.ts';
 import { createSaraServer } from '../src/server.ts';
 import { compressedFile, encodedEtag, etagMatches, pickEncoding } from '../src/static-compress.ts';
+import { staticModules, versionPage, webBuildId } from '../src/static-version.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
 
 /** node:http, so nothing unpacks the body for us (fetch would). */
@@ -53,7 +54,10 @@ test('X2 compress: which encoding a browser gets', () => {
 test('X2 compress: app.js and the style sheet arrive compressed and unpack to the file on disk', async (t) => {
   const port = await rig(t);
   for (const [path, file] of [['/app.js', 'app.js'], ['/style.css', 'style.css'], ['/', 'index.html']] as const) {
-    const raw = readFileSync(join(ROOT, 'web', file));
+    const disk = readFileSync(join(ROOT, 'web', file));
+    const webId = webBuildId(join(ROOT, 'web'), [join(ROOT, 'src', 'identity.ts')]);
+    // Z4: the page goes out with its scripts and stylesheets pointed at /v/<id>/ (src/static-version.ts).
+    const raw = path === '/' ? Buffer.from(versionPage(disk.toString('utf8'), webId, (entry) => staticModules(join(ROOT, 'web'), entry, webId, ['identity.js']))) : disk;
     const br = await get(port, path, { 'accept-encoding': 'gzip, deflate, br' });
     assert.equal(br.status, 200);
     assert.equal(br.headers['content-encoding'], 'br', path);

@@ -21652,13 +21652,6 @@
 "Continue on another device is switched off.": "Continua su un altro dispositivo è spento.",
 "This chat can’t follow you to another device.": "Questa chat non può seguirti su un altro dispositivo.",
 "Continue where you left off: {title}": "Riprendi da dove avevi lasciato: {title}",
-  "What Sara knows, polite nudges, continue on another device, Mac parity": "Cosa sa Sara, avvisi educati, continua su un altro dispositivo, Mac alla pari",
-  "One \"What I know about you\" page. Settings → You → What Sara knows now lists everything she knows about you by topic, with where and when she learned it and how long ago.": "Una pagina \"Cosa so di te\". Impostazioni → Tu → Cosa sa Sara ora elenca tutto ciò che sa di te per argomento, con dove, quando e quanto tempo fa l’ha saputo.",
-  "Her nudges share one polite daily budget, most useful first, with the rest in an evening roundup.": "I suoi avvisi condividono un budget giornaliero educato, prima i più utili e il resto in un riepilogo serale.",
-  "Continue on another device. Your open chat, the words you hadn't sent, where you were reading and an open Talk or live view follow you.": "Continua su un altro dispositivo. La chat aperta, le parole non inviate, dove stavi leggendo e Parla o una vista dal vivo aperti ti seguono.",
-  "The screen companion on the Mac. Offer help when an error shows on screen now works in the Mac app too, with the same rules and bubble as on Windows.": "L’aiuto schermo sul Mac. Offrire aiuto quando compare un errore ora funziona anche nell’app Mac, con le stesse regole e la stessa bolla di Windows.",
-  "Tell Sara a renewal date in a chat (\"my passport expires March 31, 2027, keep track of it\") and it goes on You → Renewals with its reminder.": "Di’ a Sara una scadenza in chat (\"il mio passaporto scade il 31 marzo 2027, tienilo d’occhio\") e finisce in Tu → Scadenze con il promemoria.",
-  "The benchmark page shows the everyday real-model task runs task by task; the real-model suite has 13 more tasks, one per newer feature.": "La pagina dei benchmark mostra le attività quotidiane con un modello reale una per una; la serie con modello reale ha 13 attività in più, una per funzione nuova.",
   "See what she knows about you": "Guarda cosa sa di te",
   "Open What Sara knows, press Why on one fact, then Forget and Undo.": "Apri Cosa sa Sara, premi Perché su un fatto, poi Dimentica e Annulla.",
   "You see where she learned it and how long ago; Forget removes it and Undo brings it back.": "Vedi dove e quanto tempo fa l’ha saputo; Dimentica lo toglie e Annulla lo rimette.",
@@ -22884,5 +22877,10 @@
   "Replies are cheaper and quicker with every model that caches.": "Le risposte sono più economiche e veloci con ogni modello che usa la cache.",
   "Several look-ups in one step run at the same time (pages, searches, files, her memory) instead of one after another.": "Più ricerche dello stesso passo partono insieme (pagine, ricerche, file, la sua memoria) invece di una dopo l’altra.",
   "Her look is made with the picture engine you picked.": "Il suo aspetto viene creato con il motore immagini che hai scelto.",
-  "A sign-in code from Settings now works on the sign-in page of a new computer.": "Un codice di accesso dalle Impostazioni ora funziona nella pagina di accesso di un nuovo computer."
+  "A sign-in code from Settings now works on the sign-in page of a new computer.": "Un codice di accesso dalle Impostazioni ora funziona nella pagina di accesso di un nuovo computer.",
+  "Quicker to open, a tidier screen, Sara's own installer look": "Si apre più in fretta, uno schermo più ordinato, l’installatore con l’aspetto di Sara",
+  "The Windows installer shows Sara's own picture and colors instead of the stock setup pictures.": "L’installatore di Windows mostra l’immagine e i colori di Sara al posto delle immagini standard.",
+  "Opening or reloading the app is quicker. Your browser now keeps the app's own files.": "Aprire o ricaricare l’app è più rapido. Il browser ora conserva i file dell’app.",
+  "The notice bar for updates and known issues no longer covers the end of the chat.": "La barra degli avvisi per aggiornamenti e problemi noti non copre più la fine della chat.",
+  "On a phone, the top strip no longer takes a row just to repeat the model's name.": "Sul telefono, la striscia in alto non occupa più una riga solo per ripetere il nome del modello."
 }

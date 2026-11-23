@@ -4001,576 +4001,75 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 120 (§4.4): the step's last file-changing call is known before the loop (one check per step).
     const lastChangeIdx = calls.findLastIndex((c) => CHANGES_FILES(c.name));
     /** EC21: one call through the whole path: each of the model's calls, and each call a run_code script makes (`parent`). */
-    const oneCall = async function* (call: ToolCall, callIdx: number, parent?: string): AsyncGenerator<ChatEvent, CallEnd> {
-      // HANDSFREE: a made-up name close to one tool offered this turn runs that tool (with a note); else a hint lists the real ones.
-      let aliasNote = '';
-      let aliasHint = '';
-      if (!tools.some((t) => t.spec.name === call.name) && !app.tools.get(call.name)) {
-        const al = toolAlias(call.name, tools.map((t) => t.spec.name), call.arguments);
-        if (al && 'note' in al) {
-          aliasNote = al.note;
-          call = { ...call, name: al.name, arguments: al.args };
-        } else if (al) aliasHint = al.hint;
-      }
-      const tool = tools.find(t => t.spec.name === call.name) ?? app.tools.get(call.name);
-      let summary = app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
-      if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, app.settings.get());
-      const shownArgs = app.redactor.redactValue(call.arguments);
-      // C8: a paid tool's price tag (none for free tools: their step is unchanged).
-      const price = tool ? priceTagFor({ settings: app.settings.get(), tool }, call.name) : undefined;
-      yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs, ...(price ? { price } : {}) };
-      const started = Date.now();
-      let status: 'ok' | 'error' | 'denied' = 'ok';
-      let output: string;
-      let snapshotId: string | undefined;
-      let spendNote: string | undefined;
-      let snapshotNote = '';
-      const shown: string[] = [];
-      const newProof: string[] = [];
-      const newFiles: typeof pendingFiles = [];
-      // Phase 87: step thumbnails from her hands (kept in the run record by their hash).
-      const thumbs: string[] = [];
-      // Phase 80: the sandbox try of this call (if any) and the owner's choice.
-      let tried: SandboxResult | undefined;
-      let sbRisk: CommandRisk | undefined;
-      let sbDecision: SandboxDecision | undefined;
-      let applied: ApplyResult | undefined;
-      let sbError = '';
-      // Phase 81: the install check's stop (if any) and the owner's answer.
-      let advisoryStop: AdvisoryCard | undefined;
-      let advisoryAnswer: 'override' | 'deny' | undefined;
-      // Phase 86: "Red-team first" on the ship card (the tool result says a run started instead).
-      let redteamNote = '';
-      // Phase 98: a plugin tool's own card.
-      let pluginCard: PluginCard | undefined;
-      // C3: an MCP tool's app (MCP Apps), shown with its result.
-      let appCard: import('./tools/mcp.ts').McpAppCard | undefined;
-      // EC21: the calls a run_code script made (kept on its message: the receipts list).
-      let codeInner: CodeInner[] | undefined;
-
-      const currentAdmission = () => {
-        currentScope();
-        if (SESSION_TOOLS.has(call.name) && (!sessionCurrent || !sessionContinuity || !continuityAllowed(app, conv, opts))) throw new ToolAdmissionError(trOwner(en('Session continuity is unavailable in this context.'), app.settings.get()));
-        if (call.name === SCENE_CANON_TOOL && !sceneCanonCurrent()) throw new ToolAdmissionError(trOwner(en('Shared scene canon is unavailable in this context.'), app.settings.get()));
-        // Preserve the original eligibility refusal for tools never offered in this context.
-        if (!tool || conv.partner || !tools.includes(tool)) return tool ? app.tools.permission(call.name, app.settings.get().toolPermissions) : 'never';
-        return assertToolAdmission(app, admissionScope, tool, signal, { workspace: conv.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(call.name), network: sandbox.network });
-      };
-      let admissionFailure: ToolAdmissionError | undefined;
-      let set: import('./tools/types.ts').Permission = 'never';
-      try { set = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
-      // Phase 123 (LEAN §4.5): an eligible tool she called without its schema runs through the same gate and is loaded.
-      const wasOffered = turnTools.isOffered(call.name);
-      // Phase 116 (BR2 §5.8): the loop guard, before anything is prepared or asked.
-      const offeredNow = Boolean(tool) && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
-      const guardHit: GuardHit | undefined = offeredNow ? guard.check(call.name, call.arguments) : undefined;
-      // X1: a call whose arguments were cut off never runs, is never prepared and never shows a card.
-      const cutOff = cutOffCall(call.arguments);
-      let ranTool = false;
-      let tlBefore: unknown;
-      /** Interrupt now cut this call short (never counted by the loop guard). */
-      let cutShort = false;
-      // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
-      // only when the call may run at all (offered this turn, not off, not blocked by privacy).
-      const mayPrepare = !admissionFailure && cutOff === undefined && !guardHit && Boolean(tool?.prepare) && set !== 'never' && !conv.partner && tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
-      const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, signal, conv.id, Boolean(opts.replay)) : undefined;
-      try { set = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
-      if (prep?.summary) summary = app.redactor.redact(prep.summary);
-      const prepDetail = prep?.detail ? (app.redactor.redactValue(prep.detail) as ApprovalDetail) : undefined;
-      const prepComputer = prep?.computer ? (app.redactor.redactValue(prep.computer) as import('./tools/types.ts').ComputerApproval) : undefined;
-      const prepSkill = prep?.skill ? (app.redactor.redactValue(prep.skill) as import('./tools/types.ts').SkillCard) : undefined;
-      // Phase 73: a few commands always ask first, even when the owner lets the tool run on its own.
-      // Phase 96: the owner's standing OK for exactly this call (a skill's scripts he lets run on, or
-      // "Allow for this task") skips the card; never for other apps, and never past 'never'.
-      const permission0 = set === 'auto' && (tool?.asksFirst?.(call.arguments) || prep?.ask) ? 'ask' : set === 'ask' && prep?.auto && !opts.externalApp && !external ? 'auto' : set;
-      // Phase 100: for an outside request, everything but the read-only tools its policy lets run asks
-      // the owner (or is refused when its approvals are 'deny'); *Always allowed* never applies.
-      const permission1 = opts.outside && permission0 !== 'never' && !(permission0 === 'auto' && opts.outside.auto?.includes(call.name)) ? (opts.outside.approvals === 'deny' ? 'never' : 'ask') : permission0;
-      const permission2 = peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
-      // Phase 117 part B (§5.10): a turn that carries someone else's forwarded text: nothing runs on its own.
-      const untrustedAsk = Boolean(opts.untrusted) && permission2 === 'auto';
-      // Phase 119 (RECALL §4.4 path 3): in a turn where a reminder came up, a call sending text that
-      // holds it to someone else asks first (it can only add an ask, never skip one).
-      const mentionHeld = permission2 === 'auto' ? outgoingHolds(mentionHits, call.name, call.arguments) : undefined;
-      if (mentionHeld) summary = `${personalize(`This mentions your reminder: \"${mentionHeld.reminder.text}\". Send it anyway?`, identityOf(app.persona))} ${summary}`;
-      // X0 (src/taint.ts): while other people's words are in play, an address nobody wrote out asks first
-      // (a made-up address could carry private text away); refused when nobody can be asked.
-      const outUrl = outsideWords && permission2 === 'auto' ? outboundUrl(call.name, call.arguments) : undefined;
-      const unseenOut = outUrl !== undefined && !approvedHosts.has(hostOfUrl(outUrl)) && !urlSeen(outUrl, webTurn.known, [text, ...store.messages(conv.id).filter((m) => m.role === 'user').slice(-30).map((m) => m.content), ...priorReceipts.map((r) => r.output), ...turnOutputs]);
-      if (unseenOut) summary = `${personalize(unseenAddressLine(outUrl!), identityOf(app.persona))} ${summary}`;
-      const permission3a = unseenOut && opts.outside?.approvals === 'deny' ? 'never' : untrustedAsk || mentionHeld || unseenOut ? 'ask' : permission2;
-      // W0.7 (src/always-allow.ts): Always allow everything: the person's own requests run without a card
-      // (never another app's, an outside request's, forwarded text's or a linked server's; never past 'never').
-      const allowAll = !opts.outside && !opts.externalApp && !external && !opts.untrusted && !peerAnswered && !conv.partner && !opts.group && !outsideWords && alwaysAllowOn(app);
-      const allowAllSkipped = allowAll && permission3a === 'ask';
-      const permission3 = allowAllSkipped ? 'auto' : permission3a;
-      // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
-      // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
-      const gateWouldAsk = Boolean(!admissionFailure && opts.persist?.unattended && tool && permission3 === 'auto' && app.sandboxGate && conv.mode === 'coding' && !opts.group && !conv.partner && !opts.editor && app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: wsDir, network: sandbox.network }));
-      const unattendedKey = opts.persist?.unattended && (permission3 === 'ask' || gateWouldAsk) && tool ? guard.keyOf(call.name, call.arguments) : undefined;
-      const allowedAhead = Boolean(unattendedKey && opts.persist?.allowOnce?.includes(unattendedKey));
-      const unattendedNo = Boolean(unattendedKey) && !allowedAhead;
-      const permission = allowedAhead ? 'auto' : permission3;
-      let allowed = permission === 'auto';
-      let explicitlyApproved = false;
-      const admit = () => {
-        const fresh = currentAdmission();
-        const standing = Boolean(prep?.auto && !tool?.asksFirst?.(call.arguments) && !prep?.ask && !opts.externalApp && !external);
-        if (fresh === 'ask' && set === 'auto' && !explicitlyApproved && !allowedAhead && !standing) throw new ToolAdmissionError('The current tool policy requires a new approval. Please request this action again.');
-      };
-      /** Phase 78: how the call got (or didn't get) to run, for the run record. */
-      let approval: AfterTool['approval'] = 'refused';
-      // 3.0.3: the approval card's wait ran out (the broker refused it): the step says "Not approved in time".
-      let timedOut = false;
-      if (admissionFailure) {
-        status = 'denied';
-        output = admissionFailure.message;
-      } else if (!tool) {
-        status = 'error';
-        output = aliasHint || `Unknown tool "${call.name}".`;
-      } else if (cutOff !== undefined) {
-        status = 'error';
-        output = cutOffLine(call.name, cutOff, stopReason === 'length');
-      } else if (conv.partner || !tools.some((t) => t.spec.name === call.name) || (tool.isAvailable && !tool.isAvailable())) {
-        // Only the tools offered this turn may run (partner chats have none), whatever the model says.
-        status = 'denied';
-        output = `The ${call.name} tool isn't available here.`;
-      } else if (unattendedNo) {
-        status = 'denied';
-        output = opts.persist!.unattended!;
-        yield { type: 'unattended', id: call.id, name: call.name, summary, key: unattendedKey! };
-      } else if (guardHit) {
-        // Blocked for the rest of the turn: it never runs and no card is shown.
-        status = 'denied';
-        output = blockedOutput(guardHit, ownerWord);
-        const paused = guard.triedBlocked();
-        yield { type: 'loop_guard', id: call.id, name: call.name, kind: guardHit.kind, quote: app.redactor.redact(guardHit.quote), count: guardHit.count, ...(paused ? { paused: true } : {}) };
-        if (guard.blockedTries === 1 || (guardHit.kind === 'declined' && !guardNotes.includes(LOOP_NOTE))) guardNotes.push(LOOP_NOTE);
-        if (paused && tools.length) {
-          toolsBeforePause = tools;
-          tools = [];
-          guardNotes.push(toolsPausedNote(ownerWord));
-        }
-      } else if (conv.private && OFFSERVER_TOOL(call.name)) {
-        status = 'denied';
-        output = 'This is a private conversation: tools that reach outside the server are off.';
-      } else if (privateLocalOn() && OFFSERVER_TOOL(call.name)) {
-        status = 'denied';
-        output = 'Private local mode is on ("Nothing leaves this computer"): tools that reach outside this computer are paused.';
-      } else if (permission === 'never') {
-        status = 'denied';
-        output = `The owner has disabled the ${call.name} tool.`;
-      } else if (prep?.refuse !== undefined) {
-        // The count-first step found nothing to do (or can't do it): nothing was asked or changed.
-        status = 'error';
-        output = prep.refuse;
-      } else {
-        try {
-          admit();
-          // Phase 78 seam 2: before the tool runs (the Phase 77 plan check is the first hook).
-          approval = 'auto';
-          const pre = await hooks.beforeTool({ step, call, summary, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto', messageId: saved.id });
-          admit();
-          for (const ev of pre.events ?? []) yield ev;
-          admit();
-          // Phase 98: then the plugins (after Sara's own hooks): they may stop the step or make an
-          // automatic one ask, never let through what Sara would stop. A turn the budget stopped never gets here.
-          const pp = pluginTurn ? await pluginTurn.beforeTool({ id: call.id, name: call.name, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto' }) : undefined;
-          for (const ev of pp?.events ?? []) {
-            pluginSteps.push(ev);
-            yield ev;
-          }
-          admit();
-          const pluginDeny = pp?.deny;
-          const pluginAsk = pp?.ask;
-          if (pluginDeny) {
-            allowed = false;
-            approval = 'refused';
-          }
-          // C8: a paid call past a spend limit stops; the owner may allow this one call on its card
-          // (never past the admin's hard cap, and never where nobody can answer a card).
-          const spendStop = price && !pluginDeny ? spendCheck(spendSettings(app.settings.get()), spentNow(app.usage, app.now(), app.settings.get().timeZone, call.name), price, call.name, toolSpendCap(policy().get().pins.spendCap, app.member?.id)) : undefined;
-          if (spendStop && (spendStop.hard || opts.persist?.unattended || opts.outside || opts.externalApp || external)) {
-            allowed = false;
-            approval = 'refused';
-            spendNote = stoppedOutput(spendStop, app.settings.get());
-          }
-          const spendAsk = spendStop && !spendNote ? spendStop : undefined;
-          const stopFor = pre.stopFor;
-          const gate = pre.sandbox;
-          // Phase 81: a known-vulnerable install stops first (an explicit override goes on).
-          advisoryStop = pre.advisory;
-          // Phase 86: the ship gate's card (Red-team first / Ship / Don't).
-          const redteamCard = pre.redteam?.ask ? pre.redteam : undefined;
-          // Phase 80: with an isolated sandbox try, the try's card is the approval; without isolation
-          // (Windows copy mode) a tool that asks first still asks before the try.
-          // W0.7: with Always allow everything the plan check, advisory, ship gate and plugin cards don't stop it either (spend limits still do).
-          const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || (!allowAll && (Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk))) || (permission === 'ask' && (!gate || gate.askFirst)));
-          if (firstCard) {
-            const { id, decision } = askCard();
-            const stops = (turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
-            // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
-            const alwaysOk = set === 'ask' && permission === 'ask' && !spendAsk && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !opts.untrusted && !opts.outside && !opts.externalApp && !external && !conv.partner && !app.member && !app.demo && !app.offRecord && policy().alwaysAllowOn;
-            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(opts.untrusted ? { untrusted: true } : {}), ...(price ? { price } : {}), ...(spendAsk ? { spend: { message: trOwner(spendAsk.message, app.settings.get(), spendAsk.params), limit: spendAsk.limit } } : {}) };
-            allowed = await decision;
-            explicitlyApproved = allowed;
-            timedOut = !allowed && !signal.aborted && app.approvals.timedOut(id);
-            approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
-            const how = app.approvals.takeHow(id);
-            admit();
-            // EC4: one audit row per decided card (the tool, the answer, where; the summary only as redacted content).
-            audit({ action: 'approval.decided', target: call.name, role: app.member ? 'member' : 'owner', who: app.member ? 'member' : 'owner', channel: conv.channel || 'web', outcome: allowed ? 'ok' : signal.aborted ? 'failed' : 'refused', ...(how ? { keys: [how] } : {}), content: summary });
-            if (how === 'tool' && allowed && alwaysOk && !signal.aborted) app.settings.update({ toolPermissions: { ...(app.settings.get().toolPermissions ?? {}), [call.name]: 'auto' } });
-            // Phase 88: "Allow for this task" / "Always on this site" on a computer-use card.
-            if (!signal.aborted) prep?.answered?.(allowed, how);
-            if (redteamCard && how === 'redteam' && !signal.aborted) {
-              // "Red-team first": the action does not run; a red-team run of this project starts.
-              allowed = false;
-              try {
-                const r = app.redteam!.start({ workspace: conv.workspace, wsDir, conversationId: conv.id, reason: 'ship', private: Boolean(conv.private) });
-                redteamNote = `The owner chose to red-team this first (red-team run #${r.id} started). Do not push, open a PR or publish now; wait for its report, then ask again.`;
-                yield { type: 'redteam', id: call.id, runId: r.id, workspace: conv.workspace };
-              } catch (err) {
-                redteamNote = `The owner chose to red-team this first, but it could not start: ${(err as Error).message}. Do not push now.`;
-              }
-            }
-            if (advisoryStop && !signal.aborted) {
-              // Phase 81: the owner's answer on the "Known vulnerability" card, kept as findings.
-              advisoryAnswer = allowed ? 'override' : 'deny';
-              try {
-                app.security?.recordInstall(advisoryStop, advisoryAnswer, { conversationId: conv.id, workspace: conv.workspace, runId: rec.on ? rec.id : null, step });
-              } catch (err) {
-                console.warn(`findings: ${(err as Error).message}`);
-              }
-              yield { type: 'advisory', id: call.id, state: allowed ? 'override' : 'declined', packages: advisoryStop.packages.map((p) => `${p.name} ${p.version}`) };
-            }
-            if (stopFor) {
-              // The owner's answer is kept on the finding (every note on the card): an explicit
-              // override, a no, or \"update the note\". An override counts as a use of the note.
-              for (const c of stops) {
-                c.answer = allowed ? 'override' : how === 'update' ? 'update' : 'deny';
-                c.status = allowed ? 'overridden' : how === 'update' ? 'update' : 'declined';
-              }
-              if (allowed && app.memory) app.memory.markUsed(stops.map((c) => c.memoryId), localDate(now.toISOString(), s.timeZone));
-              store.updateMessageMeta(saved.id, { contradictions: [...turnContradictions.values()].flat() });
-              for (const c of stops) yield { type: 'contradiction', id: call.id, item: c };
-            }
-            if (allowed && !gate) yield { type: 'tool_running', id: call.id, name: call.name, summary };
-          } else if (gate && !pluginDeny) allowed = true;
-          if (allowed && gate) {
-            // Phase 80: the try in a throwaway copy, then Apply / Discard / Run for real.
-            yield { type: 'sandbox_running', id: call.id, label: gate.isolation.label, isolated: gate.isolation.isolated };
-            try {
-              admit();
-              tried = await gate.run(signal);
-              sbRisk = gate.risk;
-              admit();
-            } catch (err) {
-              if (err instanceof ToolAdmissionError) throw err;
-              // The try itself failed (not the command): nothing ran; the normal approval decides.
-              console.warn(`sandbox try: ${(err as Error).message}`);
-            }
-            if (tried) {
-              const verdict = allowAll ? ({ act: 'allow' } as const) : gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
-              if (signal.aborted) {
-                discardSandbox(tried);
-                sbDecision = 'cancelled';
-                allowed = false;
-              } else if (verdict.act === 'allow') {
-                sbDecision = 'auto-applied';
-              } else {
-                const { id, decision } = askCard();
-                const waitFrom = Date.now();
-                yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, sandbox: sandboxCard(tried, gate.risk) };
-                const ok = await decision;
-                explicitlyApproved = ok;
-                meter?.waited(Date.now() - waitFrom);
-                const how = app.approvals.takeHow(id);
-                timedOut = !ok && !signal.aborted && app.approvals.timedOut(id);
-                approval = ok ? 'allowed' : timedOut ? 'timeout' : 'denied';
-                admit();
-                if (!ok) {
-                  discardSandbox(tried);
-                  sbDecision = signal.aborted ? 'cancelled' : 'discarded';
-                  allowed = false;
-                } else if (how === 'real') {
-                  // Run for real: the owner's explicit choice on the card; the copy goes.
-                  discardSandbox(tried);
-                  sbDecision = 'ran';
-                  yield { type: 'tool_running', id: call.id, name: call.name, summary };
-                } else sbDecision = 'applied';
-              }
-              if (sbDecision === 'applied' || sbDecision === 'auto-applied') {
-                try {
-                  admit();
-                  applied = await applySandbox(tried, admit);
-                } catch (err) {
-                  if (err instanceof ToolAdmissionError) throw err;
-                  status = 'error';
-                  sbDecision = 'cancelled';
-                  sbError = `Error: ${(err as Error).message}`;
-                }
-              }
-            } else if (permission === 'ask' && !firstCard) {
-              // No try was possible: fall back to the plain approval.
-              const { id, decision } = askCard();
-              yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepSkill ? { skill: prepSkill } : {}) };
-              allowed = await decision;
-              explicitlyApproved = allowed;
-              timedOut = !allowed && !signal.aborted && app.approvals.timedOut(id);
-              approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
-              app.approvals.takeHow(id);
-              admit();
-              if (allowed) yield { type: 'tool_running', id: call.id, name: call.name, summary };
-            }
-          }
-          if (sbError) {
-            output = sbError;
-          } else if (tried && sbDecision && sbDecision !== 'ran') {
-            // Applied (only the diff), discarded or cancelled: the command never ran in the workspace.
-            if (sbDecision !== 'applied' && sbDecision !== 'auto-applied') status = 'denied';
-            output = sandboxOutput(tried, sbDecision, applied);
-            if (timedOut) output = `${NOT_IN_TIME}\n${output}`;
-          } else if (!allowed) {
-            status = 'denied';
-            output = signal.aborted ? 'Cancelled.' : timedOut ? NOT_IN_TIME : spendNote ? spendNote : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
-          } else {
-            admit();
-            if (SNAPSHOT_TOOLS.has(call.name) && conv.mode !== 'coding' && !opts.replay) {
-              try {
-                snapshotId = app.snapshots.take(conv.workspace, wsDir, summary, conv.id).id;
-              } catch (err) {
-                snapshotNote = `\n[workspace snapshot skipped: ${(err as Error).message}]`;
-              }
-            }
-            admit();
-            ranTool = true;
-            checks?.before(call.name, call.arguments);
-            if (!opts.replay) tlBefore = timelineBefore(app, call.name, call.arguments);
-            // Interrupt now: a read-only call may be cancelled; a command may be stopped by the owner
-            // (its own cancel); anything else that changes things always finishes.
-            const cutOk = interruptible(call.name, tool);
-            stopCmd = !cutOk && tool.runsCommands ? new AbortController() : undefined;
-            if (steerable && !parent) app.pending?.setPhase(conv.id, { kind: 'tool', tool: call.name, summary, stoppable: Boolean(stopCmd) });
-            const toolSignal = cutOk ? AbortSignal.any([signal, cut.signal]) : stopCmd ? AbortSignal.any([signal, stopCmd.signal]) : signal;
-            try {
-              // EC14: in an editor turn her file and command tools run in the editor, after the checks above.
-              const editorAsk = call.name !== RUN_CODE && opts.editor && EDITOR_TOOLS.has(call.name) ? editorCalls.open(conv.id, signal) : undefined;
-              if (editorAsk) yield { type: 'editor_call', callId: editorAsk.id, id: call.id, name: call.name, summary, args: call.arguments, approved: explicitlyApproved };
-              if (call.name === RUN_CODE && !parent) {
-                // EC21: the script's calls come back through oneCall (the same path as hers).
-                const r = yield* codeCall(call);
-                if (r === 'end') return 'end';
-                output = r.output;
-                codeInner = r.inner;
-                if (!r.ok) status = 'error';
-              } else output = editorAsk ? await editorAsk.result : await tool.run(call.arguments, {
-                workspaceDir: wsDir,
-                signal: toolSignal,
-                sandbox,
-                conversationId: conv.id,
-                companionName: app.persona.name,
-                webTurn,
-                outsideWords,
-                attachImage: (id) => { attachedThisTurn++; pendingImages.push(id); },
-                ...(app.uploads ? { saveImage: (b: Buffer) => app.uploads!.saveBytes(b).id } : {}),
-                attachFile: (f) => {
-                  attachedThisTurn++;
-                  pendingFiles.push(f);
-                  newFiles.push(f);
-                },
-                // Phase 49: screenshots she can look at, and the proof strip for the owner.
-                showModel: (id) => shown.push(id),
-                attachProof: (id) => {
-                  pendingProof.push(id);
-                  newProof.push(id);
-                },
-                canSee: seesShots(provider, model),
-                ...(describeImage ? { describeImage } : {}),
-                webAllowed: !conv.private && !privateLocalOn() && app.tools.permission('web_fetch', app.settings.get().toolPermissions) !== 'never',
-                // Phase 87: pictures of the owner's screen may need a model on their own hardware.
-                modelLocal: provider.config.local === true && !isCloudModelName(model),
-                ...(screenModel ? { screenModel } : {}),
-                recordThumb: (img) => {
-                  const sha = rec.thumb(img.data, img.mime, step);
-                  if (sha) thumbs.push(sha);
-                },
-                ...(rec.on ? { runId: rec.id } : {}),
-                attachCard: (c) => {
-                  if (tool.source?.startsWith('Plugin: ')) pluginCard = c;
-                },
-                // C3: only in the owner's own web conversations (not groups, partners or other apps).
-                ...(!opts.group && !conv.partner && !opts.outside && !opts.externalApp ? { attachAppCard: (c: import('./tools/mcp.ts').McpAppCard) => {
-                  if (tool.source?.startsWith('MCP: ')) appCard = c;
-                } } : {}),
-                ...(turnTools.lean ? { lean: { find: (a: Record<string, unknown>) => { currentScope(); narrowSessionTools(); return turnTools.find(a, ownerWord); } } } : {}),
-                ...(sessionCurrent && sessionContinuity ? { sessionContinuity: {
-                  context: async (args: { action: 'list' } | { action: 'read'; conversationId: string; before?: number }) => {
-                    admit();
-                    try { return JSON.stringify(args.action === 'list' ? sessionContinuity.list() : sessionContinuity.read(args.conversationId, args.before)); }
-                    catch (err) { throw new ToolError(trOwner((err as Error).message, app.settings.get())); }
-                  },
-                  handoff: async (args: { targetId: string; text: string; expectedId: number }) => {
-                    admit();
-                    try { const receipt = sessionContinuity.handoff(args); return JSON.stringify({ ...receipt, meaning: trOwner(receipt.meaning, app.settings.get()) }); }
-                    catch (err) { throw new ToolError(trOwner((err as Error).message, app.settings.get())); }
-                  },
-                } } : {}),
-                ...(sceneCanon ? { sceneCanon: (() => {
-                  // Re-admitted at the effect; the source is this step's saved row, never a model argument.
-                  const effect = (work: () => string): Promise<string> => {
-                    admit();
-                    if (!sceneCanonCurrent()) throw new ToolError(en('Shared scene canon is unavailable in this context.'));
-                    try { return Promise.resolve(work()); }
-                    catch (err) { throw err instanceof SceneError ? new ToolError(err.message) : err; }
-                  };
-                  return {
-                    read: () => effect(() => sceneCanon.read()),
-                    set: (a: { key: string; text: string; expectedRevision: number }) => effect(() => sceneCanon.set(a, saved.id)),
-                    retire: (a: { key: string; expectedRevision: number }) => effect(() => sceneCanon.retire(a)),
-                  };
-                })() } : {}),
-              });
-              if (tried && sbDecision === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
-            } catch (err) {
-              status = 'error';
-              output = err instanceof ToolError ? `Error: ${SESSION_TOOLS.has(call.name) || (call.name === SCENE_CANON_TOOL && err.message === en('Shared scene canon is unavailable in this context.')) ? trOwner(err.message, app.settings.get()) : err.message}` : `Error: ${(err as Error).message}`;
-            }
-            if (!signal.aborted && cutOk && cut.signal.aborted && status === 'error') {
-              output = `Stopped before it finished: ${ownerWord} sent a new message. Nothing was changed.`;
-              cutShort = true;
-            }
-            if (!signal.aborted && stopCmd?.signal.aborted) {
-              status = 'error';
-              output = `${ownerWord === 'the owner' ? 'The owner' : ownerWord} stopped this command before it finished.\n${output}`;
-              cutShort = true;
-            }
-            stopCmd = undefined;
-          }
-        } catch (err) {
-          if (!(err instanceof ToolAdmissionError)) throw err;
-          if (tried) { discardSandbox(tried); sbDecision = 'cancelled'; }
-          status = 'denied';
-          approval = explicitlyApproved ? 'denied' : 'refused';
-          output = err.message;
-        }
-      }
-      if (!store.getConversation(conv.id)) return 'end';
-      const ms = Date.now() - started;
-      // C8: a paid call that ran goes on the usage ledger (null = its price is unknown).
-      if (price && ranTool && status === 'ok') app.usage?.recordTool(call.name, price.usd, { conversationId: conv.id, ...(rec.on ? { runId: rec.id } : {}) });
-      let scopeValid = true;
-      try { currentScope(); } catch (err) {
-        if (!(err instanceof ToolAdmissionError)) throw err;
-        scopeValid = false;
-      }
-      // Phase 50: files may have changed: the code map looks again (in the background).
-      if (scopeValid && status !== 'denied' && CHANGES_FILES(call.name) && !opts.replay) app.codemap?.touch(wsDir);
-      // Phase 120 (PRECISE §4.4, §4.6): after the step's last file-changing call, the project's own
-      // checker; its block is part of this result (scrubbed and stored with it, so replays and the run
-      // record see the same). A first edit in a project still at Ask gets the card instead.
-      let checkBlock = '';
-      let checksCard: ChecksCard | undefined;
-      if (checks && !signal.aborted && scopeValid) {
-        checks.after(call.name, call.arguments, ranTool ? status : 'denied');
-        try {
-          currentScope();
-          checkBlock = await checks.stepEnd(callIdx === lastChangeIdx, signal);
-        } catch (err) {
-          console.warn(`checks: ${(err as Error).message}`);
-        }
-        for (const ev of checks.events.splice(0)) {
-          if (ev.type === 'checks_card') checksCard = ev.card;
-          yield ev;
-        }
-        if (checkBlock) output = `${output}\n\n${checkBlock}`;
-      }
-      // Phase 123: a call to an eligible tool that wasn't offered: loaded from the next step on; a
-      // failed one shows her the fields it takes.
-      if (turnTools.lean && tool && !wasOffered && turnTools.isEligible(call.name) && status !== 'denied') {
-        turnTools.load([call.name], 'used');
-        if (status === 'error') output = `${output}\n${schemaHint(tool)}`;
-      }
-      // 3.1.2: a bot check read through a command or a browser tool: say so, so she moves on.
-      if (ranTool && status === 'ok' && BOT_WALL_TOOLS.test(call.name) && looksLikeBotWall(output)) output = `${output}\n\n[${BOT_WALL_LINE}]`;
-      // B2: an argument error with allowed values: say nothing ran and how to go on (last, so she reads it).
-      if (status === 'error' && tool) { const hint = argErrorHint(tool, output); if (hint) output = `${output}\n${hint}`; }
-      if (turnTools.lean && ranTool && call.name !== FIND_TOOLS) {
-        const why = turnTools.offered.get(call.name);
-        if (why && why !== 'core' && why !== 'safety' && why !== 'pinned') {
-          try {
-            writeLoad(store.db, conv.id, call.name, familyOf(tool!).id, 'used', userMsg.id, app.now().toISOString(), true);
-          } catch {
-            /* off the record */
-          }
-        }
-      }
-      writeLoads();
-      // N1: did it work? A read-back after a tool that changed something (src/verify-action.ts).
-      if (ranTool && status === 'ok' && !signal.aborted && VERIFY_TOOLS.has(call.name)) {
-        const line = await verifyAction(call.name, call.arguments, output, verifyDeps(app, wsDir));
-        if (line) output = `${output}\n${line}`;
-      }
-      // Scrub before it is stored, shown or sent back to the model.
-      output = app.redactor.redact(output + snapshotNote);
-      // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
-      if (ranTool && !signal.aborted && !cutShort && guard.record(call.name, call.arguments, status, output)) guardOut();
-      else if (approval === 'denied' && !tried && !signal.aborted) guard.declined(call.name, call.arguments);
-      const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: app.redactor.redact(guardHit.quote) } : undefined;
-      if (aliasNote) output = `${aliasNote}\n${output}`;
-      const stored = clip(output, TOOL_RESULT_LIMIT);
-      // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
-      const offer = call.name === 'web_fetch' && webTurn.takeOffer() ? { kind: 'research-offer' as const, question: clip(text.replace(/\s+/g, ' ').trim(), 300) } : undefined;
-      const card = offer ?? cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard ?? appCard : undefined);
-      const flagged = turnContradictions.get(call.id);
-      const sbRecord = tried && sbDecision && sbRisk ? sandboxRecord(tried, sbRisk, sbDecision, applied) : undefined;
-      // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
-      const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
-      if (loadedSkill) turnSkills.add(loadedSkill);
-      if (status !== 'denied' && WORKSPACE_TOOLS.test(call.name)) projectRefDue = true;
-      // C13: starting or finishing a task worktree moves her tools for the rest of the turn.
-      if (status === 'ok' && (call.name === 'worktree_start' || call.name === 'worktree_finish')) wsDir = worktreeFolder();
-      if (!store.getConversation(conv.id)) return 'end';
-      const toolMsg = store.addMessage(conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(timedOut ? { timedOut: true } : {}), ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
-      // V5.1: what she changed goes on the action timeline (src/timeline.ts), with its undo when one exists.
-      // W0.7: one audit row per call that skipped its card because Always allow everything is on.
-      if (ranTool && allowAllSkipped) noteAlwaysAllowed(app, call.name, summary, conv.channel || 'web');
-      if (ranTool && status === 'ok' && !opts.replay) noteAction(app, { name: call.name, args: call.arguments, output, summary, conversationId: conv.id, workspace: conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore, why: { cause: turnCause, rule: ruleOf({ approved: explicitlyApproved, allowAll: allowAllSkipped, ahead: allowedAhead, task: Boolean(prep?.auto) && set === 'ask', set, ownerSet: app.settings.get().toolPermissions?.[call.name] === 'auto' }) } });
-      receipts.push({ name: call.name, status, args: call.arguments, output });
-      if (checkBlock && rec.on) rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(checks?.touched ?? [])] }, status: 'ok', output: app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
-      // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
-      await hooks.afterTool({ step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}), ...(guardRec ? { guard: guardRec } : {}) });
-      // Phase 98: tool.after (the scrubbed result; plugins may add a card under the step).
-      if (pluginTurn) {
-        const evs = await pluginTurn.afterTool({ id: call.id, name: call.name, status, output });
-        const cards = evs.filter((e) => e.card).map((e) => e.card!);
-        if (cards.length) store.updateMessageMeta(toolMsg.id, { pluginCards: cards });
-        for (const ev of evs) {
-          if (!ev.card) pluginSteps.push(ev);
-          yield ev;
-        }
-      }
-      if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
-      if (status === 'ok' && PEER_ANSWER_TOOLS.has(call.name)) peerAnswered = true;
-      if (status === 'ok' && outsideWordsTool(call.name)) outsideWords = true;
-      if (typeof output === 'string' && turnOutputs.length < 200) turnOutputs.push(output);
-      // It ran, so the person approved it: that site is theirs to open for the rest of this reply.
-      if (unseenOut && status === 'ok' && outUrl) approvedHosts.add(hostOfUrl(outUrl));
-      yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}), ...(timedOut ? { timedOut: true } : {}) };
-      try { currentScope(); } catch (err) {
-        if (!(err instanceof ToolAdmissionError)) throw err;
-        yield { type: 'error', message: signal.aborted ? 'Stopped.' : err.message };
-        return 'end';
-      }
-      for (const img of pendingImages) yield { type: 'image', id: img };
-      for (const img of newProof) yield { type: 'proof', id: img };
-      for (const f of newFiles.splice(0)) yield { type: 'file', ...f };
-      if (signal.aborted) {
-        if (!parent) yield { type: 'error', message: 'Stopped.' };
-        return 'end';
-      }
-      return { status, output, summary, ms };
+    // Z3: the call itself is runToolCall (below, outside this function): it reads and changes this turn's
+    // state only through `env`, the list of everything it needs from here.
+    const env: ToolCallEnv = {
+      get app() { return app; },
+      get external() { return external; },
+      get store() { return store; },
+      get conv() { return conv; },
+      get opts() { return opts; },
+      get signal() { return signal; },
+      get s() { return s; },
+      get now() { return now; },
+      get text() { return text; },
+      get userMsg() { return userMsg; },
+      get saved() { return saved; },
+      get ownerWord() { return ownerWord; },
+      get wsDir() { return wsDir; }, set wsDir(v) { wsDir = v; },
+      get sandbox() { return sandbox; },
+      get rec() { return rec; },
+      get turnCause() { return turnCause; },
+      get provider() { return provider; },
+      get model() { return model; },
+      get step() { return step; },
+      get stopReason() { return stopReason; },
+      get steerable() { return steerable; },
+      get cut() { return cut; },
+      get stopCmd() { return stopCmd; }, set stopCmd(v) { stopCmd = v; },
+      get meter() { return meter; },
+      get hooks() { return hooks; },
+      get lastChangeIdx() { return lastChangeIdx; },
+      get tools() { return tools; }, set tools(v) { tools = v; },
+      get toolsBeforePause() { return toolsBeforePause; }, set toolsBeforePause(v) { toolsBeforePause = v; },
+      get turnTools() { return turnTools; },
+      get admissionScope() { return admissionScope; },
+      get currentScope() { return currentScope; },
+      get writeLoads() { return writeLoads; },
+      get narrowSessionTools() { return narrowSessionTools; },
+      get turnSkills() { return turnSkills; },
+      get outsideWords() { return outsideWords; }, set outsideWords(v) { outsideWords = v; },
+      get peerAnswered() { return peerAnswered; }, set peerAnswered(v) { peerAnswered = v; },
+      get turnOutputs() { return turnOutputs; },
+      get approvedHosts() { return approvedHosts; },
+      get priorReceipts() { return priorReceipts; },
+      get mentionHits() { return mentionHits; },
+      get webTurn() { return webTurn; },
+      get guard() { return guard; },
+      get guardNotes() { return guardNotes; },
+      get guardOut() { return guardOut; },
+      get askCard() { return askCard; },
+      get receipts() { return receipts; },
+      get pendingImages() { return pendingImages; },
+      get pendingFiles() { return pendingFiles; },
+      get pendingProof() { return pendingProof; },
+      get attachedThisTurn() { return attachedThisTurn; }, set attachedThisTurn(v) { attachedThisTurn = v; },
+      get pluginSteps() { return pluginSteps; },
+      get pluginTurn() { return pluginTurn; },
+      get turnContradictions() { return turnContradictions; },
+      get checks() { return checks; },
+      get projectRefDue() { return projectRefDue; }, set projectRefDue(v) { projectRefDue = v; },
+      get describeImage() { return describeImage; },
+      get screenModel() { return screenModel; },
+      get seesShots() { return seesShots; },
+      get sessionContinuity() { return sessionContinuity; },
+      get sessionCurrent() { return sessionCurrent; },
+      get sceneCanon() { return sceneCanon; },
+      get sceneCanonCurrent() { return sceneCanonCurrent; },
+      get worktreeFolder() { return worktreeFolder; },
+      get codeCall() { return codeCall; },
     };
+    const oneCall = (call: ToolCall, callIdx: number, parent?: string): AsyncGenerator<ChatEvent, CallEnd> => runToolCall(env, call, callIdx, parent);
     /** EC21: a run_code script: it runs fenced; every call it makes goes through oneCall and its answer goes back. */
     const codeCall = async function* (call: ToolCall): AsyncGenerator<ChatEvent, 'end' | { ok: boolean; output: string; inner: CodeInner[] }> {
       const names = codeNames;
@@ -4721,4 +4220,668 @@ export function carUnread(app: AppContext, max = 3): string[] {
     .prepare("SELECT m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.created_at >= ? AND (m.meta LIKE '%\"proactive\"%' OR m.meta LIKE '%\"reminder\"%' OR m.meta LIKE '%\"job\"%' OR m.meta LIKE '%\"inbox\"%' OR m.meta LIKE '%\"automation\"%') ORDER BY m.id DESC LIMIT ?")
     .all(since, max) as { content: string }[];
   return rows.map((r) => r.content.replace(/\s+/g, ' ').trim().slice(0, 240)).filter(Boolean);
+}
+
+/**
+ * Z3: everything one tool call reads from the turn it belongs to, and the few things it changes (the
+ * properties that are not readonly). runTurnInner fills it with getters over its own variables, so a
+ * call always sees the current value (the tool list after a pause, the step, the taint).
+ */
+interface ToolCallEnv {
+  // The turn
+  readonly app: AppContext;
+  /** The turn came from another app or an outside request (never the name of a browser global: see test/z3-tool-call-env.test.ts). */
+  readonly external: boolean;
+  readonly store: Store;
+  readonly conv: Conversation;
+  readonly opts: TurnOptions;
+  readonly signal: AbortSignal;
+  readonly s: Settings;
+  readonly now: Date;
+  readonly text: string;
+  readonly userMsg: StoredMessage;
+  readonly saved: StoredMessage;
+  readonly ownerWord: string;
+  wsDir: string;
+  readonly sandbox: SandboxInfo;
+  readonly rec: RunRecorder;
+  readonly turnCause: ActionCause;
+  // The model and the step
+  readonly provider: Provider;
+  readonly model: string;
+  readonly step: number;
+  readonly stopReason: string | undefined;
+  readonly steerable: boolean;
+  readonly cut: AbortController;
+  stopCmd: AbortController | undefined;
+  readonly meter: TurnMeter | undefined;
+  readonly hooks: Required<Omit<TurnHooks, "beforeModelCall" | "beforeTool">> & { beforeTool(c: BeforeTool): Promise<BeforeToolResult>; beforeModelCall(c: BeforeModelCall): Promise<ModelCallPlan>; };
+  readonly lastChangeIdx: number;
+  // The tools offered and their admission
+  tools: Tool[];
+  toolsBeforePause: Tool[] | undefined;
+  readonly turnTools: TurnTools;
+  readonly admissionScope: import('./tool-admission.ts').ToolScope;
+  readonly currentScope: () => void;
+  readonly writeLoads: () => void;
+  readonly narrowSessionTools: () => void;
+  readonly turnSkills: Set<string>;
+  // Trust: whose words are in play (src/taint.ts)
+  outsideWords: boolean;
+  peerAnswered: boolean;
+  readonly turnOutputs: string[];
+  readonly approvedHosts: Set<string>;
+  readonly priorReceipts: Receipt[];
+  readonly mentionHits: MentionHit[];
+  readonly webTurn: WebTurn;
+  // The loop guard and approvals
+  readonly guard: LoopGuard;
+  readonly guardNotes: string[];
+  readonly guardOut: () => void;
+  readonly askCard: () => { id: string; decision: Promise<boolean>; };
+  // What the calls produced for the reply
+  readonly receipts: Receipt[];
+  readonly pendingImages: string[];
+  readonly pendingFiles: { id: string; name: string; mime: string; bytes: number; caption?: string; made?: import('./tools/types.ts').MadeRef }[];
+  readonly pendingProof: string[];
+  attachedThisTurn: number;
+  readonly pluginSteps: PluginEvent[];
+  readonly pluginTurn: PluginTurn | undefined;
+  readonly turnContradictions: Map<string, Contradiction[]>;
+  readonly checks: TurnChecks | undefined;
+  projectRefDue: boolean;
+  // Pictures and screens
+  readonly describeImage: ((img: ImageData) => Promise<string | undefined>) | undefined;
+  readonly screenModel: { local: boolean; describe: (img: { mime: string; data: string; }) => Promise<string | undefined>; } | undefined;
+  readonly seesShots: (p: Provider, m: string) => boolean;
+  // Sessions, scenes and worktrees
+  readonly sessionContinuity: SessionContinuity | undefined;
+  readonly sessionCurrent: boolean;
+  readonly sceneCanon: import('./shared-scenes-policy.ts').SceneCanonCapability | undefined;
+  readonly sceneCanonCurrent: () => boolean;
+  readonly worktreeFolder: () => string;
+  // Scripts (run_code) come back through the same path
+  readonly codeCall: (call: ToolCall) => AsyncGenerator<ChatEvent, 'end' | { ok: boolean; output: string; inner: CodeInner[]; }>;
+}
+
+/**
+ * Z3: one tool call, from the model's request to its stored result: the made-up-name check, admission,
+ * the loop guard, permissions (taint, peers, Always allow, unattended runs), the approval card, the
+ * sandbox gate, the run itself, snapshots, checks and the receipt. It was a 570-line closure inside
+ * runTurnInner; it is the same code, reading and changing the turn's state through `env` only, so what
+ * a call depends on is written down (ToolCallEnv) instead of being whatever the closure could see.
+ */
+// eslint-disable-next-line
+async function* runToolCall(env: ToolCallEnv, call: ToolCall, callIdx: number, parent?: string): AsyncGenerator<ChatEvent, CallEnd> {
+  // The turn's session capability is fixed for the whole turn: read once, so a check on it still holds in the callbacks below.
+  const sessionContinuity = env.sessionContinuity;
+  const sceneCanon = env.sceneCanon;
+  // HANDSFREE: a made-up name close to one tool offered this turn runs that tool (with a note); else a hint lists the real ones.
+  let aliasNote = '';
+  let aliasHint = '';
+  if (!env.tools.some((t) => t.spec.name === call.name) && !env.app.tools.get(call.name)) {
+    const al = toolAlias(call.name, env.tools.map((t) => t.spec.name), call.arguments);
+    if (al && 'note' in al) {
+      aliasNote = al.note;
+      call = { ...call, name: al.name, arguments: al.args };
+    } else if (al) aliasHint = al.hint;
+  }
+  const tool = env.tools.find(t => t.spec.name === call.name) ?? env.app.tools.get(call.name);
+  let summary = env.app.redactor.redact(tool?.summarize(call.arguments) ?? call.name);
+  if (SESSION_TOOLS.has(call.name) || call.name === SCENE_CANON_TOOL) summary = trOwner(summary, env.app.settings.get());
+  const shownArgs = env.app.redactor.redactValue(call.arguments);
+  // C8: a paid tool's price tag (none for free tools: their step is unchanged).
+  const price = tool ? priceTagFor({ settings: env.app.settings.get(), tool }, call.name) : undefined;
+  yield { type: 'tool_call', id: call.id, name: call.name, summary, args: shownArgs, ...(price ? { price } : {}) };
+  const started = Date.now();
+  let status: 'ok' | 'error' | 'denied' = 'ok';
+  let output: string;
+  let snapshotId: string | undefined;
+  let spendNote: string | undefined;
+  let snapshotNote = '';
+  const shown: string[] = [];
+  const newProof: string[] = [];
+  const newFiles: typeof env.pendingFiles = [];
+  // Phase 87: step thumbnails from her hands (kept in the run record by their hash).
+  const thumbs: string[] = [];
+  // Phase 80: the sandbox try of this call (if any) and the owner's choice.
+  let tried: SandboxResult | undefined;
+  let sbRisk: CommandRisk | undefined;
+  let sbDecision: SandboxDecision | undefined;
+  let applied: ApplyResult | undefined;
+  let sbError = '';
+  // Phase 81: the install check's stop (if any) and the owner's answer.
+  let advisoryStop: AdvisoryCard | undefined;
+  let advisoryAnswer: 'override' | 'deny' | undefined;
+  // Phase 86: "Red-team first" on the ship card (the tool result says a run started instead).
+  let redteamNote = '';
+  // Phase 98: a plugin tool's own card.
+  let pluginCard: PluginCard | undefined;
+  // C3: an MCP tool's app (MCP Apps), shown with its result.
+  let appCard: import('./tools/mcp.ts').McpAppCard | undefined;
+  // EC21: the calls a run_code script made (kept on its message: the receipts list).
+  let codeInner: CodeInner[] | undefined;
+
+  const currentAdmission = () => {
+    env.currentScope();
+    if (SESSION_TOOLS.has(call.name) && (!env.sessionCurrent || !sessionContinuity || !continuityAllowed(env.app, env.conv, env.opts))) throw new ToolAdmissionError(trOwner(en('Session continuity is unavailable in this context.'), env.app.settings.get()));
+    if (call.name === SCENE_CANON_TOOL && !env.sceneCanonCurrent()) throw new ToolAdmissionError(trOwner(en('Shared scene canon is unavailable in this context.'), env.app.settings.get()));
+    // Preserve the original eligibility refusal for tools never offered in this context.
+    if (!tool || env.conv.partner || !env.tools.includes(tool)) return tool ? env.app.tools.permission(call.name, env.app.settings.get().toolPermissions) : 'never';
+    return assertToolAdmission(env.app, env.admissionScope, tool, env.signal, { workspace: env.conv.workspace, privateLocal: privateLocalOn(), offServer: OFFSERVER_TOOL(call.name), network: env.sandbox.network });
+  };
+  let admissionFailure: ToolAdmissionError | undefined;
+  let set: import('./tools/types.ts').Permission = 'never';
+  try { set = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
+  // Phase 123 (LEAN §4.5): an eligible tool she called without its schema runs through the same gate and is loaded.
+  const wasOffered = env.turnTools.isOffered(call.name);
+  // Phase 116 (BR2 §5.8): the loop guard, before anything is prepared or asked.
+  const offeredNow = Boolean(tool) && !env.conv.partner && env.tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable());
+  const guardHit: GuardHit | undefined = offeredNow ? env.guard.check(call.name, call.arguments) : undefined;
+  // X1: a call whose arguments were cut off never runs, is never prepared and never shows a card.
+  const cutOff = cutOffCall(call.arguments);
+  let ranTool = false;
+  let tlBefore: unknown;
+  /** Interrupt now cut this call short (never counted by the loop guard). */
+  let cutShort = false;
+  // Count-first tools (gmail_organize): what the call would touch is worked out before any card,
+  // only when the call may run at all (offered this turn, not off, not blocked by privacy).
+  const mayPrepare = !admissionFailure && cutOff === undefined && !guardHit && Boolean(tool?.prepare) && set !== 'never' && !env.conv.partner && env.tools.some((t) => t.spec.name === call.name) && !(tool?.isAvailable && !tool.isAvailable()) && !((env.conv.private || privateLocalOn()) && OFFSERVER_TOOL(call.name));
+  const prep = mayPrepare && tool ? await prepareCall(tool, call.arguments, env.signal, env.conv.id, Boolean(env.opts.replay)) : undefined;
+  try { set = currentAdmission(); } catch (err) { if (!(err instanceof ToolAdmissionError)) throw err; admissionFailure = err; }
+  if (prep?.summary) summary = env.app.redactor.redact(prep.summary);
+  const prepDetail = prep?.detail ? (env.app.redactor.redactValue(prep.detail) as ApprovalDetail) : undefined;
+  const prepComputer = prep?.computer ? (env.app.redactor.redactValue(prep.computer) as import('./tools/types.ts').ComputerApproval) : undefined;
+  const prepSkill = prep?.skill ? (env.app.redactor.redactValue(prep.skill) as import('./tools/types.ts').SkillCard) : undefined;
+  // Phase 73: a few commands always ask first, even when the owner lets the tool run on its own.
+  // Phase 96: the owner's standing OK for exactly this call (a skill's scripts he lets run on, or
+  // "Allow for this task") skips the card; never for other apps, and never past 'never'.
+  const permission0 = set === 'auto' && (tool?.asksFirst?.(call.arguments) || prep?.ask) ? 'ask' : set === 'ask' && prep?.auto && !env.opts.externalApp && !env.external ? 'auto' : set;
+  // Phase 100: for an outside request, everything but the read-only tools its policy lets run asks
+  // the owner (or is refused when its approvals are 'deny'); *Always allowed* never applies.
+  const permission1 = env.opts.outside && permission0 !== 'never' && !(permission0 === 'auto' && env.opts.outside.auto?.includes(call.name)) ? (env.opts.outside.approvals === 'deny' ? 'never' : 'ask') : permission0;
+  const permission2 = env.peerAnswered && permission1 === 'auto' && !READ_AFTER_PEER.has(call.name) ? 'ask' : permission1;
+  // Phase 117 part B (§5.10): a turn that carries someone else's forwarded text: nothing runs on its own.
+  const untrustedAsk = Boolean(env.opts.untrusted) && permission2 === 'auto';
+  // Phase 119 (RECALL §4.4 path 3): in a turn where a reminder came up, a call sending text that
+  // holds it to someone else asks first (it can only add an ask, never skip one).
+  const mentionHeld = permission2 === 'auto' ? outgoingHolds(env.mentionHits, call.name, call.arguments) : undefined;
+  if (mentionHeld) summary = `${personalize(`This mentions your reminder: \"${mentionHeld.reminder.text}\". Send it anyway?`, identityOf(env.app.persona))} ${summary}`;
+  // X0 (src/taint.ts): while other people's words are in play, an address nobody wrote out asks first
+  // (a made-up address could carry private text away); refused when nobody can be asked.
+  const outUrl = env.outsideWords && permission2 === 'auto' ? outboundUrl(call.name, call.arguments) : undefined;
+  const unseenOut = outUrl !== undefined && !env.approvedHosts.has(hostOfUrl(outUrl)) && !urlSeen(outUrl, env.webTurn.known, [env.text, ...env.store.messages(env.conv.id).filter((m) => m.role === 'user').slice(-30).map((m) => m.content), ...env.priorReceipts.map((r) => r.output), ...env.turnOutputs]);
+  if (unseenOut) summary = `${personalize(unseenAddressLine(outUrl!), identityOf(env.app.persona))} ${summary}`;
+  const permission3a = unseenOut && env.opts.outside?.approvals === 'deny' ? 'never' : untrustedAsk || mentionHeld || unseenOut ? 'ask' : permission2;
+  // W0.7 (src/always-allow.ts): Always allow everything: the person's own requests run without a card
+  // (never another app's, an outside request's, forwarded text's or a linked server's; never past 'never').
+  const allowAll = !env.opts.outside && !env.opts.externalApp && !env.external && !env.opts.untrusted && !env.peerAnswered && !env.conv.partner && !env.opts.group && !env.outsideWords && alwaysAllowOn(env.app);
+  const allowAllSkipped = allowAll && permission3a === 'ask';
+  const permission3 = allowAllSkipped ? 'auto' : permission3a;
+  // Phase 118 (PERSIST §5.4): in a loop tick nobody is watching: what would ask is refused (unless allowed once ahead).
+  // The sandbox gate's card counts as an ask too (a risky command would wait for a card nobody sees).
+  const gateWouldAsk = Boolean(!admissionFailure && env.opts.persist?.unattended && tool && permission3 === 'auto' && env.app.sandboxGate && env.conv.mode === 'coding' && !env.opts.group && !env.conv.partner && !env.opts.editor && env.app.sandboxGate.plan({ tool: call.name, args: call.arguments, coding: true, permission: 'auto', workspaceDir: env.wsDir, network: env.sandbox.network }));
+  const unattendedKey = env.opts.persist?.unattended && (permission3 === 'ask' || gateWouldAsk) && tool ? env.guard.keyOf(call.name, call.arguments) : undefined;
+  const allowedAhead = Boolean(unattendedKey && env.opts.persist?.allowOnce?.includes(unattendedKey));
+  const unattendedNo = Boolean(unattendedKey) && !allowedAhead;
+  const permission = allowedAhead ? 'auto' : permission3;
+  let allowed = permission === 'auto';
+  let explicitlyApproved = false;
+  const admit = () => {
+    const fresh = currentAdmission();
+    const standing = Boolean(prep?.auto && !tool?.asksFirst?.(call.arguments) && !prep?.ask && !env.opts.externalApp && !env.external);
+    if (fresh === 'ask' && set === 'auto' && !explicitlyApproved && !allowedAhead && !standing) throw new ToolAdmissionError('The current tool policy requires a new approval. Please request this action again.');
+  };
+  /** Phase 78: how the call got (or didn't get) to run, for the run record. */
+  let approval: AfterTool['approval'] = 'refused';
+  // 3.0.3: the approval card's wait ran out (the broker refused it): the step says "Not approved in time".
+  let timedOut = false;
+  if (admissionFailure) {
+    status = 'denied';
+    output = admissionFailure.message;
+  } else if (!tool) {
+    status = 'error';
+    output = aliasHint || `Unknown tool "${call.name}".`;
+  } else if (cutOff !== undefined) {
+    status = 'error';
+    output = cutOffLine(call.name, cutOff, env.stopReason === 'length');
+  } else if (env.conv.partner || !env.tools.some((t) => t.spec.name === call.name) || (tool.isAvailable && !tool.isAvailable())) {
+    // Only the tools offered this turn may run (partner chats have none), whatever the model says.
+    status = 'denied';
+    output = `The ${call.name} tool isn't available here.`;
+  } else if (unattendedNo) {
+    status = 'denied';
+    output = env.opts.persist!.unattended!;
+    yield { type: 'unattended', id: call.id, name: call.name, summary, key: unattendedKey! };
+  } else if (guardHit) {
+    // Blocked for the rest of the turn: it never runs and no card is shown.
+    status = 'denied';
+    output = blockedOutput(guardHit, env.ownerWord);
+    const paused = env.guard.triedBlocked();
+    yield { type: 'loop_guard', id: call.id, name: call.name, kind: guardHit.kind, quote: env.app.redactor.redact(guardHit.quote), count: guardHit.count, ...(paused ? { paused: true } : {}) };
+    if (env.guard.blockedTries === 1 || (guardHit.kind === 'declined' && !env.guardNotes.includes(LOOP_NOTE))) env.guardNotes.push(LOOP_NOTE);
+    if (paused && env.tools.length) {
+      env.toolsBeforePause = env.tools;
+      env.tools = [];
+      env.guardNotes.push(toolsPausedNote(env.ownerWord));
+    }
+  } else if (env.conv.private && OFFSERVER_TOOL(call.name)) {
+    status = 'denied';
+    output = 'This is a private conversation: tools that reach outside the server are off.';
+  } else if (privateLocalOn() && OFFSERVER_TOOL(call.name)) {
+    status = 'denied';
+    output = 'Private local mode is on ("Nothing leaves this computer"): tools that reach outside this computer are paused.';
+  } else if (permission === 'never') {
+    status = 'denied';
+    output = `The owner has disabled the ${call.name} tool.`;
+  } else if (prep?.refuse !== undefined) {
+    // The count-first step found nothing to do (or can't do it): nothing was asked or changed.
+    status = 'error';
+    output = prep.refuse;
+  } else {
+    try {
+      admit();
+      // Phase 78 seam 2: before the tool runs (the Phase 77 plan check is the first hook).
+      approval = 'auto';
+      const pre = await env.hooks.beforeTool({ step: env.step, call, summary, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto', messageId: env.saved.id });
+      admit();
+      for (const ev of pre.events ?? []) yield ev;
+      admit();
+      // Phase 98: then the plugins (after Sara's own hooks): they may stop the step or make an
+      // automatic one ask, never let through what Sara would stop. A turn the budget stopped never gets here.
+      const pp = env.pluginTurn ? await env.pluginTurn.beforeTool({ id: call.id, name: call.name, args: shownArgs, permission: permission === 'ask' ? 'ask' : 'auto' }) : undefined;
+      for (const ev of pp?.events ?? []) {
+        env.pluginSteps.push(ev);
+        yield ev;
+      }
+      admit();
+      const pluginDeny = pp?.deny;
+      const pluginAsk = pp?.ask;
+      if (pluginDeny) {
+        allowed = false;
+        approval = 'refused';
+      }
+      // C8: a paid call past a spend limit stops; the owner may allow this one call on its card
+      // (never past the admin's hard cap, and never where nobody can answer a card).
+      const spendStop = price && !pluginDeny ? spendCheck(spendSettings(env.app.settings.get()), spentNow(env.app.usage, env.app.now(), env.app.settings.get().timeZone, call.name), price, call.name, toolSpendCap(policy().get().pins.spendCap, env.app.member?.id)) : undefined;
+      if (spendStop && (spendStop.hard || env.opts.persist?.unattended || env.opts.outside || env.opts.externalApp || env.external)) {
+        allowed = false;
+        approval = 'refused';
+        spendNote = stoppedOutput(spendStop, env.app.settings.get());
+      }
+      const spendAsk = spendStop && !spendNote ? spendStop : undefined;
+      const stopFor = pre.stopFor;
+      const gate = pre.sandbox;
+      // Phase 81: a known-vulnerable install stops first (an explicit override goes on).
+      advisoryStop = pre.advisory;
+      // Phase 86: the ship gate's card (Red-team first / Ship / Don't).
+      const redteamCard = pre.redteam?.ask ? pre.redteam : undefined;
+      // Phase 80: with an isolated sandbox try, the try's card is the approval; without isolation
+      // (Windows copy mode) a tool that asks first still asks before the try.
+      // W0.7: with Always allow everything the plan check, advisory, ship gate and plugin cards don't stop it either (spend limits still do).
+      const firstCard = !pluginDeny && !spendNote && (Boolean(spendAsk) || (!allowAll && (Boolean(stopFor) || Boolean(advisoryStop) || Boolean(redteamCard) || Boolean(pluginAsk))) || (permission === 'ask' && (!gate || gate.askFirst)));
+      if (firstCard) {
+        const { id, decision } = env.askCard();
+        const stops = (env.turnContradictions.get(call.id) ?? []).filter((c) => c.act === 'stop');
+        // E7 (A1): "Always allow this tool" only on a plain ask in the owner's own app (the tool's own setting is Ask).
+        const alwaysOk = set === 'ask' && permission === 'ask' && !spendAsk && !stopFor && !advisoryStop && !redteamCard && !pluginAsk && !gate && !prepComputer && !prepSkill && !prep?.ask && !tool?.asksFirst?.(call.arguments) && !env.opts.untrusted && !env.opts.outside && !env.opts.externalApp && !env.external && !env.conv.partner && !env.app.member && !env.app.demo && !env.app.offRecord && policy().alwaysAllowOn;
+        yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(alwaysOk ? { alwaysOk: true } : {}), ...(prepDetail ? { detail: prepDetail } : {}), ...(prepComputer ? { computer: prepComputer } : {}), ...(prepSkill ? { skill: prepSkill } : {}), ...(stopFor ? { contradiction: cardOf(stopFor, stops.filter((c) => c !== stopFor)) } : {}), ...(gate ? { sandboxFirst: { label: gate.isolation.label, isolated: gate.isolation.isolated } } : {}), ...(advisoryStop ? { advisory: advisoryStop } : {}), ...(redteamCard ? { redteam: redteamCard } : {}), ...(pluginAsk ? { plugin: { name: pluginAsk.name, reason: pluginAsk.reason } } : {}), ...(env.opts.untrusted ? { untrusted: true } : {}), ...(price ? { price } : {}), ...(spendAsk ? { spend: { message: trOwner(spendAsk.message, env.app.settings.get(), spendAsk.params), limit: spendAsk.limit } } : {}) };
+        allowed = await decision;
+        explicitlyApproved = allowed;
+        timedOut = !allowed && !env.signal.aborted && env.app.approvals.timedOut(id);
+        approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
+        const how = env.app.approvals.takeHow(id);
+        admit();
+        // EC4: one audit row per decided card (the tool, the answer, where; the summary only as redacted content).
+        audit({ action: 'approval.decided', target: call.name, role: env.app.member ? 'member' : 'owner', who: env.app.member ? 'member' : 'owner', channel: env.conv.channel || 'web', outcome: allowed ? 'ok' : env.signal.aborted ? 'failed' : 'refused', ...(how ? { keys: [how] } : {}), content: summary });
+        if (how === 'tool' && allowed && alwaysOk && !env.signal.aborted) env.app.settings.update({ toolPermissions: { ...(env.app.settings.get().toolPermissions ?? {}), [call.name]: 'auto' } });
+        // Phase 88: "Allow for this task" / "Always on this site" on a computer-use card.
+        if (!env.signal.aborted) prep?.answered?.(allowed, how);
+        if (redteamCard && how === 'redteam' && !env.signal.aborted) {
+          // "Red-team first": the action does not run; a red-team run of this project starts.
+          allowed = false;
+          try {
+            const r = env.app.redteam!.start({ workspace: env.conv.workspace, wsDir: env.wsDir, conversationId: env.conv.id, reason: 'ship', private: Boolean(env.conv.private) });
+            redteamNote = `The owner chose to red-team this first (red-team run #${r.id} started). Do not push, open a PR or publish now; wait for its report, then ask again.`;
+            yield { type: 'redteam', id: call.id, runId: r.id, workspace: env.conv.workspace };
+          } catch (err) {
+            redteamNote = `The owner chose to red-team this first, but it could not start: ${(err as Error).message}. Do not push now.`;
+          }
+        }
+        if (advisoryStop && !env.signal.aborted) {
+          // Phase 81: the owner's answer on the "Known vulnerability" card, kept as findings.
+          advisoryAnswer = allowed ? 'override' : 'deny';
+          try {
+            env.app.security?.recordInstall(advisoryStop, advisoryAnswer, { conversationId: env.conv.id, workspace: env.conv.workspace, runId: env.rec.on ? env.rec.id : null, step: env.step });
+          } catch (err) {
+            console.warn(`findings: ${(err as Error).message}`);
+          }
+          yield { type: 'advisory', id: call.id, state: allowed ? 'override' : 'declined', packages: advisoryStop.packages.map((p) => `${p.name} ${p.version}`) };
+        }
+        if (stopFor) {
+          // The owner's answer is kept on the finding (every note on the card): an explicit
+          // override, a no, or \"update the note\". An override counts as a use of the note.
+          for (const c of stops) {
+            c.answer = allowed ? 'override' : how === 'update' ? 'update' : 'deny';
+            c.status = allowed ? 'overridden' : how === 'update' ? 'update' : 'declined';
+          }
+          if (allowed && env.app.memory) env.app.memory.markUsed(stops.map((c) => c.memoryId), localDate(env.now.toISOString(), env.s.timeZone));
+          env.store.updateMessageMeta(env.saved.id, { contradictions: [...env.turnContradictions.values()].flat() });
+          for (const c of stops) yield { type: 'contradiction', id: call.id, item: c };
+        }
+        if (allowed && !gate) yield { type: 'tool_running', id: call.id, name: call.name, summary };
+      } else if (gate && !pluginDeny) allowed = true;
+      if (allowed && gate) {
+        // Phase 80: the try in a throwaway copy, then Apply / Discard / Run for real.
+        yield { type: 'sandbox_running', id: call.id, label: gate.isolation.label, isolated: gate.isolation.isolated };
+        try {
+          admit();
+          tried = await gate.run(env.signal);
+          sbRisk = gate.risk;
+          admit();
+        } catch (err) {
+          if (err instanceof ToolAdmissionError) throw err;
+          // The try itself failed (not the command): nothing ran; the normal approval decides.
+          console.warn(`sandbox try: ${(err as Error).message}`);
+        }
+        if (tried) {
+          const verdict = allowAll ? ({ act: 'allow' } as const) : gateVerdict(tried, permission === 'ask' && !firstCard ? 'ask' : 'auto');
+          if (env.signal.aborted) {
+            discardSandbox(tried);
+            sbDecision = 'cancelled';
+            allowed = false;
+          } else if (verdict.act === 'allow') {
+            sbDecision = 'auto-applied';
+          } else {
+            const { id, decision } = env.askCard();
+            const waitFrom = Date.now();
+            yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, sandbox: sandboxCard(tried, gate.risk) };
+            const ok = await decision;
+            explicitlyApproved = ok;
+            env.meter?.waited(Date.now() - waitFrom);
+            const how = env.app.approvals.takeHow(id);
+            timedOut = !ok && !env.signal.aborted && env.app.approvals.timedOut(id);
+            approval = ok ? 'allowed' : timedOut ? 'timeout' : 'denied';
+            admit();
+            if (!ok) {
+              discardSandbox(tried);
+              sbDecision = env.signal.aborted ? 'cancelled' : 'discarded';
+              allowed = false;
+            } else if (how === 'real') {
+              // Run for real: the owner's explicit choice on the card; the copy goes.
+              discardSandbox(tried);
+              sbDecision = 'ran';
+              yield { type: 'tool_running', id: call.id, name: call.name, summary };
+            } else sbDecision = 'applied';
+          }
+          if (sbDecision === 'applied' || sbDecision === 'auto-applied') {
+            try {
+              admit();
+              applied = await applySandbox(tried, admit);
+            } catch (err) {
+              if (err instanceof ToolAdmissionError) throw err;
+              status = 'error';
+              sbDecision = 'cancelled';
+              sbError = `Error: ${(err as Error).message}`;
+            }
+          }
+        } else if (permission === 'ask' && !firstCard) {
+          // No try was possible: fall back to the plain approval.
+          const { id, decision } = env.askCard();
+          yield { type: 'approval', approvalId: id, id: call.id, name: call.name, summary, args: shownArgs, ...(prepDetail ? { detail: prepDetail } : {}), ...(prepSkill ? { skill: prepSkill } : {}) };
+          allowed = await decision;
+          explicitlyApproved = allowed;
+          timedOut = !allowed && !env.signal.aborted && env.app.approvals.timedOut(id);
+          approval = allowed ? 'allowed' : timedOut ? 'timeout' : 'denied';
+          env.app.approvals.takeHow(id);
+          admit();
+          if (allowed) yield { type: 'tool_running', id: call.id, name: call.name, summary };
+        }
+      }
+      if (sbError) {
+        output = sbError;
+      } else if (tried && sbDecision && sbDecision !== 'ran') {
+        // Applied (only the diff), discarded or cancelled: the command never ran in the workspace.
+        if (sbDecision !== 'applied' && sbDecision !== 'auto-applied') status = 'denied';
+        output = sandboxOutput(tried, sbDecision, applied);
+        if (timedOut) output = `${NOT_IN_TIME}\n${output}`;
+      } else if (!allowed) {
+        status = 'denied';
+        output = env.signal.aborted ? 'Cancelled.' : timedOut ? NOT_IN_TIME : spendNote ? spendNote : pluginDeny ? `Stopped by the plugin ${pluginDeny.name}: ${pluginDeny.reason}` : redteamNote ? redteamNote : stopFor ? declinedOutput(stopFor, env.ownerWord) : advisoryStop ? declinedInstallOutput(advisoryStop) : 'The owner declined this action.';
+      } else {
+        admit();
+        if (SNAPSHOT_TOOLS.has(call.name) && env.conv.mode !== 'coding' && !env.opts.replay) {
+          try {
+            snapshotId = env.app.snapshots.take(env.conv.workspace, env.wsDir, summary, env.conv.id).id;
+          } catch (err) {
+            snapshotNote = `\n[workspace snapshot skipped: ${(err as Error).message}]`;
+          }
+        }
+        admit();
+        ranTool = true;
+        env.checks?.before(call.name, call.arguments);
+        if (!env.opts.replay) tlBefore = timelineBefore(env.app, call.name, call.arguments);
+        // Interrupt now: a read-only call may be cancelled; a command may be stopped by the owner
+        // (its own cancel); anything else that changes things always finishes.
+        const cutOk = interruptible(call.name, tool);
+        env.stopCmd = !cutOk && tool.runsCommands ? new AbortController() : undefined;
+        if (env.steerable && !parent) env.app.pending?.setPhase(env.conv.id, { kind: 'tool', tool: call.name, summary, stoppable: Boolean(env.stopCmd) });
+        const toolSignal = cutOk ? AbortSignal.any([env.signal, env.cut.signal]) : env.stopCmd ? AbortSignal.any([env.signal, env.stopCmd.signal]) : env.signal;
+        try {
+          // EC14: in an editor turn her file and command tools run in the editor, after the checks above.
+          const editorAsk = call.name !== RUN_CODE && env.opts.editor && EDITOR_TOOLS.has(call.name) ? editorCalls.open(env.conv.id, env.signal) : undefined;
+          if (editorAsk) yield { type: 'editor_call', callId: editorAsk.id, id: call.id, name: call.name, summary, args: call.arguments, approved: explicitlyApproved };
+          if (call.name === RUN_CODE && !parent) {
+            // EC21: the script's calls come back through oneCall (the same path as hers).
+            const r = yield* env.codeCall(call);
+            if (r === 'end') return 'end';
+            output = r.output;
+            codeInner = r.inner;
+            if (!r.ok) status = 'error';
+          } else output = editorAsk ? await editorAsk.result : await tool.run(call.arguments, {
+            workspaceDir: env.wsDir,
+            signal: toolSignal,
+            sandbox: env.sandbox,
+            conversationId: env.conv.id,
+            companionName: env.app.persona.name,
+            webTurn: env.webTurn,
+            outsideWords: env.outsideWords,
+            attachImage: (id) => { env.attachedThisTurn++; env.pendingImages.push(id); },
+            ...(env.app.uploads ? { saveImage: (b: Buffer) => env.app.uploads!.saveBytes(b).id } : {}),
+            attachFile: (f) => {
+              env.attachedThisTurn++;
+              env.pendingFiles.push(f);
+              newFiles.push(f);
+            },
+            // Phase 49: screenshots she can look at, and the proof strip for the owner.
+            showModel: (id) => shown.push(id),
+            attachProof: (id) => {
+              env.pendingProof.push(id);
+              newProof.push(id);
+            },
+            canSee: env.seesShots(env.provider, env.model),
+            ...(env.describeImage ? { describeImage: env.describeImage } : {}),
+            webAllowed: !env.conv.private && !privateLocalOn() && env.app.tools.permission('web_fetch', env.app.settings.get().toolPermissions) !== 'never',
+            // Phase 87: pictures of the owner's screen may need a model on their own hardware.
+            modelLocal: env.provider.config.local === true && !isCloudModelName(env.model),
+            ...(env.screenModel ? { screenModel: env.screenModel } : {}),
+            recordThumb: (img) => {
+              const sha = env.rec.thumb(img.data, img.mime, env.step);
+              if (sha) thumbs.push(sha);
+            },
+            ...(env.rec.on ? { runId: env.rec.id } : {}),
+            attachCard: (c) => {
+              if (tool.source?.startsWith('Plugin: ')) pluginCard = c;
+            },
+            // C3: only in the owner's own web conversations (not groups, partners or other apps).
+            ...(!env.opts.group && !env.conv.partner && !env.opts.outside && !env.opts.externalApp ? { attachAppCard: (c: import('./tools/mcp.ts').McpAppCard) => {
+              if (tool.source?.startsWith('MCP: ')) appCard = c;
+            } } : {}),
+            ...(env.turnTools.lean ? { lean: { find: (a: Record<string, unknown>) => { env.currentScope(); env.narrowSessionTools(); return env.turnTools.find(a, env.ownerWord); } } } : {}),
+            ...(env.sessionCurrent && sessionContinuity ? { sessionContinuity: {
+              context: async (args: { action: 'list' } | { action: 'read'; conversationId: string; before?: number }) => {
+                admit();
+                try { return JSON.stringify(args.action === 'list' ? sessionContinuity.list() : sessionContinuity.read(args.conversationId, args.before)); }
+                catch (err) { throw new ToolError(trOwner((err as Error).message, env.app.settings.get())); }
+              },
+              handoff: async (args: { targetId: string; text: string; expectedId: number }) => {
+                admit();
+                try { const receipt = sessionContinuity.handoff(args); return JSON.stringify({ ...receipt, meaning: trOwner(receipt.meaning, env.app.settings.get()) }); }
+                catch (err) { throw new ToolError(trOwner((err as Error).message, env.app.settings.get())); }
+              },
+            } } : {}),
+            ...(sceneCanon ? { sceneCanon: (() => {
+              // Re-admitted at the effect; the source is this step's saved row, never a model argument.
+              const effect = (work: () => string): Promise<string> => {
+                admit();
+                if (!env.sceneCanonCurrent()) throw new ToolError(en('Shared scene canon is unavailable in this context.'));
+                try { return Promise.resolve(work()); }
+                catch (err) { throw err instanceof SceneError ? new ToolError(err.message) : err; }
+              };
+              return {
+                read: () => effect(() => sceneCanon.read()),
+                set: (a: { key: string; text: string; expectedRevision: number }) => effect(() => sceneCanon.set(a, env.saved.id)),
+                retire: (a: { key: string; expectedRevision: number }) => effect(() => sceneCanon.retire(a)),
+              };
+            })() } : {}),
+          });
+          if (tried && sbDecision === 'ran') output = `[tried in a sandbox copy first: ${changesLine(tried.changes)}; the owner chose to run it for real]\n${output}`;
+        } catch (err) {
+          status = 'error';
+          output = err instanceof ToolError ? `Error: ${SESSION_TOOLS.has(call.name) || (call.name === SCENE_CANON_TOOL && err.message === en('Shared scene canon is unavailable in this context.')) ? trOwner(err.message, env.app.settings.get()) : err.message}` : `Error: ${(err as Error).message}`;
+        }
+        if (!env.signal.aborted && cutOk && env.cut.signal.aborted && status === 'error') {
+          output = `Stopped before it finished: ${env.ownerWord} sent a new message. Nothing was changed.`;
+          cutShort = true;
+        }
+        if (!env.signal.aborted && env.stopCmd?.signal.aborted) {
+          status = 'error';
+          output = `${env.ownerWord === 'the owner' ? 'The owner' : env.ownerWord} stopped this command before it finished.\n${output}`;
+          cutShort = true;
+        }
+        env.stopCmd = undefined;
+      }
+    } catch (err) {
+      if (!(err instanceof ToolAdmissionError)) throw err;
+      if (tried) { discardSandbox(tried); sbDecision = 'cancelled'; }
+      status = 'denied';
+      approval = explicitlyApproved ? 'denied' : 'refused';
+      output = err.message;
+    }
+  }
+  if (!env.store.getConversation(env.conv.id)) return 'end';
+  const ms = Date.now() - started;
+  // C8: a paid call that ran goes on the usage ledger (null = its price is unknown).
+  if (price && ranTool && status === 'ok') env.app.usage?.recordTool(call.name, price.usd, { conversationId: env.conv.id, ...(env.rec.on ? { runId: env.rec.id } : {}) });
+  let scopeValid = true;
+  try { env.currentScope(); } catch (err) {
+    if (!(err instanceof ToolAdmissionError)) throw err;
+    scopeValid = false;
+  }
+  // Phase 50: files may have changed: the code map looks again (in the background).
+  if (scopeValid && status !== 'denied' && CHANGES_FILES(call.name) && !env.opts.replay) env.app.codemap?.touch(env.wsDir);
+  // Phase 120 (PRECISE §4.4, §4.6): after the step's last file-changing call, the project's own
+  // checker; its block is part of this result (scrubbed and stored with it, so replays and the run
+  // record see the same). A first edit in a project still at Ask gets the card instead.
+  let checkBlock = '';
+  let checksCard: ChecksCard | undefined;
+  if (env.checks && !env.signal.aborted && scopeValid) {
+    env.checks.after(call.name, call.arguments, ranTool ? status : 'denied');
+    try {
+      env.currentScope();
+      checkBlock = await env.checks.stepEnd(callIdx === env.lastChangeIdx, env.signal);
+    } catch (err) {
+      console.warn(`checks: ${(err as Error).message}`);
+    }
+    for (const ev of env.checks.events.splice(0)) {
+      if (ev.type === 'checks_card') checksCard = ev.card;
+      yield ev;
+    }
+    if (checkBlock) output = `${output}\n\n${checkBlock}`;
+  }
+  // Phase 123: a call to an eligible tool that wasn't offered: loaded from the next step on; a
+  // failed one shows her the fields it takes.
+  if (env.turnTools.lean && tool && !wasOffered && env.turnTools.isEligible(call.name) && status !== 'denied') {
+    env.turnTools.load([call.name], 'used');
+    if (status === 'error') output = `${output}\n${schemaHint(tool)}`;
+  }
+  // 3.1.2: a bot check read through a command or a browser tool: say so, so she moves on.
+  if (ranTool && status === 'ok' && BOT_WALL_TOOLS.test(call.name) && looksLikeBotWall(output)) output = `${output}\n\n[${BOT_WALL_LINE}]`;
+  // B2: an argument error with allowed values: say nothing ran and how to go on (last, so she reads it).
+  if (status === 'error' && tool) { const hint = argErrorHint(tool, output); if (hint) output = `${output}\n${hint}`; }
+  if (env.turnTools.lean && ranTool && call.name !== FIND_TOOLS) {
+    const why = env.turnTools.offered.get(call.name);
+    if (why && why !== 'core' && why !== 'safety' && why !== 'pinned') {
+      try {
+        writeLoad(env.store.db, env.conv.id, call.name, familyOf(tool!).id, 'used', env.userMsg.id, env.app.now().toISOString(), true);
+      } catch {
+        /* off the record */
+      }
+    }
+  }
+  env.writeLoads();
+  // N1: did it work? A read-back after a tool that changed something (src/verify-action.ts).
+  if (ranTool && status === 'ok' && !env.signal.aborted && VERIFY_TOOLS.has(call.name)) {
+    const line = await verifyAction(call.name, call.arguments, output, verifyDeps(env.app, env.wsDir));
+    if (line) output = `${output}\n${line}`;
+  }
+  // Scrub before it is stored, shown or sent back to the model.
+  output = env.app.redactor.redact(output + snapshotNote);
+  // Phase 116: what the guard learns from a call that really ran (never one Stop cancelled), or a no on its card.
+  if (ranTool && !env.signal.aborted && !cutShort && env.guard.record(call.name, call.arguments, status, output)) env.guardOut();
+  else if (approval === 'denied' && !tried && !env.signal.aborted) env.guard.declined(call.name, call.arguments);
+  const guardRec = guardHit ? { kind: guardHit.kind, key: guardHit.key, quote: env.app.redactor.redact(guardHit.quote) } : undefined;
+  if (aliasNote) output = `${aliasNote}\n${output}`;
+  const stored = clip(output, TOOL_RESULT_LIMIT);
+  // Phase 75: a result card from the (scrubbed) result and arguments, kept with the message.
+  const offer = call.name === 'web_fetch' && env.webTurn.takeOffer() ? { kind: 'research-offer' as const, question: clip(env.text.replace(/\s+/g, ' ').trim(), 300) } : undefined;
+  const card = offer ?? cardFor({ name: call.name, args: shownArgs, status, output, ...(thumbs.length ? { thumb: thumbs.at(-1)! } : {}) }) ?? (status === 'ok' ? pluginCard ?? appCard : undefined);
+  const flagged = env.turnContradictions.get(call.id);
+  const sbRecord = tried && sbDecision && sbRisk ? sandboxRecord(tried, sbRisk, sbDecision, applied) : undefined;
+  // Phase 96: a skill body she loaded is marked, so the history keeps it while the task runs.
+  const loadedSkill = call.name === 'skill_use' && status === 'ok' ? /^<skill name="([^"]+)"/.exec(output)?.[1] : undefined;
+  if (loadedSkill) env.turnSkills.add(loadedSkill);
+  if (status !== 'denied' && WORKSPACE_TOOLS.test(call.name)) env.projectRefDue = true;
+  // C13: starting or finishing a task worktree moves her tools for the rest of the turn.
+  if (status === 'ok' && (call.name === 'worktree_start' || call.name === 'worktree_finish')) env.wsDir = env.worktreeFolder();
+  if (!env.store.getConversation(env.conv.id)) return 'end';
+  const toolMsg = env.store.addMessage(env.conv.id, 'tool', stored, { toolCallId: call.id, name: call.name, args: shownArgs, summary, status, ms, ...(timedOut ? { timedOut: true } : {}), ...(loadedSkill ? { skill: loadedSkill } : {}), ...(snapshotId ? { snapshotId } : {}), ...(shown.length ? { images: shown } : {}), ...(card ? { card } : {}), ...(flagged?.length ? { contradiction: flagged[0] } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(advisoryStop ? { advisory: { ...advisoryStop, ...(advisoryAnswer ? { answer: advisoryAnswer } : {}) } } : {}), ...(guardRec ? { guard: { kind: guardRec.kind, quote: guardRec.quote } } : {}), ...(checksCard ? { checksCard } : {}), ...(checkBlock ? { checked: true } : {}), ...(codeInner ? { inner: codeInner } : {}), ...(parent ? { codeOf: parent } : {}) });
+  // V5.1: what she changed goes on the action timeline (src/timeline.ts), with its undo when one exists.
+  // W0.7: one audit row per call that skipped its card because Always allow everything is on.
+  if (ranTool && allowAllSkipped) noteAlwaysAllowed(env.app, call.name, summary, env.conv.channel || 'web');
+  if (ranTool && status === 'ok' && !env.opts.replay) noteAction(env.app, { name: call.name, args: call.arguments, output, summary, conversationId: env.conv.id, workspace: env.conv.workspace, ...(snapshotId ? { snapshotId } : {}), before: tlBefore, why: { cause: env.turnCause, rule: ruleOf({ approved: explicitlyApproved, allowAll: allowAllSkipped, ahead: allowedAhead, task: Boolean(prep?.auto) && set === 'ask', set, ownerSet: env.app.settings.get().toolPermissions?.[call.name] === 'auto' }) } });
+  env.receipts.push({ name: call.name, status, args: call.arguments, output });
+  if (checkBlock && env.rec.on) env.rec.tool({ id: `${call.id}-diagnostics`, name: 'diagnostics', summary: 'Checked her edits', args: { files: [...(env.checks?.touched ?? [])] }, status: 'ok', output: env.app.redactor.redact(checkBlock), ms: 0, messageId: toolMsg.id });
+  // Phase 78 seam 3: the call is done (the recorder keeps the scrubbed result).
+  await env.hooks.afterTool({ step: env.step, call, summary, args: shownArgs, status, output, ms, approval, messageId: toolMsg.id, ...(snapshotId ? { snapshotId } : {}), ...(flagged?.length ? { contradictions: flagged } : {}), ...(sbRecord ? { sandbox: sbRecord } : {}), ...(thumbs.length ? { thumbs } : {}), ...(guardRec ? { guard: guardRec } : {}) });
+  // Phase 98: tool.after (the scrubbed result; plugins may add a card under the step).
+  if (env.pluginTurn) {
+    const evs = await env.pluginTurn.afterTool({ id: call.id, name: call.name, status, output });
+    const cards = evs.filter((e) => e.card).map((e) => e.card!);
+    if (cards.length) env.store.updateMessageMeta(toolMsg.id, { pluginCards: cards });
+    for (const ev of evs) {
+      if (!ev.card) env.pluginSteps.push(ev);
+      yield ev;
+    }
+  }
+  if (sbRecord) yield { type: 'sandbox', id: call.id, record: sbRecord };
+  if (status === 'ok' && PEER_ANSWER_TOOLS.has(call.name)) env.peerAnswered = true;
+  if (status === 'ok' && outsideWordsTool(call.name)) env.outsideWords = true;
+  if (typeof output === 'string' && env.turnOutputs.length < 200) env.turnOutputs.push(output);
+  // It ran, so the person approved it: that site is theirs to open for the rest of this reply.
+  if (unseenOut && status === 'ok' && outUrl) env.approvedHosts.add(hostOfUrl(outUrl));
+  yield { type: 'tool_result', id: call.id, name: call.name, status, output: clip(output, UI_OUTPUT_LIMIT), ms, ...(snapshotId ? { snapshotId } : {}), ...(card ? { card } : {}), ...(timedOut ? { timedOut: true } : {}) };
+  try { env.currentScope(); } catch (err) {
+    if (!(err instanceof ToolAdmissionError)) throw err;
+    yield { type: 'error', message: env.signal.aborted ? 'Stopped.' : err.message };
+    return 'end';
+  }
+  for (const img of env.pendingImages) yield { type: 'image', id: img };
+  for (const img of newProof) yield { type: 'proof', id: img };
+  for (const f of newFiles.splice(0)) yield { type: 'file', ...f };
+  if (env.signal.aborted) {
+    if (!parent) yield { type: 'error', message: 'Stopped.' };
+    return 'end';
+  }
+  return { status, output, summary, ms };
 }

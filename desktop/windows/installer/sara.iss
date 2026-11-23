@@ -91,6 +91,10 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 SetupIconFile=..\src\sara.ico
+; Z2: Setup shows the app's own picture and colors (make-wizard-art.ps1 makes these four files), not
+; Inno's stock pictures. The second file of each pair is for screens scaled to 200%.
+WizardImageFile=wizard-large.bmp,wizard-large-2x.bmp
+WizardSmallImageFile=wizard-small.bmp,wizard-small-2x.bmp
 UninstallDisplayIcon={app}\Sara.exe
 UninstallDisplayName={#AppTitle}
 ; V0.6: signed Setup and uninstaller when build-installer.sh passes /DSignTool (Azure signing via

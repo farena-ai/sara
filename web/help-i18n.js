@@ -62,7 +62,7 @@ async function personalizeHelp() {
   const id = session?.identity?.name ? session.identity : { name: 'Sara', pronouns: 'she' };
   const l = document.documentElement.lang || 'en';
   if (l === 'en' && id.name === 'Sara' && id.pronouns === 'she') return;
-  const { personalize, personalizeTranslation } = await import('/identity.js');
+  const { personalize, personalizeTranslation } = await import('./identity.js');
   const fix = (s) => (l === 'en' ? personalize(s, id) : personalizeTranslation(englishOf.get(s) ?? '', s, id, l));
   const tw = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
     acceptNode: (n) => (n.parentElement?.closest('code, pre, script, style, [data-raw]') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),

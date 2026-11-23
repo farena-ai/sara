@@ -10,6 +10,10 @@
 .hub-note-actions button { min-height: 44px; }
 .hub-banner { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 14px; bottom: calc(76px + var(--safe-b)); border-color: var(--info); }
 .hub-banner[data-level="update"] { border-color: var(--update-accent); }
+/* Z2: in the page flow (above the message box or at the top of Today) it keeps its row layout and border. */
+.hub-banner.hub-note-inline { display: flex; border-style: solid; border-width: 1px; }
+.hub-banner.hub-note-inline[hidden] { display: none; }
+#chat-checkin .hub-banner.hub-note-inline { width: min(860px, calc(100% - 24px)); margin: 4px auto; box-sizing: border-box; }
 .hub-banner[data-level="known-issue"] { border-color: var(--warn); }
 .hub-level { flex: none; font-weight: 600; color: var(--info); }
 .hub-banner[data-level="update"] .hub-level { color: var(--update-accent); }

@@ -31,6 +31,11 @@ const RESEARCH_WORD = { planning: () => t('planning'), running: () => t('reading
  * The chips to show for what the routes returned (null = not available here). Order: workers, runs,
  * research, triggers, model, spend. Each: { key, live, warn, text, title, go }.
  */
+/** Z2: whether the strip has something worth a row on a phone: any chip except an idle model name. */
+export function stripHasNews(chips) {
+  return chips.some((c) => c.key !== 'model' || c.live);
+}
+
 export function stripChips(d) {
   const out = [];
   const workers = d.workers?.workers ?? [];
@@ -150,7 +155,10 @@ function renderStrip() {
       return b;
     }),
   );
-  document.documentElement.classList.toggle('v4-has-chips', chips.length > 0);
+  // Z2 (polish): a model that is only named, not answering, is not news: on a phone the strip took a
+  // whole row to repeat the name the chat's own header already shows. The strip counts as having chips
+  // when something is going on (or the model is answering).
+  document.documentElement.classList.toggle('v4-has-chips', stripHasNews(chips));
   const live = chips.filter((c) => c.live && c.key !== 'model').length;
   ui.busy = ui.ctx.streaming?.() ? 1 : live ? 0.6 : 0.15;
   document.documentElement.dataset.busy = ui.busy >= 1 ? 'answering' : live ? 'working' : 'idle';

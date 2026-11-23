@@ -38,7 +38,7 @@ export async function storeVrm(file) {
 export const loadStoredVrm = () => tx('readonly', (s) => s.get('model')).catch(() => null);
 export const removeStoredVrm = () => tx('readwrite', (s) => s.delete('model')).catch(() => undefined);
 
-const loadThree = () => import('/vendor/three-vrm/sara-vrm.js');
+const loadThree = () => import('./vendor/three-vrm/sara-vrm.js');
 
 export class VrmView {
   static async create(bytes) {
