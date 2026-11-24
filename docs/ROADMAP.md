@@ -108,6 +108,16 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## She stays with you in a hard conversation, in 3.42.0
+
+When you talk to Sara about something hard (grief, a breakup, loneliness, a bad day), she listens
+and stays on the subject instead of answering with hotlines or "seek professional help". When
+someone says, or shows without saying it, that they may hurt themselves or are in danger, she still
+says she is worried and shares where to get help, and the app still shows the crisis lines. This
+was measured on sixty test messages in six languages (`npm run eval:crisis`). Finding the right
+tool for things said your own way now also holds up in a second, fresh set of messages in five
+other languages.
+
 ## Meaning search with no setup, in 3.41.0
 
 Finding the right tool and remembering things said in other words used to need a setting most

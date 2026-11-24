@@ -1,5 +1,8 @@
 # Roadmap after 3.40.0
 
+**Closed with 3.42.0 (2026-11-24).** Stages 1 to 5 are built and published; what is left of each is
+in docs/BACKLOG.md, and the plan from here is docs/ROADMAP_AFTER_3.42.md.
+
 Written 2026-11-23 by Claude Code at the owner's request ("push 3.4.0 ... then provide a roadmap from
 there"). A proposal: the owner decides the order and what ships. Details and evidence for each item
 are in docs/BACKLOG.md under the names given here.
@@ -78,6 +81,11 @@ on a new install in a desktop browser only; the Windows app, a phone and the own
 14. **Her look on engines other than Grok**: edits that keep the face.
 
 ## Stage 5: the crisis lines come up too often (owner, 2026-11-24)
+
+**Built 2026-11-24** (owner: "go ahead with stage 5 after the release is published"), on main and
+his server, not published. The source was the talking model itself (12 of 22 hard conversations got
+a crisis line from `inkling-2-small:cloud`; after, 0, with all 18 danger messages still helped).
+docs/CRISIS_EVALS.md; handoff docs/handoffs/2026-11-24-s5-crisis-lines.md.
 
 Owner: "the 'crisis' lines are coming up way too often in the companion chat. Even when having
 conversations on a personal level, and they may be difficult conversations but not crisis

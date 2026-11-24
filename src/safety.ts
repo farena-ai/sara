@@ -16,16 +16,39 @@ export const DISCLOSURE_TEXT = disclosureText();
 export const CRISIS_RESOURCES =
   'If you are thinking about suicide or self-harm, you can call or text 988 (Suicide & Crisis Lifeline, US) any time, or text HOME to 741741. Outside the US, find a local line at https://findahelpline.com. If you are in immediate danger, call 911 or your local emergency number.';
 
+/** Said about oneself, in plain words: always a crisis. */
 const CRISIS_PATTERNS: RegExp[] = [
-  /\b(kill|hurt|harm|cut)\s+my\s*self\b/i,
-  /\bsuicid(e|al)\b/i,
+  /\b(kill|harm)\s+my\s*self\b/i,
+  /\bsuicidal\b/i,
   /\b(end|take)\s+my\s+(own\s+)?life\b/i,
   /\bwant\s+to\s+die\b/i,
   /\bdon'?t\s+want\s+to\s+(live|be\s+alive|exist)\b/i,
   /\bbetter\s+off\s+dead\b/i,
   /\bno\s+reason\s+to\s+live\b/i,
-  /\boverdos(e|ing)\b/i,
 ];
+
+/**
+ * S5 (docs/CRISIS_EVALS.md): three English patterns also have everyday uses, and showed the crisis
+ * lines to someone who cut a finger chopping onions, told of an uncle's death years ago, or asked
+ * about a film. They still count, unless the message itself says it is one of those:
+ *   - "hurt/cut myself" with an accident in the same message (the gym, cooking, shaving, a fall);
+ *   - "suicide" or "overdose" about someone or something else (a relative, a patient, a film, the
+ *     news, history) with nothing about the writer's own thoughts or plans.
+ * When in doubt it is a crisis: a message that has both readings counts.
+ */
+const HURT_SELF = /\b(hurt|cut)\s+my\s*self\b/i;
+const ACCIDENT = /\b(?:gym|work(?:ing)?\s*out|lifting|running|jogging|training|practice|playing|football|soccer|chopp\w*|slic\w*|cook\w*|onions?|knife slipped|shav\w*|by accident|accidentally|fell|tripp\w*|slipp\w*|pulled (?:a|something|my)|sprain\w*|plasters?|band-?aids?|bandage)\b/i;
+const HURT_ON_PURPOSE = /\b(?:on purpose|again|want(?:ed)? to|urge|to feel|deserve|punish|worse)\b/i;
+const TOPIC = /\b(?:suicide|overdos(?:e|ed|es|ing))\b/i;
+const ABOUT_ELSEWHERE = /\b(?:my (?:uncle|aunt|friend|brother|sister|dad|father|mom|mum|mother|cousin|neighbou?r|co-?worker|colleague|grand(?:pa|ma|father|mother)|son|daughter|husband|wife|partner|ex|patients?)|a friend|(?:he|she|they)\b|his|her|their|the (?:film|movie|book|novel|show|series|play|character|song|game|news|article|documentary|podcast|ward|city|country|numbers|statistics|rate)|patients?|attempts? (?:came|come)|generals?|history|centur(?:y|ies)|years ago|when i was (?:a kid|a child|young|little|\d+|ten|twelve)|prevention|awareness|hotline volunteer)\b/i;
+const ABOUT_ME = /\b(?:i(?:'m| am| was|'ve| have|'ve been| have been| keep| feel| felt| want| might| may| will| could| can't stop)?\s+(?:still\s+|really\s+|been\s+)?(?:thinking|considering|contemplating|planning|researching|googling|looking up)\b[^.!?]{0,40}\b(?:suicide|suicidal|overdos\w*|kill\w*|end(?:ing)? (?:it|my)|die|dying)|my own (?:suicide|overdose|death)|(?:commit|attempt|try|tried) suicide|(?:i|i'll|i will|i'm going to|i want to|i might|i could|let me)\s+(?:just\s+)?(?:take an? )?overdos|suicide (?:is|seems|feels|looks) (?:the|my|an?)|suicide note|thoughts? of suicide|suicidal)\b/i;
+
+/** The English patterns that need a second look (see above). */
+function crisisInContext(text: string): boolean {
+  if (HURT_SELF.test(text) && (!ACCIDENT.test(text) || HURT_ON_PURPOSE.test(text))) return true;
+  if (TOPIC.test(text) && (!ABOUT_ELSEWHERE.test(text) || ABOUT_ME.test(text))) return true;
+  return false;
+}
 
 /**
  * Phase 28: Spanish, French, German, Portuguese and Italian. `\b` in JavaScript only knows ASCII
@@ -43,7 +66,7 @@ const CRISIS_I18N: RegExp[] = [
   // Spanish
   words("suicid(?:io|arme|arse|a|as)|quiero morir(?:me)?|matarme|quitarme la vida|acabar con mi vida|hacerme daño|cortarme|no quiero (?:seguir )?vivir|mejor muert[oa]|no tengo (?:ninguna )?razón para vivir|sobredosis"),
   // French
-  words("suicid(?:e|er|aire)|me suicider|je veux mourir|me tuer|mettre fin à (?:ma vie|mes jours)|me faire du mal|me scarifier|je ne veux plus vivre|mieux mort(?:e)?|aucune raison de vivre"),
+  words("suicid(?:er|aires?)|me suicider|je veux mourir|me tuer|mettre fin à (?:ma vie|mes jours)|me faire du mal|me scarifier|je ne veux plus vivre|mieux mort(?:e)?|aucune raison de vivre"),
   // German
   words("selbstmord|suizid(?:al)?|mich umbringen|ich will sterben|(?:mir|mich) das leben nehmen|mich (?:selbst )?verletzen|mich ritzen|will nicht mehr leben|lieber tot|keinen grund (?:mehr )?zu leben|überdosis"),
   // Portuguese
@@ -53,7 +76,7 @@ const CRISIS_I18N: RegExp[] = [
 ];
 
 export function detectCrisis(text: string): boolean {
-  return CRISIS_PATTERNS.some((re) => re.test(text)) || CRISIS_I18N.some((re) => re.test(text));
+  return CRISIS_PATTERNS.some((re) => re.test(text)) || crisisInContext(text) || CRISIS_I18N.some((re) => re.test(text));
 }
 
 /**
@@ -261,14 +284,29 @@ export function detectExplicit(text: string): boolean {
 
 export type ClassifierLabel = 'OK' | 'CRISIS' | 'MINOR_SEXUAL';
 
-export const CLASSIFIER_PROMPT = `You are a safety classifier. Read the message (it may be in any language) and answer with exactly one word:
+/** The prompt before S5, kept for scripts/eval-crisis.ts (`--before`): it called sadness a crisis too often. */
+export const CLASSIFIER_PROMPT_BEFORE_S5 = `You are a safety classifier. Read the message (it may be in any language) and answer with exactly one word:
 CRISIS if the person may be thinking about suicide or self-harm, or is in danger, including indirect signs (giving belongings away, saying goodbye for good, feeling like a burden, "won't need this soon");
 MINOR_SEXUAL if it asks for or contains sexual content involving anyone under 18 (including role-play, "aged-up" or fictional framing);
 OK otherwise. Adult sexual content between adults is OK. Answer with one word only.`;
 
+/**
+ * S5: CRISIS is the writer, now: about to harm themselves, or in danger. Being sad is not it. The
+ * list of what is OK is there because a model asked "may this person be in crisis?" says yes to
+ * grief and to "this job is killing me". Measured with scripts/eval-crisis.ts (docs/CRISIS_EVALS.md).
+ */
+export const CLASSIFIER_PROMPT = `You are a safety classifier. Read the message (it may be in any language) and answer with exactly one word:
+CRISIS only if the person writing may be about to harm or kill themselves, or is in danger right now. That includes saying it indirectly about themselves and the present: giving their belongings away, saying goodbye for good, saying everyone would be better off without them, "I won't need this soon", having a plan or the means.
+MINOR_SEXUAL if it asks for or contains sexual content involving anyone under 18 (including role-play, "aged-up" or fictional framing);
+OK otherwise. These are OK, not CRISIS: sadness, grief, a death in the family, a breakup, loneliness, anger, stress, exhaustion, feeling like a failure, a bad day or a hard time; talking about another person; something in the past that the person came through; figures of speech ("this job is killing me", "I could have died of embarrassment", "I'm dead tired"); stories, songs, films, games, history and news. Adult sexual content between adults is OK. Answer with one word only.`;
+
 export function parseClassifier(text: string): ClassifierLabel {
   const t = text.trim().toUpperCase();
+  // The minors block stays as wide as it was: the word anywhere is enough.
   if (t.includes('MINOR')) return 'MINOR_SEXUAL';
+  // S5: "OK" first, or "not a crisis", is not a crisis (before, the word anywhere counted).
+  if (/^[^A-Z]*OK\b/.test(t)) return 'OK';
+  if (/\b(?:NOT|NO|ISN'?T|NON|NEVER)\s+(?:AN?\s+|IN\s+)?(?:A\s+)?CRISIS\b/.test(t)) return 'OK';
   if (t.includes('CRISIS')) return 'CRISIS';
   return 'OK';
 }

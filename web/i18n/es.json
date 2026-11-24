@@ -22758,13 +22758,6 @@
 "Pick their age band: tools, words, time a day and bedtime fill in.": "Elige su franja de edad: se rellenan herramientas, palabras, tiempo al día y hora de dormir.",
 "Change anything you like, then press Save.": "Cambia lo que quieras y pulsa Guardar.",
 "Press Dashboard to see time, topics, requests and flagged moments.": "Pulsa Panel para ver tiempo, temas, peticiones y momentos señalados.",
-  "Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why": "Práctica de idiomas, entrenador de salud, pantalla familiar, solo local probado, copias que llevas, modo niños, por qué",
-  "Practice a language out loud, with cards, listening and your words checked as you speak.": "Practica un idioma en voz alta, con tarjetas, escucha y tus palabras revisadas mientras hablas.",
-  "A private health coach shows your week and offers one or two small goals, never medical advice.": "Un entrenador de salud privado muestra tu semana y propone una o dos metas pequeñas, nunca consejo médico.",
-  "A Family screen for a kitchen tablet shows the day, chores, meals and shopping, with a kid-safe Talk.": "Una Pantalla familiar para la tableta de la cocina muestra el día, las tareas, las comidas y la compra, con un Hablar seguro para niños.",
-  "Local-only mode now comes with a test that runs a full day of features and proves nothing leaves the server.": "El modo solo local ahora trae una prueba que recorre un día entero de funciones y demuestra que nada sale del servidor.",
-  "Backups you can carry on a USB drive or send sealed to a friend's Sara, with a printed recovery sheet.": "Copias que llevas en un USB o envías selladas a la Sara de un amigo, con una hoja de recuperación impresa.",
-  "Kid mode v2 sets rules by age band, with time requests you approve from your phone and a parent dashboard.": "El modo niños v2 pone reglas por edad, con peticiones de tiempo que apruebas desde el móvil y un panel para padres.",
   "Practice a language out loud": "Practica un idioma en voz alta",
   "Press Learn a language…, pick Spanish, then Say it back and read the sentence aloud.": "Pulsa Aprender un idioma…, elige español y luego Repítelo y lee la frase en voz alta.",
   "Your words appear as you speak and each is marked right, close or not heard, with one gentle tip.": "Tus palabras aparecen mientras hablas y cada una se marca bien, casi o no oída, con un consejo amable.",
@@ -22881,5 +22874,11 @@
   "Research asks said your own way (\"look into which air purifiers are worth buying\", \"get to the bottom of whether robot vacuums are worth it\") reach your research model.": "Las peticiones de investigación dichas a tu manera («mira qué purificadores de aire merece la pena comprar», «averigua de una vez si los robots aspiradores valen la pena») llegan a tu modelo de investigación.",
   "\"How hard she thinks\" (Settings → Models & usage → Default model): Quick, Balanced or Thorough.": "«Cuánto piensa» (Ajustes → Modelos y uso → Modelo predeterminado): Rápido, Equilibrado o A fondo.",
   "On a computer that keeps one model loaded at a time, finding tools and research asks by meaning made every turn wait for two model loads and often got nothing for it.": "En un equipo que mantiene un solo modelo cargado a la vez, buscar herramientas y peticiones de investigación por significado hacía que cada turno esperara dos cargas de modelo, a menudo para nada.",
-  "A new install is no longer told its backups are more than 2 days old before the first one is made.": "A una instalación nueva ya no se le dice que sus copias de seguridad tienen más de 2 días antes de hacerse la primera."
+  "A new install is no longer told its backups are more than 2 days old before the first one is made.": "A una instalación nueva ya no se le dice que sus copias de seguridad tienen más de 2 días antes de hacerse la primera.",
+  "Works in many languages: finds the right tool and things said in other words in Spanish, French, German, Portuguese and Italian too.": "Funciona en muchos idiomas: encuentra la herramienta adecuada y cosas dichas con otras palabras también en español, francés, alemán, portugués e italiano.",
+  "Right tool at hand, six languages": "La herramienta adecuada a mano, seis idiomas",
+  "She stays with you in a hard conversation; the right tool in every language": "Se queda contigo en una conversación difícil; la herramienta adecuada en todos los idiomas",
+  "She stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines.": "Se queda contigo en una conversación difícil. Un duelo, una ruptura, la soledad, un mal día o un recuerdo doloroso ya no reciben una respuesta sobre líneas de ayuda.",
+  "The bge-m3 embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages.": "El modelo de embeddings bge-m3 está en la lista de Ajustes → Modelos y uso → En este ordenador, para la búsqueda por significado en muchos idiomas.",
+  "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago.": "Las líneas de crisis ya no aparecen por un corte en el dedo, una lesión en el gimnasio, la trama de una película, las noticias o la muerte de otra persona hace años."
 }

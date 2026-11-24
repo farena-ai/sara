@@ -5,6 +5,15 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.42.0 (2026-11-24): She stays with you in a hard conversation; the right tool in every language
+
+- New: she stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines, therapists or "seek professional help"; she listens and stays on the subject. When someone says, or shows without saying it, that they may hurt themselves or are in danger, she still says she is worried and shares where to get help, and the app still shows the crisis lines.
+- Better: the optional safety model (Settings → Safety and truth check) no longer calls sadness or exhaustion a crisis.
+- Fixed: the crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago.
+- Better: on a computer that keeps one model loaded, her memory and library searches by meaning now also step back when the embedding model keeps answering late, instead of swapping her chat model out on every message.
+- Better: research asks said your own way are found more often ("what is the general consensus on…").
+- New: the `bge-m3` embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages.
+
 ## 3.41.0 (2026-11-24): Meaning search with no setup, a thinking level, quicker long chats
 
 - New: Meaning search turns itself on. When an embedding model is already on this computer (for example in Ollama), she sets Meaning search to it once, so she finds the right tool and remembers things said in other words with no setup. Turn it off under Settings → Which model does what → More jobs and it stays off. Nothing is downloaded and nothing leaves this computer because of it.

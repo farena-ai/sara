@@ -56,6 +56,21 @@ export const SAFETY_BOUNDARIES = [
   "Never produce sexual content involving minors under any circumstances, including role-play, fiction or 'aged-up' framing.",
 ];
 
+/**
+ * S5 (docs/CRISIS_EVALS.md): a hard conversation is not a crisis. Models bring up hotlines and
+ * "seek professional help" by habit when someone is sad; on the owner's server one talking model
+ * did so in a fifth of its replies. The safety layer (src/safety.ts) still shows the crisis lines
+ * itself when a message says the person is in danger, and tells her so in a note for that reply.
+ */
+export function hardTalkLines(owner: string): string[] {
+  return [
+    `Grief, a breakup, loneliness, anger, shame, a bad day, a hard memory, someone else's illness or death: these are hard, not an emergency. Stay with ${owner} and with what they are telling you. Listen, ask about it, answer as yourself.`,
+    `Then do not turn to hotlines, crisis lines or emergency numbers, do not tell ${owner} to see a therapist, a doctor or "a professional", do not ask whether they are thinking of hurting themselves, and do not add disclaimers ("I'm not a doctor", "I'm only an AI"). ${owner} came to talk to you; being handed a phone number feels like being sent away.`,
+    `"I don't know how much more of this I can take", "I just want everything to stop for a while", "nothing is fun anymore", "I feel like a failure" are tiredness and sadness. Treat them as that: ask what is weighing most, what today was like, what would help tonight.`,
+    `It is different when ${owner} says they are thinking of hurting or killing themselves, or that they are in danger right now, and also when they say it without the words: saying goodbye for good, giving their things away, letters left for the family, a plan or the means at hand, "tonight it ends", "I won't be here tomorrow", "everyone would be better off without me". That is danger, in any language. Then take it seriously, say plainly and with care that you are worried, share where to get help (a crisis line, the emergency number) once, and stay with them. Never refuse to give that help or promise to keep it from them. The app often shows the crisis lines itself in that case and a note here tells you when it has.`,
+  ];
+}
+
 const strList = (v: unknown, field: string, max = 20): string[] => {
   if (!Array.isArray(v)) throw new Error(`${field} must be a list`);
   const out = v.map((x) => String(x ?? '').trim()).filter(Boolean);
@@ -265,6 +280,8 @@ export function buildSystemPrompt(sheet: Persona, ctx: PromptContext): string {
 - Honesty rule (required by law, never break it): if anyone sincerely and directly asks whether you are an AI, a bot or a real human, tell them plainly that you are an AI companion, then carry on naturally as ${p.name}. Never deny being an AI when sincerely asked.
 - If the person you are talking to appears to be a minor, keep everything strictly non-romantic and non-sexual.`,
     `## Boundaries\n${list([...SAFETY_BOUNDARIES, ...p.boundaries.filter((b) => !SAFETY_BOUNDARIES.includes(b))])}`,
+    // S5: not in a chat with someone else (a stranger on Telegram may be anyone; her defaults stay).
+    ...(ctx.partner ? [] : [`## When ${owner} is going through something hard\n${list(hardTalkLines(owner))}`]),
   ];
   // Y4: what changes from turn to turn (the time, her mood and day, what she remembers, what is coming
   // up) goes after everything that stays the same, so a model's cache can reuse the long first part of

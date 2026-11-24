@@ -79,6 +79,9 @@ export const RESEARCH_ASKS = [
   'Compare the reviews and prices of these models and recommend one.',
   'I need a thorough overview of the current state of this, check several sources.',
   'Read up on this for me and tell me what the experts say.',
+  // S6: two ways of asking the first set missed.
+  'What is the general consensus on this these days? Check a few places.',
+  'Gather what is out there on the web about this topic for me.',
 ];
 export const NOT_RESEARCH = [
   'Remind me to do this tomorrow morning.',
@@ -99,6 +102,8 @@ export const NOT_RESEARCH = [
   'What do you know about me?',
   'Go through the document I gave you and tell me if anything in it looks off.',
   'Let me know when the price of this drops below a certain amount.',
+  'Sum up what we talked about earlier.',
+  'Find the note I wrote about this.',
 ];
 
 const sig = (s: string): string => createHash('sha256').update(s).digest('hex').slice(0, 16);

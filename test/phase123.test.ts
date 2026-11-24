@@ -239,10 +239,15 @@ test('goals: a tool loaded in round 1 is offered in round 2; /tools answers with
   assert.ok(performance.now() - t0 < 50, `find ${performance.now() - t0} ms`);
   const five = many.slice(0, 500);
   leanFor({ ...DEFAULT_LEAN.tools }, five, { text: 'x', mode: 'chat', local: false, turnId: 1, ownerTurnIds: [1] });
-  t0 = performance.now();
-  leanFor({ ...DEFAULT_LEAN.tools }, five, { text: 'x', mode: 'chat', local: false, turnId: 1, ownerTurnIds: [1] });
-  // 500 tools: a few ms on a PC; 25 ms leaves room for a slow server under a full test run (8.9 ms seen).
-  assert.ok(performance.now() - t0 < 25, `leanFor ${performance.now() - t0} ms`);
+  // 500 tools: a few ms on a PC. The best of five, so that a server busy with something else for a
+  // moment does not fail it (3.41.0's suite on a loaded server: 41 ms once, 3 of 3 alone).
+  let best = Infinity;
+  for (let i = 0; i < 5; i++) {
+    t0 = performance.now();
+    leanFor({ ...DEFAULT_LEAN.tools }, five, { text: 'x', mode: 'chat', local: false, turnId: 1, ownerTurnIds: [1] });
+    best = Math.min(best, performance.now() - t0);
+  }
+  assert.ok(best < 25, `leanFor ${best} ms`);
 });
 
 // ------------------------------------------------------------------ Part B

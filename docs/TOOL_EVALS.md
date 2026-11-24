@@ -198,3 +198,17 @@ What it does not do: nothing is downloaded, so a computer with no embedding mode
 until someone pulls one (the Meaning search tip in Settings names both). The floors for an embedding
 model other than these two are nomic's, unmeasured. And the adoption is local only: a person whose
 only embedding model is a paid one sets the job by hand, as before.
+
+## Fourth run: a second other-language set, two more research asks (2026-11-24, S6)
+
+Twenty more messages in five languages (`y-`), written after bge-m3's floors were set and run once
+as found: the wanted tool was in the list for 11 of 20 with words alone and 20 of 20 with bge-m3
+(set by herself). All 137 cases with bge-m3: offered 129, routed as expected 32 of 33.
+
+Two research asks were added to `RESEARCH_ASKS` ("what is the general consensus on…", "gather what
+is out there on the web about…") and two look-alikes to `NOT_RESEARCH` ("sum up what we talked
+about earlier", "find the note I wrote about this"): the first try of the new asks sent "Sum up
+what we talked about yesterday" to the research model, which the measurement showed. With bge-m3:
+research asks without the usual words 7 of 8, look-alikes kept 8 of 8, nearest wrong message
++0.03 against a margin of 0.05. The `r-` cases have now been looked at twice and are tuned, not
+fresh. Result file: docs/results/2026-11-24-tool-evals-s6-bge-m3.md.

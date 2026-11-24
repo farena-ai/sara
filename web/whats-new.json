@@ -2,6 +2,28 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.42.0",
+   "date": "2026-11-24",
+   "title": "She stays with you in a hard conversation; the right tool in every language",
+   "items": [
+    {
+     "id": "3-42-0-she-stays-with-you-in",
+     "kind": "new",
+     "text": "She stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines."
+    },
+    {
+     "id": "3-42-0-the-bge-m3-embedding-model-is",
+     "kind": "new",
+     "text": "The bge-m3 embedding model is on the list under Settings → Models & usage → On this computer, for meaning search in many languages."
+    },
+    {
+     "id": "3-42-0-the-crisis-lines-no-longer",
+     "kind": "fixed",
+     "text": "The crisis lines no longer appear for a cut finger, a gym injury, a film plot, the news, or someone else's death years ago."
+    }
+   ]
+  },
+  {
    "version": "3.41.0",
    "date": "2026-11-24",
    "title": "Meaning search with no setup, a thinking level, quicker long chats",
@@ -213,51 +235,6 @@
      "text": "Sara now knows who you are linked with in Messages and who wrote (never what), so \"did Hank reach out?\" gets a real answer.",
      "link": "#view=msgs",
      "owner": true
-    }
-   ]
-  },
-  {
-   "version": "3.35.0",
-   "date": "2026-11-19",
-   "title": "Language practice, health coach, family screen, local-only proven, carry backups, kid mode, why",
-   "items": [
-    {
-     "id": "3-35-0-practice-a-language-out-loud",
-     "kind": "new",
-     "text": "Practice a language out loud, with cards, listening and your words checked as you speak.",
-     "try": [
-      "lang-practice"
-     ]
-    },
-    {
-     "id": "3-35-0-a-private-health-coach-shows",
-     "kind": "new",
-     "text": "A private health coach shows your week and offers one or two small goals, never medical advice.",
-     "link": "#view=health"
-    },
-    {
-     "id": "3-35-0-a-family-screen-for-a",
-     "kind": "new",
-     "text": "A Family screen for a kitchen tablet shows the day, chores, meals and shopping, with a kid-safe Talk.",
-     "link": "#view=family"
-    },
-    {
-     "id": "3-35-0-local-only-mode-now-comes-with",
-     "kind": "new",
-     "text": "Local-only mode now comes with a test that runs a full day of features and proves nothing leaves the server."
-    },
-    {
-     "id": "3-35-0-backups-you-can-carry-on",
-     "kind": "new",
-     "text": "Backups you can carry on a USB drive or send sealed to a friend's Sara, with a printed recovery sheet.",
-     "try": [
-      "carry-sheet"
-     ]
-    },
-    {
-     "id": "3-35-0-kid-mode-v2-sets-rules",
-     "kind": "new",
-     "text": "Kid mode v2 sets rules by age band, with time requests you approve from your phone and a parent dashboard."
     }
    ]
   }

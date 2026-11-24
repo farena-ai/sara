@@ -130,6 +130,28 @@ export const CASES: EvalCase[] = [
   { id: 'x-it-store', text: 'C’è una ferramenta aperta qui vicino?', want: ['stores_near'], alsoFine: ['find_product', 'web_search'] },
   { id: 'x-it-bill', text: 'La mia connessione costa 30 euro al mese e viene addebitata il 5, aggiungila alle bollette.', want: ['bill_add'] },
   { id: 'x-it-stiff', text: 'Questa mail suona troppo rigida, la puoi ammorbidire? "Come da mia precedente, resto in attesa di un Suo cortese riscontro."', want: ['humanize_text'] },
+  // Other languages, a second set (ids start with y-): written after bge-m3's floors were set on
+  // the x- cases, and run once as found (docs/TOOL_EVALS.md, "Fourth run").
+  { id: 'y-es-invoice', text: 'Prepárale una factura a Construcciones Vega por 8 horas de asesoría a 60 euros la hora.', want: ['invoice_make'], alsoFine: ['client_add'] },
+  { id: 'y-es-recall', text: '¿Cómo se llamaba aquel restaurante que me recomendaste el mes pasado?', want: ['recall'], alsoFine: ['ask_everything'] },
+  { id: 'y-es-promise', text: '¿Qué les he prometido a otras personas que todavía tengo pendiente?', want: ['promise_list'], alsoFine: ['follow_ups', 'people_due'] },
+  { id: 'y-es-odds', text: 'Si la cuota es menos 150, ¿qué probabilidad implica eso?', want: ['odds_math'] },
+  { id: 'y-fr-timer', text: 'Je commence le chantier chez les Martin, compte mon temps.', want: ['time_start'] },
+  { id: 'y-fr-gift', text: 'Tu as des idées de cadeau pour mon père ? Son anniversaire approche.', want: ['people_gift_ideas'], alsoFine: ['person_lookup', 'find_product', 'people_gift_card'] },
+  { id: 'y-fr-spent', text: 'Combien j’ai dépensé au restaurant en octobre ?', want: ['budget_summary'], alsoFine: ['purchases_list', 'expense_report'] },
+  { id: 'y-fr-list', text: 'Qu’est-ce qu’il y a sur la liste de courses de la famille ?', want: ['household_lists'], alsoFine: ['todo'] },
+  { id: 'y-de-paid', text: 'Die Wasserrechnung habe ich heute Morgen bezahlt.', want: ['bill_paid'], alsoFine: ['bill_list'] },
+  { id: 'y-de-address', text: 'Welche Lieferadresse hast du von mir gespeichert?', want: ['my_details_get'], alsoFine: ['facts_list'] },
+  { id: 'y-de-standings', text: 'Auf welchem Tabellenplatz steht Bayern München gerade?', want: ['sports_standings'], alsoFine: ['web_search', 'team_news'] },
+  { id: 'y-de-lease', text: 'Kannst du meinen Mietvertrag durchgehen und mir sagen, ob dir etwas komisch vorkommt?', want: ['contract_review'], alsoFine: ['library', 'doc_checklist'] },
+  { id: 'y-pt-client', text: 'Acabei de fechar com um cliente novo, a Clínica Sorriso. Cadastra aí.', want: ['client_add'] },
+  { id: 'y-pt-hours', text: 'Quantas horas eu já trabalhei esta semana?', want: ['time_report'] },
+  { id: 'y-pt-waiting', text: 'Tem alguém esperando uma resposta minha?', want: ['people_due'], alsoFine: ['follow_ups', 'promise_list'] },
+  { id: 'y-pt-formal', text: 'Dá para você ser um pouco menos formal comigo daqui para frente?', want: ['tune_personality'] },
+  { id: 'y-it-cap', text: 'Voglio mettere un tetto di 150 euro al mese a quello che spendo in cibo da asporto.', want: ['budget_limit'] },
+  { id: 'y-it-decisions', text: 'Quali scelte importanti ho fatto ultimamente, e come sono andate?', want: ['decision_list'], alsoFine: ['recall'] },
+  { id: 'y-it-license', text: 'La mia patente scade ad agosto prossimo, non farmelo dimenticare.', want: ['renewal_add'], alsoFine: ['remind'] },
+  { id: 'y-it-alerts', text: 'Di cosa mi stai avvisando in questo momento?', want: ['watch_list'], alsoFine: ['product_watch_list', 'remind'] },
   // Routing, fresh (ids start with r-): written after the numbers for routing by meaning were set
   // (ROUTE_MEANT in src/tool-meaning.ts), run as found. Research asks without the usual words, and
   // messages that only sound like them.

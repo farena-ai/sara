@@ -133,6 +133,8 @@ export interface Summary {
   fresh: { offer: { asked: number; offered: number } };
   /** Other languages, in a person's own words (ids starting with x-). */
   otherLanguages: { offer: { asked: number; offered: number } };
+  /** Other languages, the second set (ids starting with y-): run as found. */
+  otherLanguagesFresh: { offer: { asked: number; offered: number } };
   /** Fresh routing cases (ids starting with r-): research asks without the usual words, and look-alikes. */
   routeFresh: { asked: number; right: number; research: [number, number]; notResearch: [number, number] };
   toolsOffered: { median: number; max: number };
@@ -171,6 +173,7 @@ export function summarize(results: CaseResult[]): Summary {
     },
     fresh: { offer: { asked: offer.filter((r) => r.id.startsWith('f-')).length, offered: offer.filter((r) => r.id.startsWith('f-') && r.offered === true).length } },
     otherLanguages: { offer: { asked: offer.filter((r) => r.id.startsWith('x-')).length, offered: offer.filter((r) => r.id.startsWith('x-') && r.offered === true).length } },
+    otherLanguagesFresh: { offer: { asked: offer.filter((r) => r.id.startsWith('y-')).length, offered: offer.filter((r) => r.id.startsWith('y-') && r.offered === true).length } },
     routeFresh: (() => {
       const rf = route.filter((r) => r.id.startsWith('r-'));
       const yes = rf.filter((r) => !r.id.startsWith('r-not-'));
@@ -199,6 +202,7 @@ export function report(results: CaseResult[], meta: { version: string; model?: s
   if (s.heldOut.offer.asked) out.push(`- **Held-out cases** (never tuned on): offered in ${s.heldOut.offer.offered} of ${s.heldOut.offer.asked} (${pct(s.heldOut.offer.offered, s.heldOut.offer.asked)}); routed as expected in ${s.heldOut.route.right} of ${s.heldOut.route.asked}.`);
   if (s.fresh.offer.asked) out.push(`- **Fresh cases** (written last, run as found): offered in ${s.fresh.offer.offered} of ${s.fresh.offer.asked} (${pct(s.fresh.offer.offered, s.fresh.offer.asked)}).`);
   if (s.otherLanguages.offer.asked) out.push(`- **Other languages** (a person's own words, five languages): offered in ${s.otherLanguages.offer.offered} of ${s.otherLanguages.offer.asked} (${pct(s.otherLanguages.offer.offered, s.otherLanguages.offer.asked)}).`);
+  if (s.otherLanguagesFresh.offer.asked) out.push(`- **Other languages, second set** (written after the numbers were set, run as found): offered in ${s.otherLanguagesFresh.offer.offered} of ${s.otherLanguagesFresh.offer.asked} (${pct(s.otherLanguagesFresh.offer.offered, s.otherLanguagesFresh.offer.asked)}).`);
   if (s.routeFresh.asked) out.push(`- **Fresh routing cases:** research asks without the usual words reached the research model in ${s.routeFresh.research[0]} of ${s.routeFresh.research[1]}; messages that only sound like research stayed with the talking model in ${s.routeFresh.notResearch[0]} of ${s.routeFresh.notResearch[1]}.`);
   out.push(`- **Size:** ${s.toolsOffered.median} tools offered on a typical turn (most: ${s.toolsOffered.max}); the tool list is about ${Math.round(s.toolChars.median / 4).toLocaleString('en-US')} tokens.`, '');
   const bad = results.filter((r) => r.offered === false || r.routeOk === false || (r.verdict && r.verdict !== 'right') || r.error);

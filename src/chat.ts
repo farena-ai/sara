@@ -70,7 +70,7 @@ import { SESSION_TOOLS } from './session-continuity-tools.ts';
 import { pickupForTurn } from './pickup.ts';
 import { afterReply as mentionAfterReply, matchMentions, mentionNote, mentionSettings, outgoingHolds, ownChat, roomMentionToDm, takeCards, wirePeople, type MentionHit } from './mentions.ts';
 import { adultModeOn, type RoutePurpose, type Settings, type SettingsStore } from './settings.ts';
-import { embedTarget, type MemoryVectors } from './embeddings.ts';
+import { embedTarget, turnEmbedTarget, type MemoryVectors } from './embeddings.ts';
 import { isCloudModelName } from './model-names.ts';
 import { projectSection } from './projectknow.ts';
 import { checkpointAllowed, checkpointSection } from './project-checkpoints.ts';
@@ -2814,7 +2814,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 100: no memory for an outside request by default (no notes, last time or recall).
   } else if (opts.outside && app.memory && memCfg.enabled) {
     // Phase 100: "Share notes that aren't private": facts other apps may see, read-only; nothing else.
-    const related = app.vectors ? await app.vectors.related(text).catch(() => []) : [];
+    const related = app.vectors && !app.toolMeaning?.resting ? await app.vectors.related(text).catch(() => []) : [];
     injection = selectMemories(app.memory, {
       related,
       userText: text,
@@ -2831,7 +2831,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const { visible, oldestHistoryId } = historyFloor(app, conv, budget);
     // Phase 38: notes close in meaning, when the embeddings job is set (word search always runs).
     // Phase 76: the meaning scores are kept (they rank the notes and say how sure).
-    const related = app.vectors ? await app.vectors.related(text).catch(() => []) : [];
+    const related = app.vectors && !app.toolMeaning?.resting ? await app.vectors.related(text).catch(() => []) : [];
     relatedNotes = related;
     // Phase 101 (ST6, STAPLES §9.3–§9.5): the owner's message updates who was mentioned (and answers
     // her "which Jeff?"); the People section for the people it names comes out of the same budget.
@@ -3157,7 +3157,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let autoSkill: string | undefined;
   if (skillsOffered && !opts.replay && !opts.resume) {
     try {
-      const target = embedTarget(app);
+      const target = turnEmbedTarget(app);
       const pick = await app.skills!.autoPick(text, { ...(target ? { target } : {}), loaded: turnSkills, historyBudgetChars: budget });
       if (pick) {
         const block = app.skills!.activation(pick);
@@ -3173,7 +3173,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // C6: a question about a topic she learned loads that knowledge skill (cited, with its date).
     if (!autoSkill && app.learnTopics) {
       try {
-        const hit = await app.learnTopics.forQuestion(text, embedTarget(app), turnSkills);
+        const hit = await app.learnTopics.forQuestion(text, turnEmbedTarget(app), turnSkills);
         if (hit) {
           store.updateMessageMeta(userMsg.id, { autoSkill: { name: hit.view.name, scope: hit.view.scope, text: hit.block } });
           app.skills!.markUsed(hit.view.scope, hit.view.name, 'auto', { conversationId: conv.id, runId: rec.on ? rec.id : null });
@@ -3483,19 +3483,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const historyEpoch = sessionContinuity ? store.getConversation(conv.id)?.dialogueEpoch : undefined;
     // 3.4.1: a fallback model that holds less than the turn's model gets a shorter history.
     const stepBudget = ci === 0 ? budget : Math.min(budget, Math.round(budgetOf({ provider, model }).chars * (saver.on ? SAVER.historyShare : 1)));
-    const hist = opts.clientHistory
-      ? (() => {
-          // C5: this turn's own pictures (an Open Responses input_image) still reach a model that can see.
-          const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
-          let room = stepBudget - own.reduce((n, m) => n + m.content.length, 0);
-          const earlier: ChatMessage[] = [];
-          for (const m of [...opts.clientHistory].reverse()) {
-            if (earlier.length >= HISTORY_LIMIT || (room -= m.content.length + 20) < 0) break;
-            earlier.unshift({ role: m.role, content: m.content });
-          }
-          return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
-        })()
-      : buildHistory(store.messages(conv.id), stepBudget, app.uploads && sees(provider, model) ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: turnClock, timeZone: s.timeZone });
+    const hist = stepHistory({ app, store, conv, opts, userMsg, stepBudget, canSee: sees(provider, model), s, refsText, activeFold, clock: turnClock });
     // A forget/edit tool can invalidate the source mid-turn. Recheck before every new injection.
     const nowGate = { external: checkpointExternal, group: Boolean(opts.group), replay: Boolean(opts.replay) };
     const nowPath = projectNowPath(app, conv, nowGate);
@@ -4239,6 +4227,45 @@ export function carUnread(app: AppContext, max = 3): string[] {
     .prepare("SELECT m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.created_at >= ? AND (m.meta LIKE '%\"proactive\"%' OR m.meta LIKE '%\"reminder\"%' OR m.meta LIKE '%\"job\"%' OR m.meta LIKE '%\"inbox\"%' OR m.meta LIKE '%\"automation\"%') ORDER BY m.id DESC LIMIT ?")
     .all(since, max) as { content: string }[];
   return rows.map((r) => r.content.replace(/\s+/g, ' ').trim().slice(0, 240)).filter(Boolean);
+}
+
+/** S6: what the history of one step needs from the turn. */
+interface StepHistoryEnv {
+  app: AppContext;
+  store: Store;
+  conv: Conversation;
+  opts: Pick<TurnOptions, 'clientHistory' | 'group' | 'replay'>;
+  userMsg: StoredMessage;
+  /** Characters of history this step may send (smaller for a fallback model that holds less). */
+  stepBudget: number;
+  /** The model of this step can look at pictures. */
+  canSee: boolean;
+  s: Settings;
+  refsText: Parameters<typeof buildHistory>[4];
+  activeFold: Parameters<typeof buildHistory>[5];
+  clock: Date;
+}
+
+/**
+ * S6: the conversation as one step sends it (the Z3 method: the block moved out of runTurnInner).
+ * A client that keeps its own history (Open Responses) gets that history and this turn's own rows;
+ * everyone else gets the stored conversation, cut to the budget, with the tidied part folded.
+ */
+function stepHistory(env: StepHistoryEnv): ReturnType<typeof buildHistory> {
+  const { app, store, conv, opts, userMsg, stepBudget, canSee, s, refsText, activeFold, clock } = env;
+  return opts.clientHistory
+    ? (() => {
+        // C5: this turn's own pictures (an Open Responses input_image) still reach a model that can see.
+        const own = buildHistory(store.messages(conv.id).filter((m) => m.id >= userMsg.id), stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, undefined, refsText).messages;
+        let room = stepBudget - own.reduce((n, m) => n + m.content.length, 0);
+        const earlier: ChatMessage[] = [];
+        for (const m of [...opts.clientHistory].reverse()) {
+          if (earlier.length >= HISTORY_LIMIT || (room -= m.content.length + 20) < 0) break;
+          earlier.unshift({ role: m.role, content: m.content });
+        }
+        return { messages: [...earlier, ...own], firstKeptId: userMsg.id, dropped: 0 };
+      })()
+    : buildHistory(store.messages(conv.id), stepBudget, app.uploads && canSee ? (id) => app.uploads!.load(id) : undefined, opts.group ? { ownerName: s.ownerName?.trim() || 'the owner' } : undefined, opts.group ? undefined : refsText, activeFold, opts.replay ? undefined : { now: clock, timeZone: s.timeZone });
 }
 
 /**

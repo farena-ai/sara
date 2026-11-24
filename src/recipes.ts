@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
-import { cosine, embedTarget, type EmbedTarget, embedTexts } from './embeddings.ts';
+import { cosine, embedTarget, type EmbedTarget, embedTexts, turnEmbedTarget } from './embeddings.ts';
 import { ftsQuery } from './memory.ts';
 import { num, str, ToolError, type Tool } from './tools/types.ts';
 import { WORKSPACE_NAME_RE } from './tools/workspace.ts';
@@ -271,7 +271,7 @@ const brief = (r: Recipe) => `#${r.id} ${r.title}${r.workspace ? ` [${r.workspac
 export async function recipesSection(app: AppContext, workspace: string, text: string): Promise<string | undefined> {
   const store = app.recipes;
   if (!store || !text.trim() || !store.count()) return undefined;
-  const found = await store.find(text, { workspace, limit: TURN_RECIPES, target: embedTarget(app), timeoutMs: 1500 }).catch(() => []);
+  const found = await store.find(text, { workspace, limit: TURN_RECIPES, target: turnEmbedTarget(app), timeoutMs: 1500 }).catch(() => []);
   if (!found.length) return undefined;
   return found.map(brief).join('\n');
 }

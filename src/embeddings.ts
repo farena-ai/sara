@@ -84,6 +84,18 @@ export function embedTarget(app: AppContext): EmbedTarget | undefined {
   return { config, key: app.vault.get(vaultKeyFor(config.id)) ?? undefined, model: r.model };
 }
 
+/**
+ * S6: the embedding model for something a turn is waiting on (memory's meaning search, the library,
+ * recipes, skills, tools). The same as embedTarget, except while meaning rests: after several
+ * messages in a row whose vector came late (src/tool-meaning.ts), every one of those would wait
+ * for the same slow model, and on a computer that keeps one model loaded each would swap her chat
+ * model out. They then use words alone until the rest is over. Indexing in the background and the
+ * Settings page keep using embedTarget.
+ */
+export function turnEmbedTarget(app: AppContext): EmbedTarget | undefined {
+  return app.toolMeaning?.resting ? undefined : embedTarget(app);
+}
+
 export class MemoryVectors {
   readonly #db: DatabaseSync;
   readonly #mem: MemoryStore;

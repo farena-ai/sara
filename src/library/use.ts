@@ -2,7 +2,7 @@
 // instructions (what she has, what was shared in this chat, passages found for this message), and
 // a tool to search it or read a part of a document. Never in chats with other people.
 import type { AppContext } from '../chat.ts';
-import { embedTarget } from '../embeddings.ts';
+import { embedTarget, turnEmbedTarget } from '../embeddings.ts';
 import type { Conversation } from '../store.ts';
 import type { Tool } from '../tools/types.ts';
 import { ToolError } from '../tools/types.ts';
@@ -71,7 +71,7 @@ export async function librarySection(app: AppContext, conv: Conversation, text: 
     blocks.push(`### In your library\nDocuments ${owner} gave you to keep:\n${kept.slice(0, LIST_DOCS).map(docLine).join('\n')}${more}${kept.some((d) => d.pages > 0) ? `\n${CITE_RULE} For a long document, the library tool's 'contents' action shows its chapters with their pages and summaries.` : ''}`);
   }
   // Passages for this message: by meaning when that's set up, or when the message points at a document.
-  const target = embedTarget(app);
+  const target = turnEmbedTarget(app);
   if (text.trim() && !isWorkChannel(conv.channel) && (target || DOC_CUE.test(text) || shared.some((d) => d.chars > WHOLE_DOC_CHARS))) {
     const hits = (await lib.find(text, { target, conversationId: conv.id, limit: 4, timeoutMs: 2000 }).catch(() => [])).filter((h) => target ? h.by !== 'words' || DOC_CUE.test(text) : true);
     const out: string[] = [];
