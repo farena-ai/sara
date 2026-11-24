@@ -98,6 +98,7 @@ import { createGiftTools } from './gifts.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
+import { ToolMeaning } from './tool-meaning.ts';
 import { createTeamTools, TeamManager } from './team.ts';
 import { createTeamRunTools, TeamRuns } from './team-runs.ts';
 import { createBoardTools, setUpBoard } from './board-work.ts';
@@ -1624,6 +1625,8 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
 
   // Phase 38: meaning search (vectors made a few at a time while the embeddings job is set).
   app.vectors = new MemoryVectors(store.db, memory, () => embedTarget(app));
+  // Z7: the same embedding model also finds tools by what a message means (src/tool-meaning.ts).
+  app.toolMeaning = new ToolMeaning(() => embedTarget(app));
   let vectorTimer: NodeJS.Timeout | undefined;
   // Q-ADDONS: her delayed start-up work is cancelled by stop(), so a companion retired right after
   // she was added never runs it on a closed database (that stopped the whole server).

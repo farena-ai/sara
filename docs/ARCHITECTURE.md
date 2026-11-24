@@ -736,3 +736,33 @@ The method used to take `runToolCall` out is the one to reuse for the next block
 let the compiler list every name it can no longer find, pass exactly those as one typed object. One
 trap: a variable whose name is also a global compiles and fails at run time
 (`test/z3-tool-call-env.test.ts`).
+
+## Claude models on the Anthropic API (Z5, 2026-11-23)
+
+`src/providers/claude-traits.ts` is the one place that knows what each Claude model accepts;
+`src/providers/anthropic.ts` builds the request from it (`claudeExtras`).
+
+- **`temperature`** is left out for Opus 4.7 and later, Sonnet 5 and later, Haiku 5.5, Fable and Mythos
+  (they answer 400 to it). Older models and other services behind an Anthropic-style address get it
+  as before.
+- **Thinking.** `reasoning: 'none'` (background chores, talk turns) is sent as the lowest effort
+  (`output_config.effort: 'low'`), never as "disabled": the newest models each refuse "disabled" in
+  their own way. `'low' | 'medium' | 'high'` is that effort (and `thinking: adaptive` on Opus and
+  Sonnet 4.6 to 4.8, which do not think on their own). Nothing said means the model's default. No
+  thinking budgets anywhere.
+- **Reply limits.** On models that think by default, thinking counts against `max_tokens`, so a
+  limit under 16,000 gets `THINK_ROOM` (4,096) added. A judge that asks for 8 tokens still gets its
+  answer.
+- **Thinking between tool steps.** The adapter collects a step's `thinking` and `redacted_thinking`
+  blocks as they came (signature included) and yields them as a `thinking` event. The turn
+  (`keptThinking` in `runTurnInner`) keeps them in memory by the step's first tool call and attaches
+  them to that assistant step on the following requests (`withKeptThinking`); the adapter sends them
+  back first in the step, unchanged, only to the model that wrote them, and never with a cache mark.
+  They are never stored, never shown, and gone when the turn ends.
+- **When the API refuses them** (it checks handed-back thinking against the conversation it came
+  from, and her per-step notes can fail that check on accounts where it is enforced): a 400 that
+  names thinking makes the adapter send the step once more without them and leave them out for ten
+  minutes (one warning in the log). Any other 400 is the error it always was.
+- **Structured answers.** `ChatRequest.json = { schema }` becomes `output_config.format` for Claude
+  models that take it and is ignored elsewhere, so a caller must still ask for JSON in the prompt and
+  parse with care. No judge uses it yet (docs/BACKLOG.md).

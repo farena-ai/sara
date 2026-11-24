@@ -8,11 +8,32 @@ export interface ToolCall {
   arguments: Record<string, unknown>;
 }
 
+/**
+ * Z5: a model's thinking blocks from one step, exactly as the provider sent them (signed; often with
+ * no readable text). The same model gets them back with the tool results of that step, so it carries
+ * on from its own reasoning instead of working it out again. Kept in memory for the turn, never saved
+ * and never shown.
+ */
+export interface KeptThinking {
+  model: string;
+  blocks: unknown[];
+}
+
+/** Z5: each assistant step that has kept thinking gets it attached (keyed by the step's first tool call). */
+export function withKeptThinking(messages: ChatMessage[], kept: ReadonlyMap<string, KeptThinking>): ChatMessage[] {
+  if (!kept.size) return messages;
+  return messages.map((m) => {
+    const k = m.role === 'assistant' && m.toolCalls?.length ? kept.get(m.toolCalls[0]!.id) : undefined;
+    return k && m.role === 'assistant' ? { ...m, thinking: k } : m;
+  });
+}
+
 export type ChatMessage =
   | { role: 'system'; content: string }
   /** Phase 116: `steer` = a message the owner sent while she worked, right after tool results (adapters that can't take that shape fold it). */
   | { role: 'user'; content: string; images?: ImageData[]; steer?: boolean }
-  | { role: 'assistant'; content: string; toolCalls?: ToolCall[] }
+  /** Z5: `thinking` = what the model thought before these tool calls, to hand back as it came (this turn only; never stored). */
+  | { role: 'assistant'; content: string; toolCalls?: ToolCall[]; thinking?: KeptThinking }
   /** Phase 49: `images` are screenshots a tool took for the model to look at. */
   | { role: 'tool'; toolCallId: string; name: string; content: string; images?: ImageData[] };
 
@@ -58,6 +79,12 @@ export interface ChatRequest {
    * reasoning model doesn't spend its whole budget thinking. Sent where the API supports it.
    */
   reasoning?: 'none' | 'low' | 'medium' | 'high';
+  /**
+   * Z5: the answer must be JSON that fits this schema. Sent where the API can hold the model to it
+   * (Claude models through the Anthropic API); elsewhere it is ignored, so the prompt must still ask
+   * for JSON and the caller must still parse with care.
+   */
+  json?: { schema: Record<string, unknown> };
   signal?: AbortSignal;
   /** Business admission requires complete, exact aggregate usage; unknown counts stay non-finite. */
   strictUsage?: boolean;
@@ -90,6 +117,8 @@ export type StreamEvent =
    * `thinking`): only how much there was, once at the end. Never shown and never saved as her words.
    */
   | { type: 'reasoning'; chars: number }
+  /** Z5: the step's thinking blocks, to hand back with its tool results (see KeptThinking). */
+  | { type: 'thinking'; kept: KeptThinking }
   /**
    * X1: why the model stopped, when it was not on its own: 'length' = the reply hit the output limit
    * (a tool call being written then is incomplete), 'refusal' = the provider's safety system declined.

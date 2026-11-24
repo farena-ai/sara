@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## The right tool at hand, in 3.40.0
+
+Sara has many tools and sends a model a short list of them for each message. That list is now
+also chosen by what you mean, not only by the words you use (with the Meaning search job set), and
+it knows more everyday ways of asking. The newest Claude models work with an API key, and keep
+their reasoning between the steps of a longer job. Asking her to research something works in six
+languages. For developers, `npm run eval:tools` measures whether a message reaches the right tool
+and the right model.
+
 ## Quicker to open and tidier, in 3.39.0
 
 Your browser keeps the app's own files, so opening or reloading Sara no longer asks the server about

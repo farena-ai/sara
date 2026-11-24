@@ -2,8 +2,11 @@
 import { moveClockToEnd } from '../time-sense.ts';
 import { sseEvents } from '../sse.ts';
 import { parseAnthropic, type ModelLimits } from '../model-context.ts';
+import { claudeExtras } from './claude-traits.ts';
 import {
+  errorDetail,
   failFromResponse,
+  friendlyHttpError,
   reach,
   parseToolArguments,
   partialPath,
@@ -30,7 +33,12 @@ type Block = CacheMark & (
   | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool_use_id: string; content: string | Block[] }
   | { type: 'image'; source: { type: 'base64'; media_type: string; data: string } }
+  // Z5: a thinking block handed back as it came (signed; never edited, never marked for the cache).
+  | { type: 'thinking'; thinking: string; signature: string }
+  | { type: 'redacted_thinking'; data: string }
 );
+
+const isThinking = (b: unknown): boolean => typeof b === 'object' && b !== null && ((b as { type?: unknown }).type === 'thinking' || (b as { type?: unknown }).type === 'redacted_thinking');
 
 interface WireMessage {
   role: 'user' | 'assistant';
@@ -47,7 +55,8 @@ export const APP_NOTE = '[Note from the app, not from the person]';
  * hoisting it into the system prompt changed the prompt every step, which threw away the cache of
  * everything after it, and put "see the results above" above the results.
  */
-export function toAnthropic(input: ChatMessage[]): { system: string; messages: WireMessage[]; stableBlocks: number } {
+export function toAnthropic(input: ChatMessage[], thinkingFor?: string): { system: string; messages: WireMessage[]; stableBlocks: number; thinking: number } {
+  let thinking = 0;
   const messages = moveClockToEnd(input);
   const lead = messages.findIndex((m) => m.role !== 'system');
   const head = lead < 0 ? messages : messages.slice(0, lead);
@@ -72,7 +81,11 @@ export function toAnthropic(input: ChatMessage[]): { system: string; messages: W
     }
     if (m.role === 'assistant') {
       if (m.toolCalls?.length) {
-        const blocks: Block[] = m.content ? [{ type: 'text', text: m.content }] : [];
+        // Z5: what this model thought before these calls goes back first, as it came. Another model's
+        // thinking is left out (it could not read it).
+        const thought = thinkingFor && m.thinking?.model === thinkingFor ? (m.thinking.blocks.filter(isThinking) as Block[]) : [];
+        thinking += thought.length;
+        const blocks: Block[] = [...thought, ...(m.content ? [{ type: 'text', text: m.content } as Block] : [])];
         for (const c of m.toolCalls) blocks.push({ type: 'tool_use', id: c.id, name: c.name, input: c.arguments });
         out.push({ role: 'assistant', content: blocks });
       } else {
@@ -103,7 +116,7 @@ export function toAnthropic(input: ChatMessage[]): { system: string; messages: W
     if (prev?.role === 'user') prev.content = [...(typeof prev.content === 'string' ? [{ type: 'text', text: prev.content } as Block] : prev.content), block];
     else out.push({ role: 'user', content: [block] });
   }
-  return { system, messages: out, stableBlocks };
+  return { system, messages: out, stableBlocks, thinking };
 }
 
 /**
@@ -153,6 +166,7 @@ export function withCacheMarks<T extends { name: string }>(system: string, messa
     // An empty text block can't carry a mark.
     const b = blocks[at]!;
     if (b.type === 'text' && !b.text) return w;
+    if (isThinking(b)) return w; // a thinking block goes back untouched
     blocks[at] = { ...b, ...mark };
     return { ...w, content: blocks };
   });
@@ -196,24 +210,46 @@ export class AnthropicProvider implements Provider {
     return (body.data ?? []).map((m) => m.id).sort();
   }
 
+  /** Z5: after the API refused replayed thinking once, it is left out for a while (ms since epoch). */
+  #noReplayUntil = 0;
+
   async *stream(req: ChatRequest): AsyncIterable<StreamEvent> {
-    const wire = toAnthropic(req.messages);
-    const cached = withCacheMarks(wire.system, wire.messages, wire.stableBlocks, req.tools?.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters })));
-    const res = await reach(this.config, this.#url('/messages'), {
-      method: 'POST',
-      headers: this.#headers(),
-      signal: req.signal,
-      ...(req.redirect ? { redirect: req.redirect } : {}),
-      body: JSON.stringify({
-        model: req.model,
-        max_tokens: req.maxTokens ?? defaultMaxTokens(req.model),
-        stream: true,
-        ...(cached.system ? { system: cached.system } : {}),
-        messages: cached.messages,
-        ...(cached.tools ? { tools: cached.tools } : {}),
-        ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
-      }),
-    });
+    const toolSpecs = req.tools?.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
+    // Z5 (src/providers/claude-traits.ts): what this model takes: no temperature on the newer ones,
+    // effort in place of a thinking switch, room for thinking under a small reply limit.
+    const extras = claudeExtras(req, defaultMaxTokens(req.model));
+    const send = (replay: boolean): Promise<Response> & { thinking?: number } => {
+      const wire = toAnthropic(req.messages, replay ? req.model : undefined);
+      const cached = withCacheMarks(wire.system, wire.messages, wire.stableBlocks, toolSpecs);
+      const p: Promise<Response> & { thinking?: number } = reach(this.config, this.#url('/messages'), {
+        method: 'POST',
+        headers: this.#headers(),
+        signal: req.signal,
+        ...(req.redirect ? { redirect: req.redirect } : {}),
+        body: JSON.stringify({
+          model: req.model,
+          stream: true,
+          ...extras,
+          ...(cached.system ? { system: cached.system } : {}),
+          messages: cached.messages,
+          ...(cached.tools ? { tools: cached.tools } : {}),
+        }),
+      });
+      p.thinking = wire.thinking;
+      return p;
+    };
+    const first = send(Date.now() >= this.#noReplayUntil);
+    let res = await first;
+    if (res.status === 400 && first.thinking && !(req.strictUsage || req.maxResponseBytes !== undefined)) {
+      // Z5: thinking handed back is checked by the API against the conversation it came from. Her
+      // per-step notes can make that check fail on accounts where it is enforced. Then the step runs
+      // once more without the thinking (the documented recovery), and it stays out for ten minutes.
+      const said = errorDetail((await res.text().catch(() => '')).slice(0, 2000));
+      if (!/thinking/i.test(said)) throw new ProviderError(friendlyHttpError(this.config.label, 400, said, req.model), 400);
+      this.#noReplayUntil = Date.now() + 10 * 60_000;
+      console.warn(`${this.config.label} (${req.model}) would not take its earlier thinking back; this step runs without it`);
+      res = await send(false);
+    }
     if (!res.ok) {
       if (req.strictUsage || req.maxResponseBytes !== undefined) {
         void res.body?.cancel().catch(() => {});
@@ -224,6 +260,18 @@ export class AnthropicProvider implements Provider {
     if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
 
     const tools = new Map<number, { id: string; name: string; json: string; reported?: number }>();
+    // Z5: thinking blocks as they arrive (by position), then in order once each is complete.
+    const thinking = new Map<number, Record<string, unknown>>();
+    const thought: Record<string, unknown>[] = [];
+    let thoughtChars = 0;
+    let thoughtSaid = false;
+    const sayThought = function* (model: string): Generator<StreamEvent> {
+      if (thoughtSaid || !thought.length) return;
+      thoughtSaid = true;
+      // Never an empty count: with the text left out by the API, a block is still thinking that happened.
+      yield { type: 'reasoning', chars: Math.max(thoughtChars, thought.length) };
+      yield { type: 'thinking', kept: { model, blocks: thought } };
+    };
     let used: { input: number; output: number; cached: number } | undefined;
     let strictUsageInvalid = false;
     let strictInput = false;
@@ -248,8 +296,8 @@ export class AnthropicProvider implements Provider {
       let json: {
         type?: string;
         index?: number;
-        content_block?: { type?: string; id?: string; name?: string };
-        delta?: { type?: string; text?: string; partial_json?: string; stop_reason?: string | null };
+        content_block?: { type?: string; id?: string; name?: string; [k: string]: unknown };
+        delta?: { type?: string; text?: string; partial_json?: string; thinking?: string; signature?: string; stop_reason?: string | null };
         error?: { message?: string };
         message?: { usage?: AnthropicUsage };
         usage?: AnthropicUsage;
@@ -267,11 +315,21 @@ export class AnthropicProvider implements Provider {
             tools.set(json.index ?? 0, { id: json.content_block.id ?? '', name: json.content_block.name ?? '', json: '' });
             // Phase 63: the app shows the call from its first moment.
             yield { type: 'tool_delta', index: json.index ?? 0, ...(json.content_block.id ? { id: json.content_block.id } : {}), name: json.content_block.name ?? '', args: '' };
+          } else if (json.content_block?.type === 'thinking') {
+            thinking.set(json.index ?? 0, { type: 'thinking', thinking: typeof json.content_block.thinking === 'string' ? json.content_block.thinking : '', signature: typeof json.content_block.signature === 'string' ? json.content_block.signature : '' });
+          } else if (json.content_block?.type === 'redacted_thinking') {
+            thinking.set(json.index ?? 0, { ...json.content_block });
           }
           break;
         case 'content_block_delta':
           if (json.delta?.type === 'text_delta' && json.delta.text) yield { type: 'text', text: json.delta.text };
-          else if (json.delta?.type === 'input_json_delta') {
+          else if (json.delta?.type === 'thinking_delta' || json.delta?.type === 'signature_delta') {
+            const b = thinking.get(json.index ?? 0);
+            if (b && json.delta.type === 'thinking_delta' && json.delta.thinking) {
+              b.thinking = `${b.thinking as string}${json.delta.thinking}`;
+              thoughtChars += json.delta.thinking.length;
+            } else if (b && json.delta.type === 'signature_delta' && json.delta.signature) b.signature = `${b.signature as string}${json.delta.signature}`;
+          } else if (json.delta?.type === 'input_json_delta') {
             const t = tools.get(json.index ?? 0);
             if (t) {
               t.json += json.delta.partial_json ?? '';
@@ -285,6 +343,13 @@ export class AnthropicProvider implements Provider {
           }
           break;
         case 'content_block_stop': {
+          const th = thinking.get(json.index ?? 0);
+          if (th) {
+            thinking.delete(json.index ?? 0);
+            // A block with no signature cannot be handed back (cut off mid-block): leave it out.
+            if (th.type !== 'thinking' || th.signature) thought.push(th);
+            else thoughtChars ||= 1;
+          }
           const t = tools.get(json.index ?? 0);
           if (t) {
             tools.delete(json.index ?? 0);
@@ -309,6 +374,8 @@ export class AnthropicProvider implements Provider {
           } else if (json.delta?.stop_reason === 'refusal') yield { type: 'stop', reason: 'refusal' };
           break;
         case 'message_stop':
+          yield* sayThought(req.model);
+          if (!thoughtSaid && thoughtChars) yield { type: 'reasoning', chars: thoughtChars };
           if (req.strictUsage && (strictUsageInvalid || !strictInput || !strictOutput || !used || !Number.isSafeInteger(used.input) || !Number.isSafeInteger(used.output))) yield { type: 'usage', input: NaN, output: NaN };
           else if (used) yield { type: 'usage', input: used.input, output: used.output, ...(used.cached ? { cached: used.cached } : {}) };
           return;

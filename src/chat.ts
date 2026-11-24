@@ -31,7 +31,7 @@ import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, re
 import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
 import { madeDocs } from './documents/make.ts';
 import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob, modelStats } from './auto-route.ts';
-import { isToolsUnsupported, seesPictures, type ChatMessage, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
+import { isToolsUnsupported, seesPictures, withKeptThinking, type ChatMessage, type KeptThinking, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
 import type { Scrapbook } from './scrapbook.ts';
@@ -318,6 +318,8 @@ export interface AppContext {
   stopTurn?: (conversationId: string) => boolean;
   /** Phase 38: meaning search over memory notes (when the embeddings job is set). */
   vectors?: MemoryVectors;
+  /** Z7: tools picked by what a message means (src/tool-meaning.ts); absent = the word lists alone. */
+  toolMeaning?: import('./tool-meaning.ts').ToolMeaning;
   /** Set by the server: true while a turn runs in that conversation. */
   isBusy?: (conversationId: string) => boolean;
   /** Phase 116 (BR2 B5): steers and queued messages of this app's conversations (src/pending.ts; made on first use). */
@@ -579,7 +581,17 @@ export type Job = RoutePurpose | 'turn';
 const INHERIT: Partial<Record<RoutePurpose, RoutePurpose>> = { background: 'chat', planning: 'background', quick: 'background', writing: 'background', research: 'chat', vision: 'chat', adult: 'chat', coding: 'chat', review: 'coding', screen: 'vision' };
 // Phase 92: "Seeing your screen" (pictures of the owner's desktop) falls back to Looking at pictures, then the talking model.
 /** Asks that are web research ("look up", "research", "find out…"), for the research job. */
-export const RESEARCH_RE = /\b(research|look (it |this |that )?up|find out|search (the web|online|for)|dig into|compare (prices|reviews)|what are people saying)\b/i;
+// Z6 (scripts/eval-tools.ts): six languages; and "research" counts when it is asked of her ("research the
+// best…", "can you research…"), not when it is a thing someone does ("my brother does cancer research").
+export const RESEARCH_RE = new RegExp(
+  [
+    '(?:^|[.!?:;,]\\s*|\\b(?:please|pls|can you|could you|would you|will you|you to|to|go|and|then|now)\\s+)research\\b(?!\\s+(?:is|was|shows|says|suggests|paper|papers|lab|team|grant|job)\\b)',
+    '\\b(?:look (?:it |this |that )?up|find out|search (?:the web|online|for)|dig into|compare (?:prices|reviews)|what are people saying)\\b',
+    // es, fr, de, pt, it: the same asks (accents optional).
+    '(?:^|[.!?:;,¿¡]\\s*|\\s)(?:investiga|investigue|averigua|busca en (?:la web|internet|linea)|(?<!\\b(?:la|une|de|ma|sa|ta|cette|leur)\\s)recherche[sz]?(?=\\s+(?:les|le|la|des|un|une|sur|quels?|quelles?|combien|comment|ce|ces)\\b)|renseigne[- ]toi|cherche (?:sur|en ligne)|recherchiere|recherchier|finde heraus|such(?:e)? im (?:internet|netz|web)|pesquise|pesquisa(?=\\s+(?:sobre|os|as|o|a|quais|qual|como|quanto)\\b)|descubra|procure na (?:web|internet)|ricerca(?=\\s+(?:su|i|le|il|la|quali|quanto|come)\\b)|fai una ricerca|scopri|cerca (?:sul web|online|su internet))(?=\\s|$)',
+  ].join('|'),
+  'i',
+);
 
 export interface ModelChoice {
   provider: Provider;
@@ -3198,6 +3210,17 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     const ownerTurnIds = store.messages(conv.id).filter((m) => m.role === 'user' && !m.meta?.steer).map((m) => m.id).reverse();
     turnTools = leanFor(leanSet, leanPlace ? tools : tools.filter((t) => t.spec.name !== FIND_TOOLS), { text, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', local: provider.config.local === true && !isCloudModelName(model), turnId: userMsg.id, ownerTurnIds, skillText, goal: Boolean(opts.persist), permission: (n: string) => app.tools.permission(n, app.settings.get().toolPermissions), ...(!leanPlace || chatOff || opts.replay ? { force: 'off' as const } : {}) }, loads, loads.filter((r) => r.pinned).map((r) => r.tool));
     if (!turnTools.lean) tools = tools.filter((t) => t.spec.name !== FIND_TOOLS);
+    // Z7: on top of the words, the few tools nearest to what the message means (the embedding model of
+    // memory's meaning search; none, slow or failing = the words alone). A private chat only with an
+    // embedding model on this computer; a replay offers what the run offered.
+    const meaning = app.toolMeaning;
+    if (meaning && turnTools.lean && text.trim() && !opts.replay) {
+      const et = embedTarget(app);
+      if (et && (!conv.private || (et.config.local === true && !isCloudModelName(et.model)))) {
+        const meant = await meaning.pick(text, tools, new Set(turnTools.offered.keys())).catch(() => [] as string[]);
+        if (meant.length) turnTools.add(meant, 'meant');
+      }
+    }
   }
   /** Writes this turn's loads (asked, ref, skill, find, used) to tool_loads; `n` = how many are written. */
   let loadsWritten = 0;
@@ -3242,6 +3265,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   let emptyRetried = false;
   let rescued = false;
   let thinkOffNext = false;
+  /** Z5: what a model thought before a step's tool calls, handed back to that model with the results (this turn only, never stored). */
+  const keptThinking = new Map<string, KeptThinking>();
   /** Tools as they were before the guard paused them (an owner steer brings them back). */
   let toolsBeforePause: typeof tools | undefined;
   let crisisSteer = false;
@@ -3725,6 +3750,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     }
     let reply = '';
     let reasoningChars = 0;
+    let stepThinking: KeptThinking | undefined;
     /** X1: the reply hit the output limit or was declined by the provider. */
     let stopReason: 'length' | 'refusal' | undefined;
     const calls: ToolCall[] = [];
@@ -3749,7 +3775,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const slowMs = slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
       // X1: a busy server gets two more tries only when no other model is waiting to take over (Phase 38
       // hands over at once when one is).
-      const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages, tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(ci < chain.length - 1 ? { tries: 0 } : {}), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
+      const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages: withKeptThinking(messages, keptThinking), tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(ci < chain.length - 1 ? { tries: 0 } : {}), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
       for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
         if (ev.type === 'slow_mark') {
           slowSaid = true;
@@ -3770,11 +3796,14 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
           calls.push(ev.call);
         } else if (ev.type === 'reasoning') {
           reasoningChars += ev.chars;
+        } else if (ev.type === 'thinking') {
+          stepThinking = ev.kept;
         } else if (ev.type === 'stop') {
           stopReason = ev.reason;
         }
       }
       yield* building.flush();
+      if (stepThinking && calls.length) keptThinking.set(calls[0]!.id, stepThinking);
       noteCall(app, provider.config);
     } catch (err) {
       // Interrupt now: the owner's message stopped this call. What she had written stays (marked

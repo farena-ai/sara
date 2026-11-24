@@ -38,7 +38,7 @@ export interface EmbedTarget {
 }
 
 /** Some embedding models want a task prefix (nomic: search_query / search_document). */
-function prefixed(model: string, kind: 'query' | 'doc', text: string): string {
+export function prefixed(model: string, kind: 'query' | 'doc', text: string): string {
   if (/nomic-embed/i.test(model)) return `${kind === 'query' ? 'search_query' : 'search_document'}: ${text}`;
   if (/mxbai-embed/i.test(model) && kind === 'query') return `Represent this sentence for searching relevant passages: ${text}`;
   return text;

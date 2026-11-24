@@ -269,6 +269,8 @@ export const SAFETY_PINS = ['stop_job', 'job_status', 'preview_stop', 'ssh_revok
 const SAFETY_SET = new Set<string>(SAFETY_PINS);
 /** Families offered whole once any working tool of theirs is offered (never half a remote session). */
 const WHOLE_FAMILIES = new Set(['ssh', 'computer']);
+/** Z7: families that are offered whole (one tool brings the rest): never added on a guess (src/tool-meaning.ts). */
+export const WHOLE_FAMILY_IDS: ReadonlySet<string> = WHOLE_FAMILIES;
 export const FIND_TOOLS = 'find_tools';
 /**
  * 3.6.x (do it for them): a doing word (remove, uninstall, clean, fix, delete, disable…) about something on the
@@ -323,6 +325,8 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'add a comment', 'leave a comment', 'a comment asking', 'comment on the', 'move the paragraph', 'move this paragraph', 'move that paragraph', 'anade un comentario', 'deja un comentario', 'mueve el parrafo', 'ajoute un commentaire', 'laisse un commentaire', 'deplace le paragraphe', 'kommentar hinzufugen', 'einen kommentar', 'absatz verschieben', 'adicione um comentario', 'deixe um comentario', 'mova o paragrafo', 'aggiungi un commento', 'lascia un commento', 'sposta il paragrafo',
     // fill_document: forms and templates to fill in.
     // S11 humanize_text: "make it sound human" (six languages, folded).
+    // Z6: "a robot wrote this", "sound like a person".
+    'like a robot', 'robot wrote', 'sounds like a robot', 'like a person', 'like a human', 'like a real person', 'como un robot', 'como una persona', 'comme un robot', 'comme une personne', 'wie ein roboter', 'wie ein mensch', 'como um robo', 'como uma pessoa', 'come un robot', 'come una persona',
     'sound human', 'sound natural', 'more natural', 'less stiff', 'sounds like ai', 'sound like me',
     // U1.1 real-model run: everyday phrasings that missed ("sound more human", "less robotic", "like AI").
     'more human', 'sound more human', 'less robotic', 'too robotic', 'sounds robotic', 'like ai', 'humanise', 'my voice', 'humanize', 'rewrite', 'reword', 'mas natural', 'reescribe', 'reescribir', 'mi voz', 'plus naturel', 'reecris', 'reecrire', 'ma voix', 'naturlicher', 'umschreiben', 'schreib um', 'meine stimme', 'mais natural', 'reescreva', 'reescrever', 'minha voz', 'piu naturale', 'riscrivi', 'riscrivere', 'la mia voce',
@@ -337,7 +341,10 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
   // 3.3.0 (ezplain): settings by asking (change_setting).
   settings: ['text', 'font', 'bigger', 'larger', 'smaller', 'zoom', 'dark mode', 'light mode', 'night mode', 'day mode', 'theme', 'color', 'colour', 'your voice', 'voice', 'mute', 'call me', 'my name', 'texto', 'letra', 'modo oscuro', 'tema', 'voz', 'llamame', 'texte', 'police', 'mode sombre', 'couleur', 'voix', 'appelle moi', 'schrift', 'grosser', 'dunkelmodus', 'farbe', 'stimme', 'nenn mich', 'fonte', 'maior', 'modo escuro', 'cor', 'me chame', 'testo', 'carattere', 'piu grande', 'tema scuro', 'colore', 'voce', 'chiamami'],
   // E1 (docs/DATA.md): live prices, scores and odds; "tell me when"; totals from their spreadsheets.
-  'live-data': ['stock', 'stocks', 'share price', 'shares', 'ticker', 'portfolio', 'stock price', 'market', 'score', 'scores', 'game', 'games', 'standings', 'schedule', 'odds', 'spread', 'line', 'moneyline', 'over under',
+  'live-data': [
+    // Z6: how people ask about a game without the word "score" (six languages, folded).
+    'win', 'won', 'who won', 'play next', 'plays next', 'playing tonight', 'next game', 'next match', 'final score', 'gano', 'ganaron', 'quien gano', 'proximo partido', 'a gagne', 'ont gagne', 'qui a gagne', 'prochain match', 'gewonnen', 'wer hat gewonnen', 'nachstes spiel', 'ganhou', 'ganharam', 'quem ganhou', 'proximo jogo', 'ha vinto', 'hanno vinto', 'chi ha vinto', 'prossima partita',
+    'stock', 'stocks', 'share price', 'shares', 'ticker', 'portfolio', 'stock price', 'market', 'score', 'scores', 'game', 'games', 'standings', 'schedule', 'odds', 'spread', 'line', 'moneyline', 'over under',
     'accion', 'acciones', 'precio de la accion', 'cartera', 'bolsa', 'marcador', 'partido', 'clasificacion', 'cuotas', 'apuestas',
     'action', 'actions', 'cours', 'cours de bourse', 'portefeuille', 'bourse', 'match', 'classement', 'cotes', 'paris',
     'aktie', 'aktien', 'aktienkurs', 'kurs', 'depot', 'borse', 'spielstand', 'spiel', 'tabelle', 'quoten', 'wetten',
@@ -467,7 +474,12 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'meu time', 'seguir', 'jogo hoje a noite', 'placar', 'calendario', 'classificacao', 'lesao', 'lesoes', 'odds', 'linha', 'handicap', 'mais menos', 'multipla', 'aposta', 'apostas', 'banca', 'casa de apostas',
     'la mia squadra', 'seguire', 'partita stasera', 'punteggio', 'calendario', 'classifica', 'infortunio', 'infortuni', 'quote', 'linea', 'handicap', 'sopra sotto', 'multipla', 'scommessa', 'scommesse', 'puntata', 'cassa', 'bookmaker'],
   tables: ['spreadsheet', 'csv', 'xlsx', 'excel', 'total', 'totals', 'sum', 'average', 'hoja de calculo', 'suma', 'promedio', 'tableur', 'somme', 'moyenne', 'tabelle', 'summe', 'durchschnitt', 'planilha', 'soma', 'media', 'foglio di calcolo', 'somma'],
-  personality: ['personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],
+  // Z6: her own plans (agenda_*): the family had no words, so "what do you have planned" found nothing.
+  agenda: ['your plans', 'you planned', 'you have planned', 'planning to ask', 'check in with me', 'checking in with me', 'follow up with me', 'your follow ups', 'keep at it', 'help me stick', 'tus planes', 'tienes planeado', 'tes projets', 'tu as prevu', 'deine plane', 'hast du geplant', 'seus planos', 'voce planejou', 'i tuoi piani', 'hai in programma'],
+  personality: [
+    // Z6: asking her to act differently, without the word "personality".
+    'less formal', 'more formal', 'less serious', 'more serious', 'be nicer', 'be funnier', 'be more', 'be less', 'be a bit', 'be a little', 'your tone', 'tone it down', 'talk to me like', 'menos formal', 'mas formal', 'se mas', 'se menos', 'moins formel', 'plus formel', 'sois plus', 'sois moins', 'weniger formell', 'formeller', 'lockerer', 'sei etwas', 'mais formal', 'seja mais', 'seja menos', 'meno formale', 'piu formale', 'sii piu', 'sii meno',
+    'personality', 'personalidad', 'personnalite', 'personlichkeit', 'personalidade', 'personalita'],
   skills: ['skill', 'skills', 'recipe', 'habilidad', 'receta', 'competence', 'recette', 'fahigkeit', 'rezept', 'habilidade', 'receita', 'abilita', 'ricetta'],
   // E2: the shopping assistant (find_product, stores_near, product watches), six languages, folded.
   shopping: ['check in my browser', 'check it in my browser', 'check them in my browser', 'check the store in my browser', 'where can i buy', 'where to buy', 'in stock', 'near me', 'price of', 'cheapest', 'store', 'stores', 'amazon', 'walmart', 'target', 'home depot', 'best buy', 'lowes', 'buy', 'find me', 'back in stock', 'price drop',
@@ -484,7 +496,10 @@ export const FAMILY_WORDS: Readonly<Record<string, readonly string[]>> = {
     'compartilhar a lista', 'lista de compras', 'tarefas de casa', 'atribuir', 'atribuido', 'compartilhado comigo',
     'condividi la lista', 'lista della spesa', 'faccende', 'assegna', 'assegnato', 'condiviso con me'],
   // N7: clients (pipeline) and time tracking; six languages, folded.
-  clients: ['client', 'clients', 'customer', 'customers', 'lead', 'leads', 'pipeline', 'deal', 'deals', 'next step', 'timer', 'start a timer', 'stop the timer', 'stop my timer', 'track time', 'log time', 'hours', 'my hours', 'time report', 'billable', 'invoice my hours', 'rate', 'hourly',
+  clients: [
+    // Z6: the timer by other names.
+    'start the clock', 'stop the clock', 'on the clock', 'clock in', 'clock out', 'clocking in', 'clocking out', 'start timing', 'stop timing', 'empieza a contar', 'para el reloj', 'lance le chrono', 'arrete le chrono', 'stoppuhr', 'zeit stoppen', 'comeca a contar', 'para o relogio', 'fai partire il cronometro', 'ferma il cronometro',
+    'client', 'clients', 'customer', 'customers', 'lead', 'leads', 'pipeline', 'deal', 'deals', 'next step', 'timer', 'start a timer', 'stop the timer', 'stop my timer', 'track time', 'log time', 'hours', 'my hours', 'time report', 'billable', 'invoice my hours', 'rate', 'hourly',
     'cliente', 'clientes', 'embudo', 'oportunidad', 'temporizador', 'cronometro', 'horas', 'mis horas', 'registrar horas', 'facturar mis horas', 'tarifa',
     'clients', 'prospect', 'minuteur', 'chronometre', 'heures', 'mes heures', 'saisir des heures', 'facturer mes heures', 'tarif horaire',
     'kunde', 'kunden', 'auftrag', 'zeiterfassung', 'stoppuhr', 'stunden', 'meine stunden', 'stunden abrechnen', 'stundensatz',
@@ -506,7 +521,8 @@ const STOP = new Set(['a', 'an', 'the', 'to', 'of', 'on', 'in', 'for', 'and', 'o
 // tool_loads (§4.12)
 // ---------------------------------------------------------------------------------------------
 
-export type Reason = 'core' | 'safety' | 'pinned' | 'asked' | 'ref' | 'recent' | 'skill' | 'goal' | 'find' | 'used';
+/** Z7: 'meant' = near what the message means (src/tool-meaning.ts); for this turn only, not kept like 'asked'. */
+export type Reason = 'core' | 'safety' | 'pinned' | 'asked' | 'meant' | 'ref' | 'recent' | 'skill' | 'goal' | 'find' | 'used';
 
 export function ensureLeanTables(db: DatabaseSync): void {
   db.exec(`CREATE TABLE IF NOT EXISTS tool_loads (

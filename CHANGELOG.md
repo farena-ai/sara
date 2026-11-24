@@ -5,6 +5,17 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.40.0 (2026-11-23): The right tool at hand, the newest Claude models, research in six languages
+
+- New: she picks her tools by what you mean, not only by the words you use. With Meaning search on (Settings → Which model does what → More jobs), "I'm starting on the Miller job, track my time" or "stop sugarcoating things" now find the right tool without the exact words. Without Meaning search nothing changes.
+
+- Fixed: she has the right tool at hand for more everyday ways of asking: "did the Packers win?", "when do the Lakers play next?", "start the clock", "be a bit less formal", "this sounds like a robot wrote it". Before, she had to go looking for the tool first, or answered without it.
+- Fixed: asking her to research something in Spanish, French, German, Portuguese or Italian goes to your research model, as it did in English; and a sentence that only mentions research ("my brother does cancer research") no longer does.
+- For developers: `npm run eval:tools` measures whether a message reaches the right tool and the right model, with or without a real model (docs/TOOL_EVALS.md).
+
+- Fixed: the newest Claude models work with an API key. Opus 4.7 and later, Sonnet 5 and later, Haiku 5.5 and Fable refuse a setting Sara sent with her background work (her day, memory notes, the small yes-or-no checks), so those calls failed; and because these models think before they answer, short checks came back empty. Both are fixed. Claude through a Claude subscription was not affected.
+- New: with a Claude model on an API key, what the model worked out before using a tool is handed back to it with the result, so it carries on from its own reasoning instead of starting over at every step of a longer job.
+
 ## 3.39.0 (2026-11-23): Quicker to open, a tidier screen, Sara's own installer look
 
 - Fixed: opening or reloading the app is quicker. Your browser now keeps the app's own files (about 250 scripts and stylesheets) and stops asking the server about each one on every load; a new version is still picked up on the next load. The first load after an update is quicker too: everything is fetched in one go instead of in waves.

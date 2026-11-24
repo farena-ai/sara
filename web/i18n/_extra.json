@@ -261,7 +261,7 @@
   "Memory and summaries",
   "Noting what matters from your conversations, summaries and other behind-the-scenes work. A fast, cheap model is fine.",
   "Meaning search",
-  "Lets her memory find things said in other words (\"the cabin\" finds \"our Pine Lake trip\"). Needs an embedding model, e.g. on Ollama: ollama pull nomic-embed-text. Off: she searches by words.",
+  "Lets her memory find things said in other words (\"the cabin\" finds \"our Pine Lake trip\"). Needs an embedding model, e.g. on Ollama: ollama pull nomic-embed-text. Off: she searches by words. It also helps her have the right tool at hand when you ask in your own words.",
   "Private conversations",
   "Private conversations only use models on your own hardware. Pick a local model (not an Ollama cloud model).",
   "Adult",

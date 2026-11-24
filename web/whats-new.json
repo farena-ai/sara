@@ -2,6 +2,38 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.40.0",
+   "date": "2026-11-23",
+   "title": "The right tool at hand, the newest Claude models, research in six languages",
+   "items": [
+    {
+     "id": "3-40-0-she-picks-her-tools-by",
+     "kind": "new",
+     "text": "She picks her tools by what you mean, not only by the words you use."
+    },
+    {
+     "id": "3-40-0-with-a-claude-model-on",
+     "kind": "new",
+     "text": "With a Claude model on an API key, what the model worked out before using a tool is handed back to it with the result."
+    },
+    {
+     "id": "3-40-0-she-has-the-right-tool",
+     "kind": "fixed",
+     "text": "She has the right tool at hand for more everyday ways of asking: \"did the Packers win?\", \"when do the Lakers play next?\", \"start the clock\", \"be a bit less formal\"."
+    },
+    {
+     "id": "3-40-0-asking-her-to-research-something",
+     "kind": "fixed",
+     "text": "Asking her to research something in Spanish, French, German, Portuguese or Italian goes to your research model, as it did in English."
+    },
+    {
+     "id": "3-40-0-the-newest-claude-models-work",
+     "kind": "fixed",
+     "text": "The newest Claude models work with an API key."
+    }
+   ]
+  },
+  {
    "version": "3.39.0",
    "date": "2026-11-23",
    "title": "Quicker to open, a tidier screen, Sara's own installer look",
@@ -239,50 +271,6 @@
      "id": "3-34-0-search-help-type-a-word",
      "kind": "new",
      "text": "Search help. Type a word or a question under Help → Search help, or at the top of the guide, and she finds the answer among every How do I…?, every setting and its tip."
-    }
-   ]
-  },
-  {
-   "version": "3.33.0",
-   "date": "2026-11-19",
-   "title": "One personality, weekly check-in, easier installs, first ten minutes, host a friend",
-   "items": [
-    {
-     "id": "3-33-0-how-sara-comes-across-settings",
-     "kind": "new",
-     "text": "How Sara comes across (Settings → Sara → Name and personality): one personality for chat, her voice, email drafts and your website receptionist.",
-     "try": [
-      "comes-across"
-     ]
-    },
-    {
-     "id": "3-33-0-her-weekly-check-in-shows-what",
-     "kind": "new",
-     "text": "Her weekly check-in shows what she did, what failed and what cost money, with three ideas you can accept in one tap.",
-     "link": "#view=money",
-     "try": [
-      "her-week"
-     ]
-    },
-    {
-     "id": "3-33-0-the-first-ten-minutes-set",
-     "kind": "new",
-     "text": "The first ten minutes: Set up Sara looks at this computer and offers the right way to run her model, then ends with three quick wins."
-    },
-    {
-     "id": "3-33-0-host-a-sara-for-a",
-     "kind": "new",
-     "text": "Host a Sara for a friend (Settings → Household → People on this server)."
-    },
-    {
-     "id": "3-33-0-every-installer-checks-the-machine",
-     "kind": "new",
-     "text": "Every installer checks the machine before it changes anything: disk space, memory, the port, the system and its version, a 64-bit CPU, an earlier install."
-    },
-    {
-     "id": "3-33-0-when-another-program-already-uses",
-     "kind": "fixed",
-     "text": "When another program already uses her port, Sara now says so with the next step instead of stopping with a long error."
     }
    ]
   }

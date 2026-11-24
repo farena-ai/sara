@@ -27,7 +27,7 @@ export const JOBS: JobInfo[] = [
   { id: 'review', label: 'Reviewing', tip: 'The second look at her code changes for security problems (after coding turns). A strong model is best; when this is empty, the Coding model does it.' },
   { id: 'quick', label: 'Quick replies', tip: 'Short messages she sends by herself and short notes about finished jobs. A small, fast model is fine.' },
   { id: 'background', label: 'Memory and summaries', tip: 'Noting what matters from your conversations, summaries and other behind-the-scenes work. A fast, cheap model is fine.' },
-  { id: 'embeddings', label: 'Meaning search', tip: 'Lets her memory find things said in other words ("the cabin" finds "our Pine Lake trip"). Needs an embedding model, e.g. on Ollama: ollama pull nomic-embed-text. Off: she searches by words.', advanced: true },
+  { id: 'embeddings', label: 'Meaning search', tip: 'Lets her memory find things said in other words ("the cabin" finds "our Pine Lake trip"). Needs an embedding model, e.g. on Ollama: ollama pull nomic-embed-text. Off: she searches by words. It also helps her have the right tool at hand when you ask in your own words.', advanced: true },
   { id: 'private', label: 'Private conversations', tip: 'Private conversations only use models on your own hardware. Pick a local model (not an Ollama cloud model).', advanced: true },
   { id: 'adult', label: 'Adult', tip: 'Used when a conversation turns explicit (only with Adult mode on). Cloud models often refuse; pick one that allows it.', advanced: true },
   { id: 'screen', label: 'Seeing your screen', tip: 'Reads the pictures when Sara looks at your computer screen. Empty: the Looking at pictures model does. A local model keeps screenshots on your own hardware.', advanced: true },
