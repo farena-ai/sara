@@ -201,6 +201,9 @@ export class OpenAICompatibleProvider implements Provider {
         ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
         ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
         ...(req.reasoning && isOllama(this.config.baseUrl) ? { reasoning_effort: req.reasoning } : {}),
+        // S2: an answer that must fit a JSON Schema (ChatRequest.json). Ollama holds the model to it;
+        // other servers differ in what they accept, so they get the prompt alone, as before.
+        ...(req.json && (isOllama(this.config.baseUrl) || isDaemon(this.config.baseUrl)) ? { response_format: { type: 'json_schema', json_schema: { name: 'answer', schema: req.json.schema } } } : {}),
       }),
     });
     if (!res.ok) {
@@ -306,6 +309,7 @@ export class OpenAICompatibleProvider implements Provider {
         ...(req.tools?.length ? { tools: req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })) } : {}),
         options: { num_ctx: numCtx, ...(req.temperature !== undefined ? { temperature: req.temperature } : {}), ...(req.maxTokens !== undefined ? { num_predict: req.maxTokens } : {}) },
         ...(think !== undefined ? { think } : {}),
+        ...(req.json ? { format: req.json.schema } : {}),
       }),
     });
     if (res.status === 404 || res.status === 405) {

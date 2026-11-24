@@ -2,6 +2,38 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.41.0",
+   "date": "2026-11-24",
+   "title": "Meaning search with no setup, a thinking level, quicker long chats",
+   "items": [
+    {
+     "id": "3-41-0-meaning-search-turns-itself-on",
+     "kind": "new",
+     "text": "Meaning search turns itself on. When an embedding model is already on this computer (for example in Ollama), she sets Meaning search to it once."
+    },
+    {
+     "id": "3-41-0-research-asks-said-your-own",
+     "kind": "new",
+     "text": "Research asks said your own way (\"look into which air purifiers are worth buying\", \"get to the bottom of whether robot vacuums are worth it\") reach your research model."
+    },
+    {
+     "id": "3-41-0-how-hard-she-thinks-settings",
+     "kind": "new",
+     "text": "\"How hard she thinks\" (Settings → Models & usage → Default model): Quick, Balanced or Thorough."
+    },
+    {
+     "id": "3-41-0-on-a-computer-that-keeps",
+     "kind": "fixed",
+     "text": "On a computer that keeps one model loaded at a time, finding tools and research asks by meaning made every turn wait for two model loads and often got nothing for it."
+    },
+    {
+     "id": "3-41-0-a-new-install-is-no",
+     "kind": "fixed",
+     "text": "A new install is no longer told its backups are more than 2 days old before the first one is made."
+    }
+   ]
+  },
+  {
    "version": "3.40.0",
    "date": "2026-11-23",
    "title": "The right tool at hand, the newest Claude models, research in six languages",
@@ -226,51 +258,6 @@
      "id": "3-35-0-kid-mode-v2-sets-rules",
      "kind": "new",
      "text": "Kid mode v2 sets rules by age band, with time requests you approve from your phone and a parent dashboard."
-    }
-   ]
-  },
-  {
-   "version": "3.34.0",
-   "date": "2026-11-19",
-   "title": "Public records report, Handle it, memory lane, MCP both ways, team workspace",
-   "items": [
-    {
-     "id": "3-34-0-a-public-records-report-for-personal",
-     "kind": "new",
-     "text": "A public-records report for personal use: she searches free public sources, cites every fact and saves a PDF marked NOT FCRA COMPLIANT on every page.",
-     "owner": true,
-     "try": [
-      "records-report"
-     ]
-    },
-    {
-     "id": "3-34-0-handle-it-on-a-renewal",
-     "kind": "new",
-     "text": "Handle it on a renewal, a return, a bill, a Maybe cancel suggestion and a Library form.",
-     "try": [
-      "handle-it"
-     ]
-    },
-    {
-     "id": "3-34-0-memory-lane-in-your-story",
-     "kind": "new",
-     "text": "Memory lane in Your story writes \"My year 2026\" or a trip story from your own photos, journal and moments, with local models only.",
-     "link": "#view=trips"
-    },
-    {
-     "id": "3-34-0-popular-free-tool-servers-in",
-     "kind": "new",
-     "text": "Popular free tool servers in one click: Settings → Skills & tools → Other programs (MCP) lists free, open-source MCP servers."
-    },
-    {
-     "id": "3-34-0-a-team-workspace-in-business",
-     "kind": "new",
-     "text": "A team workspace in business mode. A Team tab with team roles (owner, admin, member, guest) and one table of who may do what; guests only read."
-    },
-    {
-     "id": "3-34-0-search-help-type-a-word",
-     "kind": "new",
-     "text": "Search help. Type a word or a question under Help → Search help, or at the top of the guide, and she finds the answer among every How do I…?, every setting and its tip."
     }
    ]
   }

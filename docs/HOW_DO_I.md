@@ -661,7 +661,7 @@ them in one place. In the app, open the box and press **Show me** to see the con
 1. Remove a model you don't use from its row.
 2. Ollama deletes its files.
 
-### Budgets
+### A limit for each reply
 
 **How do I limit what a coding reply may use?**
 

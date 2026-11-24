@@ -737,6 +737,25 @@ let the compiler list every name it can no longer find, pass exactly those as on
 trap: a variable whose name is also a global compiles and fails at run time
 (`test/z3-tool-call-env.test.ts`).
 
+## The thinking level and structured answers (S2)
+
+`settings.thinking` ('quick' | 'balanced' | 'thorough', Settings → Models & usage → Default model, "How hard she thinks")
+becomes `ChatRequest.reasoning` on the main turn's model calls (`THINK_LEVEL` in src/chat.ts: low,
+nothing, high). A talk turn, a budget plan's "no thinking" and every background job still send
+'none'. What each provider does with it:
+
+| Provider | reasoning | json (a JSON Schema the answer must fit) |
+|---|---|---|
+| Claude, API key (src/providers/anthropic.ts) | `output_config.effort`, by model (claude-traits.ts) | `output_config.format` |
+| Claude, subscription (the CLI, cli-agent.ts) | `--effort`, when `claude --help` lists it and the model has the setting (opus, sonnet, by name; the bare "haiku" not); 'none' = low | not sent (the CLI's `--json-schema` is not wired: no signed-in CLI to check its output against) |
+| ChatGPT subscription | `reasoning.effort` | not sent |
+| Ollama | `reasoning_effort` on /v1, `think` on /api/chat | `response_format` on /v1, `format` on /api/chat |
+| Other OpenAI-compatible servers | not sent | not sent |
+
+A caller that passes `json` must still ask for JSON in its prompt and read the answer with care
+(`jsonIn`): most providers ignore it. The security review (`REVIEW_SCHEMA`, src/security/pass.ts) is
+the first judge that passes one; the others move over one at a time, each with a before and after.
+
 ## Claude models on the Anthropic API (Z5, 2026-11-23)
 
 `src/providers/claude-traits.ts` is the one place that knows what each Claude model accepts;

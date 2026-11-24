@@ -293,6 +293,8 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         return send(res, 200, {
           jobs: JOBS,
           vectors: app.vectors?.status() ?? null,
+          // S4: she stopped asking the embedding model for a while because it kept answering late (src/tool-meaning.ts).
+          meaningResting: app.toolMeaning?.resting === true,
           costs: Object.fromEntries(s.providers.map((p) => [p.id, { local: Boolean(p.local), hint: costHint(p, p.defaultModel ?? '') }])),
           pictures: pictureNotices(app),
         });
@@ -593,7 +595,7 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
           const all = await factory(config, app.vault.get(vaultKeyFor(b)), app.subscriptions).listModels(AbortSignal.timeout(15000));
           // Embedding models can't chat; leave them out of the pickers.
           const models = all.filter((m) => !/embed/i.test(m));
-          return send(res, 200, { models, hidden: all.length - models.length });
+          return send(res, 200, { models, hidden: all.length - models.length, embedding: all.filter((m) => /embed|\bbge-m3\b/i.test(m)) });
         } catch (err) {
           throw new HttpError(502, (err as Error).message);
         }

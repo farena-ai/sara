@@ -15,6 +15,7 @@ import type { AddressInfo } from 'node:net';
 import { dirname, join, resolve } from 'node:path';
 import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
+import { claudeTraits } from './claude-traits.ts';
 import { ProviderError, type ChatMessage, type ChatRequest, type Provider, type ProviderConfig, type StreamEvent, type ToolSpec } from './types.ts';
 
 const BRIDGE = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'agent-bridge.ts');
@@ -297,6 +298,15 @@ export class CliAgentProvider implements Provider {
     return env;
   }
 
+  /** Models the CLI refused an effort level for: asked without it from then on (this process). */
+  readonly #noEffort = new Set<string>();
+  #help: Promise<string> | undefined;
+  /** Does this CLI know a flag? Asked once (`--help`); an old CLI, or one that does not answer, knows none. */
+  async #knows(flag: string): Promise<boolean> {
+    this.#help ??= this.#run(['--help'], 10_000).catch(() => '');
+    return (await this.#help).includes(flag);
+  }
+
   /** Runs a short CLI command (models, status). */
   #run(args: string[], timeoutMs: number): Promise<string> {
     return new Promise((res, rej) => {
@@ -393,6 +403,12 @@ export class CliAgentProvider implements Provider {
         s.files.push(mcpFile);
       }
     }
+    // S2: how hard to think (ChatRequest.reasoning), where the CLI and the model take it. 'none' is
+    // the least there is. The bare "haiku" name can still mean a model that has no effort setting.
+    const effort =
+      this.#rt.kind === 'claude' && req.reasoning && (/^(opus|sonnet)$/i.test(req.model) || claudeTraits(req.model).effort) && !this.#noEffort.has(req.model) && (await this.#knows('--effort'))
+        ? req.reasoning === 'none' ? 'low' : req.reasoning
+        : undefined;
     const args =
       this.#rt.kind === 'claude'
         ? [
@@ -403,6 +419,7 @@ export class CliAgentProvider implements Provider {
             '--no-session-persistence', '--setting-sources', '', '--strict-mcp-config',
             ...(mcpFile ? ['--mcp-config', mcpFile, '--allowedTools', 'mcp__sara'] : []),
             '--model', req.model,
+            ...(effort ? ['--effort', effort] : []),
           ]
         : [
             '--prompt-file', join(this.#rt.tmpDir, `agent-${s.id}-prompt.txt`),
@@ -434,13 +451,18 @@ export class CliAgentProvider implements Provider {
         return;
       }
       const type = e.type;
-      const inner = (type === 'stream_event' ? e.event : type === 'content_block_delta' ? e : undefined) as { type?: string; delta?: { type?: string; text?: string } } | undefined;
+      const inner = (type === 'stream_event' ? e.event : type === 'content_block_delta' ? e : undefined) as { type?: string; delta?: { type?: string; text?: string; thinking?: string } } | undefined;
       if (inner?.type === 'content_block_delta' && inner.delta?.type === 'text_delta' && inner.delta.text) s.push({ type: 'text', text: inner.delta.text });
+      // S2: private thinking is counted (an answer that was only thinking is then known as such), never shown.
+      else if (inner?.type === 'content_block_delta' && inner.delta?.type === 'thinking_delta' && inner.delta.thinking) s.push({ type: 'reasoning', chars: inner.delta.thinking.length });
       else if (type === 'assistant') {
         const content = ((e.message as { content?: { type: string }[] } | undefined)?.content ?? []).filter((b) => b.type === 'tool_use');
         if (content.length) s.expectCalls(content.length);
       } else if (type === 'result') {
         sawResult = true;
+        const said = [String(e.result ?? ''), ...((e.errors as string[]) ?? [])].join(' ');
+        // A model that will not take an effort level: this call fails with the CLI's words, the next ones go without.
+        if (e.is_error && effort && /effort/i.test(said)) this.#noEffort.add(req.model);
         if (e.is_error) s.push({ type: 'fail', message: friendly(this.config.label, [String(e.result ?? ''), ...((e.errors as string[]) ?? [])].join(' ').trim() || stderr) });
         else s.push({ type: 'end' });
       }

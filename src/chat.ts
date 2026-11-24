@@ -31,7 +31,7 @@ import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, re
 import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
 import { madeDocs } from './documents/make.ts';
 import { autoChain, autoTiming, autoOn, forgetStats, isAutoJob, modelStats } from './auto-route.ts';
-import { isToolsUnsupported, seesPictures, withKeptThinking, type ChatMessage, type KeptThinking, type ImageData, type Provider, type ProviderConfig, type ToolCall } from './providers/types.ts';
+import { isToolsUnsupported, seesPictures, withKeptThinking, type ChatMessage, type ChatRequest, type KeptThinking, type ImageData, type Provider, type ProviderConfig, type ToolCall, type ToolSpec } from './providers/types.ts';
 import type { UploadStore } from './uploads.ts';
 import type { BriefingWorker } from './briefing.ts';
 import type { Scrapbook } from './scrapbook.ts';
@@ -583,6 +583,8 @@ const INHERIT: Partial<Record<RoutePurpose, RoutePurpose>> = { background: 'chat
 /** Asks that are web research ("look up", "research", "find out…"), for the research job. */
 // Z6 (scripts/eval-tools.ts): six languages; and "research" counts when it is asked of her ("research the
 // best…", "can you research…"), not when it is a thing someone does ("my brother does cancer research").
+/** S2: the thinking level of Settings as the effort a provider is asked for. */
+export const THINK_LEVEL: Record<'quick' | 'balanced' | 'thorough', 'low' | 'high' | undefined> = { quick: 'low', balanced: undefined, thorough: 'high' };
 export const RESEARCH_RE = new RegExp(
   [
     '(?:^|[.!?:;,]\\s*|\\b(?:please|pls|can you|could you|would you|will you|you to|to|go|and|then|now)\\s+)research\\b(?!\\s+(?:is|was|shows|says|suggests|paper|papers|lab|team|grant|job)\\b)',
@@ -2660,7 +2662,18 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 115 (BR1, §4.5): a private conversation with a picture model that isn't on this computer
     // stays on its local chain; the talking model gets a note instead of the picture (no throw).
     privateVisionOff = Boolean(conv.private && photosNow && visionSet && !visionOnThisComputer(app, jobRoutes.vision!));
-    job = adult && jobRoutes.adult ? 'turn' : photosNow && (visionSet || autoOn(app.settings.get(), 'vision')) && !privateVisionOff ? 'vision' : conv.mode !== 'coding' && (jobRoutes.research || autoOn(app.settings.get(), 'research')) && RESEARCH_RE.test(text) ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
+    const toVision = photosNow && (visionSet || autoOn(app.settings.get(), 'vision')) && !privateVisionOff;
+    const researchSet = conv.mode !== 'coding' && Boolean(jobRoutes.research || autoOn(app.settings.get(), 'research'));
+    let researchAsk = researchSet && RESEARCH_RE.test(text);
+    // S1: a research ask said without the usual words ("look into which air purifiers are worth
+    // buying") is found by what it means (src/tool-meaning.ts), with the embedding model of Meaning
+    // search. Only ever adds a yes; none, slow or failing = the words alone. A private chat only with
+    // an embedding model on this computer; a replay routes as the words did.
+    if (researchSet && !researchAsk && !(adult && jobRoutes.adult) && !toVision && !opts.replay && app.toolMeaning) {
+      const et = embedTarget(app);
+      if (et && (!conv.private || (et.config.local === true && !isCloudModelName(et.model)))) researchAsk = await app.toolMeaning.research(text).catch(() => false);
+    }
+    job = adult && jobRoutes.adult ? 'turn' : toVision ? 'vision' : researchAsk ? 'research' : opts.quickModel || saverQuick ? 'quick' : 'turn';
     chain = resolveChain(app, conv, job, adult);
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
@@ -3582,7 +3595,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 78 seam 1: right before the model call (the recorder opens its step here).
     // Phase 79: the budget's plan for this call (another model, no tools, a small summary, stop).
     let callMax: number | undefined;
-    let callThink: 'none' | undefined;
+    let callThink: 'none' | 'low' | 'high' | undefined;
     {
       const sent = new Set<ChatMessage>(hist.messages);
       const mc: BeforeModelCall = {
@@ -3635,7 +3648,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       }
       if (plan.noTools) tools = [];
       callMax = plan.maxTokens;
-      callThink = plan.noThinking ? 'none' : undefined;
+      // S2: the owner's thinking level (Settings); Balanced sends nothing and the model decides.
+      callThink = plan.noThinking ? 'none' : THINK_LEVEL[app.settings.get().thinking ?? 'balanced'];
     }
     if (thinkOffNext) {
       callThink = 'none';
@@ -3770,37 +3784,13 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
       const callCtx = ci === 0 ? turnHistory.numCtx : budgetOf({ provider: p, model: m }).numCtx;
       if (steerable) app.pending?.setPhase(conv.id, { kind: 'model' });
-      // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
-      const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
-      const slowMs = slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
-      // X1: a busy server gets two more tries only when no other model is waiting to take over (Phase 38
-      // hands over at once when one is).
-      const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages: withKeptThinking(messages, keptThinking), tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(ci < chain.length - 1 ? { tries: 0 } : {}), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), AbortSignal.any([signal, cut.signal]), chain[ci]?.from === 'auto' && ci < chain.length - 1 ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
-      for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
-        if (ev.type === 'slow_mark') {
-          slowSaid = true;
-          if (typeof p.loadedModels === 'function') void refreshPs(p);
-          const tr = slowTrouble({ providerId: p.config.id, service: p.config.label, model: m, cpu: onCpu, seconds: Math.round(slowMs / 1000) });
-          yield { type: 'slow', trouble: { ...tr, text: trOwner(tr.key, app.settings.get(), tr.params) } };
-          continue;
-        }
-        if (ev.type === 'text') {
-          reply += ev.text;
-          yield { type: 'token', text: ev.text };
-        } else if (ev.type === 'tool_progress') {
-          yield { type: 'tool_progress', name: ev.name, chars: ev.chars, ...(ev.path ? { path: ev.path } : {}) };
-        } else if (ev.type === 'tool_delta') {
-          const shown = building.add(ev);
-          if (shown) yield shown;
-        } else if (ev.type === 'tool_call') {
-          calls.push(ev.call);
-        } else if (ev.type === 'reasoning') {
-          reasoningChars += ev.chars;
-        } else if (ev.type === 'thinking') {
-          stepThinking = ev.kept;
-        } else if (ev.type === 'stop') {
-          stopReason = ev.reason;
-        }
+      const stepOut: ModelStepOut = { reply, reasoningChars, calls, thinking: stepThinking, stopReason, slowSaid };
+      try {
+        yield* streamModelStep({ app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain: ci >= chain.length - 1, auto: chain[ci]?.from === 'auto', signal: AbortSignal.any([signal, cut.signal]), building }, stepOut);
+      } finally {
+        // Also when the call failed part way: what she had written is kept by the catch below.
+        ({ reply, reasoningChars, stopReason, slowSaid } = stepOut);
+        stepThinking = stepOut.thinking;
       }
       yield* building.flush();
       if (stepThinking && calls.length) keptThinking.set(calls[0]!.id, stepThinking);
@@ -4249,6 +4239,76 @@ export function carUnread(app: AppContext, max = 3): string[] {
     .prepare("SELECT m.content FROM messages m JOIN conversations c ON c.id = m.conversation_id WHERE m.role = 'assistant' AND c.partner IS NULL AND m.created_at >= ? AND (m.meta LIKE '%\"proactive\"%' OR m.meta LIKE '%\"reminder\"%' OR m.meta LIKE '%\"job\"%' OR m.meta LIKE '%\"inbox\"%' OR m.meta LIKE '%\"automation\"%') ORDER BY m.id DESC LIMIT ?")
     .all(since, max) as { content: string }[];
   return rows.map((r) => r.content.replace(/\s+/g, ' ').trim().slice(0, 240)).filter(Boolean);
+}
+
+/**
+ * S3: what one model call of a step needs from the turn (the Z3 method: the block moved out of
+ * runTurnInner, and what it used passed as one typed object).
+ */
+interface ModelStepEnv {
+  app: AppContext;
+  p: Provider;
+  m: string;
+  messages: ChatMessage[];
+  keptThinking: Map<string, KeptThinking>;
+  offered: ToolSpec[];
+  outMax: number | undefined;
+  callThink: ChatRequest['reasoning'];
+  callCtx: number | undefined;
+  /** No other model waits to take over: a busy server gets its retries. */
+  lastInChain: boolean;
+  /** Auto picked this model: the shorter first-word deadline applies while another one waits. */
+  auto: boolean;
+  /** The turn's stop signal and "interrupt now", as one. */
+  signal: AbortSignal;
+  building: ToolStreamTracker;
+}
+/** What the call has produced so far. Filled as it streams, so a call that fails keeps what it wrote. */
+interface ModelStepOut {
+  reply: string;
+  reasoningChars: number;
+  calls: ToolCall[];
+  thinking: KeptThinking | undefined;
+  stopReason: 'length' | 'refusal' | undefined;
+  /** The "this is slow" notice was shown (once per turn). */
+  slowSaid: boolean;
+}
+
+/** One model call of a step: streams it, passes her words and tool-call previews on, fills `step`. */
+async function* streamModelStep(env: ModelStepEnv, step: ModelStepOut): AsyncGenerator<ChatEvent> {
+  const { app, p, m, messages, keptThinking, offered, outMax, callThink, callCtx, lastInChain, auto, signal, building } = env;
+  // 3.4.5: a model on the processor (or just slow) gets a plain notice while she waits.
+  const onCpu = isOllamaDaemon(p.config) && !isCloudModelName(m) && (app.modelContext ? app.modelContext.hardware(p.config, m) : daemonHardware(p.config.baseUrl, m)).kind === 'cpu';
+  const slowMs = step.slowSaid ? 0 : onCpu ? slowNoticeTiming.cpuMs : slowNoticeTiming.anyMs;
+  // X1: a busy server gets two more tries only when no other model is waiting to take over (Phase 38
+  // hands over at once when one is).
+  const stream = streamWithin((sig) => retryingStream(() => p.stream({ model: m, messages: withKeptThinking(messages, keptThinking), tools: offered, signal: sig, ...(outMax ? { maxTokens: outMax } : {}), ...(callThink ? { reasoning: callThink } : {}), ...(callCtx ? { numCtx: callCtx } : {}) }), sig, { ...(lastInChain ? {} : { tries: 0 }), onRetry: (err, n, ms) => console.warn(`retry ${n} for ${p.config.label} (${m}) in ${ms} ms: ${String((err as Error)?.message ?? err).slice(0, 160)}`) }), signal, auto && !lastInChain ? Math.min(autoTiming.firstMs, fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) })) : fallbackAfterMs(app, { provider: p, promptChars: promptChars(messages) }), onCpu ? streamIdleTiming.cpuMs : streamIdleTiming.anyMs);
+  for await (const ev of slowMs ? markSlow(stream, slowMs) : stream) {
+    if (ev.type === 'slow_mark') {
+      step.slowSaid = true;
+      if (typeof p.loadedModels === 'function') void refreshPs(p);
+      const tr = slowTrouble({ providerId: p.config.id, service: p.config.label, model: m, cpu: onCpu, seconds: Math.round(slowMs / 1000) });
+      yield { type: 'slow', trouble: { ...tr, text: trOwner(tr.key, app.settings.get(), tr.params) } };
+      continue;
+    }
+    if (ev.type === 'text') {
+      step.reply += ev.text;
+      yield { type: 'token', text: ev.text };
+    } else if (ev.type === 'tool_progress') {
+      yield { type: 'tool_progress', name: ev.name, chars: ev.chars, ...(ev.path ? { path: ev.path } : {}) };
+    } else if (ev.type === 'tool_delta') {
+      const shown = building.add(ev);
+      if (shown) yield shown;
+    } else if (ev.type === 'tool_call') {
+      step.calls.push(ev.call);
+    } else if (ev.type === 'reasoning') {
+      step.reasoningChars += ev.chars;
+    } else if (ev.type === 'thinking') {
+      step.thinking = ev.kept;
+    } else if (ev.type === 'stop') {
+      step.stopReason = ev.reason;
+    }
+  }
 }
 
 /**

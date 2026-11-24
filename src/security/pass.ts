@@ -113,12 +113,14 @@ export interface PassSummary {
 }
 
 /** One model answer, through the job's chain (backups take over on failure). */
-export async function askModel(chain: { provider: Provider; model: string }[], messages: ChatMessage[], maxTokens: number, signal: AbortSignal): Promise<{ text: string; model: string }> {
+export async function askModel(chain: { provider: Provider; model: string }[], messages: ChatMessage[], maxTokens: number, signal: AbortSignal, json?: { schema: Record<string, unknown> }): Promise<{ text: string; model: string }> {
   let lastErr: unknown;
   for (const { provider, model } of chain) {
     let out = '';
     try {
-      for await (const ev of provider.stream({ model, messages, temperature: 0.1, maxTokens, reasoning: 'none', signal })) {
+      // S2: `json` = the shape the answer must have, where the provider can hold the model to it
+      // (Claude on a key, Ollama); elsewhere the prompt asks for it and jsonIn() reads what comes.
+      for await (const ev of provider.stream({ model, messages, temperature: 0.1, maxTokens, reasoning: 'none', signal, ...(json ? { json } : {}) })) {
         if (ev.type === 'text') out += ev.text;
         if (out.length > maxTokens * 8) break;
       }
@@ -228,6 +230,32 @@ Rules:
 - The quote MUST be copied character for character from ONE line of the new code. A finding whose quote is not in the file is thrown away.
 - Only files in the diff. Only real problems you can point at. Do not repeat the findings already listed.
 - If nothing else is wrong, answer {"findings":[]}.`;
+
+/** S2: the shape of the review's answer, for providers that can hold a model to one. */
+export const REVIEW_SCHEMA: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          file: { type: 'string' },
+          line: { type: 'integer' },
+          quote: { type: 'string' },
+          rule: { type: 'string' },
+          severity: { type: 'string', enum: ['high', 'medium', 'low'] },
+          title: { type: 'string' },
+          advice: { type: 'string' },
+        },
+        required: ['file', 'line', 'quote', 'rule', 'severity', 'title', 'advice'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['findings'],
+  additionalProperties: false,
+};
 
 export class SecurityPass {
   readonly findings: FindingStore;
@@ -455,7 +483,7 @@ export class SecurityPass {
     const room = budget - (rec.on ? rec.totals().tokens : 0) - promptTokens;
     if (room < 300) return { ran: false, findings: [], note: 'budget' };
     rec.startStep({ label: 'Review' });
-    const { text, model } = await askModel(chain, [{ role: 'system', content: REVIEW_SYSTEM }, { role: 'user', content: user }], Math.min(2000, room), signal);
+    const { text, model } = await askModel(chain, [{ role: 'system', content: REVIEW_SYSTEM }, { role: 'user', content: user }], Math.min(2000, room), signal, { schema: REVIEW_SCHEMA });
     const j = jsonIn(text) as { findings?: unknown[] } | unknown[] | undefined;
     const raw = Array.isArray(j) ? j : Array.isArray((j as { findings?: unknown[] })?.findings) ? (j as { findings: unknown[] }).findings : [];
     const allowed = new Set(files);

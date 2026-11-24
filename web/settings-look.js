@@ -99,7 +99,7 @@ export function cardHeads(secs) {
       const head = sec.querySelector(':scope > .s3-section-head');
       if (head) out.push({ node: head, label: head.textContent.trim() });
     }
-    for (const h of sec.querySelectorAll(':scope > .s3-card > h3:first-child, :scope > details.s3-adv > .s3-card > h3:first-child, :scope > .s3-card > .kit-card > h3:first-child, :scope > .s3-card > .kit-card > .card-head > h3, :scope > details.s3-adv > .s3-card > .kit-card > h3:first-child, :scope > details.s3-adv > .s3-card > .kit-card > .card-head > h3')) {
+    for (const h of sec.querySelectorAll(':scope > .s3-card > h3:first-child, :scope > details.s3-adv > .s3-card > h3:first-child, :scope > .s3-card > .kit-card > h3:first-child, :scope > .s3-card > .kit-card > .card-head > h3, :scope > details.s3-adv > .s3-card > .kit-card > h3:first-child, :scope > details.s3-adv > .s3-card > .kit-card > .card-head > h3, :scope > .s3-card > .sp-box > h3, :scope > details.s3-adv > .s3-card > .sp-box > h3')) {
       if (h.closest('[hidden]')) continue;
       const label = [...h.childNodes].filter((n) => n.nodeType === 3 || (n.nodeType === 1 && !n.matches('button, .tip'))).map((n) => n.textContent).join('').trim();
       if (label) out.push({ node: h, label });

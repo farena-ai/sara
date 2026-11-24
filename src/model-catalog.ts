@@ -36,7 +36,7 @@ export const NEW_FOR_MS = 7 * 86_400_000;
 export const RETIRE_AFTER = 2;
 /** Retired entries are forgotten after this long (they stay hidden either way). */
 const FORGET_RETIRED_MS = 90 * 86_400_000;
-const EMBED = /embed/i;
+const EMBED = /embed|\bbge-m3\b/i;
 
 export interface CatalogModel {
   firstSeen: string;
@@ -145,6 +145,8 @@ export interface ModelListView {
   entries: { id: string; new?: true; unpulled?: true }[];
   /** Embedding models left out of the pickers. */
   hidden: number;
+  /** S4: the embedding models here (the Meaning search row lists these). */
+  embedding: string[];
   /** Recently retired (hidden) models. */
   retired: string[];
   checkedAt: string | null;
@@ -479,12 +481,18 @@ export class ModelCatalog {
       models: entries.map((e) => e.id),
       entries,
       hidden: live.length - chat.length,
+      embedding: live.filter(([mid, m]) => EMBED.test(mid) && !m.unpulled).map(([mid]) => mid).sort((a, b) => a.localeCompare(b)),
       retired: Object.entries(p?.models ?? {}).filter(([, m]) => m.retired && now - Date.parse(m.retiredAt ?? m.lastSeen) < 30 * 86_400_000).map(([mid]) => mid),
       checkedAt: p?.checkedAt ?? null,
       ...(p?.error ? { error: p.error } : {}),
       ...(p?.warning ? { warning: p.warning } : {}),
       options: this.options(id),
     };
+  }
+
+  /** Every model the provider has now, embedding models included (the pickers leave those out). No network. */
+  present(id: string): string[] {
+    return Object.entries(this.#data.providers[id]?.models ?? {}).filter(([, m]) => !m.retired && !m.unpulled).map(([mid]) => mid);
   }
 
   /** Has this provider's list been checked at least once? */

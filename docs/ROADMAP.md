@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Meaning search with no setup, in 3.41.0
+
+Finding the right tool and remembering things said in other words used to need a setting most
+people never found. Now, when an embedding model is already on the computer, Sara turns Meaning
+search on herself, once, and it stays off if you turn it off. Asking her to research something in
+your own words reaches your research model. With the `bge-m3` embedding model this also works in
+Spanish, French, German, Portuguese and Italian. There is a new setting for how hard she thinks
+(Quick, Balanced, Thorough), and long conversations are read faster while she works.
+
 ## The right tool at hand, in 3.40.0
 
 Sara has many tools and sends a model a short list of them for each message. That list is now

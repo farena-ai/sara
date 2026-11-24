@@ -4929,10 +4929,10 @@ function providerSelect(blank, filter = () => true) {
   return sel;
 }
 /** A provider pick-list with its model chooser: {el, sel, chooser, value(), set(pid, model)}. */
-function modelPick(blank, cur, filter) {
+function modelPick(blank, cur, filter, kind) {
   const sel = providerSelect(blank, filter);
   sel.value = cur?.providerId ?? '';
-  const chooser = modelChooser();
+  const chooser = modelChooser(kind);
   void chooser.load(sel.value, cur?.model ?? '');
   sel.addEventListener('change', () => chooser.load(sel.value === '__auto' ? '' : sel.value));
   return {
@@ -5001,7 +5001,7 @@ function jobRow(job, cur, opts = {}) {
   tip.type = 'button';
   tip.dataset.tip = t(job.tip);
   name.append(tip);
-  const pick = modelPick(opts.blank ?? t('Use default'), cur, opts.filter);
+  const pick = modelPick(opts.blank ?? t('Use default'), cur, opts.filter, opts.kind);
   // L6: screen readers hear which job each pick-list is for.
   pick.sel.setAttribute('aria-label', t('{job}: provider', { job: t(job.label) }));
   pick.chooser.el.querySelector('select')?.setAttribute('aria-label', t('{job}: model', { job: t(job.label) }));
@@ -5111,11 +5111,11 @@ async function renderRoutes() {
   $('#jobs-advanced').replaceChildren(
     ...jobsUi.jobs
       .filter((j) => j.advanced && (j.id !== 'adult' || adultOk))
-      .map((j) => jobRow(j, s.routes[j.id], { filter: j.id === 'private' ? (p) => p.local : undefined, noBackups: j.id === 'embeddings', noCompare: j.id === 'private' || j.id === 'adult' })),
+      .map((j) => jobRow(j, s.routes[j.id], { filter: j.id === 'private' ? (p) => p.local : undefined, noBackups: j.id === 'embeddings', noCompare: j.id === 'private' || j.id === 'adult', ...(j.id === 'embeddings' ? { kind: 'embedding', blank: t('Off') } : {}) })),
   );
   const v = info?.vectors;
   const emb = jobsUi.rows.get('embeddings');
-  if (emb && v?.model) jobHint(emb, v.error ? `${t('Not reachable')}: ${v.error}` : `${v.indexed} ${t('of')} ${v.total} ${t('notes ready for meaning search')}`, Boolean(v.error));
+  if (emb && v?.model) jobHint(emb, v.error ? `${t('Not reachable')}: ${v.error}` : info?.meaningResting ? t('This model has been answering slowly, so for a few minutes she picks tools by your words alone. If it shares a graphics card with her chat model, let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).') : `${v.indexed} ${t('of')} ${v.total} ${t('notes ready for meaning search')}`, Boolean(v.error) || Boolean(info?.meaningResting));
   // The safety and truth check (its own setting, kept as before).
   const cls = jobRow({ id: 'classifier', testAs: 'background', label: t('Safety and truth check'), tip: t('Optional small local model (for example a small Ollama model). It double-checks messages for crisis or minors in any language, and checks that she really did what she says she did. It can only add protection, never remove it. Off: the built-in checks still run (English, Spanish, French, German, Portuguese and Italian).') }, s.safetyClassifier, { noBackups: true, noCompare: true, blank: t('Off') });
   // Phase 62: the claim judge (off by default; only the model picked here, never filled in for you).
@@ -9134,7 +9134,8 @@ const modelCountWords = (view, providerId) => countWords(modelCounts(view.models
  * A model chooser: a list of the provider's models plus "Other (type a name)…".
  * Returns { el, value(), load(providerId, current) }.
  */
-function modelChooser() {
+/** `kind` 'embedding' lists the provider's embedding models (Meaning search) instead of its chat models. */
+function modelChooser(kind) {
   const wrap = el('span', 'model-chooser');
   const sel = document.createElement('select');
   const input = document.createElement('input');
@@ -9169,7 +9170,9 @@ function modelChooser() {
       sel.hidden = false;
       sel.replaceChildren(new Option(t('Loading models…'), ''));
       try {
-        const view = await modelViewFor(providerId, fresh);
+        const all = await modelViewFor(providerId, fresh);
+        // S4: Meaning search needs an embedding model; chat models do not belong in its list.
+        const view = kind === 'embedding' ? { ...all, models: all.embedding ?? [], entries: (all.embedding ?? []).map((id) => ({ id })), retired: [] } : all;
         fillModelOptions(sel, view, current, { blank: current ? '' : t('Choose a model…') });
         sel.append(new Option(t('Other (type a name)…'), '__other'));
         sel.value = current || (view.models.length ? '' : '__other');
@@ -9680,6 +9683,7 @@ async function loadSettingsPages(onCore = () => {}) {
   $('#talk-language').value = s.talkLanguage ?? 'auto';
   $('#story-yearly').checked = Boolean(s.storyYearly);
   $('#model-auto-switch').checked = s.modelAutoSwitch !== false;
+  $('#thinking-level').value = s.thinking ?? 'balanced';
   {
     // 3.4.1: Auto (the default) follows the model; a fixed size an owner chose stays.
     const sel = $('#history-budget');
@@ -9789,6 +9793,7 @@ async function saveCoreSettings() {
       // 3.4.1: Auto / the full window, or a fixed size.
       ...(['auto', 'full'].includes($('#history-budget').value) ? { historyBudgetMode: $('#history-budget').value } : { historyBudgetMode: 'fixed', historyBudgetChars: Number($('#history-budget').value) }),
       modelAutoSwitch: $('#model-auto-switch').checked,
+      thinking: $('#thinking-level').value,
     },
   });
   if (saveModel) savedDefaultModelRevision = modelRevision;

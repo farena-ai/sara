@@ -98,6 +98,7 @@ import { createGiftTools } from './gifts.ts';
 import { localDate, memorySettings, MemoryWorker } from './memory-worker.ts';
 import { HistoryImporter } from './history-import/index.ts';
 import { embedTarget, MemoryVectors } from './embeddings.ts';
+import { adoptMeaningSearch } from './meaning-auto.ts';
 import { ToolMeaning } from './tool-meaning.ts';
 import { createTeamTools, TeamManager } from './team.ts';
 import { createTeamRunTools, TeamRuns } from './team-runs.ts';
@@ -1631,7 +1632,18 @@ function buildCompanion(space: Space, id: string, dir: string): Companion {
   // Q-ADDONS: her delayed start-up work is cancelled by stop(), so a companion retired right after
   // she was added never runs it on a closed database (that stopped the whole server).
   const startupTimers: NodeJS.Timeout[] = [];
-  const indexVectors = () => guard('embeddings', () => app.vectors!.index());
+  // S1: Meaning search sets itself once when an embedding model is already on this computer (never the demo).
+  const adoptMeaning = async () => {
+    if (isDemo || !modelCatalog || app.settings.get().meaningAuto === 'done') return;
+    // A provider on this computer whose list was never read is read now (the daily check comes later).
+    for (const p of app.settings.get().providers) if (p.local === true && p.kind === 'openai-compatible' && !modelCatalog.known(p.id)) await modelCatalog.list(p.id).catch(() => undefined);
+    const got = adoptMeaningSearch(app, (pid) => modelCatalog.present(pid));
+    if (got) console.log(`meaning search: on, with ${got.model} on this computer (Settings → Which model does what turns it off)`);
+  };
+  const indexVectors = () => guard('embeddings', async () => {
+    await adoptMeaning();
+    return app.vectors!.index();
+  });
   const memoryWorker = new MemoryWorker(app, memory);
   app.memoryNudge = () => memoryWorker.nudge();
   // Phase 109 (CH3): titles that grow with the session (each space's own conversations and ledger; never the demo).

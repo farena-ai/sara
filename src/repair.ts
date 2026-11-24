@@ -197,6 +197,7 @@ const validZone = (z: unknown) => {
 export const SETTING_RULES: readonly SettingRule[] = [
   { path: 'defaultProviderId', ok: (v, s) => (s.providers ?? []).some((p: { id: string }) => p.id === v), def: (s) => s.providers?.[0]?.id },
   { path: 'fallbackAfterSec', ok: (v) => typeof v === 'number' && v >= 10 && v <= 600, def: () => undefined },
+  { path: 'thinking', ok: (v) => ['quick', 'balanced', 'thorough'].includes(String(v)), def: () => undefined },
   { path: 'historyBudgetMode', ok: (v) => ['auto', 'full', 'fixed'].includes(String(v)), def: () => undefined },
   { path: 'timeZone', ok: validZone, def: () => undefined },
   { path: 'language', ok: (v) => typeof v === 'string' && /^[a-z]{2}(-[A-Z]{2})?$/.test(v), def: () => undefined },

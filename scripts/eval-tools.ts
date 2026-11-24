@@ -18,6 +18,7 @@
 //   node scripts/eval-tools.ts --model qwen3:8b     also ask a real model (Ollama on this computer)
 //        [--upstream http://127.0.0.1:11434/v1] [--ctx 32768] [--only id,id] [--list-tools] [--out outputs/tool-evals/<date>]
 //   node scripts/eval-tools.ts --embed nomic-embed-text   with tools also picked by meaning (src/tool-meaning.ts)
+//   node scripts/eval-tools.ts --embed bge-m3 --adopt      the same, but she has to turn Meaning search on herself (src/meaning-auto.ts)
 //   A key for a hosted model is read from the EVAL_API_KEY environment variable (never written out).
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -130,6 +131,10 @@ export interface Summary {
   heldOut: { offer: { asked: number; offered: number }; route: { asked: number; right: number } };
   /** The fresh cases alone (ids starting with f-): written after picking by meaning was set, run as found. */
   fresh: { offer: { asked: number; offered: number } };
+  /** Other languages, in a person's own words (ids starting with x-). */
+  otherLanguages: { offer: { asked: number; offered: number } };
+  /** Fresh routing cases (ids starting with r-): research asks without the usual words, and look-alikes. */
+  routeFresh: { asked: number; right: number; research: [number, number]; notResearch: [number, number] };
   toolsOffered: { median: number; max: number };
   toolChars: { median: number };
 }
@@ -165,6 +170,14 @@ export function summarize(results: CaseResult[]): Summary {
       route: { asked: route.filter((r) => r.id.startsWith('h-')).length, right: route.filter((r) => r.id.startsWith('h-') && r.routeOk === true).length },
     },
     fresh: { offer: { asked: offer.filter((r) => r.id.startsWith('f-')).length, offered: offer.filter((r) => r.id.startsWith('f-') && r.offered === true).length } },
+    otherLanguages: { offer: { asked: offer.filter((r) => r.id.startsWith('x-')).length, offered: offer.filter((r) => r.id.startsWith('x-') && r.offered === true).length } },
+    routeFresh: (() => {
+      const rf = route.filter((r) => r.id.startsWith('r-'));
+      const yes = rf.filter((r) => !r.id.startsWith('r-not-'));
+      const no = rf.filter((r) => r.id.startsWith('r-not-'));
+      const ok = (l: CaseResult[]) => l.filter((r) => r.routeOk === true).length;
+      return { asked: rf.length, right: ok(rf), research: [ok(yes), yes.length] as [number, number], notResearch: [ok(no), no.length] as [number, number] };
+    })(),
     toolsOffered: { median: median(seen.map((s) => s.tools.length)), max: Math.max(0, ...seen.map((s) => s.tools.length)) },
     toolChars: { median: median(seen.map((s) => s.toolChars)) },
   };
@@ -185,6 +198,8 @@ export function report(results: CaseResult[], meta: { version: string; model?: s
   }
   if (s.heldOut.offer.asked) out.push(`- **Held-out cases** (never tuned on): offered in ${s.heldOut.offer.offered} of ${s.heldOut.offer.asked} (${pct(s.heldOut.offer.offered, s.heldOut.offer.asked)}); routed as expected in ${s.heldOut.route.right} of ${s.heldOut.route.asked}.`);
   if (s.fresh.offer.asked) out.push(`- **Fresh cases** (written last, run as found): offered in ${s.fresh.offer.offered} of ${s.fresh.offer.asked} (${pct(s.fresh.offer.offered, s.fresh.offer.asked)}).`);
+  if (s.otherLanguages.offer.asked) out.push(`- **Other languages** (a person's own words, five languages): offered in ${s.otherLanguages.offer.offered} of ${s.otherLanguages.offer.asked} (${pct(s.otherLanguages.offer.offered, s.otherLanguages.offer.asked)}).`);
+  if (s.routeFresh.asked) out.push(`- **Fresh routing cases:** research asks without the usual words reached the research model in ${s.routeFresh.research[0]} of ${s.routeFresh.research[1]}; messages that only sound like research stayed with the talking model in ${s.routeFresh.notResearch[0]} of ${s.routeFresh.notResearch[1]}.`);
   out.push(`- **Size:** ${s.toolsOffered.median} tools offered on a typical turn (most: ${s.toolsOffered.max}); the tool list is about ${Math.round(s.toolChars.median / 4).toLocaleString('en-US')} tokens.`, '');
   const bad = results.filter((r) => r.offered === false || r.routeOk === false || (r.verdict && r.verdict !== 'right') || r.error);
   if (bad.length) {
@@ -222,7 +237,7 @@ interface Waiting {
 
 async function main(): Promise<void> {
   const { values: opt } = parseArgs({
-    options: { model: { type: 'string' }, upstream: { type: 'string', default: 'http://127.0.0.1:11434/v1' }, only: { type: 'string' }, out: { type: 'string' }, 'list-tools': { type: 'boolean' }, 'turn-seconds': { type: 'string', default: '180' }, ctx: { type: 'string', default: '32768' }, embed: { type: 'string' }, 'embed-upstream': { type: 'string', default: 'http://127.0.0.1:11434/v1' } },
+    options: { model: { type: 'string' }, upstream: { type: 'string', default: 'http://127.0.0.1:11434/v1' }, only: { type: 'string' }, out: { type: 'string' }, 'list-tools': { type: 'boolean' }, 'turn-seconds': { type: 'string', default: '180' }, ctx: { type: 'string', default: '32768' }, embed: { type: 'string' }, adopt: { type: 'boolean' }, 'embed-upstream': { type: 'string', default: 'http://127.0.0.1:11434/v1' } },
   });
   const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version as string;
   const at = new Date().toISOString();
@@ -240,7 +255,7 @@ async function main(): Promise<void> {
     void (async () => {
       if (req.url?.endsWith('/models')) {
         res.writeHead(200, { 'content-type': 'application/json' });
-        return void res.end(JSON.stringify({ data: Object.values(ROUTE_MODELS).map((id) => ({ id })) }));
+        return void res.end(JSON.stringify({ data: (req.url.startsWith('/here/') ? [opt.embed!] : Object.values(ROUTE_MODELS)).map((id) => ({ id })) }));
       }
       if (req.url?.endsWith('/embeddings') && opt.embed) {
         // --embed: her "Meaning search" job points here; the vectors come from the real embedding model.
@@ -310,13 +325,14 @@ async function main(): Promise<void> {
   writeFileSync(
     join(data, 'settings.json'),
     JSON.stringify({
-      providers: [{ id: 'eval', label: 'Eval', kind: 'openai-compatible', baseUrl: providerUrl, defaultModel: ROUTE_MODELS.chat }],
+      // --adopt: a second provider "on this computer" that has only the embedding model (as Ollama would).
+      providers: [{ id: 'eval', label: 'Eval', kind: 'openai-compatible', baseUrl: providerUrl, defaultModel: ROUTE_MODELS.chat }, ...(opt.adopt && opt.embed ? [{ id: 'eval-here', label: 'Eval, on this computer', kind: 'openai-compatible', baseUrl: providerUrl.replace(/\/v1$/, '/here/v1'), local: true, needsKey: false }] : [])],
       defaultProviderId: 'eval',
       defaultModel: ROUTE_MODELS.chat,
       autoJobs: [],
       // Web search on, so its tools are hers to offer (the address is this script; no tool ever runs).
       search: { provider: 'searxng', url: providerUrl },
-      routes: { research: route(ROUTE_MODELS.research), coding: route(ROUTE_MODELS.coding), quick: route(ROUTE_MODELS.quick), background: route(ROUTE_MODELS.background), ...(opt.embed ? { embeddings: route(opt.embed) } : {}) },
+      routes: { research: route(ROUTE_MODELS.research), coding: route(ROUTE_MODELS.coding), quick: route(ROUTE_MODELS.quick), background: route(ROUTE_MODELS.background), ...(opt.embed && !opt.adopt ? { embeddings: route(opt.embed) } : {}) },
       ownerName: 'Alex',
       timeZone: 'America/Chicago',
       disclosureAcceptedAt: at,
@@ -365,6 +381,20 @@ async function main(): Promise<void> {
       if (!r.ok) throw new Error(`${method} ${path}: ${r.status} ${String(j.error ?? '')}`);
       return j;
     };
+
+    if (opt.adopt) {
+      // --adopt: no Meaning search job was written; she has to set it herself from the provider's list
+      // (src/meaning-auto.ts). Wait for that, as a fresh install would see it.
+      if (!opt.embed) throw new Error('--adopt needs --embed <model>');
+      const a0 = Date.now();
+      for (;;) {
+        const now = JSON.parse(readFileSync(join(data, 'settings.json'), 'utf8')) as { routes?: { embeddings?: { model?: string } } };
+        if (now.routes?.embeddings?.model === opt.embed) break;
+        if (Date.now() - a0 > 120_000) throw new Error(`Meaning search did not set itself in two minutes:\n${log.slice(-1500)}`);
+        await new Promise((ok) => setTimeout(ok, 1000));
+      }
+      console.log(`Meaning search set itself to ${opt.embed} after ${Math.round((Date.now() - a0) / 1000)} s.`);
+    }
 
     if (opt['list-tools']) {
       // Every tool she has here (name and what it says it does), for writing cases.

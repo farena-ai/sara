@@ -113,6 +113,13 @@ export interface Settings {
   defaultFallbacks?: { providerId: string; model: string }[];
   /** N1: jobs whose model Auto picks from what is connected (src/auto-route.ts); new installs get all four. */
   autoJobs?: ('chat' | 'coding' | 'vision' | 'research')[];
+  /**
+   * S2: how hard the model thinks before it answers, on models that can be told (Claude on a key or
+   * a subscription, ChatGPT, Ollama). 'balanced' (the default) sends nothing: the model decides.
+   */
+  thinking?: 'quick' | 'balanced' | 'thorough';
+  /** S1: Meaning search was set by itself once (src/meaning-auto.ts); after that it is the owner's to turn on or off. */
+  meaningAuto?: 'done';
   /** Phase 40: GitHub repositories watched for new issues (off by default). */
   githubWatch?: import('./issues.ts').GitHubWatch;
   /** Phase 39: helpers the owner made (Team page). */

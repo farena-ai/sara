@@ -5,6 +5,20 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.41.0 (2026-11-24): Meaning search with no setup, a thinking level, quicker long chats
+
+- New: Meaning search turns itself on. When an embedding model is already on this computer (for example in Ollama), she sets Meaning search to it once, so she finds the right tool and remembers things said in other words with no setup. Turn it off under Settings → Which model does what → More jobs and it stays off. Nothing is downloaded and nothing leaves this computer because of it.
+- New: research asks said your own way ("look into which air purifiers are worth buying", "get to the bottom of whether robot vacuums are worth it") reach your research model. Needs Meaning search and a research model.
+- Better: other languages. With the `bge-m3` embedding model (`ollama pull bge-m3`) she finds the right tool for things said your own way in Spanish, French, German, Portuguese and Italian too. She prefers it over `nomic-embed-text` when both are there.
+- Better: when nothing in her tool list fits what you asked, she looks for the right tool before answering.
+- Fixed: on a computer that keeps one model loaded at a time, finding tools and research asks by meaning made every turn wait for two model loads and often got nothing for it. She now makes one call per message, and after three slow ones in a row she goes back to the word rules for ten minutes. Best is to let Ollama keep two models loaded (OLLAMA_MAX_LOADED_MODELS=2).
+- New: "How hard she thinks" (Settings → Models & usage → Default model): Quick, Balanced or Thorough. Quick answers sooner and uses less; Thorough takes longer and helps with hard questions. Works with Claude (on a subscription or a key), ChatGPT and models in Ollama. Balanced, the default, leaves it to the model as before.
+- Better: with Claude on your subscription, her behind-the-scenes work (notes, summaries, checks) asks for the least thinking, so it finishes sooner and uses less of your plan.
+- Better: the security review of code changes gets its answer in a fixed shape from models in Ollama and Claude on a key, so a chatty model no longer spoils it.
+- Better: long conversations. While she works on a reply she no longer reads the whole chat from the database several times per step; in a chat of 5,000 messages each read is about 8 times faster.
+- Better: Settings. The Meaning search row lists embedding models only, its empty choice is Off, and it tells you when she has stopped using a slow model. "Usage and costs" names each part once in "On this page", limits included.
+- Fixed: a new install is no longer told its backups are more than 2 days old before the first one is made.
+
 ## 3.40.0 (2026-11-23): The right tool at hand, the newest Claude models, research in six languages
 
 - New: she picks her tools by what you mean, not only by the words you use. With Meaning search on (Settings → Which model does what → More jobs), "I'm starting on the Miller job, track my time" or "stop sugarcoating things" now find the right tool without the exact words. Without Meaning search nothing changes.

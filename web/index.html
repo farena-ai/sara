@@ -3629,6 +3629,15 @@
       <p class="muted small">Sara checks every provider's model list once a day by herself: new models are marked “New” for a week, and retired ones disappear. ↻ Refresh checks now. Each provider's own switches are under Model providers.</p>
       <label class="row"><input id="model-auto-switch" type="checkbox"> Switch to the replacement automatically</label>
       </div>
+      <h3>How hard she thinks</h3>
+      <p class="muted small">How much the model thinks before it answers, on models that can be told (Claude, ChatGPT, models in Ollama). Quick answers sooner and uses less; Thorough takes longer and helps with hard questions.</p>
+      <label>Thinking
+        <select id="thinking-level">
+          <option value="quick">Quick: answers sooner</option>
+          <option value="balanced">Balanced (the model decides)</option>
+          <option value="thorough">Thorough: for hard questions</option>
+        </select>
+      </label>
       <h3>Long conversations</h3>
       <p class="muted small">How much of a conversation Sara rereads each turn. Older parts beyond this are left out (with their summary, once she has written one). Auto follows the model each chat uses.</p>
       <label>How much of the chat she keeps in mind
@@ -4469,7 +4478,7 @@
       <p id="rt-status" class="muted small" role="status"></p>
       </div>
         </section>
-        <section class="settings-page" data-page="ab-budgets" data-group="Models & usage" data-title="Budgets" data-host="dh-usage" data-owner-only hidden>
+        <section class="settings-page" data-page="ab-budgets" data-group="Models & usage" data-title="A limit for each reply" data-host="dh-usage" data-owner-only hidden>
       <div id="ab-budgets-form">
       <p class="muted small">A ceiling for each of her replies, so a long task can't run on and on. Near the limit she saves (a cheaper model, fewer tools), then wraps up and tells you what's done and what's left. Going on past it is always your call.</p>
       <h3>Coding chats</h3>

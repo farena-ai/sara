@@ -109,6 +109,7 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
           historyBudgetChars: s.historyBudgetChars ?? HISTORY_BUDGET_CHARS,
           // 3.4.1: Auto (the default), the whole window, or a fixed size; and what that means with her default model.
           historyBudgetMode: historyMode(s),
+          thinking: s.thinking ?? 'balanced',
           historyBudget: budgetView(app),
           defaultProviderId: s.defaultProviderId ?? null,
           defaultModel: s.defaultModel ?? null,
@@ -167,6 +168,10 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
         }
         if (body.appearance !== undefined) patch.appearance = cleanAppearance(body.appearance);
         if (body.storyYearly !== undefined) patch.story = { ...app.settings.get().story, yearly: Boolean(body.storyYearly) };
+        if (body.thinking !== undefined) {
+          if (body.thinking !== 'quick' && body.thinking !== 'balanced' && body.thinking !== 'thorough') throw new HttpError(400, 'Pick Quick, Balanced or Thorough.');
+          patch.thinking = body.thinking;
+        }
         if (body.historyBudgetMode !== undefined) {
           if (body.historyBudgetMode !== 'auto' && body.historyBudgetMode !== 'full' && body.historyBudgetMode !== 'fixed') throw new HttpError(400, 'Pick Auto, the full window or a fixed size.');
           patch.historyBudgetMode = body.historyBudgetMode;

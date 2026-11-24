@@ -186,6 +186,10 @@ function toMessage(r: Row): StoredMessage {
   };
 }
 
+type Stmt = ReturnType<DatabaseSync['prepare']>;
+/** S3: per database, the statements and the rows of the chats being read (Store.messages). */
+const MESSAGE_READS = new WeakMap<DatabaseSync, { changes: Stmt; version: Stmt; read: Stmt; rows: Map<string, { changes: number; version: number; rows: Row[] }> }>();
+
 /** Additive migrations only (rollback-safe): add columns that older versions ignore. */
 function migrate(db: DatabaseSync): void {
   const cols = (table: string) => new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((r) => String(r.name)));
@@ -659,8 +663,36 @@ export class Store {
     return Number(r?.id ?? 0);
   }
 
+  /**
+   * S3: one turn reads its conversation many times (several per model step), and a long-lived chat
+   * has thousands of rows. The rows of the chats being read are kept until anything in the database
+   * changes (this connection's change count, or another connection's commit), so a repeat read does
+   * not go to the database again: about 8 times faster at 5,000 messages.
+   *
+   * Every caller gets rows of its own, `meta` included (parsed again from its text): callers change
+   * what they get (a turn marks messages as it goes), and the first try at this (X1) handed out a
+   * shared, frozen `meta`, which made such a change throw.
+   *
+   * What is kept hangs off the database, not off `this`: the store is also used through objects
+   * made from it (`Object.create(store)`, a turn's scoped view), and a private field cannot be read
+   * through those. That, not stale rows, is what broke the first try (test/phase89.test.ts).
+   */
   messages(conversationId: string): StoredMessage[] {
-    return (this.db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id').all(conversationId) as Row[]).map(toMessage);
+    let kept = MESSAGE_READS.get(this.db);
+    if (!kept) {
+      kept = { changes: this.db.prepare('SELECT total_changes() AS n'), version: this.db.prepare('PRAGMA data_version'), read: this.db.prepare('SELECT * FROM messages WHERE conversation_id = ? ORDER BY id'), rows: new Map() };
+      MESSAGE_READS.set(this.db, kept);
+    }
+    const changes = Number((kept.changes.get() as Row).n);
+    const version = Number((kept.version.get() as Row).data_version);
+    const hit = kept.rows.get(conversationId);
+    if (hit && hit.changes === changes && hit.version === version) return hit.rows.map(toMessage);
+    const rows = kept.read.all(conversationId) as Row[];
+    kept.rows.delete(conversationId);
+    kept.rows.set(conversationId, { changes, version, rows });
+    // A handful of chats at most (the ones with a turn running now); the oldest goes first.
+    if (kept.rows.size > 8) kept.rows.delete(kept.rows.keys().next().value!);
+    return rows.map(toMessage);
   }
 
   /** Only the trusted ordinary owner runtime calls this after its current context gates. */
