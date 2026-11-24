@@ -550,6 +550,44 @@ export function formatAsk(r: AskResult): string {
   return lines.join('\n');
 }
 
+// C14: the person's words that ask for more than their documents (six languages, whole words).
+const WORD = (alts: string) => new RegExp(`(?<![\\p{L}\\p{N}])(?:${alts})(?![\\p{L}\\p{N}])`, 'iu');
+const MAIL_CUE = WORD('e-?mails?|mails?|inbox|mailbox|correos?|bandeja de entrada|courriels?|bo[iî]te mail|posteingang|postfach|correio|caixa de entrada|posta|casella');
+const ALL_CUE = WORD('everything|everywhere|todas partes|todos lados|partout|überall|em todo o lado|em todo lugar|dappertutto|ovunque');
+
+/** What the person asked to have searched besides their documents: 'all', 'mail', or nothing. */
+export function beyondDocsCue(text: string): 'all' | 'mail' | undefined {
+  return ALL_CUE.test(text) ? 'all' : MAIL_CUE.test(text) ? 'mail' : undefined;
+}
+
+/**
+ * C14: a `library` ask in a turn where the person said "check everything" or named their mail. Some
+ * models pick `library` for those anyway, so the rest is searched here with ask_everything's own
+ * rules (askAllowed: off the record, a child, a private chat, Private local mode). Nothing is added
+ * where ask_everything would not run on its own: the owner's own chats only, with the tool set to
+ * run without asking; mail only when mail_search also runs without asking. Returns the text to
+ * add to the library answer, or undefined.
+ */
+export async function askBeyondDocuments(app: AppContext, o: { query: string; conversationId?: string; signal?: AbortSignal }): Promise<string | undefined> {
+  const conv = o.conversationId ? app.store.getConversation(o.conversationId) : undefined;
+  if (!conv || conv.partner || /-work(-nsfw)?$/.test(conv.channel) || conv.channel.startsWith('group') || ['api', 'mcp', 'home-assistant', 'alexa', 'a2a', 'webhook'].includes(conv.channel)) return undefined;
+  if (app.readTogether?.get(conv.id)?.source === 'feed') return undefined;
+  const said = app.store.db.prepare("SELECT content FROM messages WHERE conversation_id = ? AND role = 'user' ORDER BY id DESC LIMIT 1").get(conv.id) as { content: string } | undefined;
+  const cue = beyondDocsCue(`${said?.content ?? ''}\n${o.query}`);
+  if (!cue) return undefined;
+  const over = app.settings.get().toolPermissions;
+  const perm = (name: string) => (app.tools.get(name) ? app.tools.permission(name, over) : undefined);
+  if (perm('ask_everything') !== 'auto') return undefined;
+  const mailOk = (perm('mail_search') ?? 'auto') === 'auto';
+  // Files are the library's own answer above; the rest is what ask_everything would search.
+  const sources = (cue === 'mail' ? ['mail'] : ASK_SOURCES.filter((s) => s !== 'files')).filter((s) => s !== 'mail' || mailOk);
+  const notMail = mailOk ? '' : 'Their email was not searched from here (searching mail asks first): use mail_search for that.';
+  if (!sources.length) return notMail || undefined;
+  const r = await askEverything(app, o.query, { sources, conversationId: conv.id, ...(o.signal ? { signal: o.signal } : {}) });
+  if (!r.words.length) return notMail || undefined;
+  return [`They asked to look ${cue === 'mail' ? 'in their mail' : 'everywhere'} too, so this was also searched (use it together with the document quotes above):`, formatAsk(r), notMail].filter(Boolean).join('\n');
+}
+
 export function createAskEverythingTool(getApp: () => AppContext): Tool {
   return {
     spec: {

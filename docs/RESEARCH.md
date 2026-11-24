@@ -173,10 +173,63 @@ in one language built from pages in another would lose most of its sentences.
 - Starting, writing early, stopping and deleting each write one row to the audit trail
   (*Settings → Household → Audit trail*), and every finished report writes a `research.report` row.
 
+## More than one run (C23)
+
+Two runs read and write at the same time. Start a third and it **waits its turn**: nothing is
+refused, it starts by itself when one of the two ends, is paused or is stopped, in the order the
+runs were started. Resume on a paused run waits in the same line when both places are taken.
+
+- *Library → Research a question* lists every run that is not over under **Working now**, each in
+  its own box with its own status line, page counts and buttons (Pause, Write the report now, Stop).
+  A waiting run shows its place in line and has its own Stop; one that never read anything is
+  cancelled without a report. **← All research** goes from one run back to the list, so you can ask
+  another question while one works.
+- Pages, minutes and tokens are each run's own budget; raising one run's budget changes no other.
+- After a restart the interrupted runs go on first (two at once), then the runs that were waiting.
+- For developers: `RESEARCH.atOnce` (2), status `queued`, `queuePos` on a run, `limits.atOnce`
+  from `GET /api/research`; `Research.#begin` / `#next` in `src/research.ts`. Tests:
+  `test/t47-research-queue.test.ts`, `test/t47-research-queue-ui.test.ts`.
+
 ## Limits
 
-One run works at a time; 20 runs are kept (older finished ones are forgotten, their Library
+Two runs work at a time and the others wait their turn; 20 runs are kept (older finished ones are forgotten, their Library
 documents stay). 5 steps, 3 searches a step, 20 pages in the plan, raised up to 40 while it runs;
-up to 60 minutes. The PDF uses the built-in Helvetica font, so
-characters outside Western European languages show as `?` in the PDF; the Word and Markdown files
-keep them.
+up to 60 minutes. The PDF can't draw every script (see the next section); the Word and Markdown
+files keep everything.
+
+## The PDF and other scripts (C23)
+
+The PDF is written by Sara's own code, with no package and nothing downloaded. Western European
+text uses the PDF's built-in Helvetica. Any other text is drawn with **a font already on the
+computer Sara runs on**, and only the letters used are put into the file (a report with Greek,
+Russian, Japanese, Korean, Hebrew and Thai came to about 60 KB on Windows 11).
+
+- **Drawn** when the computer has a font for it: Greek, Cyrillic, Armenian, Georgian, Chinese,
+  Japanese, Korean, Hebrew (right to left, numbers and Latin words in their own order), Thai, Lao,
+  Ethiopic, symbols and one-colour emoji. Text copies and searches as the letters it shows.
+- **Never drawn wrong.** Scripts whose letters join, stack or change order (Arabic, Persian, Urdu,
+  Hindi and the other Indian scripts, Tibetan, Burmese, Khmer, Mongolian, Syriac) need a shaping
+  engine the writer does not have. That text, and text no font on the computer has, is marked
+  `[…]` where it stood, and a note under the title names what is missing (*Not shown in this PDF:
+  Arabic, Devanagari…*), in your language. No `?`, no boxes, no letters in the wrong shape.
+- **Which font.** A character is drawn with the first font in this order that has it. Text:
+  Segoe UI, Arial, DejaVu Sans, Liberation Sans, Noto Sans, FreeSans, Tahoma, Arial Unicode, the
+  macOS system font, Geneva, Sylfaen, Noto Sans Armenian/Georgian/Hebrew/Thai/Lao/Ethiopic, Arial
+  Hebrew, Leelawadee UI, Thonburi, Loma/Garuda/Norasi, Ebrima, Gadugi. Chinese: Microsoft YaHei,
+  JhengHei, SimSun, PingFang, STHeiti, Noto Sans SC/TC, WenQuanYi, Droid Sans Fallback. Japanese:
+  Yu Gothic, Meiryo, MS Gothic, Noto Sans JP, Osaka, IPA, VL Gothic, Takao. Korean: Malgun Gothic,
+  Apple SD Gothic Neo, AppleGothic, Noto Sans KR, Nanum, Un, Baekmuk. Then symbols: Segoe UI
+  Symbol, Apple Symbols, Symbola, Noto Sans Symbols, Unifont, Segoe UI Emoji, Noto Emoji. Text
+  with kana tries the Japanese fonts first, text with Hangul the Korean ones, else the Chinese.
+  Folders: `%WINDIR%\Fonts` and the user's font folder on Windows; `/System/Library/Fonts`,
+  `/Library/Fonts`, `~/Library/Fonts` on macOS; `/usr/share/fonts`, `/usr/local/share/fonts`,
+  `~/.local/share/fonts`, `~/.fonts` on Linux.
+- **Passed over, never guessed at:** fonts that are not TrueType outlines (most `.otf`, Noto Sans
+  CJK, colour-only emoji fonts), damaged files, and fonts whose own licence bits forbid embedding
+  or partial copies. On a server with no such font (many small Linux servers) the text is marked
+  and named as above; installing a font package (for example DejaVu) and restarting Sara is
+  enough (the font folders are looked at once per start).
+- For developers: `src/pdf-fonts.ts` (`FONT_ORDER`, `SystemFonts`, `parseFace`, `subsetFace`),
+  `markdownToPdf(md, title, { lang })` in `src/doc-write.ts` (Type0 / CIDFontType2, Identity-H,
+  FlateDecode font file, ToUnicode). Tests: `test/t47-pdf-fonts.test.ts` (its own small fonts).
+  What is left: `docs/BACKLOG.md` → "T47 C23, the PDF font".

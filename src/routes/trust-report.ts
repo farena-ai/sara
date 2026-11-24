@@ -4,6 +4,7 @@ import type { IncomingMessage } from 'node:http';
 import { audit, auditTrail } from '../audit-trail.ts';
 import { markdownToDocx, markdownToPdf } from '../doc-write.ts';
 import { HttpError, SECURITY_HEADERS, send } from '../http.ts';
+import { appLanguage } from '../i18n.ts';
 import { dayStartUtc } from '../planner.ts';
 import { trustMarkdown, trustReport, type TrustScope, type TrustSource } from '../trust-report.ts';
 import { NEXT, type RouteCtx, type RouteHandler } from './context.ts';
@@ -72,7 +73,7 @@ export function createTrustReportRoutes(ctx: RouteCtx): RouteHandler {
     const r = build(req);
     const md = trustMarkdown(r, app.now().toISOString());
     const title = `Trust report: ${r.title}`;
-    const bytes = format === 'md' ? Buffer.from(md, 'utf8') : format === 'docx' ? markdownToDocx(md, title) : markdownToPdf(md, title);
+    const bytes = format === 'md' ? Buffer.from(md, 'utf8') : format === 'docx' ? markdownToDocx(md, title) : markdownToPdf(md, title, { lang: appLanguage(app.settings.get()) });
     const s = r.scope;
     audit({ action: 'trust.export', target: format, keys: [s.kind, s.kind === 'week' ? s.from.slice(0, 10) : String(s.id)] });
     const name = `sara-trust-${s.kind}-${s.kind === 'week' ? s.from.slice(0, 10) : s.id}.${format}`;

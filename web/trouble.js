@@ -10,6 +10,18 @@
 export const troubleText = (tr, t) => (tr?.key ? t(tr.key, tr.params ?? {}) : String(tr?.text ?? ''));
 
 /**
+ * T47: the words of a failed reply in the app language. A marked server error comes with its English
+ * template and values (`key`, `params`); fixed server words are looked up as they are; anything
+ * else (a service's own words) stays as it came. `data` is the error event or the kept notice's meta.
+ */
+export function failedReplyText(data, message, t) {
+  const text = String(message ?? data?.message ?? data?.error ?? '');
+  const key = typeof data?.key === 'string' && data.key ? data.key : text;
+  const error = key ? t(key, data?.params && typeof data.params === 'object' ? data.params : undefined) : '';
+  return t('This reply failed: {error}', { error });
+}
+
+/**
  * The chat bubble for a failed reply with trouble: her words, Fix it, Try again (model trouble),
  * and the service's own words folded under Details (for Report this).
  */

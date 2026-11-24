@@ -103,13 +103,41 @@ export function previewSpec(it, own = null) {
   return { ...base, ...own, lines: own.lines ?? base.lines, kv: own.kv ?? [], change: own.change ?? null };
 }
 
-function pick(list, q, n = PER_GROUP) {
+/**
+ * How well a row fits what was typed: its own words (score), or the `fit` its source gave it when
+ * that is higher (app.js gives an everyday-words answer such as "bigger text" a 5).
+ */
+export const fitOf = (q, x) => Math.max(Number(x.fit) || 0, score(q, x.label, `${x.sub ?? ''} ${x.words ?? ''}`));
+
+/** T45: the rows that fit, best first; of two that fit equally, the one you picked more recently. */
+export function pick(list, q, n = PER_GROUP, recent = []) {
+  const used = (x) => {
+    const i = recent.indexOf(x.key);
+    return i < 0 ? recent.length : i;
+  };
   return list
-    .map((x) => ({ x, s: score(q, x.label, `${x.sub ?? ''} ${x.words ?? ''}`) }))
+    .map((x) => ({ x, s: fitOf(q, x) }))
     .filter((r) => r.s > 0)
-    .sort((a, b) => b.s - a.s)
+    .sort((a, b) => b.s - a.s || used(a.x) - used(b.x))
     .slice(0, n)
     .map((r) => r.x);
+}
+
+/**
+ * T45: the groups in the order to show them: the group with the best fitting row first (a setting
+ * named by the words typed comes before chats that only mention them). Equal groups: one with a
+ * row you picked recently first, then the usual order. Ask stays last. A row that is shown but
+ * does not fit by its own words (a chat found by its messages) counts as the weakest fit.
+ */
+export function orderGroups(groups, q, recent = []) {
+  const weight = ([id, items]) => {
+    if (id === 'ask' || !items.length) return -1;
+    return Math.max(...items.map((x) => Math.max(1, fitOf(q, x)))) + (items.some((x) => recent.includes(x.key)) ? 0.5 : 0);
+  };
+  return groups
+    .map((g, i) => ({ g, i, w: weight(g) }))
+    .sort((a, b) => b.w - a.w || a.i - b.i)
+    .map((r) => r.g);
 }
 
 /** The groups to show for the text typed so far. */
@@ -128,21 +156,27 @@ function results(q) {
     ];
   }
   // Conversations: matching titles first, then messages that contain the words (from the server).
-  const titles = pick(all.convs, q);
+  const recent = readRecent();
+  const titles = pick(all.convs, q, PER_GROUP, recent);
   const have = new Set(titles.map((x) => x.key));
   const inside = ui.found.filter((x) => !have.has(x.key)).slice(0, Math.max(0, PER_GROUP - titles.length));
   // Settings: the tiered page search (app.js matchSettings) plus each setting's own label.
   const settings = ui.ctx.searchSettings(q).slice(0, PER_GROUP);
   const ask = ui.ctx.ask?.(q.trim());
-  return [
-    ['places', pick(all.places, q)],
-    ['projects', pick(all.projects, q)],
-    ['convs', [...titles, ...inside]],
-    ['settings', settings.map((x) => ({ ...x, group: 'settings' }))],
-    ['actions', pick(all.actions, q)],
-    // V4a: any typed text can be a question for her (last; the only row when nothing else fits).
-    ['ask', ask ? [{ ...ask, group: 'ask' }] : []],
-  ];
+  // T45: the best fitting group first (orderGroups); this list is the order when they fit equally.
+  return orderGroups(
+    [
+      ['places', pick(all.places, q, PER_GROUP, recent)],
+      ['projects', pick(all.projects, q, PER_GROUP, recent)],
+      ['convs', [...titles, ...inside]],
+      ['settings', settings.map((x) => ({ ...x, group: 'settings' }))],
+      ['actions', pick(all.actions, q, PER_GROUP, recent)],
+      // V4a: any typed text can be a question for her (last; the only row when nothing else fits).
+      ['ask', ask ? [{ ...ask, group: 'ask' }] : []],
+    ],
+    q,
+    recent,
+  );
 }
 
 function render() {

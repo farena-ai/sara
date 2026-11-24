@@ -15,6 +15,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { netFetch, privateLocalOn } from './net-guard.ts';
 import type { VoiceManifest } from './voice.ts';
+import { en, enf, keyedText } from './i18n.ts';
 
 const R = 'https://github.com/k2-fsa/sherpa-onnx/releases/download';
 
@@ -169,8 +170,8 @@ export const runTar =
       const p = spawn(bin, ['-xjf', file, '-C', into, ...members], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
       let err = '';
       p.stderr.on('data', (d: Buffer) => (err += d.toString('utf8')));
-      p.on('error', (e) => reject(new VoiceInstallError('unpack', `tar could not start (${e.message}).`)));
-      p.on('close', (code) => (code === 0 ? resolve() : reject(new VoiceInstallError('unpack', `Unpacking failed (tar exit ${code}): ${err.trim().slice(0, 200)}`))));
+      p.on('error', (e) => reject(new VoiceInstallError('unpack', enf('tar could not start ({why}).', { why: e.message }))));
+      p.on('close', (code) => (code === 0 ? resolve() : reject(new VoiceInstallError('unpack', enf('Unpacking failed (tar exit {code}): {detail}', { code: String(code), detail: err.trim().slice(0, 200) })))));
     });
 
 export interface Progress {
@@ -186,9 +187,9 @@ export interface Progress {
  * differs is deleted and refused; nothing is kept that doesn't match.
  */
 export async function downloadPinned(url: string, sha256: string, dest: string, opts: { fetch?: typeof fetch; signal?: AbortSignal; onBytes?: (n: number, total: number) => void } = {}): Promise<void> {
-  if (privateLocalOn()) throw new VoiceInstallError('private', 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
+  if (privateLocalOn()) throw new VoiceInstallError('private', en('Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).'));
   const res = await (opts.fetch ?? netFetch)(url, { signal: opts.signal });
-  if (!res.ok || !res.body) throw new VoiceInstallError('download', `Download failed (HTTP ${res.status}).`);
+  if (!res.ok || !res.body) throw new VoiceInstallError('download', enf('Download failed (HTTP {status}).', { status: res.status }));
   const total = Number(res.headers.get('content-length') ?? 0);
   const hash = createHash('sha256');
   let n = 0;
@@ -202,12 +203,12 @@ export async function downloadPinned(url: string, sha256: string, dest: string, 
     await pipeline(src, createWriteStream(dest, { mode: 0o600 }));
   } catch (err) {
     rmSync(dest, { force: true });
-    if (opts.signal?.aborted) throw new VoiceInstallError('cancelled', 'Cancelled.');
-    throw new VoiceInstallError('download', `Download failed (${(err as Error).message}).`);
+    if (opts.signal?.aborted) throw new VoiceInstallError('cancelled', en('Cancelled.'));
+    throw new VoiceInstallError('download', enf('Download failed ({why}).', { why: (err as Error).message }));
   }
   if (hash.digest('hex') !== sha256) {
     rmSync(dest, { force: true });
-    throw new VoiceInstallError('checksum', "The download didn't match what Sara expects, so it wasn't kept. Try again later.");
+    throw new VoiceInstallError('checksum', en("The download didn't match what Sara expects, so it wasn't kept. Try again later."));
   }
 }
 
@@ -224,8 +225,8 @@ export async function installVoice(
   const haveRest = Boolean(all?.every((i) => existsSync(join(voiceDir, dirOf(i)))));
   const lang = opts.streaming === 'languages' || opts.streaming === 'languages-only';
   const items = opts.items ?? installItems(opts.platform, opts.arch, opts.streaming ? { streaming: lang ? (haveRest ? 'languages-only' : 'languages') : opts.streaming === 'only' && haveRest ? 'only' : 'add' } : {});
-  if (!all || !items) throw new VoiceInstallError('platform', 'On Linux use: sudo ./deploy/install-voice.sh');
-  if (privateLocalOn()) throw new VoiceInstallError('private', 'Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).');
+  if (!all || !items) throw new VoiceInstallError('platform', en('On Linux use: sudo ./deploy/install-voice.sh'));
+  if (privateLocalOn()) throw new VoiceInstallError('private', en('Nothing leaves this computer is on, so nothing is downloaded. Switch it off for the download (Settings → Privacy).'));
   const untar = opts.untar ?? runTar(systemTar(opts.platform));
   mkdirSync(voiceDir, { recursive: true });
   const dl = join(voiceDir, '.download');
@@ -233,7 +234,7 @@ export async function installVoice(
   const installed: string[] = [];
   try {
     for (const [i, item] of items.entries()) {
-      if (opts.signal?.aborted) throw new VoiceInstallError('cancelled', 'Cancelled.');
+      if (opts.signal?.aborted) throw new VoiceInstallError('cancelled', en('Cancelled.'));
       const name = nameOf(item);
       const dir = dirOf(item);
       if (existsSync(join(voiceDir, dir))) continue;
@@ -248,7 +249,7 @@ export async function installVoice(
       } finally {
         rmSync(file, { force: true });
       }
-      if (!existsSync(join(part, dir))) throw new VoiceInstallError('contents', `Unexpected contents in ${name} (no ${dir} folder).`);
+      if (!existsSync(join(part, dir))) throw new VoiceInstallError('contents', enf('Unexpected contents in {name} (no {dir} folder).', { name, dir }));
       rmSync(join(voiceDir, dir), { recursive: true, force: true });
       renameSync(join(part, dir), join(voiceDir, dir));
       rmSync(part, { recursive: true, force: true });
@@ -319,10 +320,13 @@ export interface InstallJob {
   state: 'running' | 'done' | 'failed' | 'cancelled';
   progress?: Progress;
   error?: string;
+  /** T46: the template and values of `error` when it was made with enf() (the page translates it). */
+  errorKey?: string;
+  params?: Record<string, unknown>;
   controller?: AbortController;
 }
 let job: InstallJob | undefined;
-export const installJob = (): Omit<InstallJob, 'controller'> | null => (job ? { state: job.state, ...(job.progress ? { progress: job.progress } : {}), ...(job.error ? { error: job.error } : {}) } : null);
+export const installJob = (): Omit<InstallJob, 'controller'> | null => (job ? { state: job.state, ...(job.progress ? { progress: job.progress } : {}), ...(job.error ? { error: job.error } : {}), ...(job.errorKey ? { errorKey: job.errorKey, params: job.params ?? {} } : {}) } : null);
 /** Starts the install in the background (once at a time); `done` runs after a whole install. */
 export function startInstall(voiceDir: string, done: () => void, opts: Parameters<typeof installVoice>[1] = {}): Omit<InstallJob, 'controller'> {
   if (job?.state === 'running') return installJob()!;
@@ -337,6 +341,8 @@ export function startInstall(voiceDir: string, done: () => void, opts: Parameter
     (err: Error) => {
       j.state = controller.signal.aborted ? 'cancelled' : 'failed';
       j.error = err.message;
+      const keyed = keyedText(err.message);
+      if (keyed) Object.assign(j, { errorKey: keyed.key, params: keyed.params });
     },
   );
   return installJob()!;

@@ -7,7 +7,10 @@
 import { serverText, t } from './naming.js';
 
 const POLL_MS = 2000;
-const working = (s) => s === 'planning' || s === 'running' || s === 'writing';
+/** A run whose state changes by itself (so its card keeps polling). C23: one waiting its turn too. */
+export const working = (s) => s === 'planning' || s === 'queued' || s === 'running' || s === 'writing';
+/** C23: runs that are not over yet (a plan to check, waiting, working, paused), oldest first; each is shown on its own. */
+export const activeRuns = (runs) => (runs ?? []).filter((r) => r.status !== 'done' && r.status !== 'stopped' && r.status !== 'failed').sort((a, b) => a.id - b.id);
 
 function el(tag, cls, text) {
   const e = document.createElement(tag);
@@ -54,6 +57,8 @@ export function statusLine(run) {
       return t('Drafting a plan…');
     case 'plan':
       return t('Her plan is ready. Nothing is read until you press Start.');
+    case 'queued':
+      return (run.queuePos ?? 1) <= 1 ? t('Waiting its turn: it starts when a run that is working ends.') : t('Waiting its turn: number {n} in line.', { n: run.queuePos });
     case 'running':
       if (p.doing === 'searching') return t('Searching: {what}', { what: p.detail });
       if (p.doing === 'reading') return t('Reading {site}', { site: host(p.detail) });
@@ -139,7 +144,7 @@ export function runButtons(run, act, o = {}) {
   if (run.status === 'plan' && o.start !== false) acts.append(btn(t('Start'), '', () => void act(`/research/${id}/start`)), btn(t('Change the plan'), 'ghost small', () => void openInLibrary(id)), btn(t('Cancel'), 'ghost', () => void act(`/research/${id}/stop`)));
   if (run.status === 'running') acts.append(btn(t('Pause'), 'ghost', () => void act(`/research/${id}/pause`)), btn(t('Write the report now'), '', () => void act(`/research/${id}/write-now`)), btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${id}/stop`)));
   if (run.status === 'paused') acts.append(btn(t('Resume'), '', () => void act(`/research/${id}/resume`)), btn(t('Write with what she has'), 'ghost', () => void act(`/research/${id}/write-now`)), btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${id}/stop`)));
-  if (run.status === 'writing' || run.status === 'planning') acts.append(btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${id}/stop`)));
+  if (run.status === 'writing' || run.status === 'planning' || run.status === 'queued') acts.append(btn(t('Stop'), 'ghost danger-text', () => void act(`/research/${id}/stop`)));
   if ((run.status === 'done' || run.status === 'stopped') && run.report) {
     if (o.open !== false) acts.append(btn(t('Open the report'), '', () => void openInLibrary(id)));
     if (run.counts?.read) {
@@ -216,7 +221,7 @@ export function researchCard(c) {
     const parts = [];
     if (run.status === 'plan') parts.push(planWords(run), capLine(run));
     if (run.status !== 'planning') parts.push(progressBits(run));
-    if (run.status === 'plan' || run.status === 'running' || run.status === 'paused') {
+    if (run.status === 'plan' || run.status === 'queued' || run.status === 'running' || run.status === 'paused') {
       if (!limits.budgetPages) limits = (await api('/research').catch(() => ({}))).limits ?? {};
       parts.push(budgetBits(run, limits, () => void draw()));
     }

@@ -14,6 +14,7 @@ import { rawEmail } from '../google.ts';
 import { imapDate, imapString, keyword, toImap, type SearchTerms } from './search.ts';
 import { openMailSocket, type OpenOpts, type WireSocket } from './socket.ts';
 import type { ApplyResult, Before, Draft, Folder, MailAction, MailMessage, MailProvider } from './types.ts';
+import { en } from '../i18n.ts';
 
 // ---------- the email bridge's modules (plain .mjs), typed here ----------
 
@@ -179,6 +180,8 @@ export interface ImapOpts extends Pick<OpenOpts, 'ca' | 'lookup' | 'testLoopback
   /** The certificate fingerprint was learned (Proton Mail Bridge, first use). */
   onFingerprint?: (fp: string) => void;
   timeZone?: () => string | undefined;
+  /** T47: the wait between looks for a sent mail (tests pass a no-op). */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 export class ImapMail implements MailProvider {
@@ -202,7 +205,7 @@ export class ImapMail implements MailProvider {
 
   async #open(): Promise<Session> {
     const pass = this.#password();
-    if (!pass) throw new Error('The app password for this mailbox is missing. Add the account again in Settings → Email and calendar.');
+    if (!pass) throw new Error(en('The app password for this mailbox is missing. Add the account again in Settings → Email and calendar.'));
     const lib = await mailLib();
     const o = await openMailSocket(this.#cfg.imap.host, this.#cfg.imap.port, { ...(this.#cfg.loopback ? { loopback: true } : {}), ...(this.#cfg.fingerprint ? { fingerprint: this.#cfg.fingerprint } : {}), ...(this.#o.ca ? { ca: this.#o.ca } : {}), ...(this.#o.lookup ? { lookup: this.#o.lookup } : {}), ...(this.#o.testLoopback ? { testLoopback: true } : {}) });
     if (o.fingerprint && !this.#cfg.fingerprint) {
@@ -478,6 +481,13 @@ export class ImapMail implements MailProvider {
       const { raw, messageId } = await this.#compose(d, s);
       const folder = await this.#folderFor(s, 'drafts');
       await s.append(folder, '\\Draft \\Seen', raw);
+      // C13: the draft looked up in the folder by its Message-ID (a failed look leaves `saved` unset).
+      try {
+        await s.select(folder, false);
+        d.saved = (await s.search(`HEADER Message-ID ${imapString(messageId)}`, false)).length > 0;
+      } catch {
+        /* couldn't read back */
+      }
       if (d.attachments?.length) {
         const names = await this.#namesIn(s, folder, messageId);
         if (names) d.readBack = names;
@@ -500,13 +510,27 @@ export class ImapMail implements MailProvider {
       } finally {
         await smtp.quit();
       }
-      if (this.#cfg.copySent) {
+      // The mail is out. Nothing below may fail the send: it only files a copy and reads it back.
+      try {
         const sent = (await this.#folderRoles(s)).get('sent');
-        if (sent) await s.append(sent, '\\Seen', raw).catch(() => undefined);
-        if (sent && d.attachments?.length) {
-          const names = await this.#namesIn(s, sent, messageId);
-          if (names) d.readBack = names;
+        if (!sent) d.noSentFolder = true;
+        else {
+          if (this.#cfg.copySent) await s.append(sent, '\\Seen', raw).catch(() => undefined);
+          // T47: the sent mail looked up in the Sent folder by its Message-ID (a failed look leaves
+          // `sent` unset). A server that files sent mail itself may need a moment: two more looks.
+          const wait = this.#o.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+          for (let i = 0; i < (this.#cfg.copySent ? 1 : 3) && !d.sent; i++) {
+            if (i) await wait(i * 1000);
+            await s.select(sent, false);
+            d.sent = (await s.search(`HEADER Message-ID ${imapString(messageId)}`, false)).length > 0;
+          }
+          if (d.sent && d.attachments?.length) {
+            const names = await this.#namesIn(s, sent, messageId);
+            if (names) d.readBack = names;
+          }
         }
+      } catch {
+        delete d.sent;
       }
       return to.join(', ');
     });

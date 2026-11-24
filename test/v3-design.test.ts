@@ -95,7 +95,7 @@ test('V3 slice 3: Ctrl+K is the universal launcher: pages, every Settings page, 
   const bar = web('command-bar.js');
   assert.match(bar, /projects: \(c\.projects\?\.\(\) \?\? \[\]\)\.map\(\(x\) => \(\{ \.\.\.x, group: 'projects' \}\)\)/);
   assert.match(bar, /projects: t\('Projects'\)/);
-  assert.match(bar, /\['projects', pick\(all\.projects, q\)\]/, 'projects are searched');
+  assert.match(bar, /\['projects', pick\(all\.projects, q, PER_GROUP, recent\)\]/, 'projects are searched');
   const app = web('app.js');
   // Every Settings page is in the bar (the same list as the Settings nav), and every project.
   assert.match(app, /settings: \(\) => settingsPages\(\)\.map\(\(p\) => \(\{ key: `settings:\$\{p\.dataset\.page\}`/);

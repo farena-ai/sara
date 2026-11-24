@@ -466,7 +466,9 @@ test('Signal: linking with a 6-digit code (wrong 5 times and it is gone), the sa
   fake.push({ source: STRANGER.uuid, sourceUuid: STRANGER.uuid, sourceName: STRANGER.name, timestamp: fake.nextTs(), editMessage: { targetSentTimestamp: gts, dataMessage: { message: 'what did you REALLY think?', groupInfo: { groupId: GROUP } } } });
   assert.ok(await until(() => recentLines(app, room!.id, 10).some((l) => /REALLY/.test(l.text) && l.flags.edited === true)), 'an edit updates the line');
   // A steer while she works: 👀 on his message, taken at the safe point.
-  app.tools.add({ spec: { name: 'wait_a_bit', description: 'slow', parameters: { type: 'object', properties: {} } }, defaultPermission: 'auto', summarize: () => 'Wait', run: async () => (await new Promise((res) => setTimeout(res, 1500)), 'ok') });
+  // The tool keeps her working until the 👀 is out (60 s is only a guard). It used to wait 1.5 s: on a
+  // busy computer the steer could take longer than that to come in, and it then started a new turn.
+  app.tools.add({ spec: { name: 'wait_a_bit', description: 'slow', parameters: { type: 'object', properties: {} } }, defaultPermission: 'auto', summarize: () => 'Wait', run: async () => (await until(() => fake.calls('sendReaction').length > 0, 60_000), 'ok') });
   app.script.push([call('w1', 'wait_a_bit', {})], text('Done with pnpm.'));
   const n1 = app.requests.length;
   dm(OWNER, 'start the job');

@@ -536,8 +536,6 @@ export function escAction({ menu = false, sheet = false, other = false } = {}) {
 export function nowItems(d, now = Date.now()) {
   return dayItems(d, now)
     .filter((x) => !x.allDay && !x.past && Number.isFinite(x.at))
-    // By time here (the timeline keeps a leave-by under its event; Now wants the next thing to do).
-    .sort((a, b) => a.at - b.at)
     .slice(0, 2)
     .map((x) => ({ ...x, mins: Math.round((x.at - now) / 60_000) }));
 }
@@ -582,6 +580,25 @@ function afterClose(focus) {
 // ---------- tiles ----------
 
 const time = (ms) => new Date(ms).toLocaleTimeString(locale(), { hour: 'numeric', minute: '2-digit' });
+/**
+ * T45 (C21): a time of your day in words. In the hour that happens twice when the clocks go back it
+ * says which one: "1:30 AM (1st)", "1:30 AM (2nd)". The timeline, the Leave by line, the Now card
+ * and the phone's summary all use it, so 1:30 never means two things.
+ */
+export function dayTime(ms, offset) {
+  const rep = repeatedHour(ms, offset);
+  return rep ? `${time(ms)} ${rep === '1st' ? t('(1st)') : t('(2nd)')}` : time(ms);
+}
+/** The Leave by sentence of the timeline and the Now card. */
+export const leaveLine = (x, offset) => t('Leave by {time} for {what}', { time: dayTime(x.at, offset), what: x.title });
+/** T45: one row of the Now card as [icon, words, class] (x from nowItems). */
+export function nowLine(x, offset) {
+  const ic = x.kind === 'reminder' ? 'reminder' : 'calendar';
+  if (x.kind === 'leave') return ['car', leaveLine(x, offset), 'leave'];
+  if (x.mins <= 0) return [ic, t('Now: {what}', { what: x.title }), 'soon'];
+  if (x.mins < 60) return [ic, t('{what} in {n} min', { what: x.title, n: x.mins }), 'soon'];
+  return [ic, t('{what} at {time}', { what: x.title, time: dayTime(x.at, offset) }), ''];
+}
 const hourOf = (iso) => new Date(iso).toLocaleTimeString(locale(), { hour: 'numeric' });
 const num = (n) => Number(n ?? 0).toLocaleString(locale());
 const kTok = (n) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : n >= 1000 ? `${Math.round(n / 100) / 10}k` : String(n));
@@ -746,15 +763,14 @@ function openPlanner() {
 function dayRow(x, fmtDue) {
   const li = el('li', `td-time-row ${x.kind}${x.past ? ' past' : ''}`);
   // Phase 114 (B1): the repeated hour when summer time ends reads "1:30 (1st)" and "1:30 (2nd)".
-  const rep = x.allDay || x.at === null ? '' : repeatedHour(x.at);
-  const at = x.allDay ? t('all day') : x.at === null ? '' : rep ? `${time(x.at)} ${rep === '1st' ? t('(1st)') : t('(2nd)')}` : time(x.at);
+  const at = x.allDay ? t('all day') : x.at === null ? '' : dayTime(x.at);
   const when = el('span', 'td-when', at);
   const dot = el('span', 'td-dot');
   dot.setAttribute('aria-hidden', 'true');
   const what = el('span', 'td-what');
   if (x.kind === 'leave') {
     const how = { car: t('({n} min by car)', { n: x.minutes }), bike: t('({n} min by bike)', { n: x.minutes }), walk: t('({n} min on foot)', { n: x.minutes }) }[x.mode] ?? t('({n} min)', { n: x.minutes });
-    const title = el('span', 'td-what-title', `${t('Leave by {time} for {what}', { time: time(x.at), what: x.title })} ${how}`);
+    const title = el('span', 'td-what-title', `${leaveLine(x)} ${how}`);
     title.dataset.raw = '';
     const car = icon('car');
     if (car) title.prepend(car);
@@ -804,7 +820,7 @@ export function renderPlanner(d, fmtDue) {
     const li = el('li', `td-task${x.overdue ? ' overdue' : ''}`);
     const title = raw(el('span', 'td-task-title', x.title));
     title.title = x.title;
-    const side = el('span', 'td-task-side', x.dueAt ? (x.overdue ? `${t('overdue')} · ${fmtDue(x.dueAt)}` : time(Date.parse(x.dueAt))) : t('important'));
+    const side = el('span', 'td-task-side', x.dueAt ? (x.overdue ? `${t('overdue')} · ${fmtDue(x.dueAt)}` : dayTime(Date.parse(x.dueAt))) : t('important'));
     li.append(tickButton(x, li), title, side);
     ul.append(li);
   }
@@ -1913,13 +1929,15 @@ function summarise() {
     sum.hidden = !words;
   }
 }
+/** The phone's Your day summary: the next thing, its time said once (a leave-by: "1:10 PM Leave · 25 min"). */
+export const phoneDayLine = (next, offset) => `${dayTime(next.at, offset)} ${next.kind === 'leave' ? t('Leave · {n} min', { n: next.minutes }) : next.title}`;
 function groupSummary(id, d, node) {
   const names = () => [...node.querySelectorAll('.td-tile:not([hidden])')].map((x) => ctx.tileTitle?.(x.id) ?? x.querySelector('h3')?.textContent ?? '').filter(Boolean).join(' · ');
   if (id === 'weather' && d.weather && d.weather.now !== null && d.weather.now !== undefined) return [`${d.weather.now}°`, weatherWords(weatherKind(d.weather.code, d.weather.day !== false).kind)].filter(Boolean).join(' · ');
   if (id === 'mail' && d.mail && !d.mail.error) return typeof d.mail.total === 'number' ? t('{total} in inbox · {unread} unread', { total: num(d.mail.total), unread: num(d.mail.unread) }) : t('Unread: {n}', { n: num(d.mail.unread) });
   if (id === 'day' && form === 'phone') {
     const next = nowItems(d)[0];
-    return next ? `${time(next.at)} ${next.kind === 'leave' ? t('Leave by {time} · {n} min', { time: time(next.at), n: next.minutes }) : next.title}` : '';
+    return next ? phoneDayLine(next) : '';
   }
   return names();
 }
@@ -2007,12 +2025,7 @@ export function renderNow(d) {
     li.append(mark, raw(el('span', 'td-now-text', text)));
     return li;
   };
-  for (const x of nowItems(d, now)) {
-    if (x.kind === 'leave') rows.push(row('car', t('Leave by {time} for {what}', { time: time(x.at), what: x.title }), 'leave'));
-    else if (x.mins <= 0) rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('Now: {what}', { what: x.title }), 'soon'));
-    else if (x.mins < 60) rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('{what} in {n} min', { what: x.title, n: x.mins }), 'soon'));
-    else rows.push(row(x.kind === 'reminder' ? 'reminder' : 'calendar', t('{what} at {time}', { what: x.title, time: time(x.at) })));
-  }
+  for (const x of nowItems(d, now)) rows.push(row(...nowLine(x)));
   if (!rows.length) rows.push(row('calendar', dayItems(d, now).length ? t('Nothing else planned today.') : t('Nothing planned. Enjoy the space.'), 'quiet'));
   const w = d.weather;
   if (w && w.setUp !== false && !w.error && w.now !== null && w.now !== undefined) {

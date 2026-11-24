@@ -57,6 +57,30 @@ export async function travelMinutes(from: Place, to: Place, mode: TravelMode, fe
   return r.code === 'Ok' && s !== undefined ? Math.max(1, Math.round(s / 60)) : undefined;
 }
 
+/** A zone's offset from UTC at an instant, in minutes east (no zone: this computer's). */
+function zoneOffset(ms: number, tz: string | undefined): number {
+  const p = new Intl.DateTimeFormat('en-US', { ...(tz ? { timeZone: tz } : {}), hourCycle: 'h23', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric' }).formatToParts(new Date(ms));
+  const v = (type: string) => Number(p.find((x) => x.type === type)?.value);
+  return Math.round((Date.UTC(v('year'), v('month') - 1, v('day'), v('hour'), v('minute'), v('second')) - Math.floor(ms / 1000) * 1000) / 60_000);
+}
+/**
+ * T47: in the hour a clock repeats when summer time ends, the same wall time happens twice;
+ * '1st' / '2nd' tells them apart ('' the rest of the year). The server-side twin of repeatedHour
+ * in web/today.js, for the owner's time zone instead of the browser's.
+ */
+export function repeatedHour(at: number, tz: string | undefined): '' | '1st' | '2nd' {
+  if (!Number.isFinite(at)) return '';
+  const HOUR = 3_600_000;
+  try {
+    const o = zoneOffset(at, tz);
+    if (zoneOffset(at + HOUR, tz) < o) return '1st';
+    if (zoneOffset(at - HOUR, tz) > o) return '2nd';
+  } catch {
+    /* an unknown zone: no mark */
+  }
+  return '';
+}
+
 export class LeaveByWorker {
   readonly #app: AppContext;
   readonly #fetch: FetchLike;
@@ -157,7 +181,9 @@ export class LeaveByWorker {
   }
 
   #message(e: TodayEvent, start: number, minutes: number, cfg: LeaveBySettings, tz: string | undefined, late: boolean): string {
-    const at = new Date(start).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' });
+    // T47: in the hour the clocks go back, "1:30 AM" happens twice: say which one, as Today does.
+    const rep = repeatedHour(start, tz);
+    const at = `${new Date(start).toLocaleTimeString('en-US', { timeZone: tz, hour: 'numeric', minute: '2-digit' })}${rep ? ` (${rep})` : ''}`;
     const how = cfg.mode === 'car' ? 'drive' : cfg.mode === 'bike' ? 'bike ride' : 'walk';
     const icon = cfg.mode === 'car' ? '🚗' : cfg.mode === 'bike' ? '🚲' : '🚶';
     const title = (e.title || 'your event').slice(0, 120);

@@ -96,6 +96,20 @@ export class RotatingFile {
   }
 }
 
+/**
+ * D8: a Debug-level line. The text is built only when the Debug level is on, and a line that
+ * fails to build is dropped (it never breaks what it describes). Ids, counts, sizes, durations
+ * and the names of models and tools only: never message text, arguments, results or addresses.
+ */
+export function debugLine(log: Pick<Log, 'wants'> | undefined, make: () => string): void {
+  if (!log?.wants('debug')) return;
+  try {
+    console.debug(make());
+  } catch {
+    /* no line */
+  }
+}
+
 type ConsoleLike = Pick<Console, 'log' | 'info' | 'warn' | 'error' | 'debug'>;
 
 export class Log {

@@ -552,6 +552,13 @@ host keys, and, only if the owner asked, a server password in the vault.
   folders, dropping databases, force pushes, removing containers, `kill -9`) asks even when the
   owner set `ssh_run` to run on its own (`Tool.asksFirst`, checked in `chat.ts`). Adding a server,
   forgetting a password, revoking a key and removing a server always ask.
+- **File copies (T46).** `ssh_upload` and `ssh_download` copy one file with the system `scp` and
+  the same fixed options as `ssh` (approved host key only, her key, nothing forwarded). The local
+  side goes through `resolveInside` (no path or link out of the workspace; `assertWritable` on the
+  way down). The server path allows plain characters only, so an old scp that hands it to a shell
+  has nothing to expand. 20 MB each way; a download is sized first and lands in a temp folder. Both
+  ask by default, and `RISKY_REMOTE_PATH` (system folders, `.ssh`, keys, `.env`, start-up files)
+  asks even when the owner set them to run on their own. A downloaded file is other people's words.
 - **Who can reach it.** Owner only: the manager exists only in the owner's space and never on the
   demo; household members have no SSH tools and `ssh` isn't in `MEMBER_ROUTES` (403); the demo's
   allowlists don't include it (403). Every `ssh_*` tool is removed from turns of other apps

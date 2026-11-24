@@ -5,6 +5,34 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.44.0 (2026-11-24): Research runs side by side, reports in more scripts, sent mail checked
+
+- Fixed: her "Time to leave" message in the hour the clocks go back now says which of the two times it means, such as "1:30 AM (1st)" or "1:30 AM (2nd)", like the Today page.
+- Better: after sending an email from Outlook or an IMAP mailbox she now looks it up in the Sent folder before saying it is verified. When it is not there yet, there is no Sent folder, or the folder cannot be read, she says the email was sent but could not be checked; a sent email is never reported as failed because of the check. Outlook emails are now made as a draft and then sent, so if sending fails the message stays in Drafts.
+- Better: "This reply failed: …" in the chat now shows the reason in your language when it is one of the translated error messages, live and after a reload. Telegram and Discord do the same in their "(Something went wrong: …)" line. A service's own words stay as they came.
+- New: the research report PDF (and the trust report and work page PDFs) can show Greek, Russian, Chinese, Japanese, Korean, Hebrew, Thai, symbols and simple emoji. It uses a font that is already on the computer Sara runs on, puts only the letters used into the file, and downloads nothing. Chinese and Japanese lines now wrap, Hebrew runs right to left, and the title in the file's details keeps its letters.
+- Better: text the PDF can't draw is no longer printed as `?`. Arabic, Hindi and other scripts whose letters must be joined, and anything no font on the computer has, are marked `[…]` and a note under the title names what is missing. The Word and Markdown files keep everything.
+- New: more than one research run at a time. Two runs read and write at once; start a third and it waits its turn (it is no longer refused) and starts by itself when a place is free. *Library → Research a question* lists every run that is not over under *Working now*, each with its own status, page counts, budget and Stop, and *← All research* takes you back from a run to ask another question while it works.
+- Fixed: a research run interrupted by a restart while it was reading a page now reads that page again when it goes on; before, that one page was skipped.
+- Fixed: memory notes for a conversation the background model answers with nothing (some models decline a conversation without saying so). The next model is asked instead of the same one failing every hour; with adult mode on, that includes the model her adult replies use.
+- Better: about 65 more error messages now show in your language instead of English: voice and hearing problems (a missing key, a voice that is not installed, a failed download of the voice files), setting up an email account or the Microsoft app, and a model server that cannot be reached.
+- New: she can copy a file between her workspace and one of your servers over SSH, up or down ("put the new index.html on web box", "bring me the nginx error log"). One file at a time, up to 20 MB, with the same approved host key and her own key as her commands. Each copy asks you first; copies that touch system folders, keys or sign-in files always ask.
+- Fixed: a team task's time limit now ends a helper in the middle of a long model call or command. Before, it was looked at only between a helper's moves, so one long call could run far past it. The part waits and runs again if you continue the task.
+- Fixed: the time you take to answer a helper's approval card, or a plan or pull-request checkpoint, no longer counts against a team task's time limit.
+- Fixed: a team helper that answers with nothing twice and used no tool now fails its part instead of passing as done; if a backup model is set for that job, the backup takes over first. A reply that is only the model's private reasoning counts as nothing.
+- Better: a team helper's history is kept to what its model can hold over a long part (the same rule as her own replies), so a small model no longer overflows after many tool calls.
+- Better: learning from your imported history reads a long conversation in parts instead of only its end, so what you said early in a long chat is learned too. One conversation takes at most six calls to your background model (about the newest 180,000 characters), and a pause or restart goes on where it stopped.
+- Fixed: `/new` in a Discord channel, Telegram group or guest DM that is linked to a shared scene no longer unlinks it; the new session keeps playing the scene.
+- Better: a shared scene reaches a linked room only while that chat app is switched on; the room stays linked while it is off.
+- Better: the Debug log level (Settings → Privacy & system → Health → Log level) now shows what each reply decided: which model answered and why, how much of the conversation it kept in mind, how many tools were offered, each tool with its time, a backup model taking over, and the jobs after the reply. Names, counts and times only; never what was said.
+- Better: "check everything" or "look in my mail too" now reaches your mail and notes even when she starts with your documents. A private chat, Private local mode, a child's space and a mail search set to ask first are respected as before.
+- Better: after she saves an email draft in Outlook or an app-password mailbox (Yahoo, iCloud, Fastmail…), she looks the draft up again on the mail server before saying it is saved, and tells you when she could not find it.
+- Fixed: with her model down, Today's Needs you names it once. The replies that failed because of it are no longer listed as extra rows; a reply that failed for another reason still is.
+- Fixed: "I tested it in the browser" is no longer marked "Not checked" when she used a browser add-on (such as Playwright) instead of her own testing browser. A screenshot claim still needs a screenshot, at the width she names.
+- Better: Ctrl K shows the best match first. Type "bigger text" and the setting comes before chats that only mention those words; of two equal matches, the one you picked last time leads.
+- Fixed: on a phone, "checked 2 h ago ↻ Refresh" under a model service stays together on one line.
+- Better: in the hour that happens twice when the clocks go back, Today says which one ("1:10 AM (2nd)") in the Leave by line, the Now card and the phone's summary too, not only in the time column. The phone's summary says a leave time once.
+
 ## 3.43.1 (2026-11-24): Replies from a model on your own computer are no longer cut off
 
 - Fixed: replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with "request exceeds the available context size". Sara now checks each message to such a model against the room it has: it asks for more room when her instructions and tools alone need it, and leaves out the oldest part of a long conversation so the reply always has space.

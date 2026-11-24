@@ -302,7 +302,7 @@ export function renderVoiceInstall(v) {
   row.hidden = !inst?.installable && inst?.job?.state !== 'running';
   const s = $('#v-install-status');
   const j = inst?.job;
-  s.textContent = !j ? t('About {mb} MB.', { mb: String(inst?.mb ?? 650) }) : j.state === 'running' ? t('Installing… {n} of {of}: {pct} %', { n: String((j.progress?.index ?? 0) + 1), of: String(j.progress?.of ?? 4), pct: String(j.progress?.total ? Math.floor((j.progress.bytes / j.progress.total) * 100) : 0) }) : j.state === 'done' ? t('Installed. Choose “On this server” for hearing and her voice.') : (j.error ?? '');
+  s.textContent = !j ? t('About {mb} MB.', { mb: String(inst?.mb ?? 650) }) : j.state === 'running' ? t('Installing… {n} of {of}: {pct} %', { n: String((j.progress?.index ?? 0) + 1), of: String(j.progress?.of ?? 4), pct: String(j.progress?.total ? Math.floor((j.progress.bytes / j.progress.total) * 100) : 0) }) : j.state === 'done' ? t('Installed. Choose “On this server” for hearing and her voice.') : serverText(j, '');
   const b = $('#v-install');
   b.disabled = j?.state === 'running';
   if (!b.dataset.wired) {
@@ -342,7 +342,7 @@ export function renderLangsInstall(v) {
     : st.linux
       ? t('On Linux run: sudo ./deploy/install-voice.sh --languages')
       : row.dataset.asked === '1' && j?.state === 'failed'
-        ? (j.error ?? '')
+        ? serverText(j, '')
         : t('Spanish, French, German, Portuguese and Italian. About {mb} MB.', { mb: String(st.multi.mb ?? 480) });
   if (!b.dataset.wired) {
     b.dataset.wired = '1';
@@ -386,7 +386,7 @@ export function renderStreamInstall(v) {
       : st.installed
         ? t('Needs the loaded-engine helper: update Sara, or on Linux run install-voice.sh again.')
         : j?.state === 'failed'
-          ? (j.error ?? '')
+          ? serverText(j, '')
           : t('About {mb} MB.', { mb: String(st.mb ?? 105) });
   if (!b.dataset.wired) {
     b.dataset.wired = '1';

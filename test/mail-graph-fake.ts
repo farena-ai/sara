@@ -23,6 +23,7 @@ export interface FakeMsg {
   toRecipients: { emailAddress: { address: string } }[];
   internetMessageHeaders?: { name: string; value: string }[];
   isDraft?: boolean;
+  internetMessageId?: string;
 }
 
 export class FakeGraph {
@@ -63,6 +64,8 @@ export class FakeGraph {
   uploadFail = 0;
   /** Store the next N upload chunks, then answer 500 anyway (Sara must ask where to resume). */
   uploadLost = 0;
+  /** T47: runs right after a draft was sent (the tests lose the message, change its id or make the next reads fail). */
+  afterSend?: (msg: FakeMsg) => void;
   #n = 0;
 
   async start(): Promise<this> {
@@ -259,7 +262,12 @@ export class FakeGraph {
     if ((mm = /^\/me\/messages\/([^/]+)\/send$/.exec(p)) && m === 'POST') {
       const msg = this.msgs.find((x) => x.id === decodeURIComponent(mm![1])) as (FakeMsg & { files?: unknown[] }) | undefined;
       if (!msg) return json(404, { error: { message: 'not found' } });
-      this.sent.push({ sentDraft: msg.id, subject: msg.subject, files: msg.files ?? [] });
+      this.sent.push({ sentDraft: msg.id, subject: msg.subject, files: msg.files ?? [], body: msg.body, to: msg.toRecipients.map((r) => r.emailAddress.address) });
+      // T47: a sent draft is filed in Sent Items and is no draft any more (immutable ids keep the id).
+      msg.isDraft = false;
+      msg.parentFolderId = 'F-SENT';
+      if (!prefer.includes('IdType="ImmutableId"')) msg.id = `${msg.id}sent`;
+      this.afterSend?.(msg);
       return json(202, {});
     }
     if ((mm = /^\/me\/messages\/([^/]+)\/move$/.exec(p)) && m === 'POST') {
@@ -279,11 +287,16 @@ export class FakeGraph {
       }
       const d = this.add({ from: this.address, subject: `RE: ${orig.subject}`, parentFolderId: 'F-DRAFTS', conversationId: orig.conversationId, body: String(b.comment ?? '') });
       d.isDraft = true;
+      d.internetMessageId = `<${d.id}@outlook.test>`;
+      const to = ((b.message as { toRecipients?: FakeMsg['toRecipients'] } | undefined)?.toRecipients ?? []);
+      if (to.length) d.toRecipients = to;
       return json(201, d);
     }
     if (p === '/me/messages' && m === 'POST') {
-      const d = this.add({ from: this.address, subject: String(b.subject ?? ''), parentFolderId: 'F-DRAFTS' });
+      const d = this.add({ from: this.address, subject: String(b.subject ?? ''), parentFolderId: 'F-DRAFTS', ...(typeof (b.body as { content?: unknown } | undefined)?.content === 'string' ? { body: (b.body as { content: string }).content } : {}) });
       d.isDraft = true;
+      d.internetMessageId = `<${d.id}@outlook.test>`;
+      if (Array.isArray(b.toRecipients) && b.toRecipients.length) d.toRecipients = b.toRecipients as FakeMsg['toRecipients'];
       return json(201, d);
     }
     if (p === '/me/sendMail' && m === 'POST') {
@@ -341,6 +354,7 @@ export class FakeGraph {
       if ((m = /^(not\()?categories\/any\(c:c eq '(.+)'\)\)?$/.exec(c))) return x.categories.includes(m[2]) !== Boolean(m[1]);
       if ((m = /^conversationId eq '(.+)'$/.exec(c))) return x.conversationId === m[1];
       if ((m = /^hasAttachments eq (true|false)$/.exec(c))) return x.hasAttachments === (m[1] === 'true');
+      if ((m = /^internetMessageId eq '(.+)'$/.exec(c))) return x.internetMessageId === m[1].replace(/''/g, "'");
       throw new Error(`fake: unknown filter ${c}`);
     });
   }

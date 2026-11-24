@@ -17,6 +17,7 @@ import {
   type ProviderConfig,
   type StreamEvent,
 } from './types.ts';
+import { en, enf } from '../i18n.ts';
 
 type WireMessage =
   | { role: 'system'; content: string }
@@ -306,11 +307,11 @@ export class OpenAICompatibleProvider implements Provider {
     if (!res.ok) {
       if (req.strictUsage || req.maxResponseBytes !== undefined) {
         void res.body?.cancel().catch(() => {});
-        throw new ProviderError('Configured provider refused the request.', res.status);
+        throw new ProviderError(en('Configured provider refused the request.'), res.status);
       }
       await failFromResponse(res, this.config.label, req.model);
     }
-    if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
+    if (!res.body) throw new ProviderError(enf('{label} returned no body', { label: this.config.label }));
 
     const calls = new Map<number, PartialCall>();
     let usage: StreamEvent | undefined;
@@ -426,7 +427,7 @@ export class OpenAICompatibleProvider implements Provider {
       throw new ProviderError(friendlyNotFound(this.config.label, req.model, text), 404);
     }
     if (!res.ok) await failFromResponse(res, this.config.label, req.model);
-    if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
+    if (!res.body) throw new ProviderError(enf('{label} returned no body', { label: this.config.label }));
     const body = res.body;
     const self = this;
     return (async function* (): AsyncGenerator<StreamEvent> {

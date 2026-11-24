@@ -13,6 +13,7 @@ import { netFetch } from '../net-guard.ts';
 import type { Vault } from '../vault.ts';
 import { toGraph, type SearchTerms } from './search.ts';
 import type { ApplyResult, Before, CalendarEventIn, CalendarEventOut, Draft, Folder, MailAction, MailMessage, MailProvider } from './types.ts';
+import { en, enf } from '../i18n.ts';
 
 export const MS_CLIENT_VAULT = 'mail:ms:client';
 export const msTokenVault = (id: string): string => `mail:ms:${id}:token`;
@@ -114,22 +115,22 @@ export class MicrosoftAuth {
   }
 
   setClient(clientId: string, clientSecret: string): void {
-    if (this.member) throw new Error('Only the owner of this server can set up the Microsoft app.');
+    if (this.member) throw new Error(en('Only the owner of this server can set up the Microsoft app.'));
     clientId = clientId.trim();
     clientSecret = clientSecret.trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) throw new Error('The Application (client) ID looks like 1a2b3c4d-…-…: copy it from the app\'s Overview page in the Microsoft Entra admin center.');
-    if (clientSecret && clientSecret.length < 10) throw new Error('Paste the client secret\'s Value (not its Secret ID).');
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clientId)) throw new Error(en('The Application (client) ID looks like 1a2b3c4d-…-…: copy it from the app\'s Overview page in the Microsoft Entra admin center.'));
+    if (clientSecret && clientSecret.length < 10) throw new Error(en('Paste the client secret\'s Value (not its Secret ID).'));
     this.#vault.set(MS_CLIENT_VAULT, JSON.stringify({ clientId, ...(clientSecret ? { clientSecret } : {}) }));
   }
   forgetClient(): void {
-    if (this.member) throw new Error('Only the owner of this server can set up the Microsoft app.');
+    if (this.member) throw new Error(en('Only the owner of this server can set up the Microsoft app.'));
     this.#vault.delete(MS_CLIENT_VAULT);
   }
 
   /** R6: `files` adds Files.ReadWrite (Word and Excel in OneDrive/SharePoint) on its own consent page. */
   authUrl(redirect: string, loginHint?: string, opts: { files?: boolean } = {}): string {
     const c = this.#client();
-    if (!c) throw new Error('Add your Microsoft app (Application ID and secret) first.');
+    if (!c) throw new Error(en('Add your Microsoft app (Application ID and secret) first.'));
     for (const [k, v] of this.#pending) {
       if (this.#now() - v.at <= 10 * 60_000) continue;
       this.#pending.delete(k);
@@ -159,16 +160,16 @@ export class MicrosoftAuth {
     const p = this.#pending.get(state);
     this.#pending.delete(state);
     if (WAITING.get(state) === this) WAITING.delete(state);
-    if (!p || this.#now() - p.at > 10 * 60_000) throw new Error('That sign-in link expired. Start again from Settings.');
+    if (!p || this.#now() - p.at > 10 * 60_000) throw new Error(en('That sign-in link expired. Start again from Settings.'));
     const c = this.#client();
-    if (!c) throw new Error('The Microsoft app was removed.');
+    if (!c) throw new Error(en('The Microsoft app was removed.'));
     const j = await this.#token({ grant_type: 'authorization_code', code, redirect_uri: p.redirect, code_verifier: p.verifier, client_id: c.clientId, scope: scopesFor(p.files), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
-    if (!j.refresh_token) throw new Error('Microsoft did not give a long-lived sign-in (offline_access). Add it under API permissions and try again.');
+    if (!j.refresh_token) throw new Error(en('Microsoft did not give a long-lived sign-in (offline_access). Add it under API permissions and try again.'));
     const scopes = j.scope ?? '';
     const t: MsTokens = { access: j.access_token, refresh: j.refresh_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, scopes, address: '', ...(p.files && (!scopes || /Files\.ReadWrite/i.test(scopes)) ? { files: true } : {}) };
     const me = (await this.#get(`${this.graph}/me?$select=mail,userPrincipalName`, t.access)) as { mail?: string; userPrincipalName?: string };
     t.address = String(me.mail || me.userPrincipalName || '').toLowerCase();
-    if (!t.address) throw new Error('Microsoft did not say which address this is.');
+    if (!t.address) throw new Error(en('Microsoft did not say which address this is.'));
     return t;
   }
 
@@ -186,7 +187,7 @@ export class MicrosoftAuth {
       // Only the first line of Microsoft's description (it carries trace and correlation ids).
       const why = (j.error_description ?? '').split(/\r?\n/)[0].replace(/^AADSTS\d+:\s*/, '').slice(0, 200);
       if (j.error === 'invalid_grant') throw new SignedOut(why);
-      throw new Error(`Microsoft sign-in failed: ${why || j.error || r.status}`);
+      throw new Error(enf('Microsoft sign-in failed: {why}', { why: why || j.error || r.status }));
     }
     return { access_token: j.access_token, expires_in: j.expires_in ?? 3600, ...(j.refresh_token ? { refresh_token: j.refresh_token } : {}), ...(j.scope ? { scope: j.scope } : {}) };
   }
@@ -198,7 +199,7 @@ export class MicrosoftAuth {
     const t = JSON.parse(raw) as MsTokens;
     if (t.expiresAt > this.#now()) return t.access;
     const c = this.#client();
-    if (!c) throw new Error('The Microsoft app was removed (Settings → Email and calendar).');
+    if (!c) throw new Error(en('The Microsoft app was removed (Settings → Email and calendar).'));
     try {
       const j = await this.#token({ grant_type: 'refresh_token', refresh_token: t.refresh, client_id: c.clientId, scope: scopesFor(t.files), ...(c.clientSecret ? { client_secret: c.clientSecret } : {}) });
       const next: MsTokens = { ...t, access: j.access_token, expiresAt: this.#now() + (j.expires_in - 60) * 1000, ...(j.refresh_token ? { refresh: j.refresh_token } : {}), ...(j.scope ? { scopes: j.scope } : {}) };
@@ -528,19 +529,31 @@ export class GraphMail implements MailProvider {
     if (a) d.readBack = (a.value ?? []).map((x) => x.name ?? '').filter(Boolean);
   }
 
-  async draft(d: Draft, signal?: AbortSignal): Promise<string> {
-    const sig = signal ? { signal } : {};
-    if (d.replyTo) {
-      const r = (await this.call(`/me/messages/${encodeURIComponent(d.replyTo)}/createReply`, { method: 'POST', body: { message: { toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) }, comment: d.body }, ...sig })) as { id?: string };
-      const id = String(r.id ?? '');
-      if (id) await this.#attach(id, d, signal);
-      if (id) await this.#names(id, d, signal);
-      return id;
+  /** C13: the saved draft read back by its id (found and still a draft, not there, or couldn't read). */
+  async #confirm(id: string, d: Draft, signal?: AbortSignal): Promise<void> {
+    try {
+      const m = (await this.call(`/me/messages/${encodeURIComponent(id)}?$select=id,isDraft`, { ...(signal ? { signal } : {}) })) as { id?: string; isDraft?: boolean };
+      d.saved = m.isDraft === true && (m.id === undefined || m.id === id);
+    } catch (err) {
+      if (err instanceof GraphError && err.status === 404) d.saved = false;
     }
-    const r = (await this.call('/me/messages', { method: 'POST', body: this.#draftBody(d), ...sig })) as { id?: string };
+  }
+
+  /** The message made as a draft (a new one, or a reply in its thread) with its files; not checked yet. */
+  async #make(d: Draft, signal?: AbortSignal): Promise<{ id: string; messageId: string }> {
+    const sig = signal ? { signal } : {};
+    const r = (d.replyTo
+      ? await this.call(`/me/messages/${encodeURIComponent(d.replyTo)}/createReply`, { method: 'POST', body: { message: { toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) }, comment: d.body }, ...sig })
+      : await this.call('/me/messages', { method: 'POST', body: this.#draftBody(d), ...sig })) as { id?: string; internetMessageId?: string };
     const id = String(r.id ?? '');
     if (id) await this.#attach(id, d, signal);
     if (id) await this.#names(id, d, signal);
+    return { id, messageId: String(r.internetMessageId ?? '') };
+  }
+
+  async draft(d: Draft, signal?: AbortSignal): Promise<string> {
+    const { id } = await this.#make(d, signal);
+    if (id) await this.#confirm(id, d, signal);
     return id;
   }
 
@@ -552,21 +565,50 @@ export class GraphMail implements MailProvider {
     await this.call(`/me/messages/${encodeURIComponent(id)}`, { method: 'DELETE', ...sig });
   }
 
+  /**
+   * T47: the sent message looked up again. Ids are immutable, so it keeps the draft's id in Sent
+   * Items; when that id is gone it is looked for in Sent Items by its Message-ID. Sets `d.sent`:
+   * true (found, no longer a draft), false (not there, or still waiting to go out), unset when the
+   * look itself failed. Never throws: the send already went through.
+   */
+  async #confirmSent(id: string, messageId: string, d: Draft, signal?: AbortSignal): Promise<void> {
+    const sig = signal ? { signal } : {};
+    for (let i = 0; i < 3; i++) {
+      // Filing in Sent Items can take a moment: two more looks, one and two seconds later.
+      if (i) await this.#sleep(i * 1000);
+      try {
+        const m = (await this.call(`/me/messages/${encodeURIComponent(id)}?$select=id,isDraft`, sig)) as { isDraft?: boolean };
+        d.sent = m.isDraft === false;
+      } catch (err) {
+        if (!(err instanceof GraphError && err.status === 404)) return void delete d.sent;
+        d.sent = false;
+        if (messageId) {
+          try {
+            const r = (await this.call(`/me/mailFolders/sentitems/messages?$filter=${encodeURIComponent(`internetMessageId eq '${messageId.replace(/'/g, "''")}'`)}&$select=id&$top=1`, sig)) as { value?: unknown[] };
+            d.sent = (r.value ?? []).length > 0;
+          } catch {
+            return void delete d.sent;
+          }
+        }
+      }
+      if (d.sent) return;
+    }
+  }
+
   async send(d: Draft, signal?: AbortSignal): Promise<string> {
     const sig = signal ? { signal } : {};
-    // N4: with files, the message is made as a draft with its attachments, checked, then sent.
-    if (d.attachments?.length) {
-      const id = await this.draft(d, signal);
-      if (!id) throw new Error('Outlook gave no id for the message, so it was not sent.');
+    // N4 made mail with files as a draft first; T47 does it for every send, so the message has an
+    // id to look up afterwards (/sendMail and /reply give none).
+    const { id, messageId } = await this.#make(d, signal);
+    if (!id) throw new Error('Outlook gave no id for the message, so it was not sent.');
+    try {
       await this.call(`/me/messages/${encodeURIComponent(id)}/send`, { method: 'POST', ...sig });
-      return 'sent';
+    } catch (err) {
+      if (err instanceof Error) err.message += ' The unsent message was left in Drafts.';
+      throw err;
     }
-    if (d.replyTo) {
-      await this.call(`/me/messages/${encodeURIComponent(d.replyTo)}/reply`, { method: 'POST', body: { message: { toRecipients: recips(d.to), ...(d.cc ? { ccRecipients: recips(d.cc) } : {}) }, comment: d.body }, ...sig });
-      return 'reply';
-    }
-    await this.call('/me/sendMail', { method: 'POST', body: { message: this.#draftBody(d), saveToSentItems: true }, ...sig });
-    return 'sent';
+    await this.#confirmSent(id, messageId, d, signal).catch(() => undefined);
+    return id;
   }
 
   async folders(signal?: AbortSignal): Promise<Folder[]> {

@@ -2,6 +2,43 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.44.0",
+   "date": "2026-11-24",
+   "title": "Research runs side by side, reports in more scripts, sent mail checked",
+   "items": [
+    {
+     "id": "3-44-0-the-research-report-pdf-and",
+     "kind": "new",
+     "text": "The research report PDF (and the trust report and work page PDFs) can show Greek, Russian, Chinese, Japanese, Korean, Hebrew, Thai, symbols and simple emoji."
+    },
+    {
+     "id": "3-44-0-more-than-one-research-run",
+     "kind": "new",
+     "text": "More than one research run at a time. Two runs read and write at once; start a third and it waits its turn."
+    },
+    {
+     "id": "3-44-0-she-can-copy-a-file",
+     "kind": "new",
+     "text": "She can copy a file between her workspace and one of your servers over SSH, up or down (\"put the new index.html on web box\", \"bring me the nginx error log\")."
+    },
+    {
+     "id": "3-44-0-her-time-to-leave-message",
+     "kind": "fixed",
+     "text": "Her \"Time to leave\" message in the hour the clocks go back now says which of the two times it means, such as \"1:30 AM (1st)\" or \"1:30 AM (2nd)\", like the Today page."
+    },
+    {
+     "id": "3-44-0-a-research-run-interrupted-by",
+     "kind": "fixed",
+     "text": "A research run interrupted by a restart while it was reading a page now reads that page again when it goes on; before, that one page was skipped."
+    },
+    {
+     "id": "3-44-0-memory-notes-for-a-conversation",
+     "kind": "fixed",
+     "text": "Memory notes for a conversation the background model answers with nothing (some models decline a conversation without saying so)."
+    }
+   ]
+  },
+  {
    "version": "3.43.1",
    "date": "2026-11-24",
    "title": "Replies from a model on your own computer are no longer cut off",
@@ -213,41 +250,6 @@
      "id": "3-38-0-a-sign-in-code-from-settings",
      "kind": "fixed",
      "text": "A sign-in code from Settings now works on the sign-in page of a new computer."
-    }
-   ]
-  },
-  {
-   "version": "3.37.0",
-   "date": "2026-11-22",
-   "title": "Safer with other people's words, complete backups, quicker with Claude",
-   "items": [
-    {
-     "id": "3-37-0-replies-with-claude-models-are",
-     "kind": "new",
-     "text": "Replies with Claude models are faster and cheaper."
-    },
-    {
-     "id": "3-37-0-the-app-loads-faster-away",
-     "kind": "new",
-     "text": "The app loads faster away from home. Its files are sent compressed: a first load is about 1.9 MB instead of 6.7 MB."
-    },
-    {
-     "id": "3-37-0-words-from-a-web-page",
-     "kind": "fixed",
-     "text": "Words from a web page, an email, search results or a tool server can no longer ride Always allow everything.",
-     "link": "#view=msgs",
-     "owner": true
-    },
-    {
-     "id": "3-37-0-she-asks-before-fetching-a",
-     "kind": "fixed",
-     "text": "She asks before fetching a web address that nobody wrote out while other people's words are in a chat."
-    },
-    {
-     "id": "3-37-0-backups-take-a-safe-snapshot",
-     "kind": "fixed",
-     "text": "Backups take a safe snapshot of every database, not only the main one.",
-     "link": "#view=health"
     }
    ]
   }

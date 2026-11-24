@@ -8,7 +8,7 @@ import { captureToolScope, assertCurrentScope, assertToolAdmission, ToolAdmissio
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import { noteAction } from './timeline.ts';
-import { type AppContext, preflight, fallbackAfterMs, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamIdleTiming, streamWithin } from './chat.ts';
+import { type AppContext, preflight, fallbackAfterMs, fitHistory, historyBudgetFor, promptChars, OFFSERVER_TOOL, resolveChain, SlowModelError, streamIdleTiming, streamWithin, stripThinkTags } from './chat.ts';
 import { cardOf, checkPlan, contradictSettings, gateAct, type Contradiction } from './contradict.ts';
 import { applySandbox, changesLine, discardSandbox, gateVerdict, sandboxCard, sandboxOutput, sandboxRecord, type ApplyResult, type CommandRisk, type SandboxDecision, type SandboxResult } from './sandbox-run.ts';
 import { complete } from './life.ts';
@@ -289,12 +289,95 @@ export function trimHelperHistory(messages: ChatMessage[], o: { keepFull?: numbe
   return cut;
 }
 
+/** T46: said to a helper in place of its oldest moves when they no longer fit the model. */
+export const LEFT_OUT_NOTE = '[Note from the app: your oldest moves are left out here to fit the model.';
+/**
+ * T46: keeps a helper's history inside the model's history budget with the function her own turns
+ * use (fitHistory, src/chat.ts): old tool results shortened, then the oldest moves left out, then a
+ * huge message cut in the middle. The instructions and the part's task (the first two messages)
+ * always stay; a note names the tools already run so they are not run again. `ran` is the name of
+ * every tool this run has used, in order. Changes the list in place; returns how many messages left.
+ */
+export function fitHelperHistory(messages: ChatMessage[], budgetChars: number, ran: string[] = []): number {
+  if (messages.length <= 2 || !Number.isFinite(budgetChars)) return 0;
+  const rest = messages.slice(2).filter((m) => !(m.role === 'user' && m.content.startsWith(LEFT_OUT_NOTE)));
+  const kept = rest.slice(fitHistory(rest, Math.max(2000, budgetChars - messages[1]!.content.length)));
+  const gone = ran.slice(0, Math.max(0, ran.length - kept.filter((m) => m.role === 'tool').length));
+  const left = rest.length - kept.length;
+  const note: ChatMessage[] = [];
+  if (left || gone.length) {
+    const counts = new Map<string, number>();
+    for (const n of gone) counts.set(n, (counts.get(n) ?? 0) + 1);
+    const list = [...counts].map(([n, c]) => (c > 1 ? `${n} (${c} times)` : n)).join(', ');
+    note.push({ role: 'user', content: `${LEFT_OUT_NOTE}${list ? ` In them you already ran: ${list}. Do not run those again.` : ''} Carry on from the moves below.]` });
+  }
+  messages.splice(2, messages.length - 2, ...note, ...kept);
+  return left;
+}
+
+/** T46: how long one minute of a task's time limit lasts (tests make it short). */
+export const teamTiming = { minuteMs: 60_000 };
+
+/**
+ * T46: a task's clock. It stands still while the owner decides (an approval card, a checkpoint), as
+ * the clock of her own turns does, and it can be armed to end a helper's move when the time is up.
+ */
+export class TaskClock {
+  readonly #from = Date.now();
+  #waited = 0;
+  #waits = 0;
+  #waitFrom = 0;
+  #armed: { ms: number; up: () => void; timer?: NodeJS.Timeout } | undefined;
+
+  /** Milliseconds of the task's own time so far. */
+  used(): number {
+    const now = Date.now();
+    return now - this.#from - this.#waited - (this.#waits ? now - this.#waitFrom : 0);
+  }
+
+  /** Waits for the owner's answer with the clock stopped. */
+  async wait<T>(answer: Promise<T>): Promise<T> {
+    if (!this.#waits++) {
+      this.#waitFrom = Date.now();
+      clearTimeout(this.#armed?.timer);
+    }
+    try {
+      return await answer;
+    } finally {
+      if (!--this.#waits) {
+        this.#waited += Date.now() - this.#waitFrom;
+        this.#set();
+      }
+    }
+  }
+
+  /** Calls `up` once `ms` of the task's own time are used. Returns the function that calls it off. */
+  arm(ms: number, up: () => void): () => void {
+    clearTimeout(this.#armed?.timer);
+    const armed = { ms, up };
+    this.#armed = armed;
+    this.#set();
+    return () => {
+      clearTimeout(this.#armed?.timer);
+      if (this.#armed === armed) this.#armed = undefined;
+    };
+  }
+
+  #set(): void {
+    const a = this.#armed;
+    if (!a || this.#waits) return;
+    clearTimeout(a.timer);
+    // Not a reason to keep the process alive (a task cut off by a shutdown leaves its timer behind).
+    a.timer = setTimeout(a.up, Math.max(0, a.ms - this.used())).unref();
+  }
+}
+
 export class TeamManager {
   /** V3.4: called when a task stops at a checkpoint (Fix this issue posts its pull-request card). */
   onCheckpoint?: (task: TeamTask) => void | Promise<void>;
   readonly #app: AppContext;
   readonly #db: DatabaseSync;
-  readonly #runs = new Map<number, { ctl: AbortController; step?: { id: number; ctl: AbortController }; inbox: Map<number, string[]>; approvals: Map<string, PendingApproval>; done: Promise<TeamTask>; answer?: (d: 'go' | 'skip' | 'stop') => void; rec: RunRecorder; scope: ToolScope }>();
+  readonly #runs = new Map<number, { ctl: AbortController; step?: { id: number; ctl: AbortController }; inbox: Map<number, string[]>; approvals: Map<string, PendingApproval>; done: Promise<TeamTask>; answer?: (d: 'go' | 'skip' | 'stop') => void; rec: RunRecorder; scope: ToolScope; clock: TaskClock }>();
   /** Tasks that were running when the server stopped (picked up again by resumeInterrupted). */
   readonly #resumable: number[] = [];
 
@@ -477,7 +560,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     const original = conv ? this.#app.store.getConversation(conv) : undefined;
     if (!original || !task) throw new Error('The original conversation is unavailable.');
     const scope = captureToolScope(original, task.workspace, privateLocalOn());
-    const run = { scope, ctl: new AbortController(), inbox: new Map<number, string[]>(), approvals: new Map<string, PendingApproval>(), done: Promise.resolve(undefined as unknown as TeamTask), rec };
+    const run = { scope, ctl: new AbortController(), inbox: new Map<number, string[]>(), approvals: new Map<string, PendingApproval>(), done: Promise.resolve(undefined as unknown as TeamTask), rec, clock: new TaskClock() };
     this.#runs.set(id, run);
     // Phase 52: every model call in the run counts toward it (the usage meter and its budget).
     run.done = usageScope
@@ -589,10 +672,15 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     this.#note(id, null, kind === 'plan' ? 'Waiting for your OK on the plan.' : 'Waiting for your OK to open the pull request.');
     // V3.4: the pull-request card (Fix this issue) tells the issue's chat.
     if (this.onCheckpoint) void Promise.resolve().then(() => this.onCheckpoint?.(this.get(id)!)).catch((err) => console.warn(`team checkpoint: ${(err as Error).message}`));
-    const d = await new Promise<'go' | 'skip' | 'stop'>((resolve, reject) => {
-      run.answer = resolve;
-      run.ctl.signal.addEventListener('abort', () => reject(run.ctl.signal.reason), { once: true });
-    }).finally(() => (run.answer = undefined));
+    // T46: the time the owner takes to answer is not the task's time.
+    const d = await run.clock
+      .wait(
+        new Promise<'go' | 'skip' | 'stop'>((resolve, reject) => {
+          run.answer = resolve;
+          run.ctl.signal.addEventListener('abort', () => reject(run.ctl.signal.reason), { once: true });
+        }),
+      )
+      .finally(() => (run.answer = undefined));
     if (d === 'stop') {
       this.#note(id, null, 'You stopped it at the checkpoint.');
       run.ctl.abort(new Error('stopped'));
@@ -642,7 +730,6 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
   async #run(id: number, given?: { helper: string; title: string; instructions: string }[]): Promise<TeamTask> {
     const app = this.#app;
     const run = this.#runs.get(id)!;
-    const started = Date.now();
     const task = this.get(id)!;
     const helpers = teamHelpers(app);
     const byId = new Map(helpers.map((h) => [h.id, h]));
@@ -680,7 +767,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           continue;
         }
         if (run.ctl.signal.aborted) throw run.ctl.signal.reason;
-        if (budgetCheck(teamBudget(cur.limits, ['minutes']), { tokens: 0, usd: 0, ms: Date.now() - started }).reached) throw new LimitError(`the time limit (${cur.limits.minutes} minutes)`);
+        if (this.#timeUp(cur, run.clock)) throw new LimitError(`the time limit (${cur.limits.minutes} minutes)`);
         const over = this.#overLimit(cur);
         if (over) throw new LimitError(over);
         if (budgetCheck(teamBudget(cur.limits, ['steps']), { tokens: 0, usd: 0, steps: runs++ }, { next: { steps: 1 } }).reached) throw new LimitError(`the limit of ${cur.limits.steps} helper runs`);
@@ -692,7 +779,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           continue;
         }
         assertCurrentScope(app, run.scope, run.ctl.signal, task.workspace, privateLocalOn());
-        await this.#runHelper(cur, step, helper, wsDir, started);
+        await this.#runHelper(cur, step, helper, wsDir);
         if ((step.status as StepStatus) !== 'done') continue; // (set by #runHelper)
         // The lead checks the work: a failing run goes back to the coder, then gets tested again.
         const coder = helpers.find((h) => h.role === 'coder')?.id ?? 'coder';
@@ -914,13 +1001,21 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
     ];
   }
 
-  async #runHelper(task: TeamTask, step: TeamStep, helper: HelperDef, wsDir: string, started: number): Promise<void> {
+  /** T46: is the task's time used up? Time the owner spent deciding is not counted. */
+  #timeUp(task: TeamTask, clock: TaskClock): boolean {
+    return Boolean(budgetCheck(teamBudget(task.limits, ['minutes']), { tokens: 0, usd: 0, ms: (clock.used() * 60_000) / teamTiming.minuteMs }).reached);
+  }
+
+  async #runHelper(task: TeamTask, step: TeamStep, helper: HelperDef, wsDir: string): Promise<void> {
     const app = this.#app;
     const run = this.#runs.get(task.id)!;
     const ctl = new AbortController();
     const onTask = () => ctl.abort(run.ctl.signal.reason);
     run.ctl.signal.addEventListener('abort', onTask, { once: true });
     run.step = { id: step.id, ctl };
+    // T46: the time limit also ends a move in the middle of a long model call or tool call (before,
+    // it was looked at between moves only, so one long call could run far past it).
+    const disarm = run.clock.arm(task.limits.minutes * teamTiming.minuteMs, () => ctl.abort(new LimitError(`the time limit (${task.limits.minutes} minutes)`)));
     step.status = 'running';
     step.startedAt = app.now().toISOString();
     this.#saveStep(step);
@@ -945,12 +1040,13 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         { role: 'user', content: `${before.length ? `What the team did so far:\n${before.map((x) => `- ${x.helper}: ${clip(x.report ?? '', 600)}`).join('\n')}\n\n` : ''}Your part: ${step.title}\n${step.instructions}` },
       ];
       const receipts: Receipt[] = [...step.receipts];
+      const ranBefore = receipts.length;
       let corrected = false;
       let emptyAsked = false;
       for (let round = 0; round < MAX_HELPER_ROUNDS; round++) {
         assertCurrentScope(app, run.scope, ctl.signal, task.workspace, privateLocalOn());
         if (ctl.signal.aborted) throw ctl.signal.reason;
-        if (budgetCheck(teamBudget(task.limits, ['minutes']), { tokens: 0, usd: 0, ms: Date.now() - started }).reached) throw new LimitError(`the time limit (${task.limits.minutes} minutes)`);
+        if (this.#timeUp(task, run.clock)) throw new LimitError(`the time limit (${task.limits.minutes} minutes)`);
         // Phase 52: stop before a call that would go past the budget (its input is counted roughly).
         const over = this.#overLimit(task, est(messages));
         if (over) throw new LimitError(over);
@@ -967,6 +1063,8 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           // Y8: helpers get what her own turns have: a busy server is tried again (when no other model
           // waits to take over), a reply that goes silent is given up, and old tool results are shortened.
           trimHelperHistory(messages);
+          // T46: and the whole history is kept to what this model can hold, by the rule of her own turns.
+          fitHelperHistory(messages, historyBudgetFor(app, conv, { provider, model }).chars, receipts.slice(ranBefore).map((r) => r.name));
           for await (const ev of streamWithin((sig) => retryingStream(() => provider.stream({ model, messages, tools: tools.map((t) => t.spec), signal: sig, temperature: 0.3 }), sig, ci < chain.length - 1 ? { tries: 0 } : {}), ctl.signal, fallbackAfterMs(app, { provider, promptChars: promptChars(messages) }), streamIdleTiming.anyMs)) {
             if (ev.type === 'text') reply += ev.text;
             else if (ev.type === 'tool_call') calls.push(ev.call);
@@ -982,12 +1080,25 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
         }
         // Real token counts when the model reported them, else the rough estimate (characters / 4).
         this.#addTokens(task, step, scope && (scope.reported ?? 0) > was.reported ? (scope.tokens ?? 0) - was.tokens : est(messages) + est(reply) + est(calls));
-        if (!calls.length && !reply.trim() && !emptyAsked) {
-          // Y8: nothing came back (small models do this): ask once more before taking it as the report.
-          emptyAsked = true;
-          this.#note(task.id, step.id, `${helper.name} sent an empty reply; asked again.`);
-          messages.push({ role: 'user', content: EMPTY_HELPER_NOTE });
-          continue;
+        // T46: private reasoning written as think tags is not a report.
+        reply = stripThinkTags(reply);
+        if (!calls.length && !reply.trim()) {
+          if (!emptyAsked) {
+            // Y8: nothing came back (small models do this): ask once more before taking it as the report.
+            emptyAsked = true;
+            this.#note(task.id, step.id, `${helper.name} sent an empty reply; asked again.`);
+            messages.push({ role: 'user', content: EMPTY_HELPER_NOTE });
+            continue;
+          }
+          // T46: still nothing. As in her own turns, the next model set for this job answers; with none
+          // left, a helper that used no tool has not done its part, and the step fails instead of passing.
+          if (ci < chain.length - 1) {
+            ci++;
+            emptyAsked = false;
+            this.#note(task.id, step.id, `${provider.config.label} (${model}) sent an empty reply twice, so ${chain[ci].provider.config.label} (${chain[ci].model}) took over.`);
+            continue;
+          }
+          if (receipts.length === ranBefore) throw new Error(`${helper.name} (${model}) sent an empty reply twice and used no tool`);
         }
         if (!calls.length) {
           // The helper's claims are checked against its own receipts before the lead repeats them.
@@ -1022,22 +1133,26 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
       }
     } catch (err) {
       step.endedAt = app.now().toISOString();
-      if (ctl.signal.aborted && !run.ctl.signal.aborted) {
+      // T46: the time limit ended the move in the middle of a call (whatever that call then threw).
+      const timeUp = ctl.signal.reason instanceof LimitError ? ctl.signal.reason : undefined;
+      if (ctl.signal.aborted && !run.ctl.signal.aborted && !timeUp) {
         step.status = 'stopped';
         this.#saveStep(step);
         return; // only this helper was stopped: the lead goes on
       }
-      if (err instanceof LimitError && !run.ctl.signal.aborted) {
+      const limit = err instanceof LimitError ? err : timeUp;
+      if (limit && !run.ctl.signal.aborted) {
         // Phase 52: this part runs again if the owner continues with more budget.
         Object.assign(step, { status: 'waiting', report: null, startedAt: null, endedAt: null });
         this.#saveStep(step);
-        throw err;
+        throw limit;
       }
       step.status = run.ctl.signal.aborted ? 'stopped' : 'failed';
       step.report = step.report ?? `Failed: ${(err as Error).message}`;
       this.#saveStep(step);
       throw err;
     } finally {
+      disarm();
       run.ctl.signal.removeEventListener('abort', onTask);
       run.step = undefined;
     }
@@ -1111,7 +1226,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
           const shown = stopFor ? `${summary} (goes against what you decided: "${stopFor.note}")` : gate ? `${summary} (tried in a throwaway copy first${gate.isolation.isolated ? '' : ', not isolated on this computer'})` : summary;
           run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, ...(stopFor ? { contradiction: cardOf(stopFor) } : {}) });
           this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
-          allowed = await decision;
+          allowed = await run.clock.wait(decision);
           explicitlyApproved = allowed;
           const how = app.approvals.takeHow(id);
           run.approvals.delete(id);
@@ -1146,7 +1261,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
               const shown = `${summary} (ran in a sandbox: ${changesLine(tried.changes)}${tried.findings.filter((f) => f.severity !== 'info' && f.severity !== 'low').map((f) => `; ${f.title}`).join('')}. Allow applies it.)`;
               run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary: shown, sandbox: sandboxCard(tried, gate.risk) });
               this.#note(task.id, step.id, `Waiting for your OK: ${shown}`);
-              const ok = await decision;
+              const ok = await run.clock.wait(decision);
               explicitlyApproved = ok;
               const how = app.approvals.takeHow(id);
               run.approvals.delete(id);
@@ -1172,7 +1287,7 @@ CREATE INDEX IF NOT EXISTS team_log_task ON team_log(task_id, id);
             asked = true;
             const { id, decision } = app.approvals.request(task.conversationId, signal);
             run.approvals.set(id, { id, stepId: step.id, helper: helper.name, tool: call.name, summary });
-            allowed = await decision;
+            allowed = await run.clock.wait(decision);
             explicitlyApproved = allowed;
             app.approvals.takeHow(id);
             run.approvals.delete(id);

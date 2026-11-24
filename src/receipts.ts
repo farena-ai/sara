@@ -302,6 +302,30 @@ export function shotWidth(r: Receipt): 'phone' | 'desktop' | undefined {
   if (!Number.isFinite(n)) return undefined;
   return n <= 480 ? 'phone' : n >= 1024 ? 'desktop' : undefined;
 }
+/**
+ * T45 (E5): a browser tool that comes from an add-on (MCP), such as mcp_playwright_browser_navigate
+ * or mcp_chrome-devtools_take_screenshot. Her browser claims are backed by these too.
+ */
+const ADDON_BROWSER = /^mcp_.*(?:browser|playwright|puppeteer|chrome|selenium|webdriver)/i;
+export const isBrowserCall = (name: string): boolean => BROWSER_TOOLS.has(name) || ADDON_BROWSER.test(name);
+/**
+ * The screenshots that worked, in order, each with its place in the turn and its width. An add-on
+ * screenshot has no width of its own: it is the width the add-on's window was last resized to
+ * (desktop when it never was).
+ */
+export function shotList(receipts: Receipt[]): { at: number; width: 'phone' | 'desktop' | undefined }[] {
+  const out: { at: number; width: 'phone' | 'desktop' | undefined }[] = [];
+  let addonWidth: 'phone' | 'desktop' | undefined = 'desktop';
+  receipts.forEach((r, at) => {
+    if (r.status !== 'ok') return;
+    if (r.name === 'browser_screenshot') out.push({ at, width: shotWidth(r) });
+    else if (ADDON_BROWSER.test(r.name)) {
+      if (/resize|viewport|emulate/i.test(r.name) && r.args.width !== undefined) addonWidth = shotWidth(r);
+      else if (/screenshot/i.test(r.name)) out.push({ at, width: addonWidth });
+    }
+  });
+  return out;
+}
 /** Clause edges: punctuation and "but" words; negation counts only in the verb's own clause. */
 const CLAUSE = /\s*[,;:–—]\s*|\s+-\s+|\s+(?:but|however|pero|aunque|sin embargo|mais|cependant|aber|jedoch|doch|mas|porém|però|ma)\s+/i;
 // fixreceipts: what counts as a change comes from the tools themselves (src/tools/effects.ts), not a
@@ -423,6 +447,7 @@ function backing(receipts: Receipt[]) {
   const shells = ok.filter((r) => COMMAND_TOOLS.has(r.name));
   const mcp = ok.some((r) => r.name.startsWith('mcp_'));
   const cmd = (r: Receipt) => String(r.args.command ?? '');
+  const shots = shotList(receipts);
   return {
     ok,
     shells,
@@ -433,14 +458,17 @@ function backing(receipts: Receipt[]) {
     // E6: invoice_mark sent sets the due reminders; action_items with create_tasks adds to-dos.
     hasRemind: ok.some((r) => (r.name === 'remind' && String(r.args.action) === 'set') || (r.name === 'invoice_mark' && r.args.status === 'sent')),
     hasPlanner: ok.some((r) => r.name === 'todo' || r.name === 'note' || (r.name === 'action_items' && r.args.create_tasks === true)) || mcp,
-    hasBrowser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
-    hasShot: ok.some((r) => r.name === 'browser_screenshot'),
+    // T45: her own testing browser or a browser add-on (isBrowserCall, shotList).
+    hasBrowser: ok.some((r) => isBrowserCall(r.name)),
+    hasShot: shots.length > 0,
     // E3: the widths her screenshots were taken at, and whether she looked again after her last edit:
-    shotAt: new Set(ok.filter((r) => r.name === 'browser_screenshot').map(shotWidth)),
+    shotAt: new Set(shots.map((x) => x.width)),
     // A screenshot (at that width, when one is named) or a passing browser_check after the last edit.
     lookedAfterEdit: (width?: 'phone' | 'desktop') => {
       const last = (f: (r: Receipt) => boolean) => receipts.findLastIndex((r) => r.status === 'ok' && f(r));
-      return last((r) => (r.name === 'browser_screenshot' && (!width || shotWidth(r) === width)) || (!width && r.name === 'browser_check' && !/^FAIL\b/m.test(r.output))) > last((r) => FILE_EDITS.has(r.name));
+      const shot = shots.findLast((x) => !width || x.width === width)?.at ?? -1;
+      const check = width ? -1 : last((r) => r.name === 'browser_check' && !/^FAIL\b/m.test(r.output));
+      return Math.max(shot, check) > last((r) => FILE_EDITS.has(r.name));
     },
     // Phase 62: sending (mail, a GitHub comment / issue / pull request, an MCP tool, a mail command).
     // R3: an errand's email, sent through mail_send and verified, shows in errand_status / errand_list.
@@ -590,7 +618,7 @@ function isBacked(sentence: string, kind: ClaimKind, receipts: Receipt[], prior:
     // E6: invoice_mark sent sets the due reminders; action_items with create_tasks adds to-dos.
     remind: ok.some((r) => r.name === 'remind' || (r.name === 'invoice_mark' && r.args.status === 'sent')),
     planner: mcp || ok.some((r) => r.name === 'todo' || r.name === 'note' || changes(r) || (r.name === 'action_items' && r.args.create_tasks === true)) || priorThing(sentence, prior),
-    browser: ok.some((r) => BROWSER_TOOLS.has(r.name)),
+    browser: ok.some((r) => isBrowserCall(r.name)),
     send: b.hasSend,
     schedule: b.hasSchedule,
     action: b.hasAny,

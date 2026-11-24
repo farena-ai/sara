@@ -5,7 +5,7 @@
 // Polls the run every 1.5 s while it works; nothing here calls a model or fetches a page itself.
 import { parse, toDom } from './markdown.js';
 import { serverText, t } from './naming.js';
-import { budgetBits, capLine, progressBits, runButtons, statusLine, topicLine } from './research-card.js';
+import { activeRuns, budgetBits, capLine, progressBits, runButtons, statusLine, topicLine, working } from './research-card.js';
 import { humanizeButton } from './humanize.js';
 
 const $ = (s) => document.querySelector(s);
@@ -61,13 +61,13 @@ function field(label, input, help) {
 const STATUS_WORDS = {
   planning: () => t('Drafting a plan…'),
   plan: () => t('Check the plan, change anything, then start.'),
+  queued: () => t('Waiting its turn…'),
   running: () => t('Searching and reading pages…'),
   writing: () => t('Writing the report…'),
   done: () => t('The report is ready and kept in her Library.'),
   stopped: () => t('Stopped. The report shows what was found and what is missing.'),
   failed: () => t('This run could not finish.'),
 };
-const working = (s) => s === 'planning' || s === 'running' || s === 'writing';
 
 function stopPolling() {
   clearTimeout(timer);
@@ -97,7 +97,10 @@ async function render() {
       const r = await api('/research');
       limits = r.limits ?? limits;
       avail = { web: r.web ?? avail.web, library: r.library ?? avail.library, privateLocal: Boolean(r.privateLocal) };
-      host.replaceChildren(askForm(r), pastRuns(r.runs));
+      // C23: every run that is not over has its own row (status, counts, buttons); the rest are below.
+      const active = activeRuns(r.runs);
+      host.replaceChildren(askForm(r), activeList(active), pastRuns(r.runs.filter((x) => !active.includes(x))));
+      if (active.some((x) => working(x.status))) timer = setTimeout(() => void render(), POLL_MS);
       return;
     }
     const { run } = await api(`/research/${runId}`);
@@ -143,6 +146,28 @@ function askForm(r) {
   return box;
 }
 
+/** C23: the runs that are not over, each with its own status, counts and buttons. */
+function activeList(runs) {
+  const box = el('div', 'rs-active');
+  if (!runs.length) return box;
+  box.append(el('h3', '', t('Working now')), el('p', 'muted small', t('Up to {n} runs work at the same time; the others wait their turn, in order.', { n: limits.atOnce ?? 2 })));
+  for (const run of runs) {
+    const row = el('div', 'rs-active-run');
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', run.question);
+    const st = el('p', 'small', statusLine(run));
+    st.setAttribute('role', 'status');
+    row.append(btn(run.question, 'rs-doc-link rs-past-q', () => {
+      runId = run.id;
+      void render();
+    }), st);
+    if (run.status !== 'plan' && run.status !== 'planning') row.append(progressBits(run));
+    row.append(runButtons(run, act, { open: false }));
+    box.append(row);
+  }
+  return box;
+}
+
 function pastRuns(runs) {
   const box = el('div', 'rs-past');
   if (!runs.length) return box;
@@ -160,15 +185,21 @@ function pastRuns(runs) {
 
 function runView(run) {
   const box = el('div', 'rs-run');
+  // C23: back to the list, to ask another question while this one works.
+  box.append(btn(t('← All research'), 'ghost small', () => {
+    runId = null;
+    draft = null;
+    void render();
+  }));
   box.append(el('h3', 'rs-question', run.question));
   const st = el('p', 'small', run.status === 'plan' ? STATUS_WORDS.plan() : statusLine(run));
   st.setAttribute('role', 'status');
   box.append(st);
   if (run.status === 'plan') box.append(planEditor(run));
-  if (run.status === 'running' || run.status === 'paused') box.append(capLine(run));
+  if (run.status === 'queued' || run.status === 'running' || run.status === 'paused') box.append(capLine(run));
   // 3.1.2: progress, the budget he can raise, Pause / Resume, Save as a skill (web/research-card.js).
   if (run.status !== 'plan' && run.status !== 'planning') box.append(progressBits(run));
-  if (run.status === 'running' || run.status === 'paused') box.append(budgetBits(run, limits, () => void render()));
+  if (run.status === 'queued' || run.status === 'running' || run.status === 'paused') box.append(budgetBits(run, limits, () => void render()));
   if (run.status !== 'plan') box.append(runButtons(run, act, { open: false }));
   const tl = topicLine(run);
   if (tl) box.append(tl);

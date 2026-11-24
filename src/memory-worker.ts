@@ -5,10 +5,11 @@ import { dropFoldsCovering } from './compact.ts';
 import { attachSaved } from './memory-saved.ts';
 import { guard } from './log.ts';
 import type { MemoryKind } from './memory.ts';
-import { resolveFor, type AppContext } from './chat.ts';
+import { resolveChain, type AppContext } from './chat.ts';
+import type { Provider } from './providers/types.ts';
 import { parseOnDate, type MemoryStore } from './memory.ts';
 import { type DecayPolicy, type FadePreset, PRESET_HALF_LIFE } from './memory-rank.ts';
-import { importedName, importedOther, type StoredMessage } from './store.ts';
+import { importedName, importedOther, type Conversation, type StoredMessage } from './store.ts';
 import { DEFAULT_IDENTITY, type Identity, personalize } from './identity.ts';
 import { identityOf } from './persona.ts';
 import { usageScope } from './usage.ts';
@@ -246,7 +247,70 @@ export function importedHistoryNote(owner: string, other: string, name: string):
   return `\n\nIMPORTANT: this is from ${owner}'s imported ${other} history. ${owner} was talking with ${other}, a different AI assistant, not with ${name}; lines marked ${other} are ${other}'s words, not ${name}'s. Write the summary about ${owner} and ${other} (e.g. "${owner} asked ${other} for help planning a trip to Lisbon"), never saying ${name} said, did or was there. facts, dates, promises, decisions and milestones come ONLY from ${owner}'s own lines (message_id of an ${owner} line, quote from it); what ${other} said is never a fact about ${owner}. sara must be [].`;
 }
 
-export async function summarizeConversation(app: AppContext, mem: MemoryStore, conversationId: string, opts: { signal?: AbortSignal; fromId?: number } = {}): Promise<SummarizeResult> {
+/**
+ * The most parts of one imported conversation she learns from. Each part is one model call of at
+ * most MAX_TRANSCRIPT_CHARS, so one conversation costs at most this many calls.
+ */
+export const HISTORY_MAX_PARTS = 6;
+
+/**
+ * Learning from history (C9): a long imported conversation is read in parts, not only its newest
+ * 30,000 characters. The lines after `afterId` are cut, oldest first, into parts that each fit one
+ * model call; a part ends where the next line would not fit. Only the newest HISTORY_MAX_PARTS
+ * parts are returned (about 180,000 characters), so a huge chat still has a known cost and its
+ * oldest lines are the ones left out. The parts sit side by side with no overlap, and the cuts
+ * depend only on the lines, so asking again with `afterId` set to the end of a finished part gives
+ * the same parts that are left: a pause or a restart goes on from there and never reads a part
+ * twice. Empty when there is nothing to read.
+ */
+export function historyParts(app: AppContext, conversationId: string, afterId = 0): { fromId: number; throughId: number }[] {
+  const stored = app.store.messages(conversationId);
+  const s = app.settings.get();
+  const owner = s.ownerName?.trim() || 'The owner';
+  const parts: { fromId: number; throughId: number }[] = [];
+  let from = afterId;
+  let size = 0;
+  let prev = 0;
+  const whole = withoutHealth(stored.filter((x) => !isForgotten(x)));
+  const scene = sceneTurnIds(whole);
+  for (const m of whole) {
+    if (m.id <= afterId) continue;
+    const line = transcriptLine(m, owner, s.timeZone, app.persona.name, scene.has(m.id));
+    if (!line) continue;
+    if (size && size + line.length > MAX_TRANSCRIPT_CHARS) {
+      parts.push({ fromId: from, throughId: prev });
+      from = prev;
+      size = 0;
+    }
+    size += line.length;
+    prev = m.id;
+  }
+  // The last part runs to the end of the conversation (rows with no line included).
+  if (size) parts.push({ fromId: from, throughId: stored.at(-1)!.id });
+  return parts.slice(-HISTORY_MAX_PARTS);
+}
+
+/**
+ * T46: the models asked for a conversation's memory notes, in order: the Background job's chain,
+ * then, with adult mode on, the models her adult replies use (a conversation the background model
+ * will not read is one those models were already given). Private local mode and every other rule
+ * of resolveChain apply to each. Never empty when any model is set up.
+ */
+export function summaryModels(app: AppContext, conv: Conversation): { provider: Provider; model: string }[] {
+  const out: { provider: Provider; model: string }[] = [];
+  const add = (list: () => { provider: Provider; model: string }[]) => {
+    try {
+      for (const c of list()) if (!out.some((o) => o.provider.config.id === c.provider.config.id && o.model === c.model)) out.push({ provider: c.provider, model: c.model });
+    } catch (err) {
+      if (!out.length) throw err;
+    }
+  };
+  add(() => resolveChain(app, conv, 'background'));
+  if (app.settings.get().adultMode?.on) add(() => resolveChain(app, conv, 'turn', true));
+  return out.slice(0, 4);
+}
+
+export async function summarizeConversation(app: AppContext, mem: MemoryStore, conversationId: string, opts: { signal?: AbortSignal; fromId?: number; throughId?: number } = {}): Promise<SummarizeResult> {
   const conv = app.store.getConversation(conversationId);
   if (!conv) return { factIds: [], droppedFacts: 0, through: 0, error: 'Conversation not found' };
   // Phase 100 (STAPLES §8.2): another agent's words are untrusted text, never facts about the owner.
@@ -254,23 +318,31 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   const s = app.settings.get();
   const owner = s.ownerName?.trim() || 'The owner';
   const state = mem.state(conversationId);
-  // Phase 51: learning from imported history reads it from the start (fromId 0).
-  const all = app.store.messages(conversationId).filter((m) => m.id > (opts.fromId ?? state.summarizedThrough));
+  // Phase 51: learning from imported history reads it from the start (fromId 0). C9: or one part
+  // of it (fromId to throughId, from historyParts).
+  const stored = app.store.messages(conversationId);
+  const from = opts.fromId ?? state.summarizedThrough;
+  const inRange = (m: StoredMessage) => m.id > from && (opts.throughId === undefined || m.id <= opts.throughId);
+  const all = stored.filter(inRange);
+  // A part never moves the mark back (an imported conversation is already marked read to its end).
+  const mark = (id: number) => (opts.throughId === undefined ? id : Math.max(state.summarizedThrough, id));
   // Phase 104: a move-in the owner called her own past isn't "another assistant".
   const other = importedOther(conv);
   /** Another assistant's line in imported history: never evidence for anything. */
   const theirs = (m: StoredMessage) => m.role === 'assistant' && ((typeof m.meta?.importedFrom === 'string' && m.meta.herPast !== true) || Boolean(m.meta?.groupFrom));
-  // U4.22: health log exchanges never become memories (docs/HEALTH.md).
-  const usable = withoutHealth(all.filter((m) => !isForgotten(m)));
+  // U4.22: health log exchanges never become memories (docs/HEALTH.md). Worked out over the whole
+  // conversation, so a range that starts inside a health exchange still leaves all of it out.
+  const whole = withoutHealth(stored.filter((m) => !isForgotten(m)));
+  const usable = whole.filter(inRange);
   if (!usable.some((m) => m.role === 'user')) {
-    if (all.length) mem.setState(conversationId, { summarizedThrough: all.at(-1)!.id, lastError: null });
+    if (all.length) mem.setState(conversationId, { summarizedThrough: mark(all.at(-1)!.id), lastError: null });
     return { factIds: [], droppedFacts: 0, through: all.at(-1)?.id ?? state.summarizedThrough };
   }
 
   // Newest-first until the budget, then back into order.
   const lines: { m: StoredMessage; line: string }[] = [];
   let size = 0;
-  const scene = sceneTurnIds(usable);
+  const scene = sceneTurnIds(whole);
   for (const m of [...usable].reverse()) {
     const line = transcriptLine(m, owner, s.timeZone, app.persona.name, scene.has(m.id));
     if (!line) continue;
@@ -288,12 +360,17 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   let parsed: ReturnType<typeof parseMemoryJson> = null;
   let lastErr = '';
   try {
-    const { provider, model } = resolveFor(app, conv, 'background');
+    const choices = summaryModels(app, conv);
     const transcript = lines.map((l) => l.line).join('\n');
     // Earlier facts and decisions on the same subjects, so changes replace them (Phase 32).
     related = relatedNotes(mem, lines.filter((l) => l.m.role === 'user').map((l) => l.m.content).join(' '));
     const prompt = memoryPrompt(owner, transcript, identityOf(app.persona), mem.openPromises(15).map((p) => ({ id: p.id, content: p.content })), related) + (other ? importedHistoryNote(owner, other, app.persona.name) : '') + (conv.channel === 'group' ? groupChatNote(owner, app.persona.name, conv.title, groupNames(usable)) : '');
-    for (let tryNo = 0; tryNo < 2 && !parsed; tryNo++) {
+    // T46: each model gets two tries; a model that gives nothing usable (some decline a
+    // conversation without saying so and answer with nothing) hands over to the next one. Before,
+    // only the first model was asked, and such a conversation was tried again every hour for ever.
+    for (let n = 0; n < choices.length * 2 && !parsed; n++) {
+      const { provider, model } = choices[Math.floor(n / 2)]!;
+      const tryNo = n % 2;
       let out = '';
       const messages = [
         { role: 'system' as const, content: 'You write concise, factual memory notes. Output only valid JSON.' },
@@ -302,9 +379,17 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
       // Bounded: a rambling model must never stall the memory worker.
       const timeout = AbortSignal.timeout(SUMMARY_TIMEOUT_MS);
       const signal = opts.signal ? AbortSignal.any([opts.signal, timeout]) : timeout;
-      for await (const ev of provider.stream({ model, messages, temperature: 0.2, maxTokens: SUMMARY_MAX_TOKENS, reasoning: 'none', signal })) {
-        if (ev.type === 'text') out += ev.text;
-        if (out.length > SUMMARY_MAX_TOKENS * 6) break;
+      try {
+        for await (const ev of provider.stream({ model, messages, temperature: 0.2, maxTokens: SUMMARY_MAX_TOKENS, reasoning: 'none', signal })) {
+          if (ev.type === 'text') out += ev.text;
+          if (out.length > SUMMARY_MAX_TOKENS * 6) break;
+        }
+      } catch (err) {
+        // The owner stopping it ends it; one model failing lets the next one try.
+        if (opts.signal?.aborted || n >= choices.length * 2 - 1) throw err;
+        lastErr = (err as Error).message;
+        n |= 1;
+        continue;
       }
       parsed = parseMemoryJson(out);
       if (!parsed) lastErr = `Model did not return valid JSON: ${out.slice(0, 200)}`;
@@ -428,7 +513,7 @@ export async function summarizeConversation(app: AppContext, mem: MemoryStore, c
   for (const it of parsed.outdated) {
     if (it.promise !== undefined && relatedIds.has(it.promise) && !overridden.has(it.promise) && quoted(it, ['user', 'assistant'])) mem.supersede(it.promise, newest);
   }
-  mem.setState(conversationId, { summarizedThrough: last.id, lastAttemptAt: attempt, lastError: null });
+  mem.setState(conversationId, { summarizedThrough: mark(last.id), lastAttemptAt: attempt, lastError: null });
   // 3.0.3: each new note on the reply of the turn it came from ("Saved n new memories"); the open chat redraws.
   let saved = 0;
   try {

@@ -22,7 +22,7 @@ import { GITHUB_VAULT } from './tools/coding.ts';
 import { repoFromRemote } from './tools/github.ts';
 import { workspaceDir } from './tools/workspace.ts';
 import { adultModeOn } from './settings.ts';
-import { gatherTrouble } from './trouble.ts';
+import { gatherTrouble, troubleOf } from './trouble.ts';
 import { mergeSummaries, type UsageTotals } from './usage.ts';
 import { businessPart } from './biz/today.ts';
 import { workTile } from './tools/work.ts';
@@ -267,6 +267,21 @@ function testsFor(app: AppContext, ws: string): 'ok' | 'failed' | undefined {
 
 // ---------- Needs you (§4.4): the sources; web/today.js ranks them (needsItems) ----------
 
+/**
+ * Did this run end on a failed call to a model that is down right now (`down` = provider ids with
+ * a trouble notice)? Its last model call says so: it failed there with a service problem. A run that
+ * failed for another reason stays.
+ */
+function failedOnDownModel(app: AppContext, runId: number, down: Set<string>): boolean {
+  if (!down.size) return false;
+  try {
+    const last = (app.runs?.steps(runId) ?? []).flatMap((s) => s.calls ?? []).filter((c) => !c.purpose).at(-1);
+    return Boolean(last && !last.ok && down.has(last.providerId) && troubleOf(last.error ?? '', last.provider));
+  } catch {
+    return false;
+  }
+}
+
 function needs(deps: PartDeps): Loader {
   return (c) => {
     const { app } = c;
@@ -274,10 +289,12 @@ function needs(deps: PartDeps): Loader {
     const day24 = c.now.getTime() - 86_400_000;
     const approvals = own ? (deps.approvals?.() ?? []).slice(0, 10).map((a) => ({ ...a, title: a.summary || a.name, conversation: app.store.getConversation(a.conversationId)?.title ?? '' })) : [];
     const failedJobs = own ? (app.jobs?.list({ limit: 20 }) ?? []).filter((j) => j.endedAt && Date.parse(j.endedAt) >= day24 && j.status !== 'ok' && j.status !== 'running' && j.status !== 'stopped').map((j) => ({ id: j.id, label: j.label, status: j.status, at: j.endedAt!, conversationId: j.conversationId })) : [];
-    const failedRuns = own && app.runs ? app.runs.list({ limit: 100 }).filter((r) => r.kind === 'turn' && r.status === 'error' && r.endedAt && Date.parse(r.endedAt) >= day24).slice(0, 5).map((r) => ({ id: r.id, title: r.title, at: r.endedAt!, conversationId: r.conversationId })) : [];
-    const models = own ? ((c.out.modelItems ?? []) as { reason?: string; from?: string; text?: string }[]).filter((m) => m.reason === 'retired-no-replacement' || m.reason === 'retired-auto-switch-off').map((m, i) => ({ key: `model:${m.from ?? i}`, from: m.from ?? '', text: m.text ?? '' })) : [];
     // 3.3.0: her own trouble (model down, key rejected, a mailbox signed out, an add-on stopped).
     const trouble = own ? gatherTrouble(app).map((x) => ({ id: x.id, kind: x.kind, key: x.key, params: x.params, text: x.text, fix: x.fix })) : [];
+    // A reply that failed because a model is down is that model's notice, not a second row.
+    const down = new Set(trouble.filter((x) => x.id.startsWith('model:')).map((x) => x.id.slice('model:'.length)));
+    const failedRuns = own && app.runs ? app.runs.list({ limit: 100 }).filter((r) => r.kind === 'turn' && r.status === 'error' && r.endedAt && Date.parse(r.endedAt) >= day24 && !failedOnDownModel(app, r.id, down)).slice(0, 5).map((r) => ({ id: r.id, title: r.title, at: r.endedAt!, conversationId: r.conversationId })) : [];
+    const models = own ? ((c.out.modelItems ?? []) as { reason?: string; from?: string; text?: string }[]).filter((m) => m.reason === 'retired-no-replacement' || m.reason === 'retired-auto-switch-off').map((m, i) => ({ key: `model:${m.from ?? i}`, from: m.from ?? '', text: m.text ?? '' })) : [];
     // A device signed in elsewhere waiting for the owner's OK (never the code: that is on the asking device).
     const devices = own ? (app.deviceApprovals?.pending() ?? []).slice(0, 5).map((r) => ({ kind: r.kind, action: r.action ?? null, label: r.label, ip: r.ip, createdAt: r.createdAt, expiresAt: r.expiresAt })) : [];
     return {

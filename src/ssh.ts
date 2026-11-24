@@ -23,7 +23,7 @@
 //   servers on this computer (loopback), like every other connection (src/net-guard.ts).
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { isIP } from 'node:net';
 import { writeFileAtomic } from './fs-util.ts';
 import { isAbsolute, join } from 'node:path';
@@ -252,6 +252,21 @@ export function cleanPort(input: unknown): number {
   return p;
 }
 
+/** T46 (C29): the largest file ssh_upload / ssh_download copy (the same 20 MB the file tools read). */
+export const MAX_COPY_BYTES = 20_000_000;
+/**
+ * A path on the server for a copy. Old scp hands the path to the server's shell, so only plain
+ * characters pass: letters, digits and . _ - / @ + , = and a leading ~/ (no spaces, quotes, $ ; & | *).
+ */
+export function cleanRemotePath(input: unknown): string {
+  const p = String(input ?? '').trim();
+  if (!p || p.length > 1000 || !/^(~\/)?[A-Za-z0-9._/@+,=][A-Za-z0-9._/@+,=-]*$/.test(p)) {
+    throw new SshError('Give the path on the server with plain characters only (letters, digits, . _ - / and a leading ~/), no spaces. For other names use ssh_run.', 'BAD_PATH');
+  }
+  if (p.endsWith('/') || /(^|\/)\.\.?$/.test(p)) throw new SshError('Give the full path of the file on the server, with its name (not a folder).', 'BAD_PATH');
+  return p;
+}
+
 /** The known_hosts key type → the host key algorithms ssh may accept for it (only that key). */
 export function hostKeyAlgorithms(keyType: string): string {
   if (keyType === 'ssh-rsa') return 'rsa-sha2-512,rsa-sha2-256';
@@ -323,7 +338,7 @@ export interface SshDeps {
   /** Instance name for key comments (SARA_INSTANCE, default "sara"). */
   instance?: string;
   /** Program names or paths (default: ssh, ssh-keygen, ssh-keyscan from PATH). */
-  bins?: { ssh?: string; keygen?: string; keyscan?: string };
+  bins?: { ssh?: string; keygen?: string; keyscan?: string; scp?: string };
   platform?: NodeJS.Platform;
   /** Private local mode (defaults to the process-wide switch). */
   privateLocal?: () => boolean;
@@ -342,7 +357,7 @@ export class SshManager {
   readonly #run: CommandRunner;
   readonly #now: () => Date;
   readonly #instance: string;
-  readonly #bins: { ssh: string; keygen: string; keyscan: string };
+  readonly #bins: { ssh: string; keygen: string; keyscan: string; scp: string };
   readonly #platform: NodeJS.Platform;
   readonly #privateLocal: () => boolean;
   readonly #greet: GreetFn;
@@ -357,7 +372,7 @@ export class SshManager {
     this.#run = deps.run ?? spawnRunner;
     this.#now = deps.now ?? (() => new Date());
     this.#instance = deps.instance ?? (process.env.SARA_INSTANCE?.trim() || 'sara');
-    this.#bins = { ssh: deps.bins?.ssh ?? 'ssh', keygen: deps.bins?.keygen ?? 'ssh-keygen', keyscan: deps.bins?.keyscan ?? 'ssh-keyscan' };
+    this.#bins = { ssh: deps.bins?.ssh ?? 'ssh', keygen: deps.bins?.keygen ?? 'ssh-keygen', keyscan: deps.bins?.keyscan ?? 'ssh-keyscan', scp: deps.bins?.scp ?? 'scp' };
     this.#platform = deps.platform ?? process.platform;
     this.#privateLocal = deps.privateLocal ?? privateLocalOn;
     this.#greet = deps.greet ?? readGreeting;
@@ -871,6 +886,104 @@ export class SshManager {
     }
     this.#update(id, { lastUsedAt: this.#now().toISOString(), ...(r.code === 255 ? { lastError: this.#explain(s, r) } : { lastError: undefined }) });
     return r;
+  }
+
+  /** The options every scp call gets: the same ones as ssh (scp spells the port -P and takes user@host). */
+  scpOptions(s: SshServer, mode: 'key' | 'password', keyPath?: string): string[] {
+    // sshOptions is: -F none -T, the -o list, then -p <port> -l <user> -- <host>.
+    return ['-F', 'none', '-q', ...this.sshOptions(s, mode, keyPath).slice(3, -6), '-P', String(s.port)];
+  }
+
+  /**
+   * T46 (C29): copies ONE file up to a server or down from it with the system `scp`, under the same
+   * rules as exec (approved host key, her key or the saved password, private local mode). The local
+   * path is a full path the caller already checked (the tool keeps it inside the workspace).
+   * A download lands in a private temp folder first and moves into place only when its size is fine.
+   */
+  async copy(id: string, direction: 'up' | 'down', localPath: string, remotePath: string, opts: { timeoutMs?: number; signal?: AbortSignal; maxBytes?: number } = {}): Promise<{ bytes: number; remotePath: string }> {
+    const s = this.get(id);
+    this.#checkReach(s.host);
+    if (s.pending?.changed) throw new SshError(`The host key of ${s.name} changed since you approved it (now ${s.pending.fingerprint}). I won’t sign in until you check it: Settings → Skills & tools → Servers over SSH.`, 'HOSTKEY_CHANGED');
+    if (!s.fingerprint) throw new SshError(`Approve the host key of ${s.name} first (Settings → Skills & tools → Servers over SSH).`, 'NO_HOSTKEY');
+    const remote = cleanRemotePath(remotePath);
+    if (!isAbsolute(localPath)) throw new SshError('The local path must be a full path.', 'BAD_PATH');
+    const max = opts.maxBytes ?? MAX_COPY_BYTES;
+    const tooBig = (n: number) => new SshError(`That file is too large to copy (${n} bytes; the limit is ${max}). Use ssh_run with rsync or split it.`, 'TOO_BIG');
+    const timeoutMs = opts.timeoutMs ?? 300_000;
+    const target = `${s.user}@${s.host.includes(':') ? `[${s.host}]` : s.host}:${remote}`;
+    let tmp: string | undefined;
+    try {
+      let from: string;
+      let to: string;
+      if (direction === 'up') {
+        let st;
+        try {
+          st = statSync(localPath);
+        } catch {
+          throw new SshError('There is no such file here to copy up.', 'BAD_PATH');
+        }
+        if (!st.isFile()) throw new SshError('Only single files can be copied (not folders).', 'BAD_PATH');
+        if (st.size > max) throw tooBig(st.size);
+        from = localPath;
+        to = target;
+      } else {
+        // The size first, so a huge file is refused before any of it comes down.
+        const size = await this.exec(id, `wc -c < ${remote}`, { timeoutMs: 30_000, ...(opts.signal ? { signal: opts.signal } : {}) });
+        const n = /^\s*(\d+)\s*$/.exec(size.stdout)?.[1];
+        if (size.code !== 0 || n === undefined) throw new SshError(`Couldn’t read ${remote} on ${s.name}: ${size.code === 255 ? this.#explain(s, size) : scrubbed(size.stderr).trim().split(/\r?\n/).at(-1)?.slice(0, 200) || 'no such file, or it is not a plain file'}`, 'COPY_FAILED');
+        if (Number(n) > max) throw tooBig(Number(n));
+        tmp = this.#tempDir();
+        from = target;
+        to = join(tmp, 'f');
+      }
+      const run = (mode: 'key' | 'password', env: Record<string, string>, keyPath?: string) =>
+        this.#run(this.#bins.scp, [...this.scpOptions(s, mode, keyPath), '--', from, to], { env: this.#baseEnv(env), timeoutMs, ...(opts.signal ? { signal: opts.signal } : {}) });
+      let r: RunResult;
+      if (s.key && existsSync(s.key.path)) r = await run('key', {}, s.key.path);
+      else {
+        const pw = this.#vault.get(vaultKeyOf(id));
+        if (!pw) throw new SshError(`I have no key for ${s.name} yet. Sign in once with the password in Settings → Skills & tools → Servers over SSH (I’ll make my own key), or give me a key there.`, 'NO_KEY');
+        const buf = Buffer.from(pw, 'utf8');
+        const ask = this.#askpass(buf);
+        try {
+          r = await run('password', ask.env);
+        } finally {
+          ask.cleanup();
+          buf.fill(0);
+        }
+        r = { ...r, stderr: r.stderr.split(pw).join('[REDACTED]') };
+      }
+      if (r.code !== 0 && HOSTKEY_FAIL.test(r.stderr)) {
+        await this.#hostKeyChanged(s);
+        throw new SshError(this.#explain(s, r), 'HOSTKEY_CHANGED');
+      }
+      if (r.code !== 0) {
+        const why = r.timedOut ? `${s.name} didn’t finish in time.` : this.#explain(s, r);
+        this.#update(id, { lastUsedAt: this.#now().toISOString(), ...(r.code === 255 ? { lastError: why } : {}) });
+        throw new SshError(`The copy failed: ${why}`, 'COPY_FAILED');
+      }
+      let bytes: number;
+      if (direction === 'down') {
+        let st;
+        try {
+          st = statSync(to);
+        } catch {
+          throw new SshError('The copy ended without a file.', 'COPY_FAILED');
+        }
+        if (!st.isFile()) throw new SshError('Only single files can be copied (not folders).', 'BAD_PATH');
+        if (st.size > max) throw tooBig(st.size);
+        try {
+          renameSync(to, localPath);
+        } catch {
+          copyFileSync(to, localPath); // another disk: copy, the temp folder is removed below
+        }
+        bytes = st.size;
+      } else bytes = statSync(localPath).size;
+      this.#update(id, { lastUsedAt: this.#now().toISOString(), lastError: undefined });
+      return { bytes, remotePath: remote };
+    } finally {
+      if (tmp) rmSync(tmp, { recursive: true, force: true, maxRetries: 3 });
+    }
   }
 
   // -------------------------------------------------------------------------------------------

@@ -159,6 +159,9 @@ dialog::backdrop { background: var(--scrim); }
 .provider-card { display: grid; gap: 4px; background: var(--panel-2); border-radius: 10px; padding-bottom: 8px; }
 .provider-card > .provider { background: none; }
 .provider-models, .provider-switches { padding: 0 10px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+/* T45: the status and its Refresh button are one piece. The button never breaks or leaves it; a long status wraps beside it. */
+.provider-checked { display: flex; flex: 0 1 auto; min-width: 0; align-items: center; gap: 8px; }
+.provider-checked > button { flex: none; white-space: nowrap; padding: 4px 10px; }
 .provider-switches label.row { margin: 0; }
 .model-refresh { flex: none; padding: 2px 8px; }
 details { display: grid; gap: 8px; }

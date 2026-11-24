@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { FOR_APP, spokenText } from './spoken.ts';
 import { WarmWorker, type WarmState } from './voice-warm.ts';
 import { placeWorker } from './voice-install.ts';
+import { en, enf } from './i18n.ts';
 
 export type SttEngine = 'off' | 'local' | 'openai';
 export type TtsEngine = 'off' | 'local' | 'openai' | 'elevenlabs' | 'xai';
@@ -203,7 +204,7 @@ const defaultRunner: Runner = (cmd, args, env, timeoutMs) =>
     p.stderr.on('data', (d: Buffer) => (stderr += d.toString('utf8')));
     p.on('error', (e) => {
       clearTimeout(timer);
-      reject(new VoiceError(`Voice tools could not start (${(e as NodeJS.ErrnoException).code ?? e.message}). Re-run deploy/install-voice.sh.`));
+      reject(new VoiceError(enf('Voice tools could not start ({why}). Re-run deploy/install-voice.sh.', { why: (e as NodeJS.ErrnoException).code ?? e.message })));
     });
     p.on('close', (code) => {
       clearTimeout(timer);
@@ -369,7 +370,7 @@ export class LocalVoiceEngine {
     // W0.3: no lang = English (V0.2), or the multilingual model when it's the only one.
     const pick = this.#streamFor(lang) ?? (lang === undefined && this.manifest?.multi ? { key: 'multi' as const, lang: 'en' } : undefined);
     const w = pick?.key === 'multi' ? this.#multiWorker() : pick ? this.#onlineWorker() : undefined;
-    if (!w || !pick) throw new VoiceError(lang && pick === undefined && this.manifest?.online ? 'Streaming hearing for this language is not installed here.' : 'Streaming hearing is not installed here.');
+    if (!w || !pick) throw new VoiceError(lang && pick === undefined && this.manifest?.online ? en('Streaming hearing for this language is not installed here.') : en('Streaming hearing is not installed here.'));
     // The helper sets a new stream's language from "<id>@<lang>" (an older helper keeps it as the id: auto).
     const sid = pick.lang ? `${id}@${pick.lang}` : id;
     let last = '0 ';
@@ -381,7 +382,7 @@ export class LocalVoiceEngine {
         last = await w.ask(`${end && i === pieces - 1 ? 'e' : 'a'} ${sid} ${b64}`, 15_000);
       }
     } catch (err) {
-      throw new VoiceError(`Streaming hearing failed (${(err as Error).message}).`);
+      throw new VoiceError(enf('Streaming hearing failed ({why}).', { why: (err as Error).message }));
     }
     const m = /^([01]) ?([\s\S]*)$/.exec(last);
     // `loaded`: the whole-sentence model is in memory, so the page re-hears the recording with it
@@ -454,8 +455,8 @@ export class LocalVoiceEngine {
       }
     }
     const stt = this.manifest?.stt;
-    if (!stt) throw new VoiceError(localVoiceSupported() ? 'Local speech-to-text is not installed (run deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
-    if (!isWav(wav)) throw new VoiceError('Expected a WAV recording.');
+    if (!stt) throw new VoiceError(localVoiceSupported() ? en('Local speech-to-text is not installed (run deploy/install-voice.sh).') : `${localVoiceMissing()}.`);
+    if (!isWav(wav)) throw new VoiceError(en('Expected a WAV recording.'));
     const file = this.#tmpFile('wav');
     writeFileSync(file, wav, { mode: 0o600 });
     try {
@@ -472,7 +473,7 @@ export class LocalVoiceEngine {
       );
       // The CLI prints one JSON object per file with a "text" field (stdout or stderr by version).
       const m = `${r.stdout}\n${r.stderr}`.match(/\{"lang"[\s\S]*?"text":\s*"((?:[^"\\]|\\.)*)"/);
-      if (r.code !== 0 || !m) throw new VoiceError(`Speech-to-text failed (exit ${r.code}).`);
+      if (r.code !== 0 || !m) throw new VoiceError(enf('Speech-to-text failed (exit {code}).', { code: String(r.code) }));
       return (JSON.parse(`"${m[1]}"`) as string).trim();
     } finally {
       rmSync(file, { force: true });
@@ -481,7 +482,7 @@ export class LocalVoiceEngine {
 
   async speak(text: string, voiceId: string, speed = 1): Promise<Audio> {
     const v = this.manifest?.voices.find((x) => x.id === voiceId) ?? this.manifest?.voices[0];
-    if (!v) throw new VoiceError(localVoiceSupported() ? 'No local voice is installed (run deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
+    if (!v) throw new VoiceError(localVoiceSupported() ? en('No local voice is installed (run deploy/install-voice.sh).') : `${localVoiceMissing()}.`);
     const out = this.#tmpFile('wav');
     const args =
       v.kind === 'kokoro'
@@ -502,7 +503,7 @@ export class LocalVoiceEngine {
         }
       }
       const r = await this.#jobs.run(() => this.#run(this.#bin('sherpa-onnx-offline-tts'), args, this.#env(), 120_000));
-      if (r.code !== 0 || !existsSync(out)) throw new VoiceError(`Text-to-speech failed (exit ${r.code}).`);
+      if (r.code !== 0 || !existsSync(out)) throw new VoiceError(enf('Text-to-speech failed (exit {code}).', { code: String(r.code) }));
       return { data: readFileSync(out), type: 'audio/wav' };
     } finally {
       rmSync(out, { force: true });
@@ -513,21 +514,21 @@ export class LocalVoiceEngine {
 // ---------------- cloud engines (owner keys) ----------------
 
 export async function openaiTranscribe(cfg: VoiceSettings['openai'], key: string | undefined, wav: Buffer, language?: string): Promise<string> {
-  if (!key) throw new VoiceError('Add the speech API key in Settings → Voice.');
+  if (!key) throw new VoiceError(en('Add the speech API key in Settings → Voice.'));
   const form = new FormData();
   form.append('file', new Blob([new Uint8Array(wav)], { type: 'audio/wav' }), 'speech.wav');
   form.append('model', cfg.sttModel);
   // Phase 53: a language hint (ISO 639-1, e.g. "de") helps short clips; 'auto' lets the service guess.
   if (language && language !== 'auto') form.append('language', language.split('-')[0]);
   const res = await netFetch(`${cfg.baseUrl.replace(/\/+$/, '')}/audio/transcriptions`, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(60_000) });
-  if (!res.ok) throw new VoiceError(`Speech-to-text API error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new VoiceError(enf('Speech-to-text API error {status}: {detail}', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   const j = (await res.json()) as { text?: string };
   return String(j.text ?? '').trim();
 }
 
 /** R5: `format: 'wav'` for phone calls (the phone line needs PCM; MP3 can't be decoded without a dependency). */
 export async function openaiSpeak(cfg: VoiceSettings['openai'], key: string | undefined, text: string, speed: number, instructions?: string, format: 'mp3' | 'wav' = 'mp3'): Promise<Audio> {
-  if (!key) throw new VoiceError('Add the speech API key in Settings → Voice.');
+  if (!key) throw new VoiceError(en('Add the speech API key in Settings → Voice.'));
   const res = await netFetch(`${cfg.baseUrl.replace(/\/+$/, '')}/audio/speech`, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
@@ -535,34 +536,34 @@ export async function openaiSpeak(cfg: VoiceSettings['openai'], key: string | un
     body: JSON.stringify({ model: cfg.ttsModel, voice: cfg.ttsVoice, input: text, response_format: format, speed, ...(instructions && /gpt-4o/.test(cfg.ttsModel) ? { instructions } : {}) }),
     signal: AbortSignal.timeout(60_000),
   });
-  if (!res.ok) throw new VoiceError(`Text-to-speech API error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new VoiceError(enf('Text-to-speech API error {status}: {detail}', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   return { data: Buffer.from(await res.arrayBuffer()), type: format === 'wav' ? 'audio/wav' : 'audio/mpeg' };
 }
 
 export async function elevenlabsSpeak(cfg: VoiceSettings['elevenlabs'], key: string | undefined, text: string, format: 'mp3' | 'pcm' = 'mp3'): Promise<Audio> {
-  if (!key) throw new VoiceError('Add the ElevenLabs key in Settings → Voice.');
-  if (!cfg.voiceId) throw new VoiceError('Choose an ElevenLabs voice id in Settings → Voice.');
+  if (!key) throw new VoiceError(en('Add the ElevenLabs key in Settings → Voice.'));
+  if (!cfg.voiceId) throw new VoiceError(en('Choose an ElevenLabs voice id in Settings → Voice.'));
   const res = await netFetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(cfg.voiceId)}?output_format=${format === 'pcm' ? 'pcm_16000' : 'mp3_44100_128'}`, {
     method: 'POST',
     headers: { 'xi-api-key': key, 'content-type': 'application/json' },
     body: JSON.stringify({ text, model_id: cfg.model }),
     signal: AbortSignal.timeout(60_000),
   });
-  if (!res.ok) throw new VoiceError(`ElevenLabs error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new VoiceError(enf('ElevenLabs error {status}: {detail}', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   return { data: Buffer.from(await res.arrayBuffer()), type: format === 'pcm' ? 'audio/L16;rate=16000' : 'audio/mpeg' };
 }
 
 const XAI = 'https://api.x.ai/v1';
 
 export async function xaiSpeak(cfg: VoiceSettings['xai'], key: string | undefined, text: string, speed: number, fetchImpl: typeof fetch = netFetch): Promise<Audio> {
-  if (!key) throw new VoiceError('Add your xAI key in Settings → Sara → Voice.');
+  if (!key) throw new VoiceError(en('Add your xAI key in Settings → Sara → Voice.'));
   const res = await fetchImpl(`${XAI}/tts`, {
     method: 'POST',
     headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
     body: JSON.stringify({ text, voice_id: cfg.voiceId || 'eve', language: cfg.language || 'en', ...(speed !== 1 ? { speed: Math.min(1.5, Math.max(0.7, speed)) } : {}) }),
     signal: AbortSignal.timeout(60_000),
   });
-  if (!res.ok) throw new VoiceError(`Grok voice error ${res.status}: ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new VoiceError(enf('Grok voice error {status}: {detail}', { status: res.status, detail: (await res.text()).slice(0, 200) }));
   return { data: Buffer.from(await res.arrayBuffer()), type: res.headers.get('content-type')?.startsWith('audio/') ? res.headers.get('content-type')! : 'audio/mpeg' };
 }
 

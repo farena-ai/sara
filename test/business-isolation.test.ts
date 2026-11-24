@@ -16,20 +16,30 @@ test('HTTP workspace reads isolate four membership sets and personal data across
     const personalStore = new Store(join(personal, 'sara.db'));
     const privateChat = personalStore.createConversation({ title: 'PERSONAL_SECRET_CANARY' }); personalStore.addMessage(privateChat.id, 'user', 'PERSONAL_SECRET_CANARY'); personalStore.close();
     const actors = Array.from({ length: 100 }, (_, i) => { const s = f.add(`Reader ${i}`); f.grant(spaces[i % 4].id, s, i % 2 ? 'contributor' : 'viewer'); return s; });
+    // All 100 actors run at once, but only 16 requests are on the wire at a time. The server and this
+    // client share one event loop and each request is a few ms of blocking work. With 100 at once
+    // fetch opened about 160 connections, and on a busy computer some of them waited more than 10 s
+    // for their first request to be read: the server's header timeout closed them (ECONNRESET).
+    let free = 16; const waiting: (() => void)[] = [];
+    const ask = async (path: string, s: (typeof actors)[number]) => {
+      if (free > 0) free--; else await new Promise<void>(r => waiting.push(r));
+      try { const response = await f.request(path, s); return { status: response.status, text: await response.text() }; }
+      finally { const next = waiting.shift(); if (next) next(); else free++; }
+    };
     await Promise.all(actors.map(async (s, i) => {
       const n = i % 4; const base = `/api/business/workspaces/${spaces[n].id}`;
       for (const tail of ['/conversations', `/conversations/${ids[n].conversation}/messages`, `/messages/${ids[n].message}`, '/documents', `/documents/${ids[n].document}`, '/search?q=CANARY', '/memories', `/citations/${ids[n].citation}`, `/uploads/${ids[n].upload}`]) {
-        const response = await f.request(base + tail, s); assert.equal(response.status, 200, tail);
-        const value = JSON.stringify(await response.json()); assert.ok(value.includes(`CANARY_SPACE_${n}`), tail);
+        const response = await ask(base + tail, s); assert.equal(response.status, 200, tail);
+        const value = JSON.stringify(JSON.parse(response.text)); assert.ok(value.includes(`CANARY_SPACE_${n}`), tail);
         for (let k = 0; k < 4; k++) if (k !== n) assert.ok(!value.includes(`CANARY_SPACE_${k}`));
         assert.ok(!value.includes('PERSONAL_SECRET_CANARY'));
       }
-      const notifications = await f.request(base + '/notifications', s); assert.equal(notifications.status, 200);
-      assert.ok(!(await notifications.text()).includes('CANARY'));
+      const notifications = await ask(base + '/notifications', s); assert.equal(notifications.status, 200);
+      assert.ok(!notifications.text.includes('CANARY'));
       for (const tail of [`/messages/${ids[(n + 1) % 4].message}`, `/documents/${ids[(n + 1) % 4].document}`, `/citations/${ids[(n + 1) % 4].citation}`, `/uploads/${ids[(n + 1) % 4].upload}`, `/messages/${randomUUID()}`]) {
-        const denied = await f.request(base + tail, s); assert.equal(denied.status, 404); assert.deepEqual(await denied.json(), { error: 'Not found.' });
+        const denied = await ask(base + tail, s); assert.equal(denied.status, 404); assert.deepEqual(JSON.parse(denied.text), { error: 'Not found.' });
       }
-      assert.equal((await f.request(`/api/business/workspaces/${spaces[(n + 1) % 4].id}/search?q=CANARY`, s)).status, 404);
+      assert.equal((await ask(`/api/business/workspaces/${spaces[(n + 1) % 4].id}/search?q=CANARY`, s)).status, 404);
     }));
     const viewer = actors[0]; const base = `/api/business/workspaces/${spaces[0].id}`;
     for (const path of ['/conversations', '/documents', '/messages', '/chat', '/search', '/model', '/uploads', '/memories', '/notifications', '/events']) assert.equal((await f.request(base + path, viewer, { body: 'must not write' })).status, 404);

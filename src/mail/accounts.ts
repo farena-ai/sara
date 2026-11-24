@@ -15,6 +15,7 @@ import { GraphMail, msAuthForState, type MicrosoftAuth, type MsOpts, type MsToke
 import { ImapMail, type ImapConfig, type ImapOpts } from './imap.ts';
 import { presetById } from './presets.ts';
 import type { MailAccountInfo, MailProvider } from './types.ts';
+import { en, enf } from '../i18n.ts';
 
 export const ACCOUNTS_VAULT = 'mail:accounts';
 export const DEFAULT_VAULT = 'mail:default';
@@ -148,7 +149,7 @@ export class MailAccounts {
     return all.find((a) => a.id === want) ?? all[0];
   }
   setDefault(id: string): void {
-    if (!this.list().some((a) => a.id === id)) throw new Error('There is no such account.');
+    if (!this.list().some((a) => a.id === id)) throw new Error(en('There is no such account.'));
     this.#vault.set(DEFAULT_VAULT, id);
     this.#changed();
   }
@@ -156,11 +157,11 @@ export class MailAccounts {
   /** An account by id or address ("" or undefined: the default). */
   resolve(account?: string): MailAccountInfo {
     const all = this.list();
-    if (!all.length) throw new Error('No mailbox is connected yet (Settings → Email and calendar).');
+    if (!all.length) throw new Error(en('No mailbox is connected yet (Settings → Email and calendar).'));
     const a = account?.trim().toLowerCase();
     if (!a) return this.default()!;
     const hit = all.find((x) => x.id === a || x.address.toLowerCase() === a) ?? all.find((x) => x.provider === a || x.kind === a || (a === 'gmail' && x.kind === 'google') || (a === 'outlook' && x.kind === 'microsoft'));
-    if (!hit) throw new Error(`There is no mailbox "${account}". Connected: ${all.map((x) => x.address).join(', ')}.`);
+    if (!hit) throw new Error(enf('There is no mailbox "{account}". Connected: {list}.', { account, list: all.map((x) => x.address).join(', ') }));
     return hit;
   }
 
@@ -169,7 +170,7 @@ export class MailAccounts {
     const hit = this.#providers.get(id);
     if (hit) return hit;
     const s = this.#stored().find((x) => x.id === id);
-    if (!s) throw new Error('There is no such account.');
+    if (!s) throw new Error(en('There is no such account.'));
     let p: MailProvider;
     if (s.kind === 'microsoft') p = new GraphMail(this.ms, s.id, s.address, this.#o.ms);
     else if (s.kind === 'imap' && s.imap) {
@@ -180,7 +181,7 @@ export class MailAccounts {
       // MULTIMAIL: the same app password opens the provider's CalDAV calendars.
       if (s.caldav) im.calendar = this.#calDav(s);
       p = im;
-    } else throw new Error('That account is handled by Gmail.');
+    } else throw new Error(en('That account is handled by Gmail.'));
     this.#providers.set(id, p);
     return p;
   }
@@ -206,14 +207,14 @@ export class MailAccounts {
   /** Builds an IMAP account (not saved): the route tests it first, then `saveImap`. */
   imapDraft(input: { preset: string; address: string; password: string; imapHost?: string; imapPort?: number; smtpHost?: string; smtpPort?: number; user?: string }): { info: Stored; password: string; provider: ImapMail; users: string[] } {
     const address = input.address.trim().toLowerCase();
-    if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) throw new Error('Type the whole email address.');
+    if (!/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(address)) throw new Error(en('Type the whole email address.'));
     const password = input.password.replace(/\s+/g, '');
-    if (password.length < 4) throw new Error('Paste the app password.');
+    if (password.length < 4) throw new Error(en('Paste the app password.'));
     const p = presetById(input.preset);
     const port = (v: unknown, d: number) => (Number.isInteger(Number(v)) && Number(v) > 0 && Number(v) < 65536 ? Number(v) : d);
     const imap = p ? p.imap : { host: String(input.imapHost ?? '').trim(), port: port(input.imapPort, 993) };
     const smtp = p ? p.smtp : { host: String(input.smtpHost ?? '').trim(), port: port(input.smtpPort, 465) };
-    if (!imap.host || !smtp.host) throw new Error('Type the IMAP and SMTP server names (your provider\'s help page lists them).');
+    if (!imap.host || !smtp.host) throw new Error(en('Type the IMAP and SMTP server names (your provider\'s help page lists them).'));
     const users = input.user?.trim() ? [input.user.trim()] : (p?.user ?? ['address']).map((u) => (u === 'local' ? address.split('@')[0] : address));
     const id = `im_${randomBytes(5).toString('hex')}`;
     const info: Stored = { id, kind: 'imap', provider: p?.id ?? 'other', address, addedAt: new Date().toISOString(), calendar: false, imap: { user: users[0], imap, smtp, copySent: p?.copySent ?? true, ...(p?.loopback ? { loopback: true } : {}) } };
@@ -248,10 +249,10 @@ export class MailAccounts {
       this.#changed();
       return;
     }
-    if (id === 'google') throw new Error('Sign out of Google on its own page.');
+    if (id === 'google') throw new Error(en('Sign out of Google on its own page.'));
     // Removing works even while the admin's policy has members' mail off (their secrets go).
     const s = this.#raw().find((x) => x.id === id);
-    if (!s) throw new Error('There is no such account.');
+    if (!s) throw new Error(en('There is no such account.'));
     await this.#providers.get(id)?.close?.().catch(() => undefined);
     this.#providers.delete(id);
     if (s.kind === 'microsoft') this.ms.forget(id);
@@ -286,10 +287,10 @@ export class MailAccounts {
   async enableCalendar(id: string, url?: string, signal?: AbortSignal): Promise<MailAccountInfo> {
     this.#assertOn();
     const s = this.#raw().find((x) => x.id === id);
-    if (!s || s.kind !== 'imap' || !s.imap) throw new Error('There is no such account.');
+    if (!s || s.kind !== 'imap' || !s.imap) throw new Error(en('There is no such account.'));
     const base = url?.trim() || this.calDavUrl(id);
-    if (!base) throw new Error(s.provider === 'gmail' ? 'A Gmail app password can\'t open Google Calendar. Sign in with Google instead (Add another → Google) for the calendar.' : 'Sara doesn\'t know a calendar address for this provider. Type its CalDAV address.');
-    if (!/^https:\/\//.test(base) && !(this.#o.caldav?.fetch && /^http:\/\/127\.0\.0\.1:\d+\//.test(base))) throw new Error('The calendar address starts with https://.');
+    if (!base) throw new Error(s.provider === 'gmail' ? en('A Gmail app password can\'t open Google Calendar. Sign in with Google instead (Add another → Google) for the calendar.') : en('Sara doesn\'t know a calendar address for this provider. Type its CalDAV address.'));
+    if (!/^https:\/\//.test(base) && !(this.#o.caldav?.fetch && /^http:\/\/127\.0\.0\.1:\d+\//.test(base))) throw new Error(en('The calendar address starts with https://.'));
     const cfg: CalDavConfig = { url: base, user: s.imap.user };
     const cd = new CalDav(cfg, () => this.#vault.get(imapPasswordVault(id)), this.#o.caldav?.fetch ? { fetch: this.#o.caldav.fetch } : {});
     await cd.discover(signal);
@@ -321,7 +322,7 @@ export class MailAccounts {
   }
   setView(patch: Partial<MailView>): MailView {
     const f = this.#o.viewFile;
-    if (!f) throw new Error('Not available here.');
+    if (!f) throw new Error(en('Not available here.'));
     const ids = new Set(this.list().map((a) => a.id));
     const next: MailView = { ...this.view() };
     if (patch.off !== undefined) next.off = [...new Set((Array.isArray(patch.off) ? patch.off : []).map(String))].filter((x) => ids.has(x));
@@ -337,7 +338,7 @@ export class MailAccounts {
     }
     if (patch.calendarDefault !== undefined) {
       const d = String(patch.calendarDefault ?? '');
-      if (d && !ids.has(d.split('|')[0]) && !this.googleOf(d.split('|')[0])) throw new Error('There is no such calendar.');
+      if (d && !ids.has(d.split('|')[0]) && !this.googleOf(d.split('|')[0])) throw new Error(en('There is no such calendar.'));
       if (d) next.calendarDefault = d;
       else delete next.calendarDefault;
     }

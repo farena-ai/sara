@@ -376,10 +376,27 @@ export function createMailTools(d: MailToolDeps): Tool[] {
       const with_ = files.length ? ` with ${files.map((f) => f.name).join(', ')}` : '';
       if (send) {
         const sent = await p.send(draft, ctx.signal);
-        return `Sent from ${a.address} to ${to}${with_}.\n${sent ? `Verified: the mail server accepted it (id ${sent}).` : 'Could not verify: the mail server gave no id for the sent email.'}${attachmentCheck(files, draft.readBack, 'the sent email')}`;
+        // T47: "Verified" only after the provider found the sent email on a second read. The send
+        // itself went through either way, so the first line always says Sent.
+        const sentCheck = draft.sent === true
+          ? `Verified: read the sent email back from the Sent folder${a.kind === 'microsoft' && sent ? ` (id ${sent})` : ''}.`
+          : draft.sent === false
+            ? 'Could not verify: the mail server accepted the email, but it was not in the Sent folder when read back.'
+            : draft.noSentFolder
+              ? 'Could not verify: the mail server accepted the email, but this mailbox has no Sent folder to read it back from.'
+              : 'Could not verify: the mail server accepted the email, but reading it back from the Sent folder failed.';
+        return `Sent from ${a.address} to ${to}${with_}.\n${sentCheck}${attachmentCheck(files, draft.readBack, 'the sent email')}`;
       }
       const saved = await p.draft(draft, ctx.signal);
-      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}${with_}. Nothing was sent.\n${saved ? `Verified: the mail server saved the draft (id ${saved}).` : 'Could not verify: the mail server gave no id for the draft.'}${attachmentCheck(files, draft.readBack, 'the draft')}`;
+      // C13: "Verified" only after the provider found the draft on a second read.
+      const check = !saved
+        ? 'Could not verify: the mail server gave no id for the draft.'
+        : draft.saved === true
+          ? `Verified: read the draft back from the mail server (id ${saved}).`
+          : draft.saved === false
+            ? 'Could not verify: the draft was not there when the mail server was read back.'
+            : `Could not verify: the mail server took the draft (id ${saved}) but reading it back failed.`;
+      return `Saved as a draft in ${a.address} (${providerName(a)} → Drafts), to ${to}${with_}. Nothing was sent.\n${check}${attachmentCheck(files, draft.readBack, 'the draft')}`;
     },
   });
 

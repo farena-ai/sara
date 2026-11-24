@@ -16,7 +16,7 @@ import { accessInfo } from '../platform.ts';
 import { copyOwnerTurnToRoom, roomConversation, roomNote } from './room.ts';
 import { netFetch, openWebSocket, privateLocalOn } from '../net-guard.ts';
 import { randomInt } from 'node:crypto';
-import { appLanguage, en, tr } from '../i18n.ts';
+import { appLanguage, en, errorText, tr } from '../i18n.ts';
 import type { AppContext, ChatEvent } from '../chat.ts';
 import type { HubEvent } from '../events.ts';
 import { disclosureText } from '../safety.ts';
@@ -1111,7 +1111,7 @@ export class DiscordBridge {
           pictureError = true;
           outgoing.push(isOwner ? this.#tr("I can't see pictures with the model I'm using. Set a picture model in Settings → Which model does what.") : "Sorry, I can't answer right now.");
         } else if (ev.message !== 'Stopped.') {
-          const line = isOwner ? this.#tr('(Something went wrong: {error})', { error: ev.message }) : "Sorry, I can't answer right now.";
+          const line = isOwner ? this.#tr('(Something went wrong: {error})', { error: errorText(ev, appLanguage(this.#app.settings.get())) }) : "Sorry, I can't answer right now.";
           errorLines.add(line);
           outgoing.push(line);
         }

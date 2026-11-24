@@ -43,7 +43,7 @@ interface Pcm {
 
 /** Reads the "fmt " and "data" chunks of a RIFF/WAVE file. */
 export function readWav(b: Buffer): Pcm {
-  if (b.length < 12 || b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new VoiceError('The voice did not return a WAV file.');
+  if (b.length < 12 || b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WAVE') throw new VoiceError(en('The voice did not return a WAV file.'));
   let fmt: Buffer | undefined;
   let data: Buffer | undefined;
   for (let at = 12; at + 8 <= b.length; ) {
@@ -54,7 +54,7 @@ export function readWav(b: Buffer): Pcm {
     else if (id === 'data') data = body;
     at += 8 + size + (size % 2);
   }
-  if (!fmt || fmt.length < 16 || !data) throw new VoiceError('The voice returned a broken WAV file.');
+  if (!fmt || fmt.length < 16 || !data) throw new VoiceError(en('The voice returned a broken WAV file.'));
   return { fmt, data, rate: fmt.readUInt32LE(4), blockAlign: fmt.readUInt16LE(12) || 2 };
 }
 
@@ -62,8 +62,8 @@ export function readWav(b: Buffer): Pcm {
 export function joinWav(parts: Buffer[], pauseMs = 350): Buffer {
   const pcm = parts.map(readWav);
   const first = pcm[0];
-  if (!first) throw new VoiceError('Nothing to say');
-  for (const p of pcm) if (!p.fmt.subarray(0, 16).equals(first.fmt.subarray(0, 16))) throw new VoiceError('The voice changed format between parts.');
+  if (!first) throw new VoiceError(en('Nothing to say'));
+  for (const p of pcm) if (!p.fmt.subarray(0, 16).equals(first.fmt.subarray(0, 16))) throw new VoiceError(en('The voice changed format between parts.'));
   const gap = Buffer.alloc(Math.round((first.rate * pauseMs) / 1000) * first.blockAlign);
   const body = Buffer.concat(pcm.flatMap((p, i) => (i ? [gap, p.data] : [p.data])));
   const fmt = first.fmt.subarray(0, 16);
@@ -96,7 +96,7 @@ export function briefingSpeaker(app: AppContext, choice: BriefingVoice): Speak {
   const v = herVoice(app);
   if (choice === 'chosen') return (text) => speechOf(app).speak(text);
   return async (text) => {
-    if (!app.voice || !app.voice.voices().length) throw new VoiceError('The voice on this computer isn’t installed. Install it in Settings → Voice, or pick your chosen voice.');
+    if (!app.voice || !app.voice.voices().length) throw new VoiceError(en('The voice on this computer isn’t installed. Install it in Settings → Voice, or pick your chosen voice.'));
     return app.voice.speak(text, v.local, v.speed);
   };
 }
@@ -104,12 +104,12 @@ export function briefingSpeaker(app: AppContext, choice: BriefingVoice): Speak {
 /** Speaks a text part by part and joins it into one file (WAV, or MP3 from a cloud voice). */
 export async function renderSpeech(text: string, speak: Speak): Promise<{ data: Buffer; ext: 'wav' | 'mp3' }> {
   const chunks = speechChunks(text, 400);
-  if (!chunks.length) throw new VoiceError('Nothing to say');
+  if (!chunks.length) throw new VoiceError(en('Nothing to say'));
   const out: Audio[] = [];
   for (const c of chunks) out.push(await speak(c));
   if (out.every((a) => /wav/.test(a.type))) return { data: joinWav(out.map((a) => a.data)), ext: 'wav' };
   if (out.every((a) => /mpeg|mp3/.test(a.type))) return { data: Buffer.concat(out.map((a) => a.data)), ext: 'mp3' };
-  throw new VoiceError('The voice returned mixed formats.');
+  throw new VoiceError(en('The voice returned mixed formats.'));
 }
 
 // ---------------------------------------------------------------- the Library
@@ -154,7 +154,7 @@ export function lastBriefing(app: AppContext): { text: string; day: string } | u
 /** One recording per day: a new one for the same day replaces it; only the newest KEEP_AUDIO stay. */
 export async function makeBriefingAudio(app: AppContext, text: string, day: string, choice: BriefingVoice = 'local', speak: Speak = briefingSpeaker(app, choice)): Promise<BriefingAudioItem> {
   const lib = app.library;
-  if (!lib) throw new VoiceError('The Library isn’t available here.');
+  if (!lib) throw new VoiceError(en('The Library isn’t available here.'));
   const { data, ext } = await renderSpeech(text, speak);
   for (const old of briefingAudios(app).filter((x) => x.day === day)) lib.delete(old.id);
   const doc = lib.add({ name: `Morning briefing ${day}.${ext}`, bytes: data, keep: true, learn: false });

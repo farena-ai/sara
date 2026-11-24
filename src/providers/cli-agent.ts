@@ -17,6 +17,7 @@ import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { claudeTraits } from './claude-traits.ts';
 import { ProviderError, type ChatMessage, type ChatRequest, type Provider, type ProviderConfig, type StreamEvent, type ToolSpec } from './types.ts';
+import { en } from '../i18n.ts';
 
 const BRIDGE = resolve(dirname(fileURLToPath(import.meta.url)), '..', 'agent-bridge.ts');
 const IDLE_KILL_MS = 35 * 60_000;
@@ -273,7 +274,7 @@ export class CliAgentProvider implements Provider {
     assertOnline(this.config.label);
     if (this.#rt.kind === 'claude') return claudeModels(this.#rt.bin);
     const out = await this.#run(['models'], 30_000);
-    if (/not authenticated/i.test(out)) throw new ProviderError('Grok is not signed in. Settings → Subscriptions → Sign in to Grok.', 401);
+    if (/not authenticated/i.test(out)) throw new ProviderError(en('Grok is not signed in. Settings → Subscriptions → Sign in to Grok.'), 401);
     const models = [...out.matchAll(/^\s*[*-]\s+([\w.-]+)/gm)].map((m) => m[1]);
     return models.length ? models : ['grok-4.6'];
   }

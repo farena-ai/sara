@@ -15,6 +15,7 @@ import { identityOf } from '../persona.ts';
 import { localDate } from '../memory-worker.ts';
 import type { Conversation } from '../store.ts';
 import { nextPlaceholder } from '../titles.ts';
+import { carryRoomSeat } from '../shared-scenes-policy.ts';
 import { turnBudgetFor, turnBudgetSettings } from '../budget.ts';
 import { checkFromWords, goalsFor, parseGoalCommand } from '../goals.ts';
 import { fmtEvery, loopsFor, parseLoopCommand } from '../loops.ts';
@@ -327,7 +328,6 @@ function notice(app: AppContext, conv: Conversation | undefined, name: CommandNa
 
 /** Ends `prev` and opens the next session of the same chat (same project; a clean start). Used by /new and the web route. */
 export function nextSession(app: AppContext, prev: Conversation, overrides: { title?: string } = {}): Conversation {
-  app.store.endConversation(prev.id);
   const next = app.store.createConversation({
     // Phase 109 (CH3): a fresh placeholder with the day ("Telegram · Oct 31"), not the old session's title.
     title: overrides.title ?? nextPlaceholder(app, prev),
@@ -341,6 +341,10 @@ export function nextSession(app: AppContext, prev: Conversation, overrides: { ti
     projectId: prev.projectId,
     sessionOf: prev.sessionOf ?? prev.id,
   });
+  // C26: a room linked to a shared scene keeps its seat in the new session. This runs before the
+  // old session is ended, because ending a conversation removes its seat.
+  carryRoomSeat(app, prev, next);
+  app.store.endConversation(prev.id);
   notice(app, prev, 'new', { to: next.id });
   notice(app, next, 'new', { from: prev.id, title: prev.title });
   // An owner session is summarised now by the memory worker (partner chats have no memory by rule).

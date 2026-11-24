@@ -17,6 +17,7 @@ import {
   type ProviderConfig,
   type StreamEvent,
 } from './types.ts';
+import { en, enf } from '../i18n.ts';
 
 const API_VERSION = '2023-06-01';
 
@@ -253,11 +254,11 @@ export class AnthropicProvider implements Provider {
     if (!res.ok) {
       if (req.strictUsage || req.maxResponseBytes !== undefined) {
         void res.body?.cancel().catch(() => {});
-        throw new ProviderError('Configured provider refused the request.', res.status);
+        throw new ProviderError(en('Configured provider refused the request.'), res.status);
       }
       await failFromResponse(res, this.config.label, req.model);
     }
-    if (!res.body) throw new ProviderError(`${this.config.label} returned no body`);
+    if (!res.body) throw new ProviderError(enf('{label} returned no body', { label: this.config.label }));
 
     const tools = new Map<number, { id: string; name: string; json: string; reported?: number }>();
     // Z5: thinking blocks as they arrive (by position), then in order once each is complete.

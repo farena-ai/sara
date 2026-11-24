@@ -7,6 +7,7 @@ import { netFetch } from '../net-guard.ts';
 import { sseEvents } from '../sse.ts';
 import { USAGE_URL, type ChatGptAuth } from '../subscriptions/chatgpt.ts';
 import { parseToolArguments, ProviderError, type ChatMessage, type ChatRequest, type Provider, type ProviderConfig, type StreamEvent } from './types.ts';
+import { en } from '../i18n.ts';
 
 export const CHATGPT_API = 'https://api.openai.com/v1';
 const NS = 'sara';
@@ -48,7 +49,7 @@ export function toResponsesInput(messages: ChatMessage[]): { instructions: strin
 const FRIENDLY: Record<string, string> = {
   subscription_sharing_usage_limit_exceeded: `You've reached your ChatGPT plan's usage limit for now. Manage usage: ${USAGE_URL}`,
   subscription_sharing_usage_unavailable: `ChatGPT plan usage isn't available right now. Manage usage: ${USAGE_URL}`,
-  subscription_sharing_user_not_eligible: 'This ChatGPT account or workspace is not eligible to use its plan in other apps.',
+  subscription_sharing_user_not_eligible: en('This ChatGPT account or workspace is not eligible to use its plan in other apps.'),
 };
 
 export class ChatGptProvider implements Provider {
@@ -104,7 +105,7 @@ export class ChatGptProvider implements Provider {
       }
       throw new ProviderError(FRIENDLY[code] ?? `ChatGPT returned HTTP ${res.status}: ${message}`, res.status);
     }
-    if (!res.body) throw new ProviderError('ChatGPT returned no body');
+    if (!res.body) throw new ProviderError(en('ChatGPT returned no body'));
     let completed = false;
     for await (const ev of sseEvents(res.body)) {
       let j: { type?: string; delta?: string; output_index?: number; item?: { type?: string; call_id?: string; name?: string; arguments?: string }; response?: { error?: { code?: string; message?: string }; incomplete_details?: { reason?: string }; usage?: { input_tokens?: number; output_tokens?: number; input_tokens_details?: { cached_tokens?: number } } } };
@@ -145,6 +146,6 @@ export class ChatGptProvider implements Provider {
         }
       }
     }
-    if (!completed) throw new ProviderError('ChatGPT stream ended early. Try again.');
+    if (!completed) throw new ProviderError(en('ChatGPT stream ended early. Try again.'));
   }
 }

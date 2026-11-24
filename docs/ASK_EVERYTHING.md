@@ -15,7 +15,9 @@ spot (the email with the quote marked, the document at its page, the chat at the
   - Untick a source to leave it out. *Ask Sara about it in a chat* starts a new chat with the
     question so she can write the answer in her own words (she uses the same search and cites [n]).
 - **In a chat:** just ask ("when is my lease renewal due?", "what did Dan say about the trip?").
-  She uses the `ask_everything` tool and cites the numbered sources.
+  She uses the `ask_everything` tool and cites the numbered sources. If she looks in your documents
+  first (the `library` tool) and you said "check everything" or named your mail, the same search
+  runs for the other sources and its matches join her answer, under the same rules as below.
 
 Opening a hit: an email opens in full inside the ask box with the quoted words marked; a library
 document opens at the page; a workspace file opens at the line; a chat opens at the message; an

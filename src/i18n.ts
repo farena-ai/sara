@@ -191,6 +191,14 @@ export function tr(text: string, lang: Lang | string | undefined, params?: Recor
   return fill(out, params);
 }
 
+/**
+ * T47: a failed turn's words in a language. A marked error comes with its template and values
+ * (`key`, `params`); fixed words are looked up as they are; anything else stays as it came.
+ */
+export function errorText(ev: { message: string; key?: string; params?: Record<string, unknown> }, lang: Lang | string | undefined): string {
+  return ev.key ? tr(ev.key, lang, ev.params) : tr(ev.message, lang);
+}
+
 /** tr() in the owner's app language (Settings → You → Language). */
 export function trOwner(text: string, s: Pick<Settings, 'language' | 'languageDetected'>, params?: Record<string, unknown>, who?: Identity): string {
   return tr(text, appLanguage(s), params, who);

@@ -1051,6 +1051,7 @@
   <li><strong>Saving the password</strong> is off by default. Tick it only if you really need it: it is a security risk (anyone who gets into Sara could use it), so it asks you twice, is stored encrypted with her other secrets, and <em>Forget the password</em> removes it with one click.</li>
   <li><strong>With a key</strong>: paste a private key the server already accepts, or give the path of a key file on the Sara server. Keys with a passphrase can't be used.</li>
   <li>Then ask her things like "how full is the disk on web box?" or "restart nginx on web box". Every command asks you first (change that for <code>ssh_run</code> in <em>Tools and approvals</em>); risky ones (deleting, rebooting, users, firewall, keys) always ask, and you see the output.</li>
+  <li>She can also copy one file at a time between her workspace and a server, up or down, up to 20 MB ("put the new index.html on web box", "bring me the nginx error log"). Each copy asks you first.</li>
   <li>If a server's host key changes, she stops and asks you. <em>Revoke her key</em> removes exactly her line from the server and deletes the key here; <em>Remove</em> forgets the server. Only you can use this: not people in your household, other apps, MCP or the demo. With <em>Nothing leaves this computer</em> on, she only reaches servers on this computer. More: <a href="https://github.com/farena-ai/sara/blob/main/docs/SSH.md">docs/SSH.md</a>.</li>
 </ul>
 

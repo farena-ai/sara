@@ -209,7 +209,7 @@ import { initGetStarted, paintToday as paintGetStarted, paintSettingsCard as pai
 import { sharedEvents } from './shared-events.js';
 import { initSidebar } from './sidebar.js';
 import { initSetupWizard, openModelSetup, openSetup } from './setup-wizard.js';
-import { slowBubble, troubleBubble } from './trouble.js';
+import { failedReplyText, slowBubble, troubleBubble } from './trouble.js';
 import { ring as progressRing, share as shareOf } from './viz.js';
 import { durationWords, turnHeads } from './turn-meta.js';
 // V4b (docs/ops/V4_DESIGN.md): her presence orb and the live run timeline.
@@ -1746,7 +1746,9 @@ initCommandBar({
     const plain = everydayFor(q)
       .map((e) => (e.page ? pages.find((p) => p.dataset.page === e.page) : e))
       .filter(Boolean)
-      .map((x) => (x.dataset ? pageItem(x) : { key: `elsewhere:${x.place}`, icon: 'chat', label: everydayText(x.place)[0], sub: everydayText(x.place)[1], run: () => openSearchPlace(x.place) }));
+      .map((x) => (x.dataset ? pageItem(x) : { key: `elsewhere:${x.place}`, icon: 'chat', label: everydayText(x.place)[0], sub: everydayText(x.place)[1], run: () => openSearchPlace(x.place) }))
+      // T45: the answer to the words typed, so its group leads the bar (command-bar.js orderGroups).
+      .map((x) => ({ ...x, fit: 5 }));
     const keys = new Set(plain.map((x) => x.key));
     return [...plain, ...named.slice(0, 3).map(pageItem).filter((x) => !keys.has(x.key)), ...elsewhere.filter((x) => !keys.has(x.key)), ...strong.slice(0, 4), ...tiered.slice(0, 2).map(pageItem).filter((x) => !keys.has(x.key)), ...weak].slice(0, 6);
   },
@@ -2456,7 +2458,7 @@ function renderMessages(messages, opts = {}) {
     } else if (m.role === 'notice' && m.kind === 'turnerror') {
       // Fred fix B: a turn that failed (kept by the server): her plain notice with Try again and Report it.
       const tr = m.meta?.trouble;
-      const n = tr && typeof tr === 'object' && tr.key ? troubleNotice(tr, m.content) : turnErrorNotice(m.content, m.id);
+      const n = tr && typeof tr === 'object' && tr.key ? troubleNotice(tr, m.content) : turnErrorNotice(m.content, m.id, m.meta);
       n.dataset.saved = String(m.id);
       els.push(n);
     } else if (m.role === 'notice' && m.kind === 'call') {
@@ -2616,9 +2618,10 @@ function troubleNotice(tr, detail) {
 }
 
 /** Fred fix B: a turn that ended in an error: the error in plain words, Try again and Report it. */
-function turnErrorNotice(message, id) {
+function turnErrorNotice(message, id, data) {
   const box = bubble('error', '', 'turnerror', id);
-  box.replaceChildren(el('span', 'turnerror-text', t('This reply failed: {error}', { error: String(message ?? '') })));
+  // T47: a marked server error shows in the app language (its template and values ride along).
+  box.replaceChildren(el('span', 'turnerror-text', failedReplyText(data, message, t)));
   const row = el('span', 'turnerror-actions');
   const retry = el('button', 'small', t('Try again'));
   retry.type = 'button';
@@ -3349,7 +3352,7 @@ async function runStream(path, body, userBubble) {
           dropBuilding();
           // 3.3.0: a service problem (her AI service down, the key rejected…) in her plain words with Fix it and Try again.
           // Fred fix B: the server keeps every turn error as a notice (ev.messageId): Try again and Report it.
-          const shown = ev.trouble && !ev.speaker ? troubleNotice(ev.trouble, ev.message) : ev.speaker ? bubble('error', `${ev.speaker.name}: ${serverText(ev, ev.message)}`) : turnErrorNotice(ev.message);
+          const shown = ev.trouble && !ev.speaker ? troubleNotice(ev.trouble, ev.message) : ev.speaker ? bubble('error', `${ev.speaker.name}: ${serverText(ev, ev.message)}`) : turnErrorNotice(ev.message, undefined, ev);
           if (ev.messageId) shown.dataset.saved = String(ev.messageId);
           append(shown);
         }
@@ -4167,6 +4170,8 @@ const TOOL_WORDS = {
   ssh_servers: 'See the list of your servers she can reach over SSH.',
   ssh_connect: 'Add one of your servers to work on over SSH (you sign in to it in Settings).',
   ssh_run: 'Run a command on one of your servers over SSH.',
+  ssh_upload: 'Copy a file from her workspace up to one of your servers.',
+  ssh_download: 'Copy a file from one of your servers down into her workspace.',
   ssh_forget_password: 'Forget a saved server password.',
   ssh_revoke_key: 'Remove her SSH key from one of your servers.',
   ssh_remove_server: 'Remove a server from her list.',
@@ -4271,7 +4276,7 @@ const TOOL_NAME = {
   mail_organize: 'Organize your mail', mail_undo: 'Undo a mail change', mail_folders: 'See mail folders', mail_senders: 'Mail clean-up summary', mail_unsubscribe_info: 'Find unsubscribe links',
   home_status: 'See your smart home', home_control: 'Switch things at home',
   spotify_search: 'Search Spotify', spotify_now_playing: 'What is playing', spotify_my_playlists: 'Your playlists', spotify_top: 'Your most-played music', spotify_devices: 'Your Spotify devices', spotify_playlist_create: 'Make a playlist', spotify_playlist_add: 'Add songs to a playlist', spotify_playback: 'Control playback',
-  ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
+  ssh_servers: 'List your servers', ssh_connect: 'Add a server', ssh_run: 'Run commands on a server', ssh_upload: 'Copy a file to a server', ssh_download: 'Copy a file from a server', ssh_forget_password: 'Forget a server password', ssh_revoke_key: 'Remove her key from a server', ssh_remove_server: 'Remove a server',
   tune_personality: 'Adjust her personality', settings_guide: 'Look up how the app works', change_setting: 'Change an everyday setting',
   board_list: 'Look at your board', card_add: 'Put a card on your board', card_move: 'Move a card on your board', card_comment: 'Comment on a card', card_ask: 'Ask you about a card', card_assign: 'Assign a card',
   agenda_add: 'Added to her plans', agenda_goal: 'Suggest a goal', agenda_list: 'Look at her plans',
@@ -4293,7 +4298,7 @@ const TOOL_GROUP_OF = {
   git: 'git', git_commit: 'git', git_branch: 'git', git_push: 'git', github_list: 'git', github_read: 'git', github_create_issue: 'git', github_comment: 'git', github_open_pr: 'git', github_post_review: 'git',
   team_task: 'team', team_status: 'team', team_run: 'team', work_on_issue: 'team',
   preview_start: 'browser', preview_stop: 'browser', browser_open: 'browser', browser_screenshot: 'browser', browser_click: 'browser', browser_type: 'browser', browser_read: 'browser', browser_check: 'browser',
-  ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
+  ssh_servers: 'ssh', ssh_connect: 'ssh', ssh_run: 'ssh', ssh_upload: 'ssh', ssh_download: 'ssh', ssh_forget_password: 'ssh', ssh_revoke_key: 'ssh', ssh_remove_server: 'ssh',
   tune_personality: 'her', settings_guide: 'her', change_setting: 'her',
   spotify_search: 'music', spotify_now_playing: 'music', spotify_my_playlists: 'music', spotify_top: 'music', spotify_devices: 'music', spotify_playlist_create: 'music', spotify_playlist_add: 'music', spotify_playback: 'music',
 };
@@ -5146,7 +5151,7 @@ async function renderRoutes() {
   // The safety and truth check (its own setting, kept as before).
   const cls = jobRow({ id: 'classifier', testAs: 'background', label: t('Safety and truth check'), tip: t('Optional small local model (for example a small Ollama model). It double-checks messages for crisis or minors in any language, and checks that she really did what she says she did. It can only add protection, never remove it. Off: the built-in checks still run (English, Spanish, French, German, Portuguese and Italian).') }, s.safetyClassifier, { noBackups: true, noCompare: true, blank: t('Off') });
   // Phase 62: the claim judge (off by default; only the model picked here, never filled in for you).
-  const cj = jobRow({ id: 'claimjudge', testAs: 'background', label: t('Double-check her claims'), tip: t('Optional small model (best a local one) asked only when the built-in check is unsure whether she claims she did something (saved, sent, ran) that no tool did. It can only add a correction, never remove one. Off: the built-in check still runs.') }, s.claimJudge, { noBackups: true, noCompare: true, blank: t('Off') });
+  const cj = jobRow({ id: 'claimjudge', testAs: 'background', label: t('Double-check her claims'), tip: t('Optional small model (best a local one) asked only when the built-in check is unsure whether she claims she did something (saved, sent, ran) that no tool did. It can only add a correction, never remove one. Off: the built-in check still runs. In our tests it catches about 9 in 10 such claims instead of 4 in 10.') }, s.claimJudge, { noBackups: true, noCompare: true, blank: t('Off') });
   $('#routes').replaceChildren(cls, cj);
   jobsUi.classifier = jobsUi.rows.get('classifier');
   jobsUi.rows.delete('classifier');
@@ -9040,7 +9045,10 @@ function providerListCard(p, row) {
     lab.append(cb, document.createTextNode(` ${label} `), q);
     return lab;
   };
-  line.append(el('span', '', `${t('Model list')}: `), status, document.createTextNode(' '), refresh);
+  // T45: "checked 2 h ago ↻ Refresh" stays together; on a narrow phone it drops under the label as one line.
+  const checked = el('span', 'provider-checked');
+  checked.append(status, refresh);
+  line.append(el('span', '', `${t('Model list')}: `), checked);
   const switches = el('div', 'provider-switches small');
   switches.dataset.noauto = '';
   switches.append(toggle('keepCurrent', t('Keep the model list up to date'), t('Sara checks this list once a day: new models show up marked New, retired ones disappear. Off: the list only changes when you press Refresh.')));

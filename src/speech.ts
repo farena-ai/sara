@@ -7,7 +7,7 @@ import { voiceForLang } from './interpreter.ts';
 import { herVoice } from './persona-style.ts';
 import { netFetch } from './net-guard.ts';
 import { localVoiceMissing, localVoiceSupported } from './platform.ts';
-import { speechLanguage } from './i18n.ts';
+import { en, enf, speechLanguage } from './i18n.ts';
 import type { AppContext } from './chat.ts';
 import { innerEnabled, vaultKeyFor } from './chat.ts';
 import { PHOTO_KEY_VAULT } from './photos.ts';
@@ -33,7 +33,7 @@ export async function xaiTranscribe(key: string, audio: Buffer, opts: { language
   form.append('file', new Blob([new Uint8Array(audio)]), 'audio');
   const res = await (opts.fetchImpl ?? netFetch)(XAI_STT, { method: 'POST', headers: { authorization: `Bearer ${key}` }, body: form, signal: AbortSignal.timeout(60_000) });
   const j = (await res.json().catch(() => ({}))) as { text?: string; error?: string; code?: string };
-  if (!res.ok) throw new VoiceError(`Grok speech-to-text: ${j.error ?? j.code ?? `HTTP ${res.status}`}`);
+  if (!res.ok) throw new VoiceError(enf('Grok speech-to-text: {why}', { why: j.error ?? j.code ?? `HTTP ${res.status}` }));
   return String(j.text ?? '').trim();
 }
 
@@ -129,8 +129,8 @@ export class Speech {
       if (v.tts === 'local' && !voiceId) voiceId = voiceForLang(this.#app.voice?.voices() ?? [], lang);
     }
     const plain = speechText(plainSpeech(text)).slice(0, 1200);
-    if (!plain) throw new VoiceError('Nothing to say');
-    if (v.tts === 'off') throw new VoiceError(personalize('Her voice is off (Settings → Voice).', identityOf(this.#app.persona)));
+    if (!plain) throw new VoiceError(en('Nothing to say'));
+    if (v.tts === 'off') throw new VoiceError(personalize(en('Her voice is off (Settings → Voice).'), identityOf(this.#app.persona)));
     // Phase 37: her mood colours her voice (softer when you're down), and Grok voice gets speech tags.
     const mood = v.followMood === false ? {} : this.mood();
     const tone = opts.tone ?? v.tone ?? 'natural';
@@ -142,9 +142,9 @@ export class Speech {
     if (v.tts === 'openai') return openaiSpeak(v.openai, this.#app.vault.get(VOICE_VAULT.openai), plain, speed, toneInstructions(mood, tone, level), opts.phone ? 'wav' : 'mp3');
     // R2d: an engine gets only the tags its provider documents (expressive.ts engineTags), else plain words.
     if (v.tts === 'elevenlabs') return elevenlabsSpeak(v.elevenlabs, this.#app.vault.get(VOICE_VAULT.elevenlabs), engineTags('elevenlabs', v.elevenlabs.model) ? forEngine(tagged(text, level, mood, tone), 'elevenlabs', v.elevenlabs.model).slice(0, 1400) : plain, opts.phone ? 'pcm' : 'mp3');
-    if (v.tts === 'xai' && opts.phone) throw new VoiceError('Grok voice makes MP3 only, which a phone line can’t play here.');
+    if (v.tts === 'xai' && opts.phone) throw new VoiceError(en('Grok voice makes MP3 only, which a phone line can’t play here.'));
     if (v.tts === 'xai') return xaiSpeak(v.xai, await this.xaiKey().catch((e: Error) => { throw new VoiceError(e.message); }), forEngine(tagged(text, level, mood, tone), 'xai').slice(0, 1400), speed);
-    if (!this.#app.voice) throw new VoiceError(localVoiceSupported() ? 'The voice on this server is not installed (deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
+    if (!this.#app.voice) throw new VoiceError(localVoiceSupported() ? en('The voice on this server is not installed (deploy/install-voice.sh).') : `${localVoiceMissing()}.`);
     return this.#app.voice.speak(plain, voiceId ?? her.local, speed);
   }
 
@@ -185,7 +185,7 @@ export class Speech {
   async transcribe(audio: Buffer, opts: { language?: string } = {}): Promise<string> {
     const v = this.settings();
     if (opts.language) v.xai = { ...v.xai, language: opts.language };
-    if (v.stt === 'off') throw new VoiceError('Speech-to-text is off (Settings → Voice).');
+    if (v.stt === 'off') throw new VoiceError(en('Speech-to-text is off (Settings → Voice).'));
     if (v.stt === 'openai') return openaiTranscribe(v.openai, this.#app.vault.get(VOICE_VAULT.openai), audio, v.xai.language);
     // W0.3: in the person's language (es/fr/de/pt/it hear through the multilingual streaming model when installed).
     if (isWav(audio) && this.#app.voice) return this.#app.voice.transcribe(audio, { lang: opts.language ?? hearLang(this.#app.settings.get()) });
@@ -194,8 +194,8 @@ export class Speech {
       const key = await this.xaiKey().catch(() => undefined);
       if (key) return xaiTranscribe(key, audio, { language: v.xai.language, keyterms: [this.#app.persona.name, this.#app.settings.get().ownerName?.trim() ?? ''].filter(Boolean) });
     }
-    if (isWav(audio)) throw new VoiceError(localVoiceSupported() ? 'Hearing on this server is not installed (deploy/install-voice.sh).' : `${localVoiceMissing()}.`);
-    throw new VoiceError('To hear voice notes, turn on Grok voice (sign in to Grok) or a speech API in Settings → Voice.');
+    if (isWav(audio)) throw new VoiceError(localVoiceSupported() ? en('Hearing on this server is not installed (deploy/install-voice.sh).') : `${localVoiceMissing()}.`);
+    throw new VoiceError(en('To hear voice notes, turn on Grok voice (sign in to Grok) or a speech API in Settings → Voice.'));
   }
 
   /** She can understand voice notes (not just WAV from the app). */

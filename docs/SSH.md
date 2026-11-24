@@ -236,11 +236,29 @@ The data folder is in her backups, so her keys are too (like her API keys). Data
 | `ssh_servers` | runs on its own | Lists the servers with fingerprint, key and password status |
 | `ssh_connect` | asks | Looks at a server (port, ID card, sign-in methods, cPanel, her key) and gives you one link to finish on the Connect page; it never takes a password or token |
 | `ssh_run` | asks (risky commands always ask) | Runs one command, shows output and exit code |
+| `ssh_upload` | asks (system folders, sign-in files and keys always ask) | Copies one file from her workspace up to the server (scp), up to 20 MB |
+| `ssh_download` | asks (system folders, sign-in files and keys always ask) | Copies one file from the server down into her workspace (scp), up to 20 MB |
 | `ssh_forget_password` | asks | Forgets a saved password |
 | `ssh_revoke_key` | asks | Removes her line from the server, deletes the key here |
 | `ssh_remove_server` | asks | Revokes her key, then forgets the server |
 
-Copying files up and down (scp/sftp) is not part of 2.2.
+## Copying a file up or down
+
+She can copy **one file** at a time between her workspace and a server, with the system `scp`
+and the same rules as her commands: the approved host key only, her own key (or the saved
+password), nothing forwarded, and private local mode still applies.
+
+- **Here**, the file is always inside the conversation's workspace: a path that leaves it (`..`,
+  a link pointing outside) is refused, and git's own settings and hooks cannot be written.
+- **On the server**, the path uses plain characters only (letters, digits, `. _ - / @ + , =` and a
+  leading `~/`): no spaces, quotes or shell characters, because older servers hand the path to a shell.
+- **Size**: up to 20 MB. A download asks the server for the size first (`wc -c`), lands in a
+  private temp folder and moves into the workspace only when the size is fine.
+- **Asking**: both tools ask first by default. Even when you let them run on their own, copies to
+  or from system folders (`/etc`, `/usr`, `/root`…), `.ssh`, `authorized_keys`, shell start-up
+  files, key files and `.env` files always wait for your OK.
+- Folders are not copied: she packs them with `tar` first (`ssh_run`).
+- Not yet: Windows servers whose shell is cmd.exe (the size check needs `wc`).
 
 ## Limits
 

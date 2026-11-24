@@ -64,7 +64,7 @@ docs/HUMAN_ROADMAP.md.
 - **C1. The turn function, to the end** (L): context assembly after the history (S6 moved the history), then what happens after a failed call (about 130 lines that `continue` the loop; needs a result type), then `runToolCall` into its own file. Measure: `runTurnInner` under 1,000 lines, the 1,840 turn tests unchanged.
 - **C2. One route resolver** (M): `modelAuthorityOf` and `resolveChainAll` decide the same thing twice. Measure: one function, parity tests kept.
 - **C3. A thinking level per conversation** (S): the setting is one for all chats; a hard chat wants Thorough while the rest stay Quick. In the chat's own menu.
-- **C4. Team helpers on the main loop's rules** (M): no pruning past 25 rounds, an empty reply counts as done, the time limit is checked only between rounds.
+- **C4. Team helpers on the main loop's rules** (M): no pruning past 25 rounds, an empty reply counts as done, the time limit is checked only between rounds. **Done** (Y8 and T46, 2026-11-24; what is left is in BACKLOG "debt, team helpers").
 - **C5. Private chats that are never stored** (M, an old idea in BACKLOG): "Off the record" exists; this is the stricter kind with nothing written at all.
 - **C6. Typing that feels human, as an option** (S).
 
@@ -77,8 +77,8 @@ docs/HUMAN_ROADMAP.md.
 ### Tools and routing
 - **C11. MCP tool pinning** (S, security): ask again when a tool's description or hints change after it was allowed.
 - **C12. Typed ON for code changes without a passkey** (S, security): ask for the owner token; needs a screen.
-- **C13. Did-it-work for mail drafts** (S): Outlook and IMAP drafts are not read back.
-- **C14. `library` and `ask_everything`** (S): "check everything" should reach mail (see B8).
+- **C13. Did-it-work for mail drafts** (S): Outlook and IMAP drafts are not read back. **Done (T45):** Outlook reads the draft back by its id, IMAP finds it in Drafts by its Message-ID; `test/t45-draft-readback.test.ts`.
+- **C14. `library` and `ask_everything`** (S): "check everything" should reach mail (see B8). **Done (T45), not yet run on a real model:** a `library` ask in a turn where the person said everything or named their mail also searches the rest with ask_everything's rules; `test/t45-library-everything.test.ts`.
 
 ### Voice, calls, pictures
 - **C15. Her look on engines other than Grok** (M): outfit and expression edits that keep the face (OpenAI edits, ComfyUI image-to-image). The owner asked for this in 3.38.
@@ -101,7 +101,7 @@ docs/HUMAN_ROADMAP.md.
 ### Coding
 - **C27. Previews with hot reload** (M) and a doctor line for the testing browser.
 - **C28. Code map**: harder questions on a bigger codebase; `.gitignore` negation lines (S).
-- **C29. SSH**: file copy up and down; Windows servers whose shell is cmd.exe (M).
+- **C29. SSH**: file copy up and down (done in T46: `ssh_upload`, `ssh_download`); still open: Windows servers whose shell is cmd.exe (M).
 - **C30. A container sandbox on Windows and Mac** (L, on the public roadmap): today commands there can read the vault key.
 
 ### Computers and browsers
@@ -122,10 +122,10 @@ docs/HUMAN_ROADMAP.md.
 - **D2. Timers** (M): about 25 `setInterval` workers onto `src/tick-jobs.ts`.
 - **D3. One feature in one place** (L): a feature is wired in six places today; a per-feature manifest.
 - **D4. Tests that read source as text** (ongoing): 272 files, about 1,630 assertions; replace with behaviour tests when a file is touched. The S-stage tests added a few of these too.
-- **D5. Tests that fail only under load** (S): `business-oidc`, `phase86:540`, `w0-hearing:123`, `business-isolation:10`, and the Signal linking test seen in 3.41: find the wait each depends on. Also: a release gate must never share its log or its worktree with another run (it happened in 3.41).
+- **D5. Tests that fail only under load** (S): `business-oidc`, `phase86:540`, `w0-hearing:123`, `business-isolation:10`, and the Signal linking test seen in 3.41: find the wait each depends on. Also: a release gate must never share its log or its worktree with another run (it happened in 3.41). **T47:** `w0-hearing` (a random file name, never load), `business-isolation` and one fixed wait in the Signal linking test are fixed; `npm run check` holds a lock per folder (`scripts/check.ts`). `business-oidc` and `phase86:540` did not come back under load and are unchanged (docs/BACKLOG.md).
 - **D6. SOURCE_OF_TRUTH is 78 KB** (S): move finished releases to docs/ops/history; about 20 GB of evidence folders under `outputs/`.
 - **D7. Settings' 84 pages are in the page from the start; `content-visibility` on chat messages** (M), and loading each place on first open if A4's phone numbers call for it.
-- **D8. Debug logging** (S): few debug lines, so the Debug level adds little.
+- **D8. Debug logging** (S): few debug lines, so the Debug level adds little. **Done (T45) for a turn:** the model picked and why, the history budget, tools offered per step, each tool call, fallbacks, after-turn jobs and the end of the turn (`debugLine` in src/log.ts; `test/t45-debug-log.test.ts`). Background workers have none yet.
 - **D9. Node 26 on macOS** (S): two process and port checks and one fixture.
 - **D10. Long runs** (L): a day and a week of soak, disk pressure, real provider latency, a large PDF, recovery time measured.
 
@@ -133,7 +133,7 @@ docs/HUMAN_ROADMAP.md.
 
 - **E1. The owner's list of screens** (**owner**), the Windows app first. Still the most valuable polish input.
 - **E2. Layout consistency** (L): about 1,500 raw spacing values to tokens; one shared window header; Name and personality in three tabs; a date chip.
-- **E3. Words** (M): ten English tips over 260 characters; `VoiceError` and other plain errors still English; agreement for a he/they companion in fr/es/pt-BR/it and German; spot-check the machine translations.
+- **E3. Words** (M): ten English tips over 260 characters; `VoiceError` and other plain errors still English (T46: the voice errors and about 35 others are translated; what is left is in docs/BACKLOG.md); agreement for a he/they companion in fr/es/pt-BR/it and German; spot-check the machine translations.
 - **E4. Phone details** (M): tap targets at 390 px (model chip, + Project, Off the record, the status line); + and Send missing a tap while the keyboard closes; the `sara hands` command cut off; the Default-look "?" wrapping.
 - **E5. Small truths** (S each): "Needs you" lists a down model twice; the no-search notice fires on ordinary chat; Ollama `:cloud` models labelled local and free; "Not connected" without a reason; add-on browser calls show "Not checked"; "checked 2 h ago ↻ Refresh" wraps on a phone.
 - **E6. Other browsers** (S): Firefox and Safari have not been looked at.

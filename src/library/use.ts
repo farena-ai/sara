@@ -175,7 +175,13 @@ export function createLibraryTool(app: () => AppContext): Tool {
       const query = typeof args.query === 'string' ? args.query.trim() : '';
       if (!query) throw new ToolError('Say what to look for.');
       // N6: a question about their own papers, across every Library file, quotes checked word for word.
-      if (action === 'ask') return answerText(query, await askDocuments(a, query, { conversationId: conv?.id }));
+      if (action === 'ask') {
+        const papers = answerText(query, await askDocuments(a, query, { conversationId: conv?.id }));
+        // C14: "check everything" or "my mail too" reaches the other sources even when she picked this tool.
+        const { askBeyondDocuments } = await import('../ask-everything.ts');
+        const more = await askBeyondDocuments(a, { query, conversationId: conv?.id, signal: ctx.signal }).catch(() => undefined);
+        return more ? `${papers}\n\n${more}` : papers;
+      }
       const roomName = typeof args.room === 'string' ? args.room.trim().replace(/^#/, '').toLowerCase() : '';
       const roomDocs = roomName && where !== 'library' ? archives.filter((d) => (d.collection ?? '').toLowerCase().includes(roomName)).map((d) => d.id) : [];
       if (roomName && where !== 'library' && !roomDocs.length) return `No archive for a room called “${args.room}”. The archived rooms: ${[...new Set(archives.map((d) => d.collection))].join(', ') || 'none yet'}.`;

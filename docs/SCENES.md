@@ -33,7 +33,8 @@ scene holds up to three of your chats and one shared room (below).
 A seat is removed automatically when its chat changes in a way that could change who reads it
 (privacy, channel, partner, workspace, archive, ending the session with /new, mode, or the bridge
 room record). Canon taken from that chat's lines is erased with it; typed canon stays. Moving a
-chat back does not bring the seat back: link it again.
+chat back does not bring the seat back: link it again. (A shared room keeps its seat over `/new`;
+see below.)
 
 ## A shared room (R1B3)
 
@@ -55,8 +56,14 @@ one group's words never reach another group.
   never your other chats, and in the room she is told only that this room shares the scene.
 - Her replies in a room never become canon by themselves, and she has no `scene_canon` tool there.
 - The seat is removed (and canon from its lines erased) when the room's kind or adult flag changes,
-  the room record disappears, or the conversation's privacy, channel, partner, archive or session
+  the room record disappears, or the conversation's privacy, channel, partner or archive
   changes. A round trip does not bring it back; a name refresh keeps it.
+- `/new` in a linked room keeps the room linked: the seat goes to the room's new session (it is the
+  same place and the same people). Canon picked from lines of the closed session is erased, as for
+  any closed session; typed canon stays. Your own linked chats still lose their seat on `/new`.
+- The chat app's switch is checked on every room turn, not only when you link. While Discord or
+  Telegram is turned off, nothing of the scene reaches the room; the room stays linked and plays
+  again when the app is back on.
 
 **Adult scenes and rooms.** An adult scene can take a room only while Adult mode is on and only an
 adult room: a Discord NSFW channel or a room you listed as adult, with its adult conversation. A DM

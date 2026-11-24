@@ -135,6 +135,31 @@ function roomSeatCurrent(app: AppContext, c: Conversation | undefined, seat: Sce
   return room && room.kind === seat.roomKind && (room.adult === 1) === seat.roomAdult ? room : undefined;
 }
 
+/**
+ * C26: `/new` in a linked room. The room is still the same place with the same people, so its seat
+ * goes to the next session and the owner does not have to link the room again. Call it after the
+ * next session exists and before the old one is ended (ending is what removes a seat). Only a room
+ * seat that is still good moves, and only to the next session of the same chat; an owner seat is
+ * left alone. Returns true when the seat moved. Never throws: `/new` must work either way.
+ */
+export function carryRoomSeat(app: AppContext, prev: Pick<Conversation, 'id'>, next: Pick<Conversation, 'id'>): boolean {
+  try {
+    if (!owner(app)) return false;
+    const store = records(app);
+    const seat = store.seatOf(prev.id);
+    if (!seat || seat.audience !== 'room') return false;
+    const good = () => {
+      const from = app.store.getConversation(prev.id);
+      const to = app.store.getConversation(next.id);
+      return Boolean(from && to && roomSeatCurrent(app, from, seat) && roomSeatAllowed(app, to) && to.channel === seat.channel && to.channelKey === seat.channelKey && to.sessionOf === (from.sessionOf ?? from.id));
+    };
+    if (!good()) return false;
+    return store.moveSeat(prev.id, next.id, () => { if (!good()) ineligible('That conversation changed.'); });
+  } catch {
+    return false;
+  }
+}
+
 export interface SceneSeatBinding { scene: Scene; seat: SceneSeat }
 /** The static gate: a current owner seat whose identity still matches, in an eligible owner turn. */
 export function sceneSeatFor(app: AppContext, conversation: Conversation, turn?: TurnOptions): SceneSeatBinding | undefined {
@@ -152,6 +177,9 @@ export function sceneSeatFor(app: AppContext, conversation: Conversation, turn?:
     // R1B3: the room's own bridge options must describe this very room.
     const room = roomSeatCurrent(app, current, seat);
     if (!room) return undefined;
+    // C26: the chat app must be on now, not only when the room was linked. The seat stays linked
+    // while it is off; it just takes no part in a turn until the app is turned on again.
+    if (!bridgeOn(app, current!)) return undefined;
     if (turn && Object.hasOwn(turn, 'roomId') && turn.roomId !== room.id) return undefined;
   }
   const scene = store.scene(seat.sceneId);

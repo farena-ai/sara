@@ -11,7 +11,7 @@ import { pipeline } from 'node:stream/promises';
 import type { AppContext } from '../chat.ts';
 import { openZip } from '../library/zip.ts';
 import { ReadError } from '../library/read.ts';
-import { memorySettings, summarizeConversation } from '../memory-worker.ts';
+import { historyParts, memorySettings, summarizeConversation } from '../memory-worker.ts';
 import { looksLikeChatGPT, parseChatGPT } from './chatgpt.ts';
 import { looksLikeClaude, parseClaude } from './claude.ts';
 import { exportNotes, type ExportNote } from './notes.ts';
@@ -117,6 +117,8 @@ interface Queue {
   failed: number;
   paused: boolean;
   source?: HistorySource;
+  /** C9: the first conversation in `ids` is long and already read through this message id. */
+  part?: { id: string; through: number };
 }
 
 const QUEUE_KEY = 'history-import:queue';
@@ -386,9 +388,15 @@ export class HistoryImporter {
         continue;
       }
       this.#abort = new AbortController();
+      // C9: a long conversation is read one part per round (historyParts), with the usual pause
+      // between rounds. The queue remembers how far the first conversation got, so a pause or a
+      // restart goes on from there.
+      const after = q.part?.id === id ? q.part.through : 0;
+      let parts: ReturnType<typeof historyParts> = [];
       let r: Awaited<ReturnType<typeof summarizeConversation>> | undefined;
       try {
-        r = await summarizeConversation(app, app.memory!, id, { fromId: 0, signal: this.#abort.signal });
+        parts = historyParts(app, id, after);
+        r = await summarizeConversation(app, app.memory!, id, { ...(parts[0] ?? { fromId: after }), signal: this.#abort.signal });
       } catch (err) {
         console.warn(`history import: learning from ${id} failed: ${(err as Error).message}`);
       }
@@ -396,20 +404,34 @@ export class HistoryImporter {
       if (this.#stopped) break;
       const now = this.#queue();
       if (!now || now.ids[0] !== id) continue; // cancelled, paused-and-cleared or removed meanwhile
+      const ok = Boolean(r && !r.error);
+      if (r && ok) now.notes += (r.summaryId ? 1 : 0) + r.factIds.length + (r.dateIds?.length ?? 0);
+      if (ok && parts.length > 1) {
+        // More of this conversation is left: it stays first in the queue.
+        failsInRow = 0;
+        now.part = { id, through: parts[0].throughId };
+        this.#saveQueue(now);
+        this.#publish();
+        if (now.paused) break;
+        await this.#sleep(this.#gapMs);
+        continue;
+      }
+      const part = now.part;
+      delete now.part;
       now.ids.shift();
-      if (!r || r.error) {
+      if (!ok) {
         now.failed++;
         failsInRow++;
       } else {
         failsInRow = 0;
         now.learned++;
-        now.notes += (r.summaryId ? 1 : 0) + r.factIds.length + (r.dateIds?.length ?? 0);
       }
       // The model keeps failing (not set up, unreachable): pause and say why, instead of burning through.
       if (failsInRow >= 3) {
         now.paused = true;
         now.ids.unshift(id);
         now.failed--;
+        if (part) now.part = part;
         this.#status = { ...this.#status, message: `Paused: the background model didn't answer (${r?.error ?? 'error'}). Check Settings → Models & usage, then press Resume.` };
       }
       this.#saveQueue(now);

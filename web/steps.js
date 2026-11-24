@@ -75,7 +75,7 @@ function rowFor(box, step) {
 function fillRow(step) {
   const li = step.li;
   li.className = `step ${step.status}${stoppedByPerson(step) ? ' stopped' : ''}`;
-  const verb = step.status === 'running' ? step.now : stoppedByPerson(step) ? t('Stopped: {what}', { what: step.done }) : step.status === 'waiting' ? t('Waiting for your OK: {what}', { what: step.done }) : step.status === 'denied' && step.timedOut ? t('Not approved in time: {what}', { what: step.done }) : step.status === 'denied' ? t('Not allowed: {what}', { what: step.done }) : step.status === 'error' ? t("Didn't work: {what}", { what: step.done }) : step.done;
+  const verb = step.status === 'running' ? step.now : stoppedByPerson(step) ? t('Stopped: {what}', { what: step.done }) : step.status === 'waiting' ? t('Waiting for your OK: {what}', { what: String(step.now ?? step.done).replace(/[\s.…]+$/u, '') }) : step.status === 'denied' && step.timedOut ? t('Not approved in time: {what}', { what: step.done }) : step.status === 'denied' ? t('Not allowed: {what}', { what: step.done }) : step.status === 'error' ? t("Didn't work: {what}", { what: step.done }) : step.done;
   li.querySelector('.step-verb').textContent = verb;
   li.querySelector('.step-ms').textContent = step.ms !== undefined && step.status !== 'running' && step.status !== 'waiting' ? fmtDuration(step.ms) : '';
   const body = step.body;

@@ -336,7 +336,9 @@ test('114a.8 B1: a leave-by row comes before its event; the repeated hour when s
     else process.env.TZ = tz;
   }
   const js = web('today.js');
-  assert.match(js, /t\('Leave by \{time\} for \{what\}', \{ time: time\(x\.at\), what: x\.title \}\)\} \$\{how\}/, 'the row reads "Leave by 2:35 for Dentist (15 min by car)"');
+  // T45: the sentence is leaveLine (it names the repeated hour too; test/t45-today-clock-back.test.ts).
+  assert.match(js, /`\$\{leaveLine\(x\)\} \$\{how\}`/, 'the row reads "Leave by 2:35 for Dentist (15 min by car)"');
+  assert.match(js, /t\('Leave by \{time\} for \{what\}', \{ time: dayTime\(x\.at, offset\), what: x\.title \}\)/);
   assert.match(js, /rep === '1st' \? t\('\(1st\)'\) : t\('\(2nd\)'\)/);
 });
 

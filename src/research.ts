@@ -79,9 +79,11 @@ export const RESEARCH = {
   linksPerPage: 3,
   /** A model this size (billions) or smaller gets short steps (or a stronger configured model). */
   smallB: 14,
+  /** C23: this many runs read or write at once; the others wait their turn, in order. */
+  atOnce: 2,
 } as const;
 
-export type ResearchStatus = 'planning' | 'plan' | 'running' | 'paused' | 'writing' | 'done' | 'stopped' | 'failed';
+export type ResearchStatus = 'planning' | 'plan' | 'queued' | 'running' | 'paused' | 'writing' | 'done' | 'stopped' | 'failed';
 export type FailReason = 'http' | 'blocked' | 'private-local' | 'timeout' | 'not-text' | 'too-short' | 'unreachable' | 'not-found' | 'bot-wall' | 'rate-limited';
 export type Cut = 'write-now' | 'stop' | 'restart' | 'budget' | 'model' | null;
 export type Goal = 'report' | 'skill';
@@ -115,6 +117,7 @@ export interface ResearchProgress {
 export interface ResearchPause {
   reason: 'owner' | 'model' | 'restart';
   at: string;
+  /** The model's error, or (C23) why a run could not start when its turn came. */
   error?: string;
 }
 export interface ResearchSource {
@@ -160,6 +163,8 @@ export interface ResearchRun {
   topicId: number | null;
   /** S1: where it reads and which models may write. */
   reach: ResearchReach;
+  /** C23: its place in line while it waits its turn (1 is next), else null. */
+  queuePos: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -441,7 +446,7 @@ export class Research {
       const have = new Set((db.prepare(`PRAGMA table_info(${table})`).all() as Row[]).map((r) => String(r.name)));
       for (const [c, type] of cols) if (!have.has(c)) db.exec(`ALTER TABLE ${table} ADD COLUMN ${c} ${type}`);
     };
-    add('research_runs', [['goal', "TEXT NOT NULL DEFAULT 'report'"], ['conv', 'TEXT'], ['budget', 'TEXT'], ['progress', 'TEXT'], ['queue', "TEXT NOT NULL DEFAULT '[]'"], ['pause', 'TEXT'], ['tokens', 'INTEGER NOT NULL DEFAULT 0'], ['elapsed_ms', 'INTEGER NOT NULL DEFAULT 0'], ['mode', "TEXT NOT NULL DEFAULT 'full'"], ['topic_id', 'INTEGER'], ['reach', 'TEXT']]);
+    add('research_runs', [['goal', "TEXT NOT NULL DEFAULT 'report'"], ['conv', 'TEXT'], ['budget', 'TEXT'], ['progress', 'TEXT'], ['queue', "TEXT NOT NULL DEFAULT '[]'"], ['pause', 'TEXT'], ['tokens', 'INTEGER NOT NULL DEFAULT 0'], ['elapsed_ms', 'INTEGER NOT NULL DEFAULT 0'], ['mode', "TEXT NOT NULL DEFAULT 'full'"], ['topic_id', 'INTEGER'], ['reach', 'TEXT'], ['queue_pos', 'INTEGER']]);
     add('research_sources', [['via', "TEXT NOT NULL DEFAULT 'page'"], ['summary', 'TEXT']]);
     // After a restart: a plan being drafted gets the simple plan; a working run is paused at its
     // last checkpoint (resumeInterrupted() picks it up; Resume does too).
@@ -459,12 +464,14 @@ export class Research {
     this.#ctl.clear();
   }
 
-  /** 3.1.2: runs a restart interrupted go on from their checkpoint (called once at startup). */
+  /**
+   * 3.1.2: runs a restart interrupted go on from their checkpoint (called once at startup).
+   * C23: oldest first; past RESEARCH.atOnce they wait their turn, and runs that were waiting go on waiting.
+   */
   resumeInterrupted(): number[] {
     const ids: number[] = [];
-    for (const r of this.list()) {
+    for (const r of this.list().reverse()) {
       if (r.status !== 'paused' || r.pause?.reason !== 'restart' || this.refusalFor(r.reach)) continue;
-      if (this.list().some((x) => x.status === 'running' || x.status === 'writing')) break;
       try {
         this.resume(r.id);
         ids.push(r.id);
@@ -472,13 +479,14 @@ export class Research {
         console.warn(`research: run ${r.id} could not resume: ${(err as Error).message}`);
       }
     }
+    this.#next();
     return ids;
   }
 
   #now(): string {
     return this.#app.now().toISOString();
   }
-  #set(id: number, p: Partial<Record<'status' | 'plan' | 'searched' | 'report' | 'report_doc' | 'cut' | 'error' | 'goal' | 'conv' | 'budget' | 'progress' | 'queue' | 'pause' | 'tokens' | 'elapsed_ms' | 'mode' | 'topic_id' | 'reach', string | number | null>>): void {
+  #set(id: number, p: Partial<Record<'status' | 'plan' | 'searched' | 'report' | 'report_doc' | 'cut' | 'error' | 'goal' | 'conv' | 'budget' | 'progress' | 'queue' | 'pause' | 'tokens' | 'elapsed_ms' | 'mode' | 'topic_id' | 'reach' | 'queue_pos', string | number | null>>): void {
     if (this.#closed) return;
     const keys = Object.keys(p);
     this.#db.prepare(`UPDATE research_runs SET ${keys.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`).run(...(Object.values(p) as (string | number | null)[]), this.#now(), id);
@@ -559,6 +567,7 @@ export class Research {
       conversationId: (r.conv as string) ?? null,
       topicId: r.topic_id == null ? null : Number(r.topic_id),
       reach: r.reach ? (JSON.parse(String(r.reach)) as ResearchReach) : { web: true, library: false, localOnly: false },
+      queuePos: r.status === 'queued' ? Number((this.#db.prepare(`SELECT COUNT(*) AS n FROM research_runs WHERE status = 'queued' AND (queue_pos < ? OR (queue_pos = ? AND id <= ?))`).get(Number(r.queue_pos ?? 0), Number(r.queue_pos ?? 0), id) as Row).n) : null,
       createdAt: String(r.created_at),
       updatedAt: String(r.updated_at),
     };
@@ -707,7 +716,7 @@ export class Research {
 
   /** 3.1.2: his budget for a run (pages, minutes, tokens), raised or lowered before or during it. */
   setBudget(id: number, input: { pages?: unknown; minutes?: unknown; tokens?: unknown }): ResearchRun {
-    const r = this.#must(id, 'plan', 'running', 'paused', 'writing');
+    const r = this.#must(id, 'plan', 'queued', 'running', 'paused', 'writing');
     const budget: ResearchBudget = {
       pages: input.pages === undefined ? r.budget.pages : pick(RESEARCH.budgetPages, input.pages, r.budget.pages as never),
       minutes: input.minutes === undefined ? r.budget.minutes : pick(RESEARCH.budgetMinutes, input.minutes, r.budget.minutes as never),
@@ -719,18 +728,45 @@ export class Research {
     return this.get(id)!;
   }
 
-  #busy(except: number): boolean {
-    return this.list().some((r) => r.id !== except && (r.status === 'running' || r.status === 'writing'));
+  /** C23: how many runs read or write now. */
+  #working(): number {
+    return Number((this.#db.prepare(`SELECT COUNT(*) AS n FROM research_runs WHERE status IN ('running', 'writing')`).get() as Row).n);
   }
 
-  /** His approval of the plan: starts reading. One run works at a time. */
+  /** C23: a run goes to work when one of the RESEARCH.atOnce places is free; else it waits its turn at the end of the line. */
+  #begin(id: number): void {
+    if (this.#working() >= RESEARCH.atOnce) {
+      const last = Number((this.#db.prepare('SELECT COALESCE(MAX(queue_pos), 0) AS n FROM research_runs').get() as Row).n);
+      this.#set(id, { status: 'queued', queue_pos: last + 1 });
+      return;
+    }
+    this.#set(id, { status: 'running', queue_pos: null });
+    this.#launch(id);
+  }
+
+  /** C23: a place came free: the runs that waited longest go to work. One that can't work now is paused, not lost. */
+  #next(): void {
+    while (!this.#closed && this.#working() < RESEARCH.atOnce) {
+      const row = this.#db.prepare(`SELECT id FROM research_runs WHERE status = 'queued' ORDER BY queue_pos, id LIMIT 1`).get() as Row | undefined;
+      if (!row) return;
+      const id = Number(row.id);
+      const why = this.refusalFor(this.get(id)!.reach);
+      if (why) {
+        this.#set(id, { status: 'paused', queue_pos: null, pause: JSON.stringify({ reason: 'owner', at: this.#now(), error: why } satisfies ResearchPause) });
+        continue;
+      }
+      this.#set(id, { status: 'running', queue_pos: null });
+      this.#launch(id);
+    }
+  }
+
+  /** His approval of the plan: starts reading, or waits its turn when RESEARCH.atOnce runs are working. */
   start(id: number): ResearchRun {
     const run = this.#must(id, 'plan');
     const why = this.refusalFor(run.reach);
     if (why) throw new ResearchError(409, why);
-    if (this.#busy(id)) throw new ResearchError(409, en('Another research run is working. Stop it or wait until it finishes.'));
-    this.#set(id, { status: 'running', progress: JSON.stringify({ doing: 'idle', detail: '', step: 0 } satisfies ResearchProgress) });
-    this.#launch(id);
+    this.#set(id, { progress: JSON.stringify({ doing: 'idle', detail: '', step: 0 } satisfies ResearchProgress) });
+    this.#begin(id);
     return this.get(id)!;
   }
 
@@ -752,7 +788,10 @@ export class Research {
     if (ctl) {
       ctl.why = 'pause';
       ctl.read.abort();
-    } else this.#set(id, { status: 'paused', pause: JSON.stringify({ reason: 'owner', at: this.#now() } satisfies ResearchPause) });
+    } else {
+      this.#set(id, { status: 'paused', pause: JSON.stringify({ reason: 'owner', at: this.#now() } satisfies ResearchPause) });
+      this.#next();
+    }
     return this.get(id)!;
   }
 
@@ -761,9 +800,8 @@ export class Research {
     const run = this.#must(id, 'paused');
     const why = this.refusalFor(run.reach);
     if (why) throw new ResearchError(409, why);
-    if (this.#busy(id)) throw new ResearchError(409, en('Another research run is working. Stop it or wait until it finishes.'));
-    this.#set(id, { status: 'running', pause: null, error: null });
-    this.#launch(id);
+    this.#set(id, { pause: null, error: null });
+    this.#begin(id);
     return this.get(id)!;
   }
 
@@ -777,8 +815,8 @@ export class Research {
         this.#finishOffline(id, 'model', en('The model stopped answering, so this report shows what was found without a written summary.'));
         return this.get(id)!;
       }
-      this.#set(id, { status: 'running', pause: null, cut: 'write-now', progress: JSON.stringify({ ...r.progress, phase: 'write' }) });
-      this.#launch(id);
+      this.#set(id, { pause: null, cut: 'write-now', progress: JSON.stringify({ ...r.progress, phase: 'write' }) });
+      this.#begin(id);
       return this.get(id)!;
     }
     const ctl = this.#ctl.get(id);
@@ -791,13 +829,15 @@ export class Research {
 
   /** Stop: no more searches, pages or model calls; a report of what was found is still saved. */
   stop(id: number): ResearchRun {
-    const r = this.#must(id, 'planning', 'plan', 'running', 'paused', 'writing');
+    const r = this.#must(id, 'planning', 'plan', 'queued', 'running', 'paused', 'writing');
     const ctl = this.#ctl.get(id);
     if (ctl) {
       ctl.all.abort();
       ctl.read.abort();
     }
-    if (r.status === 'planning' || r.status === 'plan') this.#set(id, { status: 'stopped', cut: 'stop' });
+    // C23: a run that waited its turn and never read anything is cancelled like a plan.
+    const fresh = r.status === 'queued' && !r.sources.length && !r.searched.length;
+    if (r.status === 'planning' || r.status === 'plan' || fresh) this.#set(id, { status: 'stopped', cut: 'stop', queue_pos: null });
     else if (!ctl) this.#finishOffline(id, 'stop');
     return this.get(id)!;
   }
@@ -812,7 +852,7 @@ export class Research {
   }
 
   #prune(): void {
-    const old = this.#db.prepare(`SELECT id FROM research_runs WHERE status NOT IN ('planning', 'running', 'paused', 'writing') ORDER BY id DESC LIMIT -1 OFFSET ?`).all(RESEARCH.keepRuns) as Row[];
+    const old = this.#db.prepare(`SELECT id FROM research_runs WHERE status NOT IN ('planning', 'queued', 'running', 'paused', 'writing') ORDER BY id DESC LIMIT -1 OFFSET ?`).all(RESEARCH.keepRuns) as Row[];
     for (const r of old) this.delete(Number(r.id));
   }
 
@@ -886,7 +926,8 @@ export class Research {
           }
           break;
         }
-        save();
+        // The page being read stays in the checkpoint until it is recorded, so a restart reads it again.
+        this.#set(id, { queue: JSON.stringify([next, ...queue].slice(0, 200)), elapsed_ms: elapsed() });
         this.#progress(id, { doing: 'reading', detail: next.url, step: next.step });
         const got = await this.#fetchOne(id, next, ctl.read.signal, read + 1);
         if (this.#closed) return;
@@ -907,6 +948,7 @@ export class Research {
       this.#set(id, { status: 'paused', pause: JSON.stringify({ reason: 'owner', at: this.#now() } satisfies ResearchPause) });
       this.#progress(id, { doing: 'idle', detail: '' });
       audit({ action: 'research.pause', role: 'owner', channel: 'web', target: String(id) });
+      this.#next();
       return;
     }
     const prior = this.get(id)!.cut;
@@ -1044,6 +1086,7 @@ export class Research {
       this.#ctl.delete(id);
       this.#set(id, { status: 'paused', pause: JSON.stringify({ reason: 'model', at: this.#now(), error: oneLine((err as Error).message, 200) } satisfies ResearchPause) });
       this.#progress(id, { doing: 'idle', detail: '', phase: 'write' });
+      this.#next();
       return;
     }
     if (this.#closed) return;
@@ -1193,8 +1236,9 @@ export class Research {
         console.warn(`research: saving the report to the Library failed: ${(err as Error).message}`);
       }
     }
-    this.#set(id, { status, report: md, report_doc: docId, cut, pause: null, progress: JSON.stringify({ ...run.progress, doing: 'idle', detail: '' }) });
+    this.#set(id, { status, report: md, report_doc: docId, cut, pause: null, queue_pos: null, progress: JSON.stringify({ ...run.progress, doing: 'idle', detail: '' }) });
     this.#ctl.delete(id);
+    this.#next();
     audit({ action: 'research.report', role: 'owner', channel: 'web', target: String(id), outcome: status === 'done' ? 'ok' : 'failed' });
     // S1: he hears when it is done (the run works in the background while he does other things).
     try {

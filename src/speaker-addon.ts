@@ -12,6 +12,7 @@ import { cpus } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { downloadPinned, systemTar, VoiceInstallError, type InstallItem } from './voice-install.ts';
+import { en, enf } from './i18n.ts';
 
 const NPM = 'https://registry.npmjs.org';
 const SHERPA_NODE = '2.0.1';
@@ -56,8 +57,8 @@ const untarGz = (file: string, into: string, tar = systemTar()): Promise<void> =
     const p = spawn(tar, ['-xzf', file, '-C', into], { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true });
     let err = '';
     p.stderr.on('data', (d: Buffer) => (err += d.toString('utf8')));
-    p.on('error', (e) => reject(new VoiceInstallError('unpack', `tar could not start (${e.message}).`)));
-    p.on('close', (code) => (code === 0 ? resolve() : reject(new VoiceInstallError('unpack', `Unpacking failed (tar exit ${code}): ${err.trim().slice(0, 200)}`))));
+    p.on('error', (e) => reject(new VoiceInstallError('unpack', enf('tar could not start ({why}).', { why: e.message }))));
+    p.on('close', (code) => (code === 0 ? resolve() : reject(new VoiceInstallError('unpack', enf('Unpacking failed (tar exit {code}): {detail}', { code: String(code), detail: err.trim().slice(0, 200) })))));
   });
 
 export interface SpeakerAddonOptions {
@@ -94,7 +95,7 @@ export class SpeakerAddon implements SpeakerEngine {
   install(): Promise<void> {
     if (this.#job) return this.#job;
     const runtime = runtimeFor(this.#opts.platform, this.#opts.arch);
-    if (!runtime) return Promise.reject(new VoiceInstallError('platform', 'The speaker add-on is not available for this system.'));
+    if (!runtime) return Promise.reject(new VoiceInstallError('platform', en('The speaker add-on is not available for this system.')));
     this.#state = 'installing';
     this.#error = '';
     const run = async () => {
@@ -107,7 +108,7 @@ export class SpeakerAddon implements SpeakerEngine {
           const tgz = join(part, 'runtime.tgz');
           await downloadPinned(runtimeUrl(runtime), runtime.sha256, tgz, { fetch: this.#opts.fetch });
           await (this.#opts.untar ?? untarGz)(tgz, part);
-          if (!existsSync(join(part, 'package', 'sherpa-onnx.node'))) throw new VoiceInstallError('contents', 'Unexpected contents in the speaker add-on.');
+          if (!existsSync(join(part, 'package', 'sherpa-onnx.node'))) throw new VoiceInstallError('contents', en('Unexpected contents in the speaker add-on.'));
           rmSync(join(this.dir, 'runtime'), { recursive: true, force: true });
           renameSync(join(part, 'package'), join(this.dir, 'runtime'));
         }

@@ -88,6 +88,12 @@ export interface Draft {
   attachments?: { name: string; mime: string; data: Buffer }[];
   /** N4: filled in by the provider after saving: the attachment names read back from the server (undefined: couldn't read). */
   readBack?: string[];
+  /** C13: filled in by the provider after saving a draft: found on a second read (false: not there; undefined: couldn't read). */
+  saved?: boolean;
+  /** T47: filled in by the provider after sending: found again on the server (Outlook: by its id or Message-ID; IMAP: in the Sent folder by Message-ID). false: not there; undefined: couldn't read. */
+  sent?: boolean;
+  /** T47: set after sending when there was nowhere to look: the mailbox has no Sent folder. */
+  noSentFolder?: boolean;
 }
 
 export interface CalendarEventIn {

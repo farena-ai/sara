@@ -266,6 +266,22 @@ export class SharedSceneStore {
       return { scene: bumped, erasedCanon: erased };
     });
   }
+  /**
+   * C26: a room's seat follows the room to its next session (`/new`). Only a room seat moves, and
+   * only to a conversation with no seat. Canon is not touched here: closing the old session still
+   * erases canon taken from its lines (the scope trigger), typed canon stays.
+   */
+  moveSeat(fromConversationId: string, toConversationId: string, guard?: () => void): boolean {
+    return this.transaction(() => {
+      const seat = this.seatOf(fromConversationId);
+      if (!seat || seat.audience !== 'room' || this.seatOf(toConversationId)) return false;
+      guard?.();
+      this.#db.prepare('UPDATE scene_seats SET conversation_id=? WHERE scene_id=? AND conversation_id=?').run(toConversationId, seat.sceneId, fromConversationId);
+      this.#bump(seat.sceneId, false);
+      this.#event(seat.sceneId, 'moved', 'system', toConversationId);
+      return true;
+    });
+  }
   setCanon(id: number, expectedRevision: number, input: CanonInput, guard?: (scene: Scene) => void): { scene: Scene; entry: CanonEntry; changed: boolean } {
     const key = SharedSceneStore.key(input.key); const text = SharedSceneStore.text(input.text);
     return this.transaction(() => {

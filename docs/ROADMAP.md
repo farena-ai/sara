@@ -108,6 +108,14 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## Research side by side and reports in more scripts, in 3.44.0
+
+Two research runs can work at the same time and a third waits its turn instead of being refused. The
+report PDF draws Greek, Cyrillic, Chinese, Japanese, Korean, Hebrew and Thai with fonts already on
+your computer, and says plainly which scripts it could not draw. Sent email and drafts in Outlook and
+app-password mailboxes are read back before she says they went. She can copy one file to a server
+of yours and back. A reply that fails tells you why in your own language.
+
 ## A check-up for your talking model, in 3.43.0
 
 Models differ in how they talk to someone who is sad, and nobody can tell from a model's name. The

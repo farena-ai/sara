@@ -24,6 +24,7 @@ import { JOBS, recommend, type Candidate } from './modelpicks.ts';
 import type { ModelRoute, RoutePurpose, SettingsStore } from './settings.ts';
 import { isCloudModelName } from './model-names.ts';
 import { noteOllamaDaemon } from './model-context.ts';
+import { enf } from './i18n.ts';
 
 export const CATALOG_FILE = 'model-lists.json';
 /** Ollama's public cloud catalog (no key needed). */
@@ -676,7 +677,7 @@ export class ModelCatalog {
       r = await this.#fetch(`${daemonRoot(config)}/api/pull`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ model, stream: false }), signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(180_000)]) : AbortSignal.timeout(180_000) });
     } catch (err) {
       if ((err as Error).name === 'AbortError') throw err;
-      throw new ProviderError(`Couldn't reach ${config.label} to add the cloud model ${model}. Is that computer on and Ollama running?`);
+      throw new ProviderError(enf("Couldn't reach {label} to add the cloud model {model}. Is that computer on and Ollama running?", { label: config.label, model }));
     }
     const text = await r.text().catch(() => '');
     let detail = text.slice(0, 300);

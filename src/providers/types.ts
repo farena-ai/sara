@@ -1,4 +1,5 @@
 import { isPrivateLocalError, netFetch } from '../net-guard.ts';
+import { enf } from '../i18n.ts';
 export type Role = 'system' | 'user' | 'assistant' | 'tool';
 
 /** A tool invocation requested by the model. `arguments` is the parsed JSON object. */
@@ -234,7 +235,7 @@ export async function reach(config: ProviderConfig, url: string, init: RequestIn
     } catch {
       /* keep url */
     }
-    throw new ProviderError(`Couldn't reach ${config.label} at ${host}. Is that computer on and its model server running?`);
+    throw new ProviderError(enf("Couldn't reach {label} at {host}. Is that computer on and its model server running?", { label: config.label, host }));
   }
 }
 

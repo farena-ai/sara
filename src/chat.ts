@@ -25,7 +25,7 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { buildSystemPrompt, identityOf, type Persona } from './persona.ts';
 import { redactTypedPassword } from './ssh.ts';
 import { isSshTool } from './tools/ssh.ts';
-import { appLanguage, en, fill, languageLine, talkLanguage, trOwner } from './i18n.ts';
+import { appLanguage, en, fill, keyedText, languageLine, talkLanguage, trOwner } from './i18n.ts';
 import { createProvider } from './providers/registry.ts';
 import { missedPictureNote, modelSees, pictureReaders, primePictureProviders, readoutNote, readPictures, type PictureReader } from './picture-reader.ts';
 import { VERIFY_TOOLS, verifyAction, type VerifyDeps } from './verify-action.ts';
@@ -101,6 +101,7 @@ import { datesNote, followUps, followUpsNote, selectMemories, type Injection, ty
 import { ownerCueNote } from './owner-cues.ts';
 import { linkedFriendsNote } from './link-aware.ts';
 import { noteCall, slowTrouble, troubleOf } from './trouble.ts';
+import { debugLine } from './log.ts';
 import { webSearchOff } from './web-search-auto.ts';
 import { workingStyleNote } from './working-style.ts';
 import { writingNote } from './humanize.ts';
@@ -516,7 +517,9 @@ export type ChatEvent =
   /** Phase 120 (§5.6): what his message's @-references attached (the chips under it). */
   | { type: 'refs'; messageId: number; items: RefChip[] }
   | { type: 'done'; messageId: number }
-  | { type: 'error'; message: string; trouble?: import('./trouble.ts').Trouble; errorClass?: string; messageId?: number }
+  // T47: `key` and `params` are the English template and values of a marked error, so the app and
+  // the bridges show it in the owner's language (web/trouble.js failedReplyText).
+  | { type: 'error'; message: string; key?: string; params?: Record<string, unknown>; trouble?: import('./trouble.ts').Trouble; errorClass?: string; messageId?: number }
   /** 3.4.5: the model hasn't said its first word in a while (Fix it / Keep waiting / Stop); the turn goes on. */
   | { type: 'slow'; trouble: import('./trouble.ts').Trouble };
 
@@ -1199,7 +1202,42 @@ export function historyStamps(messages: StoredMessage[], now: Date, timeZone?: s
   return out;
 }
 
-export function buildHistory(messages: StoredMessage[], budgetChars = Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string, fold?: { throughId: number; note: string; pinned?: Set<number> }, time?: { now: Date; timeZone?: string }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
+/**
+ * Fits a list of model messages to a size budget, in place: old tool outputs are shortened first,
+ * then the oldest messages are left out, then one huge message keeps its start and end. Returns the
+ * index of the first message to send (never a tool result, whose request would be gone). Used for
+ * her own history and for a team helper's (src/team.ts).
+ */
+export function fitHistory(out: ChatMessage[], budgetChars: number, keepWhole: (i: number) => boolean = () => false): number {
+  const size = (m: ChatMessage) => m.content.length + (m.role === 'assistant' && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0) + 20;
+  let start = Math.max(0, out.length - historyLimit(budgetChars));
+  let total = out.slice(start).reduce((n, m) => n + size(m), 0);
+  if (total > budgetChars) {
+    for (let i = start; i < out.length - RECENT_KEEP && total > budgetChars; i++) {
+      const m = out[i];
+      if (m.role === 'tool' && m.content.length > OLD_TOOL_OUTPUT && !keepWhole(i)) {
+        total -= m.content.length - OLD_TOOL_OUTPUT;
+        out[i] = { ...m, content: `${m.content.slice(0, OLD_TOOL_OUTPUT)}\n[… older output shortened]` };
+      }
+    }
+    while (total > budgetChars && start < out.length - 2) total -= size(out[start++]);
+    // Still too big: one huge message (a pasted log, a long tool output). Keep its start and end.
+    if (total > budgetChars) {
+      const cap = Math.max(2000, Math.floor(budgetChars / 2));
+      for (let i = start; i < out.length; i++) {
+        const m = out[i];
+        if (m.content.length <= cap || keepWhole(i)) continue;
+        const head = m.content.slice(0, Math.floor(cap * 0.7));
+        const tail = m.content.slice(-Math.floor(cap * 0.25));
+        out[i] = { ...m, content: `${head}\n[… ${m.content.length - head.length - tail.length} characters left out: too long to send whole …]\n${tail}` } as ChatMessage;
+      }
+    }
+  }
+  while (start < out.length && out[start].role === 'tool') start++;
+  return start;
+}
+
+export function buildHistory(messages: StoredMessage[], budgetChars =Number.POSITIVE_INFINITY, loadImage?: (id: string) => ImageData | undefined, group?: { ownerName: string }, refsText?: (messageId: number, full: boolean) => string, fold?: { throughId: number; note: string; pinned?: Set<number> }, time?: { now: Date; timeZone?: string }): { messages: ChatMessage[]; firstKeptId: number; dropped: number } {
   const out: ChatMessage[] = [];
   // W0.6: earlier owner messages carry their local time and age (and a long pause before them);
   // the newest one is this turn's (the time is restated after it). A fold says how old its end is.
@@ -1287,31 +1325,7 @@ export function buildHistory(messages: StoredMessage[], budgetChars = Number.POS
     if (out.length > before) ids.push(m.id);
   }
   // Shorten old tool outputs, then keep the newest messages that fit the budget.
-  const size = (m: ChatMessage) => m.content.length + (m.role === 'assistant' && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0) + 20;
-  let start = Math.max(0, out.length - historyLimit(budgetChars));
-  let total = out.slice(start).reduce((n, m) => n + size(m), 0);
-  if (total > budgetChars) {
-    for (let i = start; i < out.length - RECENT_KEEP && total > budgetChars; i++) {
-      const m = out[i];
-      if (m.role === 'tool' && m.content.length > OLD_TOOL_OUTPUT && !skillBody.has(i)) {
-        total -= m.content.length - OLD_TOOL_OUTPUT;
-        out[i] = { ...m, content: `${m.content.slice(0, OLD_TOOL_OUTPUT)}\n[… older output shortened]` };
-      }
-    }
-    while (total > budgetChars && start < out.length - 2) total -= size(out[start++]);
-    // Still too big: one huge message (a pasted log, a long tool output). Keep its start and end.
-    if (total > budgetChars) {
-      const cap = Math.max(2000, Math.floor(budgetChars / 2));
-      for (let i = start; i < out.length; i++) {
-        const m = out[i];
-        if (m.content.length <= cap || skillBody.has(i)) continue;
-        const head = m.content.slice(0, Math.floor(cap * 0.7));
-        const tail = m.content.slice(-Math.floor(cap * 0.25));
-        out[i] = { ...m, content: `${head}\n[… ${m.content.length - head.length - tail.length} characters left out: too long to send whole …]\n${tail}` } as ChatMessage;
-      }
-    }
-  }
-  while (start < out.length && out[start].role === 'tool') start++;
+  const start = fitHistory(out, budgetChars, (i) => skillBody.has(i));
   // Phase 96: skill bodies still in use that fell before the start come back as a note.
   const kept: ChatMessage[] = [...skillBody.entries()].filter(([i]) => i < start).map(([, body]) => ({ role: 'user', content: `[Note from the app: a skill you loaded earlier for this task, kept here while you work on it:]\n${body}` }));
   if (fold) kept.unshift({ role: 'user', content: fold.note });
@@ -1960,6 +1974,10 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
   // Phase 97 (ST2): what the skill learner needs to know about the turn (approvals, tools).
   let sawApproval = false;
   const toolNames: string[] = [];
+  // D8: the turn and its after-turn jobs, timed for the Debug log (ids, names and durations only).
+  const turnT0 = Date.now();
+  const id8 = conversationId.slice(0, 8);
+  const jobDone = (name: string, t0: number, failed = false) => debugLine(app.log, () => `turn ${id8}: after-turn job ${name} ${failed ? 'failed' : 'finished'} in ${Date.now() - t0} ms`);
   try {
     let inner: AsyncGenerator<ChatEvent>;
     try {
@@ -1979,8 +1997,10 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
           status = signal.aborted ? 'stopped' : 'error';
           // Fred fix B: every turn error is logged and kept in the chat (Try again, Report it), never silent.
           if (status === 'error' && ev.message !== 'Stopped.') {
-            const id = noteTurnError(app, conversationId, rec, opts, ev);
-            yield id ? { ...ev, messageId: id } : ev;
+            const keyed = ev.key ? undefined : keyedText(ev.message);
+            const out = keyed ? { ...ev, key: keyed.key, params: keyed.params } : ev;
+            const id = noteTurnError(app, conversationId, rec, opts, out);
+            yield id ? { ...out, messageId: id } : out;
             continue;
           }
         }
@@ -1997,6 +2017,8 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
       const conv = app.store.getConversation(conversationId);
       const final = app.store.messageById(replyId);
       if (conv && final?.role === 'assistant' && final.content.trim() && !final.meta?.blocked && pluginTurnAllowed(conv, { group: Boolean(opts.group), external: Boolean(opts.externalApp) || ['api', 'mcp', 'home-assistant', 'alexa'].includes(conv.channel), replay: Boolean(opts.replay), eval: Boolean(opts.recorder) })) {
+        const t0 = Date.now();
+        debugLine(app.log, () => `turn ${id8}: after-turn job plugins started`);
         try {
           for (const ev of await new PluginTurn(app.plugins, conv, app.now).afterReply(final.content)) {
             if (ev.what === 'card' || ev.what === 'followup') {
@@ -2005,7 +2027,9 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
               yield { ...ev, messageId: n.id };
             } else yield ev;
           }
+          jobDone('plugins', t0);
         } catch (err) {
+          jobDone('plugins', t0, true);
           console.warn(`plugins: ${(err as Error).message}`);
         }
       }
@@ -2016,20 +2040,29 @@ export async function* runTurn(app: AppContext, conversationId: string, userText
     // Phase 103 (ST8, STAPLES §11.4–§11.5): with her plans on, his own message may become a plan
     // (a future event he mentioned, a goal said twice); the chat shows "Added to her plans".
     if (status === 'ok' && !signal.aborted && app.agenda && !opts.recorder && !opts.replay && !opts.resume && !opts.group && !opts.externalApp && !opts.outside) {
+      const t0 = Date.now();
+      debugLine(app.log, () => `turn ${id8}: after-turn job plans started`);
       try {
         app.agenda.afterTurn(conversationId);
+        jobDone('plans', t0);
       } catch (err) {
+        jobDone('plans', t0, true);
         console.warn(`her plans: ${(err as Error).message}`);
       }
     }
     if (status === 'ok' && !signal.aborted && app.learning && !opts.recorder && !opts.replay && !opts.resume && !opts.group && !opts.externalApp) {
+      const t0 = Date.now();
+      debugLine(app.log, () => `turn ${id8}: after-turn job skill learning started`);
       try {
         await app.learning.afterTurn({ conversationId, userText, runId: rec.on ? rec.id : null, replyId, sawApproval, budgetStop: rec.outcome === 'budget', tools: toolNames });
+        jobDone('skill learning', t0);
       } catch (err) {
+        jobDone('skill learning', t0, true);
         console.warn(`skill learning: ${(err as Error).message}`);
       }
     }
   } finally {
+    debugLine(app.log, () => `turn ${id8}: ended ${status}${rec.outcome ? ` (${rec.outcome})` : ''} in ${Date.now() - turnT0} ms, ${toolNames.length} tool calls${toolNames.length ? `: ${[...new Set(toolNames)].join(', ')}` : ''}${rec.on ? `, run ${rec.id}` : ''}`);
     chatTurns.running--;
     try {
       pend?.turnEnded(conversationId);
@@ -2053,7 +2086,7 @@ const errorClassOf = (err: unknown): string => err instanceof Error ? (err.const
  * (2) kept in the conversation as a `turnerror:` notice the app shows with Try again and Report it.
  * Returns the notice's id (none for evals, replays or a conversation that isn't there).
  */
-function noteTurnError(app: AppContext, conversationId: string, rec: { on: boolean; id: number }, opts: TurnOptions, ev: { message: string; errorClass?: string; trouble?: unknown }): number | undefined {
+function noteTurnError(app: AppContext, conversationId: string, rec: { on: boolean; id: number }, opts: TurnOptions, ev: { message: string; key?: string; params?: Record<string, unknown>; errorClass?: string; trouble?: unknown }): number | undefined {
   const msg = app.redactor.redact(String(ev.message ?? '')).replace(/\s+/g, ' ').trim().slice(0, 600);
   const cls = ev.errorClass || 'TurnError';
   let where = '';
@@ -2070,7 +2103,9 @@ function noteTurnError(app: AppContext, conversationId: string, rec: { on: boole
   if (opts.recorder || opts.replay) return undefined;
   try {
     if (!app.store.getConversation(conversationId)) return undefined;
-    const n = app.store.addMessage(conversationId, 'notice', `turnerror:${msg}`, { error: msg, errorClass: cls, ...(rec.on ? { runId: rec.id } : {}), ...(ev.trouble ? { trouble: ev.trouble } : {}) });
+    // T47: a marked error keeps its template and (redacted) values, so the kept notice translates too.
+    const params = ev.key && ev.params ? Object.fromEntries(Object.entries(ev.params).map(([k, v]) => [k, typeof v === 'string' ? app.redactor.redact(v) : v])) : undefined;
+    const n = app.store.addMessage(conversationId, 'notice', `turnerror:${msg}`, { error: msg, ...(ev.key ? { key: ev.key, ...(params ? { params } : {}) } : {}), errorClass: cls, ...(rec.on ? { runId: rec.id } : {}), ...(ev.trouble ? { trouble: ev.trouble } : {}) });
     return n.id;
   } catch (err) {
     console.warn(`turn error: could not keep the notice: ${(err as Error).message}`);
@@ -2678,6 +2713,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
     // Phase 78: every provider of the chain is recorded (model, tokens, cost, latency per call).
     if (rec.on) chain = chain.map((c) => ({ ...c, provider: rec.wrap(c.provider) }));
     ({ provider, model } = chain[0]);
+    // D8: which model answers and why (the job, and where each choice of the chain came from).
+    debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: job ${job} -> ${chain[0].provider.config.label} (${chain[0].model}), from ${chain[0].from}; chain of ${chain.length}: ${chain.map((c) => `${c.model} [${c.from}]`).join(', ')}`);
   } catch (err) {
     yield { type: 'error', message: (err as Error).message };
     return;
@@ -2795,6 +2832,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
   const turnHistory = budgetOf({ provider, model });
   const budget0 = turnHistory.chars;
   const budget = saver.on ? Math.round(budget0 * SAVER.historyShare) : budget0;
+  debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: history budget ${budget} characters (mode ${turnHistory.mode}, window ${turnHistory.windowTokens || 'unknown'} tokens, limits from ${turnHistory.source}${turnHistory.capped ? `, capped: ${turnHistory.capped}` : ''}${turnHistory.numCtx ? `, num_ctx ${turnHistory.numCtx}` : ''}${saver.on ? ', saver on' : ''})`);
   // Hardening M3: what another app's turn may draw on (notes from conversations it may know about).
   const appSafe0 = opts.externalApp ? (m: { conversationId: string | null }) => !m.conversationId || sharedWithApps(store.getConversation(m.conversationId)) : undefined;
   // Phase 101 (ST6, STAPLES §9.6): people cards never leave her space. Other apps' turns (/v1, MCP,
@@ -3768,6 +3806,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       const codeOffered = tools.some((t) => t.spec.name === RUN_CODE) && codeModeOffer({ on: true, mode: conv.mode === 'coding' || isWorkChannel(conv.channel) ? 'coding' : 'chat', callsThisTurn, partner: Boolean(conv.partner), group: Boolean(opts.group) });
       const offered = codeOffered ? [...baseSpecs, runCodeSpec(baseSpecs.filter((sp) => sp.name !== FIND_TOOLS))] : baseSpecs;
       offeredNames = offered.map((sp) => sp.name);
+      debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: step ${step + 1}, ${p.config.label} (${m}): ${offered.length} tools offered of ${tools.length} eligible (lean ${turnTools.lean ? 'on' : 'off'}${codeOffered ? ', run_code' : ''}), ${messages.length} messages`);
       providerStarted = true;
       const outMax = saver.on ? Math.min(callMax ?? SAVER.replyTokens, SAVER.replyTokens) : callMax;
       // 3.4.1: Ollama on your own computer loads the model with the context Sara chose.
@@ -3800,6 +3839,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (tools.length && !reply && !calls.length && isToolsUnsupported(err)) {
         releaseSessionStep();
         noTools.add(`${provider.config.id}/${model}`);
+        debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: ${provider.config.label} (${model}) takes no tools; asking again without them`);
         tools = [];
         step--;
         continue;
@@ -3814,6 +3854,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         if (app.modelContext) await app.modelContext.prime(provider, model, 1000);
         // Phase 61: a template and its values, so the owner reads it in the app's language.
         const slow = err instanceof SlowModelError;
+        debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: fallback at step ${step + 1}: ${was} ${slow ? 'was slow' : `failed (${errorClassOf(err)})`}; now ${provider.config.label} (${model}), ${ci + 1} of ${chain.length} in the chain`);
         const key = slow ? en('{was} gave no answer within {seconds} seconds, so {now} took over.') : en('{was} failed: {error}, so {now} took over.');
         const params = { was, now: `${provider.config.label} (${model})`, ...(slow ? { seconds: (err as SlowModelError).seconds } : { error: (err as Error).message.replace(/\s+/g, ' ').slice(0, 120) }) };
         const note = fill(key, params);
@@ -3890,6 +3931,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         rescued = true;
         const r = rescueChoice(app, conv, chain.map((c) => ({ providerId: c.provider.config.id, model: c.model })));
         if (r) chain = [...chain, rec.on ? { ...r, provider: rec.wrap(r.provider) } : r];
+        debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: no model left in the chain; rescue ${r ? `${r.provider.config.label} (${r.model})` : 'none found'}`);
       }
       // N1: still nothing after the retry: the next model of the chain answers once, and says so.
       if (ci < chain.length - 1 && !signal.aborted && step < maxSteps - 1) {
@@ -3900,6 +3942,7 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         thinkOffNext = false;
         checkNote = undefined;
         if (app.modelContext) await app.modelContext.prime(provider, model, 1000);
+        debugLine(app.log, () => `turn ${conv.id.slice(0, 8)}: fallback at step ${step + 1}: ${was} gave an empty reply; now ${provider.config.label} (${model}), ${ci + 1} of ${chain.length} in the chain`);
         const key = en('{was} returned no answer, so {now} took over.');
         const params = { was, now: `${provider.config.label} (${model})` };
         const note = fill(key, params);
@@ -3909,13 +3952,11 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
         yield { type: 'notice', kind: 'fallback', text: note, key, params };
         continue;
       }
-      yield {
-        type: 'error',
-        message: reasoningChars
-          ? trOwner(en('{model} wrote only its private reasoning and no answer (twice). Try again, or pick another model in Settings → Which model does what.'), app.settings.get(), { model: `${provider.config.label} (${model})` })
-          : trOwner(en('{model} returned an empty reply (twice). Try again, or pick another model in Settings → Which model does what.'), app.settings.get(), { model: `${provider.config.label} (${model})` }),
-        errorClass: 'EmptyReply',
-      };
+      const emptyKey = reasoningChars
+        ? en('{model} wrote only its private reasoning and no answer (twice). Try again, or pick another model in Settings → Which model does what.')
+        : en('{model} returned an empty reply (twice). Try again, or pick another model in Settings → Which model does what.');
+      const emptyParams = { model: `${provider.config.label} (${model})` };
+      yield { type: 'error', message: trOwner(emptyKey, app.settings.get(), emptyParams), key: emptyKey, params: emptyParams, errorClass: 'EmptyReply' };
       return;
     }
     const meta: Record<string, unknown> = { model, provider: provider.config.label, ...(chain[ci]?.from === 'auto' && chain[ci].why ? { autoWhy: chain[ci].why } : {}), ...(calls.length ? {} : takeImages()) };
@@ -4888,6 +4929,7 @@ async function* runToolCall(env: ToolCallEnv, call: ToolCall, callIdx: number, p
   }
   if (!env.store.getConversation(env.conv.id)) return 'end';
   const ms = Date.now() - started;
+  debugLine(env.app.log, () => `turn ${env.conv.id.slice(0, 8)}: tool ${call.name} ${status}${ranTool ? '' : ' (did not run)'} in ${ms} ms, result ${output.length} characters`);
   // C8: a paid call that ran goes on the usage ledger (null = its price is unknown).
   if (price && ranTool && status === 'ok') env.app.usage?.recordTool(call.name, price.usd, { conversationId: env.conv.id, ...(env.rec.on ? { runId: env.rec.id } : {}) });
   let scopeValid = true;

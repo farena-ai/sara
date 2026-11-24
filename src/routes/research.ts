@@ -4,7 +4,7 @@
 //   POST   /api/research                     {question} → {run} (status planning → plan)
 //   GET    /api/research/:id                 {run} (sources with their reason in his words)
 //   PUT    /api/research/:id/plan            {steps: [{question, searches}], pages} → {run}
-//   POST   /api/research/:id/start           his approval of the plan → {run}
+//   POST   /api/research/:id/start           his approval of the plan → {run} (C23: running, or queued when limits.atOnce runs are working; queuePos is its place in line)
 //   POST   /api/research/:id/write-now       stop reading, write with what was read → {run}
 //   POST   /api/research/:id/stop            stop; a report of what was found is still saved → {run}
 //   POST   /api/research/:id/pause           3.1.2: pause after the current page → {run}
@@ -19,6 +19,7 @@
 import { markdownToDocx, markdownToPdf } from '../doc-write.ts';
 import { HttpError, readJson, SECURITY_HEADERS, send } from '../http.ts';
 import { humanize, writingFor } from '../humanize.ts';
+import { appLanguage } from '../i18n.ts';
 import { LearnError } from '../learn.ts';
 import { privateLocalOn } from '../net-guard.ts';
 import { RESEARCH, ResearchError, type Research, type ResearchRun } from '../research.ts';
@@ -42,7 +43,7 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
       partial: run.cut !== null && run.report !== null,
       topic: topic ? { id: topic.id, status: topic.status, refresh: topic.refresh, skill: topic.skill, partial: topic.partial } : null,
       conversationPrivate: Boolean(run.conversationId && app.store.getConversation(run.conversationId)?.private),
-      costCap: run.status === 'plan' || run.status === 'running' || run.status === 'paused' ? r.costCap(run) : null,
+      costCap: run.status === 'plan' || run.status === 'queued' || run.status === 'running' || run.status === 'paused' ? r.costCap(run) : null,
     };
   };
   const wrap = <T>(f: () => T): T => {
@@ -66,7 +67,7 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
       if (method === 'GET') {
         const why = r.refusal();
         const library = r.libraryReady();
-        return send(res, 200, { runs: r.list().map((x) => ({ ...view(r, x), report: null })), ready: !why || library, why, web: { ready: !why, why }, library: { ready: library }, privateLocal: privateLocalOn(), limits: { pageChoices: RESEARCH.pageChoices, defaultPages: RESEARCH.defaultPages, maxSteps: RESEARCH.maxSteps, maxSearches: RESEARCH.maxSearches, budgetPages: RESEARCH.budgetPages, budgetMinutes: RESEARCH.budgetMinutes, budgetTokens: RESEARCH.budgetTokens }, model: r.modelChoice() });
+        return send(res, 200, { runs: r.list().map((x) => ({ ...view(r, x), report: null })), ready: !why || library, why, web: { ready: !why, why }, library: { ready: library }, privateLocal: privateLocalOn(), limits: { pageChoices: RESEARCH.pageChoices, defaultPages: RESEARCH.defaultPages, maxSteps: RESEARCH.maxSteps, maxSearches: RESEARCH.maxSearches, budgetPages: RESEARCH.budgetPages, budgetMinutes: RESEARCH.budgetMinutes, budgetTokens: RESEARCH.budgetTokens, atOnce: RESEARCH.atOnce }, model: r.modelChoice() });
       }
       if (method === 'POST') {
         const body = await readJson(req);
@@ -111,7 +112,7 @@ export function createResearchRoutes(ctx: RouteCtx): RouteHandler {
       if (new URL(req.url ?? '/', 'http://x').searchParams.get('style') === 'natural') {
         report = await humanize(app, report, { voice: Boolean(writingFor(app).get().card) }).then((h) => h.after, () => report);
       }
-      const bytes = format === 'md' ? Buffer.from(report, 'utf8') : format === 'docx' ? markdownToDocx(report, run.question) : markdownToPdf(report, run.question);
+      const bytes = format === 'md' ? Buffer.from(report, 'utf8') : format === 'docx' ? markdownToDocx(report, run.question) : markdownToPdf(report, run.question, { lang: appLanguage(app.settings.get()) });
       const name = `Research - ${run.question.replace(/[\\/:*?"<>|]+/g, '').trim().slice(0, 120)}.${format}`;
       const ascii = name.replace(/[^\x20-\x7e]/g, '_').replace(/["\\]/g, '_');
       res.writeHead(200, { 'content-type': TYPES[format], 'content-length': bytes.length, 'content-disposition': `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(name)}`, 'cache-control': 'no-store', ...SECURITY_HEADERS });
