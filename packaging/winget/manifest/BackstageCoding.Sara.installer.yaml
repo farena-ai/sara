@@ -4,7 +4,7 @@
 # winget installs Sara for the signed-in user (no administrator): her server runs while you're
 # signed in. For a Windows service, run the installer yourself (it asks).
 PackageIdentifier: BackstageCoding.Sara
-PackageVersion: 3.41.0
+PackageVersion: 3.42.0
 InstallerLocale: en-US
 MinimumOSVersion: 10.0.17763.0
 InstallerType: inno
@@ -26,7 +26,7 @@ AppsAndFeaturesEntries:
     ProductCode: '{6F0B2C1E-7A51-4C8B-9E2D-3B5A0C9D4E17}_is1'
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/farena-ai/sara/releases/download/v3.41.0/Sara-Setup-3.41.0.exe
-    InstallerSha256: ED85BE585DB055744D09941469F1CE82D02A56C424D37B5EDCB9324087D5F3A8
+    InstallerUrl: https://github.com/farena-ai/sara/releases/download/v3.42.0/Sara-Setup-3.42.0.exe
+    InstallerSha256: 7F07019F2C4B1675C46EA2394DDEDF1CD6BB98F430271AEC30E34D0019DB2731
 ManifestType: installer
 ManifestVersion: 1.10.0

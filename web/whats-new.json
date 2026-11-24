@@ -2,6 +2,45 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.43.0",
+   "date": "2026-11-24",
+   "title": "A check-up for your talking model, a thinking level for each chat",
+   "items": [
+    {
+     "id": "3-43-0-a-hard-talk-check-for",
+     "kind": "new",
+     "text": "A Hard talk check for your talking model (Settings → Models & usage → Which model does what).",
+     "link": "#view=msgs",
+     "owner": true
+    },
+    {
+     "id": "3-43-0-a-thinking-level-for-one",
+     "kind": "new",
+     "text": "A thinking level for one conversation. In a chat's own settings pick Quick, Balanced or Thorough for that chat; Same as Settings follows the level you set for everything."
+    },
+    {
+     "id": "3-43-0-worked-and-did-not-work",
+     "kind": "new",
+     "text": "Worked and Did not work on each item of What's new, for you."
+    },
+    {
+     "id": "3-43-0-models-on-your-own-computer",
+     "kind": "fixed",
+     "text": "Models on your own computer that failed every time with \"had a problem on its side (HTTP 500)\" after Ollama updated itself."
+    },
+    {
+     "id": "3-43-0-an-ollama-cloud-model-used",
+     "kind": "fixed",
+     "text": "An Ollama Cloud model used through Ollama on your computer is no longer counted as \"free, all on this computer\" in Usage and costs."
+    },
+    {
+     "id": "3-43-0-the-i-cant-search-the",
+     "kind": "fixed",
+     "text": "The \"I can't search the web yet\" notice no longer appears for ordinary sentences (\"my brother does research\", \"I built a website\")."
+    }
+   ]
+  },
+  {
    "version": "3.42.0",
    "date": "2026-11-24",
    "title": "She stays with you in a hard conversation; the right tool in every language",
@@ -221,20 +260,6 @@
      "kind": "fixed",
      "text": "Asking her for something long (a full build prompt or document) no longer ends the turn.",
      "link": "#view=library"
-    }
-   ]
-  },
-  {
-   "version": "3.35.1",
-   "date": "2026-11-20",
-   "title": "Sara knows who you're linked with, and names follow renames",
-   "items": [
-    {
-     "id": "3-35-1-sara-now-knows-who-you",
-     "kind": "fixed",
-     "text": "Sara now knows who you are linked with in Messages and who wrote (never what), so \"did Hank reach out?\" gets a real answer.",
-     "link": "#view=msgs",
-     "owner": true
     }
    ]
   }

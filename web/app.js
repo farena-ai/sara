@@ -4575,6 +4575,7 @@ $('#conv-settings-btn').addEventListener('click', async () => {
   );
   $('#cs-provider').value = c.providerId ?? '';
   $('#cs-private').checked = Boolean(c.private);
+  $('#cs-thinking').value = c.thinking ?? '';
   await csLoadModels(c.model);
   void loadConvFill(c);
   renderConvTitle(c);
@@ -4667,6 +4668,7 @@ onSave($('#conv-settings'), async () => {
         providerId,
         model: providerId ? $('#cs-model').value || null : null,
         private: $('#cs-private').checked,
+        thinking: $('#cs-thinking').value || null,
         projectId: $('#cs-project').value ? Number($('#cs-project').value) : null,
       },
     });
@@ -5018,6 +5020,14 @@ function jobRow(job, cur, opts = {}) {
     cmp.addEventListener('click', () => openCompare(job));
     actions.append(cmp);
   }
+  // T43 (F2): for the talking model, a check of how it handles a hard conversation.
+  let hard;
+  if (job.id === 'chat') {
+    hard = el('button', 'ghost small', t('Hard talk check'));
+    hard.type = 'button';
+    hard.title = t('Asks this model six short made-up messages with her real instructions: does it stay with someone who is sad, and share help with someone in danger? Six short calls to the model.');
+    actions.append(hard);
+  }
   const hint = el('div', 'job-hint');
   // N1: Auto (recommended) for talking, tools and long tasks, pictures and research.
   if (AUTO_JOB_IDS.includes(job.id) && !opts.noAuto) {
@@ -5026,6 +5036,23 @@ function jobRow(job, cur, opts = {}) {
   }
   row.append(name, pick.sel, pick.chooser.el, actions, hint);
   const r = { job, pick, hint, el: row, backups: [] };
+  if (hard) {
+    hard.addEventListener('click', async () => {
+      // No row choice means the default model does the talking.
+      const v = pick.value() ?? ($('#default-provider')?.value && $('#default-model')?.value.trim() ? { providerId: $('#default-provider').value, model: $('#default-model').value.trim() } : null);
+      if (!v) return jobHint(r, t('Choose a provider and a model first.'), true);
+      hard.disabled = true;
+      jobHint(r, t('Asking {model} six short messages…', { model: v.model }));
+      try {
+        const res = await api('/model-jobs/hard-talk', { method: 'POST', body: v });
+        jobHint(r, res.ok ? `${v.model}: ${t(res.key, res.params)}` : `${t(res.key)} ${res.error ?? ''}`, res.verdict !== 'stays');
+      } catch (err) {
+        jobHint(r, err.message, true);
+      } finally {
+        hard.disabled = false;
+      }
+    });
+  }
   if (!opts.noBackups) {
     const det = document.createElement('details');
     det.append(el('summary', 'muted', t('If it fails or is slow, try…')));
@@ -6021,6 +6048,11 @@ function botChip(chip, b, name) {
   const [state, text] = b.running ? ['ok', t('Connected as {bot}', { bot: name })] : b.error ? ['warn', t('Not connected')] : b.hasToken ? ['', t('Not connected')] : ['', t('Not set up')];
   chip.dataset.state = state;
   chip.textContent = text;
+  // T43 (E5): why it is not connected, when the bridge said why.
+  const why = !b.running && b.error ? String(b.error).slice(0, 200) : '';
+  chip.title = why;
+  if (why) chip.setAttribute('aria-label', `${text}: ${why}`);
+  else chip.removeAttribute('aria-label');
 }
 function renderTelegram(tg) {
   $('#tg-enabled').checked = tg.enabled;

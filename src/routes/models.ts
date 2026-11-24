@@ -1,5 +1,6 @@
 // Models: providers, model jobs, subscriptions, local models, private local mode, usage.
 // Moved from src/server.ts unchanged (wave 3); shared state comes from the RouteCtx (src/routes/context.ts).
+import { hardTalkCheck } from '../model-checkup.ts';
 import { policy } from '../policy-profile.ts';
 import { APNS_VAULT } from '../apns.ts';
 import { resolveChain, vaultKeyFor, type AppContext } from '../chat.ts';
@@ -332,6 +333,14 @@ export function createModelsRoutes(ctx: RouteCtx): RouteHandler {
         const s = app.settings.get();
         const cands = await connectedModels(app);
         return send(res, 200, { picks: recommend(cands, { providerId: s.defaultProviderId, model: s.defaultModel }), models: cands.length });
+      }
+      // T43 (F2): how the picked talking model handles a hard conversation (six short calls to it).
+      if (b === 'hard-talk' && method === 'POST') {
+        const body = await readJson(req);
+        const pid = String(body.providerId ?? '');
+        const model = String(body.model ?? '').trim();
+        if (!pid || !model) throw new HttpError(400, 'Choose a provider and a model first.');
+        return send(res, 200, await hardTalkCheck(app, pid, model));
       }
       if ((b === 'test' || b === 'compare') && method === 'POST') {
         const body = await readJson(req);

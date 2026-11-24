@@ -73,6 +73,9 @@ dialog#try-these:not(#_) { width: min(680px, 96vw); }
 .wn-chip { font-size: 0.75rem; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-text); white-space: nowrap; }
 .wn-chip-fixed { background: var(--success-soft); color: var(--success); }
 .wn-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+/* T43: Worked / Did not work, at the end of the row; the chosen one is filled. */
+.wn-tried { display: inline-flex; gap: 6px; margin-inline-start: auto; }
+.wn-tried-btn.on { background: var(--accent-soft, var(--success-soft)); border-color: var(--accent); color: var(--text); }
 #whats-new label.wn-auto { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
 #whats-new label.wn-auto input { width: 20px; height: 20px; flex: none; }
 .wn-actions { display: flex; justify-content: flex-end; margin: 10px 0 0; }

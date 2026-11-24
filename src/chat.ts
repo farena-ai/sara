@@ -3637,7 +3637,8 @@ async function* runTurnInner(app: AppContext, conversationId: string, userText: 
       if (plan.noTools) tools = [];
       callMax = plan.maxTokens;
       // S2: the owner's thinking level (Settings); Balanced sends nothing and the model decides.
-      callThink = plan.noThinking ? 'none' : THINK_LEVEL[app.settings.get().thinking ?? 'balanced'];
+      // T43 (C3): this chat's own level when it has one.
+      callThink = plan.noThinking ? 'none' : THINK_LEVEL[(store.getConversation(conv.id) ?? conv).thinking ?? app.settings.get().thinking ?? 'balanced'];
     }
     if (thinkOffNext) {
       callThink = 'none';

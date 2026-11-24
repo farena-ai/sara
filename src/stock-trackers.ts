@@ -26,13 +26,72 @@ export const STOCKS = {
 const SYMBOL = /^[A-Z0-9][A-Z0-9.\-^=]{0,14}$/;
 const LOCAL_ONLY = 'Private local mode is on ("Nothing leaves this computer"), so prices can\u2019t be fetched.';
 
-/** US stock market hours (9:30-16:00 New York time, Monday to Friday; holidays are not known). */
+/** The n-th (1-based) given weekday of a month, or the last one (n = -1). Month 1-12, weekday 0 = Sunday. */
+function nthWeekday(year: number, month: number, weekday: number, n: number): number {
+  if (n > 0) {
+    const first = new Date(Date.UTC(year, month - 1, 1)).getUTCDay();
+    return 1 + ((weekday - first + 7) % 7) + (n - 1) * 7;
+  }
+  const days = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const last = new Date(Date.UTC(year, month - 1, days)).getUTCDay();
+  return days - ((last - weekday + 7) % 7);
+}
+/** Easter Sunday (Gregorian), as [month, day]. */
+function easter(year: number): [number, number] {
+  const a = year % 19, b = Math.floor(year / 100), c = year % 100, d = Math.floor(b / 4), e = b % 4;
+  const g = Math.floor((8 * b + 13) / 25), h = (19 * a + b - d - g + 15) % 30, i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const month = Math.floor((h + l - 7 * m + 114) / 31);
+  return [month, ((h + l - 7 * m + 114) % 31) + 1];
+}
+const key = (m: number, d: number) => `${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+/** A fixed-date holiday on a weekend: Saturday is kept on Friday, Sunday on Monday. */
+function observed(year: number, month: number, day: number, o: { saturday?: boolean } = {}): string | undefined {
+  const wd = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  if (wd === 6) return o.saturday === false ? undefined : key(month, day - 1);
+  if (wd === 0) return key(month, day + 1);
+  return key(month, day);
+}
+
+/**
+ * T43 (C22): the days the US stock exchanges are closed (the NYSE's rules), as "MM-DD" for a year.
+ * New Year's Day on a Saturday is not kept on the Friday before (the exchange's own exception).
+ */
+export function usMarketHolidays(year: number): Set<string> {
+  const [em, ed] = easter(year);
+  const goodFriday = new Date(Date.UTC(year, em - 1, ed - 2));
+  const out = [
+    observed(year, 1, 1, { saturday: false }),
+    key(1, nthWeekday(year, 1, 1, 3)), // Martin Luther King Jr. Day
+    key(2, nthWeekday(year, 2, 1, 3)), // Washington's Birthday
+    key(goodFriday.getUTCMonth() + 1, goodFriday.getUTCDate()),
+    key(5, nthWeekday(year, 5, 1, -1)), // Memorial Day
+    observed(year, 6, 19), // Juneteenth
+    observed(year, 7, 4),
+    key(9, nthWeekday(year, 9, 1, 1)), // Labor Day
+    key(11, nthWeekday(year, 11, 4, 4)), // Thanksgiving
+    observed(year, 12, 25),
+  ];
+  return new Set(out.filter((x): x is string => Boolean(x)));
+}
+/** The two regular 1:00 pm closes: the day after Thanksgiving, and Christmas Eve on a weekday. */
+function usEarlyClose(year: number): Set<string> {
+  const out = new Set([key(11, nthWeekday(year, 11, 4, 4) + 1)]);
+  const eve = new Date(Date.UTC(year, 11, 24)).getUTCDay();
+  if (eve >= 1 && eve <= 5 && !usMarketHolidays(year).has(key(12, 24))) out.add(key(12, 24));
+  return out;
+}
+
+/** US stock market hours: 9:30-16:00 New York time, Monday to Friday, closed on its holidays, 13:00 on its two short days. */
 export function usMarketOpen(now: Date): boolean {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', weekday: 'short', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', hourCycle: 'h23' }).formatToParts(now);
   const get = (k: string) => parts.find((p) => p.type === k)?.value ?? '';
   if (['Sat', 'Sun'].includes(get('weekday'))) return false;
+  const year = Number(get('year'));
+  const day = key(Number(get('month')), Number(get('day')));
+  if (usMarketHolidays(year).has(day)) return false;
   const m = Number(get('hour')) * 60 + Number(get('minute'));
-  return m >= 9 * 60 + 30 && m < 16 * 60;
+  return m >= 9 * 60 + 30 && m < (usEarlyClose(year).has(day) ? 13 : 16) * 60;
 }
 
 export interface StockAlert {

@@ -38,7 +38,7 @@ import { accessInfo, adminHelp, systemName } from '../platform.ts';
 import { onThisComputer } from '../private-local.ts';
 import { qrSvg } from '../qr.ts';
 import { ROUTE_PURPOSES, type RoutePurpose, type Settings, USE_PATHS, type UsePath, usePathOf } from '../settings.ts';
-import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig } from '../tools/mcp.ts';
+import { MCP_PRESETS, type McpServerConfig, mcpVaultKey, validateMcpConfig, mcpToolName } from '../tools/mcp.ts';
 import { catalogCard, catalogConfig, catalogDeps, MCP_CATALOG, runnerFound } from '../mcp-catalog.ts';
 import { recipeEdit } from '../store/install.ts';
 import { parseRecipe, type McpRecipe } from '../store/format.ts';
@@ -497,6 +497,8 @@ export function createAdminRoutes(ctx: RouteCtx): RouteHandler {
       }
       if (b && !c && method === 'DELETE') {
         app.mcp?.stop(b);
+        // T43 (C11): removed for good: what its tools said about themselves is forgotten with it.
+        app.mcp?.pins.forget(mcpToolName(b, ''));
         app.settings.update({ mcpServers: (app.settings.get().mcpServers ?? []).filter((s) => s.name !== b) });
         app.vault.delete(mcpVaultKey(b));
         return send(res, 200, await view());

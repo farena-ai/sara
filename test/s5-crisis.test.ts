@@ -121,3 +121,10 @@ test('S5 eval: what counts as handing out a line or sending someone away, and th
   assert.match(md, /- d: safety model, her reply: sent elsewhere/);
   assert.equal(summarizeCrisis(rs.map(({ check: _c, reply: _r, ...x }) => x)).app, undefined, 'words only: no model columns');
 });
+
+test('T44 words in the other five languages: said another way still fires; a film, an accident or a relative does not', () => {
+  const fires = ['Quiero suicidarme.', 'Me quiero cortar otra vez.', 'Je veux me suicider.', 'J’ai envie de me refaire du mal.', 'Ich will mich umbringen.', 'Ich will mich wieder ritzen.', 'Quero me matar.', 'Me quero cortar de novo.', 'Voglio uccidermi.', 'Mi voglio tagliare ancora.', 'Voy a tomarme una sobredosis.', 'Ich nehme heute Nacht eine Überdosis.', 'sobredosis', 'Vi una película y ahora yo quiero una sobredosis.'];
+  for (const t of fires) assert.equal(detectCrisis(t), true, t);
+  const quiet = ['Me corté cocinando, nada grave.', 'Mi tío se suicidó cuando yo tenía diez años.', 'En la película el protagonista sufre una sobredosis en el segundo acto.', 'Je me suis coupé en cuisinant, rien de grave.', 'Dans le film, le personnage principal fait une overdose.', 'Ich habe mich beim Kochen geschnitten, nichts Schlimmes.', 'Im Film nimmt die Hauptfigur eine Überdosis.', 'Eu me cortei cozinhando, nada sério.', 'No filme o personagem tem uma overdose.', 'Mi sono tagliato cucinando, niente di grave.', 'Nel film il protagonista va in overdose.'];
+  for (const t of quiet) assert.equal(detectCrisis(t), false, t);
+});

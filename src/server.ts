@@ -357,6 +357,13 @@ export function newPairCode(): string {
 /** Typing is forgiving: lower case, spaces and dashes are fine; O→0 and I/L→1 aren't in the alphabet. */
 export const normalizePairCode = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+/** T43 (C3): a chat's own thinking level; null or '' gives it back to the level in Settings. */
+function thinkingOrThrow(v: unknown): 'quick' | 'balanced' | 'thorough' | null {
+  if (v === null || v === '') return null;
+  if (v === 'quick' || v === 'balanced' || v === 'thorough') return v;
+  throw new HttpError(400, 'Pick Quick, Balanced or Thorough.');
+}
+
 export function createSaraServer(opts: ServerOptions): Server {
   const { app, auth } = opts;
   const operations = new OperationsMonitor();
@@ -2584,6 +2591,7 @@ export function createSaraServer(opts: ServerOptions): Server {
               ...(body.projectId !== undefined ? { projectId: body.projectId === null ? null : projectOrThrow(body.projectId).id } : {}),
               ...(body.archived !== undefined ? { archived: Boolean(body.archived) } : {}),
               ...(body.tags !== undefined ? { tags: tagsOrThrow(body.tags) } : {}),
+              ...(body.thinking !== undefined ? { thinking: thinkingOrThrow(body.thinking) } : {}),
             }),
           );
         }

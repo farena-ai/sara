@@ -2,6 +2,7 @@
 // (tokens in / out / cached, provider, model, what it was for, the conversation, job or team run).
 // Costs are an estimate from a per-model price table the owner can edit. Local models and
 // subscriptions are never given a price: they show as "local" and "$0 (subscription)".
+import { isCloudModelName } from './model-names.ts';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import type { DatabaseSync } from 'node:sqlite';
 import type { Budget } from './budget.ts';
@@ -128,8 +129,12 @@ export function findPrice(table: PriceRow[], providerId: string, model: string):
 }
 
 /** Local = runs on the owner's hardware (marked local, or a model server on this machine / home network). */
-export function billingOf(config: ProviderConfig): Billing {
+export function billingOf(config: ProviderConfig, model?: string): Billing {
   if (SUBSCRIPTION_KINDS.includes(config.kind)) return 'subscription';
+  // T44 (E5): an Ollama Cloud model reached through Ollama on this computer runs on Ollama's servers
+  // and is part of the owner's Ollama plan: not "free, all on this computer". Only where the model is
+  // given (what a call is recorded as); everything that decides by the provider alone is as it was.
+  if (model && isCloudModelName(model)) return 'subscription';
   if (config.local) return 'local';
   try {
     const h = new URL(config.baseUrl).hostname;
@@ -224,7 +229,7 @@ export class UsageStore {
 
   /** Records one call (and adds it to the running totals of the scope it happened in). */
   record(config: ProviderConfig, model: string, u: UsageNumbers, where: UsageScope & { purpose: string }): UsageRow {
-    const billing = billingOf(config);
+    const billing = billingOf(config, model);
     const usd = costOf(billing, findPrice(this.prices(), config.id, model), u);
     const at = this.#now().toISOString();
     const clean = (n: unknown) => Math.max(0, Math.min(1e9, Math.round(Number(n) || 0)));

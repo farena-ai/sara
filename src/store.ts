@@ -67,6 +67,8 @@ export interface Conversation {
   projectId: number | null;
   /** Set when archived: hidden from the main list, nothing deleted. */
   archivedAt: string | null;
+  /** T43 (C3): how hard she thinks in this chat; absent = the level in Settings. */
+  thinking?: 'quick' | 'balanced' | 'thorough';
   /** Phase 22: the owner's tags (lower-case words, e.g. "health", "taxes"). */
   tags: string[];
   /** Phase 107 (CH1): set by /new: this session of a chat is closed (never cleared). Null = open. */
@@ -171,6 +173,7 @@ function toConversation(r: Row): Conversation {
     createdAt: String(r.created_at),
     updatedAt: String(r.updated_at),
     dialogueEpoch: Number(r.dialogue_epoch ?? 0),
+    ...(r.thinking === 'quick' || r.thinking === 'balanced' || r.thinking === 'thorough' ? { thinking: r.thinking } : {}),
   };
 }
 
@@ -226,6 +229,8 @@ END;`);
   if (!cols('conversations').has('titled_through')) db.exec('ALTER TABLE conversations ADD COLUMN titled_through INTEGER');
   // Phase 123 (LEAN §4.12, §5.12): /tools all per chat, the tools she looked up, and the folds of /compact.
   if (!cols('conversations').has('lean_off')) db.exec('ALTER TABLE conversations ADD COLUMN lean_off INTEGER');
+  // T43 (C3): a thinking level of its own for one chat (NULL = the one in Settings).
+  if (!cols('conversations').has('thinking')) db.exec('ALTER TABLE conversations ADD COLUMN thinking TEXT');
   ensureLeanTables(db);
   db.exec(`CREATE TABLE IF NOT EXISTS compactions (
   id INTEGER PRIMARY KEY, conversation_id TEXT NOT NULL, from_id INTEGER NOT NULL, through_id INTEGER NOT NULL,
@@ -397,9 +402,16 @@ export class Store {
     return rows.map((r) => String(r.id));
   }
 
-  updateConversation(id: string, patch: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; projectId?: number | null; archived?: boolean; tags?: string[] }): Conversation | undefined {
+  updateConversation(id: string, patch: { title?: string; providerId?: string | null; model?: string | null; workspace?: string; mode?: ConversationMode; private?: boolean; projectId?: number | null; archived?: boolean; tags?: string[]; thinking?: 'quick' | 'balanced' | 'thorough' | null }): Conversation | undefined {
     const c = this.getConversation(id);
     if (!c) return undefined;
+    // T43 (C3): not activity either (the chat keeps its place in the list).
+    if (patch.thinking !== undefined) {
+      this.db.prepare('UPDATE conversations SET thinking = ? WHERE id = ?').run(patch.thinking, id);
+      const { thinking: _t, ...rest } = patch;
+      if (!Object.keys(rest).length) return this.getConversation(id);
+      return this.updateConversation(id, rest);
+    }
     // Nothing to change (a PATCH that only renamed it: setTitle did that): not activity either.
     if (!Object.values(patch).some((v) => v !== undefined)) return c;
     // Tags don't count as activity either.

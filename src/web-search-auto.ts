@@ -52,7 +52,19 @@ export function useOllamaKeyForSearch(app: AppContext): boolean {
 }
 
 /** "Look it up", "search the web", "find me a guide", "research…", "latest news on…". */
-const WANTS_WEB = /\b(look (it|this|that|them)? ?up|look (for|into)|search (for|the web|online|the internet)|google (it|this|that|for)?|research|on ?line|on the (web|internet)|website|web ?site|latest news|news (about|on)|find (me|a|an|some|out about)|guides? (to|for|on)|reviews? (of|for))\b/i;
+// T43 (E5): words that are an ask, not words that only appear. "My brother does research", "I built a
+// website", "I was online all day" and "I can't find a reason" all used to bring the notice up.
+const ASK = "(?:^|[.!?:;,]\\s*|\\b(?:please|pls|can you|could you|would you|will you|you to|go|and|then|now)\\s+)";
+const WANTS_WEB = new RegExp(
+  [
+    '\\blook (?:it|this|that|them) ?up\\b|\\blook up\\b',
+    '\\bsearch (?:for|the web|online|the internet)\\b|\\bgoogle (?:it|this|that|for)\\b',
+    ASK + '(?:look (?:for|into)|find (?:me|out about|out (?:what|who|when|where|how|if|whether))|research)\\b(?!\\s+(?:is|was|shows|says|suggests|paper|papers|lab|team|grant|job)\\b)',
+    '\\b(?:search|look|check|find|see|read)\\b[^.!?]{0,40}\\b(?:on ?line|on the (?:web|internet)|(?:their|the|its|his|her) web ?site)\\b',
+    '\\blatest news\\b|\\bnews (?:about|on)\\b|\\bguides? (?:to|for|on)\\b|\\breviews? (?:of|for)\\b',
+  ].join('|'),
+  'i',
+);
 
 /** True when he asks her to look something up on the web. */
 export function wantsWeb(text: string): boolean {

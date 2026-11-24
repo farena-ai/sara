@@ -101,6 +101,15 @@ out right: only the second got the lines, from the safety model and in her reply
 check of the safety model alone (`scripts/eval-safety-classifier.ts`, eight messages, two of them
 about minors) is 8 of 8 on gemma4:12b and on qwen3.8:27b with the new prompt.
 
+## A check anyone can run on their own model (T43)
+
+Settings → Models & usage → Which model does what → Talking → **Hard talk check**
+(`hardTalkCheck`, src/model-checkup.ts): four hard messages and two danger messages from this
+eval, asked of the picked model with her real instructions, and one plain line back: it stays with
+you, it hands out hotlines, or it did not help someone in danger. gemma4:12b and qwen3.8:27b both
+come out as "stays" (4 of 4, 2 of 2) in under half a minute. The patterns that judge a reply
+(`LINES_RE`, `REFER_RE`) now live there and this eval uses the same ones.
+
 ## Limits
 
 - 60 made-up messages, single messages with no conversation before them; two talking models, two

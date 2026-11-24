@@ -203,9 +203,23 @@ export interface WhatsNewState {
   seen: string | null;
   /** Show the page by itself after an update (Help → What's new always works). */
   auto: boolean;
+  /** T43: what the owner said after trying an item. */
+  tried?: Tried;
 }
 
 /** Per person: <data>/whats-new.json. */
+/** T43 (A1): what the owner said after trying an item: it worked, or it did not. */
+export type Tried = Record<string, { ok: boolean; at: string }>;
+function triedOf(v: unknown): Tried | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Tried = {};
+  for (const [id, x] of Object.entries(v as Record<string, unknown>).slice(-400)) {
+    const o = x as { ok?: unknown; at?: unknown } | null;
+    if (/^[a-z0-9-]{3,120}$/.test(id) && o && typeof o.ok === 'boolean' && typeof o.at === 'string') out[id] = { ok: o.ok, at: o.at.slice(0, 40) };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 export class WhatsNewSeen {
   readonly #file: string;
   constructor(dataDir: string) {
@@ -214,7 +228,7 @@ export class WhatsNewSeen {
   get(): WhatsNewState {
     try {
       const j = existsSync(this.#file) ? (JSON.parse(readFileSync(this.#file, 'utf8')) as Partial<WhatsNewState>) : {};
-      return { seen: typeof j.seen === 'string' && /^\d+\.\d+\.\d+$/.test(j.seen) ? j.seen : null, auto: j.auto !== false };
+      return { seen: typeof j.seen === 'string' && /^\d+\.\d+\.\d+$/.test(j.seen) ? j.seen : null, auto: j.auto !== false, ...(triedOf(j.tried) ? { tried: triedOf(j.tried) } : {}) };
     } catch {
       return { seen: null, auto: true };
     }
@@ -232,6 +246,7 @@ export interface WhatsNewView {
   version: string;
   seen: string | null;
   auto: boolean;
+  tried?: Tried;
   /** Open the page by itself now (after an update, once). */
   show: boolean;
   /** The releases to show (newest first): after an update the ones since `seen`, else all kept. */
@@ -241,7 +256,8 @@ export interface WhatsNewView {
 
 /** What one person sees. `all`: Help → What's new (every kept release, not only the unseen ones). */
 export function whatsNewView(data: WhatsNewData, o: { version: string; state: WhatsNewState; member?: boolean; kid?: boolean; all?: boolean }): WhatsNewView {
-  const base = { version: o.version, seen: o.state.seen, auto: o.state.auto };
+  // What was tried is the owner's (a member's page has no Worked / Did not work).
+  const base = { version: o.version, seen: o.state.seen, auto: o.state.auto, ...(o.state.tried && !o.member ? { tried: o.state.tried } : {}) };
   if (o.kid) return { ...base, show: false, releases: [], kid: true };
   const fit = data.releases
     .filter((r) => cmpVersion(r.version, o.version) <= 0)

@@ -10,14 +10,14 @@
 // remembered per server configuration until a connect with it fails. MCP Apps (extension
 // io.modelcontextprotocol/ui): a tool whose _meta.ui.resourceUri names a ui:// page gets that page
 // read after the call and kept in memory (McpAppStore) for the web chat's sandboxed frame.
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { browserSetup, isPlaywrightMcp, ownNpx, playwrightLaunch } from '../browser-setup.ts';
 import { clearSizes } from '../lean.ts';
 import { en } from '../i18n.ts';
 import { netFetch, privateLocalOn } from '../net-guard.ts';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { delimiter, dirname, extname, isAbsolute, join, relative, resolve, win32 } from 'node:path';
 import { egressAllowlist, openEgress, sandboxNode, type EgressSetup } from '../egress-run.ts';
 import { sseEvents } from '../sse.ts';
@@ -762,7 +762,70 @@ export function mcpToolName(server: string, tool: string): string {
 }
 
 /** Owns the MCP connections and keeps their tools registered. */
+/**
+ * T43 (C11): what a tool server said about a tool when it was first seen: its description, its
+ * hints (read-only, destructive) and its inputs. A server describes its own tools, and an owner
+ * who set a tool to run on its own did so for that description. If any of it changes later, the
+ * tool asks again, once: the card says it changed, and the owner's OK accepts the new version.
+ */
+export function mcpToolPrint(t: McpToolInfo): string {
+  return createHash('sha256').update(JSON.stringify([t.description ?? '', t.annotations?.readOnlyHint === true, t.annotations?.destructiveHint === true, t.inputSchema ?? null])).digest('hex').slice(0, 32);
+}
+
+export class McpPins {
+  readonly #file: string;
+  #pins: Record<string, string> = {};
+  /** Tools whose print differs from the one kept. */
+  readonly changed = new Set<string>();
+
+  constructor(dataDir: string) {
+    this.#file = join(dataDir, 'mcp-pins.json');
+    try {
+      const j = JSON.parse(readFileSync(this.#file, 'utf8')) as unknown;
+      if (j && typeof j === 'object' && !Array.isArray(j)) for (const [k, v] of Object.entries(j as Record<string, unknown>)) if (typeof v === 'string') this.#pins[k] = v;
+    } catch {
+      /* none kept yet */
+    }
+  }
+
+  /** Seen for the first time: kept. Seen again and different: marked as changed. */
+  see(name: string, print: string): void {
+    const was = this.#pins[name];
+    if (was === undefined) {
+      this.#pins[name] = print;
+      this.#save();
+    } else if (was !== print) this.changed.add(name);
+    else this.changed.delete(name);
+  }
+
+  /** The owner said yes to the changed tool: this version is the one allowed from now on. */
+  accept(name: string, print: string): void {
+    if (!this.changed.delete(name) && this.#pins[name] === print) return;
+    this.#pins[name] = print;
+    this.#save();
+  }
+
+  /** The server was removed: its tools are forgotten (added again, they are new). */
+  forget(prefix: string): void {
+    let any = false;
+    for (const k of Object.keys(this.#pins)) if (k.startsWith(prefix)) (delete this.#pins[k], this.changed.delete(k), (any = true));
+    if (any) this.#save();
+  }
+
+  #save(): void {
+    try {
+      mkdirSync(dirname(this.#file), { recursive: true });
+      writeFileSync(`${this.#file}.tmp`, JSON.stringify(this.#pins));
+      renameSync(`${this.#file}.tmp`, this.#file);
+    } catch {
+      /* a read-only data folder: the pins live for this run */
+    }
+  }
+}
+
 export class McpManager {
+  /** T43 (C11): what each tool said about itself when it was first seen. */
+  readonly pins: McpPins;
   readonly #connections = new Map<string, McpConnection>();
   readonly #registry: ToolRegistry;
   readonly #deps: { dataDir: string; sandbox: SandboxInfo; secrets: (name: string) => McpSecrets };
@@ -772,6 +835,9 @@ export class McpManager {
   constructor(registry: ToolRegistry, deps: { dataDir: string; sandbox: SandboxInfo; secrets: (name: string) => McpSecrets }) {
     this.#registry = registry;
     this.#deps = deps;
+    this.pins = new McpPins(deps.dataDir);
+    const before = registry.mustAsk;
+    registry.mustAsk = (n) => this.pins.changed.has(n) || Boolean(before?.(n));
   }
 
   get(name: string): McpConnection | undefined {
@@ -821,6 +887,8 @@ export class McpManager {
 
   #wrap(conn: McpConnection, t: McpToolInfo): Tool {
     const name = mcpToolName(conn.config.name, t.name);
+    const print = mcpToolPrint(t);
+    this.pins.see(name, print);
     return {
       defaultPermission: mcpDefaultPermission(t, conn.config.transport),
       source: `MCP: ${conn.config.name}`,
@@ -830,8 +898,10 @@ export class McpManager {
         description: `[${conn.config.name}] ${t.description ?? t.name}`.slice(0, 1000),
         parameters: t.inputSchema && typeof t.inputSchema === 'object' ? t.inputSchema : { type: 'object', properties: {} },
       },
-      summarize: (a) => `${conn.config.name}: ${t.name} ${clip(JSON.stringify(a), 160)}`,
+      summarize: (a) => `${this.pins.changed.has(name) ? 'This tool changed since you allowed it. ' : ''}${conn.config.name}: ${t.name} ${clip(JSON.stringify(a), 160)}`,
       run: async (args, ctx) => {
+        // Reaching here with a changed tool means the owner just said yes to it: that version is kept.
+        if (this.pins.changed.has(name)) this.pins.accept(name, print);
         const raw = await conn.callRaw(t.name, args, ctx.signal);
         const text = conn.format(raw, ctx);
         const uri = mcpToolUi(t).resourceUri;

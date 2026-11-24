@@ -5,6 +5,19 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.43.0 (2026-11-24): A check-up for your talking model, a thinking level for each chat
+
+- Fixed: models on your own computer that failed every time with "had a problem on its side (HTTP 500)" after Ollama updated itself. Newer Ollama versions hold a model to its own chat format, and some formats (the Qwen family) refuse a second instruction message. She now sends one, first.
+- Better: the crisis lines in Spanish, French, German, Portuguese and Italian: two more ways of saying it are caught, and an overdose in a film or a book no longer brings them up.
+- Fixed: an Ollama Cloud model used through Ollama on your computer is no longer counted as "free, all on this computer" in Usage and costs.
+- New: a Hard talk check for your talking model (Settings → Models & usage → Which model does what). It asks the model six short made-up messages with her real instructions and tells you in plain words whether it stays with someone who is sad and shares help with someone in danger.
+- New: a thinking level for one conversation. In a chat's own settings pick Quick, Balanced or Thorough for that chat; Same as Settings follows the level you set for everything.
+- New: Worked and Did not work on each item of What's new, for you. Your answers are kept on your server, so after an update the things nobody has tried yet are one look away.
+- Better: a tool from a connected tool server that changes its description after you allowed it asks you again, once, and says that it changed.
+- Better: stock alerts know the US market's holidays and its two short days.
+- Fixed: the "I can't search the web yet" notice no longer appears for ordinary sentences ("my brother does research", "I built a website").
+- Better: nine Settings tips that were too long are shorter, in six languages; a bridge that is not connected says why when you point at it.
+
 ## 3.42.0 (2026-11-24): She stays with you in a hard conversation; the right tool in every language
 
 - New: she stays with you in a hard conversation. Grief, a breakup, loneliness, a bad day or a hard memory no longer get an answer about hotlines, therapists or "seek professional help"; she listens and stays on the subject. When someone says, or shows without saying it, that they may hurt themselves or are in danger, she still says she is worried and shares where to get help, and the app still shows the crisis lines.

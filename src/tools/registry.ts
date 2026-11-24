@@ -56,9 +56,14 @@ export class ToolRegistry {
 
   /** EC5: the admin's ceiling (src/policy-profile.ts) beats the owner's setting, the server choice and Always allow. */
   permission(name: string, overrides: Record<string, Permission> | undefined): Permission {
-    const p = policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
+    const set = policy().clamp(name, overrides?.[name] ?? this.policyFor?.(name) ?? this.defaultFor(this.#tools.get(name)), this.get(name));
+    // T43 (C11): a tool that is not what was allowed (src/tools/mcp.ts) asks, whatever was set.
+    const p = set === 'auto' && this.mustAsk?.(name) ? 'ask' : set;
     return this.memberClamp ? this.memberClamp(name, p) : p;
   }
+
+  /** T43 (C11): tools that ask even when set to run on their own (only ever tightens). */
+  mustAsk?: (name: string) => boolean;
 
   /** Tools the model may see (anything not set to "never"). */
   enabled(overrides: Record<string, Permission> | undefined): Tool[] {

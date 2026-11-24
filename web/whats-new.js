@@ -52,12 +52,35 @@ function item(i) {
     });
     acts.append(b);
   }
+  // T43 (A1): the owner says whether it worked when he tried it. Kept on the server, so the list of
+  // what nobody has tried yet, and what did not work, is one look away after every update.
+  if (!ctx.member) {
+    const was = view?.tried?.[i.id];
+    const box = el('span', 'wn-tried');
+    box.setAttribute('role', 'group');
+    box.setAttribute('aria-label', t('Did it work when you tried it?'));
+    for (const [ok, label] of [[true, t('Worked')], [false, t('Did not work')]]) {
+      const b = el('button', `ghost small wn-tried-btn${was && was.ok === ok ? ' on' : ''}`, label);
+      b.type = 'button';
+      b.setAttribute('aria-pressed', String(Boolean(was && was.ok === ok)));
+      b.addEventListener('click', async () => {
+        try {
+          view = { ...view, ...(await api('/whats-new/tried', { method: 'POST', body: { id: i.id, ok: was && was.ok === ok ? null : ok } })), releases: view.releases };
+          render(lastFromHelp);
+        } catch {}
+      });
+      box.append(b);
+    }
+    acts.append(box);
+  }
   if (acts.childElementCount) li.append(acts);
   return li;
 }
 
+let lastFromHelp = false;
 function render(fromHelp) {
   if (!view) return;
+  lastFromHelp = Boolean(fromHelp);
   $('#wn-title').textContent = t("What's new in {version}", { version: view.version });
   $('#wn-lead').textContent = !fromHelp && view.show && view.seen
     ? t('Sara was updated. Here is what changed since {version}, in plain words.', { version: view.seen })

@@ -108,6 +108,15 @@ Give Sara a goal like "get this charge refunded" or "book an oil change this wee
 works through it with your mail, forms and browser, follows up, and shows progress on an Errands page.
 She asks before every email, form and choice; payments are always yours to make. See [Errands](ERRANDS.md).
 
+## A check-up for your talking model, in 3.43.0
+
+Models differ in how they talk to someone who is sad, and nobody can tell from a model's name. The
+new Hard talk check (Settings, Which model does what) asks the model you picked six short made-up
+messages with Sara's real instructions and tells you in plain words what it did. Each conversation
+can have its own thinking level. After an update, each item of What's new has Worked and Did not
+work, so trying the new things takes a minute. A tool from a connected tool server that changes
+after you allowed it asks you again.
+
 ## She stays with you in a hard conversation, in 3.42.0
 
 When you talk to Sara about something hard (grief, a breakup, loneliness, a bad day), she listens

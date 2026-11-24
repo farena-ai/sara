@@ -8,7 +8,7 @@ import test from 'node:test';
 import { DataSources, parseYahooChart, parseYahooSearch, type FetchLike } from '../src/data-sources.ts';
 import { LiveWatches } from '../src/live-watch.ts';
 import { setPrivateLocal } from '../src/net-guard.ts';
-import { STOCKS, stocksOf, usMarketOpen } from '../src/stock-trackers.ts';
+import { STOCKS, stocksOf, usMarketHolidays, usMarketOpen } from '../src/stock-trackers.ts';
 import { TILES as SERVER_TILES } from '../src/today-layout.ts';
 import { TODAY_PARTS } from '../src/today.ts';
 import { makeApp, ROOT, tempDir } from './helpers.ts';
@@ -83,6 +83,17 @@ test('p2stocks market hours: New York 9:30-16:00 on weekdays, daylight time incl
   assert.equal(usMarketOpen(new Date('2026-11-18T21:30:00Z')), false, 'Wed 16:30 EST');
   assert.equal(usMarketOpen(new Date('2026-07-15T13:45:00Z')), true, 'Wed 9:45 EDT');
   assert.equal(usMarketOpen(new Date('2026-11-21T16:00:00Z')), false, 'Saturday');
+  // T43 (C22): holidays and the two short days.
+  assert.deepEqual([...usMarketHolidays(2026)].sort(), ['01-01', '01-19', '02-16', '04-03', '05-25', '06-19', '07-03', '09-07', '11-26', '12-25']);
+  assert.deepEqual([...usMarketHolidays(2027)].sort(), ['01-01', '01-18', '02-15', '03-26', '05-31', '06-18', '07-05', '09-06', '11-25', '12-24']);
+  assert.ok(!usMarketHolidays(2022).has('12-31'), "New Year's Day 2022 fell on a Saturday: the Friday before was a trading day");
+  assert.equal(usMarketOpen(new Date('2026-11-26T16:00:00Z')), false, 'Thanksgiving');
+  assert.equal(usMarketOpen(new Date('2026-11-27T16:00:00Z')), true, 'the day after, 11:00');
+  assert.equal(usMarketOpen(new Date('2026-11-27T18:30:00Z')), false, 'the day after, 13:30: closed at 13:00');
+  assert.equal(usMarketOpen(new Date('2026-04-03T15:00:00Z')), false, 'Good Friday');
+  assert.equal(usMarketOpen(new Date('2026-07-03T15:00:00Z')), false, 'July 4 on a Saturday is kept on Friday');
+  assert.equal(usMarketOpen(new Date('2026-12-24T16:00:00Z')), true, 'Christmas Eve 11:00');
+  assert.equal(usMarketOpen(new Date('2026-12-24T19:00:00Z')), false, 'Christmas Eve 14:00');
 });
 
 test('p2stocks web helpers: the chart geometry, change words that are not color only, polite polling', () => {

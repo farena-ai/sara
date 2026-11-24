@@ -720,7 +720,7 @@
   <!-- Phase 39: the team she leads -->
   <dialog id="team" aria-label="Team">
     <div class="settings-body team">
-      <h2>Team <button type="button" class="tip" data-tip="For bigger jobs she leads a small team: she plans the work, helpers (researcher, coder, tester, reviewer, writer, designer, Claude Code / Grok Build) each do one part with their own model and tools, failures go back for a fix, and she reports only what really happened. Risky steps still wait for your OK.">?</button></h2>
+      <h2>Team <button type="button" class="tip" data-tip="For bigger jobs she leads a small team: she plans, helpers (researcher, coder, tester, reviewer, writer, designer) each do one part with their own model and tools, failures go back for a fix, and she reports what really happened. Risky steps wait for your OK.">?</button></h2>
       <p class="muted small">Ask her in any chat ("get the team to add a dark mode with tests"), or start one here. Progress shows live; you can stop a helper, send one a message, or stop the whole task.</p>
       <div class="team-new">
         <textarea id="team-goal" aria-label="What the team should do" rows="2" maxlength="6000" placeholder="e.g. Add a dark mode to my website in the main workspace, with tests, and get it reviewed"></textarea>
@@ -2720,6 +2720,14 @@
           <select id="cs-model"></select>
         </label>
         <p id="cs-status" class="muted small"></p>
+        <label>Thinking <button type="button" class="tip" data-tip="How hard she thinks in this chat only. Quick answers sooner; Thorough takes longer and helps with hard questions. Same as Settings follows Settings → Models &amp; usage → Default model.">?</button>
+          <select id="cs-thinking">
+            <option value="">Same as Settings</option>
+            <option value="quick">Quick: answers sooner</option>
+            <option value="balanced">Balanced (the model decides)</option>
+            <option value="thorough">Thorough: for hard questions</option>
+          </select>
+        </label>
       </div>
       <div class="tidy-card tidy-stack">
         <label>Context used <button type="button" class="tip" data-tip="How much of this chat she can still keep in mind at once. Near the end she says so once and suggests /new; the old session is kept and summarised.">?</button> <progress id="cs-fill" class="cs-fill" max="100" value="0"></progress></label>
@@ -2960,7 +2968,7 @@
         </div>
         <div id="st-samples" class="samples" hidden></div>
         <p id="st-status" class="muted small" role="status"></p>
-        <h3>Staying in character <button type="button" class="tip" data-tip="Optional. Your background model rates some of her replies against this page. If one sounds unlike her (say, a stiff assistant voice), her next reply gets a gentle nudge back. Scores show here and on the Health page. Costs one small extra model call per checked reply.">?</button></h3>
+        <h3>Staying in character <button type="button" class="tip" data-tip="Optional. Your background model rates some of her replies against this page. If one sounds unlike her (a stiff assistant voice, say), her next reply gets a gentle nudge back. Scores show here and on the Health page. One small extra call per checked reply.">?</button></h3>
         <label>Check her replies <select id="st-check" data-nodirty><option value="off">Off</option><option value="some">Some replies (every third)</option><option value="every">Every reply</option></select></label>
         <p id="st-drift" class="muted small"></p>
       </div>
@@ -3071,12 +3079,12 @@
         <!-- N5: the Mac app asks the browsers for their tabs (AppleScript): its own switch, under The whole screen. -->
         <label class="row" hidden><input id="cu-tabs" type="checkbox" data-noauto> Let Sara see my tabs <button type="button" class="tip" data-tip="Off by default. On: Sara can list the tabs open in your own Safari, Chrome, Edge, Brave or Arc windows (titles and addresses, never the pages) and bring one to the front when you allow it here. macOS asks once for each browser.">?</button></label>
         <!-- 3.5 (PC tools): commands on this computer (web/pc-run-settings.js; apps from 3.5 on). -->
-        <label class="row" hidden><input id="cu-run" type="checkbox" data-noauto> Let her run commands on this computer <button type="button" class="tip" data-tip="Off by default. On: she can run PowerShell or cmd commands and open pages, files and apps here, as you, never as administrator. Every command is shown on this computer first and runs only if you allow it here. Stop (Ctrl+Alt+Esc) ends it and everything it started.">?</button></label>
+        <label class="row" hidden><input id="cu-run" type="checkbox" data-noauto> Let her run commands on this computer <button type="button" class="tip" data-tip="Off by default. On: she can run PowerShell or cmd commands and open pages, files and apps here, as you, never as administrator. Each command is shown on this computer first and runs only if you allow it here. Stop (Ctrl+Alt+Esc) ends it and all it started.">?</button></label>
         <label class="row" hidden>Approvals for commands <select id="cu-run-level" data-noauto><option value="task">Ask once per task</option><option value="ask">Ask every time</option><option value="always">Always allowed</option></select> <button type="button" class="tip" data-tip="Commands that delete, change settings or download and run things always ask, whatever you pick here.">?</button></label>
         <label class="row" hidden><input id="cu-run-readonly" type="checkbox" data-noauto> Simple read-only commands without asking <button type="button" class="tip" data-tip="Off by default. On: a short list of commands that only look (like dir, Get-ChildItem, Get-Content, git status) runs without the approval card. Everything else still asks.">?</button></label>
         <label class="row"><input id="cu-files" type="checkbox" data-noauto> Files: read my Desktop, Documents and Downloads <button type="button" class="tip" data-tip="Off by default. On: Sara can list these folders and read text files in them when you ask. She never changes, moves or deletes anything. Hidden files and files that look like keys or passwords stay out.">?</button></label>
         <!-- 3.5.x: which folders Files may read (web/pc-files-settings.js; Windows app 3.5.2 on). -->
-        <label class="row" hidden>Which folders <button type="button" class="tip" data-tip="Read only, always. Desktop, Documents and Downloads is the default; you can add folders you pick, your whole user folder or all your drives. System folders, other people&#39;s folders and places that hold keys, passwords, browser profiles or wallets always stay out.">?</button> <select id="cu-files-scope" data-noauto><option value="three">Desktop, Documents and Downloads</option><option value="picked">Those and folders I pick</option><option value="home">My whole user folder</option><option value="drives">All my drives</option></select> <button type="button" class="tip" data-tip="Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.">?</button></label>
+        <label class="row" hidden>Which folders <button type="button" class="tip" data-tip="Read only, always. Desktop, Documents and Downloads is the default; you can add folders, your whole user folder or all your drives. System folders, other people’s folders and places that hold keys, passwords, browser profiles or wallets always stay out.">?</button> <select id="cu-files-scope" data-noauto><option value="three">Desktop, Documents and Downloads</option><option value="picked">Those and folders I pick</option><option value="home">My whole user folder</option><option value="drives">All my drives</option></select> <button type="button" class="tip" data-tip="Always read only. System folders, other people's folders, hidden files and places that hold keys or passwords (like .ssh, password stores, browser profiles and wallets) stay out whatever you pick.">?</button></label>
         <div id="cu-files-picked" class="cu-files-picked" hidden>
           <p id="cu-files-none" class="muted small">No folders added yet.</p>
           <ul id="cu-files-list" class="cu-files-list"></ul>
@@ -3263,7 +3271,7 @@
       <p id="look-status" class="muted small" role="status"></p>
       <p id="look-fix-row"><button id="look-complete" type="button" class="small" hidden>Add the new mouth shapes</button> <button id="look-reset" type="button" class="ghost small" hidden>Back to the default look</button></p>
       <p id="look-default-row" class="small"><label for="look-default">Default look</label> <button type="button" class="tip" data-tip="Which built-in character shows until you make a look of your own: Sara (she), the male default (he) or the they/them default. Matches the pronouns follows her pronouns.">?</button> <select id="look-default"><option value="auto">Matches the pronouns</option><option value="she">Default (she)</option><option value="he">Default (he)</option><option value="they">Default (they)</option></select> <span id="look-default-note" class="muted"></span></p>
-      <h3>Outfits and places <button type="button" class="tip" data-tip="Dress her for the season, the day or a scenario: the same face and hair, different clothes, and optionally somewhere else. You see a picture first; use it and she gets matching expressions and talking frames (about a minute, on your Grok sign-in). Your current look stays in the closet.">?</button></h3>
+      <h3>Outfits and places <button type="button" class="tip" data-tip="Dress her for the season, the day or a scenario: the same face and hair, different clothes, maybe somewhere else. You see a picture first; use it and she gets matching expressions and talking frames (about a minute). Your current look stays in the closet.">?</button></h3>
       <div class="add-row" data-noauto>
         <label>Outfit <select id="look-outfit"></select></label>
         <label>Where <select id="look-place"><option value="">Keep the same place</option></select></label>
@@ -3285,7 +3293,7 @@
         <label>Name this look <input id="look-save-name" maxlength="60" placeholder="e.g. Winter"></label>
         <button id="look-save" type="button" class="ghost">Save this look</button>
       </div>
-      <h3>Dress automatically <button type="button" class="tip" data-tip="She changes into the closet look tagged for what's happening: work hours, Friday and Saturday evenings, late at night, rain, cold or hot days (needs your town in Morning briefing), Halloween and the winter holidays, or your own scenarios. She can also change herself when it fits (&quot;we're going out&quot;), and you can pick one below. She knows what she's wearing.">?</button></h3>
+      <h3>Dress automatically <button type="button" class="tip" data-tip="She changes into the closet look tagged for what's happening: work hours, weekend evenings, late night, rain, cold or hot days (needs your town in Morning briefing), holidays, or your own scenarios. She can also change herself when it fits.">?</button></h3>
       <div id="wardrobe" data-noauto>
         <label class="row"><input id="wd-auto" type="checkbox"> Dress for the time, the weather and what's happening</label>
         <p id="wd-now" class="muted small" role="status"></p>
@@ -3817,7 +3825,7 @@
       <!-- Phase 116 (BR2 §5.5): talking to her while she works. -->
       <div id="wb-card" class="tidy-card tidy-stack wb-card">
         <h3>While she's working</h3>
-        <label>When you send a message while she's working <button type="button" class="tip" data-tip="At her next step: she finishes what she's writing, then reads it. Right away: she stops at once and reads it (a command or a change she's making finishes first). Queue it: she does it when she's finished. You can pick per message with the ▾ next to Send, or Ctrl+Enter to interrupt.">?</button>
+        <label>When you send a message while she's working <button type="button" class="tip" data-tip="At her next step: she finishes what she's writing, then reads it. Right away: she stops and reads it (a command or change in progress finishes first). Queue it: she does it when she's done. Pick per message with the ▾ next to Send, or Ctrl+Enter to interrupt.">?</button>
           <select id="wb-mode"><option value="steer">Tell her now, at her next step</option><option value="interrupt">Tell her now, right away (interrupt)</option><option value="queue">Queue it for after</option></select>
         </label>
         <label>Messages that can wait <button type="button" class="tip" data-tip="How many messages can wait their turn in one conversation. More than this and she asks you to wait a moment.">?</button>
@@ -4397,7 +4405,7 @@
       <p class="muted small page-lead">Only needed if you want her to push to GitHub. Make a <strong>fine-grained token</strong> at github.com → Settings → Developer settings → Personal access tokens, for just the repositories you choose, with <em>Contents: Read and write</em>. Pushing still asks you first. Delegating to Claude Code or Grok Build needs those subscriptions signed in (Models & usage → Providers and plans → Subscriptions).</p>
       <div class="add-row"><label>GitHub token <input id="gh-token" type="password" autocomplete="off" placeholder="not set"></label><button id="gh-save" type="button">Save</button><button id="gh-clear" type="button" class="ghost" hidden>Remove</button></div>
       <p id="gh-status" class="muted small" role="status"></p>
-      <h3>Issues become tasks <button type="button" class="tip" data-tip="She looks for new open issues in these repositories and puts each on your planner, then tells you. Any open issue can go to her team (Team → From a GitHub issue), which works it through to a reviewed pull request. The check runs on your own server (a GitHub API call); it costs nothing. Off until you pick how often.">?</button></h3>
+      <h3>Issues become tasks <button type="button" class="tip" data-tip="She looks for new open issues in these repositories, puts each on your planner and tells you. Any open issue can go to her team (Team → From a GitHub issue), which works it through to a reviewed pull request. The check runs on your server and costs nothing.">?</button></h3>
       <label>Repositories to watch (one per line, owner/name) <textarea id="ghw-repos" rows="3" placeholder="e.g. alex/website"></textarea></label>
       <div class="add-row">
         <label>Only issues labeled <input id="ghw-label" maxlength="50" placeholder="any label"></label>
@@ -5603,7 +5611,7 @@
         </section>
         <section class="settings-page" data-page="dh-health" data-group="Privacy & system" data-title="Health" data-owner-only hidden>
       <div id="access-box" class="access-box">
-        <p class="small" id="access-row"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set when Sara was installed: Tailscale (private, works anywhere, with HTTPS), just this computer, your own web address, or your home network. Scan the code with your phone's camera to open it. To change it, run the installer again or the sara access command on this computer.">?</button></p>
+        <p class="small" id="access-row"><strong>How you reach her:</strong> <span id="access-line">…</span> <button type="button" class="tip" data-tip="The address to open on your phone or another computer, set at install: Tailscale (private, works anywhere), just this computer, your own web address, or your home network. Scan the code with your phone’s camera. To change it, run the installer again.">?</button></p>
         <p id="access-warn" class="muted small" hidden></p>
         <div id="reach-line" data-nodirty data-noauto hidden></div>
         <img id="access-qr" class="pair-qr" alt="QR code with the address to open on your phone" hidden>

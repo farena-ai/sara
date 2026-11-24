@@ -3,6 +3,7 @@
 //                                 with the releases since the last seen version; all=1 = Help → What's new
 //   POST /api/whats-new/seen      Got it: seen = this version
 //   PUT  /api/whats-new           { auto }   show it by itself after updates (on by default)
+//   POST /api/whats-new/tried     { id, ok: true | false | null }   T43: the owner tried it: it worked, or it did not
 // Per person (each member's own data folder); members get the members' subset, kid mode nothing.
 import { join } from 'node:path';
 import { en } from '../i18n.ts';
@@ -34,6 +35,18 @@ export function createWhatsNewRoutes(ctx: RouteCtx): RouteHandler {
     if (b === 'seen' && method === 'POST') {
       const seen = store.get().seen;
       if (!seen || cmpVersion(version(), seen) > 0) store.set({ seen: version() });
+      return send(res, 200, view(false));
+    }
+    // T43 (A1): "Worked" / "Did not work" on an item (the owner; null takes the answer back).
+    if (b === 'tried' && method === 'POST') {
+      if (member) throw new HttpError(403, en('Only the owner can do that.'));
+      const id = String(body.id ?? '');
+      if (!data().releases.some((r) => r.items.some((i) => i.id === id))) throw new HttpError(404, en('Not available here.'));
+      if (body.ok !== null && typeof body.ok !== 'boolean') throw new HttpError(400, en('Choose on or off.'));
+      const tried = { ...(store.get().tried ?? {}) };
+      if (body.ok === null) delete tried[id];
+      else tried[id] = { ok: body.ok, at: new Date().toISOString() };
+      store.set({ tried });
       return send(res, 200, view(false));
     }
     if (!b && method === 'PUT') {

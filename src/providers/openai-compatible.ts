@@ -24,6 +24,37 @@ type WireMessage =
   | { role: 'assistant'; content: string | null; tool_calls?: { id: string; type: 'function'; function: { name: string; arguments: string } }[] }
   | { role: 'tool'; tool_call_id: string; content: string };
 
+/**
+ * T44: one system message, and it comes first. Many local models' own chat templates allow exactly
+ * that (the qwen family raises "System message must be at the beginning"), and Ollama runs the
+ * model's template as it is, so a second system message anywhere is an HTTP 500 for the whole
+ * turn. Her instructions are several system messages at the start (her instructions, then notes for
+ * this step), and a few notes come later in the conversation (a correction, "your reply was cut
+ * off", the clock). For a model server on the owner's own hardware:
+ *   - the system messages before the conversation become one;
+ *   - a later one becomes a note in the person's turn, marked as coming from the app, joined to the
+ *     user message before it when there is one (so turns still alternate).
+ * Hosted APIs take system messages anywhere and keep getting them as they are.
+ */
+export function oneSystemFirst(messages: ChatMessage[]): ChatMessage[] {
+  const lead = messages.findIndex((m) => m.role !== 'system');
+  const head = lead < 0 ? messages : messages.slice(0, lead);
+  const rest = lead < 0 ? [] : messages.slice(lead);
+  if (head.length <= 1 && !rest.some((m) => m.role === 'system')) return messages;
+  const out: ChatMessage[] = head.length ? [{ role: 'system', content: head.map((m) => m.content).join('\n\n') }] : [];
+  for (const m of rest) {
+    if (m.role !== 'system') {
+      out.push(m);
+      continue;
+    }
+    const note = /^\s*\[/.test(m.content) ? m.content.trim() : `[Note from the app, not from the person you are talking with: ${m.content.trim()}]`;
+    const prev = out.at(-1);
+    if (prev && prev.role === 'user') out[out.length - 1] = { ...prev, content: `${prev.content}\n\n${note}` };
+    else out.push({ role: 'user', content: note });
+  }
+  return out;
+}
+
 /** Phase 116: APIs known to refuse a user line straight after tool results (they fold steers). */
 export const strictToolOrder = (baseUrl: string): boolean => /api\.mistral\.ai/i.test(baseUrl);
 
@@ -113,6 +144,11 @@ export class OpenAICompatibleProvider implements Provider {
     this.#apiKey = apiKey;
   }
 
+  /** T44: a model server on the owner's own hardware (Ollama, LM Studio, vLLM…): its models' own chat templates apply. */
+  #ownHardware(): boolean {
+    return this.config.local === true || isOllama(this.config.baseUrl) || isDaemon(this.config.baseUrl);
+  }
+
   #headers(): Record<string, string> {
     const h: Record<string, string> = { 'content-type': 'application/json' };
     if (this.#apiKey) h.authorization = `Bearer ${this.#apiKey}`;
@@ -190,7 +226,7 @@ export class OpenAICompatibleProvider implements Provider {
       ...(req.redirect ? { redirect: req.redirect } : {}),
       body: JSON.stringify({
         model: req.model,
-        messages: toOpenAIMessages(req.messages, { strictToolOrder: strictToolOrder(this.config.baseUrl) }),
+        messages: toOpenAIMessages(this.#ownHardware() ? oneSystemFirst(req.messages) : req.messages, { strictToolOrder: strictToolOrder(this.config.baseUrl) }),
         stream: true,
         // Phase 52: ask for the token counts at the end of the stream (servers that don't know
         // the option ignore it).
@@ -304,7 +340,7 @@ export class OpenAICompatibleProvider implements Provider {
       signal: req.signal,
       body: JSON.stringify({
         model: req.model,
-        messages: toOllamaMessages(req.messages),
+        messages: toOllamaMessages(oneSystemFirst(req.messages)),
         stream: true,
         ...(req.tools?.length ? { tools: req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })) } : {}),
         options: { num_ctx: numCtx, ...(req.temperature !== undefined ? { temperature: req.temperature } : {}), ...(req.maxTokens !== undefined ? { num_predict: req.maxTokens } : {}) },

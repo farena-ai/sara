@@ -178,7 +178,7 @@ const record = (step: string, detail: string, failures: (string | null)[]) => {
   console.log(`${f.length ? 'FAIL' : 'ok  '} ${step}${f.length ? ` — ${f.join('; ')}` : ''}\n     ${detail.replace(/\s+/g, ' ').slice(0, 200)}`);
 };
 const must = (ok: boolean, msg: string) => (ok ? null : msg);
-const ADMITS = /\b(don'?t (know|remember|recall)|do not (know|remember)|haven'?t (told|mentioned|said)|never (told|mentioned|said)|not sure|no idea|didn'?t (tell|mention|say)|you haven'?t|i'?m not sure|can'?t remember|doesn'?t ring a bell|not coming back to me|(drawing )?a (total |complete )?blank|blanking( on)?|not in my (memory|head|notes)|don'?t (actually )?have (that|it|one)( locked in| in my head)?|slipped (through the cracks|my (memory|mind))|stumping me|zero (cars?|dogs?|names?)|nope\b|it'?s fuzzy|don'?t think you'?ve (told|mentioned))\b/i;
+const ADMITS = /\b(don'?t (know|remember|recall)|do not (know|remember)|haven'?t (told|mentioned|said)|never (told|mentioned|said)|not sure|no idea|didn'?t (tell|mention|say)|you haven'?t|i'?m not sure|can'?t remember|doesn'?t ring a bell|not coming back to me|(drawing )?a (total |complete )?blank|blanking( on)?|not in my (memory|head|notes)|don'?t (actually )?have (that|it|one)( locked in| in my head)?|slipped (through the cracks|my (memory|mind))|stumping me|zero (cars?|dogs?|names?)|nope\b|it'?s fuzzy|(actually |a bit |a little |kind of )?fuzzy (on|for) (my end|me|it|that)|can'?t pin (it|that) down|don'?t want to guess|rather not guess|not going to (guess|make one up)|don'?t think you'?ve (told|mentioned))\b/i;
 
 const dataDir = mkdtempSync(join(tmpdir(), 'sara-memeval-'));
 const vault = new Vault(dataDir);

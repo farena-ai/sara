@@ -22,6 +22,9 @@ function rig() {
 test('websearch: what counts as asking her to look something up', () => {
   for (const s of ['Find me a good beginner guide for the WoW warrior class', 'Can you look it up?', 'search the web for cheap flights', 'what is the latest news about the election', 'research heat pumps for me', 'look into this restaurant online']) assert.equal(wantsWeb(s), true, s);
   for (const s of ['Hi Sara, how are you?', 'Tell me about yourself', 'Plan my day with me', 'I had a lovely walk today']) assert.equal(wantsWeb(s), false, s);
+  // T43 (E5): the words alone are not an ask.
+  for (const s of ['My brother does cancer research in Boston.', 'I built a website for my bakery last year.', 'I was online all day and my eyes hurt.', "I can't find a reason to be upset with her.", 'I always look for the good in people.', 'We met on line at the post office.', 'The research was fun, I learned a lot.']) assert.equal(wantsWeb(s), false, s);
+  for (const s of ['Can you find out what time the pharmacy closes?', 'Please research the best e-readers.', 'look up the opening hours', 'Could you look into flights to Lisbon?', 'check their website for the price', 'find me a recipe for lentil soup', 'Any good reviews of the Kobo Clara?']) assert.equal(wantsWeb(s), true, s);
 });
 
 test('websearch: off + a look-it-up message = a notice with the button, and she is told not to promise', async () => {

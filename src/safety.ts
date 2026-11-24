@@ -39,14 +39,21 @@ const CRISIS_PATTERNS: RegExp[] = [
 const HURT_SELF = /\b(hurt|cut)\s+my\s*self\b/i;
 const ACCIDENT = /\b(?:gym|work(?:ing)?\s*out|lifting|running|jogging|training|practice|playing|football|soccer|chopp\w*|slic\w*|cook\w*|onions?|knife slipped|shav\w*|by accident|accidentally|fell|tripp\w*|slipp\w*|pulled (?:a|something|my)|sprain\w*|plasters?|band-?aids?|bandage)\b/i;
 const HURT_ON_PURPOSE = /\b(?:on purpose|again|want(?:ed)? to|urge|to feel|deserve|punish|worse)\b/i;
-const TOPIC = /\b(?:suicide|overdos(?:e|ed|es|ing))\b/i;
+const TOPIC = /\b(?:suicide|overdos(?:e|ed|es|ing))\b|(?<![\p{L}\p{N}])(?:sobredosis|überdosis)(?![\p{L}\p{N}])/iu;
+/** T44 (B3): a story or the news, in the other five languages (an overdose in a film is not the writer's). */
+const ELSEWHERE_I18N = /(?<![\p{L}\p{N}])(?:pel[ií]cula|serie|novela|libro|personaje|protagonista|noticias?|canci[oó]n|videojuego|film|s[ée]rie|roman|livre|personnage|actualit[ée]s?|chanson|jeu vid[ée]o|buch|hauptfigur|figur|nachrichten|lied|spiel|filme|livro|personagem|not[ií]cias?|m[uú]sica|jogo|libro|romanzo|personaggio|notizie|canzone|videogioco)(?![\p{L}\p{N}])/iu;
+/** The writer speaking of themselves, in those languages (then it counts, whatever else is said). */
+const FIRST_PERSON_I18N = /(?<![\p{L}\p{N}])(?:yo|me|mi|m[ií]o|m[ií]a|quiero|voy|je|j['’]|moi|mon|ma|mes|ich|mir|mich|mein(?:e[mnrs]?)?|eu|minha|meu|quero|vou|io|mio|mia|voglio)(?![\p{L}\p{N}])/iu;
 const ABOUT_ELSEWHERE = /\b(?:my (?:uncle|aunt|friend|brother|sister|dad|father|mom|mum|mother|cousin|neighbou?r|co-?worker|colleague|grand(?:pa|ma|father|mother)|son|daughter|husband|wife|partner|ex|patients?)|a friend|(?:he|she|they)\b|his|her|their|the (?:film|movie|book|novel|show|series|play|character|song|game|news|article|documentary|podcast|ward|city|country|numbers|statistics|rate)|patients?|attempts? (?:came|come)|generals?|history|centur(?:y|ies)|years ago|when i was (?:a kid|a child|young|little|\d+|ten|twelve)|prevention|awareness|hotline volunteer)\b/i;
 const ABOUT_ME = /\b(?:i(?:'m| am| was|'ve| have|'ve been| have been| keep| feel| felt| want| might| may| will| could| can't stop)?\s+(?:still\s+|really\s+|been\s+)?(?:thinking|considering|contemplating|planning|researching|googling|looking up)\b[^.!?]{0,40}\b(?:suicide|suicidal|overdos\w*|kill\w*|end(?:ing)? (?:it|my)|die|dying)|my own (?:suicide|overdose|death)|(?:commit|attempt|try|tried) suicide|(?:i|i'll|i will|i'm going to|i want to|i might|i could|let me)\s+(?:just\s+)?(?:take an? )?overdos|suicide (?:is|seems|feels|looks) (?:the|my|an?)|suicide note|thoughts? of suicide|suicidal)\b/i;
 
 /** The English patterns that need a second look (see above). */
 function crisisInContext(text: string): boolean {
   if (HURT_SELF.test(text) && (!ACCIDENT.test(text) || HURT_ON_PURPOSE.test(text))) return true;
-  if (TOPIC.test(text) && (!ABOUT_ELSEWHERE.test(text) || ABOUT_ME.test(text))) return true;
+  if (TOPIC.test(text)) {
+    const elsewhere = ABOUT_ELSEWHERE.test(text) || (ELSEWHERE_I18N.test(text) && !FIRST_PERSON_I18N.test(text));
+    if (!elsewhere || ABOUT_ME.test(text)) return true;
+  }
   return false;
 }
 
@@ -64,15 +71,15 @@ function stems(source: string): RegExp {
 
 const CRISIS_I18N: RegExp[] = [
   // Spanish
-  words("suicid(?:io|arme|arse|a|as)|quiero morir(?:me)?|matarme|quitarme la vida|acabar con mi vida|hacerme daño|cortarme|no quiero (?:seguir )?vivir|mejor muert[oa]|no tengo (?:ninguna )?razón para vivir|sobredosis"),
+  words("suicid(?:io|arme|arse|a|as)|quiero morir(?:me)?|matarme|quitarme la vida|acabar con mi vida|hacerme daño|cortarme|me (?:quiero|voy a|dan ganas de) (?:cortar|matar|hacer daño)|no quiero (?:seguir )?vivir|mejor muert[oa]|no tengo (?:ninguna )?razón para vivir"),
   // French
-  words("suicid(?:er|aires?)|me suicider|je veux mourir|me tuer|mettre fin à (?:ma vie|mes jours)|me faire du mal|me scarifier|je ne veux plus vivre|mieux mort(?:e)?|aucune raison de vivre"),
+  words("suicid(?:er|aires?)|me suicider|je veux mourir|me tuer|mettre fin à (?:ma vie|mes jours)|me (?:re)?faire du mal|me scarifier|je ne veux plus vivre|mieux mort(?:e)?|aucune raison de vivre"),
   // German
-  words("selbstmord|suizid(?:al)?|mich umbringen|ich will sterben|(?:mir|mich) das leben nehmen|mich (?:selbst )?verletzen|mich ritzen|will nicht mehr leben|lieber tot|keinen grund (?:mehr )?zu leben|überdosis"),
+  words("selbstmord|suizid(?:al)?|mich (?:wieder |noch ?mal |selbst )?umbringen|ich will sterben|(?:mir|mich) das leben nehmen|mich (?:wieder |noch ?mal |selbst )?verletzen|mich (?:wieder |noch ?mal |selbst )?ritzen|will nicht mehr leben|lieber tot|keinen grund (?:mehr )?zu leben"),
   // Portuguese
-  words("suicíd?io|suicidar|me matar|matar-me|tirar (?:a )?minha (?:própria )?vida|quero morrer|me machucar|me cortar|me ferir|não quero (?:mais )?viver|melhor mort[oa]|nenhum motivo para viver"),
+  words("suicíd?io|suicidar|me matar|matar-me|tirar (?:a )?minha (?:própria )?vida|quero morrer|me machucar|me cortar|me ferir|me (?:quero|vou) (?:cortar|matar|machucar|ferir)|não quero (?:mais )?viver|melhor mort[oa]|nenhum motivo para viver"),
   // Italian
-  words("suicid(?:io|armi|arsi)|voglio morire|uccidermi|ammazzarmi|togliermi la vita|farmi del male|tagliarmi|non voglio (?:più )?vivere|meglio mort[oa]|nessun motivo per vivere"),
+  words("suicid(?:io|armi|arsi)|voglio morire|uccidermi|ammazzarmi|togliermi la vita|farmi del male|tagliarmi|mi (?:voglio|vorrei) (?:tagliare|uccidere|ammazzare|fare del male)|non voglio (?:più )?vivere|meglio mort[oa]|nessun motivo per vivere"),
 ];
 
 export function detectCrisis(text: string): boolean {

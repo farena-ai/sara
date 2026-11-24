@@ -26,6 +26,11 @@ week or more). Items marked **owner** need him: a device, an account, a decision
 
 ---
 
+**Status 2026-11-24** (owner: "Run all tracks in roadmap, anything that needs human add to the human
+roadmap and push those until the end"): a first pass is in 3.43.0. Done, measured-and-left, and
+still open are listed in docs/BACKLOG.md under "T43"; everything that needs him is in
+docs/HUMAN_ROADMAP.md.
+
 ## Track A: run it for real (first, and before any new feature)
 
 | # | Item | Why | Done when | Size |
