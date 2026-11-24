@@ -22824,11 +22824,6 @@
 "Ctrl/Cmd+Enter to ask · Enter for a new line · Esc to close": "Strg/Cmd+Enter zum Fragen · Enter für eine neue Zeile · Esc zum Schließen",
 "Copy this message": "Diese Nachricht kopieren",
 "More shortcuts: <code>Ctrl/⌘ Shift O</code> new chat, <code>Shift Esc</code> back to the message box. Double-click a chat's title to rename it. Unsent text stays with its chat until you send it or close the tab.": "Weitere Tastenkürzel: <code>Ctrl/⌘ Shift O</code> neuer Chat, <code>Shift Esc</code> zurück ins Nachrichtenfeld. Doppelklick auf den Titel eines Chats benennt ihn um. Nicht gesendeter Text bleibt bei seinem Chat, bis du ihn sendest oder den Tab schließt.",
-  "Enter sends, stocks on Today, smoother chat, fresh look": "Enter sendet, Aktien auf Heute, flüssigerer Chat, frisches Aussehen",
-  "A Stocks tile on Today with charts, and trackers you add right there.": "Eine Aktien-Kachel auf Heute mit Diagrammen und Trackern, die du direkt dort hinzufügst.",
-  "Enter sends your message and Shift+Enter starts a new line, everywhere you type to her.": "Enter sendet deine Nachricht und Umschalt+Enter beginnt eine neue Zeile, überall wo du ihr schreibst.",
-  "The page no longer freezes while she writes a long reply in a long chat.": "Die Seite friert nicht mehr ein, während sie in einem langen Chat eine lange Antwort schreibt.",
-  "Asking her for something long (a full build prompt or document) no longer ends the turn.": "Etwas Langes anzufordern (einen ganzen Prompt oder ein Dokument) beendet den Zug nicht mehr.",
   "Press Enter to send": "Drück Enter zum Senden",
   "Type a message, press Shift+Enter for a second line, then press Enter.": "Tipp eine Nachricht, drück Umschalt+Enter für eine zweite Zeile, dann Enter.",
   "Both lines go as one message; Enter sends on your phone keyboard too.": "Beide Zeilen gehen als eine Nachricht raus; Enter sendet auch auf der Handytastatur.",
@@ -22907,5 +22902,14 @@
   "Worked and Did not work on each item of What's new, for you.": "Hat geklappt und Hat nicht geklappt bei jedem Punkt von „Was ist neu“, für dich.",
   "Models on your own computer that failed every time with \"had a problem on its side (HTTP 500)\" after Ollama updated itself.": "Modelle auf deinem eigenen Computer, die nach einer Selbstaktualisierung von Ollama jedes Mal mit „hatte ein Problem auf seiner Seite (HTTP 500)“ fehlschlugen.",
   "An Ollama Cloud model used through Ollama on your computer is no longer counted as \"free, all on this computer\" in Usage and costs.": "Ein Ollama-Cloud-Modell, das über Ollama auf deinem Computer läuft, zählt unter Nutzung und Kosten nicht mehr als „kostenlos, alles auf diesem Computer“.",
-  "The \"I can't search the web yet\" notice no longer appears for ordinary sentences (\"my brother does research\", \"I built a website\").": "Der Hinweis „Ich kann noch nicht im Web suchen“ erscheint nicht mehr bei gewöhnlichen Sätzen („mein Bruder forscht“, „ich habe eine Website gebaut“)."
+  "The \"I can't search the web yet\" notice no longer appears for ordinary sentences (\"my brother does research\", \"I built a website\").": "Der Hinweis „Ich kann noch nicht im Web suchen“ erscheint nicht mehr bei gewöhnlichen Sätzen („mein Bruder forscht“, „ich habe eine Website gebaut“).",
+  "Replies from a model on your own computer are no longer cut off": "Antworten eines Modells auf deinem eigenen Computer werden nicht mehr abgeschnitten",
+  "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\".": "Antworten eines Modells auf deinem eigenen Computer (Ollama), die mittendrin aufhörten, leer zurückkamen oder mit „request exceeds the available context size“ fehlschlugen.",
+  "An embedding model too slow for your computer no longer keeps the processor busy for ever.": "Ein Embedding-Modell, das für deinen Computer zu langsam ist, hält den Prozessor nicht mehr endlos beschäftigt.",
+  "Run the Hard talk check on your talking model": "Mach den Test für schwere Gespräche mit deinem Gesprächsmodell",
+  "On the Talking row, press Hard talk check and wait about a minute.": "Drücke in der Zeile Gespräch auf Test für schwere Gespräche und warte etwa eine Minute.",
+  "A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.": "Ein einfacher Satz über dein Modell: Es bleibt bei jemandem, der traurig ist, es verteilt Krisentelefone zu früh oder es übersieht echte Gefahr.",
+  "Set a thinking level for one conversation": "Stelle eine Denkstufe für eine einzelne Unterhaltung ein",
+  "Open a chat’s own settings and pick Thorough under Thinking level.": "Öffne die Einstellungen des Chats und wähle Gründlich unter Denkstufe.",
+  "That conversation thinks longer before it answers; your other chats keep the level from Settings.": "Diese Unterhaltung denkt länger nach, bevor sie antwortet; deine anderen Chats behalten die Stufe aus den Einstellungen."
 }

@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { closeSync, copyFileSync, createReadStream, existsSync, mkdirSync, openSync, readFileSync, readSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { type EmbedTarget, embedTexts } from '../embeddings.ts';
+import { type EmbedTarget, embedPaced, embedTexts } from '../embeddings.ts';
 import { ftsQuery } from '../memory.ts';
 import type { Settings } from '../settings.ts';
 import { exactScores, VectorIndex } from './vectors.ts';
@@ -1064,7 +1064,8 @@ export class LibraryStore {
     if (!todo.length) return 0;
     try {
       const doc = (t: string) => (/nomic-embed/i.test(target.model) ? `search_document: ${t}` : t);
-      const vecs = await embedTexts(target, todo.map((p) => doc(`${p.heading ? `${p.heading}\n` : ''}${p.text}`.slice(0, 6000))));
+      const vecs = await embedPaced(target, todo.map((p) => doc(`${p.heading ? `${p.heading}\n` : ''}${p.text}`.slice(0, 6000))));
+      todo.length = vecs.length;
       const put = this.db.prepare('INSERT INTO library_vectors (passage_id, model, vec) VALUES (?, ?, ?) ON CONFLICT(passage_id) DO UPDATE SET model = excluded.model, vec = excluded.vec');
       this.db.exec('BEGIN');
       todo.forEach((p, i) => put.run(p.id, target.model, new Uint8Array(vecs[i].buffer)));

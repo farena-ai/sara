@@ -9,7 +9,7 @@ import { isPlainFileInside, readInsideNoFollow, readTextInside } from './safe-re
 import { existsSync, lstatSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { join, posix } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { cosine, type EmbedTarget, embedTexts } from '../embeddings.ts';
+import { cosine, type EmbedTarget, embedPaced, embedTexts } from '../embeddings.ts';
 import { ftsQuery } from '../memory.ts';
 import { chunkLines, extract, identWords, type Imp, type Lang, langOf } from './extract.ts';
 import { IgnoreRules } from './ignore.ts';
@@ -682,7 +682,8 @@ export class CodeMapStore {
     if (!todo.length) return 0;
     try {
       const doc = (t: string) => (/nomic-embed/i.test(target.model) ? `search_document: ${t}` : t);
-      const vecs = await embedTexts(target, todo.map((c) => doc(`${c.path}${c.symbol ? ` · ${c.symbol}` : ''}\n${String(c.text).slice(0, 3000)}`)), signal);
+      const vecs = await embedPaced(target, todo.map((c) => doc(`${c.path}${c.symbol ? ` · ${c.symbol}` : ''}\n${String(c.text).slice(0, 3000)}`)), signal);
+      todo.length = vecs.length;
       const put = this.#write('INSERT INTO chunk_vectors (chunk_id, model, vec) VALUES (?, ?, ?) ON CONFLICT(chunk_id) DO UPDATE SET model = excluded.model, vec = excluded.vec');
       // The chunks may have been re-indexed while the model was working: keep only those still here.
       const still = this.db.prepare('SELECT 1 FROM chunks WHERE id = ?');

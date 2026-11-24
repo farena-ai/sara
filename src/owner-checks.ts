@@ -27,9 +27,12 @@ export interface OwnerCheck {
 }
 
 /** Newest first in the app; every release here has at least one item (test/u1check-owner-checks). */
-export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0'];
+export const CHECK_RELEASES = ['3.15.0', '3.16.0', '3.17.0', '3.18.0', '3.18.1', '3.18.2', '3.19.0', '3.20.0', '3.21.0', '3.22.0', '3.22.1', '3.23.0', '3.24.0', '3.31.0', '3.32.0', '3.33.0', '3.34.0', '3.35.0', '3.36.0', '3.43.0'];
 
 export const CHECKS: OwnerCheck[] = [
+  // 3.43.0
+  { id: 'hard-talk-check', release: '3.43.0', title: en('Run the Hard talk check on your talking model'), steps: [en('On the Talking row, press Hard talk check and wait about a minute.')], view: '#view=settings:models-routes', expect: en('A plain sentence about your model: it stays with someone who is sad, it hands out hotlines too soon, or it misses real danger.') },
+  { id: 'chat-thinking', release: '3.43.0', title: en('Set a thinking level for one conversation'), steps: [en('Open a chat’s own settings and pick Thorough under Thinking level.')], view: '#view=msgs', expect: en('That conversation thinks longer before it answers; your other chats keep the level from Settings.') },
   // 3.36.0
   { id: 'long-document', release: '3.36.0', title: en('Ask for a long document'), steps: [en('Send the message below in any chat.')], ask: en('Write me a full, detailed build prompt for a small to-do app.'), expect: en('She writes it all and finishes the turn; the page stays smooth while she writes.') },
   { id: 'enter-sends', release: '3.36.0', title: en('Press Enter to send'), steps: [en('Type a message, press Shift+Enter for a second line, then press Enter.')], view: '#view=settings:you-appearance', expect: en('Both lines go as one message; Enter sends on your phone keyboard too.') },

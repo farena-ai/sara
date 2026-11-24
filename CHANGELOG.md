@@ -5,6 +5,11 @@ Format: newest first. Semantic versions since 1.0.0 (before that `0.<phase>.<pat
 
 ## Unreleased
 
+## 3.43.1 (2026-11-24): Replies from a model on your own computer are no longer cut off
+
+- Fixed: replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with "request exceeds the available context size". Sara now checks each message to such a model against the room it has: it asks for more room when her instructions and tools alone need it, and leaves out the oldest part of a long conversation so the reply always has space.
+- Fixed: an embedding model too slow for your computer no longer keeps the processor busy for ever. Its work is cut into smaller pieces until one fits, what is finished is kept, and when even one note takes over a minute Sara stops trying for a while and says the model is too slow (Settings → Models & usage).
+
 ## 3.43.0 (2026-11-24): A check-up for your talking model, a thinking level for each chat
 
 - Fixed: models on your own computer that failed every time with "had a problem on its side (HTTP 500)" after Ollama updated itself. Newer Ollama versions hold a model to its own chat format, and some formats (the Qwen family) refuse a second instruction message. She now sends one, first.

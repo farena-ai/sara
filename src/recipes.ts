@@ -7,7 +7,7 @@
 import { createHash } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppContext } from './chat.ts';
-import { cosine, embedTarget, type EmbedTarget, embedTexts, turnEmbedTarget } from './embeddings.ts';
+import { cosine, embedPaced, embedTarget, type EmbedTarget, embedTexts, turnEmbedTarget } from './embeddings.ts';
 import { ftsQuery } from './memory.ts';
 import { num, str, ToolError, type Tool } from './tools/types.ts';
 import { WORKSPACE_NAME_RE } from './tools/workspace.ts';
@@ -215,7 +215,8 @@ export class RecipeStore {
     const todo = this.list().filter((r) => have.get(r.id) !== sigOf(target.model, r)).slice(0, 64);
     if (!todo.length) return 0;
     const doc = (t: string) => (/nomic-embed/i.test(target.model) ? `search_document: ${t}` : t);
-    const vecs = await embedTexts(target, todo.map((r) => doc(`${r.title}\nWhen: ${r.whenToUse}\n${r.steps.slice(0, 1500)}`)), signal);
+    const vecs = await embedPaced(target, todo.map((r) => doc(`${r.title}\nWhen: ${r.whenToUse}\n${r.steps.slice(0, 1500)}`)), signal);
+    todo.length = vecs.length;
     const put = this.db.prepare('INSERT INTO recipe_vectors (recipe_id, model, sig, vec) VALUES (?, ?, ?, ?) ON CONFLICT(recipe_id) DO UPDATE SET model = excluded.model, sig = excluded.sig, vec = excluded.vec');
     todo.forEach((r, i) => put.run(r.id, target.model, sigOf(target.model, r), new Uint8Array(vecs[i].buffer)));
     return todo.length;

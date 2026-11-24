@@ -103,6 +103,67 @@ const daemonRoot = (baseUrl: string) => baseUrl.replace(/\/+$/, '').replace(/\/v
  * chores included) asks for the same, so Ollama doesn't reload the model between calls.
  */
 const ollamaCtx = new Map<string, number>();
+/**
+ * What a call to Ollama on the owner's hardware needs, against the context it asks for. Found on the
+ * owner's server (2026-11-24): her instructions and the tools were about 17,000 tokens where the
+ * budget assumed 12,000 at most, so a 32,768 context was full before the reply began (cut-off
+ * replies), and a call sized 8,192 because the card was not known yet was refused outright ("request
+ * (20776 tokens) exceeds the available context size"). The budget is a guess made before the
+ * prompt exists; this is the check made on the prompt itself.
+ */
+export const OLLAMA_FIT = { charsPerToken: 3, perMessage: 8, raiseTo: 65_536, steps: [16_384, 32_768, 49_152, 65_536], historyFloor: 4_096 };
+/** Tokens per character seen for a daemon + model (its own prompt_eval_count), never below the default. */
+const ollamaDensity = new Map<string, number>();
+/** A context once raised for a daemon + model stays raised, so the model is not reloaded back and forth. */
+const ollamaRaised = new Map<string, number>();
+
+export interface OllamaFit {
+  messages: ChatMessage[];
+  numCtx: number;
+  /** Older messages left out of this call so the reply has room. */
+  dropped: number;
+}
+
+/**
+ * Makes one call fit: first a bigger context when her instructions, the tools and the newest message
+ * alone do not fit (up to OLLAMA_FIT.raiseTo), then the oldest messages left out, whole exchanges
+ * at a time, until the rest fits with room for a reply. The first message when it is a system
+ * message, and everything from the newest message of the person on, always stay.
+ */
+export function fitOllamaCall(messages: ChatMessage[], toolsChars: number, numCtx: number, o: { tokensPerChar?: number; maxTokens?: number } = {}): OllamaFit {
+  const tpc = Math.max(1 / OLLAMA_FIT.charsPerToken, o.tokensPerChar ?? 0);
+  const cost = (m: ChatMessage): number => Math.ceil(((m.content?.length ?? 0) + ('toolCalls' in m && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0)) * tpc) + OLLAMA_FIT.perMessage;
+  const head = messages[0]?.role === 'system' ? 1 : 0;
+  let lastUser = messages.length - 1;
+  while (lastUser > head && messages[lastUser]!.role !== 'user') lastUser--;
+  if (lastUser < head) lastUser = head;
+  const sum = (from: number, to: number): number => messages.slice(from, to).reduce((n, m) => n + cost(m), 0);
+  const fixed = sum(0, head) + Math.ceil(toolsChars * tpc) + sum(lastUser, messages.length);
+  const history = sum(head, lastUser);
+  const reserveFor = (ctx: number): number => Math.max(1_024, Math.min(o.maxTokens ?? 4_096, 4_096, Math.round(ctx * 0.15)));
+  let ctx = numCtx;
+  const floor = fixed + reserveFor(ctx) + Math.min(history, OLLAMA_FIT.historyFloor);
+  // Only what must be there raises the context (a small one is chosen on purpose for a processor); history is cut to fit.
+  if (fixed + reserveFor(ctx) > ctx) ctx = Math.max(ctx, OLLAMA_FIT.steps.find((n) => n >= floor) ?? OLLAMA_FIT.raiseTo);
+  let from = head;
+  let left = history;
+  while (from < lastUser && fixed + left + reserveFor(ctx) > ctx) {
+    // One exchange at a time: up to the next message of the person, so no tool result loses its call.
+    let next = from + 1;
+    while (next < lastUser && messages[next]!.role !== 'user') next++;
+    left -= sum(from, next);
+    from = next;
+  }
+  if (from === head) return { messages, numCtx: ctx, dropped: 0 };
+  return { messages: [...messages.slice(0, head), ...messages.slice(from)], numCtx: ctx, dropped: from - head };
+}
+
+/** Tests: forget what was learned about density and raised contexts. */
+export function resetOllamaFit(): void {
+  ollamaDensity.clear();
+  ollamaRaised.clear();
+}
+
 /** Daemons whose /api/chat failed (an old Ollama or another server on that port): /v1 from then on. */
 const noNativeChat = new Set<string>();
 
@@ -334,15 +395,22 @@ export class OpenAICompatibleProvider implements Provider {
   async #ollamaChat(req: ChatRequest, numCtx: number): Promise<AsyncIterable<StreamEvent> | undefined> {
     const root = daemonRoot(this.config.baseUrl);
     const think = req.reasoning === undefined ? undefined : req.reasoning === 'none' ? false : /gpt-oss/i.test(req.model) ? req.reasoning : true;
+    const fitKey = `${root}|${req.model}`;
+    const toolsBody = req.tools?.length ? req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })) : undefined;
+    const toolsChars = toolsBody ? JSON.stringify(toolsBody).length : 0;
+    const fit = fitOllamaCall(oneSystemFirst(req.messages), toolsChars, Math.max(numCtx, ollamaRaised.get(fitKey) ?? 0), { tokensPerChar: ollamaDensity.get(fitKey), maxTokens: req.maxTokens });
+    if (fit.numCtx > numCtx) ollamaRaised.set(fitKey, fit.numCtx);
+    const sentChars = fit.messages.reduce((n, m) => n + (m.content?.length ?? 0) + ('toolCalls' in m && m.toolCalls ? JSON.stringify(m.toolCalls).length : 0), 0) + toolsChars;
+    numCtx = fit.numCtx;
     const res = await reach(this.config, `${root}/api/chat`, {
       method: 'POST',
       headers: this.#headers(),
       signal: req.signal,
       body: JSON.stringify({
         model: req.model,
-        messages: toOllamaMessages(oneSystemFirst(req.messages)),
+        messages: toOllamaMessages(fit.messages),
         stream: true,
-        ...(req.tools?.length ? { tools: req.tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } })) } : {}),
+        ...(toolsBody ? { tools: toolsBody } : {}),
         options: { num_ctx: numCtx, ...(req.temperature !== undefined ? { temperature: req.temperature } : {}), ...(req.maxTokens !== undefined ? { num_predict: req.maxTokens } : {}) },
         ...(think !== undefined ? { think } : {}),
         ...(req.json ? { format: req.json.schema } : {}),
@@ -405,6 +473,10 @@ export class OpenAICompatibleProvider implements Provider {
           n++;
         }
         if (j.done) {
+          // What this model really makes of a character: the next call is sized by it (only ever denser,
+          // and not from a prompt Ollama cut to fit, which says nothing).
+          const seen = Number(j.prompt_eval_count ?? 0);
+          if (seen > 500 && seen < numCtx * 0.95 && sentChars > 2_000) ollamaDensity.set(fitKey, Math.max(ollamaDensity.get(fitKey) ?? 0, Math.min(1, seen / sentChars)));
           if (thought) yield { type: 'reasoning', chars: thought };
           if (j.prompt_eval_count !== undefined || j.eval_count !== undefined) yield { type: 'usage', input: Number(j.prompt_eval_count ?? 0), output: Number(j.eval_count ?? 0) };
           break;

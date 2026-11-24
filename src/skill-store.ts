@@ -17,7 +17,7 @@ import { randomBytes } from 'node:crypto';
 import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { cosine, embedTexts, type EmbedTarget } from './embeddings.ts';
+import { cosine, embedPaced, embedTexts, type EmbedTarget } from './embeddings.ts';
 import { writeFileAtomic } from './fs-util.ts';
 import { ftsQuery } from './memory.ts';
 import { fromFolder, hashFiles, isScriptPath, PackageError, type PackageFile, type PackageFinding, scanPackage, SKILL_LIMITS, skillRoots, writePackage } from './packages.ts';
@@ -630,7 +630,8 @@ export class SkillStore {
     const todo = views.filter((v) => have.get(`${v.scope}|${v.name}`) !== sigOf(v)).slice(0, 64);
     if (!todo.length) return;
     const doc = (t: string) => (/nomic-embed/i.test(target.model) ? `search_document: ${t}` : t);
-    const vecs = await embedTexts(target, todo.map((v) => doc(`${v.name.replace(/-/g, ' ')}\n${v.description}`)), signal);
+    const vecs = await embedPaced(target, todo.map((v) => doc(`${v.name.replace(/-/g, ' ')}\n${v.description}`)), signal);
+    todo.length = vecs.length;
     const put = this.db.prepare('INSERT INTO skill_vectors (scope, name, model, sig, vec) VALUES (?, ?, ?, ?, ?) ON CONFLICT(scope, name) DO UPDATE SET model = excluded.model, sig = excluded.sig, vec = excluded.vec');
     todo.forEach((v, i) => put.run(v.scope, v.name, target.model, sigOf(v), new Uint8Array(vecs[i].buffer)));
   }

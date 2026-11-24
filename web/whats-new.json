@@ -2,6 +2,23 @@
  "format": "sara-whats-new/1",
  "releases": [
   {
+   "version": "3.43.1",
+   "date": "2026-11-24",
+   "title": "Replies from a model on your own computer are no longer cut off",
+   "items": [
+    {
+     "id": "3-43-1-replies-from-a-model-on",
+     "kind": "fixed",
+     "text": "Replies from a model on your own computer (Ollama) that stopped in the middle, came back empty, or failed with \"request exceeds the available context size\"."
+    },
+    {
+     "id": "3-43-1-an-embedding-model-too-slow",
+     "kind": "fixed",
+     "text": "An embedding model too slow for your computer no longer keeps the processor busy for ever."
+    }
+   ]
+  },
+  {
    "version": "3.43.0",
    "date": "2026-11-24",
    "title": "A check-up for your talking model, a thinking level for each chat",
@@ -11,12 +28,19 @@
      "kind": "new",
      "text": "A Hard talk check for your talking model (Settings → Models & usage → Which model does what).",
      "link": "#view=msgs",
-     "owner": true
+     "owner": true,
+     "try": [
+      "chat-thinking",
+      "hard-talk-check"
+     ]
     },
     {
      "id": "3-43-0-a-thinking-level-for-one",
      "kind": "new",
-     "text": "A thinking level for one conversation. In a chat's own settings pick Quick, Balanced or Thorough for that chat; Same as Settings follows the level you set for everything."
+     "text": "A thinking level for one conversation. In a chat's own settings pick Quick, Balanced or Thorough for that chat; Same as Settings follows the level you set for everything.",
+     "try": [
+      "chat-thinking"
+     ]
     },
     {
      "id": "3-43-0-worked-and-did-not-work",
@@ -224,42 +248,6 @@
      "kind": "fixed",
      "text": "Backups take a safe snapshot of every database, not only the main one.",
      "link": "#view=health"
-    }
-   ]
-  },
-  {
-   "version": "3.36.0",
-   "date": "2026-11-20",
-   "title": "Enter sends, stocks on Today, smoother chat, fresh look",
-   "items": [
-    {
-     "id": "3-36-0-a-stocks-tile-on-today",
-     "kind": "new",
-     "text": "A Stocks tile on Today with charts, and trackers you add right there.",
-     "try": [
-      "stocks-today"
-     ]
-    },
-    {
-     "id": "3-36-0-enter-sends-your-message-and",
-     "kind": "fixed",
-     "text": "Enter sends your message and Shift+Enter starts a new line, everywhere you type to her.",
-     "link": "#view=msgs",
-     "owner": true,
-     "try": [
-      "enter-sends"
-     ]
-    },
-    {
-     "id": "3-36-0-the-page-no-longer-freezes",
-     "kind": "fixed",
-     "text": "The page no longer freezes while she writes a long reply in a long chat."
-    },
-    {
-     "id": "3-36-0-asking-her-for-something-long",
-     "kind": "fixed",
-     "text": "Asking her for something long (a full build prompt or document) no longer ends the turn.",
-     "link": "#view=library"
     }
    ]
   }

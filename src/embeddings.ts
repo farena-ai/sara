@@ -60,6 +60,54 @@ export async function embedTexts(t: EmbedTarget, texts: string[], signal?: Abort
   return data.sort((a, b) => (a.index ?? 0) - (b.index ?? 0)).map((d) => normalize(Float32Array.from(d.embedding!)));
 }
 
+/**
+ * How many texts one background index call may carry for a model, learned from how it went. A model
+ * too slow for the computer (bge-m3 on a busy server without a graphics card took over a minute for
+ * a batch, every minute, for ever) gets smaller batches until one fits, and a rest when even one
+ * text does not.
+ */
+export const PACE = { limitMs: 60_000, slowMs: 30_000, quickMs: 10_000, afterTimeout: 4, restMs: 10 * 60_000 };
+const paces = new Map<string, { size: number; restUntil: number }>();
+const paceKey = (t: EmbedTarget) => `${t.config.baseUrl ?? t.config.id}|${t.model}`;
+
+/** Forgets what was learned (tests; a changed model starts fresh by its key anyway). */
+export function resetEmbedPace(): void {
+  paces.clear();
+}
+
+export function embedPace(t: EmbedTarget): { size: number; resting: boolean } {
+  const p = paces.get(paceKey(t));
+  return { size: p?.size ?? Infinity, resting: !!p && p.restUntil > Date.now() };
+}
+
+/**
+ * For the background indexes: vectors for the FIRST texts, as many as this model manages in one
+ * call on this computer. The caller stores what came back and the rest waits for the next round.
+ */
+export async function embedPaced(t: EmbedTarget, texts: string[], signal?: AbortSignal, now: () => number = Date.now): Promise<Float32Array[]> {
+  if (!texts.length) return [];
+  const key = paceKey(t);
+  const pace = paces.get(key) ?? { size: Infinity, restUntil: 0 };
+  if (pace.restUntil > now()) throw new Error(`${t.model} is too slow on this computer for Meaning search: one note took over a minute. Pick a smaller embedding model (nomic-embed-text is a good one).`);
+  const n = Math.min(texts.length, pace.size);
+  const limit = AbortSignal.timeout(PACE.limitMs);
+  const t0 = now();
+  try {
+    const vecs = await embedTexts(t, texts.slice(0, n), signal ? AbortSignal.any([signal, limit]) : limit);
+    const ms = now() - t0;
+    if (ms > PACE.slowMs) paces.set(key, { size: Math.max(1, Math.floor(n / 2)), restUntil: 0 });
+    else if (ms < PACE.quickMs && Number.isFinite(pace.size)) paces.set(key, { size: pace.size * 2 >= 64 ? Infinity : pace.size * 2, restUntil: 0 });
+    return vecs;
+  } catch (err) {
+    // Only our own time limit teaches anything: a caller who gave up or a refused call says nothing about speed.
+    if (limit.aborted && !signal?.aborted) {
+      if (n <= 1) paces.set(key, { size: 1, restUntil: now() + PACE.restMs });
+      else paces.set(key, { size: Math.min(Math.floor(n / 2), Number.isFinite(pace.size) ? Math.floor(n / 2) : PACE.afterTimeout), restUntil: 0 });
+    }
+    throw err;
+  }
+}
+
 function normalize(v: Float32Array): Float32Array {
   let n = 0;
   for (const x of v) n += x * x;
@@ -133,7 +181,8 @@ export class MemoryVectors {
     const todo = this.#candidates().filter((m) => have.get(m.id) !== sig(m)).slice(0, limit);
     if (!todo.length) return 0;
     try {
-      const vecs = await embedTexts(t, todo.map((m) => prefixed(t.model, 'doc', m.content)));
+      const vecs = await embedPaced(t, todo.map((m) => prefixed(t.model, 'doc', m.content)));
+      todo.length = vecs.length;
       const put = this.#db.prepare('INSERT INTO memory_vectors (memory_id, model, sig, vec) VALUES (?, ?, ?, ?) ON CONFLICT(memory_id) DO UPDATE SET model = excluded.model, sig = excluded.sig, vec = excluded.vec');
       todo.forEach((m, i) => put.run(m.id, t.model, sig(m), new Uint8Array(vecs[i].buffer)));
       this.#cache = undefined;
